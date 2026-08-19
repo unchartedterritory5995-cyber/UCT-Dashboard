@@ -95,6 +95,21 @@ describe('NoteEditorPage editor toolbar row', () => {
   })
 })
 
+describe('NoteEditorPage widget palette', () => {
+  it('the toolbar row opens the insert palette; closing it works', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const { fireEvent } = await import('@testing-library/react')
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
+    expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Insert widget' }))
+    const panel = screen.getByRole('dialog', { name: 'Insert widget' })
+    expect(within(panel).getByText('Chart')).toBeInTheDocument()
+    fireEvent.click(within(panel).getByLabelText('Close insert panel'))
+    expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
+  })
+})
+
 describe('NoteEditorPage chart-settings stamp', () => {
   it('wires stampChartSettings with the live editor once it exists', async () => {
     const NoteEditorPage = (await import('./NoteEditorPage')).default

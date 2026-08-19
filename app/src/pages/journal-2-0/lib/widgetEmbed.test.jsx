@@ -834,3 +834,47 @@ describe('WidgetEmbedView — Sync from my chart', () => {
     expect(screen.queryAllByText('Sync')).toHaveLength(1) // still only the chart embed's
   })
 })
+
+// ── chartInsertNodes — ONE builder for every chart insert (slash + palette) ──
+// The slash commands and the widget palette must share one node builder, or
+// the insert payload becomes the next "one grammar, four hand-written copies".
+describe('chartInsertNodes', () => {
+  const SETTINGS = { background: '#abc123' }
+
+  it('chart: one node carrying symbol/tf/day/settings', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('chart', { symbol: 'AMD', tf: '15', day: '2026-03-13' }, SETTINGS)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0].type).toBe('widgetEmbed')
+    expect(nodes[0].attrs.params).toMatchObject({ symbol: 'AMD', tf: '15', to: '2026-03-13' })
+    expect(nodes[0].attrs.params.settings).toEqual(SETTINGS)
+  })
+
+  it('chart with no day stamps the insert moment (frozen means anchored)', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [node] = chartInsertNodes('chart', { symbol: 'AMD', tf: 'D', day: null }, null)
+    expect(Math.abs(Date.now() / 1000 - Number(node.attrs.params.to))).toBeLessThan(60)
+  })
+
+  it('mtf: three nodes, top-down D/60/15, all anchored at the day', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('mtf', { symbol: 'NVDA', day: '2026-03-13' }, SETTINGS)
+    expect(nodes.map((n) => n.attrs.params.tf)).toEqual(['D', '60', '15'])
+    nodes.forEach((n) => {
+      expect(n.attrs.params.symbol).toBe('NVDA')
+      expect(n.attrs.params.to).toBe('2026-03-13')
+      expect(n.attrs.params.settings).toEqual(SETTINGS)
+    })
+  })
+
+  it('compare: half-width before/after pair — before anchored, after explicitly rolling', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [before, after] = chartInsertNodes('compare', { symbol: 'AMD', tf: 'D', day: '2026-03-13' }, null)
+    expect(before.attrs.params.to).toBe('2026-03-13')
+    expect(before.attrs.layout.width).toBe('half')
+    expect(before.attrs.caption).toBe('before · 2026-03-13')
+    expect(after.attrs.params.to == null).toBe(true)
+    expect(after.attrs.layout.width).toBe('half')
+    expect(after.attrs.caption).toBe('after · now')
+  })
+})

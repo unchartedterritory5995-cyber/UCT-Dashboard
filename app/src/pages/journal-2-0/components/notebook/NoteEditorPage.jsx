@@ -16,6 +16,7 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
+import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import styles from './NoteEditorPage.module.css'
 
@@ -181,6 +182,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const columnRef = useRef(null)
   const [exportBusy, setExportBusy] = useState(false)
   const [chromeMsg, setChromeMsg] = useState(null)
+  // Widget palette (point-and-click inserts) — toggled from the toolbar row.
+  const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(() => {
     if (!chromeMsg) return undefined
     const t = setTimeout(() => setChromeMsg(null), 2400)
@@ -746,6 +749,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
             />
+          {/* Widget palette door — point-and-click inserts for people who
+              don't reach for slash commands (owner ask). */}
+          <button
+            type="button"
+            className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
+            onClick={() => setPaletteOpen((o) => !o)}
+            title="Insert a chart or preset — pick ticker and timeframe by clicking"
+            aria-label="Insert widget"
+          >
+            ⊞ Insert
+          </button>
           <div className={styles.toolbarExports}>
             {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
             {/* Export: PNG rasterizes the note column (charts included); Print
@@ -762,6 +776,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         </div>
       )}
       </div>
+
+      {paletteOpen && editor && (
+        <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+      )}
 
       <div
         className={

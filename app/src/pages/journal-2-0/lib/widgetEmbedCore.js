@@ -343,6 +343,40 @@ export function widgetSlotNode(widgetId, capture = {}, extra = {}) {
   return { type: 'widgetEmbed', attrs: buildWidgetEmbedAttrs(widgetId, capture, extra) }
 }
 
+/** ONE node builder for every chart insert — the slash commands and the
+ *  widget palette both ride it, so the insert payload can never fork into
+ *  hand-written copies (the "one grammar, four copies" defect class).
+ *  kind: 'chart' (one snapshot) · 'mtf' (D/60/15 stack, top-down) ·
+ *  'compare' (half-width before/after pair — before anchored at day, after
+ *  the ONE explicit rolling window, its caption says so).
+ *  `settings` is the caller's frozen blob (editor storage stamp); day rides
+ *  params.to; a missing day lets buildWidgetEmbedAttrs stamp the insert
+ *  moment (frozen means anchored). Returns an array ready for
+ *  insertContent(...).caretAfterWidgetEmbed(). */
+export function chartInsertNodes(kind, args, settings) {
+  const frozen = settings ? { settings } : {}
+  const anchored = args.day ? { to: args.day } : {}
+  if (kind === 'mtf') {
+    return MTF_STACK_TFS.map((tf) => widgetSlotNode('chart', {
+      symbol: args.symbol, tf, ...anchored, ...frozen,
+    }))
+  }
+  if (kind === 'compare') {
+    return [
+      widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: args.day, ...frozen },
+        { layout: { width: 'half' }, caption: `before · ${args.day}` }),
+      // to: null = the EXPLICIT rolling-window opt-out (buildWidgetEmbedAttrs
+      // stamps the insert moment on undefined) — "after · now" is the one
+      // embed whose caption promises it tracks now.
+      widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
+        { layout: { width: 'half' }, caption: 'after · now' }),
+    ]
+  }
+  return [widgetSlotNode('chart', {
+    symbol: args.symbol, tf: args.tf || 'D', ...anchored, ...frozen,
+  })]
+}
+
 /** The auto-caption ("Chart — AMD 5m · captured Mar 13, 2026") — DERIVED
  *  from params at render, never stored (derive-don't-restate). The DISPLAY
  *  form maps the widget id through its header label — the raw plainText

@@ -1,0 +1,123 @@
+/* Widget palette — fixed right-side insert panel for the note editor.
+   z 45 sits above the sticky chrome (40) and draw-mode Done (30). */
+.panel {
+  position: fixed;
+  right: 18px;
+  top: 108px;
+  width: 268px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  z-index: 45;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  padding: 10px;
+  box-sizing: border-box;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.headTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #98a0aa);
+}
+.headBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+.headBtn:hover { color: #c9a84c; }
+.typeList { display: flex; flex-direction: column; gap: 6px; }
+.typeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: var(--color-bg, #0b0d12);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.typeBtn:hover { border-color: #c9a84c; }
+.typeLabel { color: var(--color-text-primary, #e8eaed); font-size: 13px; font-weight: 600; }
+.typeHint { color: var(--color-text-muted, #98a0aa); font-size: 11px; line-height: 1.35; }
+.footNote {
+  margin-top: 4px;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 10.5px;
+  line-height: 1.4;
+  padding: 2px 2px 0;
+}
+.form { display: flex; flex-direction: column; gap: 6px; }
+.fieldLabel {
+  font-size: 11px;
+  color: var(--color-text-muted, #98a0aa);
+  margin-top: 2px;
+}
+.symInput, .dayInput {
+  background: var(--color-bg, #0b0d12);
+  border: 1px solid var(--color-border, #232932);
+  color: var(--color-text-primary, #e8eaed);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.symInput:focus, .dayInput:focus { outline: none; border-color: #c9a84c; }
+.tfRow { display: flex; flex-wrap: wrap; gap: 4px; }
+.tfPill {
+  background: var(--color-bg, #0b0d12);
+  border: 1px solid var(--color-border, #232932);
+  color: var(--color-text-primary, #e8eaed);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tfPill:hover { border-color: #c9a84c; }
+.tfPillActive {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
+.insertBtn {
+  margin-top: 6px;
+  background: rgba(201, 168, 76, 0.15);
+  border: 1px solid #c9a84c;
+  color: #c9a84c;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.insertBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.25); }
+.insertBtn:disabled { opacity: 0.45; cursor: default; }
+.insertedMsg { color: #4ade80; font-size: 11px; }
+
+/* Phone: the fixed right panel would cover the prose column — dock it as a
+   bottom sheet instead, same content. */
+@media (max-width: 640px) {
+  .panel {
+    right: 0;
+    left: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    max-height: 60vh;
+    border-radius: 12px 12px 0 0;
+  }
+  .tfPill, .typeBtn, .insertBtn { min-height: var(--tap-min, 44px); }
+}
