@@ -94,6 +94,16 @@ def _start_prewarmer():
     threading.Thread(target=run_prewarmer_supervised, daemon=True, name="prewarm").start()
 
 
+def _start_universe_crawler():
+    # GENTLE universe 5m warm (instant-origin Phase 2 v2). Single-threaded, rate-limited,
+    # skip-fresh — the anti-thrash replacement for the boot-bulk approach that saturated
+    # the provider + write-lock on 2026-08-19. Supervised; no-ops unless
+    # BARS_UNIVERSE_CRAWLER_ENABLED=1. See bars_universe_crawler.py header.
+    from api.services.bars_universe_crawler import run_universe_crawler_supervised
+    log.info("starting universe-5m-crawler thread (supervised)")
+    threading.Thread(target=run_universe_crawler_supervised, daemon=True, name="uni-crawler").start()
+
+
 def _start_deep_history_warm():
     """One-time deep D/W/M history warm for the whole universe (flag-gated,
     worker-only). Runs in its own daemon thread so it never blocks boot; no-ops
@@ -409,6 +419,14 @@ def _prewarm_health() -> dict:
         return {"error": str(e)[:120]}
 
 
+def _universe_crawler_health() -> dict:
+    try:
+        from api.services.bars_universe_crawler import crawler_heartbeat
+        return crawler_heartbeat()
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+
 def _bars_daily_health() -> dict:
     try:
         from api.services.bars_prewarm import daily_freshness_report
@@ -665,6 +683,7 @@ def _build_app() -> FastAPI:
             # false or `bars_daily.stale` true means warming has stopped.
             "prewarm": _prewarm_health(),
             "bars_daily": _bars_daily_health(),
+            "universe_crawler": _universe_crawler_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -761,6 +780,7 @@ def main():
     ).start()
 
     _start_prewarmer()
+    _start_universe_crawler()
     _start_bars_freshness_watchdog()
     _start_deep_history_warm()
     _start_massive_ws()
