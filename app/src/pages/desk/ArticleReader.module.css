@@ -57,7 +57,7 @@
 }
 
 .tickerRow {
-  display: flex; align-items: baseline; gap: var(--space-md);
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-md);
   margin-top: var(--space-lg); padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
 }
@@ -78,6 +78,19 @@
 .chipGain, .chipLoss { margin-left: 6px; font-size: var(--text-xs); }
 .chipGain { color: var(--gain); }
 .chipLoss { color: var(--loss); }
+.chipStar { color: var(--ut-gold); margin-right: 4px; }
+
+/* Today / Since-issue lens for the covered chips */
+.lensToggle {
+  display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.lensBtn, .lensActive {
+  padding: 2px 8px; border: none; border-radius: 4px; cursor: pointer;
+  font-size: var(--text-xs); background: transparent; color: var(--text-muted);
+}
+.lensActive { background: var(--bg-surface); color: var(--ut-gold); }
 
 /* ── layout: article + sticky table of contents ── */
 .layout { display: grid; grid-template-columns: minmax(0, 760px) 1fr; gap: var(--space-3xl); }
@@ -169,6 +182,18 @@
   min-height: 0;
 }
 .body :global(.uctTickerChip:hover) { border-color: var(--ut-gold); color: var(--ut-gold); }
+/* A name on the reader's own lists — applied to the static chips by effect. */
+.body :global(.uctTickerChip.uctChipMine) { border-color: var(--ut-gold); }
+.body :global(.uctTickerChip.uctChipMine)::before {
+  content: '★ '; color: var(--ut-gold);
+}
+
+/* The block currently being read aloud (useReadAloudFollow). */
+.body :global(.rd-reading) {
+  background: var(--ut-gold-dim);
+  border-radius: 6px;
+  transition: background 0.4s ease;
+}
 
 /* Membership CTA. The converter re-tags it because the whitelist drops class. */
 .body :global(a.uctArticleCta) {

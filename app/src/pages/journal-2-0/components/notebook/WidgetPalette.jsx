@@ -14,9 +14,9 @@
  * insert freezes the user's resolved own chart exactly like /chart does.
  */
 import { useEffect, useRef, useState } from 'react'
-import { JOURNAL_MENU_TYPES, widgetMeta } from '../../../../widgets/registry'
+import { JOURNAL_MENU_TYPES, widgetMeta, isReconstructable } from '../../../../widgets/registry'
 import {
-  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
+  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
 } from '../../lib/widgetEmbedCore'
 import styles from './WidgetPalette.module.css'
 
@@ -33,15 +33,31 @@ const PRESETS = [
 ]
 
 // Assemble the clicked choices into the slash grammar's token string and let
-// the REAL parser decide validity — never a second validation path.
+// the REAL parser decide validity — never a second validation path. On top of
+// grammar validity, refuse what the RENDER path cannot serve (review
+// findings): a future anchor (renders identical before/after halves — the
+// exact trap the yearless-M/D roll-back exists to prevent, which the date
+// picker's full ISO bypasses) and an anchor past the timeframe's re-render
+// ceiling (would insert a permanently dead placeholder — the self-archive
+// only arms on the live render path). Returns { args, reason }.
 function parseSelection(kind, sym, tfTok, day) {
   const s = String(sym || '').trim()
-  if (kind === 'mtf') return s ? parseMtfSlashArgs([s, day].filter(Boolean).join(' ')) : null
-  if (kind === 'compare') {
-    if (!s || !day) return null
-    return parseCompareSlashArgs([s, day, tfTok !== 'D' ? tfTok : ''].filter(Boolean).join(' '))
+  let args = null
+  if (kind === 'mtf') args = s ? parseMtfSlashArgs([s, day].filter(Boolean).join(' ')) : null
+  else if (kind === 'compare') {
+    args = (s && day) ? parseCompareSlashArgs([s, day, tfTok !== 'D' ? tfTok : ''].filter(Boolean).join(' ')) : null
+  } else {
+    args = s ? parseChartSlashArgs([s, tfTok, day].filter(Boolean).join(' ')) : null
   }
-  return s ? parseChartSlashArgs([s, tfTok, day].filter(Boolean).join(' ')) : null
+  if (!args) return { args: null, reason: null }
+  if (args.day) {
+    if (args.day > etTodayIso()) return { args: null, reason: 'that date has not happened yet' }
+    const tfs = kind === 'mtf' ? args.tfs : [args.tf || 'D']
+    if (tfs.some((tf) => !isReconstructable('chart', { symbol: args.symbol, tf, to: args.day }))) {
+      return { args: null, reason: 'no data that far back at that timeframe' }
+    }
+  }
+  return { args, reason: null }
 }
 
 export default function WidgetPalette({ editor, onClose }) {
@@ -57,12 +73,13 @@ export default function WidgetPalette({ editor, onClose }) {
     if (kind) symRef.current?.focus()
   }, [kind])
 
-  const args = kind ? parseSelection(kind, sym, tfTok, day) : null
+  const { args, reason: blockReason } = kind ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
   const multi = kind === 'mtf' || kind === 'compare'
 
   const insert = () => {
     if (!args || !editor) return
-    const settings = editor.storage?.uctJournalWidgets?.chartSettings
+    const nodes = chartInsertNodes(kind, args, editor.storage?.uctJournalWidgets?.chartSettings)
+    if (!nodes.length) return
     // caretAfterWidgetEmbed BEFORE the insert too: clicking an embed leaves a
     // NodeSelection ON the atom, focus() restores it, and insertContent over
     // a NodeSelection REPLACES the node (the trap that ate an embed on 8/13).
@@ -71,7 +88,7 @@ export default function WidgetPalette({ editor, onClose }) {
     // as the exit side.
     editor.chain().focus()
       .caretAfterWidgetEmbed()
-      .insertContent(chartInsertNodes(kind, args, settings))
+      .insertContent(nodes)
       .caretAfterWidgetEmbed()
       .run()
     // Stay open, clear the ticker, refocus — "click, click, click" means the
@@ -129,7 +146,7 @@ export default function WidgetPalette({ editor, onClose }) {
             className={styles.symInput}
             value={sym}
             placeholder="e.g. AMD"
-            onChange={(e) => setSym(e.target.value.toUpperCase())}
+            onChange={(e) => setSym(e.target.value.toUpperCase().replace(/\s+/g, ''))}
             onKeyDown={(e) => { if (e.key === 'Enter') insert() }}
           />
           {kind !== 'mtf' && (
@@ -157,6 +174,7 @@ export default function WidgetPalette({ editor, onClose }) {
             type="date"
             className={styles.dayInput}
             value={day}
+            max={etTodayIso()}
             onChange={(e) => setDay(e.target.value)}
           />
           <button
@@ -167,7 +185,8 @@ export default function WidgetPalette({ editor, onClose }) {
           >
             {multi ? 'Insert charts' : 'Insert chart'}
           </button>
-          {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
+          {blockReason && <span className={styles.blockMsg} role="status">{blockReason}</span>}
+          {inserted && !blockReason && <span className={styles.insertedMsg} role="status">{inserted}</span>}
         </div>
       )}
     </div>

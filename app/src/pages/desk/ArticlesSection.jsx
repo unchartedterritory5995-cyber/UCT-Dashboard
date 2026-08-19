@@ -1,13 +1,14 @@
 // app/src/pages/desk/ArticlesSection.jsx
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { ArticleIcon, PlusIcon } from '../education/icons'
+import * as progress from './articleProgress'
 import styles from './Desk.module.css'
 
 const fetcher = (url) =>
@@ -28,6 +29,10 @@ function fmtDate(unixSec) {
  * Substack link when we don't — a post can be paywalled, brand new, or awaiting
  * backfill, and none of those should render a card that opens an empty page. */
 function ArticleCard({ a, snippet }) {
+  // Memoized {__html} object — React 19 diffs dangerouslySetInnerHTML by
+  // object identity; an inline literal re-sets every card's snippet as the
+  // reader types in the search box.
+  const snippetHtml = useMemo(() => (snippet ? { __html: snippet } : null), [snippet])
   const native = Boolean(a.has_body && a.slug)
   const linkProps = native
     ? { as: Link, to: `/desk/article/${a.slug}` }
@@ -44,6 +49,11 @@ function ArticleCard({ a, snippet }) {
   let tickers = []
   try { tickers = JSON.parse(a.tickers_json || '[]') } catch { tickers = [] }
 
+  // Where the reader left off, if mid-read. The progress module already
+  // refuses barely-started and finished entries, so a pill here always means
+  // "there is a real place to pick up".
+  const resume = native ? progress.load(a.slug) : null
+
   return (
     <Tag className={styles.articleCard} {...rest}>
       {a.hero_image
@@ -53,14 +63,14 @@ function ArticleCard({ a, snippet }) {
         {/* Every Sunday Scans post is titled "SUNDAY SCANS" at the source, so
             the grid is unreadable without the date-stamped display title. */}
         <div className={styles.articleTitle}>{a.display_title || a.title}</div>
-        {snippet
+        {snippetHtml
           ? (
             <div
               className={styles.articleSnippet}
               // Server-built from FTS5 snippet(); the only markup it can contain
               // is the <mark> this app asked for -- the body text around it is
               // escaped by the same converter that renders the article.
-              dangerouslySetInnerHTML={{ __html: snippet }}
+              dangerouslySetInnerHTML={snippetHtml}
             />
           )
           : tickers.length > 0
@@ -80,6 +90,9 @@ function ArticleCard({ a, snippet }) {
           {byline && <span>· {byline}</span>}
           {native && a.reading_minutes ? <span>· {a.reading_minutes} min read</span> : null}
           {native && a.image_count ? <span>· {a.image_count} charts</span> : null}
+          {resume && (
+            <span className={styles.articleResume}>· Resume {Math.round(resume.pct * 100)}%</span>
+          )}
           {!native && <span>· on Substack ↗</span>}
         </div>
       </div>

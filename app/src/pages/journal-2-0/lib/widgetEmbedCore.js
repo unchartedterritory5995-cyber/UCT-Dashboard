@@ -174,7 +174,7 @@ function validDay(y, mo, d) {
  *  roll-back exists to prevent ("a future cutoff renders identical
  *  before/after halves with no warning"). en-CA renders YYYY-MM-DD; the same
  *  ET/en-CA idiom as tsToAnchorDay. */
-function etToday() {
+export function etTodayIso() {
   try {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   } catch {
@@ -189,7 +189,7 @@ export function parseDayToken(tok) {
   if (m) return validDay(+m[1], +m[2], +m[3])
   m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(t)
   if (m) {
-    const today = etToday()
+    const today = etTodayIso()
     let y = m[3] ? +m[3] : +today.slice(0, 4)
     if (y < 100) y += 2000
     let day = validDay(y, +m[1], +m[2])
@@ -372,9 +372,17 @@ export function chartInsertNodes(kind, args, settings) {
         { layout: { width: 'half' }, caption: 'after · now' }),
     ]
   }
-  return [widgetSlotNode('chart', {
-    symbol: args.symbol, tf: args.tf || 'D', ...anchored, ...frozen,
-  })]
+  if (kind === 'chart') {
+    return [widgetSlotNode('chart', {
+      symbol: args.symbol, tf: args.tf || 'D', ...anchored, ...frozen,
+    })]
+  }
+  // Fail CLOSED: an unknown kind returns nothing rather than a mislabeled
+  // chart node persisted into the v1 stored-document schema. The day a second
+  // registry type flips menus.journal on, the palette must grow a real
+  // builder + form for it — silently minting charts is not a fallback
+  // (review finding).
+  return []
 }
 
 /** The auto-caption ("Chart — AMD 5m · captured Mar 13, 2026") — DERIVED

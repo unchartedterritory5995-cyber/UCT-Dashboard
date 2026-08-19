@@ -385,6 +385,11 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     body_json       TEXT NOT NULL DEFAULT '{"type":"doc","content":[]}',
     body_plain      TEXT NOT NULL DEFAULT '',
     hero_image_url  TEXT,
+    -- Notebook card thumbnail cache (see the matching ALTER below): the ALTER
+    -- alone covered existing DBs but a FRESH schema (every test fixture, any
+    -- new install) never gained the column and the notes INSERT names it —
+    -- 7 import-suite reds (inherited; a new column goes in BOTH places).
+    first_image_url TEXT,
     ticker          TEXT,
     tags            TEXT NOT NULL DEFAULT '[]',
     import_source   TEXT,
@@ -523,6 +528,10 @@ CREATE TABLE IF NOT EXISTS j2_capture_inbox (
     params_json  TEXT NOT NULL DEFAULT '{}',
     search_text  TEXT,
     fallback_url TEXT,
+    -- Capture-time chart drawings (chart-parity round): without them the
+    -- tray's place() re-seeded from the LIVE store at placement time — an
+    -- embed labeled "captured Monday" carried Tuesday's drawings.
+    annotations_json TEXT,
     captured_at  TEXT NOT NULL,
     created_at   TEXT NOT NULL
 );
@@ -961,6 +970,8 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     for stmt in (
         "ALTER TABLE j2_note_remote_index ADD COLUMN miss_streak INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE j2_note_sync_log ADD COLUMN conflicts INTEGER",
+        # Chart-parity round: capture-time drawings ride the inbox row.
+        "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
     ):
         try:
             conn.execute(stmt)

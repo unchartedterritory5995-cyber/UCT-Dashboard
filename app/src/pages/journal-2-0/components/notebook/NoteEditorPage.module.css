@@ -113,19 +113,6 @@
   outline: none;
   font-style: italic;
 }
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid var(--color-border, #232932);
-  border-radius: 8px;
-  background: var(--color-surface, #14171c);
-  margin-bottom: 12px;
-  position: sticky;
-  top: 56px;
-  z-index: 35; /* above in-content embed controls (draw-mode Done = 30) */
-}
 .fontSelect, .fontSizeSelect {
   background: var(--color-surface, #14171c);
   border: 1px solid var(--color-border, #232932);
@@ -321,7 +308,11 @@
   .headerSelect, .headerInput { font-size: 16px; padding: 8px 10px; }
   .titleInput { font-size: 28px; }
   .subtitleInput { font-size: 16px; }
-  .toolbar { position: static; top: auto; }
+  /* The wrapped header + toolbar rows would pin ~200px of chrome over a
+     ~600px viewport — the occlusion the old in-column toolbar's de-sticky
+     rule existed to prevent (review finding: that rule targeted a selector
+     nothing renders any more). */
+  .chrome { position: static; }
   .toolBtn { padding: 8px 12px; font-size: 15px; min-height: var(--tap-min, 44px); }
 }
 
@@ -408,12 +399,16 @@
   .railRight { grid-area: right; }
   .watchWrap > .column { grid-area: center; }
   /* Rails ride along while a long note scrolls; internal scroll when taller
-     than the viewport. 64px clears the sticky page header. */
+     than the viewport. The offset clears the MEASURED sticky chrome
+     (--uct-chrome-h, set by a ResizeObserver in NoteEditorPage) — the chrome
+     is now header + toolbar row and wraps, so any literal here goes stale
+     the moment it does (review finding: the old 64px pinned the rails' top
+     rows underneath the opaque z-40 chrome). */
   .railLeft,
   .railRight {
     position: sticky;
-    top: 64px;
-    max-height: calc(100vh - 80px);
+    top: calc(var(--uct-chrome-h, 92px) + 12px);
+    max-height: calc(100vh - var(--uct-chrome-h, 92px) - 28px);
     overflow-y: auto;
     max-width: none;
     margin: 24px 0 0;

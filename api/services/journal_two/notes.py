@@ -235,12 +235,17 @@ def _extract_first_image(body_json: Any) -> str | None:
         for node in nodes:
             if not isinstance(node, dict):
                 continue
+            # attrs can be ANY shape on an imported/hand-crafted doc — a list
+            # here crashed the whole note write (the `or {}` idiom only guards
+            # None/falsy, not a truthy non-dict; inherited red's named fix).
+            attrs = node.get("attrs")
+            attrs = attrs if isinstance(attrs, dict) else {}
             if node.get("type") == "image":
-                src = (node.get("attrs") or {}).get("src")
+                src = attrs.get("src")
                 if isinstance(src, str) and src:
                     return src
             if node.get("type") == "widgetEmbed":
-                fb = (node.get("attrs") or {}).get("fallback")
+                fb = attrs.get("fallback")
                 if isinstance(fb, dict) and isinstance(fb.get("url"), str) and fb["url"]:
                     return fb["url"]
             found = walk(node.get("content"))
@@ -896,6 +901,7 @@ def list_captures(user_id: str, conn: sqlite3.Connection | None = None) -> list[
             "params": json.loads(r["params_json"] or "{}"),
             "searchText": r["search_text"],
             "fallbackUrl": r["fallback_url"],
+            "annotations": json.loads(r["annotations_json"] or "[]"),
             "capturedAt": r["captured_at"],
             "createdAt": r["created_at"],
         } for r in rows]
@@ -914,12 +920,17 @@ def create_capture(
     params = payload.get("params")
     if params is not None and not isinstance(params, dict):
         raise NoteValidationError("params must be an object")
+    annotations = payload.get("annotations")
+    if annotations is not None and not isinstance(annotations, list):
+        raise NoteValidationError("annotations must be a list")
     # The ONLY Journal-Widgets write path without a byte ceiling until the
     # launch audit caught it: notes cap at 1MB, but a scripted (or organic —
     # a long aisearch thread) capture could bank arbitrarily large rows in the
     # shared auth.db, x100 rows per user. 256KB comfortably fits every real
     # capture (the largest organic payloads measure ~30KB).
-    _size = len(json.dumps(params or {}).encode("utf-8")) + len(str(payload.get("searchText") or "").encode("utf-8"))
+    _size = (len(json.dumps(params or {}).encode("utf-8"))
+             + len(json.dumps(annotations or []).encode("utf-8"))
+             + len(str(payload.get("searchText") or "").encode("utf-8")))
     if _size > 256 * 1024:
         raise NoteValidationError("capture too large (>256KB)")
     owned = conn is None
@@ -929,10 +940,11 @@ def create_capture(
         now = _now_iso()
         conn.execute(
             "INSERT INTO j2_capture_inbox (id, user_id, widget_id, params_json,"
-            " search_text, fallback_url, captured_at, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?)",
+            " search_text, fallback_url, annotations_json, captured_at, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
             (cid, user_id, payload["widgetId"], json.dumps(params or {}),
              payload.get("searchText") or None, payload.get("fallbackUrl") or None,
+             json.dumps(annotations) if annotations else None,
              payload.get("capturedAt") or now, now),
         )
         # Keep only the newest _CAPTURE_INBOX_CAP rows — anything older is

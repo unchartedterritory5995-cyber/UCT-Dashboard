@@ -105,3 +105,41 @@ describe('WidgetPalette', () => {
     expect(calls.content.map((n) => n.attrs.params.tf)).toEqual(['D', '60', '15'])
   })
 })
+
+// ── Review round 2: input hardening ──
+describe('WidgetPalette input hardening', () => {
+  it('the ticker field is ONE token — whitespace never smuggles grammar slots', () => {
+    const { editor, calls } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD 3/13' } })
+    // Whitespace is stripped on input; the mangled remainder fails the symbol
+    // grammar, so nothing silently fills the (visibly empty) Date field.
+    expect(screen.getByLabelText('Ticker').value).not.toContain(' ')
+    expect(screen.getByRole('button', { name: 'Insert chart' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Insert chart' }))
+    expect(calls.ran).toBe(0)
+  })
+
+  it('a FUTURE date never arms the insert (identical before/after halves trap)', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('Before / after'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD' } })
+    fireEvent.change(screen.getByLabelText('Anchor date'), { target: { value: '2030-01-02' } })
+    expect(screen.getByRole('button', { name: 'Insert charts' })).toBeDisabled()
+  })
+
+  it('an anchor past the timeframe ceiling is refused with the house line, not inserted dead', () => {
+    const { editor, calls } = makeEditor()
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD' } })
+    fireEvent.click(screen.getByRole('button', { name: '1m' }))
+    fireEvent.change(screen.getByLabelText('Date (optional)'), { target: { value: '2026-01-05' } }) // >60d back
+    expect(screen.getByRole('button', { name: 'Insert chart' })).toBeDisabled()
+    expect(screen.getByText('no data that far back at that timeframe')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Insert chart' }))
+    expect(calls.ran).toBe(0)
+  })
+})

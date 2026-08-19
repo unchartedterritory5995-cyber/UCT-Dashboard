@@ -17,6 +17,13 @@ vi.mock('../../hooks/useLivePrices', () => ({
   default: () => ({ prices: {}, isLoading: false, error: null, refresh: () => {} }),
 }))
 vi.mock('../../utils/prefetchBars', () => ({ prefetchBar: vi.fn() }))
+vi.mock('../../components/TickerActions', () => ({
+  default: () => null,
+  useTickerActions: () => ({ menu: null, openMenu: () => {}, closeMenu: () => {}, longPressProps: () => ({}) }),
+}))
+vi.mock('../../hooks/useUserTickerSet', () => ({ default: () => new Set() }))
+vi.mock('../../hooks/useReadAloudFollow', () => ({ default: () => {} }))
+vi.mock('../../components/voice/ReadAloudButton', () => ({ default: () => null }))
 
 import * as progress from './articleProgress'
 import ArticleReader from './ArticleReader'

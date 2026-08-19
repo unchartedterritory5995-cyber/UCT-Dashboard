@@ -518,3 +518,20 @@ describe('resolveOwnChartMergedSettings — capture-time own-chart blob (pure fn
     expect(() => resolveOwnChartMergedSettings({ chart_settings: '{broken', charts_workspace_layout: '{broken' })).not.toThrow()
   })
 })
+
+  // Review finding: the LIVE own-chart surface renders THREE layers —
+  // StockChart builds csBase = mergeChartSettings(chart_settings seed) and
+  // applies the widget blob via mergeSettingsOverride (per-section partial
+  // merge). A capture that merges defaults←(own||seed) DROPS the seed layer
+  // whenever the winning widget/tab blob is partial, so the frozen embed
+  // diverges from what the Charts page paints.
+  test('a PARTIAL widget blob composes OVER the customized seed (the live three-layer order), never instead of it', () => {
+    const out = resolveOwnChartMergedSettings({
+      chart_settings: { crosshair: { color: '#123abc' }, background: '#111111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#000001' } } }],
+      },
+    })
+    expect(out.background).toBe('#000001')          // the widget override wins where it speaks
+    expect(out.crosshair.color).toBe('#123abc')     // the seed's customized section SURVIVES
+  })

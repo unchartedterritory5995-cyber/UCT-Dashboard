@@ -21,6 +21,7 @@ vi.mock('swr', () => ({
 }))
 
 import ArticlesSection from './ArticlesSection'
+import * as progress from './articleProgress'
 
 const NATIVE = {
   id: 'https://sub.test/p/sunday-scans-da5',
@@ -51,6 +52,23 @@ const renderSection = () =>
 beforeEach(() => {
   listData = { articles: [NATIVE, LINK_OUT] }
   searchData = null
+  localStorage.clear()
+})
+
+test('a mid-read article offers Resume on its card; an untouched one does not', () => {
+  progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.62 })
+  renderSection()
+  expect(screen.getByText('· Resume 62%')).toBeTruthy()
+  // The link-out card can never resume — there is nothing to resume into.
+  const other = screen.getByText('The Rest of the Week — March 31, 2026').closest('a')
+  expect(other.textContent).not.toContain('Resume')
+})
+
+test('a finished article never offers Resume', () => {
+  // The progress module clears >=95% as "finished" — the pill must follow it.
+  progress.save('sunday-scans-da5', { sectionId: 'x', pct: 0.97 })
+  renderSection()
+  expect(screen.queryByText(/Resume/)).toBeNull()
 })
 
 test('an article we hold in full opens IN the app, not on Substack', () => {

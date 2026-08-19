@@ -142,6 +142,7 @@
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .articleMeta { font-size: var(--text-xs); color: var(--text-muted); display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.articleResume { color: var(--ut-gold); }
 
 /* ── Posts ── */
 .postList { display: flex; flex-direction: column; gap: var(--space-md); max-width: 720px; }

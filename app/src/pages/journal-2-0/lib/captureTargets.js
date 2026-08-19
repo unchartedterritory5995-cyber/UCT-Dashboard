@@ -49,6 +49,10 @@ async function pushToInbox(widgetId, attrs) {
     body: JSON.stringify({
       widgetId, params: attrs.params,
       searchText: attrs.searchText, capturedAt: attrs.capturedAt,
+      // Capture-time drawings ride the row — the tray's place() would
+      // otherwise re-seed from the LIVE store at placement time, putting
+      // Tuesday's drawings under a "captured Monday" stamp (review finding).
+      annotations: attrs.annotations,
     }),
   })
   return res.ok

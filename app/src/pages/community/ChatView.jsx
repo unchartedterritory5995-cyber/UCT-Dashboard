@@ -333,7 +333,13 @@ function TickerMarks({ marks, livePrices }) {
 function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply, onGraduate, onOpenThread, onOpenProfile }) {
   const mine = msg.author_id === meId || msg.author_id === '__me__'
   const mentor = msg.author?.is_mentor
-  const html = useMemo(() => (msg.deleted || !msg.body ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
+  // The MEMOIZED OBJECT, not just the string — React 19 diffs
+  // dangerouslySetInnerHTML by object identity, so an inline {__html} literal
+  // re-sets every visible message's innerHTML on each chat poll.
+  const html = useMemo(
+    () => (msg.deleted || !msg.body ? null : { __html: renderBodyHTML(msg.body) }),
+    [msg.body, msg.deleted],
+  )
   const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
   // pending optimistic messages carry the '__me__' placeholder — resolve to the real id
   const avatarId = msg.author_id === '__me__' ? meId : msg.author_id
@@ -390,7 +396,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
         <div className={styles.msgDeleted}>removed by moderator</div>
       ) : (
         <>
-          {html && <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />}
+          {html && <div className={styles.msgBody} dangerouslySetInnerHTML={html} />}
           <TickerMarks marks={msg.ticker_marks} livePrices={livePrices} />
           {msg.card && (
             <CardRenderer card={msg.card}

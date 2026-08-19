@@ -116,3 +116,20 @@ describe('new destinations every door gets for free', () => {
     }
   })
 })
+
+// ── Chart-parity review round 2: capture-time drawings ride the inbox row ──
+// Without this the tray's place() re-seeded from the LIVE store at placement
+// time — an embed labeled "captured Monday" carried Tuesday's drawings while
+// the append-to-note route kept Monday's (two doors, two truths).
+describe('the inbox wire carries capture-time annotations', () => {
+  it('POST /api/j2/inbox includes the frozen annotations from the built attrs', async () => {
+    localStorage.setItem('uct-chart-drawings', JSON.stringify({
+      AMD: [{ id: 'mon-line', type: 'horizontal', points: [{ price: 100 }] }],
+    }))
+    const msg = await sendCaptureToJournal('chart', CAP, { label: 'AMD', target: 'inbox' })
+    expect(msg).toBe('AMD captured → Notebook inbox')
+    const inboxCall = journalCalls().find((c) => c.url === '/api/j2/inbox')
+    const body = JSON.parse(inboxCall.body)
+    expect(body.annotations).toEqual([expect.objectContaining({ id: 'mon-line' })])
+  })
+})

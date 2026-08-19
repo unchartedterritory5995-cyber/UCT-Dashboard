@@ -10,8 +10,13 @@ vi.mock('react-router-dom', async () => {
 
 let mockData = null
 let mockError = null
+let mockAnchors = {}
+// Key-aware: the reader now runs a SECOND swr call for anchor closes. A
+// key-blind mock would hand the ARTICLE object to the anchors consumer.
 vi.mock('swr', () => ({
-  default: () => ({ data: mockData, error: mockError, isLoading: false }),
+  default: (key) => (String(key || '').includes('/articles/anchors/')
+    ? { data: { anchors: mockAnchors }, error: null, isLoading: false }
+    : { data: mockData, error: mockError, isLoading: false }),
 }))
 
 // The real popup pulls ChartPane + the voice/ticker-hub context graph — none of
@@ -30,6 +35,27 @@ vi.mock('../../hooks/useLivePrices', () => ({
   default: () => ({ prices: mockPrices, isLoading: false, error: null, refresh: () => {} }),
 }))
 vi.mock('../../utils/prefetchBars', () => ({ prefetchBar: vi.fn() }))
+
+// The REAL useTickerActions hook (pure state — the wiring under test) with a
+// stub menu: the real menu pulls flag/tag/alert hooks that all fetch.
+vi.mock('../../components/TickerActions', async () => {
+  const actual = await vi.importActual('../../components/TickerActions')
+  return {
+    ...actual,
+    default: ({ menu, onClose }) => (
+      <div data-testid="ticker-actions-menu" data-sym={menu?.sym}>
+        <button type="button" onClick={onClose}>close actions</button>
+      </div>
+    ),
+  }
+})
+
+let mockUserSet = new Set()
+vi.mock('../../hooks/useUserTickerSet', () => ({ default: () => mockUserSet }))
+vi.mock('../../hooks/useReadAloudFollow', () => ({ default: () => {} }))
+vi.mock('../../components/voice/ReadAloudButton', () => ({
+  default: ({ children }) => <button type="button">{children || 'Listen'}</button>,
+}))
 
 import * as progress from './articleProgress'
 import ArticleReader from './ArticleReader'
@@ -106,6 +132,8 @@ beforeEach(() => {
   mockData = ARTICLE
   mockError = null
   mockPrices = {}
+  mockAnchors = {}
+  mockUserSet = new Set()
 })
 
 test('the article renders its own body, not a link to Substack', () => {
@@ -201,6 +229,53 @@ test('related issues render as cards linking into the reader', () => {
 test('no related section renders when the payload carries none', () => {
   renderReader()  // ARTICLE has no `related` key
   expect(screen.queryByLabelText('Issues on the same names')).toBeNull()
+})
+
+test('right-click on a body chip opens the ticker-actions menu, not the chart', () => {
+  const { container } = renderReader()
+  fireEvent.contextMenu(container.querySelector('.uctTickerChip'))
+  expect(screen.getByTestId('ticker-actions-menu').getAttribute('data-sym')).toBe('INTC')
+  expect(screen.queryByTestId('ticker-popup')).toBeNull()
+  fireEvent.click(screen.getByText('close actions'))
+  expect(screen.queryByTestId('ticker-actions-menu')).toBeNull()
+})
+
+test('right-click on a Covered chip opens the ticker-actions menu for that name', () => {
+  renderReader()
+  fireEvent.contextMenu(screen.getByRole('button', { name: 'ALAB' }))
+  expect(screen.getByTestId('ticker-actions-menu').getAttribute('data-sym')).toBe('ALAB')
+})
+
+test('names on the reader\'s own lists are starred — covered row and body chips', () => {
+  mockUserSet = new Set(['INTC', 'MU'])
+  const { container } = renderReader()
+  // Covered chip carries the star marker; a name not on any list stays bare…
+  expect(container.querySelector('button[data-sym="MU"]').textContent).toContain('★')
+  expect(container.querySelector('button[data-sym="ARM"]').textContent).not.toContain('★')
+  // …and the static body chip gets the membership class.
+  // ⛔ This assertion is also the rail on the MEMOIZED {__html} object: React
+  // 19 diffs dangerouslySetInnerHTML by object identity, so an inline literal
+  // re-sets the body on the next re-render and silently wipes this class.
+  expect(container.querySelector('.uctTickerChip').classList.contains('uctChipMine')).toBe(true)
+})
+
+test('the Since-issue lens shows the move off the anchor close, not today\'s', () => {
+  mockPrices = { INTC: { price: 110, change_pct: -6.6 } }
+  mockAnchors = { INTC: 100 }
+  renderReader()
+  expect(screen.getByText('-6.6%')).toBeTruthy()          // default lens = Today
+  fireEvent.click(screen.getByRole('button', { name: 'Since issue' }))
+  expect(screen.getByText('+10.0%')).toBeTruthy()
+  expect(screen.queryByText('-6.6%')).toBeNull()
+  // A name with no anchor renders bare rather than a fabricated number.
+  expect(screen.getByRole('button', { name: 'ALAB' })).toBeTruthy()
+  // The choice sticks.
+  expect(localStorage.getItem('uct.desk.articles.chipLens')).toBe('since')
+})
+
+test('the reader offers Listen (read-aloud) in the masthead', () => {
+  renderReader()
+  expect(screen.getByRole('button', { name: 'Listen' })).toBeTruthy()
 })
 
 test('a reference to an earlier issue routes in-app, not a full page reload', () => {

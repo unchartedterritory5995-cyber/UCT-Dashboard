@@ -1,11 +1,14 @@
-/* Widget palette — fixed right-side insert panel for the note editor.
+/* Widget palette — right-side insert panel, an ABSOLUTE child of the sticky
+   .chrome wrapper anchored to its bottom edge: it follows the pinned chrome
+   with zero measurement (review finding: a hand-computed fixed top duplicated
+   the chrome's variable height — the same defect the .chrome comment names).
    z 45 sits above the sticky chrome (40) and draw-mode Done (30). */
 .panel {
-  position: fixed;
+  position: absolute;
   right: 18px;
-  top: 108px;
+  top: calc(100% + 10px);
   width: 268px;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 160px);
   overflow-y: auto;
   z-index: 45;
   background: var(--color-surface, #14171c);
@@ -111,13 +114,18 @@
    bottom sheet instead, same content. */
 @media (max-width: 640px) {
   .panel {
+    position: fixed;
     right: 0;
     left: 0;
     top: auto;
-    bottom: 0;
+    /* Clear the opaque MobileTabBar (its own height token + safe area) — a
+       bottom:0 sheet buried the Insert button under it, unreachable on the
+       exact form factor this block targets (review finding). */
+    bottom: calc(var(--mobile-tabbar-h, 58px) + env(safe-area-inset-bottom, 0px));
     width: auto;
     max-height: 60vh;
     border-radius: 12px 12px 0 0;
   }
   .tfPill, .typeBtn, .insertBtn { min-height: var(--tap-min, 44px); }
 }
+.blockMsg { color: #fbbf24; font-size: 11px; }
