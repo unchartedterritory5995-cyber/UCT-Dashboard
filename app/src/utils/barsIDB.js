@@ -9,8 +9,6 @@
  * Value shape: { bars: [...], lastT: <last bar's t value>, savedAt: <ms> }
  */
 
-import { isIntradayTailStale } from './marketSession'
-
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
 // the page blocked the upgrade, idbGet hung forever, and charts never loaded.
@@ -51,13 +49,15 @@ const STORE      = 'bars'
 // guard in _importBatch (below) so FUTURE corrections self-heal without another bump.
 const CACHE_LOGIC_VERSION = 6
 
-// Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
-// (weekend/holiday-aware) via marketSession.isIntradayTailStale — NOT a flat wall-clock
-// age. The old flat gates (a 2-day save-time bound + a 26h bar-age wall) wrongly evicted
-// a pre-seeded intraday pack holding Friday's 15:55 bar on a Monday (65h old but the last
-// closed session), which is exactly what blocked intraday-instant. isIntradayTailStale
-// replaces both in idbGet below; anti-spike safety stays on the writer side
-// (classifyLiveBar contiguity + provisionalStaleRef).
+// Max age by SAVE time — secondary bound only. The PRIMARY intraday
+// guard is bar-data freshness (newest bar age), checked in idbGet:
+// savedAt-based eviction missed the bug where stale bars get re-saved
+// recently (savedAt new, bars week-old) and lingered for 7 days.
+const INTRADAY_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000  // 2 days
+// An intraday entry whose NEWEST BAR is older than this is missing >=1
+// session — never serve it (forces a fresh full fetch). Mirrors the
+// backend _is_cold_stale_intraday + StockChart idbStaleIntraday guards.
+const INTRADAY_STALE_BAR_SEC = 26 * 60 * 60  // 26h
 // Max age for daily/weekly/monthly. Without this, corrupted historical bars
 // (wrong company, pre-split, etc.) persist indefinitely because delta fetches
 // only ask for bars newer than the last cached timestamp.
@@ -177,17 +177,16 @@ export async function idbGet(sym, tf) {
         // Logic-version invalidation: a stale schema/logic record is
         // treated as absent so the caller refetches fresh.
         if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
+        const age = Date.now() - (entry.savedAt || 0)
         const isIntraday = ['1','5','15','30','60'].includes(tf)
-        if (isIntraday) {
-          // Bar-data freshness vs the last CLOSED session (weekend/holiday-aware). A
-          // pre-seeded pack ending at the prior session is FRESH (today's bars fill via
-          // the live feed / a since-fetch); a series missing a whole closed session — or
-          // the current session's recent closed bars — is stale → full refetch. Subsumes
-          // the old 26h bar-age + 2-day save-time gates. lastT for intraday is unix secs.
-          if (isIntradayTailStale(entry.lastT, tf)) return resolve(null)
-        } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
-          // D/W/M: save-time bound catches corrupted historical bars delta can't heal
-          // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
+        const maxAge = isIntraday ? INTRADAY_MAX_AGE_MS : DAILY_MAX_AGE_MS
+        if (age > maxAge) return resolve(null)
+        // PRIMARY intraday guard: never serve a series whose newest bar
+        // is >=1 session old, regardless of when it was saved. This is
+        // what stops the stale-cache-fused-to-live-price spike at the
+        // source (lastT for intraday is unix seconds).
+        if (isIntraday && typeof entry.lastT === 'number'
+            && (Date.now() / 1000 - entry.lastT) > INTRADAY_STALE_BAR_SEC) {
           return resolve(null)
         }
         // Mid-session gap guard: delta-merge cannot heal interior gaps,

@@ -461,7 +461,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStale, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4157,15 +4157,10 @@ export default function StockChart({
   // catches a real gap of even a single missing bar. The old 6×/20-min floor let
   // a 1-min chart's tail sit up to 20 MIN behind before refetching — the visible
   // gap-on-load / gap-on-tf-switch bug. Small ≤1-bar gaps still delta (cheap).
-  // Session/weekend/holiday-aware (mirrors idbStaleDaily), so a pre-seeded intraday
-  // pack whose tail is the last CLOSED session paints INSTANTLY as _idbFresh (today's
-  // bars fill via the live feed + the since-fetch below), while a series still missing
-  // the CURRENT session's recent closed bars refetches. Replaces the old flat
-  // max(3*tf,180s) age gate that treated every prior-session tail as stale (which is
-  // why the intraday pack could never paint as primary).
+  const _tfSecStale = Math.max(60, (Number(resolvedTf) || 5) * 60)
   const idbStaleIntraday = isIntraday
     && typeof idbSinceRef.current === 'number'
-    && isIntradayTailStale(idbSinceRef.current, resolvedTf)
+    && (Date.now() / 1000 - idbSinceRef.current) > Math.max(3 * _tfSecStale, 180)
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
