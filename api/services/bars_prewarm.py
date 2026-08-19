@@ -128,8 +128,16 @@ def run_prewarmer_forever():
     NOTE: the 'cache' reference in the wire_data try-block previously
     silently failed (NameError swallowed by except). It is now properly
     imported here so wire_data tickers are actually included."""
-    if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
-        print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
+    # Default ON for the WORKER pod — warming is the worker's whole job, and a
+    # missing/unset BARS_PREWARM_ENABLED is EXACTLY what silently froze the store
+    # for a week (2026-08-11). An explicit BARS_PREWARM_ENABLED=0 still disables it
+    # (the escape hatch, e.g. to stop an OOM); everywhere else (web/local/tests) it
+    # stays OFF unless explicitly enabled, so behavior there is unchanged.
+    _flag = os.environ.get("BARS_PREWARM_ENABLED")
+    if _flag is None:
+        _flag = "1" if os.environ.get("WORKER_ENABLED") == "1" else "0"
+    if _flag != "1":
+        print("[prewarm] Skipped (BARS_PREWARM_ENABLED=0, or not the worker pod).")
         return
     from api.services import bars_disk_cache as _disk
     import time as _t
