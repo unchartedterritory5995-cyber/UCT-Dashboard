@@ -199,6 +199,26 @@ def articles_for_ticker(sym: str, limit: int = 8,
     }
 
 
+@router.get("/articles/anchors/{slug}")
+def article_anchors(slug: str, _user: dict = Depends(require_article_reader)):
+    """Publish-date anchor closes for an article's tickers.
+
+    The "since the issue ran" half of a covered chip: the client pairs these
+    with the live price it already polls. Declared BEFORE
+    /articles/{post_id:path}, which matches greedily and would swallow this
+    literal sibling.
+    """
+    post = desk_store.get_post_by_slug(slug) or desk_store.get_post(slug)
+    if not post:
+        raise HTTPException(404, "Article not found")
+    try:
+        from api.services import desk_article_anchors
+        anchors = desk_article_anchors.anchors_for(post)
+    except Exception:  # noqa: BLE001 — a bonus rail must not break the reader
+        anchors = {}
+    return {"anchors": anchors}
+
+
 @router.post("/articles/reindex")
 def reindex_articles(_admin: dict = Depends(require_admin)):
     """Rebuild the search index from stored bodies. No network."""

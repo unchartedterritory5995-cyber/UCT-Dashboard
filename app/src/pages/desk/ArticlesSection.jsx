@@ -8,6 +8,7 @@ import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { ArticleIcon, PlusIcon } from '../education/icons'
+import * as progress from './articleProgress'
 import styles from './Desk.module.css'
 
 const fetcher = (url) =>
@@ -43,6 +44,11 @@ function ArticleCard({ a, snippet }) {
   // actually differs — and it is what a trader scans an archive for.
   let tickers = []
   try { tickers = JSON.parse(a.tickers_json || '[]') } catch { tickers = [] }
+
+  // Where the reader left off, if mid-read. The progress module already
+  // refuses barely-started and finished entries, so a pill here always means
+  // "there is a real place to pick up".
+  const resume = native ? progress.load(a.slug) : null
 
   return (
     <Tag className={styles.articleCard} {...rest}>
@@ -80,6 +86,9 @@ function ArticleCard({ a, snippet }) {
           {byline && <span>· {byline}</span>}
           {native && a.reading_minutes ? <span>· {a.reading_minutes} min read</span> : null}
           {native && a.image_count ? <span>· {a.image_count} charts</span> : null}
+          {resume && (
+            <span className={styles.articleResume}>· Resume {Math.round(resume.pct * 100)}%</span>
+          )}
           {!native && <span>· on Substack ↗</span>}
         </div>
       </div>
