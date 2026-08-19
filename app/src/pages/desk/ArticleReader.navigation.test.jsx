@@ -10,6 +10,14 @@ import { beforeEach, expect, test, vi } from 'vitest'
 let mockData = null
 vi.mock('swr', () => ({ default: () => ({ data: mockData, error: null, isLoading: false }) }))
 
+// Not under test here — stubbed so this timing-sensitive file doesn't import
+// the popup's chart/voice/hub module graph or start a live-price poll.
+vi.mock('../../components/TickerPopup', () => ({ default: () => null }))
+vi.mock('../../hooks/useLivePrices', () => ({
+  default: () => ({ prices: {}, isLoading: false, error: null, refresh: () => {} }),
+}))
+vi.mock('../../utils/prefetchBars', () => ({ prefetchBar: vi.fn() }))
+
 import * as progress from './articleProgress'
 import ArticleReader from './ArticleReader'
 

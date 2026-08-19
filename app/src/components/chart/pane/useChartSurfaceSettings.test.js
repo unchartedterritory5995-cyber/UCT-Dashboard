@@ -10,7 +10,7 @@ vi.mock('../../../hooks/usePreferences', () => ({
   default: () => ({ prefs: mockPrefs, setPref, loading: false }),
 }))
 
-import useChartSurfaceSettings from './useChartSurfaceSettings'
+import useChartSurfaceSettings, { resolveOwnChartMergedSettings } from './useChartSurfaceSettings'
 
 beforeEach(() => {
   setPref.mockClear()
@@ -454,5 +454,67 @@ describe('own-chart surface — deterministic resolution (charts_default_chart_w
     const { result } = renderHook(() => useChartSurfaceSettings({ stored: null, onStore }))
     expect(result.current.cs.background).toBe('#111')
     expect(result.current.ownChartSource).toBeNull()
+  })
+})
+
+// ── Chart-parity round: the capture-time twin of the own-chart resolution ──
+// Journal embeds freeze a full merged settings blob at insert. The blob MUST
+// come from the SAME resolution ChartPane's own-chart surfaces use (named
+// default widget → board scan → chart_settings seed → defaults) — stamping the
+// bare seed is the exact "settings trap" the popups shipped with on 8/5, and
+// how journal charts lost the user's MAs/legend/colors.
+describe('resolveOwnChartMergedSettings — capture-time own-chart blob (pure fn)', () => {
+  test('merges the winning widget blob over the full defaults', () => {
+    const out = resolveOwnChartMergedSettings({
+      chart_settings: { background: '#111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
+      },
+    })
+    expect(out.background).toBe('#abc123')
+    // proof it's the MERGED blob, not the raw widget fragment
+    expect(out.header).toBeTruthy()
+    expect(Array.isArray(out.overlays)).toBe(true)
+    expect(out.volume).toBeTruthy()
+  })
+
+  test('falls back to the chart_settings seed when no widget has settings', () => {
+    const out = resolveOwnChartMergedSettings({
+      chart_settings: { background: '#654321' },
+      charts_workspace_layout: { widgets: [{ id: 'w1', type: 'chart', opts: {} }] },
+    })
+    expect(out.background).toBe('#654321')
+  })
+
+  test('accepts the on-wire JSON-string shapes for BOTH prefs', () => {
+    const out = resolveOwnChartMergedSettings({
+      chart_settings: JSON.stringify({ background: '#seed00' }),
+      charts_workspace_layout: JSON.stringify({
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#wire01' } } }],
+      }),
+    })
+    expect(out.background).toBe('#wire01')
+  })
+
+  test('named default widget beats position — same order as the hook', () => {
+    const out = resolveOwnChartMergedSettings({
+      chart_settings: { background: '#111' },
+      charts_default_chart_widget: 'w2',
+      charts_workspace_layout: {
+        widgets: [
+          { id: 'w1', type: 'chart', opts: { settings: { background: '#first' } } },
+          { id: 'w2', type: 'chart', opts: { settings: { background: '#named' } } },
+        ],
+      },
+    })
+    expect(out.background).toBe('#named')
+  })
+
+  test('empty/absent prefs → merged defaults, never throws', () => {
+    let out
+    expect(() => { out = resolveOwnChartMergedSettings({}) }).not.toThrow()
+    expect(out.header).toBeTruthy()
+    expect(() => resolveOwnChartMergedSettings()).not.toThrow()
+    expect(() => resolveOwnChartMergedSettings({ chart_settings: '{broken', charts_workspace_layout: '{broken' })).not.toThrow()
   })
 })

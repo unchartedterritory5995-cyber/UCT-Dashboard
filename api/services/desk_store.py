@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import html
+import json
 import os
 import re
 import sqlite3
@@ -623,6 +624,60 @@ def adjacent_posts(post_id: str) -> dict:
         pick = lambda r: ({"slug": r["slug"], "title": r["display_title"] or r["title"],
                            "published_at": r["published_at"]} if r and r["slug"] else None)
         return {"previous": pick(older), "next": pick(newer)}
+
+
+def related_posts(post_id: str, limit: int = 3, min_shared: int = 3) -> list:
+    """Issues that charted the most of the SAME names as this one.
+
+    prev/next walks the archive as a SEQUENCE; this is the other axis — the
+    issues most about the same stocks, whatever week they ran. Scored by
+    ticker-set overlap in Python: SQLite cannot intersect two JSON arrays
+    without parsing every blob anyway, and the archive is ~91 rows.
+
+    `min_shared` exists because every issue charts the index ETFs — a one- or
+    two-name overlap is the series' baseline, not a relationship.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT tickers_json FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        if not row or not row["tickers_json"]:
+            return []
+        try:
+            mine = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str)]
+        except (TypeError, ValueError):
+            return []
+        if not mine:
+            return []
+        mine_set = set(mine)
+        candidates = c.execute(
+            """SELECT id, slug, title, display_title, published_at, tickers_json
+               FROM substack_posts
+               WHERE id != ? AND slug IS NOT NULL AND slug != ''
+                 AND body_html IS NOT NULL AND body_html != ''
+                 AND tickers_json IS NOT NULL AND tickers_json != ''""",
+            (str(post_id),),
+        ).fetchall()
+    scored = []
+    for r in candidates:
+        try:
+            theirs = {t for t in json.loads(r["tickers_json"]) if isinstance(t, str)}
+        except (TypeError, ValueError):
+            continue
+        shared = mine_set & theirs
+        if len(shared) < min_shared:
+            continue
+        scored.append((len(shared), r["published_at"] or 0, r, shared))
+    scored.sort(key=lambda s: (-s[0], -s[1]))
+    return [{
+        "slug": r["slug"],
+        "title": r["display_title"] or r["title"],
+        "published_at": r["published_at"],
+        "shared_count": count,
+        # Shown in THIS issue's own ticker order — that order is author-curated
+        # ("Charts Covered" first), so the names the reader just saw lead.
+        "shared": [t for t in mine if t in shared][:4],
+    } for count, _at, r, shared in scored[:int(limit)]]
 
 
 def readable_slugs() -> set:

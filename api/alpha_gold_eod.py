@@ -53,6 +53,11 @@ _CHIP_W_FG = (240, 201, 74)
 _CHIP_E_BG = (58, 20, 20)     # earnings tag chip
 _CHIP_E_FG = (240, 137, 125)
 
+# Broad-market index products whose LONG-DATED (LEAP) contracts are usually
+# hedges/financing, not directional bets — dropped from the card (see run_eod).
+_INDEX_HEDGE_TICKERS = {"SPY", "SPX", "SPXW", "QQQ", "QQQW", "IWM",
+                        "NDX", "NDXP", "RUT", "RUTW", "DIA", "VIX", "VIXW"}
+
 
 def _webhook() -> str:
     return (os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
@@ -570,6 +575,15 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
             alerts = [a for a in alerts
                       if not (_is_deep_itm(a, ditm_pct)
                               and (_is_etf(a) or not ditm_etf_only))]
+        # Owner rule: drop LONG-DATED (LEAP) contracts on the broad-index products
+        # (SPY/SPX/SPXW/QQQ/IWM …) — usually deep-ITM hedges. Near-term index
+        # contracts stay. DTE threshold env-tunable.
+        idx_leap_dte = int(os.getenv("ALPHA_GOLD_EOD_INDEX_LEAP_DTE", "180"))
+        if idx_leap_dte > 0:
+            alerts = [a for a in alerts
+                      if not ((a.get("ticker") or "").upper() in _INDEX_HEDGE_TICKERS
+                              and isinstance(a.get("dte"), (int, float))
+                              and a["dte"] > idx_leap_dte)]
         # Earnings: KEEP but TAG (owner change from the prior drop). Stamp a weekly
         # flag (non-monthly expiry) + an earnings flag (reports within the window) on
         # every row so render_card can show W / E chips and, if a section is over its

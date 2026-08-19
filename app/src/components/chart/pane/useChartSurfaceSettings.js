@@ -1,96 +1,14 @@
 import { useCallback, useMemo } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import { mergeChartSettings } from '../chartDefaults'
+import { resolveOwnChartSettingsSource } from './ownChartSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 
-function isNonEmptySettingsObj(v) {
-  return !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0
-}
-
-// The winning settings for ONE chart widget: its main-tab `opts.settings` if
-// non-empty, else the first `opts.chartTabs[]` entry that has non-empty
-// settings, else null. A widget whose settings is absent/`{}`/`null` is NOT a
-// candidate — that's the whole point, since an untouched widget carries
-// nothing worth resolving to.
-function pickWidgetSettings(widget) {
-  const widgetSettings = widget?.opts?.settings
-  if (isNonEmptySettingsObj(widgetSettings)) return widgetSettings
-  const tabs = widget?.opts?.chartTabs
-  if (Array.isArray(tabs)) {
-    const tab = tabs.find((t) => isNonEmptySettingsObj(t?.settings))
-    if (tab) return tab.settings
-  }
-  return null
-}
-
-// `charts_default_chart_widget` is a plain widget-id pref (forward-wiring —
-// no UI sets it yet). setPref only JSON.stringifies non-string values, so a
-// string id written directly comes back unquoted; but preferences can also
-// round-trip through JSON elsewhere, so defensively unwrap a quoted-string
-// shape too. Any other shape (number, object, null) is not a usable id.
-function resolveDefaultWidgetId(raw) {
-  if (typeof raw !== 'string' || !raw) return null
-  try {
-    const parsed = JSON.parse(raw)
-    if (typeof parsed === 'string' && parsed) return parsed
-  } catch {
-    // Not JSON — the raw string itself IS the id.
-  }
-  return raw
-}
-
-// Every /charts widget owns its own settings blob in `opts.settings` inside the
-// `charts_workspace_layout` pref (see ChartWidget.jsx) — or, when the user
-// customized an EXTRA tab instead of the main one, in
-// `opts.chartTabs[].settings` (see chartTabs.js). The global `chart_settings`
-// pref is only the untouched SEED that a brand-new widget starts from — it is
-// NOT "the user's chart". A surface that IS the user's one chart (stored=null,
-// no onStore — every popup/embedded chart outside the /charts workspace
-// itself) must resolve DETERMINISTICALLY, not positionally:
-//
-//   1. Explicit winner — `charts_default_chart_widget` names a chart widget
-//      id AND that widget actually has settings (main tab or a tab). Wins
-//      outright, regardless of position. A named-but-untouched widget does
-//      NOT win with nothing — it falls through to step 2.
-//   2. Scan ALL chart widgets in board order, first one with non-empty
-//      settings wins (main tab first, then its chartTabs). A customized
-//      chart sitting third on the board now resolves correctly instead of
-//      losing to an untouched first widget.
-//   3. null (caller falls back to the chart_settings seed).
-//
-// Returns the RAW, unmerged blob that won (or null). Defensive at every step:
-// the layout pref may be absent, a JSON string, an already-parsed object,
-// malformed JSON, missing a `widgets` array, missing a chart widget entirely,
-// or `chartTabs` may be absent/not-an-array/contain entries without a
-// `settings` object — every failure falls through to null and this NEVER
-// throws.
-function resolveOwnChartSettingsSource(workspaceLayoutRaw, defaultWidgetIdRaw) {
-  try {
-    if (!workspaceLayoutRaw) return null
-    const parsed = typeof workspaceLayoutRaw === 'string' ? JSON.parse(workspaceLayoutRaw) : workspaceLayoutRaw
-    const widgets = parsed?.widgets
-    if (!Array.isArray(widgets)) return null
-    const chartWidgets = widgets.filter((w) => w?.type === 'chart')
-    if (chartWidgets.length === 0) return null
-
-    const defaultId = resolveDefaultWidgetId(defaultWidgetIdRaw)
-    if (defaultId) {
-      const namedWidget = chartWidgets.find((w) => w?.id === defaultId)
-      if (namedWidget) {
-        const namedSettings = pickWidgetSettings(namedWidget)
-        if (namedSettings) return namedSettings
-      }
-    }
-
-    for (const widget of chartWidgets) {
-      const settings = pickWidgetSettings(widget)
-      if (settings) return settings
-    }
-  } catch {
-    // Any parse/shape failure falls through to null below.
-  }
-  return null
-}
+// The resolution itself lives in ownChartSettings.js (hooks-free) so
+// capture-time consumers — journal chart embeds freeze the merged blob at
+// insert — can import it without dragging React into their module graph.
+// Re-exported here so the hook module stays the discoverable front door.
+export { resolveOwnChartSettingsSource, resolveOwnChartMergedSettings } from './ownChartSettings'
 
 // Resolves the chart settings a surface should render with, and gives it one
 // write sink.
