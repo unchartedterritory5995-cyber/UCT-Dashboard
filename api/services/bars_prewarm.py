@@ -227,6 +227,26 @@ def _boot_can_skip(last_ts, tf) -> bool:
         return False
 
 
+def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bars: int) -> list:
+    """PHASE 2 (instant-origin) — the BOOT-ONLY jobs that warm a SHALLOW 5m window for
+    the WHOLE universe, so a brand-new user's first 5m open of ANY ticker is an instant
+    local serve (the async-heal path then tops it up non-blocking; the hot-set refreshes
+    it if the user keeps looking).
+
+    Returns `(sym, '5', bars)` tuples for every universe ticker NOT already in the DEEP
+    5m set (those get the full 5000-bar warm for panning). Pure + order-preserving so it
+    can be unit-tested without a fetch. Empty when disabled.
+
+    ⛔ These are BOOT-ONLY by design: they must NEVER join the tight 5-min refresh loop's
+    job list, or every cycle would re-fetch ~3,700 intraday series and re-starve on-demand
+    fetches (the Massive saturation / AGI 20s hang). Shallow depth (a couple of sessions)
+    is all the default zoom needs; freshness is the async-heal + hot-set's job."""
+    if not enabled:
+        return []
+    deep = set(deep_5m_tickers)
+    return [(s, '5', bars) for s in ticker_list if s not in deep]
+
+
 def prewarm_heartbeat() -> dict:
     """Snapshot of prewarmer liveness for the worker health endpoint + watchdog.
 
@@ -555,6 +575,20 @@ def run_prewarmer_forever():
     print(f"[prewarm] {len(jobs)} jobs queued (worker={_IS_WORKER}; D/W/M all "
           f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
           f"+ {len(_FIVEMIN_TICKERS)} 5m + {len(_ONEMIN_TICKERS)} 1m)")
+    # PHASE 2 (instant-origin): a SHALLOW full-universe 5m warm, BOOT-ONLY (never in the
+    # refresh loop's `jobs`), so first-open of any long-tail 5m is instant like daily.
+    # Gated by PREWARM_5M_UNIVERSE (default OFF — flip on the worker to roll out + watch
+    # Massive throughput); depth via PREWARM_5M_SHALLOW_BARS (default ~2 sessions).
+    _shallow_5m = shallow_5m_universe_jobs(
+        ticker_list, _FIVEMIN_TICKERS if _IS_WORKER else [],
+        enabled=(_IS_WORKER and os.environ.get("PREWARM_5M_UNIVERSE", "0") == "1"),
+        bars=int(os.environ.get("PREWARM_5M_SHALLOW_BARS", "780")),
+    )
+    boot_jobs = jobs + _shallow_5m
+    if _shallow_5m:
+        print(f"[prewarm] Phase-2 universe 5m: +{len(_shallow_5m)} shallow boot-only "
+              f"jobs ({os.environ.get('PREWARM_5M_SHALLOW_BARS', '780')} bars each; "
+              f"refresh loop breadth unchanged)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
     # ⛔ BEFORE the executor exists. `ex.map(...)` is evaluated as an ARGUMENT and
     # ThreadPoolExecutor.map submits every job immediately, so workers are already
@@ -562,11 +596,11 @@ def run_prewarmer_forever():
     # inside the helper therefore leaves a window where the prewarmer is doing work
     # and its own heartbeat still reads dead — small in production, but it is the
     # very state this file exists to make impossible, so it is closed here.
-    _set_phase("boot", total=len(jobs))
+    _set_phase("boot", total=len(boot_jobs))
     with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
         warmed, skipped = _run_boot_pass(
-            ex.map(_warm_one, jobs), len(jobs), fast_path_size_jobs)
-    print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
+            ex.map(_warm_one, boot_jobs), len(boot_jobs), fast_path_size_jobs)
+    print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(boot_jobs)} total")
     while True:
         # Beat FIRST so liveness is proven every iteration; the whole body is then
         # GUARDED so a single stale-read / DB-locked raise can never kill warming
