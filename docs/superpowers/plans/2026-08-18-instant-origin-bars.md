@@ -24,12 +24,24 @@ Pack initiative — the Pack stays as a zero‑latency cherry on top, not a crut
   first paint serves-local + async-heals when `BARS_DAILY_ASYNC_HEAL=1` (only when
   the daily is missing solely today's forming bar; a multi-session-stale daily stays
   synchronous). Default OFF — flip on the web pod + watch `Server-Timing: bars` cold-
-  serve ratio.
-- ⏭ **NEXT:** flip `BARS_DAILY_ASYNC_HEAL=1` (web) once the store is verified fresh;
-  then Phase 1 increments 2–4 (intraday cold-stale, `since=` poll, replay — each
-  flag-gated), Phase 2 (always-warm), Phase 3 (edge cache immutable closed-daily).
-  Intraday de-block needs the 2487 same-session sync block gated too + client
-  provisionalStaleRef verification before enabling — do it supervised.
+  serve ratio. **Flag flipped ON on the web pod 2026-08-19.**
+- ✅ **Phase 1, increment 2 — BUILT & DARK 2026-08-19** (this session): cold-stale
+  INTRADAY first paint serves-local + async-heals when `BARS_INTRADAY_ASYNC_HEAL=1`.
+  `_intraday_deblockable(tf, last_ts)` (twin of `_daily_deblockable`) is True only when
+  the tail carries the LAST CLOSED session (missing only today's forming bars); an
+  earlier-session gap stays synchronous (the May-8 freeze class). Wired at the serve
+  guard AND the same-session sync block (both now skip when deblockable → fall to the
+  non-blocking stale-serve + `_bg_delta` heal). Safe now because the client shipped
+  `isIntradayTailStale` + `provisionalStaleRef` + `since=` today-fill this session.
+  Deep-pan (explicit history ask) intentionally stays synchronous. Rail:
+  `tests/test_intraday_async_heal.py` (6: predicate off/on/gapped-control/daily-reject
+  + serve-path "does-not-block" + a gapped "still-blocks" CONTROL). Default OFF.
+- ⏭ **NEXT:** ship increment 2 dark → flip `BARS_INTRADAY_ASYNC_HEAL=1` (web) after
+  hours + watch the `Server-Timing: bars` cold-serve ratio drop on intraday; then
+  Phase 2 (always-warm — the "everything pre-ready" half: guarantee the WEB pod's
+  D/W/M + active-intraday store is fully warm universe-wide so a truly-cold Layer-4
+  block is rare), Phase 1 increments 3–4 (truly-cold "warming" marker + bounded
+  deadline; `since=` poll de-block), Phase 3 (edge cache immutable closed-daily).
 
 ---
 

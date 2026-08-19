@@ -607,6 +607,32 @@ def _daily_deblockable(tf, last_ts) -> bool:
         return False
 
 
+def _intraday_deblockable(tf, last_ts) -> bool:
+    """PHASE 1 (flag: BARS_INTRADAY_ASYNC_HEAL): the intraday twin of
+    `_daily_deblockable`. A cold-stale INTRADAY tail is safe to serve stale-then-heal
+    (non-blocking) — instead of a synchronous provider fetch — ONLY when it already
+    carries the last CLOSED session and is 'cold-stale' merely because today's forming
+    intraday bars are absent. The client paints that prior-session tail INSTANTLY
+    (`marketSession.isIntradayTailStale` treats a tail == the last closed session as
+    fresh) and the `since=` delta fills today's bars on top (the exact model the
+    intraday pack already relies on); the bg `_delta_intraday` heal lands on the next
+    poll. An intraday tail missing an EARLIER full session is NOT deblockable — serving
+    it would pin a GAPPED first paint that the once-per-mount fetch never re-heals (the
+    May-8 universe-freeze class), so it stays synchronous. `last_ts` here is UNIX
+    SECONDS (intraday), so map it to its ET session date before the closed-session
+    compare. Default OFF; flip the env to roll out, unset to roll back."""
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return False
+    if _os.environ.get("BARS_INTRADAY_ASYNC_HEAL", "0") != "1":
+        return False
+    try:
+        et = _ZI("America/New_York")
+        last_date = int(datetime.fromtimestamp(int(last_ts), et).strftime("%Y%m%d"))
+        return last_date >= _last_closed_session_yyyymmdd()
+    except Exception:
+        return False
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -2446,7 +2472,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # cold-stale, so they keep the fast SWR developing-bar top-up.
     if (
         stored_rows and last_ts
-        and not _is_cold_stale_intraday(tf, last_ts)
+        and (not _is_cold_stale_intraday(tf, last_ts) or _intraday_deblockable(tf, last_ts))
         and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
@@ -2534,7 +2560,15 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # carry `since`), so this adds NO latency to steady-state polling. Bounded: a
         # small trailing delta, _inflight-deduped, intraday only, and only when the
         # cache has enough rows (partial/deep depth is handled by the branches above).
-        if tf in ("1", "5", "15", "30", "60") and not is_partial:
+        # PHASE 1 (BARS_INTRADAY_ASYNC_HEAL): when the tail is a DEBLOCKABLE cold-stale
+        # (carries the last closed session, missing only today's forming bars), skip
+        # this synchronous delta and let the stale-serve + bg heal below run — the
+        # client paints the prior-session tail instantly and `since=` fills today, so
+        # blocking the first paint on a provider call buys nothing.
+        if (
+            tf in ("1", "5", "15", "30", "60") and not is_partial
+            and not _intraday_deblockable(tf, last_ts)
+        ):
             with _inflight_lock:
                 if cache_key in _inflight:
                     _sd_wait, _sd_do = _inflight[cache_key], False
