@@ -6,6 +6,9 @@ import {
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
+import usePreferences from '../../../../hooks/usePreferences'
+import { resolveOwnChartMergedSettings } from '../../../../components/chart/pane/ownChartSettings'
+import { peekDrawings } from '../../../../components/chart/drawingsStore'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
@@ -300,6 +303,26 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // base, so the change applies live to this chart only. The archive is left as
   // is (Re-capture re-freezes it) to avoid churning the capture pipeline on
   // every colour pick.
+  // Sync from my chart (chart-parity round): re-freeze this embed with the
+  // user's CURRENT resolved own-chart settings + the symbol's /charts
+  // drawings. This is the deliberate door for "I changed my chart on the
+  // Charts page and want it here" — frozen snapshots never live-couple to the
+  // workspace, and older embeds that froze the bare seed heal with one click.
+  // Same one-authority resolution the insert stamp uses (ownChartSettings.js).
+  const { prefs } = usePreferences()
+  const syncFromMyChart = () => {
+    const params = attrsRef.current.params || {}
+    // The look changes → the archived PNG is stale; clear + re-arm (the
+    // switchTf/onEmbedSettings idiom).
+    archivedOnceRef.current = false
+    updateAttributes?.({
+      params: { ...params, settings: resolveOwnChartMergedSettings(prefs || {}) },
+      annotations: peekDrawings(params.symbol),
+      fallback: null,
+    })
+    setToolbarMsg('synced from your chart')
+  }
+
   const onEmbedSettings = useCallback((next) => {
     if (!next) return
     // A settings change alters the chart's look, so the archived PNG (and the
@@ -624,6 +647,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             <button type="button" className={styles.toolBtn} onClick={openEmbedSettings}
               title="Chart settings (this chart only)" aria-label="Chart settings">
               <UIcon name="gear" size={13} gold={false} />
+            </button>
+          )}
+          {/* Sync from my chart — re-freeze with the CURRENT Charts-page
+              settings + drawings (the heal door for embeds frozen before an
+              adjustment, and the deliberate "pull my changes in" action). */}
+          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
+            <button type="button" className={styles.toolBtn} onClick={syncFromMyChart}
+              title="Sync from my chart — pull your current Charts-page settings and drawings into this embed">
+              Sync
             </button>
           )}
           {/* Freeze to a static PNG — replaces the live embed with a plain,

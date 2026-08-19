@@ -12,10 +12,10 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
-import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
-import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import styles from './NoteEditorPage.module.css'
 
@@ -400,19 +400,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // editor was already created with this content via useEditor's `content`
   // option, so a swallowed first attempt still shows the note.
 
-  // The user's merged chart theme rides editor storage so the SLASH paths can
-  // freeze it at insert (the door captures always did — only typed inserts
-  // drifted with later re-themes; panel finding). Re-stamped whenever prefs
-  // land/change: onCreate alone raced the prefs fetch.
+  // The user's RESOLVED own-chart settings ride editor storage so the SLASH
+  // paths can freeze them at insert (the door captures always did — only
+  // typed inserts drifted; panel finding). Re-stamped whenever prefs
+  // land/change: onCreate alone raced the prefs fetch. The stamp lives in
+  // widgetEmbedCore (one authority) and resolves the workspace WIDGET
+  // settings, not the bare chart_settings seed — stamping the seed here was
+  // how journal charts lost the user's MAs/legend/colors (chart-parity round).
   const { prefs } = usePreferences()
   useEffect(() => {
-    if (!editor) return
-    try {
-      editor.storage.uctJournalWidgets = {
-        ...(editor.storage.uctJournalWidgets || {}),
-        chartSettings: mergeChartSettings(parsePref(prefs?.chart_settings, null) || {}),
-      }
-    } catch { /* storage not ready — the insert falls back to unset settings */ }
+    stampChartSettings(editor, prefs)
   }, [editor, prefs])
 
   useEffect(() => {

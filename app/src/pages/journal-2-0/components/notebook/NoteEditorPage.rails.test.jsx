@@ -1,6 +1,19 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+// Chart-parity round: the page must WIRE the one-authority settings stamp
+// (widgetEmbedCore.stampChartSettings) — a helper that exists but is never
+// called is the built-tested-green-and-unreachable class. Partial mock: every
+// other core export stays real (the editor's extensions ride this module).
+const stampSpy = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/widgetEmbedCore', async (orig) => {
+  const mod = await orig()
+  return {
+    ...mod,
+    stampChartSettings: (...args) => { stampSpy(...args); return mod.stampChartSettings(...args) },
+  }
+})
 
 // A video note whose YouTube id resolves to a Desk library session — the
 // editor should wrap the note column with the Desk theater's watch rails.
@@ -60,5 +73,16 @@ describe('NoteEditorPage watch rails', () => {
     expect(screen.getByText('Tickers covered')).toBeInTheDocument()
     // Transcript search pill under the hero
     expect(screen.getByText('Search transcript')).toBeInTheDocument()
+  })
+})
+
+describe('NoteEditorPage chart-settings stamp', () => {
+  it('wires stampChartSettings with the live editor once it exists', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    await waitFor(() => {
+      const withEditor = stampSpy.mock.calls.find(([ed]) => ed && typeof ed === 'object' && 'storage' in ed)
+      expect(withEditor).toBeTruthy()
+    })
   })
 })
