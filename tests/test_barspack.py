@@ -43,22 +43,52 @@ def test_safe_to_build_never_mid_session():
 
 
 def test_should_build_rebuilds_after_close(monkeypatch):
-    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260817)  # Mon published
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260817, 1.0))  # Mon published
     assert barspack._should_build_now(_et(2026, 8, 18, 17, 0)) is True   # Tue closed → new session
-    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260818)  # Tue already published
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260818, 1.0))  # Tue, comprehensive
     assert barspack._should_build_now(_et(2026, 8, 18, 17, 0)) is False
 
 
 def test_should_build_never_mid_session_even_when_stale(monkeypatch):
-    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260101)  # very stale
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260101, 1.0))  # very stale
     assert barspack._should_build_now(_et(2026, 8, 18, 14, 0)) is False  # market open → never build
 
 
 def test_should_build_self_heals_a_behind_pack_on_weekend(monkeypatch):
-    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260813)  # behind Friday
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260813, 1.0))  # behind Friday
     assert barspack._should_build_now(_et(2026, 8, 15, 12, 0)) is True     # Sat → rebuild to Fri
-    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260814)  # already at Friday
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260814, 1.0))  # already at Friday
     assert barspack._should_build_now(_et(2026, 8, 15, 12, 0)) is False
+
+
+def test_rebuilds_same_session_when_long_tail_coverage_improves(monkeypatch):
+    # Published Tue at 50% coverage; long tail has since warmed to 80% → rebuild.
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260818, 0.50))
+    monkeypatch.setattr(barspack, "_daily_coverage_ratio", lambda *a, **k: 0.80)
+    assert barspack._should_build_now(_et(2026, 8, 18, 18, 0)) is True
+
+
+def test_no_same_session_rebuild_when_coverage_barely_moved(monkeypatch):
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260818, 0.50))
+    monkeypatch.setattr(barspack, "_daily_coverage_ratio", lambda *a, **k: 0.51)  # < +0.03
+    assert barspack._should_build_now(_et(2026, 8, 18, 18, 0)) is False
+
+
+def test_no_same_session_rebuild_once_comprehensive(monkeypatch):
+    # At/above the comprehensive bar → stop rebuilding this session (even if it ticks up).
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: (20260818, 0.95))
+    monkeypatch.setattr(barspack, "_daily_coverage_ratio", lambda *a, **k: 1.0)
+    assert barspack._should_build_now(_et(2026, 8, 18, 18, 0)) is False
+
+
+def test_legacy_int_marker_reads_zero_coverage(monkeypatch, tmp_path):
+    # A pre-coverage marker file (plain int) → (session, 0.0) so a rebuild can fire.
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    (tmp_path / barspack._SESSION_MARKER_FILE).write_text("20260818")
+    assert barspack._read_session_marker() == (20260818, 0.0)
+    # round-trip of the new format
+    barspack._write_session_marker(20260818, 0.732)
+    assert barspack._read_session_marker() == (20260818, 0.732)
 
 
 def _synthetic_bars(sym, tf, depth):

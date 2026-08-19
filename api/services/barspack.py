@@ -443,18 +443,61 @@ def _read_session_marker() -> int:
     """YYYYMMDD of the last published pack's newest daily session, or 0 if never
     published (a fresh worker → 0 → first complete session builds immediately)."""
     try:
-        with open(_session_marker_path()) as f:
-            return int((f.read().strip() or "0"))
+        raw = open(_session_marker_path()).read().strip()
+        if not raw:
+            return (0, 0.0)
+        if ":" in raw:
+            s, r = raw.split(":", 1)
+            return (int(s), float(r))
+        # Legacy int-only marker (pre-coverage) → unknown coverage. Treat as 0.0 so a
+        # same-session rebuild fires once the long tail has warmed past it.
+        return (int(raw), 0.0)
     except Exception:
-        return 0
+        return (0, 0.0)
 
 
-def _write_session_marker(session_ymd: int) -> None:
+def _write_session_marker(session_ymd: int, coverage: float = 0.0) -> None:
     try:
         with open(_session_marker_path(), "w") as f:
-            f.write(str(int(session_ymd)))
+            f.write(f"{int(session_ymd)}:{float(coverage):.3f}")
     except Exception:
         pass
+
+
+# Same-session rebuild control (2026-08-18): the pack should keep rebuilding as the
+# prewarmer's long tail catches up — not stop at the first partial build. Rebuild
+# while coverage < COMPREHENSIVE and it has measurably IMPROVED; stop once
+# comprehensive so we don't spin the ~17s/40MB build forever.
+_COMPREHENSIVE_RATIO = float(os.environ.get("BARSPACK_COMPREHENSIVE_RATIO", "0.9"))
+_COVERAGE_IMPROVE_MIN = float(os.environ.get("BARSPACK_COVERAGE_IMPROVE_MIN", "0.03"))
+
+
+def _daily_coverage_ratio(sample: int = 150) -> float:
+    """Fraction of a broad, evenly-spread universe sample whose STORED daily bar is
+    at/after the last complete session. Cheap (get_last_ts only — no build), so it
+    can gate whether an expensive same-session rebuild is worth doing. On any error
+    returns 1.0 (treat as comprehensive → do NOT spin rebuilds)."""
+    try:
+        from api.services import bars_sqlite
+        uni = _universe()
+        target = _last_complete_session_ymd()
+        if not uni or target is None:
+            return 1.0
+        step = max(1, len(uni) // sample)
+        samp = uni[::step][:sample]
+        if not samp:
+            return 1.0
+        fresh = 0
+        for s in samp:
+            try:
+                ts = bars_sqlite.get_last_ts(s, "D")
+                if ts and int(ts) >= target:
+                    fresh += 1
+            except Exception:
+                pass
+        return fresh / len(samp)
+    except Exception:
+        return 1.0
 
 
 def _is_trading_day(d: datetime) -> bool:
@@ -501,10 +544,12 @@ def _last_complete_session_ymd(now: datetime | None = None) -> int | None:
 
 def status() -> dict:
     """Diagnostics for the worker health surface."""
+    m_sess, m_ratio = _read_session_marker()
     return {
         "enabled": os.environ.get("BARSPACK_ENABLED", "0") == "1",
         "last_built_day": _read_marker(),
-        "published_session": _read_session_marker(),
+        "published_session": m_sess,
+        "published_coverage": round(m_ratio, 3),
         "target_session": _last_complete_session_ymd(),
         "should_build_now": _should_build_now(),
         "depth": PACK_DEPTH,
@@ -536,7 +581,17 @@ def _should_build_now(now: datetime | None = None) -> bool:
     if not _safe_to_build(now):
         return False
     sess = _last_complete_session_ymd(now)
-    return sess is not None and sess > _read_session_marker()
+    if sess is None:
+        return False
+    m_sess, m_ratio = _read_session_marker()
+    if sess > m_sess:
+        return True   # a newer CLOSED session exists → always rebuild
+    if sess == m_sess and m_ratio < _COMPREHENSIVE_RATIO:
+        # Same session, not yet comprehensive → rebuild ONLY if the long tail has
+        # measurably caught up since we last published (so we don't spin a 40MB
+        # build every poll for a marginal gain, and we stop once comprehensive).
+        return _daily_coverage_ratio() >= m_ratio + _COVERAGE_IMPROVE_MIN
+    return False
 
 
 def _loop() -> None:
@@ -550,14 +605,17 @@ def _loop() -> None:
                 today = _et_today()
                 m = build_and_upload()
                 _write_marker(today)
-                # Mark the session we actually PUBLISHED (may trail the target if
-                # the prewarmer hasn't captured today's close yet — then the next
-                # poll rebuilds for the newer session). This is what gates rebuilds.
-                _write_session_marker(m.get("newest_session") or 0)
+                # Mark the session we PUBLISHED + its daily coverage. Coverage gates
+                # SAME-SESSION rebuilds: if the prewarmer's long tail catches up after
+                # a partial build, the next poll rebuilds to fuller coverage instead
+                # of waiting for tomorrow. A newer session always rebuilds regardless.
+                cov = _daily_coverage_ratio()
+                _write_session_marker(m.get("newest_session") or 0, cov)
                 log.info(
-                    "[barspack] published %s (session %s): %d tickers, %d bars, %d shards",
-                    today, m.get("newest_session"), m["ticker_count"], m["bar_count"],
-                    len(m["shards"]),
+                    "[barspack] published %s (session %s, coverage %.0f%%): "
+                    "%d tickers, %d bars, %d shards",
+                    today, m.get("newest_session"), cov * 100, m["ticker_count"],
+                    m["bar_count"], len(m["shards"]),
                 )
         except BarsPackError as e:
             log.warning("[barspack] not published: %s", e)
