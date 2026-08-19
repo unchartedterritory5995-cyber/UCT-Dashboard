@@ -546,6 +546,13 @@ def run_prewarmer_forever():
           f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
           f"+ {len(_DEEP_INTRADAY_TICKERS)}x{len(_DEEP_INTRADAY_TFS)} deep intraday)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
+    # ⛔ BEFORE the executor exists. `ex.map(...)` is evaluated as an ARGUMENT and
+    # ThreadPoolExecutor.map submits every job immediately, so workers are already
+    # running `_warm_one` before `_run_boot_pass` is entered. Establishing liveness
+    # inside the helper therefore leaves a window where the prewarmer is doing work
+    # and its own heartbeat still reads dead — small in production, but it is the
+    # very state this file exists to make impossible, so it is closed here.
+    _set_phase("boot", total=len(jobs))
     with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
         warmed, skipped = _run_boot_pass(
             ex.map(_warm_one, jobs), len(jobs), fast_path_size_jobs)
