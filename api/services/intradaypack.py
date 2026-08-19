@@ -12,9 +12,10 @@ WHY A SEPARATE MODULE (not a barspack param)
     working daily pack is never entangled or put at risk.
 
 CLOSED-ONLY BY CONSTRUCTION
-    The builder runs POST-CLOSE only (barspack._safe_to_build: a trading day at/after
-    16:30 ET, or a non-trading day). At that point the store's newest intraday bars
-    are already CLOSED — no partial in-session bar can leak into the pack.
+    build() DROPS the current still-open session's partial bars (keeps only bars at/before
+    _last_complete_session_ymd), so no partial in-session bar can leak into the pack — and
+    it can therefore build + serve DURING market hours (today's session rides the client's
+    live feed / since-fetch on top), not only after 16:30.
 
 SHAPE
     Identical to the daily pack (so the client reuses idbImportPack / decodeShard):
@@ -36,7 +37,7 @@ from datetime import datetime, date as _date
 
 from api.services.barspack import (
     _ET, _int_env, _et_today, _universe, _shard_of, _sanitized_bars, _columnar,
-    _safe_to_build, _last_complete_session_ymd, BarsPackError,
+    _last_complete_session_ymd, BarsPackError,
 )
 
 log = logging.getLogger(__name__)
@@ -66,6 +67,10 @@ _BOOT_DELAY = _int_env("INTRADAYPACK_BOOT_DELAY", 180)
 _COMPREHENSIVE_RATIO = float(os.environ.get("INTRADAYPACK_COMPREHENSIVE_RATIO", "0.85"))
 _COVERAGE_IMPROVE_MIN = float(os.environ.get("INTRADAYPACK_COVERAGE_IMPROVE_MIN", "0.03"))
 _SESSION_MARKER_FILE = ".last_intradaypack_session"
+# Over-fetch beyond the target depth so that, after DROPPING the current still-open
+# session's partial bars (build-during-RTH), we still have ~depth CLOSED bars. Roughly
+# one full session (RTH+ext) per tf.
+_SESSION_PAD = {"1": 500, "5": 130, "15": 45, "30": 24, "60": 16}
 
 
 def _depth(tf: str) -> int:
@@ -149,6 +154,14 @@ def build(num_shards: int = NUM_SHARDS, tickers: list[str] | None = None,
     date = date or _et_today()
     tickers = tickers or _universe()
 
+    # The last CLOSED session (weekday < 16:00 ET → yesterday; else today). We pack only
+    # bars at/before it, so the pack NEVER carries today's still-forming partial bars and
+    # can therefore build + serve DURING market hours (today's session rides the client's
+    # live feed / since-fetch on top). Post-close, this == today so nothing is dropped.
+    last_complete = _last_complete_session_ymd()
+    if last_complete is None:
+        raise BarsPackError("intraday pack: no complete session available — refusing to build")
+
     by_shard: dict[int, list[str]] = {}
     for t in tickers:
         by_shard.setdefault(_shard_of(t, num_shards), []).append(t)
@@ -169,7 +182,10 @@ def build(num_shards: int = NUM_SHARDS, tickers: list[str] | None = None,
             entry: dict[str, dict] = {}
             dentry: dict[str, dict] = {}
             for tf in _TFS:
-                bars = _sanitized_bars(sym, tf, _depth(tf))
+                # Over-fetch, DROP the current still-open session's partial bars, then trim
+                # back to the target depth so the pack ends at the last CLOSED bar.
+                raw = _sanitized_bars(sym, tf, _depth(tf) + _SESSION_PAD.get(tf, 130))
+                bars = [b for b in raw if _bar_session_ymd(b) <= last_complete][-_depth(tf):] if raw else []
                 if bars:
                     entry[tf] = _columnar(bars)
                     dentry[tf] = _columnar(bars[-_DELTA_TAIL:])
@@ -284,8 +300,9 @@ def _should_build_now(now: datetime | None = None) -> bool:
         if not _ET:
             return False
         now = datetime.now(_ET)
-    if not _safe_to_build(now):
-        return False
+    # NB: no _safe_to_build (post-close) gate — build() drops today's partial bars, so the
+    # pack is CLOSED-only whenever it builds. This lets the pack bootstrap + advance DURING
+    # market hours (first-enable, or the daily session roll), not only after 16:30.
     sess = _last_complete_session_ymd(now)
     if sess is None:
         return False
