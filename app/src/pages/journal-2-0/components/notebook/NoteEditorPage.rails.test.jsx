@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -73,6 +73,25 @@ describe('NoteEditorPage watch rails', () => {
     expect(screen.getByText('Tickers covered')).toBeInTheDocument()
     // Transcript search pill under the hero
     expect(screen.getByText('Search transcript')).toBeInTheDocument()
+  })
+})
+
+// Owner ask (chart-parity round): "a box or a row up at the top with the
+// font, the print, and PNG stuff." The formatting cluster and the exports
+// existed but were split across one crowded header line — this pins the
+// dedicated toolbar ROW that groups them, discoverable as one surface.
+describe('NoteEditorPage editor toolbar row', () => {
+  it('groups the formatting cluster AND the PNG/Print exports in one labeled toolbar row', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
+    const q = within(row)
+    expect(q.getByLabelText('Font family')).toBeInTheDocument()
+    expect(q.getByLabelText('Text size')).toBeInTheDocument()
+    expect(q.getByText('B')).toBeInTheDocument()
+    expect(q.getByText('H1')).toBeInTheDocument()
+    expect(q.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
+    expect(q.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
   })
 })
 
