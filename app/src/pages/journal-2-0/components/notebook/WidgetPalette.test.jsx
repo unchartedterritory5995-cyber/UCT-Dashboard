@@ -73,6 +73,28 @@ describe('WidgetPalette', () => {
     expect(calls.content[1].attrs.params.to == null).toBe(true)
   })
 
+  it('steps OFF a pre-existing NodeSelection before inserting (the atom-replace trap)', () => {
+    // Clicking an embed leaves a NodeSelection ON the atom; focus() restores
+    // it, and insertContent over a NodeSelection REPLACES the node. The slash
+    // path can't reach this (typing collapses the selection) — the palette
+    // can, so its chain must caretAfterWidgetEmbed() BEFORE the insert too.
+    const order = []
+    const chain = {
+      focus: () => { order.push('focus'); return chain },
+      insertContent: () => { order.push('insertContent'); return chain },
+      caretAfterWidgetEmbed: () => { order.push('caret'); return chain },
+      run: () => { order.push('run') },
+    }
+    const editor = { chain: () => chain, storage: {} }
+    render(<WidgetPalette editor={editor} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Insert chart' }))
+    expect(order.indexOf('caret')).toBeGreaterThan(-1)
+    expect(order.indexOf('caret')).toBeLessThan(order.indexOf('insertContent'))
+    expect(order.filter((x) => x === 'caret').length).toBe(2) // before AND after
+  })
+
   it('mtf flow inserts the three-chart stack', () => {
     const { editor, calls } = makeEditor()
     render(<WidgetPalette editor={editor} />)

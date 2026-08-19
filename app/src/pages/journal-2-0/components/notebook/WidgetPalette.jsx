@@ -63,7 +63,14 @@ export default function WidgetPalette({ editor, onClose }) {
   const insert = () => {
     if (!args || !editor) return
     const settings = editor.storage?.uctJournalWidgets?.chartSettings
+    // caretAfterWidgetEmbed BEFORE the insert too: clicking an embed leaves a
+    // NodeSelection ON the atom, focus() restores it, and insertContent over
+    // a NodeSelection REPLACES the node (the trap that ate an embed on 8/13).
+    // The slash path can't reach this state — typing collapses the selection
+    // — but a palette click doesn't, so the entry side needs the same guard
+    // as the exit side.
     editor.chain().focus()
+      .caretAfterWidgetEmbed()
       .insertContent(chartInsertNodes(kind, args, settings))
       .caretAfterWidgetEmbed()
       .run()
