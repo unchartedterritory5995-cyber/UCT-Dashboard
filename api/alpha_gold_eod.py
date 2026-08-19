@@ -237,6 +237,14 @@ def _is_weekly(exp) -> bool:
         return False
 
 
+def _is_deep_itm(a: dict, pct: float) -> bool:
+    """True for a DEEP in-the-money contract (ITM by >= `pct`%). Deep-ITM ETF/index
+    blocks are typically hedges / financing (delta ≈ 1), not directional bets."""
+    lbl = (a.get("moneynessLabel") or "").upper()
+    mp = a.get("moneynessPct")
+    return lbl == "ITM" and isinstance(mp, (int, float)) and abs(mp) >= pct
+
+
 def _dte(a: dict) -> str:
     d = a.get("dte")
     return f"{int(d)}d" if d is not None else "—"
@@ -553,6 +561,15 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         # short-dated noise so the card reads as real positioning, not lottos.
         alerts = [a for a in alerts
                   if not (isinstance(a.get("dte"), (int, float)) and a["dte"] <= 1)]
+        # Owner rule: drop DEEP-ITM ETF/index contracts — those big deep-ITM index
+        # blocks (SPX/SPXW/QQQ) are usually hedges / financing, not directional
+        # bets. Threshold + scope env-tunable; stocks are kept by default.
+        ditm_pct = float(os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_PCT", "15"))
+        ditm_etf_only = os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_ETF_ONLY", "1") == "1"
+        if ditm_pct > 0:
+            alerts = [a for a in alerts
+                      if not (_is_deep_itm(a, ditm_pct)
+                              and (_is_etf(a) or not ditm_etf_only))]
         # Earnings: KEEP but TAG (owner change from the prior drop). Stamp a weekly
         # flag (non-monthly expiry) + an earnings flag (reports within the window) on
         # every row so render_card can show W / E chips and, if a section is over its
