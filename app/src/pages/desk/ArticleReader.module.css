@@ -72,8 +72,12 @@
   color: var(--text-bright); font-size: var(--text-xs);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   letter-spacing: 0.04em; text-decoration: none;
+  cursor: pointer; line-height: inherit;
 }
 .tickerChip:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.chipGain, .chipLoss { margin-left: 6px; font-size: var(--text-xs); }
+.chipGain { color: var(--gain); }
+.chipLoss { color: var(--loss); }
 
 /* ── layout: article + sticky table of contents ── */
 .layout { display: grid; grid-template-columns: minmax(0, 760px) 1fr; gap: var(--space-3xl); }
@@ -297,6 +301,36 @@
 
 /* Previous / next issue. An archive is a sequence; the only exit from an
    18-minute read used to be the back link. */
+/* Related issues — discovery by shared names, cards in the adjacent-nav idiom */
+.related { max-width: 760px; margin-top: var(--space-2xl); }
+.relatedLabel {
+  font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: var(--space-md);
+}
+.relatedCards {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md);
+}
+.relatedCard {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--space-md); border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-surface); text-decoration: none; min-height: var(--tap-min);
+  min-width: 0;
+}
+.relatedCard:hover { border-color: var(--ut-gold); }
+.relatedTitle {
+  font-size: var(--text-sm); color: var(--text-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.relatedMeta { font-size: var(--text-xs); color: var(--text-muted); }
+.relatedShared {
+  font-size: var(--text-xs); color: var(--ut-gold);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.04em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .relatedCards { grid-template-columns: 1fr; }
+}
+
 .adjacent {
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
   max-width: 760px; margin-top: var(--space-2xl);

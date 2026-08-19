@@ -245,6 +245,10 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
             body, desk_store.readable_slugs())
     except Exception:  # noqa: BLE001 — a link is not worth losing the article over
         pass
+    try:
+        related = desk_store.related_posts(post["id"])
+    except Exception:  # noqa: BLE001 — a discovery rail is not worth losing the article over
+        related = []
     return {
         "id": post["id"],
         "slug": post.get("slug"),
@@ -261,6 +265,7 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
         "sections": _json_list(post.get("sections_json")),
         "tickers": _json_list(post.get("tickers_json")),
         "related_video": _related_video(post),
+        "related": related,
         "adjacent": desk_store.adjacent_posts(post["id"]),
         "internal_links": internal_links,
         "body_html": body,

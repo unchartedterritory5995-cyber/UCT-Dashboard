@@ -14,6 +14,23 @@ vi.mock('swr', () => ({
   default: () => ({ data: mockData, error: mockError, isLoading: false }),
 }))
 
+// The real popup pulls ChartPane + the voice/ticker-hub context graph — none of
+// which is under test here. The stub keeps the CONTRACT under test: it renders
+// only when open, carries the symbol it was given, and can be closed.
+vi.mock('../../components/TickerPopup', () => ({
+  default: ({ sym, open, onClose }) => (open ? (
+    <div data-testid="ticker-popup" data-sym={sym}>
+      <button type="button" onClick={onClose}>close chart</button>
+    </div>
+  ) : null),
+}))
+
+let mockPrices = {}
+vi.mock('../../hooks/useLivePrices', () => ({
+  default: () => ({ prices: mockPrices, isLoading: false, error: null, refresh: () => {} }),
+}))
+vi.mock('../../utils/prefetchBars', () => ({ prefetchBar: vi.fn() }))
+
 import * as progress from './articleProgress'
 import ArticleReader from './ArticleReader'
 
@@ -88,6 +105,7 @@ beforeEach(() => {
   localStorage.clear()
   mockData = ARTICLE
   mockError = null
+  mockPrices = {}
 })
 
 test('the article renders its own body, not a link to Substack', () => {
@@ -130,12 +148,59 @@ test('the table of contents is built from the sections the server derived', () =
   expect(nav.textContent).toContain('Charts Covered')
 })
 
-test('a ticker chip inside the injected body routes in-app instead of reloading', () => {
+test('a ticker chip inside the injected body opens the chart popup in place', () => {
   const { container } = renderReader()
   const chip = container.querySelector('.uctTickerChip')
   expect(chip.getAttribute('href')).toBe('/research/INTC')  // works without JS too
+  expect(screen.queryByTestId('ticker-popup')).toBeNull()
   fireEvent.click(chip)
-  expect(navigate).toHaveBeenCalledWith('/research/INTC')
+  // The popup is the member's own chart (TickerPopup → ChartPane). The reader
+  // must NOT be navigated away mid-article — that was the old behavior.
+  expect(screen.getByTestId('ticker-popup').getAttribute('data-sym')).toBe('INTC')
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('a Covered chip opens the chart popup, and closing returns to the article', () => {
+  renderReader()
+  fireEvent.click(screen.getByRole('button', { name: 'ALAB' }))
+  expect(screen.getByTestId('ticker-popup').getAttribute('data-sym')).toBe('ALAB')
+  fireEvent.click(screen.getByText('close chart'))
+  expect(screen.queryByTestId('ticker-popup')).toBeNull()
+  expect(navigate).not.toHaveBeenCalled()
+})
+
+test('covered chips carry the live day move when the price store has one', () => {
+  mockPrices = {
+    INTC: { price: 102.5, change_pct: 2.34 },
+    ALAB: { price: 50.1, change_pct: -1.42 },
+  }
+  renderReader()
+  expect(screen.getByText('+2.3%')).toBeTruthy()
+  expect(screen.getByText('-1.4%')).toBeTruthy()
+  // A name the store has no price for renders bare — no stray zero or plus.
+  expect(screen.getByRole('button', { name: 'ARM' })).toBeTruthy()
+})
+
+test('related issues render as cards linking into the reader', () => {
+  mockData = {
+    ...ARTICLE,
+    related: [{
+      slug: 'sunday-scans-1ad', title: 'Sunday Scans — August 9, 2026',
+      published_at: 1786297974, shared_count: 12,
+      shared: ['INTC', 'MU', 'ARM', 'DELL'],
+    }],
+  }
+  renderReader()
+  const nav = screen.getByLabelText('Issues on the same names')
+  const card = nav.querySelector('a')
+  expect(card.getAttribute('href')).toBe('/desk/article/sunday-scans-1ad')
+  expect(card.textContent).toContain('12 shared names')
+  expect(card.textContent).toContain('INTC · MU · ARM · DELL')
+})
+
+test('no related section renders when the payload carries none', () => {
+  renderReader()  // ARTICLE has no `related` key
+  expect(screen.queryByLabelText('Issues on the same names')).toBeNull()
 })
 
 test('a reference to an earlier issue routes in-app, not a full page reload', () => {
