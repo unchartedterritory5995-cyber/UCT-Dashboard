@@ -13,6 +13,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import { ArticleIcon } from '../education/icons'
 import UIcon from '../../components/ui/UIcon'
+import TickerPopup from '../../components/TickerPopup'
+import useLivePrices from '../../hooks/useLivePrices'
+import { prefetchBar } from '../../utils/prefetchBars'
 // Named `bookmark`, not `progress`: the component already has a `progress`
 // state for the reading BAR, which would shadow a module called the same.
 import * as bookmark from './articleProgress'
@@ -52,6 +55,10 @@ export default function ArticleReader() {
   const [progress, setProgress] = useState(0)
   const [lightbox, setLightbox] = useState(null)
   const [showAllTickers, setShowAllTickers] = useState(false)
+  // A ticker click opens the member's OWN chart in place (TickerPopup →
+  // ChartPane with stored=null resolves their /charts widget settings), rather
+  // than navigating away mid-read. One popup per page, never per chip.
+  const [chartSym, setChartSym] = useState(null)
   const [resumedAt, setResumedAt] = useState(null)   // section we jumped to, if any
   // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
   // it runs first — at scroll position 0. Saving then would write pct=0 and
@@ -85,15 +92,25 @@ export default function ArticleReader() {
     [data],
   )
 
+  // The Covered chips carry today's move, so the masthead answers "which of
+  // these names is doing something RIGHT NOW" before the reader commits 18
+  // minutes. Only the chips on screen join the shared live-price poll.
+  const visibleTickers = useMemo(() => {
+    const t = data?.tickers || []
+    return showAllTickers ? t : t.slice(0, TICKER_PREVIEW)
+  }, [data, showAllTickers])
+  const { prices: livePx } = useLivePrices(visibleTickers)
+
   // ── one delegated listener for every affordance inside the injected HTML ──
   const onBodyClick = useCallback((e) => {
     const chip = e.target.closest?.('.uctTickerChip')
     if (chip) {
-      // Keep it an <a href> so it survives without JS and reads as a link,
-      // but route in-app rather than reloading the whole SPA.
+      // The chip stays an <a href="/research/..."> so it survives without JS,
+      // but with JS it opens the chart popup in place instead of navigating a
+      // reader away mid-article.
       e.preventDefault()
       const sym = chip.getAttribute('data-ticker')
-      if (sym) navigate(`/research/${sym}`)
+      if (sym) setChartSym(sym)
       return
     }
     const img = e.target.closest?.('img[data-lightbox]')
@@ -111,6 +128,19 @@ export default function ArticleReader() {
       navigate(link.getAttribute('href'))
     }
   }, [navigate])
+
+  // ChartPane is a lazy chunk and a cold open holds its Suspense fallback on
+  // the MODULE fetch, not data — so hovering a chip warms the bars the way
+  // TickerPopup's own triggers do. Once per symbol per page view.
+  const warmedRef = useRef(new Set())
+  const warmChip = useCallback((sym) => {
+    if (!sym || warmedRef.current.has(sym)) return
+    warmedRef.current.add(sym)
+    prefetchBar(sym)
+  }, [])
+  const onBodyHover = useCallback((e) => {
+    warmChip(e.target.closest?.('.uctTickerChip')?.getAttribute('data-ticker'))
+  }, [warmChip])
 
   // Scroll-spy + reading progress. Reads the SCROLL CONTAINER, not window —
   // this app scrolls an inner .main element (see Layout.module.css).
@@ -310,9 +340,23 @@ export default function ArticleReader() {
               {/* A Sunday Scans issue covers ~44 names. Showing all of them
                   costs roughly a phone screen of chips BEFORE the reader sees a
                   word of the article, so the tail is behind a toggle. */}
-              {(showAllTickers ? data.tickers : data.tickers.slice(0, TICKER_PREVIEW)).map((sym) => (
-                <Link key={sym} className={styles.tickerChip} to={`/research/${sym}`}>{sym}</Link>
-              ))}
+              {visibleTickers.map((sym) => {
+                const chg = livePx[sym]?.change_pct
+                return (
+                  <button
+                    key={sym} type="button" className={styles.tickerChip}
+                    onClick={() => setChartSym(sym)}
+                    onMouseEnter={() => warmChip(sym)}
+                  >
+                    {sym}
+                    {Number.isFinite(chg) && (
+                      <span className={chg >= 0 ? styles.chipGain : styles.chipLoss}>
+                        {`${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%`}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
               {data.tickers.length > TICKER_PREVIEW && (
                 <button
                   type="button"
@@ -352,6 +396,7 @@ export default function ArticleReader() {
           ref={bodyRef}
           className={styles.body}
           onClick={onBodyClick}
+          onMouseOver={onBodyHover}
           dangerouslySetInnerHTML={{ __html: data.body_html }}
         />
       </div>
@@ -370,6 +415,27 @@ export default function ArticleReader() {
           </span>
           <UIcon name="chevronRight" size={16} />
         </Link>
+      )}
+
+      {/* prev/next walks the archive as a sequence; these cards walk it by
+          SUBJECT — the issues that charted the most of the same names. */}
+      {data.related?.length > 0 && (
+        <nav className={styles.related} aria-label="Issues on the same names">
+          <div className={styles.relatedLabel}>Issues on the same names</div>
+          <div className={styles.relatedCards}>
+            {data.related.map((r) => (
+              <Link key={r.slug} className={styles.relatedCard} to={`/desk/article/${r.slug}`}>
+                <span className={styles.relatedTitle}>{r.title}</span>
+                <span className={styles.relatedMeta}>
+                  {fmtDate(r.published_at)} · {r.shared_count} shared names
+                </span>
+                {r.shared?.length > 0 && (
+                  <span className={styles.relatedShared}>{r.shared.join(' · ')}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </nav>
       )}
 
       {/* An archive is a sequence. Without this the only exit from an 18-minute
@@ -395,6 +461,10 @@ export default function ArticleReader() {
         Originally published on{' '}
         <a href={data.url} target="_blank" rel="noopener noreferrer">Substack</a>.
       </footer>
+
+      {chartSym && (
+        <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />
+      )}
 
       {lightbox && (
         <div className={styles.lightbox} role="dialog" aria-modal="true"
