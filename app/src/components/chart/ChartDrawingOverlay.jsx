@@ -1599,6 +1599,10 @@ export default function ChartDrawingOverlay({
 
     // Draw completed drawings
     for (const d of drawings) {
+      // A text note being edited is HIDDEN on the canvas while its editor box is
+      // open — otherwise the note renders BEHIND the (slightly offset) textarea and
+      // reads as a duplicate "ghost" box (the reported double-click glitch).
+      if (textInput?.editId === d.id) continue
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
         ctx.save()
@@ -1771,7 +1775,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
