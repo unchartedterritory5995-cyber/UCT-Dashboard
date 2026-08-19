@@ -23,7 +23,16 @@ export function expectedLatestDailySessionET() {
   const dow = nowET.getDay()               // 0 Sun … 6 Sat
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   const d = new Date(nowET)
-  if (!(dow >= 1 && dow <= 5 && mins >= 960)) { // not a weekday at/after 16:00 ET (close)
+  // ⚠️ 2026-08-19 INCIDENT REVERT: temporarily back on the OPEN threshold (570 / 9:30 ET).
+  // The close threshold (960) made closed-only daily caches paint instantly during RTH —
+  // which correctly SKIPPED the mid-session refetch, but that refetch was ALSO masking two
+  // latent client bugs: (1) a stale/mismatched cached daily bar surviving in IDB (newest-wins
+  // merge can't heal a wrong-OHLC row at an existing ts) and (2) the view-lock restoring a
+  // back-in-time pan on instant paint. With no refetch, both showed through as black,
+  // scrolled-back charts during the 8/19 open. Reverting to 570 restores the full RTH refetch
+  // (series REPLACE → heals the bar + re-anchors the view). Re-raise to 960 only AFTER the
+  // IDB-heal + view-lock re-anchor fixes land so instant daily is correct, not just instant.
+  if (!(dow >= 1 && dow <= 5 && mins >= 570)) { // not a weekday at/after 09:30 ET (open)
     do { d.setDate(d.getDate() - 1) } while (d.getDay() === 0 || d.getDay() === 6)
   }
   const p = (n) => String(n).padStart(2, '0')
