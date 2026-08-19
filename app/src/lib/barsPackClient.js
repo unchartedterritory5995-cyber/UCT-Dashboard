@@ -30,7 +30,14 @@ const MAX_DELTA_CATCHUP_DAYS = 6
 // route prefix + localStorage version/seed. The intraday pack no-ops on the client
 // until the worker publishes it (manifest → {available:false}), so it's dark-safe.
 const PACK_DAILY = { base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed' }
-const PACK_INTRADAY = { base: '/api/intradaypack', versionKey: 'intradaypack.version', seedKey: 'intradaypack.seed' }
+// The intraday pack is a large FRESH ingest (5m+60m, whole universe) that runs
+// mid-session the first time it's enabled — so it ingests in SMALL, YIELDING batches so
+// the readwrite train never write-locks the 'bars' store long enough to stall a ticker
+// switch's idbGet. Daily keeps its fast 250-batch path (already-ingested for returners).
+const PACK_INTRADAY = {
+  base: '/api/intradaypack', versionKey: 'intradaypack.version', seedKey: 'intradaypack.seed',
+  ingestBatchSize: 30, ingestYield: true,
+}
 
 let _started = false
 
@@ -120,7 +127,7 @@ async function _ingestFull(cfg, version, shards) {
       try { entries = await _fetchShard(cfg, version, shardIdx) } catch { continue }
       if (!entries.length) continue
       try {
-        const res = await idbImportPack(entries)
+        const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
         if (res.aborted) aborted = true
       } catch { /* best-effort */ }
     }

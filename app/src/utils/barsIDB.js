@@ -250,7 +250,7 @@ export async function idbPut(sym, tf, bars) {
  *
  * Returns { written, skipped, aborted }.
  */
-export async function idbImportPack(entries, { batchSize = 250 } = {}) {
+export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false } = {}) {
   if (!entries?.length) return { written: 0, skipped: 0, aborted: false }
   let db
   try { db = await _open() } catch { return { written: 0, skipped: 0, aborted: true } }
@@ -260,6 +260,17 @@ export async function idbImportPack(entries, { batchSize = 250 } = {}) {
     written += res.written
     skipped += res.skipped
     if (res.aborted) aborted = true  // quota / tx failure — keep prior batches, stop
+    // Yield a MACROTASK between readwrite batches so a chart's idbGet (readonly, SAME
+    // 'bars' store) can interleave. IndexedDB serializes readwrite-vs-readonly on a
+    // store, so a gap-free batch train write-locks it for seconds and stalls every
+    // ticker switch — and because swrUrl is gated on idbGet resolving, that blocks BOTH
+    // the instant paint AND the network fallback (the intraday-pack fresh-ingest hang).
+    // Callers doing a large fresh ingest (intraday) pass yieldBetween + a small batch so
+    // each lock window is tiny; daily keeps its 250-batch, no-yield fast path (it's
+    // already-ingested for returning users, so it never runs mid-session).
+    if (yieldBetween && i + batchSize < entries.length) {
+      await new Promise((r) => setTimeout(r, 0))
+    }
   }
   return { written, skipped, aborted }
 }
