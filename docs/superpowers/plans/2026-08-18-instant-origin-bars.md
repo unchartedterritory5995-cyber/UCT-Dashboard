@@ -10,6 +10,33 @@ Pack initiative — the Pack stays as a zero‑latency cherry on top, not a crut
 
 ---
 
+## PROGRESS (2026‑08‑19) — the intraday instant push
+
+Measured the WEB pod's real warm-vs-cold ratio with a new instrument
+(`tools/bars_warmth_audit.py`, reads the `Server-Timing: bars;desc=` layer per
+request over a stratified universe sample). Findings + actions, all on 2026‑08‑19:
+
+- **Daily was already instant** (p50 ~60–70ms, 100% `stale-swr` via the daily
+  async-heal — flag confirmed ON on web). No daily work needed.
+- **Intraday was the whole gap**: 0% warm, p50 366ms, blocking `miss`/`fetch`, up to
+  10s — because 5m is pre-warmed only for the top ~600 (`PREWARM_5M_CAP=600`); the
+  long tail is cold.
+- **Flipped `BARS_INTRADAY_ASYNC_HEAL=1` on web** (Phase 1.2 live): intraday first
+  paint dropped **366ms → p50 66ms** (non-blocking `stale-swr`) for any ticker with
+  rows. Confirmed on a settled pod.
+- **Flipped `PREWARM_5M_UNIVERSE=1` on worker** (Phase 2 live): the boot pass now
+  queues **+3,200 shallow (780-bar) 5m jobs** covering the long tail — verified in
+  worker logs (`Phase-2 universe 5m: +3200 shallow boot-only jobs`). Web on-demand
+  held at 57–63ms while it runs (NO Massive saturation). Coverage reaches web via the
+  ~40-min R2 sync → the residual truly-cold `fetch` cases disappear over the next
+  hour + overnight → instant intraday universe-wide by 2026‑08‑20.
+- ⚠️ Every WEB deploy costs a ~3-min cold window (`bars.db integrity check passed
+  (179.1s)` at boot + cold mem cache) — so batch web pushes and avoid market-hours
+  churn. Worker deploys don't blip `/api`.
+- ⏭ Residual: rare truly-cold ticker (no rows at all) can still hang on the Layer-4
+  synchronous fetch (one 40s daily outlier seen during a pod restart) → Phase 1.3
+  (bounded deadline / warming marker) is the last "never-hang" backstop.
+
 ## PROGRESS (2026‑08‑18)
 
 - ✅ **Phase 0 — DONE & LIVE** (`a95a81610`): prewarmer guarded + supervised
