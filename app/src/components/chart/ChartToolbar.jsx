@@ -18,6 +18,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
+import { toolbarFor } from '../../utils/dividerColor'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -65,7 +66,21 @@ const ICONS = {
   // which is why the clipboard copy went unfound.
   share:      I(<><circle cx="12" cy="3.5" r="1.8" /><circle cx="12" cy="12.5" r="1.8" /><circle cx="4" cy="8" r="1.8" /><path d="M5.6 7.1l4.8-2.7M5.6 8.9l4.8 2.7" /></>),
   replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
+  favorites:  I(<path d="M8 1.6l1.85 3.75 4.15.6-3 2.93.71 4.12L8 11.06 4.29 13l.71-4.12-3-2.93 4.15-.6z" fill="currentColor" stroke="currentColor" strokeWidth="0.6" strokeLinejoin="round" />),
+  starOutline: I(<path d="M8 1.6l1.85 3.75 4.15.6-3 2.93.71 4.12L8 11.06 4.29 13l.71-4.12-3-2.93 4.15-.6z" fill="none" />),
+  grip:       I(<><circle cx="6" cy="4" r="1" fill="currentColor" stroke="none" /><circle cx="6" cy="8" r="1" fill="currentColor" stroke="none" /><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="10" cy="4" r="1" fill="currentColor" stroke="none" /><circle cx="10" cy="8" r="1" fill="currentColor" stroke="none" /><circle cx="10" cy="12" r="1" fill="currentColor" stroke="none" /></>),
+  check:      I(<polyline points="3,8.5 6.5,12 13,4" />),
 }
+
+// ─── Drawing-tools customization (show/hide + favorites) ─────────────────────
+// Persisted per-browser. `hidden` = tool ids removed from the main toolbar;
+// `favorites` = tool ids surfaced on the floating quick-toolbar. All tools are
+// visible by default (empty hidden set).
+const LS_HIDDEN = 'uct.chart.drawtools.hidden.v1'
+const LS_FAV = 'uct.chart.drawtools.favorites.v1'
+const LS_FAVPOS = 'uct.chart.drawtools.favpos.v1'
+const _loadArr = (k) => { try { const a = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(a) ? a : [] } catch { return [] } }
+const _saveArr = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)) } catch { /* ignore */ } }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const TOOLS = [
@@ -670,6 +685,96 @@ function ChartSettingsPanel({
   )
 }
 
+// Dropdown to show/hide + favorite drawing tools. Styled to match the info-row
+// "add a field" menu (dark, search on top, checkmark on shown rows, star on right).
+function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onToggleFavorite, anchorRect, onClose }) {
+  const [q, setQ] = useState('')
+  const ref = useRef(null)
+  useEffect(() => {
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [onClose])
+  const filtered = tools.filter(t => t.label.toLowerCase().includes(q.toLowerCase()))
+  const left = Math.min(anchorRect?.left ?? 100, window.innerWidth - 272)
+  const top = (anchorRect?.bottom ?? 40) + 4
+  return createPortal(
+    <div ref={ref} style={{ position: 'fixed', left: Math.max(8, left), top, width: 260, maxHeight: '68vh',
+        overflowY: 'auto', zIndex: 1000, background: 'var(--menu-bg,#14171c)',
+        border: '1px solid var(--menu-border,#232932)', borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
+        padding: 6, fontFamily: "'Instrument Sans', sans-serif" }}>
+      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search tools…"
+        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', marginBottom: 4,
+          background: 'var(--menu-bg-2,#1b1f26)', border: '1px solid var(--menu-border,#232932)', borderRadius: 6,
+          color: 'var(--menu-text,#e8eaed)', fontSize: 13, outline: 'none' }} />
+      {filtered.map(t => {
+        const visible = !hidden.includes(t.id)
+        const fav = favorites.includes(t.id)
+        return (
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--menu-accent-bg,rgba(201,168,76,0.1))' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            <span onClick={() => onToggleHidden(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              <span style={{ width: 14, height: 14, color: '#c9a84c', flexShrink: 0, display: 'flex' }}>{visible ? ICONS.check : null}</span>
+              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
+              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
+            </span>
+            <span onClick={() => onToggleFavorite(t.id)} title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
+              style={{ flexShrink: 0, color: fav ? '#c9a84c' : 'var(--menu-text-muted,#6b7280)', display: 'flex', cursor: 'pointer' }}>
+              {fav ? ICONS.favorites : ICONS.starOutline}
+            </span>
+          </div>
+        )
+      })}
+    </div>, document.body)
+}
+
+// Floating, draggable quick-toolbar of the user's FAVORITE drawing tools. Matches
+// the canvas via the same --chart-toolbar-* vars StockChart publishes.
+function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos, onMove, colors }) {
+  const favTools = favorites.map(id => tools.find(t => t.id === id)).filter(Boolean)
+  const startDrag = (e) => {
+    e.preventDefault()
+    const startX = e.clientX, startY = e.clientY
+    const base = pos || { x: 140, y: 140 }
+    const move = (ev) => onMove({
+      x: Math.max(0, Math.min(window.innerWidth - 60, base.x + (ev.clientX - startX))),
+      y: Math.max(0, Math.min(window.innerHeight - 30, base.y + (ev.clientY - startY))),
+    })
+    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up) }
+    document.addEventListener('pointermove', move)
+    document.addEventListener('pointerup', up)
+  }
+  if (!favTools.length) return null
+  const p = pos || { x: 140, y: 140 }
+  // EXACT toolbar-button colours (passed as props because the CSS vars are chart-
+  // scoped and this portals to <body>). Border = the button hover shade so the
+  // pill reads as "made of buttons," not a foreign gray panel.
+  const bg = colors?.bg || 'rgba(26,28,23,0.92)'
+  const bgHover = colors?.bgHover || 'rgba(46,49,39,0.95)'
+  const text = colors?.text || '#a8a290'
+  const textHover = colors?.textHover || '#e2dfd6'
+  return createPortal(
+    <div style={{ position: 'fixed', left: p.x, top: p.y, zIndex: 900, display: 'flex', alignItems: 'center', gap: 3,
+        padding: '4px 6px', borderRadius: 8, background: bg,
+        border: `1px solid ${bgHover}`, boxShadow: '0 4px 18px rgba(0,0,0,0.45)' }}>
+      <span onPointerDown={startDrag} title="Drag to move" style={{ cursor: 'grab', color: text, display: 'flex', padding: '0 1px', touchAction: 'none' }}>{ICONS.grip}</span>
+      {favTools.map(t => {
+        const on = activeTool === t.id
+        return (
+          <button key={t.id} onClick={() => onSelect(t.id)} title={t.label}
+            onMouseEnter={e => { if (!on) { e.currentTarget.style.background = bgHover; e.currentTarget.style.color = textHover } }}
+            onMouseLeave={e => { if (!on) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = text } }}
+            style={{ width: 26, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none',
+              borderRadius: 4, background: on ? bgHover : 'transparent',
+              color: on ? '#c9a84c' : text, cursor: 'pointer' }}>
+            {ICONS[t.id]}
+          </button>
+        )
+      })}
+    </div>, document.body)
+}
+
 // ─── Main Toolbar Component ──────────────────────────────────────────────────
 
 function formatReplayDate(t) {
@@ -796,6 +901,32 @@ function ChartToolbar({
   const settingsRef = useRef(null)
   const compareRef = useRef(null)
   const alertRef = useRef(null)
+
+  // ── Drawing-tools customization (show/hide + favorites) ──
+  const [hiddenTools, setHiddenTools] = useState(() => _loadArr(LS_HIDDEN))
+  const [favoriteTools, setFavoriteTools] = useState(() => _loadArr(LS_FAV))
+  const [favMenuOpen, setFavMenuOpen] = useState(false)
+  const [favMenuRect, setFavMenuRect] = useState(null)
+  const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
+  const favBtnRef = useRef(null)
+  const DRAW_TOOL_LIST = useMemo(() => TOOLS.filter(t => t !== 'sep'), [])
+  // The floating favorites toolbar PORTALS to <body>, so it can't inherit the
+  // chart-scoped --chart-toolbar-* vars. Compute the exact toolbar-button colours
+  // from the canvas here (same helper StockChart uses) and pass them as props so
+  // the floating bar is byte-identical to the main toolbar buttons on any theme.
+  const favToolbarColors = useMemo(() => toolbarFor(chartSettings?.background) || null, [chartSettings?.background])
+  const toggleHiddenTool = useCallback((id) => setHiddenTools(prev => {
+    const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
+  }), [])
+  const toggleFavoriteTool = useCallback((id) => setFavoriteTools(prev => {
+    const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_FAV, n); return n
+  }), [])
+  const moveFavToolbar = useCallback((p) => { setFavPos(p); try { localStorage.setItem(LS_FAVPOS, JSON.stringify(p)) } catch { /* ignore */ } }, [])
+  const openFavMenu = useCallback(() => {
+    const r = favBtnRef.current?.getBoundingClientRect()
+    if (r) setFavMenuRect({ left: r.left, bottom: r.bottom })
+    setFavMenuOpen(o => !o)
+  }, [])
 
   // Imperative API: lets the chart's right-click menu open the settings panel,
   // and lets `Alt+Shift+A` open the indicator library. ⚠️ `openIndicatorLibrary`
@@ -949,16 +1080,29 @@ function ChartToolbar({
       {/* ── Tool buttons ── */}
       {/* Separators removed — every button is evenly spaced by the flex `gap`. */}
       <div className={styles.tools}>
-        {(toolFilter ? TOOLS.filter(t => t !== 'sep' && toolFilter.includes(t.id)) : TOOLS.filter(t => t !== 'sep')).map((t) => (
+        {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
           <button
             key={t.id}
-            className={`${styles.btn} ${activeTool === t.id ? styles.active : ''}`}
+            /* Hidden tools stay in the DOM but collapse to width 0 (styles.toolHidden)
+               so show/hide animates smoothly instead of popping. */
+            className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
             onClick={() => selectTool(t.id)}
             title={t.label}
           >
             {ICONS[t.id]}
           </button>
         ))}
+        {/* ── Favorite Drawings: show/hide tools + pick favorites for the floating toolbar ── */}
+        {!toolFilter && (
+          <button
+            ref={favBtnRef}
+            className={`${styles.btn} ${favMenuOpen ? styles.active : ''}`}
+            onClick={openFavMenu}
+            title="Customize drawing tools — show/hide & favorite"
+          >
+            {ICONS.favorites}
+          </button>
+        )}
       </div>
 
       {/* ── Bottom actions ── */}
@@ -996,7 +1140,11 @@ function ChartToolbar({
           const STATE = { always: 'Always on', hold: 'Hold to peek', off: 'Off' }
           return (
             <button
-              className={`${styles.btn} ${styles.btnStacked} ${mode !== 'off' ? styles.active : ''}`}
+              /* No gold "active" highlight and no stacked caption — so it's the
+                 SAME height as every other toolbar button. The MODE is carried by
+                 the icon DESIGN itself (owner ask): eye = always on, pin = hold to
+                 peek, struck-through eye = off. */
+              className={styles.btn}
               onClick={() => onUpdateSettings({
                 ...chartSettings,
                 header: { ...chartSettings.header, legendMode: nextLegendMode(mode) },
@@ -1005,14 +1153,7 @@ function ChartToolbar({
               title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
               aria-label={`OHLCV legend: ${STATE[mode]}`}
             >
-              <UIcon name={ICON[mode]} size={13} />
-              {/* ⭐ A VISIBLE CAPTION, NOT JUST A TOOLTIP. This shipped as a bare
-                  15px eye among seven near-identical unlabelled icons and the
-                  owner reported the feature missing while looking straight at it
-                  — a tooltip only helps someone who already suspects the button
-                  is there. The icon still carries the STATE (eye / pin / struck
-                  eye, gold while on); the caption carries the IDENTITY. */}
-              <span className={styles.btnCaption} aria-hidden="true">Legend</span>
+              <UIcon name={ICON[mode]} size={14} />
             </button>
           )
         })()}
@@ -1478,6 +1619,30 @@ function ChartToolbar({
         </div>
         <button className={styles.replayExit} onClick={onReplayToggle}><UIcon name="x" size={12} style={{verticalAlign:'-1px',marginRight:4}} />Exit</button>
       </div>
+    )}
+
+    {/* ── Drawing-tools customizer dropdown + floating favorites toolbar ── */}
+    {!toolFilter && favMenuOpen && (
+      <FavoriteDrawingsMenu
+        tools={DRAW_TOOL_LIST}
+        hidden={hiddenTools}
+        favorites={favoriteTools}
+        onToggleHidden={toggleHiddenTool}
+        onToggleFavorite={toggleFavoriteTool}
+        anchorRect={favMenuRect}
+        onClose={() => setFavMenuOpen(false)}
+      />
+    )}
+    {!toolFilter && favoriteTools.length > 0 && (
+      <FloatingFavoritesToolbar
+        tools={DRAW_TOOL_LIST}
+        favorites={favoriteTools}
+        activeTool={activeTool}
+        onSelect={selectTool}
+        pos={favPos}
+        onMove={moveFavToolbar}
+        colors={favToolbarColors}
+      />
     )}
     </>
   )

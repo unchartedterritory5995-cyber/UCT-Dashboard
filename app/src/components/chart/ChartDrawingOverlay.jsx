@@ -285,6 +285,34 @@ function renderCup(ctx, pts) {
   ctx.stroke()
 }
 
+// Wrap `text` to `maxWidth` (canvas px) using `ctx`'s current font — honoring
+// explicit newlines AND soft-wrapping long lines the way the edit textarea does
+// (word wrap, with a character-level break for a single token wider than the box,
+// e.g. a pasted no-space string). `maxWidth` falsy → split on \n only (legacy notes
+// with no stored box width keep their old single-line-per-\n rendering).
+function wrapTextLines(ctx, text, maxWidth) {
+  const out = []
+  for (const para of String(text ?? '').split('\n')) {
+    if (!maxWidth || maxWidth <= 0) { out.push(para); continue }
+    let cur = ''
+    for (let token of para.split(/(\s+)/)) {   // keep whitespace tokens so words rejoin
+      if (token === '') continue
+      while (token.length) {
+        const test = cur + token
+        if (ctx.measureText(test).width <= maxWidth) { cur = test; token = ''; break }
+        if (cur.trim()) { out.push(cur.replace(/\s+$/, '')); cur = ''; continue }  // flush, retry on new line
+        // cur empty and this single token is wider than the box → break it by chars.
+        let i = 1
+        while (i < token.length && ctx.measureText(token.slice(0, i + 1)).width <= maxWidth) i++
+        out.push(token.slice(0, i))
+        token = token.slice(i)
+      }
+    }
+    out.push(cur.replace(/\s+$/, ''))
+  }
+  return out
+}
+
 function renderText(ctx, pts, drawing, opacity = 1) {
   if (!pts.length || !drawing.text || opacity <= 0.02) return
   const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
@@ -292,9 +320,11 @@ function renderText(ctx, pts, drawing, opacity = 1) {
   ctx.globalAlpha = prevAlpha * opacity
   ctx.font = `${fs}px "Instrument Sans", sans-serif`
   ctx.fillStyle = ctx.strokeStyle
-  const lines = drawing.text.split('\n')
+  // Wrap to the width the box was resized to, so the on-chart text reads EXACTLY
+  // like it did in the edit box (matches lineHeight 1.4 too).
+  const lines = wrapTextLines(ctx, drawing.text, drawing.boxWidth)
   lines.forEach((line, i) => {
-    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
+    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.4)
   })
   ctx.globalAlpha = prevAlpha
 }
@@ -726,10 +756,21 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'arrow':
       return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
     case 'text': {
-      // Simple bounding box
-      const textW = (d.text?.length || 1) * 8
-      const textH = (d.text?.split('\n').length || 1) * 16
-      return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - textH && my <= pts[0].y + 8
+      // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
+      // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
+      // = estimated wrapped line count. Approximation is fine for hit-testing.
+      const fs = d.fontSize || 13
+      const lineH = fs * 1.4
+      let nLines = 0
+      for (const para of String(d.text || '').split('\n')) {
+        if (d.boxWidth) {
+          const w = (para.length || 1) * (fs * 0.55)   // ~avg char width
+          nLines += Math.max(1, Math.ceil(w / d.boxWidth))
+        } else nLines += 1
+      }
+      const textW = d.boxWidth || (d.text?.length || 1) * 8
+      const textH = Math.max(1, nLines) * lineH
+      return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - 4 && my <= pts[0].y + textH + 4
     }
     case 'advance': {
       // Label sits above the 2nd point's candle; box a vertical strip above it.
@@ -1558,6 +1599,10 @@ export default function ChartDrawingOverlay({
 
     // Draw completed drawings
     for (const d of drawings) {
+      // A text note being edited is HIDDEN on the canvas while its editor box is
+      // open — otherwise the note renders BEHIND the (slightly offset) textarea and
+      // reads as a duplicate "ghost" box (the reported double-click glitch).
+      if (textInput?.editId === d.id) continue
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
         ctx.save()
@@ -1730,7 +1775,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -2436,11 +2481,11 @@ export default function ChartDrawingOverlay({
   }, [activeTool])
 
   // ── Text input submit ──
-  const handleTextSubmit = (text) => {
+  const handleTextSubmit = (text, boxWidth = null) => {
     if (!textInput) return
     // Editing an existing note (double-click): update its text; empty leaves it.
     if (textInput.editId) {
-      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim() })
+      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim(), ...(boxWidth ? { boxWidth } : {}) })
       setTextInput(null)
       return
     }
@@ -2452,6 +2497,7 @@ export default function ChartDrawingOverlay({
       lineWidth,
       text: text.trim(),
       fontSize: fontSize || 13,
+      boxWidth: boxWidth || null,   // wrap width so the chart matches the edit box
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)
@@ -2520,6 +2566,7 @@ export default function ChartDrawingOverlay({
           x={textInput.x}
           y={textInput.y}
           color={color}
+          fontSize={fontSize || 13}
           initialValue={textInput.initialValue || ''}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
@@ -2599,7 +2646,12 @@ export default function ChartDrawingOverlay({
 
 // ─── Inline text input ──────────────────────────────────────────────────────
 
-function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }) {
+// Horizontal padding of the textarea (2 × 8px). The content width available for
+// text = clientWidth − this, and that's the width we wrap the on-chart text to so
+// the rendered note reads exactly like the box.
+const TEXTBOX_PAD_X = 16
+
+function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSubmit, onCancel }) {
   const [value, setValue] = useState(initialValue)
   const ref = useRef(null)
   const readyRef = useRef(false)
@@ -2615,7 +2667,10 @@ function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }
 
   const submit = () => {
     if (!readyRef.current) return // ignore blur before we're ready
-    onSubmit(value)
+    // Capture the CONTENT width (box width minus padding) so the chart wraps the
+    // text to the exact width the user sized the box to → WYSIWYG.
+    const boxWidth = ref.current ? Math.max(1, ref.current.clientWidth - TEXTBOX_PAD_X) : null
+    onSubmit(value, boxWidth)
   }
 
   return (
@@ -2638,18 +2693,21 @@ function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }
         zIndex: 20,
         minWidth: 160,
         minHeight: 32,
-        maxWidth: 320,
+        maxWidth: 480,
         padding: '6px 8px',
-        background: 'rgba(26, 28, 23, 0.97)',
-        border: `1px solid ${color}`,
+        // Transparent so it blends with the canvas — the box just previews the note
+        // over the chart. Border marks the editable bounds; text is the note colour.
+        background: 'transparent',
+        border: `1px dashed ${color}`,
         borderRadius: 4,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-        color: '#e2dfd6',
+        color,
         fontFamily: "'Instrument Sans', sans-serif",
-        fontSize: 12,
+        fontSize,
         lineHeight: 1.4,
         resize: 'both',
         outline: 'none',
+        overflowWrap: 'break-word',
+        whiteSpace: 'pre-wrap',
       }}
     />
   )
