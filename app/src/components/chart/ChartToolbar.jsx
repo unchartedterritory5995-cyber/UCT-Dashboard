@@ -18,6 +18,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
+import { toolbarFor } from '../../utils/dividerColor'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -730,7 +731,7 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
 
 // Floating, draggable quick-toolbar of the user's FAVORITE drawing tools. Matches
 // the canvas via the same --chart-toolbar-* vars StockChart publishes.
-function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos, onMove }) {
+function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos, onMove, colors }) {
   const favTools = favorites.map(id => tools.find(t => t.id === id)).filter(Boolean)
   const startDrag = (e) => {
     e.preventDefault()
@@ -746,19 +747,31 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
   }
   if (!favTools.length) return null
   const p = pos || { x: 140, y: 140 }
+  // EXACT toolbar-button colours (passed as props because the CSS vars are chart-
+  // scoped and this portals to <body>). Border = the button hover shade so the
+  // pill reads as "made of buttons," not a foreign gray panel.
+  const bg = colors?.bg || 'rgba(26,28,23,0.92)'
+  const bgHover = colors?.bgHover || 'rgba(46,49,39,0.95)'
+  const text = colors?.text || '#a8a290'
+  const textHover = colors?.textHover || '#e2dfd6'
   return createPortal(
     <div style={{ position: 'fixed', left: p.x, top: p.y, zIndex: 900, display: 'flex', alignItems: 'center', gap: 3,
-        padding: '4px 6px', borderRadius: 8, background: 'var(--chart-toolbar-bg,rgba(26,28,23,0.92))',
-        border: '1px solid var(--chart-toolbar-border,rgba(255,255,255,0.08))', boxShadow: '0 4px 18px rgba(0,0,0,0.45)' }}>
-      <span onPointerDown={startDrag} title="Drag to move" style={{ cursor: 'grab', color: 'var(--chart-toolbar-text,#a8a290)', display: 'flex', padding: '0 1px', touchAction: 'none' }}>{ICONS.grip}</span>
-      {favTools.map(t => (
-        <button key={t.id} onClick={() => onSelect(t.id)} title={t.label}
-          style={{ width: 26, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none',
-            borderRadius: 4, background: activeTool === t.id ? 'var(--chart-toolbar-bg-hover,rgba(201,168,76,0.22))' : 'transparent',
-            color: activeTool === t.id ? '#c9a84c' : 'var(--chart-toolbar-text,#a8a290)', cursor: 'pointer' }}>
-          {ICONS[t.id]}
-        </button>
-      ))}
+        padding: '4px 6px', borderRadius: 8, background: bg,
+        border: `1px solid ${bgHover}`, boxShadow: '0 4px 18px rgba(0,0,0,0.45)' }}>
+      <span onPointerDown={startDrag} title="Drag to move" style={{ cursor: 'grab', color: text, display: 'flex', padding: '0 1px', touchAction: 'none' }}>{ICONS.grip}</span>
+      {favTools.map(t => {
+        const on = activeTool === t.id
+        return (
+          <button key={t.id} onClick={() => onSelect(t.id)} title={t.label}
+            onMouseEnter={e => { if (!on) { e.currentTarget.style.background = bgHover; e.currentTarget.style.color = textHover } }}
+            onMouseLeave={e => { if (!on) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = text } }}
+            style={{ width: 26, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none',
+              borderRadius: 4, background: on ? bgHover : 'transparent',
+              color: on ? '#c9a84c' : text, cursor: 'pointer' }}>
+            {ICONS[t.id]}
+          </button>
+        )
+      })}
     </div>, document.body)
 }
 
@@ -897,6 +910,11 @@ function ChartToolbar({
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
   const favBtnRef = useRef(null)
   const DRAW_TOOL_LIST = useMemo(() => TOOLS.filter(t => t !== 'sep'), [])
+  // The floating favorites toolbar PORTALS to <body>, so it can't inherit the
+  // chart-scoped --chart-toolbar-* vars. Compute the exact toolbar-button colours
+  // from the canvas here (same helper StockChart uses) and pass them as props so
+  // the floating bar is byte-identical to the main toolbar buttons on any theme.
+  const favToolbarColors = useMemo(() => toolbarFor(chartSettings?.background) || null, [chartSettings?.background])
   const toggleHiddenTool = useCallback((id) => setHiddenTools(prev => {
     const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
   }), [])
@@ -1122,7 +1140,11 @@ function ChartToolbar({
           const STATE = { always: 'Always on', hold: 'Hold to peek', off: 'Off' }
           return (
             <button
-              className={`${styles.btn} ${styles.btnStacked} ${mode !== 'off' ? styles.active : ''}`}
+              /* No gold "active" highlight and no stacked caption — so it's the
+                 SAME height as every other toolbar button. The MODE is carried by
+                 the icon DESIGN itself (owner ask): eye = always on, pin = hold to
+                 peek, struck-through eye = off. */
+              className={styles.btn}
               onClick={() => onUpdateSettings({
                 ...chartSettings,
                 header: { ...chartSettings.header, legendMode: nextLegendMode(mode) },
@@ -1131,14 +1153,7 @@ function ChartToolbar({
               title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
               aria-label={`OHLCV legend: ${STATE[mode]}`}
             >
-              <UIcon name={ICON[mode]} size={13} />
-              {/* ⭐ A VISIBLE CAPTION, NOT JUST A TOOLTIP. This shipped as a bare
-                  15px eye among seven near-identical unlabelled icons and the
-                  owner reported the feature missing while looking straight at it
-                  — a tooltip only helps someone who already suspects the button
-                  is there. The icon still carries the STATE (eye / pin / struck
-                  eye, gold while on); the caption carries the IDENTITY. */}
-              <span className={styles.btnCaption} aria-hidden="true">Legend</span>
+              <UIcon name={ICON[mode]} size={14} />
             </button>
           )
         })()}
@@ -1626,6 +1641,7 @@ function ChartToolbar({
         onSelect={selectTool}
         pos={favPos}
         onMove={moveFavToolbar}
+        colors={favToolbarColors}
       />
     )}
     </>
