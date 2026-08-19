@@ -769,12 +769,18 @@ describe('stampChartSettings', () => {
 })
 
 // ── "Sync from my chart" — the heal-and-refresh door (chart-parity round) ──
-// Existing embeds froze whatever settings their insert path carried (often the
-// bare seed). One click re-freezes params.settings from the user's CURRENT
-// resolved own chart and re-copies the symbol's /charts drawings — the
-// deliberate way to pull later Charts-page adjustments into a journal embed
-// without live-coupling frozen snapshots to the workspace.
+// Sync re-freezes params.settings from the STAMPED editor-storage blob (the
+// exact blob slash/palette inserts freeze — one authority, no per-embed
+// usePreferences subscription, nothing fetched on the public share page) and
+// MERGES the symbol's /charts drawings into the embed's annotations by id —
+// marks the user drew ON the embed survive (review finding: wholesale replace
+// destroyed them and the archive together, reported as success).
 describe('WidgetEmbedView — Sync from my chart', () => {
+  const RESOLVED = { background: '#abc123', header: { showMarketCap: true } }
+  const makeEditor = (stamp = RESOLVED) => ({
+    isEditable: true,
+    storage: stamp ? { uctJournalWidgets: { chartSettings: stamp } } : {},
+  })
   const liveChartAttrs = () =>
     buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
 
@@ -794,43 +800,62 @@ describe('WidgetEmbedView — Sync from my chart', () => {
     localStorage.clear()
     const drawingsStore = await import('../../../components/chart/drawingsStore')
     drawingsStore._reset()
-    mockJournalPrefs.value = {
-      chart_settings: { background: '#111111' },
-      charts_workspace_layout: {
-        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
-      },
-    }
   })
 
-  it('re-freezes settings from the resolved own chart, re-copies drawings, clears the stale archive', async () => {
-    localStorage.setItem('uct-chart-drawings', JSON.stringify({ NVDA: [{ id: 'sync-line', type: 'horizontal', points: [{ price: 5 }] }] }))
+  it('re-freezes settings from the STAMPED blob, merges drawings, clears the stale archive', async () => {
+    localStorage.setItem('uct-chart-drawings', JSON.stringify({ NVDA: [{ id: 'store-line', type: 'horizontal', points: [{ price: 5 }] }] }))
     const updateAttributes = vi.fn()
-    const attrs = { ...liveChartAttrs(), annotations: [], fallback: { url: '/api/old.png', w: 800, h: 400 } }
+    const attrs = { ...liveChartAttrs(), annotations: [{ id: 'embed-mark', type: 'text', points: [{ price: 9 }] }], fallback: { url: '/api/old.png', w: 800, h: 400 } }
     attrs.params = { ...attrs.params, settings: { background: '#seed99' } }
-    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
     await screen.findByTestId('chart-embed-stub')
 
     fireEvent.click(screen.getByText('Sync'))
     const call = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
     expect(call).toBeTruthy()
     const [patch] = call
-    expect(patch.params.settings.background).toBe('#abc123')   // resolved widget blob, not the old frozen seed
-    expect(patch.params.settings.header).toBeTruthy()          // merged over defaults
+    expect(patch.params.settings).toEqual(RESOLVED)            // the stamped blob, verbatim
     expect(patch.params.symbol).toBe('NVDA')                   // rest of params untouched
-    expect(patch.annotations).toEqual([expect.objectContaining({ id: 'sync-line' })])
+    const ids = patch.annotations.map((d) => d.id).sort()
+    expect(ids).toEqual(['embed-mark', 'store-line'])          // MERGED, never replaced
     expect(patch.fallback).toBeNull()                          // stale archive cleared for re-freeze
   })
 
-  it('renders only on chart embeds on the live render path, and leaves the strip in draw mode', async () => {
-    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)
+  it('embed-drawn marks survive a Sync when /charts has NO drawings for the symbol', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), annotations: [{ id: 'embed-mark', type: 'text', points: [{ price: 9 }] }] }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
+    await screen.findByTestId('chart-embed-stub')
+    fireEvent.click(screen.getByText('Sync'))
+    const [patch] = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
+    expect(patch.annotations).toEqual([expect.objectContaining({ id: 'embed-mark' })])
+  })
+
+  it('no stamped blob yet (prefs still loading) → Sync no-ops instead of freezing defaults', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} editor={makeEditor(null)} />)
+    await screen.findByTestId('chart-embed-stub')
+    fireEvent.click(screen.getByText('Sync'))
+    expect(updateAttributes).not.toHaveBeenCalled()
+  })
+
+  it('renders on chart embeds only — a NON-chart embed on the live render path gets no Sync', async () => {
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />)
     await screen.findByTestId('chart-embed-stub')
     expect(screen.getByText('Sync')).toBeTruthy()
     fireEvent.click(screen.getByText('Draw'))
     expect(screen.queryByText('Sync')).toBeNull()
     fireEvent.click(screen.getByText('Done'))
 
-    const news = buildWidgetEmbedAttrs('breadth', {}, { fallback: { url: '/b.png' } })
-    render(<WidgetEmbedView node={{ attrs: news }} selected={false} updateAttributes={() => {}} />)
+    // The control must actually REACH decision.kind==='live' or the widgetId
+    // half of the gate is untested (review finding: the old breadth control
+    // resolved to 'image' and the suite stayed green with the widgetId check
+    // deleted). Reconstructable breadth params render live.
+    const liveBreadth = buildWidgetEmbedAttrs('breadth', { row: { date: '2026-08-18' } })
+    const { container } = render(
+      <WidgetEmbedView node={{ attrs: liveBreadth }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />,
+    )
+    expect(container.querySelector('[data-widget-embed-view="breadth"]')).toBeTruthy()
     expect(screen.queryAllByText('Sync')).toHaveLength(1) // still only the chart embed's
   })
 })

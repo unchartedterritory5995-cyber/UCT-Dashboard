@@ -7,6 +7,7 @@
 // re-exports these — see that file's doc comments for the full history.)
 
 import { mergeChartSettings } from '../chartDefaults'
+import { mergeSettingsOverride } from '../instanceShape'
 
 function isNonEmptySettingsObj(v) {
   return !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0
@@ -89,5 +90,12 @@ export function resolveOwnChartMergedSettings(prefs = {}) {
     try { seed = JSON.parse(seed) } catch { seed = null }
   }
   if (!seed || typeof seed !== 'object' || Array.isArray(seed)) seed = null
-  return mergeChartSettings(own || seed || {})
+  // Match the LIVE composition exactly — THREE layers, not two. StockChart
+  // builds its base from the chart_settings seed and applies the widget blob
+  // as a per-section OVERRIDE (mergeSettingsOverride), so a PARTIAL winning
+  // blob composes over the seed's customized sections. mergeChartSettings(own)
+  // alone dropped the whole seed layer whenever a widget fragment won —
+  // capture-time and render-time disagreed (review finding).
+  const base = mergeChartSettings(seed || {})
+  return own ? mergeSettingsOverride(base, own) : base
 }

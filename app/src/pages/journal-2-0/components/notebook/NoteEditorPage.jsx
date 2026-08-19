@@ -410,10 +410,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // widgetEmbedCore (one authority) and resolves the workspace WIDGET
   // settings, not the bare chart_settings seed — stamping the seed here was
   // how journal charts lost the user's MAs/legend/colors (chart-parity round).
-  const { prefs } = usePreferences()
+  // ⛔ Gate on !loading: stamping while the SWR fetch is pending would freeze
+  // pure DEFAULTS as "the user's chart" — an insert/Sync in that window ships
+  // the exact defect this stamp exists to fix (review finding). And key the
+  // effect on the RAW pref values, not the prefs object: usePreferences hands
+  // back a new object every render, and this page re-renders per keystroke —
+  // an object dep re-parses the whole multi-KB workspace layout on every
+  // caret move (review finding).
+  const { prefs, loading: prefsLoading } = usePreferences()
   useEffect(() => {
+    if (prefsLoading) return
     stampChartSettings(editor, prefs)
-  }, [editor, prefs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, prefsLoading, prefs.charts_workspace_layout, prefs.charts_default_chart_widget, prefs.chart_settings])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !note?.bodyJson || editor.isFocused) return

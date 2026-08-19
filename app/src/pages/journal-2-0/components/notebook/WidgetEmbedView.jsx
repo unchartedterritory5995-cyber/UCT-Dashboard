@@ -6,8 +6,6 @@ import {
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
-import usePreferences from '../../../../hooks/usePreferences'
-import { resolveOwnChartMergedSettings } from '../../../../components/chart/pane/ownChartSettings'
 import { peekDrawings } from '../../../../components/chart/drawingsStore'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
@@ -308,16 +306,30 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // drawings. This is the deliberate door for "I changed my chart on the
   // Charts page and want it here" — frozen snapshots never live-couple to the
   // workspace, and older embeds that froze the bare seed heal with one click.
-  // Same one-authority resolution the insert stamp uses (ownChartSettings.js).
-  const { prefs } = usePreferences()
+  // Settings come from the STAMPED editor-storage blob — the exact blob the
+  // slash/palette inserts freeze (one authority), kept fresh by
+  // NoteEditorPage whenever prefs change. Reading it at CLICK time means no
+  // per-embed usePreferences subscription (N embeds re-rendering on every
+  // pref write) and nothing auth-scoped ever fetched from the public share
+  // page; an absent stamp (prefs still loading) no-ops instead of freezing
+  // pure defaults over the user's customized look (review findings).
   const syncFromMyChart = () => {
+    const stamped = editor?.storage?.uctJournalWidgets?.chartSettings
+    if (!stamped) { setToolbarMsg('chart settings still loading — try again'); return }
     const params = attrsRef.current.params || {}
+    // MERGE drawings by id — marks the user drew ON this embed (Draw mode
+    // writes only the node's attrs) must survive; a wholesale replace with an
+    // empty store destroyed them and the archive together (review finding).
+    // A same-id /charts drawing wins (fresher); embed-only marks are kept.
+    const fromStore = peekDrawings(params.symbol)
+    const storeIds = new Set(fromStore.map((d) => d?.id))
+    const existing = Array.isArray(attrsRef.current.annotations) ? attrsRef.current.annotations : []
     // The look changes → the archived PNG is stale; clear + re-arm (the
     // switchTf/onEmbedSettings idiom).
     archivedOnceRef.current = false
     updateAttributes?.({
-      params: { ...params, settings: resolveOwnChartMergedSettings(prefs || {}) },
-      annotations: peekDrawings(params.symbol),
+      params: { ...params, settings: stamped },
+      annotations: [...fromStore, ...existing.filter((d) => !storeIds.has(d?.id))],
       fallback: null,
     })
     setToolbarMsg('synced from your chart')
