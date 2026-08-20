@@ -12341,11 +12341,14 @@ export default function StockChart({
       setIpoPopup(null)
     }
     const onKey = (e) => { if (e.key === 'Escape') setIpoPopup(null) }
+    const onWheel = () => setIpoPopup(null)   // scroll-wheel zoom = chart moved → dismiss
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('keydown', onKey)
+    document.addEventListener('wheel', onWheel, { capture: true, passive: true })
     return () => {
       document.removeEventListener('pointerdown', onDown, true)
       document.removeEventListener('keydown', onKey)
+      document.removeEventListener('wheel', onWheel, { capture: true })
     }
   }, [ipoPopup])
 
@@ -12808,20 +12811,22 @@ export default function StockChart({
         const label = isNaN(d.getTime())
           ? ipoPopup.date
           : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-        const gold = cs.markers?.ipoColor || '#c9a84c'
+        // FIXED dark menu palette (gold label, white text) — matches the earnings
+        // popover exactly and never tints with the canvas. (--menu-* is the app's
+        // single fixed-dark menu palette; see tokens.css.)
         return (
           <div
             ref={ipoPopupRef}
             style={{
               position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
-              background: canvasSample?.top || '#0c0c0e',
-              border: `1px solid ${gold}`, borderRadius: 6,
+              background: 'var(--menu-bg, #0e0e10)',
+              border: '1px solid var(--menu-border, rgba(255,255,255,0.09))', borderRadius: 6,
               padding: '5px 9px', font: "600 11px 'Instrument Sans', sans-serif",
-              color: '#e8e8ea', whiteSpace: 'nowrap', cursor: 'default',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.4)', pointerEvents: 'auto',
+              color: 'var(--menu-text, #ededed)', whiteSpace: 'nowrap', cursor: 'default',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto',
             }}
           >
-            <span style={{ color: gold, fontWeight: 700, marginRight: 6 }}>IPO</span>
+            <span style={{ color: 'var(--menu-accent, #c9a84c)', fontWeight: 700, marginRight: 6 }}>IPO</span>
             First trade · {label}
           </div>
         )

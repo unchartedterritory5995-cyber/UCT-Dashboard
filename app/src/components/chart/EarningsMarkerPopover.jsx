@@ -86,10 +86,19 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.() }
+    // Scroll-wheel zoom / any wheel = the chart moved → dismiss (mousedown already
+    // covers an outside click and the start of a pan).
+    const onWheel = () => onClose?.()
     window.addEventListener('keydown', onKey)
+    window.addEventListener('wheel', onWheel, { capture: true, passive: true })
     // Defer so the opening click itself doesn't immediately close it.
     const t = setTimeout(() => window.addEventListener('mousedown', onDown), 0)
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); clearTimeout(t) }
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('wheel', onWheel, { capture: true })
+      window.removeEventListener('mousedown', onDown)
+      clearTimeout(t)
+    }
   }, [onClose])
 
   if (!data) return null
