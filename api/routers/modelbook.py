@@ -1144,15 +1144,22 @@ def _clip_sentence(text: str, cap: int) -> str:
 def _generate_year_recap(year: int):
     """Claude → a varied, factual recap of `year` as a US-equity market year for a
     momentum/breakout swing trader's model book. Grounded with the year's curated
-    leaders (real data) + Nasdaq stats when available. Returns a dict or None."""
+    leaders (real data) + Nasdaq stats when available. For the CURRENT (still
+    in-progress) year the recap is explicitly year-to-date — it covers only the
+    year so far, through today, rather than pretending the full year has closed.
+    Returns a dict or None."""
     if not _RECAP_ENABLED:
         return None
     import json as _json
+    from datetime import datetime, timezone
     try:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
         if client is None:
             return None
+        now = datetime.now(timezone.utc)
+        in_progress = int(year) >= now.year        # current (or a not-yet-closed) year
+        today_txt = f"{now:%B} {now.day}, {now.year}"   # cross-platform, no %-d
         leaders = []
         for s in svc.get_stocks_for_year(year)[:12]:
             g = s.get("oc_pct") if s.get("oc_pct") is not None else s.get("gain_pct")
@@ -1161,35 +1168,55 @@ def _generate_year_recap(year: int):
             leaders.append(f"{s['symbol']} ({s.get('company') or s['symbol']}, {gtxt}{sec})")
         nas = _nasdaq_year_stats(year)
         ctx = []
+        if in_progress:
+            ctx.append(f"NOTE: {year} is still in progress. This recap covers ONLY the year "
+                       f"so far, through {today_txt} — do NOT invent or forecast events past "
+                       f"that date, and frame everything as year-to-date.")
         if nas and nas.get("return_pct") is not None:
-            ctx.append(f"Nasdaq Composite {year}: {nas['return_pct']:+}% (year open→close), "
+            span = "year-to-date" if in_progress else "year open→close"
+            ctx.append(f"Nasdaq Composite {year}: {nas['return_pct']:+}% ({span}), "
                        f"worst drawdown {nas['max_drawdown_pct']}%.")
         if leaders:
-            ctx.append("Big model-book winners that year: " + "; ".join(leaders) + ".")
+            wtxt = "Big model-book winners so far this year: " if in_progress else "Big model-book winners that year: "
+            ctx.append(wtxt + "; ".join(leaders) + ".")
         ctx_txt = "\n".join(ctx) if ctx else "(No extra data — rely on your own market-history knowledge.)"
+
+        yr_phrase = f"so far in {year} (year-to-date, through {today_txt})" if in_progress else f"in {year}"
+        recap_scope = (
+            "- recap: 4-6 sentences (roughly 110-160 words — a tight, complete paragraph, never "
+            "left mid-thought) covering (a) how the broad market has traded year-to-date (indices, "
+            "trend, volatility, the key macro driver), (b) what kind of stocks/groups have led, and "
+            "(c) how friendly the tape has been to buying breakouts and holding winners. Frame it "
+            "as the year SO FAR — it is not over. Plain, concrete prose.\n\n"
+            if in_progress else
+            "- recap: 4-6 sentences (roughly 110-160 words — a tight, complete paragraph, never "
+            "left mid-thought) covering (a) how the broad market traded (indices, trend, "
+            "volatility, the key macro driver), (b) what kind of stocks/groups led, and (c) how "
+            "friendly the tape was to buying breakouts and holding winners. Plain, concrete prose.\n\n"
+        )
+        score_scope = (
+            "the year SO FAR has been" if in_progress else "the year was"
+        )
 
         system = ("You are a market historian writing recap notes for a swing trader's "
                   "model book — one per calendar year. Be factual and specific to the year. "
                   "Output JSON only, no preamble, no markdown fences.")
         prompt = (
-            f"Write a recap of the U.S. stock market in {year}.\n\n"
+            f"Write a recap of the U.S. stock market {yr_phrase}.\n\n"
             f"Grounding data:\n{ctx_txt}\n\n"
             'Return JSON exactly: {"headline": "...", "market_tone": "...", '
             '"trader_score": 0, "themes": ["..."], "recap": "..."}\n'
             "- headline: 3-7 words capturing the year's character (NOT starting with the year).\n"
             "- market_tone: a 2-4 word label (e.g. \"Roaring bull\", \"Brutal bear\", "
             "\"Choppy and range-bound\", \"V-shaped recovery\").\n"
-            "- trader_score: an integer 1-10 for how HOSPITABLE the year was to a momentum / "
+            f"- trader_score: an integer 1-10 for how HOSPITABLE {score_scope} to a momentum / "
             "breakout swing trader who buys strength and leadership. 1-3 = hostile (downtrend, "
             "whipsaws, breakouts fail); 4-6 = mixed/selective; 7-8 = favorable (clean trends, "
             "follow-through, leadership works); 9-10 = exceptional, target-rich.\n"
             "- themes: 2-5 SHORT leadership theme/group labels that led that year (e.g. "
             "\"Dot-com & networking\", \"Homebuilders\", \"Solar\", \"AI infrastructure\", "
             "\"Chinese internet\", \"Mega-cap tech\"). Tie to the grounding winners when given.\n"
-            "- recap: 4-6 sentences (roughly 110-160 words — a tight, complete paragraph, never "
-            "left mid-thought) covering (a) how the broad market traded (indices, trend, "
-            "volatility, the key macro driver), (b) what kind of stocks/groups led, and (c) how "
-            "friendly the tape was to buying breakouts and holding winners. Plain, concrete prose.\n\n"
+            + recap_scope +
             "STYLE — IMPORTANT (these recaps sit next to each other across many years, so each "
             "MUST read differently):\n"
             "- Do NOT begin with the year or 'In YYYY' or 'YYYY was'. Vary the opening across "
@@ -1298,6 +1325,14 @@ def year_recap(year: int = Query(...), _user: dict = Depends(require_paid)):
         raise HTTPException(400, f"year must be {_MIN_RECAP_YEAR}..{cy + 1}")
     r = svc.get_year_recap(year)
     if r and r.get("recap"):
+        # The in-progress (current) year's recap is year-to-date, so it goes stale
+        # as the year advances. Serve the stored copy instantly, but kick a deduped
+        # background refresh once it's older than the retry window (~daily) so "the
+        # year so far" keeps up. Closed years never change → served as-is forever.
+        if not _is_final_year(year):
+            ra = r.get("recap_at")
+            if (not ra) or (int(_time_mod.time()) - ra > _RECAP_RETRY_AFTER):
+                _gen_recap_async(year)
         return _recap_out(r)
     if _needs_recap(year):
         _gen_recap_async(year)
