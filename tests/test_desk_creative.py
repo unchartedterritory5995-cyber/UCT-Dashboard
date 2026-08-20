@@ -818,3 +818,44 @@ def test_refresh_success_resolves_a_queued_retry(monkeypatch, tmp_path):
          "category": "Live Trading Sessions"},
         {"headline": "h", "ticker_moments": [{"ticker": "MU"}]}, youtube=_YT())
     assert ok and cr.pending() == []
+
+
+# ── the Anthropic call shape (anthropic 1.0.0 dropped `temperature` from
+#    messages.create on 2026-08-20 and TypeError'd BOTH composers) ──────────
+
+def test_llm_call_shape_is_kwarg_minimal_and_has_no_temperature():
+    kw = dc._llm_kwargs("SYS", "USER")
+    assert "temperature" not in kw
+    assert set(kw) == {"model", "max_tokens", "thinking", "system", "messages"}
+    assert kw["thinking"] == {"type": "disabled"}
+    assert kw["system"] == "SYS" and kw["messages"] == [{"role": "user", "content": "USER"}]
+
+
+def test_llm_passes_exactly_the_pinned_shape_to_the_client(monkeypatch):
+    from api.services import engine
+    seen = {}
+
+    class _Block:
+        type = "text"
+        text = '{"slate": ["ok"]}'
+
+    class _Msg:
+        content = [_Block()]
+
+    class _Messages:
+        def create(self, **kw):
+            seen.update(kw)
+            return _Msg()
+
+    class _Client:
+        messages = _Messages()
+
+        def with_options(self, **kw):
+            seen["timeout"] = kw.get("timeout")
+            return self
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+    monkeypatch.setenv("DESK_CREATIVE_MODEL", "claude-test-1")
+    out = dc._llm("SYS", "USER")
+    assert out == '{"slate": ["ok"]}'
+    assert "temperature" not in seen and seen["model"] == "claude-test-1"
+    assert seen["timeout"] == 90.0

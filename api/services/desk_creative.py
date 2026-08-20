@@ -279,22 +279,31 @@ def _record(path, entry: dict, *, dedupe_keys: tuple = ()) -> None:
         pass  # history is an optimization, never a failure
 
 
+def _llm_kwargs(system: str, user: str) -> dict:
+    """The exact messages.create call shape. Kept kwarg-minimal on purpose:
+    every extra kwarg is a way for an SDK bump to TypeError the whole desk."""
+    return {
+        "model": os.environ.get("DESK_CREATIVE_MODEL", "claude-opus-5"),
+        "max_tokens": 800,
+        # Claude 5 emits a thinking block by default, which eats max_tokens and
+        # truncates the structured JSON (same trap the wire's title desk hit).
+        "thinking": {"type": "disabled"},
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }
+
+
 def _llm(system: str, user: str) -> str:
     """Claude on the pod's shared client. Runs on the scheduler thread (never
     the request path) so a longer bounded timeout than the shared 60s is safe."""
     from api.services.engine import _get_anthropic_client
     timeout = float(os.environ.get("DESK_CREATIVE_LLM_TIMEOUT_SECS", "90"))
     client = _get_anthropic_client().with_options(timeout=timeout)
-    msg = client.messages.create(
-        model=os.environ.get("DESK_CREATIVE_MODEL", "claude-opus-5"),
-        max_tokens=800,
-        temperature=1.0,
-        # Claude 5 emits a thinking block by default, which eats max_tokens and
-        # truncates the structured JSON (same trap the wire's title desk hit).
-        thinking={"type": "disabled"},
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
+    # No `temperature` kwarg: the pod's Anthropic SDK stopped accepting it on
+    # messages.create (2026-08-20 — TypeError took BOTH composers down on every
+    # publish; the API default is 1.0, which is what we passed). _llm_kwargs is
+    # the one place the call shape lives, pinned by a signature test.
+    msg = client.messages.create(**_llm_kwargs(system, user))
     # engine's hardened extractor concatenates ALL text blocks — a reply split
     # across blocks silently truncated JSON when only the first was read.
     from api.services.engine import _anthropic_text
