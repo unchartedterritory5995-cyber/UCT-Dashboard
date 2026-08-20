@@ -55,7 +55,7 @@ export const CHART_DEFAULTS = {
   textSize: 11,           // price/time scale font size (px)
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
 
-  crosshair: { color: '#706b5e', style: 1, width: 1, magnet: false }, // LineStyle: 0=solid, 1=dotted, 2=dashed, 3=large-dashed; width in px; magnet snaps to OHLC
+  crosshair: { enabled: true, color: '#706b5e', style: 1, width: 1, magnet: false }, // enabled=false hides the hover crosshair lines AND the price/date axis labels that track the mouse. LineStyle: 0=solid, 1=dotted, 2=dashed, 3=large-dashed; width in px; magnet snaps to OHLC
 
   // Chart-widget header (workspace): the title/change row + timeframe bar + info
   // stats. Fully user-toggleable via Chart Settings → Header.
@@ -143,6 +143,7 @@ export const CHART_DEFAULTS = {
     opacity: 0.07,
     color: '#a8a290',
     sizeScale: 1.0,
+    weight: 700,   // font weight of the watermark text (100–900); lower = thinner (TC2000-style)
     lines: { ticker: true, company: true, sector: true, industry: true, theme: true },
     x: 0.5,
     y: 0.5,

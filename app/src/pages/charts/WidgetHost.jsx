@@ -66,7 +66,10 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   return <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false,
+  // In-canvas float (pop the widget onto another widget). onFloat = grid mode;
+  // floating + onDock/floatTabTargets/onFloatToTab/onHeaderDragStart = while floating.
+  onFloat, floating = false, onDock, floatTabTargets = [], onFloatToTab, onHeaderDragStart }) {
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
@@ -180,6 +183,12 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onCloseTab={handleCloseTab}
       onRenameTab={handleRenameTab}
       onAddTab={handleAddTab}
+      onFloat={onFloat}
+      floating={floating}
+      onDock={onDock}
+      floatTabTargets={floatTabTargets}
+      onFloatToTab={onFloatToTab}
+      onHeaderDragStart={onHeaderDragStart}
     />
   )
   // Merged mode keeps NO header chrome, but a multi-tab slot still needs its tab

@@ -27,6 +27,7 @@ import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToas
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
+import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
@@ -665,6 +666,10 @@ export default function ChartsWorkspace() {
   // default when popped). Both kinds are React portals owned by this tab.
   const [poppedWidgetIds, setPoppedWidgetIds] = useState([])
   const [poppedLayouts, setPoppedLayouts] = useState([])
+  // In-canvas floating widgets: same idiom as poppedWidgetIds — the widget stays in
+  // layout.widgets (its grid geometry is preserved for docking) and is merely hidden
+  // from the grid, then rendered in a FloatingWidgetPanel on top of the canvas.
+  const [floatingWidgetIds, setFloatingWidgetIds] = useState([])
 
   const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
@@ -1437,6 +1442,39 @@ export default function ChartsWorkspace() {
     handleRemoveWidget(id)
   }, [handleRemoveWidget])
 
+  // ── In-canvas float: pop a widget onto another widget, dock it back, move it
+  //    into another widget's tabs, or close it. Mirrors the pop-out handlers. ──
+  const handleFloatWidget = useCallback((id) => {
+    setFloatingWidgetIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+  }, [])
+  const handleDockFloatWidget = useCallback((id) => {
+    // Drop the float flag → the widget snaps back to its saved grid slot (its
+    // geometry never left layout.widgets).
+    setFloatingWidgetIds(prev => prev.filter(x => x !== id))
+  }, [])
+  const handleRemoveFloatWidget = useCallback((id) => {
+    setFloatingWidgetIds(prev => prev.filter(x => x !== id))
+    handleRemoveWidget(id)
+  }, [handleRemoveWidget])
+  const handleFloatWidgetToTab = useCallback((floatId, targetId) => {
+    if (floatId === targetId) return
+    setFloatingWidgetIds(prev => prev.filter(x => x !== floatId))
+    setLayout(prev => {
+      const src = prev.widgets.find(w => w.id === floatId)
+      const target = prev.widgets.find(w => w.id === targetId)
+      if (!src || !target) return prev
+      // Move the source widget's base definition in as a new tab of the target,
+      // then delete the source (it now lives inside the target's tab group).
+      const nextTarget = addWidgetTab(target, { type: src.type, color: src.color, opts: src.opts })
+      const widgets = prev.widgets
+        .filter(w => w.id !== floatId)
+        .map(w => (w.id === targetId ? { ...nextTarget, x: w.x, y: w.y, w: w.w, h: w.h } : w))
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // Deliberately NOT done inside a setLayout updater: React invokes updaters
   // twice under StrictMode, which would queue a second popped board and open a
   // duplicate window.
@@ -1564,8 +1602,11 @@ export default function ChartsWorkspace() {
   // A popped-out widget is hidden from the board but KEPT in layout.widgets: its
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
-  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
+  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
+  // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
+  // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
+  const floatingWidgets = layout.widgets.filter(w => floatingWidgetIds.includes(w.id) && !poppedWidgetIds.includes(w.id))
 
   // ONE grid renderer, shared by the main board and every popped-out board. The
   // RGL configuration (viewport lock, 24 columns, computed row height) is
@@ -1642,6 +1683,7 @@ export default function ChartsWorkspace() {
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
               onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
+              onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
             {/* Custom resize handles (main board only) — drive layout state
                 directly so a neighbour shrinks live as you drag an edge into it.
@@ -1671,6 +1713,7 @@ export default function ChartsWorkspace() {
     onOptsChange: handleOptsChange,
     onReplaceWidget: handleReplaceWidget,
     onPopOut: handlePopOutWidget,
+    onFloat: handleFloatWidget,
   }
 
   return (
@@ -1945,6 +1988,33 @@ export default function ChartsWorkspace() {
             onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
           />
         )}
+        {/* In-canvas floating widgets — popped off the grid to sit on top of another
+            widget (e.g. a Watchlist over a Chart). Each opens near the size of the
+            grid slot it left. Its header carries dock / move-to-tab / close. */}
+        {floatingWidgets.map((w, i) => (
+          <FloatingWidgetPanel
+            key={w.id}
+            offset={i * 28}
+            initialW={Math.max(260, Math.round((w.w || 6) * (gridWidth / GRID_COLS)))}
+            initialH={Math.max(200, Math.round((w.h || 8) * rowHeight))}
+          >
+            {({ onDragPointerDown }) => (
+              <WidgetHost
+                widget={w}
+                merged={false}
+                floating
+                onHeaderDragStart={onDragPointerDown}
+                onDock={() => handleDockFloatWidget(w.id)}
+                onRemove={() => handleRemoveFloatWidget(w.id)}
+                floatTabTargets={visibleWidgets.map(t => ({ id: t.id, label: WIDGET_LABELS[t.type] || t.type }))}
+                onFloatToTab={(targetId) => handleFloatWidgetToTab(w.id, targetId)}
+                onColorChange={(c) => handleColorChange(w.id, c)}
+                onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+                onReplaceWidget={handleReplaceWidget}
+              />
+            )}
+          </FloatingWidgetPanel>
+        ))}
         {compareOpen && (
           <CompareSymbolsPanel
             chartApiById={chartApiByIdRef}

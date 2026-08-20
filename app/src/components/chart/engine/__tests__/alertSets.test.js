@@ -269,14 +269,15 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // The merge now carries ONLY an explicit choice, so a default blob is byte-for-
   // byte what it was before this feature existed — and this rail returning to its
   // original value is the proof.
-  // ⭐ 2026-08-20 — re-pinned for the first-bar "IPO" badge. `CHART_DEFAULTS.markers`
-  // gained two keys: `ipo: true` (default-on toggle for the gold IPO badge) and
-  // `ipoColor: '#c9a84c'`. Both are ordinary marker defaults — same class as the
-  // `earnings`/`earningsBeat` keys already in this object — so they legitimately
-  // ride along in every merged blob and shift this digest. INVESTIGATED, not
-  // regenerated: the only delta vs the prior literal is those two added keys.
+  // ⭐ 2026-08-20 — re-pinned for this day's chart-settings additions: (1) the
+  // first-bar "IPO" badge (`markers.ipo` + `markers.ipoColor`); (2) the crosshair
+  // on/off toggle (`crosshair.enabled: true`); (3) the watermark font-weight
+  // control (`watermark.weight: 700`). All are ordinary default fields (same class
+  // as `markers.earnings` / `crosshair.magnet` / `watermark.sizeScale`) that ride
+  // along in every merged blob. INVESTIGATED, not regenerated: the only deltas vs
+  // the prior literal are those added default keys.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '07376cff881a189febca3d198026cef6716bcfa5ba6c375776acce4b1b760928'
+    'bb1a0452470e301389ce72e359de1b4b643040eb1ef28494101acc41c4c605aa'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

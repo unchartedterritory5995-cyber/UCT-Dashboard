@@ -2318,8 +2318,17 @@ export default function StockChart({
   // the next row BEFORE it slides under the price scale (measured reactively below).
   const [legendAxisReserve, setLegendAxisReserve] = useState(0)
   // True when the drawing toolbar is collapsed via its show/hide toggle — the
-  // crosshair OHLCV legend then slides up into the freed toolbar band.
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(false)
+  // crosshair OHLCV legend then slides up into the freed toolbar band. Persisted
+  // to localStorage (same idiom as the toolbar's favorites/hidden-tools prefs) so
+  // "hide toolbar" survives a refresh / arrangement save until it's reopened.
+  const TOOLBAR_COLLAPSED_LS = 'uct.chart.toolbar.collapsed'
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
+    try { return localStorage.getItem(TOOLBAR_COLLAPSED_LS) === '1' } catch { return false }
+  })
+  const setToolbarCollapsedPersist = useCallback((v) => {
+    setToolbarCollapsed(v)
+    try { localStorage.setItem(TOOLBAR_COLLAPSED_LS, v ? '1' : '0') } catch { /* private mode — non-fatal */ }
+  }, [])
 
   useWatermarkDrag({
     containerRef,
@@ -7167,9 +7176,12 @@ export default function StockChart({
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
-      crosshair: hideCrosshair ? {
+      crosshair: (hideCrosshair || cs.crosshair?.enabled === false) ? {
         mode: 0,
-        // Fully suppress both crosshair lines + their axis labels (Setup Library examples).
+        // Fully suppress both crosshair lines AND their price/date axis labels — the
+        // Setup-Library `hideCrosshair` prop, or the user turning Crosshair off in
+        // settings (cs.crosshair.enabled === false). The axis labels that track the
+        // mouse are the labelVisible:false pair.
         vertLine: { visible: false, labelVisible: false },
         horzLine: { visible: false, labelVisible: false },
       } : {
@@ -7314,6 +7326,7 @@ export default function StockChart({
         color: cs.watermark.color,
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
+        weight: cs.watermark.weight ?? 700,
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
@@ -13891,7 +13904,7 @@ export default function StockChart({
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
             collapsed={toolbarCollapsed}
-            onToggleCollapsed={setToolbarCollapsed}
+            onToggleCollapsed={setToolbarCollapsedPersist}
             hasSelection={!!selectedId}
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}

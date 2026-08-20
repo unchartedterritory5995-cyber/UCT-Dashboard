@@ -211,7 +211,9 @@ export const WIDGET_REGISTRY = deepFreeze({
   },
   scanner: {
     labels: { header: 'Scanner', menu: 'Scanner', tab: 'Scanner' },
-    defaults: { w: 8, h: 10, minW: 6, minH: 4 },
+    // minW matches the Watchlist widget (2) so the Scanner can be narrowed to a
+    // thin rail; the results table scrolls/shrinks rather than forcing a wide cell.
+    defaults: { w: 8, h: 10, minW: 2, minH: 4 },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [

@@ -463,10 +463,13 @@ export default function ChartSettingsModal({
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const setWmSize = (v) => setSetting({ watermark: { ...watermark, sizeScale: v } })
+  const setWmWeight = (v) => setSetting({ watermark: { ...watermark, weight: v } })
   const wmLines = watermark.lines || {}
   const wmSize = watermark.sizeScale ?? 1.0
+  const wmWeight = watermark.weight ?? 700
   // Watermark size scale options (× the base per-role font). Shown as percent.
   const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
+  const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
@@ -694,8 +697,20 @@ export default function ChartSettingsModal({
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Crosshair</span>
-                {colorSwatch('crosshair', 'Crosshair')}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={crosshair.enabled !== false}
+                  className={`${styles.toggle} ${crosshair.enabled !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ crosshair: { ...crosshair, enabled: crosshair.enabled === false } })}
+                ><span className={styles.toggleKnob} /></button>
               </div>
+              {crosshair.enabled !== false && (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Line color</span>
+                  {colorSwatch('crosshair', 'Crosshair')}
+                </div>
+              )}
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale text</span>
                 <div className={styles.fieldControls}>
@@ -778,6 +793,17 @@ export default function ChartSettingsModal({
                     aria-label="Watermark size"
                   >
                     {WM_SIZES.map((s) => <option key={s} value={s}>{Math.round(s * 100)}%</option>)}
+                  </select>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Weight</span>
+                  <select
+                    className={styles.sizeSelect}
+                    value={wmWeight}
+                    onChange={(e) => setWmWeight(Number(e.target.value))}
+                    aria-label="Watermark font weight"
+                  >
+                    {WM_WEIGHTS.map(([w, label]) => <option key={w} value={w}>{label}</option>)}
                   </select>
                 </div>
                 <div className={styles.field}>

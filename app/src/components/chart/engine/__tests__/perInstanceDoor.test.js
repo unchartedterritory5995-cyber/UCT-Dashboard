@@ -269,13 +269,14 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // from the merge stamping a resolved `legendMode` into every blob; it now
     // carries only an explicit choice, so a default blob is byte-identical to
     // what it was before the feature. This rail coming home is the proof.
-    // ⭐ 2026-08-20 — re-pinned for the first-bar "IPO" badge. `CHART_DEFAULTS.markers`
-    // gained `ipo: true` + `ipoColor: '#c9a84c'` (ordinary marker defaults, same class
-    // as `earnings`/`earningsBeat`). They ride along in `markers`, which behaves like
-    // the other additive-default keys here, so this corpus digest shifts by exactly
-    // those two keys. INVESTIGATED, not regenerated: no per-definition door changed
-    // behaviour — the delta is the two added marker defaults only.
+    // ⭐ 2026-08-20 — re-pinned for this day's chart-settings additions: (1)
+    // `markers.ipo` + `markers.ipoColor` (IPO badge); (2) `crosshair.enabled: true`
+    // (crosshair on/off toggle); (3) `watermark.weight: 700` (watermark weight).
+    // All are ordinary additive default fields (same class as `markers.earnings` /
+    // `crosshair.magnet` / `watermark.sizeScale`), so the corpus digest shifts by
+    // exactly those keys. INVESTIGATED, not regenerated: no per-definition door
+    // changed behaviour.
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('6297cae478933e3236574a3e5b8649d4c2da54f2fca8a47c2d1d965e3085c295')
+      .toBe('c9481a7d844f90ed9280add758fd929edadf236b554b144d9cb8b6f834ba0d9d')
   })
 })
