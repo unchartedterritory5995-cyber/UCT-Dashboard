@@ -12282,6 +12282,11 @@ export default function StockChart({
     if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
     const handler = (param) => {
       if (!param || !param.point) return
+      // A click on the IPO badge shares this bar's time COLUMN, and a ticker that
+      // reports right after listing (e.g. LMND) carries an earnings event on the
+      // very first bar — so the param.time fallback below would wrongly open
+      // earnings for an IPO-badge click. The IPO badge owns its own click.
+      if (ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y) != null) return
       // Prefer a pixel hit-test against the badge's actual pill (whole box is
       // clickable); fall back to exact bar-time match if the primitive has no
       // rects yet (e.g. first frame after a re-attach).
@@ -12311,10 +12316,11 @@ export default function StockChart({
     if (!chart || !ipoEvent) { setIpoPopup(null); return }
     const handler = (param) => {
       if (!param || !param.point) return
+      // Require an actual PIXEL hit on the IPO pill (not just a click anywhere on
+      // the first bar's time column) so a click on the candle or a neighbouring
+      // earnings/split badge on the same bar can't open this tag.
       const hitTime = ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
-      const hit = (hitTime != null && String(hitTime) === String(ipoEvent.date)) ||
-                  (param.time != null && String(param.time) === String(ipoEvent.date))
-      if (!hit) return
+      if (hitTime == null || String(hitTime) !== String(ipoEvent.date)) return
       const rect = containerRef.current?.getBoundingClientRect()
       if (!rect) return
       // Anchor to the badge pill when we have it; else fall back to the click point.
