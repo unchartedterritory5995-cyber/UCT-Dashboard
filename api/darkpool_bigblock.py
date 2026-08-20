@@ -30,7 +30,7 @@ import logging
 import os
 import sqlite3
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 
 log = logging.getLogger("darkpool_bigblock")
 _UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
@@ -192,13 +192,13 @@ def pct_adv(notional, price, avg50_shares) -> float | None:
     return (n / px) / av * 100.0
 
 
-def _post_text(content: str) -> None:
+def _post_embed(embed: dict) -> bool:
     from api.darkpool_eod import _webhook
     wh = _webhook()
     if not wh:
-        return
+        return False
     data = json.dumps({
-        "content": content[:1900],
+        "embeds": [embed],
         "username": "UCT Intelligence · Dark Pool",
         "allowed_mentions": {"parse": []},
     }).encode("utf-8")
@@ -207,8 +207,10 @@ def _post_text(content: str) -> None:
         headers={"Content-Type": "application/json", "User-Agent": _UA})
     try:
         urllib.request.urlopen(req, timeout=15)
+        return True
     except Exception as e:  # noqa: BLE001
         log.warning("[darkpool-bigblock] alert post failed: %s", e)
+        return False
 
 
 def _evaluate(prints: list[tuple]) -> list[dict]:
@@ -239,7 +241,8 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
             pct = pct_adv(notional, price, avg50)
             if pct is None or pct < floor_pct or pct > max_pct:
                 continue  # below the floor, or an absurd-%ADV data artifact
-            if _is_etf(tk):
+            is_etf = _is_etf(tk)
+            if is_etf:
                 if equity_only:
                     continue  # hard-exclude every ETF
                 if _is_bond_etf(tk):
@@ -257,24 +260,120 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
                     "alerted_at=? WHERE date=? AND ticker=?",
                     (notional, pct, price, now, date, tk))
             events.append({"ticker": tk, "notional": notional, "price": price,
-                           "date": date, "pct_adv": pct})
+                           "date": date, "pct_adv": pct, "is_etf": is_etf})
         c.commit()
     finally:
         c.close()
     return events
 
 
+# ── embed builder ──────────────────────────────────────────────────────────
+# One rich embed per poll (was one message per print → a 40-message wall). Events
+# are ranked by %ADV and split into size-relative tiers so the genuine outlier
+# reads first; broad ETF/index blocks (rebalancing, not a footprint) get their own
+# folded-down section; a print at/above its all-time record is tagged ★.
+_GOLD = 0xC9A84C            # product gold — matches the EOD card accent
+_EXC_PCT = 100.0           # Exceptional tier floor (% of 50d $ADV)
+_HEAVY_PCT = 25.0          # Heavy tier floor
+_NOTABLE_CAP = 12          # cap the low-tier list in a burst poll
+_ETF_CAP = 6
+
+
+def _dashboard_url() -> str:
+    return os.getenv("DARKPOOL_ALERT_DASHBOARD_URL",
+                     "https://uctintelligence.com").rstrip("/")
+
+
+def _rows_block(rows: list[dict], widths: tuple) -> str:
+    """A monospace code block of aligned columns: TICKER  NOTIONAL  PRICE  %ADV [★].
+    Code block = fixed-width alignment (the scannability win) at the cost of inline
+    links, which is why the ticker isn't a hyperlink here."""
+    tw, nw, pw = widths
+    lines = []
+    for r in rows:
+        star = "  ★" if r.get("_star") else ""
+        lines.append(
+            f"{r['ticker']:<{tw}} {r['_ntl']:>{nw}}  "
+            f"{r['_px']:>{pw}}  {(r.get('pct_adv') or 0):>3.0f}%{star}")
+    return "```\n" + "\n".join(lines) + "\n```"
+
+
+def _build_embed(events: list[dict], records: dict, now_iso: str) -> dict:
+    """Pure — build the Discord embed dict from this poll's new blocks. No I/O, so
+    it's unit-testable against a fixed event list."""
+    from api.darkpool_eod import _fmt_n, _fmt_px_d
+    for e in events:
+        e["_ntl"] = _fmt_n(e.get("notional"))
+        e["_px"] = _fmt_px_d(e.get("price"))
+        rec = records.get((e.get("ticker") or "").upper())
+        e["_star"] = bool(rec and (e.get("notional") or 0) >= rec)
+
+    by_pct = lambda x: x.get("pct_adv") or 0  # noqa: E731
+    singles = sorted([e for e in events if not e.get("is_etf")], key=by_pct, reverse=True)
+    etfs = sorted([e for e in events if e.get("is_etf")], key=by_pct, reverse=True)
+
+    exc = [e for e in singles if by_pct(e) >= _EXC_PCT]
+    heavy = [e for e in singles if _HEAVY_PCT <= by_pct(e) < _EXC_PCT]
+    notable = [e for e in singles if by_pct(e) < _HEAVY_PCT]
+    notable_shown, notable_extra = notable[:_NOTABLE_CAP], max(0, len(notable) - _NOTABLE_CAP)
+    etfs_shown, etf_extra = etfs[:_ETF_CAP], max(0, len(etfs) - _ETF_CAP)
+
+    rendered = exc + heavy + notable_shown + etfs_shown
+    widths = (
+        max((len(e["ticker"]) for e in rendered), default=4),
+        max((len(e["_ntl"]) for e in rendered), default=6),
+        max((len(e["_px"]) for e in rendered), default=7),
+    )
+
+    parts: list[str] = []
+    if singles:
+        tot = _fmt_n(sum((e.get("notional") or 0) for e in singles))
+        top = singles[0]
+        parts.append(
+            f"**{len(singles)} single-stock block{'s' if len(singles) != 1 else ''}"
+            f" · {tot} · standout {top['ticker']} {top['_ntl']} @ "
+            f"{by_pct(top):.0f}% ADV**")
+    elif etfs:
+        tot = _fmt_n(sum((e.get("notional") or 0) for e in etfs))
+        parts.append(f"**{len(etfs)} broad ETF / index block"
+                     f"{'s' if len(etfs) != 1 else ''} · {tot}**")
+
+    def section(header: str, rows: list[dict]) -> None:
+        if rows:
+            parts.append(header + "\n" + _rows_block(rows, widths))
+
+    section("🔴 **Exceptional · ≥100% ADV**", exc)
+    section("🟠 **Heavy · 25–100% ADV**", heavy)
+    section("⚪ **Notable · below 25% ADV**", notable_shown)
+    if notable_extra:
+        parts.append(f"+{notable_extra} more below {by_pct(notable_shown[-1]):.0f}% ADV"
+                     f" · [open the dashboard →]({_dashboard_url()})")
+    section("🔵 **Broad ETF / index — likely rebalancing**", etfs_shown)
+    if etf_extra:
+        parts.append(f"+{etf_extra} more ETF/index block{'s' if etf_extra != 1 else ''}")
+
+    return {
+        "title": "Unusual dark blocks — intraday",
+        "description": "\n\n".join(parts)[:4096],
+        "color": _GOLD,
+        "footer": {"text": f"UCT Intelligence · Dark Pool · single dark print "
+                           f"≥ {_pct_floor():.0f}% of 50-day $-volume · ★ = record"},
+        "timestamp": now_iso,
+    }
+
+
 def _alert(events: list[dict]) -> int:
-    from api.darkpool_eod import _fmt_n
-    sent = 0
-    for e in sorted(events, key=lambda x: x.get("pct_adv") or 0, reverse=True):
-        px = e.get("price")
-        _at = f" @ ${px:,.2f}" if px else ""
-        _post_text(
-            f"💰 **{e['ticker']}** dark block **{_fmt_n(e['notional'])}**{_at} — "
-            f"**{e['pct_adv']:.0f}% of 50d ADV**")
-        sent += 1
-    return sent
+    """Post this poll's new blocks as ONE ranked, tiered embed. Returns the number
+    of blocks communicated (0 if nothing to send or the post failed)."""
+    if not events:
+        return 0
+    try:
+        from api.darkpool_records import record_notionals
+        records = record_notionals([e.get("ticker") for e in events])
+    except Exception:  # noqa: BLE001
+        records = {}
+    embed = _build_embed(events, records, datetime.now(timezone.utc).isoformat())
+    return len(events) if _post_embed(embed) else 0
 
 
 def _run(source: str, date: str | None) -> dict:

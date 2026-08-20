@@ -53,6 +53,20 @@ _CAP_COLORS = {
 _HOT = (210, 150, 70)      # % ADV highlight when the day's DP dwarfs normal volume
 _PERF_UP = (74, 200, 120)  # price above the dark-pool level (green)
 _PERF_DN = (232, 96, 96)   # price below the dark-pool level (red)
+# Size-relative %ADV tiers — mirror the intraday big-block embed so both dark-pool
+# surfaces read the same: red (Exceptional ≥100%) / amber (Heavy 25–100%) /
+# neutral (Notable <25%). A ★ (below) marks a print at/above its all-time record.
+_TIER_EXC = (233, 104, 92)   # ≥100% of 50d ADV — exceptional (red)
+_TIER_HVY = (210, 150, 70)   # 25–100% — heavy (amber, == _HOT)
+
+
+def _adv_color(pct):
+    p = float(pct or 0)
+    if p >= 100:
+        return _TIER_EXC
+    if p >= 25:
+        return _TIER_HVY
+    return _TXT
 
 
 def _webhook() -> str:
@@ -174,7 +188,7 @@ def _date_text(day_mdyyyy: str) -> str:
 # after BIGGEST PRINT. On both cards: EOD shows the intraday move off the day's DP
 # VWAP; weekly the move off the week's DP VWAP.
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 268, "r"),
+    ("ticker", "TICKER", 54, "l"), ("notional", "NOTIONAL", 268, "r"),
     ("pctadv", "% ADV", 356, "r"), ("zone", "PRICE ZONE", 536, "r"),
     ("last", "LAST", 636, "r"), ("big", "BIGGEST PRINT", 852, "r"),
     ("perf", "PERF", 942, "r"), ("sector", "SECTOR", 982, "l"),
@@ -276,11 +290,13 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
             _adv = it.get("pctADV") or 0
             for key, hdr, x, al in cols:
                 if key == "ticker":
+                    if it.get("isRecord"):
+                        txt(36, y, "★", f_rowb, _GOLD)   # all-time-record gutter mark
                     txt(x, y, it.get("t") or "", f_rowb, _GOLD)
                 elif key == "notional":
                     txt(x, y, _fmt_n(it.get("n")), f_rowb, _GOLD, "r")
                 elif key == "pctadv":
-                    txt(x, y, _fmt_adv(_adv), f_row, _HOT if _adv >= 100 else _TXT, "r")
+                    txt(x, y, _fmt_adv(_adv), f_row, _adv_color(_adv), "r")
                 elif key == "zone":
                     txt(x, y, _fmt_zone(it.get("zoneLo"), it.get("zoneHi")), f_row, _TXT, "r")
                 elif key == "last":
@@ -306,6 +322,13 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
     txt(36, H - 32, f"UCT Intelligence  ·  {summary.get('n_tickers', 0)} tickers  ·  "
                     f"{summary.get('n_prints', 0)} prints  ·  {_fmt_n(summary.get('total_n'))} total",
         f_foot, _DIM)
+    # legend — ★ record + the two hot %ADV tiers (mirrors the intraday big-block card)
+    lx2 = 500
+    lx2 += txt(lx2, H - 32, "★ record", f_foot, _GOLD) + 20
+    for _c, _t in ((_TIER_EXC, "≥100% ADV"), (_TIER_HVY, "25–100%")):
+        d.ellipse([s(lx2), s(H - 29), s(lx2 + 9), s(H - 20)], fill=_c)
+        lx2 += 15
+        lx2 += txt(lx2, H - 32, _t, f_foot, _DIM) + 18
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
     out = img.resize((_W, H), Image.LANCZOS)
@@ -532,6 +555,18 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
             })
         if rows:
             sections.append((label, rows))
+
+    # ★ record flag: the window's biggest single dark print is at/above the
+    # ticker's all-time record (same semantic as the intraday big-block ★).
+    try:
+        from api.darkpool_records import record_notionals
+        _recs = record_notionals([r["t"] for _, rows in sections for r in rows])
+    except Exception:  # noqa: BLE001
+        _recs = {}
+    for _label, rows in sections:
+        for r in rows:
+            _rec = _recs.get((r.get("t") or "").upper())
+            r["isRecord"] = bool(_rec and (r.get("bigN") or 0) >= _rec)
 
     summary = {
         "total_n": sum((it.get("n") or 0) for it in items),

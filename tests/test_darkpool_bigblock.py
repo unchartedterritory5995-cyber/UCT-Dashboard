@@ -116,3 +116,58 @@ def test_is_etf_is_network_free():
 def test_disabled_short_circuits(monkeypatch):
     monkeypatch.delenv("DARKPOOL_BIGBLOCK_ENABLED", raising=False)
     assert bb.refresh_from_today() == {"ok": False, "reason": "disabled"}
+
+
+# ── embed builder (pure, no I/O) ───────────────────────────────────────────
+def _ev(ticker, notional, price, pct, is_etf=False):
+    return {"ticker": ticker, "notional": notional, "price": price,
+            "pct_adv": pct, "is_etf": is_etf}
+
+
+def test_embed_ranks_tiers_and_splits_etfs():
+    events = [
+        _ev("VOO", 1.05e9, 700.65, 19, is_etf=True),
+        _ev("IQMM", 320e6, 100.10, 174),
+        _ev("BZ", 14.7e6, 15.78, 26),
+        _ev("CMS", 48.3e6, 69.83, 19),
+    ]
+    embed = bb._build_embed(events, {}, "2026-08-20T19:12:00+00:00")
+    d = embed["description"]
+    # Headline counts single stocks only, ETF excluded, standout = top %ADV.
+    assert "3 single-stock blocks" in d and "standout IQMM" in d
+    # All three size-relative tiers present, in order.
+    assert d.index("Exceptional") < d.index("Heavy") < d.index("Notable")
+    # ETF is bucketed out of the single-stock tiers into its own section.
+    assert "Broad ETF / index" in d
+    assert d.index("IQMM") < d.index("Broad ETF")  # stocks before the ETF block
+    assert embed["color"] == bb._GOLD
+
+
+def test_embed_star_marks_record_prints_only():
+    events = [_ev("IQMM", 320e6, 100.10, 174), _ev("BZ", 14.7e6, 15.78, 26)]
+    # IQMM at/above its stored record → ★; BZ below its record → no ★.
+    embed = bb._build_embed(events, {"IQMM": 300e6, "BZ": 50e6},
+                            "2026-08-20T19:12:00+00:00")
+    lines = embed["description"].splitlines()
+    iqmm = next(l for l in lines if l.startswith("IQMM"))
+    bz = next(l for l in lines if l.startswith("BZ"))
+    assert iqmm.rstrip().endswith("★")
+    assert not bz.rstrip().endswith("★")
+
+
+def test_embed_caps_notable_and_reports_overflow():
+    events = [_ev(f"T{i:02d}", 5e6, 40.0, 20 - (i % 10)) for i in range(20)]
+    embed = bb._build_embed(events, {}, "2026-08-20T19:12:00+00:00")
+    d = embed["description"]
+    # Notable tier is capped; the remainder is disclosed, never silently dropped.
+    assert f"more below" in d and "[open the dashboard" in d
+    assert len(d) <= 4096
+
+
+def test_embed_all_etf_headline_falls_back():
+    events = [_ev("VOO", 1.05e9, 700.65, 19, is_etf=True),
+              _ev("IVV", 1.05e9, 765.86, 19, is_etf=True)]
+    d = bb._build_embed(events, {}, "2026-08-20T19:12:00+00:00")["description"]
+    # No single stocks → headline speaks to the ETF blocks instead of "0 stocks".
+    assert "single-stock" not in d
+    assert "broad etf / index block" in d.lower()
