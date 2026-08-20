@@ -756,6 +756,46 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
         _FAIL_STREAKS.pop(vid, None)
 
 
+def refresh_creative_cover(v: dict, ins: dict, youtube=None) -> bool:
+    """Re-skin the session's YouTube thumbnail with what was ACTUALLY discussed
+    once the transcript lands (thumbnails are replaceable any time; titles are
+    not — the upload-time cover ran on the morning wire brief alone). Only
+    under DESK_CREATIVE_THUMBS; ANY failure keeps the existing cover. Returns
+    True iff a new thumbnail was set. Never raises."""
+    try:
+        from api.services import desk_creative
+        if not desk_creative.thumbs_enabled():
+            return False
+        youtube_id = (v.get("youtube_id") or "").strip()
+        parsed = desk_creative.parse_session_title(v.get("title") or "")
+        if not youtube_id or not parsed:
+            return False
+        show, date_text = parsed
+        syms: list[str] = []
+        for m in (ins.get("ticker_moments") or [])[:12]:
+            s = str((m.get("sym") or m.get("ticker") or "")).strip() if isinstance(m, dict) else ""
+            if s and s not in syms:
+                syms.append(s)
+        headline = str(ins.get("headline") or "").strip()
+        if not headline and not syms:
+            return False   # nothing new to say — a paid re-render adds nothing
+        facts = {"this_sessions_headline": headline,
+                 "tickers_discussed_in_session": syms[:6]}
+        jpeg = desk_creative.render_cover(
+            section=str(v.get("category") or show), eyebrow=show.upper(),
+            date_text=date_text, facts=facts)
+        if not jpeg:
+            return False
+        if youtube is None:
+            from api.services.youtube_client import YouTubeClient
+            youtube = YouTubeClient()
+        youtube.set_thumbnail(youtube_id, jpeg)
+        return True
+    except Exception as e:  # noqa: BLE001 — cosmetic, never blocks insights
+        print(f"[session-insights] creative cover refresh failed (non-fatal): {e}")
+        return False
+
+
 def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
@@ -869,11 +909,17 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
             # publish time (no-op unless this video was announced).
             from api.services import desk_session_announce
             desk_session_announce.maybe_attach_recap(vid)
+            # Content-aware cover: now that the transcript names what the
+            # session was actually about, re-skin the thumbnail (this path
+            # runs once per video, so the refresh can't loop). Non-fatal —
+            # the publish-time cover stays on any failure.
+            cover_refreshed = refresh_creative_cover(v, ins)
             has_chapters = True
             results.append({"id": vid, "action": "generated", "source": source,
                             "chapters": len(ins["chapters"]),
                             "tickers": len(ins["ticker_moments"]),
-                            "poster": poster_ok})
+                            "poster": poster_ok,
+                            "cover_refreshed": cover_refreshed})
 
     # Clean up the Zoom recording once we've captured insights — or once
     # we've waited long enough that the transcript clearly isn't coming.

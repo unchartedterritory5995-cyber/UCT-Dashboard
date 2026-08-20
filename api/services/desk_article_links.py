@@ -70,8 +70,12 @@ def article_date(published_at: int | None) -> date | None:
 
 
 def _series_of(title: str) -> str:
-    """The part before the date — "Sunday Scans" out of the full title."""
-    return _TITLE_DATE_RE.sub("", (title or "").strip()).strip(" —-").lower()
+    """The SHOW between any creative hook and the date — "Sunday Scans" out of
+    both "Sunday Scans — Aug 16, 2026" and "Hook | Sunday Scans — Aug 16, 2026"
+    (creative titles prepend an LLM hook; the pipe is reserved at compose time,
+    so the post-pipe tail is the show)."""
+    t = (title or "").strip().split(" | ")[-1]
+    return _TITLE_DATE_RE.sub("", t).strip(" —-").lower()
 
 
 def _sort_key(video: dict) -> tuple:

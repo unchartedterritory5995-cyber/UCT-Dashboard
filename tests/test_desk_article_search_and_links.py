@@ -404,3 +404,21 @@ def test_related_video_for_never_raises_when_the_video_store_is_unreadable(monke
     monkeypatch.setattr(es, "list_videos",
                         lambda: (_ for _ in ()).throw(RuntimeError("db gone")))
     assert links.related_video_for("Sunday Scans — August 16, 2026", PUBLISHED_AT) is None
+
+
+def test_series_of_ignores_a_creative_hook():
+    from api.services import desk_article_links as dal
+    assert dal._series_of("Scan Country For Old Men | Sunday Scans — August 16, 2026") == \
+        dal._series_of("Sunday Scans — August 16, 2026")
+
+
+def test_pick_related_video_pairs_a_creatively_titled_session():
+    from api.services import desk_article_links as dal
+    videos = [{"id": 7, "youtube_id": "Y7",
+               "title": "Scan Country For Old Men | Sunday Scans — August 16, 2026",
+               "category": "Sunday Scans"}]
+    import calendar
+    from datetime import datetime, timezone
+    published = int(datetime(2026, 8, 16, 20, 0, tzinfo=timezone.utc).timestamp())
+    got = dal.pick_related_video("Sunday Scans — August 16, 2026", published, videos)
+    assert got and got["youtube_id"] == "Y7"

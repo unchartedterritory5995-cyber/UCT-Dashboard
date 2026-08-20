@@ -56,6 +56,21 @@ def classic_title(title_prefix: str, date_text: str) -> str:
     return f"{title_prefix} {date_suffix(date_text)}"
 
 
+def parse_session_title(title: str) -> tuple[str, str] | None:
+    """(show, date_text) recovered from a PUBLISHED session title, classic or
+    creative. Hooks are dedashed at compose time, so the last ' — ' in any
+    shipped title is the structural separator by construction."""
+    t = str(title or "")
+    if " — " not in t:
+        return None
+    left, date_text = t.rsplit(" — ", 1)
+    show = left.split(" | ")[-1].strip()
+    date_text = date_text.strip()
+    if not show or not date_text:
+        return None
+    return show, date_text
+
+
 def titles_enabled() -> bool:
     return os.environ.get("DESK_CREATIVE_TITLES", "").strip().lower() in ("1", "true", "yes")
 
@@ -125,9 +140,15 @@ def _load_history(path) -> list:
         return []
 
 
-def _record(path, entry: dict) -> None:
+def _record(path, entry: dict, *, dedupe_keys: tuple = ()) -> None:
     try:
         hist = _load_history(path)
+        if dedupe_keys:
+            # One entry per session: a transcript-time cover refresh REPLACES
+            # the upload-time entry (same date+show) instead of appending, so
+            # RECENT_STYLE_BAN keeps spanning N sessions, not N/2.
+            hist = [h for h in hist
+                    if any(h.get(k) != entry.get(k) for k in dedupe_keys)]
         hist.append(entry)
         Path(path).write_text(json.dumps(hist[-HISTORY_KEEP:], ensure_ascii=False),
                               encoding="utf-8")
@@ -151,18 +172,18 @@ def _llm(system: str, user: str) -> str:
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    for blk in msg.content or []:
-        if getattr(blk, "type", "") == "text":
-            return blk.text
-    return ""
+    # engine's hardened extractor concatenates ALL text blocks — a reply split
+    # across blocks silently truncated JSON when only the first was read.
+    from api.services.engine import _anthropic_text
+    return _anthropic_text(msg)
 
 
 def _parse_json(raw: str) -> dict:
-    raw = (raw or "").strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        raw = raw[4:] if raw[:4].lower() == "json" else raw
-    return json.loads(raw.strip())
+    # engine._parse_json_block owns the resilient parse (code fences, lead-in
+    # sentences, outermost {...} fallback) — its docstring records the exact
+    # Sonnet-5 production incident. One owner, not a second fragile copy.
+    from api.services.engine import _parse_json_block
+    return _parse_json_block(raw)
 
 
 # Per-show creative flavor, matched against the routed section (lowercased).
@@ -243,10 +264,21 @@ def _opener(title: str) -> str:
     return " ".join(words[:3])
 
 
-def _cut_reason(hook: str, suffix: str, ctx_text: str, tone: str,
+def _ctx_number_tokens(ctx_text: str) -> set[str]:
+    """Complete number tokens in the day's data, plus their integer parts —
+    a hook saying '767' off a real 767.63 is honest rounding; '74' hiding
+    inside '749.53' is a fabrication (naive substring containment let it ship)."""
+    toks = set(_NUM.findall(ctx_text))
+    toks |= {t.split(".")[0] for t in toks}
+    return toks
+
+
+def _cut_reason(hook: str, suffix: str, ctx_nums: set, tone: str,
                 recent_openers: set) -> str | None:
     if not hook:
         return "empty"
+    if "|" in hook:
+        return "pipe (our structural separator) inside the hook"
     if len(hook) > MAX_HOOK_LEN or len(hook) + len(suffix) > MAX_TITLE_LEN:
         return "too long"
     if _EMOJI.search(hook):
@@ -256,7 +288,7 @@ def _cut_reason(hook: str, suffix: str, ctx_text: str, tone: str,
     if tone in ("cautious", "defensive") and _MKT_BULLISH.search(hook):
         return "market rally claim on a %s tape" % tone
     for num in _NUM.findall(hook):
-        if num not in ctx_text:
+        if num not in ctx_nums:
             return f"invented number {num}"
     if _opener(hook) in recent_openers:
         return "opener echoes a recent title"
@@ -281,7 +313,11 @@ def compose_title(*, section: str, title_prefix: str, date_text: str,
         history_path = history_path or os.path.join(_data_dir(), "desk_title_history.json")
         hist = _load_history(history_path)
         recent = [h.get("title", "") for h in hist[-RECENT_TITLES_SHOWN:]]
-        recent_openers = {_opener(t) for t in recent if t}
+        # The echo set derives from the recorded HOOK opener (fallback: strip
+        # the show tail) — deriving it from the full stored title let a short
+        # hook repeat verbatim because the show's first word padded the 3-gram.
+        recent_openers = {h.get("opener") or _opener(str(h.get("title") or "").split(" | ")[0])
+                          for h in hist[-RECENT_TITLES_SHOWN:] if h.get("title")}
         suffix = " | " + classic
         user = (f"SHOW: {title_prefix} — {_flavor(section)}\n"
                 f"SESSION DATE: {date_text}\n"
@@ -291,11 +327,11 @@ def compose_title(*, section: str, title_prefix: str, date_text: str,
                 + ("\n".join(f"- {t}" for t in recent if t) or "- none"))
         raw = (llm or _llm)(_TITLE_SYSTEM, user)
         slate = _parse_json(raw).get("slate") or []
-        ctx_text = json.dumps(ctx)
+        ctx_nums = _ctx_number_tokens(json.dumps(ctx))
         tone = str(ctx.get("tone") or "")
         for cand in slate:
             hook = _dedash(str(cand).strip())
-            why = _cut_reason(hook, suffix, ctx_text, tone, recent_openers)
+            why = _cut_reason(hook, suffix, ctx_nums, tone, recent_openers)
             if why:
                 print(f"[desk-creative] title cut: {hook!r} ({why})")
                 continue
@@ -496,14 +532,21 @@ def _direct(ctx: dict, eyebrow: str, section: str, date_text: str,
 
 
 def render_cover(*, section: str, eyebrow: str, date_text: str,
-                 ctx=_UNSET, llm=None, imagegen=None, history_path=None) -> bytes | None:
+                 ctx=_UNSET, llm=None, imagegen=None, history_path=None,
+                 facts: dict | None = None) -> bytes | None:
     """A unique framed cover for this session, or None (caller then ships the
-    existing per-show themed card). NEVER raises."""
+    existing per-show themed card). NEVER raises.
+
+    facts: optional session-specific truths merged into the day brief — the
+    insights pass uses this to re-skin a cover with what the session ACTUALLY
+    discussed once the transcript lands (headline + tickers)."""
     try:
         if ctx is _UNSET:
             ctx = day_context()
         if not ctx:
             return None
+        if facts:
+            ctx = {**ctx, **facts}
         history_path = history_path or os.path.join(_data_dir(), "desk_cover_history.json")
         hist = _load_history(history_path)
         banned = [h.get("style") for h in hist[-RECENT_STYLE_BAN:] if h.get("style")]
@@ -526,7 +569,8 @@ def render_cover(*, section: str, eyebrow: str, date_text: str,
             return None
         jpeg = _frame(png, eyebrow, date_text)
         _record(history_path, {"date": str(ctx.get("date") or ""), "show": eyebrow,
-                               "style": style, "metaphor": str(spec.get("metaphor") or "")})
+                               "style": style, "metaphor": str(spec.get("metaphor") or "")},
+                dedupe_keys=("date", "show"))
         return jpeg
     except Exception as e:  # noqa: BLE001 — cosmetic, never breaks publish
         print(f"[desk-creative] cover director unavailable ({type(e).__name__}: {e})")

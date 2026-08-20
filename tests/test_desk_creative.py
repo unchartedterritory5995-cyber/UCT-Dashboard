@@ -356,3 +356,201 @@ def test_classic_title_and_suffix_share_one_owner():
         "Evening Update — August 19, 2026"
     assert dc.classic_title("Evening Update", "August 19, 2026").endswith(
         dc.date_suffix("August 19, 2026"))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — content-aware cover refresh once the transcript lands
+# (thumbnails are replaceable any time; YouTube titles are not)
+# ---------------------------------------------------------------------------
+
+def test_parse_session_title_classic_and_creative():
+    assert dc.parse_session_title("Evening Update — August 19, 2026") == \
+        ("Evening Update", "August 19, 2026")
+    assert dc.parse_session_title(
+        "MRNA Rips, We Watch | Evening Update — August 19, 2026") == \
+        ("Evening Update", "August 19, 2026")
+    assert dc.parse_session_title("no structural separator") is None
+    assert dc.parse_session_title("") is None
+
+
+def test_render_cover_facts_reach_the_director(tmp_path):
+    seen = {}
+    def llm(system, user):
+        seen["user"] = user
+        return json.dumps(GOOD_SPEC)
+    dc.render_cover(
+        section="Evening Update", eyebrow="EVENING UPDATE", date_text="August 19, 2026",
+        ctx=CTX, llm=llm, imagegen=lambda scene: _png_1536x1024(),
+        history_path=str(tmp_path / "ch.json"),
+        facts={"this_sessions_headline": "MU breakout dissected live",
+               "tickers_discussed_in_session": ["MU", "DELL"]})
+    assert "MU breakout dissected live" in seen["user"]
+    assert "tickers_discussed_in_session" in seen["user"]
+
+
+class _RefreshYT:
+    def __init__(self):
+        self.calls = []
+    def set_thumbnail(self, video_id, image_bytes):
+        self.calls.append((video_id, image_bytes))
+
+
+_V = {"id": 307, "youtube_id": "YT307",
+      "title": "Hook Line | Evening Update — August 19, 2026",
+      "category": "Evening Update"}
+_INS = {"headline": "MU breakout dissected live",
+        "ticker_moments": [{"sym": "MU"}, {"sym": "DELL"}, {"sym": "MU"}]}
+
+
+def test_refresh_sets_content_aware_thumbnail(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    marker = b"REFRESHED" * 100
+    seen = {}
+    def fake_render(**kw):
+        seen.update(kw)
+        return marker
+    monkeypatch.setattr(desk_creative, "render_cover", fake_render)
+    yt = _RefreshYT()
+    assert dsi.refresh_creative_cover(_V, _INS, youtube=yt) is True
+    assert yt.calls == [("YT307", marker)]
+    assert seen["facts"]["tickers_discussed_in_session"] == ["MU", "DELL"]  # deduped
+    assert seen["facts"]["this_sessions_headline"] == "MU breakout dissected live"
+    assert seen["eyebrow"] == "EVENING UPDATE"
+    assert seen["date_text"] == "August 19, 2026"
+
+
+def test_refresh_noop_when_thumbs_flag_off(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.delenv("DESK_CREATIVE_THUMBS", raising=False)
+    def boom(**kw):
+        raise AssertionError("render_cover must not run with the flag off")
+    monkeypatch.setattr(desk_creative, "render_cover", boom)
+    yt = _RefreshYT()
+    assert dsi.refresh_creative_cover(_V, _INS, youtube=yt) is False
+    assert yt.calls == []
+
+
+def test_refresh_none_keeps_the_existing_cover(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: None)
+    yt = _RefreshYT()
+    assert dsi.refresh_creative_cover(_V, _INS, youtube=yt) is False
+    assert yt.calls == []                       # publish-time cover untouched
+
+
+def test_refresh_never_raises(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    def boom(**kw):
+        raise RuntimeError("director down")
+    monkeypatch.setattr(desk_creative, "render_cover", boom)
+    assert dsi.refresh_creative_cover(_V, _INS, youtube=_RefreshYT()) is False
+
+
+def test_refresh_skips_unparseable_title_and_blank_video_id(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: b"X" * 2000)
+    yt = _RefreshYT()
+    assert dsi.refresh_creative_cover({"youtube_id": "YT1", "title": "garbage"},
+                                      _INS, youtube=yt) is False
+    assert dsi.refresh_creative_cover({"youtube_id": "", **{"title": _V["title"]}},
+                                      _INS, youtube=yt) is False
+    assert yt.calls == []
+
+
+def test_refresh_is_wired_into_the_generated_path():
+    # AST over the module (never a grep): _run_one_pending must CALL
+    # refresh_creative_cover — with a non-vacuity control on a sibling call.
+    import ast, inspect
+    from api.services import desk_session_insights as dsi
+    tree = ast.parse(inspect.getsource(dsi))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "_run_one_pending")
+    calls = {c.func.attr if isinstance(c.func, ast.Attribute) else
+             getattr(c.func, "id", "")
+             for c in ast.walk(fn) if isinstance(c, ast.Call)}
+    assert "maybe_post_recap" in calls          # control: the probe can see siblings
+    assert "refresh_creative_cover" in calls
+
+
+# ---------------------------------------------------------------------------
+# Second review round (2026-08-19): token-honest number gate, pipe ban,
+# resilient JSON parsing, opener symmetry, per-session cover history
+# ---------------------------------------------------------------------------
+
+def test_number_substring_of_a_real_figure_is_still_invented(tmp_path):
+    # "74" hides inside 749.53; "767" is the honest integer part of 767.63.
+    t = _title(tmp_path, _slate("SPY Needs 74 More Points", "SPY Holds 767"))
+    assert t.startswith("SPY Holds 767 | ")
+
+
+def test_pipe_in_hook_is_cut(tmp_path):
+    # " | " is OUR structural separator — a hook carrying one would confuse
+    # every downstream parser (announce, article links, recall).
+    t = _title(tmp_path, _slate("MU | The Line Holds", "MU Holds 767"))
+    assert t.startswith("MU Holds 767 | ")
+
+
+def test_slate_with_leadin_sentence_still_parses(tmp_path):
+    raw = 'Here are six hooks:\n{"slate": ["MU Holds 767"]}'
+    t = _title(tmp_path, lambda s, u: raw)
+    assert t.startswith("MU Holds 767 | ")
+
+
+def test_opener_echo_catches_a_short_hook_repeat(tmp_path):
+    # Yesterday's stored FULL title must not hide a 2-word hook repeat.
+    hp = tmp_path / "th.json"
+    hp.write_text(json.dumps([{
+        "title": "MU Leads | Live Trading Session — August 18, 2026",
+        "opener": "mu leads"}]), encoding="utf-8")
+    t = dc.compose_title(ctx=CTX, llm=_slate("MU Leads", "DELL Holds 767"),
+                         history_path=str(hp), **SHOW)
+    assert t.startswith("DELL Holds 767 | ")
+
+
+def test_opener_echo_falls_back_to_hook_of_stored_title(tmp_path):
+    # Entries without the opener field (older ledgers) still gate on the HOOK.
+    hp = tmp_path / "th.json"
+    hp.write_text(json.dumps([{
+        "title": "MU Leads | Live Trading Session — August 18, 2026"}]),
+        encoding="utf-8")
+    t = dc.compose_title(ctx=CTX, llm=_slate("MU Leads", "DELL Holds 767"),
+                         history_path=str(hp), **SHOW)
+    assert t.startswith("DELL Holds 767 | ")
+
+
+def test_refresh_render_replaces_the_sessions_cover_history_entry(tmp_path):
+    # Upload render + transcript refresh = ONE ledger entry per session, so
+    # RECENT_STYLE_BAN keeps spanning three SESSIONS, not 1.5.
+    hp = str(tmp_path / "ch.json")
+    for _ in range(2):                       # upload, then refresh, same session
+        dc.render_cover(section="Sunday Scans", eyebrow="SUNDAY SCANS",
+                        date_text="August 19, 2026", ctx=CTX,
+                        llm=lambda s, u: json.dumps(GOOD_SPEC),
+                        imagegen=lambda scene: _png_1536x1024(), history_path=hp)
+    hist = json.loads(open(hp, encoding="utf-8").read())
+    assert len(hist) == 1
+
+
+def test_refresh_skips_when_transcript_gave_no_facts(monkeypatch):
+    # A recording spy, NOT a raiser — refresh swallows exceptions by contract,
+    # so a boom-based probe would pass vacuously.
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_creative
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    rendered = []
+    monkeypatch.setattr(desk_creative, "render_cover",
+                        lambda **kw: rendered.append(1) or b"X" * 2000)
+    yt = _RefreshYT()
+    empty = {"headline": "", "ticker_moments": []}
+    assert dsi.refresh_creative_cover(_V, empty, youtube=yt) is False
+    assert rendered == []                    # no paid re-render without new facts
+    assert yt.calls == []

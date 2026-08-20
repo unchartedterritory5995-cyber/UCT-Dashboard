@@ -90,7 +90,14 @@ def allowed_shows() -> list[str]:
 
 
 def show_allowed(*labels: str) -> bool:
-    hay = _norm(" ".join(l or "" for l in labels))
+    # Creative titles prepend an LLM-authored hook ("Hook | Show — date").
+    # That hook is UNTRUSTED free text and this gate decides whether a
+    # (usually paywalled) session is posted to the PUBLIC channel — so each
+    # label is stripped to its post-pipe tail before matching, and a hook
+    # that happens to name an allowlisted show can never satisfy the gate.
+    # (Hooks containing a bare "|" are cut at compose time, so the split is
+    # unambiguous.) Fixes announce AND the session audit at one chokepoint.
+    hay = _norm(" ".join((l or "").split(" | ")[-1] for l in labels))
     return any(s in hay for s in allowed_shows())
 
 
@@ -145,15 +152,17 @@ def _mark_recap(video_id: int) -> None:
 # ── copy ─────────────────────────────────────────────────────────────────────
 
 def split_title(title: str) -> tuple[str, str]:
-    """'Evening Update from TSDR — July 27, 2026' -> (show, date_text).
-    The publish pipeline always builds titles as `{prefix} — {date_text}`
-    (`desk_daily_session.process_pending_jobs`); anything else yields an empty
-    date, which the thumbnail renderer tolerates."""
-    t = (title or "").strip()
-    if " — " in t:
-        show, date_text = t.rsplit(" — ", 1)
-        return show.strip(), date_text.strip()
-    return t, ""
+    """'Evening Update from TSDR — July 27, 2026' -> (show, date_text) — and a
+    creative 'Hook | Evening Update — July 27, 2026' yields the SHOW, never the
+    hook (the eyebrow drives the card template + text; an LLM hook uppercased
+    into it would overflow and could silently swap per-host templates).
+    Delegates to desk_creative.parse_session_title — the title format's owner.
+    A title with no separator yields an empty date, which the renderer tolerates."""
+    from api.services import desk_creative
+    parsed = desk_creative.parse_session_title(title)
+    if parsed:
+        return parsed
+    return (title or "").strip(), ""
 
 
 def _ticker_symbols(ins: dict, limit: int = 8) -> list[str]:
