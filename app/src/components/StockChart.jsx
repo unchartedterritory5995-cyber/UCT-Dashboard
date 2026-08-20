@@ -249,6 +249,12 @@ function anchoredSameScalePoints(cmpBars, fbars, lr, adjustTime) {
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
+// Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
+// the local IndexedDB read before falling through to a full server fetch. A fresh
+// browser mid-pack-ingest can stall idbGet for seconds (readwrite ingest serializes
+// with our readonly get); this cap makes a new user paint from the ~1ms origin instead
+// of a black screen. Warm browsers resolve idbGet in ~5ms and never reach it.
+const _IDB_FIRST_PAINT_TIMEOUT_MS = 600
 // Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
@@ -4102,14 +4108,35 @@ export default function StockChart({
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
+    let settled = false
+    // 🔴 COLD-START UNBLOCK (new-user first paint). `swrUrl` is gated on idbGet
+    // resolving so it can compute the correct `?since=<idb tail>` delta. But on a
+    // FRESH browser the pack's big readwrite ingest serializes with our readonly
+    // idbGet, so the local read can STALL for seconds — and while it does, swrUrl is
+    // null, no server fetch fires, and the chart sits BLACK/"loading" even though the
+    // origin would answer in ~1ms. A warm browser never sees this (idbGet resolves in
+    // ~5ms), which is why scanning is flawless for returning users and broken for a
+    // first-timer. Guarantee the first paint NEVER waits more than a beat on local
+    // storage: if idbGet hasn't resolved by _IDB_FIRST_PAINT_TIMEOUT_MS, open the
+    // swrUrl gate with NO cached tail → swrUrl fires a FULL server fetch immediately
+    // (no `since`, so it's correct). A late idbGet still reconciles when it lands
+    // (the _idbFresh / longer-series merge below picks the better set). This makes
+    // "log on → instant from the fast server" true for new users, pack or no pack.
+    const _t = setTimeout(() => {
+      if (settled) return
+      idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
+      setIdbLoaded(true)
+    }, _IDB_FIRST_PAINT_TIMEOUT_MS)
     idbGet(sym, resolvedTf).then(entry => {
+      settled = true; clearTimeout(_t)
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
       }
       idbReadyForRef.current = key
       setIdbLoaded(true)
-    }).catch(() => { idbReadyForRef.current = key; setIdbLoaded(true) })
+    }).catch(() => { settled = true; clearTimeout(_t); idbReadyForRef.current = key; setIdbLoaded(true) })
+    return () => { settled = true; clearTimeout(_t) }
   }, [sym, resolvedTf])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
