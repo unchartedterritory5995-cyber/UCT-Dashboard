@@ -2405,7 +2405,12 @@ it is usually there by the time the recording lands), so a title can be about
 what happened in the session rather than the morning brief; the desk ships
 the editor's **pick** (not the first survivor), rotates hook forms, reads the
 full wire brief (movers/earnings/rotation/regime/index reads), and runs on
-`claude-opus-5` by default (`DESK_CREATIVE_MODEL`). Back catalog was re-skinned 2026-08-20 via
+`claude-opus-5` by default (`DESK_CREATIVE_MODEL`). ⭐ **The title register is
+Qullamaggie's REAL stream titles** (`api/services/desk_assets/qullamaggie_register.txt`,
+~80 harvested 8/20 from his channel + the 2020/2021 archives) — sentence case,
+`!`/`?`, `$TICKERS`, blunt tape reads, a BUT-contrast; never Title-Case cleverness,
+never a report card on our discipline (`_SOFT` gate). Edit the corpus file to
+steer the voice, not the prompt. Back catalog was re-skinned 2026-08-20 via
 `POST /api/desk/creative-cover-backfill` (PUSH_SECRET; atomic resumable
 ledger at `/data/desk_cover_backfill.json`). Titles are FINAL at upload
 (`youtube.upload` has no `videos.update`) — the creative title is composed

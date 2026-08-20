@@ -884,11 +884,19 @@ def test_blunt_tape_verdicts_pass_the_soft_gate(tmp_path):
         assert _title(tmp_path, _slate(hook)).startswith(hook + " | "), hook
 
 
-def test_register_has_no_two_clause_restraint_template():
-    # The 8/20 slate was six copies of "A, B, we sat out" because every GOOD
-    # example in the register had that shape. Keep the examples varied.
-    good = dc._TITLE_SYSTEM.split("GOOD:")[1].split("BAD:")[0]
-    examples = [e.strip(" '\n\"") for e in good.split("·")]
-    assert len(examples) >= 5
-    assert sum("," in e for e in examples) <= 1
-    assert not any(dc._SOFT.search(e) for e in examples)
+def test_register_is_qullamaggies_real_corpus():
+    # The owner's verdict on 8/20 ("look at all of Qullamaggie's titles"): the
+    # register is HIS titles, read from the asset, not examples I invented.
+    titles = dc._register_titles()
+    assert len(titles) >= 60
+    assert "Chop chop chop" in titles and "Are we going to hold the 50 day?" in titles
+    assert not any(dc._SOFT.search(x) for x in titles)
+    assert all(x in dc._TITLE_SYSTEM for x in titles[:10])
+    assert "Never Title Case" in dc._TITLE_SYSTEM
+
+
+def test_register_falls_back_when_the_asset_is_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(dc, "_REGISTER_FILE", tmp_path / "nope.txt")
+    titles = dc._register_titles()
+    assert titles == list(dc._REGISTER_FALLBACK) and len(titles) >= 10
+    assert "Chop chop chop" in dc._build_title_system()

@@ -341,54 +341,77 @@ def _flavor(section: str) -> str:
 # The headline desk
 # ---------------------------------------------------------------------------
 
-_TITLE_SYSTEM = (
-    "You title the daily session recordings of UCT Intelligence (Uncharted "
-    "Territory), a swing-trading desk, the way Qullamaggie titles his streams: "
-    "cool, deadpan, topical, a little irreverent, unmistakably written TODAY by "
-    "someone who was in the room. Trader culture is the register — tickers, "
-    "tape talk, market slang, dry humor. Never corny clickbait, never "
-    "breathless, never a press release.\n"
-    "THE CRAFT:\n"
-    "- The hook could ONLY have been written today, from the DATA below. If it "
-    "could title any week of the year, kill it.\n"
-    "- When THIS SESSION'S content is in the data (this_sessions_summary / "
-    "this_sessions_chapters / tickers_discussed_in_session), the hook is about "
-    "what HAPPENED IN THE SESSION — the names traded, the calls made, the "
-    "moment — with the tape as backdrop. Without it, the hook is the day's "
-    "tape story.\n"
-    "- Name names. A specific ticker, level or event beats a mood. Tickers, "
-    "sectors and events from the data are fair game and encouraged.\n"
-    "- DIRECTIONAL HONESTY: the tone field is the day's read. A cautious or "
-    "defensive tape is not a rally — never claim the market or a sector is "
-    "ripping unless the tone backs it. A single stock's real move is fine.\n"
-    "- Use no numbers that don't literally appear in the data.\n"
-    "- Hook <= 55 characters. No emoji. No em-dashes. No '|' (reserved). "
-    "No ALL-CAPS words except tickers.\n"
-    "- Match the SHOW described below.\n"
-    "- The hook is a VERDICT on the tape or on the names, never a report on "
-    "our discipline. 'We sat out / chased nothing / held our nerve / hands "
-    "off / do-nothing day' is banned — restraint is the plan, not the "
-    "headline. Nobody tunes in to hear we did nothing.\n"
-    "- Vary the shape: a one-liner, a name + verb, a blunt call, a question. "
-    "Not every hook is 'A, B'. Short beats clever.\n"
-    "THE REGISTER — blunt trader, a little cocky, never precious:\n"
-    "  GOOD: 'Chop Fest at the 50' · 'TEM Rips While Biotech Rolls Over' · "
-    "'MU Is the Only Thing Working' · 'Dead Tape. Don't Force It.' · "
-    "'Webull +11% and Nobody Cares' · 'Three Distribution Days and Counting' "
-    "· 'Who's Still Buying MRNA?'\n"
-    "  BAD: 'WMT beat, MU held, we still sat out' (virtue-signaling "
-    "restraint) · 'QQQ chopping at the MAs' (restates the brief, no point of "
-    "view) · 'Markets in turmoil, what now?' (could run any week) · 'INSANE "
-    "breakout session' (corn) · 'Market update and trade review' (a category, "
-    "not a hook).\n"
-    "WRITE THE SLATE:\n"
-    "1. \"angle\" — one sentence: today's story for this show and its tension.\n"
-    "2. \"hooks\" — 6 candidates against that angle, one per form, in this "
-    "order: " + ", ".join(FORMS) + ".\n"
-    "3. \"pick\" — the exact hook of your strongest candidate.\n"
-    'Return STRICT JSON only: {"angle": "...", "hooks": [{"form": "...", '
-    '"hook": "..."}, ...], "pick": "..."} — nothing else.'
-)
+_REGISTER_FILE = _ASSETS / "qullamaggie_register.txt"
+_REGISTER_FALLBACK = (
+    "Chop chop chop", "Lots of fades", "Leaders leading", "Breakouts everywhere!",
+    "Are we going to hold the 50 day?", "Indices strong, BUT running into key moving averages",
+    "Extended stocks breaking down! $MARA $RIOT $BNGO", "Setups starting to emerge again!",
+    "Newbies getting schooled again", "Speculation money is back!", "Zzzlow")
+
+
+def _register_titles() -> list[str]:
+    """The real corpus — one title per line, '#' comments skipped. Falls back
+    to a short inline list if the asset is missing (never an empty register)."""
+    try:
+        lines = [ln.strip() for ln in _REGISTER_FILE.read_text(encoding="utf-8").splitlines()]
+        titles = [ln for ln in lines if ln and not ln.startswith("#")]
+        if len(titles) >= 20:
+            return titles
+    except OSError:
+        pass
+    return list(_REGISTER_FALLBACK)
+
+
+def _build_title_system() -> str:
+    register = "\n".join(f"  - {t}" for t in _register_titles())
+    return (
+        "You title the daily session recordings of UCT Intelligence (Uncharted "
+        "Territory), a swing-trading desk, EXACTLY the way Qullamaggie titles his "
+        "streams. Study THE REGISTER below — those are his real titles — and write "
+        "in that voice: a blunt read on the tape or on the names, written the "
+        "minute the session ended, by a trader, for traders.\n"
+        "HIS VOICE (from the register):\n"
+        "- Sentence case, like a stream title. Never Title Case, never a headline, "
+        "never clever wordplay. Exclamation marks and questions are native.\n"
+        "- He talks SETUPS, leaders, follow through, fades, chop, flags, melt ups, "
+        "shakeouts, froth, rug pulls. Name the names: $TICKERS and sectors are "
+        "welcome (2-3 tickers max).\n"
+        "- A blunt market read ('Lots of fades', 'Leaders leading', 'Market in "
+        "limbo'), a 'BUT' contrast ('Indices strong, BUT running into key moving "
+        "averages'), a question about the tape ('Will this bounce stick?'), a "
+        "sector/ticker callout ('Solar stocks leading', '$TSLA bounce day'), or a "
+        "one-word mood ('Zzzlow'). ONE all-caps word for emphasis is his style; "
+        "more than one is not.\n"
+        "- When THIS SESSION'S content is in the data (this_sessions_summary / "
+        "this_sessions_chapters / tickers_discussed_in_session), title what "
+        "HAPPENED in the session — the names, the calls, the moment — with the "
+        "tape as backdrop. Without it, title the day's tape.\n"
+        "- The hook could ONLY have been written today, from the DATA below.\n"
+        "- DIRECTIONAL HONESTY: the tone field is the day's read. A cautious or "
+        "defensive tape is not a rally — never claim the market or a sector is "
+        "ripping unless the tone backs it. A single stock's real move is fine.\n"
+        "- It is a call on the TAPE or the NAMES, never a report card on our "
+        "discipline ('we sat out', 'we chased nothing', 'hands off', 'do-nothing "
+        "day' are banned). 'More patience needed' is a tape read; 'we were "
+        "patient' is a brag. Nobody tunes in to hear we did nothing.\n"
+        "- Use no numbers that don't literally appear in the data. No P&L claims.\n"
+        "- Hook <= 55 characters. No emoji. No em-dashes. No '|' (reserved).\n"
+        "- Match the SHOW described below.\n"
+        "THE REGISTER — his real titles, write like these:\n" + register + "\n"
+        "WRITE THE SLATE:\n"
+        "1. \"angle\" — one sentence: today's story for this show and its tension.\n"
+        "2. \"hooks\" — 6 candidates against that angle, one per form, in this "
+        "order: " + ", ".join(FORMS) + " (deadpan = a blunt market read; stakes = "
+        "what's on the line; image = a sector/ticker callout; question = a "
+        "question about the tape; contrast = a BUT line; declarative = a flat "
+        "verdict).\n"
+        "3. \"pick\" — the exact hook that sounds MOST like the register.\n"
+        'Return STRICT JSON only: {"angle": "...", "hooks": [{"form": "...", '
+        '"hook": "..."}, ...], "pick": "..."} — nothing else.'
+    )
+
+
+_TITLE_SYSTEM = _build_title_system()
 
 # Corn that must never ship + emoji (ported from morning-wire title_desk).
 _BLOCKLIST = re.compile(
