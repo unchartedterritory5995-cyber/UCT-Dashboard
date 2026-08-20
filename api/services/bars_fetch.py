@@ -145,6 +145,20 @@ _replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
 _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 
+# 🔴 Global cap on CONCURRENT truly-cold Layer-4 provider fetches (a first-ever
+# ticker/tf with NO stored rows). Obscure/long-tail names take 15-22s to fetch;
+# left unbounded, a fresh browser with no local cache hits the server for EVERY
+# chart, and a user scanning cold tickers holds a threadpool worker per fetch for
+# ~20s → the anyio pool exhausts and every OTHER request (even instant warm charts)
+# queues behind them. Measured 2026-08-19 from a real member HAR: 15 cold tickers
+# dragged 664 warm charts to 5-20s and a /api/watchlists call to 18s — the exact
+# 524-outage class _replay_cold_sem above already guards for replay. When the cap
+# is full a cold request SHEDS (serves a fast 503+Retry-After so the client re-polls
+# in ~3s) instead of adding another 20s hold; the ticker warms on a retry once a slot
+# frees, or via the prewarmer/crawler. Tune via BARS_COLD_FETCH_CONCURRENCY.
+_COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
+_cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
+
 
 def _depth_tier(bars: int) -> int:
     """Coarse depth bucket for the deep-fill throttle marker, so a shallow view
@@ -2768,6 +2782,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     ttl = _CACHE_TTL.get(tf, 300)
     # Pre-initialise payload so finally block always has something to cache
     payload: dict = {"ticker": ticker_up, "tf": tf, "bars": []}
+    _cold_shed = False   # set True when a truly-cold fetch is shed for pool protection
 
     try:
         if stored_rows and last_ts:
@@ -2795,19 +2810,35 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
         else:
             # ── Full fetch: first time we see this ticker/tf ──────────────────
+            # 🔴 POOL PROTECTION (see _cold_fetch_sem): a truly-cold provider fetch
+            # can hold this worker thread ~20s. Cap how many run at once so a fresh
+            # browser scanning obscure tickers can't exhaust the anyio pool and drag
+            # every warm chart to 5-20s (the measured HAR outage). When the cap is
+            # full, SHED — skip the 20s fetch, serve empty, and return 503+Retry-After
+            # below so the client re-polls in ~3s once a slot frees.
+            _deep = False
+            _cold_shed = not _cold_fetch_sem.acquire(blocking=False)
             try:
-                # A deep request (above the shallow first-paint window) wants the
-                # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
-                _deep = _is_deep_request(bars)
-                if tf in ("1", "5", "15", "30", "60"):
-                    raw = _fetch_intraday(ticker_up, tf, bars)
-                elif tf == "W":
-                    raw = _fetch_weekly(ticker_up, bars, deep=_deep)
-                elif tf == "M":
-                    raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+                if _cold_shed:
+                    _mark_serve("cold-shed")
+                    raw = None
                 else:
-                    raw = _fetch_daily(ticker_up, bars, deep=_deep)
+                    # A deep request (above the shallow first-paint window) wants the
+                    # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
+                    _deep = _is_deep_request(bars)
+                    if tf in ("1", "5", "15", "30", "60"):
+                        raw = _fetch_intraday(ticker_up, tf, bars)
+                    elif tf == "W":
+                        raw = _fetch_weekly(ticker_up, bars, deep=_deep)
+                    elif tf == "M":
+                        raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+                    else:
+                        raw = _fetch_daily(ticker_up, bars, deep=_deep)
+            finally:
+                if not _cold_shed:
+                    _cold_fetch_sem.release()
 
+            try:
                 if raw:
                     # Don't persist stale intraday fallback data to SQLite — it would
                     # be served as fresh on subsequent requests since _needs_fresh
@@ -2866,6 +2897,18 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         with _inflight_lock:
             _inflight.pop(cache_key, None)
         waiter_ev.set()
+
+    # Pool-shed guard: this cold fetch was SKIPPED (the cold-fetch cap was full) to
+    # protect the threadpool. Return 503 + a short Retry-After (ANY tf) so the client
+    # re-polls in ~3s — once a fetch slot frees it warms — instead of rendering bars:[]
+    # and waiting the full 300s daily SWR. Keeps any prior on-screen state.
+    if _cold_shed and not result_bars:
+        r = JSONResponse(
+            status_code=503,
+            content={"ticker": ticker_up, "tf": tf, "bars": [], "error": "warming"},
+        )
+        r.headers["Retry-After"] = "3"
+        return r
 
     # No-blank guard: a COLD intraday ticker (no stored rows, no disk fallback)
     # whose fetch came back empty because the primary source is circuit-broken
