@@ -1,34 +1,82 @@
 # Real Qullamaggie stream titles (harvested 2026-08-20 from his channel + the
-# 2020/2021 stream archives). The title desk reads this file as its register:
-# sentence case, exclamation marks and questions, $TICKERS, blunt market reads,
-# setup talk, a BUT-contrast, the occasional zzz. One title per line.
-Resilient markets
-Market in limbo
-Bear market rally
-Chop chop chop
-Leaders leading
-Breakouts everywhere!
-Insane markets
-Unstoppable market!
-Everything going higher!
+# 2020/2021 stream archives). The title desk reads this file as its register.
+# Swagger first: blunt, a little arrogant, dry humor, $TICKERS, ! and ?, zero
+# analyst-speak. One title per line; '#' lines are ignored.
+Newbies getting schooled again
+Throw a dart and you will make money in this market
+Frothy market, and I LOVE IT
+Heavily long on margin and everything going up up up
+Finally the expected rug pull! Now what?
+Extended stocks breaking down! $MARA $RIOT $BNGO
+Growth stocks getting killed
 Lots of fades
 Zzzlow
 Watching paint dry
 Whack a mole
-Bunch of bear flags
-Bounces everywhere
-Frothy market, and I LOVE IT
-Damn it's choppy out there
+Chop chop chop
+Leaders leading
+Breakouts everywhere!
+Everything going straight up!
+Insane markets
+Unstoppable market!
+Speculation money is back!
+EP party!
+Memestocks back in play
+stonks only go up
+All the pumps lost mojo
 Easy money over for now in the markets
-Slowest bull run in a long time
 Market is getting too easy
 Markets are giving away free money for now
-Markets near highs but stocks are so so
+Is it even possible to lose in this market?
+Need a panic flush for a bottom!
+Euphoria fading hard. Newbies getting schooled again
+Finally a froth reset!
+Major FOMO going on right now
+Damn it's choppy out there
+This gap down ruining my setups!
+Damn gap down. They are not giving us a good setup
+Markets just keep grinding higher
+Apple and Tesla starting to go parabolic
+Many extended names getting sluggish. $RIOT parabolic short
+$SAVA what a beast long and a beast short!
+Tesla gap up and fade
+$TSLA bounce day
+$AMC to the moon
+China EV crash! $NIO $LI $XPEV
+China stocks hot!
+Solar stocks leading
+Flu stocks waking up
+Semiconductors very strong
+Semiconductors big follow through from the breakouts!
+Silver high tight flag!
+EV Gold Rush!
+Energy sector going parabolic?
+Gap and fade
+Tech and software stocks in melt up mode!
+Momentum leaders leading, laggards lagging
+I love being in laggards
+Leading stocks breaking down!
+The last of the leaders breaking down now
+Bunch of bear flags
+Bear flags follow through
+Bounces everywhere
+Will this bounce stick?
+Are we going to hold the 50 day?
+Dead cat bounce or next leg in bull market?
+Higher lows or start of a bigger correction?
+Is this the start of a larger correction or just a mild bull market pullback?
+Where are we headed from here?
+Sell the news coming in the markets?
+Give us some big trends!
+Some big moves starting!!
 Indices strong, BUT running into key moving averages
 Very cautious here BUT Russell is holding up well
 Feels like markets are tired, BUT a few parabolic moves in momentum leaders starting
+Markets near highs but stocks are so so
 Lots of strength under the surface but not many good setups
 Not great action beneath the hood right now
+Indices looking good but where are the setups?
+Setups are here, but will the market help?
 Setups starting to emerge again!
 Lack of good setups again
 No long setups in growth land
@@ -36,48 +84,14 @@ Many extended stocks building high tight flags!
 5 star setups on their way!
 Juicy long setups are developing!
 Lots of things setting up into earnings season!
-Setups are here, but will the market help?
-Indices looking good but where are the setups?
-Basebuilding period. Less is more
-More patience needed
-Will this bounce stick?
-Are we going to hold the 50 day?
-Dead cat bounce or next leg in bull market?
-Higher lows or start of a bigger correction?
-Is it even possible to lose in this market?
-Where are we headed from here?
-Sell the news coming in the markets?
-Finally the expected rug pull! Now what?
-$SAVA what a beast long and a beast short!
-Tesla gap up and fade
-$TSLA bounce day
-Solar stocks leading
-Flu stocks waking up
-China stocks hot!
-China EV crash! $NIO $LI $XPEV
-Semiconductors very strong
-Semiconductors big follow through from the breakouts!
-Silver high tight flag!
-Extended stocks breaking down! $MARA $RIOT $BNGO
-EV Gold Rush!
-Memestocks back in play
-Speculation money is back!
-EP party!
-Energy sector going parabolic?
-Gap and fade
-Growth stocks getting killed
-Leading stocks breaking down!
-The last of the leaders breaking down now
-Tech and software stocks in melt up mode!
-Momentum leaders leading, laggards lagging
-Newbies getting schooled again
-Euphoria fading hard. Newbies getting schooled again
-Finally a froth reset!
-Need a panic flush for a bottom!
-Major FOMO going on right now
-Big time divergence in the markets right now. Something has to give
-Throw a dart and you will make money in this market
-Heavily long on margin and everything going up up up
+Leaders still leading? Does YOUR portfolio consist of leaders?
 If you don't trade the momentum leaders, you have no future!
 Know when your setups work and don't work
+Basebuilding period. Less is more
+More patience needed
+Slow start to a 4 day week
+Market in limbo
+Resilient markets
+Bear market rally
+Big time divergence in the markets right now. Something has to give
 I'M BACK BABY! Finally a huge day after 3 weeks of frustration

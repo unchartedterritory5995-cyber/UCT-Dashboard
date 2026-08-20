@@ -386,6 +386,15 @@ def _build_title_system() -> str:
         "this_sessions_chapters / tickers_discussed_in_session), title what "
         "HAPPENED in the session — the names, the calls, the moment — with the "
         "tape as backdrop. Without it, title the day's tape.\n"
+        "- COOL, NOT CUTE. Dry, a little arrogant, the shrug of someone who has "
+        "seen this tape a thousand times. The data below is a research brief — "
+        "NEVER use its vocabulary: no 'constructive', 'rotation/rotating', "
+        "'exposure', 'regime', 'restraint', 'selective', 'discipline', "
+        "'sentiment', 'positioning', 'participation', 'breadth', 'narrative'. "
+        "Say it the way he would: stuck, dead, ripping, fading, getting "
+        "killed, melt up, rug pull, flush, squeeze, schooled, froth, zzz.\n"
+        "- Verbs over adjectives. 'Tech won't budge' beats 'tech is "
+        "constructive'. A name doing something beats a mood.\n"
         "- The hook could ONLY have been written today, from the DATA below.\n"
         "- DIRECTIONAL HONESTY: the tone field is the day's read. A cautious or "
         "defensive tape is not a rally — never claim the market or a sector is "
@@ -405,7 +414,8 @@ def _build_title_system() -> str:
         "what's on the line; image = a sector/ticker callout; question = a "
         "question about the tape; contrast = a BUT line; declarative = a flat "
         "verdict).\n"
-        "3. \"pick\" — the exact hook that sounds MOST like the register.\n"
+        "3. \"pick\" — the exact hook with the most SWAGGER: the one a trader "
+        "clicks at 9:31 with coffee in hand, that sounds most like the register.\n"
         'Return STRICT JSON only: {"angle": "...", "hooks": [{"form": "...", '
         '"hook": "..."}, ...], "pick": "..."} — nothing else.'
     )
@@ -440,6 +450,13 @@ _SOFT = re.compile(
     r"(?i)\b(?:sat\s+(?:it\s+)?out|sat\s+on\s+(?:our\s+|my\s+)?hands|chased\s+nothing|"
     r"held\s+(?:our|my)\s+nerve|did\s+nothing|forced\s+nothing|do-nothing|hands\s+off|"
     r"no\s+regrets|stayed\s+(?:patient|disciplined))\b")
+
+# Wire vocabulary leaking into a stream title is the tell that the desk read
+# the brief instead of the tape ("Indices constructive, BUT…"). Cut it.
+_DRY = re.compile(
+    r"(?i)\b(?:constructive|rotat(?:e|es|ed|ing|ion)|exposure|regime|restraint|"
+    r"selective|disciplin\w*|sentiment|positioning|participation|breadth|narrative|"
+    r"risk[- ]?(?:on|off))\b")
 
 _NUM = re.compile(r"\d+(?:\.\d+)?")
 _WS = re.compile(r"\s+")
@@ -479,6 +496,8 @@ def _cut_reason(hook: str, suffix: str, ctx_nums: set, tone: str,
         return "corn"
     if _SOFT.search(hook):
         return "soft restraint (a report card on us, not a call on the tape)"
+    if _DRY.search(hook):
+        return "analyst-speak (wire vocabulary in a stream title)"
     if tone in ("cautious", "defensive") and _MKT_BULLISH.search(hook):
         return "market rally claim on a %s tape" % tone
     for num in _NUM.findall(hook):

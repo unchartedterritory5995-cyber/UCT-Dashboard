@@ -50,8 +50,8 @@ def _title(tmp_path, llm, ctx=CTX):
 # ---------------------------------------------------------------------------
 
 def test_first_gate_passing_hook_ships_with_show_and_date(tmp_path):
-    t = _title(tmp_path, _slate("MRNA Rips 73%, We Stay Disciplined"))
-    assert t == "MRNA Rips 73%, We Stay Disciplined | Live Trading Session — August 19, 2026"
+    t = _title(tmp_path, _slate("MRNA rips 73%, everything else meh"))
+    assert t == "MRNA rips 73%, everything else meh | Live Trading Session — August 19, 2026"
 
 
 def test_llm_failure_falls_back_to_classic_title(tmp_path):
@@ -74,7 +74,7 @@ def test_missing_wire_context_falls_back_without_calling_llm(tmp_path):
 
 
 def test_hook_em_dash_is_scrubbed_but_date_separator_stays(tmp_path):
-    t = _title(tmp_path, _slate("Restraint Rule On — MU Leads Anyway"))
+    t = _title(tmp_path, _slate("Tech stuck at the MAs — MU leads anyway"))
     hook = t.split(" | ")[0]
     assert "—" not in hook
     assert t.count("—") == 1          # only the structural " — date" separator
@@ -900,3 +900,30 @@ def test_register_falls_back_when_the_asset_is_missing(monkeypatch, tmp_path):
     titles = dc._register_titles()
     assert titles == list(dc._REGISTER_FALLBACK) and len(titles) >= 10
     assert "Chop chop chop" in dc._build_title_system()
+
+
+# ── final polish (8/20): analyst-speak never ships ────────────────────────
+
+@pytest.mark.parametrize("hook", [
+    "Indices constructive, BUT tech won't budge",
+    "Money rotating out of tech into health care",
+    "Exposure stays at 55% while QQQ chops",
+    "Restraint rule on, size stays small",
+    "Breadth thinning under the surface",
+    "Risk-off tape, leaders holding",
+])
+def test_wire_vocabulary_is_cut_from_hooks(tmp_path, hook):
+    t = _title(tmp_path, _slate(hook, "Tech won't budge, everything else holding up"))
+    assert t.startswith("Tech won't budge, everything else holding up | "), t
+
+
+def test_stream_voice_passes_the_dry_gate(tmp_path):
+    for hook in ("$MU and $DELL still leading, $QQQ stuck", "Lots of fades in biotech",
+                 "Will $QQQ ever pick a side at these MAs?", "Growth getting killed again",
+                 "Tech won't budge, everything else holding up"):
+        assert _title(tmp_path, _slate(hook)).startswith(hook + " | "), hook
+
+
+def test_register_is_clean_of_wire_vocabulary():
+    assert not any(dc._DRY.search(x) for x in dc._register_titles())
+    assert "COOL, NOT CUTE" in dc._TITLE_SYSTEM and "SWAGGER" in dc._TITLE_SYSTEM
