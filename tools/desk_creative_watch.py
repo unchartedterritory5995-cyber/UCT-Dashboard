@@ -16,9 +16,16 @@ import json
 import subprocess
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
+
+# The title format has ONE owner (api.services.desk_creative) — this monitor
+# derives its checks from it rather than restating "— {date}" / "Hook | Show"
+# (a hand-copied format here would silently diverge and false-WARN daily).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from api.services import desk_creative  # noqa: E402
 
 _ET = ZoneInfo("America/New_York")
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -53,13 +60,15 @@ def _job_is_today(job: dict, now=None) -> bool:
 
 
 def check_title(title: str, date_text: str) -> tuple[str, str]:
-    """(verdict, note) for one published YouTube title."""
-    if not title.endswith(f"— {date_text}"):
+    """(verdict, note) for one published YouTube title — every check derived
+    from desk_creative, the title format's owner."""
+    if not title.endswith(desk_creative.date_suffix(date_text)):
         return "WARN", "title does not end with today's date suffix"
-    if " | " not in title:
+    parsed = desk_creative.parse_session_title(title)
+    if not parsed or title == desk_creative.classic_title(*parsed):
         return "WARN", "classic fallback shipped (creative title desk did not fire — check pod logs)"
-    if len(title) > 100:
-        return "WARN", "title exceeds the 100-char YouTube cap"
+    if len(title) > desk_creative.MAX_TITLE_LEN:
+        return "WARN", "title exceeds the YouTube length cap"
     return "OK", "creative title live"
 
 

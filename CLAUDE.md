@@ -2379,7 +2379,25 @@ since the template is literally named "live trading today"); any other named top
 **auto-derives** section = title = the name + thumbnail eyebrow = NAME.upper() (e.g. a
 "Post Market Recap" webinar → "Post Market Recap — {date}" in a "Post Market Recap"
 section); empty topic → default. So new content types = just name a Zoom template.
-Title `{type} — {Month D, YYYY}` (ET). `_notify_published` fires once per
+Title `{type} — {Month D, YYYY}` (ET) — **that classic format is now the
+FALLBACK: under `DESK_CREATIVE_TITLES=1` (LIVE since 2026-08-19) the shipped
+title is `"{Hook} | {type} — {Month D, YYYY}"`**, a Claude-composed topical
+hook gated deterministically (`api/services/desk_creative.py` — corn/emoji
+blocklists, market-direction honesty, whole-token number check, opener-echo
+history, `"|"` banned inside hooks). ⛔ **The hook is UNTRUSTED free text to
+every downstream consumer** — parse titles ONLY via
+`desk_creative.parse_session_title` / match suffixes via `date_suffix`
+(the format's one owner); `show_allowed`, `split_title` and
+`desk_article_links._series_of` all learned this the hard way. Under
+`DESK_CREATIVE_THUMBS=1` the thumbnail is an AI cover (art-director LLM →
+gpt-image-1 → brand frame), re-skinned once the transcript lands
+(`desk_session_insights.refresh_creative_cover`); the per-show themed cards
+below are the fallback. Back catalog was re-skinned 2026-08-20 via
+`POST /api/desk/creative-cover-backfill` (PUSH_SECRET; atomic resumable
+ledger at `/data/desk_cover_backfill.json`). Titles are FINAL at upload
+(`youtube.upload` has no `videos.update`) — the creative title is composed
+only on the attempt that uploads and recalled (never recomposed) on a
+re-claim. `_notify_published` fires once per
 genuinely-new publish (not on idempotent re-runs); recipients = `DESK_DAILY_SESSION_ALERT_EMAILS`
 or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist — EVERY cloud
 recording on the account auto-posts (titled by its webinar name); add a skip rule in
