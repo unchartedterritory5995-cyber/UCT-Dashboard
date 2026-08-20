@@ -809,12 +809,22 @@ def integrity_ok() -> bool:
     try:
         c = sqlite3.connect(_DB_PATH, timeout=10)
         try:
-            row = c.execute("PRAGMA integrity_check").fetchone()
+            # PRAGMA quick_check, NOT integrity_check. The full integrity_check
+            # cross-verifies every index against its table content — on this 58M-row
+            # store that grew to 283 SECONDS at boot (2026-08-19), and it runs in a
+            # CPU-heavy background thread that starved the single event loop for ~5
+            # min after every deploy (warm charts served at 20-42s during the window).
+            # quick_check reads the same b-tree pages and catches the "disk image is
+            # malformed" / structural corruption this probe exists to detect (its whole
+            # purpose per the docstring), but SKIPS the expensive index-content pass —
+            # ~an order of magnitude faster. Deep index/content drift is caught at
+            # runtime + by bars_reconciliation, not needed on the boot-safety path.
+            row = c.execute("PRAGMA quick_check").fetchone()
             return bool(row and row[0] == "ok")
         finally:
             c.close()
     except sqlite3.DatabaseError as e:
-        _logger.error(f"[sqlite] integrity_check failed to open bars.db: {e}")
+        _logger.error(f"[sqlite] quick_check failed to open bars.db: {e}")
         return False
 
 

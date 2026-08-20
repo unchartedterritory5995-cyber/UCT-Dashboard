@@ -2381,11 +2381,27 @@ async def lifespan(app: FastAPI):
     # SQLite integrity check -- heavy on 58M rows, run in background
     def _integrity_check_bg():
         try:
+            import os as _os_ic, time as _ic_t
             from api.services import bars_sqlite as _bs_check
-            import time as _ic_t
+            # RECENCY GATE: skip the boot check entirely if it passed within
+            # BARS_INTEGRITY_SKIP_HOURS. A malformed image only appears from a crash
+            # mid-write or a disk fault — never from a redeploy — so a burst of deploys
+            # (like an active dev session) shouldn't each re-scan the whole store. This,
+            # plus the quick_check switch in integrity_ok(), is what stops the ~5-min
+            # post-deploy congestion window (the 283s check starved the event loop).
+            _marker = _os_ic.path.join(_os_ic.environ.get("DATA_DIR", "/data"), ".bars_integrity_ok_ts")
+            _skip_h = float(_os_ic.environ.get("BARS_INTEGRITY_SKIP_HOURS", "6"))
+            try:
+                if _skip_h > 0 and _os_ic.path.exists(_marker):
+                    _age = _ic_t.time() - _os_ic.path.getmtime(_marker)
+                    if _age < _skip_h * 3600:
+                        print(f"[startup] bars.db integrity check SKIPPED (passed {_age/3600:.1f}h ago; gate {_skip_h}h)")
+                        return
+            except Exception:
+                pass
             _ic_t0 = _ic_t.time()
             if not _bs_check.integrity_ok():
-                print(f"[startup] bars.db failed PRAGMA integrity_check after {_ic_t.time()-_ic_t0:.1f}s -- pulling fresh snapshot from R2")
+                print(f"[startup] bars.db failed PRAGMA quick_check after {_ic_t.time()-_ic_t0:.1f}s -- pulling fresh snapshot from R2")
                 try:
                     from api.services import data_sync as _ds_check
                     if _ds_check.force_resync():
@@ -2396,6 +2412,11 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] force_resync error (non-fatal): {e}")
             else:
                 print(f"[startup] bars.db integrity check passed ({_ic_t.time()-_ic_t0:.1f}s)")
+                try:
+                    with open(_marker, "w") as _mf:
+                        _mf.write(str(int(_ic_t.time())))
+                except Exception:
+                    pass
         except Exception as e:
             print(f"[startup] bars.db integrity_check error (non-fatal): {e}")
     threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
