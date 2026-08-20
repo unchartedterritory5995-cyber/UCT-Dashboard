@@ -1401,15 +1401,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
   const listBodyRef = useRef(null)
-  const [bodyW, setBodyW] = useState(0)
-  useEffect(() => {
-    const el = listBodyRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(() => setBodyW(el.clientWidth))
-    ro.observe(el)
-    setBodyW(el.clientWidth)
-    return () => ro.disconnect()
-  }, [])
+  // ⚰️ Removed a dead-state ResizeObserver here (2026-08-20). It observed the list
+  // body and set a `bodyW` state that NOTHING read (shrink-to-fit was removed long
+  // ago — see the note by `renderedColWidths` below). At a very narrow widget width
+  // (the scanner dragged to its minW) the list body oscillates — a horizontal
+  // scrollbar appears, shrinks the height, toggles the vertical scrollbar, which
+  // changes the width again — firing that observer synchronously in a tight loop.
+  // Setting state on every fire re-rendered Watchlists repeatedly → React #185
+  // "Maximum update depth exceeded" (the crash when a thin Scanner was squeezed to
+  // its minimum). With nothing consuming the measurement, the whole observer was
+  // pure liability — deleted. A benign browser "ResizeObserver loop" warning may
+  // still print, but it can no longer take React's render loop down with it.
   // Fixed-px columns at their set widths — NO shrink-to-fit. Dragging a gridline
   // resizes only that column; when the total exceeds the widget width the columns
   // simply overflow and the rightmost ones clip off the right edge (.listBody is

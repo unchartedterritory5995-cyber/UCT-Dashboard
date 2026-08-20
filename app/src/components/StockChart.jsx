@@ -7188,8 +7188,11 @@ export default function StockChart({
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
         // Crosshair date/price labels blend with the canvas (gradient-bottom aware);
         // LWC auto-contrasts their text against this background (axisAuto).
-        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
+        // visible/labelVisible are set EXPLICITLY true (not just left default) because
+        // applyOptions MERGES: once the suppressed branch above set them false, toggling
+        // Crosshair back on must reassert true or the lines/labels stay hidden.
+        vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
+        horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
