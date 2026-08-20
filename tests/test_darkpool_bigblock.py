@@ -171,3 +171,102 @@ def test_embed_all_etf_headline_falls_back():
     # No single stocks → headline speaks to the ETF blocks instead of "0 stocks".
     assert "single-stock" not in d
     assert "broad etf / index block" in d.lower()
+
+
+# ── coalescing (one embed per window) ──────────────────────────────────────
+def _capture_posts(monkeypatch):
+    """Stub the Discord post + record lookup so a flush 'succeeds' without network."""
+    posts = []
+
+    def _fake_post(embed):
+        posts.append(embed)
+        return True
+
+    monkeypatch.setattr(bb, "_post_embed", _fake_post)
+    import api.darkpool_records as dr
+    monkeypatch.setattr(dr, "record_notionals", lambda *a, **k: {})
+    return posts
+
+
+def _queue(monkeypatch, ticker, d="2026-08-20"):
+    # notional 6e6 @ $40 vs 750k avg50 shares = 20% ADV → clears the 5% floor.
+    _patch_stats(monkeypatch, {ticker: 750_000})
+    bb._evaluate([(ticker, 6_000_000, 40.0, d)])
+
+
+def test_coalesce_holds_within_window_then_force(temp_db, monkeypatch):
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_COALESCE_MIN", "15")
+    posts = _capture_posts(monkeypatch)
+
+    _queue(monkeypatch, "AAA")
+    assert bb._flush_due() == 1          # no prior post → first block flushes promptly
+    assert len(posts) == 1
+
+    _queue(monkeypatch, "BBB")
+    assert bb._flush_due() == 0          # inside the 15-min window → held, not posted
+    assert len(posts) == 1
+
+    assert bb._flush_due(force=True) == 1  # a manual/forced flush posts the held block
+    assert len(posts) == 2
+    assert bb._flush_due(force=True) == 0  # nothing pending now
+
+
+def test_coalesce_flushes_once_window_elapses(temp_db, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_COALESCE_MIN", "15")
+    posts = _capture_posts(monkeypatch)
+
+    _queue(monkeypatch, "AAA")
+    assert bb._flush_due() == 1
+    # backdate the last post to 20 min ago → the window has now elapsed
+    old = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    c = bb._conn()
+    c.execute("UPDATE darkpool_bigblock_alerts SET posted_at=? WHERE ticker='AAA'", (old,))
+    c.commit()
+    c.close()
+
+    _queue(monkeypatch, "BBB")
+    assert bb._flush_due() == 1          # elapsed >= window → posts without force
+    assert len(posts) == 2
+
+
+def test_migration_marks_preexisting_rows_posted(tmp_path, monkeypatch):
+    # A pre-coalescing DB has the OLD 6-column schema with rows already alerted today.
+    # After the migration they must count as POSTED, or the first flush would dump the
+    # whole day's history as one catch-up embed.
+    db = str(tmp_path / "old.db")
+    c = sqlite3.connect(db)
+    c.execute("CREATE TABLE darkpool_bigblock_alerts (date TEXT NOT NULL, "
+              "ticker TEXT NOT NULL, notional REAL NOT NULL, pct_adv REAL, price REAL, "
+              "alerted_at TEXT, PRIMARY KEY (date, ticker))")
+    c.execute("INSERT INTO darkpool_bigblock_alerts VALUES "
+              "('2026-08-20','AAA',6e6,20,40.0,'2026-08-20T18:00:00+00:00')")
+    c.execute("INSERT INTO darkpool_bigblock_alerts VALUES "
+              "('2026-08-20','BBB',6e6,15,40.0,'2026-08-20T18:05:00+00:00')")
+    c.commit()
+    c.close()
+    monkeypatch.setattr(bb, "_conn", lambda: sqlite3.connect(db))
+    monkeypatch.setattr(bb, "_is_etf", lambda tk: False)
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_COALESCE_MIN", "15")
+    posts = _capture_posts(monkeypatch)
+
+    bb._ensure_table()                    # runs the migration + backfill
+    assert bb._flush_due(force=True) == 0  # pre-existing rows are posted → nothing dumps
+    assert posts == []
+
+
+def test_coalesce_zero_posts_every_poll(temp_db, monkeypatch):
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_COALESCE_MIN", "0")  # legacy: no batching
+    posts = _capture_posts(monkeypatch)
+
+    _queue(monkeypatch, "AAA")
+    assert bb._flush_due() == 1
+    _queue(monkeypatch, "BBB")
+    assert bb._flush_due() == 1          # window=0 → each poll posts immediately
+    assert len(posts) == 2

@@ -602,8 +602,10 @@ async def bigblock_scan_now(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"bigblock module unavailable: {e}")
     cleared = darkpool_bigblock.clear_dedup() if reset else 0
+    # A manual scan posts immediately (force=True) — it must not sit in the live
+    # coalesce window; both paths default to forcing.
     res = (darkpool_bigblock.refresh_from_trades(date) if date
-           else darkpool_bigblock.refresh_from_today())
+           else darkpool_bigblock.refresh_from_today(force=True))
     if reset:
         res = {**res, "dedup_cleared": cleared}
     return JSONResponse(res)

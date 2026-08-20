@@ -22,6 +22,14 @@ Dark by default: DARKPOOL_BIGBLOCK_ENABLED=1 to arm. Knobs:
                                                   index/broad blocks only). Bond ETFs
                                                   are ALWAYS excluded.
   DARKPOOL_BIGBLOCK_EQUITY_ONLY  (default 0)    — 1 = hard-exclude EVERY ETF
+  DARKPOOL_BIGBLOCK_COALESCE_MIN (default 15)   — batch new blocks into ONE embed
+                                                  per N-minute window (0 = post every
+                                                  poll, the legacy behavior)
+
+Coalescing: the poller detects blocks every ~3 min but only posts a single tiered
+embed once the window has elapsed since the last post — so a busy session gets ~one
+embed per 15 min, not one per poll. New blocks queue in the alerts table (posted_at
+IS NULL) between posts; a manual /bigblock-scan forces an immediate flush.
 """
 from __future__ import annotations
 
@@ -29,11 +37,16 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 log = logging.getLogger("darkpool_bigblock")
 _UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+# Serializes the coalesced flush so two overlapping polls (HOT + WARM, or a manual
+# scan racing a poll) can't double-post. The web pod is a single uvicorn process
+# (see CLAUDE.md), so an in-process lock fully covers it.
+_flush_lock = threading.Lock()
 
 
 def _enabled() -> bool:
@@ -52,6 +65,17 @@ def _min_notional() -> float:
         return float(os.getenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6"))
     except (TypeError, ValueError):
         return 4e6
+
+
+def _coalesce_min() -> float:
+    """Minutes to batch new blocks into ONE embed. The live poller detects blocks
+    every ~3 min but only posts a coalesced embed once this window has elapsed since
+    the last post — so a busy session gets ~one embed per window, not one per poll.
+    0 = post every poll (legacy behavior)."""
+    try:
+        return float(os.getenv("DARKPOOL_BIGBLOCK_COALESCE_MIN", "15"))
+    except (TypeError, ValueError):
+        return 15.0
 
 
 def _equity_only() -> bool:
@@ -173,6 +197,20 @@ def _ensure_table():
                 PRIMARY KEY (date, ticker)
             )
         """)
+        # Migrations for the coalescing queue: is_etf (so a flush can rebuild the
+        # ETF split without re-classifying) + posted_at (NULL = detected but not
+        # yet in a posted embed; timestamped once it lands in one).
+        cols = {r[1] for r in c.execute(
+            "PRAGMA table_info(darkpool_bigblock_alerts)").fetchall()}
+        if "is_etf" not in cols:
+            c.execute("ALTER TABLE darkpool_bigblock_alerts ADD COLUMN is_etf INTEGER DEFAULT 0")
+        if "posted_at" not in cols:
+            c.execute("ALTER TABLE darkpool_bigblock_alerts ADD COLUMN posted_at TEXT")
+            # Rows that predate coalescing were ALREADY alerted (one-per-print), so
+            # stamp them posted — otherwise the first flush would treat the whole
+            # day's history as pending and dump it in one catch-up embed.
+            c.execute("UPDATE darkpool_bigblock_alerts SET posted_at=alerted_at "
+                      "WHERE posted_at IS NULL")
         c.commit()
     finally:
         c.close()
@@ -249,16 +287,19 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
                     continue  # bond/muni/income fund — always out
                 if (notional or 0) < etf_min:
                     continue  # non-bond ETF: only HEAVY index/broad blocks qualify
+            # posted_at=NULL on both paths → the row joins (or re-joins, on a
+            # strictly-larger block) the pending queue for the next coalesced flush.
             if cur is None:
                 c.execute(
                     "INSERT INTO darkpool_bigblock_alerts "
-                    "(date,ticker,notional,pct_adv,price,alerted_at) VALUES (?,?,?,?,?,?)",
-                    (date, tk, notional, pct, price, now))
+                    "(date,ticker,notional,pct_adv,price,alerted_at,is_etf,posted_at) "
+                    "VALUES (?,?,?,?,?,?,?,NULL)",
+                    (date, tk, notional, pct, price, now, 1 if is_etf else 0))
             else:
                 c.execute(
                     "UPDATE darkpool_bigblock_alerts SET notional=?,pct_adv=?,price=?,"
-                    "alerted_at=? WHERE date=? AND ticker=?",
-                    (notional, pct, price, now, date, tk))
+                    "alerted_at=?,is_etf=?,posted_at=NULL WHERE date=? AND ticker=?",
+                    (notional, pct, price, now, 1 if is_etf else 0, date, tk))
             events.append({"ticker": tk, "notional": notional, "price": price,
                            "date": date, "pct_adv": pct, "is_etf": is_etf})
         c.commit()
@@ -362,42 +403,83 @@ def _build_embed(events: list[dict], records: dict, now_iso: str) -> dict:
     }
 
 
-def _alert(events: list[dict]) -> int:
-    """Post this poll's new blocks as ONE ranked, tiered embed. Returns the number
-    of blocks communicated (0 if nothing to send or the post failed)."""
-    if not events:
-        return 0
-    try:
-        from api.darkpool_records import record_notionals
-        records = record_notionals([e.get("ticker") for e in events])
-    except Exception:  # noqa: BLE001
-        records = {}
-    embed = _build_embed(events, records, datetime.now(timezone.utc).isoformat())
-    return len(events) if _post_embed(embed) else 0
+def _flush_due(force: bool = False) -> int:
+    """Post the PENDING blocks (posted_at IS NULL) as ONE coalesced embed — but only
+    once the coalesce window has elapsed since the last post (unless `force`). Returns
+    the number of blocks posted (0 if nothing pending or the window isn't up yet).
+
+    The window is measured from the last successful post (MAX posted_at): after a
+    quiet stretch the first new block posts promptly, then further blocks batch into
+    one embed per window. Rows are marked posted ONLY after the embed lands, keyed by
+    their exact (date,ticker), so a concurrent poll's fresh inserts are never dropped."""
+    window_min = _coalesce_min()
+    with _flush_lock:
+        _ensure_table()
+        c = _conn()
+        try:
+            pending = c.execute(
+                "SELECT date, ticker, notional, pct_adv, price, is_etf "
+                "FROM darkpool_bigblock_alerts WHERE posted_at IS NULL").fetchall()
+            if not pending:
+                return 0
+            if not force and window_min > 0:
+                row = c.execute(
+                    "SELECT MAX(posted_at) FROM darkpool_bigblock_alerts "
+                    "WHERE posted_at IS NOT NULL").fetchone()
+                last = row[0] if row else None
+                if last:
+                    try:
+                        elapsed = datetime.now(timezone.utc) - datetime.fromisoformat(last)
+                        if elapsed < timedelta(minutes=window_min):
+                            return 0   # still inside the window — keep accumulating
+                    except (ValueError, TypeError):
+                        pass           # unparseable timestamp → flush rather than wedge
+            events = [{"ticker": r[1], "notional": r[2], "pct_adv": r[3],
+                       "price": r[4], "is_etf": bool(r[5])} for r in pending]
+            try:
+                from api.darkpool_records import record_notionals
+                records = record_notionals([e["ticker"] for e in events])
+            except Exception:  # noqa: BLE001
+                records = {}
+            embed = _build_embed(events, records, datetime.now(timezone.utc).isoformat())
+            if not _post_embed(embed):
+                return 0               # post failed → leave rows pending, retry next poll
+            now = datetime.now(timezone.utc).isoformat()
+            c.executemany(
+                "UPDATE darkpool_bigblock_alerts SET posted_at=? WHERE date=? AND ticker=?",
+                [(now, r[0], r[1]) for r in pending])
+            c.commit()
+            return len(events)
+        finally:
+            c.close()
 
 
-def _run(source: str, date: str | None) -> dict:
+def _run(source: str, date: str | None, force: bool = False) -> dict:
     if not _enabled():
         return {"ok": False, "reason": "disabled"}
     try:
         from api.darkpool_records import _max_per_ticker  # biggest print per ticker
-        events = _evaluate(_max_per_ticker(source, date))
+        events = _evaluate(_max_per_ticker(source, date))   # queue new blocks
+        posted = _flush_due(force=force)                    # post if the window is up
         return {"ok": True, "source": source, "new_blocks": len(events),
-                "alerts_sent": _alert(events)}
+                "alerts_sent": posted}
     except Exception as e:  # noqa: BLE001
         log.exception("[darkpool-bigblock] refresh failed")
         return {"ok": False, "reason": str(e)}
 
 
-def refresh_from_today() -> dict:
-    """Intraday hook — scan today's biggest print per ticker in darkpool_today and
-    ping the ones crossing the %ADV floor. Self-gated + fail-soft."""
-    return _run("darkpool_today", None)
+def refresh_from_today(force: bool = False) -> dict:
+    """Intraday hook — scan today's biggest print per ticker in darkpool_today,
+    queue the ones crossing the %ADV floor, and post a COALESCED embed once the
+    window is up. Self-gated + fail-soft. The live poller calls this with the
+    default (gated); a manual scan passes force=True to post immediately."""
+    return _run("darkpool_today", None, force=force)
 
 
-def refresh_from_trades(date_mdyyyy: str | None = None) -> dict:
-    """Manual/backfill hook against the authoritative darkpool_trades for a date."""
-    return _run("darkpool_trades", date_mdyyyy)
+def refresh_from_trades(date_mdyyyy: str | None = None, force: bool = True) -> dict:
+    """Manual/backfill hook against the authoritative darkpool_trades for a date.
+    Forces an immediate post by default (a manual scan shouldn't sit in the window)."""
+    return _run("darkpool_trades", date_mdyyyy, force=force)
 
 
 def clear_dedup() -> int:
