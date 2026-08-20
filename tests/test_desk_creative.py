@@ -859,3 +859,36 @@ def test_llm_passes_exactly_the_pinned_shape_to_the_client(monkeypatch):
     assert out == '{"slate": ["ok"]}'
     assert "temperature" not in seen and seen["model"] == "claude-test-1"
     assert seen["timeout"] == 90.0
+
+
+# ── 8/20 owner verdict on the slate: no virtue-signaling restraint ─────────
+
+@pytest.mark.parametrize("hook", [
+    "WMT beat, MU held, we still sat out",
+    "Do-nothing day, and that was the trade",
+    "QQQ pinned to the 20 and 50, hands off",
+    "Biotech hype cooled, we chased nothing",
+    "MU held the 21, we held our nerve",
+    "Sat on hands while tech bled",
+    "Two stops, one winner, no regrets",
+])
+def test_soft_restraint_hooks_are_cut_and_the_slate_walks_down(tmp_path, hook):
+    t = _title(tmp_path, _slate(hook, "Dead Tape. Don't Force It."))
+    assert t.startswith("Dead Tape. Don't Force It. | "), t
+
+
+def test_blunt_tape_verdicts_pass_the_soft_gate(tmp_path):
+    for hook in ("Chop Fest at the Highs", "TEM Rips While Biotech Rolls Over",
+                 "Dead Tape. Don't Force It.", "Who's Still Buying MRNA?",
+                 "Three Distribution Days and Counting", "MU Is the Only Thing Working"):
+        assert _title(tmp_path, _slate(hook)).startswith(hook + " | "), hook
+
+
+def test_register_has_no_two_clause_restraint_template():
+    # The 8/20 slate was six copies of "A, B, we sat out" because every GOOD
+    # example in the register had that shape. Keep the examples varied.
+    good = dc._TITLE_SYSTEM.split("GOOD:")[1].split("BAD:")[0]
+    examples = [e.strip(" '\n\"") for e in good.split("·")]
+    assert len(examples) >= 5
+    assert sum("," in e for e in examples) <= 1
+    assert not any(dc._SOFT.search(e) for e in examples)

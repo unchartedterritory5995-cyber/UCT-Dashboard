@@ -365,14 +365,22 @@ _TITLE_SYSTEM = (
     "- Hook <= 55 characters. No emoji. No em-dashes. No '|' (reserved). "
     "No ALL-CAPS words except tickers.\n"
     "- Match the SHOW described below.\n"
-    "THE REGISTER — write in THIS voice:\n"
-    "  GOOD: 'MU held the 21, we held our nerve' · 'Webull gapped, we chased "
-    "nothing' · 'Chop at the MAs, size stays small' · 'WMT beat, tape shrugged' "
-    "· 'Two stops, one winner, no regrets' · 'Sat on hands while tech bled'\n"
-    "  BAD: 'QQQ chopping at the MAs' (restates the brief, no point of view) · "
-    "'Markets in turmoil, what now?' (could run any week) · 'INSANE breakout "
-    "session' (corn) · 'Market update and trade review' (a category, not a "
-    "hook).\n"
+    "- The hook is a VERDICT on the tape or on the names, never a report on "
+    "our discipline. 'We sat out / chased nothing / held our nerve / hands "
+    "off / do-nothing day' is banned — restraint is the plan, not the "
+    "headline. Nobody tunes in to hear we did nothing.\n"
+    "- Vary the shape: a one-liner, a name + verb, a blunt call, a question. "
+    "Not every hook is 'A, B'. Short beats clever.\n"
+    "THE REGISTER — blunt trader, a little cocky, never precious:\n"
+    "  GOOD: 'Chop Fest at the 50' · 'TEM Rips While Biotech Rolls Over' · "
+    "'MU Is the Only Thing Working' · 'Dead Tape. Don't Force It.' · "
+    "'Webull +11% and Nobody Cares' · 'Three Distribution Days and Counting' "
+    "· 'Who's Still Buying MRNA?'\n"
+    "  BAD: 'WMT beat, MU held, we still sat out' (virtue-signaling "
+    "restraint) · 'QQQ chopping at the MAs' (restates the brief, no point of "
+    "view) · 'Markets in turmoil, what now?' (could run any week) · 'INSANE "
+    "breakout session' (corn) · 'Market update and trade review' (a category, "
+    "not a hook).\n"
     "WRITE THE SLATE:\n"
     "1. \"angle\" — one sentence: today's story for this show and its tension.\n"
     "2. \"hooks\" — 6 candidates against that angle, one per form, in this "
@@ -401,6 +409,14 @@ _MKT_BULLISH = re.compile(
     r"(?i)\b" + _MKT_SUBJ + r"\b[^.,!?|]{0,24}?"
     r"\b(?:rip(?:s|ping|ped)?|soar\w*|surg\w*|melt(?:s|ing)?[- ]?up|rocket\w*|"
     r"explod\w*|scream\w*|skyrocket\w*|rall(?:y|ies|ying)|on\s+fire)")
+
+# Self-congratulating restraint ("we still sat out") — the owner's verdict on
+# 8/20's slate: a hook is a call on the tape or the names, never a report card
+# on our discipline. Gated deterministically, not just prompted away.
+_SOFT = re.compile(
+    r"(?i)\b(?:sat\s+(?:it\s+)?out|sat\s+on\s+(?:our\s+|my\s+)?hands|chased\s+nothing|"
+    r"held\s+(?:our|my)\s+nerve|did\s+nothing|forced\s+nothing|do-nothing|hands\s+off|"
+    r"no\s+regrets|stayed\s+(?:patient|disciplined))\b")
 
 _NUM = re.compile(r"\d+(?:\.\d+)?")
 _WS = re.compile(r"\s+")
@@ -438,6 +454,8 @@ def _cut_reason(hook: str, suffix: str, ctx_nums: set, tone: str,
         return "emoji"
     if _BLOCKLIST.search(hook):
         return "corn"
+    if _SOFT.search(hook):
+        return "soft restraint (a report card on us, not a call on the tape)"
     if tone in ("cautious", "defensive") and _MKT_BULLISH.search(hook):
         return "market rally claim on a %s tape" % tone
     for num in _NUM.findall(hook):
