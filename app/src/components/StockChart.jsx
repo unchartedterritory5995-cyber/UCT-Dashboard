@@ -7631,6 +7631,20 @@ export default function StockChart({
       const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+      // 🔴 DAILY cross-ticker guard. liveBarRef (the ref Writer D re-tops from after
+      // setData) is re-seeded per-sym ONLY for intraday below (`!['D','W','M']`), and two
+      // stocks' "today" daily bars share the SAME timestamp — so a time-based staleness
+      // check can't tell them apart. On a fast switch, a new user's chart could keep the
+      // PREVIOUS ticker's developing bar and let Writer D stamp its price onto this chart:
+      // the "$3 bar on a $100 stock" that breaks the y-scale and blacks out the chart.
+      // When the SYMBOL changed (lastBarSymRef still holds the prior sym / null), clear a
+      // stale D/W/M liveBarRef so Writer D re-tops from lastBarRef — just seeded to THIS
+      // sym above — instead. Same-sym polls (lastBarSymRef === sym) keep the live bar, so
+      // the developing-candle machinery is untouched. Intraday is already guarded (the
+      // per-sym re-seed below + Writer A's lastBarSymRef check).
+      if (['D', 'W', 'M'].includes(resolvedTf) && lastBarSymRef.current !== sym) {
+        liveBarRef.current = null
+      }
       // filteredBars is gated to the CURRENT sym (idbReady/_netMatches/memPeek(sym)), so
       // the bar we just seeded owns `sym` — tag it. The live-overlay consumers refuse to
       // fuse when this != their sym (the cross-ticker developing-bar contamination guard).
