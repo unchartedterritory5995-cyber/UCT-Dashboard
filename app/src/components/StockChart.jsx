@@ -21,6 +21,7 @@ const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: '
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
+import useTickerIpo from '../hooks/useTickerIpo'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -2256,7 +2257,11 @@ export default function StockChart({
   const splitBadgeAttachedRef = useRef(false)
   const divBadgeRef = useRef(null)        // dividends "D" badge primitive controller
   const divBadgeAttachedRef = useRef(false)
+  const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
+  const ipoBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
+  const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
+  const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
   //     fill any GAPS the live lookup left blank.
@@ -5117,6 +5122,40 @@ export default function StockChart({
     return out
   }, [markersData, cs.markers?.dividends, resolvedTf, filteredBars, _bucketEventDate])
 
+  // ── First-bar "IPO" badge event ──
+  // The gold badge marks the FIRST loaded bar as the IPO / first-listing day — but
+  // ONLY when that bar actually IS the listing day (per the provider's immutable
+  // `list_date`). So: present ⇒ "this is the true start of history"; absent ⇒ "more
+  // history exists than is loaded (or the ticker predates Massive coverage)". This
+  // is exactly the "did the chart finish loading its history?" question a trader
+  // asks when the left edge looks abrupt.
+  //
+  // D/W/M only (like earnings/splits/dividends — numeric intraday times don't
+  // bucket to a listing DATE). Matching: bucket the first bar and the list_date the
+  // same way and compare; on DAILY also accept a ≤5-calendar-day gap to absorb the
+  // rare off-by-a-session between the provider's first bar and the official date.
+  // A partly-loaded chart's first bar sits months/years after list_date, far
+  // outside that window, so it never false-positives.
+  const ipoEvent = useMemo(() => {
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
+    const ld = ipoInfo?.list_date
+    if (!cs.markers?.ipo || !ld || !isDailyWeekly || !filteredBars?.length) return null
+    const first = filteredBars[0]
+    if (!first || first.t == null) return null
+    const low = +first.l
+    if (!Number.isFinite(low)) return null
+    let match = _bucketEventDate(first.t, resolvedTf) === _bucketEventDate(ld, resolvedTf)
+    if (!match && resolvedTf === 'D') {
+      const a = Date.parse(`${String(first.t).slice(0, 10)}T00:00:00Z`)
+      const b = Date.parse(`${String(ld).slice(0, 10)}T00:00:00Z`)
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        match = Math.abs(a - b) <= 5 * 86400000  // ≤5 calendar days
+      }
+    }
+    if (!match) return null
+    return { date: first.t, low, listDate: String(ld).slice(0, 10) }
+  }, [ipoInfo?.list_date, cs.markers?.ipo, resolvedTf, filteredBars, _bucketEventDate])
+
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
     if (!filteredBars?.length) return null
@@ -7363,6 +7402,7 @@ export default function StockChart({
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
       splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
       divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
+      ipoBadgeAttachedRef.current = false        // IPO-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
       pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
     }
@@ -9025,6 +9065,23 @@ export default function StockChart({
       }
       divBadgeRef.current.setOptions({ enabled: dividendEvents.length > 0, glyphColor: canvasSample.top })
       divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
+    }
+
+    // ── First-bar "IPO" badge (same bottom-row primitive, gold pill) ──
+    if (candleSeriesRef.current) {
+      if (!ipoBadgeRef.current) ipoBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'IPO' })
+      if (!ipoBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(ipoBadgeRef.current.primitive)
+          ipoBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      ipoBadgeRef.current.setOptions({
+        enabled: !!ipoEvent,
+        color: cs.markers?.ipoColor || '#c9a84c',   // gold pill (fixed, like S/D)
+        glyphColor: canvasSample.top,                // "IPO" reads as cut out of the pill
+      })
+      ipoBadgeRef.current.setPoints(ipoEvent ? [{ time: ipoEvent.date, price: ipoEvent.low }] : [])
     }
 
     // View handling on initial load / timeframe change / ticker switch.
@@ -12244,6 +12301,29 @@ export default function StockChart({
   // Close the earnings popover when the symbol or timeframe changes out from under it.
   useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
 
+  // ── IPO badge click → "First trade" tag ──
+  // Same pixel hit-test approach as the earnings badge (LWC has no marker-click
+  // event). Toggles a tiny date tag at the click point.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !ipoEvent) { setIpoPopup(null); return }
+    const handler = (param) => {
+      if (!param || !param.point) return
+      const hitTime = ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
+      const hit = (hitTime != null && String(hitTime) === String(ipoEvent.date)) ||
+                  (param.time != null && String(param.time) === String(ipoEvent.date))
+      if (!hit) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      const px = rect ? rect.left + param.point.x + 12 : 40
+      const py = rect ? rect.top + param.point.y + 12 : 40
+      setIpoPopup({ date: ipoEvent.listDate, x: px, y: py })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [ipoEvent])
+
+  useEffect(() => { setIpoPopup(null) }, [sym, resolvedTf])
+
   // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
   // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
   // match the clicked time against the highlight set, resolve it back to the
@@ -12698,6 +12778,32 @@ export default function StockChart({
           onClose={() => setEarningsPopup(null)}
         />
       )}
+      {ipoPopup && (() => {
+        const d = new Date(`${ipoPopup.date}T00:00:00Z`)
+        const label = isNaN(d.getTime())
+          ? ipoPopup.date
+          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        const gold = cs.markers?.ipoColor || '#c9a84c'
+        return (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setIpoPopup(null)}
+            onKeyDown={e => { if (e.key === 'Escape' || e.key === 'Enter') setIpoPopup(null) }}
+            style={{
+              position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
+              background: canvasSample?.top || '#0c0c0e',
+              border: `1px solid ${gold}`, borderRadius: 6,
+              padding: '5px 9px', font: "600 11px 'Instrument Sans', sans-serif",
+              color: '#e8e8ea', whiteSpace: 'nowrap', cursor: 'default',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.4)', pointerEvents: 'auto',
+            }}
+          >
+            <span style={{ color: gold, fontWeight: 700, marginRight: 6 }}>IPO</span>
+            First trade · {label}
+          </div>
+        )
+      })()}
       {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
           <body>, so its position in this tree is irrelevant to layout.
 

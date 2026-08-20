@@ -269,8 +269,14 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // The merge now carries ONLY an explicit choice, so a default blob is byte-for-
   // byte what it was before this feature existed — and this rail returning to its
   // original value is the proof.
+  // ⭐ 2026-08-20 — re-pinned for the first-bar "IPO" badge. `CHART_DEFAULTS.markers`
+  // gained two keys: `ipo: true` (default-on toggle for the gold IPO badge) and
+  // `ipoColor: '#c9a84c'`. Both are ordinary marker defaults — same class as the
+  // `earnings`/`earningsBeat` keys already in this object — so they legitimately
+  // ride along in every merged blob and shift this digest. INVESTIGATED, not
+  // regenerated: the only delta vs the prior literal is those two added keys.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '2c97ddd7fc6703a5f621c0c4fdf7feea99198fbe0f7753b5dfa8aab3fa602639'
+    '07376cff881a189febca3d198026cef6716bcfa5ba6c375776acce4b1b760928'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

@@ -186,9 +186,13 @@ export const CHART_DEFAULTS = {
   // Event markers. earningsBeat/earningsMiss default to the candle up/down colors
   // (#1ae51a / #c41f2d) so the "E" badge matches the chart out of the box; both are
   // user-overridable (Markers tab) and also color the surprise rows in the popover.
+  // `ipo` marks the very first trading day (IPO / first-listing) with a gold badge
+  // on the first bar — but ONLY when that bar is actually the listing day, so its
+  // presence means "this is the true start of history" and its absence means "more
+  // history exists than is loaded." Default ON (at most one per chart, never noisy).
   markers: {
-    earnings: false, splits: false, dividends: false, news: false,
-    earningsBeat: '#1ae51a', earningsMiss: '#c41f2d',
+    earnings: false, splits: false, dividends: false, news: false, ipo: true,
+    earningsBeat: '#1ae51a', earningsMiss: '#c41f2d', ipoColor: '#c9a84c',
   },
   // Previous-day High / Low / Close reference lines (TC2000-style), INTRADAY charts
   // only. Each line anchors at the candle that MADE that level (high candle / low
