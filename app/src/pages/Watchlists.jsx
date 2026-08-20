@@ -27,7 +27,24 @@
 //     mistake already cost one design rework (2026-07-31).
 //
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
+
+// rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
+// widget width (a Scanner dragged/squeezed toward its minW) the list body's
+// scrollbars oscillate, and react-virtual's default ResizeObserver re-measures
+// synchronously on every tick → re-render → re-measure → React #185 "Maximum
+// update depth exceeded" (the /charts crash when a thin scanner was squeezed).
+// Deferring each measurement to the next animation frame breaks the SYNCHRONOUS
+// nesting React counts, so the loop can no longer crash the page (at worst a
+// harmless one-per-frame settle). Measuring a frame late is imperceptible.
+function rafObserveElementRect(instance, cb) {
+  let raf = 0
+  const stop = observeElementRect(instance, (rect) => {
+    if (raf) cancelAnimationFrame(raf)
+    raf = requestAnimationFrame(() => { raf = 0; cb(rect) })
+  })
+  return () => { if (raf) cancelAnimationFrame(raf); if (typeof stop === 'function') stop() }
+}
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -441,6 +458,8 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 30,
     overscan: 12,
+    // See rafObserveElementRect above — prevents the narrow-width #185 crash.
+    observeElementRect: rafObserveElementRect,
   })
   const vItems = virt.getVirtualItems()
   const first = vItems.length ? vItems[0].index : 0
