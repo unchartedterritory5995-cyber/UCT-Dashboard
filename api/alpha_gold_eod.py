@@ -466,8 +466,6 @@ def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = Non
                 if key == "ticker":
                     w = txt(x, y, a.get("ticker") or "", f_rowb, _GOLD)
                     cx = x + w + 6
-                    if a.get("_n", 1) > 1:
-                        cx += txt(cx, y + 1, f"×{a['_n']}", f_n, _DIM) + 6
                     if a.get("_weekly"):
                         cx += chip(cx, y, "W", _CHIP_W_BG, _CHIP_W_FG)
                     if a.get("_earn"):
