@@ -2262,6 +2262,7 @@ export default function StockChart({
   const tickerMeta = useTickerMeta(sym)
   const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
+  const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
   //     fill any GAPS the live lookup left blank.
@@ -12303,7 +12304,8 @@ export default function StockChart({
 
   // ── IPO badge click → "First trade" tag ──
   // Same pixel hit-test approach as the earnings badge (LWC has no marker-click
-  // event). Toggles a tiny date tag at the click point.
+  // event). The tag pops ABOVE the badge (never over the volume pane below it) and
+  // a hair to the right, anchored to the badge's own rect.
   useEffect(() => {
     const chart = chartRef.current
     if (!chart || !ipoEvent) { setIpoPopup(null); return }
@@ -12314,8 +12316,13 @@ export default function StockChart({
                   (param.time != null && String(param.time) === String(ipoEvent.date))
       if (!hit) return
       const rect = containerRef.current?.getBoundingClientRect()
-      const px = rect ? rect.left + param.point.x + 12 : 40
-      const py = rect ? rect.top + param.point.y + 12 : 40
+      if (!rect) return
+      // Anchor to the badge pill when we have it; else fall back to the click point.
+      const r = ipoBadgeRef.current?.pointRect?.()
+      const anchorX = r ? r.x + r.w : param.point.x
+      const anchorTop = r ? r.y : param.point.y
+      const px = rect.left + anchorX + 6          // just to the right of the badge
+      const py = rect.top + anchorTop - 34         // above the badge (tag ~28px + gap)
       setIpoPopup({ date: ipoEvent.listDate, x: px, y: py })
     }
     chart.subscribeClick(handler)
@@ -12323,6 +12330,24 @@ export default function StockChart({
   }, [ipoEvent])
 
   useEffect(() => { setIpoPopup(null) }, [sym, resolvedTf])
+
+  // Dismiss the IPO tag on ANY interaction outside it — an outside click, or the
+  // start of a chart drag (pointerdown) — and on Escape. Fixed-positioned, so it
+  // stays locked to the screen point it opened at (never follows a chart pan).
+  useEffect(() => {
+    if (!ipoPopup) return
+    const onDown = (e) => {
+      if (ipoPopupRef.current?.contains(e.target)) return  // clicks INSIDE the tag keep it
+      setIpoPopup(null)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setIpoPopup(null) }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [ipoPopup])
 
   // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
   // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
@@ -12786,10 +12811,7 @@ export default function StockChart({
         const gold = cs.markers?.ipoColor || '#c9a84c'
         return (
           <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setIpoPopup(null)}
-            onKeyDown={e => { if (e.key === 'Escape' || e.key === 'Enter') setIpoPopup(null) }}
+            ref={ipoPopupRef}
             style={{
               position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
               background: canvasSample?.top || '#0c0c0e',
@@ -13834,6 +13856,7 @@ export default function StockChart({
           )}
           <ChartToolbar
             ref={toolbarRef}
+            favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
                the column, the API field, the label and the deletion guard and
                left them without one, because the only surface that could supply
@@ -13993,6 +14016,7 @@ export default function StockChart({
           />
           {annotationsEditable && (
             <ChartToolbar
+              favBoundsRef={containerRef}
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
@@ -14089,6 +14113,7 @@ export default function StockChart({
           />
           {indexAnnotationsEditable && (
             <ChartToolbar
+              favBoundsRef={containerRef}
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}

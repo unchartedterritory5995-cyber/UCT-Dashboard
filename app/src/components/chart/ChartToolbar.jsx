@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { legendModeOf, nextLegendMode } from './legendMode'
@@ -699,7 +699,7 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
   const left = Math.min(anchorRect?.left ?? 100, window.innerWidth - 272)
   const top = (anchorRect?.bottom ?? 40) + 4
   return createPortal(
-    <div ref={ref} style={{ position: 'fixed', left: Math.max(8, left), top, width: 260, maxHeight: '68vh',
+    <div ref={ref} className={styles.menuScroll} style={{ position: 'fixed', left: Math.max(8, left), top, width: 260, maxHeight: '68vh',
         overflowY: 'auto', zIndex: 1000, background: 'var(--menu-bg,#14171c)',
         border: '1px solid var(--menu-border,#232932)', borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
         padding: 6, fontFamily: "'Instrument Sans', sans-serif" }}>
@@ -731,22 +731,77 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
 
 // Floating, draggable quick-toolbar of the user's FAVORITE drawing tools. Matches
 // the canvas via the same --chart-toolbar-* vars StockChart publishes.
-function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos, onMove, colors }) {
+//
+// It portals to <body> (fixed positioning) but is CONFINED to the chart container:
+// `pos` is an OFFSET from the container's top-left, and both the drag and the
+// render clamp it so the whole bar stays inside the chart widget — it can never be
+// dragged out into the page. `boundsRef` is the chart container element.
+function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos, onMove, colors, boundsRef }) {
   const favTools = favorites.map(id => tools.find(t => t.id === id)).filter(Boolean)
+  const elRef = useRef(null)
+  // Final fixed-screen coords (computed from the container rect in a layout effect
+  // — never by reading refs during render, which isn't reactive). Null until first
+  // measured, so we render the bar invisibly for one frame instead of at (0,0).
+  const [box, setBox] = useState(null)
+
+  // Measure the container + this bar, clamp the OFFSET so the whole bar stays
+  // inside the chart, and store the resulting screen coords. Re-run on scroll /
+  // resize so the fixed-positioned bar tracks the container as it moves.
+  useLayoutEffect(() => {
+    if (!favTools.length) return undefined
+    const measure = () => {
+      const cont = boundsRef?.current
+      const el = elRef.current
+      if (!cont) { setBox(null); return }
+      const cr = cont.getBoundingClientRect()
+      const elW = el?.offsetWidth || (favTools.length * 29 + 40)
+      const elH = el?.offsetHeight || 32
+      const maxX = Math.max(0, cr.width - elW)
+      const maxY = Math.max(0, cr.height - elH)
+      // Default (no saved pos): top-right of the chart, clear of the OHLC legend.
+      const dflt = { x: Math.max(0, cr.width - elW - 12), y: 8 }
+      const p = pos ?? dflt
+      const relX = Math.max(0, Math.min(maxX, p.x))
+      const relY = Math.max(0, Math.min(maxY, p.y))
+      setBox({ left: cr.left + relX, top: cr.top + relY, relX, relY, maxX, maxY })
+    }
+    measure()
+    const bump = () => measure()
+    window.addEventListener('scroll', bump, true)
+    window.addEventListener('resize', bump)
+    let ro = null
+    const cont = boundsRef?.current
+    if (cont && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(bump); ro.observe(cont) }
+    return () => {
+      window.removeEventListener('scroll', bump, true)
+      window.removeEventListener('resize', bump)
+      if (ro) ro.disconnect()
+    }
+  }, [boundsRef, pos, favTools.length])
+
+  if (!favTools.length) return null
+
   const startDrag = (e) => {
     e.preventDefault()
     const startX = e.clientX, startY = e.clientY
-    const base = pos || { x: 140, y: 140 }
+    // Reads inside an event handler are fine (not during render). Re-measure the
+    // container so the clamp bounds are current even after a widget resize.
+    const cont = boundsRef?.current
+    const cr = cont ? cont.getBoundingClientRect() : null
+    const el = elRef.current
+    const elW = el?.offsetWidth || (favTools.length * 29 + 40)
+    const elH = el?.offsetHeight || 32
+    const maxX = cr ? Math.max(0, cr.width - elW) : Number.POSITIVE_INFINITY
+    const maxY = cr ? Math.max(0, cr.height - elH) : Number.POSITIVE_INFINITY
+    const base = box ? { x: box.relX, y: box.relY } : (pos ?? { x: 12, y: 8 })
     const move = (ev) => onMove({
-      x: Math.max(0, Math.min(window.innerWidth - 60, base.x + (ev.clientX - startX))),
-      y: Math.max(0, Math.min(window.innerHeight - 30, base.y + (ev.clientY - startY))),
+      x: Math.max(0, Math.min(maxX, base.x + (ev.clientX - startX))),
+      y: Math.max(0, Math.min(maxY, base.y + (ev.clientY - startY))),
     })
     const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up) }
     document.addEventListener('pointermove', move)
     document.addEventListener('pointerup', up)
   }
-  if (!favTools.length) return null
-  const p = pos || { x: 140, y: 140 }
   // EXACT toolbar-button colours (passed as props because the CSS vars are chart-
   // scoped and this portals to <body>). Border = the button hover shade so the
   // pill reads as "made of buttons," not a foreign gray panel.
@@ -755,9 +810,10 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
   const text = colors?.text || '#a8a290'
   const textHover = colors?.textHover || '#e2dfd6'
   return createPortal(
-    <div style={{ position: 'fixed', left: p.x, top: p.y, zIndex: 900, display: 'flex', alignItems: 'center', gap: 3,
+    <div ref={elRef} style={{ position: 'fixed', left: box ? box.left : -9999, top: box ? box.top : -9999,
+        opacity: box ? 1 : 0, zIndex: 900, display: 'flex', alignItems: 'center', gap: 3,
         padding: '4px 6px', borderRadius: 8, background: bg,
-        border: `1px solid ${bgHover}`, boxShadow: '0 4px 18px rgba(0,0,0,0.45)' }}>
+        border: `1px solid ${bgHover}`, boxShadow: '0 1px 5px rgba(0,0,0,0.16)' }}>
       <span onPointerDown={startDrag} title="Drag to move" style={{ cursor: 'grab', color: text, display: 'flex', padding: '0 1px', touchAction: 'none' }}>{ICONS.grip}</span>
       {favTools.map(t => {
         const on = activeTool === t.id
@@ -856,6 +912,10 @@ function ChartToolbar({
   // undefined the toolbar keeps its own internal collapse state.
   collapsed: collapsedProp = undefined,
   onToggleCollapsed = null,
+  // The chart container element (a ref), used to CONFINE the floating favorites
+  // toolbar to this chart widget so it can't be dragged out into the page. Null →
+  // the bar falls back to unconfined positioning (legacy behavior).
+  favBoundsRef = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
@@ -1642,6 +1702,7 @@ function ChartToolbar({
         pos={favPos}
         onMove={moveFavToolbar}
         colors={favToolbarColors}
+        boundsRef={favBoundsRef}
       />
     )}
     </>

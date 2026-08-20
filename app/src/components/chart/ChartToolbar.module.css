@@ -278,6 +278,19 @@
 .settingsPanel::-webkit-scrollbar-track { background: transparent; }
 .settingsPanel::-webkit-scrollbar-thumb { background: #2e3127; border-radius: 2px; }
 
+/* Drawing-tools customizer dropdown: a slim scrollbar that BLENDS with the dark
+   menu (--menu-bg / --menu-border) instead of the OS default white bar. */
+.menuScroll { scrollbar-width: thin; scrollbar-color: var(--menu-border, #232932) transparent; }
+.menuScroll::-webkit-scrollbar { width: 8px; }
+.menuScroll::-webkit-scrollbar-track { background: transparent; }
+.menuScroll::-webkit-scrollbar-thumb {
+  background: var(--menu-border, #232932);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.menuScroll::-webkit-scrollbar-thumb:hover { background: var(--menu-text-dim, #3a4150); background-clip: padding-box; }
+
 .sGroup {
   padding: 6px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
