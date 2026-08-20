@@ -12,7 +12,7 @@ import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from api.services import desk_background_audio, education_service
+from api.services import desk_background_audio, desk_creative, education_service
 from api.services.youtube_client import YouTubeClient, YouTubeAuthError
 
 _ET = ZoneInfo("America/New_York")
@@ -143,7 +143,11 @@ def _session_date_text(started_at_iso: str | None, *, now: datetime | None = Non
 
 
 def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
-    return f"Live Trading Session — {_session_date_text(started_at_iso, now=now)}"
+    # desk_creative.classic_title owns the "{show} — {date}" format — the
+    # safety net, the publish path and the creative fallback all derive from
+    # that one owner (restating it here is the second-authority defect class).
+    return desk_creative.classic_title(
+        "Live Trading Session", _session_date_text(started_at_iso, now=now))
 
 
 def _start_date_floor():
@@ -189,10 +193,15 @@ def publish_new_sessions(client=None, *, now=None) -> list[dict]:
 
 
 def todays_session_exists(now: datetime | None = None) -> bool:
+    # Matched on the deterministic "— {date}" SUFFIX, not the whole title:
+    # creative titles (DESK_CREATIVE_TITLES) prepend a daily hook, and an
+    # exact-equality check would false-alert the 18:00 safety net every day.
+    # Both title styles end with the same suffix by construction.
     now = now or datetime.now(_ET)
-    expected = _session_title(None, now=now)
+    expected_suffix = desk_creative.date_suffix(_session_date_text(None, now=now))
     cat = _category()
-    return any(v.get("title") == expected and v.get("category") == cat
+    return any(str(v.get("title") or "").endswith(expected_suffix)
+               and v.get("category") == cat
                for v in education_service.list_videos())
 
 
@@ -313,7 +322,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             continue
         section, title_prefix, eyebrow = _route(topic)
         date_text = _session_date_text(job.get("start_time"))
-        title = f"{title_prefix} — {date_text}"
+        title = desk_creative.classic_title(title_prefix, date_text)
         vid = (job.get("youtube_id") or "").strip()
         tmp = None
         audio_key = None
@@ -321,15 +330,45 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             if not vid:
                 fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
+                if desk_creative.titles_enabled():
+                    # Composed AFTER a successful download (a failing download
+                    # retried every 5 min must not burn an LLM call per pass)
+                    # and recorded only AFTER the upload confirms below.
+                    # compose_title never raises by contract; the guard is
+                    # belt+braces because the YouTube title is final at insert
+                    # (our token has no videos.update).
+                    try:
+                        title = desk_creative.compose_title(
+                            section=section, title_prefix=title_prefix,
+                            date_text=date_text, record=False)
+                    except Exception as ce:
+                        print(f"[desk-sessions] creative title failed (non-fatal): {ce}")
                 vid = youtube.upload(tmp, title, privacy=privacy_for_section(section))
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
+                if desk_creative.titles_enabled() and " | " in title:
+                    desk_creative.record_shipped_title(title, show=title_prefix)
                 audio_key = _maybe_extract_audio(tmp, vid)
                 try:  # branded thumbnail — cosmetic, NEVER fail publish over it
-                    from api.services.desk_thumbnail import render_session_thumbnail
-                    youtube.set_thumbnail(
-                        vid, render_session_thumbnail(date_text, eyebrow_label=eyebrow))
+                    thumb = None
+                    if desk_creative.thumbs_enabled():
+                        try:  # creative cover; None/crash -> themed card below
+                            thumb = desk_creative.render_cover(
+                                section=section, eyebrow=eyebrow, date_text=date_text)
+                        except Exception as ce:
+                            print(f"[desk-sessions] creative cover failed (non-fatal): {ce}")
+                    if thumb is None:
+                        from api.services.desk_thumbnail import render_session_thumbnail
+                        thumb = render_session_thumbnail(date_text, eyebrow_label=eyebrow)
+                    youtube.set_thumbnail(vid, thumb)
                 except Exception as te:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
+            elif desk_creative.titles_enabled():
+                # Re-claimed job (crash between upload and publish): the video
+                # already carries whatever title the uploading attempt shipped —
+                # recall it so the library row matches. Classic when unrecorded;
+                # never recompose (temperature would mint a DIFFERENT title than
+                # the one on YouTube). recall_title never raises.
+                title = desk_creative.recall_title(title_prefix, date_text) or title
             created_now = vid not in education_service.existing_youtube_ids()
             if created_now:
                 try:

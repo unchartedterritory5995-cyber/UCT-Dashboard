@@ -564,3 +564,201 @@ def test_sunday_scans_title_uses_the_pinned_prefix():
     section, prefix, eyebrow = dds._route("Sunday Scans")
     assert f"{prefix} — {dds._session_date_text('2026-07-26T14:00:00Z')}".startswith(
         "Sunday Scans — July 26, 2026")
+
+# ---------------------------------------------------------------------------
+# Creative titles + covers (DESK_CREATIVE_TITLES / DESK_CREATIVE_THUMBS)
+#
+# The flags default OFF and blank env = byte-for-byte today's behavior; when
+# ON, the composed title must reach BOTH the YouTube upload and the library
+# row (the "computed but never applied" failure this repo keeps paying for),
+# and any creative failure must land exactly on the classic path.
+# ---------------------------------------------------------------------------
+
+from api.services import desk_creative
+
+
+class _ByteThumbYT(_RecordingYT):
+    """Also records the actual thumbnail bytes each set_thumbnail received."""
+    def __init__(self):
+        super().__init__()
+        self.thumb_bytes = []
+
+    def set_thumbnail(self, video_id, image_bytes):
+        super().set_thumbnail(video_id, image_bytes)
+        self.thumb_bytes.append(image_bytes)
+
+
+def _publish_one(jobs_db, yt, topic="Live Trading Session", uuid="UC1"):
+    jobs_db.enqueue(uuid, topic, "2026-06-24T13:30:00Z", "http://dl", "tok")
+    return dds.process_pending_jobs(zoom=_FakeZoom(), youtube=yt)
+
+
+def test_flags_off_creative_is_never_consulted(edu_db, jobs_db, monkeypatch):
+    monkeypatch.delenv("DESK_CREATIVE_TITLES", raising=False)
+    monkeypatch.delenv("DESK_CREATIVE_THUMBS", raising=False)
+    def boom(**kw):
+        raise AssertionError("creative composer called while flags are off")
+    monkeypatch.setattr(desk_creative, "compose_title", boom)
+    monkeypatch.setattr(desk_creative, "render_cover", boom)
+    yt = _ByteThumbYT()
+    out = _publish_one(jobs_db, yt)
+    assert len(out) == 1
+    assert yt.uploads[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert yt.thumbs and yt.thumbs[0][1] > 1000            # themed card still set
+
+
+def test_creative_title_reaches_upload_and_library(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    creative = "MU Holds the Line | Live Trading Session — June 24, 2026"
+    seen = {}
+    def fake(**kw):
+        seen.update(kw)
+        return creative
+    monkeypatch.setattr(desk_creative, "compose_title", fake)
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt)
+    assert yt.uploads[0]["title"] == creative              # not the classic format
+    assert edu.list_videos()[0]["title"] == creative
+    assert seen["title_prefix"] == "Live Trading Session"  # routed name passed through
+    assert seen["date_text"] == "June 24, 2026"
+
+
+def test_creative_title_crash_ships_the_classic_title(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    def boom(**kw):
+        raise RuntimeError("title desk down")
+    monkeypatch.setattr(desk_creative, "compose_title", boom)
+    yt = _RecordingYT()
+    out = _publish_one(jobs_db, yt)
+    assert len(out) == 1                                   # publish survives
+    assert yt.uploads[0]["title"] == "Live Trading Session — June 24, 2026"
+
+
+def test_creative_cover_bytes_reach_youtube(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    marker = b"CREATIVE-JPEG" * 200
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: marker)
+    yt = _ByteThumbYT()
+    _publish_one(jobs_db, yt)
+    assert yt.thumb_bytes == [marker]
+
+
+def test_creative_cover_none_falls_back_to_themed_card(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: None)
+    yt = _ByteThumbYT()
+    _publish_one(jobs_db, yt)
+    assert yt.thumb_bytes and len(yt.thumb_bytes[0]) > 1000
+    assert yt.thumb_bytes[0][:4] == b"\xff\xd8\xff\xe0"    # a real rendered JPEG
+
+
+def test_creative_cover_crash_still_sets_themed_card(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    def boom(**kw):
+        raise RuntimeError("cover director down")
+    monkeypatch.setattr(desk_creative, "render_cover", boom)
+    yt = _ByteThumbYT()
+    out = _publish_one(jobs_db, yt)
+    assert len(out) == 1
+    assert yt.thumb_bytes and len(yt.thumb_bytes[0]) > 1000
+
+
+# ---------------------------------------------------------------------------
+# todays_session_exists — the 18:00 safety net must recognize BOTH title styles
+# (exact-title equality would false-alert every day once creative titles ship).
+# ---------------------------------------------------------------------------
+
+_WED_EOD = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+
+
+def test_safety_net_recognizes_the_classic_title(edu_db):
+    edu.create_video({"youtube_id": "V1", "title": "Live Trading Session — June 24, 2026",
+                      "category": "Live Trading Sessions", "sort_order": 0})
+    assert dds.todays_session_exists(now=_WED_EOD) is True
+
+
+def test_safety_net_recognizes_a_creative_title(edu_db):
+    edu.create_video({"youtube_id": "V1",
+                      "title": "MU Holds the Line | Live Trading Session — June 24, 2026",
+                      "category": "Live Trading Sessions", "sort_order": 0})
+    assert dds.todays_session_exists(now=_WED_EOD) is True
+
+
+def test_safety_net_still_fires_on_a_stale_date(edu_db):
+    edu.create_video({"youtube_id": "V1",
+                      "title": "Whatever | Live Trading Session — June 23, 2026",
+                      "category": "Live Trading Sessions", "sort_order": 0})
+    assert dds.todays_session_exists(now=_WED_EOD) is False
+
+
+def test_safety_net_ignores_other_show_categories(edu_db):
+    edu.create_video({"youtube_id": "V1", "title": "Sunday Scans — June 24, 2026",
+                      "category": "Sunday Scans", "sort_order": 0})
+    assert dds.todays_session_exists(now=_WED_EOD) is False
+
+
+# ---------------------------------------------------------------------------
+# Review fixes (2026-08-19): a creative title is composed exactly once, on the
+# attempt that uploads; recorded only after the upload confirms; and a
+# re-claimed job recalls the SHIPPED title instead of recomposing a new one.
+# ---------------------------------------------------------------------------
+
+def test_reclaimed_job_recalls_shipped_title_never_recomposes(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    monkeypatch.setattr(q, "_STALE_SECS", -1)   # processing row instantly reclaimable
+    recalled = "MU Holds 767 | Live Trading Session — June 24, 2026"
+    def boom(**kw):
+        raise AssertionError("compose_title must not run for a re-claimed job")
+    monkeypatch.setattr(desk_creative, "compose_title", boom)
+    monkeypatch.setattr(desk_creative, "recall_title",
+                        lambda prefix, date_text, **kw: recalled)
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.claim_next(); jobs_db.mark_uploaded("U1", "VIDZ")   # crashed after upload
+    class _NoDownloadZoom(_FakeZoom):
+        def stream_download(self, *a, **k):
+            raise AssertionError("re-claimed job must not re-download")
+    out = dds.process_pending_jobs(zoom=_NoDownloadZoom(), youtube=_FakeYT())
+    assert len(out) == 1
+    assert edu.list_videos()[0]["title"] == recalled            # matches the video
+
+
+def test_shipped_title_is_recorded_only_after_successful_upload(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    creative = "MU Holds 767 | Live Trading Session — June 24, 2026"
+    recorded = []
+    monkeypatch.setattr(desk_creative, "compose_title", lambda **kw: creative)
+    monkeypatch.setattr(desk_creative, "record_shipped_title",
+                        lambda title, **kw: recorded.append(title))
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt)
+    assert recorded == [creative]
+
+
+def test_failed_upload_records_nothing_in_title_history(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
+    recorded = []
+    monkeypatch.setattr(desk_creative, "compose_title", lambda **kw: "H | X — June 24, 2026")
+    monkeypatch.setattr(desk_creative, "record_shipped_title",
+                        lambda title, **kw: recorded.append(title))
+    class _BoomYT2:
+        def upload(self, *a, **k):
+            raise RuntimeError("upload boom")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_BoomYT2())
+    assert recorded == []
+
+
+def test_failed_download_never_composes_a_title(edu_db, jobs_db, monkeypatch):
+    # An LLM call per retry of a broken download = history pollution + spend.
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
+    composed = []
+    monkeypatch.setattr(desk_creative, "compose_title",
+                        lambda **kw: composed.append(1) or "H | X — June 24, 2026")
+    class _DownBoomZoom(_FakeZoom):
+        def stream_download(self, *a, **k):
+            raise RuntimeError("download boom")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_DownBoomZoom(), youtube=_FakeYT())
+    assert composed == []
