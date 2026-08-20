@@ -79,6 +79,33 @@ async def sessions_status(request: Request):
     return {"jobs": desk_session_jobs.list_recent(20)}
 
 
+@router.post("/creative-cover-backfill")
+def creative_cover_backfill_start(request: Request, limit: int | None = None):
+    """Fire the back-catalog creative-cover sweep as ONE background daemon
+    (each cover = an LLM call + an image render — far past the request
+    budget). Idempotent/resumable via the volume ledger; re-POST after a
+    redeploy to resume. Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_backfill
+    started = desk_cover_backfill.start_background(limit=limit)
+    return {"started": started, **desk_cover_backfill.status()}
+
+
+@router.get("/creative-cover-backfill")
+def creative_cover_backfill_status(request: Request):
+    """Sweep progress: ledger counts + how many eligible videos remain.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_backfill
+    return desk_cover_backfill.status()
+
+
 @router.post("/session-requeue")
 async def session_requeue(request: Request):
     """Recovery: put a terminal (skipped/error) recording job back in the queue,

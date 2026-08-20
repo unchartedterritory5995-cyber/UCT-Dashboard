@@ -398,8 +398,10 @@ class _RefreshYT:
 _V = {"id": 307, "youtube_id": "YT307",
       "title": "Hook Line | Evening Update — August 19, 2026",
       "category": "Evening Update"}
+# The store's real shapes (education_service docstring + announce's test pin):
+# dicts keyed "ticker"/"symbol" AND legacy bare strings, sometimes "$"-prefixed.
 _INS = {"headline": "MU breakout dissected live",
-        "ticker_moments": [{"sym": "MU"}, {"sym": "DELL"}, {"sym": "MU"}]}
+        "ticker_moments": [{"ticker": "$mu"}, {"symbol": "dell"}, "MU"]}
 
 
 def test_refresh_sets_content_aware_thumbnail(monkeypatch):

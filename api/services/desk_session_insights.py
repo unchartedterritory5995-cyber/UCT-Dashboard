@@ -771,11 +771,10 @@ def refresh_creative_cover(v: dict, ins: dict, youtube=None) -> bool:
         if not youtube_id or not parsed:
             return False
         show, date_text = parsed
-        syms: list[str] = []
-        for m in (ins.get("ticker_moments") or [])[:12]:
-            s = str((m.get("sym") or m.get("ticker") or "")).strip() if isinstance(m, dict) else ""
-            if s and s not in syms:
-                syms.append(s)
+        # The announcer's shape-tolerant extractor is the ONE owner of ticker-
+        # moment parsing (dicts keyed ticker/symbol AND legacy bare strings).
+        from api.services.desk_session_announce import _ticker_symbols
+        syms = _ticker_symbols(ins, limit=6)
         headline = str(ins.get("headline") or "").strip()
         if not headline and not syms:
             return False   # nothing new to say — a paid re-render adds nothing
