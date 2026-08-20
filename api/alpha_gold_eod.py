@@ -113,21 +113,29 @@ def _get_bcontract_accumulations(day: str, min_score: float = 4.5) -> list[dict]
 
 def _merge_accum(alerts: list[dict], accum: list[dict]) -> list[dict]:
     """Fold accumulations into the Alpha Gold alert list, deduped by contract
-    (ticker, C/P, strike, exp) — a contract already shown as an Alpha Gold print
-    isn't duplicated. Re-sorted premium-desc so the biggest flow leads each
-    section after _rollup."""
+    (ticker, C/P, strike, exp). When a contract is BOTH an Alpha Gold single print
+    AND a ≥B accumulation, the accumulation WINS — it carries the contract's true
+    cumulative premium (and avg fill), so the card shows the aggregate flow (e.g.
+    CBRS $260C as its full $13M, not one $2.8M print). Re-sorted premium-desc so
+    the biggest flow leads each section after _rollup."""
     def _key(a):
         return (a.get("ticker"), (a.get("cp") or "").upper(), a.get("strike"), str(a.get("exp") or ""))
-    seen = {_key(a) for a in alerts}
-    merged = list(alerts)
-    for c in accum:
-        k = _key(c)
+    acc_by_key = {_key(c): c for c in accum}
+    out: list[dict] = []
+    seen: set = set()
+    for a in alerts:
+        k = _key(a)
         if k in seen:
             continue
         seen.add(k)
-        merged.append(c)
-    merged.sort(key=lambda a: (a.get("alertPremium") or 0), reverse=True)
-    return merged
+        out.append(acc_by_key.get(k, a))   # accumulation (aggregate) wins over a single print
+    for c in accum:
+        k = _key(c)
+        if k not in seen:
+            seen.add(k)
+            out.append(c)
+    out.sort(key=lambda a: (a.get("alertPremium") or 0), reverse=True)
+    return out
 
 
 def _earnings_soon_syms(within_days: int) -> set[str]:
@@ -384,11 +392,12 @@ def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = Non
         return w / _SS
 
     def chip(x, y, letter, bg, fg):
-        """Small W/E tag chip; returns the horizontal advance (chip + gap)."""
-        cw, ch = 14.0, 15.0
+        """Small tag chip (W / ER …); width adapts to the label. Returns the
+        horizontal advance (chip + gap)."""
+        lw = d.textlength(letter, font=f_n) / _SS
+        cw, ch = lw + 8.0, 15.0
         d.rounded_rectangle([s(x), s(y - 1), s(x + cw), s(y - 1 + ch)],
                             radius=s(3), fill=bg)
-        lw = d.textlength(letter, font=f_n) / _SS
         d.text((s(x + (cw - lw) / 2), s(y + 1)), letter, font=f_n, fill=fg)
         return cw + 5
 
@@ -462,7 +471,7 @@ def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = Non
                     if a.get("_weekly"):
                         cx += chip(cx, y, "W", _CHIP_W_BG, _CHIP_W_FG)
                     if a.get("_earn"):
-                        cx += chip(cx, y, "E", _CHIP_E_BG, _CHIP_E_FG)
+                        cx += chip(cx, y, "ER", _CHIP_E_BG, _CHIP_E_FG)
                 elif key == "strike":
                     txt(x, y, f"${strike:g}{cp}" if strike else "—", f_rowb, _TXT)
                 elif key == "expdte":
@@ -566,15 +575,17 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         # short-dated noise so the card reads as real positioning, not lottos.
         alerts = [a for a in alerts
                   if not (isinstance(a.get("dte"), (int, float)) and a["dte"] <= 1)]
-        # Owner rule: drop DEEP-ITM ETF/index contracts — those big deep-ITM index
-        # blocks (SPX/SPXW/QQQ) are usually hedges / financing, not directional
-        # bets. Threshold + scope env-tunable; stocks are kept by default.
+        # Owner rule: drop DEEP-ITM contracts that still carry TIME (stocks AND
+        # ETFs) — deep-ITM long-dated options (delta ≈ 1) are usually hedges /
+        # synthetic positions, not directional bets. `min_dte` is the "with time"
+        # gate so a near-expiry deep-ITM print isn't swept up. Both env-tunable.
         ditm_pct = float(os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_PCT", "15"))
-        ditm_etf_only = os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_ETF_ONLY", "1") == "1"
+        ditm_min_dte = int(os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_MIN_DTE", "5"))
         if ditm_pct > 0:
             alerts = [a for a in alerts
                       if not (_is_deep_itm(a, ditm_pct)
-                              and (_is_etf(a) or not ditm_etf_only))]
+                              and isinstance(a.get("dte"), (int, float))
+                              and a["dte"] >= ditm_min_dte)]
         # Owner rule: drop LONG-DATED (LEAP) contracts on the broad-index products
         # (SPY/SPX/SPXW/QQQ/IWM …) — usually deep-ITM hedges. Near-term index
         # contracts stay. DTE threshold env-tunable.
@@ -590,13 +601,16 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         # cap, drop weeklies first. Fail-open on a cold ER cache.
         er_days = int(os.getenv("ALPHA_GOLD_EOD_ER_TAG_DAYS", "7"))
         er_syms = _earnings_soon_syms(er_days)
-        # Weekly = a Friday non-monthly expiry (_is_weekly) OR anything under
-        # `wk_dte` days (near-term speculative, regardless of expiry weekday).
+        # Weekly = a NEAR-TERM Friday non-monthly expiry (_is_weekly AND within
+        # `wk_fri_max` days) OR anything under `wk_dte` days. The Friday cap keeps a
+        # far-dated 4th-Friday (e.g. IBIT 37d) from being mislabeled a weekly.
         wk_dte = int(os.getenv("ALPHA_GOLD_EOD_WEEKLY_DTE", "5"))
+        wk_fri_max = int(os.getenv("ALPHA_GOLD_EOD_WEEKLY_FRIDAY_MAX_DTE", "14"))
         for a in alerts:
             _d = a.get("dte")
-            a["_weekly"] = (_is_weekly(a.get("exp"))
-                            or (isinstance(_d, (int, float)) and _d < wk_dte))
+            _dn = _d if isinstance(_d, (int, float)) else None
+            a["_weekly"] = ((_is_weekly(a.get("exp")) and _dn is not None and _dn <= wk_fri_max)
+                            or (_dn is not None and _dn < wk_dte))
             a["_earn"] = (a.get("ticker") or "").upper() in er_syms
         date_text = _date_text(day)
         stock_cap = int(os.getenv("ALPHA_GOLD_EOD_STOCK_CAP", "15"))
