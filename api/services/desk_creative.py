@@ -26,6 +26,7 @@ import io
 import json
 import os
 import re
+import time
 import zlib
 from pathlib import Path
 
@@ -36,6 +37,15 @@ RECENT_STYLE_BAN = 3        # a cover may not reuse any of the last 3 style lane
 RECENT_TITLES_SHOWN = 10    # titles shown to the desk + checked for opener echo
 MAX_TITLE_LEN = 100         # YouTube hard cap
 MAX_HOOK_LEN = 60
+# One hook per form — variety inside the slate; the forms the last N shipped
+# titles used go to the BACK of the walk so day-to-day variety is structural.
+FORMS = ("deadpan", "stakes", "image", "question", "contrast", "declarative")
+RECENT_FORM_BAN = 2
+# Image-render retry: a throttled image API (8/20: ONE 429 at publish time)
+# must not decide a cover. Backoff honors Retry-After when present.
+_IMAGE_BACKOFF_SECS = (20.0, 60.0)
+_IMAGE_RETRY_STATUSES = {429, 500, 502, 503, 504}
+_sleep = time.sleep          # injectable for tests
 
 _ASSETS = Path(__file__).resolve().parent / "desk_assets"
 
@@ -114,7 +124,7 @@ def day_context() -> dict | None:
     if themes:
         top = max(themes, key=lambda t: t["1W"])
         hot_week = f"{top['name']} ({top['1W']:+.1f}% on the week)"
-    return {
+    ctx = {
         "date": str(w.get("date") or ""),
         "phase": str((w.get("breadth") or {}).get("market_phase") or ""),
         "tone": tone,
@@ -127,6 +137,119 @@ def day_context() -> dict | None:
                                  if isinstance(w.get("leading_sectors"), list) else [],
         "background_hot_theme_this_week": hot_week,
     }
+    # The rest of the brief — everything the wire already knows about today
+    # that a title or a cover could hang on. A thin brief wrote thin titles
+    # ("QQQ can't pick a lane at the MAs" was the tech_check, paraphrased).
+    # Only non-empty material is sent, so a sparse wire stays a lean prompt.
+    rc = w.get("risk_calendar") or {}
+    extra = {
+        "regime": str(gp.get("regime") or "").strip(),
+        "the_plan": str(gp.get("play") or "").strip(),
+        "focus_names": [str(x) for x in (gp.get("focus") or []) if x][:5],
+        "index_reads": _index_reads(w),
+        "ripping": _mover_lines((w.get("movers") or {}).get("ripping"), 4),
+        "drilling": _mover_lines((w.get("movers") or {}).get("drilling"), 3),
+        "rotation": str((w.get("rotation") or {}).get("note") or "").strip(),
+        "earnings_this_morning": _earnings_lines(w.get("earnings")),
+        "earnings_tonight": [str(x) for x in (rc.get("amc") or [])][:6],
+        "econ_today": [str(x.get("event")) for x in (rc.get("econ") or [])
+                       if isinstance(x, dict) and x.get("event")][:4],
+        "fed_today": [str(x.get("event") if isinstance(x, dict) else x)
+                      for x in (rc.get("fed") or [])][:2],
+        "distribution_days": _distribution_line(w),
+        "wire_trade_idea": _trade_idea_line(w.get("trade_idea")),
+        "watchlist_triggered": [str(x.get("sym")) for x in (w.get("watch_list") or [])
+                                if isinstance(x, dict) and x.get("sym")
+                                and x.get("state") == "triggered"][:5],
+        "exposure_note": str((w.get("exposure") or {}).get("note") or "").strip(),
+    }
+    ctx.update({k: v for k, v in extra.items() if v})
+    return ctx
+
+
+def _index_reads(w: dict) -> list[str]:
+    out = []
+    for row in (w.get("index_levels") or {}).get("indices") or []:
+        if not (isinstance(row, dict) and row.get("sym")):
+            continue
+        bits = [f"{row['sym']} {row.get('px')}"]
+        if row.get("read"):
+            bits.append(str(row["read"]))
+        if row.get("flip"):
+            bits.append(f"line in the sand {row['flip']}")
+        out.append(" — ".join(bits))
+    return out[:3]
+
+
+def _mover_lines(rows, n: int) -> list[str]:
+    out = []
+    for m in rows or []:
+        if isinstance(m, dict) and m.get("sym"):
+            tail = str(m.get("headline") or m.get("reason") or "").strip()
+            out.append(f"{m.get('sym')} {m.get('pct')}" + (f" — {tail}" if tail else ""))
+    return out[:n]
+
+
+def _earnings_lines(e) -> list[str]:
+    rows = [r for r in ((e or {}).get("bmo") or []) if isinstance(r, dict) and r.get("symbol")]
+    rows.sort(key=lambda r: r.get("ew_total") or 0, reverse=True)
+    out = []
+    for r in rows[:4]:
+        a, est = r.get("eps_actual"), r.get("eps_estimate")
+        if isinstance(a, (int, float)) and isinstance(est, (int, float)):
+            verdict = "beat" if a > est else "missed" if a < est else "met"
+            out.append(f"{r['symbol']} {verdict} (EPS {a} vs {est} est)")
+        else:
+            out.append(f"{r['symbol']} reported")
+    return out
+
+
+def _distribution_line(w: dict) -> str:
+    dd = [d for d in ((w.get("breadth") or {}).get("distribution_days") or []) if isinstance(d, dict)]
+    if not dd:
+        return ""
+    latest = min(dd, key=lambda d: d.get("sessions_ago")
+                 if isinstance(d.get("sessions_ago"), (int, float)) else 999)
+    return (f"{len(dd)} distribution days on the count; latest "
+            f"{latest.get('sessions_ago')} session(s) ago ({latest.get('pct')}%)")
+
+
+def _trade_idea_line(ti) -> str:
+    if not (isinstance(ti, dict) and ti.get("sym")):
+        return ""
+    return f"{ti.get('sym')} — {ti.get('setup') or 'setup'}"
+
+
+def session_facts_from_zoom(zoom, meeting_uuid: str) -> dict | None:
+    """What THIS session was actually about — if Zoom's AI Companion summary
+    is already there at publish time (it usually is: the insights pass finds
+    it on its first tick after a publish). Headline + chapter titles + a few
+    key points, as facts for the title desk AND the cover director, so a
+    title can be about the session instead of the morning brief. None when
+    absent or on any failure; NEVER raises (Zoom must not stall a publish)."""
+    try:
+        if not zoom or not meeting_uuid or not hasattr(zoom, "get_recording_files"):
+            return None
+        from api.services.desk_session_insights import (
+            _find_summary_file, _sentence_trim, parse_zoom_summary)
+        rec = zoom.get_recording_files(meeting_uuid)
+        sfile = _find_summary_file(rec) if rec else None
+        if not sfile:
+            return None
+        parsed = parse_zoom_summary(zoom.download_text(sfile["download_url"]))
+        chapters = [str(c.get("title")) for c in (parsed.get("chapters") or [])
+                    if isinstance(c, dict) and c.get("title")][:12]
+        headline = str(parsed.get("headline") or "").strip()
+        points = [_sentence_trim(str(pt), 240) for pt in (parsed.get("summary") or []) if pt][:3]
+        if not headline and not chapters:
+            return None
+        facts = {"this_sessions_summary": headline,
+                 "this_sessions_chapters": chapters,
+                 "this_sessions_key_points": points}
+        return {k: v for k, v in facts.items() if v}
+    except Exception as e:  # noqa: BLE001 — facts are a bonus, never a blocker
+        print(f"[desk-creative] session facts unavailable ({type(e).__name__}: {e})")
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +286,7 @@ def _llm(system: str, user: str) -> str:
     timeout = float(os.environ.get("DESK_CREATIVE_LLM_TIMEOUT_SECS", "90"))
     client = _get_anthropic_client().with_options(timeout=timeout)
     msg = client.messages.create(
-        model=os.environ.get("DESK_CREATIVE_MODEL", "claude-sonnet-5"),
+        model=os.environ.get("DESK_CREATIVE_MODEL", "claude-opus-5"),
         max_tokens=800,
         temperature=1.0,
         # Claude 5 emits a thinking block by default, which eats max_tokens and
@@ -212,21 +335,42 @@ def _flavor(section: str) -> str:
 _TITLE_SYSTEM = (
     "You title the daily session recordings of UCT Intelligence (Uncharted "
     "Territory), a swing-trading desk, the way Qullamaggie titles his streams: "
-    "cool, funny, topical, a little irreverent, unmistakably written TODAY. "
-    "Trader culture is the register — tickers, tape talk, market slang all "
-    "welcome. Never corny clickbait, never breathless.\n"
+    "cool, deadpan, topical, a little irreverent, unmistakably written TODAY by "
+    "someone who was in the room. Trader culture is the register — tickers, "
+    "tape talk, market slang, dry humor. Never corny clickbait, never "
+    "breathless, never a press release.\n"
     "THE CRAFT:\n"
-    "- The hook could ONLY have been written today, from TODAY'S DATA below.\n"
-    "- Tickers, sectors and events from the data are fair game and encouraged.\n"
+    "- The hook could ONLY have been written today, from the DATA below. If it "
+    "could title any week of the year, kill it.\n"
+    "- When THIS SESSION'S content is in the data (this_sessions_summary / "
+    "this_sessions_chapters / tickers_discussed_in_session), the hook is about "
+    "what HAPPENED IN THE SESSION — the names traded, the calls made, the "
+    "moment — with the tape as backdrop. Without it, the hook is the day's "
+    "tape story.\n"
+    "- Name names. A specific ticker, level or event beats a mood. Tickers, "
+    "sectors and events from the data are fair game and encouraged.\n"
     "- DIRECTIONAL HONESTY: the tone field is the day's read. A cautious or "
     "defensive tape is not a rally — never claim the market or a sector is "
     "ripping unless the tone backs it. A single stock's real move is fine.\n"
     "- Use no numbers that don't literally appear in the data.\n"
-    "- Hook <= 55 characters. No emoji. No em-dashes.\n"
+    "- Hook <= 55 characters. No emoji. No em-dashes. No '|' (reserved). "
+    "No ALL-CAPS words except tickers.\n"
     "- Match the SHOW described below.\n"
-    'Return STRICT JSON only: {"slate": ["hook1", ..., "hook6"]} — 6 distinct '
-    "hooks in different forms (deadpan, stakes, image, question, contrast, "
-    "declarative)."
+    "THE REGISTER — write in THIS voice:\n"
+    "  GOOD: 'MU held the 21, we held our nerve' · 'Webull gapped, we chased "
+    "nothing' · 'Chop at the MAs, size stays small' · 'WMT beat, tape shrugged' "
+    "· 'Two stops, one winner, no regrets' · 'Sat on hands while tech bled'\n"
+    "  BAD: 'QQQ chopping at the MAs' (restates the brief, no point of view) · "
+    "'Markets in turmoil, what now?' (could run any week) · 'INSANE breakout "
+    "session' (corn) · 'Market update and trade review' (a category, not a "
+    "hook).\n"
+    "WRITE THE SLATE:\n"
+    "1. \"angle\" — one sentence: today's story for this show and its tension.\n"
+    "2. \"hooks\" — 6 candidates against that angle, one per form, in this "
+    "order: " + ", ".join(FORMS) + ".\n"
+    "3. \"pick\" — the exact hook of your strongest candidate.\n"
+    'Return STRICT JSON only: {"angle": "...", "hooks": [{"form": "...", '
+    '"hook": "..."}, ...], "pick": "..."} — nothing else.'
 )
 
 # Corn that must never ship + emoji (ported from morning-wire title_desk).
@@ -295,24 +439,63 @@ def _cut_reason(hook: str, suffix: str, ctx_nums: set, tone: str,
     return None
 
 
+def _parse_slate(raw: str) -> tuple[list[dict], str]:
+    """[{hook, form}], pick — from the desk's JSON. Tolerates the original
+    bare {"slate": [str]} shape (forms then follow slate order)."""
+    d = _parse_json(raw)
+    cands: list[dict] = []
+    for i, c in enumerate(d.get("hooks") or d.get("slate") or []):
+        if isinstance(c, dict):
+            hook = str(c.get("hook") or c.get("title") or "").strip()
+            form = str(c.get("form") or "").strip().lower()
+        else:
+            hook = str(c).strip()
+            form = FORMS[i] if i < len(FORMS) else ""
+        if hook:
+            cands.append({"hook": hook, "form": form})
+    return cands, str(d.get("pick") or "").strip()
+
+
+def _ordered(cands: list[dict], pick: str, recent_forms: list) -> list[dict]:
+    """Editor's pick first (the desk's judgment beats slate order — shipping
+    the FIRST survivor meant shipping the deadpan form every single day);
+    forms the last RECENT_FORM_BAN titles used drop to the back."""
+    cands = sorted(cands, key=lambda c: 0 if pick and c["hook"] == pick else 1)
+    stale = set(recent_forms)
+    return ([c for c in cands if c["form"] not in stale]
+            + [c for c in cands if c["form"] in stale])
+
+
+# The form of each composed title, so record_shipped_title (called after the
+# upload confirms, with only the title in hand) can carry it into history.
+_FORM_BY_TITLE: dict[str, str] = {}
+
+
 def compose_title(*, section: str, title_prefix: str, date_text: str,
-                  ctx=_UNSET, llm=None, history_path=None, record: bool = True) -> str:
+                  ctx=_UNSET, llm=None, history_path=None, record: bool = True,
+                  facts: dict | None = None) -> str:
     """Today's title for this session. NEVER raises — any failure ships the
     classic '{Show} — {date}' format, which is exactly today's behavior.
 
     record=False composes without touching history — the publish pipeline
     records via record_shipped_title() only AFTER the upload confirms, so a
     failed/retried job can't pollute the anti-echo ledger with titles that
-    never shipped."""
+    never shipped.
+
+    facts: session-specific truths (session_facts_from_zoom) merged over the
+    day brief — the title is then about THIS session, not the morning wire."""
     classic = classic_title(title_prefix, date_text)
     try:
         if ctx is _UNSET:
             ctx = day_context()
         if not ctx:
             return classic
+        if facts:
+            ctx = {**ctx, **facts}
         history_path = history_path or os.path.join(_data_dir(), "desk_title_history.json")
         hist = _load_history(history_path)
         recent = [h.get("title", "") for h in hist[-RECENT_TITLES_SHOWN:]]
+        recent_forms = [h.get("form") for h in hist[-RECENT_FORM_BAN:] if h.get("form")]
         # The echo set derives from the recorded HOOK opener (fallback: strip
         # the show tail) — deriving it from the full stored title let a short
         # hook repeat verbatim because the show's first word padded the 3-gram.
@@ -324,22 +507,27 @@ def compose_title(*, section: str, title_prefix: str, date_text: str,
                 f"TODAY'S DATA (as of {ctx.get('date', '?')}):\n"
                 + json.dumps(ctx, indent=1)
                 + "\n\nRECENT TITLES (do not echo these, especially their opening words):\n"
-                + ("\n".join(f"- {t}" for t in recent if t) or "- none"))
+                + ("\n".join(f"- {t}" for t in recent if t) or "- none")
+                + (f"\n\nFORMS USED BY THE LAST TITLES (lead with a different one): "
+                   f"{', '.join(recent_forms)}" if recent_forms else ""))
         raw = (llm or _llm)(_TITLE_SYSTEM, user)
-        slate = _parse_json(raw).get("slate") or []
+        cands, pick = _parse_slate(raw)
         ctx_nums = _ctx_number_tokens(json.dumps(ctx))
         tone = str(ctx.get("tone") or "")
-        for cand in slate:
-            hook = _dedash(str(cand).strip())
+        for cand in _ordered(cands, pick, recent_forms):
+            hook = _dedash(cand["hook"])
             why = _cut_reason(hook, suffix, ctx_nums, tone, recent_openers)
             if why:
                 print(f"[desk-creative] title cut: {hook!r} ({why})")
                 continue
             title = hook + suffix
+            if len(_FORM_BY_TITLE) > 50:
+                _FORM_BY_TITLE.clear()
+            _FORM_BY_TITLE[title] = cand["form"]
             if record:
                 _record(history_path, {"date": str(ctx.get("date") or ""),
                                        "show": title_prefix, "title": title,
-                                       "opener": _opener(hook)})
+                                       "opener": _opener(hook), "form": cand["form"]})
             return title
         print("[desk-creative] title slate exhausted — classic format ships")
     except Exception as e:  # noqa: BLE001 — a title must always exist
@@ -354,7 +542,8 @@ def record_shipped_title(title: str, *, show: str, history_path=None) -> None:
         history_path = history_path or os.path.join(_data_dir(), "desk_title_history.json")
         hook = title.split(" | ")[0]
         _record(history_path, {"date": "", "show": show, "title": title,
-                               "opener": _opener(hook)})
+                               "opener": _opener(hook),
+                               "form": _FORM_BY_TITLE.pop(title, "")})
     except Exception:
         pass
 
@@ -424,6 +613,9 @@ _COVER_SYSTEM = (
     "- The metaphor must depict the day's PRIMARY story (the big mover, the "
     "leading theme, the tape's tension) — background_hot_theme_this_week is "
     "optional garnish, never the subject.\n"
+    "- When this_sessions_* facts are present (summary, chapters, tickers "
+    "discussed), THE SESSION is the story: depict what was traded and talked "
+    "about in it, with the tape as backdrop.\n"
     "- NO real people, NO politicians, NO celebrity likenesses, NO third-party "
     "logos or brand marks. Bulls, bears, traders-from-behind, hands, objects, "
     "cities, nature — all fine.\n"
@@ -446,24 +638,53 @@ def _seed(text: str) -> int:
     return zlib.crc32(text.encode("utf-8"))
 
 
+def _retry_after_secs(resp) -> float | None:
+    try:
+        v = float((resp.headers or {}).get("Retry-After", ""))
+        return v if 0 < v <= 300 else None
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
 def _openai_generate(scene: str) -> bytes | None:
     """gpt-image-1 → PNG bytes. Bounded; None on any failure (scheduler-thread
-    only — this call never sits on the request path)."""
+    only — this call never sits on the request path).
+
+    Retries 429/5xx/transport errors with backoff — 2026-08-20's session got a
+    themed card because ONE 429 at publish time was final. The failing
+    response body is logged, so the next 429 says WHICH limit it was."""
     import base64
     import requests
     key = os.environ.get("OPENAI_API_KEY", "")
     if not key:
         return None
     timeout = float(os.environ.get("DESK_CREATIVE_IMAGE_TIMEOUT_SECS", "180"))
-    r = requests.post(
-        "https://api.openai.com/v1/images/generations",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"model": "gpt-image-1", "prompt": scene, "size": "1536x1024",
-              "quality": "medium", "n": 1},
-        timeout=timeout)
-    r.raise_for_status()
-    b64 = (r.json().get("data") or [{}])[0].get("b64_json")
-    return base64.b64decode(b64) if b64 else None
+    attempts = max(1, int(os.environ.get("DESK_CREATIVE_IMAGE_ATTEMPTS", "3")))
+    last = ""
+    for i in range(attempts):
+        r = None
+        try:
+            r = requests.post(
+                "https://api.openai.com/v1/images/generations",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": "gpt-image-1", "prompt": scene, "size": "1536x1024",
+                      "quality": "medium", "n": 1},
+                timeout=timeout)
+        except requests.RequestException as e:
+            last = f"{type(e).__name__}: {e}"[:200]
+        if r is not None:
+            if r.status_code < 400:
+                b64 = (r.json().get("data") or [{}])[0].get("b64_json")
+                return base64.b64decode(b64) if b64 else None
+            last = f"HTTP {r.status_code}: {(r.text or '')[:200]}"
+            if r.status_code not in _IMAGE_RETRY_STATUSES:
+                break
+        if i + 1 < attempts:
+            wait = _retry_after_secs(r) or _IMAGE_BACKOFF_SECS[min(i, len(_IMAGE_BACKOFF_SECS) - 1)]
+            print(f"[desk-creative] image render retry {i + 1}/{attempts - 1} in {wait:.0f}s ({last})")
+            _sleep(wait)
+    print(f"[desk-creative] image render failed ({last})")
+    return None
 
 
 GOLD = (201, 168, 76)

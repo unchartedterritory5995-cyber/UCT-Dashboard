@@ -2392,7 +2392,20 @@ every downstream consumer** — parse titles ONLY via
 `DESK_CREATIVE_THUMBS=1` the thumbnail is an AI cover (art-director LLM →
 gpt-image-1 → brand frame), re-skinned once the transcript lands
 (`desk_session_insights.refresh_creative_cover`); the per-show themed cards
-below are the fallback. Back catalog was re-skinned 2026-08-20 via
+below are the fallback — **a PLACEHOLDER, not the answer**: a creative cover
+that didn't render is queued in `api/services/desk_cover_retry.py`
+(`/data/desk_cover_retry.json`; scheduler drain `2/15`, exponential backoff
+15m→3h, gives up after 8 tries/48h; `POST /api/desk/creative-cover-retry`
+`{"youtube_id","drain":true}` under PUSH_SECRET is the hand lever). 2026-08-20's
+session shipped the themed card because ONE OpenAI 429 at publish time was
+final — `_openai_generate` now retries 429/5xx with backoff and logs the body.
+Both composers also get **the session's own Zoom AI-Companion summary at
+publish** (`desk_creative.session_facts_from_zoom` — headline + chapter titles;
+it is usually there by the time the recording lands), so a title can be about
+what happened in the session rather than the morning brief; the desk ships
+the editor's **pick** (not the first survivor), rotates hook forms, reads the
+full wire brief (movers/earnings/rotation/regime/index reads), and runs on
+`claude-opus-5` by default (`DESK_CREATIVE_MODEL`). Back catalog was re-skinned 2026-08-20 via
 `POST /api/desk/creative-cover-backfill` (PUSH_SECRET; atomic resumable
 ledger at `/data/desk_cover_backfill.json`). Titles are FINAL at upload
 (`youtube.upload` has no `videos.update`) — the creative title is composed

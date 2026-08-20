@@ -106,6 +106,45 @@ def creative_cover_backfill_status(request: Request):
     return desk_cover_backfill.status()
 
 
+@router.post("/creative-cover-retry")
+async def creative_cover_retry_enqueue(request: Request):
+    """Queue a published session for a creative-cover attempt (the publish
+    path queues its own misses; this is the owner's hand on the lever).
+    Body: {"youtube_id": "...", "drain": true} — drain kicks one background
+    pass now instead of waiting for the 15-min job. Gated by the PUSH_SECRET
+    bearer like sessions-status."""
+    from fastapi.responses import JSONResponse
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    import json as _json
+    try:
+        body = _json.loads((await request.body()).decode("utf-8") or "{}")
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    from api.services import desk_cover_retry
+    out = desk_cover_retry.enqueue_from_library(str(body.get("youtube_id") or ""))
+    if out.get("error"):
+        code = 404 if out["error"].startswith("no video") else 400
+        return JSONResponse(out, status_code=code)
+    if body.get("drain"):
+        out["drain_started"] = desk_cover_retry.start_background_drain()
+    return {**out, **desk_cover_retry.status()}
+
+
+@router.get("/creative-cover-retry")
+def creative_cover_retry_status(request: Request):
+    """The retry queue: pending videos, attempts, next due. Gated by the
+    PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_retry
+    return desk_cover_retry.status()
+
+
 @router.post("/session-requeue")
 async def session_requeue(request: Request):
     """Recovery: put a terminal (skipped/error) recording job back in the queue,

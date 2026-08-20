@@ -789,6 +789,11 @@ def refresh_creative_cover(v: dict, ins: dict, youtube=None) -> bool:
             from api.services.youtube_client import YouTubeClient
             youtube = YouTubeClient()
         youtube.set_thumbnail(youtube_id, jpeg)
+        try:  # a queued upload-time retry must not paint over this cover
+            from api.services import desk_cover_retry
+            desk_cover_retry.resolve(youtube_id)
+        except Exception:
+            pass
         return True
     except Exception as e:  # noqa: BLE001 — cosmetic, never blocks insights
         print(f"[session-insights] creative cover refresh failed (non-fatal): {e}")

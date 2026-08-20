@@ -556,3 +556,265 @@ def test_refresh_skips_when_transcript_gave_no_facts(monkeypatch):
     assert dsi.refresh_creative_cover(_V, empty, youtube=yt) is False
     assert rendered == []                    # no paid re-render without new facts
     assert yt.calls == []
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-20 — the desk picks, rotates forms, reads the whole brief and the
+# session itself; the image render retries a throttled API.
+# ---------------------------------------------------------------------------
+
+def _slate_v2(hooks, pick=""):
+    """An llm stub returning the {angle, hooks[{form,hook}], pick} contract."""
+    def llm(system, user):
+        return json.dumps({"angle": "a", "hooks": [{"form": f, "hook": h} for f, h in hooks],
+                           "pick": pick})
+    return llm
+
+
+def test_editors_pick_ships_before_slate_order(tmp_path):
+    llm = _slate_v2([("deadpan", "Flat open, flat desk"), ("stakes", "MU decides the week")],
+                    pick="MU decides the week")
+    assert _title(tmp_path, llm).startswith("MU decides the week | ")
+
+
+def test_a_pick_that_fails_a_gate_walks_down_to_the_slate(tmp_path):
+    llm = _slate_v2([("deadpan", "Flat open, flat desk"), ("stakes", "Buckle up, MU decides")],
+                    pick="Buckle up, MU decides")
+    assert _title(tmp_path, llm).startswith("Flat open, flat desk | ")
+
+
+def test_recently_used_forms_drop_to_the_back_and_are_named_to_the_desk(tmp_path):
+    hp = tmp_path / "th.json"
+    hp.write_text(json.dumps([
+        {"date": "2026-08-18", "show": "Live Trading Session", "form": "deadpan",
+         "title": "Old one | Live Trading Session — August 18, 2026", "opener": "old one"},
+        {"date": "2026-08-19", "show": "Live Trading Session", "form": "deadpan",
+         "title": "Older one | Live Trading Session — August 19, 2026", "opener": "older one"},
+    ]))
+    seen = {}
+
+    def llm(system, user):
+        seen["user"] = user
+        return json.dumps({"hooks": [{"form": "deadpan", "hook": "Flat open, flat desk"},
+                                     {"form": "question", "hook": "Who sold MU at the open?"}]})
+    t = dc.compose_title(ctx=CTX, llm=llm, history_path=str(hp), **SHOW)
+    assert t.startswith("Who sold MU at the open? | ")
+    assert "FORMS USED BY THE LAST TITLES" in seen["user"] and "deadpan" in seen["user"]
+
+
+def test_form_is_recorded_and_carried_through_record_shipped_title(tmp_path):
+    hp = tmp_path / "th.json"
+    t = dc.compose_title(ctx=CTX, llm=_slate_v2([("image", "One foot in, one near the exit")]),
+                         history_path=str(hp), record=False, **SHOW)
+    assert not hp.exists()
+    dc.record_shipped_title(t, show="Live Trading Session", history_path=str(hp))
+    rec = json.loads(hp.read_text(encoding="utf-8"))[-1]
+    assert rec["form"] == "image" and rec["title"] == t
+
+
+def test_legacy_bare_slate_still_parses_with_positional_forms(tmp_path):
+    hp = tmp_path / "th.json"
+    t = dc.compose_title(ctx=CTX, llm=_slate("Flat open, flat desk", "Second"),
+                         history_path=str(hp), **SHOW)
+    assert t.startswith("Flat open, flat desk | ")
+    assert json.loads(hp.read_text(encoding="utf-8"))[-1]["form"] == "deadpan"
+
+
+def test_session_facts_reach_the_title_desk_and_feed_the_number_gate(tmp_path):
+    seen = {}
+
+    def llm(system, user):
+        seen["user"] = user
+        return json.dumps({"slate": ["MU out at 950, clean"]})
+    t = dc.compose_title(ctx=CTX, llm=llm, history_path=str(tmp_path / "th.json"),
+                         facts={"this_sessions_summary": "Closed MU at 950.10 into the chop",
+                                "this_sessions_chapters": ["MU exit", "Watching WMT"]},
+                         **SHOW)
+    assert t.startswith("MU out at 950, clean | ")          # 950 exists in the facts
+    assert "Closed MU at 950.10" in seen["user"] and "Watching WMT" in seen["user"]
+
+
+def test_day_context_carries_the_whole_brief_and_drops_empties(monkeypatch):
+    from api.services import engine
+    wire = {
+        "date": "2026-08-20", "exposure": {"score": 55, "note": "Grind mode"},
+        "breadth": {"market_phase": "Confirmed Uptrend",
+                    "distribution_days": [{"sessions_ago": 19, "pct": -1.9},
+                                          {"sessions_ago": 1, "pct": -1.69}]},
+        "game_plan": {"market_line": "SPY holding", "tech_check": "QQQ chopping",
+                      "regime": "FTD Confirmed · Restraint Rule", "play": "Reduced size",
+                      "focus": ["MU", "DELL"]},
+        "index_levels": {"indices": [{"sym": "SPY", "px": 767.67, "read": "constructive", "flip": 750.17}]},
+        "leadership": [{"sym": "MU", "score": 99}],
+        "movers": {"ripping": [{"sym": "BULL", "pct": "+11%", "headline": "Q2 beat"}],
+                   "drilling": [{"sym": "AAP", "pct": "-15%", "reason": "Advance Auto Parts"}]},
+        "rotation": {"note": "Money into Health Care, out of Tech."},
+        "earnings": {"bmo": [{"symbol": "WMT", "eps_actual": 0.81, "eps_estimate": 0.73, "ew_total": 90},
+                             {"symbol": "BABA", "eps_actual": 1.01, "eps_estimate": 1.94, "ew_total": 59}]},
+        "risk_calendar": {"econ": [{"event": "Initial Jobless Claims"}], "amc": ["ROST", "OSIS"], "fed": []},
+        "trade_idea": {"sym": "MU", "setup": "20EMA Hold"},
+        "watch_list": [{"sym": "CDNA", "state": "triggered"}, {"sym": "PBF", "state": "approaching"}],
+    }
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: wire)
+    ctx = dc.day_context()
+    assert ctx["regime"] == "FTD Confirmed · Restraint Rule" and ctx["the_plan"] == "Reduced size"
+    assert ctx["focus_names"] == ["MU", "DELL"]
+    assert ctx["index_reads"] == ["SPY 767.67 — constructive — line in the sand 750.17"]
+    assert ctx["ripping"] == ["BULL +11% — Q2 beat"] and ctx["drilling"] == ["AAP -15% — Advance Auto Parts"]
+    assert ctx["rotation"].startswith("Money into")
+    assert ctx["earnings_this_morning"] == ["WMT beat (EPS 0.81 vs 0.73 est)", "BABA missed (EPS 1.01 vs 1.94 est)"]
+    assert ctx["earnings_tonight"] == ["ROST", "OSIS"] and ctx["econ_today"] == ["Initial Jobless Claims"]
+    assert ctx["distribution_days"].startswith("2 distribution days") and "1 session(s) ago" in ctx["distribution_days"]
+    assert ctx["wire_trade_idea"] == "MU — 20EMA Hold" and ctx["watchlist_triggered"] == ["CDNA"]
+    assert ctx["exposure_note"] == "Grind mode"
+    assert "fed_today" not in ctx                               # empty material is not sent
+    # the original keys survive untouched (the tests above pin them)
+    assert ctx["market_line"] == "SPY holding" and ctx["leaders"] == ["MU"]
+
+    sparse = {"date": "2026-08-20", "exposure": {"score": 80}, "game_plan": {}}
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: sparse)
+    ctx = dc.day_context()
+    assert ctx["tone"] == "risk-on"
+    assert not any(k in ctx for k in ("regime", "ripping", "earnings_this_morning", "index_reads"))
+
+
+class _SummaryZoom:
+    def __init__(self, files=None, raw=None, boom=False):
+        self.files, self.raw, self.boom = files, raw, boom
+
+    def get_recording_files(self, uuid):
+        if self.boom:
+            raise RuntimeError("zoom 500")
+        return {"recording_files": self.files or []}
+
+    def download_text(self, url):
+        return self.raw or ""
+
+
+_SUMMARY_FILE = [{"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://s"},
+                 {"file_type": "SUMMARY", "recording_type": "summary_next_steps", "download_url": "http://n"}]
+_SUMMARY_RAW = json.dumps({
+    "overall_summary": "Patrick traded MU off the 21 EMA and faded the QQQ chop.",
+    "items": [{"label": "MU entry at the 21", "start_time": "00:05:00.000", "summary": "Bought MU on the hold."},
+              {"label": "Passing on WMT", "start_time": "00:20:00.000", "summary": "No chase on the gap."}]})
+
+
+def test_session_facts_from_zoom_distills_headline_chapters_points():
+    facts = dc.session_facts_from_zoom(_SummaryZoom(_SUMMARY_FILE, _SUMMARY_RAW), "uuid")
+    assert facts["this_sessions_summary"].startswith("Patrick traded MU")
+    assert facts["this_sessions_chapters"] == ["MU entry at the 21", "Passing on WMT"]
+    assert facts["this_sessions_key_points"] == ["Bought MU on the hold.", "No chase on the gap."]
+
+
+def test_session_facts_are_none_when_absent_or_broken():
+    assert dc.session_facts_from_zoom(_SummaryZoom([], ""), "uuid") is None          # no summary yet
+    assert dc.session_facts_from_zoom(_SummaryZoom(_SUMMARY_FILE, "{nope"), "uuid") is None
+    assert dc.session_facts_from_zoom(_SummaryZoom(boom=True), "uuid") is None       # never raises
+    assert dc.session_facts_from_zoom(object(), "uuid") is None                      # a zoom without the API
+    assert dc.session_facts_from_zoom(_SummaryZoom(_SUMMARY_FILE, _SUMMARY_RAW), "") is None
+
+
+def test_session_facts_reach_the_cover_director(tmp_path):
+    seen = {}
+
+    def llm(system, user):
+        seen["user"] = user
+        return json.dumps(GOOD_SPEC)
+    dc.render_cover(section="Live Trading Sessions", eyebrow="LIVE TRADING SESSION",
+                    date_text="August 20, 2026", ctx=CTX, llm=llm,
+                    imagegen=lambda scene: _png_1536x1024(),
+                    history_path=str(tmp_path / "ch.json"),
+                    facts={"this_sessions_summary": "MU off the 21, QQQ faded"})
+    assert "MU off the 21, QQQ faded" in seen["user"]
+    assert "THE SESSION is the story" in dc._COVER_SYSTEM
+
+
+# ── the image render retries a throttled API ──────────────────────────────
+
+class _Resp:
+    def __init__(self, status, body="", headers=None, b64=None):
+        self.status_code, self.text, self.headers = status, body, headers or {}
+        self._b64 = b64
+
+    def json(self):
+        return {"data": [{"b64_json": self._b64}]} if self._b64 else {}
+
+
+def _fake_post(monkeypatch, responses):
+    import base64
+    import requests
+    calls, sleeps = [], []
+    seq = list(responses)
+
+    def post(url, **kw):
+        calls.append(kw["json"]["prompt"])
+        r = seq.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(dc, "_sleep", lambda s: sleeps.append(s))
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    return calls, sleeps, base64.b64encode(b"PNGDATA").decode()
+
+
+_B64 = __import__("base64").b64encode(b"PNGDATA").decode()
+
+
+def test_image_render_retries_a_429_then_succeeds(monkeypatch):
+    calls, sleeps, b64 = _fake_post(monkeypatch, [
+        _Resp(429, "Rate limit reached for gpt-image-1", {"Retry-After": "7"}),
+        _Resp(200, b64=_B64)])
+    monkeypatch.setattr(dc, "_IMAGE_BACKOFF_SECS", (20.0, 60.0))
+    assert dc._openai_generate("a scene") == b"PNGDATA"
+    assert len(calls) == 2 and sleeps == [7.0]                 # Retry-After honored
+
+
+def test_image_render_gives_up_after_attempts_and_logs_the_reason(monkeypatch, capsys):
+    calls, sleeps, _ = _fake_post(monkeypatch, [
+        _Resp(429, '{"error":{"message":"Rate limit reached: images per minute"}}'),
+        _Resp(503, "overloaded"),
+        _Resp(429, "still throttled")])
+    assert dc._openai_generate("a scene") is None
+    assert len(calls) == 3 and sleeps == [20.0, 60.0]
+    out = capsys.readouterr().out
+    assert "HTTP 429" in out and "images per minute" in out and "failed" in out
+
+
+def test_image_render_does_not_retry_a_4xx_that_is_not_throttling(monkeypatch):
+    calls, sleeps, _ = _fake_post(monkeypatch, [_Resp(400, "moderation_blocked")])
+    assert dc._openai_generate("a scene") is None
+    assert len(calls) == 1 and sleeps == []
+
+
+def test_image_render_retries_a_transport_error(monkeypatch):
+    import requests
+    calls, sleeps, b64 = _fake_post(monkeypatch, [requests.ConnectionError("reset"), _Resp(200, b64=_B64)])
+    assert dc._openai_generate("a scene") == b"PNGDATA"
+    assert len(calls) == 2 and sleeps == [20.0]
+
+
+def test_image_render_attempts_env_is_respected(monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_IMAGE_ATTEMPTS", "1")
+    calls, sleeps, _ = _fake_post(monkeypatch, [_Resp(429, "x")])
+    assert dc._openai_generate("a scene") is None
+    assert len(calls) == 1 and sleeps == []
+
+
+def test_refresh_success_resolves_a_queued_retry(monkeypatch, tmp_path):
+    from api.services import desk_cover_retry as cr
+    from api.services import desk_session_insights as dsi
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    cr.enqueue("ytid", section="Live Trading Sessions", eyebrow="LIVE TRADING SESSION",
+               date_text="August 20, 2026")
+    monkeypatch.setattr(dc, "render_cover", lambda **kw: b"J")
+
+    class _YT:
+        def set_thumbnail(self, *a):
+            pass
+    ok = dsi.refresh_creative_cover(
+        {"youtube_id": "ytid", "title": "X | Live Trading Session — August 20, 2026",
+         "category": "Live Trading Sessions"},
+        {"headline": "h", "ticker_moments": [{"ticker": "MU"}]}, youtube=_YT())
+    assert ok and cr.pending() == []

@@ -762,3 +762,111 @@ def test_failed_download_never_composes_a_title(edu_db, jobs_db, monkeypatch):
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_DownBoomZoom(), youtube=_FakeYT())
     assert composed == []
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-20 — the session's own summary reaches the title + cover at publish;
+# a creative cover that didn't render is QUEUED for retry (the themed card is
+# a placeholder, never the final answer).
+# ---------------------------------------------------------------------------
+
+from api.services import desk_cover_retry
+
+
+class _SummaryZoom(_FakeZoom):
+    """Zoom with the AI Companion summary already available at publish time."""
+    def get_recording_files(self, uuid):
+        return {"recording_files": [{"file_type": "SUMMARY", "recording_type": "summary",
+                                     "download_url": "http://s"}]}
+
+    def download_text(self, url):
+        import json as _j
+        return _j.dumps({"overall_summary": "Patrick traded MU off the 21 EMA and faded the QQQ chop.",
+                         "items": [{"label": "MU entry at the 21", "start_time": "00:05:00.000",
+                                    "summary": "Bought MU."},
+                                   {"label": "Passing on WMT", "start_time": "00:20:00.000",
+                                    "summary": "No chase."}]})
+
+
+def test_session_facts_reach_title_and_cover_at_publish(edu_db, jobs_db, monkeypatch, tmp_path):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    seen = {}
+
+    def fake_title(**kw):
+        seen["title_facts"] = kw.get("facts")
+        return "MU off the 21, QQQ faded | Live Trading Session — June 24, 2026"
+
+    def fake_cover(**kw):
+        seen["cover_facts"] = kw.get("facts")
+        return b"J" * 2000
+    monkeypatch.setattr(desk_creative, "compose_title", fake_title)
+    monkeypatch.setattr(desk_creative, "render_cover", fake_cover)
+    jobs_db.enqueue("UF1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    out = dds.process_pending_jobs(zoom=_SummaryZoom(), youtube=_ByteThumbYT())
+    assert len(out) == 1
+    assert seen["title_facts"]["this_sessions_summary"].startswith("Patrick traded MU")
+    assert seen["title_facts"]["this_sessions_chapters"] == ["MU entry at the 21", "Passing on WMT"]
+    assert seen["cover_facts"] == seen["title_facts"]
+    assert desk_cover_retry.pending() == []                    # the cover rendered: nothing queued
+
+
+def test_no_summary_yet_means_no_facts_and_the_publish_still_lands(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_CREATIVE_TITLES", "1")
+    seen = {}
+
+    def fake_title(**kw):
+        seen["facts"] = kw.get("facts")
+        return "Hook | Live Trading Session — June 24, 2026"
+    monkeypatch.setattr(desk_creative, "compose_title", fake_title)
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt)                                   # _FakeZoom has no recordings API
+    assert seen["facts"] is None
+    assert yt.uploads[0]["title"] == "Hook | Live Trading Session — June 24, 2026"
+
+
+def test_a_creative_cover_that_did_not_render_is_queued_for_retry(edu_db, jobs_db, monkeypatch, tmp_path):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: None)
+    yt = _ByteThumbYT()
+    _publish_one(jobs_db, yt)
+    assert yt.thumb_bytes and yt.thumb_bytes[0][:4] == b"\xff\xd8\xff\xe0"   # placeholder card went up
+    q = desk_cover_retry.pending()
+    assert [e["youtube_id"] for e in q] == ["VIDX"]
+    assert q[0]["date_text"] == "June 24, 2026"
+    assert q[0]["section"] == "Live Trading Sessions"
+    assert q[0]["eyebrow"]                                       # whatever _route gave the card
+
+
+def test_a_creative_cover_crash_is_queued_too(edu_db, jobs_db, monkeypatch, tmp_path):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+
+    def boom(**kw):
+        raise RuntimeError("cover director down")
+    monkeypatch.setattr(desk_creative, "render_cover", boom)
+    _publish_one(jobs_db, _ByteThumbYT())
+    assert [e["youtube_id"] for e in desk_cover_retry.pending()] == ["VIDX"]
+
+
+def test_flag_off_never_queues_a_retry(edu_db, jobs_db, monkeypatch, tmp_path):
+    monkeypatch.delenv("DESK_CREATIVE_THUMBS", raising=False)
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    _publish_one(jobs_db, _ByteThumbYT())
+    assert desk_cover_retry.pending() == []
+    assert not (tmp_path / "desk_cover_retry.json").exists()
+
+
+def test_retry_queue_failure_never_breaks_a_publish(edu_db, jobs_db, monkeypatch, tmp_path):
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(desk_creative, "render_cover", lambda **kw: None)
+
+    def boom(*a, **k):
+        raise OSError("volume gone")
+    monkeypatch.setattr(desk_cover_retry, "_write", boom)
+    yt = _ByteThumbYT()
+    out = _publish_one(jobs_db, yt)
+    assert len(out) == 1 and yt.thumb_bytes

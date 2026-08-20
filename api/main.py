@@ -4426,6 +4426,22 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="7/15", timezone=_ET),
                 id="desk_session_insights", max_instances=1, replace_existing=True)
 
+            def _dds_cover_retry():
+                try:
+                    from api.services import desk_cover_retry as _dcr
+                    out = _dcr.drain()
+                    if out:
+                        print(f"[desk-sessions] cover retry handled {len(out)} video(s)")
+                except Exception as e:
+                    print(f"[desk-sessions] cover retry error (non-fatal): {e}")
+
+            # The creative cover's second chance: a throttled image API at
+            # publish time (8/20: one 429) must not leave the themed card on a
+            # video for good. Self-gated by DESK_CREATIVE_THUMBS; offset from
+            # the */5 drain and the 7/15 insights pass.
+            _scheduler.add_job(_dds_cover_retry, trigger=CronTrigger(minute="2/15", timezone=_ET),
+                id="desk_cover_retry", max_instances=1, replace_existing=True)
+
             def _dds_audit():
                 try:
                     from api.services import desk_session_audit as _dsa

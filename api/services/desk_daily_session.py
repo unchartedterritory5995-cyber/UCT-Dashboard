@@ -12,7 +12,7 @@ import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from api.services import desk_background_audio, desk_creative, education_service
+from api.services import desk_background_audio, desk_cover_retry, desk_creative, education_service
 from api.services.youtube_client import YouTubeClient, YouTubeAuthError
 
 _ET = ZoneInfo("America/New_York")
@@ -330,6 +330,13 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             if not vid:
                 fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
+                facts = None
+                if desk_creative.titles_enabled() or desk_creative.thumbs_enabled():
+                    # What THIS session was about, if Zoom's summary is already
+                    # there (it usually is by the time the recording lands) —
+                    # the title is final at insert, so this is its only chance
+                    # to be about the session rather than the morning brief.
+                    facts = desk_creative.session_facts_from_zoom(zoom, uuid)
                 if desk_creative.titles_enabled():
                     # Composed AFTER a successful download (a failing download
                     # retried every 5 min must not burn an LLM call per pass)
@@ -340,7 +347,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     try:
                         title = desk_creative.compose_title(
                             section=section, title_prefix=title_prefix,
-                            date_text=date_text, record=False)
+                            date_text=date_text, record=False, facts=facts)
                     except Exception as ce:
                         print(f"[desk-sessions] creative title failed (non-fatal): {ce}")
                 vid = youtube.upload(tmp, title, privacy=privacy_for_section(section))
@@ -353,12 +360,19 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     if desk_creative.thumbs_enabled():
                         try:  # creative cover; None/crash -> themed card below
                             thumb = desk_creative.render_cover(
-                                section=section, eyebrow=eyebrow, date_text=date_text)
+                                section=section, eyebrow=eyebrow, date_text=date_text,
+                                facts=facts)
                         except Exception as ce:
                             print(f"[desk-sessions] creative cover failed (non-fatal): {ce}")
                     if thumb is None:
                         from api.services.desk_thumbnail import render_session_thumbnail
                         thumb = render_session_thumbnail(date_text, eyebrow_label=eyebrow)
+                        if desk_creative.thumbs_enabled():
+                            # The themed card is a PLACEHOLDER, not the answer:
+                            # a throttled image API at publish time (8/20: one
+                            # 429) must not decide the cover for good.
+                            desk_cover_retry.enqueue(vid, section=section, eyebrow=eyebrow,
+                                                     date_text=date_text)
                     youtube.set_thumbnail(vid, thumb)
                 except Exception as te:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
