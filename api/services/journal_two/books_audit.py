@@ -24,7 +24,8 @@ Checks (each returns {name, pass, expected, actual, delta, note}):
                        (excluded trades absent from BOTH lenses — measured)
   day_detail_parity    N sampled day cells vs their Day-page metrics
   tax_price_parity     tax-line gains (price × shares) vs stored gross pnl —
-                       per-line, mismatches NAMED (the storage-accuracy probe)
+                       per (symbol, acquired, sold) GROUP (same-day multi-lot
+                       joins are ambiguous per-line), mismatches NAMED
 
 Tolerance: $0.05 on sums (float rounding across hundreds of rows), $0.01 on
 single-day/-line comparisons.
@@ -195,28 +196,37 @@ def run_books_audit(
             "mismatches": day_mismatches[:5],
         })
 
-        # ── Tax price-parity: stored gross pnl vs price × shares per line ──
+        # ── Tax price-parity: stored gross pnl vs price × shares ──────────
+        # Compared per (symbol, acquired-day, sold-day) GROUP, not per line:
+        # several lots of one symbol can close the same day, and a line↔row
+        # join is ambiguous inside such a group (the naive LIMIT-1 version
+        # false-flagged 27 lines on a book that closes EXACTLY at group
+        # level — verified on prod 2026-08-21). Σ line gains must equal
+        # Σ stored pnl over the same key group.
         tax_mismatches: list[dict[str, Any]] = []
         tax_lines = 0
+        derived_by_key: dict[tuple, float] = {}
         for y in sorted(years):
             book = tax_service.get_tax_report(
                 user_id, int(y), account_id=account_id, conn=conn,
             )
             for line in book["lines"]:
                 tax_lines += 1
-                row = conn.execute(
-                    f"SELECT pnl_dollar FROM j2_trades WHERE {base} "
-                    f"  AND symbol = ? AND substr(entry_date,1,10) = ? "
-                    f"  AND substr(exit_date,1,10) = ? LIMIT 1",
-                    params + [line["symbol"], line["acquired"], line["sold"]],
-                ).fetchone()
-                if row is None:
-                    continue
-                if abs(float(row["pnl_dollar"]) - float(line["gain"])) > _LINE_TOL:
-                    tax_mismatches.append({
-                        "symbol": line["symbol"], "sold": line["sold"],
-                        "stored": float(row["pnl_dollar"]), "derived": line["gain"],
-                    })
+                key = (line["symbol"], line["acquired"], line["sold"])
+                derived_by_key[key] = derived_by_key.get(key, 0.0) + float(line["gain"])
+        for (sym, acq, sold), derived in derived_by_key.items():
+            row = conn.execute(
+                f"SELECT COALESCE(SUM(pnl_dollar), 0) FROM j2_trades WHERE {base} "
+                f"  AND symbol = ? AND substr(entry_date,1,10) = ? "
+                f"  AND substr(exit_date,1,10) = ?",
+                params + [sym, acq, sold],
+            ).fetchone()
+            stored = float(row[0])
+            if abs(stored - derived) > _LINE_TOL:
+                tax_mismatches.append({
+                    "symbol": sym, "sold": sold,
+                    "stored": round(stored, 2), "derived": round(derived, 2),
+                })
         checks.append({
             "name": "tax_price_parity", "pass": not tax_mismatches,
             "expected": f"{tax_lines} lines", "actual":
