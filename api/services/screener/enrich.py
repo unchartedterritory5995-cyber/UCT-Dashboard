@@ -50,6 +50,40 @@ two of the three SMR legs and ``peg`` is the Value leg. ⛔ THEY ARE READ FROM
 output. ⛔ Do not re-add them to ``direct``;
 ``test_no_two_screener_sources_write_the_same_column`` derives every source's
 key set by RUNNING it and goes red on the overlap.
+
+──────────────────────────────────────────────────────────────────────────────
+🔴 AND ON 2026-08-22, A FOURTH HANDOVER: ``inst_pct``.
+──────────────────────────────────────────────────────────────────────────────
+``research_ratings.db`` has carried ``inst_pct`` since Phase 2 — one
+Finnhub-shaped ownership fetch per ticker, gathered nightly only under
+``RATINGS_PERCENTILE_ENABLED``. ``finviz_universe.py`` (Task 3) now pulls
+"Institutional Ownership" for the WHOLE MARKET in the same single nightly
+``export.ashx`` request that already carries float/short/ownership —
+full-universe, one request, versus this store's ~3,700 individual gathers for
+the same figure.
+
+⭐ ``finviz_universe.py`` IS THE AUTHORITY going forward.
+
+⚠️ ``inst_pct`` IS STILL READ BELOW, and must be: it is the sole input to this
+module's own ``sponsorship`` letter grade (the research page's percentile
+path, mirrored here — see ``ratings._sponsorship_letter`` for the absolute-band
+sibling this module deliberately does NOT fall back to). Exactly as with
+``rs``/``op_margin``/``roe``/``peg`` above: still an input, no longer an
+output. ⛔ Do not re-add it to ``direct``; the same
+``test_no_two_screener_sources_write_the_same_column`` rail covers it.
+
+⚠️ ORDERING RAIL — READ BEFORE WIRING TASK 10. ``finviz_universe.py`` is
+committed but DELIBERATELY UNWIRED: nothing calls it, and ``build_row`` does
+not merge its artifact. It stays unwired until Task 10 registers BOTH sides —
+the builder reading the Finviz artifact into a row, AND this module no longer
+being the one that writes the column — in the SAME commit window. This commit
+is the second half landing first: from here until Task 10 ships, no code path
+writes ``inst_pct`` at all (a temporary gap, not a second writer — mirrors the
+"changed hands; clears next build" allowance already used for
+``op_margin``/``roe``/``peg`` in ``tests/test_scalar_population_rail.py``).
+What Task 10 must never do is wire the Finviz reader in a commit where this
+module (or a revert of this one) is ALSO still writing the column — that
+pairing is what "no dual-writer window ever exists" means.
 """
 from api.services.research import ratings_db
 from api.services.research.ratings import (
@@ -65,10 +99,25 @@ def load_distributions():
         return {}
 
 
-def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
-    """Given one ticker's stored raw metrics (+ universe distributions), return
-    a dict keyed by snapshot columns, including computed uct_composite/rs_rank.
-    Returns {} when nothing is available."""
+def load_sector_distributions():
+    """Mirror of ``load_distributions`` for the per-sector pools ({}-on-error).
+    Backs Sector RS — a ticker's ``rs_return`` ranked WITHIN its own GICS
+    sector rather than against the whole universe."""
+    try:
+        return ratings_db.get_sector_distributions() or {}
+    except Exception:
+        return {}
+
+
+def ratings_fields(metrics: dict | None, dists: dict | None, sdists: dict | None = None) -> dict:
+    """Given one ticker's stored raw metrics (+ universe distributions, +
+    optional per-sector distributions), return a dict keyed by snapshot
+    columns, including computed uct_composite/rs_rank.
+    Returns {} when nothing is available.
+
+    ``sdists`` is optional and defaults to ``None`` — every pre-Wave-2 caller
+    keeps working unchanged, and Sector RS simply stays absent for them (it is
+    gated on ``if sdists:`` below, not auto-fetched)."""
     if not metrics:
         return {}
     dists = dists or {}
@@ -87,10 +136,12 @@ def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
     # docstring. They are still READ below, because the SMR and Value legs of
     # the composite are computed from them; they are simply no longer also
     # written as columns. `fundamentals_bulk` is their authority.
+    # ⛔ `inst_pct` is DELIBERATELY ABSENT too — see the module docstring's
+    # fourth handover. It is still READ below as the sole input to
+    # `sponsorship`; `finviz_universe` is its authority now.
     direct = {
         "eps_growth": "earnings_growth", "rev_growth": "rev_growth",
-        "pe_fwd": "pe_fwd", "inst_pct": "inst_pct",
-        "sector": "sector",
+        "pe_fwd": "pe_fwd", "sector": "sector",
     }
     for col, src in direct.items():
         if metrics.get(src) is not None:
@@ -124,6 +175,31 @@ def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
     accdis = _letter(ad_pct) if ad_pct is not None else _accdis_letter(ad_r)
     if accdis is not None:
         out["accdis"] = accdis
+
+    # ── Wave 2: components + sector RS + sponsorship ──
+    if metrics.get("blended_growth") is not None:
+        out["blended_growth"] = metrics["blended_growth"]
+    if eps is not None:
+        out["rating_eps"] = int(round(eps))
+    if growth is not None:
+        out["rating_growth"] = int(round(growth))
+    if value is not None:
+        out["rating_value"] = int(round(value))
+    if smr_n is not None:
+        out["rating_smr"] = int(round(smr_n))
+    sp = _pct("inst_pct", metrics.get("inst_pct"))
+    if sp is not None:
+        out["sponsorship"] = _letter(sp)
+    if sdists:
+        srs = ratings_db.sector_percentile(
+            metrics.get("sector"), "rs_return", metrics.get("rs_return"),
+            sdists)
+        if srs is not None:
+            out["sector_rs_pct"] = int(srs)
+    # ⛔ Deliberately absent: `rating_rs`. `rs_rank` (owned by `rs_ranking`,
+    # see below) IS the RS component already — a second spelling of the same
+    # 1-99 rank under a new column name would be this repo's most repeated
+    # defect wearing a new name.
 
     # ⛔ NO `out["rs_rank"] = ...` HERE. `rs` feeds the composite and nothing
     # else; the column belongs to `rs_ranking`. See the module docstring.

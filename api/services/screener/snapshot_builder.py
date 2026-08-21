@@ -5,7 +5,9 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
   - bars     -> ``bars_sqlite.get_bars`` (tuples -> dicts); technicals/candles/patterns
   - ratings  -> ``research_ratings.db`` stored metrics -> ``enrich.ratings_fields``
                 (eps/rev growth, peg, fwd P/E, margin, ROE, accdis + computed
-                 uct_composite via the same percentile path as the research page)
+                 uct_composite via the same percentile path as the research page;
+                 Wave 2 adds the rating_eps/growth/value/smr components,
+                 sector_rs_pct and sponsorship — see that module's docstring)
   - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``)
   - meta     -> ``ticker_meta`` cache (name/sector/industry)
   - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
@@ -270,7 +272,9 @@ def _read_fundamentals(ticker, price=None, failures=None):
 
 def _read_ratings(ticker, failures=None):
     """Reuse the nightly-stored ratings metrics (research_ratings.db) — no
-    network. Returns column-keyed fundamentals + computed uct_composite.
+    network. Returns column-keyed fundamentals + computed uct_composite,
+    plus (Wave 2) the ratings components/sector-RS/sponsorship additions —
+    see `enrich.ratings_fields`'s docstring for the `inst_pct` handover.
 
     ⚠️ AN EMPTY `research_ratings.db` LOOKS EXACTLY LIKE A UNIVERSE OF UNRATED
     TICKERS from inside this function — both are `{}` — so the MISS is counted
@@ -280,6 +284,11 @@ def _read_ratings(ticker, failures=None):
     nothing. Its only writer is `research.ratings_universe.nightly_job`,
     registered only under `RATINGS_PERCENTILE_ENABLED` (default `0`); on
     2026-08-09 the file was 0 bytes.
+
+    Both `load_distributions()` and `load_sector_distributions()` are called
+    ONCE per ticker here and threaded straight into `ratings_fields` — each is
+    already memoized in-process for 10 min inside `ratings_db`, so this is not
+    a per-ticker DB read across a nightly universe pass, just a cheap memo hit.
     """
     def _note(outcome):
         if failures is None:
@@ -297,7 +306,8 @@ def _read_ratings(ticker, failures=None):
     if not metrics:
         _note("no_metrics")
         return {}
-    return enrich.ratings_fields(metrics, enrich.load_distributions())
+    return enrich.ratings_fields(
+        metrics, enrich.load_distributions(), enrich.load_sector_distributions())
 
 
 def _read_rs_map():
