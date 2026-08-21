@@ -500,7 +500,9 @@ def test_new_ath_flag():
 def test_build_row_existing_columns_identical_under_deep_read():
     """The 400-slice keeps every pre-Wave-1 value byte-identical."""
     from api.services.screener import snapshot_builder
-    deep = [bar(50.0) for _ in range(600)] + [bar(100.0) for _ in range(400)]
+    # old history HIGHER than the recent tape, so the ATH lives outside the
+    # 400-bar tail and the two ATH answers must differ
+    deep = [bar(200.0) for _ in range(600)] + [bar(100.0) for _ in range(400)]
     row_deep = snapshot_builder.build_row("T", deep, None, None)
     row_400 = snapshot_builder.build_row("T", deep[-400:], None, None)
     for col in ("rsi14", "adr_pct", "atr_pct", "pct_vs_sma200",
