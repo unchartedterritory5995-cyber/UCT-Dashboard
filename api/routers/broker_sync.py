@@ -171,6 +171,16 @@ def option_marks(
     return {"marks": _marks.get_option_marks(user["id"], account_id)}
 
 
+@router.post("/backfill-history")
+def backfill_history(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Rebuild the member's historical equity snapshots from the activity
+    replay (see broker/history_backfill.py). Heals the 1W/1M/3M/YTD/ALL hero
+    ranges after a disconnect wiped the snapshot history. Idempotent and
+    strictly additive — a real sync-written snapshot for a date always wins."""
+    from api.services.journal_two.broker import history_backfill
+    return {"results": history_backfill.backfill_all_accounts(user["id"])}
+
+
 @router.post("/sync")
 async def sync_now(
     user: dict = Depends(_paid), full: bool = False, force: bool = False,
