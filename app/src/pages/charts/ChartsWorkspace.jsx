@@ -974,7 +974,13 @@ export default function ChartsWorkspace() {
   const minHFor = useCallback((w) => WIDGET_DEFAULTS[w.type]?.minH || 3, [])
   const handleSeamResize = useCallback((nextWidgets, commit) => {
     setLayout(prev => {
-      const next = { ...prev, widgets: clampWidgetsToRows(nextWidgets) }
+      // `nextWidgets` is derived from the merged board's VISIBLE widgets only —
+      // floated + popped widgets were filtered out of that set. Re-append any
+      // widget not present in `nextWidgets` UNCHANGED, or a seam drag would drop
+      // them from layout.widgets and the floating/popped panel would vanish.
+      const seamIds = new Set(nextWidgets.map(w => w.id))
+      const preserved = prev.widgets.filter(w => !seamIds.has(w.id))
+      const next = { ...prev, widgets: clampWidgetsToRows([...nextWidgets, ...preserved]) }
       if (commit) scheduleSave(next)
       return next
     })
