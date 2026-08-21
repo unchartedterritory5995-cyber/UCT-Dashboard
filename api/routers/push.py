@@ -177,19 +177,9 @@ def push_intraday(
     # Store as separate cache key — never overwrites wire_data
     cache.set("intraday_update", payload, ttl=14400)  # 4 hours
 
-    # If regime has exposure update, patch the wire_data exposure in cache
+    # One authority (spec 2026-08-21): the wire's published score IS the UCT
+    # Exposure. The brain's regime opinion stays under intraday_update only.
     regime = payload.get("regime")
-    if regime and "exposure_pct" in regime:
-        wire = cache.get("wire_data")
-        if wire and isinstance(wire, dict):
-            exposure = wire.get("exposure", {})
-            if isinstance(exposure, dict):
-                exposure["score"] = regime["exposure_pct"]
-                exposure["exposure"] = min(regime["exposure_pct"], 100)
-                wire["exposure"] = exposure
-                cache.set("wire_data", wire, ttl=82800)
-                # Invalidate breadth cache so next request picks up new exposure
-                cache.invalidate("breadth")
 
     # Fire alerts for regime changes and exposure shifts
     try:
