@@ -870,7 +870,11 @@ export default function ChartsWorkspace() {
     const def = WIDGET_DEFAULTS[widget.type] || {}
     // The layout at resize START — the STABLE base every tick resolves against, so
     // neighbour shrink never compounds and the resolve is deterministic.
-    const baseWidgets = layoutRef.current?.widgets || []
+    // Floated/popped widgets are lifted OFF the board — the resize must not treat
+    // their (reserved) slots as occupied, or a neighbour can't grow into the freed
+    // space (it "rejects"). They're re-appended UNCHANGED on each commit below.
+    const baseWidgets = (layoutRef.current?.widgets || [])
+      .filter(w => !floatingWidgetIds.includes(w.id) && !poppedWidgetIds.includes(w.id))
     const st = {
       id: widget.id, type: widget.type, handle, baseWidgets,
       startX: e.clientX, startY: e.clientY,
@@ -923,7 +927,11 @@ export default function ChartsWorkspace() {
         if (!st.raf) st.raf = requestAnimationFrame(() => {
           st.raf = 0
           if (resizeRef.current === st && st.resolved) {
-            setLayout(prev => ({ ...prev, widgets: st.resolved }))
+            setLayout(prev => {
+              const ids = new Set(st.resolved.map(w => w.id))
+              const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped
+              return { ...prev, widgets: [...st.resolved, ...preserved] }
+            })
           }
         })
       }
@@ -948,7 +956,9 @@ export default function ChartsWorkspace() {
       resizeRef.current = null
       setResizingId(null)
       setLayout(prev => {
-        const next = { ...prev, widgets: resolved }
+        const ids = new Set(resolved.map(w => w.id))
+        const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped stay put
+        const next = { ...prev, widgets: [...resolved, ...preserved] }
         if (hydratedRef.current) scheduleSave(next)
         return next
       })
@@ -957,7 +967,7 @@ export default function ChartsWorkspace() {
     setResizingId(widget.id)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-  }, [resizeGeomAt, applyActivePx, scheduleSave])
+  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
 
   const handleRemoveWidget = useCallback((id) => {
     setLayout(prev => {
