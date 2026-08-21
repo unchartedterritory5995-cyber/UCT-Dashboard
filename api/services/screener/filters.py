@@ -200,6 +200,25 @@ FILTERS = dict([
     # answer, and a better one than every financial in America.
     _open_range("current_ratio", "Current Ratio", "fundamental",
                 "current_ratio"),
+    # ── Wave 2 (fundamental) — bare like the ten above; no editorial presets ──
+    _open_range("quick_ratio", "Quick Ratio", "fundamental", "quick_ratio"),
+    _open_range("p_fcf", "P/FCF", "fundamental", "p_fcf"),
+    _open_range("p_ocf", "P/OCF", "fundamental", "p_ocf"),
+    _open_range("payout_ratio", "Payout Ratio", "fundamental", "payout_ratio",
+                unit="%"),
+    _open_range("roic", "ROIC", "fundamental", "roic", unit="%"),
+    _open_range("lt_debt_to_capital", "LT Debt / Capital", "fundamental",
+                "lt_debt_to_capital"),
+    # ISO dates compare correctly as TEXT in SQLite, so a custom range works
+    # server-side today; the old panel's number inputs can't type one — the
+    # usable control is ipo_age_days below, and Wave 3's typed controls make
+    # this one first-class. It exists because every bulk-written column must
+    # carry a control (the registry rail).
+    _open_range("ipo_date", "IPO Date", "descriptive", "ipo_date"),
+    _open_range("ipo_age_days", "IPO Age (days)", "descriptive",
+                "ipo_age_days"),
+    _enum("country", "Country", "descriptive", "country",
+          [{"label": "Any"}], options_column="country"),
     # ── technical ──
     _range("rs_rank", "RS Rank", "technical", "rs_rank",
            [{"label": "Any"}, {"label": "Over 70", "op": "gte", "min": 70},

@@ -145,6 +145,13 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # platform).
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
+    # Pure derivation, single writer: age from the profile-bulk listing date.
+    if row.get("ipo_date"):
+        try:
+            listed = datetime.date.fromisoformat(str(row["ipo_date"])[:10])
+            row["ipo_age_days"] = max(0, (datetime.date.today() - listed).days)
+        except (TypeError, ValueError):
+            pass
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
     return row

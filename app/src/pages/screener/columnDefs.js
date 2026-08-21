@@ -132,4 +132,14 @@ export const COLUMN_DEFS = {
   higher_lows_run: { label: 'HL Run', fmt: num(0) },
   pullback_depth_pct: { label: 'Pullback%', fmt: pctPlain(1) },
   consecutive_up: { label: 'Up Run', fmt: num(0) },
+  // Wave 2 — FMP bulk: six unread ratio fields + ipo_date/country
+  quick_ratio: { label: 'Quick', fmt: num(1) },
+  p_fcf: { label: 'P/FCF', fmt: num(1) },
+  p_ocf: { label: 'P/OCF', fmt: num(1) },
+  payout_ratio: { label: 'Payout', fmt: pctPlain(0) },
+  roic: { label: 'ROIC', fmt: pctPlain(0) },
+  lt_debt_to_capital: { label: 'LTD/Cap', fmt: num(2) },
+  ipo_date: { label: 'IPO', fmt: v => v ? String(v).slice(0, 10) : '—' },
+  ipo_age_days: { label: 'IPO Age', fmt: num(0) },
+  country: { label: 'Country', fmt: v => v || '—' },
 }
