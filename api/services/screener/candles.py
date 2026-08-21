@@ -68,7 +68,8 @@ def single_candle(bars: list[dict]) -> dict:
 def multi_candle(bars: list[dict]) -> dict:
     out = {"inside_bar_run": 0, "tight_consolidation": False,
            "pullback_depth_pct": None, "higher_lows_run": 0, "nr7": False,
-           "consecutive_up": 0, "consecutive_down": 0}
+           "consecutive_up": 0, "consecutive_down": 0,
+           "close_cv_pct": None, "avg_body_pct_5": None}
     n = len(bars)
     if n < 2:
         return out
@@ -84,14 +85,25 @@ def multi_candle(bars: list[dict]) -> dict:
     if n >= 7:
         ranges = [bars[i]["h"] - bars[i]["l"] for i in range(n - 7, n)]
         out["nr7"] = ranges[-1] <= min(ranges)
-    # tight consolidation: coefficient of variation of last 10 closes < 2.5%
+    # tightness: CV of last 10 closes, kept as the NUMBER (the scanner's
+    # close_cv_pct); the bool is derived from it at the same 2.5% line so the
+    # two can never disagree (previously the bool destroyed the number).
     if n >= 10:
         closes = [b["c"] for b in bars[-10:]]
         mean = sum(closes) / len(closes)
         if mean:
             var = sum((x - mean) ** 2 for x in closes) / len(closes)
-            cv = (var ** 0.5) / mean
-            out["tight_consolidation"] = cv < 0.025
+            cv_pct = (var ** 0.5) / mean * 100
+            out["close_cv_pct"] = round(cv_pct, 2)
+            out["tight_consolidation"] = cv_pct < 2.5
+    # 5-bar average body fraction (scanner's avg_body_pct, promoted)
+    bodies = []
+    for b in bars[-5:]:
+        rng = b["h"] - b["l"]
+        if rng > 0:
+            bodies.append(abs(b["c"] - b["o"]) / rng)
+    if bodies:
+        out["avg_body_pct_5"] = round(sum(bodies) / len(bodies), 3)
     # higher-lows run
     hl = 0
     for i in range(n - 1, 0, -1):
