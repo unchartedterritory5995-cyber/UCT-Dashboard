@@ -232,3 +232,60 @@
   .wrap { padding: 14px 8px 8px; }
   .perfPct { font-size: 13px; }
 }
+
+/* ── The risk-managed Book lane ─────────────────────────────────────────
+   Sits directly under the tracker's own description, because the first thing
+   a reader needs to know is that the curve below is the NO-STOPS arm and this
+   is the other one. */
+.bookLane {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.bookHead {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.bookTitle {
+  font-family: var(--font-sans);
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--ut-gold); text-transform: uppercase;
+}
+.bookBadge {
+  font-family: var(--font-sans);
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px;
+}
+.bookRecording {
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.bookLive {
+  color: var(--gain);
+  border: 1px solid var(--gain);
+}
+.bookNote {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 10px; line-height: 1.55; color: var(--text-muted);
+}
+.bookNote strong {
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.bookStats { display: flex; flex-wrap: wrap; gap: 12px 22px; }
+.bookStat { display: flex; flex-direction: column; gap: 2px; }
+.bookStatLabel {
+  font-family: var(--font-sans);
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.bookStatVal {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 700; color: var(--text-bright);
+}

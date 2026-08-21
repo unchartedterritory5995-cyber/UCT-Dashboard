@@ -293,6 +293,7 @@ def poll_all() -> list[dict]:
     except Exception:
         pass
     _backfill_slice()
+    _sync_sunday_scans_watchlist()
     return results
 
 
@@ -329,3 +330,16 @@ def _backfill_slice() -> None:
                   f"pending={idx['pending']}")
     except Exception as e:  # noqa: BLE001 — never break the poll over a body
         print(f"[substack] backfill slice failed (non-fatal): {str(e)[:200]}")
+
+
+def _sync_sunday_scans_watchlist() -> None:
+    """Keep the auto-maintained 'Sunday Scans' community watchlist on the newest
+    issue's ticker roster. Rides the poll that just stored that roster, so the
+    list updates within the same hour a new letter lands. Never breaks the poll."""
+    try:
+        from api.services import watchlist_prebuilt
+        got = watchlist_prebuilt.sync_sunday_scans()
+        if got.get("status") == "rebuilt":
+            print(f"[substack] sunday-scans watchlist rebuilt ({got.get('count')} tickers)")
+    except Exception as e:  # noqa: BLE001 — a watchlist is not worth losing the poll over
+        print(f"[substack] sunday-scans watchlist sync failed (non-fatal): {str(e)[:200]}")

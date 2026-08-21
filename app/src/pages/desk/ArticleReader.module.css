@@ -397,3 +397,78 @@
   text-decoration: underline; text-underline-offset: 2px;
 }
 .resumedBtn:hover { color: var(--ut-gold); }
+
+/* ══ issue-level actions (copy roster / save watchlist / download PDF) ══════ */
+.actionRow {
+  display: flex; align-items: center; gap: var(--space-sm);
+  flex-wrap: wrap; margin-top: var(--space-sm);
+}
+.actionBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  font-size: var(--text-xs); font-family: inherit; line-height: 1.4;
+}
+.actionBtn:hover { color: var(--text-bright); background: var(--bg-elevated); }
+.actionBtn:disabled { opacity: 0.7; cursor: default; }
+
+/* ══ print / Save-as-PDF — the branded document downloadPdf() produces ══════
+   Same mechanism as the Notebook's printNote(): a body class scopes the print
+   stylesheet; everything is visibility-hidden except the [data-print-root]
+   subtree, and interactive chrome carries data-export-exclude. */
+.printBrand, .printRoster { display: none; }
+
+@media print {
+  /* The app scrolls an inner .main element under an overflow:hidden .shell —
+     left alone, that clips the printout to one viewport-tall page. */
+  :global(body.uct-print-article) * { visibility: hidden; overflow: visible !important; }
+  :global(body.uct-print-article) [data-print-root],
+  :global(body.uct-print-article) [data-print-root] * { visibility: visible; }
+  :global(body.uct-print-article) [data-print-root] {
+    position: absolute; left: 0; top: 0; width: 100%;
+    padding: 0; margin: 0;
+  }
+  :global(body.uct-print-article) [data-export-exclude] { display: none !important; }
+
+  /* Ink-friendly: the app is a dark theme; the page is paper. */
+  :global(body.uct-print-article) [data-print-root],
+  :global(body.uct-print-article) [data-print-root] * {
+    color: #16181d !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Single column, full width — the sticky TOC is excluded above. */
+  :global(body.uct-print-article) .layout { display: block; }
+  :global(body.uct-print-article) .body { max-width: 100%; }
+  :global(body.uct-print-article) .body img {
+    max-width: 100% !important;
+    break-inside: avoid;
+  }
+  :global(body.uct-print-article) .head { break-after: avoid; }
+  /* The masthead already says who we are — the on-screen eyebrow would say it
+     twice, one line apart. */
+  :global(body.uct-print-article) .eyebrow { display: none; }
+
+  /* The masthead: brand line above the title, the full roster under the meta. */
+  :global(body.uct-print-article) .printBrand {
+    display: block;
+    font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: #8a6d2a !important;
+    padding-bottom: 8px; margin-bottom: 14px;
+    border-bottom: 1px solid #d8d2c2;
+  }
+  :global(body.uct-print-article) .title { font-size: 30px; line-height: 1.15; }
+  :global(body.uct-print-article) .printRoster {
+    display: block;
+    margin-top: 12px; padding: 10px 0;
+    border-top: 1px solid #d8d2c2; border-bottom: 1px solid #d8d2c2;
+    font-size: 11px; line-height: 1.7; letter-spacing: 0.02em;
+    color: #3a3d45 !important;
+  }
+  :global(body.uct-print-article) .printRosterLabel {
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 10px; color: #8a6d2a !important;
+  }
+}

@@ -30,7 +30,11 @@ from api.middleware.auth_middleware import (
     get_current_user_with_plan,
     is_paid_user,
 )
-from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data, get_uct20_backtest_data, get_analyst_actions, _load_wire_data
+from api.services.engine import (
+    get_breadth, get_themes, get_leadership, get_rundown,
+    get_uct20_portfolio_data, get_uct20_backtest_data, get_uct20_book_data,
+    get_analyst_actions, _load_wire_data,
+)
 from api.services.cache import cache as _cache
 
 router = APIRouter()
@@ -209,6 +213,20 @@ def uct20_portfolio(_user: dict = Depends(require_paid)):
 def uct20_backtest(_user: dict = Depends(require_paid)):
     try:
         return get_uct20_backtest_data()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/uct20/book")
+def uct20_book(_user: dict = Depends(require_paid)):
+    """The live risk-managed Book.
+
+    {} when the Book is off or has never run. When it has run but is still
+    short of a usable sample the payload carries stats_published=False and the
+    client must show the counts rather than the performance.
+    """
+    try:
+        return get_uct20_book_data()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
