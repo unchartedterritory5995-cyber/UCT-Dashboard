@@ -121,7 +121,15 @@
 }
 @media (max-width: 1024px) {
   .railSlot { display: none; }
-  .railToggle { display: inline-flex; }
+  .railToggle { display: inline-flex; min-height: var(--tap-min, 44px); }
+  /* Touch tap-target floor (CLAUDE.md "Tap targets") — these render at 26-30px
+     on the desktop-tuned base rules above; bump them on touch without
+     affecting the mouse-driven desktop sizing. */
+  .viewTab, .toolBtn { min-height: var(--tap-min, 44px); }
+  .seal { min-height: var(--tap-min, 44px); }
+  /* Sortable column-header buttons in the tablet-width desktop-style grid
+     (phone shows ResultCards instead, so this only reaches tablet). */
+  .hbtn { display: flex; align-items: center; min-height: var(--tap-min, 44px); }
 }
 @media (max-width: 640px) {
   .shell { padding: 12px; }
