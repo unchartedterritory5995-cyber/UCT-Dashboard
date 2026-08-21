@@ -584,6 +584,12 @@ def test_run_build_counts_a_ticker_the_bulk_pass_had_no_row_for(tmp_path, monkey
     monkeypatch.setattr(b, "_read_rs_map", lambda: {})
     monkeypatch.setattr(b, "_read_bulk_fundamentals",
                         lambda targets, failures=None: {"AAA": {"pe_ttm": 12.0}})
+    from api.services.screener import context_joins as cj
+    # context readers stubbed: run_build unit tests predate context joins; real reads trip the shared-data-root guard on the dev box
+    monkeypatch.setattr(cj, "read_breadth_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_uct20", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_index_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_etf_flags", lambda targets, failures=None: {})
 
     stats = b.run_build()
     assert stats["sources"]["fmp_bulk"] == {"no_row": 1}

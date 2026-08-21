@@ -127,6 +127,12 @@ def test_run_build_names_the_columns_that_came_out_empty(tmp_path, monkeypatch):
     # green this repo has measured before.
     monkeypatch.setattr(b, "_read_bulk_fundamentals",
                         lambda targets, failures=None: {})
+    from api.services.screener import context_joins as cj
+    # context readers stubbed: run_build unit tests predate context joins; real reads trip the shared-data-root guard on the dev box
+    monkeypatch.setattr(cj, "read_breadth_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_uct20", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_index_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_etf_flags", lambda targets, failures=None: {})
 
     stats = b.run_build()
     assert stats["built"] == 2
@@ -161,6 +167,12 @@ def test_run_build_stops_naming_a_column_once_it_is_filled(tmp_path, monkeypatch
                                  "BBB": {"rs_rank": 10, "rs_score": -4.0}})
     monkeypatch.setattr(b, "_read_bulk_fundamentals",
                         lambda targets, failures=None: {})
+    from api.services.screener import context_joins as cj
+    # context readers stubbed: run_build unit tests predate context joins; real reads trip the shared-data-root guard on the dev box
+    monkeypatch.setattr(cj, "read_breadth_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_uct20", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_index_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_etf_flags", lambda targets, failures=None: {})
     stats = b.run_build()
     assert "market_cap" not in stats["empty_columns"]
     assert "rs_rank" not in stats["empty_columns"]
