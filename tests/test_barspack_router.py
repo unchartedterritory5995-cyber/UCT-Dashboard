@@ -63,6 +63,24 @@ def test_delta_route_wins_over_numeric_shard(monkeypatch):
     assert r.status_code == 404  # reached the delta handler (missing obj), not a 422
 
 
+def test_hot_served_and_decodes(monkeypatch):
+    payload = gzip.compress(json.dumps({"format": 1, "tickers": {"SPY": {}}}).encode())
+    seen = {}
+    monkeypatch.setattr(ds, "get_bytes", lambda k: (seen.__setitem__("key", k), payload)[1])
+    r = _client().get("/api/barspack/2026-08-14/hot")
+    assert r.status_code == 200
+    assert seen["key"] == "barspack/2026-08-14/hot.json.gz"
+    assert r.json()["tickers"] == {"SPY": {}}
+    assert "immutable" in r.headers["cache-control"]
+
+
+def test_hot_route_wins_over_numeric_shard(monkeypatch):
+    # 'hot' must not fall through to /{date}/{idx} (which requires digits).
+    monkeypatch.setattr(ds, "get_bytes", lambda k: None)
+    r = _client().get("/api/barspack/2026-08-14/hot")
+    assert r.status_code == 404  # reached the hot handler (missing obj), not a 422
+
+
 def test_shard_rejects_path_traversal(monkeypatch):
     monkeypatch.setattr(ds, "get_bytes", lambda k: b"should-not-be-reached")
     c = _client()

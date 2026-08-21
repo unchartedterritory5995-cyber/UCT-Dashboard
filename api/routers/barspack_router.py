@@ -70,6 +70,20 @@ def delta(date: str):
     return Response(content=body, media_type="application/json", headers=_SHARD_HEADERS)
 
 
+@router.get("/{date}/hot")
+def hot(date: str):
+    """The hot-set shard (the ~100 most-opened names) — immutable, gzipped.
+    Declared before /{date}/{idx} so the literal 'hot' wins over the numeric
+    shard route (same pattern as /{date}/delta). A first-visit browser ingests
+    this ONE small edge-cached file eagerly for instant first-open charts."""
+    if not _valid_date(date):
+        return Response(status_code=404, headers=_NO_CACHE)
+    body = data_sync.get_bytes(f"{_PREFIX}/{date}/hot.json.gz")
+    if not body:
+        return Response(status_code=404, headers=_NO_CACHE)
+    return Response(content=body, media_type="application/json", headers=_SHARD_HEADERS)
+
+
 @router.get("/{date}/{idx}")
 def shard(date: str, idx: str):
     """One immutable gzipped shard. Validates the path so it can only ever

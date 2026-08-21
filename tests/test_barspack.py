@@ -152,10 +152,19 @@ def test_build_encodes_every_ticker_and_decodes_identically(monkeypatch):
     assert manifest["format"] == barspack.PACK_FORMAT
     assert manifest["ticker_count"] == 200
     # Numbered shards: every one named in the manifest is present, and vice-versa
-    # (the delta file is tracked separately under manifest["delta"]).
-    numbered = {k for k in shards if not k.endswith("/delta.json.gz")}
+    # (the delta file is tracked under manifest["delta"], the hot shard under
+    # manifest["hot"] — both separate from the numbered set).
+    numbered = {k for k in shards if not (k.endswith("/delta.json.gz")
+                                          or k.endswith("/hot.json.gz"))}
     assert {s["name"] for s in manifest["shards"]} == numbered
     assert manifest["delta"]["name"] in shards
+
+    # Hot shard: present, tracked under manifest["hot"], and carries the priority
+    # names (e.g. SPY) so a first-visit browser can ingest just this one file.
+    assert manifest["hot"]["name"] in shards
+    assert manifest["hot"]["name"].endswith("/hot.json.gz")
+    hot_decoded = _decode_shard(shards[manifest["hot"]["name"]])
+    assert "SPY" in hot_decoded and "QQQ" in hot_decoded
 
     # Reconstruct the WHOLE universe from the numbered shards and compare.
     seen = {}

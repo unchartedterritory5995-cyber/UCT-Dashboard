@@ -828,6 +828,52 @@ def integrity_ok() -> bool:
         return False
 
 
+def integrity_smoke_ok() -> bool:
+    """Near-instant structural smoke probe for /data/bars.db — the BOOT-path
+    replacement for the full ``PRAGMA quick_check``.
+
+    quick_check reads every b-tree page (~200-280s on this 58M-row store) and,
+    even in a background thread, its CPU/IO starved the single-process web pod for
+    ~5 min after EVERY deploy (warm charts served at 20-42s during the window).
+    This does NOT scan the whole file: it opens the db and exercises the header,
+    the schema b-tree, the ohlcv table b-tree (head + tail pages), and the lookup
+    index b-tree with a handful of O(1) reads. A "disk image is malformed" from a
+    crash mid-write or disk fault trips one of these instantly.
+
+    Coverage trade — deliberate, and the same one quick_check already accepted for
+    index/content drift: deep corruption in a COLD interior page this probe never
+    touches is left to (1) the runtime malformed-error path (``_is_malformed_error``
+    → resync), (2) the deferred periodic full ``integrity_ok`` deep pass, and
+    (3) bars_reconciliation. The snapshot web pulls was already integrity-checked
+    on the worker before upload (data_sync assert-shippable), so a web-local
+    mid-write crash is the realistic corruption this guards, and it lives on the
+    hot pages this touches.
+
+    Returns True on a missing file (init_db creates fresh) or when every probe read
+    succeeds; False on any DatabaseError (structural corruption).
+    """
+    if not os.path.exists(_DB_PATH):
+        return True
+    try:
+        c = sqlite3.connect(_DB_PATH, timeout=10)
+        try:
+            c.execute("PRAGMA schema_version").fetchone()               # db header
+            c.execute("SELECT count(*) FROM sqlite_master").fetchone()  # schema b-tree
+            # ohlcv table b-tree — head page (LIMIT 1) + tail page (rowid DESC).
+            # Any ticker: this validates STRUCTURE, not the presence of a symbol.
+            c.execute("SELECT ticker,tf,ts,c FROM ohlcv LIMIT 1").fetchone()
+            c.execute("SELECT ts FROM ohlcv ORDER BY rowid DESC LIMIT 1").fetchone()
+            # Lookup index b-tree via the exact hot serve path (idx_ohlcv_lookup).
+            c.execute("SELECT ts FROM ohlcv WHERE ticker='AAPL' AND tf='D' "
+                      "ORDER BY ts DESC LIMIT 1").fetchone()
+            return True
+        finally:
+            c.close()
+    except sqlite3.DatabaseError as e:
+        _logger.error(f"[sqlite] integrity smoke probe failed: {e}")
+        return False
+
+
 def _is_malformed_error(exc: BaseException) -> bool:
     """True if the SQLite exception indicates on-disk corruption.
 
