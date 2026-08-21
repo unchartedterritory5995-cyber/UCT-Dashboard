@@ -10,6 +10,7 @@ import sqlite3
 from api.services.journal_two import db as j2db
 from api.services.journal_two.excursions_store import (
     upsert_excursion, get_excursion, list_excursions_for_user, existing_refs,
+    backfill_true_r,
 )
 
 
@@ -32,6 +33,7 @@ _FULL = {
     "missed_r": 1.0,
     "bar_resolution": "5m",
     "data_quality": "intraday_5m",
+    "true_r": 2.5,
 }
 
 
@@ -49,6 +51,7 @@ def test_upsert_get_roundtrip_camelcase():
     assert out["maeTs"] == 3000
     assert out["exitEfficiency"] == 0.6667
     assert out["missedR"] == 1.0
+    assert out["trueR"] == 2.5
     assert out["barResolution"] == "5m"
     assert out["dataQuality"] == "intraday_5m"
     assert out["computedAt"]  # stamped ISO timestamp
@@ -119,3 +122,85 @@ def test_insufficient_tier_row_stores_none_metrics():
     assert out["maeR"] is None
     assert out["exitEfficiency"] is None
     assert out["computedAt"]  # still stamped even for an insufficient record
+
+
+# ── backfill_true_r — pure-SQL heal for pre-column rows ──────────────────
+
+def _seed_trade(conn, tid, *, side="Long", entry=100.0, exit_p=110.0,
+                external_id=None, user_id="u1"):
+    conn.execute(
+        """
+        INSERT INTO j2_trades (
+            id, user_id, position_id, symbol, side, shares,
+            entry_price, entry_date, exit_price, exit_date,
+            original_stop, setup, notes, pnl_dollar, pnl_percent,
+            r_multiple, hold_days, result, context_at_entry,
+            account_id, created_at, external_id
+        ) VALUES (?, ?, 'manual', 'NVDA', ?, 100, ?, '2026-08-01', ?,
+                  '2026-08-05', ?, NULL, NULL, 0, 0, NULL, 4, 'Win', '{}',
+                  1, '2026-08-05T00:00:00', ?)
+        """,
+        (tid, user_id, side, entry, exit_p, entry, external_id),
+    )
+    conn.commit()
+
+
+def _seed_legacy_excursion(conn, trade_ref, *, mae_price, user_id="u1"):
+    """A row written BEFORE the true_r column existed (true_r NULL)."""
+    row = dict(_FULL, mae_price=mae_price)
+    row.pop("true_r")
+    upsert_excursion(user_id, trade_ref, row, conn)
+    conn.execute(
+        "UPDATE j2_trade_excursions SET true_r = NULL WHERE trade_ref = ?",
+        (trade_ref,),
+    )
+    conn.commit()
+
+
+def test_backfill_true_r_long_via_id_ref():
+    conn = _conn()
+    _seed_trade(conn, "t1", entry=100.0, exit_p=110.0)
+    _seed_legacy_excursion(conn, "id:t1", mae_price=96.0)
+    n = backfill_true_r(conn)
+    assert n == 1
+    out = get_excursion("u1", "id:t1", conn)
+    assert out["trueR"] == (110.0 - 100.0) / (100.0 - 96.0)  # 2.5
+
+
+def test_backfill_true_r_short_via_ext_ref():
+    conn = _conn()
+    _seed_trade(conn, "t2", side="Short", entry=50.0, exit_p=45.0,
+                external_id="snap-abc")
+    _seed_legacy_excursion(conn, "ext:snap-abc", mae_price=53.0)
+    backfill_true_r(conn)
+    out = get_excursion("u1", "ext:snap-abc", conn)
+    assert abs(out["trueR"] - (50.0 - 45.0) / (53.0 - 50.0)) < 1e-9
+
+
+def test_backfill_skips_already_computed_and_is_idempotent():
+    conn = _conn()
+    _seed_trade(conn, "t1", entry=100.0, exit_p=110.0)
+    upsert_excursion("u1", "id:t1", _FULL, conn)  # already carries true_r=2.5
+    assert backfill_true_r(conn) == 0
+    assert get_excursion("u1", "id:t1", conn)["trueR"] == 2.5
+
+
+def test_backfill_no_adverse_or_orphan_stays_null():
+    conn = _conn()
+    # MAE at entry ⇒ zero adverse ⇒ NULL by design (never inf)
+    _seed_trade(conn, "t1", entry=100.0, exit_p=110.0)
+    _seed_legacy_excursion(conn, "id:t1", mae_price=100.0)
+    # orphan excursion (no matching trade — e.g. option-strategy underlying)
+    _seed_legacy_excursion(conn, "id:ghost", mae_price=96.0)
+    backfill_true_r(conn)
+    assert get_excursion("u1", "id:t1", conn)["trueR"] is None
+    assert get_excursion("u1", "id:ghost", conn)["trueR"] is None
+
+
+def test_backfill_never_crosses_users():
+    conn = _conn()
+    _seed_trade(conn, "t1", entry=100.0, exit_p=110.0, user_id="u1")
+    # u2 owns the excursion but NOT the trade — must stay NULL
+    _seed_legacy_excursion(conn, "id:t1", mae_price=96.0, user_id="u2")
+    backfill_true_r(conn)
+    assert get_excursion("u2", "id:t1", conn)["trueR"] is None

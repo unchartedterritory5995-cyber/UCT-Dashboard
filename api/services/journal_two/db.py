@@ -879,6 +879,10 @@ _PHASE_2_ALTERS = [
     "bar_resolution TEXT, data_quality TEXT, computed_at TEXT NOT NULL, "
     "PRIMARY KEY (user_id, trade_ref))",
     "CREATE INDEX IF NOT EXISTS idx_j2_excursions_user ON j2_trade_excursions(user_id)",
+    # True R (2026-08-21) — stop-free R vs the risk actually taken (MAE).
+    # Derivable from stored mae_price + the trade row, so old rows backfill
+    # via pure SQL (excursions_store.backfill_true_r) with no bars refetch.
+    "ALTER TABLE j2_trade_excursions ADD COLUMN true_r REAL",
     # Journal A+ P5-A2 — per-setup rule LABELS (the checklist template each
     # trade of that setup is graded against later). JSON blob parallel to
     # `setups`: {setupName: [{id, label}]}. Defaults to {} for legacy rows.

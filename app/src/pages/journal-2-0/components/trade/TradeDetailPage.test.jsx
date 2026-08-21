@@ -89,7 +89,7 @@ const swrData = {
     brokerActivities: [],
     excursion: {
       symbol: 'REAL', mfePrice: 62, maePrice: 48, mfeR: 3, maeR: -1,
-      exitEfficiency: 0.667, missedR: 1, barResolution: '5', dataQuality: 'intraday_5m',
+      exitEfficiency: 0.667, missedR: 1, trueR: 2.5, barResolution: '5', dataQuality: 'intraday_5m',
     },
   },
   // Insufficient tier → "N/A".
@@ -171,7 +171,9 @@ describe('TradeDetailPage', () => {
 
   it('null excursion shows the Pending exit-efficiency state', () => {
     renderPage()
-    expect(screen.getByText('Pending')).toBeInTheDocument()
+    // BOTH excursion-fed cells (Exit efficiency + True R) share the honest
+    // pending state — exactly two, never a fabricated number.
+    expect(screen.getAllByText('Pending')).toHaveLength(2)
   })
 
   it('a real excursion renders the % + bar-approx resolution label', () => {
@@ -182,9 +184,21 @@ describe('TradeDetailPage', () => {
     expect(screen.getByText(/exit efficiency = captured/)).toBeInTheDocument()
   })
 
+  it('renders True R from the excursion (stop-free, signed, colored)', () => {
+    renderPage('treal')
+    expect(screen.getByText('+2.50R')).toBeInTheDocument()
+  })
+
+  it('True R shows the no-adverse dash when trueR is null on a computed excursion', () => {
+    renderPage('tunder') // fixture has no trueR field
+    const dashes = screen.getAllByTitle(/Never traded against your entry/)
+    expect(dashes).toHaveLength(1)
+  })
+
   it('insufficient data quality shows N/A', () => {
     renderPage('tinsuff')
-    expect(screen.getByText('N/A')).toBeInTheDocument()
+    // Exit efficiency + True R both degrade to N/A on the insufficient tier.
+    expect(screen.getAllByText('N/A')).toHaveLength(2)
     expect(screen.queryByText('Pending')).not.toBeInTheDocument()
   })
 
