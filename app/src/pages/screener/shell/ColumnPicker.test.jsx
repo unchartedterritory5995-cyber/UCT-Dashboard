@@ -32,4 +32,12 @@ describe('ColumnPicker', () => {
     expect(screen.getByText('Pole%')).toBeInTheDocument()
     expect(screen.queryByText('Price')).toBeNull()
   })
+
+  it('moving the SECOND visible item up never displaces ticker from position 0', () => {
+    const onChange = vi.fn()
+    render(<ColumnPicker open onClose={() => {}} allColumns={ALL}
+      visible={['ticker', 'price', 'candle_score']} onChange={onChange} onReset={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Move Price up'))
+    expect(onChange).not.toHaveBeenCalled()
+  })
 })

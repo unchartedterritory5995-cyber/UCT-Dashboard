@@ -32,4 +32,17 @@ describe('ShellToolbar', () => {
     expect(screen.getByRole('button', { name: /density/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('status')).toHaveTextContent(/nothing downloaded/i)
   })
+
+  it('unmounting with the seal popover open removes the outside-click listener', () => {
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+    const { unmount } = render(<ShellToolbar {...base} />)
+    fireEvent.click(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
+    const added = addSpy.mock.calls.filter(([t]) => t === 'mousedown').length
+    unmount()
+    const removed = removeSpy.mock.calls.filter(([t]) => t === 'mousedown').length
+    expect(added).toBeGreaterThan(0)
+    expect(removed).toBe(added)
+    addSpy.mockRestore(); removeSpy.mockRestore()
+  })
 })
