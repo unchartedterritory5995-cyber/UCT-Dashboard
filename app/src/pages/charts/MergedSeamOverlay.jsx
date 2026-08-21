@@ -5,15 +5,19 @@
 // whole grid columns/rows and grows one side while shrinking the neighbor, so the
 // board never gaps or overlaps (all math in the pure mergedSeams module).
 //
-// Drag mechanics: the layout updates live as you drag (preview), which MOVES the
-// dragged seam bar to the new boundary and remounts it (its React key is the
-// boundary column/row). So we CANNOT rely on the bar element for move/up — a
-// pointer capture on it would die on the first remount. Instead we attach ONE
-// stable pair of window listeners on pointer-down (via latest-logic refs, immune
-// to re-render) and drive everything off a drag snapshot. The bar visibly follows
-// the cursor because it re-renders at the new boundary each column step.
+// ⚡ SMOOTH DRAG — the gesture writes the affected widgets' pixel geometry STRAIGHT
+// TO THE DOM (never setState per move), and commits to React state only on
+// pointer-UP. A per-move setState re-reconciled BOTH heavy charts every frame, so
+// the seam visibly lagged the cursor and stepped. Now the two panes (and the seam
+// bar) follow the pointer at native speed — the same technique that keeps a widget
+// drag smooth (see FloatingWidgetPanel) — and lightweight-charts just re-fits at
+// the new size. In merged mode the grid margin is 0, so a widget's box is exactly
+// {x·colWidth, y·rowHeight, w·colWidth, h·rowHeight}, matching the seam-bar space.
+//
+// All gesture logic lives INSIDE onPointerDown with per-gesture window listeners
+// (no refs read/written during render) so the react-hooks/refs guard stays green.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { computeSeams, applyVerticalDrag, applyHorizontalDrag } from './mergedSeams'
 import styles from './ChartsWorkspace.module.css'
 
@@ -25,76 +29,74 @@ export default function MergedSeamOverlay({
 }) {
   const seams = useMemo(() => computeSeams(widgets, cols, rows), [widgets, cols, rows])
   const [dragging, setDragging] = useState(false)
-  // Snapshot the layout + pointer origin at drag start; each move computes an
-  // ABSOLUTE delta from that base (never compounds frame-to-frame).
-  const dragRef = useRef(null)
 
-  // Latest move/up logic in refs so the two STABLE window listeners below always
-  // call current closures (correct colWidth/onResize) without re-subscribing —
-  // and survive the dragged bar remounting when the layout previews.
-  const moveLogic = useRef(null)
-  const upLogic = useRef(null)
-  // Preview uses a FRACTIONAL column/row delta (no rounding) so the drag is
-  // pixel-smooth instead of jumping grid-cell to grid-cell; we remember the
-  // clamped fractional delta and snap it to a clean integer only on release.
-  moveLogic.current = (e) => {
-    const d = dragRef.current
-    if (!d) return
-    let res
-    if (d.type === 'v') {
-      const deltaCols = (e.clientX - d.startClient) / colWidth
-      res = applyVerticalDrag(d.baseWidgets, d.line, deltaCols, minWFor)
-    } else {
-      const deltaRows = (e.clientY - d.startClient) / rowHeight
-      res = applyHorizontalDrag(d.baseWidgets, d.line, deltaRows, minHFor)
-    }
-    d.lastApplied = res.applied
-    onResize(res.widgets, false)
-  }
-  upLogic.current = () => {
-    const d = dragRef.current
-    if (d) {
-      // Snap to whole columns/rows for a clean, valid saved layout — a ≤½-cell
-      // settle at the very end, never a jump during the drag.
-      const intDelta = Math.round(d.lastApplied || 0)
-      const final = d.type === 'v'
-        ? applyVerticalDrag(d.baseWidgets, d.line, intDelta, minWFor).widgets
-        : applyHorizontalDrag(d.baseWidgets, d.line, intDelta, minHFor).widgets
-      onResize(final, true)   // persist once, on release
-    }
-    finishDrag()
-  }
-
-  // Stable listener identities (created once) that delegate to the latest logic.
-  const winMoveRef = useRef(null)
-  const winUpRef = useRef(null)
-  if (!winMoveRef.current) winMoveRef.current = (e) => moveLogic.current?.(e)
-  if (!winUpRef.current) winUpRef.current = (e) => upLogic.current?.(e)
-
-  const finishDrag = useCallback(() => {
-    dragRef.current = null
-    setDragging(false)
-    window.removeEventListener('pointermove', winMoveRef.current)
-    window.removeEventListener('pointerup', winUpRef.current)
-    try { document.body.style.cursor = '' } catch { /* SSR */ }
-  }, [])
-
-  const onPointerDown = useCallback((type, line, e) => {
+  const onPointerDown = useCallback((s, type, e) => {
     e.preventDefault()
     e.stopPropagation()
-    dragRef.current = {
-      type, line,
-      startClient: type === 'v' ? e.clientX : e.clientY,
-      baseWidgets: widgets,
-      lastWidgets: widgets,
+    const line = type === 'v' ? s.c : s.r
+    const startClient = type === 'v' ? e.clientX : e.clientY
+    const barEl = e.currentTarget
+    // Grab the grid-item DOM elements on both sides of this seam so the move handler
+    // can resize them directly. transition:none kills RGL's ease (every frame would
+    // otherwise animate → lag).
+    const ids = type === 'v' ? [...(s.leftIds || []), ...(s.rightIds || [])]
+                             : [...(s.topIds || []), ...(s.bottomIds || [])]
+    const elMap = new Map()
+    for (const id of ids) {
+      const inner = document.querySelector(`[data-widget-id="${id}"]`)
+      const el = inner ? (inner.closest('.react-grid-item') || inner.parentElement) : null
+      if (el) { el.style.transition = 'none'; elMap.set(id, el) }
     }
+    let lastApplied = 0
+
+    const move = (ev) => {
+      let res, boundary
+      if (type === 'v') {
+        const deltaCols = (ev.clientX - startClient) / colWidth
+        res = applyVerticalDrag(widgets, line, deltaCols, minWFor)
+        boundary = (line + res.applied) * colWidth
+      } else {
+        const deltaRows = (ev.clientY - startClient) / rowHeight
+        res = applyHorizontalDrag(widgets, line, deltaRows, minHFor)
+        boundary = (line + res.applied) * rowHeight
+      }
+      lastApplied = res.applied
+      // Resize the affected widget containers directly — no React render this frame.
+      for (const w of res.widgets) {
+        const el = elMap.get(w.id)
+        if (!el) continue
+        el.style.left = `${w.x * colWidth}px`
+        el.style.top = `${w.y * rowHeight}px`
+        el.style.width = `${w.w * colWidth}px`
+        el.style.height = `${w.h * rowHeight}px`
+      }
+      // Carry the seam bar itself with the cursor.
+      if (barEl) {
+        if (type === 'v') barEl.style.left = `${boundary - HANDLE_PX / 2}px`
+        else barEl.style.top = `${boundary - HANDLE_PX / 2}px`
+      }
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      for (const el of elMap.values()) { el.style.transition = '' }  // hand geometry back to RGL
+      // Snap to whole columns/rows for a clean, valid saved layout — a ≤½-cell
+      // settle at the very end, never a jump during the drag.
+      const intDelta = Math.round(lastApplied || 0)
+      const final = type === 'v'
+        ? applyVerticalDrag(widgets, line, intDelta, minWFor).widgets
+        : applyHorizontalDrag(widgets, line, intDelta, minHFor).widgets
+      onResize(final, true)   // persist once, on release → React/RGL re-own the boxes
+      setDragging(false)
+      try { document.body.style.cursor = '' } catch { /* SSR */ }
+    }
+
     setDragging(true)
-    // Keep the resize cursor for the whole gesture even when the pointer strays
-    // off the thin bar (the bar snaps in column steps and may momentarily lag).
+    // Keep the resize cursor for the whole gesture even off the thin bar.
     try { document.body.style.cursor = type === 'v' ? 'col-resize' : 'row-resize' } catch { /* SSR */ }
-    window.addEventListener('pointermove', winMoveRef.current)
-    window.addEventListener('pointerup', winUpRef.current)
-  }, [widgets])
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }, [widgets, colWidth, rowHeight, minWFor, minHFor, onResize])
 
   if (!colWidth || !rowHeight) return null
 
@@ -113,7 +115,7 @@ export default function MergedSeamOverlay({
           role="separator"
           aria-orientation="vertical"
           aria-label="Drag to resize columns"
-          onPointerDown={(e) => onPointerDown('v', s.c, e)}
+          onPointerDown={(e) => onPointerDown(s, 'v', e)}
         />
       ))}
       {seams.horizontal.map(s => (
@@ -129,7 +131,7 @@ export default function MergedSeamOverlay({
           role="separator"
           aria-orientation="horizontal"
           aria-label="Drag to resize rows"
-          onPointerDown={(e) => onPointerDown('h', s.r, e)}
+          onPointerDown={(e) => onPointerDown(s, 'h', e)}
         />
       ))}
     </div>

@@ -755,8 +755,11 @@ export default function ChartsWorkspace() {
   const handleReplayCutoffPicked = useCallback((iso) => { setReplayCutoff(iso || null); setReplayArmPick(false); setReplayOpen(true) }, [])
   const cancelReplayPick = useCallback(() => { setReplayArmPick(false); setReplayOpen(true) }, [])
 
+  // Stable indirection to handleAddWidget's float path (defined far below, after
+  // this memo — a ref avoids the TDZ and keeps workspaceValue identity stable).
+  const floatNewWidgetRef = useRef(null)
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type) => floatNewWidgetRef.current?.(type) }),
     [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
@@ -1083,7 +1086,11 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false } = {}) => {
+    // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
+    // updater, and floating needs the same id the layout committed — hoisting it
+    // keeps both in lockstep (same reasoning as handlePopOutLayout below).
+    const newId = `w-${type}-${Date.now()}`
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
@@ -1119,7 +1126,7 @@ export default function ChartsWorkspace() {
         newOpts.settings = chartDefaultsForTheme('light')
       }
       const newWidget = {
-        id: `w-${type}-${Date.now()}`,
+        id: newId,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
         opts: newOpts,
@@ -1128,7 +1135,13 @@ export default function ChartsWorkspace() {
       scheduleSave(next)
       return next
     })
+    // Float-on-create: the widget keeps its real grid slot (so Dock snaps it back)
+    // but renders as a floating panel until docked.
+    if (float) setFloatingWidgetIds(prev => (prev.includes(newId) ? prev : [...prev, newId]))
   }, [scheduleSave, groupSyms])
+  // Expose the float-on-create path to the workspace context (a chart's right-click
+  // "Add widget" submenu). Assigned here now that handleAddWidget exists.
+  floatNewWidgetRef.current = (type) => handleAddWidget(type, undefined, { float: true })
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -1689,7 +1702,7 @@ export default function ChartsWorkspace() {
           && o.x < w.x + w.w && w.x < o.x + o.w,
         )
         return (
-          <div key={w.id}>
+          <div key={w.id} data-widget-id={w.id}>
             <WidgetHost
               widget={w}
               headerAtBottom={hasAbove}

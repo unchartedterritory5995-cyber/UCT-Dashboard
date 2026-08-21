@@ -31,6 +31,9 @@ const FALLBACK = {
   // vertical line | 'candle' gold start-date candle). Cleared by exitReplay.
   startMarker: null,
   startMarkerStyle: 'line',
+  // Create a NEW widget of `type` and immediately float it on top of the canvas
+  // (TC2000-style overlay). Used by a chart's right-click "Add widget" submenu.
+  floatNewWidget: () => {},
 }
 
 export function useWorkspace() {

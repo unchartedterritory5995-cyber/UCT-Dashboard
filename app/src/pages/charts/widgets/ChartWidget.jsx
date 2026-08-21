@@ -18,6 +18,12 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { WORKSPACE_MENU_TYPES, labelMap } from '../../../widgets/registry'
+
+// Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
+// chart's right-click "Add widget" submenu never drifts from it.
+const ADD_WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const ADD_WIDGET_LABELS = labelMap('menu')
 
 // LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
 // business-day objects D/W/M ranges report). The registry's `ts` coercion
@@ -36,7 +42,7 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -274,8 +280,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // clean menu: Set alert · Reset view · Chart settings · AI search (on a bar).
   const [ctxMenu, setCtxMenu] = useState(null)   // {x,y,price,bar,currentPrice,resetView,openSettings}
   const [ctxToast, setCtxToast] = useState(null)
+  const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
-  const closeCtx = useCallback(() => setCtxMenu(null), [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null) }, [])
 
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
@@ -496,30 +503,56 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
           <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
-            {Number.isFinite(ctxMenu.price) && (
-              <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
-                <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
-                Set alert @ ${ctxMenu.price.toFixed(2)}
-              </button>
-            )}
-            <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
-              <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
-            </button>
-            <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
-              <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
-            </button>
-            <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
-              <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
-            </button>
-            {ctxMenu.hasDrawings && (
-              <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
-                <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
-              </button>
-            )}
-            {ctxMenu.bar && (
-              <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
-                <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
-              </button>
+            {ctxSub === 'add' ? (
+              /* Add-widget picker — same roster the workspace Widgets menu shows.
+                 Selecting one drops it onto the canvas as a floating widget. */
+              <>
+                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub(null)}>‹ Back</button>
+                <div className={styles.menuDivider} />
+                <div style={{ maxHeight: Math.max(160, window.innerHeight - ctxMenu.y - 16), overflowY: 'auto' }}>
+                  {ADD_WIDGET_TYPES.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={styles.chartCtxItem}
+                      onClick={() => { floatNewWidget?.(t); closeCtx() }}
+                    >
+                      <UIcon name="plus" size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {Number.isFinite(ctxMenu.price) && (
+                  <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                    <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
+                    Set alert @ ${ctxMenu.price.toFixed(2)}
+                  </button>
+                )}
+                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
+                  <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
+                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
+                  <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
+                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
+                </button>
+                {ctxMenu.hasDrawings && (
+                  <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                    <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
+                  </button>
+                )}
+                {ctxMenu.bar && (
+                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
+                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
+                  </button>
+                )}
+              </>
             )}
           </div>
         </>
