@@ -550,7 +550,13 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
 
     fetched = errors = budget_stop = 0
     for i, ticker in enumerate(ordered):
-        if _now_et() >= deadline:
+        # ONE clock read per considered ticker, reused for both the deadline
+        # check and (on success) the upsert timestamp — never a second call
+        # to `_now_et()` later in the same iteration, which would silently
+        # let the clock advance again between "we decided to fetch this
+        # ticker" and "we recorded when."
+        current = _now_et()
+        if current >= deadline:
             budget_stop += len(ordered) - i
             break
         try:
@@ -561,7 +567,7 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
         if row is None:
             errors += 1
         else:
-            upsert(ticker, row, now=_now_et().timestamp())
+            upsert(ticker, row, now=current.timestamp())
             fetched += 1
         if gap > 0 and i < len(ordered) - 1:
             time.sleep(gap)
