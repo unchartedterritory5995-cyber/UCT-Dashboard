@@ -697,6 +697,23 @@ CREATE TABLE IF NOT EXISTS j2_broker_digest_dedup (
     et_day       TEXT NOT NULL
 );
 
+-- Settlement pin for option holdings (broker/option_reconstruct.py): while a
+-- sale's activity is pending delivery (ledger > held), SnapTrade's fleet can
+-- serve DIFFERENT held counts sync to sync (measured 8/21: BA 3 and 5 all
+-- day). The pin remembers the MINIMUM held seen per contract — the most
+-- settled server's answer, i.e. what the broker's own app shows — and resets
+-- the moment the ledger changes (a real fill arrives via activities or the
+-- Recent Orders rail), so genuine trades still apply instantly.
+CREATE TABLE IF NOT EXISTS j2_broker_opt_holdings_memo (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    contract_key       TEXT NOT NULL,
+    min_held           REAL NOT NULL,
+    ledger_total       REAL NOT NULL,
+    updated_at         TEXT NOT NULL,
+    PRIMARY KEY (user_id, broker_account_id, contract_key)
+);
+
 -- Mirror-drift sentinel verdicts (broker/mirror_check.py): after every sync,
 -- the journal's own tables are compared against the broker payload that sync
 -- just used. ONE row per account = the latest verdict; consecutive_drifts

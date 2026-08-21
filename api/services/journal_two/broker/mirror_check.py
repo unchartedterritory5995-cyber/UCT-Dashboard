@@ -180,6 +180,21 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                 units = float(c["units"])
                 jq = qty_by_key.get(key, 0.0)
                 if abs(jq - units) > 1e-6:
+                    # Settlement pin (option_reconstruct): while a sale is
+                    # pending delivery the holdings feed can flap; the journal
+                    # deliberately holds the pinned MINIMUM. A journal that
+                    # equals the pin is faithful, not drifted.
+                    ckey = f"{key[0]}|{key[1]}|{key[2]}|{key[3]}"
+                    memo = conn.execute(
+                        "SELECT min_held FROM j2_broker_opt_holdings_memo "
+                        "WHERE user_id = ? AND broker_account_id = ? "
+                        "AND contract_key = ?",
+                        (user_id, broker_account_id, ckey),
+                    ).fetchone()
+                    pinned = (memo is not None
+                              and abs(abs(jq) - float(memo["min_held"])) <= 1e-6)
+                    if pinned:
+                        continue
                     opt_mismatches.append(
                         f"{key[0]} {key[1]} {key[2]}: journal {jq} vs broker {units} contracts")
                 else:

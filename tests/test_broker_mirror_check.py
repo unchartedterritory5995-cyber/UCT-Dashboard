@@ -234,3 +234,23 @@ def test_trust_summary_carries_the_verdict(env):
     from api.services.journal_two.broker import service as svc
     src = inspect.getsource(svc.trust_summary)
     assert "latest_verdicts" in src and '"mirror"' in src
+
+
+def test_a_settlement_pinned_journal_is_faithful_not_drifted(env):
+    """While the holdings feed flaps (sale pending delivery), the journal
+    deliberately holds the pinned minimum — the sentinel must not page on a
+    payload that momentarily says otherwise."""
+    _mirror_book(env)                                   # journal holds BA qty 3
+    _set_stored_equity(env, TRUE_TOTAL)
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_broker_opt_holdings_memo (user_id, broker_account_id, "
+        "contract_key, min_held, ledger_total, updated_at) "
+        "VALUES ('u1', 'bk1', 'BA|250.0|2027-01-15|call', 3, 6, 'now')")
+    conn.commit(); conn.close()
+
+    flapped = [_raw_opt(units=5, price=7.0)]            # payload flaps to 5
+    out = mc.run_mirror_check("u1", env["ba"], RAW_POS, flapped, TRUE_TOTAL)
+
+    assert out["structuralOk"] is True
+    assert env["alerts"] == []
