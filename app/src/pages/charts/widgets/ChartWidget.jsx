@@ -515,7 +515,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                       key={t}
                       type="button"
                       className={styles.chartCtxItem}
-                      onClick={() => { floatNewWidget?.(t); closeCtx() }}
+                      onClick={() => { floatNewWidget?.(t, { x: ctxMenu.rawX, y: ctxMenu.rawY }); closeCtx() }}
                     >
                       <UIcon name="plus" size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
                     </button>

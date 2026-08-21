@@ -670,6 +670,10 @@ export default function ChartsWorkspace() {
   // layout.widgets (its grid geometry is preserved for docking) and is merely hidden
   // from the grid, then rendered in a FloatingWidgetPanel on top of the canvas.
   const [floatingWidgetIds, setFloatingWidgetIds] = useState([])
+  // Per-float spawn box {w,h,x,y} for widgets created via a chart's "Add widget"
+  // menu — opens SMALL under the cursor. Absent = a grid-popped float (sized from
+  // the slot it left). Cleared on dock/remove so a later re-float uses grid geom.
+  const [floatSpawns, setFloatSpawns] = useState({})
 
   const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
@@ -759,7 +763,7 @@ export default function ChartsWorkspace() {
   // this memo — a ref avoids the TDZ and keeps workspaceValue identity stable).
   const floatNewWidgetRef = useRef(null)
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type) => floatNewWidgetRef.current?.(type) }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at) }),
     [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
@@ -1086,7 +1090,7 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts, { float = false } = {}) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null } = {}) => {
     // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
@@ -1094,26 +1098,36 @@ export default function ChartsWorkspace() {
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
-      // Place into the first logical open spot (row-major scan), not column 0:
-      // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
-      // widgets below the left column and overflows. findPlacement shrinks the
-      // widget toward its min size to squeeze into a smaller gap rather than
-      // falling off-screen; it bottom-packs only when the grid is genuinely full.
-      const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
       let widgets = prev.widgets
-      let place = fit
-      // Grid full → findPlacement returns y:Infinity (would land off the bottom).
-      // Make room instead: reserve a full-width bottom strip (shrinks the chart /
-      // whatever reaches the bottom UP so the newcomer sits below it, on-screen —
-      // the "add fundamentals under the chart" case). Fall back to shrinking a
-      // single widget (below-split of the tallest, then side-split of the widest).
-      if (!Number.isFinite(fit.y) || fit.y + fit.h > FIXED_ROWS) {
-        const needH = Math.max(defaults.minH || 3, Math.min(defaults.h, Math.floor(FIXED_ROWS / 2)))
-        const room = reserveBottomStrip(prev.widgets, needH, COLS.lg)
-          || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
-          || splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
-        if (room) { widgets = room.widgets; place = room.place }
-        else { place = { x: 0, y: 0, w: defaults.w, h: defaults.h } }  // last resort (clamped below)
+      let place
+      if (float) {
+        // Float-on-create: it renders on TOP of the board, so it must NOT reshuffle
+        // the grid (no findPlacement / reserveBottomStrip — those shrink the existing
+        // charts to make room, which a floating overlay must never do). Its grid slot
+        // is just a compact parking spot for when it's docked; the visible float size
+        // comes from `at`, not this geometry.
+        place = { x: 0, y: 0, w: defaults.w, h: defaults.h }
+      } else {
+        // Place into the first logical open spot (row-major scan), not column 0:
+        // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
+        // widgets below the left column and overflows. findPlacement shrinks the
+        // widget toward its min size to squeeze into a smaller gap rather than
+        // falling off-screen; it bottom-packs only when the grid is genuinely full.
+        const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+        place = fit
+        // Grid full → findPlacement returns y:Infinity (would land off the bottom).
+        // Make room instead: reserve a full-width bottom strip (shrinks the chart /
+        // whatever reaches the bottom UP so the newcomer sits below it, on-screen —
+        // the "add fundamentals under the chart" case). Fall back to shrinking a
+        // single widget (below-split of the tallest, then side-split of the widest).
+        if (!Number.isFinite(fit.y) || fit.y + fit.h > FIXED_ROWS) {
+          const needH = Math.max(defaults.minH || 3, Math.min(defaults.h, Math.floor(FIXED_ROWS / 2)))
+          const room = reserveBottomStrip(prev.widgets, needH, COLS.lg)
+            || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
+            || splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          if (room) { widgets = room.widgets; place = room.place }
+          else { place = { x: 0, y: 0, w: defaults.w, h: defaults.h } }  // last resort (clamped below)
+        }
       }
       // Stamp the app theme at placement so a theme-following widget freezes its
       // look here (WidgetHost/usePlacedTheme read opts.placedTheme). seedOpts wins
@@ -1136,12 +1150,19 @@ export default function ChartsWorkspace() {
       return next
     })
     // Float-on-create: the widget keeps its real grid slot (so Dock snaps it back)
-    // but renders as a floating panel until docked.
-    if (float) setFloatingWidgetIds(prev => (prev.includes(newId) ? prev : [...prev, newId]))
+    // but renders as a floating panel until docked. `at` (the right-click point)
+    // seeds a small panel that lands under the cursor — clamped on-screen.
+    if (float) {
+      setFloatingWidgetIds(prev => (prev.includes(newId) ? prev : [...prev, newId]))
+      const SPAWN_W = 360, SPAWN_H = 420
+      const x = at ? Math.max(8, Math.min(at.x, window.innerWidth - SPAWN_W - 8)) : null
+      const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
+      setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
+    }
   }, [scheduleSave, groupSyms])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
-  floatNewWidgetRef.current = (type) => handleAddWidget(type, undefined, { float: true })
+  floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -1476,15 +1497,20 @@ export default function ChartsWorkspace() {
   const handleFloatWidget = useCallback((id) => {
     setFloatingWidgetIds(prev => (prev.includes(id) ? prev : [...prev, id]))
   }, [])
+  const clearFloatSpawn = useCallback((id) => {
+    setFloatSpawns(prev => { if (!(id in prev)) return prev; const n = { ...prev }; delete n[id]; return n })
+  }, [])
   const handleDockFloatWidget = useCallback((id) => {
     // Drop the float flag → the widget snaps back to its saved grid slot (its
     // geometry never left layout.widgets).
     setFloatingWidgetIds(prev => prev.filter(x => x !== id))
-  }, [])
+    clearFloatSpawn(id)
+  }, [clearFloatSpawn])
   const handleRemoveFloatWidget = useCallback((id) => {
     setFloatingWidgetIds(prev => prev.filter(x => x !== id))
+    clearFloatSpawn(id)
     handleRemoveWidget(id)
-  }, [handleRemoveWidget])
+  }, [handleRemoveWidget, clearFloatSpawn])
   const handleFloatWidgetToTab = useCallback((floatId, targetId) => {
     if (floatId === targetId) return
     setFloatingWidgetIds(prev => prev.filter(x => x !== floatId))
@@ -2020,12 +2046,18 @@ export default function ChartsWorkspace() {
         {/* In-canvas floating widgets — popped off the grid to sit on top of another
             widget (e.g. a Watchlist over a Chart). Each opens near the size of the
             grid slot it left. Its header carries dock / move-to-tab / close. */}
-        {floatingWidgets.map((w, i) => (
+        {floatingWidgets.map((w, i) => {
+          // Created via "Add widget" → open small at the cursor (spawn). Popped
+          // from the grid → open at the slot's size, centered (offset-cascaded).
+          const spawn = floatSpawns[w.id]
+          return (
           <FloatingWidgetPanel
             key={w.id}
-            offset={i * 28}
-            initialW={Math.max(260, Math.round((w.w || 6) * (gridWidth / GRID_COLS)))}
-            initialH={Math.max(200, Math.round((w.h || 8) * rowHeight))}
+            offset={spawn ? 0 : i * 28}
+            initialW={spawn ? spawn.w : Math.max(260, Math.round((w.w || 6) * (gridWidth / GRID_COLS)))}
+            initialH={spawn ? spawn.h : Math.max(200, Math.round((w.h || 8) * rowHeight))}
+            initialX={spawn ? spawn.x : null}
+            initialY={spawn ? spawn.y : null}
           >
             {({ onDragPointerDown }) => (
               <WidgetHost
@@ -2043,7 +2075,8 @@ export default function ChartsWorkspace() {
               />
             )}
           </FloatingWidgetPanel>
-        ))}
+          )
+        })}
         {compareOpen && (
           <CompareSymbolsPanel
             chartApiById={chartApiByIdRef}

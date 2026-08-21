@@ -16,11 +16,13 @@ import styles from './PeriodSortPanel.module.css'
 
 const MIN_W = 180, MIN_H = 120
 
-export default function FloatingWidgetPanel({ children, initialW = 460, initialH = 440, offset = 0 }) {
+export default function FloatingWidgetPanel({ children, initialW = 460, initialH = 440, offset = 0, initialX = null, initialY = null }) {
   const panelRef = useRef(null)
   const [box, setBox] = useState(() => ({
-    x: Math.max(12, Math.round((window.innerWidth - initialW) / 2)) + offset,
-    y: 84 + offset,
+    // initialX/initialY (the right-click point) win when given — the panel lands
+    // under the cursor; otherwise it centers horizontally with the cascade offset.
+    x: initialX != null ? initialX : Math.max(12, Math.round((window.innerWidth - initialW) / 2)) + offset,
+    y: initialY != null ? initialY : 84 + offset,
     w: initialW,
     h: initialH,
   }))
