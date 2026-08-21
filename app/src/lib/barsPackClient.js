@@ -52,6 +52,7 @@ const MAX_DELTA_CATCHUP_DAYS = 6
 // ingest (already stamped), so this only affects the one-time first-visit warm.
 const PACK_DAILY = {
   base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed',
+  hotVersionKey: 'barspack.hotVersion',
   ingestBatchSize: 60, ingestYield: true,
 }
 // The intraday pack is a large FRESH ingest (5m+60m, whole universe) that runs
@@ -68,15 +69,20 @@ let _started = false
 export function initBarsPack() {
   if (_started) return
   _started = true
-  // ── Cold-start bridge: warm the HOT SET before the idle-deferred full pack ──
+  // ── Cold-start bridge: get the HOT SET local before the idle-deferred full pack ──
   // The full pack (below) is gated behind requestIdleCallback (up to ~8s to even
   // START) and hash-sharded, so NO early shard is "the popular names" — a
   // brand-new user scanning in their first seconds has nothing local and every
-  // chart is a server round-trip (the "first-signup user waits" report). Warm the
-  // hot set into the SAME IndexedDB store StockChart paints from, RIGHT NOW,
-  // through prefetchBars' bounded (3-concurrent) queue so it never starves the
-  // user's own visible chart. First-visit only — a no-op for returning users, who
-  // already hold the whole universe's D/W/M in IDB.
+  // chart is a server round-trip (the "first-signup user waits" report). Two eager
+  // paths fill the same IDB store StockChart paints from, RIGHT NOW (not idle):
+  //   1. Ingest the server HOT SHARD — one small edge-cached file (~100 names) —
+  //      the reliable, one-request path (survives a cold/congested origin).
+  //   2. In parallel, warm the hot set via the normal serve path — the fallback
+  //      for when the hot shard isn't published yet, and the fastest possible
+  //      start (no manifest round-trip). Both are idempotent + dedupe-safe.
+  // Both are first-visit only — a no-op for returning users, who already hold the
+  // universe's D/W/M in IDB.
+  _ingestHotPack(PACK_DAILY).catch(() => {})
   _warmHotSetForNewUser()
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
@@ -97,15 +103,55 @@ export function initBarsPack() {
 // idbGet no-op for them; gating keeps it off their load path entirely. W/M are left
 // to the full daily pack (which carries D/W/M) so this stays a lean first-open warm.
 export function _warmHotSetForNewUser() {
-  let hasPack = null
-  try { hasPack = localStorage.getItem(PACK_DAILY.versionKey) } catch { /* storage blocked → treat as new */ }
-  if (hasPack) return                 // returning user — universe already in IDB
+  let hasPack = null, hasHot = null
+  try {
+    hasPack = localStorage.getItem(PACK_DAILY.versionKey)
+    hasHot = localStorage.getItem(PACK_DAILY.hotVersionKey)
+  } catch { /* storage blocked → treat as new */ }
+  if (hasPack || hasHot) return       // universe or hot set already durable in IDB
   if (_connectionTooCostly()) return  // respect metered / slow connections
   try {
     prefetchBarsToIDB(HOT_TICKERS, 'D', { priority: true })  // daily first, front of queue
     prefetchBarsToIDB(HOT_TICKERS, '5')                      // common intraday switches
     prefetchBarsToIDB(HOT_TICKERS, '60')
   } catch { /* best-effort; the chart's own fetch + the full pack remain the fallback */ }
+}
+
+// Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
+// (barspack/<date>/hot.json.gz, the ~100 most-opened names) — into IDB, stamped
+// under its OWN version key so it's decoupled from the big full-pack ingest.
+// Not idle-deferred: this is the whole point (be local before the user scans).
+// Skips when this version's hot set is already ingested, or when the pack build
+// hasn't published a hot shard yet (older pack / cold db → manifest.hot absent →
+// the origin-fetch warm above is the fallback). Every failure falls through.
+export async function _ingestHotPack(cfg) {
+  if (_connectionTooCostly()) return
+  let hotV = null
+  try { hotV = localStorage.getItem(cfg.hotVersionKey) } catch { /* ignore */ }
+
+  let manifest
+  try {
+    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'omit' })
+    if (!r.ok) return
+    manifest = await r.json()
+  } catch { return }
+  if (!manifest || !manifest.version || !manifest.hot || !manifest.hot.name) return
+  if (hotV === manifest.version) return  // already have this version's hot set
+
+  let entries
+  try {
+    const r = await fetch(`${cfg.base}/${manifest.version}/hot`, { credentials: 'omit' })
+    if (!r.ok) return
+    entries = decodeShardPayload(await r.json())
+  } catch { return }
+  if (!entries.length) return
+
+  try {
+    const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
+    if (!res.aborted) {
+      try { localStorage.setItem(cfg.hotVersionKey, manifest.version) } catch { /* ignore */ }
+    }
+  } catch { /* best-effort; the full pack + serve path remain the fallback */ }
 }
 
 function _whenIdle(fn) {
