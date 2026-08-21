@@ -81,6 +81,7 @@ export default function ArticleReader() {
   // save it as a watchlist in one click, download a print-styled PDF. ──
   const [copied, setCopied] = useState(false)
   const [saveState, setSaveState] = useState(null)   // null | 'saving' | 'saved' | 'error'
+  const [pdfState, setPdfState] = useState(null)     // null | 'preparing'
   // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
   // it runs first — at scroll position 0. Saving then would write pct=0 and
   // DELETE the bookmark before restore ever reads it, which is exactly how this
@@ -384,7 +385,32 @@ export default function ArticleReader() {
   // Browser print → Save as PDF, scoped by a body class exactly like the
   // Notebook's printNote(). The print stylesheet turns the page into a clean
   // single-column document with a branded masthead + the full ticker roster.
-  const downloadPdf = useCallback(() => {
+  //
+  // ⛔ THE IMAGES MUST BE LOADED FIRST. The article's ~60 charts are
+  // loading="lazy", and a lazy image that was never scrolled near prints as an
+  // EMPTY frame — verified on the real 58-page artifact, where every chart
+  // past the first pages was a blank box. Flipping to eager starts the load
+  // immediately; we wait (bounded) for the set to settle before printing.
+  const downloadPdf = useCallback(async () => {
+    if (pdfState === 'preparing') return
+    setPdfState('preparing')
+    try {
+      const imgs = Array.from(bodyRef.current?.querySelectorAll('img') || [])
+      imgs.forEach((img) => { try { img.loading = 'eager' } catch { /* readonly? print anyway */ } })
+      const pending = imgs
+        .filter((img) => !img.complete)
+        .map((img) => new Promise((res) => {
+          img.addEventListener('load', res, { once: true })
+          img.addEventListener('error', res, { once: true })
+        }))
+      // A dead CDN image must not hold the button hostage — print what loaded.
+      await Promise.race([
+        Promise.all(pending),
+        new Promise((res) => setTimeout(res, 20000)),
+      ])
+    } finally {
+      setPdfState(null)
+    }
     document.body.classList.add('uct-print-article')
     const off = () => {
       document.body.classList.remove('uct-print-article')
@@ -392,7 +418,7 @@ export default function ArticleReader() {
     }
     window.addEventListener('afterprint', off)
     window.print()
-  }, [])
+  }, [pdfState])
 
   if (isLoading) {
     return (
@@ -496,9 +522,14 @@ export default function ArticleReader() {
               </button>
             </>
           )}
-          <button type="button" className={styles.actionBtn} onClick={downloadPdf}>
+          <button
+            type="button"
+            className={styles.actionBtn}
+            onClick={downloadPdf}
+            disabled={pdfState === 'preparing'}
+          >
             <UIcon name="download" size={13} />
-            Download PDF
+            {pdfState === 'preparing' ? 'Preparing charts…' : 'Download PDF'}
           </button>
         </div>
         {/* Print-only roster: every covered name on the PDF's cover, not just

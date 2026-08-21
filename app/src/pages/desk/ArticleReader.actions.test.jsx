@@ -115,14 +115,38 @@ test('a failed save reports failure and offers retry — never claims "saved"', 
   expect(screen.queryByRole('button', { name: /watchlist saved/i })).toBeNull()
 })
 
-test('Download PDF scopes the print stylesheet with the body class and prints', () => {
+test('Download PDF scopes the print stylesheet with the body class and prints', async () => {
   renderReader()
   fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
+  await waitFor(() => expect(window.print).toHaveBeenCalledTimes(1))
   expect(document.body.classList.contains('uct-print-article')).toBe(true)
-  expect(window.print).toHaveBeenCalledTimes(1)
   // afterprint removes the class so the on-screen page is untouched.
   window.dispatchEvent(new Event('afterprint'))
   expect(document.body.classList.contains('uct-print-article')).toBe(false)
+})
+
+test('Download PDF force-loads lazy chart images BEFORE printing', async () => {
+  // The real defect this pins: a loading="lazy" chart never scrolled near
+  // prints as an EMPTY frame. The handler must flip every body image to eager
+  // and wait for loads before window.print().
+  mockData = {
+    ...ARTICLE,
+    body_html: '<p>x</p><img src="https://cdn.test/c1.png" loading="lazy" class="uctArticleImage">'
+      + '<img src="https://cdn.test/c2.png" loading="lazy" class="uctArticleImage">',
+  }
+  const { container } = renderReader()
+  const imgs = Array.from(container.querySelectorAll('article img'))
+  expect(imgs).toHaveLength(2)
+  // jsdom images report complete=false and never fire load on their own —
+  // exactly the "not yet loaded" state. The handler must be WAITING, not
+  // printing.
+  fireEvent.click(screen.getByRole('button', { name: /download pdf/i }))
+  await screen.findByRole('button', { name: /preparing charts/i })
+  expect(imgs.every((i) => i.loading === 'eager')).toBe(true)
+  expect(window.print).not.toHaveBeenCalled()
+  // Both images finish loading → the print fires.
+  imgs.forEach((i) => fireEvent.load(i))
+  await waitFor(() => expect(window.print).toHaveBeenCalledTimes(1))
 })
 
 test('the print masthead + FULL roster exist in the DOM for the PDF', () => {
