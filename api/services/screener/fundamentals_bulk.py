@@ -247,6 +247,26 @@ RATIO_SPECS = {
     # No corroborator exists in this payload for current LIABILITIES, and all
     # 163 zeros are banks/insurers/BDCs. A literal 0 is refused.
     "current_ratio":  _Spec("currentRatioTTM", 1.0, ()),
+    # ── Wave 2 additions — same file, same six requests, zero new cost ──
+    # The same ~163 banks/insurers/BDCs that print `currentRatioTTM == 0`
+    # print quick 0 for the same no-current-split reason — refused, NULL by
+    # design, matching `current_ratio`.
+    "quick_ratio":        _Spec("quickRatioTTM", 1.0, ()),
+    # A zero P/FCF or P/OCF requires a zero PRICE; both are undefined-sentinels.
+    "p_fcf":              _Spec("priceToFreeCashFlowRatioTTM", 1.0, ()),
+    "p_ocf":              _Spec("priceToOperatingCashFlowRatioTTM", 1.0, ()),
+    # A non-payer's payout genuinely IS 0 — same corroborator as dividend_yield.
+    # ⚠️ MEASURED NAME, NOT THE DOCUMENTED ONE: the header census
+    # (`tools/screener_wave2_fmp_headers.py`, run 2026-08-21) found this field
+    # as `dividendPayoutRatioTTM` — FMP's docs/convention would suggest
+    # `payoutRatioTTM`, which does not exist in the live bulk CSV.
+    "payout_ratio":       _Spec("dividendPayoutRatioTTM", 100.0,
+                                ("dividendPerShareTTM",)),
+    # Debt-free is witnessed by the independent debt quotients, exactly as
+    # debt_to_equity's own rule.
+    "lt_debt_to_capital": _Spec("longTermDebtToCapitalRatioTTM", 1.0,
+                                ("debtToEquityRatioTTM",
+                                 "debtToAssetsRatioTTM")),
 }
 
 #: /stable/key-metrics-ttm-bulk -> roa and roe. Neither denominator (total
@@ -274,6 +294,10 @@ RATIO_SPECS = {
 KEY_METRIC_SPECS = {
     "roa": _Spec("returnOnAssetsTTM", 100.0, ()),
     "roe": _Spec("returnOnEquityTTM", 100.0, ()),
+    # Wave 2: the balance-sheet-zero near-miss documented above (ROA/ROE)
+    # applies verbatim here too — no corroborator in this payload, zeros
+    # refused.
+    "roic": _Spec("returnOnInvestedCapitalTTM", 100.0, ()),
 }
 
 #: /stable/profile-bulk -> beta. `exchange` is TEXT and handled beside these.
@@ -287,6 +311,9 @@ PROFILE_SPECS = {
 #: (`sector`, `industry`) look like.
 PROFILE_TEXT = {
     "exchange": "exchange",
+    # Wave 2: both measured verbatim against the probe (`ipoDate`, `country`).
+    "ipo_date": "ipoDate",
+    "country":  "country",
 }
 
 #: Every snapshot column this module can write. DERIVED from the maps above so

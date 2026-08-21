@@ -2199,6 +2199,11 @@ _FED_TERMS = (
     "fomc member", "fed chair", "powell speaks", "fed governor",
     "waller", "jefferson", "williams", "barkin", "logan",
     "kashkari", "daly", "bowman", "kugler", "miran", "barr",
+    "warsh",              # the surname list goes stale on roster turnover — the
+                          # Powell-era list missed Chair Warsh entirely (8/21/26)
+    "jackson hole",       # the symposium itself ("Jackson Hole Symposium") — no
+                          # "speech" in the title, so nothing else catches it and
+                          # FMP's Medium impact let curation drop the Chair's week
     "fed's ", "federal reserve",
 )
 

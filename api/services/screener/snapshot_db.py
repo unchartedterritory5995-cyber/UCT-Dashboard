@@ -17,6 +17,16 @@ COLUMNS = [
     "pe_ttm", "pe_fwd", "peg", "ps", "pb", "eps_growth", "rev_growth",
     "op_margin", "gross_margin", "net_margin", "roe", "roa",
     "debt_to_equity", "current_ratio", "beta", "inst_pct",
+    # provider fundamentals (Wave 2)
+    "quick_ratio", "p_fcf", "p_ocf", "payout_ratio", "roic",
+    "lt_debt_to_capital", "ipo_date", "ipo_age_days", "country",
+    "shares_outstanding", "float_shares", "float_pct", "short_float_pct",
+    "short_ratio", "insider_own_pct",
+    "analyst_consensus", "pt_target", "pt_upside_pct",
+    "upgrades_30d", "downgrades_30d", "eps_next_y_growth",
+    # ratings components (Wave 2)
+    "blended_growth", "sector_rs_pct", "rating_eps", "rating_growth",
+    "rating_value", "rating_smr", "sponsorship",
     # uct ratings
     "uct_composite", "rs_rank", "rs_return", "accdis",
     # technical
@@ -45,6 +55,10 @@ COLUMNS = [
     # context (Wave 1)
     "theme", "in_uct20", "index_sp500", "index_ndx", "index_dow", "index_r2k",
     "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w",
+    # events (Wave 2)
+    "next_earnings_date", "earnings_session", "days_to_earnings",
+    "last_report_move_pct", "implied_move_pct", "earnings_setup_grade",
+    "insider_cluster_days",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -55,7 +69,10 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          # grades in a REAL-declared column (latent since v1; SQLite dynamic
          # typing made it harmless). New DBs now declare it TEXT; existing DBs
          # keep the old declaration and keep working.
-         "accdis", "rs_line_trend", "theme"}
+         "accdis", "rs_line_trend", "theme",
+         # Wave 2
+         "ipo_date", "country", "next_earnings_date", "earnings_session",
+         "earnings_setup_grade", "analyst_consensus", "sponsorship"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "consecutive_up", "consecutive_down", "built_at",
         # bools stored as 0/1
@@ -65,7 +82,11 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "new_ath", "vol_nweek_low", "ema_touch_count", "candle_score",
         "ema10_rising", "ema20_rising", "ema_stack_intact", "in_uct20",
         "index_sp500", "index_ndx", "index_dow", "index_r2k",
-        "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w"}
+        "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w",
+        # Wave 2
+        "ipo_age_days", "days_to_earnings", "upgrades_30d", "downgrades_30d",
+        "insider_cluster_days", "sector_rs_pct", "rating_eps",
+        "rating_growth", "rating_value", "rating_smr"}
 
 
 # ---------------------------------------------------------------------------

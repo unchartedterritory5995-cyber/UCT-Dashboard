@@ -67,7 +67,7 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // ⛔ AND THE EXCLUDED HALF IS DECLARED TOO, each with a stated reason. A
     // granted list without a refused list is a list of what somebody remembered.
     const excluded = TABLE._scalars_excluded
-    expect(Object.keys(excluded).length).toBe(49)
+    expect(Object.keys(excluded).length).toBe(84)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

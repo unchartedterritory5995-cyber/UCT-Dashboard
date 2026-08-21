@@ -27,8 +27,10 @@ The population proof against a real rebuild lives in
 """
 from __future__ import annotations
 
+import contextlib
 import csv
 import importlib
+import time
 
 import pytest
 
@@ -382,7 +384,7 @@ SHARED_BY_DESIGN = {
 }
 
 
-def _source_key_sets(monkeypatch) -> dict:
+def _source_key_sets(monkeypatch, tmp_path) -> dict:
     """``{label: {columns it can emit}}`` for every source `build_row` merges.
 
     ⛔ EVERY SET IS OBTAINED BY RUNNING THE SOURCE, never retyped — a test that
@@ -394,9 +396,22 @@ def _source_key_sets(monkeypatch) -> dict:
     list the store itself is keyed by. A hand-typed metrics dict would silently
     stop covering a metric the day a new one is persisted, and the rail would
     go quiet on precisely the new column most likely to collide.
+
+    ⭐ Task 10 adds the SIX Wave 2 readers, 14 sources total. Finviz/edates are
+    exercised through their own artifact env overrides (the idiom those two
+    modules use — a flat JSON file, not a SQLite store); the other four
+    monkeypatch their own store-connection seam, the `single_stock_etfs`
+    idiom already used below. `get_sector_distributions` is stubbed with a
+    >= SECTOR_MIN_SAMPLE (15) Technology/`rs_return` pool so
+    `enrich.ratings_fields`'s Wave 2 `sector_rs_pct` (gated on `if sdists:`)
+    is exercised too — without it that column never appears and the rail
+    would never see it collide.
     """
     import api.services.screener.snapshot_builder as b
     from api.services.screener import enrich, context_joins as cj
+    from api.services.screener import (finviz_universe, earnings_dates,
+                                       earnings_context, analyst_pass,
+                                       insider_capture)
     from api.services.research import ratings_db
     from api.services import massive, ticker_meta
     from api.services import breadth_monitor, engine, watchlist_prebuilt, \
@@ -404,6 +419,8 @@ def _source_key_sets(monkeypatch) -> dict:
 
     metrics = {c: 1.2 for c in ratings_db.METRIC_COLUMNS}
     metrics["sector"] = "Technology"
+    sdists = {"Technology": {"rs_return":
+              {"values": [float(i) for i in range(20)], "n": 20}}}
 
     monkeypatch.setattr(ticker_meta, "get_ticker_meta",
                         lambda t: {"name": "N", "sector": "S", "industry": "I",
@@ -430,19 +447,96 @@ def _source_key_sets(monkeypatch) -> dict:
     ssetf_conn.commit()
     monkeypatch.setattr(single_stock_etfs, "_connect", lambda: ssetf_conn)
 
+    # ── finviz_universe: whole-market artifact via its env override. Needs
+    # >= _MIN_ROWS (1000) total rows or the read degrades to "missing". ──
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(tmp_path / "finviz.json"))
+    finviz_rows = {f"PAD{i}": {} for i in range(finviz_universe._MIN_ROWS)}
+    finviz_rows["AAA"] = {col: 1.0 for col in finviz_universe._HEADERS}
+    finviz_universe._atomic_write_json(finviz_universe._artifact_path(), {
+        "as_of": finviz_universe._now_iso(), "missing_headers": [],
+        "rows": finviz_rows})
+
+    # ── earnings_dates: same artifact idiom, no row-count floor. ──
+    import datetime as _dt
+    monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
+    earnings_dates._atomic_write({
+        "as_of": _dt.date.today().isoformat(),
+        "rows": {"AAA": {"date": "2026-09-01", "session": "bmo"}}})
+
+    # ── earnings_context.read_last_report_move: monkeypatch wire.store's own
+    # connection seam with a live wire_prints row for AAA. ──
+    from api.services.wire import store as wire_store
+    wire_conn = sqlite3.connect(":memory:")
+    wire_conn.row_factory = sqlite3.Row
+    wire_conn.execute(
+        "CREATE TABLE wire_prints (market_date TEXT, sym TEXT, peak_move_pct REAL)")
+    wire_conn.execute(
+        "INSERT INTO wire_prints (market_date, sym, peak_move_pct) "
+        "VALUES ('2026-08-20', 'AAA', 12.3)")
+    wire_conn.commit()
+    monkeypatch.setattr(wire_store, "_connect", lambda: wire_conn)
+
+    # ── earnings_context.read_implied_context: the reporter list + per-date
+    # implied lookup stubbed directly (both already-public store accessors);
+    # `_latest_grades`'s own connection seam holds a live grade_snapshots row.
+    from api.services import implied_store, setup_grade
+    monkeypatch.setattr(implied_store, "upcoming_reporters",
+                        lambda days=14: [{"sym": "AAA", "report_date": "2026-09-01"}])
+    monkeypatch.setattr(implied_store, "get_implied_for_date",
+                        lambda rd: {"AAA": 5.5})
+    grade_conn = sqlite3.connect(":memory:")
+    grade_conn.row_factory = sqlite3.Row
+    grade_conn.execute(
+        "CREATE TABLE grade_snapshots (sym TEXT, date TEXT, surface TEXT, grade TEXT)")
+    grade_conn.execute(
+        "INSERT INTO grade_snapshots (sym, date, surface, grade) "
+        "VALUES ('AAA', '2026-08-20', ?, 'B')", (setup_grade.SURFACE,))
+    grade_conn.commit()
+    monkeypatch.setattr(implied_store, "_connect", lambda: grade_conn)
+
+    # ── analyst_pass.read_analyst_fields: its own SQLite store, seeded via
+    # its own public init_db()/upsert() against a real scratch file. ──
+    monkeypatch.setenv("SCREENER_ANALYST_DB_PATH", str(tmp_path / "analyst.db"))
+    analyst_pass.init_db()
+    analyst_pass.upsert("AAA", {
+        "consensus": "Buy", "pt_target": 100.0, "upgrades_30d": 1,
+        "downgrades_30d": 0, "eps_next_y_growth": 5.0,
+    }, now=time.time())
+
+    # ── insider_capture.read_insider_fields: its own SQLite store, seeded by
+    # a direct insert into its own schema (its only writer otherwise scrapes
+    # OpenInsider over the network). ──
+    monkeypatch.setenv("SCREENER_INSIDER_DB_PATH", str(tmp_path / "insider.db"))
+    insider_capture._init_db()
+    with contextlib.closing(insider_capture._connect()) as iconn:
+        iconn.execute(
+            "INSERT INTO cluster_latest (ticker, last_trade_date, insiders, "
+            "value_usd, captured_at) VALUES (?, ?, ?, ?, ?)",
+            ("AAA", _dt.date.today().isoformat(), 3, 1_000_000.0,
+             int(time.time())))
+        iconn.commit()
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
-        "enrich.ratings_fields": set(enrich.ratings_fields(metrics, {})),
+        "enrich.ratings_fields": set(enrich.ratings_fields(metrics, {}, sdists)),
         "_read_fundamentals": set(b._read_fundamentals("AAA", price=10.0)),
         "context.breadth": set(cj.read_breadth_flags(["AAA"])["AAA"]),
         "context.uct20": set(cj.read_uct20(["AAA"])["AAA"]),
         "context.index": set(cj.read_index_flags(["AAA"])["AAA"]),
         "context.etf": set(cj.read_etf_flags(["AAA"])["AAA"]),
+        "finviz_universe": set(finviz_universe.read_finviz_fields(["AAA"])["AAA"]),
+        "earnings_dates": set(earnings_dates.read_earnings_dates(["AAA"])["AAA"]),
+        "earnings_context.last_move":
+            set(earnings_context.read_last_report_move(["AAA"])["AAA"]),
+        "earnings_context.implied":
+            set(earnings_context.read_implied_context(["AAA"])["AAA"]),
+        "analyst_pass": set(analyst_pass.read_analyst_fields(["AAA"])["AAA"]),
+        "insider_capture": set(insider_capture.read_insider_fields(["AAA"])["AAA"]),
     }
 
 
-def test_no_two_screener_sources_write_the_same_column(monkeypatch):
+def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     """🔁 A SECOND AUTHORITY OVER ONE VALUE is this repo's most repeated defect,
     and in `build_row` it does not even announce itself: the four sources are
     merged in order and the LAST one with a non-None value wins. A collision is
@@ -460,7 +554,18 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch):
     a collision between two sources that are not this module is the same defect
     and used to be invisible. It found one on arrival: see `SHARED_BY_DESIGN`.
     """
-    sets = _source_key_sets(monkeypatch)
+    sets = _source_key_sets(monkeypatch, tmp_path)
+    # ⚠️ FIX ROUND 1 (2026-08-22 review, Minor 4): PINNED, mirroring the
+    # closedTable `==138`-manifest-pin idiom. Without this, deleting an entry
+    # from `_source_key_sets` shrinks the pairwise comparisons below and the
+    # rail stays green — "13 sources, zero overlaps" reads identically to
+    # "14 sources, zero overlaps" unless the count itself is asserted.
+    # Growing (or shrinking) the source list means bumping this number
+    # DELIBERATELY, in the same commit, never by accident.
+    assert len(sets) == 14, (
+        f"_source_key_sets returned {len(sets)} sources, expected 14 — a "
+        f"source was added or removed from the fixture; bump this pin "
+        f"deliberately")
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
         assert keys, f"{label} emitted no columns — the derivation is broken"
@@ -482,11 +587,11 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch):
     assert "market_cap" not in sets["fundamentals_bulk"]
 
 
-def test_no_shared_column_allowance_outlives_its_overlap(monkeypatch):
+def test_no_shared_column_allowance_outlives_its_overlap(monkeypatch, tmp_path):
     """⭐ THE SHRINK DIRECTION. An exemption list that only ever grows is a list
     nobody will look at again; the moment `sector` gets a single owner this
     fails and demands the entry be struck."""
-    sets = _source_key_sets(monkeypatch)
+    sets = _source_key_sets(monkeypatch, tmp_path)
     for (a, bb), columns in SHARED_BY_DESIGN.items():
         assert a in sets and bb in sets, f"unknown source in SHARED_BY_DESIGN: {(a, bb)}"
         for column, reason in columns.items():
@@ -497,12 +602,12 @@ def test_no_shared_column_allowance_outlives_its_overlap(monkeypatch):
                 f"allowance rather than leaving a dead exemption behind")
 
 
-def test_the_three_handed_over_columns_are_written_here_and_nowhere_else(monkeypatch):
+def test_the_three_handed_over_columns_are_written_here_and_nowhere_else(monkeypatch, tmp_path):
     """🔴 THE DECISION, ASSERTED IN BOTH DIRECTIONS. Absence from `enrich` alone
     would also be satisfied by nobody writing them at all — which is the state
     the whole phase started from. Presence here alone would be satisfied by two
     writers agreeing today and drifting tomorrow."""
-    sets = _source_key_sets(monkeypatch)
+    sets = _source_key_sets(monkeypatch, tmp_path)
     for column in ("op_margin", "roe", "peg"):
         owners = sorted(label for label, keys in sets.items() if column in keys)
         assert owners == ["fundamentals_bulk"], (

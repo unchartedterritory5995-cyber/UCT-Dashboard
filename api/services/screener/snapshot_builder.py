@@ -5,7 +5,9 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
   - bars     -> ``bars_sqlite.get_bars`` (tuples -> dicts); technicals/candles/patterns
   - ratings  -> ``research_ratings.db`` stored metrics -> ``enrich.ratings_fields``
                 (eps/rev growth, peg, fwd P/E, margin, ROE, accdis + computed
-                 uct_composite via the same percentile path as the research page)
+                 uct_composite via the same percentile path as the research page;
+                 Wave 2 adds the rating_eps/growth/value/smr components,
+                 sector_rs_pct and sponsorship — see that module's docstring)
   - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``)
   - meta     -> ``ticker_meta`` cache (name/sector/industry)
   - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
@@ -16,6 +18,16 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 ⭐ Not per-ticker: the research page computes the same figures
                 one symbol at a time, and doing that here would be ~3,700
                 provider calls a night.
+  - market    -> six Wave 2 whole-market/nightly readers, each ONE read per
+                build, merged per-ticker into ``market_row``: ``finviz_universe``
+                (float/short/ownership incl. ``inst_pct``, its sole writer now
+                that ``enrich.ratings_fields`` handed it over), ``earnings_dates``
+                (next earnings date/session), ``earnings_context`` (last-report
+                move + implied move/setup grade — two readers, two stores),
+                ``analyst_pass`` (consensus/price-target/grade-actions/eps
+                growth — ``pt_upside_pct`` is derived HERE from ``pt_target``
+                and the bar-derived ``price``, beside ``dollar_vol_30d``), and
+                ``insider_capture`` (days since the latest cluster buy).
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -33,7 +45,9 @@ import logging
 import os
 import time
 
-from . import snapshot_db, candles, technicals, patterns, enrich, setup_score, context_joins
+from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
+              context_joins, finviz_universe, earnings_dates, earnings_context,
+              analyst_pass, insider_capture)
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +88,8 @@ def rs_fields(rs_row) -> dict:
 
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
-              bulk_row=None, spy_closes=None, context_row=None) -> dict:
+              bulk_row=None, spy_closes=None, context_row=None,
+              market_row=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -85,6 +100,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     is the rail that keeps it that way. In particular it does not carry
     ``market_cap`` (Massive owns that column) — so unlike the RS pair there is
     no ordering question to get right here, and none is implied.
+
+    ``market_row`` is one ticker's merge of the SIX Wave 2 readers — Finviz
+    float/short/ownership (``finviz_universe``, and the sole writer of
+    ``inst_pct`` now that ``enrich.ratings_fields`` has handed it over — see
+    that module's docstring), next-earnings date/session (``earnings_dates``),
+    last-report move + implied move/setup-grade (``earnings_context``'s two
+    readers), analyst consensus/price-target/grade-actions/eps-growth
+    (``analyst_pass``), and insider cluster-days (``insider_capture``). Disjoint
+    from every other source by construction (each reader owns its own
+    columns). Merged AFTER ``ratings_row`` and BEFORE ``context_row``.
 
     ``context_row`` is one ticker's merge of the four ``context_joins`` readers
     (breadth/uct20/index/etf) — classification flags, disjoint from every other
@@ -98,7 +123,7 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # either (see its docstring) — this ordering is the belt to that braces, so
     # the day somebody re-adds them there the rank still comes from one place.
     for src in (fundamentals or {}, bulk_row or {}, ratings_row or {},
-                context_row or {}, rs_fields(rs_row)):
+                market_row or {}, context_row or {}, rs_fields(rs_row)):
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
@@ -145,6 +170,40 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # platform).
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
+    # Pure derivation, single writer: analyst price-target upside vs today's
+    # price. `analyst_pass.read_analyst_fields` deliberately does NOT emit
+    # this — it has no price — so the builder is the one place `pt_target`
+    # and `price` are both in hand (see that module's docstring).
+    #
+    # ⚠️ FIX ROUND 1 (2026-08-22 review, Important 3): BOTH factors must be
+    # POSITIVE, not merely present — `pt_target=0.0, price=100` used to
+    # compute a confident `-100.0`, which is not "the analyst target implies
+    # a 100% decline", it is a target FMP never supplied (0.0 is
+    # `analyst_pass`'s own not-computable sentinel; see that module's
+    # `_fetch_pt_target`) mislabeled as a number. A non-positive price is
+    # equally not-computable — the ratio is undefined, not merely large.
+    pt_target = row.get("pt_target")
+    price = row.get("price")
+    if (pt_target is not None and price is not None
+            and pt_target > 0 and price > 0):
+        row["pt_upside_pct"] = round((pt_target / price - 1) * 100, 2)
+    # Pure derivation, single writer: age from the profile-bulk listing date.
+    if row.get("ipo_date"):
+        try:
+            listed = datetime.date.fromisoformat(str(row["ipo_date"])[:10])
+            row["ipo_age_days"] = max(0, (datetime.date.today() - listed).days)
+        except (TypeError, ValueError):
+            pass
+    # Pure derivation, single writer: days until the next reported earnings
+    # date (from earnings_dates.read_earnings_dates via market_row). Can go
+    # negative once the date has passed — that's honest (the last pull's date
+    # simply hasn't rolled forward yet), never hidden.
+    if row.get("next_earnings_date"):
+        try:
+            nxt = datetime.date.fromisoformat(str(row["next_earnings_date"])[:10])
+            row["days_to_earnings"] = (nxt - datetime.date.today()).days
+        except (TypeError, ValueError):
+            pass
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
     return row
@@ -253,7 +312,9 @@ def _read_fundamentals(ticker, price=None, failures=None):
 
 def _read_ratings(ticker, failures=None):
     """Reuse the nightly-stored ratings metrics (research_ratings.db) — no
-    network. Returns column-keyed fundamentals + computed uct_composite.
+    network. Returns column-keyed fundamentals + computed uct_composite,
+    plus (Wave 2) the ratings components/sector-RS/sponsorship additions —
+    see `enrich.ratings_fields`'s docstring for the `inst_pct` handover.
 
     ⚠️ AN EMPTY `research_ratings.db` LOOKS EXACTLY LIKE A UNIVERSE OF UNRATED
     TICKERS from inside this function — both are `{}` — so the MISS is counted
@@ -263,6 +324,11 @@ def _read_ratings(ticker, failures=None):
     nothing. Its only writer is `research.ratings_universe.nightly_job`,
     registered only under `RATINGS_PERCENTILE_ENABLED` (default `0`); on
     2026-08-09 the file was 0 bytes.
+
+    Both `load_distributions()` and `load_sector_distributions()` are called
+    ONCE per ticker here and threaded straight into `ratings_fields` — each is
+    already memoized in-process for 10 min inside `ratings_db`, so this is not
+    a per-ticker DB read across a nightly universe pass, just a cheap memo hit.
     """
     def _note(outcome):
         if failures is None:
@@ -280,7 +346,8 @@ def _read_ratings(ticker, failures=None):
     if not metrics:
         _note("no_metrics")
         return {}
-    return enrich.ratings_fields(metrics, enrich.load_distributions())
+    return enrich.ratings_fields(
+        metrics, enrich.load_distributions(), enrich.load_sector_distributions())
 
 
 def _read_rs_map():
@@ -329,6 +396,38 @@ def _read_bulk_fundamentals(targets, failures=None):
             names = "the bulk fundamentals"
         log.warning("[screener] bulk fundamentals unavailable; these will be "
                     "NULL: %s", names, exc_info=True)
+        return {}
+
+
+def _read_market_source(label, reader, targets, failures=None) -> dict:
+    """Call one Wave 2 ``market_row`` reader, guarded at the CONSUMER SEAM.
+
+    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the six
+    Wave 2 readers already guards its OWN internal work — but
+    ``insider_capture.read_insider_fields`` calls ``_init_db()`` BEFORE its
+    own try/except (insider_capture.py:178, init at :83-94), so a dead store
+    (e.g. ``_connect`` raising) escaped the reader entirely and reached
+    ``run_build`` unguarded — and ``run_build`` called all six readers with
+    nothing catching that escape. Reproduced: monkeypatching
+    ``insider_capture._connect`` to raise crashed the ENTIRE nightly build
+    (zero rows), not just insider_cluster_days.
+
+    This mirrors ``_read_bulk_fundamentals``'s guard immediately above,
+    per-reader: a raise degrades to ``{}`` and is COUNTED under ``label`` in
+    the same ``failures``/``sources`` census every reader already reports
+    into — a dead source must be REPORTED, never silent, never fatal — and,
+    because each of the six calls is wrapped independently, one bad source
+    can never hide the other five.
+    """
+    try:
+        return reader(targets, failures=failures) or {}
+    except Exception as e:                                     # noqa: BLE001
+        if failures is not None:
+            failures.setdefault(label, {})
+            key = type(e).__name__
+            failures[label][key] = failures[label].get(key, 0) + 1
+        log.warning("[screener] %s unavailable; its market_row columns will "
+                    "be NULL this build", label, exc_info=True)
         return {}
 
 
@@ -402,6 +501,26 @@ def run_build(max_tickers=None) -> dict:
     uct20_map = context_joins.read_uct20(targets, failures=sources)
     index_map = context_joins.read_index_flags(targets, failures=sources)
     etf_map = context_joins.read_etf_flags(targets, failures=sources)
+    # ⭐ Six Wave 2 readers, ONE read per build each — same shape as the four
+    # context maps above, never a per-ticker call. Each call is wrapped by
+    # `_read_market_source` (mirrors `_read_bulk_fundamentals` above): a dead
+    # source degrades to {} and is COUNTED, never allowed to raise out and
+    # take the whole build down with it (fix round 1, 2026-08-22 review —
+    # see that helper's docstring). See each reader's own module docstring
+    # for its honesty contract (absent key = not computable, never a
+    # fabricated value).
+    finviz_map = _read_market_source(
+        "finviz_universe", finviz_universe.read_finviz_fields, targets, sources)
+    edates_map = _read_market_source(
+        "earnings_dates", earnings_dates.read_earnings_dates, targets, sources)
+    lastmove_map = _read_market_source(
+        "wire_last_report_move", earnings_context.read_last_report_move, targets, sources)
+    implied_map = _read_market_source(
+        "earnings_context_implied", earnings_context.read_implied_context, targets, sources)
+    analyst_map = _read_market_source(
+        "analyst_pass", analyst_pass.read_analyst_fields, targets, sources)
+    insider_map = _read_market_source(
+        "insider_capture", insider_capture.read_insider_fields, targets, sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -430,11 +549,14 @@ def run_build(max_tickers=None) -> dict:
             T = t.upper()
             context_row = {**breadth_map.get(T, {}), **uct20_map.get(T, {}),
                            **index_map.get(T, {}), **etf_map.get(T, {})}
+            market_row = {**finviz_map.get(T, {}), **edates_map.get(T, {}),
+                          **lastmove_map.get(T, {}), **implied_map.get(T, {}),
+                          **analyst_map.get(T, {}), **insider_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
                             rs_row, bulk_row, spy_closes=spy_closes,
-                            context_row=context_row)
+                            context_row=context_row, market_row=market_row)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1

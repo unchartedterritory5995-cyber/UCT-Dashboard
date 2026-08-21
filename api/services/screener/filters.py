@@ -200,6 +200,25 @@ FILTERS = dict([
     # answer, and a better one than every financial in America.
     _open_range("current_ratio", "Current Ratio", "fundamental",
                 "current_ratio"),
+    # ── Wave 2 (fundamental) — bare like the ten above; no editorial presets ──
+    _open_range("quick_ratio", "Quick Ratio", "fundamental", "quick_ratio"),
+    _open_range("p_fcf", "P/FCF", "fundamental", "p_fcf"),
+    _open_range("p_ocf", "P/OCF", "fundamental", "p_ocf"),
+    _open_range("payout_ratio", "Payout Ratio", "fundamental", "payout_ratio",
+                unit="%"),
+    _open_range("roic", "ROIC", "fundamental", "roic", unit="%"),
+    _open_range("lt_debt_to_capital", "LT Debt / Capital", "fundamental",
+                "lt_debt_to_capital"),
+    # ISO dates compare correctly as TEXT in SQLite, so a custom range works
+    # server-side today; the old panel's number inputs can't type one — the
+    # usable control is ipo_age_days below, and Wave 3's typed controls make
+    # this one first-class. It exists because every bulk-written column must
+    # carry a control (the registry rail).
+    _open_range("ipo_date", "IPO Date", "descriptive", "ipo_date"),
+    _open_range("ipo_age_days", "IPO Age (days)", "descriptive",
+                "ipo_age_days"),
+    _enum("country", "Country", "descriptive", "country",
+          [{"label": "Any"}], options_column="country"),
     # ── technical ──
     _range("rs_rank", "RS Rank", "technical", "rs_rank",
            [{"label": "Any"}, {"label": "Over 70", "op": "gte", "min": 70},
@@ -366,6 +385,60 @@ FILTERS = dict([
     _bool("stage2", "Weinstein Stage 2", "context", "stage2"),
     _bool("stage4", "Weinstein Stage 4", "context", "stage4"),
     _bool("hvc_52w", "High-Volume Close (52W)", "context", "hvc_52w"),
+    # ── ownership (Wave 2) ──
+    _open_range("shares_outstanding", "Shares Outstanding", "ownership",
+                "shares_outstanding"),
+    _open_range("float_shares", "Float (Shares)", "ownership", "float_shares"),
+    _open_range("float_pct", "Float % of Shares", "ownership", "float_pct",
+                unit="%"),
+    _open_range("short_float_pct", "Short % of Float", "ownership",
+                "short_float_pct", unit="%"),
+    _open_range("short_ratio", "Short Ratio (Days to Cover)", "ownership",
+                "short_ratio"),
+    _open_range("insider_own_pct", "Insider Ownership", "ownership",
+                "insider_own_pct", unit="%"),
+    _open_range("insider_cluster_days", "Insider Cluster Buy (days ago)",
+                "ownership", "insider_cluster_days"),
+    # inst_pct's existing filter keeps its key/category; only its writer moved.
+    # ── events (Wave 2) ──
+    _open_range("next_earnings_date", "Next Earnings Date", "events",
+                "next_earnings_date"),
+    _open_range("days_to_earnings", "Days to Earnings", "events",
+                "days_to_earnings"),
+    _enum("earnings_session", "Earnings Session", "events", "earnings_session",
+          [{"label": "Any"},
+           {"label": "Before the open", "op": "eq", "value": "bmo"},
+           {"label": "After the close", "op": "eq", "value": "amc"},
+           {"label": "Time TBD", "op": "eq", "value": "tbd"}]),
+    _open_range("last_report_move_pct", "Last Report Move", "events",
+                "last_report_move_pct", unit="%"),
+    _open_range("implied_move_pct", "Implied Move (pre-report)", "events",
+                "implied_move_pct", unit="%"),
+    _enum("earnings_setup_grade", "Earnings Setup Grade", "events",
+          "earnings_setup_grade", [{"label": "Any"}],
+          options_column="earnings_setup_grade"),
+    _enum("analyst_consensus", "Analyst Consensus", "events",
+          "analyst_consensus", [{"label": "Any"}],
+          options_column="analyst_consensus"),
+    _open_range("pt_target", "Price Target", "events", "pt_target", unit="$"),
+    _open_range("pt_upside_pct", "PT Upside", "events", "pt_upside_pct",
+                unit="%"),
+    _open_range("upgrades_30d", "Upgrades (30d)", "events", "upgrades_30d"),
+    _open_range("downgrades_30d", "Downgrades (30d)", "events",
+                "downgrades_30d"),
+    _open_range("eps_next_y_growth", "EPS Growth Next FY (est)", "events",
+                "eps_next_y_growth", unit="%"),
+    # ── ratings components (fundamental) ──
+    _open_range("blended_growth", "Blended Growth", "fundamental",
+                "blended_growth", unit="%"),
+    _open_range("sector_rs_pct", "Sector RS", "fundamental", "sector_rs_pct"),
+    _open_range("rating_eps", "EPS Rating", "fundamental", "rating_eps"),
+    _open_range("rating_growth", "Growth Rating", "fundamental",
+                "rating_growth"),
+    _open_range("rating_value", "Value Rating", "fundamental", "rating_value"),
+    _open_range("rating_smr", "SMR Rating", "fundamental", "rating_smr"),
+    _enum("sponsorship", "Sponsorship Grade", "fundamental", "sponsorship",
+          [{"label": "Any"}], options_column="sponsorship"),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -417,6 +490,8 @@ CATEGORIES = [
     {"key": "single_candle", "label": "Single Candle"},
     {"key": "multi_candle", "label": "Multi-Candle"},
     {"key": "pattern", "label": "Patterns"},
+    {"key": "ownership", "label": "Ownership & Insiders"},
+    {"key": "events", "label": "Events & Analysts"},
     {"key": "context", "label": "Context"},
 ]
 

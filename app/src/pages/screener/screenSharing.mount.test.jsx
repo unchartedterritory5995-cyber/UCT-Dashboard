@@ -250,7 +250,7 @@ describe('the controls that keep the rail honest', () => {
     // file is entitled to — a control that cannot tell those apart would have to
     // be loosened until it stopped measuring anything.
     const ON_THE_CHAIN = new Set([
-      'Screener', 'ScannerPro', 'SaveScreenBar', 'useSavedScreens', 'screenShareLink',
+      'Screener', 'ScannerShell', 'SaveScreenBar', 'useSavedScreens', 'screenShareLink',
     ])
     const mocked = mockedSpecifiers(read('app/src/pages/screener/screenSharing.mount.test.jsx'))
     expect(mocked.length, 'the mock scan found nothing — this control is vacuous')
@@ -268,7 +268,7 @@ describe('the controls that keep the rail honest', () => {
 
   it('exactly one module emits the share panel', () => {
     const owners = ['app/src/pages/screener/SaveScreenBar.jsx',
-      'app/src/pages/screener/ScannerPro.jsx',
+      'app/src/pages/screener/shell/ScannerShell.jsx',
       'app/src/pages/Screener.jsx']
       .filter((rel) => read(rel).includes('data-testid={`share-panel-'))
     expect(owners).toEqual(['app/src/pages/screener/SaveScreenBar.jsx'])

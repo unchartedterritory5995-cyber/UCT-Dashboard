@@ -115,6 +115,7 @@ class ScanSpec(BaseModel):
     filters: list[dict] = []
     sort: dict | None = None
     view: str = "overview"
+    columns: list[str] | None = None
     page: int = 1
     page_size: int = 50
 
