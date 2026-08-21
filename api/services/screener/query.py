@@ -26,11 +26,13 @@ def _scan_clauses(f, clauses, params, scan_joins):
     raw = f.get("value")
     hashes = raw if isinstance(raw, list) else [raw]
     hashes = [h for h in hashes if isinstance(h, str) and h.strip()]
-    if not hashes or (isinstance(raw, list) and len(hashes) != len(raw)) \
-            or (not isinstance(raw, (list, str))):
+    if not hashes or (isinstance(raw, list) and len(hashes) != len(raw)):
         raise ValueError("scan filter requires def_hash value(s)")
+    # ONE batched read for every hash (the primitive's own contract: meta()
+    # and this request path both run on the one shared loop — no N+1).
+    covered = scan_store.latest_coverage_for(hashes, scan_store.SCAN_JOIN_TF)
     for h in hashes:
-        latest = scan_store.latest_covered_as_of(h, scan_store.SCAN_JOIN_TF)
+        latest = (covered.get(h) or {}).get("as_of")
         if latest is None:
             # Never swept (withheld is indistinguishable at the store, by
             # design): INERT and disclosed, per spec §4(c).
