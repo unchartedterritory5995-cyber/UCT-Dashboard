@@ -230,6 +230,15 @@ function _luminance(hex) {
   return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
 }
 
+// High-contrast readable ink for a given canvas color — bright on a dark canvas,
+// near-black on a light one. Used for widget DATA text (symbol/price/volume/etc.),
+// which must read crisply in dense rows rather than fade like the muted chart-axis
+// text does. `theme.text` is intentionally subtle for the big chart canvas; widgets
+// use this instead so their text always stands out.
+export function readableInk(bg) {
+  return _luminance(bg) > 0.55 ? '#14181d' : '#e8e8ec'
+}
+
 /**
  * Merge a theme's VISUAL layer over an existing chart-settings blob. Pure — never
  * mutates `settings`. Non-visual settings (indicators, timeframes, header layout,
@@ -357,10 +366,13 @@ export function mapThemeToWidgetSettings(base, theme, type) {
     bg: grad ? grad.bottom : theme.bg,
     ...(grad ? { bgGradient: { top: grad.top, bottom: grad.bottom } } : {}),
   }
+  // Widget DATA text uses high-contrast ink (not the muted chart-axis `theme.text`)
+  // so symbol/price/volume rows always stand out on the themed canvas.
+  const ink = readableInk(grad ? grad.top : theme.bg)
   const textKey = _WIDGET_TEXT_KEY[type] || 'textColor'
-  const out = { ...b, ...canvas, [textKey]: theme.text }
+  const out = { ...b, ...canvas, [textKey]: ink }
 
-  if (type === 'breadth') { out.headerColor = theme.text; out.valueColor = theme.text }
+  if (type === 'breadth') { out.headerColor = ink; out.valueColor = ink }
   if (_MARKET_TYPES.has(type)) {
     out.upColor = theme.up
     out.downColor = theme.down

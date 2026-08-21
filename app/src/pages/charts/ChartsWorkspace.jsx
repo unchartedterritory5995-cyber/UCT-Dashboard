@@ -1773,19 +1773,15 @@ export default function ChartsWorkspace() {
       useCSSTransforms={false}
     >
       {widgets.map(w => {
-        // Another widget sits DIRECTLY above this one (its bottom edge touches
-        // this widget's top edge and their columns overlap) → drop this widget's
-        // header to the bottom so the two blend at the seam.
-        const hasAbove = widgets.some(o =>
-          o.id !== w.id
-          && (o.y + o.h) === w.y
-          && o.x < w.x + w.w && w.x < o.x + o.w,
-        )
+        // The widget header (drag bar + color-link dot + window controls) ALWAYS
+        // sits at the TOP, regardless of what is placed above it. (The previous
+        // "dock the header to the bottom when another widget sits directly above"
+        // seam-blend behavior was reverted at owner request 2026-08-20.)
         return (
           <div key={w.id} data-widget-id={w.id}>
             <WidgetHost
               widget={w}
-              headerAtBottom={hasAbove}
+              headerAtBottom={false}
               merged={merged}
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
