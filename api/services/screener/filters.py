@@ -579,8 +579,15 @@ def _my_scans_entry(user_id):
         counts[name] = counts.get(name, 0) + 1
     labeled = [(h, f"{name} · {h[7:13]}" if counts[name] > 1 else name)
                for h, name in scannable]
-    latest = scan_store.latest_coverage_for(
-        [h for h, _ in labeled], scan_store.SCAN_JOIN_TF)
+    try:
+        latest = scan_store.latest_coverage_for(
+            [h for h, _ in labeled], scan_store.SCAN_JOIN_TF)
+    except Exception:
+        # Same honest-absence contract as the definitions read above: an
+        # unreadable coverage store must cost the member ONE category, never
+        # the whole meta payload — and rendering "first sweep tonight" off a
+        # failed read would claim a fact we do not hold.
+        return None
     return {
         "key": "scan", "label": "My Scans", "category": "my_scans",
         "type": "enum", "allow_custom": False, "unit": None,
