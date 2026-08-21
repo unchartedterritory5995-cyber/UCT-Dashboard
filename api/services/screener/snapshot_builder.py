@@ -18,6 +18,16 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 ⭐ Not per-ticker: the research page computes the same figures
                 one symbol at a time, and doing that here would be ~3,700
                 provider calls a night.
+  - market    -> six Wave 2 whole-market/nightly readers, each ONE read per
+                build, merged per-ticker into ``market_row``: ``finviz_universe``
+                (float/short/ownership incl. ``inst_pct``, its sole writer now
+                that ``enrich.ratings_fields`` handed it over), ``earnings_dates``
+                (next earnings date/session), ``earnings_context`` (last-report
+                move + implied move/setup grade — two readers, two stores),
+                ``analyst_pass`` (consensus/price-target/grade-actions/eps
+                growth — ``pt_upside_pct`` is derived HERE from ``pt_target``
+                and the bar-derived ``price``, beside ``dollar_vol_30d``), and
+                ``insider_capture`` (days since the latest cluster buy).
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -35,7 +45,9 @@ import logging
 import os
 import time
 
-from . import snapshot_db, candles, technicals, patterns, enrich, setup_score, context_joins
+from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
+              context_joins, finviz_universe, earnings_dates, earnings_context,
+              analyst_pass, insider_capture)
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +88,8 @@ def rs_fields(rs_row) -> dict:
 
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
-              bulk_row=None, spy_closes=None, context_row=None) -> dict:
+              bulk_row=None, spy_closes=None, context_row=None,
+              market_row=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -87,6 +100,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     is the rail that keeps it that way. In particular it does not carry
     ``market_cap`` (Massive owns that column) — so unlike the RS pair there is
     no ordering question to get right here, and none is implied.
+
+    ``market_row`` is one ticker's merge of the SIX Wave 2 readers — Finviz
+    float/short/ownership (``finviz_universe``, and the sole writer of
+    ``inst_pct`` now that ``enrich.ratings_fields`` has handed it over — see
+    that module's docstring), next-earnings date/session (``earnings_dates``),
+    last-report move + implied move/setup-grade (``earnings_context``'s two
+    readers), analyst consensus/price-target/grade-actions/eps-growth
+    (``analyst_pass``), and insider cluster-days (``insider_capture``). Disjoint
+    from every other source by construction (each reader owns its own
+    columns). Merged AFTER ``ratings_row`` and BEFORE ``context_row``.
 
     ``context_row`` is one ticker's merge of the four ``context_joins`` readers
     (breadth/uct20/index/etf) — classification flags, disjoint from every other
@@ -100,7 +123,7 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # either (see its docstring) — this ordering is the belt to that braces, so
     # the day somebody re-adds them there the rank still comes from one place.
     for src in (fundamentals or {}, bulk_row or {}, ratings_row or {},
-                context_row or {}, rs_fields(rs_row)):
+                market_row or {}, context_row or {}, rs_fields(rs_row)):
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
@@ -147,6 +170,13 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # platform).
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
+    # Pure derivation, single writer: analyst price-target upside vs today's
+    # price. `analyst_pass.read_analyst_fields` deliberately does NOT emit
+    # this — it has no price — so the builder is the one place `pt_target`
+    # and `price` are both in hand (see that module's docstring).
+    if row.get("pt_target") is not None and row.get("price"):
+        row["pt_upside_pct"] = round(
+            (row["pt_target"] / row["price"] - 1) * 100, 2)
     # Pure derivation, single writer: age from the profile-bulk listing date.
     if row.get("ipo_date"):
         try:
@@ -429,6 +459,16 @@ def run_build(max_tickers=None) -> dict:
     uct20_map = context_joins.read_uct20(targets, failures=sources)
     index_map = context_joins.read_index_flags(targets, failures=sources)
     etf_map = context_joins.read_etf_flags(targets, failures=sources)
+    # ⭐ Six Wave 2 readers, ONE read per build each — same shape as the four
+    # context maps above, never a per-ticker call. See each reader's own
+    # module docstring for its honesty contract (absent key = not computable,
+    # never a fabricated value).
+    finviz_map = finviz_universe.read_finviz_fields(targets, failures=sources)
+    edates_map = earnings_dates.read_earnings_dates(targets, failures=sources)
+    lastmove_map = earnings_context.read_last_report_move(targets, failures=sources)
+    implied_map = earnings_context.read_implied_context(targets, failures=sources)
+    analyst_map = analyst_pass.read_analyst_fields(targets, failures=sources)
+    insider_map = insider_capture.read_insider_fields(targets, failures=sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -457,11 +497,14 @@ def run_build(max_tickers=None) -> dict:
             T = t.upper()
             context_row = {**breadth_map.get(T, {}), **uct20_map.get(T, {}),
                            **index_map.get(T, {}), **etf_map.get(T, {})}
+            market_row = {**finviz_map.get(T, {}), **edates_map.get(T, {}),
+                          **lastmove_map.get(T, {}), **implied_map.get(T, {}),
+                          **analyst_map.get(T, {}), **insider_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
                             rs_row, bulk_row, spy_closes=spy_closes,
-                            context_row=context_row)
+                            context_row=context_row, market_row=market_row)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
