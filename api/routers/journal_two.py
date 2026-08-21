@@ -1850,6 +1850,41 @@ def get_strategy_excursion_route(
         conn.close()
 
 
+@router.get("/metrics/registry")
+def metrics_registry_route(
+    user: dict = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """Available metric cards (key/title/description/category) + the custom-
+    KPI vocabulary — what the dashboard composer's picker renders."""
+    from api.services.journal_two.metrics_registry import registry_listing
+    return registry_listing()
+
+
+@router.get("/metrics")
+def metrics_route(
+    keys: str = "",
+    kpi: list[str] = Query(default=[]),
+    account_id: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Batched metric-card compute for the customizable dashboard: ?keys=a,b,c
+    plus repeated ?kpi=name:expr custom formulas, scoped by the same FilterSpec
+    as every other surface. Unknown keys are reported, never dropped; every
+    number flows through the audited pipeline (books_audit covers it)."""
+    from api.services.journal_two.metrics_registry import compute_metrics
+    key_list = [k.strip() for k in keys.split(",") if k.strip()]
+    kpis: list[tuple[str, str]] = []
+    for item in kpi:
+        name, sep, expr = item.partition(":")
+        if sep and name.strip() and expr.strip():
+            kpis.append((name.strip()[:40], expr.strip()))
+    return compute_metrics(
+        user["id"], key_list, kpis=kpis,
+        account_id=account_id, spec=spec,
+    )
+
+
 @router.get("/tax-report")
 def get_tax_report_route(
     year: int,
