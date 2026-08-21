@@ -1022,6 +1022,20 @@ def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, A
     return {"started": True}
 
 
+@router.get("/admin/books-audit")
+def books_audit_route(
+    target_user_id: str | None = None,
+    account_id: str | None = None,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Admin-only cross-foot of every analytics surface against independent
+    raw-SQL recomputation (equity/distribution/calendar/day-pages/tax/options
+    must all serve the SAME trades). Defaults to the admin's own book;
+    target_user_id audits another user's."""
+    from api.services.journal_two.books_audit import run_books_audit
+    return run_books_audit(target_user_id or user["id"], account_id=account_id)
+
+
 @router.post("/admin/excursion-backfill")
 def excursion_backfill_route(
     limit: int | None = None,
@@ -1807,6 +1821,67 @@ def get_analytics_route(
     parse_filter_query, so filtered analytics agree with every other surface."""
     return analytics_service.get_analytics(
         user["id"], account_id=account_id, spec=spec,
+    )
+
+
+@router.get("/strategies/{strategy_id}/excursion")
+def get_strategy_excursion_route(
+    strategy_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any] | None:
+    """The stored excursion for one option strategy (trade_ref =
+    id:<strategy_id>), or null when none exists yet. Ownership-checked
+    against j2_option_strategies first (404 if not the caller's). The
+    contract tier (dataQuality='option_daily') carries real exit
+    efficiency + true R on the premium; 'underlying' rows carry raw
+    underlying extremes only."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.excursions_store import get_excursion
+    conn = get_connection()
+    try:
+        owned = conn.execute(
+            "SELECT 1 FROM j2_option_strategies WHERE id = ? AND user_id = ?",
+            (strategy_id, user["id"]),
+        ).fetchone()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Not found")
+        return get_excursion(user["id"], f"id:{strategy_id}", conn)
+    finally:
+        conn.close()
+
+
+@router.get("/metrics/registry")
+def metrics_registry_route(
+    user: dict = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """Available metric cards (key/title/description/category) + the custom-
+    KPI vocabulary — what the dashboard composer's picker renders."""
+    from api.services.journal_two.metrics_registry import registry_listing
+    return registry_listing()
+
+
+@router.get("/metrics")
+def metrics_route(
+    keys: str = "",
+    kpi: list[str] = Query(default=[]),
+    account_id: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Batched metric-card compute for the customizable dashboard: ?keys=a,b,c
+    plus repeated ?kpi=name:expr custom formulas, scoped by the same FilterSpec
+    as every other surface. Unknown keys are reported, never dropped; every
+    number flows through the audited pipeline (books_audit covers it)."""
+    from api.services.journal_two.metrics_registry import compute_metrics
+    key_list = [k.strip() for k in keys.split(",") if k.strip()]
+    kpis: list[tuple[str, str]] = []
+    for item in kpi:
+        name, sep, expr = item.partition(":")
+        if sep and name.strip() and expr.strip():
+            kpis.append((name.strip()[:40], expr.strip()))
+    return compute_metrics(
+        user["id"], key_list, kpis=kpis,
+        account_id=account_id, spec=spec,
     )
 
 

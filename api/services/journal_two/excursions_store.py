@@ -179,3 +179,27 @@ def backfill_true_r(conn: sqlite3.Connection | None = None) -> int:
     finally:
         if own:
             conn.close()
+
+
+def underlying_refs(user_id: str, conn: sqlite3.Connection | None = None) -> set:
+    """trade_refs whose stored excursion is still the 'underlying' OR
+    'insufficient' tier — the retry/upgrade set for the nightly single-leg
+    contract-tier pass. Insufficient joined 2026-08-21: ~50 rows fell to it
+    during the pre-window-fix upgrade batch and would otherwise never retry,
+    and a contract with no aggs yet can gain them at T+1. The jobs-side cap
+    bounds the spend; a ref leaves this set when a contract-tier record
+    replaces it. (Only OPTION strategies consult this set — equity
+    insufficient rows are not retried through it.)"""
+    own = conn is None
+    if own:
+        conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT trade_ref FROM j2_trade_excursions "
+            " WHERE user_id = ? AND data_quality IN ('underlying', 'insufficient')",
+            (user_id,),
+        ).fetchall()
+        return {r["trade_ref"] for r in rows}
+    finally:
+        if own:
+            conn.close()

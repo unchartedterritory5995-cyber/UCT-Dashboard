@@ -4437,6 +4437,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] pattern_vision job registration error: {e}")
 
+        # -- Exposure Gate Watch (spec 2026-08-21) -------------------------
+        # Compares live QQQ to the wire-published restraint-release / S2
+        # levels (wire_data.exposure.gate_levels) and posts one in-app alert
+        # per trigger per day. Reads only caches; no-ops until the wire
+        # supplies gate_levels. The 9-16 cron over-covers on purpose — the
+        # function's own RTH guard owns the 9:30/16:05 boundaries.
+        try:
+            if os.environ.get("EXPOSURE_GATE_WATCH_ENABLED", "").lower() in ("1", "true", "yes"):
+                from api.services.exposure_gate_watch import check_once as _gate_check
+                _scheduler.add_job(_gate_check,
+                    trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute="*/2", timezone=_ET),
+                    id="exposure_gate_watch", max_instances=1, replace_existing=True)
+                print("[startup] exposure-gate-watch: on (2-min RTH cadence)")
+        except Exception as e:
+            print(f"[scheduler] exposure_gate_watch job registration error: {e}")
+
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow
@@ -5492,6 +5508,13 @@ async def lifespan(app: FastAPI):
             from api.services.journal_two import excursion_jobs
             if excursion_jobs.register_jobs(_scheduler):
                 print("[startup] j2 excursion backfill registered (03:10 ET Mon-Sat)")
+            # Weekly books audit (Sunday 09:30 ET) — read-only cross-foot of
+            # every user's book across all lenses; ALWAYS posts its weekly
+            # Discord line (green or red) so the gate is visibly alive.
+            # Kill switch: BOOKS_AUDIT_WEEKLY_ENABLED=0.
+            from api.services.journal_two import books_audit as _books_audit
+            if _books_audit.register_weekly_job(_scheduler):
+                print("[startup] j2 books audit registered (Sun 09:30 ET)")
         except Exception as e:
             print(f"[startup] j2 excursion backfill registration failed (non-fatal): {e}")
         # Nightly orphaned note-attachment GC (Journal Widgets — re-captures

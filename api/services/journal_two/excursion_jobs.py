@@ -31,6 +31,7 @@ import threading
 from datetime import datetime, timezone
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import excursions_store
 from api.services.journal_two.excursion_engine import (
     compute_for_option_strategy,
     compute_for_trade,
@@ -193,6 +194,24 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
                 "SELECT * FROM j2_option_strategies WHERE status = 'closed'",
             ).fetchall()
 
+        # Contract-tier upgrade budget (2026-08-21): a stored 'underlying'
+        # excursion on a SINGLE-leg strategy is upgradeable to the contract
+        # tier (O: daily aggs). Capped per run so the Massive spend is bounded;
+        # the backlog drains across nights. A single-leg contract with NO aggs
+        # falls back to 'underlying' and is retried next run (cheap; contracts
+        # gain aggs at T+1) — the cap bounds that steady-state too.
+        upgrade_cap = int(os.environ.get("EXCURSION_OPTION_UPGRADE_CAP", "400"))
+        upgrades_used = 0
+        _underlying_for: dict[str, set] = {}
+
+        def _upgradable(uid: str, ref: str) -> bool:
+            if uid not in _underlying_for:
+                try:
+                    _underlying_for[uid] = excursions_store.underlying_refs(uid, conn)
+                except Exception:  # noqa: BLE001
+                    _underlying_for[uid] = set()
+            return ref in _underlying_for[uid]
+
         for row in opt_rows:
             if limit is not None and processed >= limit:
                 break
@@ -200,7 +219,18 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
                 uid = row["user_id"]
                 ref = f"id:{row['id']}"  # options are never in j2_trades
                 if not force and ref in _refs_for(uid):
-                    continue  # already computed — does NOT count against `limit`
+                    if upgrades_used >= upgrade_cap or not _upgradable(uid, ref):
+                        continue  # already computed — does NOT count against `limit`
+                    # single-leg check is inside the compute; a multi-leg
+                    # re-lands on the underlying record (one cheap local
+                    # legs query — no Massive call is made for it).
+                    legs_n = conn.execute(
+                        "SELECT COUNT(*) FROM j2_option_legs WHERE strategy_id = ?",
+                        (row["id"],),
+                    ).fetchone()[0]
+                    if legs_n != 1:
+                        continue
+                    upgrades_used += 1
                 processed += 1
                 legs = conn.execute(
                     "SELECT * FROM j2_option_legs WHERE strategy_id = ? "

@@ -46,3 +46,27 @@
   font-size: 12.5px;
   line-height: 1.4;
 }
+
+
+/* -- Month-recap share card actions ------------------------------------- */
+.monthCardRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.monthCardBtn {
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  cursor: pointer;
+}
+
+.monthCardBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+.monthCardBtn:disabled { opacity: 0.5; cursor: default; }
+
+.monthCardErr { font-size: 12px; color: var(--danger, #ef4444); }

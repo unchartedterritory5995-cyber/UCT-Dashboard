@@ -476,6 +476,7 @@ def _normalize_exposure(raw: dict) -> dict:
         "note":        raw.get("note", ""),
         "gate_active": raw.get("gate_active", False),
         "gate_reason": raw.get("gate_reason"),
+        "gate_levels": raw.get("gate_levels"),
         "bonus":       raw.get("bonus", 0),
     }
 

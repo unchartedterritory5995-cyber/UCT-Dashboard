@@ -179,6 +179,14 @@
   text-align: center;
 }
 
+.gateLevels {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: -4px 0 8px;
+  text-align: center;
+}
+
 /* The wire stamp. Always rendered when known — a rating with no date beside it
    is exactly the condition that let a day-old 55 read as today's. Quiet when
    fresh so it is a reference, not noise; loud when the run was missed. */

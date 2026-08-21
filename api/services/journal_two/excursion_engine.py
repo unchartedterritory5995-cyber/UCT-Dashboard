@@ -254,6 +254,81 @@ def compute_for_trade(trade_row, *, bar_fetch=None, conn=None) -> dict:
     return result
 
 
+def _single_leg_contract_record(strategy_row, legs, entry_ts, exit_ts, fetch):
+    """CONTRACT-price excursion for a SINGLE-leg strategy (2026-08-21).
+
+    The 'underlying' tier below stores raw underlying extremes with every R
+    field None — real but thin. For one-leg strategies (the bulk of a retail
+    options book) the contract's own daily aggs exist on Massive under the
+    OCC `O:` symbol, and `_fetch_bars`'s daily branch already fetches them
+    verbatim (`to_polygon_symbol` is a no-op on OCC symbols) — so this reuses
+    the SAME injectable fetch, no new data path.
+
+    Long leg (buy) = equity Long (favorable up); sold leg = Short. Stop is the
+    entry (options carry no stop) so mfe_r/mae_r stay None while
+    exit_efficiency, missed_r and the stop-free true_r all compute — on the
+    PREMIUM the trader actually paid/received. Daily bars ONLY (option minute
+    aggs are too thin to trust); dataQuality='option_daily' so every consumer
+    can tell this tier from 'underlying'.
+
+    Returns None on any reason to fall back (multi-leg, missing prices, no
+    contract bars) — the caller then takes the underlying path unchanged.
+    """
+    if not legs or len(legs) != 1:
+        return None
+    leg = legs[0]
+    entry_ps = _num(_get(leg, "entry_price"))
+    if entry_ps is None or entry_ps <= 0:
+        return None
+
+    is_buy = str(_get(leg, "side", "")).lower() == "buy"
+    exit_ps = _num(_get(leg, "exit_price"))
+    if exit_ps is None:
+        # Single leg: net_exit = sideSign * qty * exit_ps * 100 (options.py).
+        ne = _num(_get(strategy_row, "net_exit"))
+        qty = _num(_get(leg, "qty"))
+        if ne is None or not qty:
+            return None
+        exit_ps = ne / ((1.0 if is_buy else -1.0) * qty * 100.0)
+    if exit_ps is None or exit_ps < 0:
+        return None  # a negative premium is corrupt input, not a price
+
+    try:
+        from api.services.journal_two.broker.historical_equity import occ_symbol
+        occ = occ_symbol(
+            _get(strategy_row, "underlying"), _get(leg, "expiration"),
+            _get(leg, "contract_type"), _get(leg, "strike"),
+        )
+    except Exception:  # noqa: BLE001 — malformed leg fields → fall back
+        return None
+
+    bars = fetch(occ, entry_ts, exit_ts, "D")
+    # Whole-day window bounds: daily bars anchor at NOON UTC of their day
+    # (_day_midday_seconds), so a same-day trade entered 09:30 ET (13:30+ UTC)
+    # sits AFTER its own day's bar — exact-ts filtering would drop the only
+    # bar and fail every day-traded option. Day-granular bars get day-granular
+    # bounds (the equity daily tier widens its end the same way); the fetch
+    # already spans only entry→exit dates, so no later days can leak in.
+    win_lo = entry_ts - (entry_ts % _SECONDS_PER_DAY)
+    win_hi = exit_ts + (_SECONDS_PER_DAY - 1)
+    window = [b for b in bars if win_lo <= b["t"] <= win_hi] if bars else []
+    if not window:
+        return None
+
+    out = compute_excursion(
+        "Long" if is_buy else "Short",
+        entry_ps, entry_ps,          # stop = entry → R fields None, true_r real
+        win_lo, win_hi, window,
+        exit_price=exit_ps,
+    )
+    if out is None:
+        return None
+    out["symbol"] = _get(strategy_row, "underlying")
+    out["bar_resolution"] = "D"
+    out["data_quality"] = "option_daily"
+    return out
+
+
 def compute_for_option_strategy(strategy_row, legs, *, bar_fetch=None, conn=None) -> dict:
     """MINIMAL underlying-move excursion for a closed option strategy.
 
@@ -275,6 +350,13 @@ def compute_for_option_strategy(strategy_row, legs, *, bar_fetch=None, conn=None
 
     if entry_ts is None or exit_ts is None or exit_ts <= entry_ts:
         record = _insufficient(symbol)
+        upsert_excursion(user_id, trade_ref, record, conn)
+        return record
+
+    # Single-leg → try the CONTRACT-price tier first; any miss falls through
+    # to the underlying tier below unchanged.
+    record = _single_leg_contract_record(strategy_row, legs, entry_ts, exit_ts, fetch)
+    if record is not None:
         upsert_excursion(user_id, trade_ref, record, conn)
         return record
 

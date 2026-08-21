@@ -22,6 +22,7 @@ import CollapsibleSection from '../components/CollapsibleSection'
 import ScopeBar from '../components/scope/ScopeBar'
 import RiskExitsSection from '../components/analytics/RiskExitsSection'
 import TaxCenterSection from '../components/analytics/TaxCenterSection'
+import MetricsDashboard from '../components/metrics/MetricsDashboard'
 import InsightsHub from '../components/insights/InsightsHub'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import useSpyBenchmark, { closeAtOrBefore } from '../hooks/useSpyBenchmark'
@@ -138,6 +139,12 @@ export default function AnalyticsTab() {
               · Psychology · Regime). The classic accordion stays below under
               "More analytics" so nothing is lost. */}
           <InsightsHub analytics={data} />
+
+          {/* My Metrics — the user-composable card dashboard (metric registry
+              + custom KPIs). Same Scope as everything else on this tab. */}
+          <CollapsibleSection id="myMetrics" title="My Metrics" defaultOpen>
+            <MetricsDashboard apiParams={apiParams} />
+          </CollapsibleSection>
 
           <div className={styles.moreDivider}>
             <h3 className={styles.moreHeading}>More analytics</h3>
