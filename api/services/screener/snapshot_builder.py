@@ -152,6 +152,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             row["ipo_age_days"] = max(0, (datetime.date.today() - listed).days)
         except (TypeError, ValueError):
             pass
+    # Pure derivation, single writer: days until the next reported earnings
+    # date (from earnings_dates.read_earnings_dates via market_row). Can go
+    # negative once the date has passed — that's honest (the last pull's date
+    # simply hasn't rolled forward yet), never hidden.
+    if row.get("next_earnings_date"):
+        try:
+            nxt = datetime.date.fromisoformat(str(row["next_earnings_date"])[:10])
+            row["days_to_earnings"] = (nxt - datetime.date.today()).days
+        except (TypeError, ValueError):
+            pass
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
     return row
