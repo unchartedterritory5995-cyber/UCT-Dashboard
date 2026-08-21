@@ -216,6 +216,76 @@ function EquityChart({ chartData }) {
 }
 
 // ── Main tile ─────────────────────────────────────────────────────────────────
+/* ── The risk-managed Book lane ───────────────────────────────────────────
+   The tracker this tile draws is the NO-STOPS arm. The Book is the same list
+   traded with triggers and stops, built from the plans the wire published.
+
+   It is deliberately allowed to say almost nothing. `stats_published` is
+   decided in uct_intelligence, not here, and while it is false this renders
+   PROGRESS ONLY -- no return, no expectancy. On 2026-08-20 the Book held two
+   closed trades and an expectancy of -11.56%; rendering that beside a
+   1,119-session backtest showing +2.44% would misinform far more effectively
+   than showing nothing at all. */
+
+function BookLane() {
+  // useMobileSWR, like the rest of this file. The Book changes once a day,
+  // so no market-hours polling.
+  const { data } = useMobileSWR('/api/uct20/book', fetcher, { refreshInterval: 3600000 })
+  if (!data || !data.kind) return null
+
+  const recording = !data.stats_published
+  const have = data.closed_trades_min_arm ?? 0
+  const need = data.min_trades_for_stats ?? 0
+
+  return (
+    <div className={styles.bookLane}>
+      <div className={styles.bookHead}>
+        <span className={styles.bookTitle}>RISK-MANAGED BOOK</span>
+        <span className={`${styles.bookBadge} ${recording ? styles.bookRecording : styles.bookLive}`}>
+          {recording ? 'RECORDING' : 'LIVE'}
+        </span>
+      </div>
+
+      {recording ? (
+        <p className={styles.bookNote}>
+          The same list traded with triggers and stops. Building its record —{' '}
+          <strong>{data.sessions ?? 0}</strong> sessions,{' '}
+          <strong>{have}</strong> of <strong>{need}</strong> closed trades before
+          performance is reported. Until then the measured backtest below is the
+          evidence, not this.
+        </p>
+      ) : (
+        <div className={styles.bookStats}>
+          <div className={styles.bookStat}>
+            <span className={styles.bookStatLabel}>TOTAL RETURN</span>
+            <span className={styles.bookStatVal}>
+              {data.variant?.total_return_pct != null
+                ? `${data.variant.total_return_pct >= 0 ? '+' : ''}${data.variant.total_return_pct.toFixed(2)}%`
+                : '—'}
+            </span>
+          </div>
+          <div className={styles.bookStat}>
+            <span className={styles.bookStatLabel}>EXPECTANCY / TRADE</span>
+            <span className={styles.bookStatVal}>
+              {data.variant?.expectancy_pct != null
+                ? `${data.variant.expectancy_pct >= 0 ? '+' : ''}${data.variant.expectancy_pct.toFixed(2)}%`
+                : '—'}
+            </span>
+          </div>
+          <div className={styles.bookStat}>
+            <span className={styles.bookStatLabel}>CLOSED TRADES</span>
+            <span className={styles.bookStatVal}>{data.variant?.trade_count ?? '—'}</span>
+          </div>
+          <div className={styles.bookStat}>
+            <span className={styles.bookStatLabel}>SESSIONS</span>
+            <span className={styles.bookStatVal}>{data.sessions ?? '—'}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function UCT20Performance() {
   const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const [period, setPeriod]       = useState('ALL')
@@ -250,6 +320,8 @@ export default function UCT20Performance() {
         real market prices so the record is exactly what following the list would have
         produced. Tracking restarted Jun 22, 2026 after a data-integrity repair.
       </p>
+
+      <BookLane />
 
       {isLoading && <SkeletonChart height={200} />}
       {!isLoading && !hasData && (

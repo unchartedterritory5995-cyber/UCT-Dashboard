@@ -48,8 +48,18 @@ const mockData = {
   ],
 }
 
+// The tile now makes TWO calls: the portfolio curve and the Book lane. A mock
+// that answers both with the same payload would hand portfolio data to
+// BookLane, which then renders nothing -- and every Book assertion below
+// would pass vacuously. Dispatch on the URL.
+const hoisted = vi.hoisted(() => ({ book: null }))
+
 vi.mock('swr', () => ({
-  default: vi.fn(() => ({ data: mockData, error: undefined, mutate: vi.fn() })),
+  default: vi.fn(url => ({
+    data: url === '/api/uct20/book' ? hoisted.book : mockData,
+    error: undefined,
+    mutate: vi.fn(),
+  })),
   useSWRConfig: () => ({ mutate: vi.fn() }),
 }))
 
@@ -88,4 +98,52 @@ test('does NOT render a REASON column or STOP/LIST badges', () => {
 test('renders skeleton (no crash) when no data', () => {
   const { container } = renderWithProviders(<UCT20Performance />)
   expect(container).toBeTruthy()
+})
+
+
+/* ── The risk-managed Book lane ────────────────────────────────────────────
+   The curve this tile draws is the NO-STOPS arm. The Book is the same list
+   with triggers and stops. While its sample is short it must render PROGRESS
+   and never PERFORMANCE: on 2026-08-20 it held two closed trades and an
+   expectancy of -11.56%, and showing that beside a 1,119-session backtest
+   reporting +2.44% would misinform rather than inform. */
+
+const recordingBook = {
+  kind: 'live_book', record_status: 'recording', stats_published: false,
+  sessions: 14, closed_trades_min_arm: 2, min_trades_for_stats: 30,
+  variant: { total_return_pct: -1.216, expectancy_pct: -11.5607, trade_count: 2 },
+}
+
+test('renders nothing for the Book when it is off or has never run', () => {
+  hoisted.book = null
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.queryByText('RISK-MANAGED BOOK')).not.toBeInTheDocument()
+})
+
+test('a short Book shows progress, never performance', () => {
+  hoisted.book = recordingBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText('RISK-MANAGED BOOK')).toBeInTheDocument()
+  expect(screen.getByText('RECORDING')).toBeInTheDocument()
+  // Progress IS shown.
+  expect(screen.getByText('14')).toBeInTheDocument()
+  expect(screen.getByText('30')).toBeInTheDocument()
+  // The numbers are in the payload and must NOT reach the screen.
+  expect(screen.queryByText(/-11\.56/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/-1\.22%/)).not.toBeInTheDocument()
+  expect(screen.queryByText('EXPECTANCY / TRADE')).not.toBeInTheDocument()
+})
+
+test('a Book with a usable sample reports its numbers', () => {
+  hoisted.book = {
+    ...recordingBook, record_status: 'reporting', stats_published: true,
+    sessions: 210, closed_trades_min_arm: 64,
+    variant: { total_return_pct: 31.4, expectancy_pct: 2.41, trade_count: 64 },
+  }
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText('LIVE')).toBeInTheDocument()
+  expect(screen.getByText('+31.40%')).toBeInTheDocument()
+  expect(screen.getByText('+2.41%')).toBeInTheDocument()
+  expect(screen.getByText('EXPECTANCY / TRADE')).toBeInTheDocument()
+  expect(screen.queryByText('RECORDING')).not.toBeInTheDocument()
 })
