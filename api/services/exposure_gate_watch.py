@@ -83,8 +83,8 @@ def check_once(now: datetime | None = None) -> dict:
             day, "s2",
             f"S2 danger level: {sym} ${price:,.2f}",
             f"{sym} is trading below the FTD low (${s2:,.2f}). A CLOSE "
-            f"below it demotes the market phase and drops the exposure cap "
-            f"to 25% — no new risk until it reclaims.",
+            f"below it demotes the market phase and caps exposure at 40% "
+            f"— no new risk until it reclaims.",
             {"symbol": sym, "price": price, "level": s2, "kind": "s2"},
         ):
             fired.append("s2")
