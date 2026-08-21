@@ -482,6 +482,50 @@ def reconcile_option_holdings(
                  round(sign * qty * mark * mult, 2), now, now, row["id"]),
             )
 
+        def _settlement_pinned_units(key, c, group) -> float:
+            """Effective held units for allocation, with SETTLEMENT PINNING.
+
+            While a sale's activity is pending delivery, the ledger's open
+            lots exceed the broker's held qty — and SnapTrade's fleet can
+            answer DIFFERENT held counts sync to sync during that window
+            (measured 2026-08-21: BA 3 and 5 alternating all day while the
+            ledger said 6). Both answers are 'trims'; oscillating between
+            them re-splits the member's lots every few minutes. The broker's
+            own app shows the most-settled count, so we pin to the MINIMUM
+            held seen for the contract — and the pin resets the moment the
+            LEDGER total changes (the sale finally delivered, or a genuine
+            new fill arrived via activities / the Recent Orders rail), so
+            real trades still apply instantly."""
+            units = float(c["units"])
+            ledger_total = sum(_signed_qty(r) for r in group if not _is_carried(r))
+            ckey = f"{key[0]}|{key[1]}|{key[2]}|{key[3]}"
+            same_sign = (units > 0) == (ledger_total > 0)
+            pending_sale = (same_sign and abs(units) < abs(ledger_total) - 1e-9
+                            and abs(units) > 1e-9)
+            if not pending_sale:
+                conn.execute(
+                    "DELETE FROM j2_broker_opt_holdings_memo WHERE user_id = ? "
+                    "AND broker_account_id = ? AND contract_key = ?",
+                    (user_id, broker_account_id, ckey),
+                )
+                return units
+            row = conn.execute(
+                "SELECT min_held, ledger_total FROM j2_broker_opt_holdings_memo "
+                "WHERE user_id = ? AND broker_account_id = ? AND contract_key = ?",
+                (user_id, broker_account_id, ckey),
+            ).fetchone()
+            if row is not None and abs(float(row["ledger_total"]) - ledger_total) <= 1e-9:
+                pinned = min(abs(units), abs(float(row["min_held"])))
+            else:
+                pinned = abs(units)     # ledger changed (or first sighting) → reset
+            conn.execute(
+                "INSERT OR REPLACE INTO j2_broker_opt_holdings_memo "
+                "(user_id, broker_account_id, contract_key, min_held, "
+                " ledger_total, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, broker_account_id, ckey, pinned, ledger_total, now),
+            )
+            return pinned if units > 0 else -pinned
+
         for key in set(by_key) | set(held):
             c = held.get(key)
             group = by_key.get(key, [])
@@ -498,7 +542,7 @@ def reconcile_option_holdings(
                     removed += 1
                 continue
 
-            held_units = float(c["units"])
+            held_units = _settlement_pinned_units(key, c, group)
             held_qty = abs(held_units)
             sign = 1 if held_units > 0 else -1
             held_side = "buy" if sign > 0 else "sell"

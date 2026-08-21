@@ -323,3 +323,37 @@
   .title { font-size: 18px; }
   .backLink { min-height: var(--tap-min, 44px); }
 }
+
+
+/* ── Day-recap share card (Save/Copy image) ─────────────────────────────── */
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dayCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dayCardBtn {
+  padding: 6px 12px;
+  font-size: 12.5px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  cursor: pointer;
+}
+
+.dayCardBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+.dayCardBtn:disabled { opacity: 0.5; cursor: default; }
+
+.dayCardErr {
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+}

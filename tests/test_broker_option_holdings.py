@@ -394,3 +394,98 @@ def test_prune_never_touches_carried_in_strategies(env):
     assert pruned == 1                       # the stale activity strategy only
     assert len(exts) == 1
     assert exts[0].startswith("bkoptpos:")
+
+
+# ── settlement pinning · a flapping holdings feed must not re-split lots ─────
+#
+# Measured 2026-08-21: with the ledger at 6 BA (two 3-lot buys, the sale's
+# activity undelivered), SnapTrade's fleet alternated held=3 and held=5 across
+# syncs ALL DAY. Both are "trims"; applying each re-split the member's lots
+# every few minutes. The pin holds the MINIMUM held seen (the most-settled
+# server = what the broker's own app shows) and resets when the LEDGER moves.
+
+
+def _lots_33(env):
+    _insert_activity_lot(env, ext="bkopt:older", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T16:15:08Z")
+    _insert_activity_lot(env, ext="bkopt:newer", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T19:01:49Z")
+
+
+def _open_ba_qtys(user="u1"):
+    conn = _adb.get_connection()
+    try:
+        return sorted(r["qty"] for r in conn.execute(
+            "SELECT l.qty FROM j2_option_strategies s "
+            "JOIN j2_option_legs l ON l.strategy_id = s.id "
+            "WHERE s.user_id = ? AND s.status = 'open'", (user,)))
+    finally:
+        conn.close()
+
+
+def _repersist_ledger_lots(env):
+    """Mirror _do_sync's order: every sync re-runs the ledger reconstruction
+    FIRST, whose insert-or-skip persist re-creates any open lot the previous
+    reconcile trimmed away. The pin's ledger_total comes from those rows, so
+    a test that skips this step under-counts the ledger."""
+    conn = _adb.get_connection()
+    have = {r["external_id"] for r in conn.execute(
+        "SELECT external_id FROM j2_option_strategies WHERE user_id = ?", ("u1",))}
+    conn.close()
+    if "bkopt:older" not in have:
+        _insert_activity_lot(env, ext="bkopt:older", qty=3, entry_price=11.5,
+                             entry_date="2026-08-17T16:15:08Z")
+    if "bkopt:newer" not in have:
+        _insert_activity_lot(env, ext="bkopt:newer", qty=3, entry_price=11.5,
+                             entry_date="2026-08-17T19:01:49Z")
+
+
+def _sync_with(env, holding):
+    _repersist_ledger_lots(env)
+    return oro.reconcile_option_holdings("u1", env["ba"], [holding])
+
+
+def test_a_flapping_held_count_pins_to_the_minimum_seen(env):
+    _lots_33(env)
+    h3 = _holding(units=3, avg_purchase_price=1150.0, price=7.0)
+    h5 = _holding(units=5, avg_purchase_price=1150.0, price=7.0)
+
+    _sync_with(env, h3)
+    assert _open_ba_qtys() == [3]              # trim to the settled 3
+
+    _sync_with(env, h5)
+    assert _open_ba_qtys() == [3]              # flap to 5 is PINNED — no re-split
+
+    _sync_with(env, h3)
+    assert _open_ba_qtys() == [3]              # stable through the oscillation
+
+
+def test_the_pin_resets_when_the_ledger_moves(env):
+    """A REAL new fill (activities or the Recent Orders rail) changes the
+    ledger total → the pin resets and the new holdings apply instantly."""
+    _lots_33(env)
+    h3 = _holding(units=3, avg_purchase_price=1150.0, price=7.0)
+    _sync_with(env, h3)
+    assert _open_ba_qtys() == [3]
+
+    # The member buys 2 more; the fills rail lands it in the ledger minutes
+    # later. The ledger total MOVES → the pin resets, the new lot shows at once.
+    _insert_activity_lot(env, ext="bkopt:rebuy", qty=2, entry_price=6.8,
+                         entry_date="2026-08-21T15:30:00Z")
+    h5 = _holding(units=5, avg_purchase_price=1150.0, price=7.0)
+    _sync_with(env, h5)
+    qtys = _open_ba_qtys()
+    assert 2 in qtys and sum(qtys) == 5        # the rebuy is visible instantly
+
+
+def test_the_pin_clears_when_holdings_match_the_ledger(env):
+    """held == ledger (nothing pending) → no pin, and any stale memo row is
+    deleted so a later real divergence starts fresh."""
+    _lots_33(env)
+    h6 = _holding(units=6, avg_purchase_price=1150.0, price=7.0)
+    oro.reconcile_option_holdings("u1", env["ba"], [h6])
+    assert _open_ba_qtys() == [3, 3]
+    conn = _adb.get_connection()
+    n = conn.execute("SELECT COUNT(*) AS n FROM j2_broker_opt_holdings_memo").fetchone()["n"]
+    conn.close()
+    assert n == 0

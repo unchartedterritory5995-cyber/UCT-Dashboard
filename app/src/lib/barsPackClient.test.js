@@ -1,5 +1,24 @@
-import { describe, it, expect } from 'vitest'
-import { decodeShardPayload, _shardIdx } from './barsPackClient'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock the IDB import so the hot-pack ingest can be asserted without a real
+// IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
+const { idbImportPack, idbApplyDelta } = vi.hoisted(() => ({
+  idbImportPack: vi.fn(), idbApplyDelta: vi.fn(),
+}))
+vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta }))
+
+import { decodeShardPayload, _shardIdx, _ingestHotPack } from './barsPackClient'
+
+const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
+
+// Minimal fetch stub: manifest → given object; /{v}/hot → given shard payload.
+function stubFetch({ manifest, hotShard }) {
+  return vi.fn(async (url) => {
+    if (url.endsWith('/manifest')) return { ok: true, json: async () => manifest }
+    if (url.endsWith('/hot')) return { ok: true, json: async () => hotShard }
+    return { ok: false, json: async () => ({}) }
+  })
+}
 
 // The decode must round-trip the SERVER columnar encoding back to the exact
 // [{t,o,h,l,c,v}] rows idbImportPack stores. This mirrors the Python builder's
@@ -47,5 +66,47 @@ describe('decodeShardPayload', () => {
     const obj = { tickers: { M1: { M: columnar(one) }, D1: { D: columnar(one) } } }
     const entries = decodeShardPayload(obj)
     expect(entries.map(e => `${e.sym}:${e.tf}`).sort()).toEqual(['D1:D', 'M1:M'])
+  })
+})
+
+describe('_ingestHotPack (server hot shard)', () => {
+  const cols = t => ({ t: [t], o: [1], h: [1], l: [1], c: [1], v: [1] })
+  const manifest = { version: '2026-08-21', hot: { name: 'barspack/2026-08-21/hot.json.gz' } }
+  const hotShard = { format: 1, tickers: { SPY: { D: cols('2026-08-21') } } }
+
+  beforeEach(() => {
+    idbImportPack.mockClear().mockResolvedValue({ aborted: false })
+    try { localStorage.clear() } catch { /* ignore */ }
+  })
+
+  it('ingests the hot shard and stamps hotVersion on first visit', async () => {
+    globalThis.fetch = stubFetch({ manifest, hotShard })
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).toHaveBeenCalledTimes(1)
+    const entries = idbImportPack.mock.calls[0][0]
+    expect(entries).toContainEqual({ sym: 'SPY', tf: 'D', bars: [{ t: '2026-08-21', o: 1, h: 1, l: 1, c: 1, v: 1 }] })
+    expect(localStorage.getItem('barspack.hotVersion')).toBe('2026-08-21')
+  })
+
+  it('is a NO-OP when this version is already stamped', async () => {
+    localStorage.setItem('barspack.hotVersion', '2026-08-21')
+    globalThis.fetch = stubFetch({ manifest, hotShard })
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()
+  })
+
+  it('does nothing (no throw) when the manifest carries no hot shard', async () => {
+    globalThis.fetch = stubFetch({ manifest: { version: '2026-08-21' }, hotShard })
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()
+    expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
+  })
+
+  it('does NOT stamp when the ingest aborts (quota) so it retries next load', async () => {
+    idbImportPack.mockResolvedValue({ aborted: true })
+    globalThis.fetch = stubFetch({ manifest, hotShard })
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
   })
 })

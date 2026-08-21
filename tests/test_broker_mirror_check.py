@@ -113,8 +113,19 @@ RAW_OPT = [_raw_opt(units=3, price=7.0)]
 TRUE_TOTAL = 6436.13
 
 
+def _set_stored_equity(env, value):
+    """The equity write_balances stored — the sentinel's parity target (raw
+    `balance.total` lags a day on Robinhood; comparing against it paged three
+    false drifts on 8/21)."""
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_accounts SET broker_total_equity = ? WHERE id = ?",
+                 (value, env["j2"]))
+    conn.commit(); conn.close()
+
+
 def test_a_faithful_mirror_verifies_and_persists(env):
     _mirror_book(env)
+    _set_stored_equity(env, TRUE_TOTAL)
     out = mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, TRUE_TOTAL)
     assert out["ok"] is True and out["structuralOk"] and out["equityOk"]
     assert out["driftDollar"] == 0.0
@@ -145,8 +156,11 @@ def test_the_2026_08_20_double_count_shape_is_caught(env):
 
 
 def test_equity_drift_alerts_only_when_persistent(env):
+    """Stored equity disagreeing with the journal-derived value = OUR write
+    path is internally inconsistent — page after two consecutive syncs."""
     _mirror_book(env)
-    wrong_total = TRUE_TOTAL - 500.0   # structural fine; equity off by $500
+    _set_stored_equity(env, TRUE_TOTAL - 500.0)
+    wrong_total = TRUE_TOTAL - 500.0
     out1 = mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, wrong_total)
     assert out1["structuralOk"] is True and out1["equityOk"] is False
     assert out1["consecutiveDrifts"] == 1
@@ -158,13 +172,27 @@ def test_equity_drift_alerts_only_when_persistent(env):
 
 def test_small_equity_diffs_inside_tolerance_pass(env):
     _mirror_book(env)
+    _set_stored_equity(env, TRUE_TOTAL + 4.0)
     out = mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, TRUE_TOTAL + 4.0)
     assert out["ok"] is True
 
 
+def test_a_lagging_provider_total_is_reported_never_paged(env):
+    """SnapTrade's raw balance.total lagging the stored live value is the
+    PROVIDER'S inconsistency — measured as totalLagDollar, never a drift."""
+    _mirror_book(env)
+    _set_stored_equity(env, TRUE_TOTAL)
+    out = mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, TRUE_TOTAL - 266.37)
+    assert out["ok"] is True
+    assert out["totalLagDollar"] == 266.37
+    assert env["alerts"] == []
+
+
 def test_recovery_resets_the_drift_streak(env):
     _mirror_book(env)
+    _set_stored_equity(env, TRUE_TOTAL - 500.0)
     mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, TRUE_TOTAL - 500.0)
+    _set_stored_equity(env, TRUE_TOTAL)
     out = mc.run_mirror_check("u1", env["ba"], RAW_POS, RAW_OPT, TRUE_TOTAL)
     assert out["ok"] is True and out["consecutiveDrifts"] == 0
 
@@ -206,3 +234,23 @@ def test_trust_summary_carries_the_verdict(env):
     from api.services.journal_two.broker import service as svc
     src = inspect.getsource(svc.trust_summary)
     assert "latest_verdicts" in src and '"mirror"' in src
+
+
+def test_a_settlement_pinned_journal_is_faithful_not_drifted(env):
+    """While the holdings feed flaps (sale pending delivery), the journal
+    deliberately holds the pinned minimum — the sentinel must not page on a
+    payload that momentarily says otherwise."""
+    _mirror_book(env)                                   # journal holds BA qty 3
+    _set_stored_equity(env, TRUE_TOTAL)
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_broker_opt_holdings_memo (user_id, broker_account_id, "
+        "contract_key, min_held, ledger_total, updated_at) "
+        "VALUES ('u1', 'bk1', 'BA|250.0|2027-01-15|call', 3, 6, 'now')")
+    conn.commit(); conn.close()
+
+    flapped = [_raw_opt(units=5, price=7.0)]            # payload flaps to 5
+    out = mc.run_mirror_check("u1", env["ba"], RAW_POS, flapped, TRUE_TOTAL)
+
+    assert out["structuralOk"] is True
+    assert env["alerts"] == []

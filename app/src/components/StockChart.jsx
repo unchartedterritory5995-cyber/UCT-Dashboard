@@ -13,6 +13,7 @@ import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries,
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
+import { crosshairModeOf } from './chart/crosshairMode'
 
 // Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
@@ -2328,6 +2329,10 @@ export default function StockChart({
   // so they read the mode from a ref rather than capturing a stale one.
   const legendModeRef = useRef(legendMode)
   legendModeRef.current = legendMode
+  // Crosshair three-way mode (always / hold / off) — same resolver pattern as the
+  // legend. `crosshairModeOf` reads `crosshair.mode`, falling back to the legacy
+  // `crosshair.enabled === false` (→ 'off') for blobs written before the mode.
+  const crosshairMode = crosshairModeOf(cs)
   // Width (px) of the right price axis — reserved so a horizontal legend wraps to
   // the next row BEFORE it slides under the price scale (measured reactively below).
   const [legendAxisReserve, setLegendAxisReserve] = useState(0)
@@ -2898,6 +2903,71 @@ export default function StockChart({
       setLegendHeld(false)
     }
   }, [legendMode, chartReady])
+
+  // ── Crosshair 'Hold' mode: press-and-hold shows the crosshair, release hides it ─
+  //
+  // The exact same peek gesture as the legend above, kept as a PARALLEL mechanism
+  // (a separate boolean + its own listeners) so the two features are independent —
+  // a user can run the legend on 'always' and the crosshair on 'hold', or vice
+  // versa. Two pointerdown listeners that each set a boolean are harmless. Release
+  // is on `window` (not the canvas) so a press that ends off the chart still clears.
+  const [crosshairHeld, setCrosshairHeld] = useState(false)
+  useEffect(() => {
+    if (crosshairMode !== 'hold' && crosshairHeld) setCrosshairHeld(false)
+  }, [crosshairMode, crosshairHeld])
+  useEffect(() => {
+    if (crosshairMode !== 'hold') return undefined
+    const el = containerRef.current
+    if (!el) return undefined
+    const down = (e) => { if (e.button === 0) setCrosshairHeld(true) }
+    const up = () => setCrosshairHeld(false)
+    el.addEventListener('pointerdown', down)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      setCrosshairHeld(false)
+    }
+  }, [crosshairMode, chartReady])
+
+  // Whether the crosshair lines + tracking axis labels should be drawn RIGHT NOW.
+  // `hideCrosshair` is the HOST's call (Setup Library exhibits); `crosshairMode` is
+  // the user's; `crosshairHeld` is the moment's. A ref mirrors it so `updateChart`
+  // (which reads it inside chartOpts and does NOT depend on the held state) always
+  // sees the live value without a stale closure, and the dedicated toggle effect
+  // below flips it interactively without paying for a full updateChart.
+  const crosshairVisible = !hideCrosshair && crosshairMode !== 'off'
+    && (crosshairMode !== 'hold' || crosshairHeld)
+  const crosshairVisibleRef = useRef(crosshairVisible)
+  crosshairVisibleRef.current = crosshairVisible
+
+  // ONE builder for the LWC crosshair options, used by BOTH the initial chartOpts
+  // (inside updateChart) and the interactive toggle effect below — so the "shown"
+  // and "hidden" shapes can never drift between the two call sites. When hidden,
+  // both lines AND their tracking price/date axis labels are suppressed; toggling
+  // back on must reassert visible/labelVisible explicitly because applyOptions
+  // MERGES over the previously-false values.
+  const buildCrosshairOpts = useCallback((visible) => (visible ? {
+    mode: cs.crosshair?.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
+    vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+    horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+  } : {
+    mode: 0,
+    vertLine: { visible: false, labelVisible: false },
+    horzLine: { visible: false, labelVisible: false },
+  }), [cs.crosshair?.magnet, cs.crosshair?.width, cs.crosshair?.style, themeColors.crosshairColor, axisAuto.labelBg])
+
+  // Interactive toggle: apply the crosshair visibility whenever it changes WITHOUT
+  // re-running the whole updateChart (which `crosshairHeld` is deliberately not a
+  // dep of). This is what makes 'Hold' responsive — a press/release flips the lines
+  // in place. Mirrors the small dedicated applyOptions effects elsewhere in the file.
+  useEffect(() => {
+    if (!chartReady) return
+    try { chartRef.current?.applyOptions({ crosshair: buildCrosshairOpts(crosshairVisible) }) } catch { /* chart torn down */ }
+  }, [crosshairVisible, chartReady, buildCrosshairOpts])
+
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -4730,11 +4800,17 @@ export default function StockChart({
   // recompute will. Cheap: O(overlays × period) per tick, no full-series walk. Shared
   // by every live writer (A Finnhub tick + B Massive push) so the MA tracks the
   // developing bar regardless of which feed owns it.
-  const _extendOverlaysLive = useCallback((tSec, c) => {
-    const defs = resolvedOverlaysRef.current
-    const ovAll = overlayDataRef.current
-    const series = overlaySeriesRefs.current
-    const bars = prevBarsRef.current
+  // `opts` lets the initial-paint re-top (bottom of updateChart) drive this from
+  // THIS render's own locals instead of the refs — at that point in updateChart the
+  // overlay SERIES are freshly set but overlayDataRef/prevBarsRef still hold the
+  // prior render's values (they're mirrored in a later effect). `skipVwap` is set
+  // there too: the engine binder hasn't synced yet that early in the pass, so the
+  // VWAP re-top would read a stale binding — the live writers own VWAP anyway.
+  const _extendOverlaysLive = useCallback((tSec, c, opts) => {
+    const defs = opts?.defs ?? resolvedOverlaysRef.current
+    const ovAll = opts?.ovAll ?? overlayDataRef.current
+    const series = opts?.series ?? overlaySeriesRefs.current
+    const bars = opts?.bars ?? prevBarsRef.current
     if (!defs || !defs.length || !ovAll || !series || !series.length || !bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
@@ -4783,6 +4859,7 @@ export default function StockChart({
     // whatever the tail is. `Number.isFinite` is the same guard master wrote, kept
     // for the same reason — `Number(undefined)` is `NaN`, but `Number(null)` is 0,
     // and a 0 written here would drag the VWAP line to the axis floor.
+    if (opts?.skipVwap) return
     const _engine = engineRef.current
     if (_engine) {
       try {
@@ -5545,12 +5622,27 @@ export default function StockChart({
         const series = candleSeriesRef.current
         const chart = chartRef.current
         if (!series || !chart) return
-        // Price pane pixel height → top coord = high, bottom coord = low.
+        // Price pane pixel height → the captured range must be the DATA range that
+        // fills the margin-INSET plot area, NOT the full-pane extent. The
+        // autoscaleInfoProvider returns {minValue,maxValue} and LWC re-adds the
+        // price scale's `scaleMargins` as padding AROUND it — so capturing at the
+        // full pane (y=0 / y=paneH) hands back a range already inclusive of the
+        // margins, which LWC then insets a SECOND time → the candles compress once
+        // right after release (the "skips one more time" bug). Reading the price at
+        // the inset boundaries [top·H, (1−bottom)·H] captures exactly the range that
+        // maps back to these same pixels, so releasing leaves the scale untouched.
         let paneH = 0
         try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
         if (paneH <= 0) return
-        const hi = series.coordinateToPrice(0)
-        const lo = series.coordinateToPrice(paneH)
+        let sm = { top: 0, bottom: 0 }
+        try {
+          const o = mainPriceScale()?.options?.()?.scaleMargins
+          if (o && Number.isFinite(o.top) && Number.isFinite(o.bottom)) sm = o
+        } catch { /* keep zero margins — no worse than the old full-pane capture */ }
+        const yTop = sm.top * paneH               // pixel of the highest price (maxValue)
+        const yBot = paneH - sm.bottom * paneH     // pixel of the lowest price (minValue)
+        const hi = series.coordinateToPrice(yTop)
+        const lo = series.coordinateToPrice(yBot)
         if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
           priceManualRangeRef.current = { minValue: lo, maxValue: hi }
           priceManualRef.current = true
@@ -5565,7 +5657,7 @@ export default function StockChart({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [chartReady])
+  }, [chartReady, mainPriceScale])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {
@@ -6436,8 +6528,13 @@ export default function StockChart({
     // daily bar from the snapshot when the SSE stream is down (REST floor has
     // no updated_at) — last.close ≈ prev_close proves a new session is underway.
     const _pc = Number.isFinite(liveData.prev_close) && liveData.prev_close > 0 ? liveData.prev_close : null
+    // Carry the live cumulative DAY volume — on D/W/M it IS the developing bar's
+    // volume, and the re-top path (Writer D) below needs it to seed a client-created
+    // "today" bar with a real figure instead of 0 (the "today's volume reads 0" bug
+    // when the loaded bars still lag today's session).
+    const _dv = Number.isFinite(liveData.volume) && liveData.volume > 0 ? liveData.volume : null
     latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
-      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc,
+      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc, volume: _dv,
       ext_session: !!liveData.ext_session }
     // ── D/W/M: defer the candle WRITE to Writer E (the fast Massive 1-min tick) ──
     // Writer E owns the D/W/M developing candle; defer to it while its tick is fresh
@@ -6524,19 +6621,25 @@ export default function StockChart({
         // Initialize tick-accurate tracking for this bar
         liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
         barStartVolRef.current = liveData.volume || 0
+        // D/W/M: the developing bar spans the whole day, so the live cumulative DAY
+        // volume IS its volume — seed it now instead of 0 (else "today's volume reads
+        // 0" until a full volData setData catches up). Intraday: a new bucket really
+        // starts near 0 (overlaying the day total is the phantom-volume-spike bug).
+        const _newVol = isDailyWeekly && Number.isFinite(liveData.volume) && liveData.volume > 0 ? liveData.volume : 0
 
         if (useOhlc) {
           candleSeriesRef.current.update(liveBarRef.current)
-          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
+          lastBarRef.current = { ...liveBarRef.current, volume: _newVol }
         } else {
           candleSeriesRef.current.update({ time: barTime, value: price })
-          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
+          lastBarRef.current = { ...liveBarRef.current, volume: _newVol }
         }
         if (volumeSeriesRef.current) {
           // Full-opacity default color (matches closed bars + volData) — no lighter
-          // "developing" tint. Value is 0 here so it's invisible until the next tick.
+          // "developing" tint. Intraday value is 0 (invisible until the next tick);
+          // D/W/M carries the live day volume so the pane isn't a phantom zero bar.
           const _vUpN = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-          volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
+          volumeSeriesRef.current.update({ time: barTime, value: _newVol, color: _vUpN })
         }
         _extendOverlaysLive(barTime, price)
       } else {
@@ -6565,9 +6668,25 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: last.time, value: price })
         }
 
-        // Volume: don't override — let API-provided volume stand (refreshes every 15s)
-        // The API has accurate per-bar volume; live delta calculations are unreliable
-        lastBarRef.current = { ...updated, volume: last.volume }
+        // Volume: intraday leaves the API-provided per-bar volume to stand (refreshes
+        // every 15s; live delta calcs are unreliable). D/W/M, though, keeps the
+        // developing bar's volume ticking from the live cumulative DAY volume so it
+        // never sits frozen at 0 / a stale value when the loaded bars lag today's
+        // session (the "today's volume reads 0" bug). Only grows (day volume is
+        // monotonic), so a stale/degraded read can't shrink it.
+        let _updVol = last.volume
+        if (!isIntradayTf && Number.isFinite(liveData.volume) && liveData.volume > (last.volume || 0)) {
+          _updVol = liveData.volume
+          if (volumeSeriesRef.current) {
+            const _prevC = colorByNetChange && prevBarsRef.current && prevBarsRef.current.length >= 2
+              ? prevBarsRef.current[prevBarsRef.current.length - 2].c : null
+            const _isUpU = _prevC != null ? (updated.close >= _prevC) : (updated.close >= updated.open)
+            const _vUpU = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownU = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            volumeSeriesRef.current.update({ time: updated.time, value: _updVol, color: _isUpU ? _vUpU : _vDownU })
+          }
+        }
+        lastBarRef.current = { ...updated, volume: _updVol }
         _extendOverlaysLive(last.time, price)
       }
     } catch (e) {
@@ -7195,24 +7314,14 @@ export default function StockChart({
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
-      crosshair: (hideCrosshair || cs.crosshair?.enabled === false) ? {
-        mode: 0,
-        // Fully suppress both crosshair lines AND their price/date axis labels — the
-        // Setup-Library `hideCrosshair` prop, or the user turning Crosshair off in
-        // settings (cs.crosshair.enabled === false). The axis labels that track the
-        // mouse are the labelVisible:false pair.
-        vertLine: { visible: false, labelVisible: false },
-        horzLine: { visible: false, labelVisible: false },
-      } : {
-        mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        // Crosshair date/price labels blend with the canvas (gradient-bottom aware);
-        // LWC auto-contrasts their text against this background (axisAuto).
-        // visible/labelVisible are set EXPLICITLY true (not just left default) because
-        // applyOptions MERGES: once the suppressed branch above set them false, toggling
-        // Crosshair back on must reassert true or the lines/labels stay hidden.
-        vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-        horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-      },
+      // Crosshair lines + tracking axis labels. Visibility comes from the resolved
+      // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
+      // this (inside updateChart, which does NOT depend on the hold state) always
+      // reads the live value. The interactive press/release toggle is handled by
+      // the dedicated applyOptions effect above; both use `buildCrosshairOpts` so
+      // the shown/hidden shapes stay identical. (`hideCrosshair`, the Setup-Library
+      // host override, is already folded into `crosshairVisible`.)
+      crosshair: buildCrosshairOpts(crosshairVisibleRef.current),
       rightPriceScale: {
         borderColor: themeColors.borderColor,
         // No vertical separator line between the plot and the axis — the values sit
@@ -7787,6 +7896,7 @@ export default function StockChart({
           sym, price: _cachedPx, updated_at: _cached.updated_at,
           day_open: _cached.day_open, day_high: _cached.day_high,
           day_low: _cached.day_low, prev_close: _cached.prev_close,
+          volume: Number.isFinite(_cached.volume) && _cached.volume > 0 ? _cached.volume : null,
           ext_session: !!_cached.ext_session,
         }
       }
@@ -7875,7 +7985,17 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: barTime, value: lp })
         }
         liveBarRef.current = { ...newBar }
-        lastBarRef.current = { ...newBar, volume: 0 }
+        // D/W/M: seed the client-created "today" bar with the live cumulative DAY
+        // volume (it IS this bar's volume) so the readout + pane don't show 0 while
+        // the loaded bars still lag today's session. Intraday starts near 0.
+        const _newVolD = isDW && Number.isFinite(liveSnap.volume) && liveSnap.volume > 0 ? liveSnap.volume : 0
+        lastBarRef.current = { ...newBar, volume: _newVolD }
+        if (isDW && _newVolD > 0 && volumeSeriesRef.current) {
+          const _isUpN = openPrice != null && lp >= openPrice
+          const _vUpN2 = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vDownN2 = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+          volumeSeriesRef.current.update({ time: barTime, value: _newVolD, color: _isUpN ? _vUpN2 : _vDownN2 })
+        }
       } else if (decision.kind === 'skip') {
         // New day for D/W/M but no confirmed session — don't corrupt yesterday's bar
       } else {
@@ -8605,6 +8725,28 @@ export default function StockChart({
           ts.setData(tailData)
           overlayTailSeriesRefs.current.push(ts)
         }
+      }
+    }
+
+    // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
+    // The overlay setData above ends at the last FETCHED bar, but the post-setData
+    // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
+    // developing bar in this same synchronous pass. Without matching that here, the
+    // MA line ends one bar behind the live candle for ~0.5-1s after every ticker
+    // switch — until the next livePrices tick (Writer A) fires `_extendOverlaysLive`
+    // (user report: "MAs lag one day back when I scan to a new stock, then snap to
+    // today"). Extend them now, off THIS render's own locals (overlayDataRef/
+    // prevBarsRef aren't mirrored until a later effect), so the MA is instant on
+    // today's candle exactly like the candle itself. Live charts only; replay/cutoff
+    // freeze the developing bar. sameBucket → recomputes the same last point (no-op)
+    // when the fetch already carried today; new bucket → appends today's MA point.
+    if (liveUpdates && !replayMode && !replayCutoffRef.current) {
+      const _dev = lastBarRef.current
+      if (_dev && _dev.time != null && Number.isFinite(_dev.close)) {
+        _extendOverlaysLive(_dev.time, _dev.close, {
+          defs: resolvedOverlays, ovAll: overlayData,
+          series: overlaySeriesRefs.current, bars: sessionAppliedBars, skipVwap: true,
+        })
       }
     }
 
@@ -9579,7 +9721,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -9771,14 +9913,22 @@ export default function StockChart({
     try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
   }, [fadedVolData, candleFrameFade, chartReady, updateChart])
 
-  // Pre-install the focus autoscale provider as soon as the chart is ready (for
-  // glide-capable charts). The frameChanged glide otherwise installs it LAZILY on
-  // the first Setup⇄Result flip, and that one applyOptions forces an autoscale
-  // recompute mid-glide → the first transition "skips". Installing it up front
-  // (inert — returns default autoscale until a glide sets focusPriceRangeRef)
-  // makes the first transition as smooth as every later one.
+  // Install the candle autoscale provider as soon as the chart is ready — on
+  // EVERY chart, not just glide-capable (Setup Library) ones.
+  //
+  // ⭐ THIS IS WHAT MAKES A MANUAL PRICE-AXIS DRAG STICK ON THE MAIN /charts CHART.
+  // Dragging the price axis sets `priceManualRef`/`priceManualRangeRef`, but nothing
+  // CONSUMED them here unless the chart was `exactDateRange || candleFrameFade`
+  // (Setup Library / Model Book). On a normal chart the pin was dead weight, so
+  // LWC's own autoscale re-fit the candles to the visible bars on the next
+  // gesture/commit — the "I set the vertical scale and it re-fits itself right
+  // after I let go" bug. The provider is INERT by default (returns `orig()` =
+  // default autoscale) until `priceManualRef` is set, so the ~everyone who never
+  // drags the axis is completely unaffected; only a deliberate drag is preserved
+  // (cleared by a double-click on the axis or a symbol/timeframe switch, which is
+  // where auto-fit resumes). It also still pre-installs the focus glide inertly.
   useEffect(() => {
-    if (!chartReady || (!exactDateRange && !candleFrameFade)) return
+    if (!chartReady) return
     const series = candleSeriesRef.current
     if (!series || focusProviderInstalledRef.current) return
     try {

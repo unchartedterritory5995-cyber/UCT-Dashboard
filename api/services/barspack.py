@@ -136,6 +136,29 @@ def _theme_holding_syms() -> set:
         return set()
 
 
+# The "hot" set — the tickers a brand-new user is most likely to open FIRST
+# (major indices/ETFs + megacaps + high-traffic momentum + sector/crypto ETFs).
+# Built into its own tiny shard (barspack/<date>/hot.json.gz) so a first-visit
+# browser ingests just THESE — one small edge-cached file — eagerly, before the
+# idle-deferred full pack. Iterated DIRECTLY (not filtered through _universe), so
+# index ETFs like SPY/QQQ are guaranteed present even if the $300M cap list omits
+# ETFs. Mirrors the client's HOT_TICKERS (barsPackClient.js) + SymbolSearch
+# POPULAR; a name with no bars in the worker db is dropped on build (empty
+# sanitize → skipped), so this only ever ADDS coverage.
+_HOT_UNIVERSE: list[str] = [
+    "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI",
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "AVGO",
+    "AMD", "SMCI", "PLTR", "ARM", "COIN", "MSTR", "HOOD", "ANET", "NFLX", "CRM",
+    "ORCL", "UBER", "MU", "MRVL", "SNOW", "CRWD", "NET", "DDOG", "SHOP", "PANW",
+    "ADBE", "INTC", "QCOM", "TXN", "CSCO", "IBM", "NOW", "AMAT", "LRCX", "ASML",
+    "LLY", "COST", "JPM", "V", "MA", "UNH", "XOM", "WMT", "HD", "BAC", "PG",
+    "JNJ", "ABBV", "KO", "PEP", "DIS", "NKE", "BA", "GE", "CAT", "CVX",
+    "XLF", "XLE", "XLK", "XLV", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE", "XLC",
+    "SOXX", "SMH", "GLD", "SLV", "TLT", "HYG", "ARKK", "IBIT", "GBTC", "USO",
+    "BITO", "TQQQ", "SQQQ", "SPXL", "UVXY", "VXX",
+]
+
+
 def _universe() -> list[str]:
     """Pack universe = the $300M+ cap list UNION the Theme Tracker's holdings, so
     both the broad market AND the specific names the app surfaces in themes are
@@ -231,6 +254,24 @@ def _columnar(bars: list[dict]) -> dict:
     }
 
 
+def _build_hot_payload(depth: int) -> tuple[dict, int]:
+    """Build the hot-set payload {sym: {tf: columnar}} for _HOT_UNIVERSE, reading
+    the SAME sanitized bars the main shards use. Returns (payload, bar_count).
+    Best-effort per ticker; a name with no bars is simply omitted."""
+    payload: dict[str, dict] = {}
+    bars_total = 0
+    for sym in _HOT_UNIVERSE:
+        entry: dict[str, dict] = {}
+        for tf in _TFS:
+            bars = _sanitized_bars(sym, tf, depth)
+            if bars:
+                entry[tf] = _columnar(bars)
+                bars_total += len(bars)
+        if entry:
+            payload[sym] = entry
+    return payload, bars_total
+
+
 def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
           tickers: list[str] | None = None, date: str | None = None) -> dict:
     """Build the whole pack IN MEMORY (no network). Returns
@@ -321,6 +362,25 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
     delta_key = f"{_PREFIX}/{date}/delta.json.gz"
     shards[delta_key] = delta_gz
 
+    # Hot shard — the ~100 most-opened names in ONE tiny gzipped file, so a
+    # first-visit browser ingests just these eagerly (before the idle full pack).
+    # Best-effort + additive: an empty hot payload (cold db) simply omits the
+    # manifest 'hot' field and the client falls back to its origin-fetch warm.
+    hot_meta = None
+    try:
+        hot_payload, hot_bars = _build_hot_payload(depth)
+        if hot_payload:
+            hot_raw = json.dumps({"format": PACK_FORMAT, "tickers": hot_payload},
+                                 separators=(",", ":")).encode("utf-8")
+            hot_gz = gzip.compress(hot_raw, compresslevel=_GZIP_LEVEL)
+            hot_key = f"{_PREFIX}/{date}/hot.json.gz"
+            shards[hot_key] = hot_gz
+            hot_meta = {"name": hot_key, "bytes": len(hot_gz),
+                        "tickers": len(hot_payload), "bars": hot_bars}
+    except Exception:
+        log.exception("[barspack] hot-shard build failed (non-fatal)")
+        hot_meta = None
+
     # Seed = a stable fingerprint of the exact ticker SET. When it changes (the
     # universe gained/lost names), the client forces a FULL re-ingest instead of
     # a delta — because the delta only maintains entries a browser already has and
@@ -341,6 +401,8 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         "delta": {"name": delta_key, "bytes": len(delta_gz),
                   "tail": _DELTA_TAIL, "tickers": len(delta_tickers)},
     }
+    if hot_meta:
+        manifest["hot"] = hot_meta
     return {"manifest": manifest, "shards": shards}
 
 

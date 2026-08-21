@@ -1810,6 +1810,24 @@ def get_analytics_route(
     )
 
 
+@router.get("/tax-report")
+def get_tax_report_route(
+    year: int,
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Form-8949-style tax book for one year: per-trade lines (proceeds/basis/
+    gain, short-vs-long term) + same-symbol wash-sale flags + honest coverage
+    counts. An ESTIMATE for review — the payload's disclaimer is part of the
+    contract and the FE renders it verbatim."""
+    if year < 2000 or year > 2100:
+        raise HTTPException(status_code=422, detail="year out of range")
+    from api.services.journal_two import tax_report as tax_report_service
+    return tax_report_service.get_tax_report(
+        user["id"], year, account_id=account_id,
+    )
+
+
 # ── Calendar (Phase 1) ───────────────────────────────────────────────────────
 
 

@@ -154,3 +154,59 @@ def test_out_of_window_bars_excluded_from_extremes():
     assert out["mfe_price"] == 115.0            # not 200 / 300
     assert out["mae_price"] == 97.0             # not 50 / 10
     assert out["mae_ts"] == 3000
+
+
+# ── true_r — stop-free R vs the risk actually taken (its MAE) ────────────
+# Long winner example above: adverse = 100-96 = 4, captured = 110-100 = 10
+#   true_r = 10/4 = 2.5 — computed WITHOUT the stop, so it survives stopless
+#   broker imports (where mfe_r/mae_r are None).
+def test_true_r_long_hand_worked():
+    bars = [
+        {"t": 1000, "h": 105.0, "l": 98.0},
+        {"t": 2000, "h": 115.0, "l": 104.0},
+        {"t": 3000, "h": 112.0, "l": 96.0},
+    ]
+    out = compute_excursion("Long", 100.0, 95.0, 1000, 3000, bars, exit_price=110.0)
+    assert out["true_r"] == pytest.approx((110.0 - 100.0) / (100.0 - 96.0))  # 2.5
+
+
+# Short winner example above: adverse = 53-50 = 3, captured = 50-45 = 5
+#   true_r = 5/3
+def test_true_r_short_hand_worked():
+    bars = [
+        {"t": 1000, "h": 51.0, "l": 48.0},
+        {"t": 2000, "h": 49.0, "l": 42.0},
+        {"t": 3000, "h": 53.0, "l": 46.0},
+    ]
+    out = compute_excursion("Short", 50.0, 52.5, 1000, 3000, bars, exit_price=45.0)
+    assert out["true_r"] == pytest.approx(5.0 / 3.0)
+
+
+# A losing trade divides its (negative) captured move by the same adverse
+# denominator: entry 100, exit 97, MAE 96 → true_r = -3/4 = -0.75.
+def test_true_r_negative_on_a_loss():
+    bars = [{"t": 1000, "h": 101.0, "l": 96.0}]
+    out = compute_excursion("Long", 100.0, 95.0, 1000, 1000, bars, exit_price=97.0)
+    assert out["true_r"] == pytest.approx(-0.75)
+
+
+# No adverse move at all (MAE == entry) → denominator ~0 → true_r is None,
+# never inf. This is the best-case trade; the UI says "never went against
+# you" rather than faking a number.
+def test_true_r_none_when_no_adverse_move():
+    bars = [{"t": 1000, "h": 110.0, "l": 100.0}]
+    out = compute_excursion("Long", 100.0, 95.0, 1000, 1000, bars, exit_price=108.0)
+    assert out["true_r"] is None
+
+
+# The whole point: a stopless broker import (stop == entry placeholder) gets
+# mfe_r/mae_r None but a REAL true_r.
+def test_true_r_computes_when_stop_equals_entry():
+    bars = [
+        {"t": 1000, "h": 105.0, "l": 97.0},
+        {"t": 2000, "h": 112.0, "l": 101.0},
+    ]
+    out = compute_excursion("Long", 100.0, 100.0, 1000, 2000, bars, exit_price=106.0)
+    assert out["mfe_r"] is None
+    assert out["mae_r"] is None
+    assert out["true_r"] == pytest.approx(6.0 / 3.0)  # captured 6 / adverse (100-97)=3

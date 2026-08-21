@@ -2387,48 +2387,86 @@ async def lifespan(app: FastAPI):
             "[startup] failed to start liveflow_worker thread: %s", e
         )
 
-    # SQLite integrity check -- heavy on 58M rows, run in background
+    # SQLite integrity: near-instant smoke probe at boot + a rare, DEFERRED full scan.
+    #
+    # WHY THE SPLIT. The full `PRAGMA quick_check` reads every b-tree page (~200-280s
+    # on this 58M-row store) and, even in a background thread, its CPU/IO starved the
+    # single-process web pod for ~5 min after EVERY deploy (warm charts at 20-42s).
+    # `integrity_smoke_ok()` catches the "disk image is malformed" this guards against
+    # in <100ms by exercising the header/schema/table/index pages, so BOOT no longer
+    # pays the scan. The full scan is demoted to a deep pass that runs DEFERRED (past
+    # the post-deploy load spike), at most once per BARS_INTEGRITY_FULL_SKIP_HOURS, and
+    # can be turned off on web entirely (the worker already integrity-checks every
+    # snapshot before upload; runtime malformed-detection + bars_reconciliation are the
+    # other nets).
     def _integrity_check_bg():
-        try:
-            import os as _os_ic, time as _ic_t
-            from api.services import bars_sqlite as _bs_check
-            # RECENCY GATE: skip the boot check entirely if it passed within
-            # BARS_INTEGRITY_SKIP_HOURS. A malformed image only appears from a crash
-            # mid-write or a disk fault — never from a redeploy — so a burst of deploys
-            # (like an active dev session) shouldn't each re-scan the whole store. This,
-            # plus the quick_check switch in integrity_ok(), is what stops the ~5-min
-            # post-deploy congestion window (the 283s check starved the event loop).
-            _marker = _os_ic.path.join(_os_ic.environ.get("DATA_DIR", "/data"), ".bars_integrity_ok_ts")
-            _skip_h = float(_os_ic.environ.get("BARS_INTEGRITY_SKIP_HOURS", "6"))
+        import os as _os_ic, time as _ic_t
+        from api.services import bars_sqlite as _bs_check
+
+        def _resync(reason):
+            print(f"[startup] bars.db {reason} -- pulling fresh snapshot from R2")
             try:
-                if _skip_h > 0 and _os_ic.path.exists(_marker):
-                    _age = _ic_t.time() - _os_ic.path.getmtime(_marker)
-                    if _age < _skip_h * 3600:
-                        print(f"[startup] bars.db integrity check SKIPPED (passed {_age/3600:.1f}h ago; gate {_skip_h}h)")
-                        return
-            except Exception:
-                pass
+                from api.services import data_sync as _ds_check
+                print("[startup] bars.db restored from R2 snapshot" if _ds_check.force_resync()
+                      else "[startup] bars.db restore from R2 FAILED")
+            except Exception as e:
+                print(f"[startup] force_resync error (non-fatal): {e}")
+
+        # ── 1. Instant smoke probe — EVERY boot, off the hot path in ~ms ──
+        try:
+            _t0 = _ic_t.time()
+            if not _bs_check.integrity_smoke_ok():
+                _resync(f"FAILED integrity smoke probe ({_ic_t.time()-_t0:.2f}s)")
+                return  # a fresh R2 snapshot was just verified on the worker; skip the deep pass
+            print(f"[startup] bars.db integrity smoke probe passed ({_ic_t.time()-_t0:.2f}s)")
+        except Exception as e:
+            print(f"[startup] integrity smoke probe error (non-fatal): {e}")
+
+        # ── 2. Deferred full quick_check — deep net, OFF the congestion window ──
+        if _os_ic.environ.get("BARS_INTEGRITY_FULL_ENABLED", "1") != "1":
+            return
+        _marker = _os_ic.path.join(_os_ic.environ.get("DATA_DIR", "/data"), ".bars_integrity_full_ok_ts")
+        _skip_h = float(_os_ic.environ.get("BARS_INTEGRITY_FULL_SKIP_HOURS", "24"))
+        try:
+            if _skip_h > 0 and _os_ic.path.exists(_marker):
+                _age = _ic_t.time() - _os_ic.path.getmtime(_marker)
+                if _age < _skip_h * 3600:
+                    print(f"[startup] bars.db full integrity check SKIPPED (passed {_age/3600:.1f}h ago; gate {_skip_h}h)")
+                    return
+        except Exception:
+            pass
+        # Defer past the post-deploy load spike so the ~3-min scan lands on a warm,
+        # steady pod instead of the moment traffic swings onto the fresh instance.
+        try:
+            _ic_t.sleep(float(_os_ic.environ.get("BARS_INTEGRITY_FULL_DELAY_SECS", "600")))
+        except Exception:
+            pass
+        try:
             _ic_t0 = _ic_t.time()
             if not _bs_check.integrity_ok():
-                print(f"[startup] bars.db failed PRAGMA quick_check after {_ic_t.time()-_ic_t0:.1f}s -- pulling fresh snapshot from R2")
-                try:
-                    from api.services import data_sync as _ds_check
-                    if _ds_check.force_resync():
-                        print("[startup] bars.db restored from R2 snapshot")
-                    else:
-                        print("[startup] bars.db restore from R2 FAILED")
-                except Exception as e:
-                    print(f"[startup] force_resync error (non-fatal): {e}")
+                _resync(f"failed full quick_check after {_ic_t.time()-_ic_t0:.1f}s")
             else:
-                print(f"[startup] bars.db integrity check passed ({_ic_t.time()-_ic_t0:.1f}s)")
+                print(f"[startup] bars.db full integrity check passed ({_ic_t.time()-_ic_t0:.1f}s)")
                 try:
                     with open(_marker, "w") as _mf:
                         _mf.write(str(int(_ic_t.time())))
                 except Exception:
                     pass
         except Exception as e:
-            print(f"[startup] bars.db integrity_check error (non-fatal): {e}")
+            print(f"[startup] bars.db full integrity_check error (non-fatal): {e}")
     threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
+
+    # Web-side Bars Pack ingest — fold the universe D/W/M pack the worker already
+    # publishes into THIS pod's bars.db, so a cold long-tail view serves from SQLite
+    # instead of a synchronous provider fetch (the ~0% warm the warmth audit measured
+    # comes from the R2 delta window structurally skipping unchanged long-tail bars).
+    # Add-only, missing-series-only, rate-limited, off the request path. No-op unless
+    # BARSPACK_WEB_INGEST_ENABLED=1.
+    try:
+        from api.services import barspack_web_ingest as _bpwi
+        _bpwi.start_web_ingest()
+    except Exception as e:
+        print(f"[startup] barspack web ingest failed to start (non-fatal): {e}")
 
     try:
         from api.services import bars_sqlite as _bars_sqlite

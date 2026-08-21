@@ -21,6 +21,7 @@
 import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
 
 const SHARD_CONCURRENCY = 2
+
 // If we're further behind than this many days, the delta tail can't bridge the gap
 // without leaving a hole → re-pull the full pack instead.
 const MAX_DELTA_CATCHUP_DAYS = 6
@@ -36,6 +37,7 @@ const MAX_DELTA_CATCHUP_DAYS = 6
 // ingest (already stamped), so this only affects the one-time first-visit warm.
 const PACK_DAILY = {
   base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed',
+  hotVersionKey: 'barspack.hotVersion',
   ingestBatchSize: 60, ingestYield: true,
 }
 // The intraday pack is a large FRESH ingest (5m+60m, whole universe) that runs
@@ -52,6 +54,19 @@ let _started = false
 export function initBarsPack() {
   if (_started) return
   _started = true
+  // ── Cold-start: get the HOT SET local before the idle-deferred full pack ──
+  // The full pack (below) is gated behind requestIdleCallback (up to ~8s to even
+  // START) and hash-sharded, so no early shard is "the popular names". Ingest the
+  // server HOT SHARD eagerly — ONE small edge-cached file (~100 names) — so a
+  // brand-new user's first opens are instant from IDB, not an origin round-trip.
+  //
+  // ⚰️ An origin-fetch "warm the hot set via /api/bars" bridge lived here too and
+  // was REMOVED 2026-08-21: on a fresh browser it just ADDED to the cold-start
+  // origin flood the fresh-user HAR exposed (see prefetchBars `_packStillIngesting`),
+  // and it's fully redundant with the packs (D/W/M pack + intraday pack already
+  // cover the popular names, edge-cached). The edge hot shard is the heal; racing
+  // the origin was the bandage.
+  _ingestHotPack(PACK_DAILY).catch(() => {})
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
@@ -61,6 +76,43 @@ export function initBarsPack() {
   // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
   // ingest below keeps a fresh full ingest from write-locking the store.
   _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
+}
+
+// Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
+// (barspack/<date>/hot.json.gz, the ~100 most-opened names) — into IDB, stamped
+// under its OWN version key so it's decoupled from the big full-pack ingest.
+// Not idle-deferred: this is the whole point (be local before the user scans).
+// Skips when this version's hot set is already ingested, or when the pack build
+// hasn't published a hot shard yet (older pack / cold db → manifest.hot absent →
+// the origin-fetch warm above is the fallback). Every failure falls through.
+export async function _ingestHotPack(cfg) {
+  if (_connectionTooCostly()) return
+  let hotV = null
+  try { hotV = localStorage.getItem(cfg.hotVersionKey) } catch { /* ignore */ }
+
+  let manifest
+  try {
+    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'omit' })
+    if (!r.ok) return
+    manifest = await r.json()
+  } catch { return }
+  if (!manifest || !manifest.version || !manifest.hot || !manifest.hot.name) return
+  if (hotV === manifest.version) return  // already have this version's hot set
+
+  let entries
+  try {
+    const r = await fetch(`${cfg.base}/${manifest.version}/hot`, { credentials: 'omit' })
+    if (!r.ok) return
+    entries = decodeShardPayload(await r.json())
+  } catch { return }
+  if (!entries.length) return
+
+  try {
+    const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
+    if (!res.aborted) {
+      try { localStorage.setItem(cfg.hotVersionKey, manifest.version) } catch { /* ignore */ }
+    }
+  } catch { /* best-effort; the full pack + serve path remain the fallback */ }
 }
 
 function _whenIdle(fn) {

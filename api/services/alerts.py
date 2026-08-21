@@ -337,9 +337,10 @@ def _fire_discord(alert: dict) -> bool:
 # ── Convenience functions for common alert patterns ───────────────────────
 
 def alert_regime_change(old_phase: str, new_phase: str, exposure: int | None = None) -> dict:
+    # `exposure` here is the brain's intraday view, not the wire's published rating.
     msg = f"Market regime shifted from **{old_phase}** to **{new_phase}**"
     if exposure is not None:
-        msg += f". Recommended exposure: {exposure}%"
+        msg += f". AI exposure view: {exposure}%"
     return add_alert("regime_change", f"Regime: {new_phase}", msg,
                      data={"old_phase": old_phase, "new_phase": new_phase, "exposure": exposure})
 
@@ -357,6 +358,9 @@ def alert_scanner_match(symbol: str, score: int, setup: str) -> dict:
 
 
 def alert_exposure_shift(old_exp: int, new_exp: int, direction: str) -> dict:
-    return add_alert("exposure_shift", f"Exposure {direction}: {new_exp}%",
-                     f"Recommended exposure moved from {old_exp}% to {new_exp}%",
+    # Compares the brain's intraday reads to each other — say so. The
+    # published UCT Exposure is set by the Morning Wire and is not this.
+    return add_alert("exposure_shift", f"AI regime read {direction}: {new_exp}%",
+                     f"The brain's exposure view moved from {old_exp}% to {new_exp}%. "
+                     f"The published UCT Exposure (Morning Wire) is unchanged.",
                      data={"old_exposure": old_exp, "new_exposure": new_exp})

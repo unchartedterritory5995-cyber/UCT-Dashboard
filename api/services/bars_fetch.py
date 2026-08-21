@@ -647,6 +647,68 @@ def _intraday_deblockable(tf, last_ts) -> bool:
         return False
 
 
+def _since_async_heal() -> bool:
+    """PHASE 1.4 (flag: BARS_SINCE_ASYNC_HEAL): the browser's 30s `since=` SWR poll
+    is the HIGHEST-QPS bars entrypoint. On a stale tail it does a SYNCHRONOUS provider
+    delta, tying up a shared anyio-pool thread on every stale-tail poll across every
+    open chart × every user — the congestion that drags WARM charts to multi-second
+    loads under load. Unlike first paint, this poll only RECONCILES closed bars: the
+    live developing candle is owned by the WS push / Finnhub feed, NOT this response,
+    and the chart is ALREADY painted. So serving the local delta immediately and
+    healing the tail in the background (bounded, deduped — the same `_bg_delta_sem` +
+    `_inflight` machinery the first-paint stale-serve uses) is invisible to the user
+    and removes the last high-frequency provider-blocking site. NO cold-stale predicate
+    is needed here (a one-cycle reconcile lag can't blank an already-painted chart or
+    pin a first paint). Default OFF; flip the env to roll out, unset to roll back."""
+    return _os.environ.get("BARS_SINCE_ASYNC_HEAL", "0") == "1"
+
+
+def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, date_tf: bool) -> None:
+    """Bounded, deduped background delta heal for the `since=` path (Phase 1.4).
+    Mirrors the first-paint `_bg_delta` spawn: acquire a bars-bg slot non-blocking
+    (skip if the pool is full — the stale local delta was already served and the next
+    poll retries), dedup on `cache_key` so it never races the first-paint heal, run a
+    delta-only fetch, persist, and invalidate the full cache. Intraday-stale results
+    are NOT persisted (same guard as `_bg_delta` — a yfinance hours-old fallback must
+    not be stored as fresh)."""
+    with _inflight_lock:
+        if cache_key in _inflight or not _bg_delta_sem.acquire(blocking=False):
+            return
+        _ev = _threading.Event()
+        _inflight[cache_key] = _ev
+
+    def _run():
+        try:
+            if tf == "D":
+                new = _delta_daily(ticker, last_ts)
+            elif tf == "W":
+                new = _delta_weekly(ticker, last_ts)
+            elif tf == "M":
+                new = _delta_monthly(ticker, last_ts)
+            else:
+                new = _delta_intraday(ticker, tf, last_ts)
+            if new and (date_tf or not _is_intraday_stale(new)):
+                _sqlite.put_bars(ticker, tf, new, date_tf=date_tf)
+                cache.invalidate(cache_key)  # next non-delta request rebuilds fresh
+        except Exception as _e:
+            import logging as _log_sh
+            _log_sh.getLogger(__name__).error(
+                f"[bars] since bg heal {ticker} tf={tf}: {type(_e).__name__}: {_e}"
+            )
+        finally:
+            with _inflight_lock:
+                _inflight.pop(cache_key, None)
+            _ev.set()
+            _bg_delta_sem.release()
+
+    try:
+        _threading.Thread(target=_run, daemon=True, name=f"bars-sincebg-{ticker}-{tf}").start()
+    except Exception:
+        with _inflight_lock:
+            _inflight.pop(cache_key, None)
+        _bg_delta_sem.release()
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -2086,20 +2148,28 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
     if _needs_fresh(last_ts, tf):
-        try:
-            if tf == "D":
-                new = _delta_daily(ticker_up, last_ts or 0)
-            elif tf == "W":
-                new = _delta_weekly(ticker_up, last_ts or 0)
-            elif tf == "M":
-                new = _delta_monthly(ticker_up, last_ts or 0)
-            else:
-                new = _delta_intraday(ticker_up, tf, last_ts or 0)
-            if new:
-                _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
-                last_ts = _sqlite.get_last_ts(ticker_up, tf)
-        except Exception:
-            pass
+        if _since_async_heal():
+            # PHASE 1.4 — DON'T block this high-QPS poll on a provider. Heal the tail
+            # in the background (bounded, deduped) and serve whatever local delta
+            # exists NOW. The live candle is on the WS/Finnhub feed, so the just-
+            # closed bar simply arrives on the next 30s poll instead of this one.
+            _mark_serve("delta-async-heal")
+            _enqueue_since_bg_heal(cache_key, ticker_up, tf, last_ts or 0, date_tf)
+        else:
+            try:
+                if tf == "D":
+                    new = _delta_daily(ticker_up, last_ts or 0)
+                elif tf == "W":
+                    new = _delta_weekly(ticker_up, last_ts or 0)
+                elif tf == "M":
+                    new = _delta_monthly(ticker_up, last_ts or 0)
+                else:
+                    new = _delta_intraday(ticker_up, tf, last_ts or 0)
+                if new:
+                    _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
+                    last_ts = _sqlite.get_last_ts(ticker_up, tf)
+            except Exception:
+                pass
 
     # Read ONLY the new rows via an index range scan (WHERE ts > since), instead
     # of reading up to `bars` (5000) rows + formatting all of them + Python-

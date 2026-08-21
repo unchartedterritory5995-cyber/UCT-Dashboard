@@ -18,6 +18,69 @@ import { isDailyTailStale } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+// ── Cold-start flood guard ───────────────────────────────────────────────────
+// On a genuinely fresh browser the universe pack is still downloading + ingesting
+// into IndexedDB (the ~120MB D/W/M pack takes ~30-60s). During that window,
+// BACKGROUND list-warming (theme-tracker holdings, watchlist, grid) must NOT fall
+// through to an ORIGIN /api/bars fetch on an IDB miss.
+//
+// ⚰️ THE WOUND, measured in a fresh-user HAR 2026-08-21: the widgets warmed ~212
+// holdings × 5 timeframes = ~600 origin /api/bars while the pack was still
+// ingesting the SAME tickers. Those obscure names (water utils, uranium miners,
+// leveraged ETFs) were cold on the SERVER too → 245 shed as 503, 55 took 10-20s,
+// and the flood STARVED the visible chart (SPY's first request 503'd; it took ~45s
+// and 4 retries to paint) and skipped the developing-bar heals (charts missing
+// today's candle). Racing the pack to the origin for the very tickers it's about to
+// deliver is pure self-inflicted load.
+//
+// So while the pack hasn't stamped its version, background warms are IDB-PROMOTE-
+// ONLY (no network). The pack fills those tickers into IDB; the visible chart's own
+// SWR fetch is separate and unaffected; once the pack ingests (barspack.version
+// stamped) warming resumes normally for the genuine long tail. A returning user
+// (version already stamped) is never gated.
+export function _packStillIngesting() {
+  try { return !localStorage.getItem('barspack.version') } catch { return false }
+}
+
+// ── Server backpressure — OBEY the 503 shed signal ───────────────────────────
+// The pack-ingest gate above only covers the first ~30s. The bigger wound (fresh-
+// user HAR 2026-08-21, on the fix build): as a user SCANS, each theme/watchlist
+// warms its holdings' charts, and for cold long-tail names the server SHEDS with
+// 503 (`{error:"warming"}`, Retry-After) to protect its pool. The warm queue was
+// IGNORING that and hammering ~200 more cold fetches on top → 260 × 503 + daily
+// deep fetches at 20-23s that STARVED the visible chart. The server literally says
+// "back off" and the client didn't listen.
+//
+// So every background warm result is fed to `_noteWarmResult`: a 503/"warming"
+// escalates an exponential backoff (3s→30s cap); a real success resets it. While
+// backed off, ALL background warm queues HOLD (the visible chart's own SWR fetch is
+// separate and never gated). This makes the warmer self-regulating — it stops
+// flooding the instant the server is stressed and resumes as it recovers, so a cold
+// long-tail can never again drown the chart the user is looking at.
+let _warmBackoffUntil = 0
+let _warmBackoffMs = 0
+export function _noteWarmResult(json) {
+  const shed = json == null || json.error === 'warming' || json.error === 'transient'
+  if (shed) {
+    _warmBackoffMs = Math.min(_warmBackoffMs ? _warmBackoffMs * 2 : 3000, 30000)
+    _warmBackoffUntil = Date.now() + _warmBackoffMs
+  } else if (json && Array.isArray(json.bars)) {
+    _warmBackoffMs = 0            // genuine data → server healthy, clear the throttle
+    _warmBackoffUntil = 0
+  }
+  return json
+}
+// Background warms HOLD while the pack is still ingesting OR the server is shedding.
+export function _holdBackgroundWarm() {
+  return _packStillIngesting() || Date.now() < _warmBackoffUntil
+}
+// Warm fetcher: reports the HTTP status a plain `.json()` would hide, so a 503 shed
+// drives the backoff even though its body parses fine. Shares the URL with the
+// chart's own SWR key, so `preload` still dedupes one network request across both.
+const warmFetcher = url => fetch(url).then(r =>
+  r.status === 503 ? { bars: [], error: 'warming' } : r.json()
+)
+
 // Viewport-first: prefetch only the shallow first-paint window. Deep history is
 // fetched lazily by StockChart's backfill when the user actually pans into it,
 // so warming need not pull 5000-8000 bars per ticker/TF. Keeps the SWR cache key
@@ -39,10 +102,18 @@ const _seen = new Set() // short-window dedupe so re-hover/re-select doesn't pil
 let _kick = null
 
 function _pump() {
+  // Hold ALL SWR list-warming (theme tracker holdings, Breadth drill lists,
+  // ModelBook, Screener) while the pack is ingesting OR the server is shedding — it
+  // must never race the pack or pile onto a stressed origin. The warm is best-effort
+  // in-memory only (wiped on reload); the pack fills IDB, the visible chart's own
+  // SWR fetch is separate, and a click fetches its one chart. A pending kick retries
+  // once the hold lifts (backoff window or pack-stamp), so nothing is lost forever.
+  if (_holdBackgroundWarm()) { if (_queue.length) _kickSoon(); return }
   while (_active < _MAX_CONCURRENT && _queue.length) {
+    if (_holdBackgroundWarm()) { _kickSoon(); return }
     const url = _queue.shift()
     _active++
-    Promise.resolve(preload(url, fetcher)).finally(() => {
+    Promise.resolve(preload(url, warmFetcher)).then(_noteWarmResult).finally(() => {
       _active--
       _pump()
     })
@@ -144,7 +215,11 @@ const _idbSeen = new Set()
 let _idbKick = null
 
 function _idbPump() {
+  // Hold + retry (don't drain) while the pack is ingesting or the server is shedding,
+  // so durable IDB warms survive the hold and resume once it lifts.
+  if (_holdBackgroundWarm()) { if (_idbQueue.length) _idbKickSoon(); return }
   while (_idbActive < _IDB_MAX && _idbQueue.length) {
+    if (_holdBackgroundWarm()) { _idbKickSoon(); return }
     const job = _idbQueue.shift()
     _idbActive++
     _idbWarmOne(job).finally(() => { _idbActive--; _idbPump() })
@@ -161,7 +236,11 @@ async function _idbWarmOne({ sym, tf }) {
     // handled: idbGet returns null for a stale-intraday entry → `have` is null.)
     const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
     if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
-    const json = await preload(_url(sym, tf), fetcher)  // dedupes with prefetchBars
+    // Don't race the pack to origin, and don't pile onto a shedding server (see
+    // _holdBackgroundWarm). The pack is writing these tickers into IDB; a click
+    // meanwhile fetches its ONE chart via SWR. Warming resumes when the hold lifts.
+    if (_holdBackgroundWarm()) return
+    const json = _noteWarmResult(await preload(_url(sym, tf), warmFetcher))
     if (json?.bars?.length && !json.delta) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
       // heal only the recent tail (fresh wins on overlap) — idbPut REPLACES, so a
@@ -314,7 +393,11 @@ async function _deepWarmOne(sym, tf) {
     // Already deep enough in IDB → nothing to do (a short-history name never
     // reaches `target`, but the 5-min _deepSeen window keeps it from re-fetching).
     if (have?.bars?.length >= target * 0.9) return
-    const json = await preload(_deepUrl(sym, tf), fetcher) // dedupes + warms SWR + server
+    // Deep history (bars=12500) is the HEAVIEST fetch and produced the 20-23s cold
+    // stalls in the HAR — never race the pack with it, and never pile it onto a
+    // shedding server. Holds during pack-ingest OR while backed off (_holdBackgroundWarm).
+    if (_holdBackgroundWarm()) return
+    const json = _noteWarmResult(await preload(_deepUrl(sym, tf), warmFetcher)) // dedupes + warms SWR + server
     if (json?.bars?.length && !json.delta) {
       await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB
       memPut(sym, tf, json.bars)
@@ -322,7 +405,9 @@ async function _deepWarmOne(sym, tf) {
   } catch { /* best-effort; the chart's own dwell-warm remains the fallback */ }
 }
 function _deepPump() {
+  if (_holdBackgroundWarm()) { if (_deepQueue.length) _deepKickSoon(); return }
   while (_deepActive < _DEEP_MAX && _deepQueue.length) {
+    if (_holdBackgroundWarm()) { _deepKickSoon(); return }
     const { sym, tf } = _deepQueue.shift()
     _deepActive++
     _deepWarmOne(sym, tf).finally(() => { _deepActive--; _deepPump() })

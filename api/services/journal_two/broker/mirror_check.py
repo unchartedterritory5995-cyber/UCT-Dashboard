@@ -141,10 +141,13 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
             (user_id, j2_account_id),
         ).fetchall()
         acct = conn.execute(
-            "SELECT broker_cash FROM j2_accounts WHERE id = ? AND user_id = ?",
+            "SELECT broker_cash, broker_total_equity FROM j2_accounts "
+            "WHERE id = ? AND user_id = ?",
             (j2_account_id, user_id),
         ).fetchone()
         cash = float(acct["broker_cash"]) if acct and acct["broker_cash"] is not None else None
+        stored_equity = (float(acct["broker_total_equity"])
+                         if acct and acct["broker_total_equity"] is not None else None)
 
         # ── 1. position parity ───────────────────────────────────────────
         pos_mismatches: list[str] = []
@@ -177,6 +180,21 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                 units = float(c["units"])
                 jq = qty_by_key.get(key, 0.0)
                 if abs(jq - units) > 1e-6:
+                    # Settlement pin (option_reconstruct): while a sale is
+                    # pending delivery the holdings feed can flap; the journal
+                    # deliberately holds the pinned MINIMUM. A journal that
+                    # equals the pin is faithful, not drifted.
+                    ckey = f"{key[0]}|{key[1]}|{key[2]}|{key[3]}"
+                    memo = conn.execute(
+                        "SELECT min_held FROM j2_broker_opt_holdings_memo "
+                        "WHERE user_id = ? AND broker_account_id = ? "
+                        "AND contract_key = ?",
+                        (user_id, broker_account_id, ckey),
+                    ).fetchone()
+                    pinned = (memo is not None
+                              and abs(abs(jq) - float(memo["min_held"])) <= 1e-6)
+                    if pinned:
+                        continue
                     opt_mismatches.append(
                         f"{key[0]} {key[1]} {key[2]}: journal {jq} vs broker {units} contracts")
                 else:
@@ -194,10 +212,20 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                         f"extra {key[0]} {key[1]} {key[2]} ({jq} contracts) not held at broker")
 
         # ── 3. equity parity ─────────────────────────────────────────────
+        # Target = the equity the write path just STORED (post stale-total
+        # guard, the number every member surface reads). Comparing against
+        # SnapTrade's raw `balance.total` paged 3 false drifts on 8/21 — that
+        # field lags a full day on Robinhood intraday, which is the
+        # provider's inconsistency, not the journal's. The provider lag is
+        # still measured, as info only (totalLagDollar), never a page.
         drift_dollar = drift_pct = None
+        total_lag = None
         equity_ok = True
         if (broker_total is not None and isinstance(broker_total, (int, float))
-                and math.isfinite(broker_total) and cash is not None):
+                and math.isfinite(broker_total) and stored_equity is not None):
+            total_lag = round(stored_equity - float(broker_total), 2)
+        if (stored_equity is not None and math.isfinite(stored_equity)
+                and cash is not None):
             mv = 0.0
             marks_complete = True
             for r in j2_pos:
@@ -214,10 +242,10 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                     mv += float(r["broker_current_value"])
             if marks_complete:
                 derived = cash + mv
-                drift_dollar = round(derived - float(broker_total), 2)
-                drift_pct = (round(abs(drift_dollar) / abs(broker_total), 6)
-                             if broker_total else None)
-                tol = max(EQUITY_TOL_FLOOR, EQUITY_TOL_PCT * abs(float(broker_total)))
+                drift_dollar = round(derived - stored_equity, 2)
+                drift_pct = (round(abs(drift_dollar) / abs(stored_equity), 6)
+                             if stored_equity else None)
+                tol = max(EQUITY_TOL_FLOOR, EQUITY_TOL_PCT * abs(stored_equity))
                 equity_ok = abs(drift_dollar) <= tol
 
         structural_ok = not pos_mismatches and not opt_mismatches
@@ -259,6 +287,7 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
 
         return {"ok": ok, "structuralOk": structural_ok, "equityOk": equity_ok,
                 "driftDollar": drift_dollar, "driftPct": drift_pct,
+                "totalLagDollar": total_lag,
                 "consecutiveDrifts": consecutive, "detail": detail if not ok else None}
     finally:
         if owned:
