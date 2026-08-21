@@ -21,6 +21,7 @@ import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
 import ScopeBar from '../components/scope/ScopeBar'
 import RiskExitsSection from '../components/analytics/RiskExitsSection'
+import TaxCenterSection from '../components/analytics/TaxCenterSection'
 import InsightsHub from '../components/insights/InsightsHub'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import useSpyBenchmark, { closeAtOrBefore } from '../hooks/useSpyBenchmark'
@@ -167,6 +168,11 @@ export default function AnalyticsTab() {
               <RiskExitsSection data={data.exitQuality} risk={data.risk} />
             </CollapsibleSection>
           )}
+          {/* Collapsed by default => TaxCenterSection stays unmounted (its
+              fetch fires only when the user opens the section). */}
+          <CollapsibleSection id="taxCenter" title="Tax Center (beta)">
+            <TaxCenterSection />
+          </CollapsibleSection>
         </>
       )}
       {data && (data.strategyCount ?? 0) > 0 && data.options && (
