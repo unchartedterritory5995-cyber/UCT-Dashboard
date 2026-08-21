@@ -135,3 +135,64 @@
   .monthName { font-size: 8px; }
   .monthPct { font-size: 10px; }
 }
+
+/* ── The MEASURED backtest A/B ──────────────────────────────────────────
+   Sits above the live-tracker analytics because it is the stronger claim:
+   1,119 sessions against a few months. */
+.abWrap {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 14px 10px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.abHead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 4px 12px;
+  margin-bottom: 10px;
+}
+.abTitle {
+  font-family: var(--font-sans);
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--ut-gold); text-transform: uppercase;
+}
+.abMeta {
+  font-family: var(--font-sans);
+  font-size: 9px; letter-spacing: 0.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.abTable { width: 100%; border-collapse: collapse; }
+.abTable th, .abTable td { padding: 4px 0; }
+.abCol {
+  font-family: var(--font-sans);
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+  text-align: right; width: 30%;
+}
+.abLabel {
+  font-family: var(--font-sans);
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.abVariant, .abControl {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px; font-weight: 700; text-align: right;
+}
+/* The stopped arm is the system being argued for; the control is context. */
+.abVariant { color: var(--text-bright); }
+.abControl { color: var(--text-muted); }
+.abNote {
+  margin: 10px 0 0;
+  font-family: var(--font-sans);
+  font-size: 9px; line-height: 1.5; color: var(--text-muted);
+}
+.abNote strong { color: var(--text-bright); font-weight: 700; }
+
+/* Header for the live-tracker analytics, so its MAX DRAWDOWN is not read as
+   the measured table's. */
+.liveHead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 4px 12px;
+  margin-bottom: 10px;
+}

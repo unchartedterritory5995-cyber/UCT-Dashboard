@@ -90,6 +90,69 @@ function distColor(bucket) {
   return 'var(--gain)'
 }
 
+/* ── The MEASURED backtest ───────────────────────────────────────────────
+   Everything else in this tile is the live no-stops tracker re-sliced into
+   analytics. This block is the real thing: a published run manifest, both
+   arms, 1,119 sessions. The two columns must always travel together — the
+   stopped arm's return means nothing without the arm it is being compared
+   against, and the no-stops column is what the tracker above actually is. */
+
+function ymd(n) {
+  const s = String(n ?? '')
+  return s.length === 8 ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6)}` : s
+}
+
+const AB_ROWS = [
+  { key: 'total_return_pct', label: 'TOTAL RETURN', signed: true },
+  { key: 'max_drawdown', label: 'MAX DRAWDOWN', signed: false },
+  { key: 'expectancy_pct', label: 'EXPECTANCY / TRADE', signed: true, dp: 2 },
+  { key: 'win_rate', label: 'WIN RATE', signed: false },
+  { key: 'trade_count', label: 'TRADES', raw: true },
+]
+
+function HarnessAB({ h }) {
+  if (!h?.variant || !h?.control) return null
+  const w = h.window ?? {}
+  const cell = (arm, r) => {
+    const v = arm?.[r.key]
+    if (v == null) return '—'
+    if (r.raw) return v
+    return `${r.signed && v >= 0 ? '+' : ''}${v.toFixed(r.dp ?? 1)}%`
+  }
+  return (
+    <div className={styles.abWrap}>
+      <div className={styles.abHead}>
+        <span className={styles.abTitle}>MEASURED BACKTEST</span>
+        <span className={styles.abMeta}>
+          {w.sessions ?? '—'} sessions · {ymd(w.start)} → {ymd(w.end)}
+        </span>
+      </div>
+      <table className={styles.abTable}>
+        <thead>
+          <tr>
+            <th />
+            <th className={styles.abCol}>WITH STOPS</th>
+            <th className={styles.abCol}>NO STOPS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {AB_ROWS.map(r => (
+            <tr key={r.key}>
+              <td className={styles.abLabel}>{r.label}</td>
+              <td className={styles.abVariant}>{cell(h.variant, r)}</td>
+              <td className={styles.abControl}>{cell(h.control, r)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className={styles.abNote}>
+        The <strong>NO STOPS</strong> column is the system the tracker above
+        implements today — it exits only when a name leaves the list.
+      </p>
+    </div>
+  )
+}
+
 /* ═══════════════════════════════════════════════════════════════════════ */
 
 export default function UCT20Backtest() {
@@ -115,7 +178,17 @@ export default function UCT20Backtest() {
       {open && (
         <div className={styles.content}>
 
-          {/* ── Key stats row ── */}
+          <HarnessAB h={data.harness} />
+
+          {/* ── Key stats row ──
+              Explicitly labelled: everything below is the LIVE tracker, and
+              it repeats labels the measured table above also uses (MAX
+              DRAWDOWN in particular) with DIFFERENT numbers. Unlabelled, the
+              two read as one set of figures that disagree with itself. */}
+          <div className={styles.liveHead}>
+            <span className={styles.abTitle}>LIVE TRACKER — NO STOPS</span>
+            <span className={styles.abMeta}>exits only when a name leaves the list</span>
+          </div>
           <div className={styles.keyStats}>
             <div className={styles.keyStat}>
               <span className={styles.keyLabel}>MAX DRAWDOWN</span>

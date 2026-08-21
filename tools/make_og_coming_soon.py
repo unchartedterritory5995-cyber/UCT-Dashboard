@@ -9,7 +9,7 @@ brand face (Instrument Sans) and the same curve geometry as the live page —
 a hand-drawn approximation drifts from the page it is supposed to preview.
 
 Re-run after changing the launch date:
-    python tools/make_og_coming_soon.py --date "September 5, 2026"
+    python tools/make_og_coming_soon.py --date "September 19, 2026"
 
 ⚠️ THEN BUMP `?v=` IN THE `IMAGE` CONSTANT IN app/vite.config.js. The route
 serves this with max-age=86400, so Cloudflare keeps handing out the previous
@@ -192,7 +192,7 @@ HTML = """<!doctype html>
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--date", default="September 5, 2026",
+    ap.add_argument("--date", default="September 19, 2026",
                     help="launch date shown on the card")
     args = ap.parse_args()
 

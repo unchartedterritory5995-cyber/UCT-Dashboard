@@ -177,3 +177,24 @@
 .sheetBody .alertInput { width: 100px; }
 .sheetBody .alertSet { min-height: var(--tap-min); padding: 0 var(--space-lg); font-size: var(--text-md); }
 .sheetBody .listPicker { max-height: 40vh; }
+
+/* inline "New list" creation inside the picker */
+.newListRow {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 4px; border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 4px;
+}
+.newListInput {
+  flex: 1; min-width: 0;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 5px; padding: 4px 7px; color: inherit;
+  font-size: 12px; font-family: inherit;
+}
+.newListInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.newListBtn {
+  border: 1px solid rgba(201,168,76,0.35); background: rgba(201,168,76,0.12);
+  color: #c9a84c; border-radius: 5px; padding: 4px 9px; cursor: pointer;
+  font-size: 12px; font-family: inherit;
+}
+.newListBtn:disabled { opacity: 0.45; cursor: default; }
+.sheetBody .newListInput, .sheetBody .newListBtn { min-height: 40px; font-size: 14px; }
