@@ -30,20 +30,22 @@ export default function ChartsGallery({ rows, livePrices }) {
           const chg = lp?.change_pct ?? r.chg_pct_1d
           return (
             <div key={r.ticker} className={styles.galleryCard}>
-              <div className={styles.galleryHead}>
-                <TickerPopup sym={r.ticker}>
-                  <span className={styles.symCell}>{r.ticker}</span>
-                </TickerPopup>
-                <span className={chg == null ? '' : chg >= 0 ? styles.heatG : styles.heatR}>
-                  {chg == null ? '—' : `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%`}
-                </span>
-              </div>
-              <div className={styles.galleryChart}>
-                <StockChart sym={r.ticker} tf="D" liveUpdates={false} frozen
-                  showDrawingTools={false} hideLegend hideCrosshair hideCountdown
-                  hideReplay hidePatterns hideCompare hideLastValue hidePriceLine
-                  disableHvc />
-              </div>
+              <TickerPopup sym={r.ticker} as="div">
+                <div className={styles.galleryCardInner} data-testid={`gallery-card-${r.ticker}`}>
+                  <div className={styles.galleryHead}>
+                    <span className={styles.symCell}>{r.ticker}</span>
+                    <span className={chg == null ? '' : chg >= 0 ? styles.heatG : styles.heatR}>
+                      {chg == null ? '—' : `${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%`}
+                    </span>
+                  </div>
+                  <div className={styles.galleryChart}>
+                    <StockChart sym={r.ticker} tf="D" liveUpdates={false} frozen
+                      showDrawingTools={false} hideLegend hideCrosshair hideCountdown
+                      hideReplay hidePatterns hideCompare hideLastValue hidePriceLine
+                      disableHvc />
+                  </div>
+                </div>
+              </TickerPopup>
             </div>
           )
         })}

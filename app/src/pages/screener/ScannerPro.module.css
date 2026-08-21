@@ -65,6 +65,7 @@
 .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; }
 .galleryCard { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 8px; cursor: pointer; }
 .galleryCard:hover { border-color: var(--ut-gold); }
+.galleryCardInner { cursor: pointer; }
 .galleryHead { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
 .galleryChart { height: 120px; }
 .galleryPager { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px; color: var(--text-muted); font-size: 12px; }
