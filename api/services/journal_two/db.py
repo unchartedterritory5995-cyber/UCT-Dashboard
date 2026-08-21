@@ -696,6 +696,22 @@ CREATE TABLE IF NOT EXISTS j2_broker_digest_dedup (
     fingerprint  TEXT NOT NULL,
     et_day       TEXT NOT NULL
 );
+
+-- Mirror-drift sentinel verdicts (broker/mirror_check.py): after every sync,
+-- the journal's own tables are compared against the broker payload that sync
+-- just used. ONE row per account = the latest verdict; consecutive_drifts
+-- distinguishes settlement-window transients from persistent divergence.
+CREATE TABLE IF NOT EXISTS j2_broker_mirror_checks (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    checked_at         TEXT NOT NULL,
+    ok                 INTEGER NOT NULL,
+    drift_dollar       REAL,
+    drift_pct          REAL,
+    consecutive_drifts INTEGER NOT NULL DEFAULT 0,
+    detail_json        TEXT,
+    PRIMARY KEY (user_id, broker_account_id)
+);
 """
 
 
