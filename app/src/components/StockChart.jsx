@@ -13,6 +13,7 @@ import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries,
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
+import { crosshairModeOf } from './chart/crosshairMode'
 
 // Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
@@ -2328,6 +2329,10 @@ export default function StockChart({
   // so they read the mode from a ref rather than capturing a stale one.
   const legendModeRef = useRef(legendMode)
   legendModeRef.current = legendMode
+  // Crosshair three-way mode (always / hold / off) — same resolver pattern as the
+  // legend. `crosshairModeOf` reads `crosshair.mode`, falling back to the legacy
+  // `crosshair.enabled === false` (→ 'off') for blobs written before the mode.
+  const crosshairMode = crosshairModeOf(cs)
   // Width (px) of the right price axis — reserved so a horizontal legend wraps to
   // the next row BEFORE it slides under the price scale (measured reactively below).
   const [legendAxisReserve, setLegendAxisReserve] = useState(0)
@@ -2898,6 +2903,71 @@ export default function StockChart({
       setLegendHeld(false)
     }
   }, [legendMode, chartReady])
+
+  // ── Crosshair 'Hold' mode: press-and-hold shows the crosshair, release hides it ─
+  //
+  // The exact same peek gesture as the legend above, kept as a PARALLEL mechanism
+  // (a separate boolean + its own listeners) so the two features are independent —
+  // a user can run the legend on 'always' and the crosshair on 'hold', or vice
+  // versa. Two pointerdown listeners that each set a boolean are harmless. Release
+  // is on `window` (not the canvas) so a press that ends off the chart still clears.
+  const [crosshairHeld, setCrosshairHeld] = useState(false)
+  useEffect(() => {
+    if (crosshairMode !== 'hold' && crosshairHeld) setCrosshairHeld(false)
+  }, [crosshairMode, crosshairHeld])
+  useEffect(() => {
+    if (crosshairMode !== 'hold') return undefined
+    const el = containerRef.current
+    if (!el) return undefined
+    const down = (e) => { if (e.button === 0) setCrosshairHeld(true) }
+    const up = () => setCrosshairHeld(false)
+    el.addEventListener('pointerdown', down)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      setCrosshairHeld(false)
+    }
+  }, [crosshairMode, chartReady])
+
+  // Whether the crosshair lines + tracking axis labels should be drawn RIGHT NOW.
+  // `hideCrosshair` is the HOST's call (Setup Library exhibits); `crosshairMode` is
+  // the user's; `crosshairHeld` is the moment's. A ref mirrors it so `updateChart`
+  // (which reads it inside chartOpts and does NOT depend on the held state) always
+  // sees the live value without a stale closure, and the dedicated toggle effect
+  // below flips it interactively without paying for a full updateChart.
+  const crosshairVisible = !hideCrosshair && crosshairMode !== 'off'
+    && (crosshairMode !== 'hold' || crosshairHeld)
+  const crosshairVisibleRef = useRef(crosshairVisible)
+  crosshairVisibleRef.current = crosshairVisible
+
+  // ONE builder for the LWC crosshair options, used by BOTH the initial chartOpts
+  // (inside updateChart) and the interactive toggle effect below — so the "shown"
+  // and "hidden" shapes can never drift between the two call sites. When hidden,
+  // both lines AND their tracking price/date axis labels are suppressed; toggling
+  // back on must reassert visible/labelVisible explicitly because applyOptions
+  // MERGES over the previously-false values.
+  const buildCrosshairOpts = useCallback((visible) => (visible ? {
+    mode: cs.crosshair?.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
+    vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+    horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+  } : {
+    mode: 0,
+    vertLine: { visible: false, labelVisible: false },
+    horzLine: { visible: false, labelVisible: false },
+  }), [cs.crosshair?.magnet, cs.crosshair?.width, cs.crosshair?.style, themeColors.crosshairColor, axisAuto.labelBg])
+
+  // Interactive toggle: apply the crosshair visibility whenever it changes WITHOUT
+  // re-running the whole updateChart (which `crosshairHeld` is deliberately not a
+  // dep of). This is what makes 'Hold' responsive — a press/release flips the lines
+  // in place. Mirrors the small dedicated applyOptions effects elsewhere in the file.
+  useEffect(() => {
+    if (!chartReady) return
+    try { chartRef.current?.applyOptions({ crosshair: buildCrosshairOpts(crosshairVisible) }) } catch { /* chart torn down */ }
+  }, [crosshairVisible, chartReady, buildCrosshairOpts])
+
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -5552,12 +5622,27 @@ export default function StockChart({
         const series = candleSeriesRef.current
         const chart = chartRef.current
         if (!series || !chart) return
-        // Price pane pixel height → top coord = high, bottom coord = low.
+        // Price pane pixel height → the captured range must be the DATA range that
+        // fills the margin-INSET plot area, NOT the full-pane extent. The
+        // autoscaleInfoProvider returns {minValue,maxValue} and LWC re-adds the
+        // price scale's `scaleMargins` as padding AROUND it — so capturing at the
+        // full pane (y=0 / y=paneH) hands back a range already inclusive of the
+        // margins, which LWC then insets a SECOND time → the candles compress once
+        // right after release (the "skips one more time" bug). Reading the price at
+        // the inset boundaries [top·H, (1−bottom)·H] captures exactly the range that
+        // maps back to these same pixels, so releasing leaves the scale untouched.
         let paneH = 0
         try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
         if (paneH <= 0) return
-        const hi = series.coordinateToPrice(0)
-        const lo = series.coordinateToPrice(paneH)
+        let sm = { top: 0, bottom: 0 }
+        try {
+          const o = mainPriceScale()?.options?.()?.scaleMargins
+          if (o && Number.isFinite(o.top) && Number.isFinite(o.bottom)) sm = o
+        } catch { /* keep zero margins — no worse than the old full-pane capture */ }
+        const yTop = sm.top * paneH               // pixel of the highest price (maxValue)
+        const yBot = paneH - sm.bottom * paneH     // pixel of the lowest price (minValue)
+        const hi = series.coordinateToPrice(yTop)
+        const lo = series.coordinateToPrice(yBot)
         if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
           priceManualRangeRef.current = { minValue: lo, maxValue: hi }
           priceManualRef.current = true
@@ -5572,7 +5657,7 @@ export default function StockChart({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [chartReady])
+  }, [chartReady, mainPriceScale])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {
@@ -7229,24 +7314,14 @@ export default function StockChart({
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
-      crosshair: (hideCrosshair || cs.crosshair?.enabled === false) ? {
-        mode: 0,
-        // Fully suppress both crosshair lines AND their price/date axis labels — the
-        // Setup-Library `hideCrosshair` prop, or the user turning Crosshair off in
-        // settings (cs.crosshair.enabled === false). The axis labels that track the
-        // mouse are the labelVisible:false pair.
-        vertLine: { visible: false, labelVisible: false },
-        horzLine: { visible: false, labelVisible: false },
-      } : {
-        mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        // Crosshair date/price labels blend with the canvas (gradient-bottom aware);
-        // LWC auto-contrasts their text against this background (axisAuto).
-        // visible/labelVisible are set EXPLICITLY true (not just left default) because
-        // applyOptions MERGES: once the suppressed branch above set them false, toggling
-        // Crosshair back on must reassert true or the lines/labels stay hidden.
-        vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-        horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-      },
+      // Crosshair lines + tracking axis labels. Visibility comes from the resolved
+      // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
+      // this (inside updateChart, which does NOT depend on the hold state) always
+      // reads the live value. The interactive press/release toggle is handled by
+      // the dedicated applyOptions effect above; both use `buildCrosshairOpts` so
+      // the shown/hidden shapes stay identical. (`hideCrosshair`, the Setup-Library
+      // host override, is already folded into `crosshairVisible`.)
+      crosshair: buildCrosshairOpts(crosshairVisibleRef.current),
       rightPriceScale: {
         borderColor: themeColors.borderColor,
         // No vertical separator line between the plot and the axis — the values sit

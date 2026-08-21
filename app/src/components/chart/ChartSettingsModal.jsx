@@ -5,6 +5,7 @@ import { CHART_DEFAULTS } from './chartDefaults'
 import ChartThemesModal from './ChartThemesModal'
 import { applyThemeToSettings } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
+import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
   listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
 } from './indicatorRegistry'
@@ -148,6 +149,13 @@ const LEGEND_LAYOUTS = [
 const LEGEND_MODE_LABELS = {
   always: { label: 'Always', hint: 'On, following the crosshair as you hover' },
   hold: { label: 'Hold', hint: 'Chart stays clean; press and hold to peek, release to hide' },
+  off: { label: 'Off', hint: 'Never shown' },
+}
+// When the hover crosshair (lines + tracking axis labels) shows. Same three-way
+// control as the legend; labels/hints only — `CROSSHAIR_MODES` owns the values.
+const CROSSHAIR_MODE_LABELS = {
+  always: { label: 'Always', hint: 'On, following the cursor as you hover' },
+  hold: { label: 'Hold', hint: 'Chart stays clean; press and hold to show it, release to hide' },
   off: { label: 'Off', hint: 'Never shown' },
 }
 
@@ -334,6 +342,10 @@ export default function ChartSettingsModal({
   const candles = settings?.candles || {}
   const grid = settings?.grid || {}
   const crosshair = settings?.crosshair || {}
+  // Three-way crosshair state (always / hold / off) — DERIVED through the resolver,
+  // never read off a field, so a blob predating `mode` (which carries only the
+  // legacy `crosshair.enabled` boolean) resolves consistently. Mirrors legendMode.
+  const crosshairMode = crosshairModeOf(settings)
   const watermark = settings?.watermark || {}
   const isCandleType = curType === 'candles' || curType === 'hollow'
   const bgMode = settings?.bgMode || 'solid'
@@ -721,17 +733,25 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Crosshair &amp; Text</div>
             <div className={styles.card}>
+              {/* Three-way control (Always / Hold / Off), mirroring Chart legend.
+                  Writes ONLY `crosshair.mode`; the legacy `crosshair.enabled`
+                  boolean survives as a read-only fallback (see crosshairMode.js),
+                  so nothing here toggles it. */}
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Crosshair</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={crosshair.enabled !== false}
-                  className={`${styles.toggle} ${crosshair.enabled !== false ? styles.toggleOn : ''}`}
-                  onClick={() => setSetting({ crosshair: { ...crosshair, enabled: crosshair.enabled === false } })}
-                ><span className={styles.toggleKnob} /></button>
+                <div className={styles.seg} role="tablist">
+                  {CROSSHAIR_MODES.map((val) => (
+                    <button
+                      key={val} type="button" role="tab"
+                      aria-selected={crosshairMode === val}
+                      title={CROSSHAIR_MODE_LABELS[val].hint}
+                      className={`${styles.segBtn} ${crosshairMode === val ? styles.segBtnActive : ''}`}
+                      onClick={() => setSetting({ crosshair: { ...crosshair, mode: val } })}
+                    >{CROSSHAIR_MODE_LABELS[val].label}</button>
+                  ))}
+                </div>
               </div>
-              {crosshair.enabled !== false && (
+              {crosshairMode !== 'off' && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Line color</span>
                   {colorSwatch('crosshair', 'Crosshair')}

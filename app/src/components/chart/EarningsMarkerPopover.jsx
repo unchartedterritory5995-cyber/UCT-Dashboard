@@ -86,18 +86,22 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.() }
-    // Scroll-wheel zoom / any wheel = the chart moved → dismiss (mousedown already
-    // covers an outside click and the start of a pan).
+    // Scroll-wheel zoom / any wheel = the chart moved → dismiss.
     const onWheel = () => onClose?.()
     window.addEventListener('keydown', onKey)
     window.addEventListener('wheel', onWheel, { capture: true, passive: true })
-    // Defer so the opening click itself doesn't immediately close it.
-    const t = setTimeout(() => window.addEventListener('mousedown', onDown), 0)
+    // ⚠️ CAPTURE-PHASE `pointerdown` ON `document`, not a bubble-phase `mousedown`
+    // on `window`. Lightweight Charts stops propagation of mouse events on its
+    // canvas, so a bubble-phase listener never sees an outside click that lands ON
+    // the chart — the card then only closed on a wheel/zoom, never on a plain click
+    // away. Capturing pointerdown fires before LWC can swallow it. Mirrors the IPO
+    // tag's dismiss in StockChart. The opening click's pointerdown already fired
+    // before this popover mounted, so there's no need to defer against a self-close.
+    document.addEventListener('pointerdown', onDown, true)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('wheel', onWheel, { capture: true })
-      window.removeEventListener('mousedown', onDown)
-      clearTimeout(t)
+      document.removeEventListener('pointerdown', onDown, true)
     }
   }, [onClose])
 
