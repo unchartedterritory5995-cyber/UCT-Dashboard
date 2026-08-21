@@ -38,6 +38,9 @@ const FALLBACK = {
   // Apply a UCT chart theme's visual layer to EVERY chart in the layout at once
   // (base widgets + chart tabs + widget tabs). null-safe no-op off the workspace.
   applyThemeToAllCharts: () => {},
+  // Apply a theme to EVERY widget in the layout — chart or not (watchlist, theme
+  // tracker, fundamentals, breadth, …). null-safe no-op off the workspace.
+  applyThemeToAllWidgets: () => {},
 }
 
 export function useWorkspace() {

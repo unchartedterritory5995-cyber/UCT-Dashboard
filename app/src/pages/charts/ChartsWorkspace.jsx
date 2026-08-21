@@ -12,7 +12,7 @@ import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaults
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -764,8 +764,9 @@ export default function ChartsWorkspace() {
   // this memo — a ref avoids the TDZ and keeps workspaceValue identity stable).
   const floatNewWidgetRef = useRef(null)
   const applyThemeAllRef = useRef(null)
+  const applyThemeAllWidgetsRef = useRef(null)
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme) }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
     [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
@@ -1073,6 +1074,29 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave, prefs.chart_settings])
   applyThemeAllRef.current = applyThemeToAllCharts
+
+  // "All widgets": every widget in the layout — chart or not — adopts the theme.
+  // Charts get the full chart skin; watchlist/scanner/theme-tracker/fundamentals/
+  // breadth get their canvas + text + up/down + grid/tint; news/profile/alerts/
+  // calendar/optionsflow/aisearch get canvas + text. Walks base widgets, their
+  // chart tabs (inside patchWidgetOptsWithTheme), and widget-tabs (wtabs).
+  const applyThemeToAllWidgets = useCallback((theme) => {
+    if (!theme) return
+    const seed = mergeChartSettings(prefs.chart_settings)
+    setLayout(prev => {
+      const widgets = prev.widgets.map(w => {
+        let nw = { ...w, opts: patchWidgetOptsWithTheme(w.type, w.opts, theme, seed) }
+        if (Array.isArray(w.wtabs)) {
+          nw.wtabs = w.wtabs.map(t => (t && t.type ? { ...t, opts: patchWidgetOptsWithTheme(t.type, t.opts, theme, seed) } : t))
+        }
+        return nw
+      })
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave, prefs.chart_settings])
+  applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
 
   // ── "Open on Charts" deep link (/charts?sym=AMD&tf=15) ───────────────────
   // The reverse direction of the capture flow: a journal embed (or any other

@@ -157,6 +157,8 @@ export default function ChartSettingsModal({
   // the Charts workspace (via ChartPane); when absent, the themes gallery offers
   // only "this chart".
   onApplyThemeAll = null,
+  // Optional: apply the theme to EVERY widget in the layout (chart or not).
+  onApplyThemeAllWidgets = null,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
@@ -173,9 +175,11 @@ export default function ChartSettingsModal({
   const [themesOpen, setThemesOpen] = useState(false)
 
   // Apply a UCT theme's visual layer. 'one' → this surface (via onChange, exactly
-  // like a template); 'all' → every chart in the layout (workspace-supplied).
+  // like a template); 'all' → every chart in the layout; 'allwidgets' → every
+  // widget in the layout (chart or not). The last two are workspace-supplied.
   const applyTheme = (theme, scope) => {
-    if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
+    if (scope === 'allwidgets' && onApplyThemeAllWidgets) onApplyThemeAllWidgets(theme)
+    else if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
     else onChange?.(applyThemeToSettings(settings, theme))
   }
 
@@ -1381,6 +1385,7 @@ export default function ChartSettingsModal({
         onClose={() => setThemesOpen(false)}
         onApply={applyTheme}
         canApplyAll={!!onApplyThemeAll}
+        canApplyAllWidgets={!!onApplyThemeAllWidgets}
         currentSettings={settings}
         themeVars={themeVars}
       />

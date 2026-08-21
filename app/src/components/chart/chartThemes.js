@@ -259,13 +259,16 @@ export function applyThemeToSettings(settings, theme) {
   const bgGrad = theme.bgGradient
   const wm = theme.watermark || theme.text
 
-  // Keep the OHLCV/date legend readable on ANY canvas. The legend sits top-left,
-  // so a gradient's TOP color is what it renders over. On a light canvas force a
-  // dark legend; on a dark one clear it to null so the CSS light default applies
-  // — set explicitly EVERY time so switching light→dark can't leave a stale dark
-  // legend on a dark background. `theme.legend` overrides the auto choice.
+  // The legend + header title sit top-left, so a gradient's TOP color is what they
+  // render over. Both are set EXPLICITLY every time (never left to inherit a stale
+  // color from a prior theme) and chosen by background luminance so they stay
+  // readable on any canvas — dark ink on a light canvas, light ink on a dark one.
+  // `legend` is ONE color applied to BOTH the OHLCV labels and their values, so the
+  // two always match (ChartPane feeds it to StockChart's single `legendColor`).
   const legendBg = bgGrad ? bgGrad.top : theme.bg
-  const legend = theme.legend || (_luminance(legendBg) > 0.6 ? '#1c2128' : null)
+  const isLightBg = _luminance(legendBg) > 0.6
+  const legend = theme.legend || (isLightBg ? '#1c2128' : '#d6d8dd')
+  const title = theme.title || (isLightBg ? '#14181d' : '#e8e8ec')
 
   return {
     ...s,
@@ -298,7 +301,7 @@ export function applyThemeToSettings(settings, theme) {
     // the prev-day High/Low reference lines are all semantically up/down colored.
     header: {
       ...(s.header || {}),
-      colors: { ...((s.header || {}).colors || {}), dayChangeUp: up, dayChangeDown: down, legend },
+      colors: { ...((s.header || {}).colors || {}), dayChangeUp: up, dayChangeDown: down, legend, title },
     },
     markers: { ...(s.markers || {}), earningsBeat: up, earningsMiss: down },
     prevDayLevels: {
@@ -327,4 +330,60 @@ export function patchOptsWithTheme(opts, theme, seed) {
         : t)
   }
   return next
+}
+
+// ── "Apply to all WIDGETS" — theme the non-chart widgets too ─────────────────
+//
+// Every workspace widget stores its own appearance in `opts.settings`, and the
+// market widgets (watchlist/scanner/theme-tracker/fundamentals/breadth) share one
+// canvas+color schema (bgMode/bg/bgGradient + a text key + up/down + grid/tint);
+// the simpler ones (news/profile/alerts/calendar/optionsflow/aisearch) expose just
+// canvas + textColor. `mapThemeToWidgetSettings` maps a chart theme onto whichever
+// keys a given widget type understands (merged over its current blob, so unrelated
+// prefs like logos/fontSize survive). A type with no themeable schema returns null.
+
+const _WIDGET_TEXT_KEY = { themes: 'symColor' } // theme-tracker names its text color differently
+const _TINT_TYPES = new Set(['watchlist', 'scanner', 'themes'])
+const _MARKET_TYPES = new Set(['watchlist', 'scanner', 'themes', 'fundamentals', 'breadth'])
+const _CANVAS_TYPES = new Set(['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'aisearch'])
+const _hex6 = (c) => /^#[0-9a-f]{6}$/i.test(c || '')
+
+export function mapThemeToWidgetSettings(base, theme, type) {
+  if (!theme) return base
+  const b = base || {}
+  const grad = theme.bgGradient
+  const canvas = {
+    bgMode: grad ? 'gradient' : 'solid',
+    bg: grad ? grad.bottom : theme.bg,
+    ...(grad ? { bgGradient: { top: grad.top, bottom: grad.bottom } } : {}),
+  }
+  const textKey = _WIDGET_TEXT_KEY[type] || 'textColor'
+  const out = { ...b, ...canvas, [textKey]: theme.text }
+
+  if (type === 'breadth') { out.headerColor = theme.text; out.valueColor = theme.text }
+  if (_MARKET_TYPES.has(type)) {
+    out.upColor = theme.up
+    out.downColor = theme.down
+    if (theme.grid) out.gridColor = theme.grid
+    if (_TINT_TYPES.has(type) && _hex6(theme.up) && _hex6(theme.down)) {
+      out.tintEnabled = true
+      out.tintUp = theme.up + '47'    // ~28% alpha, matching the widget defaults
+      out.tintDown = theme.down + '47'
+    }
+  }
+  return out
+}
+
+/**
+ * Patch ONE widget's (or widget-tab's) opts to adopt `theme`, dispatching on its
+ * type. Charts get the full chart mapping (incl. their chart tabs); market/simple
+ * widgets get their canvas+color schema; an un-themeable type is returned as-is.
+ */
+export function patchWidgetOptsWithTheme(type, opts, theme, chartSeed) {
+  if (type === 'chart') return patchOptsWithTheme(opts, theme, chartSeed)
+  if (_MARKET_TYPES.has(type) || _CANVAS_TYPES.has(type)) {
+    const o = opts || {}
+    return { ...o, settings: mapThemeToWidgetSettings(o.settings || {}, theme, type) }
+  }
+  return opts || {}
 }

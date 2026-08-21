@@ -109,7 +109,7 @@ function isApplied(settings, theme) {
  * `canApplyAll` is true). Applies and closes so the user immediately sees the
  * reskinned chart behind the (now dismissed) blur.
  */
-export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, currentSettings = null, themeVars = null }) {
+export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, canApplyAllWidgets = false, currentSettings = null, themeVars = null }) {
   const [family, setFamily] = useState('all')
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState('one')
@@ -124,9 +124,11 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
 
   // Reset transient UI each open.
   useEffect(() => { if (open) { setFamily('all'); setQuery(''); setScope('one') } }, [open])
-  // "all" is only ever honored when the surface can do it — clamp at read time so
-  // a stale 'all' (e.g. canApplyAll flipped) can never apply to a single chart.
-  const effScope = canApplyAll ? scope : 'one'
+  // A scope is only honored when the surface actually supports it — clamp at read
+  // time so a stale scope can never fall through to the wrong target.
+  const effScope = (scope === 'allwidgets' && canApplyAllWidgets) ? 'allwidgets'
+    : (scope === 'all' && canApplyAll) ? 'all'
+    : 'one'
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -175,7 +177,7 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
                 type="button"
                 className={`${styles.tile} ${applied ? styles.tileApplied : ''}`}
                 onClick={() => pick(theme)}
-                title={`Apply “${theme.name}”${effScope === 'all' ? ' to all charts' : ''}`}
+                title={`Apply “${theme.name}”${effScope === 'all' ? ' to all charts' : effScope === 'allwidgets' ? ' to all widgets' : ''}`}
               >
                 <div className={styles.tileHead}>
                   <span className={styles.tileName}>{theme.name}</span>
@@ -193,14 +195,21 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
         <div className={styles.footer}>
           <span className={styles.footLabel}>Apply to:</span>
           <div className={styles.scopeSeg}>
-            <button type="button" className={`${styles.scopeBtn} ${scope === 'one' ? styles.scopeOn : ''}`} onClick={() => setScope('one')}>This chart</button>
+            <button type="button" className={`${styles.scopeBtn} ${effScope === 'one' ? styles.scopeOn : ''}`} onClick={() => setScope('one')}>This chart</button>
             <button
               type="button"
-              className={`${styles.scopeBtn} ${scope === 'all' ? styles.scopeOn : ''}`}
+              className={`${styles.scopeBtn} ${effScope === 'all' ? styles.scopeOn : ''}`}
               onClick={() => canApplyAll && setScope('all')}
               disabled={!canApplyAll}
               title={canApplyAll ? 'Apply the next pick to every chart in the layout' : 'Available on the Charts workspace'}
             >All charts</button>
+            <button
+              type="button"
+              className={`${styles.scopeBtn} ${effScope === 'allwidgets' ? styles.scopeOn : ''}`}
+              onClick={() => canApplyAllWidgets && setScope('allwidgets')}
+              disabled={!canApplyAllWidgets}
+              title={canApplyAllWidgets ? 'Apply to every widget in the layout — watchlist, breadth, fundamentals, and the rest' : 'Available on the Charts workspace'}
+            >All widgets</button>
           </div>
           <span className={styles.footHint}>{CHART_THEMES.length} themes</span>
         </div>

@@ -111,6 +111,8 @@ function ChartPane({
   // Workspace-supplied: apply a UCT theme to EVERY chart in the layout at once.
   // Passed through to the settings modal's themes gallery ("All charts" scope).
   onApplyThemeAll = null,
+  // Workspace-supplied: apply a theme to EVERY widget in the layout ("All widgets").
+  onApplyThemeAllWidgets = null,
 }, ref) {
   const compact = density === 'compact'
   // mini renders ONLY the timeframe bar + the chart — no identity row, no meta
@@ -871,6 +873,7 @@ function ChartPane({
         settings={chartCs}
         onChange={updateChartSettings}
         onApplyThemeAll={onApplyThemeAll}
+        onApplyThemeAllWidgets={onApplyThemeAllWidgets}
         savedColors={savedColors}
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
