@@ -21,3 +21,17 @@
 .railHead span:first-child { flex: 1; text-align: left; }
 .railHead:hover { color: var(--ut-gold); }
 .railPip { background: var(--ut-gold); color: var(--bg); border-radius: 8px; padding: 0 5px; font-size: 9px; font-weight: 700; }
+
+/* ColumnPicker */
+.pickerPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; width: 300px; max-height: 55vh; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0, 0, 0, .4)); }
+.pickerHead { display: flex; gap: 6px; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
+.pickerReset { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.pickerClose { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+.pickerList { overflow-y: auto; padding: 4px 0; }
+.pickerRow { display: flex; align-items: center; gap: 4px; padding: 2px 8px; }
+.pickerRow:hover { background: var(--bg-hover); }
+.pickerLabel { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text); cursor: pointer; min-height: 26px; }
+.pickerKey { color: var(--text-muted); font-size: 10px; font-family: var(--font-mono); }
+.pickerMove { display: flex; gap: 2px; }
+.pickerMove button { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; }
+.pickerMove button:hover { color: var(--ut-gold); }

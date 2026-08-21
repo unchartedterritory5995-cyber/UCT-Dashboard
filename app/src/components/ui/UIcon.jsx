@@ -259,6 +259,7 @@ const ICONS = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   chevronDown: <path d="M6 9.5l6 6 6-6" />,
+  chevronUp: <path d="M6 14.5l6-6 6 6" />,
   chevronRight: <path d="M9.5 6l6 6-6 6" />,
   compass: (
     <>
@@ -382,6 +383,22 @@ const ICONS = {
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M7 12h10" />
+    </>
+  ),
+  // Three vertical panes — the "column layout / choose columns" control.
+  columns: (
+    <>
+      <rect x="3.5" y="4" width="5" height="16" rx="1.2" />
+      <rect x="9.5" y="4" width="5" height="16" rx="1.2" />
+      <rect x="15.5" y="4" width="5" height="16" rx="1.2" />
+    </>
+  ),
+  // Three horizontal bars — the "row density / list layout" control.
+  rows: (
+    <>
+      <rect x="3.5" y="4" width="17" height="4.5" rx="1.2" />
+      <rect x="3.5" y="9.75" width="17" height="4.5" rx="1.2" />
+      <rect x="3.5" y="15.5" width="17" height="4.5" rx="1.2" />
     </>
   ),
 
