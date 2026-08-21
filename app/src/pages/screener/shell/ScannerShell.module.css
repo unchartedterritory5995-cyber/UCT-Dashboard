@@ -35,3 +35,26 @@
 .pickerMove { display: flex; gap: 2px; }
 .pickerMove button { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; }
 .pickerMove button:hover { color: var(--ut-gold); }
+
+/* ShellToolbar — views as presets, density, the provenance seal */
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 3; }
+.viewTabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.viewTab { padding: 5px 11px; border-radius: var(--radius-sm, 6px); background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 12px; min-height: 30px; }
+.viewTabOn { background: var(--bg-elevated); border-color: var(--ut-gold); color: var(--ut-gold); }
+.statusLine { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+.toolGroup { display: flex; gap: 6px; align-items: center; }
+.toolBtn { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text); padding: 5px 10px; font-size: 12px; cursor: pointer; min-height: 30px; }
+.toolBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.toolBtn:disabled { opacity: .5; cursor: default; }
+.pickerAnchor { position: relative; display: inline-block; }
+.exportNote { color: var(--gain); font-size: 11.5px; }
+.exportErr { color: var(--loss); font-size: 11.5px; }
+
+/* ── the provenance seal: the one loud element ── */
+.sealWrap { position: relative; display: inline-block; }
+.seal { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .4px; color: var(--text-bright); background: var(--bg-elevated); border: 1px solid var(--border); border-left: 2px solid var(--ut-gold); border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0; padding: 4px 9px; cursor: pointer; min-height: 26px; }
+.seal:hover { border-color: var(--ut-gold); }
+.sealPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; width: 260px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-left: 2px solid var(--ut-gold); border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0; box-shadow: var(--shadow-popover, 0 8px 24px rgba(0, 0, 0, .4)); padding: 10px 12px; }
+.sealRow { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--text-muted); padding: 2px 0; }
+.sealRow b { color: var(--text-bright); font-family: var(--font-mono); font-weight: 600; }
+.sealMixed { margin: 6px 0 0; color: var(--ut-gold); font-size: 11px; line-height: 1.5; }
