@@ -42,7 +42,7 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -399,6 +399,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         stored={activeStoredSettings}
         onStore={persistActiveSettings}
         chartsTheme={chartsTheme}
+        onApplyThemeAll={applyThemeToAllCharts}
         onActivate={markActive}
         stockChartProps={{
           onCrosshairMove: reportCrosshair,

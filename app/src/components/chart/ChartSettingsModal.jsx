@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
+import ChartThemesModal from './ChartThemesModal'
+import { applyThemeToSettings } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
 import {
   listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
@@ -151,6 +153,10 @@ const LEGEND_MODE_LABELS = {
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
+  // the Charts workspace (via ChartPane); when absent, the themes gallery offers
+  // only "this chart".
+  onApplyThemeAll = null,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
@@ -164,6 +170,14 @@ export default function ChartSettingsModal({
   const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
   const [confirmReset, setConfirmReset] = useState(false)
   const resetTimerRef = useRef(null)
+  const [themesOpen, setThemesOpen] = useState(false)
+
+  // Apply a UCT theme's visual layer. 'one' → this surface (via onChange, exactly
+  // like a template); 'all' → every chart in the layout (workspace-supplied).
+  const applyTheme = (theme, scope) => {
+    if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
+    else onChange?.(applyThemeToSettings(settings, theme))
+  }
 
   // ── Settings templates (save the whole look, reuse on any tab) ──────────────
   const { prefs, setPref } = usePreferences()
@@ -226,7 +240,7 @@ export default function ChartSettingsModal({
   }
   const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))
 
-  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName('') } }, [open]) // re-center + reset transient UI on each open
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
 
   // Restore all chart settings to defaults. Two-click confirm (button shows
   // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
@@ -546,6 +560,13 @@ export default function ChartSettingsModal({
         <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
           <span className={styles.title}>Chart Settings</span>
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.themesBtn}
+              onClick={() => setThemesOpen(true)}
+              title="Browse UCT chart themes — one-click looks for this chart"
+              style={{ cursor: 'pointer' }}
+            >🎨 UCT Chart Themes</button>
             <button
               type="button"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
@@ -1354,6 +1375,13 @@ export default function ChartSettingsModal({
         </div>,
         document.body,
       )}
+      <ChartThemesModal
+        open={themesOpen}
+        onClose={() => setThemesOpen(false)}
+        onApply={applyTheme}
+        canApplyAll={!!onApplyThemeAll}
+        currentSettings={settings}
+      />
     </>
   )
 }

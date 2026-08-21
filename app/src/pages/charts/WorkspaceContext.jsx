@@ -35,6 +35,9 @@ const FALLBACK = {
   // (TC2000-style overlay), opening small at `at` = {x,y} (the right-click point).
   // Used by a chart's right-click "Add widget" submenu.
   floatNewWidget: () => {},
+  // Apply a UCT chart theme's visual layer to EVERY chart in the layout at once
+  // (base widgets + chart tabs + widget tabs). null-safe no-op off the workspace.
+  applyThemeToAllCharts: () => {},
 }
 
 export function useWorkspace() {
