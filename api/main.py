@@ -2447,6 +2447,18 @@ async def lifespan(app: FastAPI):
             print(f"[startup] bars.db full integrity_check error (non-fatal): {e}")
     threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
 
+    # Web-side Bars Pack ingest — fold the universe D/W/M pack the worker already
+    # publishes into THIS pod's bars.db, so a cold long-tail view serves from SQLite
+    # instead of a synchronous provider fetch (the ~0% warm the warmth audit measured
+    # comes from the R2 delta window structurally skipping unchanged long-tail bars).
+    # Add-only, missing-series-only, rate-limited, off the request path. No-op unless
+    # BARSPACK_WEB_INGEST_ENABLED=1.
+    try:
+        from api.services import barspack_web_ingest as _bpwi
+        _bpwi.start_web_ingest()
+    except Exception as e:
+        print(f"[startup] barspack web ingest failed to start (non-fatal): {e}")
+
     try:
         from api.services import bars_sqlite as _bars_sqlite
         _bars_sqlite.init_db()
