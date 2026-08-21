@@ -1,17 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the prefetch queue + IDB import so the eager hot-set warm / hot-pack ingest
-// can be asserted without a network or IndexedDB. vi.hoisted lets the mock factories
-// (hoisted to top) reference the spies safely.
-const { prefetchBarsToIDB, idbImportPack, idbApplyDelta } = vi.hoisted(() => ({
-  prefetchBarsToIDB: vi.fn(), idbImportPack: vi.fn(), idbApplyDelta: vi.fn(),
+// Mock the IDB import so the hot-pack ingest can be asserted without a real
+// IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
+const { idbImportPack, idbApplyDelta } = vi.hoisted(() => ({
+  idbImportPack: vi.fn(), idbApplyDelta: vi.fn(),
 }))
-vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta }))
 
-import {
-  decodeShardPayload, _shardIdx, _warmHotSetForNewUser, _ingestHotPack, HOT_TICKERS,
-} from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack } from './barsPackClient'
 
 const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
 
@@ -70,41 +66,6 @@ describe('decodeShardPayload', () => {
     const obj = { tickers: { M1: { M: columnar(one) }, D1: { D: columnar(one) } } }
     const entries = decodeShardPayload(obj)
     expect(entries.map(e => `${e.sym}:${e.tf}`).sort()).toEqual(['D1:D', 'M1:M'])
-  })
-})
-
-describe('_warmHotSetForNewUser (cold-start bridge)', () => {
-  beforeEach(() => {
-    prefetchBarsToIDB.mockClear()
-    try { localStorage.clear() } catch { /* ignore */ }
-  })
-
-  it('warms the hot set (daily first, then 5m/60m) when no pack is stamped', () => {
-    _warmHotSetForNewUser()
-    // Daily, at the front of the queue, is the first call.
-    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, 'D', { priority: true })
-    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, '5')
-    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, '60')
-    expect(prefetchBarsToIDB.mock.calls[0]).toEqual([HOT_TICKERS, 'D', { priority: true }])
-  })
-
-  it('is a NO-OP for a returning user who already ingested a pack', () => {
-    localStorage.setItem('barspack.version', '2026-08-21')
-    _warmHotSetForNewUser()
-    expect(prefetchBarsToIDB).not.toHaveBeenCalled()
-  })
-
-  it('is a NO-OP once the hot pack alone is stamped (no redundant origin warm)', () => {
-    localStorage.setItem('barspack.hotVersion', '2026-08-21')
-    _warmHotSetForNewUser()
-    expect(prefetchBarsToIDB).not.toHaveBeenCalled()
-  })
-
-  it('hot set is a lean, unique, non-empty first-open list', () => {
-    expect(HOT_TICKERS.length).toBeGreaterThan(10)
-    expect(HOT_TICKERS.length).toBeLessThanOrEqual(60)          // stays a cheap warm, not the universe
-    expect(new Set(HOT_TICKERS).size).toBe(HOT_TICKERS.length)  // no dupes → no wasted jobs
-    expect(HOT_TICKERS).toContain('SPY')
   })
 })
 
