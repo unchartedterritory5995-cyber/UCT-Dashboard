@@ -1,0 +1,9 @@
+/* ScannerShell — the third door's flagship surface. Tokens only; numeric text
+   is mono; the provenance seal is the one loud element. CQ root for embedded
+   mode is .widgetBody (the /charts workspace). */
+.filterRow { display: flex; flex-direction: column; gap: 3px; padding: 4px 10px; }
+.filterLabel { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); }
+.filterSelect { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 6px 7px; color: var(--text); font-size: 12px; min-height: 32px; }
+.filterSelectActive { border-color: var(--ut-gold); color: var(--ut-gold); }
+.customRange { display: flex; gap: 4px; }
+.customRange input { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 5px 6px; color: var(--text); width: 100%; font-size: 12px; min-height: 32px; }
