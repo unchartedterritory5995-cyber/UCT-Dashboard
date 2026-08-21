@@ -275,6 +275,14 @@
   .trigFilter, .clearFeed { min-height: var(--tap-min, 44px); display: inline-flex; align-items: center; }
 }
 
+/* TOUCH (canonical ≤1024px, breakpoints.css): the tap floor applies on
+   tablets too — the phone block above stops at 640px, which left the page
+   tabs sub-44px at 641-1024px (T14 mobile audit). Tap sizing ONLY here;
+   phone-specific layout stays in the 640px block. */
+@media (max-width: 1024px) {
+  .pageTab { min-height: var(--tap-min, 44px); }
+}
+
 /* ── Table ── */
 .table {
   width: 100%;
