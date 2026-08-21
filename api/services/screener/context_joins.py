@@ -16,6 +16,7 @@ names (never a dynamically-built mapping) — the scalar-population rail
 derives writers by AST over ``d["col"] = v`` and ``{"col": v}`` shapes, and a
 mapping built from a runtime dict/comprehension is an invisible collector.
 """
+import contextlib
 
 
 def _note(failures, source, outcome):
@@ -104,18 +105,29 @@ def read_index_flags(targets, failures=None):
               f"missing:{len(name_to_col) - len(member_sets)}")
     if not member_sets:
         return {}
-    # Dict LITERAL with fixed column names — never build this mapping from
-    # `member_sets` dynamically (see the module docstring: the AST writer
-    # rail can only see constant keys).
+    # Dict, built with per-column GUARDED subscript-assigns — never a blanket
+    # `.get(col, ())` default. A named list can be entirely ABSENT from
+    # `_load_lists()` (not merely present-but-empty); `.get(col, ())` would
+    # then answer False for every ticker on a column this source never
+    # actually spoke to — a confident wrong answer, not "not computable".
+    # Only set a column key when its list resolved, so a missing list leaves
+    # the column ABSENT from every ticker's dict (stays None downstream).
+    # Each `row["col"] = v` is still AST-visible via the Subscript-assign
+    # shape the scalar-population rail derives writers from (see the module
+    # docstring) — fixed column names, never a dynamically-built mapping.
     out = {}
     for t in targets:
         tu = t.upper()
-        out[tu] = {
-            "index_sp500": tu in member_sets.get("index_sp500", ()),
-            "index_ndx": tu in member_sets.get("index_ndx", ()),
-            "index_dow": tu in member_sets.get("index_dow", ()),
-            "index_r2k": tu in member_sets.get("index_r2k", ()),
-        }
+        row = {}
+        if "index_sp500" in member_sets:
+            row["index_sp500"] = tu in member_sets["index_sp500"]
+        if "index_ndx" in member_sets:
+            row["index_ndx"] = tu in member_sets["index_ndx"]
+        if "index_dow" in member_sets:
+            row["index_dow"] = tu in member_sets["index_dow"]
+        if "index_r2k" in member_sets:
+            row["index_r2k"] = tu in member_sets["index_r2k"]
+        out[tu] = row
     return out
 
 
@@ -138,7 +150,7 @@ def read_etf_flags(targets, failures=None):
         _note(failures, "industry_map_etf", e)
     try:
         from api.services import single_stock_etfs
-        with single_stock_etfs._connect() as conn:
+        with contextlib.closing(single_stock_etfs._connect()) as conn:
             lev = {str(r[0]).upper() for r in
                    conn.execute("SELECT etf_ticker FROM etfs")}
         if lev:

@@ -47,6 +47,26 @@ def test_index_flags(monkeypatch):
     assert out["CCC"]["index_r2k"] is True
 
 
+def test_index_flags_a_missing_list_stays_not_computable(monkeypatch):
+    """Dow 30 is entirely ABSENT from _load_lists() (not merely empty) — its
+    column must be missing from every ticker's dict, never a confident False,
+    and the miss must be counted."""
+    from api.services import watchlist_prebuilt
+    monkeypatch.setattr(watchlist_prebuilt, "_load_lists", lambda: [
+        {"name": "S&P 500", "tickers": ["AAA"]},
+        {"name": "Nasdaq 100", "tickers": ["AAA", "BBB"]},
+        {"name": "Russell 2000", "tickers": ["CCC"]}])
+    fails = {}
+    out = context_joins.read_index_flags(["AAA", "CCC"], failures=fails)
+    assert out["AAA"] == {"index_sp500": True, "index_ndx": True,
+                          "index_r2k": False}
+    assert "index_dow" not in out["AAA"]
+    assert out["CCC"] == {"index_sp500": False, "index_ndx": False,
+                          "index_r2k": True}
+    assert "index_dow" not in out["CCC"]
+    assert fails["index_lists"]["missing:1"] == 1
+
+
 def test_etf_flags_one_leg_can_die_alone(monkeypatch):
     from api.services import industry_map, single_stock_etfs
     monkeypatch.setattr(industry_map, "tickers_in_industry",
