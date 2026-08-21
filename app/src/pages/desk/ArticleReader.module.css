@@ -419,6 +419,11 @@
 .printBrand, .printRoster { display: none; }
 
 @media print {
+  /* Sane margins even when the member prints with browser defaults — and the
+     rules apply identically on Letter and A4 (no fixed page size is assumed
+     anywhere; the column is fluid). */
+  @page { margin: 16mm 14mm; }
+
   /* The app scrolls an inner .main element under an overflow:hidden .shell —
      left alone, that clips the printout to one viewport-tall page. */
   :global(body.uct-print-article) * { visibility: hidden; overflow: visible !important; }
@@ -447,6 +452,19 @@
     break-inside: avoid;
   }
   :global(body.uct-print-article) .head { break-after: avoid; }
+  /* A heading must carry its section onto the page with it, not strand at the
+     bottom of one; figures keep their caption; no widowed single lines. */
+  :global(body.uct-print-article) .body h1,
+  :global(body.uct-print-article) .body h2,
+  :global(body.uct-print-article) .body h3,
+  :global(body.uct-print-article) .body h4,
+  :global(body.uct-print-article) .body h5 { break-after: avoid; break-inside: avoid; }
+  :global(body.uct-print-article) .body figure { break-inside: avoid; }
+  :global(body.uct-print-article) .body p { orphans: 2; widows: 2; }
+  /* Everything OUTSIDE the print root is visibility-hidden but still occupies
+     layout space — collapse the document behind the absolutely-positioned
+     print root so it can never manufacture blank trailing pages. */
+  :global(body.uct-print-article) { height: auto !important; }
   /* The masthead already says who we are — the on-screen eyebrow would say it
      twice, one line apart. */
   :global(body.uct-print-article) .eyebrow { display: none; }

@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import TTLCache
-from api.services.massive import _get_client, _detect_session, _ext_price_for
+from api.services.massive import _get_client, _detect_session, _ext_price_for, to_polygon_symbol
 
 router = APIRouter()
 
@@ -257,7 +257,7 @@ def _fetch_extended_volume(client, ticker: str) -> int | None:
     """
     day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
     url = (
-        f"https://api.massive.com/v2/aggs/ticker/{ticker}/range/60/minute/"
+        f"https://api.massive.com/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/60/minute/"
         f"{day}/{day}?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
     )
     try:
@@ -366,8 +366,16 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
 
 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
-    """One Massive batch call → {ticker: value_dict}."""
-    tickers_param = ",".join(tickers)
+    """One Massive batch call → {ticker: value_dict}.
+
+    `tickers` are canonical (hyphen) form. Dual-class names (BRK-B, BF-B) must
+    be sent to Massive in DOT form or the request returns n=0 for them (see
+    massive.to_polygon_symbol) — a plain gap the single-ticker paths already
+    dodge via that helper but this batch path never called. `_poly_to_canon`
+    lets the response rows (which come back in whatever form was requested) map
+    straight back to the canonical keys every caller here already expects."""
+    _poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
+    tickers_param = ",".join(_poly_to_canon.keys())
     url = (
         f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
         f"?tickers={tickers_param}&apiKey={client._api_key}"
@@ -391,6 +399,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         ticker = t.get("ticker", "")
         if not ticker:
             continue
+        ticker = _poly_to_canon.get(ticker, ticker)
         day = t.get("day", {})
         prev_day = t.get("prevDay", {})
         last_trade = t.get("lastTrade", {})
