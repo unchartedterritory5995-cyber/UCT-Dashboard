@@ -123,7 +123,7 @@ class ScanSpec(BaseModel):
 @router.get("/api/screener/meta")
 def screener_meta(user=Depends(require_paid)):
     """Filter registry + result views + filter categories (frontend-ready)."""
-    return scr_filters.meta()
+    return scr_filters.meta(user_id=user["id"])
 
 
 @router.post("/api/screener/scan")

@@ -279,7 +279,7 @@ def stub_services(monkeypatch):
     # warmer, which is a different subsystem and not this file's subject.
     monkeypatch.setattr(scr_router, "get_candidates", lambda: {"candidates": {}})
     monkeypatch.setattr(breadth_monitor, "get_universe_stocks", lambda date_str=None: dict(sentinel))
-    monkeypatch.setattr(scr_filters, "meta", lambda: dict(sentinel))
+    monkeypatch.setattr(scr_filters, "meta", lambda user_id=None: dict(sentinel))
     monkeypatch.setattr(scr_query, "run_scan", lambda spec: dict(sentinel))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)

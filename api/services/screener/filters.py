@@ -538,7 +538,60 @@ def _distinct_options(column):
         return [{"label": "Any"}]
 
 
-def meta() -> dict:
+def _my_scans_entry(user_id):
+    """The per-user category content, or None (absence is honest: no
+    scannable definitions == no category, never an empty shell).
+
+    Gated by scan_definition.assert_scannable so a plain indicator (a
+    non-boolean tree the sweep refuses nightly) NEVER appears — listed
+    unscannable, it would read "first sweep tonight" forever. The stored
+    ast_hash IS the def_hash (no re-hash); coverage is ONE batched read
+    (meta() runs per request on the shared loop — no N+1).
+
+    Lazy imports keep filters.py's module-load import graph clean of user
+    stores; the tests monkeypatch those modules' attrs directly, which works
+    through a lazy import because Python caches the module object.
+    """
+    from api.services import user_definitions as ud
+    from api.services import scan_definition
+    from api.services.screener import scan_store
+    try:
+        rows = ud.list_for_user(user_id) or []
+    except Exception:
+        return None
+    scannable = []
+    for row in rows:
+        definition = row.get("definition") or {}
+        try:
+            scan_definition.assert_scannable(definition)
+        except Exception:
+            continue
+        name = str(((definition.get("meta") or {}).get("name"))
+                   or row.get("def_id") or "Untitled scan")
+        scannable.append((str(row.get("ast_hash")), name))
+    if not scannable:
+        return None
+    # FilterControl re-finds presets by LABEL — duplicates must diverge.
+    # EVERY member of a duplicated name gets the short-hash suffix (suffixing
+    # only the second would leave the first ambiguous in the select).
+    counts = {}
+    for _, name in scannable:
+        counts[name] = counts.get(name, 0) + 1
+    labeled = [(h, f"{name} · {h[7:13]}" if counts[name] > 1 else name)
+               for h, name in scannable]
+    latest = scan_store.latest_coverage_for(
+        [h for h, _ in labeled], scan_store.SCAN_JOIN_TF)
+    return {
+        "key": "scan", "label": "My Scans", "category": "my_scans",
+        "type": "enum", "allow_custom": False, "unit": None,
+        "presets": [{"label": "Any"}] + [
+            {"label": name, "op": "in", "value": h} for h, name in labeled],
+        "scans": [{"def_hash": h, "name": name, "latest": latest.get(h)}
+                  for h, name in labeled],
+    }
+
+
+def meta(user_id=None) -> dict:
     out_filters = []
     for key, f in FILTERS.items():
         presets = (_distinct_options(f["options_column"])
@@ -547,6 +600,12 @@ def meta() -> dict:
                             "category": f["category"], "type": f["type"],
                             "presets": presets, "allow_custom": f["allow_custom"],
                             "unit": f["unit"]})
+    categories = CATEGORIES
+    if user_id is not None:
+        entry = _my_scans_entry(user_id)
+        if entry is not None:
+            out_filters.append(entry)
+            categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
     return {"filters": out_filters,
             "views": [{"key": k, **v} for k, v in VIEWS.items()],
-            "categories": CATEGORIES}
+            "categories": categories}
