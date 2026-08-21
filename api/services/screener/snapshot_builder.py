@@ -60,6 +60,16 @@ def rs_fields(rs_row) -> dict:
     score = rs_row.get("rs_score")
     if score is not None:
         out["rs_return"] = float(score)
+    # Period returns ride in the SAME entry the rank came from — zero extra
+    # cost, and the 3m/6m the member sees are the exact inputs their RS rank
+    # was computed from (consistency by construction, like rs_return above).
+    returns = rs_row.get("returns") or {}
+    r3 = returns.get("3m")
+    if r3 is not None:
+        out["chg_pct_3m"] = round(float(r3), 2)
+    r6 = returns.get("6m")
+    if r6 is not None:
+        out["chg_pct_6m"] = round(float(r6), 2)
     return out
 
 
@@ -124,6 +134,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             row["rs_line_trend"] = technicals.rs_line_trend(closes, spy_closes)
         last_t = bars[-1].get("t")
         row["bars_asof"] = str(last_t) if last_t is not None else None
+    # Pure derivation — its factors are already columns; this is the ONE
+    # writer for dollar_vol_30d (spec: this number exists nowhere else in the
+    # platform).
+    if row.get("price") is not None and row.get("avg_volume_30d") is not None:
+        row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
     return row
