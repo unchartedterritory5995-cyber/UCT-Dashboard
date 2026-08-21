@@ -98,6 +98,12 @@ _HEADERS = {
     "insider_own_pct":    "Insider Ownership",
     "inst_pct":           "Institutional Ownership",
 }
+# SCALE ASSUMPTION: `shares_outstanding`/`float_shares` are assumed to arrive
+# SUFFIXED ("1.5B" -> 1.5e9 via _parse). Finviz's elite export serves some
+# columns in raw millions with NO suffix (Market Cap is the Wave-1 lesson); a
+# bare number here would be stored as a literal share count, understating by
+# 1e6-1e9x. The first production pull adjudicates: eyeball one receipt row
+# against a known float before trusting either column.
 _PCT_COLUMNS = {"float_pct", "short_float_pct", "insider_own_pct", "inst_pct"}
 _MIN_ROWS = 1000        # an artifact below this is a failed pull, not a market
 _STALE_DAYS = 4
