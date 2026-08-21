@@ -78,6 +78,7 @@ export default function MarketBreadth({ data: propData }) {
   const expGate   = data.exposure?.gate_active ?? false
   const expReason = data.exposure?.gate_reason ?? null
   const expBonus  = data.exposure?.bonus       ?? 0
+  const gateLv    = data.exposure?.gate_levels ?? null
 
   // 'unknown' is NOT rendered as stale — an absent date means we cannot tell,
   // and asserting staleness we can't support is the same error as asserting the
@@ -117,6 +118,17 @@ export default function MarketBreadth({ data: propData }) {
 
       {expNote && <p className={styles.scoreNote}>{expNote}</p>}
       {expGate && expReason && <p className={styles.gateNote}><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{expReason}</p>}
+
+      {/* The gate's price levels (wire-published, static all session): where
+          the cap releases and where the S2 demotion arms. The system acts on
+          CLOSES — these mark the corridor, they don't call the verdict. */}
+      {gateLv && (gateLv.release != null || gateLv.s2 != null) && (
+        <p className={styles.gateLevels}>
+          {gateLv.release != null && <>Cap lifts on a {gateLv.symbol || 'QQQ'} close ≥ ${gateLv.release.toFixed(2)}</>}
+          {gateLv.release != null && gateLv.s2 != null && <> · </>}
+          {gateLv.s2 != null && <>danger &lt; ${gateLv.s2.toFixed(2)}</>}
+        </p>
+      )}
 
       {live.row?.pct_above_50sma != null && (
         <div className={styles.liveRow} title={
