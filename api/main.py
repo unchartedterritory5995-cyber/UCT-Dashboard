@@ -1286,6 +1286,12 @@ def register_screener_jobs(scheduler):
     # analyst pass defaults OFF -- the scan-sweep precedent for a
     # budget-spending job. `analyst_pass.enabled()` documents the Railway
     # divergence (set to 1 at ship) at its own read site.
+    # ⚠️ MASTER-FLAG COUPLING: this whole function early-returns on
+    # SCREENER_SNAPSHOT_ENABLED=0 (top of register_screener_jobs), so each
+    # per-job flag below is necessary but NOT sufficient — pausing the
+    # snapshot build pauses these four source pulls too. Deliberate: the
+    # 03:00 build is their only consumer, so pulling without it just burns
+    # provider quota into artifacts nothing reads.
     log = logging.getLogger(__name__)
     from api.services.screener import (
         finviz_universe, earnings_dates, insider_capture, analyst_pass,
