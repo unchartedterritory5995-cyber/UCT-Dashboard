@@ -443,3 +443,25 @@ def test_multi_leg_keeps_underlying_tier():
     assert result["data_quality"] == "underlying"
     # multi-leg never even asks for a contract
     assert all(not s.startswith("O:") for s, _tf in fetch.calls)
+
+
+def test_same_day_option_sees_its_noon_anchored_daily_bar():
+    """Daily bars anchor at NOON UTC; a same-day trade entered 13:30+ UTC must
+    still see its own day's bar (exact-ts filtering dropped it — the bug that
+    failed every day-traded option in the first prod upgrade batch)."""
+    conn = _conn()
+    strat = dict(_STRAT,
+                 entry_date="2026-01-05T14:30:00+00:00",   # 09:30 ET
+                 closed_at="2026-01-05T20:00:00+00:00")    # 15:00 ET same day
+    noon_utc = 1767614400  # 2026-01-05 12:00:00 UTC — BEFORE entry_ts
+
+    def fetch(symbol, entry_ts, exit_ts, tf_code):
+        if symbol.startswith("O:"):
+            return [{"t": noon_utc, "h": 4.00, "l": 1.50}]
+        return []
+
+    result = compute_for_option_strategy(strat, [_LEG_LONG_CALL],
+                                         bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "option_daily"
+    assert result["mfe_price"] == 4.00
+    assert abs(result["true_r"] - 3.0) < 1e-9

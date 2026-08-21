@@ -303,14 +303,22 @@ def _single_leg_contract_record(strategy_row, legs, entry_ts, exit_ts, fetch):
         return None
 
     bars = fetch(occ, entry_ts, exit_ts, "D")
-    window = [b for b in bars if entry_ts <= b["t"] <= exit_ts] if bars else []
+    # Whole-day window bounds: daily bars anchor at NOON UTC of their day
+    # (_day_midday_seconds), so a same-day trade entered 09:30 ET (13:30+ UTC)
+    # sits AFTER its own day's bar — exact-ts filtering would drop the only
+    # bar and fail every day-traded option. Day-granular bars get day-granular
+    # bounds (the equity daily tier widens its end the same way); the fetch
+    # already spans only entry→exit dates, so no later days can leak in.
+    win_lo = entry_ts - (entry_ts % _SECONDS_PER_DAY)
+    win_hi = exit_ts + (_SECONDS_PER_DAY - 1)
+    window = [b for b in bars if win_lo <= b["t"] <= win_hi] if bars else []
     if not window:
         return None
 
     out = compute_excursion(
         "Long" if is_buy else "Short",
         entry_ps, entry_ps,          # stop = entry → R fields None, true_r real
-        entry_ts, exit_ts, window,
+        win_lo, win_hi, window,
         exit_price=exit_ps,
     )
     if out is None:
