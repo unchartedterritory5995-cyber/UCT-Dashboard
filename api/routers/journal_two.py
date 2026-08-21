@@ -302,6 +302,30 @@ def close_position(
 
 # ── Trades — Phase 4/5 surface (filters in Phase 6) ─────────────────────────
 
+@router.get("/trades/excursions")
+def trade_excursions(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """True Risk Engine readout: {tradeId: {maeDollar, maePct, mfeDollar,
+    mfePct, efficiencyPct, trueR}} for closed trades (excursions.py — MAE/MFE
+    replayed from our own bars, so broker-imported trades get a real risk
+    profile with no stop required)."""
+    from api.services.journal_two import excursions
+    return {"excursions": excursions.excursions_map(user["id"], account_id)}
+
+
+@router.post("/trades/excursions/backfill")
+def trade_excursions_backfill(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Compute excursions for closed trades that don't have them yet
+    (batched per symbol; idempotent)."""
+    from api.services.journal_two import excursions
+    return excursions.backfill_user(user["id"], account_id)
+
+
 @router.get("/trades")
 def list_trades(
     account_id: str | None = None,

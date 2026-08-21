@@ -651,6 +651,13 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                 _hb.maybe_backfill_after_initial_sync(user_id, ba)
             except Exception:
                 pass
+            # True Risk Engine: newly-closed trades get MAE/MFE within the
+            # same sync cycle (background, batched, idempotent).
+            try:
+                from api.services.journal_two import excursions as _exc
+                _exc.maybe_backfill_after_sync(user_id)
+            except Exception:
+                pass
         except snap.SnapError as e:
             # Holdings/balances/positions refresh failed (rate-limit, transient,
             # unsupported broker). The activities import above already succeeded,
