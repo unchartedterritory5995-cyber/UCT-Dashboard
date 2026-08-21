@@ -340,23 +340,10 @@ FILTERS = dict([
                 "inst_pct", unit="%"),
     _open_range("rs_return", "RS Weighted Return", "technical", "rs_return",
                 unit="%"),
-    # options derive from the letter grades the column actually holds —
-    # same dynamic mechanism as sector/exchange
-    #
-    # ⚠️ KNOWN, OUT-OF-FENCE TEST FRICTION: `accdis` has "always held letter
-    # grades" (`snapshot_db.py`'s own `_TEXT` comment — latent since v1, not a
-    # Wave-1 change), but `app/src/components/chart/engine/ast/closedTable.json`
-    # still declares its scalar `yields: "num"`. That is a pre-existing stale
-    # declaration in a frontend AST manifest, not something this task's fence
-    # (filters.py only) can touch. It makes
-    # `test_the_two_lanes_AGREE_ON_WHAT_A_COLUMN_YIELDS` fail on `accdis` the
-    # moment a control exists for the column at all — nothing did before this
-    # entry. The correct fix is closedTable.json's declaration, not this
-    # control: mislabeling a letter-grade column as a numeric range would ship
-    # a control that runs nonsense SQL against text. Flagged for the closed
-    # table's owner rather than silently narrowed around.
-    _enum("accdis", "Acc/Dis Grade", "fundamental", "accdis",
-          [{"label": "Any"}], options_column="accdis"),
+    # accdis filter DELIBERATELY ABSENT: closedTable.json declares accdis
+    # yields:"num" while the column holds letter grades (pre-existing;
+    # surfaced by the two-lanes rail 2026-08-21). The filter lands with
+    # Wave 6's governed manifest correction.
     _open_range("body_pct", "Last-Bar Body", "single_candle", "body_pct"),
     _open_range("upper_wick_pct", "Upper Wick", "single_candle",
                 "upper_wick_pct"),
