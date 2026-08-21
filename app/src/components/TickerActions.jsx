@@ -3,6 +3,7 @@
 // add to watchlist, set price alert. On touch it renders as a bottom-sheet.
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -68,6 +69,9 @@ export function useTickerActions() {
   return { menu, openMenu, closeMenu, longPressProps, alertForm, setAlertForm, alertPrice, setAlertPrice, alertDir, setAlertDir, addToListSym, setAddToListSym }
 }
 
+const _listsFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
+
 export default function TickerActionsMenu({ menu, onClose, lists, mutateLists }) {
   const navigate = useNavigate()
   const { toggle: toggleFlag, isFlagged } = useFlagged()
@@ -79,6 +83,18 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
   const [showAddList, setShowAddList] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const [creating, setCreating] = useState(false)
+  // "+ Add to list" used to depend on a `lists` prop that NO call site passed,
+  // so every surface in the app rendered "No lists yet". The menu now fetches
+  // the user's lists itself when the picker opens; an explicit prop still wins
+  // (a caller that already holds fresh lists shouldn't trigger a second fetch).
+  const { data: fetchedLists, mutate: mutateFetched } = useSWR(
+    menu && showAddList && !lists ? '/api/watchlists' : null,
+    _listsFetcher,
+  )
+  const effLists = lists || fetchedLists
+  const effMutate = mutateLists || mutateFetched
 
   if (!menu) return null
   const { sym, x, y } = menu
@@ -89,11 +105,34 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
     await fetch(`/api/watchlists/${listId}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ sym, notes: '' }),
     })
-    if (mutateLists) mutateLists()
+    if (effMutate) effMutate()
     setShowAddList(false)
     onClose()
+  }
+
+  // Inline "New list" — create a watchlist and drop the symbol in, without
+  // leaving whatever page the reader is on.
+  async function handleCreateList() {
+    const name = newListName.trim()
+    if (!name || creating) return
+    setCreating(true)
+    try {
+      const r = await fetch('/api/watchlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: name.slice(0, 60), description: '', is_public: false }),
+      })
+      if (!r.ok) throw new Error('create failed')
+      const created = await r.json()
+      await handleAddToList(created.id)
+      setNewListName('')
+    } catch { /* leave the picker open so the user can retry */ } finally {
+      setCreating(false)
+    }
   }
 
   const body = (
@@ -137,12 +176,32 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
           <button className={styles.item} onClick={() => setShowAddList(true)}>+ Add to list</button>
         ) : (
           <div className={styles.listPicker}>
-            {(lists || []).map(wl => (
+            {(effLists || []).map(wl => (
               <button key={wl.id} className={styles.listOption} onClick={() => handleAddToList(wl.id)}>
                 {wl.name}
               </button>
             ))}
-            {(!lists || lists.length === 0) && <span className={styles.noLists}>No lists yet</span>}
+            {effLists && effLists.length === 0 && <span className={styles.noLists}>No lists yet</span>}
+            {!effLists && <span className={styles.noLists}>Loading…</span>}
+            <div className={styles.newListRow}>
+              <input
+                className={styles.newListInput}
+                type="text"
+                placeholder="New list…"
+                value={newListName}
+                maxLength={60}
+                onChange={e => setNewListName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateList() }}
+              />
+              <button
+                type="button"
+                className={styles.newListBtn}
+                disabled={!newListName.trim() || creating}
+                onClick={handleCreateList}
+              >
+                {creating ? '…' : 'Create'}
+              </button>
+            </div>
           </div>
         )}
 

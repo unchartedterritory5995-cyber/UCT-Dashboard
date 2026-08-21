@@ -77,6 +77,10 @@ export default function ArticleReader() {
     try { localStorage.setItem('uct.desk.articles.chipLens', v) } catch { /* private mode */ }
   }
   const [resumedAt, setResumedAt] = useState(null)   // section we jumped to, if any
+  // ── issue-level actions (the nickschmidt.so trio): copy the whole roster,
+  // save it as a watchlist in one click, download a print-styled PDF. ──
+  const [copied, setCopied] = useState(false)
+  const [saveState, setSaveState] = useState(null)   // null | 'saving' | 'saved' | 'error'
   // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
   // it runs first — at scroll position 0. Saving then would write pct=0 and
   // DELETE the bookmark before restore ever reads it, which is exactly how this
@@ -335,6 +339,61 @@ export default function ArticleReader() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // Bare comma-separated symbols — the format TradingView's watchlist import
+  // takes as-is (same output as the Breadth drill's Copy List).
+  const copySymbols = useCallback(() => {
+    const t = data?.tickers || []
+    if (!t.length) return
+    navigator.clipboard.writeText(t.join(',')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => { /* clipboard denied — button state just doesn't flip */ })
+  }, [data])
+
+  // One click → a named watchlist holding this issue's whole roster, in the
+  // author's order. Same recipe as the Desk video dock's saveToWatchlist:
+  // create, then bulk-add (bulk skips duplicates server-side).
+  const saveAsWatchlist = useCallback(async () => {
+    const t = data?.tickers || []
+    if (!t.length || saveState === 'saving') return
+    setSaveState('saving')
+    try {
+      const name = String(data.title || 'Sunday Scans').slice(0, 60)
+      const r = await fetch('/api/watchlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, description: 'Saved from the Desk article', is_public: false }),
+      })
+      if (!r.ok) throw new Error('create failed')
+      const created = await r.json()
+      const r2 = await fetch(`/api/watchlists/${created.id}/items/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ symbols: t }),
+      })
+      if (!r2.ok) throw new Error('bulk add failed')
+      setSaveState('saved')
+    } catch {
+      setSaveState('error')
+      setTimeout(() => setSaveState(null), 2500)
+    }
+  }, [data, saveState])
+
+  // Browser print → Save as PDF, scoped by a body class exactly like the
+  // Notebook's printNote(). The print stylesheet turns the page into a clean
+  // single-column document with a branded masthead + the full ticker roster.
+  const downloadPdf = useCallback(() => {
+    document.body.classList.add('uct-print-article')
+    const off = () => {
+      document.body.classList.remove('uct-print-article')
+      window.removeEventListener('afterprint', off)
+    }
+    window.addEventListener('afterprint', off)
+    window.print()
+  }, [])
+
   if (isLoading) {
     return (
       <div className={styles.page}>
@@ -370,19 +429,19 @@ export default function ArticleReader() {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.progressTrack} aria-hidden="true">
+    <div className={styles.page} data-print-root>
+      <div className={styles.progressTrack} aria-hidden="true" data-export-exclude>
         <div className={styles.progressBar} style={{ transform: `scaleX(${progress})` }} />
       </div>
 
-      <Link className={styles.back} to="/desk?section=articles">
+      <Link className={styles.back} to="/desk?section=articles" data-export-exclude>
         <UIcon name="chevronRight" size={16} className={styles.backIcon} /> Articles
       </Link>
 
       {/* Never move someone silently: say where they landed and offer the way
           back. Auto-dismisses by being trivially dismissible, not on a timer. */}
       {resumedAt && (
-        <div className={styles.resumed} role="status">
+        <div className={styles.resumed} role="status" data-export-exclude>
           <span>Picked up at <strong>{resumedAt}</strong></span>
           <button type="button" className={styles.resumedBtn} onClick={startFromTop}>
             Start from the top
@@ -391,6 +450,10 @@ export default function ArticleReader() {
       )}
 
       <header className={styles.head}>
+        {/* Print-only masthead — the branded cover line of the PDF. */}
+        <div className={styles.printBrand} aria-hidden="true">
+          UNCHARTED TERRITORY · UCT INTELLIGENCE
+        </div>
         <div className={styles.eyebrow}>{data.publication_name || 'UCT Intelligence'}</div>
         <h1 className={styles.title}>{data.title}</h1>
         <div className={styles.meta}>
@@ -400,16 +463,54 @@ export default function ArticleReader() {
           {data.published_at ? <span>{fmtDate(data.published_at)}</span> : null}
           {data.reading_minutes ? <span>{data.reading_minutes} min read</span> : null}
           {data.image_count ? <span>{data.image_count} charts</span> : null}
-          <ReadAloudButton
-            trackId={readTrackId}
-            label={data.title}
-            textProvider={() => (bodyRef.current?.textContent || '').replace(/\s+/g, ' ').trim()}
-          >
-            Listen
-          </ReadAloudButton>
+          <span data-export-exclude>
+            <ReadAloudButton
+              trackId={readTrackId}
+              label={data.title}
+              textProvider={() => (bodyRef.current?.textContent || '').replace(/\s+/g, ' ').trim()}
+            >
+              Listen
+            </ReadAloudButton>
+          </span>
         </div>
+        {/* The nickschmidt.so trio — roster → clipboard, roster → watchlist,
+            article → PDF. Excluded from the PDF they produce. */}
+        <div className={styles.actionRow} data-export-exclude>
+          {data.tickers?.length > 0 && (
+            <>
+              <button type="button" className={styles.actionBtn} onClick={copySymbols}>
+                <UIcon name="copy" size={13} />
+                {copied ? 'Copied' : 'Copy symbols'}
+              </button>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                onClick={saveAsWatchlist}
+                disabled={saveState === 'saving' || saveState === 'saved'}
+              >
+                <UIcon name="star" size={13} />
+                {saveState === 'saving' ? 'Saving…'
+                  : saveState === 'saved' ? 'Watchlist saved'
+                  : saveState === 'error' ? 'Save failed — retry'
+                  : 'Save as watchlist'}
+              </button>
+            </>
+          )}
+          <button type="button" className={styles.actionBtn} onClick={downloadPdf}>
+            <UIcon name="download" size={13} />
+            Download PDF
+          </button>
+        </div>
+        {/* Print-only roster: every covered name on the PDF's cover, not just
+            the 12 chips the screen shows. */}
         {data.tickers?.length > 0 && (
-          <div className={styles.tickerRow}>
+          <div className={styles.printRoster} aria-hidden="true">
+            <span className={styles.printRosterLabel}>Charts covered — </span>
+            {data.tickers.join(' · ')}
+          </div>
+        )}
+        {data.tickers?.length > 0 && (
+          <div className={styles.tickerRow} data-export-exclude>
             <span className={styles.tickerRowLabel}>Covered</span>
             {/* One number per chip; the reader picks the lens. Two numbers on
                 44 chips is noise. */}
@@ -471,7 +572,7 @@ export default function ArticleReader() {
 
       <div className={styles.layout}>
         {sections.length > 2 && (
-          <nav className={styles.toc} aria-label="In this article">
+          <nav className={styles.toc} aria-label="In this article" data-export-exclude>
             <div className={styles.tocLabel}>In this article</div>
             <ul className={styles.tocList}>
               {sections.map((s) => (
@@ -504,6 +605,7 @@ export default function ArticleReader() {
         <Link
           className={styles.sessionCard}
           to={`/desk?section=videos&v=${data.related_video.youtube_id}`}
+          data-export-exclude
         >
           <span className={styles.sessionIcon} aria-hidden="true">
             <UIcon name="play" size={18} />
@@ -519,7 +621,7 @@ export default function ArticleReader() {
       {/* prev/next walks the archive as a sequence; these cards walk it by
           SUBJECT — the issues that charted the most of the same names. */}
       {data.related?.length > 0 && (
-        <nav className={styles.related} aria-label="Issues on the same names">
+        <nav className={styles.related} aria-label="Issues on the same names" data-export-exclude>
           <div className={styles.relatedLabel}>Issues on the same names</div>
           <div className={styles.relatedCards}>
             {data.related.map((r) => (
@@ -540,7 +642,7 @@ export default function ArticleReader() {
       {/* An archive is a sequence. Without this the only exit from an 18-minute
           read is the back link. */}
       {(data.adjacent?.previous || data.adjacent?.next) && (
-        <nav className={styles.adjacent} aria-label="More issues">
+        <nav className={styles.adjacent} aria-label="More issues" data-export-exclude>
           {data.adjacent.previous ? (
             <Link className={styles.adjPrev} to={`/desk/article/${data.adjacent.previous.slug}`}>
               <span className={styles.adjLabel}>← Previous issue</span>
@@ -556,7 +658,7 @@ export default function ArticleReader() {
         </nav>
       )}
 
-      <footer className={styles.foot}>
+      <footer className={styles.foot} data-export-exclude>
         Originally published on{' '}
         <a href={data.url} target="_blank" rel="noopener noreferrer">Substack</a>.
       </footer>

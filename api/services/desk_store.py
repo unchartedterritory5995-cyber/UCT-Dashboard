@@ -596,6 +596,35 @@ def count_posts_for_ticker(sym: str) -> int:
         ).fetchone()[0]
 
 
+def latest_post_with_tickers() -> Optional[dict]:
+    """The newest post that carries a ticker roster — the source for the
+    auto-maintained 'Sunday Scans' community watchlist.
+
+    Returns {id, title, published_at, tickers} or None. Tickers keep the
+    author-curated order from the issue's own 'Charts Covered' heading."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT id, title, display_title, published_at, tickers_json
+                 FROM substack_posts
+                WHERE tickers_json IS NOT NULL AND tickers_json != '' AND tickers_json != '[]'
+                ORDER BY published_at DESC, id DESC LIMIT 1"""
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        tickers = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str) and t]
+    except Exception:
+        return None
+    if not tickers:
+        return None
+    return {
+        "id": row["id"],
+        "title": row["display_title"] or row["title"],
+        "published_at": row["published_at"],
+        "tickers": tickers,
+    }
+
+
 def adjacent_posts(post_id: str) -> dict:
     """The readable issues either side of this one, by publish date.
 
