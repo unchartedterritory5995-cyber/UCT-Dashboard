@@ -92,9 +92,18 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # used to raise out of whichever ran first and lose the whole row — the
     # ticker's fundamentals and ratings included, which had nothing to do with
     # the bad bar. See technicals.usable_bars.
-    bars = technicals.usable_bars(bars)
+    #
+    # `_read_daily_bars` now fetches DEEP_BARS (5000) of history so ath_fields
+    # can see the ticker's whole stored life. Every OTHER consumer below still
+    # gets exactly the 400-bar tail it always got — sliced AFTER sanitizing so
+    # the tail is 400 usable bars, matching what a 400-bar fetch would have
+    # sanitized to. `bars_full` is the full sanitized series; only ath_fields
+    # reads it. Task 9 adds more consumers of both names.
+    bars_full = technicals.usable_bars(bars)
+    bars = bars_full[-400:]
     if bars:
         row.update(technicals.compute_technicals(bars))
+        row.update(technicals.ath_fields(bars_full))
         row.update(candles.single_candle(bars))
         row.update(candles.multi_candle(bars))
         keys, conf = patterns.detect_patterns(bars)
@@ -113,9 +122,15 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 
 # ── source readers (network/disk; thin; monkeypatchable) ──────────────────────
 
+# One deep read per ticker: the tail 400 feed every existing consumer
+# unchanged; only ath_fields sees the full depth. 5000 matches the bars
+# API ceiling.
+DEEP_BARS = 5000
+
+
 def _read_daily_bars(ticker):
     from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(ticker, "D", 400) or []
+    rows = bars_sqlite.get_bars(ticker, "D", DEEP_BARS) or []
     out = []
     for r in rows:
         try:

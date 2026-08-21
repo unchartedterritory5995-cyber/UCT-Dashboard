@@ -193,6 +193,20 @@ def usable_bars(bars: list[dict]) -> list[dict]:
     return [b for b in (bars or []) if all(ok(b.get(k)) for k in ("o", "h", "l", "c"))]
 
 
+def ath_fields(all_bars: list[dict]) -> dict:
+    """Distance to the all-time high of the STORED history (bars.db holds
+    since-inception dailies for the cap universe; a recent IPO's 'all-time'
+    is its whole life — that is the honest reading, same as any provider)."""
+    out = {"dist_ath_pct": None, "new_ath": False}
+    bars = usable_bars(all_bars)
+    if not bars:
+        return out
+    hi = max(b["h"] for b in bars)
+    out["dist_ath_pct"] = _pct(bars[-1]["c"], hi)
+    out["new_ath"] = bars[-1]["h"] >= hi
+    return out
+
+
 def compute_technicals(bars: list[dict]) -> dict:
     out = {k: None for k in (
         "chg_pct_1d", "chg_pct_1w", "chg_pct_1m", "rsi14", "pct_vs_sma20",
