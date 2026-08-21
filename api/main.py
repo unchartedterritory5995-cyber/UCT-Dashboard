@@ -1163,6 +1163,15 @@ def start_screener_snapshot_warm():
 
     def _warm():
         try:
+            from api.services.screener import snapshot_db
+            snapshot_db.init_db()  # widen a legacy table BEFORE the delay:
+            # the new bundle advertises Wave-1 filters the moment the pod
+            # serves; a member must never 500 on a column the 120s warm
+            # delay hasn't migrated yet. Idempotent, sub-second, WAL-safe.
+        except Exception as e:
+            print(f"[startup] screener self-warm: early init_db failed "
+                  f"(warm/build path will retry): {type(e).__name__}: {e}")
+        try:
             time.sleep(delay)
             # Imported HERE, not closed over from the caller. The previous cut
             # of this block referenced a `snapshot_builder` bound in another
