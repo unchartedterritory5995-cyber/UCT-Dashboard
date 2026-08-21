@@ -190,6 +190,22 @@ def write_balances(
     derived = round((cash or 0.0) + mv, 2)
     equity = round(float(broker_total), 2) if broker_total is not None else derived
 
+    # STALE-TOTAL GUARD (2026-08-21). The July doctrine preferred the broker's
+    # own `balance.total` because "it mirrors the user's app exactly" — measured
+    # false for Robinhood intraday: the total field served YESTERDAY'S equity
+    # all session ($10,227.88 at the 16:47Z sync) while the SAME payload's live
+    # cash + positions summed to the number the RH app actually displayed.
+    # Both candidates are broker-reported; when they disagree by more than
+    # noise, the LIVE components are the one the member's broker app shows —
+    # so they win, within a sanity band: a divergence beyond 20% is structural
+    # (an FX sleeve / filtered non-USD positions the USD-gated components
+    # miss), and there the reported total stays authoritative.
+    if (broker_total is not None and cash is not None
+            and math.isfinite(equity) and math.isfinite(derived)):
+        gap = abs(derived - equity)
+        if gap > max(5.0, 0.005 * abs(equity)) and gap <= 0.20 * max(abs(equity), 1.0):
+            equity = derived
+
     # INV-4 sanity floor. A broker-reported total is TRUTH — mirror it even if
     # negative (real margin debt). But the DERIVED path (no broker total) pairs a
     # COMPLETE broker cash figure with a possibly-INCOMPLETE positions feed, so a
