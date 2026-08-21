@@ -95,12 +95,18 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     #
     # `_read_daily_bars` now fetches DEEP_BARS (5000) of history so ath_fields
     # can see the ticker's whole stored life. Every OTHER consumer below still
-    # gets exactly the 400-bar tail it always got — sliced AFTER sanitizing so
-    # the tail is 400 usable bars, matching what a 400-bar fetch would have
-    # sanitized to. `bars_full` is the full sanitized series; only ath_fields
-    # reads it. Task 9 adds more consumers of both names.
+    # gets EXACTLY what it got pre-Wave-1: the RAW last-400 sessions, sanitized
+    # ALONE (never backfilled from deeper history). Sanitizing `bars_full` first
+    # and then slicing its tail would reach past session 400 to replace any
+    # invalid bar in the raw window — silently deepening the lookback for every
+    # window-sensitive column (rsi14, atr_pct, pct_vs_sma200, dist_52w_high_pct,
+    # the MAs) on exactly the tickers usable_bars exists to protect. `bars` on
+    # the right below is still the RAW parameter — it has not been reassigned
+    # yet — so this is "raw tail, then sanitize", never "sanitize, then tail".
+    # `bars_full` is the full sanitized series; only ath_fields reads it.
+    # Task 9 adds more consumers of both names.
     bars_full = technicals.usable_bars(bars)
-    bars = bars_full[-400:]
+    bars = technicals.usable_bars(bars[-400:])
     if bars:
         row.update(technicals.compute_technicals(bars))
         row.update(technicals.ath_fields(bars_full))
