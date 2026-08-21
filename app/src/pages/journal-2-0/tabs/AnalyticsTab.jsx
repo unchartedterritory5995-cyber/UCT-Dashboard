@@ -153,7 +153,7 @@ export default function AnalyticsTab() {
             <PerformanceSection performance={data.performance} />
           </CollapsibleSection>
           <CollapsibleSection id="distribution" title="Distribution">
-            <DistributionSection distribution={data.distribution} />
+            <DistributionSection distribution={data.distribution} rSources={data.rSources} />
           </CollapsibleSection>
           <CollapsibleSection id="attribution" title="Attribution">
             <AttributionSection attribution={data.attribution} />
@@ -524,7 +524,7 @@ function PerformanceSection({ performance }) {
 
 // ── Section 3: Distribution ──────────────────────────────────────────────────
 
-function DistributionSection({ distribution }) {
+function DistributionSection({ distribution, rSources }) {
   const longShortOption = useMemo(() => {
     const ls = distribution.longVsShort
     return {
@@ -631,6 +631,13 @@ function DistributionSection({ distribution }) {
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>R-Multiple Distribution</h4>
           <ReactECharts option={rDistOption} style={{ height: 220 }} />
+          {/* Honest source note: broker imports carry no stop, so their R is
+              True R (P&L vs the trade's own worst drawdown), never invented. */}
+          {rSources?.trueR > 0 && (
+            <p className={styles.hint}>
+              Includes True R (P&amp;L &divide; actual drawdown) for {rSources.trueR} stop-less broker trade{rSources.trueR === 1 ? '' : 's'}.
+            </p>
+          )}
         </div>
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>Win/Loss Streaks</h4>

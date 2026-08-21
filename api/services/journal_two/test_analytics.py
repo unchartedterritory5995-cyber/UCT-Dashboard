@@ -611,12 +611,13 @@ def test_hour_report_excludes_null_hours(db_conn):
 
 def _seed_excursion(
     conn, user_id, tid, *, efficiency, missed_r=None, mfe_r=None,
-    data_quality="daily", symbol="NVDA",
+    data_quality="daily", symbol="NVDA", true_r=None, trade_ref=None,
 ):
-    """Persist one excursion keyed to a manual trade (trade_ref = id:<tid>)."""
+    """Persist one excursion keyed to a manual trade (trade_ref = id:<tid>);
+    pass trade_ref to key a broker row's 'ext:<external_id>' instead."""
     from api.services.journal_two import excursions_store
     excursions_store.upsert_excursion(
-        user_id, f"id:{tid}",
+        user_id, trade_ref or f"id:{tid}",
         {
             "symbol": symbol,
             "mfe_price": 110.0, "mae_price": 95.0,
@@ -624,6 +625,7 @@ def _seed_excursion(
             "mfe_ts": 1000, "mae_ts": 1000,
             "exit_efficiency": efficiency,
             "missed_r": missed_r,
+            "true_r": true_r,
             "bar_resolution": "D",
             "data_quality": data_quality,
         },
@@ -1093,3 +1095,67 @@ def test_regime_unknown_bucket_never_a_fake_regime_label(db_conn):
     assert labels == {"green"}          # uppercase normalizes into green
     assert "bull" not in labels
     assert reg["unknownCount"] == 1
+
+
+# ── True R feeds the R aggregates (stop-less broker book) ────────────────────
+
+
+def test_true_r_feeds_r_aggregates_for_stopless_trades(db_conn):
+    """Broker imports carry no stop => r_multiple NULL, which starved every R
+    aggregate. The excursion's stop-free true_r now feeds them; rSources
+    reports the split so the UI can annotate instead of silently mixing."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid, r=2.5, pnl=250)  # stop-based
+    tid = _make_broker_trade(db_conn, "u1", account_id=aid,
+                             external_id="bk:tr1",
+                             exit_date_iso="2026-04-20T18:00:00Z",
+                             r=None, pnl=150)
+    _seed_excursion(db_conn, "u1", tid, efficiency=0.5, true_r=1.5,
+                    trade_ref="ext:bk:tr1")
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    assert got["rSources"] == {"stop": 1, "trueR": 1, "none": 0}
+    rm = {b["bucket"]: b["count"] for b in got["distribution"]["rMultiples"]}
+    assert rm["2R..3R"] == 1
+    assert rm["1R..2R"] == 1  # the true_r-fed broker trade
+    # attribution avgR blends the effective Rs for the shared setup
+    by_setup = {s["setup"]: s for s in got["attribution"]["bySetup"]}
+    assert by_setup["VCP"]["avgR"] == 2.0  # (2.5 + 1.5) / 2
+    # risk: the stop-less trade no longer reads as "no R"
+    assert got["risk"]["noRCount"] == 0
+
+
+def test_stop_r_wins_over_true_r(db_conn):
+    """A trade WITH a real stop keeps its stop-based R even when an excursion
+    true_r exists — the two measures are never blended for one trade."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    tid = _add_trade(db_conn, "u1", account_id=aid, r=2.0, pnl=200)
+    _seed_excursion(db_conn, "u1", tid, efficiency=0.5, true_r=9.9)
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    assert got["rSources"] == {"stop": 1, "trueR": 0, "none": 0}
+    rm = {b["bucket"]: b["count"] for b in got["distribution"]["rMultiples"]}
+    assert rm["2R..3R"] == 1
+    assert rm["> 3R"] == 0  # 9.9 never used
+
+
+def test_stopless_trade_without_excursion_counts_none(db_conn):
+    """No stop AND no computed true_r => honestly 'none', excluded from every
+    R aggregate (not fabricated)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _make_broker_trade(db_conn, "u1", account_id=aid, external_id="bk:tr2",
+                       exit_date_iso="2026-04-20T18:00:00Z", r=None, pnl=50)
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    assert got["rSources"] == {"stop": 0, "trueR": 0, "none": 1}
+    assert sum(b["count"] for b in got["distribution"]["rMultiples"]) == 0
+    assert got["risk"]["noRCount"] == 1
