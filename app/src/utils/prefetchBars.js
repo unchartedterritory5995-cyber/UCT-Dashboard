@@ -18,6 +18,30 @@ import { isDailyTailStale } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+// ── Cold-start flood guard ───────────────────────────────────────────────────
+// On a genuinely fresh browser the universe pack is still downloading + ingesting
+// into IndexedDB (the ~120MB D/W/M pack takes ~30-60s). During that window,
+// BACKGROUND list-warming (theme-tracker holdings, watchlist, grid) must NOT fall
+// through to an ORIGIN /api/bars fetch on an IDB miss.
+//
+// ⚰️ THE WOUND, measured in a fresh-user HAR 2026-08-21: the widgets warmed ~212
+// holdings × 5 timeframes = ~600 origin /api/bars while the pack was still
+// ingesting the SAME tickers. Those obscure names (water utils, uranium miners,
+// leveraged ETFs) were cold on the SERVER too → 245 shed as 503, 55 took 10-20s,
+// and the flood STARVED the visible chart (SPY's first request 503'd; it took ~45s
+// and 4 retries to paint) and skipped the developing-bar heals (charts missing
+// today's candle). Racing the pack to the origin for the very tickers it's about to
+// deliver is pure self-inflicted load.
+//
+// So while the pack hasn't stamped its version, background warms are IDB-PROMOTE-
+// ONLY (no network). The pack fills those tickers into IDB; the visible chart's own
+// SWR fetch is separate and unaffected; once the pack ingests (barspack.version
+// stamped) warming resumes normally for the genuine long tail. A returning user
+// (version already stamped) is never gated.
+export function _packStillIngesting() {
+  try { return !localStorage.getItem('barspack.version') } catch { return false }
+}
+
 // Viewport-first: prefetch only the shallow first-paint window. Deep history is
 // fetched lazily by StockChart's backfill when the user actually pans into it,
 // so warming need not pull 5000-8000 bars per ticker/TF. Keeps the SWR cache key
@@ -161,6 +185,10 @@ async function _idbWarmOne({ sym, tf }) {
     // handled: idbGet returns null for a stale-intraday entry → `have` is null.)
     const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
     if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
+    // Cold-start: don't race the pack to the origin (see _packStillIngesting). The
+    // pack is writing these tickers into IDB now; a click meanwhile fetches its ONE
+    // chart via SWR. Warming resumes once the pack stamps its version.
+    if (_packStillIngesting()) return
     const json = await preload(_url(sym, tf), fetcher)  // dedupes with prefetchBars
     if (json?.bars?.length && !json.delta) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
@@ -314,6 +342,8 @@ async function _deepWarmOne(sym, tf) {
     // Already deep enough in IDB → nothing to do (a short-history name never
     // reaches `target`, but the 5-min _deepSeen window keeps it from re-fetching).
     if (have?.bars?.length >= target * 0.9) return
+    // Cold-start: deep history is the HEAVIEST fetch — never race the pack with it.
+    if (_packStillIngesting()) return
     const json = await preload(_deepUrl(sym, tf), fetcher) // dedupes + warms SWR + server
     if (json?.bars?.length && !json.delta) {
       await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB

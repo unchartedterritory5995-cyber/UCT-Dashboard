@@ -19,24 +19,9 @@
  * the pack is strictly additive and can never regress a chart.
  */
 import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
-import { prefetchBarsToIDB } from '../utils/prefetchBars'
 
 const SHARD_CONCURRENCY = 2
 
-// The tickers a brand-new user is most likely to open FIRST — major indices/ETFs
-// + megacaps + high-traffic momentum names. Mirrors SymbolSearch's POPULAR list
-// and the worker prewarmer's hardcoded priority set; kept as a LOCAL hint list
-// because a miss here is non-functional (the name just isn't pre-warmed early —
-// the normal serve path + the full pack still cover it). NOT the whole universe;
-// the full pack covers that. Keep this ≤ ~60 so the eager daily warm stays cheap.
-export const HOT_TICKERS = [
-  'SPY', 'QQQ', 'IWM', 'DIA',
-  'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'GOOG', 'META', 'TSLA', 'AVGO',
-  'AMD', 'SMCI', 'PLTR', 'ARM', 'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM',
-  'ORCL', 'UBER', 'MU', 'MRVL', 'SNOW', 'CRWD', 'NET', 'DDOG', 'SHOP',
-  'LLY', 'COST', 'JPM', 'V', 'MA', 'UNH', 'XOM', 'WMT', 'HD',
-  'XLF', 'XLE', 'XLK', 'XLV', 'SOXX', 'GLD', 'TLT', 'ARKK', 'IBIT',
-]
 // If we're further behind than this many days, the delta tail can't bridge the gap
 // without leaving a hole → re-pull the full pack instead.
 const MAX_DELTA_CATCHUP_DAYS = 6
@@ -69,21 +54,19 @@ let _started = false
 export function initBarsPack() {
   if (_started) return
   _started = true
-  // ── Cold-start bridge: get the HOT SET local before the idle-deferred full pack ──
+  // ── Cold-start: get the HOT SET local before the idle-deferred full pack ──
   // The full pack (below) is gated behind requestIdleCallback (up to ~8s to even
-  // START) and hash-sharded, so NO early shard is "the popular names" — a
-  // brand-new user scanning in their first seconds has nothing local and every
-  // chart is a server round-trip (the "first-signup user waits" report). Two eager
-  // paths fill the same IDB store StockChart paints from, RIGHT NOW (not idle):
-  //   1. Ingest the server HOT SHARD — one small edge-cached file (~100 names) —
-  //      the reliable, one-request path (survives a cold/congested origin).
-  //   2. In parallel, warm the hot set via the normal serve path — the fallback
-  //      for when the hot shard isn't published yet, and the fastest possible
-  //      start (no manifest round-trip). Both are idempotent + dedupe-safe.
-  // Both are first-visit only — a no-op for returning users, who already hold the
-  // universe's D/W/M in IDB.
+  // START) and hash-sharded, so no early shard is "the popular names". Ingest the
+  // server HOT SHARD eagerly — ONE small edge-cached file (~100 names) — so a
+  // brand-new user's first opens are instant from IDB, not an origin round-trip.
+  //
+  // ⚰️ An origin-fetch "warm the hot set via /api/bars" bridge lived here too and
+  // was REMOVED 2026-08-21: on a fresh browser it just ADDED to the cold-start
+  // origin flood the fresh-user HAR exposed (see prefetchBars `_packStillIngesting`),
+  // and it's fully redundant with the packs (D/W/M pack + intraday pack already
+  // cover the popular names, edge-cached). The edge hot shard is the heal; racing
+  // the origin was the bandage.
   _ingestHotPack(PACK_DAILY).catch(() => {})
-  _warmHotSetForNewUser()
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
@@ -93,28 +76,6 @@ export function initBarsPack() {
   // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
   // ingest below keeps a fresh full ingest from write-locking the store.
   _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
-}
-
-// Eagerly warm the hot set for a browser that has no pack yet (first visit). Runs
-// through the shared bounded IDB prefetch queue: Daily at the FRONT (the default
-// 1D view that paints first), then the two intraday timeframes the intraday pack
-// covers (5m/60m) behind it. Skipped once a daily pack version is stamped —
-// returning users already have the whole universe durable, so this would be a pure
-// idbGet no-op for them; gating keeps it off their load path entirely. W/M are left
-// to the full daily pack (which carries D/W/M) so this stays a lean first-open warm.
-export function _warmHotSetForNewUser() {
-  let hasPack = null, hasHot = null
-  try {
-    hasPack = localStorage.getItem(PACK_DAILY.versionKey)
-    hasHot = localStorage.getItem(PACK_DAILY.hotVersionKey)
-  } catch { /* storage blocked → treat as new */ }
-  if (hasPack || hasHot) return       // universe or hot set already durable in IDB
-  if (_connectionTooCostly()) return  // respect metered / slow connections
-  try {
-    prefetchBarsToIDB(HOT_TICKERS, 'D', { priority: true })  // daily first, front of queue
-    prefetchBarsToIDB(HOT_TICKERS, '5')                      // common intraday switches
-    prefetchBarsToIDB(HOT_TICKERS, '60')
-  } catch { /* best-effort; the chart's own fetch + the full pack remain the fallback */ }
 }
 
 // Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
