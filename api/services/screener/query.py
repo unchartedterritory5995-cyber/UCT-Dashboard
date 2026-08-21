@@ -50,16 +50,39 @@ def run_scan(spec):
     view_key = spec.get("view") or "overview"
     view = filters.VIEWS.get(view_key, filters.VIEWS["overview"])
     sort = spec.get("sort") or {}
-    sort_key = sort.get("key") if sort.get("key") in _SORTABLE else "uct_composite"
+    sort_key = sort.get("key") or "uct_composite"
+    if sort_key not in _SORTABLE:
+        # ⛔ No silent substitution: a member sorting a column that does not
+        # exist deserves a 400 naming it, not a quiet uct_composite reorder.
+        raise ValueError(f"unknown sort key: {sort_key}")
     sort_dir = "ASC" if (sort.get("dir") == "asc") else "DESC"
     page = max(int(spec.get("page", 1)), 1)
     page_size = min(max(int(spec.get("page_size", 50)), 1), _MAX_PAGE)
     offset = (page - 1) * page_size
 
+    cols_req = spec.get("columns")
+    if cols_req:
+        bad = [c for c in cols_req if c not in set(snapshot_db.COLUMNS)]
+        if bad:
+            raise ValueError(f"unknown columns: {', '.join(sorted(bad))}")
+        # ticker first, then the request's own order, then the sort column so
+        # the client can always show why the rows are in this order. Dedupe
+        # preserves first position.
+        seen, select_cols = set(), []
+        for c in ["ticker", *cols_req, sort_key]:
+            if c not in seen:
+                seen.add(c)
+                select_cols.append(c)
+        select_sql = ", ".join(f'"{c}"' for c in select_cols)
+        out_columns = select_cols
+    else:
+        select_sql = "*"
+        out_columns = view["columns"]
+
     with snapshot_db.connect() as conn:
         rows = conn.execute(
-            f"SELECT * FROM screener_rows{where} "
-            f"ORDER BY {sort_key} {sort_dir} NULLS LAST "
+            f"SELECT {select_sql} FROM screener_rows{where} "
+            f'ORDER BY "{sort_key}" {sort_dir} NULLS LAST '
             f"LIMIT ? OFFSET ?", [*params, page_size, offset]).fetchall()
         # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`
         # and the SAME params that selected them select the description.
@@ -81,6 +104,6 @@ def run_scan(spec):
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.
     return {"total": snap["rows"], "rows": [dict(r) for r in rows],
-            "view": view_key, "view_columns": view["columns"],
+            "view": view_key, "view_columns": out_columns,
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,
             "page": page, "page_size": page_size}
