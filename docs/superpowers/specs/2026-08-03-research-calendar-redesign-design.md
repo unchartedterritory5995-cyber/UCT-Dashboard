@@ -135,6 +135,8 @@ Logo 52px · `TICKER · Company` · exchange/sector line · live price with sess
 
 ## 9. Phasing — with a defined launch slice (Sep 5)
 
+⚰️ **P1 + P2-slim SHIPPED** — `EarningsResearchModal.jsx` is live in master (superseding the old `EarningsModal`; see the DOCUMENTED BUT UNREACHABLE table in this repo's CLAUDE.md). This section's framing is history now, not a live gate.
+
 **LAUNCH SLICE = P1 + P2-slim.** P3, P4 (except the implied-move service), and P5 explicitly do **not** block the Sep 5 launch and continue after it. `perf/calendar-load` is a **hard prerequisite** (a slow calendar with a beautiful modal is a worse first impression than the reverse). **Scope freeze ~Aug 22:** after it, only bug fixes land on the launch slice.
 
 1. **P1 — Foundations:** tokens (score/heat/glass/focus/display), `.t-num`, research-kit components incl. shell (IdentityBanner/SectionRail/PinnedFooter) with tests. **Starts in parallel: the nightly implied store + grade-snapshot store + backfill validation (no UI dependency).**

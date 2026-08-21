@@ -21,7 +21,7 @@
 ## Global Constraints
 
 - **Read ground truth ONLY from a worktree at `origin/master`.** `C:\Users\Patrick\uct-dashboard` is a stale dirty feature branch (`StockChart.jsx` differs by 5,126 lines; three chart files don't exist there). Never cite its line numbers.
-- **⛔ NO PUSH TO MASTER.** Phase B ships after the Sep 5 launch freeze (owner/CEO ruling of record). Push the feature branch to origin for backup only: `git push -u origin <branch>` — never `<branch>:master`.
+- ⚰️ **SUPERSEDED — read as history, not as a live gate.** This said *"NO PUSH TO MASTER, Phase B ships after the Sep 5 launch freeze (owner/CEO ruling of record)."* That was this plan's starting caution, written before any task had proven itself. It did not hold: B1–B5 each passed a byte-identical 0-changed-pixel parity gate and shipped to master as soon as it did — B5's cutover applied 2026-08-04, weeks before either launch date. See `docs/decisions/2026-08-04-engine-enabled-deleted.md`. There is no freeze left to observe.
 - **`app/node_modules` is an NTFS junction** shared with the stale main checkout and ~70 worktrees. Task 1 breaks the junction for this worktree (real install) so the renderer bump is worktree-local. Never `npm install` through a junction.
 - Frontend tests: `cd app && npx vitest run <paths>` (never `npm test -- run` — it double-runs). Backend: `python -m pytest tests/... -q` from the worktree root. Known pre-existing failure: `test_calendar_paging::test_month_unknown_hour_lands_in_tbd`.
 - Mutation-check every new gate; run with `PYTHONDONTWRITEBYTECODE=1` and purge `__pycache__` between iterations (same-size same-second mutations self-mask via stale `.pyc`).
@@ -653,7 +653,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```bash
 git push -u origin feat/phase-b1-foundations
 ```
-⛔ **Never `feat/phase-b1-foundations:master`.** Phase B ships after the Sep 5 launch freeze.
+⚰️ **SUPERSEDED.** This said *"Never `feat/phase-b1-foundations:master` — Phase B ships after the Sep 5 launch freeze."* B1 shipped to master with the rest of the phase; see the Global Constraints note above.
 
 - [ ] **Step 6: Report** — the B1 exit state: renderer pinned, passthrough live, tokens locked, fixtures green on both lanes, four natives covered, parity gate proven. List anything deferred to B2/B3 with a reason. Note explicitly which B1 subsets could ship early if the owner asks (fixtures/tests are inert; the renderer pin and the NaN-padding change are NOT).
 
