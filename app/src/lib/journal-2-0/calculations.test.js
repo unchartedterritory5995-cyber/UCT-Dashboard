@@ -1064,11 +1064,22 @@ describe('portfolioAggregates — broker placeholder stops', () => {
     // Value/unrealized still count BOTH positions (only stop math is skipped).
     expect(agg.unrealized).toBeCloseTo((434.78 - 132.726) * 5 + (210 - 200) * 10)
   })
-  it('isBrokerPlaceholderStop: broker + stop==entry only', () => {
+  it('isBrokerPlaceholderStop: broker + stop≈entry only (tolerant of refresh drift)', () => {
     const base = { entryPrice: 100, stopPrice: 100, raiseToBreakeven: 0, breakevenStop: null }
     expect(isBrokerPlaceholderStop({ ...base, source: 'broker' })).toBe(true)
     expect(isBrokerPlaceholderStop({ ...base, source: null })).toBe(false)
     expect(isBrokerPlaceholderStop({ ...base, source: 'broker', stopPrice: 95 })).toBe(false)
+    // The prod ORCL case: entry refreshed to 126.0049, seeded stop left at
+    // 126.005 — a strict === missed it and HEAT read the whole unrealized P&L.
+    expect(isBrokerPlaceholderStop({
+      source: 'broker', entryPrice: 126.0049, stopPrice: 126.005,
+      raiseToBreakeven: 0, breakevenStop: null,
+    })).toBe(true)
+    // A real stop 1% away is never a placeholder.
+    expect(isBrokerPlaceholderStop({
+      source: 'broker', entryPrice: 126, stopPrice: 124.74,
+      raiseToBreakeven: 0, breakevenStop: null,
+    })).toBe(false)
   })
 })
 

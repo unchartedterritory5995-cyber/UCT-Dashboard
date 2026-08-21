@@ -64,7 +64,12 @@ export const activeStop = (p) =>
  */
 export const isBrokerPlaceholderStop = (p) => {
   const active = activeStop(p)
-  return p?.source === 'broker' && active != null && active === p.entryPrice
+  if (p?.source !== 'broker' || active == null || !Number.isFinite(p?.entryPrice)) return false
+  // Tolerant, not strict ===: a sync that refreshes entry_price can leave the
+  // seeded placeholder a rounding-hair away (ORCL: stop 126.005 vs entry
+  // 126.0049), and a strict comparison silently un-blanks it. A real stop is
+  // never within a tenth of a cent of the entry.
+  return Math.abs(active - p.entryPrice) <= Math.max(0.001, Math.abs(p.entryPrice) * 1e-5)
 }
 
 /**
