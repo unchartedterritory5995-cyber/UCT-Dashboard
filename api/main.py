@@ -1163,6 +1163,15 @@ def start_screener_snapshot_warm():
 
     def _warm():
         try:
+            from api.services.screener import snapshot_db
+            snapshot_db.init_db()  # widen a legacy table BEFORE the delay:
+            # the new bundle advertises Wave-1 filters the moment the pod
+            # serves; a member must never 500 on a column the 120s warm
+            # delay hasn't migrated yet. Idempotent, sub-second, WAL-safe.
+        except Exception as e:
+            print(f"[startup] screener self-warm: early init_db failed "
+                  f"(warm/build path will retry): {type(e).__name__}: {e}")
+        try:
             time.sleep(delay)
             # Imported HERE, not closed over from the caller. The previous cut
             # of this block referenced a `snapshot_builder` bound in another
@@ -2446,6 +2455,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] bars.db full integrity_check error (non-fatal): {e}")
     threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
+
+    # Web-side Bars Pack ingest — fold the universe D/W/M pack the worker already
+    # publishes into THIS pod's bars.db, so a cold long-tail view serves from SQLite
+    # instead of a synchronous provider fetch (the ~0% warm the warmth audit measured
+    # comes from the R2 delta window structurally skipping unchanged long-tail bars).
+    # Add-only, missing-series-only, rate-limited, off the request path. No-op unless
+    # BARSPACK_WEB_INGEST_ENABLED=1.
+    try:
+        from api.services import barspack_web_ingest as _bpwi
+        _bpwi.start_web_ingest()
+    except Exception as e:
+        print(f"[startup] barspack web ingest failed to start (non-fatal): {e}")
 
     try:
         from api.services import bars_sqlite as _bars_sqlite

@@ -1099,8 +1099,14 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
     return keep, rejected
 
 
-def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> int:
+def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
+             on_conflict: str = "replace") -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
+
+    ``on_conflict``: "replace" (default — INSERT OR REPLACE, the authoritative
+    serve/prewarm write) or "ignore" (INSERT OR IGNORE — ADD-ONLY, keeps any
+    existing row on a PK collision). "ignore" is for gap-fillers that must NEVER
+    downgrade a fresher local bar (the web-side Bars Pack ingest).
     Returns the number of rows ACCEPTED and written — see ``_writable_bars``: a
     bar that does not describe a possible session is dropped, counted and logged,
     never stored and never coerced into shape.
@@ -1128,13 +1134,14 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> i
             int(b.get("v") or 0),
         ))
 
+    _verb = "INSERT OR IGNORE" if on_conflict == "ignore" else "INSERT OR REPLACE"
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
         try:
             with _WRITE_LOCK:
                 c = _conn()
                 c.executemany(
-                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                    f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                     rows,
                 )
                 c.commit()

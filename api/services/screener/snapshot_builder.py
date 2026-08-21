@@ -33,7 +33,7 @@ import logging
 import os
 import time
 
-from . import snapshot_db, candles, technicals, patterns, enrich
+from . import snapshot_db, candles, technicals, patterns, enrich, setup_score, context_joins
 
 log = logging.getLogger(__name__)
 
@@ -60,11 +60,21 @@ def rs_fields(rs_row) -> dict:
     score = rs_row.get("rs_score")
     if score is not None:
         out["rs_return"] = float(score)
+    # Period returns ride in the SAME entry the rank came from — zero extra
+    # cost, and the 3m/6m the member sees are the exact inputs their RS rank
+    # was computed from (consistency by construction, like rs_return above).
+    returns = rs_row.get("returns") or {}
+    r3 = returns.get("3m")
+    if r3 is not None:
+        out["chg_pct_3m"] = round(float(r3), 2)
+    r6 = returns.get("6m")
+    if r6 is not None:
+        out["chg_pct_6m"] = round(float(r6), 2)
     return out
 
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
-              bulk_row=None) -> dict:
+              bulk_row=None, spy_closes=None, context_row=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -75,6 +85,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     is the rail that keeps it that way. In particular it does not carry
     ``market_cap`` (Massive owns that column) — so unlike the RS pair there is
     no ordering question to get right here, and none is implied.
+
+    ``context_row`` is one ticker's merge of the four ``context_joins`` readers
+    (breadth/uct20/index/etf) — classification flags, disjoint from every other
+    source by construction (each reader owns its own columns; see the module
+    docstring). Merged BEFORE ``rs_fields``, which stays last/authoritative.
     """
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
@@ -83,7 +98,7 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # either (see its docstring) — this ordering is the belt to that braces, so
     # the day somebody re-adds them there the rank still comes from one place.
     for src in (fundamentals or {}, bulk_row or {}, ratings_row or {},
-                rs_fields(rs_row)):
+                context_row or {}, rs_fields(rs_row)):
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
@@ -92,11 +107,27 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # used to raise out of whichever ran first and lose the whole row — the
     # ticker's fundamentals and ratings included, which had nothing to do with
     # the bad bar. See technicals.usable_bars.
-    bars = technicals.usable_bars(bars)
+    #
+    # `_read_daily_bars` now fetches DEEP_BARS (5000) of history so ath_fields
+    # can see the ticker's whole stored life. Every OTHER consumer below still
+    # gets EXACTLY what it got pre-Wave-1: the RAW last-400 sessions, sanitized
+    # ALONE (never backfilled from deeper history). Sanitizing `bars_full` first
+    # and then slicing its tail would reach past session 400 to replace any
+    # invalid bar in the raw window — silently deepening the lookback for every
+    # window-sensitive column (rsi14, atr_pct, pct_vs_sma200, dist_52w_high_pct,
+    # the MAs) on exactly the tickers usable_bars exists to protect. `bars` on
+    # the right below is still the RAW parameter — it has not been reassigned
+    # yet — so this is "raw tail, then sanitize", never "sanitize, then tail".
+    # `bars_full` is the full sanitized series; only ath_fields reads it.
+    # Task 9 adds more consumers of both names.
+    bars_full = technicals.usable_bars(bars)
+    bars = technicals.usable_bars(bars[-400:])
     if bars:
         row.update(technicals.compute_technicals(bars))
+        row.update(technicals.ath_fields(bars_full))
         row.update(candles.single_candle(bars))
         row.update(candles.multi_candle(bars))
+        row.update(setup_score.compute(bars, pole_pct=row.get("pole_pct")))
         keys, conf = patterns.detect_patterns(bars)
         row["patterns"] = keys or None
         row["pattern_conf_max"] = conf or None
@@ -104,8 +135,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             vols = [b.get("v") or 0 for b in bars[-30:]]
             if vols:
                 row["avg_volume_30d"] = sum(vols) / len(vols)
+        if spy_closes:
+            closes = [b["c"] for b in bars]
+            row["rs_line_trend"] = technicals.rs_line_trend(closes, spy_closes)
         last_t = bars[-1].get("t")
         row["bars_asof"] = str(last_t) if last_t is not None else None
+    # Pure derivation — its factors are already columns; this is the ONE
+    # writer for dollar_vol_30d (spec: this number exists nowhere else in the
+    # platform).
+    if row.get("price") is not None and row.get("avg_volume_30d") is not None:
+        row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
     return row
@@ -113,9 +152,15 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 
 # ── source readers (network/disk; thin; monkeypatchable) ──────────────────────
 
+# One deep read per ticker: the tail 400 feed every existing consumer
+# unchanged; only ath_fields sees the full depth. 5000 matches the bars
+# API ceiling.
+DEEP_BARS = 5000
+
+
 def _read_daily_bars(ticker):
     from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(ticker, "D", 400) or []
+    rows = bars_sqlite.get_bars(ticker, "D", DEEP_BARS) or []
     out = []
     for r in rows:
         try:
@@ -124,6 +169,30 @@ def _read_daily_bars(ticker):
         except Exception:
             continue
     return out
+
+
+def _read_spy_closes():
+    """The benchmark series for rs_line_trend — ONE read per build.
+
+    Alignment note: the trend zips the positional tails of both series,
+    exactly as the scanner did — a ticker with recent halts pairs slightly
+    offset sessions. Accepted deviation carried over from the ported
+    definition; date-alignment would be a definition CHANGE and belongs to
+    the owner.
+    """
+    # Guarded like every other reader in this file: a dead/uninitialized
+    # bars store must cost only rs_line_trend, never the whole build. The
+    # caller already treats an empty result as a countable miss
+    # (`sources["spy_bars"]["none"]`) — that path has to be reachable
+    # without an exception ever getting there first.
+    try:
+        from api.services import bars_sqlite
+        rows = bars_sqlite.get_bars("SPY", "D", 60) or []
+    except Exception:
+        log.warning("[screener] SPY bars unavailable; rs_line_trend will be "
+                    "NULL for this build", exc_info=True)
+        return []
+    return [r[4] for r in rows if r[4] is not None]
 
 
 def _read_fundamentals(ticker, price=None, failures=None):
@@ -163,6 +232,11 @@ def _read_fundamentals(ticker, price=None, failures=None):
             out["sector"] = meta["sector"]
         else:
             _note("ticker_meta", "none")
+        if meta.get("theme"):
+            out["theme"] = meta["theme"]
+        # no miss-note for theme: most of the universe is outside the UCT
+        # taxonomy, so a None theme is the NORMAL case — counting it would
+        # flood the census with noise that buries real provider misses
     except Exception as e:
         _note("ticker_meta", e)
     try:
@@ -315,9 +389,19 @@ def run_build(max_tickers=None) -> dict:
     populated = {c: 0 for c in snapshot_db.COLUMNS}
     sources: dict = {}
     rs_map = _read_rs_map()
+    spy_closes = _read_spy_closes()
+    if not spy_closes:
+        sources.setdefault("spy_bars", {})["none"] = 1
     # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
     # the 71,370-row provider file is never materialised beyond our universe.
     bulk_map = _read_bulk_fundamentals(targets, failures=sources)
+    # ⭐ ONE read per build per context source (breadth/uct20/index/etf) — same
+    # shape as rs_map/bulk_map above, never a per-ticker call. See
+    # context_joins's module docstring for the disjoint-key-set contract.
+    breadth_map = context_joins.read_breadth_flags(targets, failures=sources)
+    uct20_map = context_joins.read_uct20(targets, failures=sources)
+    index_map = context_joins.read_index_flags(targets, failures=sources)
+    etf_map = context_joins.read_etf_flags(targets, failures=sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -343,10 +427,14 @@ def run_build(max_tickers=None) -> dict:
                 sources.setdefault("fmp_bulk", {})
                 sources["fmp_bulk"]["no_row"] = \
                     sources["fmp_bulk"].get("no_row", 0) + 1
+            T = t.upper()
+            context_row = {**breadth_map.get(T, {}), **uct20_map.get(T, {}),
+                           **index_map.get(T, {}), **etf_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
-                            rs_row, bulk_row)
+                            rs_row, bulk_row, spy_closes=spy_closes,
+                            context_row=context_row)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1

@@ -396,22 +396,49 @@ def _source_key_sets(monkeypatch) -> dict:
     go quiet on precisely the new column most likely to collide.
     """
     import api.services.screener.snapshot_builder as b
-    from api.services.screener import enrich
+    from api.services.screener import enrich, context_joins as cj
     from api.services.research import ratings_db
     from api.services import massive, ticker_meta
+    from api.services import breadth_monitor, engine, watchlist_prebuilt, \
+        industry_map, single_stock_etfs
 
     metrics = {c: 1.2 for c in ratings_db.METRIC_COLUMNS}
     metrics["sector"] = "Technology"
 
     monkeypatch.setattr(ticker_meta, "get_ticker_meta",
-                        lambda t: {"name": "N", "sector": "S", "industry": "I"})
+                        lambda t: {"name": "N", "sector": "S", "industry": "I",
+                                   "theme": "AI"})
     monkeypatch.setattr(massive, "get_market_cap", lambda t, price=None: 1.0e9)
+
+    # ⛔ ALL FOUR lists present — read_index_flags now emits PER-COLUMN GUARDED
+    # rows (a column's key is absent when its source list didn't resolve), so
+    # a thin fixture here would silently shrink the registered key set.
+    monkeypatch.setattr(breadth_monitor, "get_universe_stocks", lambda: {
+        "stocks": [{"ticker": "AAA", "tags": ["s2", "s4", "hvc"]}]})
+    monkeypatch.setattr(engine, "get_leadership", lambda: [{"ticker": "AAA"}])
+    monkeypatch.setattr(watchlist_prebuilt, "_load_lists", lambda: [
+        {"name": n, "tickers": ["AAA"]}
+        for n in ("S&P 500", "Nasdaq 100", "Dow 30", "Russell 2000")])
+    monkeypatch.setattr(industry_map, "tickers_in_industry", lambda i: ["AAA"])
+
+    # In-memory sqlite standing in for the ssetf leg — read_etf_flags wraps
+    # the connection in contextlib.closing, so this stub must survive .close().
+    import sqlite3
+    ssetf_conn = sqlite3.connect(":memory:")
+    ssetf_conn.execute("CREATE TABLE etfs (etf_ticker TEXT)")
+    ssetf_conn.execute("INSERT INTO etfs (etf_ticker) VALUES ('AAA')")
+    ssetf_conn.commit()
+    monkeypatch.setattr(single_stock_etfs, "_connect", lambda: ssetf_conn)
 
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
         "enrich.ratings_fields": set(enrich.ratings_fields(metrics, {})),
         "_read_fundamentals": set(b._read_fundamentals("AAA", price=10.0)),
+        "context.breadth": set(cj.read_breadth_flags(["AAA"])["AAA"]),
+        "context.uct20": set(cj.read_uct20(["AAA"])["AAA"]),
+        "context.index": set(cj.read_index_flags(["AAA"])["AAA"]),
+        "context.etf": set(cj.read_etf_flags(["AAA"])["AAA"]),
     }
 
 
@@ -557,6 +584,12 @@ def test_run_build_counts_a_ticker_the_bulk_pass_had_no_row_for(tmp_path, monkey
     monkeypatch.setattr(b, "_read_rs_map", lambda: {})
     monkeypatch.setattr(b, "_read_bulk_fundamentals",
                         lambda targets, failures=None: {"AAA": {"pe_ttm": 12.0}})
+    from api.services.screener import context_joins as cj
+    # context readers stubbed: run_build unit tests predate context joins; real reads trip the shared-data-root guard on the dev box
+    monkeypatch.setattr(cj, "read_breadth_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_uct20", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_index_flags", lambda targets, failures=None: {})
+    monkeypatch.setattr(cj, "read_etf_flags", lambda targets, failures=None: {})
 
     stats = b.run_build()
     assert stats["sources"]["fmp_bulk"] == {"no_row": 1}
