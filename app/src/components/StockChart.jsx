@@ -9913,14 +9913,22 @@ export default function StockChart({
     try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
   }, [fadedVolData, candleFrameFade, chartReady, updateChart])
 
-  // Pre-install the focus autoscale provider as soon as the chart is ready (for
-  // glide-capable charts). The frameChanged glide otherwise installs it LAZILY on
-  // the first Setup⇄Result flip, and that one applyOptions forces an autoscale
-  // recompute mid-glide → the first transition "skips". Installing it up front
-  // (inert — returns default autoscale until a glide sets focusPriceRangeRef)
-  // makes the first transition as smooth as every later one.
+  // Install the candle autoscale provider as soon as the chart is ready — on
+  // EVERY chart, not just glide-capable (Setup Library) ones.
+  //
+  // ⭐ THIS IS WHAT MAKES A MANUAL PRICE-AXIS DRAG STICK ON THE MAIN /charts CHART.
+  // Dragging the price axis sets `priceManualRef`/`priceManualRangeRef`, but nothing
+  // CONSUMED them here unless the chart was `exactDateRange || candleFrameFade`
+  // (Setup Library / Model Book). On a normal chart the pin was dead weight, so
+  // LWC's own autoscale re-fit the candles to the visible bars on the next
+  // gesture/commit — the "I set the vertical scale and it re-fits itself right
+  // after I let go" bug. The provider is INERT by default (returns `orig()` =
+  // default autoscale) until `priceManualRef` is set, so the ~everyone who never
+  // drags the axis is completely unaffected; only a deliberate drag is preserved
+  // (cleared by a double-click on the axis or a symbol/timeframe switch, which is
+  // where auto-fit resumes). It also still pre-installs the focus glide inertly.
   useEffect(() => {
-    if (!chartReady || (!exactDateRange && !candleFrameFade)) return
+    if (!chartReady) return
     const series = candleSeriesRef.current
     if (!series || focusProviderInstalledRef.current) return
     try {
