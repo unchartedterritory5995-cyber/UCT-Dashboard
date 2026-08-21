@@ -115,6 +115,7 @@ describe('🔴 every chart key handler actually CONSULTS it', () => {
   const MODAL_OWNED = {
     'components/chart/ChartContextMenu.jsx': "the context menu's own Escape",
     'components/chart/ChartSettingsModal.jsx': "the settings modal's own Escape",
+    'components/chart/ChartThemesModal.jsx': "the themes gallery's own Escape",
     'components/chart/EarningsMarkerPopover.jsx': "the popover's own dismissal",
     'components/chart/KeyboardHelpOverlay.jsx': "the shortcut sheet's own Escape",
     'components/chart/SymbolSearch.jsx': "the ticker box's own dropdown navigation",
