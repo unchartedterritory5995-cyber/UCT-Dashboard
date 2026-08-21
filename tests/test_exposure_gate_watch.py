@@ -58,7 +58,7 @@ def test_below_s2_fires_the_danger_alert(alerts):
     _seed(price=706.90)
     r = gw.check_once(now=RTH)
     assert r["fired"] == ["s2"]
-    assert "25%" in alerts[0][0][2]
+    assert "40%" in alerts[0][0][2]
 
 
 def test_between_levels_fires_nothing(alerts):
