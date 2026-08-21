@@ -60,26 +60,9 @@
   align-items: center;
   gap: 6px;
 }
-/* UCT Chart Themes launcher — gold-accented so it reads as the marquee action
-   on the settings header. Opens the big blurred theme gallery. */
-.themesBtn {
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.18), rgba(201, 168, 76, 0.08));
-  border: 1px solid var(--menu-accent, rgba(201, 168, 76, 0.55));
-  color: var(--menu-accent, #e6c765);
-  font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  padding: 5px 11px;
-  border-radius: 6px;
-  white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-}
-.themesBtn:hover {
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.3), rgba(201, 168, 76, 0.15));
-  color: #f4d98a;
-  border-color: #c9a84c;
-}
+/* UCT Chart Themes launcher — lives at the far RIGHT of the template row and
+   shares the exact template-button style (no special accent), per owner request. */
+.themesBarBtn { margin-left: auto; }
 
 .resetBtn {
   background: transparent;

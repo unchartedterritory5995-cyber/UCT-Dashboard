@@ -109,10 +109,11 @@ function isApplied(settings, theme) {
  * `canApplyAll` is true). Applies and closes so the user immediately sees the
  * reskinned chart behind the (now dismissed) blur.
  */
-export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, currentSettings = null }) {
+export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, currentSettings = null, themeVars = null }) {
   const [family, setFamily] = useState('all')
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState('one')
+  const famLabel = (id) => (THEME_FAMILIES.find(f => f.id === id) || {}).label || id
 
   useEffect(() => {
     if (!open) return
@@ -140,7 +141,7 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="UCT Chart Themes">
-      <div className={styles.panel} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={styles.panel} style={themeVars || undefined} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleWrap}>
             <span className={styles.title}>UCT Chart Themes</span>
@@ -178,7 +179,9 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
               >
                 <div className={styles.tileHead}>
                   <span className={styles.tileName}>{theme.name}</span>
-                  {applied && <span className={styles.appliedTag}>✓ Active</span>}
+                  {applied
+                    ? <span className={styles.appliedTag}>✓ Active</span>
+                    : <span className={styles.tileFam}>{famLabel(theme.family)}</span>}
                 </div>
                 <ThemePreview theme={theme} />
               </button>

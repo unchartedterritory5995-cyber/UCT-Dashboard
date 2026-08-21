@@ -88,6 +88,8 @@ export const CHART_THEMES = [
     ma: ['#2f9fd0', '#d06fb0', '#d09a2f', '#6f7fd0', 'rgba(120,150,140,0.5)'], watermark: '#bfe0d2' },
 
   // ── Gradient (top→bottom canvas gradient across both panes) ──────────────
+  // A few are single-hue fades (top color → near-black); the rest BLEND TWO hues
+  // top→bottom (green→red, green→blue, blue→teal, blue→purple, magenta→amber).
   { id: 'ember', name: 'Ember', family: 'gradient',
     bgGradient: { top: '#3a0e13', bottom: '#0d0507' }, up: '#35d07f', down: '#ff5b5b',
     grid: 'rgba(255,130,130,0.055)', text: '#c39090', crosshair: '#c39090',
@@ -100,26 +102,31 @@ export const CHART_THEMES = [
     bgGradient: { top: '#0a3330', bottom: '#04110f' }, up: '#3ee0c4', down: '#ff5c8a',
     grid: 'rgba(90,220,205,0.06)', text: '#7fb8b0',
     ma: ['#37c2ff', '#ffcf5a', '#ff8fd0', '#a3e635', 'rgba(140,190,185,0.5)'], watermark: '#3f7068' },
+  // Two-hue: green (top) → red (bottom), TC2000 "cloud" feel.
+  { id: 'forest-fire', name: 'Forest Fire', family: 'gradient',
+    bgGradient: { top: '#123a1e', bottom: '#320f10' }, up: '#9be36b', down: '#ff5c5c',
+    grid: 'rgba(200,180,120,0.05)', text: '#b0a888',
+    ma: ['#ffd166', '#6cc5ff', '#ff8fb0', '#a3e635', 'rgba(190,175,130,0.5)'], watermark: '#5c4a3a' },
+  // Two-hue: green (top) → deep blue (bottom).
+  { id: 'aurora', name: 'Aurora', family: 'gradient',
+    bgGradient: { top: '#0c3a30', bottom: '#0a1838' }, up: '#5eead4', down: '#fb7185',
+    grid: 'rgba(120,200,210,0.06)', text: '#8fb5bc',
+    ma: ['#818cf8', '#f0abfc', '#fbbf24', '#34d399', 'rgba(150,180,190,0.5)'], watermark: '#3f6068' },
+  // Two-hue: blue (top) → teal (bottom).
   { id: 'ocean', name: 'Ocean', family: 'gradient',
-    bgGradient: { top: '#0c2340', bottom: '#060d18' }, up: '#43d9a3', down: '#ff6b81',
-    grid: 'rgba(90,150,230,0.06)', text: '#8098c0',
-    ma: ['#5b8def', '#e879f9', '#f59e0b', '#22d3ee', 'rgba(140,160,200,0.5)'], watermark: '#3f5578' },
-  { id: 'indigo', name: 'Indigo', family: 'gradient',
-    bgGradient: { top: '#201b4d', bottom: '#0b0a1f' }, up: '#4ade80', down: '#f871a0',
-    grid: 'rgba(150,140,240,0.07)', text: '#a29ad0',
-    ma: ['#818cf8', '#f0abfc', '#fbbf24', '#34d399', 'rgba(170,160,220,0.5)'], watermark: '#514a7a' },
-  { id: 'sunset', name: 'Sunset', family: 'gradient',
-    bgGradient: { top: '#3a1c0d', bottom: '#130a05' }, up: '#8be36b', down: '#ff6a4d',
-    grid: 'rgba(255,180,120,0.06)', text: '#c2a184',
-    ma: ['#ffd166', '#6cc5ff', '#ff8fb0', '#a3e635', 'rgba(200,170,130,0.5)'], watermark: '#6b4f38' },
-  { id: 'plum', name: 'Plum', family: 'gradient',
-    bgGradient: { top: '#2e0f30', bottom: '#120714' }, up: '#5ce0b0', down: '#ff5c9c',
-    grid: 'rgba(220,110,200,0.06)', text: '#b58fb0',
-    ma: ['#37c2ff', '#ffd76a', '#ff8fd0', '#a56fff', 'rgba(190,150,185,0.5)'], watermark: '#6b3f60' },
-  { id: 'steel', name: 'Steel', family: 'gradient',
-    bgGradient: { top: '#1b2735', bottom: '#090e15' }, up: '#35d0a0', down: '#ff6b6b',
-    grid: 'rgba(180,200,220,0.05)', text: '#8794a5',
-    ma: ['#9bb6c4', '#c4a0b0', '#ffd166', '#7bdff2', 'rgba(150,165,180,0.5)'], watermark: '#4a5560' },
+    bgGradient: { top: '#0c2340', bottom: '#06302a' }, up: '#43d9a3', down: '#ff6b81',
+    grid: 'rgba(90,170,190,0.06)', text: '#8098a0',
+    ma: ['#5b8def', '#e879f9', '#f59e0b', '#22d3ee', 'rgba(140,170,180,0.5)'], watermark: '#3f5560' },
+  // Two-hue: blue (top) → purple (bottom).
+  { id: 'twilight', name: 'Twilight', family: 'gradient',
+    bgGradient: { top: '#10224e', bottom: '#2a0f38' }, up: '#4ade80', down: '#f871a0',
+    grid: 'rgba(150,150,240,0.06)', text: '#a09ad0',
+    ma: ['#818cf8', '#f0abfc', '#fbbf24', '#34d399', 'rgba(165,160,215,0.5)'], watermark: '#4a4478' },
+  // Two-hue: magenta (top) → amber (bottom).
+  { id: 'dawn', name: 'Dawn', family: 'gradient',
+    bgGradient: { top: '#2e0f38', bottom: '#3a1e0a' }, up: '#7ee0b0', down: '#ff6a5c',
+    grid: 'rgba(220,160,140,0.06)', text: '#c0a0a0',
+    ma: ['#37c2ff', '#ffd76a', '#ff8fd0', '#a56fff', 'rgba(190,160,150,0.5)'], watermark: '#5c4048' },
 
   // ── Vibrant ──────────────────────────────────────────────────────────────
   { id: 'neon', name: 'Neon', family: 'vibrant',
@@ -214,6 +221,15 @@ export const CHART_THEMES = [
 
 export const CHART_THEME_BY_ID = Object.fromEntries(CHART_THEMES.map(t => [t.id, t]))
 
+// Perceived luminance (0..1) of a #rrggbb color. Used to decide whether the
+// OHLCV legend must be forced dark so it stays readable on a light canvas.
+function _luminance(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || '').trim())
+  if (!m) return 0
+  const n = parseInt(m[1], 16)
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
+}
+
 /**
  * Merge a theme's VISUAL layer over an existing chart-settings blob. Pure — never
  * mutates `settings`. Non-visual settings (indicators, timeframes, header layout,
@@ -242,6 +258,14 @@ export function applyThemeToSettings(settings, theme) {
 
   const bgGrad = theme.bgGradient
   const wm = theme.watermark || theme.text
+
+  // Keep the OHLCV/date legend readable on ANY canvas. The legend sits top-left,
+  // so a gradient's TOP color is what it renders over. On a light canvas force a
+  // dark legend; on a dark one clear it to null so the CSS light default applies
+  // — set explicitly EVERY time so switching light→dark can't leave a stale dark
+  // legend on a dark background. `theme.legend` overrides the auto choice.
+  const legendBg = bgGrad ? bgGrad.top : theme.bg
+  const legend = theme.legend || (_luminance(legendBg) > 0.6 ? '#1c2128' : null)
 
   return {
     ...s,
@@ -274,7 +298,7 @@ export function applyThemeToSettings(settings, theme) {
     // the prev-day High/Low reference lines are all semantically up/down colored.
     header: {
       ...(s.header || {}),
-      colors: { ...((s.header || {}).colors || {}), dayChangeUp: up, dayChangeDown: down },
+      colors: { ...((s.header || {}).colors || {}), dayChangeUp: up, dayChangeDown: down, legend },
     },
     markers: { ...(s.markers || {}), earningsBeat: up, earningsMiss: down },
     prevDayLevels: {

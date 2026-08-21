@@ -562,13 +562,6 @@ export default function ChartSettingsModal({
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
             <button
               type="button"
-              className={styles.themesBtn}
-              onClick={() => setThemesOpen(true)}
-              title="Browse UCT chart themes — one-click looks for this chart"
-              style={{ cursor: 'pointer' }}
-            >🎨 UCT Chart Themes</button>
-            <button
-              type="button"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
               onClick={handleReset}
               title="Restore all chart settings to defaults"
@@ -641,6 +634,14 @@ export default function ChartSettingsModal({
               title="Save the current chart settings as a reusable template"
             >＋ Save as Template</button>
           )}
+          {/* Pushed to the far right of the template row; same visual style as the
+              template buttons (not a special accent) per owner request. */}
+          <button
+            type="button"
+            className={`${styles.tplBtn} ${styles.themesBarBtn}`}
+            onClick={() => setThemesOpen(true)}
+            title="Browse UCT chart themes — one-click looks for this chart"
+          >🎨 UCT Chart Themes</button>
         </div>
 
         <div className={styles.tabs} role="tablist">
@@ -1381,6 +1382,7 @@ export default function ChartSettingsModal({
         onApply={applyTheme}
         canApplyAll={!!onApplyThemeAll}
         currentSettings={settings}
+        themeVars={themeVars}
       />
     </>
   )
