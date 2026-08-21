@@ -1022,6 +1022,20 @@ def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, A
     return {"started": True}
 
 
+@router.get("/admin/books-audit")
+def books_audit_route(
+    target_user_id: str | None = None,
+    account_id: str | None = None,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Admin-only cross-foot of every analytics surface against independent
+    raw-SQL recomputation (equity/distribution/calendar/day-pages/tax/options
+    must all serve the SAME trades). Defaults to the admin's own book;
+    target_user_id audits another user's."""
+    from api.services.journal_two.books_audit import run_books_audit
+    return run_books_audit(target_user_id or user["id"], account_id=account_id)
+
+
 @router.post("/admin/excursion-backfill")
 def excursion_backfill_route(
     limit: int | None = None,
