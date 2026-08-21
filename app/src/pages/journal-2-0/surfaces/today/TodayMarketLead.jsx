@@ -17,6 +17,7 @@
 import { useMemo } from 'react'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2OptionStrategies from '../../hooks/useJ2OptionStrategies'
+import useJ2OptionMarks from '../../hooks/useJ2OptionMarks'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
 import BrokerAccountHero from '../../components/BrokerAccountHero'
@@ -33,6 +34,7 @@ export default function TodayMarketLead({
 }) {
   const { positions } = useJ2Positions()
   const { strategies: optionStrategies } = useJ2OptionStrategies({ status: 'open' })
+  const { marks: optionMarks } = useJ2OptionMarks({ enabled: optionStrategies.length > 0 })
   const { accounts } = useJ2SelectedAccount()
 
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
@@ -64,15 +66,19 @@ export default function TodayMarketLead({
   )
   const liveSummary = useMemo(
     () => (brokerAccountCount <= 1
-      ? brokerLiveSummary(account, positions, optionStrategies, prices, etToday)
+      ? brokerLiveSummary(account, positions, optionStrategies, prices, etToday, optionMarks)
       : null),
-    [brokerAccountCount, account, positions, optionStrategies, prices, etToday],
+    [brokerAccountCount, account, positions, optionStrategies, prices, etToday, optionMarks],
   )
   const optionMarketValue = useMemo(
     () => (optionStrategies || []).reduce(
-      (s, o) => s + (Number.isFinite(o?.brokerCurrentValue) ? o.brokerCurrentValue : 0), 0,
+      (s, o) => {
+        const live = optionMarks?.[o?.id]?.currentValue
+        const v = Number.isFinite(live) ? live : o?.brokerCurrentValue
+        return s + (Number.isFinite(v) ? v : 0)
+      }, 0,
     ),
-    [optionStrategies],
+    [optionStrategies, optionMarks],
   )
 
   if (isBroker) {

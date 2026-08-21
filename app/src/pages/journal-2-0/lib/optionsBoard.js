@@ -9,9 +9,10 @@ import { buildStrategyLabel, computeDaysToExpiration } from './optionCalcs'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
 
-export function buildOptionCards(strategies) {
+export function buildOptionCards(strategies, optionMarks) {
   const cards = (strategies || []).map((s) => {
-    const bcv = fin(s.brokerCurrentValue)
+    // Live mark (Massive option aggs) preferred; sync-time broker mark fallback.
+    const bcv = fin(optionMarks?.[s.id]?.currentValue) ?? fin(s.brokerCurrentValue)
     const pnl = bcv == null || !Number.isFinite(s.netEntry) ? null : bcv - s.netEntry
     return {
       key: `o-${s.id}`,

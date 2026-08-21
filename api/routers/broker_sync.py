@@ -156,6 +156,21 @@ async def fills_check(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     return await recent_orders.check_user_now(user["id"])
 
 
+@router.get("/option-marks")
+def option_marks(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Live-ish marks for the member's OPEN broker option strategies, priced
+    from Massive option daily aggregates (see broker/option_marks.py). Lets
+    net-liq + "Today" reflect option day moves BETWEEN syncs, like the
+    broker's own app. {marks: {strategyId: {currentValue, prevCloseValue,
+    mark, prevClose, entryEstimated, asOf}}} — a strategy with no bar data is
+    simply absent (client falls back to the sync-time brokerCurrentValue)."""
+    from api.services.journal_two.broker import option_marks as _marks
+    return {"marks": _marks.get_option_marks(user["id"], account_id)}
+
+
 @router.post("/sync")
 async def sync_now(
     user: dict = Depends(_paid), full: bool = False, force: bool = False,

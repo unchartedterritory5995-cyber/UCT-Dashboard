@@ -330,7 +330,7 @@ export const currentPriceFor = (position, prices) => {
  * @param {string} [todayIso]  today's date as 'YYYY-MM-DD' (ET); enables same-day-entry handling
  * @returns {{netLiq: number|null, marketValue: number, today: number, todayPct: number|null}}
  */
-export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso) => {
+export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks) => {
   let marketValue = 0
   let today = 0
   for (const p of positions || []) {
@@ -358,9 +358,26 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     }
   }
   for (const s of optionStrategies || []) {
+    // Live mark (Massive option aggs, useJ2OptionMarks) preferred; the
+    // sync-time brokerCurrentValue is the fallback. Values are SIGNED totals.
+    const live = optionMarks?.[s?.id]
+    const liveCur = live?.currentValue
     const bcv = s?.brokerCurrentValue
-    if (Number.isFinite(bcv)) marketValue += bcv
-    // options contribute ~0 to Today (no live option quote — broker mark only)
+    const cur = Number.isFinite(liveCur) ? liveCur : bcv
+    if (Number.isFinite(cur)) marketValue += cur
+    if (Number.isFinite(liveCur) && Number.isFinite(live?.prevCloseValue)) {
+      // Today for options mirrors the equity rule: measured from the prior
+      // session close, or from the entry (netEntry) for a strategy genuinely
+      // opened today. entryEstimated (carried-in placeholder dates) comes
+      // from the marks payload, which derives it from the external id.
+      const opened = openedTodayFill(
+        { entryDate: s?.entryDate, entryEstimated: live.entryEstimated === true },
+        todayIso,
+      )
+      const base = opened && Number.isFinite(s?.netEntry) ? s.netEntry : live.prevCloseValue
+      today += liveCur - base
+    }
+    // Without a live mark, options contribute 0 to Today (sync mark only).
   }
   const cash = account?.brokerCash
   const netLiq = Number.isFinite(cash) ? cash + marketValue : null

@@ -1,0 +1,147 @@
+"""Live-ish option marks for OPEN broker strategies — Massive daily aggregates.
+
+`broker_current_value` refreshes only at sync (daily cadence), so between syncs
+the account hero's net-liq and "Today" were blind to option day moves — the
+broker's own app counts them (Robinhood's −$881 day included ~−$690 of option
+decay the journal showed as 0). This module serves per-strategy
+{currentValue, prevCloseValue} priced from Massive option daily aggregates
+(OCC `O:` symbols — the SAME source `historical_equity` already prices the
+equity curve with; no new vendor, no SnapTrade quote polling, which is
+key-disablement territory).
+
+Unit discipline:
+- `mark` / `prev_close` are PER-SHARE premiums (agg closes).
+- The contract multiplier is DERIVED from the strategy's OWN stored
+  `net_entry` (|net_entry| / (qty × entry_price)) — that value was written at
+  import by the one authority (`balances._opt_contract_multiplier`), so this
+  never re-implements the mini-option rule. Fallback: the standard 100.
+- `currentValue`/`prevCloseValue` are SIGNED totals (short strategies
+  negative), the same convention as `broker_current_value`.
+
+A contract with no recent trades simply reports its last session close for
+both values (day move 0) — honest, never fabricated. A contract Massive has
+no bars for is omitted; the frontend falls back to the sync-time
+`brokerCurrentValue`.
+"""
+from __future__ import annotations
+
+import time
+from datetime import date, datetime, timezone
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from api.services import massive
+from api.services.auth_db import get_connection
+from api.services.journal_two.broker.historical_equity import occ_symbol
+
+_ET = ZoneInfo("America/New_York")
+
+# Per-OCC agg cache: {occ: (fetched_at_epoch, bars)}. Small (a user holds a
+# handful of contracts) and short — the daily bar for "today" updates intraday.
+_AGG_TTL_SECONDS = 60.0
+_agg_cache: dict[str, tuple[float, list[dict]]] = {}
+
+_OPEN_BROKER_OPT_SQL = """
+    SELECT s.id, s.external_id, s.underlying, s.net_entry, s.entry_date,
+           l.strike, l.expiration, l.contract_type,
+           l.qty AS leg_qty, l.entry_price AS leg_entry, l.side AS leg_side
+    FROM j2_option_strategies s
+    JOIN j2_option_legs l ON l.strategy_id = s.id
+    WHERE s.user_id = ? AND s.source = 'broker'
+      AND s.status = 'open' AND s.closed_at IS NULL
+"""
+
+
+def _derived_multiplier(net_entry: Any, qty: Any, entry_price: Any) -> float:
+    """The contract size this strategy was IMPORTED with, recovered from its
+    own stored fields (net_entry = sign × qty × entry × multiplier)."""
+    try:
+        q = abs(float(qty))
+        e = abs(float(entry_price))
+        n = abs(float(net_entry))
+        if q > 1e-9 and e > 1e-9 and n > 1e-9:
+            m = n / (q * e)
+            if 0.5 <= m <= 10_000:
+                return float(round(m))
+    except (TypeError, ValueError):
+        pass
+    return 100.0
+
+
+def _bars_for(occ: str, *, today_et: date) -> list[dict]:
+    now = time.time()
+    hit = _agg_cache.get(occ)
+    if hit and now - hit[0] < _AGG_TTL_SECONDS:
+        return hit[1]
+    start = date.fromordinal(today_et.toordinal() - 10).isoformat()
+    bars = massive.get_daily_agg(occ, start, today_et.isoformat(),
+                                 adjusted=False, map_symbol=False)
+    _agg_cache.setdefault  # keep linters quiet about unused attr style
+    _agg_cache[occ] = (now, bars or [])
+    return _agg_cache[occ][1]
+
+
+def _bar_date(bar: dict) -> date:
+    return datetime.fromtimestamp(bar["t"] / 1000, tz=timezone.utc).date()
+
+
+def get_option_marks(user_id: str, account_id: str | None = None,
+                     conn=None) -> dict[str, Any]:
+    """{strategyId: {mark, prevClose, currentValue, prevCloseValue,
+    entryEstimated, asOf}} for the user's open broker strategies."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        sql = _OPEN_BROKER_OPT_SQL
+        params: tuple = (user_id,)
+        if account_id:
+            sql += " AND s.account_id = ?"
+            params = (user_id, account_id)
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        if owned:
+            conn.close()
+
+    today_et = datetime.now(_ET).date()
+    out: dict[str, Any] = {}
+    for r in rows:
+        try:
+            occ = occ_symbol(r["underlying"], r["expiration"],
+                             r["contract_type"], r["strike"])
+        except Exception:
+            continue
+        bars = _bars_for(occ, today_et=today_et)
+        if not bars:
+            continue
+        last = bars[-1]
+        mark = last.get("c")
+        if mark is None:
+            continue
+        if _bar_date(last) >= today_et and len(bars) >= 2:
+            prev = bars[-2].get("c")
+        else:
+            # No trade today yet → last session close is both mark and
+            # baseline (day move 0). Honest, never fabricated.
+            prev = mark
+        if prev is None:
+            prev = mark
+        qty = abs(float(r["leg_qty"] or 0.0))
+        if qty <= 1e-9:
+            continue
+        sign = 1.0 if r["leg_side"] == "buy" else -1.0
+        mult = _derived_multiplier(r["net_entry"], qty, r["leg_entry"])
+        out[r["id"]] = {
+            "mark": float(mark),
+            "prevClose": float(prev),
+            "currentValue": round(sign * qty * float(mark) * mult, 2),
+            "prevCloseValue": round(sign * qty * float(prev) * mult, 2),
+            # Carried-in strategies have a sync-stamped entry_date — the FE's
+            # opened-today rule must not treat that placeholder as a fill.
+            "entryEstimated": str(r["external_id"] or "").startswith("bkoptpos:"),
+            "asOf": _bar_date(last).isoformat(),
+        }
+    return out
+
+
+def _reset_cache_for_tests() -> None:
+    _agg_cache.clear()

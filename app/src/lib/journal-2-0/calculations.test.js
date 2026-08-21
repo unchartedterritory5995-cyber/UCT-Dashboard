@@ -1071,3 +1071,50 @@ describe('portfolioAggregates — broker placeholder stops', () => {
     expect(isBrokerPlaceholderStop({ ...base, source: 'broker', stopPrice: 95 })).toBe(false)
   })
 })
+
+describe('brokerLiveSummary — live option marks (Phase 2)', () => {
+  const TODAY = '2026-08-20'
+  const account = { brokerCash: 0 }
+  const strat = (over = {}) => ({
+    id: 's1', brokerCurrentValue: 2310, netEntry: 3450,
+    entryDate: '2026-08-17T19:01:49Z', ...over,
+  })
+
+  it('uses the live mark for market value and counts the option day move in Today', () => {
+    const marks = { s1: { currentValue: 2100, prevCloseValue: 2310, entryEstimated: false } }
+    const out = brokerLiveSummary(account, [], [strat()], {}, TODAY, marks)
+    expect(out.marketValue).toBeCloseTo(2100)
+    expect(out.today).toBeCloseTo(-210)   // 2100 − 2310
+  })
+
+  it('falls back to the sync-time brokerCurrentValue with 0 Today when no live mark', () => {
+    const out = brokerLiveSummary(account, [], [strat()], {}, TODAY, null)
+    expect(out.marketValue).toBeCloseTo(2310)
+    expect(out.today).toBeCloseTo(0)
+  })
+
+  it('a strategy genuinely opened today measures Today from its net entry', () => {
+    const marks = { s1: { currentValue: 2100, prevCloseValue: 2310, entryEstimated: false } }
+    const out = brokerLiveSummary(
+      account, [], [strat({ entryDate: '2026-08-20T15:00:00Z' })], {}, TODAY, marks,
+    )
+    expect(out.today).toBeCloseTo(2100 - 3450)
+  })
+
+  it('a carried-in strategy (entryEstimated) with a today-stamped date still uses prev close', () => {
+    const marks = { s1: { currentValue: 2100, prevCloseValue: 2310, entryEstimated: true } }
+    const out = brokerLiveSummary(
+      account, [], [strat({ entryDate: '2026-08-20T21:07:37Z' })], {}, TODAY, marks,
+    )
+    expect(out.today).toBeCloseTo(-210)
+  })
+
+  it('short strategies (negative signed values) flow through correctly', () => {
+    const marks = { s1: { currentValue: -300, prevCloseValue: -350, entryEstimated: false } }
+    const out = brokerLiveSummary(
+      account, [], [strat({ brokerCurrentValue: -350, netEntry: -500 })], {}, TODAY, marks,
+    )
+    expect(out.marketValue).toBeCloseTo(-300)
+    expect(out.today).toBeCloseTo(50)     // −300 − (−350): the short gained
+  })
+})
