@@ -241,3 +241,80 @@ def test_enabled_env(monkeypatch):
     assert excursion_jobs._enabled() is True
     monkeypatch.setenv("EXCURSION_ENGINE_ENABLED", "0")
     assert excursion_jobs._enabled() is False
+
+
+# ── nightly contract-tier UPGRADE of stored 'underlying' rows ─────────────
+def _seed_leg(conn, sid, *, leg_index=0, side="buy", contract_type="call",
+              strike=90.0, expiration="2026-02-20", qty=2,
+              entry_price=2.0, exit_price=3.5):
+    conn.execute(
+        "INSERT INTO j2_option_legs (id, strategy_id, leg_index, side, "
+        "contract_type, strike, expiration, qty, entry_price, exit_price) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (f"{sid}-l{leg_index}", sid, leg_index, side, contract_type, strike,
+         expiration, qty, entry_price, exit_price),
+    )
+    conn.commit()
+
+
+def _dispatch_fetch(contract_ok=True):
+    """OCC symbols get contract bars (or none), else underlying bars."""
+    def fetch(symbol, entry_ts, exit_ts, tf_code):
+        if symbol.startswith("O:"):
+            if not contract_ok:
+                return []
+            return [
+                {"t": entry_ts, "h": 2.2, "l": 1.5},
+                {"t": exit_ts, "h": 4.0, "l": 2.8},
+            ]
+        mid = (entry_ts + exit_ts) // 2
+        return [
+            {"t": entry_ts, "h": 205.0, "l": 198.0},
+            {"t": mid, "h": 260.0, "l": 250.0},
+            {"t": exit_ts, "h": 240.0, "l": 190.0},
+        ]
+    return fetch
+
+
+def test_stored_underlying_single_leg_upgrades_to_contract_tier():
+    conn = _conn()
+    _seed_option_strategy(conn, "s1", underlying="CRWV")
+    _seed_leg(conn, "s1")
+    # First run with NO contract aggs → 'underlying' stored (the backlog state).
+    excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(False), conn=conn)
+    assert get_excursion("u1", "id:s1", conn)["dataQuality"] == "underlying"
+    # Next nightly run, contract aggs now available → row upgrades in place.
+    counts = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(True), conn=conn)
+    assert counts["options_done"] == 1
+    out = get_excursion("u1", "id:s1", conn)
+    assert out["dataQuality"] == "option_daily"
+    assert out["trueR"] is not None
+    # Once upgraded it leaves the upgrade set — third run touches nothing.
+    again = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(True), conn=conn)
+    assert again["options_done"] == 0
+
+
+def test_multi_leg_underlying_row_is_never_upgraded(monkeypatch):
+    conn = _conn()
+    _seed_option_strategy(conn, "s1", underlying="CRWV")
+    _seed_leg(conn, "s1", leg_index=0)
+    _seed_leg(conn, "s1", leg_index=1, side="sell", strike=100.0)
+    excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(True), conn=conn)
+    assert get_excursion("u1", "id:s1", conn)["dataQuality"] == "underlying"
+    again = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(True), conn=conn)
+    assert again["options_done"] == 0  # multi-leg is skipped, not re-fetched
+
+
+def test_upgrade_cap_bounds_the_nightly_spend(monkeypatch):
+    monkeypatch.setenv("EXCURSION_OPTION_UPGRADE_CAP", "1")
+    conn = _conn()
+    for sid in ("s1", "s2"):
+        _seed_option_strategy(conn, sid, underlying="CRWV")
+        _seed_leg(conn, sid)
+    excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(False), conn=conn)
+    counts = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_dispatch_fetch(True), conn=conn)
+    assert counts["options_done"] == 1  # cap = 1 upgrade this run
+    quals = sorted(
+        get_excursion("u1", f"id:{s}", conn)["dataQuality"] for s in ("s1", "s2")
+    )
+    assert quals == ["option_daily", "underlying"]  # one upgraded, one queued

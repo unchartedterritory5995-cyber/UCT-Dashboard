@@ -179,3 +179,23 @@ def backfill_true_r(conn: sqlite3.Connection | None = None) -> int:
     finally:
         if own:
             conn.close()
+
+
+def underlying_refs(user_id: str, conn: sqlite3.Connection | None = None) -> set:
+    """trade_refs whose stored excursion is still the 'underlying' tier —
+    the upgrade set for the nightly single-leg contract-tier pass. A ref
+    leaves this set the moment a contract-tier (or insufficient) record
+    replaces it."""
+    own = conn is None
+    if own:
+        conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT trade_ref FROM j2_trade_excursions "
+            " WHERE user_id = ? AND data_quality = 'underlying'",
+            (user_id,),
+        ).fetchall()
+        return {r["trade_ref"] for r in rows}
+    finally:
+        if own:
+            conn.close()

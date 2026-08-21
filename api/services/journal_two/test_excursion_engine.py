@@ -337,3 +337,109 @@ def test_fetch_bars_returns_empty_on_error(monkeypatch):
 
     monkeypatch.setattr(massive, "get_agg_bars_minute", boom)
     assert _fetch_bars("AAPL", 1699999000, 1700001000, "5") == []
+
+
+# ── option strategy → single-leg CONTRACT tier (O: daily aggs) ────────────
+def _contract_fetch(contract_bars, underlying_bars=None):
+    """Dispatching fetch: OCC symbols get contract bars, else underlying."""
+    calls = []
+
+    def fetch(symbol, entry_ts, exit_ts, tf_code):
+        calls.append((symbol, tf_code))
+        if symbol.startswith("O:"):
+            return contract_bars(entry_ts, exit_ts)
+        return (underlying_bars or (lambda a, b: []))(entry_ts, exit_ts)
+
+    fetch.calls = calls
+    return fetch
+
+
+_STRAT = {
+    "id": "sc1", "user_id": "u1", "underlying": "CRWV",
+    "entry_date": "2026-01-05T09:30:00+00:00",
+    "closed_at": "2026-01-08T15:00:00+00:00",
+}
+_LEG_LONG_CALL = {
+    "side": "buy", "contract_type": "call", "strike": 90.0,
+    "expiration": "2026-02-20", "qty": 2, "entry_price": 2.00,
+    "exit_price": 3.50,
+}
+
+
+def test_single_leg_contract_tier_long_call():
+    conn = _conn()
+    fetch = _contract_fetch(lambda e, x: [
+        {"t": e, "h": 2.20, "l": 1.50},
+        {"t": (e + x) // 2, "h": 4.00, "l": 2.80},   # premium peak
+        {"t": x, "h": 3.60, "l": 3.10},
+    ])
+    result = compute_for_option_strategy(_STRAT, [_LEG_LONG_CALL],
+                                         bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "option_daily"
+    assert result["bar_resolution"] == "D"
+    assert result["symbol"] == "CRWV"
+    # the fetch was asked for the CONTRACT, daily tier
+    assert fetch.calls[0] == ("O:CRWV260220C00090000", "D")
+    assert result["mfe_price"] == 4.00
+    assert result["mae_price"] == 1.50
+    # no stop => stop-based Rs stay None; premium-based ratios compute
+    assert result["mfe_r"] is None and result["mae_r"] is None
+    assert abs(result["exit_efficiency"] - 0.75) < 1e-9   # (3.5-2)/(4-2)
+    assert abs(result["true_r"] - 3.0) < 1e-9             # (3.5-2)/(2-1.5)
+
+
+def test_single_leg_contract_tier_sold_leg_is_short():
+    conn = _conn()
+    leg = dict(_LEG_LONG_CALL, side="sell", contract_type="put",
+               entry_price=1.00, exit_price=0.30)
+    fetch = _contract_fetch(lambda e, x: [
+        {"t": e, "h": 1.40, "l": 0.90},    # adverse extreme (max high)
+        {"t": x, "h": 0.50, "l": 0.10},    # favorable extreme (min low)
+    ])
+    result = compute_for_option_strategy(_STRAT, [leg], bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "option_daily"
+    assert result["mfe_price"] == 0.10   # favorable = premium DOWN for a sold leg
+    assert result["mae_price"] == 1.40
+    assert abs(result["true_r"] - (1.00 - 0.30) / (1.40 - 1.00)) < 1e-9
+
+
+def test_single_leg_exit_derived_from_net_exit():
+    conn = _conn()
+    leg = dict(_LEG_LONG_CALL, exit_price=None)
+    strat = dict(_STRAT, net_exit=700.0)   # 1 * qty(2) * 3.50 * 100
+    fetch = _contract_fetch(lambda e, x: [
+        {"t": e, "h": 2.20, "l": 1.50},
+        {"t": x, "h": 4.00, "l": 2.80},
+    ])
+    result = compute_for_option_strategy(strat, [leg], bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "option_daily"
+    assert abs(result["exit_efficiency"] - 0.75) < 1e-9   # exit_ps resolved to 3.50
+
+
+def test_contract_bars_missing_falls_back_to_underlying():
+    conn = _conn()
+    fetch = _contract_fetch(
+        lambda e, x: [],                                     # no O: aggs
+        lambda e, x: [{"t": e, "h": 205.0, "l": 198.0},
+                      {"t": x, "h": 240.0, "l": 190.0}],
+    )
+    result = compute_for_option_strategy(_STRAT, [_LEG_LONG_CALL],
+                                         bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "underlying"
+    assert result["mfe_price"] == 240.0
+    # the contract WAS attempted first
+    assert fetch.calls[0][0].startswith("O:")
+
+
+def test_multi_leg_keeps_underlying_tier():
+    conn = _conn()
+    legs = [_LEG_LONG_CALL, dict(_LEG_LONG_CALL, side="sell", strike=100.0)]
+    fetch = _contract_fetch(
+        lambda e, x: [{"t": e, "h": 9.0, "l": 1.0}],
+        lambda e, x: [{"t": e, "h": 205.0, "l": 198.0},
+                      {"t": x, "h": 240.0, "l": 190.0}],
+    )
+    result = compute_for_option_strategy(_STRAT, legs, bar_fetch=fetch, conn=conn)
+    assert result["data_quality"] == "underlying"
+    # multi-leg never even asks for a contract
+    assert all(not s.startswith("O:") for s, _tf in fetch.calls)

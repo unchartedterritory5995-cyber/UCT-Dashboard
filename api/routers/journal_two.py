@@ -1810,6 +1810,32 @@ def get_analytics_route(
     )
 
 
+@router.get("/strategies/{strategy_id}/excursion")
+def get_strategy_excursion_route(
+    strategy_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any] | None:
+    """The stored excursion for one option strategy (trade_ref =
+    id:<strategy_id>), or null when none exists yet. Ownership-checked
+    against j2_option_strategies first (404 if not the caller's). The
+    contract tier (dataQuality='option_daily') carries real exit
+    efficiency + true R on the premium; 'underlying' rows carry raw
+    underlying extremes only."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.excursions_store import get_excursion
+    conn = get_connection()
+    try:
+        owned = conn.execute(
+            "SELECT 1 FROM j2_option_strategies WHERE id = ? AND user_id = ?",
+            (strategy_id, user["id"]),
+        ).fetchone()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Not found")
+        return get_excursion(user["id"], f"id:{strategy_id}", conn)
+    finally:
+        conn.close()
+
+
 @router.get("/tax-report")
 def get_tax_report_route(
     year: int,

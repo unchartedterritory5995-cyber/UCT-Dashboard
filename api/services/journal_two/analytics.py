@@ -1251,7 +1251,8 @@ def _exit_quality_section(
     # equity refs never match an option strategy's id:<strategy_id> excursion.
     options_excluded = sum(
         1 for s in (strategies or [])
-        if (excursions_map.get(f"id:{s['id']}") or {}).get("dataQuality") == "underlying"
+        if (excursions_map.get(f"id:{s['id']}") or {}).get("dataQuality")
+        in ("underlying", "option_daily")
     )
 
     computed = [exc for _row, exc in computed_pairs]

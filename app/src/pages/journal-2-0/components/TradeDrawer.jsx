@@ -10,6 +10,7 @@
  */
 
 import { useEffect } from 'react'
+import useMobileSWR from '../../../hooks/useMobileSWR'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
@@ -18,9 +19,24 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
 
+const _excFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => {
+    if (!r.ok) throw new Error(`${r.status}`)
+    return r.json()
+  })
+
 export default function TradeDrawer({ trade, accountId, onClose }) {
   const isPhone = useIsPhone()
   const isPaid = useIsPaid()
+  // Option strategies: their excursion keys on id:<strategy id> and is served
+  // by /strategies/{id}/excursion. Contract tier only ('option_daily') gets
+  // surfaced — 'underlying'/'insufficient' rows add nothing to this compact
+  // drawer, so those render exactly as before.
+  const { data: optExcursion } = useMobileSWR(
+    trade?.isOption && trade?.id ? `/api/j2/strategies/${trade.id}/excursion` : null,
+    _excFetcher,
+    { revalidateOnFocus: false, refreshInterval: 0 },
+  )
   const {
     review, isLoading: reviewLoading,
     generate: generateReview,
@@ -144,6 +160,28 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               )],
               ['P&L %', percent(trade.pnlPercent, { signed: true, dp: 2 })],
               ['R', fmtR(trade.rMultiple)],
+              // Contract-tier excursion (premium-based) — options only.
+              ...(optExcursion?.dataQuality === 'option_daily' ? [
+                ['Exit efficiency', (
+                  <span title="Captured premium move ÷ best premium move (contract daily bars)">
+                    {optExcursion.exitEfficiency == null
+                      ? '—'
+                      : percent(optExcursion.exitEfficiency, { isRatio: true })}
+                  </span>
+                )],
+                ['True R', (
+                  optExcursion.trueR == null ? (
+                    <span title="Never traded against your entry — no adverse premium move to measure risk by">—</span>
+                  ) : (
+                    <span
+                      title="P&L measured against the premium's actual worst drawdown — no stop required"
+                      style={{ color: optExcursion.trueR > 0 ? '#22c55e' : optExcursion.trueR < 0 ? '#ef4444' : 'inherit' }}
+                    >
+                      {`${optExcursion.trueR >= 0 ? '+' : ''}${optExcursion.trueR.toFixed(2)}R`}
+                    </span>
+                  )
+                )],
+              ] : []),
             ].map(([label, val]) => (
               <div key={label}>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>
