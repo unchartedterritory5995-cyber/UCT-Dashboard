@@ -1,25 +1,11 @@
 """THE SURFACE E-2's ``join_clause`` REACHES (E4-A5, controller resolution 7).
 
-E-2 shipped ``scan_store.join_clause`` as ``(sql_fragment, params)`` and no
-wiring, and named the three candidates: a ``filters.FILTERS`` entry, a new filter
-TYPE inside ``query.run_scan``, or its own endpoint. E-4 takes the third, and the
-reasons are recorded here rather than in a plan nobody re-reads:
-
-  * ``filters.FILTERS`` entries are COLUMN-SHAPED — ``column_for`` maps a filter
-    name to a ``screener_rows`` column and ``is_valid_op`` gates the operator. A
-    ``def_hash`` is not a column and a scan membership is not an operator, so it
-    would have to arrive as a special case inside a table whose whole safety
-    property is that it has none.
-  * a new filter TYPE in ``query.run_scan`` composes with the existing eight
-    indexes and would be the cheapest place to put it — but it makes the scan
-    lane and the screener lane ONE request path, and the two have different
-    freshness stories (a scan receipt is a NIGHTLY artifact with its own
-    ``as_of``; a screener query answers off whatever the snapshot holds now).
-    Blending them means a member cannot tell which answer they are reading.
-  * its own endpoint is the clearest boundary and the honest one: the answer to
-    "which symbols did MY formula hit" is a set of symbols plus the RECEIPT that
-    says how much of the universe was actually looked at. That receipt has no
-    home in ``filters``.
+E4-A5 RESOLVED BY WAVE 4: the scan join IS a ``query.run_scan`` filter branch
+now (``{key:'scan'}``). The freshness objection this header used to record is
+answered by disclosure — ``run_scan`` reports each joined hash's own ``as_of``
+in ``scan_joins``, and the chip renders it, so the nightly-artifact and
+live-snapshot stories stay distinguishable in one response. This route remains
+the definition-DETAIL door (full receipt + hit list for a chosen session).
 
 ⛔ NO SQL IS BUILT FROM A CLIENT STRING. The ``def_hash`` a caller supplies leaves
 this module only as a BOUND PARAMETER, inside the fragment ``scan_store`` returns

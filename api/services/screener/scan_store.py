@@ -454,8 +454,10 @@ def join_clause(def_hash: str, tf: Any, as_of: Any) -> tuple:
 
     ⛔ A FRAGMENT, NOT A WIRING. Whether a scan reaches the screener as a
     ``filters.FILTERS`` entry, as a new filter TYPE inside ``query.run_scan``, or
-    as its own endpoint is E-4's decision (E4-A5, controller resolution 7), and
-    E-2 is dark — no route, no writer, no caller.
+    as its own endpoint was E-4's decision (E4-A5, controller resolution 7).
+    E-4 (Wave 4) wired it: ``query.build_where``'s scan branch and
+    ``scan_results._hit_tickers`` are the two callers, both binding the
+    fragment's params verbatim.
 
     ⛔ WHAT E-2 OWES IS THAT WHATEVER TAKES IT CANNOT BUILD SQL FROM A CLIENT
     STRING. ``filters.column_for`` and ``filters.is_valid_op`` gate every existing
