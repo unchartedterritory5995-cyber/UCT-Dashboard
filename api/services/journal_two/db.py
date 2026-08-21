@@ -697,27 +697,6 @@ CREATE TABLE IF NOT EXISTS j2_broker_digest_dedup (
     et_day       TEXT NOT NULL
 );
 
--- True Risk Engine (excursions.py): per-closed-trade MAE/MFE computed from
--- OUR OWN bars (the market-data moat journal competitors lack). Gives every
--- broker-imported trade a real risk profile even when the member never set a
--- stop: True R = P&L / |max adverse excursion|, efficiency = share of the
--- best available move actually captured. Side table (recompute-safe, no wide
--- j2_trades migration); one row per trade, upserted.
-CREATE TABLE IF NOT EXISTS j2_trade_excursions (
-    trade_id       TEXT PRIMARY KEY,
-    user_id        TEXT NOT NULL,
-    mae_dollar     REAL,
-    mae_pct        REAL,
-    mfe_dollar     REAL,
-    mfe_pct        REAL,
-    efficiency_pct REAL,
-    true_r         REAL,
-    bars_tf        TEXT,
-    computed_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_j2_trade_excursions_user
-    ON j2_trade_excursions(user_id);
-
 -- Settlement pin for option holdings (broker/option_reconstruct.py): while a
 -- sale's activity is pending delivery (ledger > held), SnapTrade's fleet can
 -- serve DIFFERENT held counts sync to sync (measured 8/21: BA 3 and 5 all

@@ -727,23 +727,6 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return []
 
 
-def get_minute_agg(symbol: str, from_date: str, to_date: str, *,
-                   multiplier: int = 5, map_symbol: bool = True) -> list[dict]:
-    """Intraday minute bars (v2 aggs). Same conventions as get_daily_agg;
-    unadjusted point-in-time prices. Used by the True Risk Engine for
-    same-day trade excursions."""
-    try:
-        client = _get_client()
-        sym = to_polygon_symbol(symbol) if map_symbol else symbol
-        url = (
-            f"{_REST_BASE}/v2/aggs/ticker/{sym}/range/{int(multiplier)}/minute/"
-            f"{from_date}/{to_date}?adjusted=false&sort=asc&limit=50000&apiKey={client._api_key}"
-        )
-        return client._get(url).get("results") or []
-    except Exception:
-        return []
-
-
 def get_option_snapshot(underlying: str, occ: str) -> dict | None:
     """Real-time snapshot for ONE option contract (v3) — last NBBO quote
     (midpoint = the mark brokers display), last trade, today's session OHLC

@@ -16,7 +16,6 @@ import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import UIcon from '../../../components/ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
-import useJ2TradeExcursions from '../hooks/useJ2TradeExcursions'
 import { useIsPaid } from '../../../context/AuthContext'
 
 export default function TradeDrawer({ trade, accountId, onClose }) {
@@ -47,10 +46,6 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
   if (!trade) return null
 
   const net = trade.pnlDollarNet ?? trade.pnlDollar
-  // True Risk Engine: MAE/MFE replayed from our own bars — a broker-imported
-  // trade with no stop still shows the risk it ACTUALLY took.
-  const { excursions } = useJ2TradeExcursions()
-  const exc = excursions?.[trade.id]
   const isWin = (net ?? 0) > 0
   const isLoss = (net ?? 0) < 0
 
@@ -149,20 +144,6 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               )],
               ['P&L %', percent(trade.pnlPercent, { signed: true, dp: 2 })],
               ['R', fmtR(trade.rMultiple)],
-              ...(exc ? [
-                ['Max Drawdown (MAE)', (
-                  <span style={{ color: '#ef4444' }}>
-                    {moneySigned(exc.maeDollar)}{exc.maePct != null ? ` (${exc.maePct.toFixed(1)}%)` : ''}
-                  </span>
-                )],
-                ['Max Favorable (MFE)', (
-                  <span style={{ color: '#22c55e' }}>
-                    {moneySigned(exc.mfeDollar)}{exc.mfePct != null ? ` (+${exc.mfePct.toFixed(1)}%)` : ''}
-                  </span>
-                )],
-                ['Captured', exc.efficiencyPct != null ? `${exc.efficiencyPct.toFixed(0)}% of best exit` : '—'],
-                ['True R (vs risk taken)', exc.trueR != null ? fmtR(exc.trueR) : '—'],
-              ] : []),
             ].map(([label, val]) => (
               <div key={label}>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>
