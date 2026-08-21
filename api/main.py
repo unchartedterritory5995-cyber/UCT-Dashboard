@@ -1278,6 +1278,71 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True)
 
+    # -- Wave 2 nightly source jobs: finviz universe, earnings dates, insider
+    # capture, analyst pass. Each wraps its runner in try/except and logs the
+    # RECEIPT dict on success -- Task 14's verification greps this line, and
+    # the artifact is what it trusts. Three of the four default ON in code
+    # (mirroring `screener_snapshot_nightly`'s own env-gate style above); the
+    # analyst pass defaults OFF -- the scan-sweep precedent for a
+    # budget-spending job. `analyst_pass.enabled()` documents the Railway
+    # divergence (set to 1 at ship) at its own read site.
+    log = logging.getLogger(__name__)
+    from api.services.screener import (
+        finviz_universe, earnings_dates, insider_capture, analyst_pass,
+    )
+
+    def _run_finviz_universe():
+        try:
+            receipt = finviz_universe.run_pull()
+            log.info("[screener] %s receipt: %s", "screener_finviz_universe", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener finviz universe error: {e}")
+
+    if os.environ.get("SCREENER_FINVIZ_ENABLED", "1") == "1":
+        scheduler.add_job(
+            _run_finviz_universe,
+            trigger=CronTrigger(hour=2, minute=45, timezone=_ET),
+            id="screener_finviz_universe", max_instances=1, replace_existing=True)
+
+    def _run_earnings_dates():
+        try:
+            receipt = earnings_dates.run_pull()
+            log.info("[screener] %s receipt: %s", "screener_earnings_dates", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener earnings dates error: {e}")
+
+    if os.environ.get("SCREENER_EDATES_ENABLED", "1") == "1":
+        scheduler.add_job(
+            _run_earnings_dates,
+            trigger=CronTrigger(hour=2, minute=50, timezone=_ET),
+            id="screener_earnings_dates", max_instances=1, replace_existing=True)
+
+    def _run_insider_capture():
+        try:
+            receipt = insider_capture.run_capture()
+            log.info("[screener] %s receipt: %s", "screener_insider_capture", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener insider capture error: {e}")
+
+    if os.environ.get("SCREENER_INSIDER_ENABLED", "1") == "1":
+        scheduler.add_job(
+            _run_insider_capture,
+            trigger=CronTrigger(hour=2, minute=40, timezone=_ET),
+            id="screener_insider_capture", max_instances=1, replace_existing=True)
+
+    def _run_analyst_pass():
+        try:
+            receipt = analyst_pass.run_pass()
+            log.info("[screener] %s receipt: %s", "screener_analyst_pass", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener analyst pass error: {e}")
+
+    if analyst_pass.enabled():
+        scheduler.add_job(
+            _run_analyst_pass,
+            trigger=CronTrigger(hour=2, minute=0, timezone=_ET),
+            id="screener_analyst_pass", max_instances=1, replace_existing=True)
+
     start_screener_snapshot_warm()
     return True
 
