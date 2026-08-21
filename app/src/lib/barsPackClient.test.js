@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest'
-import { decodeShardPayload, _shardIdx } from './barsPackClient'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock the prefetch queue so the eager hot-set warm can be asserted without a
+// network or IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference
+// the spy safely.
+const { prefetchBarsToIDB } = vi.hoisted(() => ({ prefetchBarsToIDB: vi.fn() }))
+vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB }))
+
+import { decodeShardPayload, _shardIdx, _warmHotSetForNewUser, HOT_TICKERS } from './barsPackClient'
 
 // The decode must round-trip the SERVER columnar encoding back to the exact
 // [{t,o,h,l,c,v}] rows idbImportPack stores. This mirrors the Python builder's
@@ -47,5 +54,34 @@ describe('decodeShardPayload', () => {
     const obj = { tickers: { M1: { M: columnar(one) }, D1: { D: columnar(one) } } }
     const entries = decodeShardPayload(obj)
     expect(entries.map(e => `${e.sym}:${e.tf}`).sort()).toEqual(['D1:D', 'M1:M'])
+  })
+})
+
+describe('_warmHotSetForNewUser (cold-start bridge)', () => {
+  beforeEach(() => {
+    prefetchBarsToIDB.mockClear()
+    try { localStorage.clear() } catch { /* ignore */ }
+  })
+
+  it('warms the hot set (daily first, then 5m/60m) when no pack is stamped', () => {
+    _warmHotSetForNewUser()
+    // Daily, at the front of the queue, is the first call.
+    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, 'D', { priority: true })
+    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, '5')
+    expect(prefetchBarsToIDB).toHaveBeenCalledWith(HOT_TICKERS, '60')
+    expect(prefetchBarsToIDB.mock.calls[0]).toEqual([HOT_TICKERS, 'D', { priority: true }])
+  })
+
+  it('is a NO-OP for a returning user who already ingested a pack', () => {
+    localStorage.setItem('barspack.version', '2026-08-21')
+    _warmHotSetForNewUser()
+    expect(prefetchBarsToIDB).not.toHaveBeenCalled()
+  })
+
+  it('hot set is a lean, unique, non-empty first-open list', () => {
+    expect(HOT_TICKERS.length).toBeGreaterThan(10)
+    expect(HOT_TICKERS.length).toBeLessThanOrEqual(60)          // stays a cheap warm, not the universe
+    expect(new Set(HOT_TICKERS).size).toBe(HOT_TICKERS.length)  // no dupes → no wasted jobs
+    expect(HOT_TICKERS).toContain('SPY')
   })
 })
