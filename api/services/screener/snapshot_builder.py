@@ -33,7 +33,7 @@ import logging
 import os
 import time
 
-from . import snapshot_db, candles, technicals, patterns, enrich
+from . import snapshot_db, candles, technicals, patterns, enrich, setup_score, context_joins
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def rs_fields(rs_row) -> dict:
 
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
-              bulk_row=None, spy_closes=None) -> dict:
+              bulk_row=None, spy_closes=None, context_row=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -85,6 +85,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     is the rail that keeps it that way. In particular it does not carry
     ``market_cap`` (Massive owns that column) — so unlike the RS pair there is
     no ordering question to get right here, and none is implied.
+
+    ``context_row`` is one ticker's merge of the four ``context_joins`` readers
+    (breadth/uct20/index/etf) — classification flags, disjoint from every other
+    source by construction (each reader owns its own columns; see the module
+    docstring). Merged BEFORE ``rs_fields``, which stays last/authoritative.
     """
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
@@ -93,7 +98,7 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # either (see its docstring) — this ordering is the belt to that braces, so
     # the day somebody re-adds them there the rank still comes from one place.
     for src in (fundamentals or {}, bulk_row or {}, ratings_row or {},
-                rs_fields(rs_row)):
+                context_row or {}, rs_fields(rs_row)):
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
@@ -122,6 +127,7 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         row.update(technicals.ath_fields(bars_full))
         row.update(candles.single_candle(bars))
         row.update(candles.multi_candle(bars))
+        row.update(setup_score.compute(bars, pole_pct=row.get("pole_pct")))
         keys, conf = patterns.detect_patterns(bars)
         row["patterns"] = keys or None
         row["pattern_conf_max"] = conf or None
@@ -389,6 +395,13 @@ def run_build(max_tickers=None) -> dict:
     # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
     # the 71,370-row provider file is never materialised beyond our universe.
     bulk_map = _read_bulk_fundamentals(targets, failures=sources)
+    # ⭐ ONE read per build per context source (breadth/uct20/index/etf) — same
+    # shape as rs_map/bulk_map above, never a per-ticker call. See
+    # context_joins's module docstring for the disjoint-key-set contract.
+    breadth_map = context_joins.read_breadth_flags(targets, failures=sources)
+    uct20_map = context_joins.read_uct20(targets, failures=sources)
+    index_map = context_joins.read_index_flags(targets, failures=sources)
+    etf_map = context_joins.read_etf_flags(targets, failures=sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -414,10 +427,14 @@ def run_build(max_tickers=None) -> dict:
                 sources.setdefault("fmp_bulk", {})
                 sources["fmp_bulk"]["no_row"] = \
                     sources["fmp_bulk"].get("no_row", 0) + 1
+            T = t.upper()
+            context_row = {**breadth_map.get(T, {}), **uct20_map.get(T, {}),
+                           **index_map.get(T, {}), **etf_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
-                            rs_row, bulk_row, spy_closes=spy_closes)
+                            rs_row, bulk_row, spy_closes=spy_closes,
+                            context_row=context_row)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
