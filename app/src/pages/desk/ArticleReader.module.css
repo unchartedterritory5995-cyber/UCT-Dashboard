@@ -447,6 +447,9 @@
     break-inside: avoid;
   }
   :global(body.uct-print-article) .head { break-after: avoid; }
+  /* The masthead already says who we are — the on-screen eyebrow would say it
+     twice, one line apart. */
+  :global(body.uct-print-article) .eyebrow { display: none; }
 
   /* The masthead: brand line above the title, the full roster under the meta. */
   :global(body.uct-print-article) .printBrand {

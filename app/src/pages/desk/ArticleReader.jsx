@@ -463,13 +463,15 @@ export default function ArticleReader() {
           {data.published_at ? <span>{fmtDate(data.published_at)}</span> : null}
           {data.reading_minutes ? <span>{data.reading_minutes} min read</span> : null}
           {data.image_count ? <span>{data.image_count} charts</span> : null}
-          <ReadAloudButton
-            trackId={readTrackId}
-            label={data.title}
-            textProvider={() => (bodyRef.current?.textContent || '').replace(/\s+/g, ' ').trim()}
-          >
-            Listen
-          </ReadAloudButton>
+          <span data-export-exclude>
+            <ReadAloudButton
+              trackId={readTrackId}
+              label={data.title}
+              textProvider={() => (bodyRef.current?.textContent || '').replace(/\s+/g, ' ').trim()}
+            >
+              Listen
+            </ReadAloudButton>
+          </span>
         </div>
         {/* The nickschmidt.so trio — roster → clipboard, roster → watchlist,
             article → PDF. Excluded from the PDF they produce. */}
