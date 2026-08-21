@@ -59,7 +59,13 @@ def read_last_report_move(targets, failures=None):
     A symbol with no print at all (never reported since the wire started
     capturing, ~2026-07-30) gets no key — absent is the honest answer here,
     not 0.0. A row whose `peak_move_pct` is NULL is likewise skipped, never
-    coerced to 0.0.
+    coerced to 0.0. A row whose `peak_move_pct` is exactly 0.0 is ALSO
+    skipped: `wire/detect.py` floors `live_peak` to 0.0 whenever the move is
+    under `MIN_MOVE_PCT` (2%), the symbol is illiquid, or there is no price
+    data at all — three different facts collapsed into one sentinel, and
+    `new_peak = max(prior_peak, live_peak)` means a stored 0.0 says every
+    tick for that print stayed under one of those gates. Passing it through
+    would present an ambiguous floor as a precise "flat" reading.
     """
     try:
         from api.services.wire import store as wire_store
@@ -79,7 +85,9 @@ def read_last_report_move(targets, failures=None):
     for r in rows:
         sym = (r["sym"] or "").upper()
         pct = r["peak_move_pct"]
-        if sym and pct is not None:
+        # 0.0 is detect.py's MIN_MOVE_PCT/liquidity/no-data FLOOR, not a
+        # measured flat -- three facts in one sentinel stay not-computable
+        if sym and pct is not None and pct != 0.0:
             moves[sym] = float(pct)
 
     out = {}

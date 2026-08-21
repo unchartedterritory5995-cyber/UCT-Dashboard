@@ -67,6 +67,23 @@ def test_last_report_move_null_peak_stays_not_computable(monkeypatch):
     assert out == {}
 
 
+def test_last_report_move_zero_floor_stays_not_computable(monkeypatch):
+    """0.0 is detect.py's MIN_MOVE_PCT/liquidity/no-data FLOOR (live_peak =
+    abs(mv) if (mv is not None and moved) else 0.0, moved requiring >=2% AND
+    liquidity), never a measured flat -- three facts in one sentinel must stay
+    not-computable. A genuine non-floor move (2.4, above MIN_MOVE_PCT) still
+    passes through untouched."""
+    from api.services.wire import store as wire_store
+    conn = _wire_conn()
+    conn.execute("INSERT INTO wire_prints VALUES ('2026-08-01','META',0.0,2000.0)")
+    conn.execute("INSERT INTO wire_prints VALUES ('2026-08-01','AAPL',2.4,2000.0)")
+    conn.commit()
+    monkeypatch.setattr(wire_store, "_connect", lambda: conn)
+    out = earnings_context.read_last_report_move(["META", "AAPL"])
+    assert "META" not in out  # the floor sentinel -- not a measured 0% move
+    assert out["AAPL"] == {"last_report_move_pct": 2.4}
+
+
 # ── read_implied_context — implied_store's public reads + its _connect seam ─
 
 def _grade_conn():
