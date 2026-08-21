@@ -174,8 +174,18 @@ def _read_spy_closes():
     definition; date-alignment would be a definition CHANGE and belongs to
     the owner.
     """
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars("SPY", "D", 60) or []
+    # Guarded like every other reader in this file: a dead/uninitialized
+    # bars store must cost only rs_line_trend, never the whole build. The
+    # caller already treats an empty result as a countable miss
+    # (`sources["spy_bars"]["none"]`) — that path has to be reachable
+    # without an exception ever getting there first.
+    try:
+        from api.services import bars_sqlite
+        rows = bars_sqlite.get_bars("SPY", "D", 60) or []
+    except Exception:
+        log.warning("[screener] SPY bars unavailable; rs_line_trend will be "
+                    "NULL for this build", exc_info=True)
+        return []
     return [r[4] for r in rows if r[4] is not None]
 
 
@@ -216,6 +226,11 @@ def _read_fundamentals(ticker, price=None, failures=None):
             out["sector"] = meta["sector"]
         else:
             _note("ticker_meta", "none")
+        if meta.get("theme"):
+            out["theme"] = meta["theme"]
+        # no miss-note for theme: most of the universe is outside the UCT
+        # taxonomy, so a None theme is the NORMAL case — counting it would
+        # flood the census with noise that buries real provider misses
     except Exception as e:
         _note("ticker_meta", e)
     try:
