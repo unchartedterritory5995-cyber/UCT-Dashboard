@@ -185,14 +185,14 @@ function MonthCardActions({ year, month, days, totals }) {
     <div className={styles.monthCardRow}>
       <button type="button" className={styles.monthCardBtn} disabled={busy}
         onClick={() => run((b) => downloadBlob(b, `month-${year}-${String(month).padStart(2, '0')}.png`))}>
-        Save month image
+        Save image
       </button>
       <button type="button" className={styles.monthCardBtn} disabled={busy}
         onClick={() => run(async (b) => {
           const ok = await copyBlobToClipboard(b)
           if (!ok) setErr('Copy isn’t supported in this browser — use Save.')
         })}>
-        Copy month image
+        Copy image
       </button>
       {err && <span className={styles.monthCardErr} role="alert">{err}</span>}
     </div>
