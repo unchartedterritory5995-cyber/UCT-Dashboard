@@ -28,9 +28,18 @@ def store(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def audit(store):
+def audit(store, monkeypatch):
     from api.services import desk_article_audit as a
     importlib.reload(a)
+    # Every seeded post carries tickers ["MU"], so a healthy archive REQUIRES a
+    # matching community watchlist — the fixture supplies one. Tests that probe
+    # the watchlist check override this with a mismatch / missing / raising read.
+    from api.services import watchlist_prebuilt as wp
+    from api.services import watchlist_service as wl
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: [
+        {"id": "wl-ss", "user_id": "admin", "name": wp.SUNDAY_SCANS_NAME,
+         "items": [{"sym": "MU"}]},
+    ])
     return a
 
 
@@ -131,6 +140,57 @@ def test_a_stalled_converter_bump_is_flagged(store, audit):
     r = audit.audit_articles(now=NOW)
     assert r["stale_converter"] == 1
     assert any("older converter" in p for p in r["problems"])
+
+
+# ── the community watchlist is a downstream artifact of the newest issue ─────
+
+def _wl_rows(items):
+    from api.services import watchlist_prebuilt as wp
+    return [{"id": "wl-ss", "user_id": "admin", "name": wp.SUNDAY_SCANS_NAME,
+             "items": [{"sym": s} for s in items]}]
+
+
+def test_a_stale_community_watchlist_is_flagged_with_the_symbol_diff(store, audit, monkeypatch):
+    """The list still carrying LAST week's names under this week's letter is the
+    quiet failure the hourly sync could produce — the audit names the diff."""
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW - WEEK)
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["KO"]))
+    r = audit.audit_articles(now=NOW)
+    stale = [p for p in r["problems"] if "STALE" in p]
+    assert stale and "MU" in stale[0] and "KO" in stale[0]
+    # Control (non-vacuity): the same archive with a MATCHING list is silent.
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["MU"]))
+    r2 = audit.audit_articles(now=NOW)
+    assert not any("STALE" in p or "MISSING" in p for p in r2["problems"])
+    assert r2["sunday_scans_watchlist"] == {"listed": 1, "expected": 1}
+
+
+def test_a_missing_community_watchlist_is_flagged(store, audit, monkeypatch):
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW - WEEK)
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: [])
+    r = audit.audit_articles(now=NOW)
+    assert any("MISSING" in p for p in r["problems"])
+
+
+def test_a_fresh_issue_inside_the_grace_window_is_not_flagged(store, audit, monkeypatch):
+    """The sync is hourly; an issue minutes old with a not-yet-updated list is
+    NORMAL. Without the grace this fires every Sunday afternoon and gets muted."""
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW)
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["KO"]))
+    r = audit.audit_articles(now=NOW)
+    assert not any("STALE" in p or "MISSING" in p for p in r["problems"])
+
+
+def test_an_unreadable_watchlist_store_is_the_finding(store, audit, monkeypatch):
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW - WEEK)
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists",
+                        lambda n=500: (_ for _ in ()).throw(RuntimeError("auth.db locked")))
+    r = audit.audit_articles(now=NOW)
+    assert any("could not read" in p for p in r["problems"])
 
 
 # ── it must not take anything down ───────────────────────────────────────────

@@ -69,6 +69,7 @@ def audit_articles(*, now: float | None = None) -> dict:
         "stale_converter": 0,
         "days_since_newest_post": None,
         "newest_post": None,
+        "sunday_scans_watchlist": None,
     }
     if not rows:
         report["problems"].append("no articles at all — the poller has never stored one")
@@ -118,6 +119,51 @@ def audit_articles(*, now: float | None = None) -> dict:
         report["problems"].append(
             f"{len(stale)} article(s) still on an older converter — a version bump "
             "has not finished applying")
+
+    # The community watchlist is a downstream ARTIFACT of the newest issue: once
+    # the hourly sync has had its grace, the 'Sunday Scans' prebuilt list must
+    # hold exactly the newest roster. A stale list quietly publishes LAST week's
+    # names under this week's letter — precisely the fail-soft-looks-quiet shape
+    # this audit exists to catch. (The list name is DERIVED from the module that
+    # owns it, never restated here.)
+    try:
+        latest = desk_store.latest_post_with_tickers()
+    except Exception:  # noqa: BLE001 — an old schema without the column is not a finding
+        latest = None
+    if latest and (now - (latest.get("published_at") or 0)) > grace:
+        desired = {str(t).upper() for t in (latest.get("tickers") or []) if t}
+        if desired:
+            try:
+                from api.services import watchlist_prebuilt as wp
+                from api.services import watchlist_service as wl
+                nm = wp.SUNDAY_SCANS_NAME.strip().lower()
+                row = next((w for w in wl.list_prebuilt_watchlists(500)
+                            if (w.get("name") or "").strip().lower() == nm), None)
+                if row is None:
+                    report["problems"].append(
+                        f"the '{wp.SUNDAY_SCANS_NAME}' community watchlist is MISSING — "
+                        f"the newest issue ({latest.get('title')}) has a roster and no "
+                        "list carries it")
+                else:
+                    listed = {(i.get("sym") or "").upper() for i in (row.get("items") or [])}
+                    report["sunday_scans_watchlist"] = {
+                        "listed": len(listed), "expected": len(desired)}
+                    if listed != desired:
+                        missing = sorted(desired - listed)[:cap]
+                        extra = sorted(listed - desired)[:cap]
+                        detail = []
+                        if missing:
+                            detail.append("missing: " + ", ".join(missing))
+                        if extra:
+                            detail.append("not in the issue: " + ", ".join(extra))
+                        report["problems"].append(
+                            f"the '{wp.SUNDAY_SCANS_NAME}' community watchlist is STALE "
+                            f"vs the newest issue ({latest.get('title')}) — "
+                            + "; ".join(detail))
+            except Exception as e:  # noqa: BLE001 — an unreadable store IS the finding
+                report["problems"].append(
+                    "could not read the community watchlist store to verify the "
+                    f"Sunday Scans list: {str(e)[:120]}")
 
     for key in ("missing_bodies", "missing_from_index"):
         report[key] = report[key][:cap]
