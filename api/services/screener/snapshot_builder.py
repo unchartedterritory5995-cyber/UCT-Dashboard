@@ -174,9 +174,19 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # price. `analyst_pass.read_analyst_fields` deliberately does NOT emit
     # this — it has no price — so the builder is the one place `pt_target`
     # and `price` are both in hand (see that module's docstring).
-    if row.get("pt_target") is not None and row.get("price"):
-        row["pt_upside_pct"] = round(
-            (row["pt_target"] / row["price"] - 1) * 100, 2)
+    #
+    # ⚠️ FIX ROUND 1 (2026-08-22 review, Important 3): BOTH factors must be
+    # POSITIVE, not merely present — `pt_target=0.0, price=100` used to
+    # compute a confident `-100.0`, which is not "the analyst target implies
+    # a 100% decline", it is a target FMP never supplied (0.0 is
+    # `analyst_pass`'s own not-computable sentinel; see that module's
+    # `_fetch_pt_target`) mislabeled as a number. A non-positive price is
+    # equally not-computable — the ratio is undefined, not merely large.
+    pt_target = row.get("pt_target")
+    price = row.get("price")
+    if (pt_target is not None and price is not None
+            and pt_target > 0 and price > 0):
+        row["pt_upside_pct"] = round((pt_target / price - 1) * 100, 2)
     # Pure derivation, single writer: age from the profile-bulk listing date.
     if row.get("ipo_date"):
         try:
@@ -389,6 +399,38 @@ def _read_bulk_fundamentals(targets, failures=None):
         return {}
 
 
+def _read_market_source(label, reader, targets, failures=None) -> dict:
+    """Call one Wave 2 ``market_row`` reader, guarded at the CONSUMER SEAM.
+
+    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the six
+    Wave 2 readers already guards its OWN internal work — but
+    ``insider_capture.read_insider_fields`` calls ``_init_db()`` BEFORE its
+    own try/except (insider_capture.py:178, init at :83-94), so a dead store
+    (e.g. ``_connect`` raising) escaped the reader entirely and reached
+    ``run_build`` unguarded — and ``run_build`` called all six readers with
+    nothing catching that escape. Reproduced: monkeypatching
+    ``insider_capture._connect`` to raise crashed the ENTIRE nightly build
+    (zero rows), not just insider_cluster_days.
+
+    This mirrors ``_read_bulk_fundamentals``'s guard immediately above,
+    per-reader: a raise degrades to ``{}`` and is COUNTED under ``label`` in
+    the same ``failures``/``sources`` census every reader already reports
+    into — a dead source must be REPORTED, never silent, never fatal — and,
+    because each of the six calls is wrapped independently, one bad source
+    can never hide the other five.
+    """
+    try:
+        return reader(targets, failures=failures) or {}
+    except Exception as e:                                     # noqa: BLE001
+        if failures is not None:
+            failures.setdefault(label, {})
+            key = type(e).__name__
+            failures[label][key] = failures[label].get(key, 0) + 1
+        log.warning("[screener] %s unavailable; its market_row columns will "
+                    "be NULL this build", label, exc_info=True)
+        return {}
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 def _load_universe():
@@ -460,15 +502,25 @@ def run_build(max_tickers=None) -> dict:
     index_map = context_joins.read_index_flags(targets, failures=sources)
     etf_map = context_joins.read_etf_flags(targets, failures=sources)
     # ⭐ Six Wave 2 readers, ONE read per build each — same shape as the four
-    # context maps above, never a per-ticker call. See each reader's own
-    # module docstring for its honesty contract (absent key = not computable,
-    # never a fabricated value).
-    finviz_map = finviz_universe.read_finviz_fields(targets, failures=sources)
-    edates_map = earnings_dates.read_earnings_dates(targets, failures=sources)
-    lastmove_map = earnings_context.read_last_report_move(targets, failures=sources)
-    implied_map = earnings_context.read_implied_context(targets, failures=sources)
-    analyst_map = analyst_pass.read_analyst_fields(targets, failures=sources)
-    insider_map = insider_capture.read_insider_fields(targets, failures=sources)
+    # context maps above, never a per-ticker call. Each call is wrapped by
+    # `_read_market_source` (mirrors `_read_bulk_fundamentals` above): a dead
+    # source degrades to {} and is COUNTED, never allowed to raise out and
+    # take the whole build down with it (fix round 1, 2026-08-22 review —
+    # see that helper's docstring). See each reader's own module docstring
+    # for its honesty contract (absent key = not computable, never a
+    # fabricated value).
+    finviz_map = _read_market_source(
+        "finviz_universe", finviz_universe.read_finviz_fields, targets, sources)
+    edates_map = _read_market_source(
+        "earnings_dates", earnings_dates.read_earnings_dates, targets, sources)
+    lastmove_map = _read_market_source(
+        "wire_last_report_move", earnings_context.read_last_report_move, targets, sources)
+    implied_map = _read_market_source(
+        "earnings_context_implied", earnings_context.read_implied_context, targets, sources)
+    analyst_map = _read_market_source(
+        "analyst_pass", analyst_pass.read_analyst_fields, targets, sources)
+    insider_map = _read_market_source(
+        "insider_capture", insider_capture.read_insider_fields, targets, sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)

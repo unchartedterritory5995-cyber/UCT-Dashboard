@@ -288,12 +288,21 @@ def read_finviz_fields(targets, failures=None) -> dict:
     Artifact absent or short (< `_MIN_ROWS`) -> `_note(..., "missing")` ->
     `{}`. Artifact older than `_STALE_DAYS` -> served but counted
     (`_note(..., f"stale:{age_days}d")`).
+
+    ⚠️ FIX ROUND 1 (2026-08-22 review, Important 2): valid JSON that is not
+    an object (`null`, a bare list, ...) used to reach `payload.get("rows")`
+    unguarded and raise `AttributeError` — the sibling reader
+    `earnings_dates.read_earnings_dates` already guards this exact shape
+    (see its own `isinstance(blob, dict)` check); mirrored here.
     """
     path = _artifact_path()
     try:
         with open(path, "r", encoding="utf-8") as fh:
             payload = json.load(fh)
     except (OSError, ValueError):
+        _note(failures, "finviz_universe", "missing")
+        return {}
+    if not isinstance(payload, dict):
         _note(failures, "finviz_universe", "missing")
         return {}
 

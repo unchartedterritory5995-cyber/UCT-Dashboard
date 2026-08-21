@@ -555,6 +555,17 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     and used to be invisible. It found one on arrival: see `SHARED_BY_DESIGN`.
     """
     sets = _source_key_sets(monkeypatch, tmp_path)
+    # ⚠️ FIX ROUND 1 (2026-08-22 review, Minor 4): PINNED, mirroring the
+    # closedTable `==138`-manifest-pin idiom. Without this, deleting an entry
+    # from `_source_key_sets` shrinks the pairwise comparisons below and the
+    # rail stays green — "13 sources, zero overlaps" reads identically to
+    # "14 sources, zero overlaps" unless the count itself is asserted.
+    # Growing (or shrinking) the source list means bumping this number
+    # DELIBERATELY, in the same commit, never by accident.
+    assert len(sets) == 14, (
+        f"_source_key_sets returned {len(sets)} sources, expected 14 — a "
+        f"source was added or removed from the fixture; bump this pin "
+        f"deliberately")
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
         assert keys, f"{label} emitted no columns — the derivation is broken"
