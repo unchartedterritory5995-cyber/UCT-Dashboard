@@ -64,7 +64,7 @@ def rs_fields(rs_row) -> dict:
 
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
-              bulk_row=None) -> dict:
+              bulk_row=None, spy_closes=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -119,6 +119,9 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             vols = [b.get("v") or 0 for b in bars[-30:]]
             if vols:
                 row["avg_volume_30d"] = sum(vols) / len(vols)
+        if spy_closes:
+            closes = [b["c"] for b in bars]
+            row["rs_line_trend"] = technicals.rs_line_trend(closes, spy_closes)
         last_t = bars[-1].get("t")
         row["bars_asof"] = str(last_t) if last_t is not None else None
     row["snapshot_date"] = datetime.date.today().isoformat()
@@ -145,6 +148,20 @@ def _read_daily_bars(ticker):
         except Exception:
             continue
     return out
+
+
+def _read_spy_closes():
+    """The benchmark series for rs_line_trend — ONE read per build.
+
+    Alignment note: the trend zips the positional tails of both series,
+    exactly as the scanner did — a ticker with recent halts pairs slightly
+    offset sessions. Accepted deviation carried over from the ported
+    definition; date-alignment would be a definition CHANGE and belongs to
+    the owner.
+    """
+    from api.services import bars_sqlite
+    rows = bars_sqlite.get_bars("SPY", "D", 60) or []
+    return [r[4] for r in rows if r[4] is not None]
 
 
 def _read_fundamentals(ticker, price=None, failures=None):
@@ -336,6 +353,9 @@ def run_build(max_tickers=None) -> dict:
     populated = {c: 0 for c in snapshot_db.COLUMNS}
     sources: dict = {}
     rs_map = _read_rs_map()
+    spy_closes = _read_spy_closes()
+    if not spy_closes:
+        sources.setdefault("spy_bars", {})["none"] = 1
     # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
     # the 71,370-row provider file is never materialised beyond our universe.
     bulk_map = _read_bulk_fundamentals(targets, failures=sources)
@@ -367,7 +387,7 @@ def run_build(max_tickers=None) -> dict:
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
-                            rs_row, bulk_row)
+                            rs_row, bulk_row, spy_closes=spy_closes)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
