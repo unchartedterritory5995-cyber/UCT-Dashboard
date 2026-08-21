@@ -101,3 +101,66 @@ def backfill_all_accounts(user_id: str) -> dict[str, Any]:
         except Exception as e:  # per-account isolation — one bad replay
             out[acct] = {"error": str(e)}   # must not block the rest
     return out
+
+
+# Snapshot-sparseness gate for the automatic post-reconnect restore. Below
+# this many rows the account has effectively NO history (a healthy account
+# accrues one row per trading day); the backfill itself pushes the count far
+# past it, so the trigger self-disarms.
+SPARSE_SNAPSHOT_ROWS = 5
+MIN_ACTIVITIES = 20
+
+_inflight: set[str] = set()
+
+
+def maybe_backfill_after_initial_sync(user_id: str, broker_account: dict) -> bool:
+    """Fire the history backfill in the background ONCE per reconnect, when:
+    - SnapTrade reports the transaction backfill COMPLETE (the replay anchors
+      to current truth over the full ledger — running on a partial ledger
+      would write skewed values that INSERT OR IGNORE then makes sticky), and
+    - the snapshot table is still near-empty (post-wipe), and
+    - the account actually has history worth replaying.
+    Returns True when a backfill was started."""
+    if not broker_account.get("txInitialSyncCompleted"):
+        return False
+    j2_account_id = broker_account.get("j2AccountId")
+    broker_account_id = broker_account.get("id")
+    if not j2_account_id or not broker_account_id:
+        return False
+    if broker_account_id in _inflight:
+        return False
+    conn = get_connection()
+    try:
+        snaps = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_broker_equity_snapshots "
+            "WHERE user_id = ? AND broker_account_id = ?",
+            (user_id, broker_account_id),
+        ).fetchone()["n"]
+        if snaps >= SPARSE_SNAPSHOT_ROWS:
+            return False
+        acts = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_broker_activities "
+            "WHERE user_id = ? AND broker_account_id = ?",
+            (user_id, broker_account_id),
+        ).fetchone()["n"]
+        if acts < MIN_ACTIVITIES:
+            return False
+    finally:
+        conn.close()
+
+    import threading
+
+    _inflight.add(broker_account_id)
+
+    def _work():
+        try:
+            backfill_equity_snapshots(user_id, j2_account_id)
+        except Exception:
+            pass
+        finally:
+            _inflight.discard(broker_account_id)
+
+    # Background thread: the replay fetches daily bars for every ever-held
+    # symbol (minutes for an old account) and must never block a sync.
+    threading.Thread(target=_work, daemon=True).start()
+    return True

@@ -134,3 +134,70 @@ def test_route_is_mounted():
     paths = {r.path for r in router_mod.router.routes}
     assert "/api/j2/broker/backfill-history" in paths
     assert "/api/j2/broker/trust" in paths   # control sibling
+
+
+# ── automatic post-reconnect trigger ─────────────────────────────────────────
+
+def _seed_activities(n, user="u1"):
+    conn = auth_db.get_connection()
+    for i in range(n):
+        conn.execute(
+            "INSERT INTO j2_broker_activities (id, user_id, broker_account_id, "
+            "external_id, activity_type, occurred_at, raw_json, created_at) "
+            "VALUES (?, ?, 'bk1', ?, 'BUY', '2026-01-01', '{}', '2026-01-01')",
+            (f"a{i}", user, f"ext{i}"),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _ba(env, tx_done=True):
+    return {"id": "bk1", "j2AccountId": env["j2"], "txInitialSyncCompleted": tx_done}
+
+
+def _run_trigger_and_wait(env, monkeypatch, ba):
+    """Fire the trigger with the heavy backfill replaced by a recorder, and
+    wait for the background thread to land."""
+    import threading
+    done = threading.Event()
+    calls = []
+
+    def fake_backfill(uid, acct, conn=None):
+        calls.append((uid, acct))
+        done.set()
+        return {"written": 0}
+
+    monkeypatch.setattr(hb, "backfill_equity_snapshots", fake_backfill)
+    started = hb.maybe_backfill_after_initial_sync("u1", ba)
+    if started:
+        assert done.wait(5), "background backfill never ran"
+    return started, calls
+
+
+def test_auto_backfill_fires_once_the_initial_sync_completes(env, monkeypatch):
+    _seed_activities(30)
+    started, calls = _run_trigger_and_wait(env, monkeypatch, _ba(env))
+    assert started is True
+    assert calls == [("u1", env["j2"])]
+
+
+def test_auto_backfill_waits_for_the_full_ledger(env, monkeypatch):
+    """Running the replay on a PARTIAL ledger would write skewed values that
+    INSERT OR IGNORE then makes sticky — the tx-complete flag is the gate."""
+    _seed_activities(30)
+    started, calls = _run_trigger_and_wait(env, monkeypatch, _ba(env, tx_done=False))
+    assert started is False and calls == []
+
+
+def test_auto_backfill_self_disarms_when_history_exists(env, monkeypatch):
+    _seed_activities(30)
+    for i in range(6):
+        _seed_real_snapshot(f"2026-08-{10 + i:02d}", 1000.0 + i)
+    started, calls = _run_trigger_and_wait(env, monkeypatch, _ba(env))
+    assert started is False and calls == []
+
+
+def test_auto_backfill_skips_an_empty_account(env, monkeypatch):
+    _seed_activities(3)   # below MIN_ACTIVITIES
+    started, calls = _run_trigger_and_wait(env, monkeypatch, _ba(env))
+    assert started is False and calls == []

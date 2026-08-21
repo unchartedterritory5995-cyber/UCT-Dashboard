@@ -627,6 +627,30 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                 _optr.reconcile_option_holdings(user_id, ba, raw_option_holdings)
             except Exception:
                 pass  # best-effort; never break the core sync
+            # Mirror-drift sentinel: prove the journal now equals the broker
+            # payload THIS sync used (position/option/equity parity). The
+            # verdict persists for the Sync Trust panel and pages the owner on
+            # a structural miss or persistent drift — the automated stand-in
+            # for "the owner eyeballs every member's numbers". Never raises.
+            try:
+                from api.services.journal_two.broker import mirror_check as _mirror
+                summary["mirror"] = _mirror.run_mirror_check(
+                    user_id, ba, raw_positions, raw_option_holdings, broker_total,
+                )
+            except Exception:
+                pass
+            # One-shot history restore: a reconnect wipes the equity-snapshot
+            # history (derived ledgers are keyed on the re-minted broker
+            # account id). Once SnapTrade confirms the transaction backfill is
+            # complete and the snapshot table is still near-empty, rebuild it
+            # from the replay in the background. Self-disarming (backfill
+            # fills the table, the sparse gate stops passing) + idempotent
+            # (INSERT OR IGNORE; real sync rows always win).
+            try:
+                from api.services.journal_two.broker import history_backfill as _hb
+                _hb.maybe_backfill_after_initial_sync(user_id, ba)
+            except Exception:
+                pass
         except snap.SnapError as e:
             # Holdings/balances/positions refresh failed (rate-limit, transient,
             # unsupported broker). The activities import above already succeeded,
