@@ -28,6 +28,7 @@ check can actually see an unreachable block.
 """
 import ast
 import pathlib
+import threading
 import time
 
 import pytest
@@ -295,13 +296,21 @@ class _Recorder:
 def warm_env(monkeypatch):
     """Run the warm synchronously with no sleep, against fake screener modules."""
     rec = _Recorder()
-    state = {"rows": 0, "init": 0}
+    state = {"rows": 0, "init": 0, "init_threads": []}
 
     import sys
     import types
 
+    def _record_init():
+        # Records the executing thread's name, not just a count — that is what
+        # lets `test_the_warm_is_off_the_boot_path` prove init_db() ran on the
+        # BACKGROUND warm thread and never on the caller's (boot/registration)
+        # thread, which a bare count can't distinguish.
+        state["init"] += 1
+        state["init_threads"].append(threading.current_thread().name)
+
     db = types.ModuleType("api.services.screener.snapshot_db")
-    db.init_db = lambda: state.__setitem__("init", state["init"] + 1)
+    db.init_db = _record_init
     db.count_rows = lambda: state["rows"]
     monkeypatch.setitem(sys.modules, "api.services.screener.snapshot_db", db)
     monkeypatch.setitem(sys.modules, "api.services.screener.snapshot_builder", rec)
@@ -349,7 +358,7 @@ def test_the_warm_is_bounded_well_under_the_nightly_universe(warm_env, monkeypat
 
 
 def test_the_warm_is_off_the_boot_path(warm_env, monkeypatch):
-    """Registration must not block on the warm, nor on its delayed build.
+    """Registration must not block on the warm, nor run any of its I/O itself.
 
     The warm thread now DOES run an early, un-delayed schema migration right
     at thread start (see `test_the_warm_migrates_the_schema_before_the_delay_sleep`)
@@ -357,13 +366,24 @@ def test_the_warm_is_off_the_boot_path(warm_env, monkeypatch):
     scheduling-dependent check of `state["init"]` immediately after `.start()`
     is no longer a reliable proxy (a fast daemon thread can legitimately win
     the race against the calling thread's very next line). What must still
-    NEVER happen: the *registration call itself* blocking on any of it, or the
-    delayed, row-count-gated build running before the sleep elapses.
+    NEVER happen: the *registration call itself* — i.e. the CALLER's thread —
+    blocking on or running any of it, or the delayed, row-count-gated build
+    running before the sleep elapses.
+
+    🔴 THE RAIL a bare `elapsed < 5` + `rec.calls == []` pair does NOT catch: a
+    regressed `start_screener_snapshot_warm` that calls `snapshot_db.init_db()`
+    synchronously on the caller's thread *before* spawning the daemon thread —
+    that variant still returns fast (nothing sleeps on the caller's path) and
+    never touches `rec.calls`, so it passes both those assertions. The thread-
+    identity check below is what actually pins "off the boot path": every
+    recorded `init_db()` call must have run on some thread OTHER than the one
+    that called `start_screener_snapshot_warm()`.
     """
     rec, state = warm_env
     state["rows"] = 0
     monkeypatch.setenv("SCREENER_SNAPSHOT_WARM_DELAY_SECS", "30")
 
+    caller_thread_name = threading.current_thread().name
     started = time.perf_counter()
     t = m.start_screener_snapshot_warm()
     elapsed = time.perf_counter() - started
@@ -375,6 +395,22 @@ def test_the_warm_is_off_the_boot_path(warm_env, monkeypatch):
             f"is configured for the background thread, not the caller)"
         )
         assert rec.calls == [], "registration ran the build inline"
+
+        # Let the daemon thread run its early, un-delayed init_db() call (it
+        # runs before the 30s sleep, so this returns almost immediately — the
+        # thread itself stays alive, still sleeping, which is expected).
+        t.join(timeout=3)
+
+        assert state["init_threads"], (
+            "init_db() never ran at all within the join window — the warm "
+            "thread may be stuck or the early migration was removed"
+        )
+        assert caller_thread_name not in state["init_threads"], (
+            f"init_db() ran on the CALLER's thread ({caller_thread_name!r}) — "
+            f"the schema migration must happen on the background warm thread, "
+            f"never synchronously on the boot/registration path. Recorded "
+            f"init threads: {state['init_threads']!r}"
+        )
     finally:
         monkeypatch.setenv("SCREENER_SNAPSHOT_WARM_DELAY_SECS", "0")
 
