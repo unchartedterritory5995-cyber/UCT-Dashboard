@@ -380,6 +380,7 @@ def _holding_contract(h: dict) -> dict | None:
 
 _OPEN_BROKER_OPT_SQL = """
     SELECT s.id, s.external_id, s.underlying,
+           s.entry_date AS s_entry, s.created_at AS s_created,
            l.id AS leg_id, l.strike, l.expiration, l.contract_type,
            l.qty AS leg_qty, l.entry_price AS leg_entry, l.side AS leg_side
     FROM j2_option_strategies s
@@ -408,101 +409,196 @@ def reconcile_option_holdings(
     stable per-contract external_id."""
     j2_account_id = broker_account["j2AccountId"]
     broker_account_id = broker_account["id"]
+    if raw_option_holdings is None:
+        # The option-holdings FETCH failed — we cannot distinguish "closed at
+        # the broker" from "unknown". Never mutate open strategies on missing
+        # data; the next successful sync reconciles. (An EMPTY list is a
+        # successful fetch that truly reports no open contracts.)
+        return {"created": 0, "removed": 0, "valued": 0, "skipped": True}
     owned = conn is None
     conn = conn or get_connection()
     created = removed = valued = 0
+
+    def _is_carried(row) -> bool:
+        return str(row["external_id"] or "").startswith("bkoptpos:")
+
+    def _signed_qty(row) -> float:
+        q = abs(float(row["leg_qty"] or 0.0))
+        return q if row["leg_side"] == "buy" else -q
+
     try:
         conn.execute("BEGIN")
-        # Current held contracts → {key: contract w/ signed current_value}.
+        # Current held contracts → {key: contract w/ signed units}.
         held: dict[tuple, dict] = {}
         for h in (raw_option_holdings or []):
             c = _holding_contract(h)
             if c is None:
                 continue
-            c["current_value"] = round(c["units"] * c["mark"] * c["multiplier"], 2)
             held[(c["underlying"], c["strike"], c["expiration"], c["contractType"])] = c
 
+        # Group open broker strategies by contract key. Reconciliation is
+        # PER-CONTRACT-AGGREGATE, never per-row: the broker reports one held
+        # quantity per contract, while the ledger can legitimately hold several
+        # open lots of it. Comparing each lot to the held total individually
+        # made two lots of 3 each "agree" with a held 3 — and each was stamped
+        # the FULL held market value, double-counting the position in net-liq
+        # (the 2026-08-20 reconnect bug).
         rows = conn.execute(_OPEN_BROKER_OPT_SQL, (user_id, j2_account_id)).fetchall()
-        activity_keys: set[tuple] = set()
-        carried: list[tuple] = []  # (strategy_id, key)
+        by_key: dict[tuple, list] = {}
+        seen_strategy_ids: set = set()
         for r in rows:
+            if r["id"] in seen_strategy_ids:
+                continue  # defensive: one row per strategy (broker = single-leg)
+            seen_strategy_ids.add(r["id"])
             key = (r["underlying"], r["strike"], r["expiration"], r["contract_type"])
-            if str(r["external_id"] or "").startswith("bkoptpos:"):
-                carried.append((r["id"], key))
-            else:
-                activity_keys.add(key)
-        existing_carried_keys = {k for _, k in carried}
+            by_key.setdefault(key, []).append(r)
 
-        # CREATE carried-in opens for held contracts no strategy covers yet.
-        for key, c in held.items():
-            if key in activity_keys or key in existing_carried_keys:
-                continue
-            side = "buy" if c["units"] > 0 else "sell"
-            stype = _strategy_type(side, c["contractType"])
-            s = {
-                "underlying": c["underlying"], "strike": c["strike"],
-                "expiration": c["expiration"], "contractType": c["contractType"],
-                "side": side, "strategy_type": stype, "direction": _direction(stype),
-                "qty": abs(c["units"]), "entry_price": c["entry_price"],
-                "entry_date": _now_iso(),  # true open date unknown (no activity)
-                "entry_fee": 0.0, "exit_price": None, "closed_at": None, "status": "open",
-            }
-            ext = (f"bkoptpos:{broker_account_id}:{c['underlying']}:{c['strike']}:"
-                   f"{c['expiration']}:{c['contractType']}:{side}")
-            _insert_strategy(conn, user_id, j2_account_id, s, ext,
-                             multiplier=c["multiplier"])
-            created += 1
-
-        # REMOVE carried-in no longer held, or now covered by an activity strategy.
-        for sid, key in carried:
-            if key not in held or key in activity_keys:
-                conn.execute("DELETE FROM j2_option_legs WHERE strategy_id = ?", (sid,))
-                conn.execute("DELETE FROM j2_option_strategies WHERE id = ?", (sid,))
-                removed += 1
-
-        # REFRESH current market value for every open broker strategy still held,
-        # and CORRECT quantity to the broker's truth when activities diverged
-        # (holdings-as-truth — the broker's held qty wins, like equities).
         now = _now_iso()
-        for r in conn.execute(_OPEN_BROKER_OPT_SQL, (user_id, j2_account_id)).fetchall():
-            c = held.get((r["underlying"], r["strike"], r["expiration"], r["contract_type"]))
+
+        def _delete(row) -> None:
+            conn.execute("DELETE FROM j2_option_legs WHERE strategy_id = ?", (row["id"],))
+            conn.execute("DELETE FROM j2_option_strategies WHERE id = ?", (row["id"],))
+
+        def _stamp(row, cv) -> None:
+            conn.execute(
+                "UPDATE j2_option_strategies SET broker_current_value = ?, "
+                "broker_mark_synced_at = ?, updated_at = ? WHERE id = ?",
+                (round(cv, 2), now, now, row["id"]),
+            )
+
+        def _reseed(row, side, qty, entry, mult, mark, sign) -> None:
+            net_entry = round(sign * qty * (entry or 0.0) * mult, 2)
+            stype = _strategy_type(side, row["contract_type"])
+            conn.execute(
+                "UPDATE j2_option_legs SET side = ?, qty = ?, entry_price = ? "
+                "WHERE id = ?",
+                (side, qty, entry, row["leg_id"]),
+            )
+            conn.execute(
+                "UPDATE j2_option_strategies SET strategy_type = ?, direction = ?, "
+                "net_entry = ?, broker_current_value = ?, "
+                "broker_mark_synced_at = ?, updated_at = ? WHERE id = ?",
+                (stype, _direction(stype), net_entry,
+                 round(sign * qty * mark * mult, 2), now, now, row["id"]),
+            )
+
+        for key in set(by_key) | set(held):
+            c = held.get(key)
+            group = by_key.get(key, [])
             if c is None:
+                # Broker no longer holds this contract → these lots are closed
+                # at the broker (their closing activity may simply not have
+                # been delivered yet — SnapTrade transactions lag ~a day).
+                # Holdings-as-truth: remove the open rows, exactly as
+                # balances.reconcile_positions does for equities. When the
+                # closing activity lands, the reconstruction emits the real
+                # CLOSED strategy with the true exit.
+                for r in group:
+                    _delete(r)
+                    removed += 1
                 continue
-            held_qty = abs(c["units"])
-            sign = 1 if c["units"] > 0 else -1
+
+            held_units = float(c["units"])
+            held_qty = abs(held_units)
+            sign = 1 if held_units > 0 else -1
             held_side = "buy" if sign > 0 else "sell"
-            # `held` is keyed WITHOUT side, so a contract whose sign flipped
-            # (long → short via assignment) matches this row rather than
-            # creating a new one. Holdings-as-truth therefore has to correct
-            # SIDE here exactly as it corrects quantity — otherwise net_entry
-            # keeps its old debit sign while broker_current_value goes
-            # negative, and the row disagrees with itself on the member's P&L.
-            qty_diverges = abs((r["leg_qty"] or 0) - held_qty) > 1e-9
-            side_diverges = r["leg_side"] != held_side
-            if qty_diverges or side_diverges:
-                # Reseed from the broker holding (side + qty + entry).
-                entry = c["entry_price"] or r["leg_entry"] or 0.0
-                net_entry = round(sign * held_qty * entry * c["multiplier"], 2)
-                stype = _strategy_type(held_side, r["contract_type"])
-                conn.execute(
-                    "UPDATE j2_option_legs SET side = ?, qty = ?, entry_price = ? "
-                    "WHERE id = ?",
-                    (held_side, held_qty, entry, r["leg_id"]),
+            mark = c["mark"]
+            mult = c["multiplier"]
+            total_signed = sum(_signed_qty(r) for r in group)
+
+            if abs(total_signed - held_units) <= 1e-9:
+                # Aggregate agrees with the broker → refresh each lot's mark,
+                # valued at the LOT's OWN quantity (never the held total).
+                for r in group:
+                    _stamp(r, _signed_qty(r) * mark * mult)
+                    valued += 1
+                continue
+
+            matching = [r for r in group if r["leg_side"] == held_side]
+            excess = [r for r in group if r["leg_side"] != held_side]
+
+            if held_qty > 1e-9 and not matching and group:
+                # Sign flip (e.g. assignment): `held` is keyed without side, so
+                # a long → short flip matches the existing row. Reseed the
+                # newest row to the broker's side/qty/entry; remove the rest.
+                ordered = sorted(
+                    group,
+                    key=lambda r: (0 if _is_carried(r) else 1,
+                                   r["s_entry"] or "", r["s_created"] or ""),
+                    reverse=True,
                 )
-                conn.execute(
-                    "UPDATE j2_option_strategies SET strategy_type = ?, direction = ?, "
-                    "net_entry = ?, broker_current_value = ?, "
-                    "broker_mark_synced_at = ?, updated_at = ? WHERE id = ?",
-                    (stype, _direction(stype), net_entry, c["current_value"],
-                     now, now, r["id"]),
-                )
-            else:
-                conn.execute(
-                    "UPDATE j2_option_strategies SET broker_current_value = ?, "
-                    "broker_mark_synced_at = ?, updated_at = ? WHERE id = ?",
-                    (c["current_value"], now, now, r["id"]),
-                )
-            valued += 1
+                keep = ordered[0]
+                entry = c["entry_price"] or keep["leg_entry"] or 0.0
+                _reseed(keep, held_side, held_qty, entry, mult, mark, sign)
+                valued += 1
+                for r in ordered[1:]:
+                    _delete(r)
+                    removed += 1
+                continue
+
+            # Allocate the held quantity across matching lots NEWEST-first
+            # (brokers close FIFO — oldest lots consumed first — so the newest
+            # lots are the ones still open). Carried-in rows represent
+            # pre-history lots, i.e. the OLDEST, regardless of their stamped
+            # entry_date placeholder.
+            ordered = sorted(
+                matching,
+                key=lambda r: (0 if _is_carried(r) else 1,
+                               r["s_entry"] or "", r["s_created"] or ""),
+                reverse=True,
+            )
+            remaining = held_qty
+            kept_carried = None
+            for r in ordered:
+                q = abs(float(r["leg_qty"] or 0.0))
+                take = min(q, remaining)
+                remaining = round(remaining - take, 10)
+                if take <= 1e-9:
+                    _delete(r)
+                    removed += 1
+                    continue
+                if abs(take - q) > 1e-9:
+                    entry = r["leg_entry"] or c["entry_price"] or 0.0
+                    _reseed(r, held_side, take, entry, mult, mark, sign)
+                else:
+                    _stamp(r, sign * take * mark * mult)
+                valued += 1
+                if _is_carried(r):
+                    kept_carried = (r, take)
+            for r in excess:
+                _delete(r)
+                removed += 1
+            if remaining > 1e-9:
+                # Broker holds MORE than the ledger explains. Top up with a
+                # carried-in lot for the remainder only.
+                if kept_carried is not None:
+                    r, kept_qty = kept_carried
+                    entry = r["leg_entry"] or c["entry_price"] or 0.0
+                    _reseed(r, held_side, kept_qty + remaining, entry, mult, mark, sign)
+                else:
+                    stype = _strategy_type(held_side, c["contractType"])
+                    s = {
+                        "underlying": c["underlying"], "strike": c["strike"],
+                        "expiration": c["expiration"], "contractType": c["contractType"],
+                        "side": held_side, "strategy_type": stype,
+                        "direction": _direction(stype),
+                        "qty": remaining, "entry_price": c["entry_price"],
+                        "entry_date": _now_iso(),  # true open date unknown (no activity)
+                        "entry_fee": 0.0, "exit_price": None, "closed_at": None,
+                        "status": "open",
+                    }
+                    ext = (f"bkoptpos:{broker_account_id}:{c['underlying']}:{c['strike']}:"
+                           f"{c['expiration']}:{c['contractType']}:{held_side}")
+                    _insert_strategy(conn, user_id, j2_account_id, s, ext,
+                                     multiplier=mult)
+                    conn.execute(
+                        "UPDATE j2_option_strategies SET broker_current_value = ?, "
+                        "broker_mark_synced_at = ? "
+                        "WHERE user_id = ? AND external_id = ?",
+                        (round(sign * remaining * mark * mult, 2), now, user_id, ext),
+                    )
+                    created += 1
+                    valued += 1
         conn.commit()
     except Exception:
         conn.rollback()

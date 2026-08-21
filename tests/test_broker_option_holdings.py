@@ -225,3 +225,172 @@ def test_a_contract_no_longer_held_is_removed(env):
 
     assert out["removed"] == 1
     assert _open_rows() == []
+
+
+# ── 2026-08-20 reconnect bug · reconciliation is PER-CONTRACT-AGGREGATE ─────
+#
+# The ledger can hold several open LOTS of one contract (two real 3-lot buys;
+# a sell not yet delivered — SnapTrade transactions lag ~a day). The broker
+# reports ONE held quantity per contract. Comparing each lot to the held total
+# individually made two lots of 3 each "agree" with a held 3, and each was
+# stamped the FULL held market value — the account hero read $12,335.65
+# against Robinhood's $10,227.88.
+
+from api.services import auth_db as _adb
+
+
+def _insert_activity_lot(env, *, ext, qty, entry_price, entry_date,
+                         underlying="AAPL", strike=200.0,
+                         expiration="2026-06-19", contract_type="call",
+                         side="buy", user="u1"):
+    conn = _adb.get_connection()
+    try:
+        stype = oro._strategy_type(side, contract_type)
+        s = {
+            "underlying": underlying, "strike": strike, "expiration": expiration,
+            "contractType": contract_type, "side": side, "strategy_type": stype,
+            "direction": oro._direction(stype), "qty": qty,
+            "entry_price": entry_price, "entry_date": entry_date,
+            "entry_fee": 0.0, "exit_price": None, "closed_at": None,
+            "status": "open",
+        }
+        conn.execute("BEGIN")
+        oro._insert_strategy(conn, user, env["j2"], s, ext)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_two_lots_are_valued_at_their_own_qty_never_the_held_total(env):
+    """THE bug: lots 3 + 3, broker holds 3 -> the older lot is closed at the
+    broker (its sell just hasn't been delivered). One open strategy must
+    remain — the NEWEST (brokers close FIFO) — valued once at 3 x 7.00 x 100,
+    and the sum of brokerCurrentValue must equal the balances-sibling MV."""
+    _insert_activity_lot(env, ext="bkopt:older", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T16:15:08Z")
+    _insert_activity_lot(env, ext="bkopt:newer", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T19:01:49Z")
+    h = _holding(units=3, avg_purchase_price=1150.0, price=7.0)
+
+    out = oro.reconcile_option_holdings("u1", env["ba"], [h])
+
+    rows = _open_rows()
+    assert out["removed"] == 1 and out["created"] == 0
+    assert len(rows) == 1
+    assert rows[0]["external_id"] == "bkopt:newer"
+    assert rows[0]["qty"] == 3
+    assert rows[0]["broker_current_value"] == 2100.00
+    assert sum(r["broker_current_value"] for r in rows) == \
+        balances.option_market_value([h])
+
+
+def test_two_lots_whose_sum_matches_held_keep_their_own_quantities(env):
+    """A member genuinely holding two lots (1 + 2 = held 3) keeps BOTH rows,
+    each valued at its OWN quantity — never rewritten to the held total
+    (the per-row comparison also inflated every multi-lot member: each lot
+    'diverged' from held 3 and was reseeded to qty 3)."""
+    _insert_activity_lot(env, ext="bkopt:one", qty=1, entry_price=10.0,
+                         entry_date="2026-08-10T14:00:00Z")
+    _insert_activity_lot(env, ext="bkopt:two", qty=2, entry_price=12.0,
+                         entry_date="2026-08-12T14:00:00Z")
+    h = _holding(units=3, avg_purchase_price=1150.0, price=7.0)
+
+    out = oro.reconcile_option_holdings("u1", env["ba"], [h])
+
+    rows = {r["external_id"]: r for r in _open_rows()}
+    assert out["removed"] == 0 and out["created"] == 0 and out["valued"] == 2
+    assert rows["bkopt:one"]["qty"] == 1
+    assert rows["bkopt:one"]["broker_current_value"] == 700.00
+    assert rows["bkopt:two"]["qty"] == 2
+    assert rows["bkopt:two"]["broker_current_value"] == 1400.00
+    assert sum(r["broker_current_value"] for r in rows.values()) == \
+        balances.option_market_value([h])
+
+
+def test_excess_over_held_trims_the_oldest_lot(env):
+    """Lots 2 + 2, broker holds 3 -> FIFO says the OLDEST lot was half-closed:
+    newest keeps 2, oldest trims to 1 (net_entry follows its own basis)."""
+    _insert_activity_lot(env, ext="bkopt:old", qty=2, entry_price=5.0,
+                         entry_date="2026-08-10T14:00:00Z")
+    _insert_activity_lot(env, ext="bkopt:new", qty=2, entry_price=6.0,
+                         entry_date="2026-08-12T14:00:00Z")
+    h = _holding(units=3, avg_purchase_price=550.0, price=7.0)
+
+    oro.reconcile_option_holdings("u1", env["ba"], [h])
+
+    rows = {r["external_id"]: r for r in _open_rows()}
+    assert rows["bkopt:new"]["qty"] == 2
+    assert rows["bkopt:new"]["broker_current_value"] == 1400.00
+    assert rows["bkopt:old"]["qty"] == 1
+    assert rows["bkopt:old"]["net_entry"] == 500.00   # 1 x 5.00 x 100
+    assert rows["bkopt:old"]["broker_current_value"] == 700.00
+
+
+def test_open_lots_for_a_contract_no_longer_held_are_removed(env):
+    """Holdings fetch SUCCEEDED and the contract is gone -> the open lots are
+    closed at the broker (activity lag); mirror the broker now, let the real
+    closing activity land later."""
+    _insert_activity_lot(env, ext="bkopt:gone", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T16:15:08Z")
+
+    out = oro.reconcile_option_holdings("u1", env["ba"], [])
+
+    assert out["removed"] == 1
+    assert _open_rows() == []
+
+
+def test_failed_holdings_fetch_mutates_nothing(env):
+    """None (fetch FAILED) must be inert — deleting open strategies on missing
+    data would wipe a member's option book on a transient SnapTrade error."""
+    _insert_activity_lot(env, ext="bkopt:keep", qty=3, entry_price=11.5,
+                         entry_date="2026-08-17T16:15:08Z")
+
+    out = oro.reconcile_option_holdings("u1", env["ba"], None)
+
+    assert out.get("skipped") is True
+    assert out["removed"] == 0 and out["created"] == 0 and out["valued"] == 0
+    rows = _open_rows()
+    assert len(rows) == 1
+    assert rows[0]["broker_current_value"] is None  # untouched
+
+
+def test_held_exceeding_ledger_tops_up_with_a_carried_lot_for_remainder(env):
+    """Broker holds 3, the ledger explains 1 -> keep the real lot AND add a
+    carried-in lot for the 2 the ledger can't see; totals mirror the broker."""
+    _insert_activity_lot(env, ext="bkopt:real", qty=1, entry_price=11.5,
+                         entry_date="2026-08-17T16:15:08Z")
+    h = _holding(units=3, avg_purchase_price=1150.0, price=7.0)
+
+    out = oro.reconcile_option_holdings("u1", env["ba"], [h])
+
+    rows = {r["external_id"]: r for r in _open_rows()}
+    assert out["created"] == 1
+    assert rows["bkopt:real"]["qty"] == 1
+    assert rows["bkopt:real"]["broker_current_value"] == 700.00
+    carried = [r for e, r in rows.items() if e.startswith("bkoptpos:")]
+    assert len(carried) == 1
+    assert carried[0]["qty"] == 2
+    assert carried[0]["entry_price"] == 11.50
+    assert carried[0]["broker_current_value"] == 1400.00
+    assert sum(r["broker_current_value"] for r in rows.values()) == \
+        balances.option_market_value([h])
+
+
+def test_prune_never_touches_carried_in_strategies(env):
+    """`_prune_broker_option_strategies` desired-set covers only activity ids
+    ('bkopt:...'); carried-in rows belong to reconcile_option_holdings. Pruning
+    them re-minted every carried lot each sync (new id, enrichments lost)."""
+    from api.services.journal_two.broker import reconstruct as recon
+
+    h = _holding(units=2, avg_purchase_price=550.0, price=7.25)
+    oro.reconcile_option_holdings("u1", env["ba"], [h])
+    _insert_activity_lot(env, ext="bkopt:stale", qty=1, entry_price=2.0,
+                         entry_date="2026-08-01T14:00:00Z",
+                         underlying="MSFT", strike=410.0)
+
+    pruned = recon._prune_broker_option_strategies("u1", env["j2"], set())
+
+    exts = [r["external_id"] for r in _open_rows()]
+    assert pruned == 1                       # the stale activity strategy only
+    assert len(exts) == 1
+    assert exts[0].startswith("bkoptpos:")

@@ -25,6 +25,7 @@ import {
   percent,
   shares as fmtShares,
   dateShort,
+  isBrokerPlaceholderStop,
 } from '../../../lib/journal-2-0'
 import TickerPopup from '../../../components/TickerPopup'
 import UIcon from '../../../components/ui/UIcon'
@@ -89,8 +90,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   // Broker-imported positions have no stop; the importer stores stop_price =
   // entry_price as a NOT-NULL placeholder. Treat that as "no stop set" and blank
   // the stop-derived columns until the user sets a real stop.
-  const noRealStop =
-    position.source === 'broker' && active != null && active === position.entryPrice
+  const noRealStop = isBrokerPlaceholderStop(position)
   // Broker holdings imported before activity history reconstructs the real fill
   // have an unknown (placeholder) entry date — show "est." not a misleading day.
   const dateEstimated = !!position.entryEstimated
@@ -278,8 +278,7 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
   const active = activeStop(position)
-  const noRealStop =
-    position.source === 'broker' && active != null && active === position.entryPrice
+  const noRealStop = isBrokerPlaceholderStop(position)
 
   const pnlD = isOpt ? position.optPnlDollar : (hasPrice ? positionPnlDollar(position, current) : null)
   const pnlP = isOpt ? position.optPnlPercent : (hasPrice ? positionPnlPercent(position, current) : null)
@@ -374,8 +373,7 @@ function sortKeyFor(key, position, current, accountSize) {
     }
   }
   const active = activeStop(position)
-  const noRealStop =
-    position.source === 'broker' && active != null && active === position.entryPrice
+  const noRealStop = isBrokerPlaceholderStop(position)
   switch (key) {
     case 'symbol': return position.symbol
     case 'side': return position.side

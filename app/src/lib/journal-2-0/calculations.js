@@ -55,6 +55,34 @@ export const roundShares = (x, allowFractional) =>
 export const activeStop = (p) =>
   p.raiseToBreakeven && p.breakevenStop != null ? p.breakevenStop : p.stopPrice
 
+/**
+ * Broker imports have no stop; the NOT-NULL stop_price column is seeded with
+ * entry_price as a placeholder. That placeholder means "no stop set" — it must
+ * never feed risk/heat math or render as a real stop. ONE predicate, shared by
+ * every surface (a copy per surface is how one of them drifts).
+ * @param {Position} p
+ */
+export const isBrokerPlaceholderStop = (p) => {
+  const active = activeStop(p)
+  return p?.source === 'broker' && active != null && active === p.entryPrice
+}
+
+/**
+ * Did this position genuinely OPEN today? True only when the entry date is
+ * today AND the entry is real. Broker holdings-as-truth seeds unknown entries
+ * with a sync-time placeholder date + entryEstimated flag — a reconnect
+ * stamped every carried-in position "opened today", so its ENTIRE unrealized
+ * gain since the true entry booked as "Today" (the +$1,335.87-vs-−$881 bug).
+ * @param {Position} p @param {string} [todayIso]
+ */
+export const openedTodayFill = (p, todayIso) =>
+  Boolean(
+    todayIso &&
+      p?.entryDate &&
+      String(p.entryDate).slice(0, 10) === todayIso &&
+      p?.entryEstimated !== true,
+  )
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.2 Long-side formulas
 // ───────────────────────────────────────────────────────────────────────────
@@ -203,8 +231,13 @@ export const portfolioAggregates = (openPositions, prices, accountSize) => {
     if (current == null) continue
     value += current * p.shares
     unrealized += positionPnlDollar(p, current)
-    risk += positionRiskDollar(p)
-    heat += positionHeatDollar(p, current)
+    // Broker imports carry entry_price as a NOT-NULL stop placeholder — that
+    // is "no stop set", not a real stop at breakeven. Counting it made HEAT
+    // equal the whole unrealized P&L for every broker position.
+    if (!isBrokerPlaceholderStop(p)) {
+      risk += positionRiskDollar(p)
+      heat += positionHeatDollar(p, current)
+    }
   }
 
   return {
@@ -308,18 +341,17 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     const signed = p.side === 'Short' ? -p.shares : p.shares
     marketValue += px * signed
     if (Number.isFinite(live)) {
-      const openedToday =
-        todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
-      // Reference price for Today: the entry (fill) if opened today, else the
-      // previous close — the `prev_close` field when present, otherwise derived
-      // from `change_pct` (price / (1 + pct/100)), since the live feed doesn't
-      // always carry prev_close. Mirrors positionTodayDollar's proven approach.
+      // Reference price for Today: the entry (fill) if genuinely opened today
+      // (placeholder-dated broker imports excluded — openedTodayFill), else the
+      // previous close — the `prev_close` field when present AND > 0 (the feed
+      // emits 0.0 for "missing", never a real close), otherwise derived from
+      // `change_pct` (price / (1 + pct/100)). Mirrors positionTodayDollar.
       let ref
-      if (openedToday) {
+      if (openedTodayFill(p, todayIso)) {
         ref = p.entryPrice
       } else {
         const snap = prices?.[p.symbol]
-        if (Number.isFinite(snap?.prev_close)) ref = snap.prev_close
+        if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) ref = snap.prev_close
         else if (Number.isFinite(snap?.change_pct)) ref = live / (1 + snap.change_pct / 100)
       }
       if (Number.isFinite(ref)) today += signed * (live - ref)
@@ -380,12 +412,10 @@ export const extendedSessionSplit = (positions, prices, opts = {}) => {
     if (!Number.isFinite(dayClose)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     closeValue += signed * dayClose
-    const openedToday =
-      todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
     let ref
-    if (openedToday) {
+    if (openedTodayFill(p, todayIso)) {
       ref = p.entryPrice
-    } else if (Number.isFinite(snap?.prev_close)) {
+    } else if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) {
       ref = snap.prev_close
     } else if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {
       ref = snap.price / (1 + snap.change_pct / 100)

@@ -567,7 +567,10 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             except Exception:
                 # Best-effort enrichment for equity MV — never let it break the
                 # core sync (unsupported broker, SDK shape drift, network, etc.).
-                raw_option_holdings = []
+                # None (NOT []) so downstream consumers can tell "fetch failed"
+                # from "broker truly holds no options" — reconcile must never
+                # delete open strategies on missing data.
+                raw_option_holdings = None
             pos_res = balances.reconcile_positions(
                 user_id, ba, raw_positions, recon["openPositions"]
             )

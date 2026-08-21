@@ -46,5 +46,11 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     onReplayPickCancel: () => {},
     startMarker: null,
     startMarkerStyle: 'line',
+    // Chart-theming members (2026-08-20 "All-widgets theming"): an embed is a
+    // frozen capture — floating new widgets or re-theming the workspace from
+    // inside a note must be inert, like every other write above.
+    floatNewWidget: () => {},
+    applyThemeToAllCharts: () => {},
+    applyThemeToAllWidgets: () => {},
   }
 }

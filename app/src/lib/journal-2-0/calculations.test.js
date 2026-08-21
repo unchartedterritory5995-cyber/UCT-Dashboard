@@ -32,6 +32,8 @@ import {
   brokerLiveEquity,
   currentPriceFor,
   brokerLiveSummary,
+  isBrokerPlaceholderStop,
+  openedTodayFill,
 } from './calculations.js'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -996,5 +998,76 @@ describe('extendedSessionSplit', () => {
     }, { todayIso: TODAY })
     expect(out.regularDollar).toBeCloseTo(20)
     expect(out.extDollar).toBeCloseTo(20)
+  })
+})
+
+// ── 2026-08-20 reconnect-fidelity guards ────────────────────────────────────
+// A broker reconnect stamps carried-in positions entryDate = sync time with
+// entryEstimated=true. Treating that placeholder as a real same-day fill made
+// the hero book DELL's whole +$1,510 unrealized gain as "Today" (+$1,335.87
+// shown vs Robinhood's -$881.04).
+
+describe('openedTodayFill', () => {
+  const TODAY = '2026-08-20'
+  it('true for a real fill dated today', () => {
+    expect(openedTodayFill({ entryDate: '2026-08-20T14:30:00Z' }, TODAY)).toBe(true)
+  })
+  it('false when the entry is estimated (broker placeholder date)', () => {
+    expect(
+      openedTodayFill({ entryDate: '2026-08-20T20:58:48Z', entryEstimated: true }, TODAY),
+    ).toBe(false)
+  })
+  it('false for other days and missing inputs', () => {
+    expect(openedTodayFill({ entryDate: '2026-08-19T14:30:00Z' }, TODAY)).toBe(false)
+    expect(openedTodayFill({ entryDate: null }, TODAY)).toBe(false)
+    expect(openedTodayFill({ entryDate: '2026-08-20T14:30:00Z' }, undefined)).toBe(false)
+  })
+})
+
+describe('brokerLiveSummary — reconnect fidelity', () => {
+  const TODAY = '2026-08-20'
+  it('an ESTIMATED entry stamped today measures Today from prev close, not the entry', () => {
+    // DELL carried in at avg cost 132.726, entry_date stamped at sync time.
+    const account = { brokerCash: 0 }
+    const positions = [{
+      symbol: 'DELL', side: 'Long', shares: 5,
+      entryPrice: 132.726, entryDate: '2026-08-20T20:58:48Z', entryEstimated: true,
+    }]
+    const prices = { DELL: { price: 434.78, prev_close: 437.55 } }
+    const out = brokerLiveSummary(account, positions, [], prices, TODAY)
+    // 5 × (434.78 − 437.55) = −13.85 — NEVER 5 × (434.78 − 132.726) = +1510.27
+    expect(out.today).toBeCloseTo(-13.85, 2)
+  })
+  it("prev_close of 0 (the feed's missing-value sentinel) is never used as the Today ref", () => {
+    const account = { brokerCash: 0 }
+    const positions = [{ symbol: 'ORCL', side: 'Long', shares: 100, entryPrice: 126, entryDate: '2026-07-21T16:36:20Z' }]
+    const prices = { ORCL: { price: 142.07, prev_close: 0, change_pct: -1.2099 } }
+    const out = brokerLiveSummary(account, positions, [], prices, TODAY)
+    // Falls through to the change_pct derivation: ref = 142.07 / (1 − 0.012099)
+    const ref = 142.07 / (1 + -1.2099 / 100)
+    expect(out.today).toBeCloseTo(100 * (142.07 - ref), 6)
+  })
+})
+
+describe('portfolioAggregates — broker placeholder stops', () => {
+  it('a placeholder stop (stop==entry on a broker import) contributes NO risk/heat', () => {
+    const positions = [
+      { symbol: 'DELL', side: 'Long', shares: 5, entryPrice: 132.726, stopPrice: 132.726, source: 'broker', raiseToBreakeven: 0, breakevenStop: null },
+      { symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 200, stopPrice: 190, source: 'broker', raiseToBreakeven: 0, breakevenStop: null },
+    ]
+    const prices = { DELL: 434.78, AAPL: 210 }
+    const agg = portfolioAggregates(positions, prices, 100_000)
+    // DELL placeholder: 0 risk, 0 heat. AAPL real stop: risk (200−190)×10=100,
+    // heat (210−190)×10=200.
+    expect(agg.risk).toBeCloseTo(100)
+    expect(agg.heat).toBeCloseTo(200)
+    // Value/unrealized still count BOTH positions (only stop math is skipped).
+    expect(agg.unrealized).toBeCloseTo((434.78 - 132.726) * 5 + (210 - 200) * 10)
+  })
+  it('isBrokerPlaceholderStop: broker + stop==entry only', () => {
+    const base = { entryPrice: 100, stopPrice: 100, raiseToBreakeven: 0, breakevenStop: null }
+    expect(isBrokerPlaceholderStop({ ...base, source: 'broker' })).toBe(true)
+    expect(isBrokerPlaceholderStop({ ...base, source: null })).toBe(false)
+    expect(isBrokerPlaceholderStop({ ...base, source: 'broker', stopPrice: 95 })).toBe(false)
   })
 })

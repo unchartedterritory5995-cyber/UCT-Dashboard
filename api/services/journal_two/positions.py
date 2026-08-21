@@ -79,7 +79,8 @@ def list_open_positions(
                 SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
-                       created_at, updated_at, closed_at, broker_price
+                       created_at, updated_at, closed_at, broker_price,
+                       entry_estimated, source
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
                  ORDER BY symbol ASC, entry_date DESC
@@ -92,7 +93,8 @@ def list_open_positions(
                 SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
-                       created_at, updated_at, closed_at, broker_price
+                       created_at, updated_at, closed_at, broker_price,
+                       entry_estimated, source
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL
                  ORDER BY symbol ASC, entry_date DESC
@@ -119,7 +121,8 @@ def get_position(
             SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                    entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                    setup, notes, context_at_entry, account_id,
-                   created_at, updated_at, closed_at, broker_price
+                   created_at, updated_at, closed_at, broker_price,
+                   entry_estimated, source
               FROM j2_positions
              WHERE id = ? AND user_id = ?
             """,
