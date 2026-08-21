@@ -7,3 +7,17 @@
 .filterSelectActive { border-color: var(--ut-gold); color: var(--ut-gold); }
 .customRange { display: flex; gap: 4px; }
 .customRange input { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 5px 6px; color: var(--text); width: 100%; font-size: 12px; min-height: 32px; }
+
+/* FilterRail — searchable, collapsible taxonomy */
+.rail { width: 264px; flex-shrink: 0; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); padding-bottom: 8px; }
+.railSheet { display: flex; flex-direction: column; }
+.railSheet .filterRow { min-height: var(--tap-min, 44px); justify-content: center; }
+.railSheet .filterSelect, .railSheet .customRange input { min-height: var(--tap-min, 44px); font-size: 14px; }
+.railSearchRow { display: flex; align-items: center; gap: 6px; padding: 10px; position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border); }
+.railSearch { flex: 1; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 6px 8px; color: var(--text); font-size: 12px; min-width: 0; }
+.railClear { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+.railGroup { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 9px 10px 5px; cursor: pointer; }
+.railHead span:first-child { flex: 1; text-align: left; }
+.railHead:hover { color: var(--ut-gold); }
+.railPip { background: var(--ut-gold); color: var(--bg); border-radius: 8px; padding: 0 5px; font-size: 9px; font-weight: 700; }
