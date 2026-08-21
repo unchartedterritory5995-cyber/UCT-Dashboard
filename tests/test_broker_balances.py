@@ -336,3 +336,38 @@ def test_share_discrepancy_flagged(env):
     assert len(res["discrepancies"]) == 1
     # Broker wins: stored shares = 10.
     assert _positions()[0]["shares"] == 10
+
+
+def test_placeholder_stop_stays_in_lockstep_with_a_refreshed_entry(env):
+    """Broker imports seed stop = entry as the "no stop set" placeholder. When
+    FIFO later refreshes the entry (ORCL: 126.005 -> 126.0049), the stale
+    placeholder drifted a rounding-hair from the new entry and every
+    placeholder detector downstream (UI blanking, risk/heat exclusion,
+    portfolio_heat) silently stopped firing — HEAT read the whole unrealized
+    P&L. The placeholder must track the entry it mirrors."""
+    balances.reconcile_positions("u1", env["ba"], [_pos("ORCL", 100, 142.0, 126.005)], [])
+    r = _positions()[0]
+    assert r["stop_price"] == r["entry_price"]  # seeded placeholder
+
+    fifo = [{"symbol": "ORCL", "side": "Long", "shares": 100,
+             "entryPrice": 126.0049, "entryDate": "2026-07-21T16:36:20Z"}]
+    balances.reconcile_positions("u1", env["ba"], [_pos("ORCL", 100, 142.06, 126.005)], fifo)
+
+    r = _positions()[0]
+    assert r["entry_price"] == 126.0049
+    assert r["stop_price"] == 126.0049   # placeholder moved WITH the entry
+
+
+def test_a_real_user_stop_is_never_clobbered_by_the_lockstep(env):
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 150, 100)], [])
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_positions SET stop_price=90 WHERE user_id=?", ("u1",))
+    conn.commit(); conn.close()
+
+    fifo = [{"symbol": "AAPL", "side": "Long", "shares": 10,
+             "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}]
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 151, 100)], fifo)
+
+    r = _positions()[0]
+    assert r["entry_price"] == 98.5
+    assert r["stop_price"] == 90.0       # the user's stop survives

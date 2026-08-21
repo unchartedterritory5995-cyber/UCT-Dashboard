@@ -59,7 +59,7 @@ function loadSort() {
   return DEFAULT_SORT
 }
 
-export default function HoldingsList({ positions = [], optionStrategies = [], prices = {} }) {
+export default function HoldingsList({ positions = [], optionStrategies = [], prices = {}, optionMarks = null }) {
   const [sort, setSort] = useState(loadSort)
 
   const todayIso = useMemo(
@@ -137,7 +137,7 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
         </section>
       )}
 
-      {hasOptions && <OptionsBoard strategies={optionStrategies} />}
+      {hasOptions && <OptionsBoard strategies={optionStrategies} optionMarks={optionMarks} />}
     </div>
   )
 }

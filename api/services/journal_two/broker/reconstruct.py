@@ -220,7 +220,16 @@ def _prune_broker_option_strategies(user_id, j2_account_id, desired_exts, conn=N
             "AND external_id IS NOT NULL",
             (user_id, j2_account_id),
         ).fetchall()
-        stale = [r["id"] for r in rows if r["external_id"] not in desired_exts]
+        # `desired_exts` covers only ACTIVITY-derived ids ('bkopt:…'). Carried-in
+        # holdings-sourced strategies ('bkoptpos:…') are owned by
+        # `reconcile_option_holdings` — pruning them here deleted + recreated
+        # every carried lot each sync (new id, entry re-stamped, user
+        # enrichments lost).
+        stale = [
+            r["id"] for r in rows
+            if r["external_id"] not in desired_exts
+            and not str(r["external_id"]).startswith("bkoptpos:")
+        ]
         if stale:
             conn.executemany("DELETE FROM j2_option_strategies WHERE id = ?", [(i,) for i in stale])
             conn.commit()

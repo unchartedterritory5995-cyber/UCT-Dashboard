@@ -14,6 +14,7 @@ import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
+import useJ2OptionMarks from '../hooks/useJ2OptionMarks'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Nudges from '../hooks/useJ2Nudges'
 import NudgesBanner from '../components/NudgesBanner'
@@ -75,7 +76,7 @@ async function jsonFetch(url, method, body) {
 // "Long Call" treatment; MULTI-LEG strategies (verticals, condors, ...) use
 // buildStrategyLabel + a debit/credit-derived side — the old first-leg-only
 // logic labeled a long call debit spread "Short Call" at the wrong strike.
-function optionToRow(s) {
+function optionToRow(s, optionMarks) {
   const leg = (s.legs && s.legs[0]) || {}
   const qty = leg.qty ?? 0
   const type = s.strategyType || ''
@@ -101,7 +102,9 @@ function optionToRow(s) {
     sideLabel = isLong ? 'Long' : 'Short'
     symbol = buildStrategyLabel(s)
   }
-  const bcv = s.brokerCurrentValue
+  // Live mark (Massive option aggs) preferred over the sync-time broker mark.
+  const liveCur = optionMarks?.[s.id]?.currentValue
+  const bcv = Number.isFinite(liveCur) ? liveCur : s.brokerCurrentValue
   const pnlDollar = bcv == null ? null : bcv - s.netEntry
   return {
     id: s.id,
@@ -237,10 +240,13 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     onTradeWritten?.(res.trade)
   }, [refreshPositions, mutate, showToast, onTradeWritten])
 
+  // Live-ish option marks (between-syncs freshness for net-liq/Today/rows).
+  const { marks: optionMarks } = useJ2OptionMarks({ enabled: optionStrategies.length > 0 })
+
   // Option strategies as position-table rows, merged with shares into one list.
   const optionRows = useMemo(
-    () => (showOptions ? optionStrategies.map(optionToRow) : []),
-    [showOptions, optionStrategies],
+    () => (showOptions ? optionStrategies.map((s) => optionToRow(s, optionMarks)) : []),
+    [showOptions, optionStrategies, optionMarks],
   )
   const mergedPositions = useMemo(
     () => [...(showShares ? positions : []), ...optionRows],
@@ -291,16 +297,20 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   )
   const liveSummary = useMemo(
     () => (brokerAccountCount <= 1
-      ? brokerLiveSummary(selectedAccount, positions, optionStrategies, prices, etToday)
+      ? brokerLiveSummary(selectedAccount, positions, optionStrategies, prices, etToday, optionMarks)
       : null),
-    [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday],
+    [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday, optionMarks],
   )
   // Σ option market value (broker mark) — flat contribution to the intraday curve.
   const optionMarketValue = useMemo(
     () => (optionStrategies || []).reduce(
-      (s, o) => s + (Number.isFinite(o?.brokerCurrentValue) ? o.brokerCurrentValue : 0), 0,
+      (s, o) => {
+        const live = optionMarks?.[o?.id]?.currentValue
+        const v = Number.isFinite(live) ? live : o?.brokerCurrentValue
+        return s + (Number.isFinite(v) ? v : 0)
+      }, 0,
     ),
-    [optionStrategies],
+    [optionStrategies, optionMarks],
   )
 
   const pickerBtnRef = useRef(null)
@@ -450,6 +460,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
             positions={showShares ? positions : []}
             optionStrategies={showOptions ? optionStrategies : []}
             prices={prices}
+            optionMarks={optionMarks}
           />
         ) : (
           <PositionsTable

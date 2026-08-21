@@ -2731,9 +2731,81 @@ def get_uct20_backtest_data() -> dict:
         "best_trade": best_trade,
         "worst_trade": worst_trade,
         "rolling_alpha": rolling_alpha,
+        # The MEASURED backtest, carried alongside. Everything above this line
+        # is analytics computed FROM the live no-stops tracker -- it is the
+        # tracker re-sliced, not a backtest of anything. `harness` is the real
+        # one: 1,119 sessions, both arms, from a published run manifest.
+        "harness": get_uct20_harness_backtest_data(),
     }
     cache.set("uct20_backtest", result, ttl=3600)
     return result
+
+
+def get_uct20_harness_backtest_data() -> dict:
+    """The measured 1,119-session A/B the UCT20 system ships on.
+
+    Priority: cache -> wire_data["uct20_backtest"] -> direct engine call.
+    Not gated on the Book flag: this is a published result, not a live record.
+    """
+    cached = cache.get("uct20_harness_backtest")
+    if cached is not None:
+        return cached
+
+    wire = _load_wire_data()
+    if wire and wire.get("uct20_backtest"):
+        result = wire["uct20_backtest"]
+        cache.set("uct20_harness_backtest", result, ttl=86400)
+        return result
+
+    try:
+        _intel_str = str(UCT_INTEL_PATH)
+        if _intel_str not in sys.path:
+            sys.path.insert(0, _intel_str)
+        import uct_intelligence.api as _uct_api
+        result = _uct_api.get_uct20_harness_backtest()
+        if result:
+            cache.set("uct20_harness_backtest", result, ttl=86400)
+            return result
+    except Exception as e:
+        _logger.warning("get_uct20_harness_backtest_data fallback failed: %s", e)
+
+    return {}
+
+
+def get_uct20_book_data() -> dict:
+    """The LIVE UCT20 Book -- the risk-managed arm built from published plans.
+
+    Priority: cache -> wire_data["uct20_book"] -> direct engine call.
+
+    Returns {} when the Book is switched off or has never run. When it HAS
+    run but is still short of a usable sample it returns a payload whose
+    `stats_published` is False -- the caller must render the counts and NOT
+    the performance. That threshold is decided in uct_intelligence, not here,
+    so there is one authority over "is this a track record yet".
+    """
+    cached = cache.get("uct20_book")
+    if cached is not None:
+        return cached
+
+    wire = _load_wire_data()
+    if wire and wire.get("uct20_book"):
+        result = wire["uct20_book"]
+        cache.set("uct20_book", result, ttl=3600)
+        return result
+
+    try:
+        _intel_str = str(UCT_INTEL_PATH)
+        if _intel_str not in sys.path:
+            sys.path.insert(0, _intel_str)
+        import uct_intelligence.api as _uct_api
+        result = _uct_api.get_uct20_book_display()
+        if result:
+            cache.set("uct20_book", result, ttl=3600)
+            return result
+    except Exception as e:
+        _logger.warning("get_uct20_book_data fallback failed: %s", e)
+
+    return {}
 
 
 def get_analyst_actions() -> dict:
