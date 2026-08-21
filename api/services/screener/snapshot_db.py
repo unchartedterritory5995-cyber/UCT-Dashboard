@@ -24,25 +24,48 @@ COLUMNS = [
     "pct_vs_sma20", "pct_vs_sma50", "pct_vs_sma200", "pct_vs_ema20",
     "ma_stack", "adr_pct", "atr_pct", "vol_ratio", "gap_pct",
     "dist_52w_high_pct", "dist_52w_low_pct", "above_50sma", "new_52w_high",
+    # performance (Wave 1)
+    "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd",
+    "chg_from_open_pct", "adr_pct_1w", "dist_20d_high_pct", "dist_20d_low_pct",
+    "dist_ath_pct", "new_ath", "dollar_vol_30d",
+    # momentum mechanics (Wave 1)
+    "pole_pct", "vol_nweek_low", "vol_updown_ratio", "ema_touch_count",
+    "ema10_rising", "ema20_rising", "ema_stack_intact", "candle_score",
+    "atr_ext_sma50", "rs_line_trend",
+    "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close",
     # single candle
     "candle_type", "body_pct", "upper_wick_pct", "lower_wick_pct",
     "close_position", "wide_bar", "narrow_bar",
     # multi candle
     "inside_bar_run", "tight_consolidation", "pullback_depth_pct",
     "higher_lows_run", "nr7", "consecutive_up", "consecutive_down",
+    "close_cv_pct", "avg_body_pct_5",
     # patterns
     "patterns", "pattern_conf_max",
+    # context (Wave 1)
+    "theme", "in_uct20", "index_sp500", "index_ndx", "index_dow", "index_r2k",
+    "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
-         "candle_type", "patterns", "snapshot_date", "bars_asof"}
+         "candle_type", "patterns", "snapshot_date", "bars_asof",
+         # Wave 1. `accdis` joins _TEXT here too: it has always held letter
+         # grades in a REAL-declared column (latent since v1; SQLite dynamic
+         # typing made it harmless). New DBs now declare it TEXT; existing DBs
+         # keep the old declaration and keep working.
+         "accdis", "rs_line_trend", "theme"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "consecutive_up", "consecutive_down", "built_at",
         # bools stored as 0/1
         "above_50sma", "new_52w_high", "wide_bar", "narrow_bar",
-        "tight_consolidation", "nr7"}
+        "tight_consolidation", "nr7",
+        # Wave 1 ints + bools
+        "new_ath", "vol_nweek_low", "ema_touch_count", "candle_score",
+        "ema10_rising", "ema20_rising", "ema_stack_intact", "in_uct20",
+        "index_sp500", "index_ndx", "index_dow", "index_r2k",
+        "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w"}
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +159,13 @@ def init_db() -> None:
     with _WRITE_LOCK, connect() as conn:
         cols = ", ".join(_coldef(c) for c in COLUMNS)
         conn.execute(f"CREATE TABLE IF NOT EXISTS screener_rows ({cols})")
+        # Columns added after a table already exists on disk (prod predates
+        # Wave 1) — CREATE TABLE IF NOT EXISTS never widens, so diff the live
+        # schema against COLUMNS and ALTER-add what is missing.
+        have = {r[1] for r in conn.execute("PRAGMA table_info(screener_rows)")}
+        for c in COLUMNS:
+            if c not in have:
+                conn.execute(f"ALTER TABLE screener_rows ADD COLUMN {_coldef(c)}")
         for idx in ("sector", "market_cap", "uct_composite", "rs_rank",
                     "above_50sma", "chg_pct_1d", "candle_type", "built_at"):
             conn.execute(

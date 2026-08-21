@@ -160,7 +160,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     grows.
     """
     columns = set(COLUMNS)
-    assert len(columns) == len(COLUMNS) == 65, (
+    assert len(columns) == len(COLUMNS) == 103, (
         f"snapshot_db declares {len(COLUMNS)} columns ({len(columns)} distinct); "
         "the partition below is a claim about that exact list")
     declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
@@ -171,7 +171,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
         f"column that is neither granted nor refused, and "
         f"{sorted(declared | excluded - columns)} is named here and not a column")
     assert not (declared & excluded), sorted(declared & excluded)
-    assert (len(declared), len(excluded)) == (54, 11)
+    assert (len(declared), len(excluded)) == (54, 49)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
