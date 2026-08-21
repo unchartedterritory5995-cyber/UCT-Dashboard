@@ -88,12 +88,12 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   }, [])
   const loadMore = useCallback(() => setPage(p => p + 1), [])
 
-  const visibleColumns = columns
-    ?? (viewColumnsFor ? viewColumnsFor(view) : null)
-    ?? null
-  const requestColumns = visibleColumns
-    ? [...new Set([...REQUIRED_COLS, ...visibleColumns])]
-    : null
+  const visibleColumns = useMemo(
+    () => columns ?? (viewColumnsFor ? viewColumnsFor(view) : null) ?? null,
+    [columns, view, viewColumnsFor])
+  const requestColumns = useMemo(
+    () => (visibleColumns ? [...new Set([...REQUIRED_COLS, ...visibleColumns])] : null),
+    [visibleColumns])
 
   const baseSpec = useMemo(() => ({
     filters: Object.entries(filters).filter(([, v]) => v).map(([key, v]) => ({ key, ...v })),

@@ -57,4 +57,12 @@ describe('useScreenSpec', () => {
     expect(result.current.scanSpec.columns).toContain('candle_score')
     expect(result.current.visibleColumns).toEqual(['candle_score'])
   })
+
+  it('scanSpec is referentially stable across unrelated re-renders', () => {
+    const { result, rerender } = renderHook(() => useScreenSpec())
+    act(() => result.current.setColumns(['candle_score']))
+    const before = result.current.scanSpec
+    rerender()
+    expect(result.current.scanSpec).toBe(before)
+  })
 })
