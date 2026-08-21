@@ -4730,11 +4730,17 @@ export default function StockChart({
   // recompute will. Cheap: O(overlays × period) per tick, no full-series walk. Shared
   // by every live writer (A Finnhub tick + B Massive push) so the MA tracks the
   // developing bar regardless of which feed owns it.
-  const _extendOverlaysLive = useCallback((tSec, c) => {
-    const defs = resolvedOverlaysRef.current
-    const ovAll = overlayDataRef.current
-    const series = overlaySeriesRefs.current
-    const bars = prevBarsRef.current
+  // `opts` lets the initial-paint re-top (bottom of updateChart) drive this from
+  // THIS render's own locals instead of the refs — at that point in updateChart the
+  // overlay SERIES are freshly set but overlayDataRef/prevBarsRef still hold the
+  // prior render's values (they're mirrored in a later effect). `skipVwap` is set
+  // there too: the engine binder hasn't synced yet that early in the pass, so the
+  // VWAP re-top would read a stale binding — the live writers own VWAP anyway.
+  const _extendOverlaysLive = useCallback((tSec, c, opts) => {
+    const defs = opts?.defs ?? resolvedOverlaysRef.current
+    const ovAll = opts?.ovAll ?? overlayDataRef.current
+    const series = opts?.series ?? overlaySeriesRefs.current
+    const bars = opts?.bars ?? prevBarsRef.current
     if (!defs || !defs.length || !ovAll || !series || !series.length || !bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
@@ -4783,6 +4789,7 @@ export default function StockChart({
     // whatever the tail is. `Number.isFinite` is the same guard master wrote, kept
     // for the same reason — `Number(undefined)` is `NaN`, but `Number(null)` is 0,
     // and a 0 written here would drag the VWAP line to the axis floor.
+    if (opts?.skipVwap) return
     const _engine = engineRef.current
     if (_engine) {
       try {
@@ -8608,6 +8615,28 @@ export default function StockChart({
       }
     }
 
+    // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
+    // The overlay setData above ends at the last FETCHED bar, but the post-setData
+    // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
+    // developing bar in this same synchronous pass. Without matching that here, the
+    // MA line ends one bar behind the live candle for ~0.5-1s after every ticker
+    // switch — until the next livePrices tick (Writer A) fires `_extendOverlaysLive`
+    // (user report: "MAs lag one day back when I scan to a new stock, then snap to
+    // today"). Extend them now, off THIS render's own locals (overlayDataRef/
+    // prevBarsRef aren't mirrored until a later effect), so the MA is instant on
+    // today's candle exactly like the candle itself. Live charts only; replay/cutoff
+    // freeze the developing bar. sameBucket → recomputes the same last point (no-op)
+    // when the fetch already carried today; new bucket → appends today's MA point.
+    if (liveUpdates && !replayMode && !replayCutoffRef.current) {
+      const _dev = lastBarRef.current
+      if (_dev && _dev.time != null && Number.isFinite(_dev.close)) {
+        _extendOverlaysLive(_dev.time, _dev.close, {
+          defs: resolvedOverlays, ovAll: overlayData,
+          series: overlaySeriesRefs.current, bars: sessionAppliedBars, skipVwap: true,
+        })
+      }
+    }
+
     // ── THE INDICATOR ENGINE — the one call site ──────────────────────────────
     //
     // WHY IT IS EXACTLY HERE, AND NOT WHERE IT WAS. lightweight-charts z-orders
@@ -9579,7 +9608,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
