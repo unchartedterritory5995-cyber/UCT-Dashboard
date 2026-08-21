@@ -6,23 +6,45 @@ monkeypatches `api.services.earnings_estimates._fmp_get` directly.
 import datetime
 import json
 
+from zoneinfo import ZoneInfo
+
 from api.services.screener import earnings_dates as ed
 
 
 # ── chunk-window math ───────────────────────────────────────────────────────
 
-def test_chunk_windows_are_12_contiguous_nonoverlapping_7day_spans():
+def test_chunk_windows_are_84_contiguous_nonoverlapping_1day_spans():
     start = datetime.date(2026, 8, 22)
     windows = ed._chunk_windows(start)
-    assert len(windows) == 12
+    assert len(windows) == 84
     for d0, d1 in windows:
-        assert (d1 - d0).days == 6  # 7 calendar days inclusive
+        assert d0 == d1  # 1 calendar day per chunk (the fix: was 7)
     for i in range(len(windows) - 1):
         # no gap, no overlap: the next window starts exactly one day after
         # the previous one ends
         assert windows[i][1] + datetime.timedelta(days=1) == windows[i + 1][0]
     assert windows[0][0] == start
     assert windows[-1][1] == start + datetime.timedelta(days=83)  # 84-day span total
+
+
+def test_chunk_windows_ceiling_division_keeps_every_remainder_day():
+    # total_days=10 isn't a multiple of chunk_days=3: floor division
+    # (10 // 3 == 3) would silently drop day index 9 off the end of the
+    # range. Ceiling division (this fix) must still cover all 10 days.
+    start = datetime.date(2026, 8, 22)
+    windows = ed._chunk_windows(start, total_days=10, chunk_days=3)
+    assert len(windows) == 4  # ceil(10 / 3)
+    # the final window is clamped to the range's real last day, not
+    # overrun past it
+    assert windows[-1] == (start + datetime.timedelta(days=9),
+                            start + datetime.timedelta(days=9))
+    covered = set()
+    for d0, d1 in windows:
+        d = d0
+        while d <= d1:
+            covered.add(d)
+            d += datetime.timedelta(days=1)
+    assert covered == {start + datetime.timedelta(days=i) for i in range(10)}
 
 
 # ── threshold session parse ─────────────────────────────────────────────────
@@ -79,8 +101,9 @@ def test_run_pull_earliest_future_date_wins_and_receipt_rows_is_deduped_union(mo
 
     receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
 
-    assert receipt["requests"] == 12
+    assert receipt["requests"] == 84
     assert receipt["chunks_failed"] == 0
+    assert receipt["chunks_at_cap"] == []
     assert receipt["wrote"] is True
     assert receipt["sessions_resolved"] == 0  # this endpoint carries no session field
     assert receipt["rows"] == {
@@ -121,7 +144,7 @@ def test_run_pull_all_chunks_failing_preserves_a_prior_artifact(monkeypatch, tmp
         "api.services.earnings_estimates._fmp_get", lambda path, params: None)
 
     receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
-    assert receipt["chunks_failed"] == 12
+    assert receipt["chunks_failed"] == 84
     assert receipt["wrote"] is False
     with open(artifact_path) as fh:
         assert json.load(fh) == prior  # untouched by the failed run
@@ -146,6 +169,87 @@ def test_run_pull_malformed_rows_are_skipped_not_fatal(monkeypatch, tmp_path):
         "api.services.earnings_estimates._fmp_get", fake_fmp_get)
     receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
     assert receipt["rows"] == {"GOOD": {"date": "2026-08-26", "session": "tbd"}}
+
+
+# ── at-cap detection ─────────────────────────────────────────────────────────
+
+def test_run_pull_flags_a_chunk_at_the_fmp_row_cap_but_keeps_its_rows(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
+    today = datetime.date(2026, 8, 22)
+    cap_day = (today + datetime.timedelta(days=5)).isoformat()
+
+    def fake_fmp_get(path, params):
+        if params["from"] == cap_day:
+            # exactly 4,000 rows — the measured FMP response cap
+            return [{"symbol": f"SYM{i}", "date": cap_day} for i in range(4000)]
+        if params["from"] == today.isoformat():
+            return [{"symbol": "NORMAL", "date": today.isoformat()}]
+        return []
+
+    monkeypatch.setattr(
+        "api.services.earnings_estimates._fmp_get", fake_fmp_get)
+    receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
+
+    # the suspect day is NAMED, not merely counted
+    assert receipt["chunks_at_cap"] == [cap_day]
+    # its rows are KEPT, never folded away just because the chunk looked truncated
+    assert receipt["rows_seen"] == 4001
+    assert "SYM0" in receipt["rows"]
+    assert "SYM3999" in receipt["rows"]
+    assert "NORMAL" in receipt["rows"]
+
+
+def test_run_pull_no_chunks_at_cap_when_every_day_is_ordinary(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
+    today = datetime.date(2026, 8, 22)
+
+    def fake_fmp_get(path, params):
+        if params["from"] == today.isoformat():
+            return [{"symbol": "NORMAL", "date": today.isoformat()}]
+        return []
+
+    monkeypatch.setattr(
+        "api.services.earnings_estimates._fmp_get", fake_fmp_get)
+    receipt = ed.run_pull(now=datetime.datetime(2026, 8, 22, 20, 0))
+    assert receipt["chunks_at_cap"] == []
+
+
+# ── ET clock ─────────────────────────────────────────────────────────────────
+
+def test_run_pull_default_now_routes_through__now_et_not_the_naive_local_clock(monkeypatch):
+    # Freeze the ONLY clock seam `run_pull` reads when `now` is omitted (the
+    # half-faked-clock lesson: every source must be frozen, not just the ones
+    # a test happens to touch). If `run_pull` ever regresses to a bare
+    # `datetime.datetime.now()`, this test stops pinning `as_of` to the frozen
+    # date and goes red.
+    fixed = datetime.datetime(2026, 8, 21, 23, 30, tzinfo=ZoneInfo("America/New_York"))
+    monkeypatch.setattr(ed, "_now_et", lambda: fixed)
+    monkeypatch.setattr(
+        "api.services.earnings_estimates._fmp_get", lambda path, params: [])
+
+    receipt = ed.run_pull()  # now=None -> must route through _now_et()
+    assert receipt["as_of"] == "2026-08-21"
+
+
+def test_run_pull_et_evening_does_not_discard_a_report_dated_todays_et_date(monkeypatch, tmp_path):
+    # Shape of the UTC-pod bug: a naive local `datetime.now()` between ~8pm
+    # and midnight ET reads a calendar date one day AHEAD of ET's actual
+    # today, so a report dated ET's real today was discarded as `rd <
+    # today`. An aware ET evening `now` must not lose this row.
+    monkeypatch.setenv("SCREENER_EDATES_ARTIFACT", str(tmp_path / "edates.json"))
+    et_today = datetime.date(2026, 8, 21)
+    aware_now = datetime.datetime(2026, 8, 21, 23, 15, tzinfo=ZoneInfo("America/New_York"))
+
+    def fake_fmp_get(path, params):
+        if params["from"] == et_today.isoformat():
+            return [{"symbol": "TODAYREP", "date": et_today.isoformat()}]
+        return []
+
+    monkeypatch.setattr(
+        "api.services.earnings_estimates._fmp_get", fake_fmp_get)
+    receipt = ed.run_pull(now=aware_now)
+    assert "TODAYREP" in receipt["rows"]
+    assert receipt["as_of"] == et_today.isoformat()
 
 
 # ── reader: healthy / missing / stale ───────────────────────────────────────
