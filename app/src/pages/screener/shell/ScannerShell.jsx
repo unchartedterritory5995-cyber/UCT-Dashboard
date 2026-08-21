@@ -9,7 +9,7 @@ import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
-import SaveScreenBar from '../SaveScreenBar'
+import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
@@ -107,7 +107,17 @@ export default function ScannerShell({ embedded = false }) {
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
-          saveBar={<SaveScreenBar currentSpec={s.baseSpec} onApply={s.applySpec} />} />
+          saveBar={<ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
+            onUseScan={(hash, name) => {
+              // useScreenSpec already exposes `filters` as the raw map keyed
+              // by filter key (see shell/useScreenSpec.js's return object) —
+              // no hook change was needed for this escape hatch.
+              const cur = s.filters?.scan
+              const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
+              const value = have.includes(hash) ? have : [...have, hash]
+              s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value,
+                                    label: name })
+            }} />} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}

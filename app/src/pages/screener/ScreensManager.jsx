@@ -1,28 +1,59 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import useSavedScreens from './hooks/useSavedScreens'
 import { sharedScreenUrl } from './screenShareLink'
+import { useUserDefinitions } from '../../hooks/useUserDefinitions'
+import { scannableScreens } from '../../components/screener/SavedScreensPanel'
 import styles from './ScannerPro.module.css'
 
-// Prompt-free saved-screens menu: starters + saved (apply / share / rename /
-// delete) + an inline "save current" input.
+// ScreensManager — replaces SaveScreenBar (commit A of the E-4 unification
+// cutover, docs/superpowers/plans/2026-08-22-screener-wave4-e4-unification.md
+// supersession #5). Same trigger, same share-panel behavior (copied verbatim
+// from SaveScreenBar.jsx, which this file now supersedes), PLUS a second
+// section listing the member's SCANNABLE formula definitions with a
+// "Use as filter" action that adds the formula's hash to the `scan` filter.
 //
-// ─── 🔴 THE PUBLISH DOOR ────────────────────────────────────────────────────
+// ─── 🔴 THE PUBLISH DOOR (carried verbatim from SaveScreenBar) ─────────────
 //
-// `saved_screens.update` mints `share_token = secrets.token_urlsafe(8)` ONLY
-// when a screen's owner sets `is_public`, and `GET /api/screener/shared/{token}`
-// has been served the whole time. Until this control existed, **`is_public` was
-// never sent true from anywhere in the app** — so no token was ever minted, and
-// a complete public-sharing backend was unreachable by construction
-// (`.superpowers/sdd/audit/reachability-report.md` §3a).
+// `saved_screens.update` mints `share_token` ONLY when a screen's owner sets
+// `is_public`. NOTHING HERE PUBLISHES ANYTHING BY ITSELF — `create(name, spec)`
+// still leaves `is_public` at its default false; `screenSharing.mount.test.jsx`
+// is the rail (its owner-file list now names this component).
 //
-// ⛔ NOTHING HERE PUBLISHES ANYTHING BY ITSELF. `create(name, spec)` still
-// leaves `is_public` at its default false — see the rail
-// `screenSharing.mount.test.jsx`, which asserts the create payload does NOT
-// carry a true `is_public`. Publishing is one deliberate click, on one named
-// screen, and the same control takes it back.
-export default function SaveScreenBar({ currentSpec, onApply }) {
-  const { saved, starters, create, update, remove } = useSavedScreens()
+// ⛔ ERROR ≠ EMPTY (K7). `useSavedScreens`' fetcher now throws on a non-ok
+// response, and `useUserDefinitions` already did — a refused read renders
+// `data-testid="screens-manager-error"` (role=alert), never "None saved yet"
+// or an empty scans list. The two pictures look identical and send a member
+// to different fixes.
+//
+// ⛔ NO Details AFFORDANCE YET. Task 6 of the plan adds definition detail
+// (ScanResults mounted under a picked row); a disabled stub here would be
+// worse than nothing, so this commit omits it entirely.
+
+const badgeStyle = {
+  fontSize: 9, letterSpacing: '.5px', color: 'var(--text-muted)',
+  border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px',
+  marginLeft: 6, textTransform: 'uppercase', fontWeight: 600, verticalAlign: 'middle',
+}
+
+function TypeBadge({ children }) {
+  return <span style={badgeStyle}>{children}</span>
+}
+
+/** The name a member gave a scan, or its handle, so a row is never blank.
+ *  Mirrors `SavedScreensPanel`'s unexported `screenName` — small enough that
+ *  duplicating the fallback chain here beats exporting a third name for it. */
+function scanName(row) {
+  const meta = row && row.definition && row.definition.meta
+  const name = meta && typeof meta.name === 'string' ? meta.name.trim() : ''
+  return name || (row && row.def_id) || 'Untitled screen'
+}
+
+export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
+  const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
+  const { rows: defRows, error: defsError } = useUserDefinitions()
+  const scans = useMemo(() => scannableScreens(defRows), [defRows])
+
   const [open, setOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [renameId, setRenameId] = useState(null)
@@ -51,11 +82,9 @@ export default function SaveScreenBar({ currentSpec, onApply }) {
     setRenameId(null); setRenameVal('')
   }
 
-  // ⭐ REVERSIBLE, AND THE SERVER MAKES IT SO. `get_public` filters on
-  // `is_public=1`, so unpublishing stops every copy of the link resolving
-  // immediately. ⚠️ The token itself is KEPT on the row, so re-publishing the
-  // same screen restores the SAME link rather than minting a new one — which is
-  // why the panel says "stops working" and not "is destroyed".
+  // ⭐ REVERSIBLE, AND THE SERVER MAKES IT SO — see SaveScreenBar's original
+  // note: unpublishing stops every copy of the link resolving immediately, and
+  // the token is kept on the row so re-publishing restores the SAME link.
   const setPublic = async (id, isPublic) => {
     setCopied(false)
     await update(id, { is_public: isPublic })
@@ -90,10 +119,16 @@ export default function SaveScreenBar({ currentSpec, onApply }) {
               ))}
             </div>
           )}
+
           <div className={styles.saveMenuSection}>
-            <div className={styles.saveMenuHdr}>My screens</div>
-            {saved.length === 0 && <div className={styles.saveMenuEmpty}>None saved yet</div>}
-            {saved.map(s => (
+            <div className={styles.saveMenuHdr}>My screens<TypeBadge>SCREEN</TypeBadge></div>
+            {savedError ? (
+              <p role="alert" data-testid="screens-manager-error" className={styles.saveMenuEmpty}>
+                Your saved screens could not be read ({String(savedError.message || savedError)}).
+              </p>
+            ) : saved.length === 0 ? (
+              <div className={styles.saveMenuEmpty}>None saved yet</div>
+            ) : saved.map(s => (
               <div key={s.id}>
                 <div className={styles.saveMenuItem}>
                   {renameId === s.id ? (
@@ -105,10 +140,8 @@ export default function SaveScreenBar({ currentSpec, onApply }) {
                     <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
                   )}
                   <span className={styles.saveMenuAct}>
-                    {/* 🔴 THE DOOR. Opens the panel below; the panel is where the
-                        member actually publishes. Two steps on purpose — sharing
-                        is outward-facing and a one-click publish sitting beside
-                        Rename and Delete is a mis-click away from public. */}
+                    {/* 🔴 THE DOOR. Opens the panel below; the panel is where
+                        the member actually publishes. */}
                     <button type="button" aria-label={`Share ${s.name}`}
                       aria-expanded={shareId === s.id}
                       onClick={() => { setShareId(id => (id === s.id ? null : s.id)); setCopied(false) }}>
@@ -140,9 +173,7 @@ export default function SaveScreenBar({ currentSpec, onApply }) {
                           </button>
                         </div>
                         {/* ⭐ WHAT THE RECIPIENT SEES, STATED WHERE THE MEMBER
-                            DECIDES. The server sends a filter spec and nothing
-                            else, and the person publishing should not have to
-                            read the router to know that. */}
+                            DECIDES. */}
                         <p className={styles.shareNote}>
                           They see this screen&rsquo;s <strong>filters</strong> only — no results,
                           no watchlist, no positions. Running it needs their own plan.
@@ -174,6 +205,31 @@ export default function SaveScreenBar({ currentSpec, onApply }) {
               </div>
             ))}
           </div>
+
+          <div className={styles.saveMenuSection}>
+            <div className={styles.saveMenuHdr}>My scans<TypeBadge>SCAN</TypeBadge></div>
+            {defsError ? (
+              <p role="alert" data-testid="screens-manager-error" className={styles.saveMenuEmpty}>
+                Your saved scans could not be read ({String(defsError.message || defsError)}).
+              </p>
+            ) : scans.length === 0 ? (
+              <div className={styles.saveMenuEmpty}>No scannable formulas yet</div>
+            ) : scans.map(row => {
+              const name = scanName(row)
+              return (
+                <div key={row.def_id} className={styles.saveMenuItem}>
+                  <span className={styles.saveMenuName}>{name}</span>
+                  <span className={styles.saveMenuAct}>
+                    <button type="button" aria-label={`Use ${name} as filter`}
+                      onClick={() => onUseScan(row.ast_hash, name)}>
+                      Use as filter
+                    </button>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
           <div className={styles.saveMenuFoot}>
             <input className={styles.saveMenuInput} placeholder="Name this screen…"
               value={newName} onChange={e => setNewName(e.target.value)}

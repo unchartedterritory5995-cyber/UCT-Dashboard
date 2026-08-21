@@ -112,6 +112,11 @@ export async function saveUserDefinition(definition, defId = null) {
   }
   if (r.ok) {
     mutate(USER_DEFINITIONS_KEY)
+    // K3: a saved definition can just have become (or stopped being) a
+    // scannable "My Scans" filter entry — revalidate the rail's category so
+    // every door (BuilderSheet included) sees it without waiting out
+    // useScreenerMeta's 6h SWR dedupe.
+    mutate('/api/screener/meta')
     let row = null
     try { row = await r.json() } catch { /* a body-less 200 is still an accepted save */ }
     return { ok: true, row }
@@ -236,6 +241,9 @@ export async function deleteUserDefinition(defId) {
       credentials: 'include',
     })
     mutate(USER_DEFINITIONS_KEY)
+    // K3: a deleted definition may have been the last scannable one — same
+    // revalidation as the save path above.
+    mutate('/api/screener/meta')
     return r.ok
   } catch {
     return false
