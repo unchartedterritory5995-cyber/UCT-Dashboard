@@ -91,6 +91,83 @@ def _pct(a, b):
         return None
 
 
+def _pole_pct(closes):
+    """Trough→peak % gain in the last 22 closes — the momentum 'pole'.
+
+    Verbatim arithmetic port of uct-intelligence
+    scripts/scanner_candidates.py::_compute_pole_pct (read 2026-08-21); the
+    snapshot is now the single authority for this number (spec §8). One
+    deliberate deviation: insufficient history is None (the snapshot's
+    not-computable convention), while a peak with no prior trough is a true
+    0.0 — the scanner returned 0.0 for both.
+    """
+    window = closes[-22:]
+    if len(window) < 5:
+        return None
+    peak_val = max(window)
+    peak_idx = window.index(peak_val)
+    if peak_idx == 0:
+        return 0.0
+    trough = min(window[:peak_idx])
+    if trough <= 0:
+        return None
+    return round((peak_val - trough) / trough * 100, 1)
+
+
+def _atr_ext_sma50(bars, closes, s50):
+    """Extension above the 50SMA in ATR units: (close − SMA50) / ATR(14).
+
+    Same Wilder ATR chokepoint as `_atr_pct` — never a private copy.
+    """
+    from api.services import indicator_compute
+    if s50 is None or len(bars) < 15:
+        return None
+    atr = indicator_compute.compute_atr_raw(bars, 14)[-1]
+    if not atr:
+        return None
+    return round((closes[-1] - s50) / atr, 2)
+
+
+def _linear_slope(ys):
+    """Least-squares slope in units-per-bar. Verbatim port of
+    scanner_candidates._linear_slope (single authority now here)."""
+    n = len(ys)
+    if n < 2:
+        return 0.0
+    x_mean = (n - 1) / 2.0
+    y_mean = sum(ys) / n
+    num = sum((i - x_mean) * (y - y_mean) for i, y in enumerate(ys))
+    den = sum((i - x_mean) ** 2 for i in range(n))
+    return num / den if den != 0 else 0.0
+
+
+def rs_line_trend(closes, spy_closes):
+    """'up' / 'flat' / 'down' — slope of the ticker/SPY ratio over 20 bars.
+
+    Verbatim port of scanner_candidates._compute_rs_slope; the ONE behavioral
+    RS definition (spec §8 names the three RS spellings; this is the only
+    server-side authority for RS-line behavior). Deviation: insufficient data
+    is None (not-computable), where the scanner said 'flat'.
+    """
+    if not closes or not spy_closes:
+        return None
+    n = min(len(closes), len(spy_closes), 20)
+    if n < 5:
+        return None
+    tc, sc = closes[-n:], spy_closes[-n:]
+    rs = [t / s for t, s in zip(tc, sc) if s > 0]
+    if len(rs) < 5:
+        return None
+    slope = _linear_slope(rs)
+    rs_mean = sum(rs) / len(rs)
+    slope_pct = slope / rs_mean if rs_mean != 0 else 0.0
+    if slope_pct > 0.0005:
+        return "up"
+    if slope_pct < -0.0005:
+        return "down"
+    return "flat"
+
+
 def usable_bars(bars: list[dict]) -> list[dict]:
     """Bars whose O/H/L/C are all real, finite numbers.
 
@@ -120,7 +197,10 @@ def compute_technicals(bars: list[dict]) -> dict:
     out = {k: None for k in (
         "chg_pct_1d", "chg_pct_1w", "chg_pct_1m", "rsi14", "pct_vs_sma20",
         "pct_vs_sma50", "pct_vs_sma200", "pct_vs_ema20", "adr_pct", "atr_pct",
-        "vol_ratio", "gap_pct", "dist_52w_high_pct", "dist_52w_low_pct", "price")}
+        "vol_ratio", "gap_pct", "dist_52w_high_pct", "dist_52w_low_pct", "price",
+        "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
+        "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
+        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close")}
     out["ma_stack"] = None
     out["above_50sma"] = None
     out["new_52w_high"] = False
@@ -200,4 +280,36 @@ def compute_technicals(bars: list[dict]) -> dict:
     out["dist_52w_high_pct"] = _pct(price, hi)
     out["dist_52w_low_pct"] = _pct(price, lo)
     out["new_52w_high"] = bars[-1]["h"] >= hi
+
+    # ── Wave 1: performance ──────────────────────────────────────────────
+    if len(closes) >= 253:
+        out["chg_pct_1y"] = _pct(price, closes[-253])
+    out["chg_from_open_pct"] = _pct(price, bars[-1]["o"])
+    # YTD = vs the last close of the PRIOR calendar year when the window holds
+    # one; a name that listed this year has no YTD baseline and stays None.
+    t_last = bars[-1].get("t")
+    if t_last is not None and len(str(t_last)) >= 4:
+        year = str(t_last)[:4]
+        prior = [b for b in bars
+                 if b.get("t") is not None and str(b["t"])[:4] < year]
+        if prior:
+            out["chg_pct_ytd"] = _pct(price, prior[-1]["c"])
+    # 5-bar ADR — the range-based weekly volatility (same formula as adr_pct,
+    # 5-session window). NOT a stdev; the parity matrix maps Finviz
+    # "Volatility W" here and "Volatility M" to the existing adr_pct.
+    w5 = [b for b in bars[-5:] if b["c"]]
+    if w5:
+        out["adr_pct_1w"] = round(
+            sum((b["h"] - b["l"]) / b["c"] for b in w5) / len(w5) * 100, 2)
+    w20 = bars[-20:]
+    out["dist_20d_high_pct"] = _pct(price, max(b["h"] for b in w20))
+    out["dist_20d_low_pct"] = _pct(price, min(b["l"] for b in w20))
+    out["pole_pct"] = _pole_pct(closes)
+    out["atr_ext_sma50"] = _atr_ext_sma50(bars, closes, s50)
+    # prev-day OHLC — trigger levels; collapses Live Scan's SSE-fallback
+    # second authority (spec §2.1)
+    if len(bars) >= 2:
+        p = bars[-2]
+        out["prev_day_open"], out["prev_day_high"] = p["o"], p["h"]
+        out["prev_day_low"], out["prev_day_close"] = p["l"], p["c"]
     return out
