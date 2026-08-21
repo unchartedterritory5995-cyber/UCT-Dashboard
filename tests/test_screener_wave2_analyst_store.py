@@ -204,6 +204,29 @@ def test_fetch_one_growth_needs_two_distinct_fiscal_years(monkeypatch):
     assert out["eps_next_y_growth"] is None
 
 
+def test_fetch_one_growth_pairs_current_and_next_fy_not_the_payload_edges(monkeypatch):
+    """FMP's annual estimates come NEWEST-FIRST and carry past + ~5 forward
+    fiscal years. Without the current-year floor, sorted()[0:2] pairs the
+    PAST year with the current one (or, under the old limit=4 on a covered
+    name, two far-future years). The floor must leave (current, next) =
+    (2026, 2027) under the frozen 2026 clock: 3.0/2.0 - 1 = +50%."""
+    _freeze_now(monkeypatch)
+    _routes(monkeypatch, {
+        "grades-consensus": [{"strongBuy": 1, "buy": 0, "hold": 0, "sell": 0,
+                              "strongSell": 0, "consensus": "Buy"}],
+        "analyst-estimates": [                      # newest-first, like FMP
+            {"date": "2030-12-31", "epsAvg": 9.0},
+            {"date": "2029-12-31", "epsAvg": 7.0},
+            {"date": "2028-12-31", "epsAvg": 5.0},
+            {"date": "2027-12-31", "epsAvg": 3.0},
+            {"date": "2026-12-31", "epsAvg": 2.0},
+            {"date": "2025-12-31", "epsAvg": 1.0},  # past FY — must be floored out
+        ],
+    })
+    out = ap.fetch_one("aapl")
+    assert out["eps_next_y_growth"] == 50.0   # (2027 vs 2026), never 100.0 (2026 vs 2025)
+
+
 def test_fetch_one_returns_none_when_every_leg_nulls(monkeypatch):
     _freeze_now(monkeypatch)
     _routes(monkeypatch, {})   # nothing resolves for any leg

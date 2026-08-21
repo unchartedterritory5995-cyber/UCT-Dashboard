@@ -313,11 +313,22 @@ def _fetch_eps_growth(ticker: str):
     ⛔ FIELD NAME: the plan's brief assumed ``estimatedEpsAvg``. The real FMP
     field — verified against ``annual_financials._forward_estimates_fmp``,
     which already calls this endpoint — is ``epsAvg``. Read from there.
+
+    ⛔ FISCAL-YEAR WINDOW: the payload is NEWEST-FIRST and carries both far-
+    future (~5 forward years) and PAST fiscal years, so ``limit=4`` with no
+    floor hands ``sorted()[0:2]`` the wrong pair — far-future years on covered
+    names (FY2028-vs-2027 labeled "next FY"), past years on thin ones. The
+    same endpoint's sibling, ``annual_financials._forward_estimates_fmp``,
+    pulls ``limit=20`` and skips ``fy <= floor`` for exactly this reason
+    ("the annual twin of the quarterly off-by-one"). Mirror it: wide limit,
+    ET-anchored current-year floor, then the two SMALLEST surviving years
+    are genuinely (current, next).
     """
     data = ee._fmp_get("/stable/analyst-estimates",
-                        {"symbol": ticker, "period": "annual", "limit": 4}, timeout=4)
+                        {"symbol": ticker, "period": "annual", "limit": 20}, timeout=4)
     if not isinstance(data, list):
         return None
+    floor_year = _now_et().year
     by_fy: dict = {}
     for row in data:
         if not isinstance(row, dict):
@@ -326,6 +337,8 @@ def _fetch_eps_growth(ticker: str):
         if not m:
             continue
         fy = int(m.group(1))
+        if fy < floor_year:
+            continue
         eps = _num(row.get("epsAvg"))
         if eps is None:
             continue
