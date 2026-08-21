@@ -26,6 +26,8 @@ def env(tmp_path, monkeypatch):
     ensure_schema(conn)
     conn.close()
     om._reset_cache_for_tests()
+    # No network in tests: the snapshot path is OFF unless a test opts in.
+    monkeypatch.setattr(om.massive, "get_option_snapshot", lambda u, o: None)
     acct = accounts_service.create_account(
         "u1", {"name": "Broker", "color": "blue", "startingBalance": 1.0}
     )
@@ -155,3 +157,54 @@ def test_route_is_mounted():
     assert "/api/j2/broker/option-marks" in paths
     # control: a sibling the probe is not looking for is also visible
     assert "/api/j2/broker/trust" in paths
+
+
+# ── real-time snapshot path (preferred over daily aggs) ─────────────────────
+
+def _snap(*, bid=0, ask=0, mid=0, day_close=0, prev_close=0, last_trade=0):
+    return {
+        "last_quote": {"bid": bid, "ask": ask, "midpoint": mid},
+        "day": {"close": day_close, "previous_close": prev_close},
+        "last_trade": {"price": last_trade},
+    }
+
+
+def test_snapshot_midpoint_is_the_preferred_mark(env, monkeypatch):
+    """Live NBBO midpoint = the mark brokers display. 3 contracts × mid 7.10
+    × 100 = 2130; day baseline from the session's own previous_close 9.03."""
+    sid = _insert_strategy(env, ext="bkopt:snap1", qty=3, entry_price=11.5,
+                           entry_date="2026-08-17T19:01:49Z")
+    monkeypatch.setattr(om.massive, "get_option_snapshot",
+                        lambda u, o: _snap(bid=7.0, ask=7.2, mid=7.10,
+                                           day_close=7.0, prev_close=9.03))
+    marks = om.get_option_marks("u1")
+    assert marks[sid]["mark"] == 7.10
+    assert marks[sid]["prevClose"] == 9.03
+    assert marks[sid]["currentValue"] == 2130.00
+    assert marks[sid]["prevCloseValue"] == 2709.00
+    assert marks[sid]["source"] == "snapshot"
+
+
+def test_zeroed_overnight_book_never_marks_at_zero(env, monkeypatch):
+    """Overnight the NBBO is zeroed (bid=ask=mid=0, verified live 8/21) —
+    midpoint must be ignored and the session close used instead."""
+    sid = _insert_strategy(env, ext="bkopt:snap2", qty=3, entry_price=11.5,
+                           entry_date="2026-08-17T19:01:49Z")
+    monkeypatch.setattr(om.massive, "get_option_snapshot",
+                        lambda u, o: _snap(day_close=7.0, prev_close=9.03))
+    marks = om.get_option_marks("u1")
+    assert marks[sid]["mark"] == 7.0
+    assert marks[sid]["currentValue"] == 2100.00
+    assert marks[sid]["prevCloseValue"] == 2709.00
+
+
+def test_snapshot_failure_falls_back_to_daily_aggs(env, monkeypatch):
+    sid = _insert_strategy(env, ext="bkopt:snap3", qty=3, entry_price=11.5,
+                           entry_date="2026-08-17T19:01:49Z")
+    monkeypatch.setattr(om.massive, "get_option_snapshot", lambda u, o: None)
+    today = datetime.now(om._ET).date().isoformat()
+    monkeypatch.setattr(om.massive, "get_daily_agg",
+                        lambda *a, **k: [_bar(today, 7.0)])
+    marks = om.get_option_marks("u1")
+    assert marks[sid]["currentValue"] == 2100.00
+    assert marks[sid]["source"] == "aggs"

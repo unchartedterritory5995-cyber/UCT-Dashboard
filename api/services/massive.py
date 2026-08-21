@@ -727,6 +727,22 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return []
 
 
+def get_option_snapshot(underlying: str, occ: str) -> dict | None:
+    """Real-time snapshot for ONE option contract (v3) — last NBBO quote
+    (midpoint = the mark brokers display), last trade, today's session OHLC
+    incl. previous_close, open interest. `occ` is the full OCC ticker
+    ('O:BA270115C00250000'). Returns the `results` object or None (entitlement
+    verified live 2026-08-21; overnight the quote side is zeroed — callers
+    must guard bid>0/ask>0 before trusting midpoint)."""
+    try:
+        client = _get_client()
+        url = (f"{_REST_BASE}/v3/snapshot/options/{underlying.upper()}/{occ}"
+               f"?apiKey={client._api_key}")
+        return client._get(url).get("results") or None
+    except Exception:
+        return None
+
+
 _GROUPED_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "grouped_closes")
 
 

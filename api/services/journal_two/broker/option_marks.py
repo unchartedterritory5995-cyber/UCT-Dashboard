@@ -1,4 +1,9 @@
-"""Live-ish option marks for OPEN broker strategies — Massive daily aggregates.
+"""Live option marks for OPEN broker strategies — Massive options data.
+
+Source order: the REAL-TIME v3 options snapshot (NBBO midpoint = the mark
+brokers display; today's session close + its own previous_close — entitlement
+verified live 2026-08-21), falling back to daily aggregates when the snapshot
+is unavailable. 30s/60s server caches; a handful of contracts per user.
 
 `broker_current_value` refreshes only at sync (daily cadence), so between syncs
 the account hero's net-liq and "Today" were blind to option day moves — the
@@ -85,6 +90,56 @@ def _bar_date(bar: dict) -> date:
     return datetime.fromtimestamp(bar["t"] / 1000, tz=timezone.utc).date()
 
 
+def _f(v) -> float | None:
+    try:
+        x = float(v)
+        return x if x == x and x not in (float("inf"), float("-inf")) else None
+    except (TypeError, ValueError):
+        return None
+
+
+_SNAP_TTL_SECONDS = 30.0
+_snap_cache: dict[str, tuple[float, dict | None]] = {}
+
+
+def _snapshot_for(underlying: str, occ: str) -> dict | None:
+    now = time.time()
+    hit = _snap_cache.get(occ)
+    if hit and now - hit[0] < _SNAP_TTL_SECONDS:
+        return hit[1]
+    snap = massive.get_option_snapshot(underlying, occ)
+    _snap_cache[occ] = (now, snap)
+    return snap
+
+
+def _mark_from_snapshot(snap: dict) -> tuple[float | None, float | None]:
+    """(mark, prev_close) from a v3 option snapshot, or (None, None).
+
+    Mark preference — live NBBO midpoint (what brokers display as the mark;
+    ONLY when both sides are quoted — overnight the book is zeroed and
+    midpoint reads 0), then today's session close (updates intraday with the
+    tape), then the last trade. prev_close is the session object's own
+    previous_close. Everything must be a positive finite number or it is
+    treated as absent — never fabricated."""
+    if not isinstance(snap, dict):
+        return None, None
+    quote = snap.get("last_quote") or {}
+    day = snap.get("day") or {}
+    trade = snap.get("last_trade") or {}
+    bid, ask = _f(quote.get("bid")), _f(quote.get("ask"))
+    mid = _f(quote.get("midpoint"))
+    mark = None
+    if bid and ask and bid > 0 and ask > 0 and mid and mid > 0:
+        mark = mid
+    elif (c := _f(day.get("close"))) and c > 0:
+        mark = c
+    elif (p := _f(trade.get("price"))) and p > 0:
+        mark = p
+    prev = _f(day.get("previous_close"))
+    prev = prev if prev and prev > 0 else None
+    return mark, prev
+
+
 def get_option_marks(user_id: str, account_id: str | None = None,
                      conn=None) -> dict[str, Any]:
     """{strategyId: {mark, prevClose, currentValue, prevCloseValue,
@@ -110,19 +165,25 @@ def get_option_marks(user_id: str, account_id: str | None = None,
                              r["contract_type"], r["strike"])
         except Exception:
             continue
-        bars = _bars_for(occ, today_et=today_et)
-        if not bars:
-            continue
-        last = bars[-1]
-        mark = last.get("c")
+        # Real-time snapshot first (live NBBO midpoint / today's tape +
+        # the session's own previous_close), daily aggregates as fallback.
+        source = "snapshot"
+        mark, prev = _mark_from_snapshot(_snapshot_for(r["underlying"], occ))
         if mark is None:
-            continue
-        if _bar_date(last) >= today_et and len(bars) >= 2:
-            prev = bars[-2].get("c")
-        else:
-            # No trade today yet → last session close is both mark and
-            # baseline (day move 0). Honest, never fabricated.
-            prev = mark
+            source = "aggs"
+            bars = _bars_for(occ, today_et=today_et)
+            if not bars:
+                continue
+            last = bars[-1]
+            mark = last.get("c")
+            if mark is None:
+                continue
+            if _bar_date(last) >= today_et and len(bars) >= 2:
+                prev = bars[-2].get("c")
+            else:
+                # No trade today yet → last session close is both mark and
+                # baseline (day move 0). Honest, never fabricated.
+                prev = mark
         if prev is None:
             prev = mark
         qty = abs(float(r["leg_qty"] or 0.0))
@@ -138,10 +199,13 @@ def get_option_marks(user_id: str, account_id: str | None = None,
             # Carried-in strategies have a sync-stamped entry_date — the FE's
             # opened-today rule must not treat that placeholder as a fill.
             "entryEstimated": str(r["external_id"] or "").startswith("bkoptpos:"),
-            "asOf": _bar_date(last).isoformat(),
+            "asOf": (today_et.isoformat() if source == "snapshot"
+                     else _bar_date(last).isoformat()),
+            "source": source,
         }
     return out
 
 
 def _reset_cache_for_tests() -> None:
     _agg_cache.clear()
+    _snap_cache.clear()
