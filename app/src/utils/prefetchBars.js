@@ -65,6 +65,12 @@ let _kick = null
 function _pump() {
   while (_active < _MAX_CONCURRENT && _queue.length) {
     const url = _queue.shift()
+    // Cold-start (see _packStillIngesting): SWR list-warming (theme tracker holdings,
+    // Breadth drill lists, ModelBook, Screener) must NOT race the pack to origin
+    // either. Drop the warm — it's best-effort in-memory only (wiped on reload); the
+    // pack fills IDB, the visible chart's own SWR fetch is separate, and a click
+    // fetches its one chart. Resumes once the pack stamps its version.
+    if (_packStillIngesting()) continue
     _active++
     Promise.resolve(preload(url, fetcher)).finally(() => {
       _active--
