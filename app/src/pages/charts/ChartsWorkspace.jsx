@@ -12,7 +12,7 @@ import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaults
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -1095,7 +1095,24 @@ export default function ChartsWorkspace() {
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave, prefs.chart_settings])
+    // GLOBAL-pref widgets (theme tracker / fundamentals / breadth / AI search) read a
+    // single pref, not opts.settings — so per-widget patching can't reach them. Write
+    // each present type's pref, mapping the theme over its current stored blob so the
+    // widget's non-color prefs survive. Only touch a pref whose widget is on-screen —
+    // computed from the live layout (NOT inside the setLayout updater, which runs
+    // async, so the set would still be empty when this loop reads it).
+    const cur = layoutRef.current || layout
+    const presentTypes = new Set()
+    for (const w of (cur.widgets || [])) {
+      presentTypes.add(w.type)
+      if (Array.isArray(w.wtabs)) for (const t of w.wtabs) if (t?.type) presentTypes.add(t.type)
+    }
+    for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
+      if (!presentTypes.has(type)) continue
+      const base = parsePref(prefs?.[key], null) || {}
+      setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
+    }
+  }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
 
   // ── "Open on Charts" deep link (/charts?sym=AMD&tf=15) ───────────────────

@@ -341,59 +341,86 @@ export function patchOptsWithTheme(opts, theme, seed) {
   return next
 }
 
-// ── "Apply to all WIDGETS" — theme the non-chart widgets too ─────────────────
-//
-// Every workspace widget stores its own appearance in `opts.settings`, and the
-// market widgets (watchlist/scanner/theme-tracker/fundamentals/breadth) share one
-// canvas+color schema (bgMode/bg/bgGradient + a text key + up/down + grid/tint);
-// the simpler ones (news/profile/alerts/calendar/optionsflow/aisearch) expose just
-// canvas + textColor. `mapThemeToWidgetSettings` maps a chart theme onto whichever
-// keys a given widget type understands (merged over its current blob, so unrelated
-// prefs like logos/fontSize survive). A type with no themeable schema returns null.
+// Visible-but-not-bold gridline for a widget canvas — a light hairline on a dark
+// canvas, a dark one on a light canvas. The raw `theme.grid` is tuned faint for a
+// big chart and disappears in dense widget rows, so widgets derive their own.
+export function readableGrid(bg) {
+  return _luminance(bg) > 0.55 ? 'rgba(0,0,0,0.13)' : 'rgba(255,255,255,0.14)'
+}
 
-const _WIDGET_TEXT_KEY = { themes: 'symColor' } // theme-tracker names its text color differently
-const _TINT_TYPES = new Set(['watchlist', 'scanner', 'themes'])
-const _MARKET_TYPES = new Set(['watchlist', 'scanner', 'themes', 'fundamentals', 'breadth'])
-const _CANVAS_TYPES = new Set(['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'aisearch'])
+// ── "Apply to all WIDGETS" — theme every widget type ─────────────────────────
+//
+// Each widget type exposes a DIFFERENT subset of appearance keys. This descriptor
+// says, per type: which key(s) carry the DATA text (`text`), whether it has an
+// up/down color pair (`updown`) or a pos/neg pair (`posneg`, calendar), a gridline
+// (`grid`), or a %-flash tint (`tint`). `mapThemeToWidgetSettings` writes only the
+// keys a type understands, merged over its current blob so unrelated prefs (logos,
+// fontSize, columns) survive. Text uses high-contrast `readableInk` (never the
+// muted chart-axis color); grid uses `readableGrid`; up/down come from the theme.
+//
+// Two storage models: PER-WIDGET types keep appearance in `opts.settings` (patched
+// here); GLOBAL types read a single pref (`WIDGET_GLOBAL_PREF_KEYS`) and are written
+// by the workspace instead.
+const _WIDGET_THEME_MAP = {
+  watchlist:    { text: ['textColor'],              updown: true, grid: true, tint: true },
+  scanner:      { text: ['textColor'],              updown: true, grid: true, tint: true },
+  themes:       { text: ['symColor'],               updown: true, tint: true },
+  fundamentals: { text: ['textColor'],              updown: true },
+  breadth:      { text: ['headerColor', 'valueColor'], updown: true },
+  optionsflow:  { text: ['textColor'],              updown: true },
+  calendar:     { text: ['textColor'],              posneg: true },
+  alerts:       { text: ['textColor'] },
+  profile:      { text: ['textColor', 'headerColor'], updown: true },
+  news:         { text: ['textColor', 'headerColor'], updown: true },
+  aisearch:     { text: ['textColor'] },
+}
+
+// Types whose appearance lives in a single GLOBAL pref (not opts.settings). The
+// workspace writes these; patchWidgetOptsWithTheme leaves their opts untouched.
+export const WIDGET_GLOBAL_PREF_KEYS = {
+  themes: 'theme_tracker_settings',
+  fundamentals: 'fundamentals_settings',
+  breadth: 'breadth_widget_settings',
+  aisearch: 'aisearch_settings',
+}
+const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news'])
 const _hex6 = (c) => /^#[0-9a-f]{6}$/i.test(c || '')
 
 export function mapThemeToWidgetSettings(base, theme, type) {
-  if (!theme) return base
+  const cfg = _WIDGET_THEME_MAP[type]
+  if (!theme || !cfg) return base
   const b = base || {}
   const grad = theme.bgGradient
-  const canvas = {
+  const topBg = grad ? grad.top : theme.bg
+  const ink = readableInk(topBg)
+  const out = {
+    ...b,
     bgMode: grad ? 'gradient' : 'solid',
     bg: grad ? grad.bottom : theme.bg,
     ...(grad ? { bgGradient: { top: grad.top, bottom: grad.bottom } } : {}),
   }
-  // Widget DATA text uses high-contrast ink (not the muted chart-axis `theme.text`)
-  // so symbol/price/volume rows always stand out on the themed canvas.
-  const ink = readableInk(grad ? grad.top : theme.bg)
-  const textKey = _WIDGET_TEXT_KEY[type] || 'textColor'
-  const out = { ...b, ...canvas, [textKey]: ink }
-
-  if (type === 'breadth') { out.headerColor = ink; out.valueColor = ink }
-  if (_MARKET_TYPES.has(type)) {
-    out.upColor = theme.up
-    out.downColor = theme.down
-    if (theme.grid) out.gridColor = theme.grid
-    if (_TINT_TYPES.has(type) && _hex6(theme.up) && _hex6(theme.down)) {
-      out.tintEnabled = true
-      out.tintUp = theme.up + '47'    // ~28% alpha, matching the widget defaults
-      out.tintDown = theme.down + '47'
-    }
+  for (const k of cfg.text) out[k] = ink
+  if (cfg.updown) { out.upColor = theme.up; out.downColor = theme.down }
+  if (cfg.posneg) { out.posColor = theme.up; out.negColor = theme.down }
+  if (cfg.grid) out.gridColor = readableGrid(topBg)
+  if (cfg.tint && _hex6(theme.up) && _hex6(theme.down)) {
+    out.tintEnabled = true
+    out.tintUp = theme.up + '47'    // ~28% alpha, matching the widget defaults
+    out.tintDown = theme.down + '47'
   }
   return out
 }
 
 /**
- * Patch ONE widget's (or widget-tab's) opts to adopt `theme`, dispatching on its
- * type. Charts get the full chart mapping (incl. their chart tabs); market/simple
- * widgets get their canvas+color schema; an un-themeable type is returned as-is.
+ * Patch ONE PER-WIDGET widget's (or widget-tab's) opts to adopt `theme`. Charts get
+ * the full chart mapping (incl. chart tabs); watchlist/scanner/optionsflow/calendar/
+ * alerts/profile/news get their opts.settings mapped. GLOBAL-pref widgets (themes/
+ * fundamentals/breadth/aisearch) are handled by the workspace via their pref, so
+ * their opts pass through unchanged here.
  */
 export function patchWidgetOptsWithTheme(type, opts, theme, chartSeed) {
   if (type === 'chart') return patchOptsWithTheme(opts, theme, chartSeed)
-  if (_MARKET_TYPES.has(type) || _CANVAS_TYPES.has(type)) {
+  if (_PER_WIDGET_TYPES.has(type)) {
     const o = opts || {}
     return { ...o, settings: mapThemeToWidgetSettings(o.settings || {}, theme, type) }
   }
