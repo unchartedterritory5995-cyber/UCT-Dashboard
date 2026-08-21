@@ -1,9 +1,9 @@
 import { renderWithProviders, screen } from '../test-utils'
 import { vi } from 'vitest'
 
-// The default "Scanner" tab is now the full-market ScannerPro (its own data
+// The default "Scanner" tab is now the full-market ScannerShell (its own data
 // hooks). Stub it here so the page-shell test stays focused on the shell.
-vi.mock('./screener/ScannerPro', () => ({ default: () => <div>scanner pro</div> }))
+vi.mock('./screener/shell/ScannerShell', () => ({ default: () => <div>scanner shell</div> }))
 
 vi.mock('swr', () => ({
   default: vi.fn(() => ({

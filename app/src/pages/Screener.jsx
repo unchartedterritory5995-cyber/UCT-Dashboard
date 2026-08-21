@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
-import ScannerPro from './screener/ScannerPro'
+import ScannerShell from './screener/shell/ScannerShell'
 import SavedScreensPanel from '../components/screener/SavedScreensPanel'
 import { SkeletonTable } from '../components/Skeleton'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
@@ -12,7 +12,7 @@ import styles from './Screener.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 
 const PAGE_TABS = [
-  { key: 'scanner', label: 'Scanner' },          // full-market ScannerPro (default)
+  { key: 'scanner', label: 'Scanner' },          // full-market ScannerShell (default)
   { key: 'board',   label: 'Candidate Board' },   // the 7 AM scanner candidate board
   { key: 'live',    label: 'Live Scan', icon: 'bolt' },
   // 🔴 THE MOUNT. `ScanResults` (and through it the four-outcome coverage
@@ -483,7 +483,7 @@ export default function Screener({ embedded = false }) {
       </div>
 
       {pageTab === 'scanner' ? (
-        <ScannerPro embedded={embedded} />
+        <ScannerShell embedded={embedded} />
       ) : pageTab === 'formulas' ? (
         // ⛔ AHEAD OF THE `/api/candidates` BRANCHES, DELIBERATELY. Everything
         // below this line is gated on the 7 AM candidate board's SWR

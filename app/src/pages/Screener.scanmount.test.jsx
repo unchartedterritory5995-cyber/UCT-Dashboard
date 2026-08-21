@@ -56,7 +56,7 @@ import { SCAN_TF, scannableScreens } from '../components/screener/SavedScreensPa
 
 // The Scanner Hub's DEFAULT tab, which owns three data hooks of its own and is
 // not what this file is about. `Screener.test.jsx` stubs it for the same reason.
-vi.mock('./screener/ScannerPro', () => ({ default: () => <div>scanner pro</div> }))
+vi.mock('./screener/shell/ScannerShell', () => ({ default: () => <div>scanner shell</div> }))
 // The chart shell. ⛔ Stubbing it CANNOT make this file pass: every assertion
 // below is on markup `CoverageLine` writes, and `ChartPane` is only reached
 // after a chart click this file never makes.
