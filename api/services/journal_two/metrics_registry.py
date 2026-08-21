@@ -379,6 +379,112 @@ def _period_compare(ctx: Ctx) -> dict[str, Any]:
     return {name: _slice(lo, hi) for name, (lo, hi) in bounds.items()}
 
 
+def _fees_drag(ctx: Ctx) -> dict[str, Any]:
+    gross = sum(float(r["pnl_dollar"] or 0) for r in ctx.rows)
+    fees = sum(float(r["fees"] or 0) for r in ctx.rows)
+    n = len(ctx.rows)
+    gross_profit = sum(float(r["pnl_dollar"] or 0) for r in ctx.rows
+                       if float(r["pnl_dollar"] or 0) > 0)
+    return {
+        "totalFees": round(fees, 2),
+        "feesPerTrade": round(fees / n, 2) if n else None,
+        # fees as a share of the profit the winners produced — the honest
+        # "how much of my edge do costs eat" number (None with no winners)
+        "feesVsGrossProfit": round(fees / gross_profit, 4) if gross_profit > 1e-9 else None,
+        "netPnl": round(gross - fees, 2),
+        "feeFreePnl": round(gross, 2),
+        "trades": n,
+    }
+
+
+def _size_buckets(ctx: Ctx) -> dict[str, Any]:
+    """Win rate + P&L by position size (entry notional) quartile — 'are my
+    big bets better or worse than my small ones'."""
+    sized = [(float(r["entry_price"]) * float(r["shares"]), r)
+             for r in ctx.rows
+             if r["entry_price"] is not None and r["shares"] is not None
+             and float(r["shares"] or 0) > 0]
+    if len(sized) < 4:
+        return {"trades": len(sized), "buckets": []}
+    notionals = sorted(v for v, _r in sized)
+    n = len(notionals)
+    qs = [notionals[n // 4], notionals[n // 2], notionals[(3 * n) // 4]]
+    labels = [f"< ${qs[0]:,.0f}", f"${qs[0]:,.0f}-${qs[1]:,.0f}",
+              f"${qs[1]:,.0f}-${qs[2]:,.0f}", f"> ${qs[2]:,.0f}"]
+    buckets = [{"label": lab, "pnl": 0.0, "n": 0, "w": 0, "l": 0} for lab in labels]
+    for v, r in sized:
+        i = 0 if v < qs[0] else 1 if v < qs[1] else 2 if v < qs[2] else 3
+        b = buckets[i]
+        b["pnl"] += _net(r)
+        b["n"] += 1
+        if r["result"] == "Win":
+            b["w"] += 1
+        elif r["result"] == "Loss":
+            b["l"] += 1
+    out = []
+    for b in buckets:
+        wl = b["w"] + b["l"]
+        out.append({"label": b["label"], "trades": b["n"],
+                    "pnl": round(b["pnl"], 2),
+                    "winRate": round(b["w"] / wl, 4) if wl else None})
+    return {"trades": len(sized), "buckets": out}
+
+
+_MC_PATHS = 1000
+_MC_HORIZON = 100
+_MC_MIN_TRADES = 30
+
+
+def _monte_carlo(ctx: Ctx) -> dict[str, Any]:
+    """Bootstrap simulation: resample the book's own per-trade net P&L with
+    replacement to project the next _MC_HORIZON trades over _MC_PATHS paths.
+    DETERMINISTIC (fixed seed) — the same book always projects the same
+    distribution, so the card never flickers. Gated n>=30 trades: a thin
+    sample resampled is still a thin sample, and pretending otherwise is
+    exactly the fabrication this registry forbids."""
+    import random as _random
+    pnls = [_net(r) for r in ctx.rows]
+    n = len(pnls)
+    base = {"trades": n, "minTrades": _MC_MIN_TRADES, "horizon": _MC_HORIZON,
+            "paths": _MC_PATHS, "terminal": None, "maxDrawdown": None,
+            "probDown10": None, "probDown20": None}
+    if n < _MC_MIN_TRADES:
+        return base
+    start = ctx.starting_balance if ctx.starting_balance > 0 else None
+    rng = _random.Random(42)
+    terminals: list[float] = []
+    dds: list[float] = []
+    down10 = down20 = 0
+    for _p in range(_MC_PATHS):
+        run = peak = 0.0
+        max_dd = 0.0
+        for _t in range(_MC_HORIZON):
+            run += pnls[rng.randrange(n)]
+            peak = max(peak, run)
+            max_dd = min(max_dd, run - peak)
+        terminals.append(run)
+        dds.append(max_dd)
+        if start:
+            if max_dd <= -0.10 * start:
+                down10 += 1
+            if max_dd <= -0.20 * start:
+                down20 += 1
+    terminals.sort()
+    dds.sort()
+
+    def _pct(sorted_xs, q):
+        return round(sorted_xs[min(len(sorted_xs) - 1, int(q * len(sorted_xs)))], 2)
+
+    base.update({
+        "terminal": {"p5": _pct(terminals, 0.05), "p50": _pct(terminals, 0.50),
+                     "p95": _pct(terminals, 0.95)},
+        "maxDrawdown": {"p50": _pct(dds, 0.50), "p95": _pct(dds, 0.05)},
+        "probDown10": round(down10 / _MC_PATHS, 4) if start else None,
+        "probDown20": round(down20 / _MC_PATHS, 4) if start else None,
+    })
+    return base
+
+
 # ── Custom-KPI vocabulary + AST-safe evaluator ──────────────────────────────
 
 def build_vocabulary(ctx: Ctx) -> dict[str, float | None]:
@@ -509,6 +615,17 @@ METRICS: dict[str, MetricDef] = {m.key: m for m in [
     MetricDef("period_compare", "Period Comparison",
               "This month/quarter/YTD vs the previous — net P&L, win rate, "
               "trades, avg R.", "progress", _period_compare),
+    MetricDef("fees_drag", "Fees Drag",
+              "What commissions and fees actually cost your edge.",
+              "costs", _fees_drag),
+    MetricDef("size_buckets", "Performance by Size",
+              "Win rate and P&L by position-size quartile — are your big "
+              "bets better or worse than your small ones?", "risk",
+              _size_buckets),
+    MetricDef("monte_carlo", "Monte Carlo Projection",
+              "1,000 bootstrap paths of your next 100 trades from your own "
+              "P&L distribution — terminal range, drawdown odds.",
+              "risk", _monte_carlo),
 ]}
 
 VOCABULARY_KEYS = [

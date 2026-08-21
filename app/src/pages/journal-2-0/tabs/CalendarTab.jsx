@@ -8,6 +8,9 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Calendar from '../hooks/useJ2Calendar'
+import { useFeatureFlag } from '../featureFlags'
+import { renderMonthCardPng } from '../lib/monthCardPng'
+import { downloadBlob, copyBlobToClipboard } from '../../../components/chart/chartScreenshot'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useScope from '../hooks/useScope'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
@@ -118,6 +121,10 @@ export default function CalendarTab() {
         onBasisChange={(b) => setPref('j2_calendar_pnl_basis', b)}
       />
 
+      {view === 'month' && hasTrades && (
+        <MonthCardActions year={year} month={month} days={days} totals={totals} />
+      )}
+
       {error && (
         <div className={styles.errorBanner} role="alert">
           Couldn't load calendar: {String(error.message || error)}
@@ -144,6 +151,50 @@ export default function CalendarTab() {
       {isLoading && days.length === 0 && (
         <p className={styles.hint}>Loading calendar…</p>
       )}
+    </div>
+  )
+}
+
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+
+/** Save/Copy image for the month-recap card — same tradePng kill flag as the
+ *  whole PNG-export family; inline error, never a crash. */
+function MonthCardActions({ year, month, days, totals }) {
+  const flagOn = useFeatureFlag('tradePng')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  if (!flagOn) return null
+  const label = `${MONTH_NAMES[(month || 1) - 1]} ${year}`
+
+  const run = async (deliver) => {
+    setErr(null)
+    setBusy(true)
+    try {
+      const blob = await renderMonthCardPng(label, days, totals)
+      await deliver(blob)
+    } catch {
+      setErr('Couldn’t build the image.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={styles.monthCardRow}>
+      <button type="button" className={styles.monthCardBtn} disabled={busy}
+        onClick={() => run((b) => downloadBlob(b, `month-${year}-${String(month).padStart(2, '0')}.png`))}>
+        Save month image
+      </button>
+      <button type="button" className={styles.monthCardBtn} disabled={busy}
+        onClick={() => run(async (b) => {
+          const ok = await copyBlobToClipboard(b)
+          if (!ok) setErr('Copy isn’t supported in this browser — use Save.')
+        })}>
+        Copy month image
+      </button>
+      {err && <span className={styles.monthCardErr} role="alert">{err}</span>}
     </div>
   )
 }

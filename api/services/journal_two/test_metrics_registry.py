@@ -220,3 +220,63 @@ def test_unknown_keys_reported_never_dropped():
 def test_registry_listing_covers_every_card_plus_custom():
     keys = {e["key"] for e in registry_listing()}
     assert keys == set(METRICS.keys()) | {"custom"}
+
+
+# ── fees_drag ────────────────────────────────────────────────────────────────
+
+def test_fees_drag_hand_worked():
+    conn = _conn()
+    _trade(conn, "t1", day="2026-03-02", pnl=300, result="Win", fees=3.0)
+    _trade(conn, "t2", day="2026-03-03", pnl=-100, result="Loss", fees=2.0)
+    f = _out(conn, ["fees_drag"])["metrics"]["fees_drag"]
+    assert f["totalFees"] == 5.0
+    assert f["feesPerTrade"] == 2.5
+    assert f["feesVsGrossProfit"] == pytest.approx(5 / 300, abs=1e-4)  # rounded 4dp
+    assert f["netPnl"] == 195.0 and f["feeFreePnl"] == 200.0
+
+
+# ── size_buckets ─────────────────────────────────────────────────────────────
+
+def test_size_buckets_quartiles_and_gate():
+    conn = _conn()
+    # 8 trades, notionals 10*100..10*800 → quartiles split 2/2/2/2
+    for i in range(8):
+        _trade(conn, f"t{i}", day=f"2026-03-{i + 1:02d}",
+               pnl=100 if i % 2 == 0 else -50,
+               result="Win" if i % 2 == 0 else "Loss",
+               entry=(i + 1) * 100.0, shares=10)
+    b = _out(conn, ["size_buckets"])["metrics"]["size_buckets"]
+    assert b["trades"] == 8
+    assert len(b["buckets"]) == 4
+    assert sum(x["trades"] for x in b["buckets"]) == 8
+    # under 4 sized trades → empty buckets, never fabricated quartiles
+    conn2 = _conn()
+    _trade(conn2, "only", day="2026-03-02", pnl=10, result="Win")
+    b2 = _out(conn2, ["size_buckets"])["metrics"]["size_buckets"]
+    assert b2["buckets"] == []
+
+
+# ── monte_carlo ──────────────────────────────────────────────────────────────
+
+def test_monte_carlo_gated_below_30_trades():
+    conn = _conn()
+    for i in range(5):
+        _trade(conn, f"t{i}", day=f"2026-03-{i + 1:02d}", pnl=100, result="Win")
+    m = _out(conn, ["monte_carlo"])["metrics"]["monte_carlo"]
+    assert m["terminal"] is None and m["trades"] == 5
+
+
+def test_monte_carlo_deterministic_and_sane():
+    conn = _conn()
+    for i in range(30):
+        _trade(conn, f"t{i}", day=f"2026-{(i // 28) + 3:02d}-{(i % 28) + 1:02d}",
+               pnl=200 if i % 2 == 0 else -100,
+               result="Win" if i % 2 == 0 else "Loss")
+    a = _out(conn, ["monte_carlo"])["metrics"]["monte_carlo"]
+    b = _out(conn, ["monte_carlo"])["metrics"]["monte_carlo"]
+    assert a == b  # fixed seed → same book, same projection, no flicker
+    assert a["terminal"]["p5"] <= a["terminal"]["p50"] <= a["terminal"]["p95"]
+    # EV per trade = +50 → median terminal of 100 trades should be positive
+    assert a["terminal"]["p50"] > 0
+    assert a["maxDrawdown"]["p50"] <= 0
+    assert 0 <= a["probDown10"] <= 1

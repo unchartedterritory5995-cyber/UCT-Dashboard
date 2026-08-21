@@ -257,3 +257,75 @@ def _first_day_net(conn, base, params, first_day: str) -> float:
         params + [first_day],
     ).fetchone()
     return float(row[0])
+
+
+# ── Weekly sweep (Sunday 09:30 ET) — the audit as a standing guarantee ───────
+
+def run_weekly_sweep(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Audit every user who has j2 trades; ALWAYS post the weekly Discord
+    line (a silent-green monitor reads as dead — repo lesson), naming any
+    failing users + checks. Read-only, bounded (one pass per week)."""
+    own = conn is None
+    conn = conn or get_connection()
+    try:
+        users = [r[0] for r in conn.execute(
+            "SELECT DISTINCT user_id FROM j2_trades").fetchall()]
+        failures: list[dict[str, Any]] = []
+        for uid in users:
+            try:
+                out = run_books_audit(uid, conn=conn)
+                if not out["ok"]:
+                    failures.append({
+                        "userId": uid,
+                        "checks": [c["name"] for c in out["checks"] if not c["pass"]],
+                    })
+            except Exception as e:  # noqa: BLE001 — one bad book never stops the sweep
+                failures.append({"userId": uid, "checks": [f"audit-error: {e}"]})
+        _post_discord_summary(len(users), failures)
+        return {"users": len(users), "failures": failures}
+    finally:
+        if own:
+            conn.close()
+
+
+def _post_discord_summary(user_count: int, failures: list[dict[str, Any]]) -> None:
+    import os
+    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if not url:
+        return
+    try:
+        import requests
+        if failures:
+            lines = chr(10).join(
+                f"- `{f['userId'][:8]}…`: {', '.join(f['checks'])}" for f in failures[:10]
+            )
+            title = f"🔴 Books audit: {len(failures)} of {user_count} books FAILED"
+            desc = lines
+            color = 0xE74C3C
+        else:
+            title = f"🟢 Books audit: all {user_count} books balance"
+            desc = "Every lens (analytics · calendar · day pages · tax · options) closes."
+            color = 0x2ECC71
+        requests.post(url, json={"embeds": [{
+            "title": title, "description": desc, "color": color,
+            "footer": {"text": "UCT books audit · weekly"},
+        }]}, timeout=8)
+    except Exception:  # noqa: BLE001 — the post is best-effort, never raises
+        pass
+
+
+def register_weekly_job(scheduler) -> bool:
+    """Sunday 09:30 ET sweep. Kill switch: BOOKS_AUDIT_WEEKLY_ENABLED=0
+    (default ON — the sweep is read-only and posts once a week)."""
+    import os
+    if os.environ.get("BOOKS_AUDIT_WEEKLY_ENABLED", "1") == "0":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
+    scheduler.add_job(
+        run_weekly_sweep,
+        trigger=CronTrigger(day_of_week="sun", hour=9, minute=30,
+                            timezone=ZoneInfo("America/New_York")),
+        id="j2_books_audit_weekly", max_instances=1, replace_existing=True,
+    )
+    return True

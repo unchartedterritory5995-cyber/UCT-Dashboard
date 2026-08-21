@@ -120,3 +120,42 @@ def test_strategy_only_year_is_swept():
     assert "2025" in out["scope"]["years"]
     cal = next(c for c in out["checks"] if c["name"] == "calendar_closure")
     assert cal["pass"], cal
+
+
+def test_weekly_sweep_reports_failures_and_posts(monkeypatch):
+    """The sweep audits every user with trades, names failing users, and the
+    Discord post carries the red title (fired via a captured poster)."""
+    from api.services.journal_two import books_audit as ba
+    conn = _conn()
+    _seed_book(conn)
+    _trade(conn, "u2t", user_id="u2")  # second, clean user
+    conn.execute("UPDATE j2_trades SET pnl_dollar = pnl_dollar + 500 WHERE id = 't1'")
+    conn.commit()
+    posted = {}
+    monkeypatch.setattr(ba, "_post_discord_summary",
+                        lambda n, f: posted.update({"n": n, "failures": f}))
+    out = ba.run_weekly_sweep(conn=conn)
+    assert out["users"] == 2
+    assert len(out["failures"]) == 1
+    assert out["failures"][0]["userId"] == "u1"
+    assert "tax_price_parity" in out["failures"][0]["checks"]
+    assert posted["n"] == 2 and len(posted["failures"]) == 1
+
+
+def test_register_weekly_job_kill_switch(monkeypatch):
+    from api.services.journal_two import books_audit as ba
+
+    class _Sched:
+        def __init__(self):
+            self.jobs = []
+
+        def add_job(self, *a, **k):
+            self.jobs.append(k.get("id"))
+
+    s = _Sched()
+    assert ba.register_weekly_job(s) is True
+    assert s.jobs == ["j2_books_audit_weekly"]
+    monkeypatch.setenv("BOOKS_AUDIT_WEEKLY_ENABLED", "0")
+    s2 = _Sched()
+    assert ba.register_weekly_job(s2) is False
+    assert s2.jobs == []

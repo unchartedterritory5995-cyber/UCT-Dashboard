@@ -5437,6 +5437,13 @@ async def lifespan(app: FastAPI):
             from api.services.journal_two import excursion_jobs
             if excursion_jobs.register_jobs(_scheduler):
                 print("[startup] j2 excursion backfill registered (03:10 ET Mon-Sat)")
+            # Weekly books audit (Sunday 09:30 ET) — read-only cross-foot of
+            # every user's book across all lenses; ALWAYS posts its weekly
+            # Discord line (green or red) so the gate is visibly alive.
+            # Kill switch: BOOKS_AUDIT_WEEKLY_ENABLED=0.
+            from api.services.journal_two import books_audit as _books_audit
+            if _books_audit.register_weekly_job(_scheduler):
+                print("[startup] j2 books audit registered (Sun 09:30 ET)")
         except Exception as e:
             print(f"[startup] j2 excursion backfill registration failed (non-fatal): {e}")
         # Nightly orphaned note-attachment GC (Journal Widgets — re-captures

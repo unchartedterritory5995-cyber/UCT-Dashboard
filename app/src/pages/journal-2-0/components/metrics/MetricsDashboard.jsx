@@ -245,6 +245,46 @@ function CardBody({ metricKey, p }) {
         </div>
       )
     }
+    case 'fees_drag':
+      return (
+        <div className={styles.stats}>
+          <Stat label="Total fees" value={usd(p.totalFees)} neg />
+          <Stat label="Per trade" value={usd(p.feesPerTrade)} />
+          <Stat label="Of gross profit" value={pct(p.feesVsGrossProfit)}
+                title="Fees as a share of what your winners produced" />
+          <Stat label="Net P&L" value={usd(p.netPnl)} />
+          <Stat label="Fee-free P&L" value={usd(p.feeFreePnl)}
+                title="What the same trades would have made with zero costs" />
+        </div>
+      )
+    case 'size_buckets':
+      return p.buckets?.length ? (
+        <MiniTable
+          title="By entry notional (quartiles)"
+          cols={['Size', 'P&L', 'Trades', 'Win %']}
+          rows={p.buckets.map((b) => [b.label, usd(b.pnl), b.trades, pct(b.winRate, 0)])}
+        />
+      ) : (
+        <p className={styles.gateNote}>Needs at least 4 sized trades.</p>
+      )
+    case 'monte_carlo':
+      return p.terminal ? (
+        <div className={styles.stats}>
+          <Stat label="Next 100 trades (median)" value={usd(p.terminal.p50)} />
+          <Stat label="5th–95th pct" value={`${usd(p.terminal.p5)} … ${usd(p.terminal.p95)}`} />
+          <Stat label="Median max DD" value={usd(p.maxDrawdown?.p50)} neg />
+          <Stat label="Worst-case DD (95th)" value={usd(p.maxDrawdown?.p95)} neg />
+          <Stat label="P(−10% acct)" value={pct(p.probDown10)} />
+          <Stat label="P(−20% acct)" value={pct(p.probDown20)} />
+          <p className={styles.gateNote}>
+            {p.paths.toLocaleString()} bootstrap paths from your own {p.trades}-trade P&L distribution.
+          </p>
+        </div>
+      ) : (
+        <p className={styles.gateNote}>
+          Needs {p.minTrades} closed trades — {p.trades} so far.
+        </p>
+      )
     default:
       return <p className={styles.hint}>Unknown card.</p>
   }
