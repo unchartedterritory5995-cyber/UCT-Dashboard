@@ -255,7 +255,21 @@ const LIVE_TICK_FRESH_MS = 6000
 // browser mid-pack-ingest can stall idbGet for seconds (readwrite ingest serializes
 // with our readonly get); this cap makes a new user paint from the ~1ms origin instead
 // of a black screen. Warm browsers resolve idbGet in ~5ms and never reach it.
+//
+// 🔴 TWO timeouts, chosen by whether this browser has EVER returned cached bars
+// (`_browserHasCachedBars`). The subtlety a real member HAR exposed (2026-08-20): a
+// slow idbGet means the IDB is BUSY, which means it almost certainly HAS data (a
+// populated cache under ingest/scan contention) — NOT that it's empty. An EMPTY
+// browser's idbGet returns null in ~1ms and never trips a timeout. So the original
+// flat 600ms fired in exactly the wrong case: it abandoned a member's full 23k-entry
+// cache and full-fetched all 712 charts from the server, adding load that slowed
+// idbGet further (a vicious loop) while his warm cache sat unused. Fix: once ANY
+// idbGet on this browser has returned bars, we KNOW it has a pack — be patient
+// (CACHED_MS) and let the local read win instead of hammering the origin. A browser
+// that has never shown cached bars keeps the fast 600ms new-user path.
 const _IDB_FIRST_PAINT_TIMEOUT_MS = 600
+const _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS = 4000
+let _browserHasCachedBars = false
 // Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
@@ -4137,16 +4151,21 @@ export default function StockChart({
     // (no `since`, so it's correct). A late idbGet still reconciles when it lands
     // (the _idbFresh / longer-series merge below picks the better set). This makes
     // "log on → instant from the fast server" true for new users, pack or no pack.
+    // Patient once we KNOW this browser has a cache (see _browserHasCachedBars): a
+    // slow idbGet on a populated browser means "busy, has data — wait for it", NOT
+    // "empty — bypass to the server". Only a browser that has never shown cached bars
+    // keeps the fast new-user path.
     const _t = setTimeout(() => {
       if (settled) return
       idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
       setIdbLoaded(true)
-    }, _IDB_FIRST_PAINT_TIMEOUT_MS)
+    }, _browserHasCachedBars ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
     idbGet(sym, resolvedTf).then(entry => {
       settled = true; clearTimeout(_t)
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
+        _browserHasCachedBars = true   // this browser has a pack → be patient from now on
       }
       idbReadyForRef.current = key
       setIdbLoaded(true)

@@ -10,7 +10,7 @@ import { SIGNATURE_TOGGLE } from '../../hooks/useSignatureIndicators'
 describe('watermark settings', () => {
   it('default watermark has lines/color/sizeScale/x/y', () => {
     expect(CHART_DEFAULTS.watermark).toEqual({
-      visible: true, opacity: 0.07, color: '#a8a290', sizeScale: 1.0,
+      visible: true, opacity: 0.07, color: '#a8a290', sizeScale: 1.0, weight: 700,
       lines: { ticker: true, company: true, sector: true, industry: true, theme: true },
       x: 0.5, y: 0.5,
     })
