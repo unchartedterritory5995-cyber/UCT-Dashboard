@@ -32,7 +32,7 @@ export default function useJ2OptionMarks(opts = {}) {
     : null
 
   const { data, error, isLoading } = useMobileSWR(url, fetcher, {
-    refreshInterval: 45000,
+    refreshInterval: 15000,
     marketHoursOnly: true,
     revalidateOnFocus: false,
   })
