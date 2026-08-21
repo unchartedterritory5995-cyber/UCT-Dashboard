@@ -113,7 +113,8 @@ export default function ScannerShell({ embedded = false }) {
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
           </button>
           <FilterChips meta={meta} activeFilters={s.filters}
-            onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters} />
+            onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
+            scanJoins={result?.scan_joins} onReplace={(k, v) => s.setFilter(k, v)} />
           {liveSortEligible && (
             <span className={styles.sortHonesty}>
               {!liveSortOn && <span className={styles.snapChip}>snapshot order</span>}

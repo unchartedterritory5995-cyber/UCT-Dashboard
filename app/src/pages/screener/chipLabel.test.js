@@ -17,3 +17,13 @@ test('formats lte and eq', () => {
   expect(chipLabel(rsi, { op: 'lte', max: 30 })).toBe('RSI (14): ≤ 30')
   expect(chipLabel(sector, { op: 'eq', value: 'Technology' })).toBe('Sector: Technology')
 })
+
+test('scan spec falls back to the spec-carried label (shared/saved-spec arrival)', () => {
+  expect(chipLabel({ label: 'scan', presets: [] },
+    { op: 'in', value: 'sha256:' + 'a'.repeat(64), label: 'Breakout base' })).toBe('Breakout base')
+})
+
+test('scan spec without a carried label falls back to the filter def label', () => {
+  expect(chipLabel({ label: 'scan', presets: [] },
+    { op: 'in', value: 'sha256:' + 'a'.repeat(64) })).toBe('scan')
+})
