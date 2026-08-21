@@ -98,7 +98,7 @@ def _f(v) -> float | None:
         return None
 
 
-_SNAP_TTL_SECONDS = 30.0
+_SNAP_TTL_SECONDS = 10.0
 _snap_cache: dict[str, tuple[float, dict | None]] = {}
 
 
