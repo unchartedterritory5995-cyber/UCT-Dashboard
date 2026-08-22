@@ -436,9 +436,13 @@ def _read_bulk_fundamentals(targets, failures=None):
 
 
 def _read_market_source(label, reader, targets, failures=None) -> dict:
-    """Call one Wave 2 ``market_row`` reader, guarded at the CONSUMER SEAM.
+    """Call one ``market_row`` reader, guarded at the CONSUMER SEAM.
 
-    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the six
+    Used by EVERY ``market_row`` reader ``run_build`` joins (Wave 2's six,
+    Wave 5's three, and whatever joins next — no count here on purpose;
+    counts beside lists drift).
+
+    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the
     Wave 2 readers already guards its OWN internal work — but
     ``insider_capture.read_insider_fields`` calls ``_init_db()`` BEFORE its
     own try/except (insider_capture.py:178, init at :83-94), so a dead store
@@ -452,8 +456,8 @@ def _read_market_source(label, reader, targets, failures=None) -> dict:
     per-reader: a raise degrades to ``{}`` and is COUNTED under ``label`` in
     the same ``failures``/``sources`` census every reader already reports
     into — a dead source must be REPORTED, never silent, never fatal — and,
-    because each of the six calls is wrapped independently, one bad source
-    can never hide the other five.
+    because each call site is wrapped independently, one bad source can
+    never hide the others.
     """
     try:
         return reader(targets, failures=failures) or {}
