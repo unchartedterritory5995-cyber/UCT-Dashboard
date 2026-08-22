@@ -1289,7 +1289,9 @@ def register_screener_jobs(scheduler):
     # ⚠️ MASTER-FLAG COUPLING: this whole function early-returns on
     # SCREENER_SNAPSHOT_ENABLED=0 (top of register_screener_jobs), so each
     # per-job flag below is necessary but NOT sufficient — pausing the
-    # snapshot build pauses these four source pulls too. Deliberate: the
+    # snapshot build pauses EVERY source pull registered in this function
+    # (no count here on purpose -- counts beside lists drift; opt_flow_pull
+    # joined after this comment first said "four"). Deliberate: the
     # 03:00 build is their only consumer, so pulling without it just burns
     # provider quota into artifacts nothing reads.
     log = logging.getLogger(__name__)
