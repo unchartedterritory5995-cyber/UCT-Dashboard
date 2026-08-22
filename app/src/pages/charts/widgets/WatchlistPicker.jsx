@@ -122,7 +122,8 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
         ...l, id: `alias:${l.alias}`, name: l.alias_label || `${l.name} (latest)`,
         pickKey: aliasKey(l.alias), hint: `Always the newest issue — today ${l.name}`,
       }))
-      return { category: c, lists: [...follow, ...lists], dated: lists.some(l => !!l.issue_date) }
+      // `count` = real lists; the synthetic follow cell is a way to pick one, not a 13th list.
+      return { category: c, lists: [...follow, ...lists], count: lists.length, dated: lists.some(l => !!l.issue_date) }
     })
   })()
 
@@ -260,7 +261,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             <div key={g.category} className={styles.catGroup}>
               <div className={styles.catHeader}>
                 <span>{g.category}</span>
-                <span className={styles.catCount}>{g.lists.length} lists</span>
+                <span className={styles.catCount}>{g.count ?? g.lists.length} lists</span>
               </div>
               <div className={g.dated ? styles.pList : styles.pGrid}>
                 {g.lists.map(wl => (

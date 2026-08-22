@@ -203,6 +203,7 @@ test('the newest issue also offers a "Latest issue" cell first, whose pick follo
   expect(dated[0]).toMatch(/latest issue/i)                       // pinned first
   expect(dated[1]).toMatch(/august 16, 2026/i)                    // then the dated rows, newest first
   expect(dated).toHaveLength(4)                                    // 1 alias cell + 3 issues, no duplicates
+  expect(screen.getByText(/3 lists/)).toBeInTheDocument()           // the section counts ISSUES, not the follow cell
   await user.click(screen.getByRole('button', { name: /latest issue/i }))
   expect(onPick).toHaveBeenCalledWith(expect.objectContaining({
     key: 'community:alias:sunday-scans-latest', name: 'Sunday Scans — Latest issue',
