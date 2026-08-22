@@ -44,8 +44,8 @@ DIRECTION / DROP MATH — SINGLE AUTHORITY, TRANSCRIBED NOT RE-DERIVED:
 counts as a bullish/bearish print" (ML/-type drop, RED-color drop, the
 C/P x Side direction table, the lottery-ticket OTM filter, the deep-ITM
 block/arb filter). Its small format-parsing primitives (`_f`, `_to_cp`,
-`_side`, `_color`) are IMPORTED as-is below. The larger inline rule block
-(direction + lottery + arb) is TRANSCRIBED into `_classify()` rather than
+`_side`, `_color`, `_parse_exp`) are IMPORTED as-is below. The larger inline
+rule block (direction + lottery + arb) is TRANSCRIBED into `_classify()` rather than
 extracted into a shared helper, because `api/flow_summary.py` is NOT in the
 flow-worker's Railway watch-path list (K8) — editing it to carve out a
 shared function would change live flow-worker behavior (the board math every
@@ -59,7 +59,10 @@ full pipeline and asserts they agree on each ticker's net sign and bull %.
 
 Never raises: `run_aggregate()` is called from an APScheduler job. Every
 failure mode (missing/corrupt DB, R2 unconfigured, local-disk write failure)
-degrades to a receipt field, never an exception.
+degrades to a receipt field, never an exception. A DB read failure OR a
+zero-row scan REFUSES to write either artifact at all (receipt `"db":
+"failed"`) rather than let an empty/partial read clobber a last-known-good
+artifact — see `run_aggregate`'s own docstring for the exact rule.
 """
 from __future__ import annotations
 
@@ -70,7 +73,7 @@ import sqlite3
 import tempfile
 from datetime import date as _date
 
-from api.flow_summary import _color, _f, _side, _to_cp
+from api.flow_summary import _color, _f, _parse_exp, _side, _to_cp
 from api.services import data_sync
 
 log = logging.getLogger(__name__)
@@ -137,31 +140,9 @@ def _resolve_windows(conn) -> list[tuple[_date, str]]:
 
 
 # ── direction/drop math — TRANSCRIBED, see module docstring ─────────────────
-
-def _parse_exp(raw):
-    """Verbatim transcription of `api.flow_summary._parse_exp` (parses an
-    expiration string `M/D/YYYY` or `M/D` to a `date`). Needed by the
-    lottery-ticket filter's DTE math below."""
-    if not raw:
-        return None
-    s = str(raw).strip().replace('"', "")
-    parts = s.split("/")
-    try:
-        if len(parts) == 3:
-            y = int(parts[2])
-            if y < 100:
-                y += 2000
-            return _date(y, int(parts[0]), int(parts[1]))
-        if len(parts) == 2:
-            today = _date.today()
-            d = _date(today.year, int(parts[0]), int(parts[1]))
-            if d < today:
-                d = _date(today.year + 1, int(parts[0]), int(parts[1]))
-            return d
-    except (ValueError, IndexError):
-        return None
-    return None
-
+# (`_parse_exp` itself is NOT transcribed — it's the same private-helper
+# category as `_f`/`_to_cp`/`_side`/`_color` above, so it's imported alongside
+# them rather than copied.)
 
 def _classify(row: dict, as_of: _date | None) -> tuple[str, float] | None:
     """Direction + premium for one flow row, or None if the row is dropped.
@@ -277,13 +258,26 @@ def run_aggregate() -> dict:
     """ONE bounded pass over the 5 newest `source='stocks'` sessions ->
     per-ticker `opt_net_premium_1d` / `opt_bull_pct_1d` / `opt_net_premium_5d`
     -> R2 (`data_sync.put_bytes`) + a local mirror. Returns the receipt
-    (the artifact dict plus an `"r2"` status key). Never raises.
+    (the artifact dict plus `"db"`/`"r2"` status keys). Never raises.
+
+    REFUSAL (fix-round Important 2): a `sqlite3.Error` during the read, OR a
+    scan that touched literally zero rows (`rows_scanned == 0` — covers a
+    missing/never-initialized DB, an empty table, AND the near-impossible
+    case of a mid-scan exception before any row was counted), makes BOTH
+    artifacts untouched — R2 is never `put_bytes`'d and the local mirror
+    keeps whatever it already had. The receipt cannot reliably tell "the DB
+    failed" apart from "a genuinely quiet night" from rows_scanned alone, so
+    both degrade to the same refusal rather than risk overwriting a
+    last-known-good artifact with an empty one (the same non-destructive
+    contract as `finviz_universe`'s `_MIN_ROWS` refusal / `opt_flow`'s
+    `_MIN_TICKERS` refusal on the read side of this same bridge).
     """
     db_path = _db_path()
     windows: list[tuple[_date, str]] = []
     rows_scanned = 0
     rows_classified = 0
     by_sym: dict[str, dict] = {}
+    db_error: str | None = None
 
     try:
         if os.path.exists(db_path):
@@ -332,6 +326,7 @@ def run_aggregate() -> dict:
             finally:
                 conn.close()
     except sqlite3.Error as e:  # noqa: BLE001 — degrade, never raise
+        db_error = str(e)
         log.warning("[flow_opt_aggregate] flow.db read failed: %s", e)
 
     rows_out: dict[str, dict] = {}
@@ -361,6 +356,18 @@ def run_aggregate() -> dict:
         },
     }
 
+    db_failed = db_error is not None or rows_scanned == 0
+    if db_failed:
+        reason = db_error or "rows_scanned=0 (missing/empty DB or a quiet " \
+                              "night we cannot tell apart from a failure)"
+        log.warning("[flow_opt_aggregate] REFUSING to write: db=%s — R2 and "
+                    "the local mirror are left untouched", reason)
+        receipt = dict(artifact)
+        receipt["db"] = "failed"
+        receipt["db_reason"] = reason
+        receipt["r2"] = "skipped"
+        return receipt
+
     ok = False
     try:
         ok = data_sync.put_bytes(
@@ -374,8 +381,9 @@ def run_aggregate() -> dict:
         log.warning("[flow_opt_aggregate] local mirror write failed: %s", e)
 
     receipt = dict(artifact)
+    receipt["db"] = "ok"
     receipt["r2"] = "ok" if ok else "failed"
     log.info("[flow_opt_aggregate] as_of=%s tickers=%d rows_scanned=%d "
-              "rows_classified=%d r2=%s", as_of, len(rows_out), rows_scanned,
-              rows_classified, receipt["r2"])
+              "rows_classified=%d db=%s r2=%s", as_of, len(rows_out), rows_scanned,
+              rows_classified, receipt["db"], receipt["r2"])
     return receipt

@@ -238,6 +238,14 @@ def test_r2_failure_still_writes_local_mirror(flow_db, monkeypatch):
 
 
 # ── (10) MANDATORY agreement test vs compute_top_conviction ──────────────
+# Fix-round Important 1: the original fixture never exercised the lottery-
+# ticket OTM filter or the deep-ITM block/arb filter (no BLOCK row, no
+# OTM strike/spot divergence, no >=$10B MktCap row existed), so those two
+# transcribed rules were dead code across every test including this one --
+# the rail built specifically to catch transcription drift couldn't have
+# caught drift IN THEM. This fixture now forces both to fire, plus an ML/
+# row, a RED row and a blank-Side row, and asserts BOTH functions agree on
+# presence/absence for every symbol, not just on the two that always survive.
 
 def test_agrees_with_compute_top_conviction(flow_db, monkeypatch):
     """This module's direction/drop rules are a TRANSCRIPTION of
@@ -245,16 +253,38 @@ def test_agrees_with_compute_top_conviction(flow_db, monkeypatch):
     module docstring for why an import-and-share was not possible: K8, that
     module is not in the flow-worker's watch paths). This test is what keeps
     the transcription honest: the same fixture rows must agree, per ticker,
-    on net-premium SIGN and bull %.
+    on presence/absence AND on net-premium SIGN + bull % where both keep it.
     """
     db, _ = flow_db
     fixture_rows = [
+        # Straightforward bull/bear mix -- both functions keep every row.
         _row(Symbol="AAA", CallPut="CALL", Side="A", Premium="3000000",
              Strike="100", Spot="100", MktCap="5000000000"),
         _row(Symbol="AAA", CallPut="PUT", Side="A", Premium="1000000",
              Strike="100", Spot="100", MktCap="5000000000"),
         _row(Symbol="BBB", CallPut="CALL", Side="BB", Type="SWEEP",
              Premium="2000000", Strike="100", Spot="100", MktCap="5000000000"),
+
+        # Lottery-ticket filter: mega-cap (>=$10B, in fact >=$200B so the
+        # tighter 10%-OTM limit applies), far-OTM call (30% OTM), short DTE
+        # (4 days) -- BOTH functions must drop this row entirely.
+        _row(Symbol="LOTTERY", CallPut="CALL", Side="A", Premium="5000000",
+             Strike="130", Spot="100", MktCap="500000000000",
+             ExpirationDate="8/24/2026", Dte="4"),
+
+        # Deep-ITM BLOCK = arb/rebalancing -- BOTH functions must drop this
+        # row. MktCap kept < $10B so the lottery filter can't ALSO explain
+        # the drop -- isolates the arb filter as the actual cause.
+        _row(Symbol="ARBBLOCK", CallPut="CALL", Side="A", Type="BLOCK",
+             Premium="3000000", Strike="80", Spot="100",
+             MktCap="500000000"),
+
+        # ML/ / RED / blank-Side -- covered elsewhere as this module's OWN
+        # behavior; here they're asserted as AGREEMENT with
+        # compute_top_conviction too.
+        _row(Symbol="MLROW", Type="ML/", Premium="9000000"),
+        _row(Symbol="REDROW", Color="#FF0000", Premium="9000000"),
+        _row(Symbol="BLANKROW", CallPut="CALL", Side="", Premium="9000000"),
     ]
     _seed(db, fixture_rows)
 
@@ -263,9 +293,91 @@ def test_agrees_with_compute_top_conviction(flow_db, monkeypatch):
 
     receipt = _run(monkeypatch)
 
-    assert set(board.keys()) == set(receipt["rows"].keys())
-    for sym, item in board.items():
-        signed = item["netPremium"] if item["dir"] == "BULL" else -item["netPremium"]
-        agg_row = receipt["rows"][sym]
-        assert (agg_row["opt_net_premium_1d"] >= 0) == (signed >= 0), sym
-        assert agg_row["opt_bull_pct_1d"] == item["bullPct"], sym
+    all_symbols = {r["Symbol"] for r in fixture_rows}
+    assert all_symbols == {"AAA", "BBB", "LOTTERY", "ARBBLOCK", "MLROW",
+                           "REDROW", "BLANKROW"}
+
+    for sym in all_symbols:
+        in_board = sym in board
+        in_receipt = "opt_net_premium_1d" in receipt["rows"].get(sym, {})
+        assert in_board == in_receipt, sym
+        if in_board:
+            item = board[sym]
+            signed = item["netPremium"] if item["dir"] == "BULL" else -item["netPremium"]
+            agg_row = receipt["rows"][sym]
+            assert (agg_row["opt_net_premium_1d"] >= 0) == (signed >= 0), sym
+            assert agg_row["opt_bull_pct_1d"] == item["bullPct"], sym
+
+    # The riskiest transcribed rules must actually have FIRED here, not
+    # merely been offered a chance to -- prove the drop happened.
+    assert "LOTTERY" not in board and "LOTTERY" not in receipt["rows"]
+    assert "ARBBLOCK" not in board and "ARBBLOCK" not in receipt["rows"]
+    assert "MLROW" not in board and "MLROW" not in receipt["rows"]
+    assert "REDROW" not in board and "REDROW" not in receipt["rows"]
+    assert "BLANKROW" not in board and "BLANKROW" not in receipt["rows"]
+    # And the survivors must actually have survived (a fixture that drops
+    # everything would satisfy every assertion above vacuously).
+    assert "AAA" in board and "AAA" in receipt["rows"]
+    assert "BBB" in board and "BBB" in receipt["rows"]
+
+
+# ── (11)/(12) Important 2 fix-round: DB failure REFUSES both artifacts ───
+
+def test_missing_db_refuses_to_write_either_artifact(flow_db, monkeypatch):
+    """A FLOW_DB_PATH pointing at a file that does not exist must never
+    overwrite a prior last-known-good artifact with an empty one -- the
+    receipt names the failure, R2 is never attempted, and the local mirror
+    is preserved byte-for-byte."""
+    db, art_path = flow_db
+    prior_bytes = json.dumps({
+        "as_of": "2026-08-19", "days": ["2026-08-19"],
+        "rows": {"PRIOR": {"opt_net_premium_1d": 1, "opt_bull_pct_1d": 100,
+                           "opt_net_premium_5d": 1}},
+        "census": {"rows_scanned": 1, "rows_classified": 1, "tickers": 1},
+    }).encode("utf-8")
+    with open(art_path, "wb") as fh:
+        fh.write(prior_bytes)
+
+    put_calls = []
+    monkeypatch.setattr("api.services.data_sync.put_bytes",
+                        lambda *a, **k: put_calls.append(a) or True)
+
+    fd, missing_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    os.unlink(missing_path)
+    monkeypatch.setenv("FLOW_DB_PATH", missing_path)
+
+    from api import flow_opt_aggregate
+    receipt = flow_opt_aggregate.run_aggregate()
+
+    assert receipt["db"] == "failed"
+    assert receipt["r2"] == "skipped"
+    assert put_calls == []  # R2 never attempted
+    with open(art_path, "rb") as fh:
+        assert fh.read() == prior_bytes  # local mirror byte-preserved
+
+
+def test_empty_db_also_refuses_to_write(flow_db, monkeypatch):
+    """An openable DB with literally zero source='stocks' rows (the still-
+    fresh, never-populated table -- no _seed() call at all) hits the SAME
+    refusal path as a hard read failure: the receipt cannot safely tell 'DB
+    failed' apart from 'quiet night' from rows_scanned alone, so both are
+    treated as untrustworthy rather than risk overwriting a last-known-good
+    artifact with an all-empty one."""
+    db, art_path = flow_db
+    prior_bytes = b'{"as_of": "2026-08-19", "rows": {"PRIOR": {}}}'
+    with open(art_path, "wb") as fh:
+        fh.write(prior_bytes)
+
+    put_calls = []
+    monkeypatch.setattr("api.services.data_sync.put_bytes",
+                        lambda *a, **k: put_calls.append(a) or True)
+
+    # db is real and openable (created by the fixture) but has zero rows.
+    from api import flow_opt_aggregate
+    receipt = flow_opt_aggregate.run_aggregate()
+
+    assert receipt["db"] == "failed"
+    assert put_calls == []
+    with open(art_path, "rb") as fh:
+        assert fh.read() == prior_bytes
