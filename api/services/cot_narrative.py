@@ -448,3 +448,62 @@ def get_or_create(symbol: str, name: str, report_date: str, facts) -> dict:
     logger.info("[cot_narrative] generated %s %s (%d words, model=%s)",
                 sym, report_date, _word_count(text), model)
     return _result("ok", text=text, model=model, cached=False, created_at=created_at)
+
+
+# -- archive reads (2026-08-21: Friday prewarm, weekly post, narrative archive) --
+# Plain-row readers over the table above. None of these generate anything; they
+# exist so the prewarm job, the weekly Discord post and the per-symbol archive
+# route read the stored prose through ONE owner instead of each opening the DB.
+
+def _clamp(limit, lo: int, hi: int) -> int:
+    try:
+        n = int(limit)
+    except (TypeError, ValueError):
+        n = lo
+    return max(lo, min(n, hi))
+
+
+def get_for(symbol: str, report_date: str) -> dict | None:
+    """The newest stored read for (symbol, report_date) as a plain row dict
+    (symbol, report_date, text, model, created_at), or None."""
+    _ensure_table()
+    with closing(cot_service._get_conn()) as conn:
+        row = conn.execute(
+            "SELECT symbol, report_date, text, model, created_at FROM cot_narratives "
+            "WHERE symbol = ? AND report_date = ? "
+            "ORDER BY created_at DESC, id DESC LIMIT 1",
+            (symbol.upper(), report_date),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_recent(limit: int = 20) -> list[dict]:
+    """The newest `limit` stored reads across every symbol, newest first
+    (limit clamped 1..100)."""
+    n = _clamp(limit, 1, 100)
+    _ensure_table()
+    with closing(cot_service._get_conn()) as conn:
+        rows = conn.execute(
+            "SELECT symbol, report_date, model, created_at, text FROM cot_narratives "
+            "ORDER BY created_at DESC, id DESC LIMIT ?",
+            (n,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_for_symbol(symbol: str, limit: int = 60) -> list[dict]:
+    """The archive for one symbol: ONE row per report_date (the newest write
+    for that week -- a re-hash of the same week supersedes the earlier text),
+    newest week first. `limit` clamped 1..260 (~5 years of Fridays)."""
+    n = _clamp(limit, 1, 260)
+    sym = symbol.upper()
+    _ensure_table()
+    with closing(cot_service._get_conn()) as conn:
+        rows = conn.execute(
+            "SELECT report_date, text, created_at FROM cot_narratives "
+            "WHERE symbol = ? AND id IN ("
+            "  SELECT MAX(id) FROM cot_narratives WHERE symbol = ? GROUP BY report_date"
+            ") ORDER BY report_date DESC LIMIT ?",
+            (sym, sym, n),
+        ).fetchall()
+    return [dict(r) for r in rows]

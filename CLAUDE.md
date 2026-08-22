@@ -1711,8 +1711,53 @@ COT Data lives as the second tab on the Breadth page (`/breadth`). There is NO s
 ### Key Files
 - `api/services/cot_service.py` — CFTC pipeline, SQLite schema, SYMBOL_MAP, seed/refresh
 - `api/routers/cot.py` — 5 routes: GET /symbols, GET /status, POST /refresh, POST /reseed, GET /{symbol} (said "4 routes" beside a list of five until 2026-08-07 — the list was right, the count was not; same shape as the writer-index and taxonomy drifts above)
-- `app/src/pages/CotData.jsx` — Chart.js mixed bar+line chart, symbol dropdown, lookback buttons (rendered inside Breadth.jsx)
-- `app/src/pages/CotData.module.css` — page styles
+- `app/src/pages/CotData.jsx` — FIVE stacked Chart.js panes (proxy price · Commercials · Large Specs · Small Specs · Open Interest), symbol dropdown, lookback buttons (rendered inside Breadth.jsx). ONE fetch per symbol (`weeks=520`); the lookback is a client-side slice.
+- `app/src/pages/CotData.module.css` — page styles (incl. the shared HTML hover tooltip `.tip`)
+- `app/src/pages/cot/` — the **Positioning rail** and its analytics (see the subsection below)
+
+### Positioning rail + the read (shipped 2026-08-21, v1 + v2 the same night)
+The right-hand rail tracks the chart's hover and reads ONE report week: verdict
+tiles (Contrarian bias · Crowding), a table (Net / WoW / % of OI / 3-year COT
+Index with a meter) for all four series, signal chips, the written weekly read,
+a price check, precedents, and "What to watch". Design + pitfalls: user memory
+`project_cot_positioning_rail_2026_08_21`.
+
+- **Analytics are pure JS and the SINGLE authority** — `app/src/pages/cot/`:
+  `cotRead.js` (3Y + 26-wk COT Index, zones 90/75/25/10, commercial-led bias,
+  crowding, Movement Index, streaks, `assetClassOf` + class framing, templated
+  copy), `cotAnalogs.js` (episodes of the same positioning setup → forward returns
+  4/8/13 wks via an ETF proxy; **no lookahead past the week shown**),
+  `cotDivergence.js` (5 price-vs-positioning tells), `cotProxies.js` (`PRICE_PROXY`
+  → ETF per market; null where no liquid proxy exists), `cotFacts.js` (the ONLY
+  numbers the LLM may cite), `cotCompose.js` (`composeWeek` — the one composition
+  used by BOTH the rail and the Node CLI), `cotTooltip.js`, `cotFormat.js`,
+  `cotPalette.js`. ⛔ Do not port any of this to Python — the backend reaches the
+  same code through the Node bundle below.
+- **Hover → rail** goes through an imperative handle (`railRef.current.setIndex`),
+  never props/state in `CotData.jsx`: a mousemove must not re-render the Chart.js
+  instances. The tooltip is ONE HTML element in `panesWrap` (`tooltipPlugin(key)`
+  → `enabled:false, external`) because a canvas tooltip is clipped by its pane.
+- **Written weekly read** — `POST /api/cot/{symbol}/narrative` (`require_paid`;
+  body `{report_date, name, facts}`) → `api/services/cot_narrative.py`: the facts
+  become ~150 words of prose (Opus), cached per (symbol, report week, facts hash)
+  in `cot.db` table `cot_narratives`, behind a **grounding gate** (every number in
+  the prose must appear in the facts; 100–230 words; no markdown/emoji/tags; one
+  retry, then `status:"error"` and NOTHING stored — the rail falls back to its
+  templated read). Env: `COT_NARRATIVE_ENABLED` (default 1), `COT_NARRATIVE_MODEL`
+  (default `claude-opus-5`), `COT_NARRATIVE_DAILY_CAP` (300/UTC day). ⛔ No
+  `temperature=` kwarg (the pinned SDK raises; Claude 5 rejects sampling params).
+- **Friday pre-warm + archive** — `api/services/cot_prewarm.py` generates the read
+  for every market after the CFTC refresh (APScheduler `cot_narrative_prewarm`
+  Fri 17:05 ET + `cot_narrative_prewarm_retry` Sat 09:00 ET; env
+  `COT_PREWARM_ENABLED`, default 1). It shells out to the **Node facts bundle**
+  `app/dist/cot-facts.cjs` (built by `npm run build` via
+  `app/scripts/build-cot-facts.mjs` from `cotFactsEntry.js`; CLI: `proxies` /
+  `facts <stdin JSON>`), so Python never re-implements the analytics. Manual
+  trigger `POST /api/cot/narratives/prewarm` and `GET
+  /api/cot/narratives/recent` are PUSH_SECRET-bearer gated; `GET
+  /api/cot/{symbol}/narratives` (paid) is the archive the rail shows when you
+  scrub to a past week. Optional weekly Discord post of the "Most watched" reads:
+  `COT_WEEKLY_DISCORD_WEBHOOK_URL` — **blank posts nothing** (paid content).
 
 ### SYMBOL_MAP — Critical Notes
 CFTC renamed many contracts around 2021–2022. The map uses OLD names (pre-2022) as primary entries for historical coverage. New names are handled via `_CFTC_ALIASES` dict which merges into `_NAME_TO_SYMBOL`. Both old and new names map to the same symbol, so all 10 years of history parse correctly.

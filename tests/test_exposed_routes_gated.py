@@ -151,6 +151,10 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/cot/symbols"): "paid",
     ("GET", "/api/cot/status"): "paid",
     ("GET", "/api/cot/{symbol}"): "paid",
+    # The archive of written weekly reads the rail shows when scrubbing back.
+    # (`POST /api/cot/{symbol}/narrative` is paid too, but is deliberately NOT
+    # probed here: a paid pass would generate a real model call.)
+    ("GET", "/api/cot/{symbol}/narratives"): "paid",
     ("GET", "/api/sector-strength"): "paid",
     ("GET", "/api/regime"): "paid",
     ("GET", "/api/traders"): "paid",

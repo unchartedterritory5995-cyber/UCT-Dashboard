@@ -17,11 +17,12 @@
 // returns; the index windows end at the week by construction).
 import { forwardRef, useImperativeHandle, useState, useMemo } from 'react'
 import styles from './PositioningRail.module.css'
-import { computeSnapshot, buildRead, GROUPS } from './cotRead'
-import { computeAnalogs, HORIZONS } from './cotAnalogs'
-import { detectDivergences } from './cotDivergence'
+import { GROUPS } from './cotRead'
+import { HORIZONS } from './cotAnalogs'
+import { composeWeek } from './cotCompose'
 import { useCotNarrative } from './useCotNarrative'
-import { narrativeFacts } from './cotFacts'
+import { useCotNarrativeArchive } from './useCotNarrativeArchive'
+import { useIsPhone } from '../../hooks/useBreakpoint'
 import { SERIES_COLORS } from './cotPalette'
 import { fmtDate, fmtNum, fmtSignedCompact, fmtPct } from './cotFormat'
 
@@ -90,7 +91,7 @@ function Points({ points }) {
 
 function Precedents({ analogs, proxy, symbol }) {
   if (!analogs) return null
-  const { n, episodes, stats, reason, direction } = analogs
+  const { n, episodes, stats, reason, direction, matchedOn } = analogs
   const verb = direction === 'bear' ? 'lower' : direction === 'bull' ? 'higher' : 'up'
   const firstYear = episodes.length ? episodes[0].date.slice(0, 4) : null
   const dates = episodes.slice(-8)
@@ -102,11 +103,11 @@ function Precedents({ analogs, proxy, symbol }) {
   else if (reason === 'too-few') empty = `Only ${n} prior episode${n === 1 ? '' : 's'} — a pattern, not a sample. Shown for context, not for odds.`
 
   return (
-    <div className={styles.section}>
-      <div className={styles.eyebrow}>Precedents</div>
+    <>
       {firstYear && !empty && (
         <div className={styles.sectionSub}>
           {n} prior episode{n === 1 ? '' : 's'} since {firstYear} · what {proxy?.ticker || 'price'} did next{proxyExtra(proxy) ? ` (${proxyExtra(proxy)})` : ''}
+          {matchedOn === 'commercials' && ' · matched on the hedgers\u2019 zone alone — the exact pairing with the trend money is rarer'}
         </div>
       )}
       {empty && <div className={styles.precEmpty}>{empty}</div>}
@@ -143,7 +144,17 @@ function Precedents({ analogs, proxy, symbol }) {
           {episodes.length > dates.length && <span className={styles.precDate}>+{episodes.length - dates.length} more</span>}
         </div>
       )}
-    </div>
+    </>
+  )
+}
+
+/** A rail section that folds on a phone (open on wider screens). */
+function Fold({ title, open, children }) {
+  return (
+    <details className={styles.fold} open={open}>
+      <summary className={styles.eyebrow}>{title}</summary>
+      <div className={styles.section}>{children}</div>
+    </details>
   )
 }
 
@@ -167,33 +178,32 @@ const PositioningRail = forwardRef(function PositioningRail(
   const absIdx = idx == null || idx >= n ? n - 1 : idx
   const isLatest = n > 0 && absIdx === n - 1
 
-  const snap = useMemo(() => (n ? computeSnapshot(rows, absIdx) : null), [rows, absIdx, n])
-  const read = useMemo(() => (snap ? buildRead(snap, { symbol, name }) : null), [snap, symbol, name])
-
+  // ONE composition — the same `composeWeek` the Friday pre-warm runs in Node.
   // Per-week snapshot memo shared by every analog search over the same rows.
   const snapCache = useMemo(() => ({ rows, arr: [] }), [rows]).arr
-  const analogs = useMemo(() => {
-    if (!snap || !read) return null
-    return computeAnalogs(rows, bars || [], absIdx, { direction: read.bias.tone, snapshots: snapCache })
-  }, [rows, bars, absIdx, snap, read, snapCache])
-
-  const divergences = useMemo(
-    () => (snap && priceAligned ? detectDivergences(rows, priceAligned, absIdx) : []),
-    [rows, priceAligned, absIdx, snap],
+  const week = useMemo(
+    () => (n ? composeWeek(rows, absIdx, { symbol, name, bars, priceAligned, proxy, snapshots: snapCache }) : null),
+    [rows, absIdx, n, symbol, name, bars, priceAligned, proxy, snapCache],
   )
+  const snap = week?.snap ?? null
+  const read = week?.read ?? null
+  const analogs = week?.analogs ?? null
+  const divergences = week?.divergences ?? []
 
   // The written read is generated (and cached server-side) for the LATEST
-  // report only; scrubbed weeks use the templated read.
-  const facts = useMemo(
-    () => (snap && read && isLatest ? narrativeFacts({ symbol, name, snap, read, analogs, divergences, proxy }) : null),
-    [snap, read, isLatest, symbol, name, analogs, divergences, proxy],
-  )
+  // report only. Scrubbed weeks show the read that was written for them at the
+  // time (the archive), else the templated read.
+  const facts = isLatest ? (week?.facts ?? null) : null
   const narrative = useCotNarrative({ symbol, name, reportDate: snap?.date, facts, enabled: !!facts })
+  const archive = useCotNarrativeArchive(symbol)
+  const isPhone = useIsPhone()
 
   if (!snap || !read) return null
   const g = snap.groups
   const signals = read.signals || []
-  const showNarrative = isLatest && narrative.status === 'ok'
+  const archived = !isLatest ? archive[snap.date] || null : null
+  const narrativeText = isLatest ? (narrative.status === 'ok' ? narrative.text : null) : archived
+  const showNarrative = !!narrativeText
   const narrativeLoading = isLatest && narrative.status === 'loading'
 
   return (
@@ -271,7 +281,9 @@ const PositioningRail = forwardRef(function PositioningRail(
 
       {/* The read */}
       <div className={styles.section}>
-        <div className={styles.eyebrow}>{showNarrative || narrativeLoading ? "This week's read" : 'What this means'}</div>
+        <div className={styles.eyebrow}>
+          {narrativeLoading || (showNarrative && isLatest) ? "This week's read" : showNarrative ? 'The read that week' : 'What this means'}
+        </div>
         <div className={styles.headline}>{read.headline}</div>
         {narrativeLoading && (
           <div className={styles.narrativeSkeleton} aria-label="Writing this week's read">
@@ -281,7 +293,7 @@ const PositioningRail = forwardRef(function PositioningRail(
         {showNarrative && (
           <>
             <div className={styles.narrative}>
-              {narrative.text.split(/\n\s*\n/).map((p, i) => <p key={i}>{p.trim()}</p>)}
+              {narrativeText.split(/\n\s*\n/).map((p, i) => <p key={i}>{p.trim()}</p>)}
             </div>
             <details className={styles.details}>
               <summary>Group by group</summary>
@@ -294,8 +306,7 @@ const PositioningRail = forwardRef(function PositioningRail(
 
       {/* Price check */}
       {divergences.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.eyebrow}>Price check</div>
+        <Fold title="Price check" open={!isPhone}>
           {proxy && <div className={styles.sectionSub}>{proxy.note}</div>}
           {divergences.map(d => (
             <div key={d.key} className={styles.checkItem}>
@@ -306,11 +317,15 @@ const PositioningRail = forwardRef(function PositioningRail(
               </span>
             </div>
           ))}
-        </div>
+        </Fold>
       )}
 
       {/* Precedents */}
-      <Precedents analogs={analogs} proxy={proxy} symbol={symbol} />
+      {analogs && (
+        <Fold title="Precedents" open={!isPhone}>
+          <Precedents analogs={analogs} proxy={proxy} symbol={symbol} />
+        </Fold>
+      )}
 
       {/* Action */}
       <div className={styles.watch}>

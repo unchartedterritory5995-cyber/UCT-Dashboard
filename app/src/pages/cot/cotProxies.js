@@ -6,11 +6,12 @@
 // conservative — no proxy beats a misleading one — and every entry carries a
 // note so the UI can say what the price actually is.
 //
-// Unmapped on purpose (→ null): VI, AL, HO, FL, ZM, ZL, ZR, MW, OA, CT, OJ, KC,
+// Unmapped on purpose (→ null): AL, HO, FL, ZM, ZL, ZR, MW, OA, CT, OJ, KC,
 // CC, LB, LE, GF, HE, DF, BJ, ZQ, SR3, M6, N6, L6, ETH — either no liquid ETF,
 // or one whose price tracks the contract too loosely to learn from.
-// VI is null because VIX ETFs decay structurally (contango roll), so forward
-// returns on them would mislead — they say nothing about where the index went.
+// VI maps to the VIX INDEX (the bars route serves cash-settled indexes via
+// yfinance), never a VIX ETF: those decay structurally and would misstate
+// forward returns.
 
 /** COT symbol → ETF ticker whose weekly closes proxy the contract's price. */
 export const PRICE_PROXY = {
@@ -28,6 +29,7 @@ export const PRICE_PROXY = {
   DX: 'UUP', B6: 'FXB', D6: 'FXC', J6: 'FXY', S6: 'FXF', E6: 'FXE', A6: 'FXA',
   // Crypto
   BTC: 'BITO',
+  VI:  'VIX',     // the VIX index itself via the bars route's yfinance index path (not a decaying ETF)
 }
 
 // ETFs that hold futures rather than the physical: their price carries roll
@@ -37,6 +39,7 @@ const ROLL_DRAG = new Set(['CPER', 'USO', 'UGA', 'UNG', 'BNO', 'WEAT', 'CORN', '
 
 const SPECIAL_NOTE = {
   BITO: ' (ETF proxy, history from Oct 2021)',
+  VIX:  ' (the index itself, not an ETF)',
 }
 
 /**

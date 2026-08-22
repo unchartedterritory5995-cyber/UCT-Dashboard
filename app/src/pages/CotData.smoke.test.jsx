@@ -14,7 +14,7 @@ vi.mock('react-chartjs-2', () => ({
   ),
 }))
 
-vi.mock('../hooks/useBreakpoint', () => ({ useIsTouch: () => false }))
+vi.mock('../hooks/useBreakpoint', () => ({ useIsTouch: () => false, useIsPhone: () => false }))
 
 import CotData from './CotData'
 
@@ -44,6 +44,9 @@ function mkBars(n) {
 }
 
 function routeFetch(url) {
+  if (url.startsWith('/api/cot/') && url.includes('/narratives')) {
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ rows: [] }) })
+  }
   if (url.startsWith('/api/cot/') && url.includes('/narrative')) {
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'disabled', text: null }) })
   }

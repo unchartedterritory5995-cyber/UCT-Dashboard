@@ -34,6 +34,17 @@ const DAY_MS = 86_400_000
 const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const daysBetween = (from, to) => (Date.parse(to) - Date.parse(from)) / DAY_MS
 
+/** A bar's date as 'YYYY-MM-DD'. Massive weekly bars carry an ISO string; the
+ *  yfinance index path (VIX, SPX, NDX) carries unix seconds (ms tolerated). */
+export function barDate(bar) {
+  const t = bar?.t
+  if (typeof t === 'string') return t.slice(0, 10)
+  if (typeof t === 'number' && Number.isFinite(t)) {
+    return new Date(t < 1e12 ? t * 1000 : t).toISOString().slice(0, 10)
+  }
+  return null
+}
+
 /**
  * Align weekly closes to COT rows: for each row, the close of the first bar dated
  * on or after the row's Tuesday and within the same week, else null.
@@ -46,12 +57,19 @@ export function alignPrice(rows, bars) {
   const n = rows ? rows.length : 0
   const out = new Array(n).fill(null)
   if (!bars || !bars.length) return out
+  // Massive dates a weekly bar on its FRIDAY; the yfinance index path (VIX,
+  // SPX, NDX) dates it on its MONDAY. A Tuesday report's own week is therefore
+  // the first bar dated from the day BEFORE the report (that Monday) up to
+  // MAX_BAR_LAG_DAYS after it (that Friday). Either convention lands on the
+  // same week's close; the prior week's bar never qualifies.
+  const dates = bars.map(barDate)
   let k = 0
   for (let i = 0; i < n; i++) {
     const date = rows[i].date
-    while (k < bars.length && bars[k].t < date) k++
+    const floor = new Date(Date.parse(date) - DAY_MS).toISOString().slice(0, 10)
+    while (k < bars.length && (dates[k] == null || dates[k] < floor)) k++
     if (k >= bars.length) break
-    if (daysBetween(date, bars[k].t) <= MAX_BAR_LAG_DAYS) out[i] = num(bars[k].c)
+    if (daysBetween(date, dates[k]) <= MAX_BAR_LAG_DAYS) out[i] = num(bars[k].c)
   }
   return out
 }
@@ -74,7 +92,7 @@ export function alignPrice(rows, bars) {
  * @returns {{ signature: {commercials: string, largeSpecs: string}|null,
  *             episodes: Array<{idx: number, date: string, len: number}> }}
  */
-export function findEpisodes(rows, idx, { window = INDEX_WINDOW, snapshots } = {}) {
+export function findEpisodes(rows, idx, { window = INDEX_WINDOW, snapshots, matchOn = 'both' } = {}) {
   if (!rows || idx == null || idx < 0 || idx >= rows.length) return { signature: null, episodes: [] }
   const memo = Array.isArray(snapshots) ? snapshots : []
   const zonesAt = j => {
@@ -84,11 +102,15 @@ export function findEpisodes(rows, idx, { window = INDEX_WINDOW, snapshots } = {
   const [sigC, sigL] = zonesAt(idx)
   const signature = { commercials: sigC, largeSpecs: sigL }
 
+  // 'both' = the strict (commercials, largeSpecs) pair; 'commercials' = the
+  // hedgers' zone alone (the fallback when the pair is too rare to learn from).
+  const matches = (c, l) => (matchOn === 'commercials' ? c === sigC : c === sigC && l === sigL)
+
   const episodes = []
   let run = null
   for (let j = Math.max(0, window - 1); j <= idx; j++) {
     const [c, l] = zonesAt(j)
-    if (c === sigC && l === sigL) {
+    if (matches(c, l)) {
       if (run) run.len++
       else run = { idx: j, date: rows[j].date, len: 1 }
     } else if (run) {
@@ -157,12 +179,25 @@ function statsFor(values, direction) {
  */
 export function computeAnalogs(rows, bars, idx, { direction = 'neutral', window = INDEX_WINDOW, snapshots } = {}) {
   const stats = () => Object.fromEntries(HORIZONS.map(h => [h, emptyStats()]))
-  const { signature, episodes: found } = findEpisodes(rows, idx, { window, snapshots })
+  let matchedOn = 'both'
+  let { signature, episodes: found } = findEpisodes(rows, idx, { window, snapshots })
   if (!signature) {
-    return { signature, direction, proxy: null, episodes: [], n: 0, stats: stats(), reason: 'too-few' }
+    return { signature, direction, proxy: null, episodes: [], n: 0, stats: stats(), reason: 'too-few', matchedOn }
   }
   if (signature.commercials === 'neutral' && signature.largeSpecs === 'neutral') {
-    return { signature, direction, proxy: null, episodes: [], n: 0, stats: stats(), reason: 'neutral' }
+    return { signature, direction, proxy: null, episodes: [], n: 0, stats: stats(), reason: 'neutral', matchedOn }
+  }
+
+  // The exact pair of zones can be rare on real history ("first time both
+  // groups sat here"). When it yields too few precedents and the hedgers are
+  // at a non-neutral zone, fall back to matching on the hedgers alone — the
+  // group the contrarian read leans on — and say so via `matchedOn`.
+  if (found.length < MIN_EPISODES && signature.commercials !== 'neutral') {
+    const alt = findEpisodes(rows, idx, { window, snapshots, matchOn: 'commercials' })
+    if (alt.episodes.length > found.length) {
+      found = alt.episodes
+      matchedOn = 'commercials'
+    }
   }
 
   const price = alignPrice(rows, bars)
@@ -173,5 +208,5 @@ export function computeAnalogs(rows, bars, idx, { direction = 'neutral', window 
   )
   const n = episodes.length
   const reason = noPrice ? 'no-price' : n < MIN_EPISODES ? 'too-few' : null
-  return { signature, direction, proxy: null, episodes, n, stats: byHorizon, reason }
+  return { signature, direction, proxy: null, episodes, n, stats: byHorizon, reason, matchedOn }
 }

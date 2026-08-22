@@ -181,6 +181,10 @@ SYMBOL_NAMES: dict[str, str] = {
 }
 
 SYMBOL_GROUPS: dict[str, list[str]] = {
+    # The "Most watched" roster the COT tab pins at the top of its picker
+    # (app/src/pages/CotData.jsx SYMBOL_GROUPS) and the set the Friday weekly
+    # post covers (api/services/cot_weekly_post.py). Keep the two in step.
+    "MOST WATCHED":     ["ES", "NQ", "YM", "QR", "EW", "VI", "NK", "DX", "J6", "ZN", "BTC", "ETH"],
     "INDICES":          ["ES", "NQ", "YM", "QR", "EW", "VI", "NK"],
     "METALS":           ["GC", "SI", "HG", "PL", "PA", "AL"],
     "ENERGIES":         ["CL", "HO", "RB", "NG", "FL", "BZ"],

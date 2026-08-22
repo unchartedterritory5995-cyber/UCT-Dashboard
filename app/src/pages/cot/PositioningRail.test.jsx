@@ -113,10 +113,21 @@ describe('PositioningRail', () => {
   })
 })
 
+// Narrative POST → the given reply; archive GET → the given rows.
+function mockApi({ narrative = { status: 'disabled', text: null }, archive = [] } = {}) {
+  return vi.fn((url, init) => {
+    const u = String(url)
+    if (u.includes('/narratives')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ rows: archive }) })
+    if (u.endsWith('/narrative') && init?.method === 'POST') return Promise.resolve({ ok: true, json: () => Promise.resolve(narrative) })
+    return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })
+  })
+}
+const posts = m => m.mock.calls.filter(c => c[1]?.method === 'POST')
+
 describe('PositioningRail — v2 sections', () => {
   let fetchMock
   beforeEach(() => {
-    fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'disabled', text: null }) }))
+    fetchMock = mockApi()
     globalThis.fetch = fetchMock
   })
   afterEach(() => vi.restoreAllMocks())
@@ -151,29 +162,57 @@ describe('PositioningRail — v2 sections', () => {
   })
 
   it('requests the written read for the latest week only, and shows it when it arrives', async () => {
-    fetchMock.mockImplementation(() => Promise.resolve({
-      ok: true, json: () => Promise.resolve({ status: 'ok', text: 'First paragraph.\n\nSecond paragraph.', cached: true }),
-    }))
+    fetchMock = mockApi({ narrative: { status: 'ok', text: 'First paragraph.\n\nSecond paragraph.', cached: true } })
+    globalThis.fetch = fetchMock
     const rows = mkRows()
     const ref = createRef()
     render(<PositioningRail ref={ref} rows={rows} symbol="ES" name="S&P 500 E-Mini" />)
     await waitFor(() => expect(screen.getByText("This week's read")).toBeInTheDocument())
     expect(screen.getByText('First paragraph.')).toBeInTheDocument()
     expect(screen.getByText('Group by group')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).report_date).toBe(rows[199].date)
+    expect(posts(fetchMock)).toHaveLength(1)
+    expect(JSON.parse(posts(fetchMock)[0][1].body).report_date).toBe(rows[199].date)
 
     // Scrubbing to a past week falls back to the templated read and never re-posts.
     act(() => ref.current.setIndex(100))
     expect(screen.getByText('What this means')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(posts(fetchMock)).toHaveLength(1)
   })
 
   it('falls back to the templated read when the service is unavailable', async () => {
     render(<PositioningRail rows={mkRows()} symbol="ES" name="S&P 500 E-Mini" />)
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1))
     await waitFor(() => expect(screen.getByText('What this means')).toBeInTheDocument())
     expect(screen.queryByText("This week's read")).toBeNull()
+  })
+
+  it('shows the archived read for a past week when one was written at the time', async () => {
+    const rows = mkRows()
+    fetchMock = mockApi({ archive: [{ report_date: rows[100].date, text: 'Back then, hedgers were buying.', created_at: 'x' }] })
+    globalThis.fetch = fetchMock
+    const ref = createRef()
+    render(<PositioningRail ref={ref} rows={rows} symbol="ES" name="S&P 500 E-Mini" />)
+    await waitFor(() => expect(fetchMock.mock.calls.some(c => String(c[0]).includes('/narratives'))).toBe(true))
+    act(() => ref.current.setIndex(100))
+    await waitFor(() => expect(screen.getByText('The read that week')).toBeInTheDocument())
+    expect(screen.getByText('Back then, hedgers were buying.')).toBeInTheDocument()
+    // A week with no archived read keeps the templated read.
+    act(() => ref.current.setIndex(90))
+    expect(screen.getByText('What this means')).toBeInTheDocument()
+  })
+
+  it('names the hedgers-only match when the strict pairing was too rare', () => {
+    // Commercials cycle every 40 weeks, large specs every 23 — the pair rarely repeats.
+    const rows = []
+    for (let i = 0; i < 291; i++) {
+      const d = new Date(Date.UTC(2019, 0, 8 + i * 7))
+      rows.push({ date: d.toISOString().slice(0, 10),
+        commercial_net: Math.round(-100000 + 80000 * Math.sin((2 * Math.PI * i) / 40)),
+        large_spec_net: Math.round(100000 - 80000 * Math.sin((2 * Math.PI * i) / 23 + 1.1)),
+        small_spec_net: 1000, open_interest: 1000000 + i })
+    }
+    render(<PositioningRail rows={rows} symbol="ES" name="S&P 500 E-Mini" bars={mkBars(300)} proxy={{ ticker: 'SPY', note: 'via SPY' }} />)
+    expect(screen.getByText(/matched on the hedgers/)).toBeInTheDocument()
   })
 
   it('renders the who-is-who note for the asset class', () => {

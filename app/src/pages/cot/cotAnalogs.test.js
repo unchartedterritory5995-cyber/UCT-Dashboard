@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { INDEX_WINDOW } from './cotRead'
+import { INDEX_WINDOW, computeSnapshot } from './cotRead'
+import { barDate } from './cotAnalogs'
 import {
   HORIZONS,
   MIN_EPISODES,
@@ -335,5 +336,87 @@ describe('computeAnalogs — synthetic 400-week series', () => {
     // With INDEX_WINDOW=156 the first eligible week is 155; 157 is the first k=1 week after it.
     expect(INDEX_WINDOW).toBe(156)
     expect(r.episodes[0].idx).toBe(157)
+  })
+})
+
+
+// ── Fallback: hedgers-only signature when the strict pair finds too few ────────
+describe('computeAnalogs — hedgers-only fallback', () => {
+  // Commercials cycle every 40 weeks (so their extreme recurs); large specs
+  // cycle every 23 weeks so the PAIR of zones almost never repeats exactly.
+  function cycleRows(n = 300) {
+    const out = []
+    for (let i = 0; i < n; i++) {
+      const d = new Date(Date.UTC(2019, 0, 8 + i * 7))
+      out.push({
+        date: d.toISOString().slice(0, 10),
+        commercial_net: Math.round(-100000 + 80000 * Math.sin((2 * Math.PI * i) / 40)),
+        large_spec_net: Math.round(100000 - 80000 * Math.sin((2 * Math.PI * i) / 23 + 1.1)),
+        small_spec_net: 1000,
+        open_interest: 1000000 + i,
+      })
+    }
+    return out
+  }
+  function fridayBars(n = 300) {
+    const out = []
+    for (let i = 0; i < n; i++) {
+      const d = new Date(Date.UTC(2019, 0, 11 + i * 7))
+      out.push({ t: d.toISOString().slice(0, 10), c: 100 + i * 0.3 })
+    }
+    return out
+  }
+
+  it('reports which signature matched', () => {
+    const rows = cycleRows(291), bars = fridayBars(300)
+    const a = computeAnalogs(rows, bars, 290, { direction: 'bull' })
+    expect(['both', 'commercials']).toContain(a.matchedOn)
+  })
+
+  it('falls back to the commercial zone alone when the strict pair has fewer than MIN_EPISODES', () => {
+    // idx 290 sits exactly on a commercial peak: sin(2π·290/40) = sin(π/2) = 1.
+    const rows = cycleRows(291), bars = fridayBars(300)
+    const snap = computeSnapshot(rows, 290)
+    expect(snap.groups.commercials.zone).toBe('extreme-long')
+    const a = computeAnalogs(rows, bars, 290, { direction: 'bull' })
+    expect(a.matchedOn).toBe('commercials')
+    expect(a.n).toBeGreaterThanOrEqual(MIN_EPISODES)
+    expect(a.reason).toBeNull()
+    // every fallback episode starts with the commercials in the same zone
+    for (const e of a.episodes) expect(computeSnapshot(rows, e.idx).groups.commercials.zone).toBe('extreme-long')
+  })
+
+  it('does not fall back when the commercial zone is neutral', () => {
+    const rows = cycleRows(290).map((r, i) => ({ ...r, commercial_net: 5 + (i % 3) }))
+    const a = computeAnalogs(rows, fridayBars(300), 289, { direction: 'neutral' })
+    expect(a.matchedOn).not.toBe('commercials')
+  })
+})
+
+
+describe('barDate / alignPrice — bar timestamps', () => {
+  it('accepts ISO strings, unix seconds and unix milliseconds', () => {
+    expect(barDate({ t: '2026-08-21' })).toBe('2026-08-21')
+    const secs = Date.UTC(2026, 7, 7) / 1000
+    expect(barDate({ t: secs })).toBe('2026-08-07')          // yfinance index path (VIX) — seconds
+    expect(barDate({ t: secs * 1000 })).toBe('2026-08-07')   // milliseconds tolerated
+    expect(barDate({ t: null })).toBeNull()
+  })
+
+  it('aligns numeric-timestamp bars the same as ISO bars', () => {
+    const rows = [{ date: '2026-08-04' }, { date: '2026-08-11' }]
+    const iso  = [{ t: '2026-08-07', c: 10 }, { t: '2026-08-14', c: 11 }]
+    const secs = [{ t: Date.UTC(2026, 7, 7) / 1000, c: 10 }, { t: Date.UTC(2026, 7, 14) / 1000, c: 11 }]
+    expect(alignPrice(rows, secs)).toEqual(alignPrice(rows, iso))
+    expect(alignPrice(rows, secs)).toEqual([10, 11])
+  })
+
+  it('accepts a Monday-dated weekly bar (yfinance convention) for a Tuesday report', () => {
+    const rows = [{ date: '2026-08-04' }, { date: '2026-08-11' }]          // Tuesdays
+    const monday = [{ t: '2026-08-03', c: 10 }, { t: '2026-08-10', c: 11 }, { t: '2026-08-17', c: 12 }]
+    expect(alignPrice(rows, monday)).toEqual([10, 11])
+    // …but never the PRIOR week's Friday-dated bar
+    const friday = [{ t: '2026-07-31', c: 9 }, { t: '2026-08-07', c: 10 }, { t: '2026-08-14', c: 11 }]
+    expect(alignPrice(rows, friday)).toEqual([10, 11])
   })
 })

@@ -3988,6 +3988,28 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
+        # COT narrative pre-warm (2026-08-21): once the Friday refresh and its
+        # 16:15/16:45 retries have landed, write this week's read for every
+        # symbol so Monday's first COT-tab visit serves cached prose. The Saturday
+        # re-run is free for symbols already written (cache hits) and catches a
+        # Friday whose CFTC publish ran late. Inert without the facts bundle
+        # (`app/dist/cot-facts.cjs` + node) or with COT_PREWARM_ENABLED=0.
+        def _cot_narrative_prewarm_job():
+            try:
+                from api.services import cot_prewarm as _cot_prewarm
+                out = _cot_prewarm.run_prewarm()
+                if out.get("skipped"):
+                    print(f"[scheduler] COT narrative prewarm skipped: {out['skipped']}")
+                else:
+                    print(f"[scheduler] COT narrative prewarm: generated={out.get('generated')} "
+                          f"cached={out.get('cached')} errors={len(out.get('errors') or [])} "
+                          f"report={out.get('report_date')}")
+            except Exception as _e_cp:
+                print(f"[scheduler] COT narrative prewarm failed (non-fatal): {_e_cp}")
+
+        _scheduler.add_job(_cot_narrative_prewarm_job, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5, timezone=_ET), id="cot_narrative_prewarm", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_narrative_prewarm_job, trigger=CronTrigger(day_of_week="sat", hour=9, minute=0, timezone=_ET), id="cot_narrative_prewarm_retry", max_instances=1, replace_existing=True)
+
         # Implied-move nightly capture (post-close, pre-report snapshot for the
         # history hero). Gated -- ONLY the scheduler job; the read endpoint is
         # always mounted. 16:35 ET = post options settle (~16:15), pre any
