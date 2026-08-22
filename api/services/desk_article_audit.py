@@ -70,6 +70,7 @@ def audit_articles(*, now: float | None = None) -> dict:
         "days_since_newest_post": None,
         "newest_post": None,
         "sunday_scans_watchlist": None,
+        "sunday_scans_archive": None,
     }
     if not rows:
         report["problems"].append("no articles at all — the poller has never stored one")
@@ -120,12 +121,14 @@ def audit_articles(*, now: float | None = None) -> dict:
             f"{len(stale)} article(s) still on an older converter — a version bump "
             "has not finished applying")
 
-    # The community watchlist is a downstream ARTIFACT of the newest issue: once
-    # the hourly sync has had its grace, the 'Sunday Scans' prebuilt list must
-    # hold exactly the newest roster. A stale list quietly publishes LAST week's
-    # names under this week's letter — precisely the fail-soft-looks-quiet shape
-    # this audit exists to catch. (The list name is DERIVED from the module that
-    # owns it, never restated here.)
+    # The community watchlists are a downstream ARTIFACT of the issues: once the
+    # hourly sync has had its grace, the newest issue's DATED prebuilt list must
+    # hold exactly its roster, and every older issue inside the look-back window
+    # must still have its list. A stale list quietly publishes LAST week's names
+    # under this week's letter; a vanished archive list quietly shortens the
+    # quarter — precisely the fail-soft-looks-quiet shapes this audit exists to
+    # catch. (The list names are DERIVED from the module that owns them, never
+    # restated here.)
     try:
         latest = desk_store.latest_post_with_tickers()
     except Exception:  # noqa: BLE001 — an old schema without the column is not a finding
@@ -136,12 +139,14 @@ def audit_articles(*, now: float | None = None) -> dict:
             try:
                 from api.services import watchlist_prebuilt as wp
                 from api.services import watchlist_service as wl
-                nm = wp.SUNDAY_SCANS_NAME.strip().lower()
-                row = next((w for w in wl.list_prebuilt_watchlists(500)
-                            if (w.get("name") or "").strip().lower() == nm), None)
+                by_name = {}
+                for w in wl.list_prebuilt_watchlists(500):
+                    by_name.setdefault((w.get("name") or "").strip().lower(), w)
+                want = wp.sunday_scans_list_name(latest)
+                row = by_name.get(want.strip().lower())
                 if row is None:
                     report["problems"].append(
-                        f"the '{wp.SUNDAY_SCANS_NAME}' community watchlist is MISSING — "
+                        f"the '{want}' community watchlist is MISSING — "
                         f"the newest issue ({latest.get('title')}) has a roster and no "
                         "list carries it")
                 else:
@@ -157,9 +162,24 @@ def audit_articles(*, now: float | None = None) -> dict:
                         if extra:
                             detail.append("not in the issue: " + ", ".join(extra))
                         report["problems"].append(
-                            f"the '{wp.SUNDAY_SCANS_NAME}' community watchlist is STALE "
+                            f"the '{want}' community watchlist is STALE "
                             f"vs the newest issue ({latest.get('title')}) — "
                             + "; ".join(detail))
+                # The look-back IS the product: every older issue past its grace must
+                # still have its dated list (a failed create, a hand delete). The newest
+                # issue is reported above — never twice.
+                due = [s for s in wp.sunday_scans_specs()
+                       if (now - (s.get("published_at") or 0)) > grace]
+                gone = [s["name"] for s in due
+                        if s["name"].strip().lower() not in by_name
+                        and s["name"].strip().lower() != want.strip().lower()]
+                report["sunday_scans_archive"] = {
+                    "listed": sum(s["name"].strip().lower() in by_name for s in due),
+                    "expected": len(due)}
+                if gone:
+                    report["problems"].append(
+                        f"the Sunday Scans archive is missing {len(gone)} of {len(due)} "
+                        "issue list(s): " + "; ".join(gone[:cap]))
             except Exception as e:  # noqa: BLE001 — an unreadable store IS the finding
                 report["problems"].append(
                     "could not read the community watchlist store to verify the "

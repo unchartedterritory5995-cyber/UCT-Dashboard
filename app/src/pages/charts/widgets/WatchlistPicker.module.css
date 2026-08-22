@@ -258,6 +258,21 @@
   color: var(--wl-text, var(--text-muted, #8c8674));
   opacity: 0.85;
 }
+/* Single-column variant for a DATED section (the Sunday Scans archive, newest first):
+   the full "Sunday Scans — August 16, 2026" name must stay readable — the two-column
+   cell ellipsizes exactly the date off the end, and so does a single column once the
+   widget is narrow (the default Watchlist widget is ~220px: "August 16, 20…"). So a
+   dated name WRAPS instead of ellipsizing; the count stays pinned right. */
+.pList {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.pList .pCell:nth-child(odd) { border-right: none; }
+.pList .pCellName {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
 @container (max-width: 300px) {
   .pGrid { grid-template-columns: 1fr; }
   .pCell:nth-child(odd) { border-right: none; }

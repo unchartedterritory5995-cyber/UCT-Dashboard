@@ -69,7 +69,16 @@ export default function Sheet({
     if (!open) return
     restoreFocusRef.current = document.activeElement
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.() }
+      if (e.key !== 'Escape') return
+      // Only the topmost open Sheet answers Escape. Sheets nest (a chart
+      // pop-out inside the phone earnings modal), every one listens here on
+      // the same node, and stopPropagation cannot stop a sibling listener —
+      // the OUTER sheet, registered first, would close the whole report. The
+      // portals append to <body> in mount order, so the last panel is the top.
+      const panels = document.querySelectorAll('[data-sheet-panel]')
+      if (panels.length && panels[panels.length - 1] !== panelRef.current) return
+      e.stopPropagation()
+      onClose?.()
     }
     document.addEventListener('keydown', onKey, true)
     // Focus the panel for screen readers / Escape handling
@@ -128,7 +137,10 @@ export default function Sheet({
         className={`${styles.panel} ${styles[`panel_${resolved}`]} ${className}`}
         role="dialog"
         aria-modal="true"
-        aria-label={!title && ariaLabel ? ariaLabel : undefined}
+        // A title is a heading, not a name: the dialog has no aria-labelledby
+        // wiring, so an ariaLabel names it whether or not a title is shown.
+        aria-label={ariaLabel || undefined}
+        data-sheet-panel=""
         tabIndex={-1}
         style={panelStyle}
       >
