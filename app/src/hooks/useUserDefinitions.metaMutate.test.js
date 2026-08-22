@@ -13,8 +13,11 @@ vi.mock('swr', async importOriginal => {
 })
 
 import { saveUserDefinition, deleteUserDefinition } from './useUserDefinitions'
+import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
-const META_KEY = '/api/screener/meta'
+// ⛔ PINS THE CONSTANT, NOT THE LITERAL. A hand-typed '/api/screener/meta'
+// here would stay green even if useScreenerMeta's own key drifted out from
+// under it — this rail exists precisely to close that gap (K3 review).
 
 beforeEach(() => {
   mutate.mockClear()

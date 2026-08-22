@@ -54,6 +54,20 @@ def test_two_hashes_AND_each_at_its_own_latest(env):
     assert joins[H1]["as_of"] == 20260820 and joins[H2]["as_of"] == 20260819
 
 
+def test_hand_crafted_duplicate_hash_dedupes_to_one_clause_one_join(env):
+    _, scan_store, query = env
+    _sweep(scan_store, H1, 20260820, ["NVDA"])
+    # A hand-crafted ["H1", "H1"] must collapse to ONE clause and ONE
+    # scan_joins entry, applied once -- the UI guards via includes() but the
+    # server must not trust that.
+    where, params = query.build_where([{"key": "scan", "op": "in", "value": [H1, H1]}])
+    assert where.count("EXISTS") == 1
+    assert params == [H1, "D", 20260820]
+    out = query.run_scan({"filters": [{"key": "scan", "op": "in", "value": [H1, H1]}]})
+    assert [r["ticker"] for r in out["rows"]] == ["NVDA"]
+    assert out["scan_joins"] == [{"def_hash": H1, "as_of": 20260820, "applied": True}]
+
+
 def test_never_swept_hash_is_INERT_and_disclosed_not_a_silent_universe(env):
     _, scan_store, query = env
     _sweep(scan_store, H1, 20260820, ["NVDA"])

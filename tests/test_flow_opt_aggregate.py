@@ -381,3 +381,52 @@ def test_empty_db_also_refuses_to_write(flow_db, monkeypatch):
     assert put_calls == []
     with open(art_path, "rb") as fh:
         assert fh.read() == prior_bytes
+
+
+# ── (13) W5-A4 residual: the sqlite3.Error branch, driven EXPLICITLY ────
+# The two tests above both refuse via the rows_scanned==0 leg (a missing file,
+# an empty table). Neither one ever raises sqlite3.Error, so that half of
+# `db_failed`'s `or` had never actually been exercised. This test seeds a
+# REAL, populated DB (rows_scanned would be >0 if the read completed) and
+# monkeypatches the module's own `sqlite3.connect` seam to raise
+# `sqlite3.Error` directly -- proving the OTHER leg refuses too, and that the
+# receipt records THIS failure's own reason rather than the generic
+# rows_scanned=0 message.
+
+def test_sqlite_error_during_read_refuses_to_write_either_artifact(flow_db, monkeypatch):
+    db, art_path = flow_db
+    _seed(db, [_row(Symbol="X", CallPut="CALL", Side="A", Premium="1000000")])
+
+    prior_bytes = json.dumps({
+        "as_of": "2026-08-19", "days": ["2026-08-19"],
+        "rows": {"PRIOR": {"opt_net_premium_1d": 1, "opt_bull_pct_1d": 100,
+                           "opt_net_premium_5d": 1}},
+        "census": {"rows_scanned": 1, "rows_classified": 1, "tickers": 1},
+    }).encode("utf-8")
+    with open(art_path, "wb") as fh:
+        fh.write(prior_bytes)
+
+    put_calls = []
+    monkeypatch.setattr("api.services.data_sync.put_bytes",
+                        lambda *a, **k: put_calls.append(a) or True)
+
+    import sqlite3
+    from api import flow_opt_aggregate
+
+    def _boom(*a, **k):
+        raise sqlite3.Error("disk I/O error")
+
+    # The module's own DB-connection seam: `sqlite3.connect(db_path, ...)`
+    # inside run_aggregate(), reached via the module-level `import sqlite3`.
+    monkeypatch.setattr(flow_opt_aggregate.sqlite3, "connect", _boom)
+
+    receipt = flow_opt_aggregate.run_aggregate()
+
+    assert receipt["db"] == "failed"
+    assert receipt["db_reason"] == "disk I/O error"  # the sqlite3.Error's own
+                                                      # text, not the generic
+                                                      # rows_scanned=0 message
+    assert receipt["r2"] == "skipped"
+    assert put_calls == []  # R2 never attempted
+    with open(art_path, "rb") as fh:
+        assert fh.read() == prior_bytes  # local mirror byte-preserved

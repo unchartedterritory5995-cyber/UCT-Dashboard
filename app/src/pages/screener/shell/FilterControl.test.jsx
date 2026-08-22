@@ -6,6 +6,9 @@ import FilterControl from './FilterControl'
 const RS = { key: 'rs_rank', label: 'RS Rank', type: 'range', allow_custom: true,
   presets: [{ label: 'Any' }, { label: 'Over 80', op: 'gte', min: 80 }], unit: null }
 
+const SCAN = { key: 'scan', label: 'Scan', type: 'select', allow_custom: false,
+  presets: [{ label: 'Any' }, { label: 'Breakout base', op: 'in', value: 'sha256:aaa' }], unit: null }
+
 describe('FilterControl', () => {
   it('preset select emits the preset spec; Any clears', () => {
     const onChange = vi.fn()
@@ -35,6 +38,19 @@ describe('FilterControl', () => {
     fireEvent.keyDown(screen.getByLabelText('RS Rank min'), { key: 'Enter' })
     expect(onChange).toHaveBeenLastCalledWith(null)
     expect(screen.queryByLabelText('RS Rank min')).toBeNull()
+  })
+
+  it('K9: the preset label rides into the spec only on the scan filter', () => {
+    const onScan = vi.fn()
+    render(<FilterControl filter={SCAN} value={null} onChange={onScan} />)
+    fireEvent.change(screen.getByLabelText('Scan'), { target: { value: 'Breakout base' } })
+    expect(onScan).toHaveBeenCalledWith({ op: 'in', value: 'sha256:aaa', label: 'Breakout base' })
+
+    const onRs = vi.fn()
+    render(<FilterControl filter={RS} value={null} onChange={onRs} />)
+    fireEvent.change(screen.getByLabelText('RS Rank'), { target: { value: 'Over 80' } })
+    expect(onRs).toHaveBeenCalledWith({ op: 'gte', min: 80 })
+    expect(onRs.mock.calls[0][0]).not.toHaveProperty('label')
   })
 
   it('a value applied from outside re-seeds the inputs', () => {
