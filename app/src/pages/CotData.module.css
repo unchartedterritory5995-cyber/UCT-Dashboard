@@ -135,11 +135,30 @@
   color: var(--ut-gold);
 }
 
+/* ── Body: chart on the left, positioning rail on the right ──────── */
+.body {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The rail column stretches to the chart's height when its content is
+   shorter, and takes its natural height when taller — nothing is ever
+   clipped. The rail's own width lives in PositioningRail.module.css. */
+.railCol {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 /* ── Chart container ─────────────────────────────────────────────── */
 .chartWrap {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
   background: #14160f;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -455,6 +474,11 @@
 .sheetItemActive { background: #3B82F6; }
 .sheetItemActive .dropdownSym,
 .sheetItemActive .dropdownName { color: white; }
+
+/* ── Narrow layouts: the rail drops below the chart ──────────────── */
+@media (max-width: 960px) {
+  .body { flex-direction: column; }
+}
 
 /* ── Phone layout ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
