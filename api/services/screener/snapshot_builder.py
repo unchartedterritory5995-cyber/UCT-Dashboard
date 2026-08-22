@@ -8,7 +8,8 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                  uct_composite via the same percentile path as the research page;
                  Wave 2 adds the rating_eps/growth/value/smr components,
                  sector_rs_pct and sponsorship — see that module's docstring)
-  - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``)
+  - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``);
+                computes once on a cold cache — see ``_read_rs_map``
   - meta     -> ``ticker_meta`` cache (name/sector/industry)
   - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
   - bulk fun -> ``fundamentals_bulk.fetch_bulk`` — the ten Group-A columns
