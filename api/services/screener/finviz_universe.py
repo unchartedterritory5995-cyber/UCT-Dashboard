@@ -43,22 +43,32 @@ same numbering) — not a fresh measurement:
     28 Institutional Ownership · 30 Float Short (Short Float) ·
     31 Short Ratio (Days to Cover)
 
-`float_pct` ("Float %") has NO confident id in that classic ~70-field
-census — Finviz's `v152` elite export runs to ~150 columns, and Float % is
-a newer field somewhere past the classic range. `_C_IDS["float_pct"]` is a
-placeholder (129) inside the valid 0-149 span, explicitly flagged
-UNVERIFIED below.
+`float_pct` ("Float %") had NO confident id in that classic ~70-field
+census — Finviz's `v152` elite export runs to ~150 columns, and Float % was
+assumed to be a newer field somewhere past the classic range. `_C_IDS`
+carried a placeholder (129) inside the valid 0-149 span, flagged UNVERIFIED.
 
-⭐ THIS IS SAFE BY CONSTRUCTION, NOT BY LUCK: the parse contract is HEADER
+⭐ THIS WAS SAFE BY CONSTRUCTION, NOT BY LUCK: the parse contract is HEADER
 NAME, never id. A wrong `_C_IDS` entry just changes which (irrelevant)
 column Finviz happens to return at that position — it cannot silently swap
 in the wrong VALUE, because that returned column's header will not equal
-the `_HEADERS` string being matched, so it is counted in `missing_headers`
-exactly like a column Finviz dropped outright. The first production run
-(with a real token) adjudicates every id by name and should have its
-`missing_headers` census diffed against this module before being trusted
-long-term — if `float_pct` (or any other column) keeps showing up missing,
-re-run the probe and correct `_C_IDS`.
+the `_HEADERS` string being matched, so it would be counted in
+`missing_headers` exactly like a column Finviz dropped outright.
+
+⛔ 2026-08-22 ADJUDICATION — closes the loop above: `c=129` was measured
+LIVE against elite.finviz.com and is "Exchange", not "Float %". The full
+125-153 id range was walked end to end (All-Time High/Low, EPS/Revenue
+Surprise, Exchange, Dividend TTM/Ex Date, EPS/Sales YoY TTM, 52W Range,
+News Time/URL/Title, Perf 3Y/5Y/10Y, AH Volume, EPS/Sales Past 3Y, EV,
+EV/EBITDA, EV/Sales, Div Gr 1Y/3Y/5Y, Daily Digest, Security Type) and NO
+"Float %" column exists anywhere in the v152 export — Finviz only ever
+renders it computed, on the UI. `float_pct` is therefore no longer
+requested at all (removed from `_C_IDS`/`_HEADERS`); it is DERIVED instead
+from the two share counts this module already carries
+(`float_shares / shares_outstanding * 100`, both post-SCALE-ASSUMPTION-fix
+absolute counts — see that comment below `_C_IDS`), honest-`None` when
+either side is absent or `shares_outstanding` is `0`. This module remains
+`float_pct`'s ONE writer — see `_derive_float_pct` and `read_finviz_fields`.
 """
 from __future__ import annotations
 
@@ -77,14 +87,18 @@ log = logging.getLogger(__name__)
 _TICKER_ID = 1  # matches industry_map's c=1,2,3,4 (Ticker/Company/Sector/Industry)
 
 # snapshot column -> Finviz `c=` id. See the module docstring's
-# DONE_WITH_CONCERNS note: MEASURED for six of seven, one UNVERIFIED
-# placeholder. Ids only SELECT which columns come back; parsing is by the
-# header name in `_HEADERS`, so a wrong id here degrades to a
-# `missing_headers` entry rather than a wrong value.
+# DONE_WITH_CONCERNS note (all six MEASURED — the former seventh,
+# `float_pct`, was an UNVERIFIED placeholder that the 2026-08-22
+# ADJUDICATION removed rather than confirmed; it is derived, not requested).
+# Ids only SELECT which columns come back; parsing is by the header name in
+# `_HEADERS`, so a wrong id here degrades to a `missing_headers` entry
+# rather than a wrong value.
 _C_IDS = {
     "shares_outstanding": 24,
     "float_shares": 25,
-    "float_pct": 129,          # UNVERIFIED — see module docstring
+    # float_pct ("Float %") REMOVED 2026-08-22 — no such column exists in the
+    # v152 export (see the module docstring's ADJUDICATION). Derived instead
+    # in `_derive_float_pct` / `read_finviz_fields`.
     "short_float_pct": 30,
     "short_ratio": 31,
     "insider_own_pct": 26,
@@ -95,7 +109,6 @@ _HEADERS = {
     # snapshot column -> the header Finviz returns (measured; ids in _C_IDS)
     "shares_outstanding": "Shares Outstanding",
     "float_shares":       "Shares Float",
-    "float_pct":          "Float %",
     "short_float_pct":    "Short Float",
     "short_ratio":         "Short Ratio",
     "insider_own_pct":    "Insider Ownership",
@@ -115,7 +128,7 @@ _HEADERS = {
 # whole asymmetry the rule leans on. See `_RAW_MILLIONS_COLUMNS` and
 # `_parse`'s `raw_millions` argument.
 _RAW_MILLIONS_COLUMNS = {"shares_outstanding", "float_shares"}
-_PCT_COLUMNS = {"float_pct", "short_float_pct", "insider_own_pct", "inst_pct"}
+_PCT_COLUMNS = {"short_float_pct", "insider_own_pct", "inst_pct"}
 _MIN_ROWS = 1000        # an artifact below this is a failed pull, not a market
 _STALE_DAYS = 4
 
@@ -152,6 +165,23 @@ def _parse(text, is_pct, raw_millions=False):
     if raw_millions and not suffixed:
         val *= 1e6
     return val
+
+
+def _derive_float_pct(row):
+    """``float_shares / shares_outstanding * 100``, honest-``None``.
+
+    2026-08-22: Finviz's v152 export has NO "Float %" column (see the module
+    docstring's ADJUDICATION) — this is `float_pct`'s ONE writer, deriving it
+    from the two already-scaled (SCALE ASSUMPTION fix, above) share counts
+    this module carries. `None` when either side is absent or
+    `shares_outstanding` is `0` — never a divide-by-zero, never a fabricated
+    percentage.
+    """
+    fs = row.get("float_shares")
+    so = row.get("shares_outstanding")
+    if fs is None or so is None or not so:
+        return None
+    return round(fs / so * 100, 2)
 
 
 def _note(failures, source, outcome) -> None:
@@ -318,6 +348,16 @@ def read_finviz_fields(targets, failures=None) -> dict:
     unguarded and raise `AttributeError` — the sibling reader
     `earnings_dates.read_earnings_dates` already guards this exact shape
     (see its own `isinstance(blob, dict)` check); mirrored here.
+
+    ⚠️ FIX ROUND 2 (2026-08-22 receipts-fix): `float_pct` is no longer a
+    requested Finviz column (see the module docstring's 2026-08-22
+    ADJUDICATION) — it is DERIVED here, per ticker, from the already-returned
+    `float_shares`/`shares_outstanding` (both post-SCALE-ASSUMPTION-fix
+    absolute counts): `float_shares / shares_outstanding * 100`, rounded to
+    2, honest-`None` when either side is absent (including when its own
+    header was in `missing_headers`, which drops it from `row` before the
+    derivation ever sees it) or `shares_outstanding` is `0`. See
+    `_derive_float_pct` — this is the one place `float_pct` reaches a caller.
     """
     path = _artifact_path()
     try:
@@ -350,5 +390,8 @@ def read_finviz_fields(targets, failures=None) -> dict:
         for col in cols:
             if col in src:
                 row[col] = src[col]
+        fp = _derive_float_pct(row)
+        if fp is not None:
+            row["float_pct"] = fp
         out[tu] = row
     return out

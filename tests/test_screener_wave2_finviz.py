@@ -7,8 +7,11 @@ No sockets anywhere: every run_pull test monkeypatches
 import json
 from datetime import datetime, timedelta, timezone
 
+# ⛔ 2026-08-22: "Float %" is DELIBERATELY ABSENT — c=129 measured "Exchange"
+# live, no Float % column exists in the v152 export (see finviz_universe's
+# module docstring ADJUDICATION). float_pct is derived, never requested.
 FULL_HEADERS = [
-    "Ticker", "Shares Outstanding", "Shares Float", "Float %",
+    "Ticker", "Shares Outstanding", "Shares Float",
     "Short Float", "Short Ratio", "Insider Ownership",
     "Institutional Ownership",
 ]
@@ -22,7 +25,7 @@ def _csv(headers, rows):
 
 
 def _full_row(ticker):
-    return [ticker, "1.50B", "1.20B", "80.00%", "3.45%", "2.1", "0.50%", "85.30%"]
+    return [ticker, "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%"]
 
 
 def _make_full_csv(n=1005):
@@ -105,6 +108,27 @@ def test_parse_raw_millions_dash_and_blank_still_none():
     assert fv._parse("", False, raw_millions=True) is None
 
 
+# ── FIX 2 (2026-08-22 receipts-fix): float_pct is DERIVED, not requested.
+
+def test_derive_float_pct_normal_row():
+    from api.services.screener import finviz_universe as fv
+    row = {"float_shares": 23280.5, "shares_outstanding": 24221}
+    assert fv._derive_float_pct(row) == 96.12
+
+
+def test_derive_float_pct_none_when_either_side_missing():
+    from api.services.screener import finviz_universe as fv
+    assert fv._derive_float_pct({"shares_outstanding": 100}) is None
+    assert fv._derive_float_pct({"float_shares": 50}) is None
+    assert fv._derive_float_pct({}) is None
+
+
+def test_derive_float_pct_none_when_shares_outstanding_is_zero():
+    from api.services.screener import finviz_universe as fv
+    assert fv._derive_float_pct(
+        {"float_shares": 50, "shares_outstanding": 0}) is None
+
+
 # ── the safe-degrade fetch path (no token -> no socket) ─────────────────
 
 def test_fetch_csv_text_without_token_returns_empty(monkeypatch):
@@ -133,11 +157,30 @@ def test_run_pull_keeps_rows_and_writes_artifact(monkeypatch, tmp_path):
     row0 = payload["rows"]["T0000"]
     assert row0["shares_outstanding"] == 1.5e9
     assert row0["float_shares"] == 1.2e9
-    assert row0["float_pct"] == 80.0
+    # float_pct is derived at READ time, never stored in the artifact itself.
+    assert "float_pct" not in row0
     assert row0["short_float_pct"] == 3.45
     assert row0["short_ratio"] == 2.1
     assert row0["insider_own_pct"] == 0.5
     assert row0["inst_pct"] == 85.3
+
+    out = fv.read_finviz_fields(["T0000"])
+    assert out["T0000"]["float_pct"] == 80.0  # 1.2e9 / 1.5e9 * 100
+
+
+def test_run_pull_never_lists_float_pct_as_a_missing_header(monkeypatch, tmp_path):
+    """2026-08-22: float_pct is no longer a requested Finviz column at all,
+    so it can never appear in `missing_headers` — there is no header left to
+    go missing (see finviz_universe's module docstring ADJUDICATION)."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: _make_full_csv())
+
+    receipt = fv.run_pull()
+
+    assert "float_pct" not in receipt["missing_headers"]
+    assert "float_pct" not in fv._HEADERS
 
 
 def test_run_pull_scales_bare_shares_columns_as_raw_millions(monkeypatch, tmp_path):
@@ -149,8 +192,7 @@ def test_run_pull_scales_bare_shares_columns_as_raw_millions(monkeypatch, tmp_pa
     from api.services.screener import finviz_universe as fv
 
     rows = [_full_row(f"T{i:04d}") for i in range(1004)]
-    rows.append(["NVDA", "24221", "23280.5", "80.00%", "3.45%", "2.1",
-                 "0.50%", "85.30%"])
+    rows.append(["NVDA", "24221", "23280.5", "3.45%", "2.1", "0.50%", "85.30%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -169,22 +211,22 @@ def test_run_pull_records_missing_header_and_still_writes(monkeypatch, tmp_path)
     monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
     from api.services.screener import finviz_universe as fv
 
-    headers = [h for h in FULL_HEADERS if h != "Float %"]
+    headers = [h for h in FULL_HEADERS if h != "Institutional Ownership"]
 
-    def _csv_without_float_pct():
-        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%"]
+    def _csv_without_inst_pct():
+        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%"]
                  for i in range(1005)]
         return _csv(headers, rows)
 
-    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", _csv_without_float_pct)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", _csv_without_inst_pct)
 
     receipt = fv.run_pull()
 
-    assert receipt["missing_headers"] == ["float_pct"]
+    assert receipt["missing_headers"] == ["inst_pct"]
     assert receipt["wrote"] is True
     payload = json.loads(artifact.read_text())
     row0 = payload["rows"]["T0000"]
-    assert "float_pct" not in row0
+    assert "inst_pct" not in row0
     assert row0["short_float_pct"] == 3.45
 
 
@@ -214,7 +256,7 @@ def test_run_pull_drops_a_row_with_no_ticker(monkeypatch, tmp_path):
     from api.services.screener import finviz_universe as fv
 
     rows = [_full_row(f"T{i:04d}") for i in range(1005)]
-    rows.append(["", "1.0B", "1.0B", "10%", "1%", "1.0", "1%", "1%"])
+    rows.append(["", "1.0B", "1.0B", "10%", "1.0", "1%", "1%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -318,3 +360,28 @@ def test_read_finviz_fields_per_ticker_value_absence(tmp_path, monkeypatch):
 
     assert out["T0000"]["short_ratio"] == 1.0
     assert "short_ratio" not in out["T9999"]
+
+
+# ── FIX 2 (2026-08-22): read_finviz_fields derives float_pct on read ────────
+
+def test_read_finviz_fields_derives_float_pct_from_shares(tmp_path, monkeypatch):
+    rows = {f"T{i:04d}": {"shares_outstanding": 24221.0, "float_shares": 23280.5}
+            for i in range(1005)}
+    _write_artifact(tmp_path, monkeypatch, rows)
+    from api.services.screener import finviz_universe as fv
+
+    out = fv.read_finviz_fields(["T0000"])
+
+    assert out["T0000"]["float_pct"] == 96.12
+
+
+def test_read_finviz_fields_float_pct_none_without_both_shares_columns(tmp_path, monkeypatch):
+    rows = {f"T{i:04d}": {"shares_outstanding": 24221.0} for i in range(1004)}
+    rows["T9999"] = {"shares_outstanding": 0.0, "float_shares": 100.0}
+    _write_artifact(tmp_path, monkeypatch, rows)
+    from api.services.screener import finviz_universe as fv
+
+    out = fv.read_finviz_fields(["T0000", "T9999"])
+
+    assert "float_pct" not in out["T0000"]   # float_shares absent
+    assert "float_pct" not in out["T9999"]   # shares_outstanding == 0
