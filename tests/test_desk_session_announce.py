@@ -301,3 +301,29 @@ def test_announce_raises_without_a_webhook(monkeypatch):
     _stub_video(monkeypatch)
     with pytest.raises(RuntimeError, match="DISCORD_TSDR_WEBHOOK_URL"):
         da.announce_video(42)
+
+
+# ---------------------------------------------------------------------------
+# Creative titles (2026-08-19): the LLM-authored hook is UNTRUSTED free text.
+# It must never be able to satisfy the public-channel allowlist, and the
+# announce card's eyebrow must be the SHOW, never the hook.
+# ---------------------------------------------------------------------------
+
+def test_a_hook_naming_an_allowlisted_show_cannot_leak_a_paywalled_session(monkeypatch):
+    monkeypatch.setenv("DESK_TSDR_ANNOUNCE_SHOWS", "evening update")
+    assert not da.show_allowed(
+        "Evening Update Vibes At The Open | Live Trading Session — August 19, 2026",
+        "Live Trading Sessions")
+    # ...while the genuinely allowlisted show still announces:
+    assert da.show_allowed(
+        "MRNA Steals The Show | Evening Update — August 19, 2026",
+        "Evening Update")
+
+
+def test_split_title_strips_the_creative_hook():
+    assert da.split_title(
+        "MRNA Steals The Show | Evening Update — August 19, 2026") == \
+        ("Evening Update", "August 19, 2026")
+    assert da.split_title("Evening Update from TSDR — July 27, 2026") == \
+        ("Evening Update from TSDR", "July 27, 2026")
+    assert da.split_title("no separator at all") == ("no separator at all", "")

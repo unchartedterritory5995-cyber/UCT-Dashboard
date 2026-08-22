@@ -51,6 +51,8 @@ export const BREADTH_WIDGET_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   headerColor: '#1f2328',
   valueColor: '#1f2328',
+  upColor: '#17a917',
+  downColor: '#db000b',
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function breadthDefaultsForTheme(theme) {

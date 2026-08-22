@@ -69,36 +69,33 @@
     "translates": false,
     "outputs": 3,
     "usable": 0,
+    "hiddenScaffolding": 0,
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:offset-literal",
-      "line": 45,
-      "column": 20,
-      "token": "len"
+      "guard": "pine:request",
+      "line": 52,
+      "column": 6,
+      "token": "request.security"
     },
     "perOutputRefusals": {
-      "pine:offset-literal": 3
+      "pine:request": 3
     }
   },
   "06-adx-advanced.pine": {
     "version": 6,
-    "translates": false,
+    "translates": true,
     "outputs": 12,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:block",
-      "line": 111,
-      "column": 5,
-      "token": "switch"
+    "usable": 9,
+    "hiddenScaffolding": 3,
+    "selectedFormula": "(!1 || 1) && crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
-    "perOutputRefusals": {
-      "pine:tuple": 10,
-      "pine:block": 1
-    },
-    "hiddenScaffolding": 1
+    "refusal": null,
+    "perOutputRefusals": {}
   },
   "07-rsi.pine": {
     "version": 3,
@@ -147,20 +144,17 @@
   },
   "10-supertrend.pine": {
     "version": 6,
-    "translates": false,
+    "translates": true,
     "outputs": 6,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:state",
-      "line": 39,
-      "column": 29,
-      "token": "["
+    "usable": 5,
+    "selectedFormula": "accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250) != accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250)[1]",
+    "downstream": {
+      "ok": false,
+      "guard": "budget:nodes",
+      "repaint": "non-repainting"
     },
-    "perOutputRefusals": {
-      "pine:state": 5
-    },
+    "refusal": null,
+    "perOutputRefusals": {},
     "hiddenScaffolding": 1
   },
   "11-donchian-channel.pine": {

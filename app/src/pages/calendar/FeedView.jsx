@@ -6,7 +6,7 @@ import CalendarDayTable from './CalendarDayTable'
 import EventCard from './EventCard'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
-import { impEff } from './importance'
+import { rankEntries } from './importance'
 import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import UIcon from '../../components/ui/UIcon'
@@ -61,10 +61,9 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
   //    personalized importance (default sort); an explicit sort choice wins.
   //    (CalendarDayTable handles the BMO/AMC session grouping internally.) ──
   const orderedEntries = useMemo(() => {
-    const impOf = e => impEff(tiers?.impBySym?.get?.(e.sym) ?? 0, e)
-    if (!filters.sort || filters.sort === 'mine') {
-      return [...entries].sort((a, b) => (b.mine === true) - (a.mine === true) || impOf(b) - impOf(a))
-    }
+    // Shared with WeekView — see rankEntries(). The deterministic tail is what
+    // keeps a pre-enrichment paint ranked instead of alphabetical.
+    if (!filters.sort || filters.sort === 'mine') return rankEntries(entries, tiers?.impBySym)
     return entries
   }, [entries, tiers, filters.sort])
 

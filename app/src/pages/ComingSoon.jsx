@@ -9,12 +9,13 @@ import styles from './ComingSoon.module.css'
 // Scans — linking "today's Morning Wire" would send people somewhere it isn't.
 const SUBSTACK_URL = 'https://unchartedterritoryy.substack.com'
 
-// Launch target: Sat Sep 5 2026, 9am ET (owner's date). Deliberately NOT
-// labelled "opening bell" anywhere — Sep 5 is a Saturday, so there is no
-// session that morning; members onboard over the long weekend (Sep 7 is Labor
-// Day) and the first live Morning Wire lands Tue Sep 8.
+// Launch target: Sat Sep 19 2026, 9am ET (owner's date — pushed back 2 weeks
+// from the original Sep 5 target). Deliberately NOT labelled "opening bell"
+// anywhere — Sep 19 is a Saturday, so there is no session that morning;
+// members onboard over the weekend and the first live Morning Wire lands
+// Mon Sep 21.
 // Override without a code change via VITE_LAUNCH_DATE (ISO-8601 with offset).
-const FALLBACK_LAUNCH = '2026-09-05T09:00:00-04:00'
+const FALLBACK_LAUNCH = '2026-09-19T09:00:00-04:00'
 const LAUNCH_ISO = import.meta.env.VITE_LAUNCH_DATE || FALLBACK_LAUNCH
 
 function launchDate() {

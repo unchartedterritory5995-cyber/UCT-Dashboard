@@ -1,0 +1,925 @@
+// Journal Widgets P3 — the embed node's document contract.
+//
+// Three rails: (1) attr construction + the render-path decision are pure and
+// pinned; (2) a widgetEmbed node survives the HTML round-trip the importer
+// and copy/paste ride (generateHTML → generateJSON with the SAME
+// buildExtensions the editor uses); (3) the client plain-text serializer
+// emits the stored searchText line — the same line the server serializer
+// reads — so notebook search sees embeds identically on both sides.
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
+// Same entry the importer's convert.js round-trips through.
+import { generateHTML, generateJSON } from '@tiptap/core'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { canvasesLookPainted } from './embedArchive'
+import { RENDER_UNAVAILABLE, RENDER_UNAVAILABLE_SELECTOR, showsUnavailableFrame } from '../../../lib/captureSafety'
+
+vi.mock('@tiptap/react', async (orig) => {
+  const mod = await orig()
+  // NodeViewWrapper needs a live editor context; the view's render chain does
+  // not. A plain div keeps these tests about the CHAIN, not the editor.
+  return { ...mod, NodeViewWrapper: (props) => <div {...props} /> }
+})
+
+// The self-archive pipeline does real fetches (bars warm, PNG upload) — keep
+// the durability plumbing out of jsdom. Partial mock: the pure paint verdict
+// (canvasesLookPainted) stays real so its tests hit the shipped code.
+vi.mock('./embedArchive', async (orig) => ({
+  ...(await orig()),
+  captureElementPng: vi.fn(async () => null),
+  storeFallbackImage: vi.fn(async () => ({ url: '/api/x.png' })),
+  kickSnapshotWarm: vi.fn(),
+}))
+
+// Lets one test push the live renderer through the VIEW's own error boundary,
+// which is how a real embed ends up showing its placeholder while the archive
+// timer is armed. Default off — every other test gets the plain stub.
+const chartStub = vi.hoisted(() => ({ throwOnRender: false }))
+
+// The live chart renderer drags ChartPane/StockChart into jsdom; draw-mode
+// tests are about the VIEW's toolbar + annotation wiring, so stub it with a
+// probe that surfaces the two props under test.
+vi.mock('../components/notebook/ChartEmbed', () => ({
+  default: (props) => (chartStub.throwOnRender ? (() => { throw new Error('chart render blew up') })() : (
+    <div
+      data-testid="chart-embed-stub"
+      data-annotate={String(!!props.annotate)}
+      data-peek={String(!!props.peekToNow)}
+    >
+      <button
+        type="button"
+        data-testid="emit-drawing"
+        onClick={() => props.onAnnotationsChange?.([{ id: 'probe-line' }])}
+      />
+      <button
+        type="button"
+        data-testid="emit-bars-ready"
+        onClick={() => props.onBarsReady?.()}
+      />
+    </div>
+  )),
+}))
+
+// The Sync-from-my-chart tests shape prefs per-test; everything else in this
+// file ignores preferences. Mirrors the real module's surface (default hook +
+// parsePref) so any transitively-imported consumer keeps working.
+const mockJournalPrefs = vi.hoisted(() => ({ value: {} }))
+vi.mock('../../../hooks/usePreferences', async (orig) => {
+  const mod = await orig()
+  return {
+    ...mod,
+    default: () => ({ prefs: mockJournalPrefs.value, setPref: () => {}, loading: false }),
+  }
+})
+
+import { buildExtensions, extractPlainText } from './tiptap'
+import {
+  buildWidgetEmbedAttrs, parseChartSlashArgs, parseTfToken,
+  resolveEmbedRender, embedAutoCaption, widgetSlotNode,
+  reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY, retimeChartParams,
+  embedRenderHeight, EMBED_LEGACY_DEFAULT_HEIGHT,
+  parseMtfSlashArgs, parseCompareSlashArgs, parseDayToken,
+} from './widgetEmbedCore'
+import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
+
+const nowSec = Math.floor(Date.now() / 1000)
+
+describe('buildWidgetEmbedAttrs', () => {
+  it('normalizes the capture through the registry schema and derives searchText', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'amd', tf: '5', _leak: 1 })
+    expect(attrs.v).toBe(1)
+    expect(attrs.widgetId).toBe('chart')
+    expect(attrs.params).toEqual({ symbol: 'AMD', tf: '5', to: expect.any(Number) })
+    expect(attrs.params._leak).toBeUndefined()
+    expect(attrs.mode).toBe('snapshot')
+    expect(attrs.fallback).toBeNull()
+    // height null = AUTO (derived from rendered width at chart-page aspect)
+    expect(attrs.layout).toEqual({ width: 'full', height: null })
+    expect(attrs.searchText).toBe('[chart: AMD 5m]')
+    expect(typeof attrs.capturedAt).toBe('string')
+  })
+})
+
+describe('frozen means anchored (panel finding)', () => {
+  it('a chart capture with NO `to` gets the insert moment stamped', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '15' })
+    const to = Number(attrs.params.to)
+    expect(Number.isFinite(to)).toBe(true)
+    expect(Math.abs(Date.now() / 1000 - to)).toBeLessThan(60)
+  })
+  it('`to: null` is the explicit rolling-window opt-out (/compare after-half)', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D', to: null })
+    expect(attrs.params.to == null).toBe(true)
+  })
+  it('non-chart captures are untouched', () => {
+    const attrs = buildWidgetEmbedAttrs('news', { symbol: 'AMD', events: [{ t: 1 }] })
+    expect('to' in attrs.params).toBe(false)
+  })
+})
+
+describe('slash arg parsing', () => {
+  it('parses symbol + timeframe tokens', () => {
+    expect(parseChartSlashArgs('AMD 15m')).toEqual({ symbol: 'AMD', tf: '15', day: null })
+    expect(parseChartSlashArgs('amd')).toEqual({ symbol: 'AMD', tf: 'D', day: null })
+    expect(parseChartSlashArgs('NVDA 1h')).toEqual({ symbol: 'NVDA', tf: '60', day: null })
+    expect(parseChartSlashArgs('brk.b w')).toEqual({ symbol: 'BRK.B', tf: 'W', day: null })
+    expect(parseChartSlashArgs('')).toBeNull()
+    expect(parseChartSlashArgs('123')).toBeNull()
+    // Prose after '/chart' must parse as NOTHING — with allowSpaces the
+    // suggestion stays alive mid-sentence, and a lenient parse turned
+    // '/chart looks great here' + Enter into a LOOKS·D embed that ate the
+    // sentence (review finding).
+    expect(parseChartSlashArgs('looks great here')).toBeNull()
+    expect(parseChartSlashArgs('looks great')).toBeNull()
+    expect(parseChartSlashArgs('AMD notatf')).toBeNull()
+  })
+
+  it('an optional day token anchors /chart at that date (panel batch 3)', () => {
+    expect(parseChartSlashArgs('AMD 15m 3/13/2026'))
+      .toEqual({ symbol: 'AMD', tf: '15', day: '2026-03-13' })
+    // Either order — each token claims exactly one unclaimed slot.
+    expect(parseChartSlashArgs('AMD 2026-03-13 15m'))
+      .toEqual({ symbol: 'AMD', tf: '15', day: '2026-03-13' })
+    expect(parseChartSlashArgs('NVDA 2026-03-13'))
+      .toEqual({ symbol: 'NVDA', tf: 'D', day: '2026-03-13' })
+    // The strictness contract holds: a token that is neither tf nor day, or
+    // a DOUBLE claim of one slot, parses as NOTHING.
+    expect(parseChartSlashArgs('AMD 15m notaday')).toBeNull()
+    expect(parseChartSlashArgs('AMD 15m 5m')).toBeNull()
+    expect(parseChartSlashArgs('AMD 3/13 3/14')).toBeNull()
+    expect(parseChartSlashArgs('AMD 15m 3/13 extra')).toBeNull()
+  })
+  it('month-vs-minute is decided by case, like the chart labels (panel finding)', () => {
+    expect(parseTfToken('1M')).toBe('M')   // one MONTH — was silently one minute
+    expect(parseTfToken('M')).toBe('M')
+    expect(parseTfToken('1m')).toBe('1')
+    expect(parseTfToken('1d')).toBe('D')
+    expect(parseTfToken('1D')).toBe('D')
+    expect(parseTfToken('1w')).toBe('W')
+    expect(parseTfToken('1mo')).toBe('M')
+  })
+
+  it('a yearless M/D in the future rolls back a year (Dec setups reviewed in Jan)', () => {
+    // ⛔ ONE basis, ET — the same one parseDayToken measures against. Deriving
+    // "tomorrow" from local getMonth/getDate and comparing it to a UTC
+    // toISOString() day made this rail red every evening after 7pm CT, and the
+    // red was REAL: the parser had that same split basis and was accepting a
+    // future cutoff. Mixing them here would have hidden the fix.
+    const etDay = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const todayET = etDay(Date.now())
+    const tomorrowET = etDay(Date.now() + 86400000)
+    const [ty, tm, td] = tomorrowET.split('-')
+    const parsed = parseDayToken(`${+tm}/${+td}`)
+    expect(parsed).toBeTruthy()
+    expect(parsed < todayET).toBe(true)
+    // Specifically LAST year's same calendar day — "some day in the past"
+    // would also pass a parser that returned 1990.
+    expect(parsed.slice(5)).toBe(`${tm}-${td}`)
+    expect(+parsed.slice(0, 4)).toBe(+ty - 1)
+  })
+
+  it('parses the composition presets strictly (mtf / compare / day tokens)', () => {
+    expect(parseMtfSlashArgs('AMD')).toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'], day: null })
+    expect(parseMtfSlashArgs('amd nvda')).toBeNull()
+    expect(parseMtfSlashArgs('looks')).toEqual({ symbol: 'LOOKS', tfs: ['D', '60', '15'], day: null })
+    expect(parseMtfSlashArgs('')).toBeNull()
+    // Optional day anchors the whole stack; a TIMEFRAME token stays rejected
+    // (the stack's tfs are the preset, not a config surface).
+    expect(parseMtfSlashArgs('AMD 3/13/2026'))
+      .toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'], day: '2026-03-13' })
+    expect(parseMtfSlashArgs('AMD 15m')).toBeNull()
+
+    expect(parseCompareSlashArgs('AMD 2026-03-13')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })
+    expect(parseCompareSlashArgs('amd 3/13/26')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })
+    // Yearless M/D resolves via the future-rollback rule — pin the M-D half
+    // and symbol so this doesn't time-bomb each January–March.
+    expect(parseCompareSlashArgs('amd 3/13').symbol).toBe('AMD')
+    expect(parseCompareSlashArgs('amd 3/13').day.endsWith('-03-13')).toBe(true)
+    expect(parseCompareSlashArgs('AMD notadate')).toBeNull()
+    expect(parseCompareSlashArgs('AMD 13/45')).toBeNull()
+    expect(parseCompareSlashArgs('AMD')).toBeNull()
+    // Optional tf (panel batch 3): compare at execution granularity.
+    expect(parseCompareSlashArgs('AMD 3/13/2026 15m'))
+      .toEqual({ symbol: 'AMD', day: '2026-03-13', tf: '15' })
+    expect(parseCompareSlashArgs('AMD 15m 3/13/2026'))
+      .toEqual({ symbol: 'AMD', day: '2026-03-13', tf: '15' })
+    // A tf WITHOUT a day is still nothing — the day is the preset's anchor.
+    expect(parseCompareSlashArgs('AMD 15m')).toBeNull()
+
+    expect(parseDayToken('2026-3-9')).toBe('2026-03-09')
+    expect(parseDayToken('2026-13-09')).toBeNull()
+  })
+
+  it('maps timeframe tokens onto bars-API codes', () => {
+    expect(parseTfToken('5m')).toBe('5')
+    expect(parseTfToken('d')).toBe('D')
+    expect(parseTfToken('60m')).toBe('60')
+    expect(parseTfToken('15')).toBe('15')
+    expect(parseTfToken('nope')).toBeNull()
+  })
+})
+
+describe('resolveEmbedRender — the never-broken chain', () => {
+  const chartAttrs = (over = {}) => ({
+    ...buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5', to: nowSec - 3600 }),
+    ...over,
+  })
+  it('recent chart snapshot renders live from frozen params', () => {
+    expect(resolveEmbedRender(chartAttrs())).toEqual({ kind: 'live', reason: 'reconstructable' })
+  })
+  it('a 1m chart beyond its 60-day wall drops to the archive', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '1', to: nowSec - 90 * 86400 })
+    expect(resolveEmbedRender({ ...attrs, fallback: { url: '/x.png' } }).kind).toBe('image')
+    expect(resolveEmbedRender(attrs).kind).toBe('placeholder')
+  })
+  it('unknown/removed widget types degrade to image, never crash', () => {
+    expect(resolveEmbedRender({ widgetId: 'gone', params: {}, fallback: { url: '/x.png' } }))
+      .toEqual({ kind: 'image', reason: 'unknown-widget' })
+    expect(resolveEmbedRender({ widgetId: 'gone', params: {} }).kind).toBe('placeholder')
+  })
+  it('invalid params degrade instead of rendering wrong', () => {
+    expect(resolveEmbedRender({ widgetId: 'chart', params: {}, fallback: { url: '/x.png' } }))
+      .toEqual({ kind: 'image', reason: 'invalid-params' })
+  })
+  it('image-only types render their archive even in live mode', () => {
+    const attrs = buildWidgetEmbedAttrs('breadth', {}, { mode: 'live', fallback: { url: '/b.png' } })
+    expect(resolveEmbedRender(attrs)).toEqual({ kind: 'image', reason: 'image-only' })
+  })
+})
+
+describe('document round-trip', () => {
+  it('survives generateHTML → generateJSON with the editor extension set', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5', from: 1710338700, to: 1710343800, settings: { background: '#0f0f0f' } }, { tradeRef: 'tr_9', caption: 'entry bar' })
+    const doc = { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Before' }] },
+      { type: 'widgetEmbed', attrs },
+    ] }
+    const exts = buildExtensions()
+    const html = generateHTML(doc, exts)
+    expect(html).toContain('data-widget-embed')
+    expect(html).toContain('[chart: AMD 5m]')
+    const revived = generateJSON(html, exts)
+    const node = revived.content.find(n => n.type === 'widgetEmbed')
+    expect(node).toBeTruthy()
+    expect(node.attrs.widgetId).toBe('chart')
+    expect(node.attrs.params).toEqual(attrs.params)
+    expect(node.attrs.tradeRef).toBe('tr_9')
+    expect(node.attrs.caption).toBe('entry bar')
+    expect(node.attrs.layout).toEqual(attrs.layout)
+    expect(node.attrs.searchText).toBe('[chart: AMD 5m]')
+  })
+
+  it('a template-declared widget slot round-trips like a hand-inserted embed', () => {
+    // The integration point the spec demands: TEMPLATES[].build(ctx) emits
+    // widgetSlotNode(...) inside its doc content, no other API needed.
+    const doc = { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Daily plan' }] },
+      widgetSlotNode('chart', { symbol: 'SPY', tf: 'D' }),
+    ] }
+    const exts = buildExtensions()
+    const revived = generateJSON(generateHTML(doc, exts), exts)
+    const node = revived.content.find(n => n.type === 'widgetEmbed')
+    expect(node.attrs.params).toEqual({ symbol: 'SPY', tf: 'D', to: expect.any(Number) })
+    expect(node.attrs.searchText).toBe('[chart: SPY D]')
+  })
+
+  it('extractPlainText emits the stored searchText line (server parity)', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' })
+    const doc = { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Note' }] },
+      { type: 'widgetEmbed', attrs },
+      { type: 'widgetEmbed', attrs: { widgetId: 'gone' } },
+    ] }
+    const txt = extractPlainText(doc)
+    expect(txt).toContain('[chart: AMD 5m]')
+    expect(txt).toContain('[widget]')
+  })
+})
+
+describe('timeframe re-anchoring (spec: same center, never jump to now)', () => {
+  it('keeps the center timestamp and re-sizes the window by bar count', () => {
+    // 100 five-minute bars: 30,000s window centered on 1,715,000,000.
+    const from = 1715000000 - 15000
+    const to = 1715000000 + 15000
+    const r = reanchorRange(from, to, '5', '15')
+    // Same bar count at 15m = 3× the span, same center.
+    expect((r.from + r.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(r.to - r.from).toBe(90000)
+    // Downshift: 15m → 5m shrinks the window back, same center.
+    const r2 = reanchorRange(r.from, r.to, '15', '5')
+    expect((r2.from + r2.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(r2.to - r2.from).toBe(30000)
+  })
+  it('handles intraday ↔ daily and rejects unusable ranges', () => {
+    const r = reanchorRange(1715000000, 1715000000 + 20 * 86400, 'D', '60')
+    expect((r.from + r.to) / 2).toBeCloseTo(1715000000 + 10 * 86400, 0)
+    expect(r.to - r.from).toBe(20 * 3600)
+    expect(reanchorRange(null, 1715000000, '5', '15')).toBeNull()
+    expect(reanchorRange(1715000000, 1715000000, '5', '15')).toBeNull()
+  })
+})
+
+describe('toolbar tf switch (retimeChartParams — the re-anchor math\'s door)', () => {
+  it('re-anchors the frozen window around the same center and re-derives searchText', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', {
+      symbol: 'AMD', tf: '5', from: 1715000000 - 15000, to: 1715000000 + 15000,
+    })
+    const next = retimeChartParams(attrs, '15')
+    expect(next.params.tf).toBe('15')
+    expect((next.params.from + next.params.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(next.params.to - next.params.from).toBe(90000) // same bar count × 3
+    expect(next.params.symbol).toBe('AMD')
+    expect(next.searchText).toBe('[chart: AMD 15m]')
+  })
+  it('no-ops on the same tf and survives an anchorless capture', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' })
+    expect(retimeChartParams(attrs, '5')).toBeNull()
+    // to: null = the explicit rolling window (the anchor default would
+    // otherwise stamp the insert moment).
+    const bare = retimeChartParams(buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D', to: null }), '60')
+    expect(bare.params).toEqual({ symbol: 'SPY', tf: '60' })
+    expect(bare.searchText).toBe('[chart: SPY 1h]')
+  })
+})
+
+describe('embed render height (screenshot proportions)', () => {
+  it('auto height follows the rendered width at chart-page aspect, clamped', () => {
+    expect(embedRenderHeight(null, 966)).toBe(531)
+    expect(embedRenderHeight(null, 460)).toBe(300)   // half-width floor
+    expect(embedRenderHeight(null, 2000)).toBe(640)  // ceiling
+    expect(embedRenderHeight(null, 0)).toBe(531)     // unmeasured → prose-column default
+  })
+  it('the v1 default 320 reads as auto (nobody ever chose it); explicit heights win', () => {
+    expect(embedRenderHeight(EMBED_LEGACY_DEFAULT_HEIGHT, 966)).toBe(531)
+    expect(embedRenderHeight(480, 966)).toBe(480)
+  })
+})
+
+describe('live-embed budget', () => {
+  it('counts live embeds and the cap constant matches the owner decision', () => {
+    const live = { type: 'widgetEmbed', attrs: { mode: 'live' } }
+    const snap = { type: 'widgetEmbed', attrs: { mode: 'snapshot' } }
+    const doc = { type: 'doc', content: [live, snap, { type: 'paragraph', content: [] }, live] }
+    expect(countLiveEmbeds(doc)).toBe(2)
+    expect(countLiveEmbeds({})).toBe(0)
+    expect(LIVE_EMBEDS_PER_ENTRY).toBe(3)
+  })
+})
+
+describe('WidgetEmbedView fallback rendering', () => {
+  it('renders the archived image + label when live is impossible', () => {
+    const attrs = buildWidgetEmbedAttrs('breadth', {}, { fallback: { url: '/api/x.png', w: 800, h: 400 } })
+    render(<WidgetEmbedView node={{ attrs }} selected={false} />)
+    const img = screen.getByRole('img')
+    expect(img.getAttribute('src')).toBe('/api/x.png')
+    expect(screen.getByText(/archived snapshot/i)).toBeTruthy()
+  })
+  it('renders a labeled placeholder for an unknown type with no archive', () => {
+    render(<WidgetEmbedView node={{ attrs: { widgetId: 'gone', searchText: '[mystery]' } }} selected={false} />)
+    expect(screen.getByText('[mystery]')).toBeTruthy()
+    expect(screen.getByText(/widget type unavailable/i)).toBeTruthy()
+  })
+  it('derives the auto-caption from params, never from stored text', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' }, { capturedAt: '2026-03-13T15:45:00Z' })
+    expect(embedAutoCaption(attrs)).toBe('Chart — AMD 5m · captured Mar 13, 2026')
+  })
+})
+
+describe('WidgetEmbedView draw mode', () => {
+  const liveChartAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  // test-setup.js polyfills IntersectionObserver as a NOOP (never fires), so
+  // the view's below-the-fold gate would hold inView=false forever and the
+  // live component under test could never mount. These tests need the gate to
+  // OPEN — an IO that reports intersection on observe, exactly what a browser
+  // does for an on-screen embed.
+  let RealIO
+  beforeAll(() => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  it('Aftermath peeks the window through now — view-only, draw-exclusive, never persisted', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} />)
+    const stub = await screen.findByTestId('chart-embed-stub')
+    expect(stub.getAttribute('data-peek')).toBe('false')
+
+    fireEvent.click(screen.getByText('Aftermath'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('true')
+    // View-only: nothing lands on the node.
+    expect(updateAttributes).not.toHaveBeenCalled()
+
+    // Draw mode claims the frame — entering it drops the peek (marks go on
+    // the EVIDENCE window) and the Aftermath button leaves the strip.
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
+    expect(screen.queryByText('Aftermath')).toBeNull()
+    fireEvent.click(screen.getByText('Done'))
+
+    // Toggling back restores the frozen window.
+    fireEvent.click(screen.getByText('Aftermath'))
+    fireEvent.click(screen.getByText('Aftermath'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
+  })
+
+  it('Aftermath renders only where an anchor exists to peek past', async () => {
+    // to: null = the explicit rolling window (already tracks now).
+    const rolling = buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: null })
+    render(<WidgetEmbedView node={{ attrs: rolling }} selected={false} updateAttributes={() => {}} />)
+    await screen.findByTestId('chart-embed-stub')
+    expect(screen.queryByText('Aftermath')).toBeNull()
+  })
+
+  it('Draw collapses the toolbar to the lone Done button (the chart drawing toolbar owns the top strip)', async () => {
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)
+    await screen.findByTestId('chart-embed-stub')
+    // Full toolbar before drawing.
+    expect(screen.getByTitle('Remove embed')).toBeTruthy()
+    expect(screen.getByText('Re-capture')).toBeTruthy()
+    expect(screen.getByLabelText('Embed timeframe')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByText('Done')).toBeTruthy()
+    // Everything else leaves the strip — including the destructive ✕, one
+    // misclick away from a drawing gesture.
+    expect(screen.queryByTitle('Remove embed')).toBeNull()
+    expect(screen.queryByText('Re-capture')).toBeNull()
+    expect(screen.queryByText('Live')).toBeNull()
+    expect(screen.queryByText('Half')).toBeNull()
+    expect(screen.queryByLabelText('Embed timeframe')).toBeNull()
+
+    fireEvent.click(screen.getByText('Done'))
+    expect(screen.getByText('Draw')).toBeTruthy()
+    expect(screen.getByTitle('Remove embed')).toBeTruthy()
+  })
+
+  it('annotate + onAnnotationsChange reach the chart only in draw mode; edits land in attrs.annotations', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} />)
+    const stub = await screen.findByTestId('chart-embed-stub')
+
+    // Read-only until Draw: annotate off, and the change callback is absent.
+    expect(stub.getAttribute('data-annotate')).toBe('false')
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    expect(updateAttributes).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-annotate')).toBe('true')
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    expect(updateAttributes).toHaveBeenCalledWith({ annotations: [{ id: 'probe-line' }] })
+  })
+
+  it('Done after changed marks re-freezes the archive; Done without changes does not', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), fallback: { url: '/api/old.png', w: 800, h: 400 } }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    const refreeze = () => updateAttributes.mock.calls.filter(([a]) => a && a.fallback === null)
+
+    // Draw → Done with NO edits: the archive still matches — no re-freeze.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(refreeze()).toHaveLength(0)
+
+    // Draw → edit → Done: fallback cleared (re-arms self-archive) with a
+    // fresh capturedAt stamp.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(refreeze()).toHaveLength(1)
+    // capturedAt is the EVIDENCE date — the re-freeze must NOT re-stamp it
+    // (panel finding: annotating March evidence relabeled it "captured June").
+    expect('capturedAt' in refreeze()[0][0]).toBe(false)
+  })
+
+  it('live-mode embeds skip the Done re-freeze (self-archive is snapshot-only); freezing with marks re-freezes', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = {
+      ...buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec },
+        { mode: 'live', annotations: [{ id: 'mark' }] }),
+      fallback: { url: '/api/old.png', w: 800, h: 400 },
+    }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    // Done after an edit on a LIVE embed: clearing fallback would orphan the
+    // archive (needsArchive requires mode:'snapshot') — must NOT fire.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(updateAttributes.mock.calls.filter(([a]) => a && a.fallback === null)).toHaveLength(0)
+
+    // Freezing the annotated live embed re-freezes: mode + fallback together.
+    fireEvent.click(screen.getByText('Snapshot'))
+    expect(updateAttributes).toHaveBeenCalledWith({ mode: 'snapshot', fallback: null })
+  })
+
+  it('focusing the prose editor exits draw mode (the overlay eats editor undo while editable)', async () => {
+    const handlers = {}
+    const editor = {
+      isEditable: true,
+      storage: { uctJournalWidgets: { noteId: 'n1' } },
+      on: (ev, fn) => { handlers[ev] = fn },
+      off: (ev) => { delete handlers[ev] },
+    }
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} editor={editor} updateAttributes={vi.fn()} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByText('Done')).toBeTruthy()
+    expect(typeof handlers.focus).toBe('function')
+
+    await act(async () => { handlers.focus() })
+    expect(screen.getByText('Draw')).toBeTruthy()
+    expect(screen.queryByText('Done')).toBeNull()
+    // Listener detached once out of draw mode — no stale exit on later focus.
+    expect(handlers.focus).toBeUndefined()
+  })
+})
+
+describe('archive capture paint gate (canvasesLookPainted)', () => {
+  it('the observed failure shape — chart canvases blank, overlay carrying only marks — reads UNPAINTED', () => {
+    expect(canvasesLookPainted([
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0 },        // LWC price pane, mid-cycle
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.001 },    // drawing overlay: one line + text
+      { w: 76, h: 28, rectW: 76, rectH: 28, opaqueRatio: 1 },              // axis stub — too small to vote
+    ])).toBe(false)
+  })
+  it('a painted pane passes even beside its legitimately-empty crosshair layer', () => {
+    expect(canvasesLookPainted([
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.9 },
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0 },
+    ])).toBe(true)
+  })
+  it('an unsized default bitmap stretched over the pane votes by its CSS rect', () => {
+    expect(canvasesLookPainted([
+      { w: 300, h: 150, rectW: 1022, rectH: 576, opaqueRatio: 0 },
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.002 },
+    ])).toBe(false)
+  })
+  it('fails OPEN: unmeasurable contexts and DOM-only widgets never block a capture', () => {
+    expect(canvasesLookPainted([{ w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: null }])).toBe(true)
+    expect(canvasesLookPainted([])).toBe(true)
+    expect(canvasesLookPainted([{ w: 16, h: 16, rectW: 16, rectH: 16, opaqueRatio: 0 }])).toBe(true)
+  })
+})
+
+describe('capture safety: one mark, both producers', () => {
+  // The whole point of lib/captureSafety is that the widget and the node view
+  // stamp the SAME attribute, so the archive needs one selector and the string
+  // can never drift between files. Pin the contract, then prove each producer
+  // actually uses it — a constant nobody spreads is not a guard.
+  it('derives the selector from the attribute (no second string)', () => {
+    expect(RENDER_UNAVAILABLE_SELECTOR).toBe(`[${Object.keys(RENDER_UNAVAILABLE)[0]}]`)
+    expect(Object.keys(RENDER_UNAVAILABLE)).toHaveLength(1)
+  })
+
+  it('treats a subtree carrying the mark as unsafe, and a bare one as safe', () => {
+    const host = document.createElement('div')
+    expect(showsUnavailableFrame(host)).toBe(false)      // control
+    host.appendChild(Object.assign(document.createElement('div'), {}))
+      .setAttribute(Object.keys(RENDER_UNAVAILABLE)[0], '')
+    expect(showsUnavailableFrame(host)).toBe(true)
+    expect(showsUnavailableFrame(null)).toBe(true)        // nothing to capture
+  })
+
+  it('StockChart stamps every frame it renders INSTEAD of a chart', async () => {
+    // Derived, not typed: read the source and require the mark on each branch
+    // that replaces the chart. StockChart is far too heavy to mount in jsdom,
+    // and this is the half that regresses — someone adds a fourth empty state.
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = readFileSync(resolve(process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    expect(src).toContain("from '../lib/captureSafety'")
+    // Both error cards carry it.
+    const errorCards = src.match(/<div className=\{styles\.error\}[^>]*>/g) || []
+    expect(errorCards.length).toBeGreaterThan(0)
+    for (const tag of errorCards) expect(tag).toContain('RENDER_UNAVAILABLE')
+    // The skeleton carries it at its own root (one element, no wrapper box).
+    const skel = readFileSync(resolve(process.cwd(), 'src/components/chart/ChartSkeleton.jsx'), 'utf8')
+    expect(skel).toContain('RENDER_UNAVAILABLE')
+  })
+})
+
+describe('WidgetEmbedView self-archive bars-ready gate', () => {
+  const editor = { storage: { uctJournalWidgets: { noteId: 'note-1' } }, isEditable: true }
+  const bareAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  let RealIO
+  beforeAll(async () => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  it('never rasterizes before the chart signals bars-ready (the blank-archive race)', async () => {
+    const { captureElementPng } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    render(<WidgetEmbedView node={{ attrs: bareAttrs() }} selected={false} editor={editor} updateAttributes={vi.fn()} />)
+    await screen.findByTestId('chart-embed-stub')
+    // Past the settle window with NO ready signal: the gate must hold.
+    await new Promise((r) => setTimeout(r, 4000))
+    expect(captureElementPng).not.toHaveBeenCalled()
+  }, 10000)
+
+  it('captures once bars are ready and patches the fallback onto the node', async () => {
+    const { captureElementPng, storeFallbackImage } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    captureElementPng.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+    storeFallbackImage.mockResolvedValue({ url: '/api/fresh.png', width: 800, height: 400 })
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: bareAttrs() }} selected={false} editor={editor} updateAttributes={updateAttributes} />)
+    fireEvent.click(await screen.findByTestId('emit-bars-ready'))
+    await waitFor(() => expect(captureElementPng).toHaveBeenCalled(), { timeout: 6000 })
+    await waitFor(() => expect(updateAttributes).toHaveBeenCalledWith({
+      fallback: { url: '/api/fresh.png', w: 800, h: 400 },
+    }), { timeout: 2000 })
+  }, 12000)
+
+  // The prod defect (2026-08-16): a double-clicked Re-capture cleared `fallback`
+  // while the chart was still re-settling, the error boundary dropped the body to
+  // its placeholder chip, and because `barsReadyRef` is STICKY within a mount the
+  // bars gate was already satisfied — so the settle timer rasterized
+  // "snapshot image not captured yet" as the permanent evidence PNG.
+  // ⚠️ embedArchive's canvasesLookPainted cannot catch this: a placeholder has no
+  // canvases at all, so it reports "painted" and fails open.
+  it('refuses to rasterize a body showing a fallback, even with bars already ready', async () => {
+    const { captureElementPng, storeFallbackImage } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    storeFallbackImage.mockClear()
+    captureElementPng.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+    const updateAttributes = vi.fn()
+    const attrs = bareAttrs()
+    const { rerender } = render(
+      <WidgetEmbedView node={{ attrs }} selected={false} editor={editor} updateAttributes={updateAttributes} />,
+    )
+    // Bars painted once → the sticky ready flag is set, exactly as it is on a
+    // re-capture of an embed the reader has already been looking at.
+    fireEvent.click(await screen.findByTestId('emit-bars-ready'))
+    chartStub.throwOnRender = true
+    try {
+      rerender(<WidgetEmbedView node={{ attrs: { ...attrs } }} selected={false} editor={editor} updateAttributes={updateAttributes} />)
+      // The body is now the marked placeholder, not the widget.
+      await waitFor(() => expect(document.querySelector(RENDER_UNAVAILABLE_SELECTOR)).toBeTruthy())
+      // Well past ARCHIVE_SETTLE_MS (3.5s), where the unguarded code captured.
+      await new Promise((r) => setTimeout(r, 6000))
+      expect(captureElementPng).not.toHaveBeenCalled()
+      expect(storeFallbackImage).not.toHaveBeenCalled()
+      expect(updateAttributes).not.toHaveBeenCalledWith(
+        expect.objectContaining({ fallback: expect.anything() }),
+      )
+    } finally {
+      chartStub.throwOnRender = false
+    }
+  }, 15000)
+})
+
+// ── Chart captures carry the user's /charts drawings (chart-parity round) ──
+// The embed's annotation layer renders ChartDrawingOverlay drawing objects —
+// the same shape the global per-symbol store holds — so a capture freezes a
+// COPY of the symbol's drawings into attrs.annotations. One-way by design:
+// journal edits write the node's own attrs, never back to the store.
+describe('buildWidgetEmbedAttrs — drawings ride the chart capture', () => {
+  const STORE_KEY = 'uct-chart-drawings'
+  beforeEach(async () => {
+    localStorage.clear()
+    const drawingsStore = await import('../../../components/chart/drawingsStore')
+    drawingsStore._reset()
+  })
+
+  it('seeds annotations from the symbol\'s stored drawings', () => {
+    const line = { id: 'd1', type: 'horizontal', points: [{ price: 123.45 }] }
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [line] }))
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D' })
+    expect(attrs.annotations).toHaveLength(1)
+    expect(attrs.annotations[0]).toMatchObject({ id: 'd1', type: 'horizontal' })
+  })
+
+  it('an explicit extra.annotations wins over the store', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [{ id: 'store-line' }] }))
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D' }, { annotations: [{ id: 'explicit' }] })
+    expect(attrs.annotations).toEqual([{ id: 'explicit' }])
+  })
+
+  it('non-chart captures never seed drawings', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [{ id: 'd1' }] }))
+    const attrs = buildWidgetEmbedAttrs('news', { symbol: 'AMD', events: [] })
+    expect(attrs.annotations).toEqual([])
+  })
+
+  it('a symbol with no drawings → empty array', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D' })
+    expect(attrs.annotations).toEqual([])
+  })
+})
+
+// ── stampChartSettings — the ONE stamp every typed insert path reads ──
+// SlashMenu's /chart, /mtf and /compare commands freeze
+// editor.storage.uctJournalWidgets.chartSettings into the embed. The stamp
+// must carry the user's RESOLVED own chart (workspace widget settings — MAs,
+// legend, colors), never the bare chart_settings seed: the seed is only what
+// an untouched widget starts from, and stamping it is how journal charts
+// rendered "defaults" beside a customized /charts board.
+describe('stampChartSettings', () => {
+  it('stamps the resolved own-chart blob (widget settings beat the seed), merged over defaults', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    const editor = { storage: {} }
+    stampChartSettings(editor, {
+      chart_settings: { background: '#111111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
+      },
+    })
+    const stamped = editor.storage.uctJournalWidgets.chartSettings
+    expect(stamped.background).toBe('#abc123')
+    expect(stamped.header).toBeTruthy() // merged, not the raw fragment
+  })
+
+  it('preserves other uctJournalWidgets storage keys (crosshair bus, shareView…)', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    const bus = { emit: () => {} }
+    const editor = { storage: { uctJournalWidgets: { crosshairBus: bus } } }
+    stampChartSettings(editor, { chart_settings: { background: '#222222' } })
+    expect(editor.storage.uctJournalWidgets.crosshairBus).toBe(bus)
+    expect(editor.storage.uctJournalWidgets.chartSettings.background).toBe('#222222')
+  })
+
+  it('never throws — null editor, broken storage, absent prefs', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    expect(() => stampChartSettings(null, {})).not.toThrow()
+    const hostile = {}
+    Object.defineProperty(hostile, 'storage', { get() { throw new Error('not ready') } })
+    expect(() => stampChartSettings(hostile, {})).not.toThrow()
+    expect(() => stampChartSettings({ storage: {} })).not.toThrow()
+  })
+})
+
+// ── "Sync from my chart" — the heal-and-refresh door (chart-parity round) ──
+// Sync re-freezes params.settings from the STAMPED editor-storage blob (the
+// exact blob slash/palette inserts freeze — one authority, no per-embed
+// usePreferences subscription, nothing fetched on the public share page) and
+// MERGES the symbol's /charts drawings into the embed's annotations by id —
+// marks the user drew ON the embed survive (review finding: wholesale replace
+// destroyed them and the archive together, reported as success).
+describe('WidgetEmbedView — Sync from my chart', () => {
+  const RESOLVED = { background: '#abc123', header: { showMarketCap: true } }
+  const makeEditor = (stamp = RESOLVED) => ({
+    isEditable: true,
+    storage: stamp ? { uctJournalWidgets: { chartSettings: stamp } } : {},
+  })
+  const liveChartAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  let RealIO
+  beforeAll(() => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  beforeEach(async () => {
+    localStorage.clear()
+    const drawingsStore = await import('../../../components/chart/drawingsStore')
+    drawingsStore._reset()
+  })
+
+  it('re-freezes settings from the STAMPED blob, merges drawings, clears the stale archive', async () => {
+    localStorage.setItem('uct-chart-drawings', JSON.stringify({ NVDA: [{ id: 'store-line', type: 'horizontal', points: [{ price: 5 }] }] }))
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), annotations: [{ id: 'embed-mark', type: 'text', points: [{ price: 9 }] }], fallback: { url: '/api/old.png', w: 800, h: 400 } }
+    attrs.params = { ...attrs.params, settings: { background: '#seed99' } }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    fireEvent.click(screen.getByText('Sync'))
+    const call = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
+    expect(call).toBeTruthy()
+    const [patch] = call
+    expect(patch.params.settings).toEqual(RESOLVED)            // the stamped blob, verbatim
+    expect(patch.params.symbol).toBe('NVDA')                   // rest of params untouched
+    const ids = patch.annotations.map((d) => d.id).sort()
+    expect(ids).toEqual(['embed-mark', 'store-line'])          // MERGED, never replaced
+    expect(patch.fallback).toBeNull()                          // stale archive cleared for re-freeze
+  })
+
+  it('embed-drawn marks survive a Sync when /charts has NO drawings for the symbol', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), annotations: [{ id: 'embed-mark', type: 'text', points: [{ price: 9 }] }] }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
+    await screen.findByTestId('chart-embed-stub')
+    fireEvent.click(screen.getByText('Sync'))
+    const [patch] = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
+    expect(patch.annotations).toEqual([expect.objectContaining({ id: 'embed-mark' })])
+  })
+
+  it('no stamped blob yet (prefs still loading) → Sync no-ops instead of freezing defaults', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} editor={makeEditor(null)} />)
+    await screen.findByTestId('chart-embed-stub')
+    fireEvent.click(screen.getByText('Sync'))
+    expect(updateAttributes).not.toHaveBeenCalled()
+  })
+
+  it('renders on chart embeds only — a NON-chart embed on the live render path gets no Sync', async () => {
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />)
+    await screen.findByTestId('chart-embed-stub')
+    expect(screen.getByText('Sync')).toBeTruthy()
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.queryByText('Sync')).toBeNull()
+    fireEvent.click(screen.getByText('Done'))
+
+    // The control must actually REACH decision.kind==='live' or the widgetId
+    // half of the gate is untested (review finding: the old breadth control
+    // resolved to 'image' and the suite stayed green with the widgetId check
+    // deleted). Reconstructable breadth params render live.
+    const liveBreadth = buildWidgetEmbedAttrs('breadth', { row: { date: '2026-08-18' } })
+    const { container } = render(
+      <WidgetEmbedView node={{ attrs: liveBreadth }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />,
+    )
+    expect(container.querySelector('[data-widget-embed-view="breadth"]')).toBeTruthy()
+    expect(screen.queryAllByText('Sync')).toHaveLength(1) // still only the chart embed's
+  })
+})
+
+// ── chartInsertNodes — ONE builder for every chart insert (slash + palette) ──
+// The slash commands and the widget palette must share one node builder, or
+// the insert payload becomes the next "one grammar, four hand-written copies".
+describe('chartInsertNodes', () => {
+  const SETTINGS = { background: '#abc123' }
+
+  it('chart: one node carrying symbol/tf/day/settings', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('chart', { symbol: 'AMD', tf: '15', day: '2026-03-13' }, SETTINGS)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0].type).toBe('widgetEmbed')
+    expect(nodes[0].attrs.params).toMatchObject({ symbol: 'AMD', tf: '15', to: '2026-03-13' })
+    expect(nodes[0].attrs.params.settings).toEqual(SETTINGS)
+  })
+
+  it('chart with no day stamps the insert moment (frozen means anchored)', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [node] = chartInsertNodes('chart', { symbol: 'AMD', tf: 'D', day: null }, null)
+    expect(Math.abs(Date.now() / 1000 - Number(node.attrs.params.to))).toBeLessThan(60)
+  })
+
+  it('mtf: three nodes, top-down D/60/15, all anchored at the day', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('mtf', { symbol: 'NVDA', day: '2026-03-13' }, SETTINGS)
+    expect(nodes.map((n) => n.attrs.params.tf)).toEqual(['D', '60', '15'])
+    nodes.forEach((n) => {
+      expect(n.attrs.params.symbol).toBe('NVDA')
+      expect(n.attrs.params.to).toBe('2026-03-13')
+      expect(n.attrs.params.settings).toEqual(SETTINGS)
+    })
+  })
+
+  it('compare: half-width before/after pair — before anchored, after explicitly rolling', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [before, after] = chartInsertNodes('compare', { symbol: 'AMD', tf: 'D', day: '2026-03-13' }, null)
+    expect(before.attrs.params.to).toBe('2026-03-13')
+    expect(before.attrs.layout.width).toBe('half')
+    expect(before.attrs.caption).toBe('before · 2026-03-13')
+    expect(after.attrs.params.to == null).toBe(true)
+    expect(after.attrs.layout.width).toBe('half')
+    expect(after.attrs.caption).toBe('after · now')
+  })
+})
+
+// ── Review round 2: fail-closed + one time-basis ──
+describe('chartInsertNodes fails CLOSED on an unknown kind', () => {
+  it('returns [] for a kind it has no builder for — never a mislabeled chart node', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    expect(chartInsertNodes('news', { symbol: 'AMD', tf: 'D' }, null)).toEqual([])
+    expect(chartInsertNodes(undefined, { symbol: 'AMD', tf: 'D' }, null)).toEqual([])
+  })
+})
+
+describe('etTodayIso', () => {
+  it('is the ET session day — the SAME basis parseDayToken measures against', async () => {
+    const { etTodayIso } = await import('./widgetEmbedCore')
+    const today = etTodayIso()
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    // A yearless M/D of today must parse to today (not roll back a year).
+    const [, m, d] = today.split('-')
+    expect(parseDayToken(`${Number(m)}/${Number(d)}`)).toBe(today)
+  })
+})

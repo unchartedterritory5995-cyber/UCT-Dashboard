@@ -1,12 +1,14 @@
 // app/src/pages/desk/ArticlesSection.jsx
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { ArticleIcon, PlusIcon } from '../education/icons'
+import * as progress from './articleProgress'
 import styles from './Desk.module.css'
 
 const fetcher = (url) =>
@@ -23,11 +25,160 @@ function fmtDate(unixSec) {
   }
 }
 
+/* One card. Reads natively when we hold a converted body, and falls back to the
+ * Substack link when we don't — a post can be paywalled, brand new, or awaiting
+ * backfill, and none of those should render a card that opens an empty page. */
+function ArticleCard({ a, snippet }) {
+  // Memoized {__html} object — React 19 diffs dangerouslySetInnerHTML by
+  // object identity; an inline literal re-sets every card's snippet as the
+  // reader types in the search box.
+  const snippetHtml = useMemo(() => (snippet ? { __html: snippet } : null), [snippet])
+  const native = Boolean(a.has_body && a.slug)
+  const linkProps = native
+    ? { as: Link, to: `/desk/article/${a.slug}` }
+    : { as: 'a', href: a.url, target: '_blank', rel: 'noopener noreferrer' }
+  const { as: Tag, ...rest } = linkProps
+
+  // The author is "Uncharted Territory" on a publication called "Uncharted
+  // Territory", so printing both renders the same words twice.
+  const byline = a.author && a.author !== a.publication_name ? a.author : null
+
+  // Every issue opens with the same welcome paragraph, so the excerpt is
+  // identical on all 61 cards. The week's ticker list is the one thing that
+  // actually differs — and it is what a trader scans an archive for.
+  let tickers = []
+  try { tickers = JSON.parse(a.tickers_json || '[]') } catch { tickers = [] }
+
+  // Where the reader left off, if mid-read. The progress module already
+  // refuses barely-started and finished entries, so a pill here always means
+  // "there is a real place to pick up".
+  const resume = native ? progress.load(a.slug) : null
+
+  return (
+    <Tag className={styles.articleCard} {...rest}>
+      {a.hero_image
+        ? <img className={styles.articleHero} src={a.hero_image} alt="" loading="lazy" />
+        : <div className={styles.articleHeroFallback} aria-hidden="true"><ArticleIcon size={28} /></div>}
+      <div className={styles.articleBody}>
+        {/* Every Sunday Scans post is titled "SUNDAY SCANS" at the source, so
+            the grid is unreadable without the date-stamped display title. */}
+        <div className={styles.articleTitle}>{a.display_title || a.title}</div>
+        {snippetHtml
+          ? (
+            <div
+              className={styles.articleSnippet}
+              // Server-built from FTS5 snippet(); the only markup it can contain
+              // is the <mark> this app asked for -- the body text around it is
+              // escaped by the same converter that renders the article.
+              dangerouslySetInnerHTML={snippetHtml}
+            />
+          )
+          : tickers.length > 0
+          ? (
+            <div className={styles.articleTickers}>
+              {tickers.slice(0, 10).map((s) => (
+                <span key={s} className={styles.articleTicker}>{s}</span>
+              ))}
+              {tickers.length > 10 && (
+                <span className={styles.articleTickerMore}>+{tickers.length - 10}</span>
+              )}
+            </div>
+          )
+          : a.excerpt && <div className={styles.articleExcerpt}>{a.excerpt}</div>}
+        <div className={styles.articleMeta}>
+          {a.published_at ? <span>{fmtDate(a.published_at)}</span> : null}
+          {byline && <span>· {byline}</span>}
+          {native && a.reading_minutes ? <span>· {a.reading_minutes} min read</span> : null}
+          {native && a.image_count ? <span>· {a.image_count} charts</span> : null}
+          {resume && (
+            <span className={styles.articleResume}>· Resume {Math.round(resume.pct * 100)}%</span>
+          )}
+          {!native && <span>· on Substack ↗</span>}
+        </div>
+      </div>
+    </Tag>
+  )
+}
+
+/* Full-text search across the archive. The question a trader actually brings to
+   a back catalogue is "what did he say about MU in May?", which a date-ordered
+   grid of 91 cards cannot answer at all. */
+function ArchiveSearch({ query, setQuery }) {
+  const [draft, setDraft] = useState(query)
+  useEffect(() => { setDraft(query) }, [query])
+  // Debounced so typing doesn't fire a query per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(draft.trim()), 250)
+    return () => clearTimeout(t)
+  }, [draft, setQuery])
+
+  return (
+    <div className={styles.searchWrap}>
+      <input
+        className={styles.searchInput}
+        type="search"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Search the archive — a ticker, a setup, a phrase…"
+        aria-label="Search articles"
+      />
+      {draft && (
+        <button type="button" className={styles.searchClear}
+                onClick={() => setDraft('')} aria-label="Clear search">×</button>
+      )}
+    </div>
+  )
+}
+
+function SearchResults({ query }) {
+  const { data, isLoading } = useSWR(
+    query ? `/api/desk/articles/search?q=${encodeURIComponent(query)}` : null,
+    fetcher,
+  )
+  if (isLoading) return <div className={styles.searchNote}>Searching…</div>
+  const results = data?.results || []
+
+  if (data && data.available === false) {
+    return <div className={styles.searchNote}>Archive search isn’t available right now.</div>
+  }
+  if (!results.length) {
+    return (
+      <div className={styles.searchNote}>
+        Nothing in the archive matches “{query}”.
+      </div>
+    )
+  }
+  return (
+    <>
+      <div className={styles.searchNote}>
+        {results.length} {results.length === 1 ? 'article' : 'articles'} matching “{query}”
+      </div>
+      <div className={styles.cardGrid}>
+        {results.map((a) => <ArticleCard key={a.id} a={a} snippet={a.snippet} />)}
+      </div>
+    </>
+  )
+}
+
 export default function ArticlesSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { data, isLoading, mutate } = useSWR('/api/desk/articles', fetcher)
   const [managing, setManaging] = useState(false)
+  // `?q=` lets another surface deep-link INTO the archive search — the research
+  // page's "see all N issues mentioning MU" link is the reason this exists.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [query, setQuery] = useState(() => (searchParams.get('q') || '').trim())
+
+  // Keep the URL honest as the query changes, without stacking history entries.
+  useEffect(() => {
+    const current = (searchParams.get('q') || '').trim()
+    if (current === query) return
+    const next = new URLSearchParams(searchParams)
+    if (query) next.set('q', query)
+    else next.delete('q')
+    setSearchParams(next, { replace: true })
+  }, [query])
 
   const articles = data?.articles || []
 
@@ -49,7 +200,11 @@ export default function ArticlesSection() {
         )}
       </div>
 
+      {articles.length > 0 && <ArchiveSearch query={query} setQuery={setQuery} />}
+
       {isLoading && <DeskSectionSkeleton cards={6} />}
+
+      {query && <SearchResults query={query} />}
 
       {!isLoading && articles.length === 0 && (
         <div className={styles.empty}>
@@ -68,30 +223,9 @@ export default function ArticlesSection() {
         </div>
       )}
 
-      {articles.length > 0 && (
+      {!query && articles.length > 0 && (
         <div className={styles.cardGrid}>
-          {articles.map((a) => (
-            <a
-              key={a.id}
-              className={styles.articleCard}
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {a.hero_image
-                ? <img className={styles.articleHero} src={a.hero_image} alt="" loading="lazy" />
-                : <div className={styles.articleHeroFallback} aria-hidden="true"><ArticleIcon size={28} /></div>}
-              <div className={styles.articleBody}>
-                <div className={styles.articleTitle}>{a.title}</div>
-                {a.excerpt && <div className={styles.articleExcerpt}>{a.excerpt}</div>}
-                <div className={styles.articleMeta}>
-                  {a.publication_name && <span>{a.publication_name}</span>}
-                  {a.author && <span>· {a.author}</span>}
-                  {a.published_at ? <span>· {fmtDate(a.published_at)}</span> : null}
-                </div>
-              </div>
-            </a>
-          ))}
+          {articles.map((a) => <ArticleCard key={a.id} a={a} />)}
         </div>
       )}
 

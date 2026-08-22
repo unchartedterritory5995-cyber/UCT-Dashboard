@@ -825,20 +825,70 @@ function dmiParts(toks, close, names, env, first) {
   if (!call || call.type !== 'call' || bare !== 'dmi') return null
   const args = (call.args || []).map((a) => a.value)
   if (args.length !== 2) return null
-  // ⛔ The two periods must be the SAME token-for-token expression. Comparing
-  // resolved values would need a constant folder; comparing spelling is exact
-  // for the shape that matters and refuses everything it cannot prove equal.
-  const spell = (n) => JSON.stringify(n, (k, v) => (k === 'tok' ? undefined : v))
-  if (spell(args[0]) !== spell(args[1])) return null
   const at = locate(first)
   // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
   // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
   // of them rather than from this function. (Filling them here refused at
   // `pine:role-order`, correctly.)
-  const part = (pineName) => exprBinding({
-    type: 'call', name: pineName, args: [{ value: args[0] }], tok: first,
-  }, new Map(env), at)
-  return [part('dmiplusleg'), part('dmiminusleg'), part('dmiadxleg')]
+  // ⛔ THE TWO PERIODS ARE COMPARED AT RESOLVE TIME, NOT HERE. At fold time a
+  // name is not a value, so the first cut compared the two argument nodes by
+  // SPELLING — which refused `ta.dmi(diLen, adxSmooth)` even when both inputs
+  // hold 14, and that is exactly the call the corpus's ADX script makes.
+  // Deferring it is the same shape `switch` and a tuple part already use.
+  const leg = (pineName) => ({
+    kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
+  })
+  return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
+}
+
+function containsSelfSeries(node, table) {
+  const spec = table.functions.accum
+  if (!spec) return false
+  const bind = spec.recurrence.binds
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'series' && n.name === bind) return true
+    return (n.args || []).some(walk)
+  }
+  return walk(node)
+}
+
+/** ⭐⭐ DOES THIS UPDATE FORGET ITS SEED? `accum` RE-SEEDS a fixed number of bars
+ *  back — deliberately, so a column cannot depend on where a fetch happened to
+ *  start — and that is sound ONLY for an update that forgets where it began.
+ *  `min`/`max` against a self-free operand forget once that operand dominates; a
+ *  ternary arm that holds or passes through forgets; `nz` passes through.
+ *  `self + x` NEVER forgets.
+ *
+ *  🔴 `x := x[1] + volume` is OBV by hand, and folding it would turn a running
+ *  total into a ROLLING SUM — a plausible column that is not the indicator
+ *  anybody wrote. That is the same fact `cum` refuses for, reached from the other
+ *  side, so the two rules finally agree.
+ *
+ *  ⚠️ A TERNARY'S CONDITION MAY TEST `self` FREELY — it picks a branch without
+ *  carrying the value forward. Only the ARMS must forget.
+ *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
+ *  is invisible in the output; a wrong no is a named refusal somebody can read. */
+function forgetsItsSeed(node, table) {
+  const spec = table.functions.accum
+  if (!spec) return false
+  const bind = spec.recurrence.binds
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
+  const carries = (n) => containsSelfSeries(n, table)
+  const ok = (n) => {
+    if (!n || typeof n !== 'object') return true
+    if (isSelf(n)) return true
+    if (!carries(n)) return true
+    const args = n.args || []
+    if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
+      const withSelf = args.filter(carries)
+      return withSelf.length === 1 && ok(withSelf[0])
+    }
+    if (n.type === 'call' && n.name === 'nz') return args.every(ok)
+    if (n.type === 'op' && n.name === '?:') return ok(args[1]) && ok(args[2])
+    return false
+  }
+  return ok(node)
 }
 
 function findTop(toks, pred) {
@@ -986,6 +1036,31 @@ function parseOffsetIndex(cur, openTok) {
   if (negative) cur.next()
   const tok = cur.peek()
   if (!tok || tok.kind !== 'number' || !Number.isInteger(tok.value)) {
+    // ⭐⭐ AN INPUT IS ALREADY A CONSTANT EVERYWHERE ELSE, AND THIS WAS THE ONE
+    // PLACE IT WAS NOT. `ta.sma(close, n)` with `n = input.int(10)` folds to
+    // `sma(close, 10)` — the window arm RESOLVES its argument and then requires a
+    // `num`. This arm demanded a numeric TOKEN, so the very same folded 10 was a
+    // legal length and an illegal offset.
+    //
+    // ⚠️ OWNER DECISION, 2026-08-11: THE STORED TREE IS AUTHORITATIVE. Folding an
+    // input therefore freezes its default into the saved definition — and that is
+    // ALREADY true of every length, so folding the offset makes the two agree
+    // rather than introducing a new surprise. A member's knob is frozen for both
+    // or for neither; it was frozen for one.
+    //
+    // ⛔ THE CANONICAL GUARANTEE IS UNTOUCHED. What is deferred is WHEN the number
+    // is known, never whether: the expression resolves before an offset node is
+    // built, and anything that is not a non-negative whole number refuses exactly
+    // as it did. `parse.js` still gives an offset no slot for an expression, so
+    // "the offset is a literal" stays true by construction of the emitted node.
+    if (tok && !isPunct(tok, ']')) {
+      const expr = parseExpression(cur, 0)
+      if (!isPunct(cur.peek(), ']')) {
+        throw new PineRefusal('pine:offset-literal', REFUSALS['pine:offset-literal'],
+          locate(cur.peek() || tok))
+      }
+      return { expr, tok }
+    }
     throw new PineRefusal('pine:offset-literal', REFUSALS['pine:offset-literal'],
       locate(tok || openTok))
   }
@@ -1309,6 +1384,29 @@ class Resolver {
     this.finalBindings = opts.finalBindings || new Map()
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
+    /** name → the binding in scope where its own `[1]` was read: the SEED. */
+    this.recurrenceSeeds = new Map()
+    /** name → the location of the `[` that read it. ⛔ THE REFUSAL MUST LAND ON
+     *  THE SELF-READ, not on the binding the gate happens to fire from — that
+     *  token is the thing a member has to change. */
+    this.recurrenceSeedAt = new Map()
+    /** name → the accumulator already built, so the outside path does not rebuild
+     *  it: `shortStopPrev` reads `shortStop[1]`, which builds `shortStop`, whose
+     *  update reads `shortStopPrev` again.
+     *
+     *  ⚠️ MUTATION-SURVIVED 2026-08-12, and the note that used to sit here called
+     *  it "THE MEMO that stops the outside path re-entering" — implying a
+     *  correctness guard. Disabling it leaves all 843 tests green, because the
+     *  rebuild produces the SAME tree; the marker and the per-recurrence cycle
+     *  stack are what make re-entry safe. This is a COST cut on a resolution that
+     *  is already exponential in the emitted text, nothing more. Recorded rather
+     *  than deleted so the next reader does not mistake it for a rail — and so
+     *  nobody re-derives its necessity from a comment that overclaimed. */
+    this.recurrenceColumns = new Map()
+    /** The name whose recurrence is being built RIGHT NOW. `name[1]` is `self`
+     *  inside that name's own update and the whole accumulator offset a bar
+     *  anywhere else; without this marker the two cannot be told apart. */
+    this.buildingRecurrence = null
   }
 
   /** Resolve THROUGH a binding: swap to the environment the binding was written
@@ -1382,6 +1480,62 @@ class Resolver {
     // name to a part; resolving one INLINES the call exactly as the `fn` arm
     // below does and then takes its own element. The frame is the call's, so a
     // part reads the caller's arguments and not somebody else's.
+    // ⭐⭐ A `switch` REDUCED TO ITS ONE LIVE ARM. The subject must be a string
+    // this script FIXES — an `input.string("EMA", …)` or a literal — because the
+    // whole basis for reducing it is that the branch does not move bar to bar.
+    // Anything else and every arm would have to exist at once, which is a menu
+    // rather than a column, and it keeps refusing at `pine:block`.
+    if (bound.kind === 'switch') {
+      const subject = this.stringValueOf(bound.subject)
+      if (subject === null) {
+        throw new PineRefusal('pine:block',
+          `${REFUSALS['pine:block']} — \`switch\`, and this one's subject is not a value the `
+          + 'script fixes, so every arm would have to exist at once',
+          bound.at || locate(tok))
+      }
+      let picked = null
+      for (const arm of bound.arms) {
+        const label = this.stringValueOf(parseWholeExpression(arm.match))
+        if (label !== null && label === subject) { picked = arm.binding; break }
+      }
+      if (!picked) picked = bound.fallback
+      if (!picked) {
+        // ⛔ Pine falls through to `na` when nothing matches and there is no
+        // default. This engine HAS a not-computable, but choosing it here would
+        // invent a column the script does not describe — so it is named instead.
+        throw new PineRefusal('pine:block',
+          `${REFUSALS['pine:block']} — \`switch\` on \`${subject}\`, and no arm matches it `
+          + 'and there is no default', bound.at || locate(tok))
+      }
+      return this.resolveBinding(picked, tok, name)
+    }
+    // ⭐ ONE LEG OF `ta.dmi`, with its two periods compared HERE where they are
+    // values rather than names.
+    //
+    // ⛔ PINE SMOOTHS THE ADX OVER ITS SECOND ARGUMENT while the DI legs use the
+    // first; this table's `adx` takes ONE period for both. So an unequal pair
+    // refuses rather than quietly returning a 14/14 ADX — the identical decision
+    // `ADX14.20` makes on the TC2000 side, and the same reason: a member who
+    // asked for 14/20 must not be handed a number that is not the indicator they
+    // asked for.
+    if (bound.kind === 'dmiLeg') {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try {
+        const a = this.resolve(bound.a)
+        const b = this.resolve(bound.b)
+        const same = a.type === 'num' && b.type === 'num' && a.value === b.value
+        if (!same) {
+          throw new PineRefusal('pine:tuple',
+            `${REFUSALS['pine:tuple']} — \`ta.dmi\` smooths its ADX over the SECOND period `
+            + 'and this table uses one period for both, so the two must agree',
+            bound.at || locate(tok))
+        }
+        return this.resolve({
+          type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
+        })
+      } finally { this.env = prevEnv }
+    }
     if (bound.kind === 'tuplePart') {
       if (this.frames.length >= MAX_CALL_DEPTH) {
         throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
@@ -1418,10 +1572,57 @@ class Resolver {
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
+    const wasBuilding = this.buildingRecurrence
+    const isFinalOfMutable = !!name && this.mutated.has(name)
+      && this.finalBindings.get(name) === bound
+    // ⭐⭐ A FRESH CYCLE STACK INSIDE A RECURRENCE BUILD. The same binding legally
+    // resolves TWICE here — `shortStopPrev` once outside the recurrence and once
+    // within its update — yielding a DIFFERENT tree each time, because
+    // `shortStop[1]` is the accumulator outside and `self` inside. The shared
+    // stack read that as a cycle. Scoping it keeps genuine self-cycles caught.
+    const prevStack = this.stack
+    if (isFinalOfMutable) { this.buildingRecurrence = name; this.stack = new Set() }
     this.stack.add(bound)
     const prevEnv = this.env
     if (bound.env) this.env = bound.env
-    try { return this.resolve(bound.node) } finally { this.stack.delete(bound); this.env = prevEnv }
+    try {
+      const body = this.resolve(bound.node)
+      if (isFinalOfMutable && this.recurrenceSeeds.has(name)
+          && containsSelfSeries(body, this.table)) {
+        // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`.
+        if (!forgetsItsSeed(body, this.table)) {
+          // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
+          // this — the refusal corpus and "refuses for a DECLARED reason" — and
+          // both exist because a hand-written message drifts from the guard it
+          // claims to be.
+          throw new PineRefusal('pine:state',
+            `${REFUSALS['pine:state']} — \`${name}\` builds on its own previous bar `
+            + 'without ever forgetting where it started, and this engine\'s accumulator '
+            + 're-seeds a fixed number of bars back, so it would become a rolling sum '
+            + 'rather than a running total',
+            this.recurrenceSeedAt.get(name) || bound.at || locate(tok))
+        }
+        const spec = this.table.functions.accum
+        const seedBinding = this.recurrenceSeeds.get(name)
+        this.recurrenceSeeds.delete(name)
+        this.recurrenceSeedAt.delete(name)
+        this.buildingRecurrence = wasBuilding
+        const seed = this.resolveBinding(seedBinding, tok, name)
+        const args = []
+        args[spec.recurrence.seed] = seed
+        args[spec.recurrence.body] = body
+        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+        const built = cCall('accum', args)
+        this.recurrenceColumns.set(name, built)
+        return built
+      }
+      return body
+    } finally {
+      this.stack.delete(bound)
+      this.stack = prevStack
+      this.env = prevEnv
+      this.buildingRecurrence = wasBuilding
+    }
   }
 
   /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
@@ -1548,6 +1749,39 @@ class Resolver {
         return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
       }
       case 'offset': {
+        // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
+        // as an expression rather than a number; resolving it FIRST means every
+        // guard below — and the canonical node at the end — sees the same plain
+        // integer a written literal would have given them.
+        if (node.n && typeof node.n === 'object' && node.n.expr) {
+          const folded = this.resolve(node.n.expr)
+          if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
+            throw new PineRefusal('pine:offset-literal',
+              `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
+              + 'number, so the window it opens would depend on a value that can change',
+              locate(node.n.tok || node.tok))
+          }
+          // ⚠️ UNREACHABLE TODAY, KEPT DELIBERATELY, AND SAID SO. The mutation
+          // harness proved it: deleting this changes no test, because nothing
+          // currently folds to a NEGATIVE `num` — `-1` resolves to a `u-` op and
+          // `0 - 2` to a `-` op, so both fail the whole-number check above and
+          // refuse at `pine:offset-literal` one line earlier.
+          //
+          // ⛔ It stays because it goes live the day anything folds constant
+          // arithmetic, and what it guards is the forward reference: `close[-1]`
+          // is NEXT BAR, the one construction the non-repainting guarantee rests
+          // on being inexpressible. A dead check in front of that is cheap. The
+          // dishonest thing would be to leave it undocumented and let the next
+          // reader believe it is the check doing the work.
+          if (folded.value < 0) {
+            throw new PineRefusal('pine:offset-negative',
+              REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
+          }
+          // ⛔ A COPY, NEVER A MUTATION OF THE PARSED NODE. Outputs share one
+          // parse tree and each gets its own resolver; writing the folded value
+          // back would leak one output's resolution into the next.
+          node = { ...node, n: folded.value }
+        }
         // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
         // the single most common `pine:state` refusal in the corpus —
         // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
@@ -1563,6 +1797,8 @@ class Resolver {
           const base = cSeries(spec.recurrence.binds)
           return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
         }
+        const plain = this.plainRecurrence(node, node.tok)
+        if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
@@ -1615,6 +1851,40 @@ class Resolver {
     // later mistakes it for the thing keeping this correct.
     if (!bound || bound.kind !== 'expr') return null
     return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
+  }
+
+  /** `name[k]` where `name` is a PLAIN name the script reassigns later. It means
+   *  TWO different trees depending on WHERE it is read — `self` inside that
+   *  name's own update, the whole accumulator offset k bars anywhere else. Four
+   *  earlier attempts failed by emitting one of them everywhere. */
+  plainRecurrence(node, tok) {
+    if (!(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
+    const name = node.arg.name
+    if (!this.mutated.has(name)) return null
+    const spec = this.table.functions.accum
+    if (!spec) return null
+    if (this.buildingRecurrence === name) {
+      const bound = this.env.get(name)
+      if (bound && !this.recurrenceSeeds.has(name)) {
+        this.recurrenceSeeds.set(name, bound)
+        this.recurrenceSeedAt.set(name, locate(tok))
+      }
+      const base = cSeries(spec.recurrence.binds)
+      return node.n === 1 ? base : { type: 'offset', value: node.n - 1, args: [base] }
+    }
+    if (this.recurrenceColumns.has(name)) {
+      return { type: 'offset', value: node.n, args: [this.recurrenceColumns.get(name)] }
+    }
+    const final = this.finalBindings.get(name)
+    if (!final || final === this.env.get(name)) return null
+    const seedHere = this.env.get(name)
+    if (seedHere && !this.recurrenceSeeds.has(name)) {
+      this.recurrenceSeeds.set(name, seedHere)
+      this.recurrenceSeedAt.set(name, locate(tok))
+    }
+    const column = this.resolveBinding(final, tok, name)
+    if (!this.recurrenceColumns.has(name)) return null
+    return { type: 'offset', value: node.n, args: [column] }
   }
 
   guardOffsetOfMutable(node) {
@@ -1852,7 +2122,29 @@ class Resolver {
     this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
     const prevEnv = this.env
     this.env = bound.value.env || prevEnv
-    try { return this.resolve(bound.value.node) } finally { this.frames.pop(); this.env = prevEnv }
+    // ⛔ THROUGH `resolveBinding`, NOT `resolve(bound.value.node)`. A function's
+    // value is a BINDING and only the plain `expr` kind carries a `.node` — so
+    // reaching for one directly resolved `undefined` the moment a body ended in
+    // anything else. Measured: a body ending in a `switch` produced a TypeError
+    // that surfaced as `pine:statement`, which reads as "the translator cannot
+    // parse this line" about a line it parsed perfectly well.
+    //
+    // ⚠️ THE ENV IS SET HERE AND SET AGAIN INSIDE, deliberately: `resolveBinding`
+    // swaps to the binding's own env, which for an `expr` is the same object this
+    // line just chose. Leaving both is what keeps every OTHER binding kind
+    // reaching its own scope rather than the caller's.
+    //
+    // ⛔ AND THE `expr` KIND KEEPS THE DIRECT PATH, WHICH IS NOT AN OPTIMISATION.
+    // `resolveBinding` guards against cycles with `this.stack`, and a function
+    // called INSIDE ITSELF — `f(f(x))`, legal Pine and covered by
+    // `pine.variables.test.js` — re-enters the same value binding. Routing the
+    // common case through there reported `pine:cycle` for a call that simply
+    // nests. Measured: it went red on the first attempt at this fix.
+    try {
+      return bound.value.kind === 'expr'
+        ? this.resolve(bound.value.node)
+        : this.resolveBinding(bound.value, node.tok, name)
+    } finally { this.frames.pop(); this.env = prevEnv }
   }
 
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
@@ -2392,6 +2684,45 @@ function foldStatements(stmts, ctx, env) {
     }
     if (first.kind === 'ident' && TYPE_KEYWORDS.has(first.value)) {
       throw new PineRefusal('pine:type', REFUSALS['pine:type'], locate(first))
+    }
+    // ⭐⭐ A `switch` ON A FIXED SUBJECT IS ONE ARM. Published indicators lean on
+    // this hard: `f_smooth(x, len, mode)` with `mode` an `input.string("EMA", …)`
+    // is a menu a member picks from once, not a branch that moves bar to bar.
+    // Every arm but the chosen one is dead the moment the input folds.
+    //
+    // ⛔ THE ARM IS PICKED AT RESOLVE TIME, NOT HERE. Choosing now would need the
+    // subject's VALUE, and a name is not resolvable while the walk is still
+    // binding names — the same reason a tuple's parts are held rather than
+    // chosen. So the whole `switch` becomes ONE binding carrying its subject and
+    // its arms, and `resolveBinding` reduces it once the subject can be read.
+    if (first.kind === 'ident' && first.value === 'switch' && toks.length > 1) {
+      const arms = []
+      let fallback = null
+      let usable = true
+      for (const arm of (st.sub || [])) {
+        const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+        if (at < 0) { usable = false; break }
+        const rhs = arm.header.slice(at + 1)
+        const binding = rhs.length
+          ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
+          : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
+        if (!binding) { usable = false; break }
+        // A bare `=>` with nothing before it is Pine's default arm.
+        if (at === 0) fallback = binding
+        else arms.push({ match: arm.header.slice(0, at), binding })
+      }
+      if (usable && (arms.length || fallback)) {
+        value = {
+          kind: 'switch',
+          subject: parseWholeExpression(toks.slice(1)),
+          env: new Map(env),
+          arms,
+          fallback,
+          at: locate(first),
+        }
+        i += 1
+        continue
+      }
     }
     if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
       throw new PineRefusal('pine:block',

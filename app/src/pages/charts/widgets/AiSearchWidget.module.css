@@ -316,3 +316,4 @@
 :global([data-charts-theme='sunrise']) .root { --gain: #0a5c22; --loss: #7d1620; }
 :global([data-charts-theme='sunrise']) .askBtn:hover:not(:disabled) { color: #5c460f; }
 :global([data-charts-theme='sunrise']) .ticker:hover { color: #5c460f; }
+

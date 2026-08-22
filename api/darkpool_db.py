@@ -13,6 +13,7 @@ import sqlite3
 import os
 import csv
 import io
+from datetime import datetime, timedelta
 
 # Railway persistent volume path (matches flow_db)
 DB_DIR = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data")
@@ -464,13 +465,16 @@ def _float(val):
         return None
 
 
-def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
-    """Return top dark pool prints for a single ticker, ordered by date desc.
+def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30, order: str = "date") -> list:
+    """Return top dark pool prints for a single ticker over the last ``days``.
 
-    For the ticker-detail endpoint that powers the Patterns Detected drilldown.
-    Returns the most recent ``limit`` prints over the last ``days`` trading days,
-    sorted by date descending then notional descending so the latest big prints
-    are first.
+    ``order`` controls which ``limit`` prints survive the cap:
+      - ``"date"`` (default): most RECENT first — for the Patterns drilldown, where
+        current activity is what matters.
+      - ``"notional"``: BIGGEST first, across the whole window — for the chart ZONE
+        overlay, whose display is already size-ranked. On a heavy dark-flow name
+        (e.g. SMH) a recency cap is used up by the last few days and hides large
+        historical zones at other price levels; ranking by notional surfaces them.
 
     Each row dict contains the fields the frontend needs to render print bars:
     date (M/D), price, notional, pctAvgVol, volume, type.
@@ -484,6 +488,9 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
         days = 30
     if limit <= 0 or limit > 200:
         limit = 30
+    by_notional = (order == "notional")
+    _order_sql = ("notional DESC, parse_sort_date(date) DESC" if by_notional
+                  else "parse_sort_date(date) DESC, notional DESC")
 
     conn = get_conn()
     try:
@@ -491,7 +498,7 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
         # the last N distinct dates, then pull all trades for the ticker on
         # those dates and let the caller filter / rank.
         cur = conn.execute(
-            """
+            f"""
             WITH recent_dates AS (
                 SELECT DISTINCT date FROM darkpool_trades
                 ORDER BY parse_sort_date(date) DESC LIMIT ?
@@ -501,7 +508,7 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
             WHERE ticker = ?
               AND date IN (SELECT date FROM recent_dates)
               AND notional IS NOT NULL
-            ORDER BY parse_sort_date(date) DESC, notional DESC
+            ORDER BY {_order_sql}
             LIMIT ?
             """,
             (days, ticker, limit),
@@ -530,7 +537,10 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
             (ticker, *recent),
         )
         raw = cur.fetchall()
-        raw.sort(key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0), reverse=True)
+        if by_notional:
+            raw.sort(key=lambda r: (r[3] or 0, parse_date_to_sortable(r[0])), reverse=True)
+        else:
+            raw.sort(key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0), reverse=True)
         rows = raw[:limit]
     finally:
         conn.close()
@@ -654,6 +664,170 @@ def get_ticker_prints_window(ticker: str, days: int = 30) -> list:
         reverse=True,
     )
     return [_print_row(r) for r in rows]
+
+
+def _dp_dnum(date_raw) -> int:
+    """M/D/YYYY (or M/D) → sortable YYYYMMDD int for 'most recent print' picks."""
+    parts = str(date_raw or "").split("/")
+    if len(parts) < 2:
+        return 0
+    def _i(x):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return 0
+    m, d = _i(parts[0]), _i(parts[1])
+    y = _i(parts[2]) if len(parts) >= 3 else 0
+    return y * 10000 + m * 100 + d
+
+
+def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02,
+                             recent_days: int = 30) -> list:
+    """Cluster prints into price-band zones, summing CUMULATIVE notional + volume.
+
+    ANCHORED clustering (mirrors api.services.signature.darkpool_levels): a print
+    joins the current zone only while it stays within one band-width of the zone's
+    LOWEST price (its anchor). Band width = ``zone_pct`` of the median price. This
+    is deliberately NOT a running-mean greedy merge: greedy lets a chain of
+    closely-spaced prints drift-merge into one arbitrarily-wide zone, which folds a
+    recent higher print into an old lower accumulation and mislabels the level
+    (SPY: a $460B stack at $742 tagged "Aug 12" from one recent print sucked in).
+
+    Every zone carries its full date SPAN (``dateStart``→``dateEnd``) so a multi-day
+    accumulation reads as one, not as a single recent print. Uncapped — every print
+    in the window contributes to its zone's cumulative notional.
+    """
+    rows = [p for p in prints
+            if (p.get("price") or 0) > 0 and (p.get("notional") or 0) > 0]
+    if not rows:
+        return []
+    # "Recent" window for each zone's fresh-notional accent (the chart recency
+    # cap) + the biggest/latest-print tooltip rows: a member counts as recent if
+    # its date is on/after (today − recent_days). YYYYMMDD ints are monotonic with
+    # the calendar, so comparing _dp_dnum to a cutoff dnum IS a valid date compare.
+    _cut = datetime.now() - timedelta(days=recent_days)
+    cutoff_dnum = _cut.year * 10000 + _cut.month * 100 + _cut.day
+    prices = sorted(p["price"] for p in rows)
+    bin_w = prices[len(prices) // 2] * zone_pct   # median-based band width
+    if bin_w <= 0:
+        return []
+    zones: list = []
+    cur = None
+    for p in sorted(rows, key=lambda r: r["price"]):
+        price = p["price"]
+        if cur is None or price > cur["anchor"] + bin_w:
+            cur = {"anchor": price, "priceLow": price, "priceHigh": price,
+                   "notional": 0.0, "volume": 0.0, "_members": []}
+            zones.append(cur)
+        cur["priceHigh"] = price               # prices ascend → last seen is highest
+        cur["notional"] += (p.get("notional") or 0)
+        cur["volume"] += (p.get("volume") or 0)
+        cur["_members"].append(p)
+    out = []
+    for z in zones:
+        members = z.pop("_members")
+        wsum = sum((m.get("price") or 0) * (m.get("notional") or 0) for m in members)
+        price = wsum / (z["notional"] or 1)    # notional-weighted centre of the band
+        dated = [m for m in members if _dp_dnum(m.get("dateRaw")) > 0]
+        newest = max(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[-1]
+        oldest = min(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[0]
+        # Single biggest print in the band + notional traded in the recent window
+        # (drives the tooltip's ★ Biggest / Latest / Recent rows and the bar's
+        # recency cap = recentNotional / total).
+        biggest = max(members, key=lambda m: m.get("notional") or 0)
+        recent_notional = sum((m.get("notional") or 0) for m in members
+                              if _dp_dnum(m.get("dateRaw")) >= cutoff_dnum)
+        out.append({
+            "price": round(price, 4),
+            "priceLow": round(z["priceLow"], 4),
+            "priceHigh": round(z["priceHigh"], 4),
+            "notional": z["notional"],
+            "volume": z["volume"],
+            "printCount": len(members),
+            "_clusterCount": len(members),
+            "_isCluster": len(members) > 1,
+            "biggestPrint": biggest.get("notional") or 0,
+            # The single biggest + most-recent prints inside the band, and how much
+            # of the zone's notional is fresh (last `recent_days`). A 6-month zone
+            # can then show whether it's still being worked or is stale accumulation.
+            "topPrint": {
+                "notional": biggest.get("notional") or 0,
+                "date": biggest.get("dateLong"),
+                "price": biggest.get("price"),
+            },
+            "latestPrint": {
+                "notional": newest.get("notional") or 0,
+                "date": newest.get("dateLong"),
+                "price": newest.get("price"),
+            },
+            "recentNotional": recent_notional,
+            "recentDays": recent_days,
+            # newest drives isLatest + the single-print date; the SPAN below drives
+            # the tooltip so an accumulation zone never reads as one recent print.
+            "date": newest.get("date"),
+            "dateLong": newest.get("dateLong"),
+            "dateRaw": newest.get("dateRaw"),
+            "dateStart": oldest.get("dateLong") or oldest.get("dateRaw"),
+            "dateEnd": newest.get("dateLong") or newest.get("dateRaw"),
+            "pctAvgVol": newest.get("pctAvgVol") or 0,
+            "type": newest.get("type"),
+        })
+    return out
+
+
+def get_ticker_zones(ticker: str, days: int = 180, zone_pct: float = 0.02,
+                     limit: int = 25, max_prints: int = 8000) -> list:
+    """Server-side dark-pool ZONE aggregation for the chart overlay.
+
+    Clusters the window's prints into ``zone_pct`` price bands, summing cumulative
+    notional so a level accumulated across many days shows its true total (the old
+    client fetch capped at the top-200 prints, understating multi-day levels).
+
+    Bounded to the top ``max_prints`` prints BY NOTIONAL — not for correctness but
+    for SPEED: a heavy dark-flow name (QQQ/SPY) has tens of thousands of prints per
+    window, and pulling + clustering all of them in Python made the overlay pop in
+    seconds late. The tail past the biggest few thousand adds negligible notional to
+    any zone, so zones stay accurate while first-paint stays fast. Returns the top
+    ``limit`` zones by notional, newest-print zone flagged ``isLatest``.
+    """
+    if not ticker:
+        return []
+    ticker = ticker.upper().strip()
+    if not ticker.replace(".", "").isalnum():
+        return []
+    if days <= 0 or days > 365:
+        days = 30
+    conn = get_conn()
+    try:
+        recent = _resolve_dates(conn, days)
+        if not recent:
+            return []
+        placeholders = ",".join("?" for _ in recent)
+        cur = conn.execute(
+            f"""
+            SELECT date, timestamp, price, notional, pct_avg30, volume, type, message
+            FROM darkpool_trades
+            WHERE ticker = ?
+              AND date IN ({placeholders})
+              AND notional IS NOT NULL
+              AND price > 0
+            ORDER BY notional DESC
+            LIMIT ?
+            """,
+            (ticker, *recent, int(max_prints)),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return []
+    zones = _cluster_prints_to_zones([_print_row(r) for r in rows], zone_pct=zone_pct)
+    if zones:
+        newest = max(_dp_dnum(z.get("dateRaw")) for z in zones)
+        for z in zones:
+            z["isLatest"] = bool(newest > 0 and _dp_dnum(z.get("dateRaw")) == newest)
+    zones.sort(key=lambda z: z.get("notional") or 0, reverse=True)
+    return zones[:limit]
 
 
 # Auto-init tables on import (idempotent, fast — just CREATE IF NOT EXISTS).

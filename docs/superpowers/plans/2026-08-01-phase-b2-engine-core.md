@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **Branch from `feat/phase-b1-foundations`, NOT master** — B2 builds directly on B1's foundations (pinned renderer, `designTokens.js`, the settings passthrough, the unrounded/NaN-padded compute contract, the parity gate). Worktree: `C:\Users\Patrick\uct-worktrees\phase-b2-engine`, branch `feat/phase-b2-engine`.
-- **⛔ NO PUSH TO MASTER.** Phase B ships after the Sep 5 launch freeze. Branch backup push only (`git push -u origin <branch>`).
+- ⚰️ **SUPERSEDED — read as history.** This said *"NO PUSH TO MASTER, Phase B ships after the Sep 5 launch freeze."* B2 shipped to master once its parity gate proved it safe, weeks before either launch date. See `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
 - **THE ENGINE LANDS DARK.** `CHART_DEFAULTS.indicatorInstances` stays `[]` and the flag defaults OFF. Flag off ⇒ **zero** LWC calls of any kind. That single assertion is the whole "lands dark" contract and is trivially testable — write it first.
 - **Zero indicators migrate in B2.** No legacy render block, no `CHART_DEFAULTS.indicators` key, no `indicatorData` line is deleted. That's B3.
 - **Exit criterion: `python tools/chart_parity.py` reports 0 changed pixels with the flag OFF**, and its `--perturb-b` self-test still reports non-zero. A B2 that changes a pixel with the engine dark has a bug.

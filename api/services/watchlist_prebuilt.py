@@ -28,6 +28,14 @@ _CONFIG_PATHS = [_LISTS_PATH]
 _OVERLAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "prebuilt_lists_overlay.json")
 _LIQUID_NAME = "liquid major etfs"
 
+# The auto-maintained community list built from the newest Desk article's ticker
+# roster (Sunday Scans). Its SOURCE is the desk store, not the committed config,
+# so the seeder must never treat "source unreadable right now" as "retired":
+# names in _PROTECTED are exempt from the delete-what-isn't-configured step.
+SUNDAY_SCANS_NAME = "Sunday Scans"
+_COMMUNITY_CATEGORY = "UCT Community"
+_PROTECTED = {SUNDAY_SCANS_NAME.strip().lower()}
+
 
 def _admin_user_id():
     for em in (os.environ.get("ADMIN_EMAILS", "") or "").split(","):
@@ -66,7 +74,81 @@ def _load_committed():
         except Exception:
             continue
     out.extend(_breadth_lists())
+    spec = _sunday_scans_spec()
+    if spec:
+        out.append(spec)
     return out
+
+
+def _sunday_scans_spec():
+    """The auto-maintained community list: the ticker roster of the NEWEST Desk
+    article that carries one ('Charts Covered' heading + chart labels, in the
+    author's own order). None when the desk store is unavailable — callers must
+    treat that as 'leave the existing list alone', never 'delete it'."""
+    try:
+        from api.services import desk_store
+        row = desk_store.latest_post_with_tickers()
+        if not row or not row.get("tickers"):
+            return None
+        tickers = [str(t).upper() for t in row["tickers"] if t]
+        if not tickers:
+            return None
+        when = ""
+        try:
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            when = datetime.fromtimestamp(
+                int(row["published_at"]), ZoneInfo("America/New_York")
+            ).strftime("%B %d, %Y").replace(" 0", " ")
+        except Exception:
+            when = ""
+        desc = "Every chart from the latest Sunday Scans issue"
+        if when:
+            desc += f" ({when})"
+        desc += " — updates automatically when a new issue lands."
+        return {
+            "name": SUNDAY_SCANS_NAME,
+            "desc": desc,
+            "category": _COMMUNITY_CATEGORY,
+            "tickers": tickers,
+        }
+    except Exception:
+        return None
+
+
+def sync_sunday_scans() -> dict:
+    """Reconcile ONLY the Sunday Scans community list against the newest issue.
+
+    Called by the hourly substack poller so the list updates within the hour a
+    new letter lands (the boot-time seeder covers it too — this is the fresh
+    path). Set comparison, delete-and-recreate on drift, exactly the seeder's
+    own idiom. Fail-soft: an unreadable source returns 'unavailable' and
+    touches nothing."""
+    try:
+        spec = _sunday_scans_spec()
+        if not spec:
+            return {"status": "unavailable"}
+        desired = {t.upper() for t in spec["tickers"]}
+        nm = spec["name"].strip().lower()
+        keep = None
+        for w in wl.list_prebuilt_watchlists(500):
+            if (w.get("name") or "").strip().lower() != nm:
+                continue
+            cur = {(i.get("sym") or "").upper() for i in (w.get("items") or [])}
+            if cur == desired and keep is None:
+                keep = w
+            elif w.get("user_id"):
+                wl.delete_watchlist(w["user_id"], w["id"])
+        if keep:
+            return {"status": "current", "count": len(desired)}
+        admin = _admin_user_id()
+        if not admin:
+            return {"status": "no_admin"}
+        _create_list(admin, spec["name"], spec["desc"], spec["tickers"])
+        return {"status": "rebuilt", "count": len(spec["tickers"])}
+    except Exception as e:
+        _log.warning("[prebuilt] sunday-scans sync failed: %s", e)
+        return {"status": "error", "error": str(e)[:200]}
 
 
 _BREADTH_CATEGORY = "UCT Breadth Indicators"
@@ -188,8 +270,10 @@ def seed_prebuilt_watchlists() -> None:
             existing_by_name[(w.get("name") or "").strip().lower()].append(w)
 
         # 1. Delete any prebuilt list NOT in the config (retired/renamed — e.g. Delisted Legends).
+        #    _PROTECTED names are exempt: their source is the desk store, so an unreadable
+        #    source at boot must leave the existing list standing, never wipe it.
         for nm, rows in existing_by_name.items():
-            if nm not in config:
+            if nm not in config and nm not in _PROTECTED:
                 for w in rows:
                     if w.get("user_id"):
                         wl.delete_watchlist(w["user_id"], w["id"])

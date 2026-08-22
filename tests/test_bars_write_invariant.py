@@ -272,9 +272,10 @@ class TestStoredPricePrecision:
         assert f"round(v / f, {bars_fetch.PRICE_DP})" in src
 
     def test_no_price_is_still_rounded_to_two_places(self):
-        """⛔ SEVEN SITES, NOT SIX. A precision applied at six of seven boundaries
+        """⛔ EVERY SITE, NOT MOST. A precision applied at all-but-one boundary
         makes the store's grain depend on WHICH provider answered. Read with an
-        AST, never a grep."""
+        AST, never a grep — and count the boundaries, never quote a number
+        (see `test_every_price_field_goes_through_the_one_helper`)."""
         import ast as _ast
         import inspect
         from api.services import bars_fetch
@@ -290,12 +291,51 @@ class TestStoredPricePrecision:
         assert offenders == []
 
     def test_every_price_field_goes_through_the_one_helper(self):
-        """The count the audit measured: seven provider boundaries, four price
-        fields each. Derived from the AST so it cannot be satisfied by prose."""
+        """Every provider BOUNDARY rounds all four price fields through `_px` —
+        never three of four, and never a stray `_px` outside one.
+
+        ⛔ THE COUNT IS DERIVED, NOT TYPED. This asserted a literal `28` ("seven
+        boundaries x four fields") and went red the day an EIGHTH provider
+        boundary landed — correctly rounding all four fields. The message said
+        "expected 7 boundaries", so healthy growth read as a precision defect,
+        and the fix a reader reaches for is to bump the number, which is how the
+        next real bypass gets waved through. Same shape as the writer-index
+        FOUR-beside-six and the COT router's "4 routes" beside five.
+
+        A boundary is derived here as a bar-shaped dict literal ({o,h,l,c,...})
+        whose four price values are ALL `_px(...)` calls — the interior reshapes
+        (resample, rollup, pass-through) carry values that were already rounded
+        upstream and correctly do not re-round. The relationship is what holds:
+        total `_px` calls == boundaries x 4."""
         import ast as _ast
         import inspect
         from api.services import bars_fetch
         tree = _ast.parse(inspect.getsource(bars_fetch))
-        calls = [n for n in _ast.walk(tree)
-                 if isinstance(n, _ast.Call) and getattr(n.func, "id", "") == "_px"]
-        assert len(calls) == 28, f"expected 7 boundaries x 4 fields, found {len(calls)}"
+
+        def _is_px(node):
+            return isinstance(node, _ast.Call) and getattr(node.func, "id", "") == "_px"
+
+        boundaries = []
+        for node in _ast.walk(tree):
+            if not isinstance(node, _ast.Dict):
+                continue
+            keyed = {k.value: v for k, v in zip(node.keys, node.values)
+                     if isinstance(k, _ast.Constant)}
+            if not {"o", "h", "l", "c"} <= set(keyed):
+                continue
+            wrapped = [f for f in "ohlc" if _is_px(keyed[f])]
+            if wrapped:
+                assert len(wrapped) == 4, (
+                    f"line {node.lineno}: a provider boundary rounds only "
+                    f"{wrapped} — a price field that skips `_px` gives the store "
+                    f"two grains, which is the split-brain this file exists to stop")
+                boundaries.append(node.lineno)
+
+        calls = [n for n in _ast.walk(tree) if _is_px(n)]
+        assert len(boundaries) >= 7, (
+            f"provider boundaries dropped to {len(boundaries)} (lines {boundaries}) "
+            f"— a removed boundary is a real change, not a test to relax")
+        assert len(calls) == len(boundaries) * 4, (
+            f"{len(calls)} `_px` calls across {len(boundaries)} boundaries "
+            f"(lines {boundaries}) — expected {len(boundaries) * 4}; a stray "
+            f"`_px` outside a bar boundary is worth reading before accepting")

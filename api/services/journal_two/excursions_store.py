@@ -39,6 +39,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "maeTs": row["mae_ts"],
         "exitEfficiency": row["exit_efficiency"],
         "missedR": row["missed_r"],
+        "trueR": row["true_r"] if "true_r" in row.keys() else None,
         "barResolution": row["bar_resolution"],
         "dataQuality": row["data_quality"],
         "computedAt": row["computed_at"],
@@ -58,9 +59,9 @@ def upsert_excursion(
         conn.execute(
             "INSERT OR REPLACE INTO j2_trade_excursions "
             "(user_id, trade_ref, symbol, mfe_price, mae_price, mfe_r, mae_r, "
-            "mfe_ts, mae_ts, exit_efficiency, missed_r, bar_resolution, "
+            "mfe_ts, mae_ts, exit_efficiency, missed_r, true_r, bar_resolution, "
             "data_quality, computed_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 user_id,
                 trade_ref,
@@ -73,6 +74,7 @@ def upsert_excursion(
                 data.get("mae_ts"),
                 data.get("exit_efficiency"),
                 data.get("missed_r"),
+                data.get("true_r"),
                 data.get("bar_resolution"),
                 data.get("data_quality"),
                 _now_iso(),
@@ -133,6 +135,47 @@ def existing_refs(
             (user_id,),
         ).fetchall()
         return {r["trade_ref"] for r in rows}
+    finally:
+        if own:
+            conn.close()
+
+
+def backfill_true_r(conn: sqlite3.Connection | None = None) -> int:
+    """One-shot (idempotent) True-R backfill for rows computed before the
+    column existed. true_r is DERIVABLE from the stored mae_price plus the
+    trade row's side/entry/exit — pure SQL, no bars refetch. Rows with no
+    matching trade (option-strategy 'underlying' records, purged trades) or
+    a zero adverse move stay NULL by design. Returns rows updated."""
+    own = conn is None
+    if own:
+        conn = get_connection()
+    try:
+        cur = conn.execute(
+            """
+            UPDATE j2_trade_excursions
+               SET true_r = (
+                   SELECT CASE
+                       WHEN t.side = 'Long'
+                            AND (t.entry_price - j2_trade_excursions.mae_price) > 1e-9
+                       THEN (t.exit_price - t.entry_price)
+                            / (t.entry_price - j2_trade_excursions.mae_price)
+                       WHEN t.side = 'Short'
+                            AND (j2_trade_excursions.mae_price - t.entry_price) > 1e-9
+                       THEN (t.entry_price - t.exit_price)
+                            / (j2_trade_excursions.mae_price - t.entry_price)
+                       ELSE NULL
+                   END
+                     FROM j2_trades t
+                    WHERE t.user_id = j2_trade_excursions.user_id
+                      AND (('ext:' || COALESCE(t.external_id, '')) = j2_trade_excursions.trade_ref
+                           OR ('id:' || t.id) = j2_trade_excursions.trade_ref)
+                    LIMIT 1
+               )
+             WHERE true_r IS NULL AND mae_price IS NOT NULL
+            """
+        )
+        conn.commit()
+        return cur.rowcount
     finally:
         if own:
             conn.close()

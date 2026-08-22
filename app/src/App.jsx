@@ -22,6 +22,7 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // link button in `SaveScreenBar` builds its URL from this same module, so the
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
+import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
@@ -38,6 +39,7 @@ const Calendar = lazy(() => import('./pages/Calendar'))
 const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
+const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
@@ -50,6 +52,7 @@ const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
+const ArticleReader = lazy(() => import('./pages/desk/ArticleReader'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 // A2: the new nested-route shell (v5). Renders a header + 5-item primary nav +
 // <Outlet/>; the child routes below render into that Outlet. The legacy
@@ -61,6 +64,8 @@ const JournalLayout = lazy(() => import('./pages/journal-2-0/JournalLayout'))
 // Suspense so a surface chunk load never blanks the whole shell).
 const TodaySurface = lazy(() => import('./pages/journal-2-0/surfaces/TodaySurface'))
 const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurface'))
+const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
+const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -291,6 +296,15 @@ export default function App() {
                 Rail: `app/src/pages/screener/sharedScreen.route.test.jsx`. */}
             <Route path={SHARED_SCREEN_ROUTE} element={<SharedScreen />} />
 
+            {/* The far end of a NOTEBOOK share link — same posture as the
+                screener share above: token IS the credential, OUTSIDE
+                AuthGuard, NOT behind PreLaunchGate (it would break every link
+                a member sent), route DERIVED from noteShareLink.js. The
+                server pair is additionally flag-gated (J2_SHARE_LINKS_ENABLED)
+                so the whole public surface has an env kill-switch.
+                Rail: journal-2-0/sharedNote.route.test.jsx. */}
+            <Route path={SHARED_NOTE_ROUTE} element={<SharedNotePage />} />
+
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart
                 for a ticker with entry/stop/target lines; /api/bars is public so
@@ -366,6 +380,7 @@ export default function App() {
                 <Route path="/model-book" element={<ModelBook />} />
                 <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/desk" element={<Desk />} />
+                <Route path="/desk/article/:slug" element={<ArticleReader />} />
                 <Route path="/educational-videos" element={<Navigate to="/desk?section=videos" replace />} />
                 {/* /journal is a nested-route parent under the v5 shell. The
                     selector renders JournalLayout (with <Outlet/>) for v5, or
@@ -374,6 +389,9 @@ export default function App() {
                 <Route path="/journal" element={<JournalShellSelector />}>
                   <Route index element={<TodaySurface />} />
                   <Route path="trades" element={<TradesSurface />} />
+                  <Route path="calendar" element={<CalendarSurface />} />
+                  <Route path="notebook" element={<NotebookSurface />} />
+                  {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />
                   <Route path="compass" element={<CompassSurface />} />

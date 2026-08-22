@@ -107,12 +107,43 @@ describe('every script lands exactly where the snapshot says', () => {
 
 describe('a script that translates goes all the way through the SHIPPED doors', () => {
   const TRANSLATING = FILES.filter((f) => SNAPSHOT[f].translates)
+  // ⭐ TRANSLATING IS NOT THE SAME SET AS SAVEABLE, and 2026-08-12 is the day
+  // that stopped being a distinction without a difference. Script 10 clears the
+  // `pine:state` wall now — its two trailing stops emit as correctly nested
+  // accumulators — and then every one of its five columns hits `budget:nodes` at
+  // 642 nodes against a cap of 128. The closed table has no way to NAME a
+  // subexpression, so `(high+low)/2 + 3*atr(…)` is re-inlined at each of its
+  // eight uses and the two stops are inlined again inside the direction column.
+  //
+  // ⛔ THE SPLIT IS RECORDED, NOT PAPERED OVER. The block below runs on scripts
+  // the snapshot says clear the save gate; the one that does not is asserted BY
+  // NAME immediately after, with its guard. A `filter` that quietly shrinks a
+  // rail's input set is how a wall becomes invisible — the assertion after this
+  // loop is what stops that.
+  const THROUGH = TRANSLATING.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
 
   it('there is more than one of them, or this whole block is decorative', () => {
-    expect(TRANSLATING.length).toBeGreaterThanOrEqual(5)
+    expect(THROUGH.length).toBeGreaterThanOrEqual(5)
   })
 
-  for (const f of TRANSLATING) {
+  it('⭐ and the ones that translate but CANNOT be saved are named, with the wall they hit', () => {
+    // Nothing here is skipped silently. A script that starts clearing the budget
+    // fails this and gets promoted into THROUGH; one that starts failing it gets
+    // caught by the loop above.
+    const blocked = TRANSLATING.filter((f) => !SNAPSHOT[f].downstream || !SNAPSHOT[f].downstream.ok)
+    expect(blocked).toEqual(['10-supertrend.pine'])
+    for (const f of blocked) {
+      const out = translatePine(read(f))
+      const down = evaluateFormula(out.outputs[out.selected].formula, BUILDER_INPUT_SCOPE)
+      expect(down.ok, f).toBe(false)
+      // ⛔ the guard is asserted, not merely "it failed" — the whole point is
+      // WHICH wall, and this one moved from pine:state to the node budget.
+      expect(down.guard, f).toBe(SNAPSHOT[f].downstream.guard)
+      expect(canSaveFormula(down, false), f).toBe(false)
+    }
+  })
+
+  for (const f of THROUGH) {
     it(`${f} parses, budgets, lints, reads back and may be saved`, () => {
       const out = translatePine(read(f))
       const row = out.outputs[out.selected]
@@ -194,8 +225,22 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:request', // 04, 12
       'pine:state', // 10 — a trailing stop is a real accumulator
       'pine:reassign', // 20 — a `:=` inside UDT/array code the fold cannot read
-      'pine:block', // 06 — a `switch` inside a user function
-      'pine:offset-literal', // 05 — `hh[len]`, a variable bar offset
+      // ⚰️ `pine:block` LEFT THIS LIST 2026-08-11, CLOSED not weakened — the third
+      // guard to go that way, after `pine:role-order` and `pine:offset-literal`.
+      // It fired only on 06's `switch` inside `f_smooth`, and a `switch` on a
+      // FIXED subject is one arm: `smoothType` is `input.string("EMA", …)`, so
+      // every other arm is dead code. ⛔ THE GUARD IS STILL LIVE for `for`,
+      // `while`, and a `switch` whose subject moves bar to bar — it is simply no
+      // longer reachable from any published script in this corpus.
+      // ⚰️ `pine:offset-literal` LEFT THIS LIST 2026-08-11, CLOSED RATHER THAN
+      // WEAKENED — the same way `pine:role-order` did below. It fired on 05's
+      // `hh[len]`, where `len` is a UDF parameter bound to an input; an input
+      // already folded to a literal as a LENGTH and now folds as an OFFSET too,
+      // so 05's refusal moved on to `pine:request`. ⛔ THE GUARD IS STILL LIVE
+      // and still right for an index that genuinely cannot be reduced — a series
+      // index, `1 + 1`, `bar_index` — it is simply no longer reachable from any
+      // PUBLISHED script in this corpus, which is what this list tracks.
+      // `pine.offset.test.js` holds the snippets that still exercise it.
       'pine:tuple', // 02, 06, 19
       // ⚰️ `pine:role-order` LEFT THIS LIST BECAUSE IT WAS CLOSED, not because it
       // stopped mattering. It fired on `18-normalized-average-true-range` for
@@ -222,7 +267,15 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     }
     // ⛔ AND THE COUNT, so a guard that stops firing on the corpus is noticed
     // rather than quietly leaving the list above still true.
-    expect(fired.size).toBe(12)
+    //
+    // ⭐ 12 → 11 ON 2026-08-11, AND THIS ASSERTION IS WHAT NOTICED. Folding an
+    // input into a bar offset took `pine:offset-literal` off the corpus — 05's
+    // `hh[len]` was its only published source, and that script now refuses at
+    // `pine:request` instead. The guard is still live and still right for an
+    // index that cannot be reduced; it is simply no longer reachable from these
+    // 21 scripts. Exactly the movement this number exists to force somebody to
+    // acknowledge, rather than a list going quietly stale.
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -291,8 +344,26 @@ describe('the whole corpus, in one number', () => {
     // ⚠️ A number going DOWN here is why it is pinned in both directions. This is
     // a correction, not a regression: nothing that worked yesterday stopped
     // working, and 10/38 is the first honest reading this file has published.
-    expect(translating).toBe(10)
-    expect(columns).toBe(38)
+    // ⭐⭐ 10/38 → 11/47, 2026-08-11. `06-adx-advanced` cleared, and it took TWO
+    // fixes that each had to be DEFERRED TO RESOLVE TIME to work at all: a
+    // `switch` on a fixed subject reduces to its one live arm, and `ta.dmi`'s two
+    // periods are compared as VALUES rather than as spellings. Nine columns out
+    // of one script — the largest single gain this file has recorded.
+    // ⭐⭐ 11/47 → 12/52, 2026-08-12. `10-supertrend` cleared `pine:state`: a
+    // PLAIN name the script reassigns from its own previous bar now emits as an
+    // `accum`, and the two trailing stops nest correctly inside the direction
+    // column, each owning its own `self`. It took a resolution-time marker (the
+    // same `name[1]` means `self` inside that name's update and the whole
+    // accumulator anywhere else), a memo, a per-recurrence cycle stack, and a
+    // convergence gate that still refuses `x := x[1] + volume`.
+    //
+    // ⚠️⚠️ READ THE NEXT BLOCK BEFORE QUOTING 52. Five of those columns cannot be
+    // SAVED — they translate and then hit `budget:nodes` at 642 against a cap of
+    // 128, because the closed table cannot name a subexpression and the ATR term
+    // is re-inlined eight times. `saveable` below is still 11, deliberately, and
+    // it is the number that describes what a member can do.
+    expect(translating).toBe(12)
+    expect(columns).toBe(52)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -301,7 +372,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(10)
+    expect(saveable.length).toBe(11)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

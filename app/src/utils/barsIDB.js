@@ -9,6 +9,8 @@
  * Value shape: { bars: [...], lastT: <last bar's t value>, savedAt: <ms> }
  */
 
+import { isIntradayTailStale } from './marketSession'
+
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
 // the page blocked the upgrade, idbGet hung forever, and charts never loaded.
@@ -39,21 +41,43 @@ const STORE      = 'bars'
 // NVDA 30m 07-08 14:30). So every browser kept showing the gap even though the
 // server now has the bar. This bump invalidates those stale caches → one clean
 // full refetch → complete data.
-const CACHE_LOGIC_VERSION = 5
+//
+// Bumped 5→6 (2026-08-19): stale WRONG-SCALE daily bars — a server-side ticker-reuse
+// cutoff / split self-heal applied at serve time (WYFI cached ~$220 vs the correct
+// ~$27, HIVE ~$43 vs ~$2.78) — were stuck in caches indefinitely: the pack importer
+// never-downgrades a deep-enough entry, and an up-to-date browser only takes the tail
+// delta, so the corrected pack never overwrote the old values. This forces one clean
+// full re-ingest of the (correct, sanitized) pack. Paired with the heal-on-mismatch
+// guard in _importBatch (below) so FUTURE corrections self-heal without another bump.
+const CACHE_LOGIC_VERSION = 6
 
-// Max age by SAVE time — secondary bound only. The PRIMARY intraday
-// guard is bar-data freshness (newest bar age), checked in idbGet:
-// savedAt-based eviction missed the bug where stale bars get re-saved
-// recently (savedAt new, bars week-old) and lingered for 7 days.
-const INTRADAY_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000  // 2 days
-// An intraday entry whose NEWEST BAR is older than this is missing >=1
-// session — never serve it (forces a fresh full fetch). Mirrors the
-// backend _is_cold_stale_intraday + StockChart idbStaleIntraday guards.
-const INTRADAY_STALE_BAR_SEC = 26 * 60 * 60  // 26h
+// Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
+// (weekend/holiday-aware) via marketSession.isIntradayTailStale — NOT a flat wall-clock
+// age. The old flat gates (a 2-day save-time bound + a 26h bar-age wall) wrongly evicted
+// a pre-seeded intraday pack holding Friday's 15:55 bar on a Monday (65h old but the last
+// closed session), which is exactly what blocked intraday-instant. isIntradayTailStale
+// replaces both in idbGet below; anti-spike safety stays on the writer side
+// (classifyLiveBar contiguity + provisionalStaleRef).
 // Max age for daily/weekly/monthly. Without this, corrupted historical bars
 // (wrong company, pre-split, etc.) persist indefinitely because delta fetches
 // only ask for bars newer than the last cached timestamp.
-const DAILY_MAX_AGE_MS = 24 * 60 * 60 * 1000  // 24 hours
+//
+// 48h (was 24h, 2026-08-14): the Universe Bars Pack (idbImportPack) pre-seeds
+// D/W/M for the whole universe once per day, stamping savedAt at ingest. A
+// user who opens the app daily always has entries <24h old; 48h just adds a
+// full day of margin for a session that spans a day boundary before the next
+// pack re-ingest. This is safe because D/W/M ALWAYS full-refetch on chart open
+// (no `since=`), so the server replaces the entry within ~1s of a view
+// regardless of the age bound — the bound only backstops entries never opened.
+const DAILY_MAX_AGE_MS = 48 * 60 * 60 * 1000  // 48 hours
+// Render cap for INTRADAY series handed to the chart. A dwell-warm/backfill (and the
+// intraday pack + since-fetch merges) can grow a 5m entry to ~20k bars (≈a year of 5m),
+// and rendering + re-merging that many candles on EVERY ticker switch is the 5-10s
+// intraday stall (idbGet itself is 1-4ms — the cost is downstream in the chart). The
+// chart only needs the recent window for the first paint; deep scroll-back re-fetches on
+// pan. idbGet slices to the last INTRADAY_MAX_BARS. Daily/Weekly/Monthly are uncapped
+// (they render fine and their history is bounded).
+const INTRADAY_MAX_BARS = 3000
 
 let _db = null
 
@@ -79,7 +103,7 @@ async function _open() {
       _db = e.target.result
       // When another tab opens this DB at a higher version, close our handle
       // so the upgrade can proceed. Without this, version bumps deadlock.
-      _db.onversionchange = () => { try { _db.close() } catch {}; _db = null }
+      _db.onversionchange = () => { try { _db.close() } catch { /* already closed */ }; _db = null }
       resolve(_db)
     }
     req.onerror   = (e) => { clearTimeout(timeout); reject(e.target.error) }
@@ -161,29 +185,64 @@ export async function idbGet(sym, tf) {
         // Logic-version invalidation: a stale schema/logic record is
         // treated as absent so the caller refetches fresh.
         if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
-        const age = Date.now() - (entry.savedAt || 0)
         const isIntraday = ['1','5','15','30','60'].includes(tf)
-        const maxAge = isIntraday ? INTRADAY_MAX_AGE_MS : DAILY_MAX_AGE_MS
-        if (age > maxAge) return resolve(null)
-        // PRIMARY intraday guard: never serve a series whose newest bar
-        // is >=1 session old, regardless of when it was saved. This is
-        // what stops the stale-cache-fused-to-live-price spike at the
-        // source (lastT for intraday is unix seconds).
-        if (isIntraday && typeof entry.lastT === 'number'
-            && (Date.now() / 1000 - entry.lastT) > INTRADAY_STALE_BAR_SEC) {
+        if (isIntraday) {
+          // Bar-data freshness vs the last CLOSED session (weekend/holiday-aware). A
+          // pre-seeded pack ending at the prior session is FRESH (today's bars fill via
+          // the live feed / a since-fetch); a series missing a whole closed session — or
+          // the current session's recent closed bars — is stale → full refetch. Subsumes
+          // the old 26h bar-age + 2-day save-time gates. lastT for intraday is unix secs.
+          if (isIntradayTailStale(entry.lastT, tf)) return resolve(null)
+        } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
+          // D/W/M: save-time bound catches corrupted historical bars delta can't heal
+          // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
           return resolve(null)
         }
-        // Mid-session gap guard: delta-merge cannot heal interior gaps,
-        // so a cached series with one is permanently broken until a full
-        // refetch. Treat as absent → caller refetches without `since`.
-        if (_hasIntradayGap(entry.bars, tf)) return resolve(null)
-        resolve(entry)
+        // RENDER CAP (intraday): hand back only the recent window so a bloated ~20k-bar
+        // entry can't stall the chart. Freshness above used entry.lastT (the true tail,
+        // unaffected by slicing the FRONT), so it stays correct. Run the gap guard on the
+        // CAPPED window — a gap deep in the pruned history is irrelevant (deep scroll-back
+        // re-fetches), and this also stops a deep-history gap from nulling the whole entry
+        // into a slow full refetch.
+        let bars = entry.bars
+        if (isIntraday && bars.length > INTRADAY_MAX_BARS) {
+          bars = bars.slice(bars.length - INTRADAY_MAX_BARS)
+        }
+        // Mid-session gap guard: delta-merge cannot heal interior gaps, so a cached series
+        // with one is permanently broken until a full refetch. Treat as absent → caller
+        // refetches without `since`.
+        if (_hasIntradayGap(bars, tf)) return resolve(null)
+        resolve(bars === entry.bars ? entry : { ...entry, bars, lastT: bars[bars.length - 1]?.t })
       }
       req.onerror = () => resolve(null)
     })
   } catch {
     return null
   }
+}
+
+/**
+ * Delete ALL intraday entries (*_1/_5/_15/_30/_60). One-time cleanup to drop the
+ * bloated ~20k-bar 5m series (and any leftover intraday pack) that stalled the chart;
+ * daily/weekly/monthly are left intact. Best-effort; never throws.
+ */
+export async function idbDeleteIntraday() {
+  let db
+  try { db = await _open() } catch { return }
+  return new Promise((resolve) => {
+    let tx
+    try { tx = db.transaction(STORE, 'readwrite') } catch { return resolve() }
+    const store = tx.objectStore(STORE)
+    const req = store.getAllKeys()
+    req.onsuccess = () => {
+      for (const k of req.result || []) {
+        if (/_(1|5|15|30|60)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
+      }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => resolve()
+    tx.onabort = () => resolve()
+  })
 }
 
 /**
@@ -210,6 +269,186 @@ export async function idbPut(sym, tf, bars) {
   } catch {
     // IDB writes are best-effort — never let them crash the chart
   }
+}
+
+/**
+ * Bulk-import a "Universe Bars Pack" of D/W/M bars in batched transactions.
+ *
+ * `entries` = [{ sym, tf, bars }] where `bars` is the SERVER bar shape
+ * [{t,o,h,l,c,v}] (t = ISO "YYYY-MM-DD" for D/W/M) — byte-identical to what a
+ * normal /api/bars full-fetch produces, so StockChart reads each as `_idbFresh`
+ * and paints instantly with zero network. Pre-seeds a brand-new user's cache so
+ * their FIRST view of any stock is instant.
+ *
+ * NEVER DOWNGRADES: an existing current-version entry that holds AT LEAST as
+ * many bars as the pack is left untouched. The pack is a shallow ~300-bar view
+ * pack; it must never shrink a deeper local series (a user who scrolled back, or
+ * a fresher per-session write).
+ *
+ * Quota-safe: writes in batches, each its own transaction, so a
+ * QuotaExceededError aborts only the CURRENT batch — every prior batch is
+ * already committed. On abort it stops early and reports what landed; callers
+ * fall back to per-ticker fetch for the rest. Never throws.
+ *
+ * Returns { written, skipped, aborted }.
+ */
+export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false } = {}) {
+  if (!entries?.length) return { written: 0, skipped: 0, aborted: false }
+  let db
+  try { db = await _open() } catch { return { written: 0, skipped: 0, aborted: true } }
+  let written = 0, skipped = 0, aborted = false
+  for (let i = 0; i < entries.length && !aborted; i += batchSize) {
+    const res = await _importBatch(db, entries.slice(i, i + batchSize))
+    written += res.written
+    skipped += res.skipped
+    if (res.aborted) aborted = true  // quota / tx failure — keep prior batches, stop
+    // Yield a MACROTASK between readwrite batches so a chart's idbGet (readonly, SAME
+    // 'bars' store) can interleave. IndexedDB serializes readwrite-vs-readonly on a
+    // store, so a gap-free batch train write-locks it for seconds and stalls every
+    // ticker switch — and because swrUrl is gated on idbGet resolving, that blocks BOTH
+    // the instant paint AND the network fallback (the intraday-pack fresh-ingest hang).
+    // Callers doing a large fresh ingest (intraday) pass yieldBetween + a small batch so
+    // each lock window is tiny; daily keeps its 250-batch, no-yield fast path (it's
+    // already-ingested for returning users, so it never runs mid-session).
+    if (yieldBetween && i + batchSize < entries.length) {
+      await new Promise((r) => setTimeout(r, 0))
+    }
+  }
+  return { written, skipped, aborted }
+}
+
+// Detect a cached series that predates a SERVER-SIDE price correction (ticker-reuse
+// cutoff / split self-heal). Compare the pack's authoritative last (CLOSED) bar to the
+// cached bar at the same timestamp: a material close mismatch means the cache holds the
+// pre-correction, wrong-scale values (e.g. WYFI cached ~$220 vs the corrected ~$27).
+// Scan only the tail (the shared ts sits at/near the cached series' end) → O(1) per
+// ticker on ingest.
+export function _findRecentBarByT(bars, t) {
+  if (!bars?.length || t == null) return null
+  const ts = String(t)
+  for (let i = bars.length - 1, stop = Math.max(0, bars.length - 8); i >= stop; i--) {
+    if (String(bars[i].t) === ts) return bars[i]
+  }
+  return null
+}
+export function _closeMismatch(a, b) {
+  if (!a || !b) return false                        // no shared bar to compare → don't force a heal
+  const ac = +a.c, bc = +b.c
+  if (!Number.isFinite(ac) || !Number.isFinite(bc) || bc === 0) return false
+  return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
+}
+
+function _importBatch(db, batch) {
+  return new Promise((resolve) => {
+    let written = 0, skipped = 0
+    let tx
+    try {
+      tx = db.transaction(STORE, 'readwrite')
+    } catch {
+      return resolve({ written, skipped, aborted: true })
+    }
+    const store = tx.objectStore(STORE)
+    tx.oncomplete = () => resolve({ written, skipped, aborted: false })
+    tx.onerror    = () => resolve({ written, skipped, aborted: true })
+    tx.onabort    = () => resolve({ written, skipped, aborted: true })
+    for (const e of batch) {
+      const sym = e?.sym, tf = e?.tf, bars = e?.bars
+      if (!sym || !tf || !bars?.length) { skipped++; continue }
+      const key = _key(sym, tf)
+      const getReq = store.get(key)
+      getReq.onsuccess = () => {
+        const cur = getReq.result
+        // Never downgrade: keep a current-version local entry that is at least as deep
+        // as the pack (deeper scroll-back or a fresher session write) — UNLESS the pack's
+        // authoritative tail DISAGREES with the cached values. A stale wrong-scale series
+        // (server-side ticker-reuse cutoff / split-heal applied AFTER this browser cached
+        // the old prices) is internally consistent, so nothing else catches it and the
+        // skip would preserve it — and its wrong DEEP history — forever. On a material
+        // close mismatch at the shared session, fall through and REPLACE with the
+        // sanitized pack (the discarded deep history re-warms on demand).
+        if (cur && cur.v === CACHE_LOGIC_VERSION
+            && (cur.bars?.length || 0) >= bars.length
+            && !_closeMismatch(_findRecentBarByT(cur.bars, bars[bars.length - 1]?.t), bars[bars.length - 1])) {
+          skipped++
+          return
+        }
+        store.put({
+          key,
+          bars,
+          lastT: bars[bars.length - 1]?.t,
+          savedAt: Date.now(),
+          v: CACHE_LOGIC_VERSION,
+        })
+        written++
+      }
+      getReq.onerror = () => { skipped++ }
+    }
+  })
+}
+
+/**
+ * Apply a daily pack DELTA (tail of each series) to already-seeded entries.
+ *
+ * For each { sym, tf, bars }: merge the tail into the existing IDB entry
+ * (mergeDelta — new/revised bars win) and RE-STAMP savedAt. Re-stamping every
+ * entry present in the delta is what keeps the whole universe from aging out of
+ * cache (DAILY_MAX_AGE_MS) — so D/W/M stay instant FOREVER, even for stocks the
+ * user never opens, at ~1MB/day instead of re-downloading the full pack.
+ *
+ * Only maintains entries that already exist at the current logic version — a
+ * short tail is too shallow to seed a chart on its own (a never-seeded ticker
+ * waits for the full pack). Batched + quota-safe like idbImportPack; never
+ * throws. Returns { updated, skipped, aborted }.
+ */
+export async function idbApplyDelta(entries, { batchSize = 250 } = {}) {
+  if (!entries?.length) return { updated: 0, skipped: 0, aborted: false }
+  let db
+  try { db = await _open() } catch { return { updated: 0, skipped: 0, aborted: true } }
+  let updated = 0, skipped = 0, aborted = false
+  for (let i = 0; i < entries.length && !aborted; i += batchSize) {
+    const res = await _deltaBatch(db, entries.slice(i, i + batchSize))
+    updated += res.updated
+    skipped += res.skipped
+    if (res.aborted) aborted = true
+  }
+  return { updated, skipped, aborted }
+}
+
+function _deltaBatch(db, batch) {
+  return new Promise((resolve) => {
+    let updated = 0, skipped = 0
+    let tx
+    try {
+      tx = db.transaction(STORE, 'readwrite')
+    } catch {
+      return resolve({ updated, skipped, aborted: true })
+    }
+    const store = tx.objectStore(STORE)
+    tx.oncomplete = () => resolve({ updated, skipped, aborted: false })
+    tx.onerror    = () => resolve({ updated, skipped, aborted: true })
+    tx.onabort    = () => resolve({ updated, skipped, aborted: true })
+    for (const e of batch) {
+      const sym = e?.sym, tf = e?.tf, bars = e?.bars
+      if (!sym || !tf || !bars?.length) { skipped++; continue }
+      const key = _key(sym, tf)
+      const getReq = store.get(key)
+      getReq.onsuccess = () => {
+        const cur = getReq.result
+        // Only maintain entries we already seeded at the current version.
+        if (!cur || cur.v !== CACHE_LOGIC_VERSION || !cur.bars?.length) { skipped++; return }
+        const merged = mergeDelta(cur.bars, bars)
+        store.put({
+          key,
+          bars: merged,
+          lastT: merged[merged.length - 1]?.t,
+          savedAt: Date.now(),
+          v: CACHE_LOGIC_VERSION,
+        })
+        updated++
+      }
+      getReq.onerror = () => { skipped++ }
+    }
+  })
 }
 
 /**

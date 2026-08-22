@@ -1,0 +1,92 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "A supported data-URI image (kept, gets a bounded ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "md-img-N.<ext>",
+            "type": "text"
+          },
+          {
+            "text": " ref and a ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "data_uri",
+            "type": "text"
+          },
+          {
+            "text": " media entry) followed by an unsupported-MIME data-URI image (an SVG payload, which markdown-it-py's own destination validator never even tokenizes as an image — ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "mddoc.py",
+            "type": "text"
+          },
+          {
+            "text": "'s pre-tokenization pass degrades it to a visible ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "[unsupported image: ...]",
+            "type": "text"
+          },
+          {
+            "text": " marker instead of leaking the raw base64 payload into the note).",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://md-img-1.png"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "text": "[unsupported image: tiny unsupported svg, image/svg+xml]",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "data_uri": "data:image/png;base64,aUxvdmVOb3Rlcw==",
+      "kind": "image",
+      "name": "md-img-1.png",
+      "ref": "md-img-1.png"
+    }
+  ]
+}

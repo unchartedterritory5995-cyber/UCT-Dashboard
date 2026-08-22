@@ -13,7 +13,10 @@ Three tables:
 from __future__ import annotations
 
 import contextlib
+import html
+import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -76,10 +79,58 @@ _TEAM_ALTERS = (
     "ALTER TABLE team_members ADD COLUMN teaching_focus TEXT",
 )
 
+# Native article reader. `body_raw` is the publisher's HTML exactly as fetched;
+# `body_html` is our converted output. Keeping BOTH is what makes a converter
+# improvement a local re-render instead of re-scraping the publication.
+_POST_ALTERS = (
+    "ALTER TABLE substack_posts ADD COLUMN body_raw TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN body_html TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN body_hash TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN sections_json TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN tickers_json TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN display_title TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN slug TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN word_count INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN reading_minutes INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN image_count INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN converter_version INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN body_fetched_at INTEGER",
+)
+
+# Columns the ARTICLE LIST is allowed to select. `SELECT p.*` here would put
+# every row's ~200 KB body into a payload that renders cards -- roughly 20 MB
+# per page load for an 84-post archive. The reader endpoint fetches one row.
+_POST_LIST_COLS = (
+    "id", "publication_id", "title", "display_title", "slug", "excerpt", "url",
+    "hero_image", "author", "published_at", "ingested_at",
+    "word_count", "reading_minutes", "image_count", "tickers_json",
+)
+
 _PUB_FIELDS = ("name", "feed_url", "enabled", "sort_order")
 _MEMBER_FIELDS = ("name", "role", "bio", "years_trading", "trading_style",
                   "teaching_focus", "twitter_url", "substack_url", "email",
                   "link_url", "sort_order", "enabled")
+
+
+# Full-text search over the archive. A standalone (non-content) FTS5 table keyed
+# on the post id: `substack_posts.id` is the post URL, which an external-content
+# table cannot use as a rowid.
+_FTS_SCHEMA = """
+CREATE VIRTUAL TABLE IF NOT EXISTS substack_posts_fts USING fts5(
+  post_id UNINDEXED,
+  title,
+  tickers,
+  body,
+  tokenize='porter unicode61'
+);
+"""
+
+# Whether this build of SQLite has FTS5. Resolved once, at init.
+_FTS_READY = False
+
+
+def fts_available() -> bool:
+    return _FTS_READY
 
 
 def _connect() -> sqlite3.Connection:
@@ -91,16 +142,26 @@ def _connect() -> sqlite3.Connection:
 
 
 def _init_db() -> None:
+    global _FTS_READY
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
-        for stmt in _TEAM_ALTERS:
+        for stmt in _TEAM_ALTERS + _POST_ALTERS:
             try:
                 c.execute(stmt)
             except sqlite3.OperationalError:
                 pass  # column already exists (fresh schema or prior run)
+        # FTS5 is compiled in on every build we run on, but an unguarded CREATE
+        # VIRTUAL TABLE here would take the WHOLE Desk down (articles, team) on a
+        # build without it. Search degrades; the hub keeps working.
+        try:
+            c.executescript(_FTS_SCHEMA)
+            _FTS_READY = True
+        except sqlite3.OperationalError as e:
+            print(f"[desk_store] FTS5 unavailable, archive search disabled: {e}")
+            _FTS_READY = False
         c.commit()
 
 
@@ -288,10 +349,17 @@ def upsert_post(post: dict) -> None:
 def list_posts(limit: int = 60) -> list[dict]:
     """Newest-first posts, deduped by URL. Read-time dedupe guarantees the page
     never shows the same post twice even if legacy rows exist under two ids
-    (early RSS rows keyed by guid + archive rows keyed by numeric id)."""
+    (early RSS rows keyed by guid + archive rows keyed by numeric id).
+
+    Selects columns EXPLICITLY, never `p.*`: the body columns live on this table
+    and a card grid that shipped them would be ~20 MB per load.
+    """
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT p.*, pub.name AS publication_name
+            f"""SELECT {cols},
+                       pub.name AS publication_name,
+                       (p.body_html IS NOT NULL AND p.body_html != '') AS has_body
                FROM substack_posts p
                LEFT JOIN substack_publications pub ON pub.id = p.publication_id
                ORDER BY p.published_at DESC""",
@@ -334,6 +402,367 @@ def delete_posts_for_publication(pub_id: int) -> int:
         cur = c.execute("DELETE FROM substack_posts WHERE publication_id=?", (int(pub_id),))
         c.commit()
         return cur.rowcount
+
+
+# ── Native article bodies ───────────────────────────────────────────────────────
+
+def get_post(post_id: str) -> Optional[dict]:
+    """One post WITH its converted body — the reader endpoint's row."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT p.*, pub.name AS publication_name
+               FROM substack_posts p
+               LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+               WHERE p.id = ?""",
+            (str(post_id),),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_post_by_slug(slug: str) -> Optional[dict]:
+    """Reader lookup by the URL-facing slug (falls back to id at the router)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT p.*, pub.name AS publication_name
+               FROM substack_posts p
+               LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+               WHERE p.slug = ?
+               ORDER BY p.published_at DESC LIMIT 1""",
+            (str(slug),),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def save_post_body(post_id: str, fields: dict) -> None:
+    """Store a converted body against an existing post row.
+
+    Deliberately UPDATE-only: the roster is owned by the poller, so a body for a
+    post we never listed would create a half-row the article list can't render.
+    """
+    allowed = ("body_raw", "body_html", "body_hash", "sections_json", "tickers_json",
+               "display_title", "slug", "word_count", "reading_minutes",
+               "image_count", "converter_version", "body_fetched_at")
+    payload = {k: fields[k] for k in allowed if k in fields}
+    if not payload:
+        return
+    sets = ", ".join(f"{k}=:{k}" for k in payload)
+    payload["id"] = str(post_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(f"UPDATE substack_posts SET {sets} WHERE id=:id", payload)
+        c.commit()
+
+
+def posts_needing_body(converter_version: int, limit: int = 500) -> list[dict]:
+    """Posts whose body is absent or was built by an older converter.
+
+    Ordered newest-first so a partial backfill leaves the archive useful from the
+    top rather than from 2025. Returns only what the fetcher needs.
+    """
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, url, title, published_at, body_hash, converter_version,
+                      (body_raw IS NOT NULL AND body_raw != '') AS has_raw
+               FROM substack_posts
+               WHERE body_html IS NULL OR body_html = ''
+                  OR converter_version IS NULL
+                  OR converter_version < ?
+               ORDER BY published_at DESC
+               LIMIT ?""",
+            (int(converter_version), int(limit)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def index_post_search(post_id: str, *, title: str, tickers: list, body: str) -> None:
+    """(Re)index one article for search. Idempotent: the old row is removed first,
+    so re-converting an article never leaves a stale duplicate behind."""
+    if not _FTS_READY:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("DELETE FROM substack_posts_fts WHERE post_id=?", (str(post_id),))
+        c.execute(
+            "INSERT INTO substack_posts_fts (post_id, title, tickers, body) VALUES (?,?,?,?)",
+            (str(post_id), title or "", " ".join(tickers or []), body or ""),
+        )
+        c.commit()
+
+
+def search_posts(query: str, limit: int = 30) -> list:
+    """Rank the archive against a query. Returns list rows + a highlighted snippet.
+
+    Deliberately NOT returning bodies — this feeds a result list, and the whole
+    reason list_posts selects explicit columns is that bodies are ~200 KB each.
+    """
+    q = (query or "").strip()
+    if not q or not _FTS_READY:
+        return []
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
+    with contextlib.closing(_connect()) as c:
+        try:
+            rows = c.execute(
+                f"""SELECT {cols},
+                           pub.name AS publication_name,
+                           -- MUST match list_posts: without it every search
+                           -- result renders as a link OUT to Substack, even
+                           -- though only articles WITH a body are indexed.
+                           (p.body_html IS NOT NULL AND p.body_html != '') AS has_body,
+                           snippet(substack_posts_fts, 3, char(2), char(3), '…', 18) AS snippet,
+                           bm25(substack_posts_fts, 0.0, 8.0, 6.0, 1.0) AS rank
+                    FROM substack_posts_fts
+                    JOIN substack_posts p ON p.id = substack_posts_fts.post_id
+                    LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+                    WHERE substack_posts_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?""",
+                (_fts_query(q), int(limit)),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # A malformed FTS expression (stray quote, bare operator) is a user
+            # typing, not a server fault.
+            return []
+        return [_with_safe_snippet(dict(r)) for r in rows]
+
+
+# FTS5 marks the hit with delimiters we choose. We ask for two CONTROL CHARS,
+# escape the whole snippet, then swap them for <mark> — because the indexed body
+# is PLAIN TEXT in which `<` is a literal character (the converter decodes
+# entities), so asking SQLite for '<mark>' directly would emit unescaped author
+# text straight into dangerouslySetInnerHTML.
+_SNIPPET_OPEN, _SNIPPET_CLOSE = "\x02", "\x03"
+
+
+def _with_safe_snippet(row: dict) -> dict:
+    raw = row.get("snippet")
+    if raw:
+        safe = html.escape(str(raw), quote=False)
+        row["snippet"] = (safe.replace(_SNIPPET_OPEN, "<mark>")
+                              .replace(_SNIPPET_CLOSE, "</mark>"))
+    return row
+
+
+def _fts_query(raw: str) -> str:
+    """User text -> a safe FTS5 MATCH expression.
+
+    Every term is quoted, so `AND`/`OR`/`NEAR`/`*`/`:` typed by a member are
+    searched for literally instead of being parsed as operators (or raising).
+    A bare ticker still works because quoting a single token matches that token.
+    """
+    terms = [t for t in re.split(r"\s+", raw.strip()) if t]
+    quoted = ['"' + t.replace('"', '""') + '"' for t in terms[:12]]
+    return " ".join(quoted)
+
+
+# A symbol as it appears inside tickers_json. Normalised and character-checked
+# because it arrives from a URL path segment.
+_SYM_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,7}$")
+
+
+def posts_for_ticker(sym: str, limit: int = 12) -> list:
+    """Articles that covered this symbol, newest first.
+
+    Matches on the QUOTED token inside `tickers_json` (`"MU"`), so a substring
+    can never make MU match MU.TO or AMU — the JSON quoting is what gives an
+    exact-token test without parsing 91 blobs.
+    """
+    s = (sym or "").strip().upper()
+    if not _SYM_RE.match(s):
+        return []
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"""SELECT {cols}, pub.name AS publication_name
+                FROM substack_posts p
+                LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+                WHERE p.body_html IS NOT NULL AND p.body_html != ''
+                  AND p.tickers_json LIKE ?
+                ORDER BY p.published_at DESC
+                LIMIT ?""",
+            (f'%"{s}"%', int(limit)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def count_posts_for_ticker(sym: str) -> int:
+    """Total coverage count — the list is capped, the headline number is not."""
+    s = (sym or "").strip().upper()
+    if not _SYM_RE.match(s):
+        return 0
+    with contextlib.closing(_connect()) as c:
+        return c.execute(
+            """SELECT COUNT(*) FROM substack_posts
+               WHERE body_html IS NOT NULL AND body_html != ''
+                 AND tickers_json LIKE ?""",
+            (f'%"{s}"%',),
+        ).fetchone()[0]
+
+
+def latest_post_with_tickers() -> Optional[dict]:
+    """The newest post that carries a ticker roster — the source for the
+    auto-maintained 'Sunday Scans' community watchlist.
+
+    Returns {id, title, published_at, tickers} or None. Tickers keep the
+    author-curated order from the issue's own 'Charts Covered' heading."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT id, title, display_title, published_at, tickers_json
+                 FROM substack_posts
+                WHERE tickers_json IS NOT NULL AND tickers_json != '' AND tickers_json != '[]'
+                ORDER BY published_at DESC, id DESC LIMIT 1"""
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        tickers = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str) and t]
+    except Exception:
+        return None
+    if not tickers:
+        return None
+    return {
+        "id": row["id"],
+        "title": row["display_title"] or row["title"],
+        "published_at": row["published_at"],
+        "tickers": tickers,
+    }
+
+
+def adjacent_posts(post_id: str) -> dict:
+    """The readable issues either side of this one, by publish date.
+
+    An archive is a SEQUENCE, and the reader had no exit but the back link.
+    Ordered by (published_at, id) so two issues sharing a date still have a
+    deterministic order rather than leaking the store's row order.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT published_at, id FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        if not row:
+            return {"previous": None, "next": None}
+        at, pid = row["published_at"], row["id"]
+        cols = ", ".join(f"p.{col}" for col in _POST_LIST_COLS)
+        base = (f"SELECT {cols} FROM substack_posts p "
+                "WHERE p.body_html IS NOT NULL AND p.body_html != '' ")
+        older = c.execute(
+            base + "AND (p.published_at < ? OR (p.published_at = ? AND p.id < ?)) "
+                   "ORDER BY p.published_at DESC, p.id DESC LIMIT 1",
+            (at, at, pid)).fetchone()
+        newer = c.execute(
+            base + "AND (p.published_at > ? OR (p.published_at = ? AND p.id > ?)) "
+                   "ORDER BY p.published_at ASC, p.id ASC LIMIT 1",
+            (at, at, pid)).fetchone()
+        pick = lambda r: ({"slug": r["slug"], "title": r["display_title"] or r["title"],
+                           "published_at": r["published_at"]} if r and r["slug"] else None)
+        return {"previous": pick(older), "next": pick(newer)}
+
+
+def related_posts(post_id: str, limit: int = 3, min_shared: int = 3) -> list:
+    """Issues that charted the most of the SAME names as this one.
+
+    prev/next walks the archive as a SEQUENCE; this is the other axis — the
+    issues most about the same stocks, whatever week they ran. Scored by
+    ticker-set overlap in Python: SQLite cannot intersect two JSON arrays
+    without parsing every blob anyway, and the archive is ~91 rows.
+
+    `min_shared` exists because every issue charts the index ETFs — a one- or
+    two-name overlap is the series' baseline, not a relationship.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT tickers_json FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        if not row or not row["tickers_json"]:
+            return []
+        try:
+            mine = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str)]
+        except (TypeError, ValueError):
+            return []
+        if not mine:
+            return []
+        mine_set = set(mine)
+        candidates = c.execute(
+            """SELECT id, slug, title, display_title, published_at, tickers_json
+               FROM substack_posts
+               WHERE id != ? AND slug IS NOT NULL AND slug != ''
+                 AND body_html IS NOT NULL AND body_html != ''
+                 AND tickers_json IS NOT NULL AND tickers_json != ''""",
+            (str(post_id),),
+        ).fetchall()
+    scored = []
+    for r in candidates:
+        try:
+            theirs = {t for t in json.loads(r["tickers_json"]) if isinstance(t, str)}
+        except (TypeError, ValueError):
+            continue
+        shared = mine_set & theirs
+        if len(shared) < min_shared:
+            continue
+        scored.append((len(shared), r["published_at"] or 0, r, shared))
+    scored.sort(key=lambda s: (-s[0], -s[1]))
+    return [{
+        "slug": r["slug"],
+        "title": r["display_title"] or r["title"],
+        "published_at": r["published_at"],
+        "shared_count": count,
+        # Shown in THIS issue's own ticker order — that order is author-curated
+        # ("Charts Covered" first), so the names the reader just saw lead.
+        "shared": [t for t in mine if t in shared][:4],
+    } for count, _at, r, shared in scored[:int(limit)]]
+
+
+def readable_slugs() -> set:
+    """Slugs of every post we can actually SERVE — i.e. that has a body.
+
+    Used to turn a link back to Substack into a link into our own reader. Keyed
+    on "has a body" rather than "exists", because sending a reader to an article
+    we hold only a card for is a worse outcome than letting them go to Substack.
+    """
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT slug FROM substack_posts
+               WHERE slug IS NOT NULL AND slug != ''
+                 AND body_html IS NOT NULL AND body_html != ''"""
+        ).fetchall()
+        return {r["slug"] for r in rows}
+
+
+def posts_missing_from_index(limit: int = 100) -> list:
+    """Posts that HAVE a body but no search-index row, newest first.
+
+    The index is younger than the archive, so every article stored before search
+    existed is in exactly this state — and an index that silently covers half the
+    archive is worse than none, because a search that finds nothing reads as
+    "he never wrote about it".
+    """
+    if not _FTS_READY:
+        return []
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT p.id, p.display_title, p.title, p.tickers_json
+               FROM substack_posts p
+               WHERE p.body_html IS NOT NULL AND p.body_html != ''
+                 AND NOT EXISTS (SELECT 1 FROM substack_posts_fts f
+                                 WHERE f.post_id = p.id)
+               ORDER BY p.published_at DESC
+               LIMIT ?""",
+            (int(limit),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def count_indexed_posts() -> int:
+    if not _FTS_READY:
+        return 0
+    with contextlib.closing(_connect()) as c:
+        return c.execute("SELECT COUNT(*) FROM substack_posts_fts").fetchone()[0]
+
+
+def get_post_raw(post_id: str) -> Optional[str]:
+    """The stored publisher HTML, for re-converting without a network call."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT body_raw FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        return (row["body_raw"] if row else None) or None
 
 
 # ── Team members ────────────────────────────────────────────────────────────────

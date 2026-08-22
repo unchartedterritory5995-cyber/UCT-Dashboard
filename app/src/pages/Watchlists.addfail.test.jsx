@@ -118,9 +118,12 @@ test('a failed add tells the user instead of failing silently', async () => {
   await addNvda(user)
 
   // The symbol did NOT land — the user has to be told, exactly as the deleted
-  // AddSymbolBar did ("Could not add NVDA") in an aria-live region.
-  const status = await screen.findByRole('status')
-  expect(status).toHaveTextContent(/could not add nvda/i)
+  // AddSymbolBar did ("Could not add NVDA") in an aria-live region. The page
+  // now mounts a second permanent status region (the Send-to-Journal toast,
+  // empty here), so assert on the one CARRYING the error, not "the" region.
+  const statuses = await screen.findAllByRole('status')
+  const status = statuses.find((el) => /could not add nvda/i.test(el.textContent))
+  expect(status).toBeTruthy()
 })
 
 test('a successful add surfaces no error and refreshes the list', async () => {

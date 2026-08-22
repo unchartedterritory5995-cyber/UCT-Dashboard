@@ -48,6 +48,15 @@ _DIM = (132, 139, 148)
 _DIV = (36, 40, 46)
 _BULL = (74, 200, 120)
 _BEAR = (232, 96, 96)
+_CHIP_W_BG = (58, 47, 12)     # weekly tag chip
+_CHIP_W_FG = (240, 201, 74)
+_CHIP_E_BG = (58, 20, 20)     # earnings tag chip
+_CHIP_E_FG = (240, 137, 125)
+
+# Broad-market index products whose LONG-DATED (LEAP) contracts are usually
+# hedges/financing, not directional bets — dropped from the card (see run_eod).
+_INDEX_HEDGE_TICKERS = {"SPY", "SPX", "SPXW", "QQQ", "QQQW", "IWM",
+                        "NDX", "NDXP", "RUT", "RUTW", "DIA", "VIX", "VIXW"}
 
 
 def _webhook() -> str:
@@ -69,6 +78,64 @@ def get_alpha_gold_today(today: str | None = None) -> list[dict]:
     alerts = list((payload or {}).get("alerts") or [])
     alerts.sort(key=lambda a: (a.get("alertPremium") or 0), reverse=True)
     return alerts
+
+
+def _get_bcontract_accumulations(day: str, min_score: float = 4.5) -> list[dict]:
+    """The day's ≥B by-contract accumulations (COIN 'UCT Accumulation' + GLW
+    'UCT Bull LEAPS' style), shaped like Alpha Gold alerts so they drop into the
+    same card rows. Conviction ≥ B == accumulation_score >= 4.5 (the grade cutoff
+    in _accumulation_grade). AVG = total_premium / (total_volume × 100). Fail-open:
+    returns [] on any error so a data hiccup never blanks the card."""
+    from api import live_massive_router as lmr
+    try:
+        res = lmr._build_by_contract(day, "all", 1, True, 1)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[alpha-gold-eod] by-contract fetch failed: %s", e)
+        return []
+    out: list[dict] = []
+    for c in (res or {}).get("contracts") or []:
+        if (c.get("accumulation_score") or 0) < min_score:
+            continue
+        vol = c.get("total_volume") or 0
+        prem = c.get("total_premium") or 0
+        avg = (prem / (vol * 100.0)) if vol > 0 else None
+        out.append({
+            "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
+            "exp": c.get("exp"), "dte": c.get("dte"), "spot": c.get("spot"),
+            "source": c.get("source"),
+            "alertPremium": prem, "averageFillPrice": avg,
+            "_direction": c.get("direction"),
+            "moneynessLabel": c.get("moneynessLabel"), "moneynessPct": c.get("moneynessPct"),
+            "_accum": True, "_accScore": c.get("accumulation_score"),
+        })
+    return out
+
+
+def _merge_accum(alerts: list[dict], accum: list[dict]) -> list[dict]:
+    """Fold accumulations into the Alpha Gold alert list, deduped by contract
+    (ticker, C/P, strike, exp). When a contract is BOTH an Alpha Gold single print
+    AND a ≥B accumulation, the accumulation WINS — it carries the contract's true
+    cumulative premium (and avg fill), so the card shows the aggregate flow (e.g.
+    CBRS $260C as its full $13M, not one $2.8M print). Re-sorted premium-desc so
+    the biggest flow leads each section after _rollup."""
+    def _key(a):
+        return (a.get("ticker"), (a.get("cp") or "").upper(), a.get("strike"), str(a.get("exp") or ""))
+    acc_by_key = {_key(c): c for c in accum}
+    out: list[dict] = []
+    seen: set = set()
+    for a in alerts:
+        k = _key(a)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(acc_by_key.get(k, a))   # accumulation (aggregate) wins over a single print
+    for c in accum:
+        k = _key(c)
+        if k not in seen:
+            seen.add(k)
+            out.append(c)
+    out.sort(key=lambda a: (a.get("alertPremium") or 0), reverse=True)
+    return out
 
 
 def _earnings_soon_syms(within_days: int) -> set[str]:
@@ -147,9 +214,64 @@ def _exp_short(exp) -> str:
     return "/".join(parts[:2]) if len(parts) >= 2 else str(exp or "")
 
 
+def _exp_mdy(exp) -> str:
+    """MM/DD/YYYY → mm/dd/yy (2-digit year). Falls back to the short m/d form."""
+    parts = str(exp or "").split("/")
+    if len(parts) < 3:
+        return _exp_short(exp)
+    try:
+        m, d = int(parts[0]), int(parts[1])
+        yy = parts[2][-2:]
+        return f"{m:02d}/{d:02d}/{yy}"
+    except (ValueError, IndexError):
+        return _exp_short(exp)
+
+
+def _is_weekly(exp) -> bool:
+    """True for a WEEKLY option: it expires on a FRIDAY (the week's last day) that
+    is NOT the monthly 3rd Friday. So monthlies + LEAPs (always the 3rd Friday),
+    and any non-Friday settlement (quarter-end Wednesday, special LEAP dates like a
+    Thursday), are NOT weekly. Unparseable dates → False (never mis-tagged)."""
+    parts = str(exp or "").split("/")
+    if len(parts) < 3:
+        return False
+    try:
+        from datetime import date
+        m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
+        if y < 100:
+            y += 2000
+        dt = date(y, m, d)
+        if dt.weekday() != 4:                          # 4 == Friday
+            return False                               # weeklies expire on a Friday
+        first = date(y, m, 1)
+        first_fri = 1 + ((4 - first.weekday()) % 7)    # Mon=0..Fri=4
+        return d != (first_fri + 14)                   # a Friday, but not the 3rd (monthly)
+    except (ValueError, IndexError):
+        return False
+
+
+def _is_deep_itm(a: dict, pct: float) -> bool:
+    """True for a DEEP in-the-money contract (ITM by >= `pct`%). Deep-ITM ETF/index
+    blocks are typically hedges / financing (delta ≈ 1), not directional bets."""
+    lbl = (a.get("moneynessLabel") or "").upper()
+    mp = a.get("moneynessPct")
+    return lbl == "ITM" and isinstance(mp, (int, float)) and abs(mp) >= pct
+
+
 def _dte(a: dict) -> str:
     d = a.get("dte")
     return f"{int(d)}d" if d is not None else "—"
+
+
+def _avg(a: dict) -> str:
+    """Average fill price PAID per contract (option price, not the underlying).
+    Alpha Gold prints carry `averageFillPrice`; merged accumulations pre-compute
+    it as total_premium / (total_volume × 100)."""
+    try:
+        p = float(a.get("averageFillPrice"))
+    except (TypeError, ValueError):
+        return "—"
+    return f"${p:.2f}" if p > 0 else "—"
 
 
 def _dir(a: dict) -> str:
@@ -198,19 +320,39 @@ def _rollup(alerts: list[dict]) -> list[dict]:
     return order
 
 
+def _apply_cap(rows: list, cap: int) -> list:
+    """Cap a section to `cap` rows. When over the cap, DROP WEEKLIES FIRST (lowest
+    premium first), keeping monthlies + LEAPs; if the non-weeklies alone still
+    exceed the cap, hard-cap by premium. Input is premium-desc."""
+    if cap <= 0:
+        return rows
+    if len(rows) <= cap:
+        return rows
+    non_weekly = [r for r in rows if not r.get("_weekly")]
+    weekly = [r for r in rows if r.get("_weekly")]        # premium-desc within
+    if len(non_weekly) >= cap:
+        keep = non_weekly[:cap]                           # all weeklies dropped
+    else:
+        keep = non_weekly + weekly[:cap - len(non_weekly)]  # fill with biggest weeklies
+    keep.sort(key=lambda r: (r.get("alertPremium") or 0), reverse=True)
+    return keep
+
+
 # ── render ─────────────────────────────────────────────────────────────────
+# Columns spread across the card so spacing is even — no dead gap in the middle.
+# C/P is folded into STRIKE ($195C); the underlying spot, %ITM/OTM and V/OI columns
+# were dropped for a cleaner row (owner preference). AVG = avg fill price paid.
 _COLS = [
-    ("time", "TIME", 36, "l"), ("ticker", "TICKER", 114, "l"), ("exp", "EXP", 226, "l"),
-    ("strike", "STRIKE", 404, "r"), ("cp", "C/P", 412, "l"), ("dte", "DTE", 500, "r"),
-    ("spot", "SPOT", 620, "r"), ("prem", "PREMIUM", 740, "r"), ("money", "%ITM/OTM", 890, "r"),
-    ("voi", "V/OI", 976, "r"), ("dir", "DIR", 996, "l"),
+    ("ticker", "TICKER", 40, "l"), ("strike", "STRIKE", 210, "l"),
+    ("expdte", "EXP · DTE", 400, "l"), ("avg", "AVG", 730, "r"),
+    ("prem", "PREMIUM", 915, "r"), ("dir", "DIR", 985, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 170, 32
 _SS = 2  # supersample then downscale for crisp text
 
 
-def render_card(alerts: list[dict], date_text: str, top_n: int = 30,
-                net_stats: dict | None = None) -> bytes:
+def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = None,
+                stock_cap: int = 15, etf_cap: int = 10) -> bytes:
     from PIL import Image, ImageDraw, ImageFont
 
     def font(name, pt):
@@ -222,9 +364,9 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30,
     stocks = [a for a in alerts if not _is_etf(a)]
     etfs = [a for a in alerts if _is_etf(a)]
     sections = []
-    for label, group in (("STOCKS", stocks), ("ETFs", etfs)):
+    for label, group, cap in (("STOCKS", stocks, stock_cap), ("ETFs", etfs, etf_cap)):
         if group:
-            sections.append((label, group, _rollup(group)[:max(0, top_n)]))
+            sections.append((label, group, _apply_cap(_rollup(group), cap)))
 
     grand = _counts(alerts)
     body_h = sum(_SECH + max(1, len(rows)) * _ROWH for _, _, rows in sections) or _ROWH
@@ -248,6 +390,16 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30,
         else:
             d.text((s(x), s(y)), t, font=fnt, fill=fill)
         return w / _SS
+
+    def chip(x, y, letter, bg, fg):
+        """Small tag chip (W / ER …); width adapts to the label. Returns the
+        horizontal advance (chip + gap)."""
+        lw = d.textlength(letter, font=f_n) / _SS
+        cw, ch = lw + 8.0, 15.0
+        d.rounded_rectangle([s(x), s(y - 1), s(x + cw), s(y - 1 + ch)],
+                            radius=s(3), fill=bg)
+        d.text((s(x + (cw - lw) / 2), s(y + 1)), letter, font=f_n, fill=fg)
+        return cw + 5
 
     # title band + UCT compass logo
     d.rectangle([0, 0, s(_W), s(_TOP - 26)], fill=_BAND)
@@ -309,33 +461,26 @@ def render_card(alerts: list[dict], date_text: str, top_n: int = 30,
             is_bull = _dir(a) == "bull"
             dcol = _BULL if is_bull else _BEAR
             cp = (a.get("cp") or "").upper()
-            strike, spot = a.get("strike"), a.get("spot")
+            strike = a.get("strike")
             for key, hdr, x, al in _COLS:
                 if key == "ticker":
                     w = txt(x, y, a.get("ticker") or "", f_rowb, _GOLD)
-                    if a.get("_n", 1) > 1:
-                        txt(x + w + 6, y + 1, f"×{a['_n']}", f_n, _DIM)
+                    cx = x + w + 6
+                    if a.get("_weekly"):
+                        cx += chip(cx, y, "W", _CHIP_W_BG, _CHIP_W_FG)
+                    if a.get("_earn"):
+                        cx += chip(cx, y, "ER", _CHIP_E_BG, _CHIP_E_FG)
+                elif key == "strike":
+                    txt(x, y, f"${strike:g}{cp}" if strike else "—", f_rowb, _TXT)
+                elif key == "expdte":
+                    txt(x, y, f"{_exp_mdy(a.get('exp'))} · {_dte(a)}", f_row, _DIM)
+                elif key == "avg":
+                    txt(x, y, _avg(a), f_row, _TXT, "r")
+                elif key == "prem":
+                    txt(x, y, _fmt_prem(a.get("alertPremium")), f_rowb, _GOLD, "r")
                 elif key == "dir":
                     txt(x, y, f"{'▲' if is_bull else '▼'} {'BULL' if is_bull else 'BEAR'}",
                         f_rowb, dcol)
-                elif key == "cp":
-                    txt(x, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
-                elif key == "strike":
-                    txt(x, y, f"${strike:g}" if strike else "—", f_row, _TXT, "r")
-                elif key == "time":
-                    txt(x, y, _time_et(a), f_row, _DIM)
-                elif key == "exp":
-                    txt(x, y, _exp_short(a.get("exp")), f_row, _DIM)
-                elif key == "dte":
-                    txt(x, y, _dte(a), f_row, _DIM, "r")
-                elif key == "spot":
-                    txt(x, y, f"{spot:.2f}" if spot else "—", f_row, _DIM, "r")
-                elif key == "money":
-                    txt(x, y, _money(a), f_row, _TXT, "r")
-                elif key == "prem":
-                    txt(x, y, _fmt_prem(a.get("alertPremium")), f_rowb, _GOLD, "r")
-                elif key == "voi":
-                    txt(x, y, _voi(a), f_row, _TXT, "r")
             y += _ROWH
         y += 6
 
@@ -415,22 +560,59 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         from api import live_massive_router as lmr
         day = today or lmr._today_mdyyyy()
         alerts = get_alpha_gold_today(day)
-        # Owner rule: drop names reporting earnings this week (binary-event risk) —
-        # the featured Alpha Gold list should be clean directional flow, not a
-        # pre-earnings gamble. Window is env-tunable; NET bar below stays the
-        # OVERALL day flow (deliberately unfiltered). Fail-open on a cold ER cache.
-        er_days = int(os.getenv("ALPHA_GOLD_EOD_ER_EXCLUDE_DAYS", "7"))
+        # Fold in the day's ≥B by-contract accumulations (COIN/GLW-style conviction
+        # flow) so the card surfaces more than just the biggest single prints.
+        try:
+            accum = _get_bcontract_accumulations(day, min_score=4.5)
+            if accum:
+                alerts = _merge_accum(alerts, accum)
+                log.info("[alpha-gold-eod] merged %d ≥B accumulation(s)", len(accum))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[alpha-gold-eod] accumulation merge failed: %s", e)
+        # Owner rule: drop 0/1 DTE (same-day / next-day expiries) — cut the
+        # short-dated noise so the card reads as real positioning, not lottos.
+        alerts = [a for a in alerts
+                  if not (isinstance(a.get("dte"), (int, float)) and a["dte"] <= 1)]
+        # Owner rule: drop DEEP-ITM contracts that still carry TIME (stocks AND
+        # ETFs) — deep-ITM long-dated options (delta ≈ 1) are usually hedges /
+        # synthetic positions, not directional bets. `min_dte` is the "with time"
+        # gate so a near-expiry deep-ITM print isn't swept up. Both env-tunable.
+        ditm_pct = float(os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_PCT", "15"))
+        ditm_min_dte = int(os.getenv("ALPHA_GOLD_EOD_DEEP_ITM_MIN_DTE", "5"))
+        if ditm_pct > 0:
+            alerts = [a for a in alerts
+                      if not (_is_deep_itm(a, ditm_pct)
+                              and isinstance(a.get("dte"), (int, float))
+                              and a["dte"] >= ditm_min_dte)]
+        # Owner rule: drop LONG-DATED (LEAP) contracts on the broad-index products
+        # (SPY/SPX/SPXW/QQQ/IWM …) — usually deep-ITM hedges. Near-term index
+        # contracts stay. DTE threshold env-tunable.
+        idx_leap_dte = int(os.getenv("ALPHA_GOLD_EOD_INDEX_LEAP_DTE", "180"))
+        if idx_leap_dte > 0:
+            alerts = [a for a in alerts
+                      if not ((a.get("ticker") or "").upper() in _INDEX_HEDGE_TICKERS
+                              and isinstance(a.get("dte"), (int, float))
+                              and a["dte"] > idx_leap_dte)]
+        # Earnings: KEEP but TAG (owner change from the prior drop). Stamp a weekly
+        # flag (non-monthly expiry) + an earnings flag (reports within the window) on
+        # every row so render_card can show W / E chips and, if a section is over its
+        # cap, drop weeklies first. Fail-open on a cold ER cache.
+        er_days = int(os.getenv("ALPHA_GOLD_EOD_ER_TAG_DAYS", "7"))
         er_syms = _earnings_soon_syms(er_days)
-        if er_syms:
-            dropped = sorted({(a.get("ticker") or "").upper() for a in alerts
-                              if (a.get("ticker") or "").upper() in er_syms})
-            if dropped:
-                alerts = [a for a in alerts
-                          if (a.get("ticker") or "").upper() not in er_syms]
-                log.info("[alpha-gold-eod] excluded %d earnings-week name(s) "
-                         "(<=%dd): %s", len(dropped), er_days, ", ".join(dropped))
+        # Weekly = a NEAR-TERM Friday non-monthly expiry (_is_weekly AND within
+        # `wk_fri_max` days) OR anything under `wk_dte` days. The Friday cap keeps a
+        # far-dated 4th-Friday (e.g. IBIT 37d) from being mislabeled a weekly.
+        wk_dte = int(os.getenv("ALPHA_GOLD_EOD_WEEKLY_DTE", "5"))
+        wk_fri_max = int(os.getenv("ALPHA_GOLD_EOD_WEEKLY_FRIDAY_MAX_DTE", "14"))
+        for a in alerts:
+            _d = a.get("dte")
+            _dn = _d if isinstance(_d, (int, float)) else None
+            a["_weekly"] = ((_is_weekly(a.get("exp")) and _dn is not None and _dn <= wk_fri_max)
+                            or (_dn is not None and _dn < wk_dte))
+            a["_earn"] = (a.get("ticker") or "").upper() in er_syms
         date_text = _date_text(day)
-        top_n = int(os.getenv("ALPHA_GOLD_EOD_TOP_N", "30"))
+        stock_cap = int(os.getenv("ALPHA_GOLD_EOD_STOCK_CAP", "15"))
+        etf_cap = int(os.getenv("ALPHA_GOLD_EOD_ETF_CAP", "10"))
         # NET bar reflects the OVERALL day's directional flow (the LiveFlow "Market
         # Read"), not just the Alpha Gold prints on this card.
         net_stats = None
@@ -440,7 +622,8 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
                          "bear_prem": ds.get("bear_premium") or 0}
         except Exception as e:
             log.warning("[alpha-gold-eod] overall day-stats unavailable: %s", e)
-        png = render_card(alerts, date_text, top_n, net_stats=net_stats)
+        png = render_card(alerts, date_text, net_stats=net_stats,
+                          stock_cap=stock_cap, etf_cap=etf_cap)
         res: dict = {"ok": True, "date": day, "count": len(alerts)}
 
         if not post:

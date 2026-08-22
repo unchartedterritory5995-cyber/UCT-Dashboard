@@ -8,6 +8,10 @@ import UIcon from '../../components/ui/UIcon'
 import useSectorRead from '../../hooks/useSectorRead'
 import { currentWeekMonday, localIso } from './weekAnchor'
 import { todayIsoEt } from './calendarTime'
+// ⛔ IMPORTED, NOT RESTATED. `filterLogic` owns what "unfiltered" means;
+// a second copy here would let `Show all` drift from what a fresh visitor
+// actually lands on.
+import { DEFAULT_FILTERS } from './filterLogic'
 import styles from './Calendar.module.css'
 
 const AUDIENCE = [
@@ -290,6 +294,22 @@ export default function CalendarHeader({
     useSectorRead(sectorReadOpen ? (filters.sector || null) : null, sectorReadWeek)
 
   const set = (k, v) => setFilters({ ...filters, [k]: v })
+  // ── The SCOPING filters, and their undo ──────────────────────────────────
+  // `audience` and `sector` hide silently: unlike search/cap they leave no
+  // visible token, so the only trace is the `N hidden` count. That count was
+  // read as a BROKEN CALENDAR twice on 2026-08-16 — the week of Aug 17 showed
+  // 58 of 130 with `My Stocks` on, and the four names being looked for were
+  // among the 72. The header said so, in grey prose, next to nothing you could
+  // click.
+  // ⛔ The previous conclusion was that Clear must not appear for these
+  // "because it would be a dead button". Correct about Clear; the answer is a
+  // button that ISN'T dead, not the absence of one.
+  const isScoped = filters.audience !== DEFAULT_FILTERS.audience || !!filters.sector
+  const showEverything = () => setFilters({
+    ...filters,
+    audience: DEFAULT_FILTERS.audience,
+    sector: DEFAULT_FILTERS.sector,
+  })
   const setNum = (k, v) => setFilters({ ...filters, [k]: v === '' ? null : Number(v) })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
@@ -565,6 +585,12 @@ export default function CalendarHeader({
       {weekCounts.hidden > 0 && (
         <>
           {' '}· {weekCounts.hidden} hidden
+          {isScoped && (
+            <button className={styles.quickClearAll} onClick={showEverything}
+                    title="Show every reporter this week, not just your scoped set">
+              Show all
+            </button>
+          )}
           {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
             <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
           )}
@@ -690,8 +716,8 @@ export default function CalendarHeader({
           "hidden" pill appears only when filters bite. Month keeps just the
           search (its grid doesn't consume the week filters), so "when does X
           report" works on every view. Clear renders ONLY when the QUICK
-          filters (search/cap) are active — audience/sector hiding is honest
-          information but Clear can't undo it (it would be a dead button). */}
+          filters (search/cap) are active — it genuinely cannot undo
+          audience/sector, which is what `Show all` is for. */}
       {isPhone && (
         <div className={styles.quickBar}>
           {view !== 'month' && capPillsEl}
@@ -699,6 +725,11 @@ export default function CalendarHeader({
           {view !== 'month' && weekCounts && weekCounts.hidden > 0 && (
             <span className={styles.quickSummaryPhone}>
               {weekCounts.total} shown · {weekCounts.hidden} hidden
+              {isScoped && (
+                <button className={styles.quickClearAll} onClick={showEverything}>
+                  Show all
+                </button>
+              )}
               {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
                 <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
               )}

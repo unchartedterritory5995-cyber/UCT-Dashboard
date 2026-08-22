@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
+import isModalOpen from '../../utils/modalOpen'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -41,6 +42,37 @@ const _ANNOTATION_REMAP = {
 }
 function brightenAnnotationColor(color) {
   return (color && _ANNOTATION_REMAP[color.toLowerCase()]) || color
+}
+// Perceived luminance (0..1) of a CSS hex or rgb()/rgba() color; null if unparseable.
+function _colorLuminance(c) {
+  if (!c || typeof c !== 'string') return null
+  const s = c.trim()
+  let r, g, b
+  if (s[0] === '#') {
+    let hex = s.slice(1)
+    if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('')
+    if (hex.length < 6) return null
+    r = parseInt(hex.slice(0, 2), 16); g = parseInt(hex.slice(2, 4), 16); b = parseInt(hex.slice(4, 6), 16)
+  } else {
+    const m = s.match(/rgba?\(([^)]+)\)/i)
+    if (!m) return null
+    const parts = m[1].split(',').map(x => parseFloat(x))
+    ;[r, g, b] = parts
+  }
+  if (![r, g, b].every(Number.isFinite)) return null
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+}
+// Auto-ink for BARE text labels (the advance % label): black on a light canvas,
+// white on a dark one, so the label always contrasts the background without the
+// old shadow/outline. Reads the chart's ACTUAL applied background so a custom,
+// gradient, or light (sunrise) theme all resolve correctly. White when unreadable.
+function autoLabelInk(chart) {
+  try {
+    const bg = chart?.options?.().layout?.background
+    const lum = _colorLuminance(bg?.color ?? bg?.topColor)
+    if (lum == null) return '#ffffff'
+    return lum > 0.5 ? '#000000' : '#ffffff'
+  } catch { return '#ffffff' }
 }
 // Line tools whose right-click menu offers "Set level" (type an exact price) and,
 // for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
@@ -253,6 +285,34 @@ function renderCup(ctx, pts) {
   ctx.stroke()
 }
 
+// Wrap `text` to `maxWidth` (canvas px) using `ctx`'s current font — honoring
+// explicit newlines AND soft-wrapping long lines the way the edit textarea does
+// (word wrap, with a character-level break for a single token wider than the box,
+// e.g. a pasted no-space string). `maxWidth` falsy → split on \n only (legacy notes
+// with no stored box width keep their old single-line-per-\n rendering).
+function wrapTextLines(ctx, text, maxWidth) {
+  const out = []
+  for (const para of String(text ?? '').split('\n')) {
+    if (!maxWidth || maxWidth <= 0) { out.push(para); continue }
+    let cur = ''
+    for (let token of para.split(/(\s+)/)) {   // keep whitespace tokens so words rejoin
+      if (token === '') continue
+      while (token.length) {
+        const test = cur + token
+        if (ctx.measureText(test).width <= maxWidth) { cur = test; token = ''; break }
+        if (cur.trim()) { out.push(cur.replace(/\s+$/, '')); cur = ''; continue }  // flush, retry on new line
+        // cur empty and this single token is wider than the box → break it by chars.
+        let i = 1
+        while (i < token.length && ctx.measureText(token.slice(0, i + 1)).width <= maxWidth) i++
+        out.push(token.slice(0, i))
+        token = token.slice(i)
+      }
+    }
+    out.push(cur.replace(/\s+$/, ''))
+  }
+  return out
+}
+
 function renderText(ctx, pts, drawing, opacity = 1) {
   if (!pts.length || !drawing.text || opacity <= 0.02) return
   const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
@@ -260,9 +320,11 @@ function renderText(ctx, pts, drawing, opacity = 1) {
   ctx.globalAlpha = prevAlpha * opacity
   ctx.font = `${fs}px "Instrument Sans", sans-serif`
   ctx.fillStyle = ctx.strokeStyle
-  const lines = drawing.text.split('\n')
+  // Wrap to the width the box was resized to, so the on-chart text reads EXACTLY
+  // like it did in the edit box (matches lineHeight 1.4 too).
+  const lines = wrapTextLines(ctx, drawing.text, drawing.boxWidth)
   lines.forEach((line, i) => {
-    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
+    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.4)
   })
   ctx.globalAlpha = prevAlpha
 }
@@ -283,7 +345,7 @@ function computeAdvancePct(A, B) {
 
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
 // % = directional move between the 1st and 2nd clicked candles (see computeAdvancePct).
-function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null) {
+function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff') {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
@@ -303,10 +365,11 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
   const baseY = anchorY != null ? anchorY : p.y
   const y = isDecline ? baseY + offset : baseY - offset
   ctx.save()
-  ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
+  // Match the swing price labels exactly (swingLabelsPrimitive): 600 11px
+  // Instrument Sans, no outline/shadow — just a clean fill.
+  ctx.font = '600 11px "Instrument Sans", sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = isDecline ? 'top' : 'bottom'
-  ctx.lineJoin = 'round'
   // Thousands separator for big moves: +1,156% (toLocaleString carries the sign).
   const n = Math.round(drawing.advPct)
   const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
@@ -319,10 +382,9 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
     px = Math.max(half, Math.min(px, canvasW - half))
   }
   const py = Math.round(y)
-  ctx.lineWidth = 3
-  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
-  ctx.strokeText(text, px, py)
-  ctx.fillStyle = '#ffffff'
+  // Color: a user-chosen color (right-click → Color) wins; otherwise auto-ink
+  // (black on a light canvas, white on a dark one). No stroke/shadow.
+  ctx.fillStyle = drawing.labelColor || autoInk
   ctx.fillText(text, px, py)
   ctx.restore()
 }
@@ -694,10 +756,21 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'arrow':
       return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
     case 'text': {
-      // Simple bounding box
-      const textW = (d.text?.length || 1) * 8
-      const textH = (d.text?.split('\n').length || 1) * 16
-      return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - textH && my <= pts[0].y + 8
+      // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
+      // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
+      // = estimated wrapped line count. Approximation is fine for hit-testing.
+      const fs = d.fontSize || 13
+      const lineH = fs * 1.4
+      let nLines = 0
+      for (const para of String(d.text || '').split('\n')) {
+        if (d.boxWidth) {
+          const w = (para.length || 1) * (fs * 0.55)   // ~avg char width
+          nLines += Math.max(1, Math.ceil(w / d.boxWidth))
+        } else nLines += 1
+      }
+      const textW = d.boxWidth || (d.text?.length || 1) * 8
+      const textH = Math.max(1, nLines) * lineH
+      return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - 4 && my <= pts[0].y + textH + 4
     }
     case 'advance': {
       // Label sits above the 2nd point's candle; box a vertical strip above it.
@@ -1413,6 +1486,10 @@ export default function ChartDrawingOverlay({
     ctx.rect(0, 0, plotRight, h)
     ctx.clip()
 
+    // Auto-ink for bare text labels (advance %) — white on dark canvas, black on
+    // light — computed once from the chart's actual background for this frame.
+    const autoInk = autoLabelInk(chartRef.current)
+
     // Focus-zoom fade (Model Book). `fadeVal` eases 0→1 over the last sliver of the
     // zoom-in (and out on zoom-out). When `fadeWholeLayer` (show-all OFF) the WHOLE
     // layer fades via globalAlpha; otherwise (show-all ON) only the text fades and
@@ -1522,6 +1599,10 @@ export default function ChartDrawingOverlay({
 
     // Draw completed drawings
     for (const d of drawings) {
+      // A text note being edited is HIDDEN on the canvas while its editor box is
+      // open — otherwise the note renders BEHIND the (slightly offset) textarea and
+      // reads as a duplicate "ghost" box (the reported double-click glitch).
+      if (textInput?.editId === d.id) continue
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
         ctx.save()
@@ -1609,7 +1690,7 @@ export default function ChartDrawingOverlay({
               if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
             }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight)
+          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk)
           break
         }
       }
@@ -1669,14 +1750,14 @@ export default function ChartDrawingOverlay({
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
               if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight)
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight, autoInk)
               }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai] && bars[bi]) {
                 const pct = computeAdvancePct(bars[ai], bars[bi])
-                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight)
+                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight, autoInk)
               }
             }
             break
@@ -1694,7 +1775,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -2273,6 +2354,23 @@ export default function ChartDrawingOverlay({
     if (readOnly) return undefined
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      // ⭐ THE THIRD KEY HANDLER THAT IS NOT SCOPED TO THE CHART.
+      //
+      // This listener is on `window`, so it fires wherever focus is. The
+      // input-only test above is the exact guard the 2026-08-10 B1 sweep called
+      // wrong ("the guard has to be 'is a modal open', not 'did this come from an
+      // input'") — and the fix that followed enumerated TWO sites, `StockChart`'s
+      // document listener and `ChartPane`'s type-to-search, by hand. This one was
+      // missed, so the leak survived in a narrower form for four days.
+      //
+      // ⚰️ MEASURED ON PRODUCTION 2026-08-14, WMT 1D: with the MACD settings
+      // dialog open and focus on its panel (a DIV — none of INPUT/TEXTAREA),
+      // typing `AAPL` armed the **Pitchfork** tool and typing `t` armed the
+      // **Trendline**. The member then clicks the chart to carry on and starts
+      // drawing instead. `e.target.isContentEditable` is here for the same reason
+      // one level down: the builder's formula surfaces are not <input> either.
+      if (isModalOpen(e.target)) return
+      if (e.target.isContentEditable) return
 
       if (e.key === 'Escape') {
         if (isDragging) {
@@ -2383,11 +2481,11 @@ export default function ChartDrawingOverlay({
   }, [activeTool])
 
   // ── Text input submit ──
-  const handleTextSubmit = (text) => {
+  const handleTextSubmit = (text, boxWidth = null) => {
     if (!textInput) return
     // Editing an existing note (double-click): update its text; empty leaves it.
     if (textInput.editId) {
-      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim() })
+      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim(), ...(boxWidth ? { boxWidth } : {}) })
       setTextInput(null)
       return
     }
@@ -2399,6 +2497,7 @@ export default function ChartDrawingOverlay({
       lineWidth,
       text: text.trim(),
       fontSize: fontSize || 13,
+      boxWidth: boxWidth || null,   // wrap width so the chart matches the edit box
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)
@@ -2467,6 +2566,7 @@ export default function ChartDrawingOverlay({
           x={textInput.x}
           y={textInput.y}
           color={color}
+          fontSize={fontSize || 13}
           initialValue={textInput.initialValue || ''}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
@@ -2517,7 +2617,7 @@ export default function ChartDrawingOverlay({
               updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price: leftLevel, paneRelY: null })) })
               setCtxMenu(null)
             }}
-            onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
+            onSetColor={(c) => updateDrawing(ctxMenu.drawingId, d.type === 'advance' ? { labelColor: c } : { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
@@ -2546,7 +2646,12 @@ export default function ChartDrawingOverlay({
 
 // ─── Inline text input ──────────────────────────────────────────────────────
 
-function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }) {
+// Horizontal padding of the textarea (2 × 8px). The content width available for
+// text = clientWidth − this, and that's the width we wrap the on-chart text to so
+// the rendered note reads exactly like the box.
+const TEXTBOX_PAD_X = 16
+
+function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSubmit, onCancel }) {
   const [value, setValue] = useState(initialValue)
   const ref = useRef(null)
   const readyRef = useRef(false)
@@ -2562,7 +2667,10 @@ function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }
 
   const submit = () => {
     if (!readyRef.current) return // ignore blur before we're ready
-    onSubmit(value)
+    // Capture the CONTENT width (box width minus padding) so the chart wraps the
+    // text to the exact width the user sized the box to → WYSIWYG.
+    const boxWidth = ref.current ? Math.max(1, ref.current.clientWidth - TEXTBOX_PAD_X) : null
+    onSubmit(value, boxWidth)
   }
 
   return (
@@ -2585,18 +2693,21 @@ function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }
         zIndex: 20,
         minWidth: 160,
         minHeight: 32,
-        maxWidth: 320,
+        maxWidth: 480,
         padding: '6px 8px',
-        background: 'rgba(26, 28, 23, 0.97)',
-        border: `1px solid ${color}`,
+        // Transparent so it blends with the canvas — the box just previews the note
+        // over the chart. Border marks the editable bounds; text is the note colour.
+        background: 'transparent',
+        border: `1px dashed ${color}`,
         borderRadius: 4,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-        color: '#e2dfd6',
+        color,
         fontFamily: "'Instrument Sans', sans-serif",
-        fontSize: 12,
+        fontSize,
         lineHeight: 1.4,
         resize: 'both',
         outline: 'none',
+        overflowWrap: 'break-word',
+        whiteSpace: 'pre-wrap',
       }}
     />
   )
@@ -2673,7 +2784,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   }, [onClose])
 
   const locked = !!drawing?.locked
-  const curColor = drawing?.color || '#c9a84c'
+  const curColor = (drawing?.type === 'advance' ? drawing?.labelColor : drawing?.color) || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
   const isText = drawing?.type === 'text'

@@ -117,6 +117,27 @@ def _run_5min_check():
             # outage under a pile of "0/0 cold" noise.
             return
 
+        # ── DAILY store freshness — the gap the intraday sample below is BLIND
+        # to (the 2026-08-11 week-long freeze was DAILY, and this check runs on
+        # the WEB pod against the WEB store, so it catches R2-merge staleness
+        # too). Same sampler the worker health + freshness watchdog use; a
+        # `stale` verdict pages Discord via chart_health_alerts' critical path.
+        try:
+            from api.services.bars_prewarm import daily_freshness_report
+            _fr = daily_freshness_report()
+            if _fr.get("stale"):
+                _alerts.emit(
+                    "bars_daily_store_stale", "critical",
+                    f"DAILY store is ~{_fr.get('days_behind')}d behind "
+                    f"(newest {_fr.get('newest_session')} vs expected "
+                    f"{_fr.get('expected_session')}). Daily charts are serving "
+                    f"stale history to everyone.",
+                    _fr,
+                )
+                _logger.error("[continuous_audit] daily store stale: %s", _fr)
+        except Exception:
+            pass
+
         # ── Actionable signal: the HOT-SET (charts users actually open) ──
         # The untouched long tail of the ~3,685-ticker universe staying
         # frozen is the EXPECTED steady state — Part 1 heals it on access,

@@ -206,6 +206,34 @@ def _snap_lookup(snap: dict, sym: str):
         return None
 
 
+# ── Shared full-market snapshot (used by EVERY preset scan) ───────────────────
+_SNAP_CACHE_KEY = "scan_full_market_snapshot"
+_SNAP_TTL = 30   # seconds; snapshot moves only every few seconds, so this is invisible
+
+
+def full_market_snapshot() -> dict:
+    """The whole US-market snapshot ({provider_ticker: {last_price, prev_close,
+    today_vol, prev_vol}}), shared across every preset scan AND the background
+    warmer via a ~30s cache.
+
+    Each scan compares the live market against its own per-day reference. Without
+    this shared cache the warmer (running all six scans) plus concurrent user
+    requests would each fire a fresh ~10k-name market fetch — many per minute. The
+    snapshot moves only every few seconds, so a 30s TTL collapses that fan-out to
+    ~2 fetches/min while staying fresher than the 60s live-scan result caches that
+    consume it. An empty (transient failure) result is pinned only briefly so the
+    next call retries soon rather than serving an empty market for the full TTL."""
+    cached = cache.get(_SNAP_CACHE_KEY)
+    if cached is not None:
+        return cached
+    try:
+        snap = massive._get_client().get_full_market_snapshot()
+    except Exception:
+        snap = {}
+    cache.set(_SNAP_CACHE_KEY, snap, ttl=_SNAP_TTL if snap else 5)
+    return snap
+
+
 # ── ETF exclusion (shared by the IPO + Top-Gainers scans) ─────────────────────
 # Polygon `type` codes for exchange-traded products to EXCLUDE from stocks-only scans:
 # ETF, ETN, ETV (structured products), ETS (single-stock ETFs), FUND (closed-end/mutual).
@@ -285,10 +313,7 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
     if ref is None:
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
-    try:
-        snap = massive._get_client().get_full_market_snapshot()
-    except Exception:
-        snap = {}
+    snap = full_market_snapshot()
     if not snap:
         # No snapshot (off-market / transient) — nothing to compare; don't cache long.
         out = {"status": "ok", "results": [], "count": 0, "as_of": _now_et().isoformat()}

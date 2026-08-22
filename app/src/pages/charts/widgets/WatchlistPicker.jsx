@@ -11,6 +11,7 @@ import { useState, useCallback, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../../../hooks/useFlagged'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import UIcon from '../../../components/ui/UIcon'
 import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
@@ -34,10 +35,11 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   // SAME ⚙ settings panel used inside a picked list, so the landing page is styled
   // and configurable exactly like the list view that follows it.
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   // Always widget context — ignore the legacy global pref so the picker follows the
   // app theme (white on light) unless this widget has its own saved override.
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(prefs?.theme)),
+    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(placedTheme)),
     [settingsOverride, prefs],
   )
   // The picker's OWN CHROME (tab bar, count badges, search) always follows the APP THEME,
@@ -45,7 +47,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   // template turned the nav bar + count badges black. `wlSettings` above still drives the
   // ⚙ panel (which edits the widget's real list settings).
   const chromeSettings = useMemo(
-    () => mergeWatchlistSettings(watchlistDefaultsForTheme(prefs?.theme)),
+    () => mergeWatchlistSettings(watchlistDefaultsForTheme(placedTheme)),
     [prefs],
   )
   const wlStyle = useMemo(() => watchlistStyleVars(chromeSettings), [chromeSettings])

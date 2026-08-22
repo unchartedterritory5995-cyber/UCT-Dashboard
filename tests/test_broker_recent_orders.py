@@ -353,3 +353,155 @@ def test_prune_provisional_does_not_match_distant_days(env):
              "trade_date": (NOW - timedelta(days=10)).isoformat()}]
     # 10 days apart -> NOT the same fill; provisional survives (until age cap).
     assert activities_store.prune_provisional("u1", ba_id, real) == 0
+
+
+# ── OPTION fills (v2: options join the instant rail) ─────────────────────────
+
+def _opt_order(**over):
+    o = {
+        "brokerage_order_id": "oord-1",
+        "status": "EXECUTED",
+        "action": "BUY_TO_OPEN",
+        "option_symbol": {
+            "ticker": "BA   270115C00250000",
+            "strike_price": 250.0,
+            "expiration_date": "2027-01-15",
+            "option_type": "CALL",
+            "underlying_symbol": {"symbol": "BA"},
+            "is_mini_option": False,
+        },
+        "filled_quantity": 3,
+        "execution_price": 11.5,
+        "time_executed": NOW.isoformat(),
+    }
+    o.update(over)
+    return o
+
+
+@pytest.fixture(autouse=True)
+def _no_referee_network(monkeypatch):
+    """The unit-referee consults Massive; tests abstain by default."""
+    monkeypatch.setattr(recent_orders, "_reference_mark",
+                        lambda *a, **k: None)
+
+
+def test_executed_option_order_converts_to_a_real_shaped_activity():
+    act = recent_orders.order_to_provisional_option_activity(_opt_order())
+    assert act is not None
+    assert act["id"].startswith("intraday:")
+    assert act["type"] == "BUY" and act["option_type"] == "BUY_TO_OPEN"
+    assert act["units"] == 3 and act["price"] == 11.5
+    assert act["symbol"]["symbol"] == "BA"
+    osym = act["option_symbol"]
+    assert osym["strike_price"] == 250.0
+    assert osym["expiration_date"] == "2027-01-15"
+    assert osym["option_type"] == "CALL"
+
+
+def test_option_action_variants_and_skips():
+    a = recent_orders.order_to_provisional_option_activity(
+        _opt_order(action="SELL_TO_CLOSE"))
+    assert a["type"] == "SELL" and a["option_type"] == "SELL_TO_CLOSE"
+    b = recent_orders.order_to_provisional_option_activity(
+        _opt_order(action="SELL"))
+    assert b["type"] == "SELL" and b["option_type"] == ""
+    assert recent_orders.order_to_provisional_option_activity(
+        _opt_order(status="PENDING")) is None
+    assert recent_orders.order_to_provisional_option_activity(
+        _opt_order(action="EXERCISE")) is None
+    assert recent_orders.order_to_provisional_option_activity(
+        _opt_order(filled_quantity=0)) is None
+
+
+def test_price_referee_normalizes_a_per_contract_price(monkeypatch):
+    """A broker reporting 1150 (per-contract) for an 11.50 premium is ~100×
+    the live mark → normalized to per-share. A sane per-share price passes."""
+    monkeypatch.setattr(recent_orders, "_reference_mark", lambda *a, **k: 11.4)
+    fixed = recent_orders.order_to_provisional_option_activity(
+        _opt_order(execution_price=1150.0))
+    assert fixed["price"] == 11.5
+    sane = recent_orders.order_to_provisional_option_activity(_opt_order())
+    assert sane["price"] == 11.5
+
+
+def test_price_referee_abstains_without_a_mark(monkeypatch):
+    monkeypatch.setattr(recent_orders, "_reference_mark", lambda *a, **k: None)
+    act = recent_orders.order_to_provisional_option_activity(
+        _opt_order(execution_price=1150.0))
+    assert act["price"] == 1150.0   # passes as-is; daily sync replaces it
+
+
+@pytest.mark.asyncio
+async def test_option_buy_fill_creates_a_strategy_in_minutes(env):
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=lambda **kw: _Resp(
+            {"orders": [_opt_order()]}),
+    )))
+    out = await recent_orders.poll_account("u1", env["ba"])
+    assert out["new"] == 1
+    conn = auth_db.get_connection()
+    row = conn.execute(
+        "SELECT s.underlying, s.status, s.net_entry, l.qty "
+        "FROM j2_option_strategies s JOIN j2_option_legs l ON l.strategy_id=s.id "
+        "WHERE s.user_id='u1'").fetchone()
+    conn.close()
+    assert row and row["underlying"] == "BA" and row["status"] == "open"
+    assert row["qty"] == 3 and row["net_entry"] == 3450.0
+
+
+@pytest.mark.asyncio
+async def test_option_sell_fill_closes_the_open_strategy_in_minutes(env):
+    """THE reconnect-week scenario: the sale that used to be invisible until
+    the next day's transaction sync now lands on the 5-minute rail — the
+    open strategy closes with a real exit and P&L."""
+    ba = env["ba"]
+    activities_store.store_activities("u1", ba["id"], [{
+        "id": "real-opt-buy", "type": "BUY", "units": 3, "price": 11.5,
+        "symbol": {"symbol": "BA"},
+        "option_symbol": {
+            "ticker": "BA   270115C00250000", "strike_price": 250.0,
+            "expiration_date": "2027-01-15", "option_type": "CALL",
+            "underlying_symbol": {"symbol": "BA"}, "is_mini_option": False,
+        },
+        "trade_date": (NOW - timedelta(days=3)).isoformat(),
+    }])
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=lambda **kw: _Resp(
+            {"orders": [_opt_order(action="SELL_TO_CLOSE",
+                                   execution_price=7.0)]}),
+    )))
+    out = await recent_orders.poll_account("u1", env["ba"])
+    assert out["new"] == 1
+    conn = auth_db.get_connection()
+    rows = conn.execute(
+        "SELECT status, net_entry, net_exit, pnl_dollar "
+        "FROM j2_option_strategies WHERE user_id='u1'").fetchall()
+    conn.close()
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["status"] == "closed"
+    assert r["net_entry"] == 3450.0 and r["net_exit"] == 2100.0
+    assert r["pnl_dollar"] == -1350.0
+
+
+def test_prune_matching_is_contract_aware(env):
+    """A real EQUITY BA fill must never satisfy an OPTION provisional with
+    the same (symbol, type, units, day) — and the real option activity with
+    the matching contract must."""
+    ba = env["ba"]
+    prov = recent_orders.order_to_provisional_option_activity(_opt_order())
+    activities_store.store_activities("u1", ba["id"], [prov])
+
+    equity_real = {"id": "real-eq", "type": "BUY", "units": 3, "price": 190.0,
+                   "symbol": {"symbol": "BA"}, "trade_date": NOW.isoformat()}
+    removed = activities_store.prune_provisional("u1", ba["id"], [equity_real])
+    assert removed == 0        # equity fill ≠ option fill
+
+    option_real = {"id": "real-opt", "type": "BUY", "units": 3, "price": 11.5,
+                   "symbol": {"symbol": "BA"},
+                   "option_symbol": {"strike_price": 250.0,
+                                     "expiration_date": "2027-01-15",
+                                     "option_type": "CALL"},
+                   "trade_date": NOW.isoformat()}
+    removed = activities_store.prune_provisional("u1", ba["id"], [option_real])
+    assert removed == 1        # the true replacement lands → provisional gone

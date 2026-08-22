@@ -13,27 +13,45 @@ import OptionsFlowWidget from './widgets/OptionsFlowWidget'
 import PeriodSortWidget from './widgets/PeriodSortWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
+import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
   resolveActiveTab, widgetTabList,
   addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
+import { labelMap, THEME_FOLLOW_TYPES } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
-const TYPE_LABEL = {
-  chart: 'Chart',
-  watchlist: 'Watchlist',
-  themes: 'Themes',
-  scanner: 'Scanner',
-  fundamentals: 'Fundamentals',
-  breadth: 'Breadth',
-  aisearch: 'AI Search',
-  news: 'News',
-  profile: 'Profile',
-  alerts: 'Alerts',
-  calendar: 'Calendar',
-  optionsflow: 'Options Flow',
-  periodsort: 'Period Sort',
+const TYPE_LABEL = labelMap('header')
+
+// THE /charts host binding: registry id → { component, props }. The metadata
+// registry (src/widgets/registry.js) deliberately carries no component refs, so
+// each host owns its binding map; registry.test.js pins that every registered
+// id has an entry here AND that each props builder keeps the EXACT prop shape
+// the old WidgetBody switch passed — those shapes are load-bearing (breadth
+// takes no `color`, themes no `onOptsChange`, aisearch only `color`, and only
+// chart gets `chartId`).
+const standardProps = ({ colorKey, opts, onOptsChange }) => ({ color: colorKey, opts, onOptsChange })
+export const WORKSPACE_WIDGETS = {
+  // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
+  // makes a chart's alerts scopable to it. `groupId` is already per-tab and
+  // already stable across reloads — see its declaration in `WidgetHost`.
+  chart: {
+    component: ChartWidget,
+    props: ({ colorKey, opts, onOptsChange, groupId }) => ({ color: colorKey, opts, onOptsChange, chartId: groupId }),
+  },
+  watchlist: { component: WatchlistWidget, props: standardProps },
+  themes: { component: ThemesWidget, props: ({ colorKey, opts }) => ({ color: colorKey, opts }) },
+  scanner: { component: ScannerWidget, props: standardProps },
+  fundamentals: { component: FundamentalsWidget, props: standardProps },
+  breadth: { component: BreadthWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },
+  aisearch: { component: AiSearchWidget, props: ({ colorKey }) => ({ color: colorKey }) },
+  news: { component: NewsWidget, props: standardProps },
+  profile: { component: ProfileWidget, props: standardProps },
+  alerts: { component: AlertsWidget, props: standardProps },
+  calendar: { component: CalendarWidget, props: standardProps },
+  optionsflow: { component: OptionsFlowWidget, props: standardProps },
+  periodsort: { component: PeriodSortWidget, props: standardProps },
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
@@ -42,28 +60,16 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // links purely off this `color` prop via groupSyms[color]). `groupId` is per-TAB,
   // so two "not linked" tabs in the same slot stay independent.
   const key = color === 'N' ? `N:${groupId}` : color
-  switch (type) {
-    // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
-    // makes a chart's alerts scopable to it. `groupId` is already per-tab and
-    // already stable across reloads — see its declaration in `WidgetHost`.
-    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} chartId={groupId} />
-    case 'watchlist': return <WatchlistWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'themes':    return <ThemesWidget    color={key} opts={opts} />
-    case 'scanner':   return <ScannerWidget   color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'fundamentals': return <FundamentalsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'breadth':   return <BreadthWidget opts={opts} onOptsChange={onOptsChange} />
-    case 'aisearch':  return <AiSearchWidget color={key} />
-    case 'news':      return <NewsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'profile':   return <ProfileWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'alerts':    return <AlertsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'calendar':  return <CalendarWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'optionsflow': return <OptionsFlowWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'periodsort': return <PeriodSortWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    default:          return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
-  }
+  const binding = WORKSPACE_WIDGETS[type]
+  if (!binding) return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
+  const Widget = binding.component
+  return <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false,
+  // In-canvas float (pop the widget onto another widget). onFloat = grid mode;
+  // floating + onDock/floatTabTargets/onFloatToTab/onHeaderDragStart = while floating.
+  onFloat, floating = false, onDock, floatTabTargets = [], onFloatToTab, onHeaderDragStart }) {
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
@@ -78,10 +84,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const handleActiveColorChange = (c) => (onReplaceWidget ? replace(patchActiveTabColor(widget, c)) : onColorChange?.(c))
   const handleActiveOptsChange = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
   const handleAddTab = onReplaceWidget ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
-  // News/Profile follow the app theme when uncustomized: on the light theme the
-  // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
-  // CSS re-flip the light tokens (incl. the border) for the whole widget.
-  const themeFollow = ['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch', 'periodsort'].includes(active.type) && !active.opts?.settings
+  // Non-chart widgets follow the app theme when uncustomized: on the light theme
+  // the workspace otherwise keeps this .widget dark (border + chrome). This flag
+  // lets the CSS re-flip the light tokens (incl. the border) for the whole widget.
+  // Membership lives on the registry (themeFollow — every type except chart).
+  const themeFollow = THEME_FOLLOW_TYPES.includes(active.type) && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined
@@ -92,7 +99,27 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // in the map, so Fundamentals / Theme Tracker / AI Search / Scanner get no variable
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
-  const { widgetCanvasByType, widgetCanvasById } = useWorkspace() || {}
+  const { widgetCanvasByType, widgetCanvasById, chartsTheme } = useWorkspace() || {}
+  // FREEZE a theme-following widget's app theme at placement. `frozenTheme` drives TWO
+  // things that must agree: the JS body colors (published on PlacedThemeContext, read by
+  // the widget's usePlacedTheme) and the chrome tokens (the .widgetFrozenLight class for
+  // a light placement — a dark placement needs none, the workspace default is already
+  // dark). This replaces the old reactive `.widgetThemeFollow`, which re-flipped live off
+  // the *app* [data-theme] and recolored existing widgets on every theme switch. Only NEW
+  // widgets (a fresh usePlacedTheme capture / a fresh opts.placedTheme stamp) pick up the
+  // current theme. Skipped under Sunrise (its own [data-charts-theme] palette owns the
+  // look) and until prefs load (null → the live fallback holds for that first tick).
+  const placedTheme = usePlacedTheme(active.opts?.placedTheme)
+  // Provided to the whole widget subtree ALWAYS — even once the widget is customized —
+  // so surfaces that still resolve from the app theme (e.g. the picker's own chrome,
+  // reset handlers) keep using the PLACEMENT theme rather than falling back to the live
+  // one. (Only the chrome-token CLASS below is gated on themeFollow.)
+  const ctxTheme = (chartsTheme !== 'sunrise' && placedTheme) ? placedTheme : null
+  // The .widgetFrozenLight chrome-token class is only for an UNCUSTOMIZED light-placed
+  // widget; a customized widget carries its own canvas (opts.settings → widgetCanvasById
+  // for the chrome + --wl-bg for the body).
+  const frozenTheme = ctxTheme   // (name kept for the render below)
+  const frozenLightOn = themeFollow && ctxTheme === 'light'
   // Per-widget chrome wins (each widget owns its settings now); fall back to the
   // per-type global default for a widget that hasn't diverged.
   const chrome = widgetCanvasById?.[widget.id] || widgetCanvasByType?.[active.type] || null
@@ -156,6 +183,12 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onCloseTab={handleCloseTab}
       onRenameTab={handleRenameTab}
       onAddTab={handleAddTab}
+      onFloat={onFloat}
+      floating={floating}
+      onDock={onDock}
+      floatTabTargets={floatTabTargets}
+      onFloatToTab={onFloatToTab}
+      onHeaderDragStart={onHeaderDragStart}
     />
   )
   // Merged mode keeps NO header chrome, but a multi-tab slot still needs its tab
@@ -190,13 +223,19 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // directly above this one, drop the drag/close bar to the BOTTOM so the two widgets
   // blend together at the seam (no header in the middle).
   return (
-    <div
-      className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${themeFollow ? ' ' + styles.widgetThemeFollow : ''}`}
-      style={chromeStyle}
-    >
-      {merged
-        ? <>{mergedTabs}{body}</>
-        : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
-    </div>
+    <PlacedThemeContext.Provider value={frozenTheme}>
+      <div
+        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${
+          frozenLightOn
+            ? ' ' + styles.widgetFrozenLight            /* UNCUSTOMIZED light placement → force light chrome regardless of app theme */
+            : (themeFollow && !ctxTheme ? ' ' + styles.widgetThemeFollow : '')  /* loading/sunrise: live fallback */
+        }`}
+        style={chromeStyle}
+      >
+        {merged
+          ? <>{mergedTabs}{body}</>
+          : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+      </div>
+    </PlacedThemeContext.Provider>
   )
 }

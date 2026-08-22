@@ -20,6 +20,9 @@ const NOTE = {
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
 }))
+// NoteEditorPage reads useAuth (admin-only Share button) — these tests
+// render it outside the app shell, so stub the provider read.
+vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
 beforeEach(() => {

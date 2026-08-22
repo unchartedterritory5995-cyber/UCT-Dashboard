@@ -364,3 +364,31 @@ def test_delete_position_user_isolation(db_conn):
     # u2 can't delete u1's position
     assert svc.delete_position("u2", pid, conn=db_conn) is False
     assert svc.get_position("u1", pid, conn=db_conn) is not None
+
+
+def test_broker_import_honesty_fields_survive_the_list_payload(db_conn):
+    """entry_estimated + source MUST reach the API payload. The 2026-08-20
+    reconnect bug: the list SELECT omitted both columns, so _row_to_position
+    defaulted entryEstimated to False and source to None -- every estimated
+    (placeholder-dated) broker position presented as a real same-day fill, and
+    the hero booked its whole unrealized gain as "Today" (+$1,335.87 vs the
+    broker's -$881.04)."""
+    from api.services.journal_two import positions as svc
+
+    pid = _insert_position(db_conn, "u1", symbol="DELL")
+    db_conn.execute(
+        "UPDATE j2_positions SET entry_estimated = 1, source = ?, "
+        "broker_price = 434.63 WHERE id = ?",
+        ("broker", pid),
+    )
+    db_conn.commit()
+
+    rows = svc.list_open_positions("u1")
+    assert len(rows) == 1
+    assert rows[0]["entryEstimated"] is True
+    assert rows[0]["source"] == "broker"
+    assert rows[0]["brokerPrice"] == 434.63
+
+    one = svc.get_position("u1", pid)
+    assert one["entryEstimated"] is True
+    assert one["source"] == "broker"

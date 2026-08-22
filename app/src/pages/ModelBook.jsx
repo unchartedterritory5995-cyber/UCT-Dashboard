@@ -21,9 +21,12 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 
 // Year tabs always shown, even before any stocks are curated for them.
 // Any year that has stocks (from the API) is unioned in on top of these.
-// Baseline year tabs, newest→oldest (2025 down to 1990). Data-driven years from
-// the API merge in on top of these.
-const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
+// Baseline year tabs, newest→oldest (the CURRENT year down to 1990) — the top
+// tab tracks the calendar year automatically, so the in-progress year (with just
+// its AI year-recap and no curated stocks yet) shows up the moment it begins.
+// Data-driven years from the API merge in on top of these.
+const MB_TOP_YEAR = new Date().getFullYear()
+const BASE_YEARS = Array.from({ length: MB_TOP_YEAR - 1990 + 1 }, (_, i) => MB_TOP_YEAR - i)
 
 // Model Book "hub" — the animated intro screen you land on when you click
 // Model Book in the sidebar. Each option picks an in-page view: 'years' is the
@@ -1751,10 +1754,17 @@ export default function ModelBook() {
     return [...set].sort((a, b) => b - a)
   }, [yearsData])
 
-  // Derived effective year: the picked year if it still exists, else newest.
-  // Avoids a setState-in-effect when years load.
+  // Derived effective year: the picked year if it still exists, else the newest
+  // year that actually has curated stocks (so we don't land on the empty
+  // in-progress year — its tab is still up top, and its recap shows on hover),
+  // falling back to the newest tab overall. Avoids a setState-in-effect on load.
   const [pickedYear, setPickedYear] = useState(null)
-  const year = (pickedYear != null && years.includes(pickedYear)) ? pickedYear : (years[0] ?? null)
+  const defaultYear = useMemo(() => {
+    const withStocks = yearsData?.years
+    if (Array.isArray(withStocks) && withStocks.length) return Math.max(...withStocks)
+    return years[0] ?? null
+  }, [yearsData, years])
+  const year = (pickedYear != null && years.includes(pickedYear)) ? pickedYear : defaultYear
 
   const { data: stocksData, mutate: mutateStocks } = useSWR(
     year != null ? `/api/modelbook/stocks?year=${year}` : null, fetcher,

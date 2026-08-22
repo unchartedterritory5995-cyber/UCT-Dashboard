@@ -84,6 +84,8 @@ vi.mock('./surfaces/TodaySurface', () => ({
 import JournalLayout, { HOTKEY_ROUTES } from './JournalLayout'
 import TodaySurface from './surfaces/TodaySurface'
 import TradesSurface from './surfaces/TradesSurface'
+import CalendarSurface from './surfaces/CalendarSurface'
+import NotebookSurface from './surfaces/NotebookSurface'
 import JournalSurface from './surfaces/JournalSurface'
 import InsightsSurface from './surfaces/InsightsSurface'
 import CompassSurface from './surfaces/CompassSurface'
@@ -106,6 +108,8 @@ function renderAt(route, { paid = true } = {}) {
         <Route path="/journal" element={<JournalLayout />}>
           <Route index element={<TodaySurface />} />
           <Route path="trades" element={<TradesSurface />} />
+          <Route path="calendar" element={<CalendarSurface />} />
+          <Route path="notebook" element={<NotebookSurface />} />
           <Route path="journal" element={<JournalSurface />} />
           <Route path="insights" element={<InsightsSurface />} />
           <Route path="compass" element={<CompassSurface />} />
@@ -122,13 +126,13 @@ beforeEach(() => {
 })
 
 describe('JournalLayout — primary nav', () => {
-  it('renders the 5 primary nav items as links (paid)', () => {
+  it('renders the 6 primary nav items as links (paid)', () => {
     renderAt('/journal')
     // Scope to the DESKTOP rail — the phone JournalMobileNav (B5) renders the
-    // same 5 section links (CSS-hidden on desktop, but present in jsdom), so a
+    // same section links (CSS-hidden on desktop, but present in jsdom), so a
     // bare getByRole would be ambiguous.
     const nav = screen.getByRole('navigation', { name: 'Journal sections' })
-    for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
+    for (const label of ['Today', 'Trades', 'Calendar', 'Notebook', 'Insights', 'Compass']) {
       expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
     }
   })
@@ -139,7 +143,7 @@ describe('JournalLayout — primary nav', () => {
     // Any pictographic / dingbat emoji would fail this — icons are inline SVG.
     const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u
     expect(nav.textContent).not.toMatch(emoji)
-    expect(nav.textContent).toBe('TodayTradesJournalInsightsCompass')
+    expect(nav.textContent).toBe('TodayTradesCalendarNotebookInsightsCompass')
   })
 })
 
@@ -217,13 +221,13 @@ describe('JournalLayout — permanent ?j2tab= redirect shim (A3)', () => {
     expect(screen.getByTestId('loc')).toHaveTextContent('/journal/trades?seg=open')
   })
 
-  it('/journal?j2tab=notebook&note=abc redirects to Journal / Notebook, preserving note', () => {
+  it('/journal?j2tab=notebook&note=abc redirects to the Notebook tab, preserving note', () => {
     renderAt('/journal?j2tab=notebook&note=abc')
     expect(screen.getByTestId('notebook')).toBeInTheDocument()
     const loc = screen.getByTestId('loc').textContent
-    expect(loc).toContain('/journal/journal')
+    expect(loc).toContain('/journal/notebook')
     expect(loc).toContain('note=abc')
-    expect(loc).toContain('seg=notebook')
+    expect(loc).not.toContain('seg=')
     expect(loc).not.toContain('j2tab')
   })
 
@@ -255,8 +259,8 @@ describe('JournalLayout — g> navigation hotkeys (A4)', () => {
     expect(HOTKEY_ROUTES['g>o']).toBe('/journal')
     expect(HOTKEY_ROUTES['g>p']).toBe('/journal/trades?seg=open')
     expect(HOTKEY_ROUTES['g>j']).toBe('/journal/trades?seg=closed')
-    expect(HOTKEY_ROUTES['g>a']).toBe('/journal/journal?seg=calendar')
-    expect(HOTKEY_ROUTES['g>n']).toBe('/journal/journal?seg=notebook')
+    expect(HOTKEY_ROUTES['g>a']).toBe('/journal/calendar')
+    expect(HOTKEY_ROUTES['g>n']).toBe('/journal/notebook')
     expect(HOTKEY_ROUTES['g>y']).toBe('/journal/insights')
     expect(HOTKEY_ROUTES['g>t']).toBe('/journal/accounts')
     expect(HOTKEY_ROUTES['g>k']).toBe('/journal/compass')
@@ -360,10 +364,10 @@ describe('JournalLayout — "+ Log Trade" header action (A5)', () => {
 
 // ── Community + Accounts relocated to the header overflow (Task A5) ───────────
 describe('JournalLayout — Community/Accounts overflow (A5)', () => {
-  it('keeps the primary nav at exactly the 5 sections (no Community/Accounts)', () => {
+  it('keeps the primary nav at exactly the 6 sections (no Community/Accounts)', () => {
     renderAt('/journal')
     const nav = screen.getByRole('navigation', { name: 'Journal sections' })
-    expect(nav.textContent).toBe('TodayTradesJournalInsightsCompass')
+    expect(nav.textContent).toBe('TodayTradesCalendarNotebookInsightsCompass')
     expect(within(nav).queryByText('Community')).not.toBeInTheDocument()
     expect(within(nav).queryByText('Accounts')).not.toBeInTheDocument()
   })
@@ -426,10 +430,10 @@ describe('JournalLayout — mobile section nav (B5)', () => {
     ).toBeInTheDocument()
   })
 
-  it('the mobile nav carries all 5 sections', () => {
+  it('the mobile nav carries all 6 sections', () => {
     renderAt('/journal')
     const mnav = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
-    for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
+    for (const label of ['Today', 'Trades', 'Calendar', 'Notebook', 'Insights', 'Compass']) {
       expect(within(mnav).getByRole('link', { name: label })).toBeInTheDocument()
     }
   })

@@ -18,8 +18,8 @@ function fmtExpiry(iso) {
   return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
 }
 
-export default function OptionsBoard({ strategies = [] }) {
-  const cards = useMemo(() => buildOptionCards(strategies), [strategies])
+export default function OptionsBoard({ strategies = [], optionMarks = null }) {
+  const cards = useMemo(() => buildOptionCards(strategies, optionMarks), [strategies, optionMarks])
   // Closed strategies feed the realized leg of the performance curve.
   // Parents render this board only when there ARE open strategies, so this
   // fetch never fires for options-free books.

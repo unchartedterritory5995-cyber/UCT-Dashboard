@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18 + Vite, lightweight-charts 5.2.0 (pinned; `rendererPin.test.js` catches a junctioned 5.1.0), vitest (`cd app && npx vitest run <paths>` — **never** `npm test -- run`), pytest, Playwright + Pillow via `tools/chart_parity.py`, `tools/spa_server.py`.
 
-**Branch:** `feat/phase-b3-migration`, from `d2733adc`. B4 commits onto the same branch. **Do not push** (the deploy-window hook and the Sep 5 ship gate both apply; B1–B4 ship together after the launch freeze lifts).
+**Branch:** `feat/phase-b3-migration`, from `d2733adc`. B4 commits onto the same branch. ⚰️ **SUPERSEDED** — this said *"Do not push (the deploy-window hook and the Sep 5 ship gate both apply; B1–B4 ship together after the launch freeze lifts)."* B1–B4 shipped to master once the parity gate proved each safe, weeks before either launch date; only the deploy-window hook (market-hours push freeze) still applies. See `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
 
 **Baseline at `d2733adc`, to be re-measured and recorded in Task 1 before anything is changed:**
 

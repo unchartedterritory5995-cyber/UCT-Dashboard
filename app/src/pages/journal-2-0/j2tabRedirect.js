@@ -17,18 +17,19 @@
  * Tab → route map (research R1 §4 + spec §2 Global Constraints):
  *   positions → /journal/trades   (seg=open)     — Open Positions
  *   journal   → /journal/trades   (seg=closed)   — Closed / Trade Journal
- *   calendar  → /journal/journal  (seg=calendar) — Calendar
- *   notebook  → /journal/journal  (seg=notebook) — Notebook
+ *   calendar  → /journal/calendar                — Calendar (own top tab)
+ *   notebook  → /journal/notebook                — Notebook (own top tab)
  *   analytics → /journal/insights (carries ins=) — Insights hub
  *   accounts  → /journal/accounts
  *   compass   → /journal/compass
  *   community → /journal/community
  *
- * The `seg` values match the segmented surfaces built in A2:
- *   TradesSurface  reads `?seg=open|closed`   (default open)
- *   JournalSurface reads `?seg=calendar|notebook` (default calendar)
- * so `j2tab` deterministically selects the correct segment of the grouped
- * surface (the j2tab value wins over any incoming `seg`).
+ * The `seg` values match the still-segmented Trades surface:
+ *   TradesSurface reads `?seg=open|closed` (default open)
+ * so `j2tab` deterministically selects the correct segment (the j2tab value wins
+ * over any incoming `seg`). Calendar + Notebook are no longer segments of one
+ * grouped surface — each is its own top-level route (/journal/calendar,
+ * /journal/notebook), so their j2tab entries carry no `seg`.
  *
  * Unknown `j2tab` value → `/journal/trades?seg=open` (the legacy default was the
  * `positions` tab, `searchParams.get('j2tab') || 'positions'`, so an unrecognized
@@ -40,8 +41,8 @@
 const J2TAB_ROUTE_MAP = {
   positions: { path: '/journal/trades', seg: 'open' },
   journal: { path: '/journal/trades', seg: 'closed' },
-  calendar: { path: '/journal/journal', seg: 'calendar' },
-  notebook: { path: '/journal/journal', seg: 'notebook' },
+  calendar: { path: '/journal/calendar' },
+  notebook: { path: '/journal/notebook' },
   analytics: { path: '/journal/insights' },
   accounts: { path: '/journal/accounts' },
   compass: { path: '/journal/compass' },

@@ -82,20 +82,44 @@ def test_account_total_usd_extracts_amount():
     assert balances._account_total_usd({}) is None
 
 
-def test_write_balances_prefers_broker_reported_total(env):
-    # Broker reports its own total ($8,731.52) — use it verbatim, NOT the derived
-    # cash + MV ($-12053.04 + 200×100 = $7,946.96).
+def test_write_balances_live_components_beat_a_lagging_total(env):
+    """2026-08-21 stale-total guard. Robinhood's `balance.total` via SnapTrade
+    served YESTERDAY'S equity all session while the same payload's live
+    cash + positions summed to what the RH app actually displayed. Both are
+    broker-reported; when they diverge beyond noise (but inside the 20%
+    structural band), the LIVE components win. Here: total 8,731.52 (lagging)
+    vs components -12,053.04 + 200×100 = 7,946.96 → components."""
     raw_bal = [{"currency": "USD", "cash": -12053.04, "buying_power": 9470.11}]
     raw_pos = [_pos("AAPL", 200, 100, 90)]
     out = balances.write_balances("u1", env["ba"], raw_bal, raw_pos, broker_total=8731.52)
-    assert out["equity"] == 8731.52
+    assert out["equity"] == 7946.96
     conn = auth_db.get_connection()
     try:
         sz = conn.execute("SELECT account_size FROM j2_accounts WHERE id=?",
                           (env["acct_id"],)).fetchone()["account_size"]
     finally:
         conn.close()
-    assert sz == 8731.52     # account_size synced to the broker's real total
+    assert sz == 7946.96     # account_size follows the live number
+
+
+def test_write_balances_total_wins_inside_noise(env):
+    """A sub-0.5% gap is timing noise (accrued interest, mark instants) — the
+    broker's reported total stays authoritative."""
+    raw_bal = [{"currency": "USD", "cash": -12053.04, "buying_power": 9470.11}]
+    raw_pos = [_pos("AAPL", 200, 100, 90)]     # derived 7,946.96
+    out = balances.write_balances("u1", env["ba"], raw_bal, raw_pos, broker_total=7950.00)
+    assert out["equity"] == 7950.00
+
+
+def test_write_balances_total_wins_on_structural_divergence(env):
+    """Beyond 20% the gap is structural — an FX sleeve / non-USD positions the
+    USD-gated components can't see. The reported total stays truth (this is
+    the guard that keeps the stale-total fix from ever repeating the July
+    missing-positions blowup)."""
+    raw_bal = [{"currency": "USD", "cash": 1000.0, "buying_power": 500.0}]
+    raw_pos = [_pos("AAPL", 10, 100, 90)]      # derived 2,000
+    out = balances.write_balances("u1", env["ba"], raw_bal, raw_pos, broker_total=9000.00)
+    assert out["equity"] == 9000.00
 
 
 def test_write_balances_sets_account_fields(env):
@@ -336,3 +360,38 @@ def test_share_discrepancy_flagged(env):
     assert len(res["discrepancies"]) == 1
     # Broker wins: stored shares = 10.
     assert _positions()[0]["shares"] == 10
+
+
+def test_placeholder_stop_stays_in_lockstep_with_a_refreshed_entry(env):
+    """Broker imports seed stop = entry as the "no stop set" placeholder. When
+    FIFO later refreshes the entry (ORCL: 126.005 -> 126.0049), the stale
+    placeholder drifted a rounding-hair from the new entry and every
+    placeholder detector downstream (UI blanking, risk/heat exclusion,
+    portfolio_heat) silently stopped firing — HEAT read the whole unrealized
+    P&L. The placeholder must track the entry it mirrors."""
+    balances.reconcile_positions("u1", env["ba"], [_pos("ORCL", 100, 142.0, 126.005)], [])
+    r = _positions()[0]
+    assert r["stop_price"] == r["entry_price"]  # seeded placeholder
+
+    fifo = [{"symbol": "ORCL", "side": "Long", "shares": 100,
+             "entryPrice": 126.0049, "entryDate": "2026-07-21T16:36:20Z"}]
+    balances.reconcile_positions("u1", env["ba"], [_pos("ORCL", 100, 142.06, 126.005)], fifo)
+
+    r = _positions()[0]
+    assert r["entry_price"] == 126.0049
+    assert r["stop_price"] == 126.0049   # placeholder moved WITH the entry
+
+
+def test_a_real_user_stop_is_never_clobbered_by_the_lockstep(env):
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 150, 100)], [])
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_positions SET stop_price=90 WHERE user_id=?", ("u1",))
+    conn.commit(); conn.close()
+
+    fifo = [{"symbol": "AAPL", "side": "Long", "shares": 10,
+             "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}]
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 151, 100)], fifo)
+
+    r = _positions()[0]
+    assert r["entry_price"] == 98.5
+    assert r["stop_price"] == 90.0       # the user's stop survives

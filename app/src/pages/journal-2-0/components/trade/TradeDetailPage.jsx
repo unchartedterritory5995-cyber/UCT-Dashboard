@@ -49,6 +49,10 @@ const EFFICIENCY_TITLE = 'Excursion analysis coming — computed nightly from in
 const PENDING_TITLE = 'Analyzed nightly — excursion lands ~3 AM ET'
 const INSUFFICIENT_TITLE = 'Insufficient intraday bars for this trade'
 const NO_EXCURSION_TITLE = 'No favorable excursion'
+const TRUE_R_TITLE =
+  'True R — your P&L measured against the risk the trade ACTUALLY took (its worst ' +
+  'drawdown from entry), so broker-imported trades get a real R-multiple with no stop required'
+const TRUE_R_NO_ADVERSE_TITLE = 'Never traded against your entry — no adverse move to measure risk by'
 const EFFICIENCY_METHOD_TITLE =
   'Exit efficiency = captured move ÷ max favorable move, from intraday excursion bars'
 // Options carry only the UNDERLYING's price excursion (no option-price entry/stop),
@@ -480,6 +484,23 @@ export default function TradeDetailPage() {
               {barResLabel(excursion) && (
                 <div className={styles.effMeta}>{`bar-approx · ${barResLabel(excursion)}`}</div>
               )}
+            </div>
+          )}
+        </div>
+        <div className={styles.outcomeCell}>
+          <div className={styles.outcomeLabel}>True R</div>
+          {/* Same honest state machine as efficiency. trueR is stop-free (P&L ÷
+              actual MAE) so it colors like a P&L; null with a computed excursion
+              = the trade never went adverse (best case) — say so, don't fake ∞. */}
+          {excursion == null ? (
+            <div className={styles.outcomeValueMuted} title={PENDING_TITLE}>Pending</div>
+          ) : excursion.dataQuality === 'insufficient' ? (
+            <div className={styles.outcomeValueMuted} title={INSUFFICIENT_TITLE}>N/A</div>
+          ) : out.trueR == null ? (
+            <div className={styles.outcomeValueMuted} title={TRUE_R_NO_ADVERSE_TITLE}>—</div>
+          ) : (
+            <div className={`${styles.outcomeValue} ${signClass(out.trueR)}`} title={TRUE_R_TITLE}>
+              {`${out.trueR >= 0 ? '+' : ''}${out.trueR.toFixed(2)}R`}
             </div>
           )}
         </div>

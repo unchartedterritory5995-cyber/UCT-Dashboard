@@ -23,6 +23,7 @@ export default function ChartIdentityRow({
   session = null,
   showClock = true,
   rightSlot = null,
+  rootRef = null,
   styles,
 }) {
   // "2017-06-19" → "Jun 2017" for the delisted badge (best-effort; falls back to raw).
@@ -34,7 +35,7 @@ export default function ChartIdentityRow({
     return `${MON[Math.max(0, Math.min(11, parseInt(m[2], 10) - 1))]} ${m[1]}`
   })()
   return (
-    <div className={styles.chartHeaderTop}>
+    <div ref={rootRef} className={styles.chartHeaderTop}>
       <div className={styles.symbolSlot}>
         {onSymbolChange ? (
           <SymbolSearch
@@ -94,14 +95,14 @@ export default function ChartIdentityRow({
               className={`${styles.sessionBtn} ${session.view === 'regular' ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onView('regular')}
               title="Regular trading hours only"
-            >Regular Hours</button>
+            >{session.abbrev ? 'RTH' : 'Regular Hours'}</button>
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.view === 'extended' ? styles.sessionBtnActive : ''}`}
               onClick={() => { if (session.extEnabled) session.onView('extended') }}
               disabled={!session.extEnabled}
               title={session.extEnabled ? session.extLabel : 'Available during pre-market and post-market'}
-            >{session.extLabel}</button>
+            >{session.abbrev ? (/pre/i.test(session.extLabel) ? 'PRE' : 'PM') : session.extLabel}</button>
           </div>
         )}
         {session?.mode === 'intraday' && (
@@ -111,13 +112,13 @@ export default function ChartIdentityRow({
               className={`${styles.sessionBtn} ${!session.extHoursOn ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onExtHours(false)}
               title="Regular session only (9:30–4:00 ET), overnight gaps"
-            >Regular Hours</button>
+            >{session.abbrev ? 'RTH' : 'Regular Hours'}</button>
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.extHoursOn ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onExtHours(true)}
               title="Include pre-market + post-market bars"
-            >Extended Hours</button>
+            >{session.abbrev ? 'EXT' : 'Extended Hours'}</button>
           </div>
         )}
         {showClock && <ChartMarketClock />}

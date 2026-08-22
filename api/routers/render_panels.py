@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from api.services.catalyst import store as catalyst_store
 
@@ -389,3 +389,131 @@ def chart_settings_for_render(token: str = ""):
         return {"chart_settings": _json.loads(raw) if isinstance(raw, str) else raw}
     except Exception as e:  # noqa: BLE001 -- a broken lookup must not fail the render
         return {"chart_settings": None, "reason": f"{type(e).__name__}"}
+
+
+# ── breadth reads for /r/breadth + /r/internals ──────────────────────────────
+#
+# 🔑 WHY THESE EXIST AS SEPARATE DOORS. `9ff74f69` (2026-08-09, the exposed-routes
+# audit) put `GET /api/breadth-monitor` and `GET /api/breadth` behind `require_paid`
+# — correctly: 3 MB of the tape was answering anonymous callers. But `/r/breadth`
+# and `/r/internals` render in a logged-OUT headless browser and fetch exactly those
+# two endpoints, so both pages went blank in production and nothing noticed. That
+# commit kept `/api/calendar` open precisely because `/r/calendar` needs it; the same
+# reasoning simply was not applied here.
+#
+# ⛔ THE FIX IS A NEW TOKEN-GATED DOOR, NOT A HOLE IN THE PAID ONE. Threading a
+# render-token bypass through `require_paid` would put a second authority on "may
+# this caller read the tape" inside the gate itself, and `tests/test_exposed_routes_
+# gated.py` measures that gate by calling it — a bypass is exactly what it exists to
+# refuse. The paid routes stay byte-identical; these serve the render pages only, at
+# the same effectively-public standard as every other `/r/*` read above (shared rate
+# limit, fail-CLOSED token check).
+#
+# ⚠️ Anything added here is EFFECTIVELY PUBLIC — the token ships inside the frontend
+# bundle. Both payloads below are the same aggregate breadth readings the newsletter
+# publishes weekly, which is why they are safe to hand back; do NOT extend these to
+# per-symbol constituent lists (the `*_list` drill fields) without re-deciding that.
+
+@router.get("/r/breadth-monitor")
+def render_breadth_monitor(token: str = "", days: int = 10):
+    """The rolling Breadth Monitor history behind `/r/breadth` (both halves) and
+    `/r/internals`. Mirrors `GET /api/breadth-monitor`'s shape exactly — same
+    service call, same `{rows, days}` envelope — so the render pages and the
+    Sunday-Scan generator can read it without reshaping anything."""
+    _check_token(token)
+    days = max(1, min(int(days or 10), 3650))
+    try:
+        from api.services import breadth_monitor as svc
+        return {"rows": svc.get_history(days), "days": days}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/r/breadth")
+def render_breadth(token: str = ""):
+    """The engine's pushed breadth summary (UCT Exposure Rating + MA percentages)
+    behind `/r/internals`. Mirrors `GET /api/breadth`."""
+    _check_token(token)
+    try:
+        from api.services.engine import get_breadth
+        return get_breadth()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+# ── the week-ahead calendar cards, as PNG bytes ──────────────────────────────
+
+@router.get("/r/calendar-week.png")
+def render_calendar_week(token: str = "", kind: str = "earnings", monday: str = ""):
+    """The two week-ahead cards the Discord poster already publishes, served as
+    PNG bytes so any caller can embed the SAME image.
+
+    🔑 `monday` IS REQUIRED IN PRACTICE — PASS IT, DO NOT LEAN ON THE DEFAULT.
+    The card's whole claim is "the week ahead", and which week that is depends on
+    the ISSUE being built, not on the server's clock. The Sunday Scan is
+    assembled Friday evening for the week that starts the following Monday; a
+    server-derived "next Monday" would agree by luck on Friday and be wrong on
+    any rebuild (a Saturday `--force`, a Monday re-run of an earlier week). The
+    caller already knows its session date, so it owns the answer and passes it —
+    one authority, not two (`lesson_a_derived_value_must_not_depend_on_the_request`).
+    The default exists only so a human poking the URL gets something sane.
+
+    ⛔ SELECTION IS NOT REIMPLEMENTED HERE. `calendar_week_poster.build_payloads`
+    already owns which names appear, how they rank, and where `+N more` truncates,
+    and `week_label` owns the caption. This endpoint calls both, so the PNG in the
+    newsletter is byte-identical to the one in #event-calendar. A second copy of
+    the ranking would drift and the two surfaces would quietly disagree.
+    """
+    _check_token(token)
+
+    from datetime import date, timedelta
+
+    if kind not in ("earnings", "econ"):
+        raise HTTPException(status_code=422, detail="kind must be earnings|econ")
+
+    if monday:
+        try:
+            m = date.fromisoformat(monday)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="monday must be YYYY-MM-DD")
+        # ⛔ REJECT A NON-MONDAY; DO NOT SNAP TO THE CONTAINING WEEK.
+        # An earlier cut snapped backward (`m -= m.weekday()`) to be forgiving.
+        # It is the opposite: a caller that passes its SESSION date — the natural
+        # mistake, and the one made while building this — gets the week that just
+        # ENDED, captioned "THE WEEK AHEAD", looking entirely plausible. Every
+        # caller here is code with a date in hand, so the parameter means exactly
+        # what it says and a wrong one fails loudly with the answer in the message.
+        if m.weekday() != 0:
+            raise HTTPException(
+                status_code=422,
+                detail=(f"monday={m} is a {m.strftime('%A')}; pass that week's "
+                        f"Monday. For the week AFTER {m}, pass "
+                        f"{m + timedelta(days=7 - m.weekday())}."))
+    else:
+        # The upcoming Monday, for every weekday — deliberately NOT
+        # `_week_dates()[0] + 7`. That helper already rolls to next Monday on a
+        # weekend (its own comment says so), so adding a week on top would skip
+        # one and silently render the WRONG week every Saturday and Sunday.
+        today = date.today()
+        m = today + timedelta(days=7 - today.weekday())
+
+    try:
+        from api.services.calendar_week_poster import build_payloads, week_label
+        from api.services.calendar_week_png import (
+            render_earnings_week_png, render_econ_week_png,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"renderer unavailable: {e}")
+
+    try:
+        earn_days, econ_days = build_payloads(m)
+        label = week_label(m)
+        png = (render_earnings_week_png(label, earn_days) if kind == "earnings"
+               else render_econ_week_png(label, econ_days))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=str(e))
+
+    # No caching: the week's roster moves as companies confirm dates, and a
+    # newsletter built from a cached card would ship a roster the site disagrees with.
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-store"})

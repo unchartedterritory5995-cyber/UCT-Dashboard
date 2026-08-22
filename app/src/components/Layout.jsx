@@ -8,6 +8,7 @@ import MoreSheet from './mobile/MoreSheet'
 import { TickerHubProvider } from './mobile/TickerHubContext'
 import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
+import { initBarsPack } from '../lib/barsPackClient'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -34,6 +35,11 @@ function usePageTracking() {
 export default function Layout({ children }) {
   usePageTracking()
   const { prefs } = usePreferences()
+
+  // Pre-seed IndexedDB with the Universe Bars Pack so D/W/M charts are instant
+  // on first view. Idle-deferred + idempotent + safe on any failure; only runs
+  // inside the authed shell (never for anonymous landing-page visitors).
+  useEffect(() => { initBarsPack() }, [])
 
   // Apply theme to <html> element with system preference detection
   useEffect(() => {

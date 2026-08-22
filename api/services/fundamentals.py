@@ -203,6 +203,7 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "float_shares": info.get("floatShares"),
         "shares_outstanding": info.get("sharesOutstanding"),
         "short_pct_float": _round_pct(info.get("shortPercentOfFloat")),
+        "days_to_cover": info.get("shortRatio"),   # short interest / avg daily vol
         # Company profile (free from .info)
         "employees": info.get("fullTimeEmployees"),
         "website": info.get("website"),
@@ -239,6 +240,30 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         except Exception as exc:                    # noqa: BLE001
             # A backfill must never be able to break the primary payload.
             _log.warning("FMP earnings-growth backfill failed for %s: %s", sym, exc)
+
+    # ── market-cap backfill ──────────────────────────────────────────────────
+    # yfinance's .info intermittently OMITS `marketCap` while the rest of the
+    # payload is present — MU 2026-08 is the standing example: PE and volume are
+    # populated but marketCap is absent, which blanks the chart header's "Market
+    # Cap" field. FMP's quote carries it reliably (it is the same source
+    # research_quote already trusts), so fill ONLY on a miss: yfinance stays
+    # authoritative where it has the value, and the extra request is not paid on
+    # the common path.
+    # EQUITIES ONLY — an ETF/index/fund has no meaningful market cap (FMP would
+    # return its net assets), so never backfill those. quoteType is 'EQUITY' for a
+    # stock; anything else (ETF/INDEX/MUTUALFUND/CURRENCY/…) is skipped. Unknown/
+    # missing quoteType is treated as an equity so a stock is never wrongly skipped.
+    _qt = str(info.get("quoteType") or "").upper()
+    if result.get("market_cap") is None and _qt in ("", "EQUITY"):
+        try:
+            from api.services.earnings_estimates import _fmp_get
+            rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)
+            mc = (rows[0] or {}).get("marketCap") if isinstance(rows, list) and rows else None
+            if mc:
+                result["market_cap"] = _fmt_billions(mc)
+                result["market_cap_source"] = "fmp"
+        except Exception as exc:                    # noqa: BLE001
+            _log.warning("FMP market-cap backfill failed for %s: %s", sym, exc)
 
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result

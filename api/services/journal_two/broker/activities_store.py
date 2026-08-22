@@ -211,7 +211,10 @@ def prune_provisional(
 ) -> int:
     """Remove provisional intraday fills (from the Recent Orders poll) that
     are now covered by the broker's real transactions feed — matched on
-    (symbol, type, |units|, trade day) — plus any older than `max_age_days`
+    (symbol, type, |units|, trade day, option contract; the contract key is
+    '' for equities and strike|expiry|C-or-P for options, so an equity fill
+    can never satisfy an option provisional or vice versa) — plus any older
+    than `max_age_days`
     (safety net: by then the real feed has covered that day). Runs during the
     scheduled sync, right after the real activities land."""
     from api.services.journal_two.broker import snaptrade_adapter as adapter
@@ -231,7 +234,17 @@ def prune_provisional(
         except ValueError:
             return a == b
 
-    covered: list[tuple[str, str, float, str]] = []
+    def _contract_key(act: dict) -> str:
+        osym = act.get("option_symbol")
+        if not isinstance(osym, dict):
+            return ""
+        return "|".join([
+            str(osym.get("strike_price") or osym.get("strike") or ""),
+            str(osym.get("expiration_date") or osym.get("expiration") or "")[:10],
+            str(osym.get("option_type") or osym.get("type") or "")[:1].upper(),
+        ])
+
+    covered: list[tuple[str, str, float, str, str]] = []
     for act in real_activities:
         if not isinstance(act, dict):
             continue
@@ -244,6 +257,7 @@ def prune_provisional(
             str(act.get("type") or "").upper(),
             round(units, 4),
             _day(adapter.normalize_date(act)),
+            _contract_key(act),
         ))
 
     owned = conn is None
@@ -275,10 +289,11 @@ def prune_provisional(
             typ = str(act.get("type") or "").upper()
             u = round(units, 4)
             day = _day(r["occurred_at"])
+            ckey = _contract_key(act)
             matched = any(
                 c_sym == sym and c_typ == typ and c_units == u
-                and _day_close(c_day, day)
-                for c_sym, c_typ, c_units, c_day in covered
+                and _day_close(c_day, day) and c_key == ckey
+                for c_sym, c_typ, c_units, c_day, c_key in covered
             )
             aged_out = (r["occurred_at"] or r["created_at"] or "") < cutoff
             if matched or aged_out:

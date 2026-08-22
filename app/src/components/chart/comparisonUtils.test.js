@@ -52,10 +52,26 @@ describe('normalizeToPctChange', () => {
 
 
 describe('pickComparisonColor', () => {
-  it('cycles through palette', () => {
+  it('returns the curated palette for the first band', () => {
     expect(pickComparisonColor(0)).toBe(COMPARISON_PALETTE[0]);
     expect(pickComparisonColor(1)).toBe(COMPARISON_PALETTE[1]);
-    expect(pickComparisonColor(COMPARISON_PALETTE.length)).toBe(COMPARISON_PALETTE[0]);
+  });
+
+  it('past the palette length it yields a DISTINCT shade, not a repeat', () => {
+    // Old behavior cycled (idx==len -> palette[0]); now every position is unique.
+    const overflow = pickComparisonColor(COMPARISON_PALETTE.length);
+    expect(overflow).not.toBe(COMPARISON_PALETTE[0]);
+    expect(/^#[0-9a-f]{6}$/i.test(overflow)).toBe(true);
+  });
+
+  it('is collision-free: a full group gets all-distinct colors', () => {
+    const used = [];
+    for (let i = 0; i < COMPARISON_PALETTE.length + 6; i++) {
+      const col = pickComparisonColor(i, used);
+      expect(used).not.toContain(col);      // never a duplicate
+      used.push(col);
+    }
+    expect(new Set(used).size).toBe(used.length);
   });
 
   it('handles negative idx', () => {

@@ -46,6 +46,30 @@ import { expect } from 'vitest'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..', '..', '..', '..', '..', '..')
 
+/**
+ * Force `legendMode: 'always'` onto a settings blob.
+ *
+ * ⭐ WHY EVERY LEGEND SUITE NOW CALLS THIS. The shipped DEFAULT is `'click'`
+ * (`legendMode.js::DEFAULT_LEGEND_MODE`, owner call 2026-08-16): a chart draws no
+ * legend until a candle is clicked. The suites below are about what the legend
+ * CONTAINS — nine chips, their order, their formatting — not about when the box
+ * appears, so they have to say out loud that they want it on. Sixty cases went
+ * red the moment the default moved, and that is the correct signal: a test that
+ * hovers and reads a legend depends on the visibility policy whether or not it
+ * mentions it.
+ *
+ * ⛔ NOT A MOCK OF `legendModeOf`. Stubbing the resolver would make these suites
+ * blind to a real regression in it; this writes an ordinary settings value that
+ * the real resolver then reads, exactly as a user choosing "Always" would.
+ * Visibility itself is gated by `legendModes.test.jsx`, which owns that question.
+ *
+ * A `null`/absent blob becomes a partial override carrying only the mode —
+ * `header` is in `_OVERRIDE_SECTION_KEYS`, so it merges rather than replacing.
+ */
+export function legendAlways(cs) {
+  return { ...(cs || {}), header: { ...((cs && cs.header) || {}), legendMode: 'always' } }
+}
+
 /** The OHLC row — i.e. the legend exists at all. */
 export const LEGEND_RENDERED = /O\s*1/
 const SETTLE_TRIES = 60

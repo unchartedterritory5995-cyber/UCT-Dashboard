@@ -1,0 +1,227 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "A Roam page after ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "roam_text.convert_roam_markdown",
+            "type": "text"
+          },
+          {
+            "text": " has already run — the provider's own pre-pass output, not raw Roam wiki syntax. Exercises the node/mark shapes a synced Roam page actually produces: a task item with a resolved import-link, a nested bullet (block-ref already inlined as plain text), a heading block, an image placeholder from a mirrored Firebase URL, literal ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "==highlight==",
+            "type": "text"
+          },
+          {
+            "text": " text (no highlight mark in the schema yet — see ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "roam_text.py",
+            "type": "text"
+          },
+          {
+            "text": "), a flattened page-attribute line, and a code-protected ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "[[...]]",
+            "type": "text"
+          },
+          {
+            "text": " that survived the wiki-link pass untouched.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Review ",
+                    "type": "text"
+                  },
+                  {
+                    "marks": [
+                      {
+                        "attrs": {
+                          "href": "import-link://roam:my-graph/page-2-uid"
+                        },
+                        "type": "link"
+                      }
+                    ],
+                    "text": "Setup Library",
+                    "type": "text"
+                  },
+                  {
+                    "text": " before open",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "content": [
+                          {
+                            "text": "See Key Levels for details",
+                            "type": "text"
+                          }
+                        ],
+                        "type": "paragraph"
+                      }
+                    ],
+                    "type": "listItem"
+                  }
+                ],
+                "type": "bulletList"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      },
+      {
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "text": "Key Levels",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Chart: ",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "attrs": {
+                  "src": "import-ref://https://firebasestorage.googleapis.com/v0/b/x/o/img.png?alt=media"
+                },
+                "type": "image"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "==Important== note here",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Status: In Progress",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Use ",
+                    "type": "text"
+                  },
+                  {
+                    "marks": [
+                      {
+                        "type": "code"
+                      }
+                    ],
+                    "text": "[[not a link]]",
+                    "type": "text"
+                  },
+                  {
+                    "text": " as an example",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [
+    "roam:my-graph/page-2-uid"
+  ],
+  "media": [
+    {
+      "kind": "image",
+      "name": "img.png",
+      "ref": "https://firebasestorage.googleapis.com/v0/b/x/o/img.png?alt=media"
+    }
+  ]
+}

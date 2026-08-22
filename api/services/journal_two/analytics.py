@@ -140,22 +140,30 @@ def get_analytics(
         # Exit Quality aggregate joins the fetched rows against this map.
         excursions_map = excursions_store.list_excursions_for_user(user_id, conn=conn)
 
+        # Effective R (True R fed): stop-based r_multiple when present, else the
+        # excursion's stop-free true_r -- lights up every R aggregate on a synced
+        # broker book (no stops => r_multiple NULL on all imported trades).
+        r_map, r_sources = _effective_r_map(rows, excursions_map)
+
         return {
             "tradeCount": len(rows),
             "strategyCount": len(strategies),
             "dateRange": {"from": spec.date_from, "to": spec.date_to},
+            # Where each trade's R came from -- {"stop","trueR","none"} counts --
+            # so the UI annotates R charts instead of silently mixing measures.
+            "rSources": r_sources,
             "equity": _equity_section(rows, starting_balance),
             "performance": _performance_section(rows),
-            "distribution": _distribution_section(rows),
-            "attribution": _attribution_section(rows),
-            "edgeScore": _edge_score(rows),
+            "distribution": _distribution_section(rows, r_map),
+            "attribution": _attribution_section(rows, r_map),
+            "edgeScore": _edge_score(rows, r_map),
             # Task B1 — the classical Risk Block (R distribution, drawdown,
             # streaks, loss-streak odds). Its own decisive-trade coverage gate,
             # independent of exit-quality's excursion coverage.
-            "risk": _risk_section(rows),
+            "risk": _risk_section(rows, r_map),
             "exitQuality": _exit_quality_section(rows, excursions_map, strategies),
             "options": _options_section(rows, strategies),
-            "regime": _regime_section(rows),
+            "regime": _regime_section(rows, r_map),
             # Coverage-gated trading-psychology aggregates (Task A8). The
             # `suppressed_pairs` (dismissed revenge pairs) default to empty here —
             # the dismissal-persistence wiring is a later frontend task; the
@@ -211,6 +219,45 @@ def _fetch_trades(
     sql += " ORDER BY exit_date ASC"
 
     return conn.execute(sql, params).fetchall()
+
+
+def _effective_r_map(
+    rows: list[sqlite3.Row], excursions_map: dict[str, dict],
+) -> tuple[dict[Any, float], dict[str, int]]:
+    """Per-trade effective R: the stop-based r_multiple when the trade carries
+    a real stop, else the excursion's stop-free true_r (P&L vs the trade's own
+    MAE). Broker imports store no stop, so r_multiple is NULL on a synced book
+    and every R aggregate (distribution, attribution, regime, risk, edge score)
+    was structurally starved; true_r feeds them honestly. Stop-R always WINS
+    when present -- the two measures are never blended for one trade -- and the
+    source counts are surfaced as the payload's `rSources` so the UI can say
+    "includes True R for N stop-less trades" instead of silently mixing.
+
+    Returns ({row id -> R}, {"stop": n, "trueR": n, "none": n}).
+    """
+    out: dict[Any, float] = {}
+    counts = {"stop": 0, "trueR": 0, "none": 0}
+    for r in rows:
+        if r["r_multiple"] is not None:
+            out[r["id"]] = float(r["r_multiple"])
+            counts["stop"] += 1
+            continue
+        exc = excursions_map.get(trade_ref_for_row(r)) or {}
+        tr = exc.get("trueR")
+        if tr is not None:
+            out[r["id"]] = float(tr)
+            counts["trueR"] += 1
+        else:
+            counts["none"] += 1
+    return out, counts
+
+
+def _rv(r: sqlite3.Row, r_map: "dict[Any, float] | None") -> "float | None":
+    """Effective R for one row: the precomputed map when supplied, else raw
+    r_multiple (sections invoked directly keep their pre-True-R behavior)."""
+    if r_map is not None:
+        return r_map.get(r["id"])
+    return None if r["r_multiple"] is None else float(r["r_multiple"])
 
 
 def _broker_equity_baseline(
@@ -388,7 +435,9 @@ def _performance_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
 # ── Section 3: Distribution ───────────────────────────────────────────────────
 
 
-def _distribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+def _distribution_section(
+    rows: list[sqlite3.Row], r_map: dict[Any, float] | None = None,
+) -> dict[str, Any]:
     """Long vs Short, P&L distribution histogram, R-mult buckets, win/loss streaks."""
     long_pnls = [float(r["pnl_dollar"] or 0) for r in rows if r["side"] == "Long"]
     short_pnls = [float(r["pnl_dollar"] or 0) for r in rows if r["side"] == "Short"]
@@ -433,10 +482,10 @@ def _distribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
                     "count": c,
                 })
 
-    # R-multiple distribution (excludes null R)
+    # R-multiple distribution (excludes null R; effective R = stop-R else true_r)
     r_counts: dict[str, int] = {label: 0 for label, _ in _R_BUCKETS}
     for r in rows:
-        rm = r["r_multiple"]
+        rm = _rv(r, r_map)
         if rm is None:
             continue
         rmf = float(rm)
@@ -485,7 +534,9 @@ def _distribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
 _ATTRIBUTION_MIN_SAMPLE = 10
 
 
-def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+def _attribution_section(
+    rows: list[sqlite3.Row], r_map: dict[Any, float] | None = None,
+) -> dict[str, Any]:
     """P&L by setup/symbol + win-rate-by-setup + avg-R-by-setup + rolling win rate."""
     by_setup_data: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"pnl": 0.0, "wins": 0, "losses": 0, "rs": [], "count": 0}
@@ -512,8 +563,9 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
             t["count"] += 1
             if result == "Win": t["wins"] += 1
             elif result == "Loss": t["losses"] += 1
-            if r["r_multiple"] is not None:
-                t["rs"].append(float(r["r_multiple"]))
+            rv = _rv(r, r_map)
+            if rv is not None:
+                t["rs"].append(rv)
 
     by_setup = []
     for setup, d in by_setup_data.items():
@@ -568,7 +620,9 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
 _REGIME_ORDER = ("green", "amber", "orange", "red")
 
 
-def _regime_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+def _regime_section(
+    rows: list[sqlite3.Row], r_map: dict[Any, float] | None = None,
+) -> dict[str, Any]:
     """Win-rate-by-regime over the CLOSED equity trades (byRegime + unknownCount).
 
     Groups closed trades by their market-regime backdrop at entry
@@ -608,8 +662,9 @@ def _regime_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
             g["wins"] += 1
         elif result == "Loss":
             g["losses"] += 1
-        if r["r_multiple"] is not None:
-            g["rs"].append(float(r["r_multiple"]))
+        rv = _rv(r, r_map)
+        if rv is not None:
+            g["rs"].append(rv)
 
     by_regime_out: list[dict[str, Any]] = []
     for reg in _REGIME_ORDER:  # canonical green→amber→orange→red order
@@ -787,7 +842,9 @@ def _trades_per_year(decisive: list[Any]) -> float:
     return len(decisive) / years if years > 0 else float(_DEFAULT_TRADES_PER_YEAR)
 
 
-def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+def _risk_section(
+    rows: list[sqlite3.Row], r_map: dict[Any, float] | None = None,
+) -> dict[str, Any]:
     """The Risk Block payload — R distribution, drawdown, streaks, streak odds.
 
     Coverage-gated on decisive (Win/Loss) trades, mirroring _exit_quality_section's
@@ -805,7 +862,8 @@ def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
     losses = sum(1 for r in decisive if r["result"] == "Loss")
     decisive_n = wins + losses
     # null-R trades are excluded from the histogram but honestly surfaced.
-    no_r_count = sum(1 for r in rows if r["r_multiple"] is None)
+    # (effective R: a stop-less broker trade with a computed true_r COUNTS.)
+    no_r_count = sum(1 for r in rows if _rv(r, r_map) is None)
 
     if decisive_n < _RISK_MIN_DECISIVE:
         return {
@@ -821,7 +879,7 @@ def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
         }
 
     # rHistogram over trades that HAVE an R (null-R excluded → noRCount).
-    rs = [float(r["r_multiple"]) for r in ordered if r["r_multiple"] is not None]
+    rs = [rv for r in ordered if (rv := _rv(r, r_map)) is not None]
     r_hist, expectancy_r = _r_histogram(rs)
 
     # Drawdown over the cumulative net-P&L equity curve (exit-date order, baseline 0).
@@ -855,7 +913,9 @@ def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
     }
 
 
-def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
+def _edge_score(
+    rows: list[sqlite3.Row], r_map: dict[Any, float] | None = None,
+) -> dict[str, Any]:
     """Composite Edge Scorecard: combines win rate, profit factor, and
     R-multiple consistency into one trended metric.
 
@@ -872,7 +932,7 @@ def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
         return {"score": None, "components": None, "trend": []}
 
     pnls = [float(r["pnl_dollar"] or 0) for r in rows]
-    rs = [float(r["r_multiple"]) for r in rows if r["r_multiple"] is not None]
+    rs = [rv for r in rows if (rv := _rv(r, r_map)) is not None]
     wins = sum(1 for r in rows if r["result"] == "Win")
     losses = sum(1 for r in rows if r["result"] == "Loss")
     wl = wins + losses
@@ -916,7 +976,7 @@ def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
     window = 30
     for i in range(window, len(rows) + 1, 5):
         slc = rows[i - window:i]
-        slc_rs = [float(r["r_multiple"]) for r in slc if r["r_multiple"] is not None]
+        slc_rs = [rv for r in slc if (rv := _rv(r, r_map)) is not None]
         slc_wins = sum(1 for r in slc if r["result"] == "Win")
         slc_losses = sum(1 for r in slc if r["result"] == "Loss")
         slc_wl = slc_wins + slc_losses

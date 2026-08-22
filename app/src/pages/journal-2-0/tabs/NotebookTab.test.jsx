@@ -18,6 +18,23 @@ vi.mock('../components/notebook/NoteCard', () => ({
 vi.mock('../components/notebook/NoteEditorPage', () => ({
   default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
 }))
+vi.mock('../components/notebook/import/ImportWizard', () => ({
+  // Shallow mock — a real "onImported" trigger button lets tests fire the
+  // callback without exercising the real wizard's drop/scan/preview flow.
+  default: ({ open, onImported }) => (
+    open ? (
+      <div data-testid="import-wizard">
+        <button type="button" onClick={onImported}>fire onImported</button>
+      </div>
+    ) : null
+  ),
+}))
+// Shallow mock — has its own SWR fetch + dedicated test file
+// (NoteConnectorsTrustStrip.test.jsx); these tests are about the tab's own
+// wiring, and leaving it real just adds an async fetch nobody here awaits.
+vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
+  default: () => null,
+}))
 
 import NotebookTab from './NotebookTab'
 
@@ -102,7 +119,7 @@ describe('NotebookTab — template picker', () => {
   })
 
   it('?new=<key> deep link auto-creates the template with its ticker', async () => {
-    renderTab('/journal?seg=notebook&new=earnings-play&ticker=gh')
+    renderTab('/journal/notebook?new=earnings-play&ticker=gh')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.title).toBe('Earnings Play — GH')
     expect(lastPostBody.tags).toEqual(['earnings'])
@@ -110,9 +127,44 @@ describe('NotebookTab — template picker', () => {
   })
 
   it('an unknown ?new= key strips quietly without creating anything', async () => {
-    renderTab('/journal?seg=notebook&new=not-a-template')
+    renderTab('/journal/notebook?new=not-a-template')
     // give the effect a tick to run
     await new Promise((r) => setTimeout(r, 50))
     expect(lastPostBody).toBeNull()
+  })
+})
+
+describe('NotebookTab — import', () => {
+  it('header AND empty-state each expose an Import entry point; the empty-state one opens the wizard', () => {
+    renderTab()
+    expect(screen.queryByTestId('import-wizard')).not.toBeInTheDocument()
+    // On <=640px the toolbar row stacks above the (scrollable) list, so the
+    // empty state needs its OWN Import CTA in view — not just the header's.
+    const importButtons = screen.getAllByRole('button', { name: /import/i })
+    expect(importButtons.length).toBeGreaterThanOrEqual(2)
+    // DOM order: header toolbar renders before the empty-state pitch, so the
+    // empty-state button is the last match.
+    fireEvent.click(importButtons[importButtons.length - 1])
+    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+  })
+
+  it('the header Import button also opens the wizard', () => {
+    renderTab()
+    const importButtons = screen.getAllByRole('button', { name: /import/i })
+    fireEvent.click(importButtons[0])
+    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+  })
+
+  it('empty state pitches the import path', () => {
+    renderTab()
+    expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
+  })
+
+  it('a completed import (ImportWizard calling onImported) refreshes notes', () => {
+    renderTab()
+    fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
+    expect(mockRefresh).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('fire onImported'))
+    expect(mockRefresh).toHaveBeenCalled()
   })
 })

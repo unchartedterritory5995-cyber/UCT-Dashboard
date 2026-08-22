@@ -180,16 +180,76 @@ describe('`ta.dmi` hands out three legs the table already declares', () => {
     expect(dmi('a', '14, 20').ok).toBe(false)
   })
 
-  it('…and two DIFFERENT names refuse too, even if they might be equal', () => {
-    // ⛔ Proving `diLen === adxSmooth` needs a constant folder. Without one the
-    // honest answer is to refuse — which is why corpus script 06, whose call is
-    // `ta.dmi(diLen, adxSmooth)`, still does not translate.
+  it('⭐ two DIFFERENT names that hold the SAME number are accepted', () => {
+    // ⚠️ SUPERSEDED THE SAME DAY, AND THE OLD CLAIM IS WORTH KEEPING VISIBLE.
+    // This asserted that `ta.dmi(diLen, adxSmooth)` must refuse because proving
+    // two names equal "needs a constant folder". It got one: the comparison moved
+    // from fold time — where a name is only a name, so the two were compared by
+    // SPELLING — to resolve time, where both are values. Corpus script 06 makes
+    // exactly this call and now translates.
     const r = one(`${head}a1 = input.int(14)\na2 = input.int(14)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
+    expect(r.ok, r.msg).toBe(true)
+    expect(r.formula).toBe('adx(high, low, close, 14)')
+  })
+
+  it('🔴 …and two names holding DIFFERENT numbers still refuse', () => {
+    // ⛔ The rule did not weaken, it got more precise. What must never happen is
+    // a 14/20 request quietly answered with a 14/14 ADX.
+    const r = one(`${head}a1 = input.int(14)\na2 = input.int(20)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
     expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:tuple')
   })
 
   it('a destructure of some OTHER builtin is untouched', () => {
     expect(one(`${head}[a, b] = request.security(syminfo.tickerid, "D", [close, open])\nplot(a)`).ok)
       .toBe(false)
+  })
+})
+
+// ─── a `switch` on a FIXED subject reduces to its one live arm ──────────────
+//
+// ⭐ Published indicators lean on this hard: `f_smooth(x, len, mode)` with `mode`
+// an `input.string("EMA", …)` is a menu a member picks once, not a branch that
+// moves bar to bar. Every arm but the chosen one is dead the moment it folds.
+describe('a switch on a fixed subject picks exactly one arm', () => {
+  const fn = 'f(x, len, mode) =>\n    switch mode\n'
+    + '        "SMA" => ta.sma(x, len)\n'
+    + '        "RMA" => ta.rma(x, len)\n'
+    + '        =>       ta.ema(x, len)\n'
+  const pick = (subject) =>
+    one(`${head}${fn}m = input.string(${subject})\nplot(f(close, 10, m))`)
+
+  it('🔴 a NAMED arm is chosen by its own label — not the first, not the default', () => {
+    // ⛔ THE ASSERTION THE MUTATION HARNESS ASKED FOR. An implementation that
+    // always took the default passed every other test here; two different named
+    // labels landing on two different functions is what catches it.
+    expect(pick('"SMA"').formula).toBe('sma(close, 10)')
+    expect(pick('"RMA"').formula).toBe('rma(close, 10)')
+  })
+
+  it('a subject matching NO arm falls to the default', () => {
+    // `"EMA"` is not a label in that switch — the corpus's ADX script relies on
+    // exactly this, and it is why 06 reduces to `ema`.
+    expect(pick('"EMA"').formula).toBe('ema(close, 10)')
+  })
+
+  it('a written literal subject works the same as an input', () => {
+    expect(one(`${head}${fn}plot(f(close, 10, "SMA"))`).formula).toBe('sma(close, 10)')
+  })
+
+  it('🔴 a subject that MOVES bar to bar still refuses', () => {
+    // ⛔ The basis for reducing at all is that the branch is fixed. If the subject
+    // can change per bar then every arm would have to exist at once — a menu, not
+    // a column — and `pine:block` is the honest answer.
+    const r = one(`${head}${fn}plot(f(close, 10, close > open ? "SMA" : "RMA"))`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:block')
+  })
+
+  it('⛔ `for` and `while` are untouched — this closed ONE shape, not the guard', () => {
+    for (const body of ['for i = 0 to 3\n        x := x + 1', 'while close > 0\n        x := 1']) {
+      const r = one(`${head}g() =>\n    x = 0\n    ${body}\n    x\nplot(g())`)
+      expect(r.ok, body).toBe(false)
+    }
   })
 })

@@ -40,6 +40,26 @@ const getEmptySnapshot = () => EMPTY_SNAPSHOT
 // prev close falls back to the server %). Extended hours keeps REST's frozen
 // regular-session % — a post-market print must not move the day % — detected via
 // ext_session (null only during regular trading).
+// The stream's OWN session fields are UNTRUSTED: its change/change_pct are
+// computed against an unseeded baseline (measured 2026-08-21: ORCL streamed
+// +0.20% while the true day move was +3.78%), and a null field in a stream
+// entry would clobber a real REST value in the spread. price / volume /
+// timestamps are the stream's only trusted contribution; everything
+// session-scoped (prev_close, change, change_pct, day_*, ext_*) belongs to
+// REST or to _applyLiveChange's recompute. Without this strip, any moment
+// REST is absent (first render, hidden-tab wake, REST blip) painted the
+// stream's garbage % on every row.
+export function _streamSafe(streamed) {
+  if (!streamed) return streamed
+  const {
+    change_pct: _c1, change: _c2, prev_close: _c3,
+    day_open: _c4, day_high: _c5, day_low: _c6, day_close: _c7,
+    ext_price: _c8, ext_session: _c9,
+    ...safe
+  } = streamed
+  return safe
+}
+
 function _applyLiveChange(merged, rest) {
   if (!rest) return
   const px = Number(merged.price)
@@ -105,7 +125,7 @@ function usePooledRealtimePrices(tickers = []) {
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
       const streamed = snap.prices[sym]
-      const merged = { ...rest, ...streamed }
+      const merged = { ...rest, ..._streamSafe(streamed) }
       _applyLiveChange(merged, rest)
       _applyLiveExtPrice(merged, rest, streamed)
       if (merged.price != null || merged.day_open != null) result[sym] = merged
@@ -292,7 +312,7 @@ function useLegacyRealtimePrices(tickers = []) {
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
       const streamed = streamPrices[sym]
-      const merged = { ...rest, ...streamed }
+      const merged = { ...rest, ..._streamSafe(streamed) }
       _applyLiveChange(merged, rest)
       _applyLiveExtPrice(merged, rest, streamed)
       if (merged.price != null || merged.day_open != null) result[sym] = merged

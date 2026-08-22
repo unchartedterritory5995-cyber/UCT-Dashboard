@@ -190,6 +190,22 @@ def write_balances(
     derived = round((cash or 0.0) + mv, 2)
     equity = round(float(broker_total), 2) if broker_total is not None else derived
 
+    # STALE-TOTAL GUARD (2026-08-21). The July doctrine preferred the broker's
+    # own `balance.total` because "it mirrors the user's app exactly" — measured
+    # false for Robinhood intraday: the total field served YESTERDAY'S equity
+    # all session ($10,227.88 at the 16:47Z sync) while the SAME payload's live
+    # cash + positions summed to the number the RH app actually displayed.
+    # Both candidates are broker-reported; when they disagree by more than
+    # noise, the LIVE components are the one the member's broker app shows —
+    # so they win, within a sanity band: a divergence beyond 20% is structural
+    # (an FX sleeve / filtered non-USD positions the USD-gated components
+    # miss), and there the reported total stays authoritative.
+    if (broker_total is not None and cash is not None
+            and math.isfinite(equity) and math.isfinite(derived)):
+        gap = abs(derived - equity)
+        if gap > max(5.0, 0.005 * abs(equity)) and gap <= 0.20 * max(abs(equity), 1.0):
+            equity = derived
+
     # INV-4 sanity floor. A broker-reported total is TRUTH — mirror it even if
     # negative (real margin debt). But the DERIVED path (no broker total) pairs a
     # COMPLETE broker cash figure with a possibly-INCOMPLETE positions feed, so a
@@ -338,7 +354,8 @@ def reconcile_positions(
             ext = f"bkpos:{broker_account_id}:{symbol}:{side}"
             seen_ext.add(ext)
             existing = conn.execute(
-                "SELECT id, entry_estimated, shares FROM j2_positions "
+                "SELECT id, entry_estimated, shares, entry_price, stop_price "
+                "FROM j2_positions "
                 "WHERE user_id = ? AND external_id = ?",
                 (user_id, ext),
             ).fetchone()
@@ -371,6 +388,22 @@ def reconcile_positions(
                 # average entry must be refreshed for EVERY position.
                 prior_shares = existing["shares"] if existing["shares"] is not None else 0.0
                 shares_changed = abs(prior_shares - shares) > 1e-6
+                # Broker imports seed stop_price = entry_price as the "no stop
+                # set" placeholder. When a later sync refreshes entry_price and
+                # leaves the old placeholder behind, the two drift by rounding
+                # (ORCL: entry 126.0049 vs stop 126.005) and every placeholder
+                # detector downstream — UI blanking, risk/heat exclusion,
+                # portfolio_heat's safety rail — silently stops firing. Keep
+                # the placeholder in LOCKSTEP with the entry it mirrors; a
+                # user's real stop (anything not ≈ the previous entry) is
+                # never touched.
+                prior_entry = existing["entry_price"]
+                prior_stop = existing["stop_price"]
+                stop_is_placeholder = (
+                    prior_entry is not None and prior_stop is not None
+                    and abs(float(prior_stop) - float(prior_entry))
+                    <= max(0.001, abs(float(prior_entry)) * 1e-5)
+                )
                 if entry_estimated == 0:
                     # Fresh real fills (FIFO agrees with the broker). Refresh the
                     # weighted-average entry + entry date + share count regardless
@@ -380,9 +413,11 @@ def reconcile_positions(
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_date = ?, entry_estimated = 0, "
-                        "broker_price = ?, updated_at = ? "
+                        "broker_price = ?, updated_at = ?, "
+                        "stop_price = CASE WHEN ? THEN ? ELSE stop_price END "
                         "WHERE id = ?",
-                        (shares, shares, entry_price, entry_date, cur_price, now, existing["id"]),
+                        (shares, shares, entry_price, entry_date, cur_price, now,
+                         1 if stop_is_placeholder else 0, entry_price, existing["id"]),
                     )
                 elif shares_changed or existing["entry_estimated"] == 1:
                     # Either the share count actually changed (a real add/trim whose
@@ -395,8 +430,11 @@ def reconcile_positions(
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_estimated = 1, broker_price = ?, "
-                        "updated_at = ? WHERE id = ?",
-                        (shares, shares, entry_price, cur_price, now, existing["id"]),
+                        "updated_at = ?, "
+                        "stop_price = CASE WHEN ? THEN ? ELSE stop_price END "
+                        "WHERE id = ?",
+                        (shares, shares, entry_price, cur_price, now,
+                         1 if stop_is_placeholder else 0, entry_price, existing["id"]),
                     )
                 else:
                     # Holding unchanged + existing basis is real; FIFO just can't

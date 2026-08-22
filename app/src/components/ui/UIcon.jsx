@@ -228,6 +228,7 @@ const ICONS = {
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   download: <path d="M12 3.5v11.5M7.5 11l4.5 4.5 4.5-4.5M5 20h14" />,
+  upload: <path d="M12 15V3.5M7.5 8l4.5-4.5L16.5 8M5 20h14" />,
   clock: (
     <>
       <circle cx="12" cy="12" r="8.5" />
@@ -272,6 +273,15 @@ const ICONS = {
     <>
       <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
       <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  // The struck-through eye. Same lid geometry as `eye` so the two read as one
+  // control's two states rather than two different glyphs.
+  eyeOff: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M4 20L20 4" />
     </>
   ),
   trash: <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" />,
@@ -373,6 +383,34 @@ const ICONS = {
       <circle cx="12" cy="12" r="8.5" />
       <path d="M7 12h10" />
     </>
+  ),
+
+  // ── Note connectors (Microsoft Graph wave) ─────────────────────────────
+  // Generic four-square "Microsoft family" mark — filled squares (not
+  // outlined, unlike `dashboard` above) so it reads as a distinct glyph
+  // rather than a re-skinned dashboard icon.
+  microsoft: (
+    <>
+      <rect x="3.5" y="3.5" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="13.1" y="3.5" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="3.5" y="13.1" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="13.1" y="13.1" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // Spiral notebook — a page with binding dots down the left edge, distinct
+  // from `document` (folded-corner page) and `journal` (plain ruled page).
+  onenote: (
+    <>
+      <rect x="6" y="3.5" width="14" height="17" rx="1.6" />
+      <circle cx="4.2" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="17" r="1" fill="currentColor" stroke="none" />
+      <path d="M10 8.5h6M10 12h6M10 15.5h4" />
+    </>
+  ),
+  // Generic cloud-storage outline.
+  onedrive: (
+    <path d="M18 10.3h-1.3a8 8 0 1 0-7.7 10.2h9a5 5 0 0 0 0-10.2z" />
   ),
 }
 

@@ -55,6 +55,39 @@ export const roundShares = (x, allowFractional) =>
 export const activeStop = (p) =>
   p.raiseToBreakeven && p.breakevenStop != null ? p.breakevenStop : p.stopPrice
 
+/**
+ * Broker imports have no stop; the NOT-NULL stop_price column is seeded with
+ * entry_price as a placeholder. That placeholder means "no stop set" — it must
+ * never feed risk/heat math or render as a real stop. ONE predicate, shared by
+ * every surface (a copy per surface is how one of them drifts).
+ * @param {Position} p
+ */
+export const isBrokerPlaceholderStop = (p) => {
+  const active = activeStop(p)
+  if (p?.source !== 'broker' || active == null || !Number.isFinite(p?.entryPrice)) return false
+  // Tolerant, not strict ===: a sync that refreshes entry_price can leave the
+  // seeded placeholder a rounding-hair away (ORCL: stop 126.005 vs entry
+  // 126.0049), and a strict comparison silently un-blanks it. A real stop is
+  // never within a tenth of a cent of the entry.
+  return Math.abs(active - p.entryPrice) <= Math.max(0.001, Math.abs(p.entryPrice) * 1e-5)
+}
+
+/**
+ * Did this position genuinely OPEN today? True only when the entry date is
+ * today AND the entry is real. Broker holdings-as-truth seeds unknown entries
+ * with a sync-time placeholder date + entryEstimated flag — a reconnect
+ * stamped every carried-in position "opened today", so its ENTIRE unrealized
+ * gain since the true entry booked as "Today" (the +$1,335.87-vs-−$881 bug).
+ * @param {Position} p @param {string} [todayIso]
+ */
+export const openedTodayFill = (p, todayIso) =>
+  Boolean(
+    todayIso &&
+      p?.entryDate &&
+      String(p.entryDate).slice(0, 10) === todayIso &&
+      p?.entryEstimated !== true,
+  )
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.2 Long-side formulas
 // ───────────────────────────────────────────────────────────────────────────
@@ -203,8 +236,13 @@ export const portfolioAggregates = (openPositions, prices, accountSize) => {
     if (current == null) continue
     value += current * p.shares
     unrealized += positionPnlDollar(p, current)
-    risk += positionRiskDollar(p)
-    heat += positionHeatDollar(p, current)
+    // Broker imports carry entry_price as a NOT-NULL stop placeholder — that
+    // is "no stop set", not a real stop at breakeven. Counting it made HEAT
+    // equal the whole unrealized P&L for every broker position.
+    if (!isBrokerPlaceholderStop(p)) {
+      risk += positionRiskDollar(p)
+      heat += positionHeatDollar(p, current)
+    }
   }
 
   return {
@@ -297,7 +335,7 @@ export const currentPriceFor = (position, prices) => {
  * @param {string} [todayIso]  today's date as 'YYYY-MM-DD' (ET); enables same-day-entry handling
  * @returns {{netLiq: number|null, marketValue: number, today: number, todayPct: number|null}}
  */
-export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso) => {
+export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks) => {
   let marketValue = 0
   let today = 0
   for (const p of positions || []) {
@@ -308,27 +346,43 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     const signed = p.side === 'Short' ? -p.shares : p.shares
     marketValue += px * signed
     if (Number.isFinite(live)) {
-      const openedToday =
-        todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
-      // Reference price for Today: the entry (fill) if opened today, else the
-      // previous close — the `prev_close` field when present, otherwise derived
-      // from `change_pct` (price / (1 + pct/100)), since the live feed doesn't
-      // always carry prev_close. Mirrors positionTodayDollar's proven approach.
+      // Reference price for Today: the entry (fill) if genuinely opened today
+      // (placeholder-dated broker imports excluded — openedTodayFill), else the
+      // previous close — the `prev_close` field when present AND > 0 (the feed
+      // emits 0.0 for "missing", never a real close), otherwise derived from
+      // `change_pct` (price / (1 + pct/100)). Mirrors positionTodayDollar.
       let ref
-      if (openedToday) {
+      if (openedTodayFill(p, todayIso)) {
         ref = p.entryPrice
       } else {
         const snap = prices?.[p.symbol]
-        if (Number.isFinite(snap?.prev_close)) ref = snap.prev_close
+        if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) ref = snap.prev_close
         else if (Number.isFinite(snap?.change_pct)) ref = live / (1 + snap.change_pct / 100)
       }
       if (Number.isFinite(ref)) today += signed * (live - ref)
     }
   }
   for (const s of optionStrategies || []) {
+    // Live mark (Massive option aggs, useJ2OptionMarks) preferred; the
+    // sync-time brokerCurrentValue is the fallback. Values are SIGNED totals.
+    const live = optionMarks?.[s?.id]
+    const liveCur = live?.currentValue
     const bcv = s?.brokerCurrentValue
-    if (Number.isFinite(bcv)) marketValue += bcv
-    // options contribute ~0 to Today (no live option quote — broker mark only)
+    const cur = Number.isFinite(liveCur) ? liveCur : bcv
+    if (Number.isFinite(cur)) marketValue += cur
+    if (Number.isFinite(liveCur) && Number.isFinite(live?.prevCloseValue)) {
+      // Today for options mirrors the equity rule: measured from the prior
+      // session close, or from the entry (netEntry) for a strategy genuinely
+      // opened today. entryEstimated (carried-in placeholder dates) comes
+      // from the marks payload, which derives it from the external id.
+      const opened = openedTodayFill(
+        { entryDate: s?.entryDate, entryEstimated: live.entryEstimated === true },
+        todayIso,
+      )
+      const base = opened && Number.isFinite(s?.netEntry) ? s.netEntry : live.prevCloseValue
+      today += liveCur - base
+    }
+    // Without a live mark, options contribute 0 to Today (sync mark only).
   }
   const cash = account?.brokerCash
   const netLiq = Number.isFinite(cash) ? cash + marketValue : null
@@ -380,12 +434,10 @@ export const extendedSessionSplit = (positions, prices, opts = {}) => {
     if (!Number.isFinite(dayClose)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     closeValue += signed * dayClose
-    const openedToday =
-      todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
     let ref
-    if (openedToday) {
+    if (openedTodayFill(p, todayIso)) {
       ref = p.entryPrice
-    } else if (Number.isFinite(snap?.prev_close)) {
+    } else if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) {
       ref = snap.prev_close
     } else if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {
       ref = snap.price / (1 + snap.change_pct / 100)

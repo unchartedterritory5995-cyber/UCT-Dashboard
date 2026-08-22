@@ -60,6 +60,29 @@ def _ensure_table():
         c.close()
 
 
+def record_notionals(tickers) -> dict:
+    """Batch lookup of the stored all-time record notional per ticker (UPPER-cased).
+    Returns {TICKER: record_notional}; a ticker with no stored record is absent.
+    Used by the big-block embed to tag a print that is (at least tied for) the
+    biggest ever for its name with a ★. Read-only, fail-soft — {} on any error."""
+    tks = sorted({(t or "").upper() for t in (tickers or []) if t})
+    if not tks:
+        return {}
+    try:
+        _ensure_table()
+        c = _conn()
+        try:
+            qs = ",".join("?" * len(tks))
+            rows = c.execute(
+                f"SELECT ticker, notional FROM darkpool_records WHERE ticker IN ({qs})",
+                tks).fetchall()
+            return {(r[0] or "").upper(): float(r[1] or 0) for r in rows}
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _records_count() -> int:
     _ensure_table()
     c = _conn()

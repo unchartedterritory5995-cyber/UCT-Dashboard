@@ -460,7 +460,12 @@
 
 .tfBar {
   display: flex;
-  flex-wrap: wrap;
+  /* nowrap + hidden: the timeframe/info row NEVER wraps to a second line. When it
+     runs out of room ChartPane drops timeframe buttons into the ▾ menu (measured by
+     horizontal overflow) so the height is fixed at one row — no up-and-back jump as
+     buttons disappear, and the info row never gets shoved below. */
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-items: center;
   gap: 2px;
   padding: 0 6px;
@@ -482,6 +487,10 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   cursor: pointer;
+  /* Never squeeze a timeframe button — the row OVERFLOWS (which ChartPane measures
+     and responds to by dropping whole buttons into the ▾ menu) instead of shrinking
+     them into unreadable slivers. */
+  flex-shrink: 0;
   /* No text-transform: labels carry their own case (minutes '1m'/'45m' lowercase,
      hours '1h', days/weeks/months '1D'/'2W'/'1M' uppercase) so 1-minute and
      1-month never both read as '1M'. */
@@ -530,6 +539,10 @@
   gap: 8px;
   margin: 0 8px 0 6px;
   min-width: 0;
+  /* Never compress the day change — if the row runs out of room it must OVERFLOW
+     (measured by ChartPane, which then abbreviates the session buttons) rather than
+     letting the number squeeze and slide under the session toggle. */
+  flex-shrink: 0;
 }
 .chartDayGain {
   display: inline-flex;
@@ -542,6 +555,7 @@
   letter-spacing: 0.2px;
   white-space: nowrap;
   margin: 0;
+  flex-shrink: 0;   /* see .chartDayGainWrap — overflow, don't squeeze */
 }
 /* Extended-hours (pre/post-market) change — shaded pill beside the regular number,
    neutral background so it reads on both light and dark canvases. */
@@ -664,7 +678,11 @@
   align-items: center;
   gap: 16px;
   margin-left: 18px;
-  flex-wrap: wrap;
+  /* Info row is ONE line and never shrinks: if it can't fit, ChartPane drops
+     timeframe buttons FIRST, then abbreviates these labels — it must never squeeze
+     or wrap the info (which the parent's overflow:hidden would then clip). */
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 .chartMetaItem {
   display: inline-flex;
@@ -691,6 +709,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;   /* the gear/＋/theme cluster stays whole — timeframes yield instead */
 }
 
 /* ── Right side of the TOP (ticker) row: session toggle + live market clock ── */
@@ -962,10 +981,37 @@
   --ut-gold: #7a5c16;
   --ut-gold-dim: #7a5c161a;
   --ut-gold-glow: #7a5c1633;
-  --ut-green-bright: #0a5c22;
-  --ut-red-bright: #7d1620;
-  --gain: #0a5c22;
-  --loss: #7d1620;
+  --ut-green-bright: #17a917;
+  --ut-red-bright: #db000b;
+  --gain: #17a917;
+  --loss: #db000b;
+}
+
+/* FROZEN-LIGHT: a theme-following widget PLACED on the light app theme keeps its
+   light look no matter what the app theme later becomes (WidgetHost stamps
+   .widgetFrozenLight from the widget's frozen placement theme). Unlike
+   .widgetThemeFollow above this is NOT scoped to the current app [data-theme], so it
+   holds on BOTH light and oled; `.widget.widgetFrozenLight` matches the dark
+   re-assertion's specificity (0,3,0) and, declared later, wins. A widget placed on a
+   DARK theme gets no class and keeps the workspace's dark default in either app theme. */
+[data-charts-theme='default'] .widget.widgetFrozenLight {
+  --bg: #ffffff;
+  --bg-surface: #f4f5f6;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --border: #e3e5e7;
+  --border-accent: #cbced1;
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --text-bright: #0b0e11;
+  --text-heading: #161a1e;
+  --ut-gold: #7a5c16;
+  --ut-gold-dim: #7a5c161a;
+  --ut-gold-glow: #7a5c1633;
+  --ut-green-bright: #17a917;
+  --ut-red-bright: #db000b;
+  --gain: #17a917;
+  --loss: #db000b;
 }
 
 /* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────
@@ -1213,11 +1259,34 @@
   container-type: inline-size;
 }
 
-/* react-grid-layout uses .react-grid-item — give the placeholder a visible style */
-:global(.react-grid-placeholder) {
-  background: var(--accent, #c9a84c) !important;
-  opacity: 0.15 !important;
+/* While a custom resize is active, kill the 200ms item transition on EVERY widget
+   so the active widget tracks the cursor 1:1 and neighbours shrink crisply (RGL
+   only disables this for its own drags via .resizing; our resize sets this class). */
+:global(.charts-resizing) > :global(.react-grid-item) { transition: none !important; }
+
+/* Drag (via the 6-dot handle): tint the WHOLE dragged widget gold — the same look
+   as resizing (.rzPlaceholder) — instead of RGL's separate placeholder box that
+   lagged behind the cursor. The ::after rides on the dragged item, so the tint
+   tracks it 1:1 with zero lag. RGL adds .react-draggable-dragging to the item
+   being dragged (custom resize uses .charts-resizing/.rzPlaceholder, so these
+   never collide). */
+:global(.react-grid-item.react-draggable-dragging)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: var(--accent, #c9a84c);
+  opacity: 0.15;
   border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Hide RGL's drag placeholder box (the lagging gold rectangle) — the dragged
+   widget's own gold tint above now shows the move; neighbours still reflow to
+   indicate where it will land. */
+:global(.react-grid-placeholder) {
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
 /* Brighten the corner resize indicators so they're visible on dark theme.
@@ -1236,6 +1305,37 @@
 :global(.react-grid-item) > :global(.react-resizable-handle) {
   width: 16px !important;
   height: 16px !important;
+}
+
+/* ── Custom resize handles (main board) — replace RGL's built-in resize so a
+      neighbour can shrink live. These reproduce RGL's look: a translucent gold
+      placeholder while resizing + gold "L" marks in all four corners. ── */
+.rzHandle { position: absolute; z-index: 6; touch-action: none; }
+
+/* Gold "L" corner grab marks (mirrors the old .react-resizable-handle::after). */
+.rzCorner::after {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  border: 0 solid rgba(201, 168, 76, 0.55);
+  transition: border-color 0.12s ease;
+}
+:global(.react-grid-item):hover .rzCorner::after { border-color: rgba(201, 168, 76, 0.95); }
+.rz_nw::after { top: 3px;    left: 3px;    border-top-width: 2px;    border-left-width: 2px; }
+.rz_ne::after { top: 3px;    right: 3px;   border-top-width: 2px;    border-right-width: 2px; }
+.rz_sw::after { bottom: 3px; left: 3px;    border-bottom-width: 2px; border-left-width: 2px; }
+.rz_se::after { bottom: 3px; right: 3px;   border-bottom-width: 2px; border-right-width: 2px; }
+
+/* Translucent gold highlight shown over the widget being resized (matches the
+   old .react-grid-placeholder aesthetic). */
+.rzPlaceholder {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--accent, #c9a84c);
+  opacity: 0.15;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
 /* ── Mobile workspace (phone): tabbed widget stack ── */

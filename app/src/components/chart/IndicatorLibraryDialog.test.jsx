@@ -92,6 +92,28 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     expect(screen.getAllByRole('option')).toHaveLength(catalogRows().length)
   })
 
+  it('🔴 reopening clears a stale search — a member never comes back to an empty library', () => {
+    // ⚰️ MEASURED ON PRODUCTION 2026-08-14. Searched `sma` (which matches nothing —
+    // the moving averages are not in this library at all), closed the dialog,
+    // reopened it: the box still held `sma` and the list still read "No indicator
+    // matches “sma”". Observed twice, with `sma` and then with `macd`. The dialog
+    // stays mounted and only toggles `open`, so `query` survived — and the member
+    // is looking at a library that appears to contain nothing, with no visible
+    // cause. The focus effect already fires on open; it just never reset the box.
+    const onChange = vi.fn()
+    const props = { onClose: () => {}, settings: base(), onChange, registry: engineRegistry }
+    const { rerender } = render(<IndicatorLibraryDialog open {...props} />)
+
+    type('bollinger')
+    expect(optionIds()).toEqual(['bb'])
+
+    rerender(<IndicatorLibraryDialog open={false} {...props} />)
+    rerender(<IndicatorLibraryDialog open {...props} />)
+
+    expect(screen.getByRole('searchbox').value, 'the query survived a close').toBe('')
+    expect(screen.getAllByRole('option')).toHaveLength(catalogRows().length)
+  })
+
   it('a second click removes it, and the row un-ticks', () => {
     const on = setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
     const { onChange } = open(on)

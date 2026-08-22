@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18 + Vite, lightweight-charts 5.2.0 (pinned), vitest (`cd app && npx vitest run <paths>` — **never** `npm test -- run`), Python 3.12 + Playwright + Pillow for `tools/chart_parity.py`.
 
-**Branch:** `feat/phase-b2-engine`, HEAD `c6970d28`. B3 commits directly onto it. ⛔ **Branch pushes only, NEVER `<branch>:master`** — Phase B ships after the Sep 5 launch freeze.
+**Branch:** `feat/phase-b2-engine`, HEAD `c6970d28`. B3 commits directly onto it. ⚰️ **SUPERSEDED** — this said *"Branch pushes only, NEVER `<branch>:master` — Phase B ships after the Sep 5 launch freeze."* B3 shipped to master once its parity gate proved it safe, weeks before either launch date. See `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
 
 **Baseline to hold:** 3,607 frontend tests / 388 files green. Every task states the delta it adds.
 

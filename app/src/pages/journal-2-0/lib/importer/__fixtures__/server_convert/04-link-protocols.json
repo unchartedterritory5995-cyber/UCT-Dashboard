@@ -1,0 +1,120 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Link-protocol allowlist coverage beyond the golden fixture's https + import-link cases: an ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "http://",
+            "type": "text"
+          },
+          {
+            "text": " (not ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "https://",
+            "type": "text"
+          },
+          {
+            "text": ") link, which the implemented policy still keeps as a real link mark (the app's ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "protocols: ['https']",
+            "type": "text"
+          },
+          {
+            "text": " config APPENDS to tiptap-link's hardcoded default allow-list rather than replacing it — see ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "mddoc.py::_LINK_ALLOWED_PROTOCOLS",
+            "type": "text"
+          },
+          {
+            "text": ").",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Plain http link: ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "http://example.com/legacy-notes"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "legacy vendor doc",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Mailto is in the same default allow-list: ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "mailto:desk@example.com"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "email the desk",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": []
+}

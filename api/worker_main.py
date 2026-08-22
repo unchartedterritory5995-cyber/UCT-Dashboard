@@ -86,9 +86,22 @@ def _start_memwatch():
 
 
 def _start_prewarmer():
-    from api.services.bars_prewarm import run_prewarmer_forever
-    log.info("starting prewarmer thread")
-    threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
+    # SUPERVISED: run_prewarmer_supervised restarts the loop (bounded backoff) if it
+    # ever exits/raises, so warming can't stop permanently from a single unhandled
+    # error the way it did for a week on 2026-08-11. The loop body is itself guarded.
+    from api.services.bars_prewarm import run_prewarmer_supervised
+    log.info("starting prewarmer thread (supervised)")
+    threading.Thread(target=run_prewarmer_supervised, daemon=True, name="prewarm").start()
+
+
+def _start_universe_crawler():
+    # GENTLE universe 5m warm (instant-origin Phase 2 v2). Single-threaded, rate-limited,
+    # skip-fresh — the anti-thrash replacement for the boot-bulk approach that saturated
+    # the provider + write-lock on 2026-08-19. Supervised; no-ops unless
+    # BARS_UNIVERSE_CRAWLER_ENABLED=1. See bars_universe_crawler.py header.
+    from api.services.bars_universe_crawler import run_universe_crawler_supervised
+    log.info("starting universe-5m-crawler thread (supervised)")
+    threading.Thread(target=run_universe_crawler_supervised, daemon=True, name="uni-crawler").start()
 
 
 def _start_deep_history_warm():
@@ -286,13 +299,17 @@ def _start_wick_backfill():
         log.info("breadth wick backfill: set BREADTH_WICKS_FROM/TO to run; idle")
         return
     upload_every = int(os.environ.get("BREADTH_WICKS_UPLOAD_EVERY", "10"))
+    # RESWEEP=1 forces re-processing days that already carry intraday_recon — needed
+    # to propagate a method CORRECTION (e.g. the seeded-open wick fix) over old rows.
+    skip_done = os.environ.get("BREADTH_WICKS_RESWEEP") != "1"
 
     def run():
         time.sleep(30)                              # let boot settle
         from api.services import breadth_wick_recon as wr
-        log.info(f"breadth wick sweep starting {frm}..{to} (upload_every={upload_every})")
+        log.info(f"breadth wick sweep starting {frm}..{to} "
+                 f"(upload_every={upload_every}, skip_done={skip_done})")
         try:
-            res = wr.sweep_wicks(frm, to, upload_every=upload_every)
+            res = wr.sweep_wicks(frm, to, upload_every=upload_every, skip_done=skip_done)
             log.info(f"breadth wick sweep DONE: {res}")
         except Exception as e:
             log.exception(f"breadth wick sweep failed: {e}")
@@ -382,6 +399,121 @@ def _post_discord(webhook, content):
     except Exception as e:
         log.warning(f"down-alert Discord post failed: {type(e).__name__}: {e}")
         return False
+
+
+# ── Bars freshness watchdog: catch a frozen store + a dead prewarmer ─────────
+# The one failure mode the existing (web-side, intraday-only) watchdog is blind to:
+# the worker's own DAILY store frozen because the prewarmer thread died. This runs
+# ON THE WORKER, checks the prewarmer heartbeat + a direct daily-freshness sample,
+# and pages Discord (the existing alert channel) — the delivery the in-memory
+# chart_health_alerts deque never had.
+BARS_FRESHNESS_CHECK_SECONDS = int(os.environ.get("BARS_FRESHNESS_CHECK_SECONDS", "900"))
+BARS_FRESHNESS_RENAG_SECONDS = int(os.environ.get("BARS_FRESHNESS_RENAG_SECONDS", "1800"))
+
+
+def _prewarm_health() -> dict:
+    try:
+        from api.services.bars_prewarm import prewarm_heartbeat
+        return prewarm_heartbeat()
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+
+def _universe_crawler_health() -> dict:
+    try:
+        from api.services.bars_universe_crawler import crawler_heartbeat
+        return crawler_heartbeat()
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+
+def _bars_daily_health() -> dict:
+    try:
+        from api.services.bars_prewarm import daily_freshness_report
+        return daily_freshness_report()
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+
+def _bars_freshness_decision(prev, healthy, now, *, renag_s=BARS_FRESHNESS_RENAG_SECONDS):
+    """Pure state machine for the freshness watchdog. prev/return:
+    {"bad": bool, "last_alert_at": float|None}; event ∈ {None,'stale','still_stale','recovered'}."""
+    bad = prev.get("bad", False)
+    last = prev.get("last_alert_at")
+    event = None
+    if not healthy and not bad:
+        bad, event, last = True, "stale", now
+    elif healthy and bad:
+        bad, event, last = False, "recovered", now
+    elif not healthy and bad and (last is None or now - last >= renag_s):
+        event, last = "still_stale", now
+    return {"bad": bad, "last_alert_at": last}, event
+
+
+def _bars_alert_text(event, hb, fr):
+    """Render the page.
+
+    ⛔ THE REMEDY USED TO BE UNCONDITIONAL, AND IT WAS THE BUG. Every alert ended
+    "Warming has stopped; a worker redeploy revives it." — but the most common way
+    to see this alert is DURING the boot pass, and a redeploy restarts that pass
+    from zero. On 2026-08-18 that advice, followed, would have looped forever.
+    The tail is now derived from what the prewarmer is actually doing.
+    """
+    if event == "recovered":
+        return (f"🟢 **Bars store recovered** — prewarmer alive, daily fresh "
+                f"(newest {fr.get('newest_session')}, expected {fr.get('expected_session')}).")
+    head = "🔴 **Bars store STALE**" if event == "stale" else "🔴 **Bars store STILL stale**"
+    reasons = []
+    if not hb.get("alive"):
+        age = hb.get("age_seconds")
+        reasons.append(f"prewarmer DEAD (last beat {int(age)}s ago)" if age else "prewarmer never started")
+    if fr.get("stale"):
+        reasons.append(f"daily {fr.get('days_behind')}d behind "
+                       f"(newest {fr.get('newest_session')} vs expected {fr.get('expected_session')})")
+    if hb.get("last_error"):
+        reasons.append(f"last error: {hb.get('last_error')}")
+
+    if hb.get("phase") == "disabled":
+        tail = ("The prewarmer is DISABLED (BARS_PREWARM_ENABLED != 1) — "
+                "no redeploy can start it; set the flag.")
+    elif not hb.get("alive"):
+        tail = "Warming has stopped; a worker redeploy revives it."
+    elif hb.get("phase") == "boot":
+        tail = (f"Warming is RUNNING — boot pass {hb.get('boot_done')}/{hb.get('boot_total')}; "
+                f"a redeploy would restart that pass from zero, so let it finish.")
+    else:
+        tail = "Warming is running; the store should catch up on the next refresh cycle."
+    return f"{head} — " + "; ".join(reasons or ["unknown"]) + ". " + tail
+
+
+def _start_bars_freshness_watchdog():
+    """Daemon: page Discord when the worker's daily store goes stale or its
+    prewarmer dies. Disable with BARS_FRESHNESS_WATCHDOG_ENABLED=0."""
+    if os.environ.get("BARS_FRESHNESS_WATCHDOG_ENABLED", "1") != "1":
+        return
+    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+
+    def _loop():
+        state = {"bad": False, "last_alert_at": None}
+        time.sleep(600)  # let the boot warm establish a heartbeat first
+        while True:
+            try:
+                hb = _prewarm_health()
+                fr = _bars_daily_health()
+                healthy = bool(hb.get("alive")) and not fr.get("stale")
+                state, event = _bars_freshness_decision(state, healthy, time.time())
+                if event:
+                    msg = _bars_alert_text(event, hb, fr)
+                    log.warning(f"[bars-watchdog] {event}: {msg}")
+                    if webhook:
+                        _post_discord(webhook, msg)
+            except Exception as e:
+                log.warning(f"[bars-watchdog] check failed (non-fatal): {e}")
+            time.sleep(BARS_FRESHNESS_CHECK_SECONDS)
+
+    threading.Thread(target=_loop, daemon=True, name="bars-freshness-watchdog").start()
+    log.info("[bars-watchdog] started (check=%ss, renag=%ss, discord=%s)",
+             BARS_FRESHNESS_CHECK_SECONDS, BARS_FRESHNESS_RENAG_SECONDS, bool(webhook))
 
 
 def _start_keepwarm():
@@ -546,6 +678,12 @@ def _build_app() -> FastAPI:
             "uploader_last_attempt_at": last_attempt_at,
             "uploader_last_outcome": last_outcome,
             "uploader_seconds_since_attempt": seconds_since_attempt,
+            # PREWARMER liveness + DAILY store freshness — the signals whose absence
+            # let the 2026-08-11 week-long freeze go undetected. `prewarm.alive`
+            # false or `bars_daily.stale` true means warming has stopped.
+            "prewarm": _prewarm_health(),
+            "bars_daily": _bars_daily_health(),
+            "universe_crawler": _universe_crawler_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -642,6 +780,8 @@ def main():
     ).start()
 
     _start_prewarmer()
+    _start_universe_crawler()
+    _start_bars_freshness_watchdog()
     _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()
@@ -658,6 +798,23 @@ def main():
     _probe_flatfile_access()
     _start_wick_backfill()
     _start_memwatch()
+    # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
+    # into a static R2 artifact so browsers pre-seed IndexedDB for instant
+    # first-view charts. Dark until BARSPACK_ENABLED=1; zero provider cost.
+    try:
+        from api.services.barspack import start_barspack_builder
+        start_barspack_builder()
+    except Exception as e:
+        log.warning(f"barspack builder failed to start (non-fatal): {e}")
+
+    # Intraday Bars Pack builder (Phase 4) — packs PRIOR CLOSED 5m/60m sessions for
+    # the universe so intraday scroll-back is instant too; today's session rides the
+    # live feed. Dark until INTRADAYPACK_ENABLED=1; zero provider cost.
+    try:
+        from api.services.intradaypack import start_intradaypack_builder
+        start_intradaypack_builder()
+    except Exception as e:
+        log.warning(f"intradaypack builder failed to start (non-fatal): {e}")
 
     # Boot fingerprint — one grep-able line so an operator can confirm which
     # data-integrity guards are live in this worker deploy (mirrors the web's

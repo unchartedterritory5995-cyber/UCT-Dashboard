@@ -19,17 +19,17 @@ describe('mapJ2TabToRoute — tab → route mapping', () => {
     })
   })
 
-  it('calendar → /journal/journal?seg=calendar', () => {
+  it('calendar → /journal/calendar (own top tab, no seg)', () => {
     expect(mapJ2TabToRoute(sp('j2tab=calendar'))).toEqual({
-      path: '/journal/journal',
-      search: '?seg=calendar',
+      path: '/journal/calendar',
+      search: '',
     })
   })
 
-  it('notebook → /journal/journal?seg=notebook', () => {
+  it('notebook → /journal/notebook (own top tab, no seg)', () => {
     expect(mapJ2TabToRoute(sp('j2tab=notebook'))).toEqual({
-      path: '/journal/journal',
-      search: '?seg=notebook',
+      path: '/journal/notebook',
+      search: '',
     })
   })
 
@@ -85,12 +85,12 @@ describe('mapJ2TabToRoute — querystring preservation', () => {
     expect(out.search).toBe('?sc_setup=VCP&sc_v=1&seg=closed')
   })
 
-  it('notebook preserves note=abc + seg=notebook (GlobalAddPositionProvider)', () => {
+  it('notebook preserves note=abc, no seg (GlobalAddPositionProvider)', () => {
     const out = mapJ2TabToRoute(sp('j2tab=notebook&note=abc'))
-    expect(out.path).toBe('/journal/journal')
+    expect(out.path).toBe('/journal/notebook')
     const got = new URLSearchParams(out.search)
     expect(got.get('note')).toBe('abc')
-    expect(got.get('seg')).toBe('notebook')
+    expect(got.has('seg')).toBe(false)
     expect(got.has('j2tab')).toBe(false)
   })
 

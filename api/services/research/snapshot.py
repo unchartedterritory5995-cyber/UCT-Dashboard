@@ -34,6 +34,14 @@ _SNAP_KIND = "research_snapshot"
 _STALE_SERVE_MAX = 2 * 86400   # serve an expired snapshot up to 2 days old while refreshing
 
 
+def _stale_missing_mcap(payload: dict) -> bool:
+    """A rated equity whose snapshot has no market cap — the tell of a snapshot
+    cached before the FMP market-cap backfill. A genuinely cap-less name carries
+    no composite either, so this stays False for them (no refresh churn)."""
+    m = payload.get("metrics") or {}
+    return m.get("market_cap") is None and payload.get("composite") is not None
+
+
 def _skeleton(sym: str) -> dict:
     return {
         "sym": sym,
@@ -86,6 +94,15 @@ def get_snapshot(sym: str) -> dict:
     snap = snap_store.get(_SNAP_KIND, sym)
     if snap is not None:
         payload, age, ttl = snap
+        # A snapshot cached BEFORE the FMP market-cap backfill existed can be
+        # "complete" (name/composite/other metrics present) yet missing
+        # market_cap, because yfinance omitted it (MU is the standing example).
+        # Nudge those to rebuild in the background so the header's Market Cap
+        # fills within one poll instead of waiting out the full 30-min TTL. A
+        # genuinely cap-less name has no composite either, so this never churns
+        # them; _schedule_refresh dedupes per symbol.
+        if _stale_missing_mcap(payload):
+            _schedule_refresh(sym)   # heal in the background; still serve current
         if age <= ttl:
             cache.set(ck, payload, max(60, int(ttl - age)))
             return payload

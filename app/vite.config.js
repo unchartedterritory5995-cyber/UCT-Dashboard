@@ -27,7 +27,7 @@ function comingSoonMeta() {
   // (observed: cf-cache-status HIT serving the previous card after deploy) and
   // X/Discord/iMessage cache their copy far longer. Both key on the FULL url,
   // so the query string is what actually busts them. FastAPI ignores the param.
-  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=sep5-mark'
+  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=sep19-mark'
 
   // The JSON-LD block declares two purchasable Offers ($200/mo, $2000/yr) and a
   // 7-day free trial. That is machine-readable "you can buy this now" that

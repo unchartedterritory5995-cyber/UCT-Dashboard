@@ -167,7 +167,11 @@ acceptance is keyed on `(address, shape)` and not on the address.
   30-day ceiling. Rows armed 2026-08-06 lose their muzzle **2026-09-05, the launch
   date**; 27 of 31 would deliver on the first cycle past it. Inside 7 days this
   refuses. The fix is one command: `tools/alert_soak_matrix.py --arm` (idempotent) or
-  `--disarm`.
+  `--disarm`. ⚰️ **This whole runbook predates the cutover it was gating** — `ALERT_EVAL_MODE`
+  was flipped to `"closed"` on 2026-08-07 (`docs/decisions/2026-08-06-closed-bar-alert-cutover.md`),
+  so the GO/NO-GO decision this doc walks through has already been made and executed.
+  Anyone re-arming soak rows in the future should pick a fresh muzzle-expiry date rather
+  than trust the 2026-09-05 anchor above.
   ⚠️ **READ `--arm`'s EXIT CODE.** It used to print its own `verify()` and
   `return 0` regardless, so a half-finished arm exited SUCCESS with the JSON of
   its own failure on stdout. It now exits **1** when its own verify refuses, on

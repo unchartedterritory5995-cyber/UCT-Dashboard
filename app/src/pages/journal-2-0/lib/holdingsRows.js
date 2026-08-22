@@ -4,13 +4,14 @@
  *   today$ = signedShares × (price − ref); ref = fill price for same-day
  *   entries, else prev close (derived from change_pct when the feed lacks it).
  */
-import { currentPriceFor, positionPnlDollar } from '../../../lib/journal-2-0'
+import { currentPriceFor, openedTodayFill, positionPnlDollar } from '../../../lib/journal-2-0'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
 
 function prevCloseOf(snap) {
   if (!snap) return null
-  if (Number.isFinite(snap.prev_close)) return snap.prev_close
+  // The feed emits prev_close 0.0 for "missing" — a real close is never 0.
+  if (Number.isFinite(snap.prev_close) && snap.prev_close > 0) return snap.prev_close
   if (Number.isFinite(snap.price) && Number.isFinite(snap.change_pct)) {
     const pc = snap.price / (1 + snap.change_pct / 100)
     return Number.isFinite(pc) ? pc : null
@@ -23,12 +24,9 @@ export function buildEquityRows(positions, prices, todayIso) {
     const snap = prices?.[p.symbol]
     const price = fin(currentPriceFor(p, prices))
     const signed = (p.side === 'Short' ? -1 : 1) * (p.shares || 0)
-    // entryDate arrives as a FULL ISO timestamp from the API — compare the
-    // date part only (same recipe as brokerLiveSummary) or the same-day-fill
-    // rule never fires.
-    const openedToday =
-      todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
-    const ref = openedToday ? fin(p.entryPrice) : prevCloseOf(snap)
+    // Same-day-fill rule shared with brokerLiveSummary: real fills only —
+    // broker imports with a placeholder (estimated) entry date use prev close.
+    const ref = openedTodayFill(p, todayIso) ? fin(p.entryPrice) : prevCloseOf(snap)
     const livePrice = fin(snap?.price)
     const todayDollar = livePrice != null && ref != null ? signed * (livePrice - ref) : null
     const totalReturnDollar = price == null ? null : positionPnlDollar(p, price)

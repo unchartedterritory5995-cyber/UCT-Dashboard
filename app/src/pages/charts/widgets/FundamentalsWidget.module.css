@@ -222,3 +222,4 @@
 @container (max-width: 520px) { .qBlock:nth-last-child(n+5) { display: none; } }
 @container (max-width: 380px) { .qBlock:nth-last-child(n+4) { display: none; } }
 @container (max-width: 280px) { .qBlock:nth-last-child(n+3) { display: none; } }
+

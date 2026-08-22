@@ -344,10 +344,21 @@ test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and 
   expect(wrapped).toEqual(frozen)
 
   // Nothing may write the raw literal to `chart_settings` — the fix is the
-  // wrapper, and a fourth writer added later must go through it too.
+  // wrapper, and a writer added later must go through it too. `applyUctDefault`
+  // now BRANCHES on the app theme (a white chart on the light theme via
+  // `chartDefaultsForTheme('light')`, the frozen wrapper on dark), so every
+  // chart_settings writer must route through the wrapper OR that light default —
+  // never the raw literal.
   const rawWrites = src.match(/setPref\('chart_settings',\s*UCT_DEFAULT_CHART_SETTINGS_JSON\)/g)
   expect(rawWrites, 'a chart_settings write bypasses uctDefaultChartSettings()').toBeNull()
-  expect(src.match(/setPref\('chart_settings',\s*uctDefaultChartSettings\(\)\)/g)).toHaveLength(3)
+  // Two writers restore the frozen default directly; `applyUctDefault` BRANCHES on
+  // the app theme — a white chart via `chartDefaultsForTheme('light')` on light, the
+  // frozen wrapper on dark — so it's ONE theme-conditional writer that still names
+  // the wrapper. (The template-restore write of a saved blob's OWN `chartSettings`
+  // is a different writer and correctly matches neither.)
+  expect(src.match(/setPref\('chart_settings',\s*uctDefaultChartSettings\(\)\)/g)).toHaveLength(2)
+  const themed = src.match(/setPref\('chart_settings',\s*appTheme === 'light'[^\n]*uctDefaultChartSettings\(\)\)/g)
+  expect(themed, 'applyUctDefault no longer branches the chart canvas on the app theme').toHaveLength(1)
 })
 
 test('Save-as-template captures the current chart settings into the saved template', () => {

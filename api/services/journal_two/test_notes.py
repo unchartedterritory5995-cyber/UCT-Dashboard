@@ -116,6 +116,89 @@ def test_list_notes_search_body(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
+def _note_with_embeds(conn, title, *symbols, user="u1"):
+    content = [{
+        "type": "widgetEmbed",
+        "attrs": {
+            "v": 1, "widgetId": "chart", "mode": "snapshot",
+            "params": {"symbol": s, "tf": "D"},
+            "capturedAt": "2026-08-13T12:00:00Z",
+            "searchText": f"[chart: {s} D]",
+        },
+    } for s in symbols]
+    return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+
+
+def test_backlinks_answer_which_entries_reference_a_ticker(conn):
+    """The sidecar has been written since v1 and read by exactly one consumer.
+    This is the read that lets the rest of the app see the journal."""
+    a = _note_with_embeds(conn, "AMD post-mortem", "AMD", "AMD")   # two refs, ONE note
+    _note_with_embeds(conn, "NVDA only", "NVDA")
+    b = _note_with_embeds(conn, "Mixed", "AMD", "NVDA")
+
+    back = svc.get_symbol_backlinks("u1", "amd", conn=conn)        # case-insensitive in
+    assert back["symbol"] == "AMD"
+    assert back["count"] == 2                                       # NOTES, not embeds
+    assert {n["id"] for n in back["notes"]} == {a["id"], b["id"]}
+    got_a = next(n for n in back["notes"] if n["id"] == a["id"])
+    assert got_a["refs"] == 2 and got_a["widgetIds"] == ["chart"]
+    assert got_a["title"] == "AMD post-mortem"
+
+    # Another user's notes are invisible, and an unknown symbol is empty.
+    assert svc.get_symbol_backlinks("u2", "AMD", conn=conn)["count"] == 0
+    assert svc.get_symbol_backlinks("u1", "TSLA", conn=conn) == {"symbol": "TSLA", "count": 0, "notes": []}
+    assert svc.get_symbol_backlinks("u1", "", conn=conn)["count"] == 0
+
+
+def test_backlinks_and_the_list_filter_agree(conn):
+    """Two readers, ONE membership question ('which notes reference this
+    symbol'). A second authority over one value is this repo's most repeated
+    defect — so the two answers are pinned to each other rather than each
+    being pinned to a hand-typed expectation."""
+    _note_with_embeds(conn, "One", "AMD")
+    _note_with_embeds(conn, "Two", "AMD", "NVDA")
+    _note_with_embeds(conn, "Three", "NVDA")
+    for sym in ("AMD", "NVDA", "TSLA"):
+        via_list = {n["id"] for n in svc.list_notes("u1", embed_symbol=sym, conn=conn)}
+        back = svc.get_symbol_backlinks("u1", sym, limit=25, conn=conn)
+        assert {n["id"] for n in back["notes"]} == via_list, sym
+        assert back["count"] == len(via_list), sym
+
+
+def test_backlinks_deleting_the_embed_drops_the_backlink(conn):
+    """The sidecar is a projection of the body — editing the embed out must
+    retract the backlink, or the app advertises entries that no longer
+    reference the ticker."""
+    n = _note_with_embeds(conn, "Temp", "AMD")
+    assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 1
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 0
+
+
+def test_list_rows_project_out_the_document_body(conn):
+    """The LIST endpoint is a card index, not a document dump: a widget-embed
+    note drags a multi-KB frozen settings blob in bodyJson, so list rows must
+    not carry it (absent, not {} — an empty doc would look loadable). The
+    single-note GET keeps the full body; bodyPlain on list rows is capped to
+    a preview. Search still reaches the FULL body_plain (the WHERE clause
+    reads the real column, only the projection is capped)."""
+    body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "start " + ("x" * 900) + " needleword"},
+        ]},
+    ]}
+    n = svc.create_note("u1", {"title": "Big", "bodyJson": body}, conn=conn)
+    rows = svc.list_notes("u1", conn=conn)
+    assert rows and rows[0]["id"] == n["id"]
+    assert "bodyJson" not in rows[0]
+    assert len(rows[0]["bodyPlain"]) <= 400
+    # The capped preview must not break body search (cap is projection-only).
+    assert [r["id"] for r in svc.list_notes("u1", q="needleword", conn=conn)] == [n["id"]]
+    # The editor's single-note fetch still returns the whole document.
+    full = svc.get_note("u1", n["id"], conn=conn)
+    assert full["bodyJson"] == body
+
+
 def test_folder_crud(conn):
     f = svc.create_folder("u1", "Lessons", conn=conn)
     assert f["name"] == "Lessons"
@@ -190,3 +273,264 @@ def test_validation_body_must_be_doc(conn):
 def test_validation_folder_must_exist(conn):
     with pytest.raises(NoteValidationError):
         svc.create_note("u1", {"title": "T", "folderId": "missing"}, conn=conn)
+
+
+# ── Journal Widgets: widgetEmbed serialization + sidecar index ───────────────
+
+WIDGET_DOC = {"type": "doc", "content": [
+    {"type": "paragraph", "content": [{"type": "text", "text": "Setup review"}]},
+    {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "chart",
+        "params": {"symbol": "AMD", "tf": "5"},
+        "capturedAt": "2026-03-13T15:45:00Z", "mode": "snapshot",
+        "searchText": "[chart: AMD 5m]", "tradeRef": "tr_1"}},
+    {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "breadth", "params": {},
+        "capturedAt": "2026-03-13T15:50:00Z", "mode": "live",
+        "searchText": "[breadth: heatmap]"}},
+]}
+
+
+def test_extract_plain_text_emits_widget_embed_search_text():
+    txt = extract_plain_text(WIDGET_DOC)
+    assert "[chart: AMD 5m]" in txt
+    assert "[breadth: heatmap]" in txt
+
+
+def test_extract_plain_text_widget_embed_without_search_text_degrades():
+    doc = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "gone"}}]}
+    assert "[widget]" in extract_plain_text(doc)
+
+
+def test_extract_plain_text_matches_client_for_custom_nodes():
+    # The client serializer (lib/tiptap.js extractPlainText) has emitted these
+    # two for months; the server walked only text nodes — the drift this pins shut.
+    doc = {"type": "doc", "content": [
+        {"type": "videoTimestamp", "attrs": {"seconds": 75}},
+        {"type": "attachmentChip", "attrs": {"name": "plan.pdf"}},
+    ]}
+    txt = extract_plain_text(doc)
+    assert "[1:15]" in txt
+    assert "[file: plan.pdf]" in txt
+
+
+def test_non_dict_attrs_or_params_never_500_a_note_write(conn):
+    # The body validator is deliberately permissive and the importer
+    # round-trips arbitrary HTML (widgetEmbedNode.jsx jsonAttr JSON.parses
+    # data-params='[1]' into a LIST) — so every custom-node branch must
+    # DEGRADE on a truthy non-dict attrs/params, never raise. Before the
+    # hardening, .get() on a list 500'd EVERY save of the note, permanently.
+    doc = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "params": [1]}},
+        {"type": "widgetEmbed", "attrs": [1]},
+        {"type": "videoTimestamp", "attrs": [1]},
+        {"type": "attachmentChip", "attrs": "nope"},
+    ]}
+    n = svc.create_note("u1", {"title": "T", "bodyJson": doc}, conn=conn)  # must not raise
+    assert "[widget]" in n["bodyPlain"]
+    assert "[file: file]" in n["bodyPlain"]
+    rows = conn.execute(
+        "SELECT symbol FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    # The list-params embed still indexes (symbol unknown); the attrs-less one
+    # has no widgetId and is skipped.
+    assert [r["symbol"] for r in rows] == [None]
+
+
+def test_create_note_syncs_embed_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    rows = conn.execute(
+        "SELECT * FROM j2_note_embeds WHERE note_id = ? ORDER BY position",
+        (n["id"],)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart", "breadth"]
+    assert rows[0]["symbol"] == "AMD"
+    assert rows[0]["timeframe"] == "5"
+    assert rows[0]["trade_ref"] == "tr_1"
+    assert rows[0]["mode"] == "snapshot"
+    assert rows[0]["user_id"] == "u1"
+    assert rows[1]["symbol"] is None
+
+
+def test_update_note_resyncs_and_delete_cleans_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.update_note("u1", n["id"], {"bodyJson": {
+        "type": "doc", "content": [WIDGET_DOC["content"][1]]}}, conn=conn)
+    rows = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart"]
+    svc.delete_note("u1", n["id"], conn=conn)
+    left = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert left["c"] == 0
+
+
+def test_update_note_without_body_change_keeps_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.update_note("u1", n["id"], {"title": "Renamed"}, conn=conn)
+    rows = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 2
+
+
+def test_list_notes_filters_by_embed_symbol_and_widget(conn):
+    svc.create_note("u1", {"title": "With AMD", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.create_note("u1", {"title": "Plain"}, conn=conn)
+    got = svc.list_notes("u1", embed_symbol="amd", conn=conn)
+    assert [n["title"] for n in got] == ["With AMD"]
+    got2 = svc.list_notes("u1", embed_widget="breadth", conn=conn)
+    assert [n["title"] for n in got2] == ["With AMD"]
+    # And the searchText line is findable through the existing q= path.
+    got3 = svc.list_notes("u1", q="chart: amd", conn=conn)
+    assert [n["title"] for n in got3] == ["With AMD"]
+    # Scoped to the owner.
+    assert svc.list_notes("u2", embed_symbol="AMD", conn=conn) == []
+
+
+def test_import_confirm_syncs_embed_sidecar(conn):
+    res = svc.import_confirm("u1", {"source": "generic", "notes": [
+        {"importKey": "k1", "title": "Imp", "bodyJson": WIDGET_DOC, "tags": []},
+    ]}, conn=conn)
+    nid = res["created"][0]["id"]
+    rows = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ? ORDER BY position",
+        (nid,)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart", "breadth"]
+    # Re-import with a changed body re-syncs rather than duplicating.
+    doc2 = {"type": "doc", "content": [WIDGET_DOC["content"][1]]}
+    svc.import_confirm("u1", {"source": "generic", "notes": [
+        {"importKey": "k1", "title": "Imp", "bodyJson": doc2, "tags": []},
+    ]}, conn=conn)
+    rows2 = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (nid,)).fetchall()
+    assert [r["widget_id"] for r in rows2] == ["chart"]
+
+
+# ── Journal Widgets P5: send-to-journal append + capture inbox ───────────────
+
+EMBED_ATTRS = {
+    "v": 1, "widgetId": "chart", "params": {"symbol": "TSLA", "tf": "15"},
+    "capturedAt": "2026-08-12T14:00:00Z", "mode": "snapshot",
+    "searchText": "[chart: TSLA 15m]",
+}
+
+
+def test_append_widget_embed_appends_and_syncs(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": {
+        "type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Existing"}]}]}},
+        conn=conn)
+    out = svc.append_widget_embed("u1", n["id"], EMBED_ATTRS, conn=conn)
+    assert out["bodyJson"]["content"][-1]["type"] == "widgetEmbed"
+    assert "[chart: TSLA 15m]" in out["bodyPlain"]
+    assert "Existing" in out["bodyPlain"]
+    rows = conn.execute(
+        "SELECT symbol FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    assert [r["symbol"] for r in rows] == ["TSLA"]
+
+
+def test_append_widget_embed_guards(conn):
+    n = svc.create_note("u1", {"title": "T"}, conn=conn)
+    with pytest.raises(NoteValidationError):
+        svc.append_widget_embed("u1", n["id"], {"params": {}}, conn=conn)
+    assert svc.append_widget_embed("u1", "missing", EMBED_ATTRS, conn=conn) is None
+    assert svc.append_widget_embed("u2", n["id"], EMBED_ATTRS, conn=conn) is None
+
+
+def test_update_note_compare_and_set(conn, monkeypatch):
+    # A15: an optional updated_at baseline turns the full-doc PUT into a CAS,
+    # so a server-side append (Send to Journal) can never be silently deleted
+    # by a stale editor's autosave. Deterministic clock — equal stamps would
+    # make the stale-baseline case vacuously pass.
+    seq = {"n": 0}
+    def tick():
+        seq["n"] += 1
+        return f"2026-08-12T09:00:{seq['n']:02d}Z"
+    monkeypatch.setattr(svc, "_now_iso", tick)
+    n = svc.create_note("u1", {"title": "T"}, conn=conn)
+    # Matching baseline: succeeds and advances updated_at.
+    out = svc.update_note("u1", n["id"], {"title": "A"}, conn=conn,
+                          expected_updated_at=n["updatedAt"])
+    assert out["title"] == "A"
+    assert out["updatedAt"] != n["updatedAt"]
+    # A concurrent server-side append moves updated_at → stale baseline refuses.
+    svc.append_widget_embed("u1", n["id"], EMBED_ATTRS, conn=conn)
+    with pytest.raises(svc.NoteConflictError):
+        svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}},
+                        conn=conn, expected_updated_at=out["updatedAt"])
+    # The refused write changed nothing — the appended embed survives.
+    rows = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 1
+    # No baseline = legacy last-writer-wins, unchanged.
+    assert svc.update_note("u1", n["id"], {"title": "B"}, conn=conn)["title"] == "B"
+
+
+def test_capture_inbox_prunes_past_the_cap(conn, monkeypatch):
+    # Insert-side enforcement of the same cap the tray lists by: rows past the
+    # newest N were invisible to the tray and therefore undeletable through
+    # the only delete path the UI exposes — the unbounded-growth hazard the
+    # table was created to avoid, one layer down.
+    monkeypatch.setattr(svc, "_CAPTURE_INBOX_CAP", 5)
+    seq = {"n": 0}
+    def tick():
+        seq["n"] += 1
+        return f"2026-08-12T{seq['n'] // 60:02d}:{seq['n'] % 60:02d}:00Z"
+    monkeypatch.setattr(svc, "_now_iso", tick)
+    ids = [svc.create_capture("u1", {"widgetId": "chart"}, conn=conn)["id"] for _ in range(8)]
+    rows = svc.list_captures("u1", conn=conn)
+    assert [r["id"] for r in rows] == list(reversed(ids[3:]))  # newest 5 only
+    left = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_capture_inbox WHERE user_id = 'u1'").fetchone()
+    assert left["c"] == 5, "pruned rows must be DELETED, not merely unlisted"
+
+
+def test_capture_inbox_crud(conn):
+    made = svc.create_capture("u1", {
+        "widgetId": "chart", "params": {"symbol": "AMD", "tf": "5"},
+        "searchText": "[chart: AMD 5m]"}, conn=conn)
+    rows = svc.list_captures("u1", conn=conn)
+    assert len(rows) == 1
+    assert rows[0]["widgetId"] == "chart"
+    assert rows[0]["params"] == {"symbol": "AMD", "tf": "5"}
+    assert svc.list_captures("u2", conn=conn) == []
+    assert svc.delete_capture("u2", made["id"], conn=conn) is False
+    assert svc.delete_capture("u1", made["id"], conn=conn) is True
+    assert svc.list_captures("u1", conn=conn) == []
+    with pytest.raises(NoteValidationError):
+        svc.create_capture("u1", {"params": {}}, conn=conn)
+    # The byte ceiling (launch-audit finding): the inbox was the only
+    # Journal-Widgets write path with no size cap on the shared auth.db.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture(
+            "u1",
+            {"widgetId": "aisearch", "params": {"thread": [{"answer": "x" * (300 * 1024)}]}},
+            conn=conn,
+        )
+
+
+def test_capture_inbox_carries_capture_time_annotations(conn):
+    # Chart-parity review finding: the inbox wire dropped annotations, so the
+    # tray's place() re-seeded drawings from the LIVE store at placement time —
+    # an embed labeled "captured Monday" carried Tuesday's drawings while the
+    # append-to-note route kept Monday's. The row must carry the capture-time
+    # copy end to end.
+    marks = [{"id": "d1", "type": "horizontal", "points": [{"price": 123.4}]}]
+    svc.create_capture("u1", {
+        "widgetId": "chart", "params": {"symbol": "AMD", "tf": "5"},
+        "annotations": marks}, conn=conn)
+    rows = svc.list_captures("u1", conn=conn)
+    assert rows[0]["annotations"] == marks
+    # Absent stays a clean empty list (legacy rows included), not None.
+    svc.create_capture("u1", {"widgetId": "chart"}, conn=conn)
+    fresh = svc.list_captures("u1", conn=conn)[0]
+    assert fresh["annotations"] == []
+    # Malformed shape is refused, not stored.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture("u1", {"widgetId": "chart", "annotations": "not-a-list"}, conn=conn)
+    # Annotations count toward the 256KB ceiling — they ride the same row.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture(
+            "u1",
+            {"widgetId": "chart", "annotations": [{"note": "x" * (300 * 1024)}]},
+            conn=conn,
+        )

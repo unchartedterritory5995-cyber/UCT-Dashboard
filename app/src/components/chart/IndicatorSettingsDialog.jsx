@@ -38,7 +38,7 @@
 // all 46 cases. The gate is `IndicatorSettingsDialog.test.jsx` — in particular
 // the byte-equality rollback, which carries a positive control proving the edit
 // was observable BEFORE it proves Cancel undid it.
-import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId } from 'react'
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { fieldsForInstance, evalActiveWhen } from './indicatorRegistry'
@@ -360,6 +360,45 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     [def, instanceId, shown, registry],
   )
 
+  // ── THE BODY REMEMBERS THE TALLEST TAB IT HAS SHOWN ───────────────────────
+  //
+  // `Sheet` centres the panel, so a tab whose content is taller moves the TAB
+  // STRIP and the footer out from under the pointer. The CSS floor in
+  // `.module.css` levels the tabs that come in UNDER it; it cannot level one that
+  // comes in over.
+  //
+  // ⚰️ MEASURED ON PRODUCTION 2026-08-15 — Ichimoku is the worst case, because its
+  // Style tab carries five colour rows (tenkan, kijun, spanA, spanB, chikou):
+  //
+  //     tab          rows   panel h
+  //     Inputs       3      404.5
+  //     Style        5      519.5
+  //     Visibility   2      404.5
+  //
+  // …which is 57.6px of tab-strip travel, worse than the 45.3px MACD case the CSS
+  // floor was measured against.
+  //
+  // This grows a floor to the tallest body seen for THIS instance and never
+  // shrinks it, so the panel settles after the first visit to the tallest tab and
+  // every switch after that is motionless. ⚠️ It does NOT remove that first jump —
+  // the only way to do that is to render all three panes at once and take the max,
+  // which changes the `role="tabpanel"` structure this dialog's suites are written
+  // against. Named rather than quietly half-done.
+  //
+  // ⛔ Reset per OPEN and per INSTANCE. A floor carried from a five-row Ichimoku
+  // into a one-row RSI would leave the next dialog padded with empty space.
+  const bodyRef = useRef(null)
+  const [bodyFloor, setBodyFloor] = useState(0)
+  useEffect(() => { setBodyFloor(0) }, [instanceId, open])
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    // `scrollHeight` already accounts for the floor in effect, so this is
+    // monotonic by construction and cannot oscillate.
+    const h = el.scrollHeight
+    setBodyFloor((m) => (h > m ? h : m))
+  }, [tab, model, instance, chip])
+
   if (!open || !instance || !def) return null
 
   const title = `${chip?.label || def.meta?.shortName || def.id} settings`
@@ -509,7 +548,11 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
           ))}
         </div>
 
-        <div className={styles.body} role="tabpanel" id={panelId} aria-labelledby={`${uid}-tab-${tab}`}>
+        <div
+          ref={bodyRef} className={styles.body} role="tabpanel" id={panelId}
+          aria-labelledby={`${uid}-tab-${tab}`}
+          style={bodyFloor ? { minHeight: bodyFloor } : undefined}
+        >
           {tab === 'inputs' && (
             model.inputs.length
               ? renderFields(model.inputs)

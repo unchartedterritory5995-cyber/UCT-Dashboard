@@ -1312,6 +1312,8 @@ def list_notes_endpoint(
     tag: str | None = None,
     ticker: str | None = None,
     q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
@@ -1319,9 +1321,141 @@ def list_notes_endpoint(
 ) -> dict[str, Any]:
     rows = notes_service.list_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset,
     )
     return {"notes": rows}
+
+
+@router.get("/notes/backlinks")
+def note_backlinks_endpoint(
+    symbol: str,
+    limit: int = 5,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """"Which of my entries reference this ticker?" — the read that lets any
+    ticker surface in the app see the journal.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`: FastAPI matches in
+    declaration order, and that route would swallow "backlinks" as a note id
+    (the live-drill route-order lesson, same shape)."""
+    return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
+
+
+@router.post("/notes/{note_id}/embeds")
+def append_note_embed_endpoint(
+    note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """'Send to Journal': append one widgetEmbed node (client-built attrs)
+    to a note's body, atomically, server-side."""
+    attrs = payload.get("attrs")
+    try:
+        note = notes_service.append_widget_embed(user["id"], note_id, attrs)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"note": note}
+
+
+@router.post("/notes/attachments/gc")
+def attachment_gc_endpoint(
+    dry_run: bool = True,
+    min_age_hours: float = 48.0,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Sweep attachment files no note references (admin). dry_run defaults
+    TRUE — the destructive form is an explicit opt-in (?dry_run=false); the
+    nightly cron (J2_ATTACHMENT_GC_ENABLED=1) runs the real sweep."""
+    from api.services.journal_two import attachment_gc
+    return attachment_gc.sweep_orphaned_attachments(
+        dry_run=dry_run, min_age_hours=max(1.0, min_age_hours),
+    )
+
+
+# ── Note share links (post-v1; screener-share idiom: token IS the credential).
+# Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
+# (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).
+from api.services.journal_two import note_shares
+
+
+@router.get("/notes/{note_id}/share")
+def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"share": note_shares.get_share(user["id"], note_id)}
+
+
+@router.post("/notes/{note_id}/share")
+def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    share = note_shares.create_share(user["id"], note_id)
+    if share is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"share": share}
+
+
+@router.delete("/notes/{note_id}/share")
+def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"revoked": note_shares.revoke_share(user["id"], note_id)}
+
+
+@router.get("/shared/{token}")
+def resolve_shared_note_endpoint(token: str) -> dict[str, Any]:
+    """PUBLIC — no auth by design (a link that only opens for people with an
+    account is not sharing). The token is the credential; the payload is
+    sanitized; the flag is the master switch."""
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    payload = note_shares.resolve_share(token)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": payload}
+
+
+@router.get("/shared/{token}/att/{sub}/{filename}")
+def serve_shared_attachment_endpoint(token: str, sub: str, filename: str) -> Any:
+    """PUBLIC image proxy for a shared note — images only, token-scoped to
+    exactly that note's directory, path-traversal guarded downstream."""
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    path = note_shares.resolve_share_attachment(token, sub, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(str(path))
+
+
+@router.get("/inbox")
+def list_captures_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"captures": notes_service.list_captures(user["id"])}
+
+
+@router.post("/inbox")
+def create_capture_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        return notes_service.create_capture(user["id"], payload)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/inbox/{capture_id}")
+def delete_capture_endpoint(capture_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    if not notes_service.delete_capture(user["id"], capture_id):
+        raise HTTPException(status_code=404, detail="capture not found")
+    return {"ok": True}
+
+
+@router.post("/notes/import/check")
+def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    import_keys = payload.get("importKeys")
+    if import_keys is not None and not isinstance(import_keys, list):
+        raise HTTPException(status_code=400, detail="importKeys must be a list")
+    return notes_service.import_check(user["id"], import_keys or [])
+
+
+@router.post("/notes/import/confirm")
+def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    try:
+        return notes_service.import_confirm(user["id"], payload)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/notes/{note_id}")
@@ -1353,8 +1487,18 @@ def update_note_endpoint(
     patch: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    # Optional compare-and-set baseline (A15): when the editor sends the
+    # updated_at it loaded/last-saved from, a concurrent server-side write
+    # (Send-to-Journal append, second tab) turns this PUT into a 409 instead
+    # of a silent clobber of that write. Absent = legacy last-writer-wins.
+    base = patch.pop("baseUpdatedAt", None) if isinstance(patch, dict) else None
     try:
-        n = notes_service.update_note(user["id"], note_id, patch)
+        n = notes_service.update_note(
+            user["id"], note_id, patch,
+            expected_updated_at=base if isinstance(base, str) and base else None,
+        )
+    except notes_service.NoteConflictError:
+        raise HTTPException(status_code=409, detail="note changed — refresh and retry")
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
@@ -1423,6 +1567,24 @@ def delete_note_hero_endpoint(
     return {"ok": True}
 
 
+@router.post("/notes/{note_id}/attachments")
+async def upload_note_attachment_endpoint(
+    note_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        att = await notes_service.save_note_attachment(
+            user["id"], note_id, file,
+        )
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return att
+
+
 @router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
 def serve_note_attachment(
     user_id_param: str,
@@ -1456,6 +1618,7 @@ def create_folder_endpoint(
             user["id"],
             name=payload.get("name", ""),
             sort_order=int(payload.get("sortOrder", 0) or 0),
+            parent_id=payload.get("parentId") or "",
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1482,10 +1645,13 @@ def delete_folder_endpoint(
     folder_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    ok = notes_service.delete_folder(user["id"], folder_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"ok": True}
+    try:
+        ok = notes_service.delete_folder(user["id"], folder_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Not found")
+        return {"ok": True}
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Options — multi-leg strategies (Phase 5) ────────────────────────────────
@@ -1641,6 +1807,24 @@ def get_analytics_route(
     parse_filter_query, so filtered analytics agree with every other surface."""
     return analytics_service.get_analytics(
         user["id"], account_id=account_id, spec=spec,
+    )
+
+
+@router.get("/tax-report")
+def get_tax_report_route(
+    year: int,
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Form-8949-style tax book for one year: per-trade lines (proceeds/basis/
+    gain, short-vs-long term) + same-symbol wash-sale flags + honest coverage
+    counts. An ESTIMATE for review — the payload's disclaimer is part of the
+    contract and the FE renders it verbatim."""
+    if year < 2000 or year > 2100:
+        raise HTTPException(status_code=422, detail="year out of range")
+    from api.services.journal_two import tax_report as tax_report_service
+    return tax_report_service.get_tax_report(
+        user["id"], year, account_id=account_id,
     )
 
 

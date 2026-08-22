@@ -10,6 +10,7 @@
 // Preset scans are intentionally EMPTY for now (the widget shell only).
 import { useState, useCallback, useMemo } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import UIcon from '../../../components/ui/UIcon'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
 import {
@@ -66,8 +67,9 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
   // styled and configurable exactly like the results view that follows it. No
   // saved override → DEFAULTS FOR THE CURRENT APP THEME (white on light).
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(prefs?.theme)),
+    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(placedTheme)),
     [settingsOverride, prefs],
   )
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])

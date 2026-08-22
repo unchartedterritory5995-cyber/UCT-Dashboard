@@ -54,10 +54,10 @@ export const THEME_TRACKER_FONT_SIZES = [9, 10, 11, 12, 13, 14, 15, 16]
 export const THEME_TRACKER_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   symColor: '#1f2328',
-  upColor: '#0a5c22',
-  downColor: '#7d1620',
-  tintUp: '#0a5c2226',
-  tintDown: '#7d162026',
+  upColor: '#17a917',
+  downColor: '#db000b',
+  tintUp: '#17a91726',
+  tintDown: '#db000b26',
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function themeTrackerDefaultsForTheme(theme) {

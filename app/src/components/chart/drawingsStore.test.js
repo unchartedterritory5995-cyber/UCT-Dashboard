@@ -285,3 +285,35 @@ describe('drawingsStore — frame-coalesced notify (browser path)', () => {
     expect(cb).toHaveBeenCalledTimes(1)             // coalesced to one microtask flush
   })
 })
+
+describe('peekDrawings — capture-time read without mounting a chart', () => {
+  it('returns localStorage drawings for a sym no chart has loaded, creating no entry', () => {
+    localStorage.setItem(STORE, JSON.stringify({ AMD: [{ id: 'd1', ...hz(100) }] }))
+    const out = drawingsStore.peekDrawings('AMD')
+    expect(out).toHaveLength(1)
+    expect(out[0].points[0].price).toBe(100)
+    // side-effect free: the registry still treats AMD as unloaded
+    expect(getSnapshot('AMD')).toBe(EMPTY_SNAPSHOT)
+  })
+
+  it('prefers the live in-memory entry over localStorage', () => {
+    subscribe('SPY', () => {})
+    addDrawing('SPY', hz(1))
+    addDrawing('SPY', hz(2))
+    expect(drawingsStore.peekDrawings('SPY')).toHaveLength(2)
+  })
+
+  it('returns a deep copy — mutating the result never reaches the store', () => {
+    subscribe('SPY', () => {})
+    addDrawing('SPY', hz(7))
+    const out = drawingsStore.peekDrawings('SPY')
+    out[0].points[0].price = 999
+    out.push({ id: 'rogue' })
+    expect(getSnapshot('SPY').drawings).toHaveLength(1)
+    expect(getSnapshot('SPY').drawings[0].points[0].price).toBe(7)
+  })
+
+  it('unknown sym → empty array', () => {
+    expect(drawingsStore.peekDrawings('ZZZQ')).toEqual([])
+  })
+})

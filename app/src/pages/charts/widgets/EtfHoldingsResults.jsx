@@ -2,8 +2,11 @@
 // Custom-Period Sort), so it's identical in look AND features — live prices, flag,
 // sort, resizable/addable columns, settings. Default columns: Flag · Symbol ·
 // % Change (LIVE daily) · Weight % · Industry, sorted by weight (top holdings first).
-// Weight comes from /api/etf/holdings via metaOverride; prices/industry from the
-// watchlist's own live + meta layers.
+// Weight/sector/industry come from /api/etf/holdings via metaOverride (industry is
+// resolved server-side from the universe-wide industry_map, not the watchlist's own
+// meta-batch layer — that path caps at 100 alphabetically-sorted symbols and would
+// leave most of a >100-holding ETF blank); price/% chg still come from the
+// watchlist's own live layer.
 import { useMemo, useCallback, useId, useRef, useEffect } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
@@ -36,7 +39,9 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
   const metaOverride = useMemo(() => {
     if (!holdings) return null
     const out = {}
-    for (const h of holdings) out[h.sym] = { weight: h.weight, name: h.name || null }
+    for (const h of holdings) {
+      out[h.sym] = { weight: h.weight, name: h.name || null, sector: h.sector || null, industry: h.industry || null }
+    }
     return out
   }, [holdings])
 

@@ -131,8 +131,33 @@ _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 # request threadpool. Kill-switch: BARS_DEEPFILL_ENABLED=0.
 _DEEPFILL_ENABLED = _os.environ.get("BARS_DEEPFILL_ENABLED", "1") == "1"
 _DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
+# Replay Mode cold intraday: cap the pre-cutoff window fetched from the provider. A replay
+# chart requests fullBarsFor(tf) (5m=30000 → ~239 days of 5-min = minutes-slow + a huge
+# payload — the "5m replay takes minutes + flickers" bug). A replay VIEW needs only a few
+# weeks of context; the store keys by ts, so these capped rows still satisfy the full
+# bars=30000 request from SQLite on the real chart fetch.
+_REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4000"))
+# Global cap on CONCURRENT replay cold fetches so warming (5 TFs at once) + other users'
+# replays can't saturate the single-process web pod's threadpool → the 524-outage class.
+# Warm requests are best-effort (skip when no slot); real chart requests wait for one.
+_REPLAY_COLD_CONCURRENCY = int(_os.environ.get("REPLAY_COLD_CONCURRENCY", "2"))
+_replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
 _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
+
+# 🔴 Global cap on CONCURRENT truly-cold Layer-4 provider fetches (a first-ever
+# ticker/tf with NO stored rows). Obscure/long-tail names take 15-22s to fetch;
+# left unbounded, a fresh browser with no local cache hits the server for EVERY
+# chart, and a user scanning cold tickers holds a threadpool worker per fetch for
+# ~20s → the anyio pool exhausts and every OTHER request (even instant warm charts)
+# queues behind them. Measured 2026-08-19 from a real member HAR: 15 cold tickers
+# dragged 664 warm charts to 5-20s and a /api/watchlists call to 18s — the exact
+# 524-outage class _replay_cold_sem above already guards for replay. When the cap
+# is full a cold request SHEDS (serves a fast 503+Retry-After so the client re-polls
+# in ~3s) instead of adding another 20s hold; the ticker warms on a retry once a slot
+# frees, or via the prewarmer/crawler. Tune via BARS_COLD_FETCH_CONCURRENCY.
+_COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
+_cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
 
 
 def _depth_tier(bars: int) -> int:
@@ -546,6 +571,144 @@ def _is_cold_stale_daily(tf: str, last_ts: int | None, now=None) -> bool:
         return False
 
 
+def _last_closed_session_yyyymmdd(now=None) -> int:
+    """ET date (YYYYMMDD int) of the most recent CLOSED daily session: today only
+    once today's regular session has closed (>= 16:00 ET on a trading weekday),
+    else the prior trading day. Weekend/holiday aware. Mirrors the CLIENT's
+    marketSession close-threshold, so origin and chart agree on 'is a daily ending
+    here missing only today's still-forming bar?' (vs an earlier closed session)."""
+    et = _ZI("America/New_York")
+    now = now or datetime.now(et)
+    wd = now.weekday()
+    if wd == 5:
+        d = now - timedelta(days=1)
+    elif wd == 6:
+        d = now - timedelta(days=2)
+    else:
+        if now.hour * 100 + now.minute < 1600:   # before 4pm ET → today's session not closed yet
+            d = now - timedelta(days=1)
+            if d.weekday() == 5:
+                d -= timedelta(days=1)
+            elif d.weekday() == 6:
+                d -= timedelta(days=2)
+        else:
+            d = now
+    for _ in range(14):
+        ymd = int(d.strftime("%Y%m%d"))
+        if d.weekday() < 5 and not _is_nyse_holiday(ymd):
+            return ymd
+        d -= timedelta(days=1)
+    return int(d.strftime("%Y%m%d"))
+
+
+def _daily_deblockable(tf, last_ts) -> bool:
+    """PHASE 1 (flag: BARS_DAILY_ASYNC_HEAL): a cold-stale DAILY is safe to serve
+    stale-then-heal (non-blocking) — instead of a synchronous provider fetch — ONLY
+    when it already carries the last CLOSED session and is 'stale' merely because
+    today's still-forming bar is absent. The client paints that instantly (2026-08-18
+    close-threshold gate + Writer-E new-session guard), the live feed adds today's
+    candle, and the bg _delta_daily heal lands on the next poll. A daily missing an
+    EARLIER closed session is NOT deblockable — serving it would pin stale data for
+    the 300s daily SWR window (the 'fetch once per mount' trap), so it stays
+    synchronous. Default OFF; flip the env to roll out, unset to roll back."""
+    if tf != "D" or last_ts is None:
+        return False
+    if _os.environ.get("BARS_DAILY_ASYNC_HEAL", "0") != "1":
+        return False
+    try:
+        return int(last_ts) >= _last_closed_session_yyyymmdd()
+    except (TypeError, ValueError):
+        return False
+
+
+def _intraday_deblockable(tf, last_ts) -> bool:
+    """PHASE 1 (flag: BARS_INTRADAY_ASYNC_HEAL): the intraday twin of
+    `_daily_deblockable`. A cold-stale INTRADAY tail is safe to serve stale-then-heal
+    (non-blocking) — instead of a synchronous provider fetch — ONLY when it already
+    carries the last CLOSED session and is 'cold-stale' merely because today's forming
+    intraday bars are absent. The client paints that prior-session tail INSTANTLY
+    (`marketSession.isIntradayTailStale` treats a tail == the last closed session as
+    fresh) and the `since=` delta fills today's bars on top (the exact model the
+    intraday pack already relies on); the bg `_delta_intraday` heal lands on the next
+    poll. An intraday tail missing an EARLIER full session is NOT deblockable — serving
+    it would pin a GAPPED first paint that the once-per-mount fetch never re-heals (the
+    May-8 universe-freeze class), so it stays synchronous. `last_ts` here is UNIX
+    SECONDS (intraday), so map it to its ET session date before the closed-session
+    compare. Default OFF; flip the env to roll out, unset to roll back."""
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return False
+    if _os.environ.get("BARS_INTRADAY_ASYNC_HEAL", "0") != "1":
+        return False
+    try:
+        et = _ZI("America/New_York")
+        last_date = int(datetime.fromtimestamp(int(last_ts), et).strftime("%Y%m%d"))
+        return last_date >= _last_closed_session_yyyymmdd()
+    except Exception:
+        return False
+
+
+def _since_async_heal() -> bool:
+    """PHASE 1.4 (flag: BARS_SINCE_ASYNC_HEAL): the browser's 30s `since=` SWR poll
+    is the HIGHEST-QPS bars entrypoint. On a stale tail it does a SYNCHRONOUS provider
+    delta, tying up a shared anyio-pool thread on every stale-tail poll across every
+    open chart × every user — the congestion that drags WARM charts to multi-second
+    loads under load. Unlike first paint, this poll only RECONCILES closed bars: the
+    live developing candle is owned by the WS push / Finnhub feed, NOT this response,
+    and the chart is ALREADY painted. So serving the local delta immediately and
+    healing the tail in the background (bounded, deduped — the same `_bg_delta_sem` +
+    `_inflight` machinery the first-paint stale-serve uses) is invisible to the user
+    and removes the last high-frequency provider-blocking site. NO cold-stale predicate
+    is needed here (a one-cycle reconcile lag can't blank an already-painted chart or
+    pin a first paint). Default OFF; flip the env to roll out, unset to roll back."""
+    return _os.environ.get("BARS_SINCE_ASYNC_HEAL", "0") == "1"
+
+
+def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, date_tf: bool) -> None:
+    """Bounded, deduped background delta heal for the `since=` path (Phase 1.4).
+    Mirrors the first-paint `_bg_delta` spawn: acquire a bars-bg slot non-blocking
+    (skip if the pool is full — the stale local delta was already served and the next
+    poll retries), dedup on `cache_key` so it never races the first-paint heal, run a
+    delta-only fetch, persist, and invalidate the full cache. Intraday-stale results
+    are NOT persisted (same guard as `_bg_delta` — a yfinance hours-old fallback must
+    not be stored as fresh)."""
+    with _inflight_lock:
+        if cache_key in _inflight or not _bg_delta_sem.acquire(blocking=False):
+            return
+        _ev = _threading.Event()
+        _inflight[cache_key] = _ev
+
+    def _run():
+        try:
+            if tf == "D":
+                new = _delta_daily(ticker, last_ts)
+            elif tf == "W":
+                new = _delta_weekly(ticker, last_ts)
+            elif tf == "M":
+                new = _delta_monthly(ticker, last_ts)
+            else:
+                new = _delta_intraday(ticker, tf, last_ts)
+            if new and (date_tf or not _is_intraday_stale(new)):
+                _sqlite.put_bars(ticker, tf, new, date_tf=date_tf)
+                cache.invalidate(cache_key)  # next non-delta request rebuilds fresh
+        except Exception as _e:
+            import logging as _log_sh
+            _log_sh.getLogger(__name__).error(
+                f"[bars] since bg heal {ticker} tf={tf}: {type(_e).__name__}: {_e}"
+            )
+        finally:
+            with _inflight_lock:
+                _inflight.pop(cache_key, None)
+            _ev.set()
+            _bg_delta_sem.release()
+
+    try:
+        _threading.Thread(target=_run, daemon=True, name=f"bars-sincebg-{ticker}-{tf}").start()
+    except Exception:
+        with _inflight_lock:
+            _inflight.pop(cache_key, None)
+        _bg_delta_sem.release()
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -729,6 +892,55 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         import logging as _log
         _log.getLogger(__name__).error(
             f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
+        return []
+
+
+def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> list[dict]:
+    """Deep intraday OHLCV for an EXPLICIT date range [from_ymd, to_ymd] (YYYY-MM-DD),
+    split-ADJUSTED, next_url-paginated. Unlike `_fetch_intraday_massive` there is NO per-TF
+    lookback ceiling — the date range IS the bound — so Replay Mode can reach the provider's
+    intraday floor (~2003-09-10). `adjusted=true` means 2008 AAPL comes back at its ~$7
+    split-adjusted level (matching the daily charts). tf='60' is resampled from 15-min via the
+    canonical session-anchored bucketer (9:30-10:00 first candle), exactly like the live path —
+    a direct /range/60/minute call would clock-hour-align and mismatch the rest of the app.
+    Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
+    FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
+    re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
+    if tf == "60":
+        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd)   # 15m base, session-anchored
+        return _session_resample_hourly(src) if src else []
+    multiplier = int(tf)
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{multiplier}/minute"
+            f"/{from_ymd}/{to_ymd}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        all_results: list[dict] = []
+        # 60 pages × 50000 = 3M bars — a decade of 1-min (~1M) fits with headroom; the
+        # caller's date range + `bars` bound keep real requests far below this.
+        for _page in range(60):
+            data = client._get(url)
+            all_results.extend(data.get("results") or [])
+            next_url = data.get("next_url")
+            if not next_url:
+                break
+            sep = "&" if "?" in next_url else "?"
+            url = f"{next_url}{sep}apiKey={client._api_key}"
+        if not all_results:
+            return []
+        return [
+            {"t": int(bar["t"] / 1000), "o": _px(bar["o"]), "h": _px(bar["h"]),
+             "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(bar.get("v", 0))}
+            for bar in all_results
+        ]
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            f"[bars] _fetch_intraday_range {ticker} tf={tf} {from_ymd}..{to_ymd} "
+            f"failed: {type(_e).__name__}: {_e}"
         )
         return []
 
@@ -1709,7 +1921,25 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str 
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
-def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONResponse:
+# Symbol continuity for replay: a few symbols were RENAMED and the provider stores each era's
+# history under the symbol of that era. Map (ticker, cutoff-date) → the symbol that actually
+# holds the requested era, so a replay to e.g. QQQ in 2010 serves the QQQQ-era history instead
+# of stopping dead at the 2004 symbol change. ISO 'YYYY-MM-DD' compares correctly as strings.
+# Scoped to the replay pre-cutoff path only (normal/live charts untouched) — the small, targeted
+# slice of the broader symbol-continuity work. Extend as more cases surface.
+_REPLAY_SYMBOL_ERAS = {
+    "QQQ": [("2004-12-01", "2011-03-22", "QQQQ")],   # QQQ → QQQQ (Nasdaq listing) → back to QQQ
+}
+
+
+def _replay_effective_symbol(ticker: str, to_str: str) -> str:
+    for lo, hi, alias in _REPLAY_SYMBOL_ERAS.get(ticker, ()):
+        if lo <= str(to_str) <= hi:
+            return alias
+    return ticker
+
+
+def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
     and NO provider call: a fast index-seek read (the fix for replay charts on old tickers
@@ -1729,6 +1959,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                                   tzinfo=_ZI("America/New_York")).timestamp())
     except Exception:
         return _get_bars_inner(ticker, tf, bars)
+    # Symbol continuity: a replay cutoff in an era when this ticker traded under a DIFFERENT
+    # symbol must read/fetch that era's data (QQQ was "QQQQ" 2004-12→2011, so a 2010 QQQ replay
+    # would otherwise stop at the Nov-2004 change). Data ops below use `ticker_up` (rebound to the
+    # era symbol); the response is still labeled with what the client requested (resp_ticker).
+    resp_ticker = ticker_up
+    ticker_up = _replay_effective_symbol(ticker_up, to_str)
     try:
         rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
     except Exception:
@@ -1752,11 +1988,117 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                 rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
         except Exception:
             rows = rows or []
+    # Cold/PARTIAL INTRADAY replay: fetch the requested window when the store doesn't COVER it —
+    # "covered" = the newest stored bar ≤ cutoff is within ~7 days of the cutoff. Otherwise only
+    # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
+    # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
+    _intraday_window_missing = False
+    if not date_tf:
+        try:
+            _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
+        except Exception:
+            _intraday_window_missing = not rows
+    if _intraday_window_missing:
+        # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
+        # never fetched). The daily branch above is date_tf-only; without this an old intraday
+        # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
+        # filter → "Failed to load chart". Fetch the pre-cutoff window ONCE from Massive
+        # (split-adjusted, NO lookback ceiling), persist to SQLite, then serve ≤ cutoff. Slow
+        # the first time (~1-3s for a 2008 window), permanently cached + fast after. Bounded by
+        # `bars`: ~bars/bars_per_day*1.5 calendar days ENDING at the cutoff (not 2003→cutoff).
+        # WINDOW IS CAPPED (_REPLAY_INTRADAY_COLD_BARS) so the cold fetch is fast + small.
+        # DEDUPED via _inflight so the burst from warming all intraday TFs on replay-start
+        # (or a poll during the fetch) doesn't stampede the provider for the same window.
+        try:
+            mult = int(tf)
+            bars_per_day = (16 * 60) // max(mult, 1)
+            eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
+            lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
+            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            with _inflight_lock:
+                ev = _inflight.get(cold_key)
+                do_fetch = ev is None
+                if do_fetch:
+                    ev = _threading.Event()
+                    _inflight[cold_key] = ev
+            if do_fetch:
+                # Global concurrency cap (_replay_cold_sem): a WARM request skips the fetch when
+                # no slot is free (the on-demand chart request will fetch it later) so warming 5
+                # TFs can't saturate the pod; a real CHART request waits up to 20s for a slot.
+                got_slot = _replay_cold_sem.acquire(blocking=False) if warm else _replay_cold_sem.acquire(timeout=20)
+                try:
+                    if got_slot:
+                        deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                                if int(b.get("t", 0)) <= to_key]
+                        if deep:
+                            try:
+                                _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                            except Exception:
+                                pass
+                finally:
+                    if got_slot:
+                        _replay_cold_sem.release()
+                    with _inflight_lock:
+                        _inflight.pop(cold_key, None)
+                    ev.set()
+            else:
+                ev.wait(timeout=30)   # another request is fetching this exact window — wait, then read
+            rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        except Exception:
+            rows = rows or []
     if not rows:
         return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
     _mark_serve("sqlite")
-    payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
+    payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
+
+
+# Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
+# deliberately absent: StockChart drops `to=` for them and the registry marks
+# them non-reconstructable, so warming would bank history nothing re-reads.
+_SNAPWARM_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+
+def kick_snapshot_warm(ticker: str, tf: str, need_before_ymd: int | None = None) -> bool:
+    """Capture-time warm for a journal snapshot: make sure the (ticker, tf)
+    history behind a freshly-captured embed lands in the forever-store.
+    Fire-and-forget and BOUNDED (review finding — the first cut spawned an
+    unguarded full-history thread per call, reachable by any authed user):
+    - pytest NO-OP, same reason as _maybe_kick_deepfill's (its docstring
+      carries the 16,500-fixture-bars incident);
+    - whitelisted tfs only; one dispatch per (ticker, tf) per _DEEPFILL_TTL;
+    - intraday rides the deep-fill rail's own semaphore/throttle;
+    - D/W/M runs warm_ticker_daily_deep on a daemon thread gated by the same
+      deep-fill semaphore, with the caller's cutoff day so an already-deep
+      store short-circuits instead of re-fetching 30 years.
+    Returns whether a warm was dispatched."""
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return False
+    tu = (ticker or "").strip().upper()
+    if not tu or tf not in _SNAPWARM_TFS:
+        return False
+    marker = f"snapwarm_{tu}_{tf}"
+    if cache.get(marker) is not None:
+        return False
+    cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+    if tf in ("1", "5", "15", "30", "60"):
+        _maybe_kick_deepfill(tu, tf, 5000)
+        return True
+
+    def _run(_t=tu, _need=need_before_ymd):
+        if not _deepfill_sem.acquire(blocking=False):
+            return
+        try:
+            warm_ticker_daily_deep(_t, need_before_ymd=_need)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            _deepfill_sem.release()
+
+    _threading.Thread(target=_run, daemon=True, name=f"snapwarm-{tu}").start()
+    return True
 
 
 def warm_ticker_daily_deep(ticker: str, need_before_ymd: int | None = None) -> bool:
@@ -1806,20 +2148,28 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
     if _needs_fresh(last_ts, tf):
-        try:
-            if tf == "D":
-                new = _delta_daily(ticker_up, last_ts or 0)
-            elif tf == "W":
-                new = _delta_weekly(ticker_up, last_ts or 0)
-            elif tf == "M":
-                new = _delta_monthly(ticker_up, last_ts or 0)
-            else:
-                new = _delta_intraday(ticker_up, tf, last_ts or 0)
-            if new:
-                _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
-                last_ts = _sqlite.get_last_ts(ticker_up, tf)
-        except Exception:
-            pass
+        if _since_async_heal():
+            # PHASE 1.4 — DON'T block this high-QPS poll on a provider. Heal the tail
+            # in the background (bounded, deduped) and serve whatever local delta
+            # exists NOW. The live candle is on the WS/Finnhub feed, so the just-
+            # closed bar simply arrives on the next 30s poll instead of this one.
+            _mark_serve("delta-async-heal")
+            _enqueue_since_bg_heal(cache_key, ticker_up, tf, last_ts or 0, date_tf)
+        else:
+            try:
+                if tf == "D":
+                    new = _delta_daily(ticker_up, last_ts or 0)
+                elif tf == "W":
+                    new = _delta_weekly(ticker_up, last_ts or 0)
+                elif tf == "M":
+                    new = _delta_monthly(ticker_up, last_ts or 0)
+                else:
+                    new = _delta_intraday(ticker_up, tf, last_ts or 0)
+                if new:
+                    _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
+                    last_ts = _sqlite.get_last_ts(ticker_up, tf)
+            except Exception:
+                pass
 
     # Read ONLY the new rows via an index range scan (WHERE ts > since), instead
     # of reading up to `bars` (5000) rows + formatting all of them + Python-
@@ -2206,8 +2556,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # cold-stale, so they keep the fast SWR developing-bar top-up.
     if (
         stored_rows and last_ts
-        and not _is_cold_stale_intraday(tf, last_ts)
-        and not _is_cold_stale_daily(tf, last_ts)
+        and (not _is_cold_stale_intraday(tf, last_ts) or _intraday_deblockable(tf, last_ts))
+        and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
@@ -2294,7 +2644,15 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # carry `since`), so this adds NO latency to steady-state polling. Bounded: a
         # small trailing delta, _inflight-deduped, intraday only, and only when the
         # cache has enough rows (partial/deep depth is handled by the branches above).
-        if tf in ("1", "5", "15", "30", "60") and not is_partial:
+        # PHASE 1 (BARS_INTRADAY_ASYNC_HEAL): when the tail is a DEBLOCKABLE cold-stale
+        # (carries the last closed session, missing only today's forming bars), skip
+        # this synchronous delta and let the stale-serve + bg heal below run — the
+        # client paints the prior-session tail instantly and `since=` fills today, so
+        # blocking the first paint on a provider call buys nothing.
+        if (
+            tf in ("1", "5", "15", "30", "60") and not is_partial
+            and not _intraday_deblockable(tf, last_ts)
+        ):
             with _inflight_lock:
                 if cache_key in _inflight:
                     _sd_wait, _sd_do = _inflight[cache_key], False
@@ -2494,6 +2852,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     ttl = _CACHE_TTL.get(tf, 300)
     # Pre-initialise payload so finally block always has something to cache
     payload: dict = {"ticker": ticker_up, "tf": tf, "bars": []}
+    _cold_shed = False   # set True when a truly-cold fetch is shed for pool protection
 
     try:
         if stored_rows and last_ts:
@@ -2521,19 +2880,35 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
         else:
             # ── Full fetch: first time we see this ticker/tf ──────────────────
+            # 🔴 POOL PROTECTION (see _cold_fetch_sem): a truly-cold provider fetch
+            # can hold this worker thread ~20s. Cap how many run at once so a fresh
+            # browser scanning obscure tickers can't exhaust the anyio pool and drag
+            # every warm chart to 5-20s (the measured HAR outage). When the cap is
+            # full, SHED — skip the 20s fetch, serve empty, and return 503+Retry-After
+            # below so the client re-polls in ~3s once a slot frees.
+            _deep = False
+            _cold_shed = not _cold_fetch_sem.acquire(blocking=False)
             try:
-                # A deep request (above the shallow first-paint window) wants the
-                # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
-                _deep = _is_deep_request(bars)
-                if tf in ("1", "5", "15", "30", "60"):
-                    raw = _fetch_intraday(ticker_up, tf, bars)
-                elif tf == "W":
-                    raw = _fetch_weekly(ticker_up, bars, deep=_deep)
-                elif tf == "M":
-                    raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+                if _cold_shed:
+                    _mark_serve("cold-shed")
+                    raw = None
                 else:
-                    raw = _fetch_daily(ticker_up, bars, deep=_deep)
+                    # A deep request (above the shallow first-paint window) wants the
+                    # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
+                    _deep = _is_deep_request(bars)
+                    if tf in ("1", "5", "15", "30", "60"):
+                        raw = _fetch_intraday(ticker_up, tf, bars)
+                    elif tf == "W":
+                        raw = _fetch_weekly(ticker_up, bars, deep=_deep)
+                    elif tf == "M":
+                        raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+                    else:
+                        raw = _fetch_daily(ticker_up, bars, deep=_deep)
+            finally:
+                if not _cold_shed:
+                    _cold_fetch_sem.release()
 
+            try:
                 if raw:
                     # Don't persist stale intraday fallback data to SQLite — it would
                     # be served as fresh on subsequent requests since _needs_fresh
@@ -2592,6 +2967,18 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         with _inflight_lock:
             _inflight.pop(cache_key, None)
         waiter_ev.set()
+
+    # Pool-shed guard: this cold fetch was SKIPPED (the cold-fetch cap was full) to
+    # protect the threadpool. Return 503 + a short Retry-After (ANY tf) so the client
+    # re-polls in ~3s — once a fetch slot frees it warms — instead of rendering bars:[]
+    # and waiting the full 300s daily SWR. Keeps any prior on-screen state.
+    if _cold_shed and not result_bars:
+        r = JSONResponse(
+            status_code=503,
+            content={"ticker": ticker_up, "tf": tf, "bars": [], "error": "warming"},
+        )
+        r.headers["Retry-After"] = "3"
+        return r
 
     # No-blank guard: a COLD intraday ticker (no stored rows, no disk fallback)
     # whose fetch came back empty because the primary source is circuit-broken

@@ -138,9 +138,17 @@ export function createEarningsBadgePrimitive(initial) {
     return null
   }
 
+  // The FIRST drawn badge's pill rect (media coords, same space as param.point),
+  // or null if none drawn this frame. Lets a caller anchor a popover to the badge
+  // itself (e.g. above it) instead of to the click point.
+  function pointRect() {
+    return lastHitRects.length ? { ...lastHitRects[0] } : null
+  }
+
   return {
     primitive,
     hitTest,
+    pointRect,
     setPoints(points) { opts.points = Array.isArray(points) ? points : []; redraw() },
     setOptions(patch) { opts = { ...opts, ...patch }; redraw() },
   }

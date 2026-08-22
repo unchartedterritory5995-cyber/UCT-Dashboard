@@ -31,8 +31,8 @@ export const FUNDAMENTALS_DEFAULTS = {
 export const FUNDAMENTALS_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
-  upColor: '#0a5c22',
-  downColor: '#7d1620',
+  upColor: '#17a917',
+  downColor: '#db000b',
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function fundamentalsDefaultsForTheme(theme) {

@@ -13,6 +13,13 @@
 // Deliberately plain module state (not React context) so any component can use
 // useLivePrices with zero provider wiring, exactly as before.
 
+// Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
+// (400) any request over this count rather than truncating it. The union here is
+// browser-wide (every mounted widget's tickers combined), so it can exceed this on
+// its own (e.g. a single large-holdings ETF panel) even when no individual caller
+// asked for more than the cap.
+const _MAX_TICKERS_PER_REQUEST = 250
+
 const _refcounts = new Map() // ticker -> number of live subscribers
 let _prices = {} // latest { SYM: { price, change_pct, day_open, ... } }
 const _listeners = new Set() // React re-render callbacks
@@ -53,36 +60,51 @@ async function _poll() {
   const _ac = typeof AbortController !== 'undefined' ? new AbortController() : null
   const _timeout = _ac ? setTimeout(() => { try { _ac.abort() } catch { /* noop */ } }, 10000) : null
   try {
-    const r = await fetch(`/api/live-prices?tickers=${tickers.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
-    if (r.ok) {
-      const next = (await r.json()) || {}
-      // MERGE, don't wholesale-replace. A poll that momentarily omits a ticker
-      // (Massive timeout / partial batch) or returns a degraded entry (no real
-      // price) must NOT wipe the last-good value — that's what made every quote
-      // flash to 0.00% and the after-hours "Post" price vanish every few minutes.
-      // We keep the last-good entry for anything missing/degraded and only apply
-      // entries that carry a real price (the WHOLE prior entry — incl. its ext /
-      // after-hours price — is preserved when this poll's entry is degraded).
-      const merged = { ..._prices }
-      for (const sym in next) {
-        const nv = next[sym]
-        if (!nv || typeof nv !== 'object') continue
-        const price = Number(nv.price)
-        if (!Number.isFinite(price) || price <= 0) continue // degraded → keep last-good
-        const prev = merged[sym]
-        // Preserve the after-hours "Post" price if this poll momentarily dropped it
-        // while nothing actually traded (identical price) — Massive intermittently
-        // omits lastTrade on the weekend / after hours. A real new session MOVES the
-        // price, so this never pins a stale ext once regular trading resumes.
-        if (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price)) {
-          merged[sym] = { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
-        } else {
-          merged[sym] = nv
-        }
-      }
-      _prices = merged
-      _emit()
+    // Split into ≤250-ticker chunks — the backend hard-rejects (400) an oversized
+    // request rather than truncating it, so a single fetch over the union would
+    // fail for EVERY subscribed ticker, not just the ones past the cap. Chunks
+    // fetch in parallel and merge; a failed/aborted chunk just leaves its tickers
+    // absent from `next`, which the merge below already treats as "keep last-good".
+    const chunks = []
+    for (let i = 0; i < tickers.length; i += _MAX_TICKERS_PER_REQUEST) {
+      chunks.push(tickers.slice(i, i + _MAX_TICKERS_PER_REQUEST))
     }
+    const parts = await Promise.all(chunks.map((chunk) =>
+      fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ))
+    if (parts.every((p) => p == null)) return // every chunk failed — keep last prices, retry next tick
+    const next = {}
+    for (const part of parts) {
+      if (part && typeof part === 'object') Object.assign(next, part)
+    }
+    // MERGE, don't wholesale-replace. A poll that momentarily omits a ticker
+    // (Massive timeout / partial batch) or returns a degraded entry (no real
+    // price) must NOT wipe the last-good value — that's what made every quote
+    // flash to 0.00% and the after-hours "Post" price vanish every few minutes.
+    // We keep the last-good entry for anything missing/degraded and only apply
+    // entries that carry a real price (the WHOLE prior entry — incl. its ext /
+    // after-hours price — is preserved when this poll's entry is degraded).
+    const merged = { ..._prices }
+    for (const sym in next) {
+      const nv = next[sym]
+      if (!nv || typeof nv !== 'object') continue
+      const price = Number(nv.price)
+      if (!Number.isFinite(price) || price <= 0) continue // degraded → keep last-good
+      const prev = merged[sym]
+      // Preserve the after-hours "Post" price if this poll momentarily dropped it
+      // while nothing actually traded (identical price) — Massive intermittently
+      // omits lastTrade on the weekend / after hours. A real new session MOVES the
+      // price, so this never pins a stale ext once regular trading resumes.
+      if (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price)) {
+        merged[sym] = { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
+      } else {
+        merged[sym] = nv
+      }
+    }
+    _prices = merged
+    _emit()
   } catch {
     // transient (network blip / brief restart / timeout-abort) — keep last prices, retry next tick
   } finally {

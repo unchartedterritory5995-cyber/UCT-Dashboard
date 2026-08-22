@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import useSessionExtBars from './useSessionExtBars'
+import { idbGet } from '../utils/barsIDB'
+
+// Warm 5m IDB cache is the fast path; default it to a miss (null) so the existing
+// network-path tests behave exactly as before, and override per-test where needed.
+vi.mock('../utils/barsIDB', () => ({ idbGet: vi.fn(async () => null) }))
 
 // `ready` is the whole point of this hook's return shape: it separates "this symbol's
 // fetch hasn't landed" from "it landed and there are no extended-hours prints" — both
@@ -19,8 +24,29 @@ const PRE_BARS = [
 const okOnce = (bars) => vi.fn().mockResolvedValue({ ok: true, json: async () => ({ bars }) })
 
 describe('useSessionExtBars — ready semantics', () => {
-  beforeEach(() => { vi.restoreAllMocks() })
+  beforeEach(() => { vi.restoreAllMocks(); idbGet.mockResolvedValue(null) })
   afterEach(() => { vi.unstubAllGlobals() })
+
+  it('FAST PATH: paints instantly from a warm 5m IDB cache, no network wait', async () => {
+    idbGet.mockResolvedValueOnce({ bars: PRE_BARS })
+    // Network hangs forever — so if `ready` flips, it can ONLY be the IDB fast path.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    const { result } = renderHook(() => useSessionExtBars('MU', 'pre', true, ANCHOR))
+    await waitFor(() => expect(result.current.ready).toBe(true))
+    expect(result.current.agg).toEqual({ open: 10, high: 11.0, low: 9.8, close: 10.9, volume: 300 })
+  })
+
+  it('a stale/cold IDB (no TODAY prints) does NOT settle from cache — network drives ready', async () => {
+    // Prior-day bars: aggregateExtBars finds nothing for the anchor day → null agg,
+    // so the fast path must NOT settle (settling null would flash the doji). The
+    // network then supplies the real aggregate.
+    idbGet.mockResolvedValueOnce({ bars: [{ t: etSec(8, 0) - 3 * 86400, o: 1, h: 1, l: 1, c: 1, v: 1 }] })
+    vi.stubGlobal('fetch', okOnce(PRE_BARS))
+    const { result } = renderHook(() => useSessionExtBars('MU', 'pre', true, ANCHOR))
+    await waitFor(() => expect(result.current.ready).toBe(true))
+    // The real (network) aggregate — proving the stale cache didn't settle a wrong agg.
+    expect(result.current.agg).toEqual({ open: 10, high: 11.0, low: 9.8, close: 10.9, volume: 300 })
+  })
 
   it('starts NOT ready, then reports the aggregate once the fetch lands', async () => {
     vi.stubGlobal('fetch', okOnce(PRE_BARS))

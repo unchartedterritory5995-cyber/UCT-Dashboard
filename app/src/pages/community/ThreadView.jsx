@@ -42,6 +42,12 @@ function Author({ author, authorId, onOpenProfile }) {
 }
 
 function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport, onDelete, meId, onOpenProfile }) {
+  // Memoized {__html} object — React 19 diffs dangerouslySetInnerHTML by
+  // object identity, so an inline literal re-renders the body on every poll.
+  const bodyHtml = useMemo(
+    () => (post.deleted ? null : { __html: renderBodyHTML(post.body) }),
+    [post.body, post.deleted],
+  )
   return (
     <div className={`${styles.post} ${post.author?.is_mentor ? styles.postMentor : ''} ${post.mentor_highlight ? styles.postHighlight : ''}`}>
       <div className={styles.postHead}>
@@ -53,7 +59,7 @@ function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport
       ) : (
         <div
           className={styles.postBody}
-          dangerouslySetInnerHTML={{ __html: renderBodyHTML(post.body) }}
+          dangerouslySetInnerHTML={bodyHtml}
         />
       )}
       {!post.deleted && (
@@ -137,6 +143,12 @@ export default function ThreadView({ threadId }) {
     return { topLevel: top, byParent: map }
   }, [thread?.posts])
 
+  // Memoized {__html} object — see the note in Post above.
+  const threadBodyHtml = useMemo(
+    () => ({ __html: renderBodyHTML(thread?.body || '') }),
+    [thread?.body],
+  )
+
   if (!thread) return <div className={styles.empty}>Loading…</div>
 
   const onReact = async (postId, kind) => {
@@ -186,7 +198,7 @@ export default function ThreadView({ threadId }) {
           ))}
         </div>
         <div className={styles.postBody}
-             dangerouslySetInnerHTML={{ __html: renderBodyHTML(thread.body) }} />
+             dangerouslySetInnerHTML={threadBodyHtml} />
         <div className={styles.postActions}>
           {isMentor && (
             <>

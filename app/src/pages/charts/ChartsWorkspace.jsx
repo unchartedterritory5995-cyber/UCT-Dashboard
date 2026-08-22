@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -7,11 +7,12 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
-import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -23,12 +24,17 @@ import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
+import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
+import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
+import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
+import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
+import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -166,24 +172,12 @@ export function uctDefaultChartSettings() {
   return JSON.stringify(parsed)
 }
 
-// Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
-// so the widget can still go narrow, but the reachable middle size (3 units = 1.5
-// old cols) is the "in between" the too-thin and the good size.
-const WIDGET_DEFAULTS = {
-  chart:     { w: 12, h: 12, minW: 6, minH: 6 },
-  watchlist: { w: 6,  h: 10, minW: 2, minH: 4 },
-  themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
-  scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
-  fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
-  breadth:   { w: 8,  h: 10, minW: 4, minH: 4 },
-  aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
-  news:      { w: 6,  h: 10, minW: 2, minH: 4 },
-  profile:   { w: 6,  h: 12, minW: 3, minH: 5 },
-  alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
-  calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
-  optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
-  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
-}
+// Widths/minW are in 24-col units (2 units = one old column). The values live
+// on the widget registry (src/widgets/registry.js, pinned by registry.test.js);
+// this is the id→defaults view the grid math below reads.
+const WIDGET_DEFAULTS = Object.fromEntries(
+  Object.entries(WIDGET_REGISTRY).map(([id, w]) => [id, w.defaults]),
+)
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
@@ -221,25 +215,12 @@ function splitToSide(widgets, defaults, candidate) {
   }
 }
 
-// NOTE: 'periodsort' is intentionally NOT here — it's reachable only from Tools →
-// Custom-Period Sort (dock / add-as-tab), not the Add Widget menu. It stays registered
-// in WIDGET_DEFAULTS / WIDGET_LABELS / WidgetHost dispatch so docked instances render.
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
-const WIDGET_LABELS = {
-  chart: 'Chart',
-  watchlist: 'Watchlist',
-  themes: 'Theme Tracker',
-  scanner: 'Scanner',
-  fundamentals: 'Fundamentals',
-  breadth: 'Breadth',
-  aisearch: 'AI Search',
-  news: 'News & Catalysts',
-  profile: 'Stock Profile',
-  alerts: 'Alerts',
-  calendar: 'Calendar',
-  optionsflow: 'Options Flow',
-  periodsort: 'Period Sort',
-}
+// NOTE: 'periodsort' is intentionally NOT in the Add Widget menu — it's reachable
+// only from Tools → Custom-Period Sort (dock / add-as-tab). Membership + labels
+// derive from the widget registry (menus.workspace: false keeps it out of the
+// menu; it stays registered so docked instances render).
+const WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const WIDGET_LABELS = labelMap('menu')
 
 function parseLayout(raw) {
   if (!raw) return null
@@ -280,20 +261,184 @@ function parseLayout(raw) {
   return null
 }
 
-// Keep every widget within the viewport-locked grid: no widget's bottom (y+h)
-// may exceed FIXED_ROWS, or it hangs off the bottom of the screen (the body is
-// overflow:hidden, so the overhang just vanishes — the fundamentals-widget bug).
-// Shrink h to fit the space below y; y is first clamped so at least minH fits.
-// Applied on load, add, template-open, and every layout change before persist.
+// Keep every widget FULLY within the viewport-locked grid — no widget may hang
+// off any edge. The body is overflow:hidden, so an overhang just vanishes (the
+// fundamentals-widget bug), and a widget shoved below FIXED_ROWS by a neighbor
+// disappears off the bottom. This clamps BOTH axes: x/w to the column count and
+// y/h to the row count, shrinking to fit after first clamping the origin so at
+// least the min size survives. Applied on load, add, template-open, seam-resize,
+// and every RGL layout change before persist — the single guarantee that nothing
+// leaves the visible canvas.
 function clampWidgetsToRows(widgets) {
   return widgets.map(w => {
-    const minH = WIDGET_DEFAULTS[w.type]?.minH || 3
+    const def = WIDGET_DEFAULTS[w.type] || {}
+    const minH = def.minH || 3
+    const minW = def.minW || 2
+    // Horizontal (columns).
+    const x = Math.max(0, Math.min(w.x || 0, GRID_COLS - minW))
+    let cw = Math.max(minW, Math.min(w.w || minW, GRID_COLS))
+    if (x + cw > GRID_COLS) cw = GRID_COLS - x  // x ≤ GRID_COLS-minW ⇒ cw ≥ minW
+    // Vertical (rows).
     const y = Math.max(0, Math.min(w.y || 0, FIXED_ROWS - minH))
     let h = Math.max(minH, Math.min(w.h || minH, FIXED_ROWS))
     if (y + h > FIXED_ROWS) h = FIXED_ROWS - y  // y ≤ FIXED_ROWS-minH ⇒ h ≥ minH
-    return { ...w, y, h }
+    return { ...w, x, y, w: cw, h }
   })
 }
+
+// tallest / widest widget in a list — used to pick which one yields space when a
+// new widget can't find a free slot (make-room strategies below).
+const tallestOf = (arr) => (arr || []).reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+const widestOf  = (arr) => (arr || []).reduce((a, b) => (!a || b.w > a.w ? b : a), null)
+
+// Reserve a full-width strip across the BOTTOM of the grid for a newcomer of
+// height `needH`, shrinking every widget that crosses into the strip up so its
+// bottom rests at the cut line. This is the "add a fundamentals widget when the
+// grid is full" case: instead of the newcomer landing off the bottom, the chart
+// (and anything else reaching the bottom) shrinks up to open a full-width slot.
+// Returns { widgets, place } or null when it can't be done cleanly (a widget
+// would fall below its min, or one already sits inside the strip) — caller then
+// falls back to a single-widget split.
+function reserveBottomStrip(widgets, needH, cols) {
+  const stripH = Math.max(1, Math.min(needH, FIXED_ROWS - 1))
+  const cutY = FIXED_ROWS - stripH
+  const adjusted = []
+  for (const w of widgets) {
+    const minH = WIDGET_DEFAULTS[w.type]?.minH || 3
+    if ((w.y || 0) >= cutY) return null            // already occupies the strip
+    let h = w.h || minH
+    if ((w.y || 0) + h > cutY) h = cutY - (w.y || 0)
+    if (h < minH) return null                       // can't shrink this one enough
+    adjusted.push({ ...w, h })
+  }
+  return { widgets: adjusted, place: { x: 0, y: cutY, w: cols, h: stripH } }
+}
+
+// ── Resize "yield": shrink a neighbour instead of blocking / ejecting it ──────
+// When the user drags one widget's edge into a neighbour, the neighbour gives up
+// exactly the space the active widget grew into — its FAR edge stays pinned (so it
+// can never be pushed off-canvas), only the touched near-edge moves — down to the
+// neighbour's own min size. Once the neighbour bottoms out at its min, the active
+// widget's edge is pulled back so the resize STOPS there instead of overlapping.
+
+// Resolution is DIRECTIONAL — it acts along the axis the user is dragging (the
+// handle), never the "axis of least overlap". That distinction matters: a purely
+// VERTICAL resize must not shrink a side-neighbour's width or drag the active
+// sideways just because a widget sits beside it (the bug where a chart beside the
+// watchlist blocked the watchlist's top-edge drag). `axis` is 'h' | 'v' derived
+// from the handle; corners pass whichever the caller resolves first.
+function _resizeAxis(handle) {
+  const h = handle.includes('e') || handle.includes('w')
+  const v = handle.includes('n') || handle.includes('s')
+  return { h, v }
+}
+
+// Shrink neighbour B away from active widget A along the RESIZE axis. B's far edge
+// stays pinned (never pushed off-canvas); only the touched near edge moves, down to
+// B's own min. No overlap on the resize axis ⇒ B is untouched.
+function shrinkAwayFromActive(B, A, handle) {
+  const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x)
+  const oy = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y)
+  if (ox <= 0 || oy <= 0) return B  // no overlap → untouched
+  const def = WIDGET_DEFAULTS[B.type] || {}
+  const minW = def.minW || 2
+  const minH = def.minH || 3
+  const { h: horiz, v: vert } = _resizeAxis(handle)
+  const useH = horiz && (!vert || ox <= oy)   // corner → axis of least overlap
+  if (useH) {
+    // B is only in a HORIZONTAL resize's path if it substantially shares ROWS with
+    // A (≥ half the smaller height). A widget merely beside A with a sliver of
+    // vertical overlap must not be dragged into the resize.
+    if (oy < 0.5 * Math.min(A.h, B.h)) return B
+    if ((B.x + B.w / 2) >= (A.x + A.w / 2)) {   // B is to the RIGHT of A
+      const right = B.x + B.w
+      const nx = Math.min(A.x + A.w, right - minW)
+      return { ...B, x: nx, w: right - nx }
+    }
+    return { ...B, w: Math.max(minW, A.x - B.x) }  // B is to the LEFT of A
+  }
+  if (vert) {
+    // B is only in a VERTICAL resize's path if it substantially shares COLUMNS with
+    // A (≥ half the smaller width) — the fix for a chart beside the watchlist
+    // blocking the watchlist's top-edge drag on a 1-column artifact overlap.
+    if (ox < 0.5 * Math.min(A.w, B.w)) return B
+    if ((B.y + B.h / 2) >= (A.y + A.h / 2)) {    // B is BELOW A
+      const bottom = B.y + B.h
+      const ny = Math.min(A.y + A.h, bottom - minH)
+      return { ...B, y: ny, h: bottom - ny }
+    }
+    return { ...B, h: Math.max(minH, A.y - B.y) } // B is ABOVE A
+  }
+  return B
+}
+
+// After neighbours have shrunk as far as they can, pull the ACTIVE widget's edge
+// back out of any neighbour it STILL overlaps (that neighbour hit its min), along
+// the resize axis, so the resize stops flush instead of overlapping.
+function clampActiveToNeighbors(widgets, activeId, handle) {
+  const idx = widgets.findIndex(w => w.id === activeId)
+  if (idx < 0) return widgets
+  const A = { ...widgets[idx] }
+  const aMinW = WIDGET_DEFAULTS[A.type]?.minW || 2
+  const aMinH = WIDGET_DEFAULTS[A.type]?.minH || 3
+  const { h: horiz, v: vert } = _resizeAxis(handle)
+  for (const B of widgets) {
+    if (B.id === activeId) continue
+    const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x)
+    const oy = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y)
+    if (ox <= 0 || oy <= 0) continue
+    const useH = horiz && (!vert || ox <= oy)
+    if (useH) {
+      if (oy < 0.5 * Math.min(A.h, B.h)) continue   // beside, not stacked horizontally
+      if ((A.x + A.w / 2) <= (B.x + B.w / 2)) {  // A grew RIGHT into B
+        A.w = Math.max(aMinW, B.x - A.x)
+      } else {                                    // A grew LEFT into B
+        const aRight = A.x + A.w
+        A.x = B.x + B.w
+        A.w = Math.max(aMinW, aRight - A.x)
+      }
+    } else if (vert) {
+      if (ox < 0.5 * Math.min(A.w, B.w)) continue   // beside, not stacked vertically
+      if ((A.y + A.h / 2) <= (B.y + B.h / 2)) {   // A grew DOWN into B
+        A.h = Math.max(aMinH, B.y - A.y)
+      } else {                                     // A grew UP into B
+        const aBot = A.y + A.h
+        A.y = B.y + B.h
+        A.h = Math.max(aMinH, aBot - A.y)
+      }
+    }
+  }
+  return widgets.map(w => (w.id === activeId ? A : w))
+}
+
+// Full resize resolution: apply the active item's new geometry, shrink neighbours
+// to yield the space along the resize axis, stop the active at any neighbour that
+// hit its min, and clamp to the viewport. `active` is {i,x,y,w,h}; `handle` gives
+// the resize direction.
+function resolveResize(widgets, active, handle) {
+  const withActive = widgets.map(w =>
+    (w.id === active.i ? { ...w, x: active.x, y: active.y, w: active.w, h: active.h } : w))
+  const A = withActive.find(w => w.id === active.i)
+  if (!A) return clampWidgetsToRows(withActive)
+  const shrunk = withActive.map(B => (B.id === active.i ? B : shrinkAwayFromActive(B, A, handle)))
+  return clampWidgetsToRows(clampActiveToNeighbors(shrunk, active.i, handle))
+}
+
+// Custom resize-handle geometry — 4 edges (thin strips) + 4 corners (small
+// squares), positioned against each widget's RGL-item box. `dir` uses n/s/e/w
+// letters that applyResize tests with String.includes.
+const _RH = 8   // edge thickness (px)
+const _RC = 14  // corner size (px)
+const CUSTOM_RESIZE_HANDLES = [
+  { dir: 'n',  cursor: 'ns-resize',   style: { top: 0, left: _RC, right: _RC, height: _RH } },
+  { dir: 's',  cursor: 'ns-resize',   style: { bottom: 0, left: _RC, right: _RC, height: _RH } },
+  { dir: 'e',  cursor: 'ew-resize',   style: { top: _RC, bottom: _RC, right: 0, width: _RH } },
+  { dir: 'w',  cursor: 'ew-resize',   style: { top: _RC, bottom: _RC, left: 0, width: _RH } },
+  { dir: 'nw', cursor: 'nwse-resize', corner: true, style: { top: 0, left: 0, width: _RC, height: _RC } },
+  { dir: 'ne', cursor: 'nesw-resize', corner: true, style: { top: 0, right: 0, width: _RC, height: _RC } },
+  { dir: 'sw', cursor: 'nesw-resize', corner: true, style: { bottom: 0, left: 0, width: _RC, height: _RC } },
+  { dir: 'se', cursor: 'nwse-resize', corner: true, style: { bottom: 0, right: 0, width: _RC, height: _RC } },
+]
 
 // The watchlist column config (added columns / widths / order) lives in
 // localStorage (WL_COLS_LS in Watchlists.jsx), not a pref — read it for
@@ -343,6 +488,11 @@ function DeleteConfirm({ onYes, onCancel }) {
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
+  // Current app theme, read live by handleAddWidget to STAMP a new widget with the
+  // theme it was placed under (persists in opts so a theme-following widget keeps its
+  // placement color across reloads; only NEW widgets pick up the current theme).
+  const themeRef = useRef(prefs?.theme)
+  themeRef.current = prefs?.theme
 
   // "Merge widgets": lock the board in place (no move / resize / delete / color
   // edits), drop every widget border + header bar, and tighten the inter-widget gap
@@ -363,6 +513,7 @@ export default function ChartsWorkspace() {
   // pixels to whole grid columns. Merged has no body padding, so the grid inner
   // width IS the body width; unmerged we still track it (harmless, unused there).
   const [gridWidth, setGridWidth] = useState(0)
+  const [resizingId, setResizingId] = useState(null)  // widget being custom-resized → shows the gold placeholder
 
   // The viewport-lock row-height math, extracted so a popped-out board can run
   // it against ITS OWN window. Sharing the main tab's rowHeight would size a
@@ -516,6 +667,14 @@ export default function ChartsWorkspace() {
   // default when popped). Both kinds are React portals owned by this tab.
   const [poppedWidgetIds, setPoppedWidgetIds] = useState([])
   const [poppedLayouts, setPoppedLayouts] = useState([])
+  // In-canvas floating widgets: same idiom as poppedWidgetIds — the widget stays in
+  // layout.widgets (its grid geometry is preserved for docking) and is merely hidden
+  // from the grid, then rendered in a FloatingWidgetPanel on top of the canvas.
+  const [floatingWidgetIds, setFloatingWidgetIds] = useState([])
+  // Per-float spawn box {w,h,x,y} for widgets created via a chart's "Add widget"
+  // menu — opens SMALL under the cursor. Absent = a grid-popped float (sized from
+  // the slot it left). Cleared on dock/remove so a later re-float uses grid geom.
+  const [floatSpawns, setFloatSpawns] = useState({})
 
   const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
@@ -580,6 +739,11 @@ export default function ChartsWorkspace() {
   const [compareOpen, setCompareOpen] = useState(false)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
+  // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
+  // it writes the SAME shared `replayCutoff` chart prop but edits no CPS file).
+  const [replayOpen, setReplayOpen] = useState(false)
+  // "Pick on chart": arm click/drag on the active chart to choose the replay cutoff.
+  const [replayArmPick, setReplayArmPick] = useState(false)
   // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
   // gold start-date candle) — linked charts mark the sort's start date.
   const [startMarker, setStartMarker] = useState(null)
@@ -590,10 +754,20 @@ export default function ChartsWorkspace() {
   }, [])
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
   const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
+  // Replay Mode "Pick on chart" — defined here (before workspaceValue) since the memo
+  // exposes them to the charts. A picked cutoff sets the shared cutoff, disarms the pick,
+  // and reopens the dialog (now showing the picked date) so the timeframe can be adjusted.
+  const handleReplayCutoffPicked = useCallback((iso) => { setReplayCutoff(iso || null); setReplayArmPick(false); setReplayOpen(true) }, [])
+  const cancelReplayPick = useCallback(() => { setReplayArmPick(false); setReplayOpen(true) }, [])
 
+  // Stable indirection to handleAddWidget's float path (defined far below, after
+  // this memo — a ref avoids the TDZ and keeps workspaceValue identity stable).
+  const floatNewWidgetRef = useRef(null)
+  const applyThemeAllRef = useRef(null)
+  const applyThemeAllWidgetsRef = useRef(null)
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
   // Debounced layout persist (500ms).
@@ -620,6 +794,9 @@ export default function ChartsWorkspace() {
 
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
+  // Drag-move + programmatic changes. RGL never reports overlaps here (drag-move is
+  // preventCollision-guarded, resize is our own overlay), so a straight merge +
+  // bounds-clamp is all this needs.
   const handleLayoutChange = useCallback((newGridLayout) => {
     setLayout(prev => {
       const byId = Object.fromEntries(newGridLayout.map(l => [l.i, l]))
@@ -637,6 +814,171 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // ── Custom resize (replaces RGL's) ────────────────────────────────────────
+  // RGL cannot shrink a neighbour during a live resize — it only blocks or
+  // push-moves, and it ignores layout-prop changes while a drag is active
+  // (getDerivedStateFromProps returns null). So we own the resize: our handles
+  // drive layout state directly, resolveResize shrinks the neighbour we grow into
+  // (far edge pinned → never off-canvas) and stops the active widget once the
+  // neighbour hits its min. Because there's no RGL activeDrag, every tick renders.
+  const resizeRef = useRef(null)
+  // Turn a pointer position into the widget's clamped target geometry (grid units).
+  const resizeGeomAt = useCallback((st, clientX, clientY) => {
+    const dCols = Math.round((clientX - st.startX) / st.unitW)
+    const dRows = Math.round((clientY - st.startY) / st.unitH)
+    let { x, y, w, h } = st.geom
+    const H = st.handle
+    if (H.includes('e')) w = st.geom.w + dCols
+    if (H.includes('s')) h = st.geom.h + dRows
+    if (H.includes('w')) { x = st.geom.x + dCols; w = st.geom.w - dCols }
+    if (H.includes('n')) { y = st.geom.y + dRows; h = st.geom.h - dRows }
+    const def = WIDGET_DEFAULTS[st.type] || {}
+    const minW = def.minW || 2, minH = def.minH || 3
+    if (w < minW) { if (H.includes('w')) x -= (minW - w); w = minW }   // keep anchored edge fixed
+    if (h < minH) { if (H.includes('n')) y -= (minH - h); h = minH }
+    if (x < 0) { w += x; x = 0 }
+    if (y < 0) { h += y; y = 0 }
+    if (x + w > GRID_COLS) w = GRID_COLS - x
+    if (y + h > FIXED_ROWS) h = FIXED_ROWS - y
+    return { i: st.id, x, y, w, h }
+  }, [])
+  // PIXEL-SMOOTH active widget: write the exact mouse-following box straight to the
+  // widget's DOM element (no React, no grid-snap) so its corner tracks the cursor
+  // 1:1 with zero lag — mirrors how react-grid-layout moved the real element during
+  // a resize. Grid-snap only decides where NEIGHBOURS yield + where it lands on drop.
+  const applyActivePx = useCallback((st) => {
+    const p = st.pixel, el = st.el
+    if (!p || !el) return
+    // transition:none is ESSENTIAL — .react-grid-item ships a `transition: all
+    // 200ms`, so without this every write animates over 200ms and the widget
+    // visibly lags the cursor. (RGL kills it via a `.resizing` class during its
+    // own drags; ours isn't RGL's, so we kill it ourselves — also via the
+    // .charts-resizing container class for the neighbours.)
+    el.style.transition = 'none'
+    el.style.left = `${p.left}px`; el.style.top = `${p.top}px`
+    el.style.width = `${p.width}px`; el.style.height = `${p.height}px`
+    el.style.zIndex = '7'
+  }, [])
+  // Re-assert the pixel box AFTER any React re-render during the resize (a neighbour
+  // shrink re-renders the grid, and RGL would repaint the active widget at its
+  // snapped size for one frame → a visible stutter). Runs before paint, so no flicker.
+  useLayoutEffect(() => { const st = resizeRef.current; if (st) applyActivePx(st) })
+  const startResize = useCallback((e, widget, handle) => {
+    e.preventDefault(); e.stopPropagation()
+    const el = e.currentTarget.parentElement
+    const op = el?.offsetParent
+    if (!el || !op || !widget.w || !widget.h) return
+    const gap = MARGIN_Y
+    const unitW = (el.offsetWidth + gap) / widget.w   // column pitch (colWidth + gap)
+    const unitH = (el.offsetHeight + gap) / widget.h  // row pitch
+    const aL = el.offsetLeft, aT = el.offsetTop
+    // Full-grid pixel bounds derived from the pitch — NOT op.clientHeight, which is
+    // RGL's content-fit container height (a short widget → short container → the
+    // pixel clamp would stop the bottom mid-canvas). originL/T is grid cell (0,0).
+    const originL = aL - widget.x * unitW
+    const originT = aT - widget.y * unitH
+    const def = WIDGET_DEFAULTS[widget.type] || {}
+    // The layout at resize START — the STABLE base every tick resolves against, so
+    // neighbour shrink never compounds and the resolve is deterministic.
+    // Floated/popped widgets are lifted OFF the board — the resize must not treat
+    // their (reserved) slots as occupied, or a neighbour can't grow into the freed
+    // space (it "rejects"). They're re-appended UNCHANGED on each commit below.
+    const baseWidgets = (layoutRef.current?.widgets || [])
+      .filter(w => !floatingWidgetIds.includes(w.id) && !poppedWidgetIds.includes(w.id))
+    const st = {
+      id: widget.id, type: widget.type, handle, baseWidgets,
+      startX: e.clientX, startY: e.clientY,
+      geom: { x: widget.x, y: widget.y, w: widget.w, h: widget.h },
+      el, unitW, unitH,
+      // Pixel-follow is bounded ONLY by the canvas (+ the widget's own min) so it
+      // NEVER gets stuck against a neighbour mid-drag — it tracks the mouse the whole
+      // way. The neighbour still shrinks live, and the RELEASE (resolveResize) snaps
+      // the widget flush beside a genuine neighbour (or free of a side-neighbour).
+      minL: originL, minT: originT,
+      maxR: originL + GRID_COLS * unitW - gap,
+      maxB: originT + FIXED_ROWS * unitH - gap,
+      aL, aT, aW: el.offsetWidth, aH: el.offsetHeight,
+      minWpx: (def.minW || 2) * unitW - gap,
+      minHpx: (def.minH || 3) * unitH - gap,
+      pixel: null, snapKey: '', resolved: null, raf: 0,
+    }
+    const onMove = (ev) => {
+      if (resizeRef.current !== st) return
+      const dx = ev.clientX - st.startX, dy = ev.clientY - st.startY
+      // 1) Pixel box — exact mouse follow, written straight to the DOM every event.
+      let left = st.aL, top = st.aT, width = st.aW, height = st.aH
+      if (handle.includes('e')) width = st.aW + dx
+      if (handle.includes('s')) height = st.aH + dy
+      if (handle.includes('w')) { left = st.aL + dx; width = st.aW - dx }
+      if (handle.includes('n')) { top = st.aT + dy; height = st.aH - dy }
+      if (width < st.minWpx) { if (handle.includes('w')) left -= (st.minWpx - width); width = st.minWpx }
+      if (height < st.minHpx) { if (handle.includes('n')) top -= (st.minHpx - height); height = st.minHpx }
+      // Bound to the CANVAS only (never a neighbour) so the drag can't get stuck.
+      if (left < st.minL) { width += left - st.minL; left = st.minL }
+      if (top < st.minT) { height += top - st.minT; top = st.minT }
+      if (left + width > st.maxR) width = st.maxR - left
+      if (top + height > st.maxB) height = st.maxB - top
+      st.pixel = { left, top, width, height }
+      applyActivePx(st)
+      // 2) Snapped grid target — only re-render (neighbour shrink) on cell crossing,
+      //    resolved against the STABLE base so shrink never compounds.
+      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      const key = `${g.x},${g.y},${g.w},${g.h}`
+      if (key !== st.snapKey) {
+        st.snapKey = key
+        // Keep the ACTIVE widget's React geom FROZEN at its start value during the
+        // drag — only the neighbours update live. Its box is owned entirely by the
+        // pixel-follow (applyActivePx + the useLayoutEffect), so letting RGL repaint
+        // it at interim snapped sizes just churns its contents (the chart's bottom
+        // jumping mid-corner-drag). It commits to its final geom on release.
+        const full = resolveResize(st.baseWidgets, g, handle)
+        st.resolved = full.map(w => (w.id === st.id
+          ? { ...w, x: st.geom.x, y: st.geom.y, w: st.geom.w, h: st.geom.h } : w))
+        if (!st.raf) st.raf = requestAnimationFrame(() => {
+          st.raf = 0
+          if (resizeRef.current === st && st.resolved) {
+            setLayout(prev => {
+              const ids = new Set(st.resolved.map(w => w.id))
+              const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped
+              return { ...prev, widgets: [...st.resolved, ...preserved] }
+            })
+          }
+        })
+      }
+    }
+    const onUp = (ev) => {
+      if (resizeRef.current !== st) return
+      if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0 }
+      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      const resolved = resolveResize(st.baseWidgets, g, handle)
+      const rg = resolved.find(w => w.id === st.id) || g
+      // Pin the element to the RESOLVED (flush-against-neighbour) pixel box so it
+      // matches the committed grid geom exactly — do NOT clear width/left (that
+      // collapses the item to CSS `auto` width, and React skips the no-op re-render
+      // so it stays stuck narrow until an unrelated repaint).
+      el.style.left = `${st.minL + rg.x * st.unitW}px`
+      el.style.top = `${st.minT + rg.y * st.unitH}px`
+      el.style.width = `${rg.w * st.unitW - MARGIN_Y}px`
+      el.style.height = `${rg.h * st.unitH - MARGIN_Y}px`
+      el.style.zIndex = ''; el.style.transition = ''
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      resizeRef.current = null
+      setResizingId(null)
+      setLayout(prev => {
+        const ids = new Set(resolved.map(w => w.id))
+        const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped stay put
+        const next = { ...prev, widgets: [...resolved, ...preserved] }
+        if (hydratedRef.current) scheduleSave(next)
+        return next
+      })
+    }
+    resizeRef.current = st
+    setResizingId(widget.id)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
+
   const handleRemoveWidget = useCallback((id) => {
     setLayout(prev => {
       const next = { ...prev, widgets: prev.widgets.filter(w => w.id !== id) }
@@ -652,7 +994,13 @@ export default function ChartsWorkspace() {
   const minHFor = useCallback((w) => WIDGET_DEFAULTS[w.type]?.minH || 3, [])
   const handleSeamResize = useCallback((nextWidgets, commit) => {
     setLayout(prev => {
-      const next = { ...prev, widgets: clampWidgetsToRows(nextWidgets) }
+      // `nextWidgets` is derived from the merged board's VISIBLE widgets only —
+      // floated + popped widgets were filtered out of that set. Re-append any
+      // widget not present in `nextWidgets` UNCHANGED, or a seam drag would drop
+      // them from layout.widgets and the floating/popped panel would vanish.
+      const seamIds = new Set(nextWidgets.map(w => w.id))
+      const preserved = prev.widgets.filter(w => !seamIds.has(w.id))
+      const next = { ...prev, widgets: clampWidgetsToRows([...nextWidgets, ...preserved]) }
       if (commit) scheduleSave(next)
       return next
     })
@@ -699,6 +1047,101 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // UCT Chart Themes → "All charts": reskin EVERY chart in the layout with a
+  // theme's visual layer at once. Patches each chart widget's own settings blob
+  // AND its extra chart tabs AND any chart widget-tabs (wtabs). The global
+  // chart_settings blob is the SEED an un-customized surface inherits, so an
+  // unedited widget keeps the user's indicators/timeframes/layout — only its look
+  // changes. Same one-writer discipline as applyTfToCharts (goes through layout).
+  const applyThemeToAllCharts = useCallback((theme) => {
+    if (!theme) return
+    const seed = mergeChartSettings(prefs.chart_settings)
+    setLayout(prev => {
+      let changed = false
+      const widgets = prev.widgets.map(w => {
+        let nw = w
+        if (w.type === 'chart') { nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }; changed = true }
+        if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
+          nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: patchOptsWithTheme(t.opts, theme, seed) } : t)) }
+          changed = true
+        }
+        return nw
+      })
+      if (!changed) return prev
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave, prefs.chart_settings])
+  applyThemeAllRef.current = applyThemeToAllCharts
+
+  // "All widgets": every widget in the layout — chart or not — adopts the theme.
+  // Charts get the full chart skin; watchlist/scanner/theme-tracker/fundamentals/
+  // breadth get their canvas + text + up/down + grid/tint; news/profile/alerts/
+  // calendar/optionsflow/aisearch get canvas + text. Walks base widgets, their
+  // chart tabs (inside patchWidgetOptsWithTheme), and widget-tabs (wtabs).
+  const applyThemeToAllWidgets = useCallback((theme) => {
+    if (!theme) return
+    const seed = mergeChartSettings(prefs.chart_settings)
+    setLayout(prev => {
+      const widgets = prev.widgets.map(w => {
+        let nw = { ...w, opts: patchWidgetOptsWithTheme(w.type, w.opts, theme, seed) }
+        if (Array.isArray(w.wtabs)) {
+          nw.wtabs = w.wtabs.map(t => (t && t.type ? { ...t, opts: patchWidgetOptsWithTheme(t.type, t.opts, theme, seed) } : t))
+        }
+        return nw
+      })
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+    // GLOBAL-pref widgets (theme tracker / fundamentals / breadth / AI search) read a
+    // single pref, not opts.settings — so per-widget patching can't reach them. Write
+    // each present type's pref, mapping the theme over its current stored blob so the
+    // widget's non-color prefs survive. Only touch a pref whose widget is on-screen —
+    // computed from the live layout (NOT inside the setLayout updater, which runs
+    // async, so the set would still be empty when this loop reads it).
+    const cur = layoutRef.current || layout
+    const presentTypes = new Set()
+    for (const w of (cur.widgets || [])) {
+      presentTypes.add(w.type)
+      if (Array.isArray(w.wtabs)) for (const t of w.wtabs) if (t?.type) presentTypes.add(t.type)
+    }
+    for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
+      if (!presentTypes.has(type)) continue
+      const base = parsePref(prefs?.[key], null) || {}
+      setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
+    }
+  }, [scheduleSave, prefs, setPref, layout])
+  applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
+
+  // ── "Open on Charts" deep link (/charts?sym=AMD&tf=15) ───────────────────
+  // The reverse direction of the capture flow: a journal embed (or any other
+  // surface) can point the workspace at what it is showing. Applied through
+  // the authorities that already own these values — setGroupSym for the
+  // ticker, applyTfToCharts for the timeframe — never by writing layout here,
+  // so there stays ONE writer per value.
+  // ⏳ Waits for hydration: prefs land a beat after mount and would otherwise
+  // overwrite the applied symbol with the saved one (the same race the
+  // groups-from-prefs one-shot exists for).
+  // 🧹 Strips the params after applying, so a refresh is not a second
+  // instruction fighting whatever the user changed since.
+  // ⛔ Declared AFTER applyTfToCharts on purpose (it reads it).
+  const deepLinkAppliedRef = useRef(false)
+  useEffect(() => {
+    if (deepLinkAppliedRef.current || prefsLoading) return
+    const link = readChartsLink(typeof window !== 'undefined' ? window.location.search : '')
+    deepLinkAppliedRef.current = true
+    if (!link) return
+    if (link.symbol) setGroupSym('A', link.symbol)
+    if (link.tf) applyTfToCharts(link.tf)
+    try {
+      const rest = stripChartsLink(window.location.search)
+      window.history.replaceState({}, '', `${window.location.pathname}${rest}`)
+    } catch { /* history unavailable — lingering params are harmless */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsLoading])
+
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
   // through one atomic swap (the reducer already computed the next widget). Keeps
@@ -718,27 +1161,79 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null } = {}) => {
+    // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
+    // updater, and floating needs the same id the layout committed — hoisting it
+    // keeps both in lockstep (same reasoning as handlePopOutLayout below).
+    const newId = `w-${type}-${Date.now()}`
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
-      // Place into the first logical open spot (row-major scan), not column 0:
-      // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
-      // widgets below the left column and overflows. findPlacement shrinks the
-      // widget toward its min size to squeeze into a smaller gap rather than
-      // falling off-screen; it bottom-packs only when the grid is genuinely full.
-      const { x, y, w, h } = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
-      const newWidget = {
-        id: `w-${type}-${Date.now()}`,
-        type, color,
-        x, y, w, h,
-        opts: seedOpts && typeof seedOpts === 'object' ? { ...seedOpts } : {},
+      let widgets = prev.widgets
+      let place
+      if (float) {
+        // Float-on-create: it renders on TOP of the board, so it must NOT reshuffle
+        // the grid (no findPlacement / reserveBottomStrip — those shrink the existing
+        // charts to make room, which a floating overlay must never do). Its grid slot
+        // is just a compact parking spot for when it's docked; the visible float size
+        // comes from `at`, not this geometry.
+        place = { x: 0, y: 0, w: defaults.w, h: defaults.h }
+      } else {
+        // Place into the first logical open spot (row-major scan), not column 0:
+        // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
+        // widgets below the left column and overflows. findPlacement shrinks the
+        // widget toward its min size to squeeze into a smaller gap rather than
+        // falling off-screen; it bottom-packs only when the grid is genuinely full.
+        const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+        place = fit
+        // Grid full → findPlacement returns y:Infinity (would land off the bottom).
+        // Make room instead: reserve a full-width bottom strip (shrinks the chart /
+        // whatever reaches the bottom UP so the newcomer sits below it, on-screen —
+        // the "add fundamentals under the chart" case). Fall back to shrinking a
+        // single widget (below-split of the tallest, then side-split of the widest).
+        if (!Number.isFinite(fit.y) || fit.y + fit.h > FIXED_ROWS) {
+          const needH = Math.max(defaults.minH || 3, Math.min(defaults.h, Math.floor(FIXED_ROWS / 2)))
+          const room = reserveBottomStrip(prev.widgets, needH, COLS.lg)
+            || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
+            || splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          if (room) { widgets = room.widgets; place = room.place }
+          else { place = { x: 0, y: 0, w: defaults.w, h: defaults.h } }  // last resort (clamped below)
+        }
       }
-      const next = { ...prev, widgets: clampWidgetsToRows([...prev.widgets, newWidget]) }
+      // Stamp the app theme at placement so a theme-following widget freezes its
+      // look here (WidgetHost/usePlacedTheme read opts.placedTheme). seedOpts wins
+      // if it already carries a value.
+      const newOpts = { placedTheme: themeRef.current, ...(seedOpts && typeof seedOpts === 'object' ? seedOpts : {}) }
+      // A CHART widget placed on the LIGHT theme freezes into the light-canvas chart
+      // default (the chart has its own settings system, not the themeFollow class path).
+      // Dark placement keeps the current default (no stamp → the theme-invariant seed).
+      if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
+        newOpts.settings = chartDefaultsForTheme('light')
+      }
+      const newWidget = {
+        id: newId,
+        type, color,
+        x: place.x, y: place.y, w: place.w, h: place.h,
+        opts: newOpts,
+      }
+      const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
+    // Float-on-create: the widget keeps its real grid slot (so Dock snaps it back)
+    // but renders as a floating panel until docked. `at` (the right-click point)
+    // seeds a small panel that lands under the cursor — clamped on-screen.
+    if (float) {
+      setFloatingWidgetIds(prev => (prev.includes(newId) ? prev : [...prev, newId]))
+      const SPAWN_W = 360, SPAWN_H = 420
+      const x = at ? Math.max(8, Math.min(at.x, window.innerWidth - SPAWN_W - 8)) : null
+      const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
+      setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
+    }
   }, [scheduleSave, groupSyms])
+  // Expose the float-on-create path to the workspace context (a chart's right-click
+  // "Add widget" submenu). Assigned here now that handleAddWidget exists.
+  floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -747,6 +1242,22 @@ export default function ChartsWorkspace() {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart')
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+
+  // Tools → Replay Mode. Auto-adds a chart if none exists (like openCompare), then opens
+  // the dialog. `startReplay` sets the shared cutoff + switches every chart to the chosen
+  // timeframe (deep intraday is fetched date-anchored via the chart's ?to= path).
+  const openReplay = useCallback(() => {
+    if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart')
+    setReplayOpen(true)
+  }, [layout, handleAddWidget])
+  const startReplay = useCallback((cutoffIso, tf) => {
+    setReplayCutoff(cutoffIso || null)
+    if (tf) applyTfToCharts(tf)
+    setReplayOpen(false)
+  }, [applyTfToCharts])
+  const exitReplayMode = useCallback(() => { setReplayCutoff(null); setStartMarker(null); setReplayOpen(false); setReplayArmPick(false) }, [])
+  // "Pick on chart": close the dialog + arm the drag so the chart is visible to click on.
+  const armReplayPick = useCallback(() => { setReplayOpen(false); setReplayArmPick(true) }, [])
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
@@ -887,16 +1398,19 @@ export default function ChartsWorkspace() {
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
-    // Restore the exact chart settings baked into the default (parsed fresh each
-    // apply so the frozen constant is never mutated).
-    setPref('chart_settings', uctDefaultChartSettings())
-    // Watchlist / Theme Tracker / Fundamentals appearance are part of the frozen
-    // default too → reset them, so no personal widget styling leaks onto the
-    // locked UCT Default.
-    setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
+    // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
+    // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
+    // capture + the dark defaults. Parsed fresh each apply so the constants are never
+    // mutated.
+    const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
+    setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
+    // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
+    // default too → reset them to the theme-appropriate defaults (light = white canvas
+    // + #17a917/#db000b up/down), so no personal widget styling leaks onto UCT Default.
+    setPref('watchlist_settings', JSON.stringify(watchlistDefaultsForTheme(appTheme)))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(appTheme)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(appTheme)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(appTheme)))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
@@ -906,7 +1420,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', 'null')
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved])
+  }, [setPref, setChartsTheme, flashSaved, prefs.theme])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -1049,6 +1563,44 @@ export default function ChartsWorkspace() {
     handleRemoveWidget(id)
   }, [handleRemoveWidget])
 
+  // ── In-canvas float: pop a widget onto another widget, dock it back, move it
+  //    into another widget's tabs, or close it. Mirrors the pop-out handlers. ──
+  const handleFloatWidget = useCallback((id) => {
+    setFloatingWidgetIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+  }, [])
+  const clearFloatSpawn = useCallback((id) => {
+    setFloatSpawns(prev => { if (!(id in prev)) return prev; const n = { ...prev }; delete n[id]; return n })
+  }, [])
+  const handleDockFloatWidget = useCallback((id) => {
+    // Drop the float flag → the widget snaps back to its saved grid slot (its
+    // geometry never left layout.widgets).
+    setFloatingWidgetIds(prev => prev.filter(x => x !== id))
+    clearFloatSpawn(id)
+  }, [clearFloatSpawn])
+  const handleRemoveFloatWidget = useCallback((id) => {
+    setFloatingWidgetIds(prev => prev.filter(x => x !== id))
+    clearFloatSpawn(id)
+    handleRemoveWidget(id)
+  }, [handleRemoveWidget, clearFloatSpawn])
+  const handleFloatWidgetToTab = useCallback((floatId, targetId) => {
+    if (floatId === targetId) return
+    setFloatingWidgetIds(prev => prev.filter(x => x !== floatId))
+    setLayout(prev => {
+      const src = prev.widgets.find(w => w.id === floatId)
+      const target = prev.widgets.find(w => w.id === targetId)
+      if (!src || !target) return prev
+      // Move the source widget's base definition in as a new tab of the target,
+      // then delete the source (it now lives inside the target's tab group).
+      const nextTarget = addWidgetTab(target, { type: src.type, color: src.color, opts: src.opts })
+      const widgets = prev.widgets
+        .filter(w => w.id !== floatId)
+        .map(w => (w.id === targetId ? { ...nextTarget, x: w.x, y: w.y, w: w.w, h: w.h } : w))
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // Deliberately NOT done inside a setLayout updater: React invokes updaters
   // twice under StrictMode, which would queue a second popped board and open a
   // duplicate window.
@@ -1109,6 +1661,27 @@ export default function ChartsWorkspace() {
   const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('gridspike')
   const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
+
+  // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
+  // demands an explicit owner — see the widget's own listener) and the press
+  // died silently (panel finding: a no-op hotkey teaches "it's broken"). One
+  // workspace-level listener names the gesture. Grid cells don't implement
+  // capture, so the hint would mislead there.
+  const [jwHotkeyMsg, setJwHotkeyMsg] = useJournalToast()
+  const jwHotkeyCtx = useRef({ gridMode })
+  jwHotkeyCtx.current = { gridMode }
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (jwHotkeyCtx.current.gridMode) return
+      if (activeChartRef.current != null) return
+      e.preventDefault()
+      setJwHotkeyMsg('Hover a chart first — Ctrl+Alt+J captures the hovered chart')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.
@@ -1155,8 +1728,11 @@ export default function ChartsWorkspace() {
   // A popped-out widget is hidden from the board but KEPT in layout.widgets: its
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
-  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
+  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
+  // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
+  // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
+  const floatingWidgets = layout.widgets.filter(w => floatingWidgetIds.includes(w.id) && !poppedWidgetIds.includes(w.id))
 
   // ONE grid renderer, shared by the main board and every popped-out board. The
   // RGL configuration (viewport lock, 24 columns, computed row height) is
@@ -1170,7 +1746,7 @@ export default function ChartsWorkspace() {
     const widthProps = widthOverride > 0 ? { width: widthOverride } : {}
     return (
     <GridComp
-      className="layout"
+      className={`layout${resizingId ? ' charts-resizing' : ''}`}
       {...widthProps}
       layouts={{
         lg: widgets.map(w => {
@@ -1189,8 +1765,20 @@ export default function ChartsWorkspace() {
       onLayoutChange={h.onLayoutChange}
       draggableHandle=".charts-widget-drag-handle"
       isDraggable={!merged}
-      isResizable={!merged}
-      compactType="vertical"
+      /* RGL's own resize is OFF when we supply custom handles (main board) — see
+         the "Custom resize" comment on startResize for why. Popped-out boards
+         (no onStartResize) keep RGL's built-in resize. */
+      isResizable={!merged && !h.onStartResize}
+      /* Free placement (no vertical compaction): a widget stays exactly where the
+         user drops or sizes it. Under the old "vertical" compaction, shrinking a
+         widget from its top edge made it float back up to fill the space above —
+         it wouldn't stay on the bottom half where the user put it. */
+      compactType={null}
+      /* DRAG-move: preventCollision keeps a dragged widget from shoving a neighbour
+         off the fixed-row viewport (it just can't drop onto occupied space).
+         Resize yield (shrink the neighbour) is handled by our custom overlay, not
+         RGL. Make-room-on-ADD is handled in handleAddWidget (reserveBottomStrip). */
+      preventCollision={true}
       margin={[gridGap, gridGap]}
       resizeHandles={['nw', 'ne', 'sw', 'se']}
       /* Position grid items with top/left, NOT transform: translate().
@@ -1202,26 +1790,36 @@ export default function ChartsWorkspace() {
       useCSSTransforms={false}
     >
       {widgets.map(w => {
-        // Another widget sits DIRECTLY above this one (its bottom edge touches
-        // this widget's top edge and their columns overlap) → drop this widget's
-        // header to the bottom so the two blend at the seam.
-        const hasAbove = widgets.some(o =>
-          o.id !== w.id
-          && (o.y + o.h) === w.y
-          && o.x < w.x + w.w && w.x < o.x + o.w,
-        )
+        // The widget header (drag bar + color-link dot + window controls) ALWAYS
+        // sits at the TOP, regardless of what is placed above it. (The previous
+        // "dock the header to the bottom when another widget sits directly above"
+        // seam-blend behavior was reverted at owner request 2026-08-20.)
         return (
-          <div key={w.id}>
+          <div key={w.id} data-widget-id={w.id}>
             <WidgetHost
               widget={w}
-              headerAtBottom={hasAbove}
+              headerAtBottom={false}
               merged={merged}
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
               onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
+              onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
+            {/* Custom resize handles (main board only) — drive layout state
+                directly so a neighbour shrinks live as you drag an edge into it.
+                8 handles: 4 edges + 4 corners (corners carry the gold "L" mark). */}
+            {!merged && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
+              <div
+                key={dir}
+                onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
+                style={{ ...style, cursor }}
+              />
+            ))}
+            {/* Gold placeholder highlight while THIS widget is being resized. */}
+            {resizingId === w.id && <div className={styles.rzPlaceholder} />}
           </div>
         )
       })}
@@ -1231,16 +1829,21 @@ export default function ChartsWorkspace() {
 
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,
+    onStartResize: startResize,
     onRemove: handleRemoveWidget,
     onColorChange: handleColorChange,
     onOptsChange: handleOptsChange,
     onReplaceWidget: handleReplaceWidget,
     onPopOut: handlePopOutWidget,
+    onFloat: handleFloatWidget,
   }
 
   return (
     <WorkspaceContext.Provider value={workspaceValue}>
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
+        {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
+            that has no widget anchor). Below the popup band (8500+). */}
+        <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
@@ -1298,14 +1901,6 @@ export default function ChartsWorkspace() {
                   <div className={styles.menuSection}>Prebuilt</div>
                   <div className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
-                  </div>
-                  <div className={styles.menuRow}>
-                    <button
-                      type="button"
-                      className={styles.addMenuItem}
-                      style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                      onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); closeToolbarMenus() }}
-                    >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
                   </div>
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
@@ -1396,6 +1991,12 @@ export default function ChartsWorkspace() {
                   style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
                   onClick={() => { openCompare(); closeToolbarMenus() }}
                 >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={replayCutoff ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { openReplay(); closeToolbarMenus() }}
+                >{replayCutoff ? '✓ ' : ''}Replay Mode</button>
               </div>
             )}
           </div>
@@ -1509,11 +2110,55 @@ export default function ChartsWorkspace() {
             onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
           />
         )}
+        {/* In-canvas floating widgets — popped off the grid to sit on top of another
+            widget (e.g. a Watchlist over a Chart). Each opens near the size of the
+            grid slot it left. Its header carries dock / move-to-tab / close. */}
+        {floatingWidgets.map((w, i) => {
+          // Created via "Add widget" → open small at the cursor (spawn). Popped
+          // from the grid → open at the slot's size, centered (offset-cascaded).
+          const spawn = floatSpawns[w.id]
+          return (
+          <FloatingWidgetPanel
+            key={w.id}
+            offset={spawn ? 0 : i * 28}
+            initialW={spawn ? spawn.w : Math.max(260, Math.round((w.w || 6) * (gridWidth / GRID_COLS)))}
+            initialH={spawn ? spawn.h : Math.max(200, Math.round((w.h || 8) * rowHeight))}
+            initialX={spawn ? spawn.x : null}
+            initialY={spawn ? spawn.y : null}
+          >
+            {({ onDragPointerDown }) => (
+              <WidgetHost
+                widget={w}
+                merged={false}
+                floating
+                onHeaderDragStart={onDragPointerDown}
+                onDock={() => handleDockFloatWidget(w.id)}
+                onRemove={() => handleRemoveFloatWidget(w.id)}
+                floatTabTargets={visibleWidgets.map(t => ({ id: t.id, label: WIDGET_LABELS[t.type] || t.type }))}
+                onFloatToTab={(targetId) => handleFloatWidgetToTab(w.id, targetId)}
+                onColorChange={(c) => handleColorChange(w.id, c)}
+                onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+                onReplaceWidget={handleReplaceWidget}
+              />
+            )}
+          </FloatingWidgetPanel>
+          )
+        })}
         {compareOpen && (
           <CompareSymbolsPanel
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
             onClose={() => setCompareOpen(false)}
+          />
+        )}
+        {replayOpen && (
+          <ReplayPanel
+            active={!!replayCutoff}
+            cutoff={replayCutoff}
+            onStart={startReplay}
+            onArmPick={armReplayPick}
+            onExit={exitReplayMode}
+            onClose={() => setReplayOpen(false)}
           />
         )}
       </div>

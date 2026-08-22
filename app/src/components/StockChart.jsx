@@ -3,12 +3,26 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
+// Marks the frames this chart renders INSTEAD of a chart, so anything that
+// rasterizes it as durable evidence (the journal embed's self-archive) refuses
+// to freeze an error card or a loading skeleton as the snapshot. Inert on every
+// other surface — it is a data attribute nothing styles.
+import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
+import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
+import { crosshairModeOf } from './chart/crosshairMode'
+
+// Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
+// added to `LEGEND_MODES` without a label here renders as `undefined` in the
+// right-click menu rather than silently not being offered at all.
+const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
+import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
+import useTickerIpo from '../hooks/useTickerIpo'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -237,6 +251,26 @@ function anchoredSameScalePoints(cmpBars, fbars, lr, adjustTime) {
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
+// Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
+// the local IndexedDB read before falling through to a full server fetch. A fresh
+// browser mid-pack-ingest can stall idbGet for seconds (readwrite ingest serializes
+// with our readonly get); this cap makes a new user paint from the ~1ms origin instead
+// of a black screen. Warm browsers resolve idbGet in ~5ms and never reach it.
+//
+// 🔴 TWO timeouts, chosen by whether this browser has EVER returned cached bars
+// (`_browserHasCachedBars`). The subtlety a real member HAR exposed (2026-08-20): a
+// slow idbGet means the IDB is BUSY, which means it almost certainly HAS data (a
+// populated cache under ingest/scan contention) — NOT that it's empty. An EMPTY
+// browser's idbGet returns null in ~1ms and never trips a timeout. So the original
+// flat 600ms fired in exactly the wrong case: it abandoned a member's full 23k-entry
+// cache and full-fetched all 712 charts from the server, adding load that slowed
+// idbGet further (a vicious loop) while his warm cache sat unused. Fix: once ANY
+// idbGet on this browser has returned bars, we KNOW it has a pack — be patient
+// (CACHED_MS) and let the local read win instead of hammering the origin. A browser
+// that has never shown cached bars keeps the fast 600ms new-user path.
+const _IDB_FIRST_PAINT_TIMEOUT_MS = 600
+const _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS = 4000
+let _browserHasCachedBars = false
 // Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
@@ -449,6 +483,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
+import { isDailyTailStale, isIntradayTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -539,6 +574,21 @@ const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) =
 }
 
 // ─── Legend helpers ─────────────────────────────────────────────────────────
+
+// Strip any alpha from a color so a legend label shows the overlay's HUE at full
+// opacity. An MA's line opacity should fade the LINE on the chart, never its
+// legend label — the label is a name+reading a trader must always read clearly.
+function opaqueColor(c) {
+  if (!c || typeof c !== 'string') return c
+  const s = c.trim()
+  const m8 = /^#([0-9a-f]{6})[0-9a-f]{2}$/i.exec(s)      // #rrggbbaa → #rrggbb
+  if (m8) return `#${m8[1]}`
+  const m4 = /^#([0-9a-f]{3})[0-9a-f]$/i.exec(s)         // #rgba → #rgb
+  if (m4) return `#${m4[1]}`
+  const mr = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*[\d.]+\s*\)$/i.exec(s)
+  if (mr) return `rgb(${mr[1]}, ${mr[2]}, ${mr[3]})`     // rgba(r,g,b,a) → rgb(r,g,b)
+  return s
+}
 
 function formatLegendTime(time) {
   if (typeof time === 'string') return time
@@ -654,6 +704,14 @@ function formatDpNotional(v) {
 // used by the intraday popup, where a single session is too short to "waste"
 // the first `period` bars on warmup.
 export function computeSMA(bars, period, fromStart = false) {
+  // Guard against an invalid period (0, negative, NaN, fractional) — reachable
+  // mid-edit when the user clears/retypes an MA length in Chart Settings, and it
+  // can be PERSISTED to a chart_settings overlay before the field is corrected.
+  // Without this, `period - 1` indexes out of bounds and `bars[-1].t` / `bars[NaN].t`
+  // throws "Cannot read properties of undefined (reading 't')", crashing the whole
+  // /charts page. An invalid length must simply draw no line, never crash.
+  period = Math.floor(Number(period))
+  if (!Number.isFinite(period) || period < 1) return []
   if (bars.length < period && !fromStart) return []
   const result = []
   const start = fromStart ? 0 : period - 1
@@ -672,6 +730,11 @@ export function computeSMA(bars, period, fromStart = false) {
 // `fromStart`: seed the EMA from the first bar's close (rather than an SMA over
 // the first `period` bars) so the line begins at the chart's first bar.
 function computeEMA(bars, period, fromStart = false) {
+  // Same guard as computeSMA: an invalid period (0/neg/NaN/fractional) — reachable
+  // and persistable while editing an MA length — made `bars[period - 1].t` read
+  // `.t` off an undefined bar and crash the page. Draw nothing instead.
+  period = Math.floor(Number(period))
+  if (!Number.isFinite(period) || period < 1) return []
   if (bars.length < period && !fromStart) return []
   if (!bars.length) return []
   const k = 2 / (period + 1)
@@ -694,6 +757,27 @@ function computeEMA(bars, period, fromStart = false) {
     result.push({ time: bars[i].t, value: ema })
   }
   return result
+}
+
+// Persist-boundary guard for MA overlay lengths. Every settings write routes
+// through handleUpdateChartSettings, so sanitizing here means NO edit UI (toolbar,
+// indicators dialog, a widget's own settings) can ever persist an invalid period —
+// the value that crashed /charts (an EMA saved with period 0 → computeEMA read `.t`
+// off an undefined bar). An out-of-range/blank period reverts to the PRIOR valid
+// value at the same index (mirrors the toolbar's `parseInt(v) || old`), falling back
+// to 20 only when there's no prior. Returns the same object reference when nothing
+// needed fixing, so it never churns identity on the common path.
+export function sanitizeOverlayPeriods(next, prev) {
+  if (!next || !Array.isArray(next.overlays)) return next
+  const okPeriod = (p) => { const n = Math.floor(Number(p)); return Number.isFinite(n) && n >= 1 && n <= 500 ? n : null }
+  let changed = false
+  const overlays = next.overlays.map((o, i) => {
+    if (okPeriod(o?.period) != null) return o
+    changed = true
+    const fallback = okPeriod(prev?.overlays?.[i]?.period) ?? 20
+    return { ...o, period: fallback }
+  })
+  return changed ? { ...next, overlays } : next
 }
 
 // O(n) HVC detection via monotonic deque — replaces O(n × lookback) slice+spread
@@ -1320,6 +1404,7 @@ export default function StockChart({
   forceExtendedHours = null,  // null = follow the user's extendedHoursShading setting (today's behavior). false = REGULAR HOURS ONLY, true = force extended. The headless export has no saved settings, so it silently took the ?? true default and rendered pre/post shading bands the owner does not publish.
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
+  viewLockKey = null,       // localStorage key. When set (Charts workspace), the user's pan/zoom/price-scale view is PERSISTED here so it survives a page refresh — restored on load, cleared by "Reset view".
   keepPresentOnSymbolChange = false, // on a symbol switch, keep the zoom LEVEL but re-anchor the newest candle to the right so a newly-typed ticker always loads at present day (never inherits the prior symbol's scrolled-back/past view). Charts workspace opts in.
   centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
   rightPadBars = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
@@ -1358,6 +1443,9 @@ export default function StockChart({
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayPick = false,         // Replay Mode: click/drag the chart to pick the cutoff bar (single gold vertical edge). SEPARATE from periodSelect (Custom-Period Sort) — own handler, own arming.
+  onReplayCutoffPicked = null,// (iso:'YYYY-MM-DD') => void — fired on release with the picked cutoff date.
+  onReplayPickCancel = null,  // () => void — the ✕ on the "Set replay cutoff" banner cancels the pick.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
   onExitReplay = null,        // () => void — when set + replayCutoff/startMarker/anchorDate active, shows an "Exit Replay Mode" pill (text overridable via exitReplayLabel) centered in the chart's clear top area.
   startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
@@ -1694,9 +1782,18 @@ export default function StockChart({
     || _forcedScale
     || (cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith'))
   const setScale = (kind) => {
-    if (_forcedScale) {
-      setScaleOverride(kind)  // local only — don't rewrite the global pref
-    } else {
+    // ALWAYS take effect immediately via the local override. `effectiveScale`
+    // reads scaleOverride first, so this is robust on surfaces where the
+    // settings write is masked: an "own-chart" ChartPane (every popup — Options
+    // Flow / Live Massive) feeds StockChart a `settingsOverride` (ownChartSource,
+    // resolved from the workspace layout) that WINS over the global chart_settings
+    // blob the toggle persists to — so cs.logScale/cs.percentScale never flip and
+    // the A/L/% buttons appeared dead. The local override sidesteps that entirely.
+    setScaleOverride(kind)
+    // Still persist to the global pref where that path is authoritative (the
+    // /charts workspace + gear), so the choice survives a remount there. Skipped
+    // when a caller forces the scale (forceLogScale/forceScaleMode) — local only.
+    if (!_forcedScale) {
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
@@ -1741,13 +1838,57 @@ export default function StockChart({
   // Hover tooltip — fixed-position div near the cursor when hovering a bar.
   const [dpHover, setDpHover] = useState(null)
   const dpBarsContainerRef = useRef(null)
+  // Paid gate (also consumed by the signature indicators below). Declared here so
+  // the settings-driven dark-pool fetch can gate on it.
+  const isPaidUser = useIsPaid()
+
+  // Settings-driven dark-pool bars: when the user turns on cs.darkPool.enabled we
+  // bring the Dark Pool page's bar overlay to ANY interactive chart. Skipped when
+  // the page already supplies its own `darkPoolBars`, and on teaching/frozen
+  // charts (Model Book, exact-date-range exhibits) where the overlay isn't wanted.
+  const dpSettingEnabled = !!cs.darkPool?.enabled && isPaidUser && !darkPoolBars
+    && !exactDateRange && !frozen && !modelBookLook
+  const [dpSettingsBars, setDpSettingsBars] = useState(null)
+  useEffect(() => {
+    if (!dpSettingEnabled || !sym) { setDpSettingsBars(null); return }
+    let cancelled = false
+    // Lookback scales with timeframe: intraday needs only recent prints; D/W/M
+    // want a wider window so the levels span the visible history.
+    const days = (resolvedTf === 'W' || resolvedTf === 'M') ? 365 : (resolvedTf === 'D' ? 180 : 45)
+    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=${days}&limit=100`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('dp fetch failed')))
+      .then(detail => {
+        if (cancelled) return
+        const prints = Array.isArray(detail?.prints) ? detail.prints : []
+        setDpSettingsBars(clusterDarkPoolPrints(prints))
+      })
+      .catch(() => { if (!cancelled) setDpSettingsBars(null) })
+    return () => { cancelled = true }
+  }, [dpSettingEnabled, sym, resolvedTf])
+
+  // The Dark Pool PAGE passes `darkPoolBars` directly (keeps its built-in gold/gray
+  // tiers); the in-chart setting supplies its own fetched set that gets recolored
+  // from cs.darkPool below.
+  const effectiveDarkPoolBars = darkPoolBars ?? (dpSettingEnabled ? dpSettingsBars : null)
+  // Split the user's 8-digit-hex color menu values (rgb + alpha) once. Null on the
+  // page path so its tiered coloring is left untouched.
+  const dpColorOverride = useMemo(() => {
+    if (darkPoolBars || !dpSettingEnabled) return null
+    const split = (v, dr) => {
+      const m8 = /^#?([0-9a-f]{6})([0-9a-f]{2})$/i.exec((v || '').trim())
+      if (m8) return { rgb: `#${m8[1]}`, a: parseInt(m8[2], 16) / 255 }
+      const m6 = /^#?([0-9a-f]{6})$/i.exec((v || '').trim())
+      return { rgb: m6 ? `#${m6[1]}` : dr, a: 1 }
+    }
+    return { bar: split(cs.darkPool?.barColor, '#c9a84c'), label: split(cs.darkPool?.labelColor, '#c9a84c') }
+  }, [darkPoolBars, dpSettingEnabled, cs.darkPool?.barColor, cs.darkPool?.labelColor])
 
   // Memoize the bar layout so onMouseEnter handlers don't recompute every
   // render. Sorts by notional desc, picks top 25, computes width/height/color
   // tier based on each bar's $ size relative to the largest in the set.
   const darkPoolBarsLayout = useMemo(() => {
-    if (!darkPoolBars || darkPoolBars.length === 0) return []
-    const sorted = [...darkPoolBars]
+    if (!effectiveDarkPoolBars || effectiveDarkPoolBars.length === 0) return []
+    const sorted = [...effectiveDarkPoolBars]
       .filter(b => b && b.price != null && b.notional != null && Number.isFinite(b.notional))
       .sort((a, b) => (b.notional || 0) - (a.notional || 0))
       .slice(0, 25)
@@ -1760,25 +1901,42 @@ export default function StockChart({
       const ratio = (b.notional || 0) / maxN
       const isGoldTier = idx < 5
       const showLabel = idx < 3   // only label the top 3 by notional
-      return {
-        ...b,
-        idx,
-        ratio,
-        width: ratio * darkPoolMaxBarWidth,
-        height: MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H),
-        color: isGoldTier ? '#c9a84c' : '#9c9588',
+      // When the in-chart setting drives the overlay, every bar wears the user's
+      // chosen color; its picked alpha is the CEILING and still scales down with
+      // notional so the biggest prints read strongest (hierarchy preserved).
+      const color = dpColorOverride ? dpColorOverride.bar.rgb : (isGoldTier ? '#c9a84c' : '#9c9588')
+      const opacity = dpColorOverride
+        ? dpColorOverride.bar.a * (0.45 + 0.55 * ratio)
         // Bar opacity scales with notional ratio so the largest print is still
         // the most visible. Ceiling was 1.0 which fully solid-colored the top
         // 5 against dark candles — too dominant, drowned out the price action.
         // Iterated down: first cut to 0.65 was still bright, dropped again to
         // 0.50 max for the top tier (≈50% less bright than original at max),
         // 0.40 max for smaller bars.
-        opacity: isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26,
+        : (isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26)
+      return {
+        ...b,
+        idx,
+        ratio,
+        width: ratio * darkPoolMaxBarWidth,
+        height: MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H),
+        color,
+        opacity,
+        // Labels: user label color at its picked alpha when setting-driven, else
+        // the page's default (bar color, boosted opacity for legibility).
+        labelColor: dpColorOverride ? dpColorOverride.label.rgb : color,
+        labelOpacity: dpColorOverride ? dpColorOverride.label.a : Math.min(1, opacity + 0.45),
         isGoldTier,
         showLabel,
+        // Share of this zone's notional that traded in the recent window (server
+        // `recentNotional`, last `recentDays`). Drives the bright-gold recency cap
+        // on the right end of the bar → live accumulation pops, stale shelves stay
+        // dim. 0 (no cap) when the field is absent (e.g. the chart-setting path).
+        recentFrac: (b.notional > 0 && Number.isFinite(b.recentNotional))
+          ? Math.min(1, (b.recentNotional || 0) / b.notional) : 0,
       }
     })
-  }, [darkPoolBars, darkPoolMaxBarWidth])
+  }, [effectiveDarkPoolBars, darkPoolMaxBarWidth, dpColorOverride])
 
   // Position bars vertically by calling series.priceToCoordinate() on each
   // animation frame. Only the chart instance knows the exact pixel Y for a
@@ -1794,11 +1952,11 @@ export default function StockChart({
   //     label clutter. Hover for $ amount via the existing tooltip.
   //   - Smaller bars stay as visual reference markers showing WHERE
   //     activity is concentrated. Hover to read the $ amount.
-  //   - No staggering — earlier iterations pushed labels far from their
-  //     bars and created the "floating disconnected label" failure mode.
-  //   - On the rare collision between top-3 labels, they overlap at their
-  //     natural Y; the user can zoom in or hover to disambiguate. Still
-  //     better than 200px of staggered orphans.
+  //   - Labels de-collide VERTICALLY but only BOUNDED (MIN_GAP apart, never more
+  //     than MAX_NUDGE from a label's natural Y) — so stacked zones a few dollars
+  //     apart (common on a weekly chart) stop hiding each other, without the old
+  //     "floating disconnected label" failure of an unbounded stagger. When zones
+  //     are far apart the loop leaves every label at its natural -8 offset.
   useEffect(() => {
     if (!chartReady) return
     if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
@@ -1809,6 +1967,7 @@ export default function StockChart({
       const series = candleSeriesRef.current
       if (series) {
         const els = container.querySelectorAll('[data-dp-bar]')
+        const labels = []   // {y, el} for visible labeled bars, to de-collide
         for (const el of els) {
           const price = parseFloat(el.dataset.price || '')
           if (!Number.isFinite(price)) continue
@@ -1819,7 +1978,23 @@ export default function StockChart({
           } else {
             el.style.display = 'block'
             el.style.top = `${y}px`
+            const label = el.querySelector('[data-dp-label]')
+            if (label) labels.push({ y, el: label })
           }
+        }
+        // Bounded vertical de-collision: sort top→down and push each label just
+        // past the previous one, but never more than MAX_NUDGE from its bar (so a
+        // label can't float off; a genuinely-tight cluster keeps a little overlap
+        // rather than orphaning). Far-apart labels resolve to their natural -8.
+        const BASE = -8, MIN_GAP = 17, MAX_NUDGE = 30
+        labels.sort((a, b) => a.y - b.y)
+        let prev = -Infinity
+        for (const it of labels) {
+          let ly = it.y + BASE
+          if (ly < prev + MIN_GAP) ly = prev + MIN_GAP
+          if (ly > it.y + BASE + MAX_NUDGE) ly = it.y + BASE + MAX_NUDGE
+          prev = ly
+          it.el.style.top = `${Math.round(ly - it.y)}px`
         }
       }
       raf = requestAnimationFrame(update)
@@ -1970,7 +2145,8 @@ export default function StockChart({
   // FCB signal would plant a confident arrow on the last candle of a 2016
   // teaching chart. An undefined cfg nulls all three SWR keys, which also saves
   // three paid fetches on every curated-chart view.
-  const isPaidUser = useIsPaid()
+  // isPaidUser is declared up in the Dark Pool overlay state block (also gates
+  // the settings-driven dark-pool fetch).
   const { dpLines, dpZones, gexLines, flowMarkers } =
     useSignatureIndicators(sym, exactDateRange ? undefined : cs.signature, isPaidUser, resolvedTf)
 
@@ -2032,9 +2208,16 @@ export default function StockChart({
   )
 
   // Prop overrides — memoized to prevent unstable references
+  // "Group only" theme view: the base ticker is hidden and the canvas shows only the
+  // comparison group, so the base's volume / moving averages / watermark are all
+  // suppressed at their source (gating here is robust — nothing re-asserts them).
+  // Gated on actually having comparisons so an orphan flag can't blank a normal chart.
+  const hideBase = !!cs.compareHideBase && (cs.comparisonSymbols || []).some(x => x && x.enabled && x.sym)
+  const hideBaseRef = useRef(hideBase)
+  hideBaseRef.current = hideBase
   // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
   // volume) — so the pane must be ON and in its own pane regardless of prefs.
-  const showVolume = blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
+  const showVolume = hideBase ? false : (blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible))
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
@@ -2089,7 +2272,12 @@ export default function StockChart({
   const splitBadgeAttachedRef = useRef(false)
   const divBadgeRef = useRef(null)        // dividends "D" badge primitive controller
   const divBadgeAttachedRef = useRef(false)
+  const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
+  const ipoBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
+  const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
+  const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
+  const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
   //     fill any GAPS the live lookup left blank.
@@ -2124,9 +2312,42 @@ export default function StockChart({
   //   horizontal → a flat, box-less two-line strip (.legendFlat)
   const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
   const legendStacked = verticalLegend && !legendFlat
+  // ── WHETHER THE LEGEND SHOWS AT ALL: 'always' | 'click' | 'off' ────────────
+  //
+  // ⭐ DERIVED, NEVER READ OFF A FIELD. `legendModeOf` is the one reader — it
+  // resolves `header.legendMode` and falls back to the legacy `header.showLegend`
+  // boolean that every stored blob in production still carries. Reading either
+  // key directly here would put a second authority on one fact, and the two
+  // would disagree the first time a user with an old blob picked a new mode.
+  //
+  // ⛔ THIS IS NOT `hideLegend`. That prop is a HOST decision — a canvas too
+  // small for chrome (IntradayDayPopover, ChartsGallery, Model Book, the video
+  // dock) forces the legend off whatever the user prefers. Both must allow it;
+  // see the render gate near the legend markup.
+  const legendMode = legendModeOf(cs)
+  // The handlers below run off `chart.subscribe*` closures that outlive a render,
+  // so they read the mode from a ref rather than capturing a stale one.
+  const legendModeRef = useRef(legendMode)
+  legendModeRef.current = legendMode
+  // Crosshair three-way mode (always / hold / off) — same resolver pattern as the
+  // legend. `crosshairModeOf` reads `crosshair.mode`, falling back to the legacy
+  // `crosshair.enabled === false` (→ 'off') for blobs written before the mode.
+  const crosshairMode = crosshairModeOf(cs)
   // Width (px) of the right price axis — reserved so a horizontal legend wraps to
   // the next row BEFORE it slides under the price scale (measured reactively below).
   const [legendAxisReserve, setLegendAxisReserve] = useState(0)
+  // True when the drawing toolbar is collapsed via its show/hide toggle — the
+  // crosshair OHLCV legend then slides up into the freed toolbar band. Persisted
+  // to localStorage (same idiom as the toolbar's favorites/hidden-tools prefs) so
+  // "hide toolbar" survives a refresh / arrangement save until it's reopened.
+  const TOOLBAR_COLLAPSED_LS = 'uct.chart.toolbar.collapsed'
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
+    try { return localStorage.getItem(TOOLBAR_COLLAPSED_LS) === '1' } catch { return false }
+  })
+  const setToolbarCollapsedPersist = useCallback((v) => {
+    setToolbarCollapsed(v)
+    try { localStorage.setItem(TOOLBAR_COLLAPSED_LS, v ? '1' : '0') } catch { /* private mode — non-fatal */ }
+  }, [])
 
   useWatermarkDrag({
     containerRef,
@@ -2313,6 +2534,14 @@ export default function StockChart({
   const volPctSettingRef = useRef(null)
   const volMaTailSeriesRef = useRef(null)  // candleFrameFade: post-setup tail of the volume MA (crossfades with everything else)
   const lastBarRef = useRef(null)
+  // Symbol that lastBarRef/liveBarRef's developing bar belongs to. The refs are
+  // symbol-LESS and are reset on a switch by a DEFERRED effect, while the live feeds
+  // (Finnhub tick / registry / the ~4Hz legend) fire on their own clock — so a tick
+  // for the NEW sym can fuse onto the PREVIOUS sym's same-bucket bar (the LRCX-O/H-on-
+  // ARM "close below low" bug). Set to `sym` exactly where lastBarRef is seeded from
+  // the (gated, current-sym) bars in updateChart; nulled in the switch reset. Every
+  // intraday live-overlay consults it and refuses to fuse across symbols.
+  const lastBarSymRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
@@ -2336,6 +2565,16 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // ── Manual PRICE-scale latch (the vertical analog of userViewMovedRef) ──
+  // When the user drags the price axis to set a fixed vertical range, LWC's
+  // `setData()` (which updateChart uses for any non-incremental commit) re-fits
+  // the scale to the data — so during live hours every full-repaint poll wiped
+  // their manual scale ("keeps shrinking after I let go"). Latch the manual range
+  // and pin it through the series' autoscaleInfoProvider so setData/update honour
+  // it. Cleared by a double-click on the axis (reset to auto) or a symbol/TF switch.
+  const priceManualRef = useRef(false)
+  const priceManualRangeRef = useRef(null)   // { minValue, maxValue } captured on axis-drag end
+  const axisPressRef = useRef(null)          // in-progress axis drag: { dragging }
   // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
   // in the sort keeps that exact view (right-relative) instead of snapping back to the
   // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
@@ -2346,6 +2585,86 @@ export default function StockChart({
   // range is clamped to the new ticker's extent, so a short-history name like ROOT loses
   // the deep scroll-back a long-history name like QQQ had). Applied to every new ticker.
   const replayLockedViewRef = useRef(null)
+  // NORMAL-mode view lock (Charts workspace, carryDragPlacement): once the user pans,
+  // zooms, or drags the price scale, EVERY subsequent ticker keeps that EXACT view —
+  // same right-relative horizontal window AND the same vertical candle band — instead
+  // of snapping the newest candle back to the right + auto-fitting. Persists across
+  // ticker switches (unlike userViewMovedRef which re-arms each switch); cleared only
+  // by right-click → "Reset view". Captured at pan/zoom settle so it reads the value
+  // the user actually left the chart at.
+  const userViewLockedRef = useRef(false)
+  const userLockedViewRef = useRef(null)    // { barsFromRight, width, top, bottom }
+  // Persist / restore the view lock so it survives a page refresh (viewLockKey set).
+  const viewLockKeyRef = useRef(viewLockKey); viewLockKeyRef.current = viewLockKey
+  const persistViewLock = () => {
+    try {
+      const k = viewLockKeyRef.current; if (!k) return
+      if (userViewLockedRef.current && userLockedViewRef.current) localStorage.setItem(k, JSON.stringify(userLockedViewRef.current))
+      else localStorage.removeItem(k)
+    } catch { /* storage disabled */ }
+  }
+  const readViewLock = () => {
+    try {
+      const k = viewLockKeyRef.current; if (!k) return null
+      const raw = localStorage.getItem(k); if (!raw) return null
+      const v = JSON.parse(raw)
+      const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
+      const vOK = typeof v?.top === 'number' && typeof v?.bottom === 'number'
+      if (v && (hOK || vOK)) return { anchorFrac: hOK ? v.anchorFrac : null, width: hOK ? v.width : null, tf: hOK ? (typeof v?.tf === 'string' ? v.tf : null) : null, top: vOK ? v.top : null, bottom: vOK ? v.bottom : null }
+    } catch { /* */ }
+    return null
+  }
+  // Restore a persisted lock on mount so a refresh keeps the user's view.
+  if (viewLockKey && !userViewLockedRef.current && userLockedViewRef.current === null) {
+    const _saved = readViewLock()
+    if (_saved) { userViewLockedRef.current = true; userLockedViewRef.current = _saved }
+  }
+  // Measure the OUTGOING view as a drift-proof lock: the newest bar's SCREEN
+  // FRACTION (a fraction of the visible width, invariant to bar count so deep-
+  // history backfill can never shift it) + the zoom width + the vertical candle
+  // band. hLocked/vLocked flag whether each dimension differs from the default.
+  const _measureViewLock = (chart, prevBars) => {
+    try {
+      if (!chart || !candleSeriesRef.current || !prevBars || !prevBars.length) return null
+      const ts = chart.timeScale()
+      const vr = ts.getVisibleLogicalRange()
+      if (!vr || !((vr.to - vr.from) > 0)) return null
+      const oldN = prevBars.length
+      const lastIdx = oldN - 1
+      const w = vr.to - vr.from
+      const anchorFrac = (lastIdx - vr.from) / w
+      if (!Number.isFinite(anchorFrac) || !(w > 0)) return null
+      let hLocked = false
+      try {
+        const dft = computeDefaultLogicalRange(oldN, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
+        const dW = dft.to - dft.from
+        const dAnchor = (lastIdx - dft.from) / dW
+        if (dW > 0 && (Math.abs(anchorFrac - dAnchor) > 0.02 || Math.abs(w - dW) / dW > 0.08)) hLocked = true
+      } catch { /* default unknowable → treat as unmoved */ }
+      let top = null, bottom = null, vLocked = false
+      try {
+        const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
+        let hi = -Infinity, lo = Infinity
+        for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+        let paneH = 0; try { paneH = chart.paneSize().height } catch { /* */ }
+        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
+        const series = candleSeriesRef.current
+        if (hi > lo && paneH > 8) {
+          const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
+          if (yHi != null && yLo != null) {
+            let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
+            if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
+            const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+            if (!(Math.abs(t - mbase.top) < 0.03 && Math.abs(bt - mbase.bottom) < 0.03)) { top = +t.toFixed(4); bottom = +bt.toFixed(4); vLocked = true }
+          }
+        }
+      } catch { /* vertical optional */ }
+      return { anchorFrac: +anchorFrac.toFixed(5), width: w, top, bottom, hLocked, vLocked }
+    } catch { return null }
+  }
+  // Latest _measureViewLock, so the mount-once pointer effect never calls a stale
+  // closure (it would carry an old resolvedTf / default params).
+  const measureViewLockRef = useRef(_measureViewLock); measureViewLockRef.current = _measureViewLock
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -2469,6 +2788,186 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  // Responsive vertical legend. "Collapsed" = the legend's full height reaches the
+  // range-selector band (just above the price/volume boundary). At that point we
+  // (a) hide the range bar, (b) switch the legend to HOVER-ONLY (like a multi-chart
+  // cell) so it stops permanently covering candles, and (c) render it COMPACT when it
+  // pops up on hover. Declared HERE — above the crosshair effects that read it (they'd
+  // hit a TDZ if it were declared lower, where the rAF sampler that SETS it lives).
+  const [compactLegend, setCompactLegend] = useState(false)
+  const compactLegendRef = useRef(false)
+  compactLegendRef.current = compactLegend
+  // Decisions key off the FULL legend height (recorded while NOT collapsed) so the
+  // compact/hidden height can't make it flip-flop, and it survives the legend being
+  // hidden (nothing to measure while hover-only + off-hover).
+  const lastFullBottomRef = useRef(0)
+
+  // ⚰️ …AND THAT MEMORY GOES STALE THE MOMENT THE LEGEND GETS SHORTER.
+  //
+  // `lastFullBottomRef` is written ONLY while `!compactLegendRef.current` (see the
+  // rAF sampler below), which is right for its original purpose — a compact or
+  // hidden legend must not overwrite the full height with its own smaller one, or
+  // the test would flip-flop. But it means the remembered height is the height the
+  // legend had WHEN IT COLLAPSED, and removing indicators never refreshes it: the
+  // rows are not rendered while compact, so there is nothing shorter to measure.
+  // The only way back out is for the PANE to grow past a height the legend no
+  // longer needs.
+  //
+  // MEASURED ON PRODUCTION 2026-08-15: with six indicators on, the legend went
+  // compact (correctly). Turning them off again left it compact with a SINGLE
+  // indicator on — every MA row, every chip and, with them, the gear that is the
+  // only per-instance settings door, all still gone. A page reload was the only
+  // cure, because a reload is the only thing that clears this ref.
+  //
+  // ⛔ THE FIX CANNOT BE "MEASURE HARDER". While compact the full rows do not
+  // exist, so the true full height is unmeasurable. So on a change to how many
+  // rows the legend WOULD draw, this drops the memory and un-collapses; the
+  // sampler then measures a real full height on the next frame and re-collapses if
+  // it is still too tall. One frame of optimism, and it is self-correcting —
+  // versus a stale number that never corrects at all.
+  //
+  // ⛔ KEYED ON THE ROW COUNTS, NOT ON `crosshairData` ITSELF, and null is ignored.
+  // That object is replaced on every crosshair move; resetting on each one would
+  // un-collapse and re-collapse the legend on every mouse motion, and treating
+  // "pointer left the chart" (null) as "the legend got shorter" would do it on
+  // every enter/leave.
+  const legendRowSigRef = useRef(null)
+  useEffect(() => {
+    if (!crosshairData) return
+    const sig = `${crosshairData.overlays?.length ?? 0}:${crosshairData.chips?.length ?? 0}`
+    if (legendRowSigRef.current === sig) return
+    legendRowSigRef.current = sig
+    lastFullBottomRef.current = 0
+    setCompactLegend(false)
+  }, [crosshairData])
+  // Off-hover legend persistence is suppressed while collapsed → hover-only.
+  //
+  // ⚰️ `&& legendMode === 'always'` STOOD HERE FOR ONE ROUND AND WAS WRONG —
+  // caught on screen, by nothing in 5,110 green tests. `crosshairData` is NOT the
+  // OHLC legend; it is the shared readout payload, and the VOLUME PANE'S
+  // "$ Vol · Avg 50D" strip renders off the same object (see its render gate,
+  // which requires `crosshairData.dollarVol != null`). Suppressing the seed here
+  // therefore blanked the volume strip too, so "hide the OHLC legend" silently
+  // took an unrelated readout — with its own `volume.labelVisible` setting —
+  // down with it.
+  //
+  // ⭐ THE MODE BELONGS ON THE LEGEND'S RENDER GATE, NOT ON THE DATA. The payload
+  // keeps its original lifecycle for every consumer; `legendHeld` below is what
+  // decides whether the OHLC box is drawn.
+  const effAlwaysShow = alwaysShowLegend && !compactLegend
+  // ── 'Hold' mode: is the pointer currently DOWN on the chart? ─────────────
+  //
+  // The legend is a PEEK: press to see the bar under the cursor, release and it
+  // is gone. Only ever consulted while `legendMode === 'hold'`.
+  //
+  // ⚰️ THIS WAS `legendPinned` FOR ONE DAY, and the difference is the whole
+  // feature. A pin LATCHED the legend to the clicked bar until you dismissed it
+  // (Esc / click-away) and suppressed hover updates while latched; the owner's
+  // actual ask was "click to see and when I release the click it goes away".
+  // Hold needs none of that machinery — no dismissal, no suppression — so the
+  // click subscription, the Esc handler and the hover-blocking guard were all
+  // DELETED rather than adapted. `crosshairData` now behaves identically in every
+  // mode and only the render gate differs.
+  const [legendHeld, setLegendHeld] = useState(false)
+  useEffect(() => {
+    if (legendMode !== 'hold' && legendHeld) setLegendHeld(false)
+  }, [legendMode, legendHeld])
+  // ── The peek gesture: pointer down shows, pointer up hides ────────────────
+  //
+  // ⚠️ RELEASE IS LISTENED FOR ON `window`, NOT ON THE CHART. A press that ends
+  // with the cursor off the canvas — dragged onto the price axis, off the widget,
+  // out of the window — still has to end the peek, and an element-scoped
+  // `pointerup` never fires there. That is the difference between a legend that
+  // clears and one that sticks on forever after one sloppy drag.
+  //
+  // ⛔ NO `preventDefault`, NO POINTER CAPTURE, NO `stopPropagation`. Lightweight
+  // Charts pans on the same press and the drawing tools draw on it; this only
+  // OBSERVES. Peeking while you drag the chart is a feature, not a conflict.
+  //
+  // Primary button only — a right-click opens the context menu, and flashing the
+  // legend underneath it would be noise.
+  useEffect(() => {
+    if (legendMode !== 'hold') return undefined
+    const el = containerRef.current
+    if (!el) return undefined
+    const down = (e) => { if (e.button === 0) setLegendHeld(true) }
+    const up = () => setLegendHeld(false)
+    el.addEventListener('pointerdown', down)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      // A mode change or unmount mid-press must not strand the peek on screen.
+      setLegendHeld(false)
+    }
+  }, [legendMode, chartReady])
+
+  // ── Crosshair 'Hold' mode: press-and-hold shows the crosshair, release hides it ─
+  //
+  // The exact same peek gesture as the legend above, kept as a PARALLEL mechanism
+  // (a separate boolean + its own listeners) so the two features are independent —
+  // a user can run the legend on 'always' and the crosshair on 'hold', or vice
+  // versa. Two pointerdown listeners that each set a boolean are harmless. Release
+  // is on `window` (not the canvas) so a press that ends off the chart still clears.
+  const [crosshairHeld, setCrosshairHeld] = useState(false)
+  useEffect(() => {
+    if (crosshairMode !== 'hold' && crosshairHeld) setCrosshairHeld(false)
+  }, [crosshairMode, crosshairHeld])
+  useEffect(() => {
+    if (crosshairMode !== 'hold') return undefined
+    const el = containerRef.current
+    if (!el) return undefined
+    const down = (e) => { if (e.button === 0) setCrosshairHeld(true) }
+    const up = () => setCrosshairHeld(false)
+    el.addEventListener('pointerdown', down)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      setCrosshairHeld(false)
+    }
+  }, [crosshairMode, chartReady])
+
+  // Whether the crosshair lines + tracking axis labels should be drawn RIGHT NOW.
+  // `hideCrosshair` is the HOST's call (Setup Library exhibits); `crosshairMode` is
+  // the user's; `crosshairHeld` is the moment's. A ref mirrors it so `updateChart`
+  // (which reads it inside chartOpts and does NOT depend on the held state) always
+  // sees the live value without a stale closure, and the dedicated toggle effect
+  // below flips it interactively without paying for a full updateChart.
+  const crosshairVisible = !hideCrosshair && crosshairMode !== 'off'
+    && (crosshairMode !== 'hold' || crosshairHeld)
+  const crosshairVisibleRef = useRef(crosshairVisible)
+  crosshairVisibleRef.current = crosshairVisible
+
+  // ONE builder for the LWC crosshair options, used by BOTH the initial chartOpts
+  // (inside updateChart) and the interactive toggle effect below — so the "shown"
+  // and "hidden" shapes can never drift between the two call sites. When hidden,
+  // both lines AND their tracking price/date axis labels are suppressed; toggling
+  // back on must reassert visible/labelVisible explicitly because applyOptions
+  // MERGES over the previously-false values.
+  const buildCrosshairOpts = useCallback((visible) => (visible ? {
+    mode: cs.crosshair?.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
+    vertLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+    horzLine: { visible: true, labelVisible: true, color: themeColors.crosshairColor, width: cs.crosshair?.width ?? 1, style: cs.crosshair?.style, labelBackgroundColor: axisAuto.labelBg },
+  } : {
+    mode: 0,
+    vertLine: { visible: false, labelVisible: false },
+    horzLine: { visible: false, labelVisible: false },
+  }), [cs.crosshair?.magnet, cs.crosshair?.width, cs.crosshair?.style, themeColors.crosshairColor, axisAuto.labelBg])
+
+  // Interactive toggle: apply the crosshair visibility whenever it changes WITHOUT
+  // re-running the whole updateChart (which `crosshairHeld` is deliberately not a
+  // dep of). This is what makes 'Hold' responsive — a press/release flips the lines
+  // in place. Mirrors the small dedicated applyOptions effects elsewhere in the file.
+  useEffect(() => {
+    if (!chartReady) return
+    try { chartRef.current?.applyOptions({ crosshair: buildCrosshairOpts(crosshairVisible) }) } catch { /* chart torn down */ }
+  }, [crosshairVisible, chartReady, buildCrosshairOpts])
+
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -2511,10 +3010,17 @@ export default function StockChart({
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
+    // SYMBOL GUARD: lastBarRef (and prevBarsRef, read above) carry no symbol, and on a
+    // ticker switch symRef updates BEFORE the bars do — so overlaying livePrices[symRef]
+    // (the NEW sym) onto the OLD sym's bar mixes tickers into an impossible candle (the
+    // LRCX-O/H-on-ARM "close below low" readout). Only adopt the developing bar and
+    // overlay the live price when the bar is confirmed to own the CURRENT sym; otherwise
+    // show the base bar as-is for the one frame until the new sym's bars land.
+    const _legendSymOk = lastBarSymRef.current === symRef.current
     // Prefer the live developing bar the CANDLE is showing (lastBarRef), so the
     // legend tracks the candle exactly rather than a separate/stale source.
     const lb = lastBarRef.current
-    if (lb && lb.time === adjustTime(last.t) && Number.isFinite(lb.close)) {
+    if (_legendSymOk && lb && lb.time === adjustTime(last.t) && Number.isFinite(lb.close)) {
       o = lb.open; h = lb.high; l = lb.low; c = lb.close
     }
     const lp = livePricesRef.current?.[symRef.current]
@@ -2537,11 +3043,11 @@ export default function StockChart({
     )
     if (_rthLock) {
       // keep c / h / l from the frozen RTH bar
-    } else if (fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
       c = ft.price
       if (Number.isFinite(h)) h = Math.max(h, ft.price)
       if (Number.isFinite(l)) l = Math.min(l, ft.price)
-    } else if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
       c = lp.price
     }
     let vol = last.v
@@ -2622,6 +3128,40 @@ export default function StockChart({
       overlays, chips: latestChips(), compare: null,
     }
   }
+  /**
+   * What the legend should show once the cursor is NOT on a bar.
+   *
+   * ⭐ ONE EXPRESSION, THREE CALLERS. This rule — "seed from the latest bar, but
+   * only when the host asked for a persistent legend, the legend isn't collapsed
+   * to hover-only, and the user's mode is 'always'" — was written out three times
+   * in the crosshair handlers as `alwaysShowLegend && !compactLegendRef.current`.
+   * Adding the mode clause to two of the three and missing the third is exactly
+   * the bug this feature is most likely to ship, so there is one of it.
+   *
+   * ⚠️ REF-READ, not `effAlwaysShow`. These callers live inside `subscribe*`
+   * closures that outlive the render they were created in; the state-read
+   * `effAlwaysShow` would be stale there.
+   *
+   * ⛔ DELIBERATELY MODE-BLIND. An earlier round gated this on
+   * `legendMode === 'always'` and blanked the volume pane's own "$ Vol · Avg 50D"
+   * strip, which reads the same payload. The legend mode is applied where the
+   * legend is DRAWN, never to the data every readout shares.
+   */
+  const offHoverCrosshair = () => (
+    (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
+  )
+  /**
+   * Is something already OWNING the readout, so the off-hover refreshers must
+   * stand down?
+   *
+   * Two owners: a local hover and an externally-synced crosshair. (A third —
+   * a PINNED bar — lived here for a day; 'hold' mode needs no such ownership
+   * because releasing the pointer is what ends the peek.)
+   */
+  const readoutIsOwned = () => (
+    legendHoveringRef.current
+    || externalCrosshairAppliedRef.current
+  )
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
@@ -2712,7 +3252,12 @@ export default function StockChart({
     setRepeatMode(val)
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
-  const handleUpdateChartSettings = useCallback((newSettings) => {
+  const handleUpdateChartSettings = useCallback((incoming) => {
+    // Guard the persist boundary against an invalid MA overlay period (0/neg/NaN/
+    // >500) BEFORE it can be written by ANY edit path — the crash-safety complement
+    // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
+    // one (or 20). Same-reference on the common path, so no needless churn.
+    const newSettings = sanitizeOverlayPeriods(incoming, cs)
     // Isolated-persist path (Chart widget extra tabs): route the whole new blob
     // to the owner instead of the global pref, so a tab's edits stay on that tab.
     // `newSettings` is already the fully-merged settings ({...cs, ...change}), so
@@ -2893,6 +3438,13 @@ export default function StockChart({
         // that's the "reset does nothing / candles gone off-screen" bug.
         vertMarginsRef.current = null
         focusPriceRangeRef.current = null
+        // Drop any manual price-axis DRAG pin too. A price-axis drag latches
+        // priceManualRef + priceManualRangeRef and installs an autoscaleInfoProvider
+        // that FORCES the dragged vertical range back even after autoScale:true — so
+        // without clearing these the reset re-fits horizontally but the vertical stays
+        // compressed. Mirrors the double-click axis reset (onDbl) and the sym-switch reset.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         try {
           mainPriceScale()?.applyOptions({
             autoScale: true,
@@ -2914,12 +3466,17 @@ export default function StockChart({
         // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
         replayViewLockedRef.current = false; replayLockedViewRef.current = null
+        userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock()
       } catch {}
     }
     const autoScale = () => {
       try {
         // Clear any locked vertical placement and restore the default candle band.
         vertMarginsRef.current = null
+        // Also release a manual price-axis drag pin (see resetView) — otherwise its
+        // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         mainPriceScale()?.applyOptions({
           autoScale: true,
           scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
@@ -3130,6 +3687,30 @@ export default function StockChart({
 
     // Common view section — always present.
     const viewItems = [{ id: 'reset', label: 'Reset view', onSelect: resetView }]
+    // ── The legend's third door ────────────────────────────────────────────
+    //
+    // In the COMMON section rather than under `Chart`, deliberately: the legend
+    // is a view concern, so right-clicking the RSI pane or the price axis should
+    // reach it too. The toolbar's eye button only exists where a toolbar does.
+    //
+    // ⭐ ROWS DERIVED FROM `LEGEND_MODES`, and the write is the plain
+    // `header.legendMode` one every other door makes. A hand-typed row list here
+    // is how a fourth mode ships unreachable from the menu that is supposed to
+    // offer every mode.
+    viewItems.push({
+      id: 'legend-mode',
+      label: <><UIcon name="eye" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Chart legend</>,
+      kind: 'submenu',
+      submenu: LEGEND_MODES.map((val) => ({
+        id: 'legend-' + val,
+        label: LEGEND_MODE_MENU_LABELS[val],
+        kind: 'toggle',
+        checked: legendMode === val,
+        onSelect: () => handleUpdateChartSettings({
+          ...cs, header: { ...cs.header, legendMode: val }, preset: 'custom',
+        }),
+      })),
+    })
     if (showDrawingTools) {
       viewItems.push({ id: 'hide-draw', label: 'Hide drawings', kind: 'toggle', checked: !!cs.hideDrawings, onSelect: () => setCs('hideDrawings', !cs.hideDrawings) })
     }
@@ -3637,14 +4218,40 @@ export default function StockChart({
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
+    let settled = false
+    // 🔴 COLD-START UNBLOCK (new-user first paint). `swrUrl` is gated on idbGet
+    // resolving so it can compute the correct `?since=<idb tail>` delta. But on a
+    // FRESH browser the pack's big readwrite ingest serializes with our readonly
+    // idbGet, so the local read can STALL for seconds — and while it does, swrUrl is
+    // null, no server fetch fires, and the chart sits BLACK/"loading" even though the
+    // origin would answer in ~1ms. A warm browser never sees this (idbGet resolves in
+    // ~5ms), which is why scanning is flawless for returning users and broken for a
+    // first-timer. Guarantee the first paint NEVER waits more than a beat on local
+    // storage: if idbGet hasn't resolved by _IDB_FIRST_PAINT_TIMEOUT_MS, open the
+    // swrUrl gate with NO cached tail → swrUrl fires a FULL server fetch immediately
+    // (no `since`, so it's correct). A late idbGet still reconciles when it lands
+    // (the _idbFresh / longer-series merge below picks the better set). This makes
+    // "log on → instant from the fast server" true for new users, pack or no pack.
+    // Patient once we KNOW this browser has a cache (see _browserHasCachedBars): a
+    // slow idbGet on a populated browser means "busy, has data — wait for it", NOT
+    // "empty — bypass to the server". Only a browser that has never shown cached bars
+    // keeps the fast new-user path.
+    const _t = setTimeout(() => {
+      if (settled) return
+      idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
+      setIdbLoaded(true)
+    }, _browserHasCachedBars ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
     idbGet(sym, resolvedTf).then(entry => {
+      settled = true; clearTimeout(_t)
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
+        _browserHasCachedBars = true   // this browser has a pack → be patient from now on
       }
       idbReadyForRef.current = key
       setIdbLoaded(true)
-    }).catch(() => { idbReadyForRef.current = key; setIdbLoaded(true) })
+    }).catch(() => { settled = true; clearTimeout(_t); idbReadyForRef.current = key; setIdbLoaded(true) })
+    return () => { settled = true; clearTimeout(_t) }
   }, [sym, resolvedTf])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
@@ -3692,10 +4299,49 @@ export default function StockChart({
   // catches a real gap of even a single missing bar. The old 6×/20-min floor let
   // a 1-min chart's tail sit up to 20 MIN behind before refetching — the visible
   // gap-on-load / gap-on-tf-switch bug. Small ≤1-bar gaps still delta (cheap).
-  const _tfSecStale = Math.max(60, (Number(resolvedTf) || 5) * 60)
+  // Session/weekend/holiday-aware (mirrors idbStaleDaily), so a pre-seeded intraday
+  // pack whose tail is the last CLOSED session paints INSTANTLY as _idbFresh (today's
+  // bars fill via the live feed + the since-fetch below), while a series still missing
+  // the CURRENT session's recent closed bars refetches. Replaces the old flat
+  // max(3*tf,180s) age gate that treated every prior-session tail as stale (which is
+  // why the intraday pack could never paint as primary).
   const idbStaleIntraday = isIntraday
     && typeof idbSinceRef.current === 'number'
-    && (Date.now() / 1000 - idbSinceRef.current) > Math.max(3 * _tfSecStale, 180)
+    && isIntradayTailStale(idbSinceRef.current, resolvedTf)
+  // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
+  // a symbol switch during RTH paints a daily cache that's missing the last few
+  // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
+  // then the forced full refetch swaps in the current days ~1-2s later — the
+  // "chart loads to Friday's close on a Tuesday afternoon" flash. The daily tail
+  // is an ISO 'YYYY-MM-DD' string; reject it if it's older than the most recent
+  // ET session that should be present. Weekend/pre-open aware (a rare holiday
+  // only costs a brief spinner, never stale data).
+  const idbStaleDaily = resolvedTf === 'D'
+    && typeof idbSinceRef.current === 'string'
+    && isDailyTailStale(idbSinceRef.current)
+  // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
+  // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
+  // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
+  // readout anomaly — a fake "monthly-look" 33→21 candle). idbStaleDaily only
+  // inspects the tail's date, so such a bar reads fresh and paints instantly until
+  // the healing full refetch (REPLACE) lands. Reject an IDB daily series whose LAST
+  // bar breaks OHLC ordering, or whose open sits implausibly far (>50%) from its
+  // close, and fall through to the refetch instead of flashing the corrupt candle.
+  // Daily only + last bar only (cheap, and the only bar the live writer seeds from).
+  const _idbDailyLastInsane = resolvedTf === 'D' && Array.isArray(idbBars) && idbBars.length > 0
+    && (() => {
+      const b = idbBars[idbBars.length - 1]; if (!b) return false
+      const o = +(b.o ?? b.open), h = +(b.h ?? b.high), l = +(b.l ?? b.low), c = +(b.c ?? b.close)
+      if (![o, h, l, c].every(Number.isFinite) || o <= 0 || h <= 0 || l <= 0 || c <= 0) return true
+      if (h < Math.max(o, c) - 1e-9 || l > Math.min(o, c) + 1e-9) return true   // OHLC ordering broken
+      if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
+      return false
+    })()
+  const _memTailStaleDaily = (arr) => (
+    resolvedTf === 'D'
+    && Array.isArray(arr) && arr.length
+    && isDailyTailStale(arr[arr.length - 1]?.t)
+  )
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
@@ -3735,7 +4381,10 @@ export default function StockChart({
   // any one-tf threshold yet long enough that the in-flight request rate stays
   // bounded even with many charts open. D/W/M evolve slowly — 5min is enough.
   // refreshWhenHidden:false stops backgrounded tabs from burning ticks.
-  const refreshInterval = isIntraday ? 30_000 : 300_000
+  // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
+  // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
+  // don't poll while a cutoff is set. The static `?to=` window never changes.
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
   const { data, error, mutate } = useSWR(
     swrUrl,
     fetcher,
@@ -3932,7 +4581,7 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -3947,7 +4596,10 @@ export default function StockChart({
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
   // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
-  const _memBars = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
+  // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
+  const _memBars = _memTailStaleDaily(_memBarsRaw) ? null : _memBarsRaw
   // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
   // ticker whose Daily is already in the sync mem cache normally still costs a
   // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
@@ -4020,6 +4672,17 @@ export default function StockChart({
   const drawBarsRef = useRef(null)
   drawBarsRef.current = bars
   const loading = !bars && !error
+  // Delay the loading skeleton: a fast cache hit (pack / IDB / mem — ~tens of
+  // ms) swaps chart→chart before this fires, so there's NO grey flash between
+  // symbols. The skeleton appears only if a load genuinely drags (a cold
+  // network fetch for an uncached / off-pack ticker). Kills the "grey blip
+  // between stocks" when scanning a list of already-cached names.
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  useEffect(() => {
+    if (!loading) { setShowSkeleton(false); return undefined }
+    const id = setTimeout(() => setShowSkeleton(true), 150)
+    return () => clearTimeout(id)
+  }, [loading])
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
   // count, so a dead ticker never starves the grid mount queue waiting on it.
@@ -4148,11 +4811,17 @@ export default function StockChart({
   // recompute will. Cheap: O(overlays × period) per tick, no full-series walk. Shared
   // by every live writer (A Finnhub tick + B Massive push) so the MA tracks the
   // developing bar regardless of which feed owns it.
-  const _extendOverlaysLive = useCallback((tSec, c) => {
-    const defs = resolvedOverlaysRef.current
-    const ovAll = overlayDataRef.current
-    const series = overlaySeriesRefs.current
-    const bars = prevBarsRef.current
+  // `opts` lets the initial-paint re-top (bottom of updateChart) drive this from
+  // THIS render's own locals instead of the refs — at that point in updateChart the
+  // overlay SERIES are freshly set but overlayDataRef/prevBarsRef still hold the
+  // prior render's values (they're mirrored in a later effect). `skipVwap` is set
+  // there too: the engine binder hasn't synced yet that early in the pass, so the
+  // VWAP re-top would read a stale binding — the live writers own VWAP anyway.
+  const _extendOverlaysLive = useCallback((tSec, c, opts) => {
+    const defs = opts?.defs ?? resolvedOverlaysRef.current
+    const ovAll = opts?.ovAll ?? overlayDataRef.current
+    const series = opts?.series ?? overlaySeriesRefs.current
+    const bars = opts?.bars ?? prevBarsRef.current
     if (!defs || !defs.length || !ovAll || !series || !series.length || !bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
@@ -4201,6 +4870,7 @@ export default function StockChart({
     // whatever the tail is. `Number.isFinite` is the same guard master wrote, kept
     // for the same reason — `Number(undefined)` is `NaN`, but `Number(null)` is 0,
     // and a 0 written here would drag the VWAP line to the axis floor.
+    if (opts?.skipVwap) return
     const _engine = engineRef.current
     if (_engine) {
       try {
@@ -4569,6 +5239,40 @@ export default function StockChart({
     return out
   }, [markersData, cs.markers?.dividends, resolvedTf, filteredBars, _bucketEventDate])
 
+  // ── First-bar "IPO" badge event ──
+  // The gold badge marks the FIRST loaded bar as the IPO / first-listing day — but
+  // ONLY when that bar actually IS the listing day (per the provider's immutable
+  // `list_date`). So: present ⇒ "this is the true start of history"; absent ⇒ "more
+  // history exists than is loaded (or the ticker predates Massive coverage)". This
+  // is exactly the "did the chart finish loading its history?" question a trader
+  // asks when the left edge looks abrupt.
+  //
+  // D/W/M only (like earnings/splits/dividends — numeric intraday times don't
+  // bucket to a listing DATE). Matching: bucket the first bar and the list_date the
+  // same way and compare; on DAILY also accept a ≤5-calendar-day gap to absorb the
+  // rare off-by-a-session between the provider's first bar and the official date.
+  // A partly-loaded chart's first bar sits months/years after list_date, far
+  // outside that window, so it never false-positives.
+  const ipoEvent = useMemo(() => {
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
+    const ld = ipoInfo?.list_date
+    if (!cs.markers?.ipo || !ld || !isDailyWeekly || !filteredBars?.length) return null
+    const first = filteredBars[0]
+    if (!first || first.t == null) return null
+    const low = +first.l
+    if (!Number.isFinite(low)) return null
+    let match = _bucketEventDate(first.t, resolvedTf) === _bucketEventDate(ld, resolvedTf)
+    if (!match && resolvedTf === 'D') {
+      const a = Date.parse(`${String(first.t).slice(0, 10)}T00:00:00Z`)
+      const b = Date.parse(`${String(ld).slice(0, 10)}T00:00:00Z`)
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        match = Math.abs(a - b) <= 5 * 86400000  // ≤5 calendar days
+      }
+    }
+    if (!match) return null
+    return { date: first.t, low, listDate: String(ld).slice(0, 10) }
+  }, [ipoInfo?.list_date, cs.markers?.ipo, resolvedTf, filteredBars, _bucketEventDate])
+
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
     if (!filteredBars?.length) return null
@@ -4638,6 +5342,7 @@ export default function StockChart({
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
         if (target.isContentEditable) return
       }
+
 
       // Alt-based chart toggles. Alt is rejected by matchShortcut (so browser
       // Alt shortcuts keep working), so these are handled here. Keyed on e.code
@@ -4886,11 +5591,79 @@ export default function StockChart({
       let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
       const r = el.getBoundingClientRect()
       if (axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2) {
+        // Release the manual pin so the scale returns to auto-fit.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
       }
     }
     el.addEventListener('dblclick', onDbl)
     return () => el.removeEventListener('dblclick', onDbl)
+  }, [chartReady, mainPriceScale])
+
+  // Detect a manual PRICE-axis drag/pinch → latch the resulting vertical range so
+  // live data commits (setData, which re-autofits) can't wipe it. Mirrors the
+  // dblclick axis-region detection. While dragging we release the pin so LWC's own
+  // axis scaling runs free; on release we capture the settled range from the price
+  // pane's pixel extent and re-latch it (the autoscaleInfoProvider preserves it).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady) return undefined
+    const inAxis = (e) => {
+      const chart = chartRef.current
+      if (!chart) return false
+      let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { return false }
+      const r = el.getBoundingClientRect()
+      return axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2
+    }
+    const onDown = (e) => { if (inAxis(e)) axisPressRef.current = { dragging: false, x: e.clientX, y: e.clientY } }
+    const onMove = (e) => {
+      const p = axisPressRef.current
+      if (!p || p.dragging) return
+      if (Math.abs(e.clientY - p.y) > 3 || Math.abs(e.clientX - p.x) > 3) {
+        p.dragging = true
+        priceManualRef.current = false   // free the drag; re-capture on release
+      }
+    }
+    const onUp = () => {
+      const p = axisPressRef.current
+      axisPressRef.current = null
+      if (!p || !p.dragging) return
+      try {
+        const series = candleSeriesRef.current
+        const chart = chartRef.current
+        if (!series || !chart) return
+        // ⭐ FREEZE THE PRICE SCALE EXACTLY WHERE THE USER LET GO.
+        // Dragging the price axis is a TEMPORARY manual scale in Lightweight Charts:
+        // it holds while the button is down, but on pointer-release the scale reverts
+        // to autoScale and re-fits — the "chart skips into a new position the moment I
+        // let go of the mouse" bug. `autoScale: false` makes the dragged range STICK.
+        // It stays until the user double-clicks the axis (`onDbl` above re-enables
+        // autoScale) or switches symbol/timeframe (the reframe branch in updateChart
+        // re-enables it for the fresh chart). Nothing on the live-data path re-enables
+        // autoScale, so live ticks no longer re-fit a manually-set scale either.
+        try { mainPriceScale()?.applyOptions({ autoScale: false }) } catch { /* disposed */ }
+        // Also record the settled range for the Setup-Library focus provider (unused
+        // on the main chart, where autoScale:false alone freezes it).
+        let paneH = 0
+        try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
+        if (paneH <= 0) return
+        const hi = series.coordinateToPrice(0)
+        const lo = series.coordinateToPrice(paneH)
+        if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
+          priceManualRangeRef.current = { minValue: lo, maxValue: hi }
+          priceManualRef.current = true
+        }
+      } catch { /* mapping unavailable — leave unpinned, no worse than before */ }
+    }
+    el.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
   }, [chartReady, mainPriceScale])
 
   // ── Replay auto-advance interval ──
@@ -5392,26 +6165,49 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // "New price scale" (any non-'same' comparison) → the whole RIGHT price scale goes
+  // Percentage (owner choice 2026-08-12): base + every comparison rebase to % from the
+  // visible-left edge with their colored labels on the RIGHT. A 'same'-only set keeps
+  // the base's dollar scale (those lines are $-anchored into it instead).
+  const compareForcesPct = useMemo(
+    () => enabledComparisons.some(c => (c.scaleMode || 'new') !== 'same'),
+    [enabledComparisons]
+  )
+  // hideBase ("Group only" theme view) is computed EARLY (near showVolume) so the
+  // volume/watermark/indicator sources can gate on it. Nothing to redeclare here.
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
     [enabledComparisons]
   )
+  // Comparisons don't need deep inception history — a bounded window is plenty for a
+  // relative-performance overlay, and it stops a big GROUP (many members) from firing
+  // N huge concurrent fetches the backend drops, which showed up as "some theme
+  // tickers are missing." Capped depth + bounded concurrency + one retry.
+  const cmpBarCount = Math.min(barCount || 1500, 2000)
   const { data: comparisonsData } = useSWR(
-    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, barCount] : null,
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
-      const results = await Promise.allSettled(
-        syms.map(s =>
-          fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
-            .then(r => (r.ok ? r.json() : { bars: [] }))
-            .catch(() => ({ bars: [] }))
-        )
-      )
+      const fetchOne = async (s) => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}`)
+            if (r.ok) {
+              const j = await r.json()
+              const bars = j?.bars || []
+              if (bars.length || attempt > 0) return bars   // accept empty only after a retry
+            }
+          } catch { /* fall through to retry */ }
+        }
+        return []
+      }
       const out = {}
-      results.forEach((r, i) => {
-        out[syms[i]] = r.status === 'fulfilled' ? (r.value?.bars || []) : []
+      const queue = [...syms]
+      const workers = Array.from({ length: Math.min(4, queue.length || 1) }, async () => {
+        while (queue.length) { const s = queue.shift(); out[s] = await fetchOne(s) }
       })
+      await Promise.all(workers)
       return out
     },
     { revalidateOnFocus: false, dedupingInterval: 15_000 }
@@ -5484,13 +6280,14 @@ export default function StockChart({
         if (toTime != null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c) && adjustTime(bars[i].t) <= toTime) { lastClose = bars[i].c; break } } }
         if (lastClose == null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } } }
         const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
-        return { sym: symKey, color: c.color, pct }
+        return { sym: symKey, color: c.color, pct, group: c.group || null }
       })
       setComparisonFramed(out)
 
       // Re-anchor 'same'-scale lines to the new visible-left (dollar-space transform),
       // but only when the anchor bar actually moved — setData every pan frame is wasteful.
-      if (li !== sameAnchorLiRef.current) {
+      // Skipped in percent mode: there every line is raw closes on the % scale (no anchor).
+      if (li !== sameAnchorLiRef.current && !compareForcesPct) {
         sameAnchorLiRef.current = li
         for (const c of comps) {
           if (c.scaleMode !== 'same') continue
@@ -5506,7 +6303,26 @@ export default function StockChart({
     compute(null)
     return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ } }
     // Re-subscribe + recompute when the chart, the comparison set, or fetched bars change.
-  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime])
+  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime, compareForcesPct])
+
+  // Docked-legend layout: split comparisons into individual tickers + named groups
+  // (theme/sector/industry added as a unit). A group renders as ONE collapsible row
+  // ("Memory & HBM · N", avg %) so a 40-name overlay doesn't flood the legend.
+  const [openCmpGroups, setOpenCmpGroups] = useState({})
+  const comparisonLegend = useMemo(() => {
+    const inds = []
+    const gmap = new Map()
+    for (const f of comparisonFramed) {
+      if (f.group) { if (!gmap.has(f.group)) gmap.set(f.group, []); gmap.get(f.group).push(f) }
+      else inds.push(f)
+    }
+    const groups = [...gmap.entries()].map(([name, items]) => {
+      const vals = items.map(i => i.pct).filter(v => Number.isFinite(v))
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+      return { name, items, avg }
+    })
+    return { inds, groups }
+  }, [comparisonFramed])
 
   // Name + exchange for each comparison (the legend shows "Name · Exchange").
   const { data: comparisonMeta } = useSWR(
@@ -5641,6 +6457,7 @@ export default function StockChart({
   // producing a wrong wick on the first candle of the new ticker.
   useEffect(() => {
     lastBarRef.current = null
+    lastBarSymRef.current = null   // developing bar no longer belongs to any sym until updateChart re-seeds it
     liveBarRef.current = null
     barStartVolRef.current = 0
     latestLiveRef.current = null
@@ -5667,6 +6484,13 @@ export default function StockChart({
     // Freeze while a provisional stale-intraday cache is on screen — no live tick
     // may grow a phantom candle on the old tail before the full refetch swaps in.
     if (provisionalStaleRef.current) return
+    // SYMBOL GUARD (intraday only — daily's Writer E has its own new-session guard):
+    // lastBarRef/liveBarRef carry no symbol and a switch resets them via a DEFERRED
+    // effect while this tick fires on its own clock, so a tick for the NEW sym could
+    // fuse onto the PREVIOUS sym's same-bucket bar (the LRCX-O/H-on-ARM "close below
+    // low" bug — a time-only guard can't tell two symbols' same 5m bucket apart). Only
+    // fuse once lastBarRef is confirmed to own THIS sym.
+    if (!['D', 'W', 'M'].includes(resolvedTf) && lastBarSymRef.current !== sym) return
     // NOTE: the D/W/M "defer the candle write to Writer E" early-return USED to sit
     // here — above the latestLiveRef update below. That stranded latestLiveRef at the
     // mount-time price on D/W/M (Writer A returned before ever updating it once Writer
@@ -5711,8 +6535,13 @@ export default function StockChart({
     // daily bar from the snapshot when the SSE stream is down (REST floor has
     // no updated_at) — last.close ≈ prev_close proves a new session is underway.
     const _pc = Number.isFinite(liveData.prev_close) && liveData.prev_close > 0 ? liveData.prev_close : null
+    // Carry the live cumulative DAY volume — on D/W/M it IS the developing bar's
+    // volume, and the re-top path (Writer D) below needs it to seed a client-created
+    // "today" bar with a real figure instead of 0 (the "today's volume reads 0" bug
+    // when the loaded bars still lag today's session).
+    const _dv = Number.isFinite(liveData.volume) && liveData.volume > 0 ? liveData.volume : null
     latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
-      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc,
+      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc, volume: _dv,
       ext_session: !!liveData.ext_session }
     // ── D/W/M: defer the candle WRITE to Writer E (the fast Massive 1-min tick) ──
     // Writer E owns the D/W/M developing candle; defer to it while its tick is fresh
@@ -5799,19 +6628,25 @@ export default function StockChart({
         // Initialize tick-accurate tracking for this bar
         liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
         barStartVolRef.current = liveData.volume || 0
+        // D/W/M: the developing bar spans the whole day, so the live cumulative DAY
+        // volume IS its volume — seed it now instead of 0 (else "today's volume reads
+        // 0" until a full volData setData catches up). Intraday: a new bucket really
+        // starts near 0 (overlaying the day total is the phantom-volume-spike bug).
+        const _newVol = isDailyWeekly && Number.isFinite(liveData.volume) && liveData.volume > 0 ? liveData.volume : 0
 
         if (useOhlc) {
           candleSeriesRef.current.update(liveBarRef.current)
-          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
+          lastBarRef.current = { ...liveBarRef.current, volume: _newVol }
         } else {
           candleSeriesRef.current.update({ time: barTime, value: price })
-          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
+          lastBarRef.current = { ...liveBarRef.current, volume: _newVol }
         }
         if (volumeSeriesRef.current) {
           // Full-opacity default color (matches closed bars + volData) — no lighter
-          // "developing" tint. Value is 0 here so it's invisible until the next tick.
+          // "developing" tint. Intraday value is 0 (invisible until the next tick);
+          // D/W/M carries the live day volume so the pane isn't a phantom zero bar.
           const _vUpN = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-          volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
+          volumeSeriesRef.current.update({ time: barTime, value: _newVol, color: _vUpN })
         }
         _extendOverlaysLive(barTime, price)
       } else {
@@ -5840,9 +6675,25 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: last.time, value: price })
         }
 
-        // Volume: don't override — let API-provided volume stand (refreshes every 15s)
-        // The API has accurate per-bar volume; live delta calculations are unreliable
-        lastBarRef.current = { ...updated, volume: last.volume }
+        // Volume: intraday leaves the API-provided per-bar volume to stand (refreshes
+        // every 15s; live delta calcs are unreliable). D/W/M, though, keeps the
+        // developing bar's volume ticking from the live cumulative DAY volume so it
+        // never sits frozen at 0 / a stale value when the loaded bars lag today's
+        // session (the "today's volume reads 0" bug). Only grows (day volume is
+        // monotonic), so a stale/degraded read can't shrink it.
+        let _updVol = last.volume
+        if (!isIntradayTf && Number.isFinite(liveData.volume) && liveData.volume > (last.volume || 0)) {
+          _updVol = liveData.volume
+          if (volumeSeriesRef.current) {
+            const _prevC = colorByNetChange && prevBarsRef.current && prevBarsRef.current.length >= 2
+              ? prevBarsRef.current[prevBarsRef.current.length - 2].c : null
+            const _isUpU = _prevC != null ? (updated.close >= _prevC) : (updated.close >= updated.open)
+            const _vUpU = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownU = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            volumeSeriesRef.current.update({ time: updated.time, value: _updVol, color: _isUpU ? _vUpU : _vDownU })
+          }
+        }
+        lastBarRef.current = { ...updated, volume: _updVol }
         _extendOverlaysLive(last.time, price)
       }
     } catch (e) {
@@ -6381,49 +7232,22 @@ export default function StockChart({
       // data), ballooning the price scale until the candles are a sliver.
       vertMarginsRef.current = null
     } else {
-      const _zoomKey = `${sym}_${resolvedTf}`
-      const _isFirstLoad = zoomKeyRef.current === null
-      const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
-      const _isSymSwitch = !_isFirstLoad && !_tfChanged && zoomKeyRef.current !== _zoomKey
-      if (_isFirstLoad || _tfChanged) {
-        vertMarginsRef.current = null
-      } else if (_isSymSwitch && chart && candleSeriesRef.current) {
-        try {
-          const prevBars = prevBarsRef.current
-          const vr = chart.timeScale().getVisibleLogicalRange()
-          if (prevBars && prevBars.length && vr) {
-            const s = Math.max(0, Math.floor(vr.from))
-            const e = Math.min(prevBars.length - 1, Math.ceil(vr.to))
-            let hi = -Infinity, lo = Infinity
-            for (let i = s; i <= e; i++) {
-              const b = prevBars[i]
-              if (!b) continue
-              if (b.h > hi) hi = b.h
-              if (b.l < lo) lo = b.l
-            }
-            let paneH = 0
-            try { paneH = chart.paneSize().height } catch {}
-            if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - chart.timeScale().height() } catch {} }
-            const series = candleSeriesRef.current
-            if (hi > lo && paneH > 8) {
-              const yHi = series.priceToCoordinate(hi)
-              const yLo = series.priceToCoordinate(lo)
-              if (yHi != null && yLo != null) {
-                let top = Math.min(0.9, Math.max(0, yHi / paneH))
-                let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
-                if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
-                // Only treat as a custom placement if it meaningfully differs from default.
-                if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
-                  vertMarginsRef.current = null
-                } else {
-                  vertMarginsRef.current = { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
-                }
-              }
-            }
-          }
-        } catch {}
-      }
+      // ── APPLY-ONLY view lock ──────────────────────────────────────────────
+      // The view lock is a FIXED target, written ONLY by an explicit user
+      // drag / zoom (the pointer-up + wheel capture, _captureUserLock below).
+      // A ticker (or phase / tf) switch must NEVER re-measure and re-store it.
+      // Re-measuring the freshly re-framed outgoing view round-trips
+      // imperfectly — future-axis padding, rightBarStaysOnScroll and the
+      // whitespace future-bars all nudge the settled range by a hair — so
+      // re-storing that nudged value on EVERY switch compounds into months of
+      // leftward drift (the "sends me back in time with each search" bug).
+      // Here we only APPLY: the vertical band (a proportional fraction, so it
+      // is TF-independent and carries across ticker AND timeframe switches),
+      // and the horizontal anchorFrac is applied straight from the stored value
+      // in the framing branch. Cleared only by right-click → "Reset view".
+      vertMarginsRef.current = (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null)
+        ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
+        : null
     }
 
     // ── Create or update chart instance ──
@@ -6453,7 +7277,10 @@ export default function StockChart({
         // Auto-contrast ink derived from the canvas — deliberately NOT the user's
         // scale color (see axisAuto).
         textColor: axisAuto.ink,
-        fontFamily: "'Instrument Sans', sans-serif",
+        // Tabular-figures build first so canvas-drawn axis labels (price + MA
+        // last-value chips) are equal-width and their boxes line up; falls back to
+        // the proportional face for any non-latin glyph. See index.html @font-face.
+        fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
         fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
@@ -6494,18 +7321,14 @@ export default function StockChart({
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
-      crosshair: hideCrosshair ? {
-        mode: 0,
-        // Fully suppress both crosshair lines + their axis labels (Setup Library examples).
-        vertLine: { visible: false, labelVisible: false },
-        horzLine: { visible: false, labelVisible: false },
-      } : {
-        mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        // Crosshair date/price labels blend with the canvas (gradient-bottom aware);
-        // LWC auto-contrasts their text against this background (axisAuto).
-        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
-      },
+      // Crosshair lines + tracking axis labels. Visibility comes from the resolved
+      // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
+      // this (inside updateChart, which does NOT depend on the hold state) always
+      // reads the live value. The interactive press/release toggle is handled by
+      // the dedicated applyOptions effect above; both use `buildCrosshairOpts` so
+      // the shown/hidden shapes stay identical. (`hideCrosshair`, the Setup-Library
+      // host override, is already folded into `crosshairVisible`.)
+      crosshair: buildCrosshairOpts(crosshairVisibleRef.current),
       rightPriceScale: {
         borderColor: themeColors.borderColor,
         // No vertical separator line between the plot and the axis — the values sit
@@ -6620,7 +7443,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const wmLines = (cs.watermark.visible && !hideWatermark)
+      const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
@@ -6641,6 +7464,7 @@ export default function StockChart({
         color: cs.watermark.color,
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
+        weight: cs.watermark.weight ?? 700,
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
@@ -6730,6 +7554,7 @@ export default function StockChart({
       earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
       splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
       divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
+      ipoBadgeAttachedRef.current = false        // IPO-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
       pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
     }
@@ -6837,7 +7662,7 @@ export default function StockChart({
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
         const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -6998,6 +7823,24 @@ export default function StockChart({
       const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+      // 🔴 DAILY cross-ticker guard. liveBarRef (the ref Writer D re-tops from after
+      // setData) is re-seeded per-sym ONLY for intraday below (`!['D','W','M']`), and two
+      // stocks' "today" daily bars share the SAME timestamp — so a time-based staleness
+      // check can't tell them apart. On a fast switch, a new user's chart could keep the
+      // PREVIOUS ticker's developing bar and let Writer D stamp its price onto this chart:
+      // the "$3 bar on a $100 stock" that breaks the y-scale and blacks out the chart.
+      // When the SYMBOL changed (lastBarSymRef still holds the prior sym / null), clear a
+      // stale D/W/M liveBarRef so Writer D re-tops from lastBarRef — just seeded to THIS
+      // sym above — instead. Same-sym polls (lastBarSymRef === sym) keep the live bar, so
+      // the developing-candle machinery is untouched. Intraday is already guarded (the
+      // per-sym re-seed below + Writer A's lastBarSymRef check).
+      if (['D', 'W', 'M'].includes(resolvedTf) && lastBarSymRef.current !== sym) {
+        liveBarRef.current = null
+      }
+      // filteredBars is gated to the CURRENT sym (idbReady/_netMatches/memPeek(sym)), so
+      // the bar we just seeded owns `sym` — tag it. The live-overlay consumers refuse to
+      // fuse when this != their sym (the cross-ticker developing-bar contamination guard).
+      lastBarSymRef.current = sym
       // Trustworthy baseline for live-tick sanity gates: server bars are
       // validated/quarantined upstream and proven clean. Unlike
       // lastBarRef (which a bad tick can bake bad, then good ticks get
@@ -7060,6 +7903,7 @@ export default function StockChart({
           sym, price: _cachedPx, updated_at: _cached.updated_at,
           day_open: _cached.day_open, day_high: _cached.day_high,
           day_low: _cached.day_low, prev_close: _cached.prev_close,
+          volume: Number.isFinite(_cached.volume) && _cached.volume > 0 ? _cached.volume : null,
           ext_session: !!_cached.ext_session,
         }
       }
@@ -7148,7 +7992,17 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: barTime, value: lp })
         }
         liveBarRef.current = { ...newBar }
-        lastBarRef.current = { ...newBar, volume: 0 }
+        // D/W/M: seed the client-created "today" bar with the live cumulative DAY
+        // volume (it IS this bar's volume) so the readout + pane don't show 0 while
+        // the loaded bars still lag today's session. Intraday starts near 0.
+        const _newVolD = isDW && Number.isFinite(liveSnap.volume) && liveSnap.volume > 0 ? liveSnap.volume : 0
+        lastBarRef.current = { ...newBar, volume: _newVolD }
+        if (isDW && _newVolD > 0 && volumeSeriesRef.current) {
+          const _isUpN = openPrice != null && lp >= openPrice
+          const _vUpN2 = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vDownN2 = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+          volumeSeriesRef.current.update({ time: barTime, value: _newVolD, color: _isUpN ? _vUpN2 : _vDownN2 })
+        }
       } else if (decision.kind === 'skip') {
         // New day for D/W/M but no confirmed session — don't corrupt yesterday's bar
       } else {
@@ -7839,8 +8693,10 @@ export default function StockChart({
       // candles only and a far 200MA clips off-screen instead of squashing price.
       const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
       if (i < overlaySeriesRefs.current.length) {
-        // Reuse existing series — always setData (even empty) to clear stale data
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, autoscaleInfoProvider: _ovAutoscale })
+        // Reuse existing series — always setData (even empty) to clear stale data.
+        // lastValueVisible = the colored right-axis chip showing this MA's latest
+        // value (opt-in via cs.showMaLabels; the chip auto-uses the series color).
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels, autoscaleInfoProvider: _ovAutoscale })
         _applyData(overlaySeriesRefs.current[i], baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
@@ -7851,7 +8707,7 @@ export default function StockChart({
           lineType: _ovLineType,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
-          lastValueVisible: false,
+          lastValueVisible: !!cs.showMaLabels,
           autoscaleInfoProvider: _ovAutoscale,
         })
         ls.setData(baseData)
@@ -7876,6 +8732,28 @@ export default function StockChart({
           ts.setData(tailData)
           overlayTailSeriesRefs.current.push(ts)
         }
+      }
+    }
+
+    // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
+    // The overlay setData above ends at the last FETCHED bar, but the post-setData
+    // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
+    // developing bar in this same synchronous pass. Without matching that here, the
+    // MA line ends one bar behind the live candle for ~0.5-1s after every ticker
+    // switch — until the next livePrices tick (Writer A) fires `_extendOverlaysLive`
+    // (user report: "MAs lag one day back when I scan to a new stock, then snap to
+    // today"). Extend them now, off THIS render's own locals (overlayDataRef/
+    // prevBarsRef aren't mirrored until a later effect), so the MA is instant on
+    // today's candle exactly like the candle itself. Live charts only; replay/cutoff
+    // freeze the developing bar. sameBucket → recomputes the same last point (no-op)
+    // when the fetch already carried today; new bucket → appends today's MA point.
+    if (liveUpdates && !replayMode && !replayCutoffRef.current) {
+      const _dev = lastBarRef.current
+      if (_dev && _dev.time != null && Number.isFinite(_dev.close)) {
+        _extendOverlaysLive(_dev.time, _dev.close, {
+          defs: resolvedOverlays, ovAll: overlayData,
+          series: overlaySeriesRefs.current, bars: sessionAppliedBars, skipVwap: true,
+        })
       }
     }
 
@@ -7964,7 +8842,8 @@ export default function StockChart({
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
         // ref's declaration.
-        indicatorsHidden: indicatorsHiddenRef.current,
+        // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
+        indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
@@ -8373,6 +9252,23 @@ export default function StockChart({
       divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
     }
 
+    // ── First-bar "IPO" badge (same bottom-row primitive, gold pill) ──
+    if (candleSeriesRef.current) {
+      if (!ipoBadgeRef.current) ipoBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'IPO' })
+      if (!ipoBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(ipoBadgeRef.current.primitive)
+          ipoBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      ipoBadgeRef.current.setOptions({
+        enabled: !!ipoEvent,
+        color: cs.markers?.ipoColor || '#c9a84c',   // gold pill (fixed, like S/D)
+        glyphColor: canvasSample.top,                // "IPO" reads as cut out of the pill
+      })
+      ipoBadgeRef.current.setPoints(ipoEvent ? [{ time: ipoEvent.date, price: ipoEvent.low }] : [])
+    }
+
     // View handling on initial load / timeframe change / ticker switch.
     // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
     //
@@ -8403,10 +9299,20 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
+      // A fresh symbol/timeframe re-frames — drop any manual price-scale pin so the
+      // new chart auto-fits its own range instead of inheriting the old vertical.
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
       // Exiting replay (or a TF change) clears the replay view lock so the next frame
       // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
       if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
       const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // Horizontal view lock is applicable only when its captured timeframe matches
+      // the current one (`width` is in logical BARS — a daily 232-bar window means
+      // nothing on a weekly chart). A legacy lock with no tf tag applies on any tf.
+      const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+        && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+        && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
       // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
       // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
       // where keeping it latched is exactly what stops the settling/pinned-right guards
@@ -8427,17 +9333,19 @@ export default function StockChart({
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
       } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
-        // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
-        // new ticker's bars arrive in PHASES (IDB cache → network → older-history
-        // backfill), each a separate updateChart commit with a DIFFERENT bar count.
-        // The keepPresent branch below frames the FIRST phase correctly, but later
-        // phases were left to a fragile "was the user viewing latest" heuristic that
-        // misjudged across tickers of different length — so the chart loaded correct
-        // for ~0.5s then drifted to the middle (SNDK 5m bug). Reuse the exact TF-switch
-        // mechanism: hold the outgoing zoom width and let the settling-guard re-assert
-        // newest-at-LAST_CANDLE_POS on EVERY commit until the bar count stops changing.
-        const _w = oldRange ? (oldRange.to - oldRange.from) : null
-        pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
+        if (_hLockActive) {
+          // Horizontal lock owns the frame across phases (via the anchorFrac branch).
+          // CLEAR any stale settling guard so it can't re-pin newest-at-right over it.
+          pendingTfReframeRef.current = null
+        } else {
+          // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
+          // new ticker's bars arrive in PHASES (IDB cache → network → older-history
+          // backfill), each a separate updateChart commit with a DIFFERENT bar count.
+          // Hold the outgoing zoom width and let the settling-guard re-assert
+          // newest-at-LAST_CANDLE_POS on EVERY commit until the bar count settles.
+          const _w = oldRange ? (oldRange.to - oldRange.from) : null
+          pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
+        }
       }
 
       // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
@@ -8467,6 +9375,28 @@ export default function StockChart({
         if (_replayLocked && replayLockedViewRef.current) {
           to = newBarCount - replayLockedViewRef.current.barsFromRight
           from = to - replayLockedViewRef.current.width
+        } else if (_hLockActive) {
+          // NORMAL horizontal lock (workspace): place the NEWEST bar at the same
+          // SCREEN FRACTION the user left it — drift-proof (a fraction, not a bar
+          // count), so deep-history backfill never shifts it. Cleared by "Reset view".
+          const _w = userLockedViewRef.current.width
+          from = (newBarCount - 1) - userLockedViewRef.current.anchorFrac * _w
+          to = from + _w
+          // BACK-IN-TIME GUARD: anchorFrac > 1 means the stored view had the newest
+          // candle scrolled OFF the right edge (equivalently to < lastIdx). Restoring
+          // that on a ticker switch lands THIS ticker on old bars with the latest
+          // price off-screen, and autoScale then fits the old price band → a black
+          // chart "sent back in time on every search" (the 8/19 RTH incident, exposed
+          // once instant paint stopped forcing a view-resetting refetch). Only in-range
+          // locks (0 ≤ anchorFrac ≤ 1, newest stays visible) are legitimate to carry;
+          // otherwise re-anchor to the latest-bars default.
+          if (to < (newBarCount - 1) - 0.5) {
+            const _def = computeDefaultLogicalRange(
+              newBarCount, resolvedTf,
+              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+            )
+            from = _def.from; to = _def.to
+          }
         } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
@@ -8537,6 +9467,23 @@ export default function StockChart({
             const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
+          } else if (_hLockActive) {
+            // A persisted horizontal lock restored on refresh (first load): open at
+            // the user's exact position — newest bar at its saved screen fraction.
+            const _w = userLockedViewRef.current.width
+            let _from = (filteredBars.length - 1) - userLockedViewRef.current.anchorFrac * _w
+            let _to = _from + _w
+            // Same back-in-time guard as the symbol-switch path (see there): a stored
+            // anchorFrac > 1 (newest off the right edge) would open a fresh load
+            // scrolled into the past with the latest price off-screen → black chart.
+            if (_to < (filteredBars.length - 1) - 0.5) {
+              const _def = computeDefaultLogicalRange(
+                filteredBars.length, resolvedTf,
+                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              )
+              _from = _def.from; _to = _def.to
+            }
+            if (Number.isFinite(_from) && Number.isFinite(_to)) { try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ } }
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
@@ -8657,7 +9604,12 @@ export default function StockChart({
         // chart snap back to the default window on the very next live commit —
         // i.e. panning left was impossible. The latch clears on symbol/timeframe
         // change and on an explicit "Reset view" (see userViewMovedRef).
-        if (wasViewingLatest && !userViewMovedRef.current) {
+        // Horizontal lock active for THIS tf (see the same-named var in updateChart;
+        // this settling block is a separate closure, so recompute it locally).
+        const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+          && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+          && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
+        if (wasViewingLatest && !userViewMovedRef.current && !_hLockActive) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
           if (fr) {
@@ -8776,7 +9728,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -8799,7 +9751,10 @@ export default function StockChart({
       sessionTagRefs.current = []
       sessionTagSeriesRef.current = series
     }
-    const tags = activeSessionTags || []
+    // Price labels off ⇒ suppress the Pre/Post chip + locked RTH close too, so the
+    // one toggle governs every last-value tag on the axis. Empty list ⇒ the count
+    // check below tears down any existing session price lines.
+    const tags = cs.showPriceLabels === false ? [] : (activeSessionTags || [])
     const opts = (t) => ({
       price: t.price,
       color: t.color || cs.textColor,
@@ -8815,9 +9770,12 @@ export default function StockChart({
       tags.forEach((t, i) => {
         const o = opts(t)
         // The INTRADAY Pre/Post chip's live price is owned by the rAF sync effect
-        // below (glued to the developing candle); this per-tick effect must not fight
-        // it on price, or the chip flickers between two feeds. Keep title/color fresh.
-        if (sessionTagsIntraday && t._sessionTag === 'ext') delete o.price
+        // below ONLY in Extended-hours mode, where it's glued to the developing ext
+        // candle; skip price here so the two feeds don't fight + flicker. In REGULAR
+        // -hours mode there is no ext candle — the developing bar is the frozen RTH
+        // close — so the rAF is inert and the chip MUST track the seeded ext price
+        // here (else it would sit at yesterday's RTH close, not the pre/post price).
+        if (sessionTagsIntraday && t._sessionTag === 'ext' && showExtended) delete o.price
         try { sessionTagRefs.current[i].applyOptions(o) } catch { /* series gone */ }
       })
       return
@@ -8826,7 +9784,7 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels])
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
@@ -8834,9 +9792,14 @@ export default function StockChart({
   // previously read sessionExtPrice, a DIFFERENT feed, so during a fast pre/post-market
   // move the two showed different prices. A rAF loop mirrors the chip to the candle's
   // exact drawn close (liveBarRef.close) every frame, so they move in unison with no
-  // cross-feed lag. Intraday ext only; only writes when the value actually changes.
+  // cross-feed lag.
+  // ⚠️ EXTENDED-HOURS mode ONLY. In Regular-hours mode the developing candle is the
+  // frozen RTH bar (seeded into liveBarRef with yesterday's close), NOT the pre/post
+  // price — gluing the chip to it dragged the "Pre"/"Post" label down to the prior
+  // RTH close. In regular mode the applier above keeps the chip on the seeded ext
+  // price, so this loop must stay off.
   useEffect(() => {
-    if (!sessionTagsIntraday) return
+    if (!sessionTagsIntraday || !showExtended) return
     let raf = 0
     let lastPx = null
     const tick = () => {
@@ -8850,7 +9813,7 @@ export default function StockChart({
     }
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [sessionTagsIntraday])
+  }, [sessionTagsIntraday, showExtended])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
   // custom-TF live developing bar ──
@@ -8894,9 +9857,27 @@ export default function StockChart({
   const intradayExtTagActive = !!intradaySessionTagLines?.length
   useEffect(() => {
     if (!chartReady || !candleSeriesRef.current) return
-    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive
+    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive && cs.showPriceLabels !== false
     try { candleSeriesRef.current.applyOptions({ lastValueVisible: on }) } catch { /* older LWC */ }
-  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType])
+  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType, cs.showPriceLabels])
+
+  // Once the tabular-figures axis font ('Instrument Sans Tab') has actually
+  // loaded, force LWC to re-measure + repaint the axis. Canvas paints with the
+  // proportional fallback until the woff2 arrives (font-display: swap), so
+  // without this nudge the first paint keeps ragged-width numeric label boxes.
+  useEffect(() => {
+    if (!chartReady || !chartRef.current) return
+    const fonts = typeof document !== 'undefined' ? document.fonts : null
+    if (!fonts?.load) return
+    let cancelled = false
+    fonts.load("11px 'Instrument Sans Tab'").then(() => {
+      if (cancelled || !chartRef.current) return
+      // Re-applying the same fontFamily invalidates the model → full redraw, which
+      // re-measures every axis label against the now-loaded tabular face.
+      try { chartRef.current.applyOptions({ layout: { fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif" } }) } catch { /* chart torn down */ }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [chartReady])
 
   // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
   // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing
@@ -8952,6 +9933,12 @@ export default function StockChart({
     try {
       series.applyOptions({
         autoscaleInfoProvider: (orig) => {
+          // Manual price-scale pin wins — preserve the user's dragged vertical
+          // range across setData()'s re-autofit (the live-hours "keeps shrinking").
+          const pm = priceManualRef.current ? priceManualRangeRef.current : null
+          if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+            return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+          }
           const r = focusPriceRangeRef.current
           if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
             return { priceRange: { minValue: r.lo, maxValue: r.hi } }
@@ -9097,6 +10084,10 @@ export default function StockChart({
         try {
           series.applyOptions({
             autoscaleInfoProvider: (orig) => {
+              const pm = priceManualRef.current ? priceManualRangeRef.current : null
+              if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+                return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+              }
               const r = focusPriceRangeRef.current
               if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
                 return { priceRange: { minValue: r.lo, maxValue: r.hi } }
@@ -9254,6 +10245,10 @@ export default function StockChart({
       try {
         series.applyOptions({
           autoscaleInfoProvider: (orig) => {
+            const pm = priceManualRef.current ? priceManualRangeRef.current : null
+            if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+              return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+            }
             const r = focusPriceRangeRef.current
             if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
               return { priceRange: { minValue: r.lo, maxValue: r.hi } }
@@ -9368,22 +10363,24 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    // The main scale mode follows ONLY the user's A/L/% toggle. A 'same'-scale
-    // comparison does NOT force Percentage here (that rebased the candles + MAs and
-    // drew LWC's 0% baseline); instead its line is transformed into the base's DOLLAR
-    // space, anchored at the visible-left edge (see the comparison render + framed
-    // effects), so an out-performer still rises above the base while the base scale
-    // stays in dollars and the MAs never move.
-    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // The main scale mode follows the user's A/L/% toggle — EXCEPT a "New price scale"
+    // comparison forces Percentage (compareForcesPct): base + comparisons all rebase to
+    // % on the right, labels on the right. A 'same'-scale comparison still does NOT force
+    // it (its line is transformed into the base's DOLLAR space, anchored at the visible
+    // left — see the comparison render + framed effects — so the base scale stays $).
+    const mode = compareForcesPct ? 2 : (effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0))
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
+  }, [effectiveScale, compareForcesPct, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
-  // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
+  // All comparisons ride the RIGHT price scale. When a "new price scale" comparison is
+  // present the right scale is in Percentage mode (see the scale-mode effect + compareForcesPct),
+  // so base + comparisons all rebase to % with labels on the right; a 'same'-only set keeps
+  // the right scale in dollars and the comparison lines are $-anchored into it.
   // Runs whenever `comparisonSeries` changes (sym list, fetched data, or colors).
   useEffect(() => {
     const chart = chartRef.current
@@ -9392,21 +10389,35 @@ export default function StockChart({
     const map = comparisonSeriesRefs.current
     const wanted = new Set(comparisonSeries.map(s => s.sym))
 
+    // Snapshot the visible range so a structural change (add/remove series) can't make
+    // LWC auto-fit the chart to the comparison's full history — the "chart snaps back
+    // to 2011-12 when I click a button" bug. Restored after, on the next frame.
+    let savedLogical = null
+    try { savedLogical = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+
     // Remove series no longer wanted
+    let removedAny = false
     for (const [sym, series] of map.entries()) {
       if (!wanted.has(sym)) {
         try { chart.removeSeries(series) } catch {}
         map.delete(sym)
+        removedAny = true
       }
     }
 
-    // Add or update wanted series. Each comparison rides EITHER the base's main
-    // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
-    // its own auto-fitting left % scale ('new' → fills the pane independently).
-    // LWC can't move a series between scales, so a scaleMode flip = recreate.
+    // Add or update wanted series. Every comparison rides the base's RIGHT price scale.
+    // In percent mode (compareForcesPct) all lines rebase to % there; in $ mode a 'same'
+    // line is transformed into the base's dollar space. LWC can't move a series between
+    // scales, so an old left-scale series (pre-change) is recreated on the right here.
+    // Right-axis last-value chips (colored ticker + value). Always for INDIVIDUAL
+    // comparisons; for group (theme/sector) members too — UNLESS the set is large enough
+    // that the chips would stack and overlap (a big theme), where they're read from the
+    // docked legend instead. 24 covers a normal theme while sparing a 40-name pile-up.
+    const showMemberLabels = comparisonSeries.length <= 24
     let createdAny = false
     for (const cmp of comparisonSeries) {
-      const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
+      const wantScale = 'right'
+      const wantLabel = !cmp.group || showMemberLabels
       let series = map.get(cmp.sym)
       if (series && series._uctScaleId !== wantScale) {
         try { chart.removeSeries(series) } catch {}
@@ -9419,9 +10430,10 @@ export default function StockChart({
             priceScaleId: wantScale,
             color: cmp.color,
             lineWidth: 2,
-            // No on-chart chip / axis label — the docked compare legend shows the
-            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
-            lastValueVisible: false,
+            // Owner: show a little price-scale label in the LINE'S colour with the
+            // ticker on it (individual compares only — see wantLabel).
+            lastValueVisible: wantLabel,
+            title: wantLabel ? cmp.sym : '',
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
@@ -9433,48 +10445,58 @@ export default function StockChart({
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: wantLabel, title: wantLabel ? cmp.sym : '' }) } catch {}
       }
-      // 'same' → transform into the base's dollar space anchored at the visible-left
-      // (rises above the base without % mode); 'new' → raw closes on the left % scale.
-      if (cmp.scaleMode === 'same') {
+      // Percent mode (any "new price scale" present) → feed RAW closes so the right %
+      // scale rebases each line to its first visible value (base + all comparisons in %).
+      // Otherwise (all 'same') → transform into the base's dollar space, anchored at the
+      // visible-left so an out-performer rises above the base while the scale stays $.
+      if (compareForcesPct) {
+        try { series.setData(cmp.points) } catch {}
+      } else {
         let lr = null
         try { lr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
         const rawBars = (comparisonsData && comparisonsData[cmp.sym]) || []
         try { series.setData(anchoredSameScalePoints(rawBars, filteredBars, lr, adjustTime)) } catch {}
-      } else {
-        try { series.setData(cmp.points) } catch {}
       }
     }
 
-    // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
-    // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
-    // kept HIDDEN (visible:false): a visible left axis pushes the whole plot to the
-    // RIGHT the moment a compare is added, which clipped the right-side "Post" tag.
-    // The line still renders + auto-scales on the hidden scale; the docked legend
-    // shows its %. 'same'-mode comparisons ride the base's dollar scale instead.
-    try {
-      chart.priceScale('left').applyOptions({
-        visible: false,
-        mode: 2,
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-        borderVisible: false,
-      })
-    } catch {}
+    // Comparisons now ride the RIGHT scale (percentage is forced there whenever a "new
+    // price scale" comparison exists — see the scale-mode effect), so the old dedicated
+    // LEFT % scale is unused. Keep its axis hidden so no empty left axis shows.
+    try { chart.priceScale('left').applyOptions({ visible: false }) } catch {}
 
-    // A freshly-added series sometimes doesn't paint until the next user interaction
-    // (the "line only shows after I move the chart" bug). Nudge a repaint on the next
-    // frame by re-asserting the current visible range — no view change, just a redraw.
-    if (createdAny) {
+    // On a STRUCTURAL change (series added/removed) restore the pre-change visible
+    // range on the next frame. This does double duty: (a) prevents LWC's auto-fit to
+    // the comparison's full history (the 2011-12 snap-back), and (b) nudges a repaint
+    // so a freshly-added line paints immediately instead of only after the user moves
+    // the chart. NOT done on data-only updates (would fight the user's panning).
+    if ((createdAny || removedAny) && savedLogical) {
       requestAnimationFrame(() => {
-        try {
-          const ts = chart.timeScale()
-          const r = ts.getVisibleLogicalRange()
-          if (r) ts.setVisibleLogicalRange(r)
-        } catch { /* disposed */ }
+        try { chart.timeScale().setVisibleLogicalRange(savedLogical) } catch { /* disposed */ }
       })
     }
-  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase, compareForcesPct])
+
+  // "Group only" — toggle the BASE chart's visibility (candles + volume + MA overlays)
+  // so only the comparison lines show. Re-applied whenever the candle/overlay series
+  // are recreated (data/settings change) so the hidden state survives. Turning it off
+  // restores every series to visible.
+  useEffect(() => {
+    if (!chartReady) return
+    const vis = !hideBase
+    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    setVis(candleSeriesRef.current)                                   // base candles
+    setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
+    for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
+    // Engine-drawn indicators (MAs/VWAP/etc.) are primarily suppressed via the binder's
+    // `indicatorsHidden` input, but hide any live bindings here too so the change lands
+    // on the current frame instead of only the next engine sync.
+    try {
+      const eng = engineRef.current
+      if (eng?.binder?.bindings) { for (const b of eng.binder.bindings()) setVis(b.series) }
+    } catch { /* binder disposed */ }
+  }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
   // Creates a LineSeries in its own pane, moves that pane to index 0 (above the
@@ -9800,8 +10822,15 @@ export default function StockChart({
       const sym = symRef.current
       const onCrosshairMove = onCrosshairMoveRef.current
 
-      const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
-      if (!priceData) { legendHoveringRef.current = false; setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null); return }
+      const seriesData = param && param.seriesData
+      const priceData = (seriesData && candleSeriesRef.current)
+        ? seriesData.get(candleSeriesRef.current)
+        : null
+      if (!priceData) {
+        legendHoveringRef.current = false
+        setCrosshairData(offHoverCrosshair())
+        return
+      }
 
       // ── Multi-chart sync: broadcast FIRST, before the legend math ──
       // Everything below this point computes ~20 legend values and ends in a
@@ -9834,7 +10863,8 @@ export default function StockChart({
         })
       }
 
-      const volSeriesData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
+
+      const volSeriesData = volumeSeriesRef.current ? seriesData.get(volumeSeriesRef.current) : null
       // If volume is 0 or missing (developing bar), use session volume from live data
       let vol = volSeriesData?.value
       if ((!vol || vol === 0) && livePrices[sym]?.volume) {
@@ -9843,7 +10873,7 @@ export default function StockChart({
 
       // Get overlay values (SMA/EMA) — if missing for current bar, use last available
       const ovValues = overlaySeriesRefs.current.map((s, i) => {
-        let d = param.seriesData.get(s)
+        let d = seriesData.get(s)
         if (!d && overlayData[i]?.data?.length) {
           // Developing bar has no MA point — use the last computed value
           const lastOv = overlayData[i].data[overlayData[i].data.length - 1]
@@ -9915,7 +10945,7 @@ export default function StockChart({
       let chips = EMPTY_CHIPS
       try {
         const engine = engineRef.current
-          ? legendChips(engineRef.current.binder.bindings(), param.seriesData,
+          ? legendChips(engineRef.current.binder.bindings(), seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
@@ -9923,13 +10953,13 @@ export default function StockChart({
 
       let compareValue = null
       if (compareSeriesRef.current) {
-        const dc = param.seriesData.get(compareSeriesRef.current)
+        const dc = seriesData.get(compareSeriesRef.current)
         compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
       }
 
       let volAvg = null
       if (volMaSeriesRef.current) {
-        const dm = param.seriesData.get(volMaSeriesRef.current)
+        const dm = seriesData.get(volMaSeriesRef.current)
         const vma = volMaDataRef.current
         volAvg = dm?.value ?? ((vma && vma.length) ? vma[vma.length - 1].value : null)
       }
@@ -9980,7 +11010,7 @@ export default function StockChart({
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
         legendHoveringRef.current = false
-        setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null)
+        setCrosshairData(offHoverCrosshair())
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -10008,12 +11038,17 @@ export default function StockChart({
   }, [chartReady])
 
   // Keep the off-chart legend fresh with the latest bar when the cursor isn't hovering.
+  // When collapsed (effAlwaysShow=false → hover-only) this CLEARS it instead, so the
+  // legend vanishes off-hover and only reappears (compact) on crosshair move.
   useEffect(() => {
-    if (!alwaysShowLegend || !chartReady) return
-    if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
-    setCrosshairData(computeLatestCrosshair())
+    if (!chartReady) return
+    // ⭐ THROUGH `readoutIsOwned()` — a hover, a synced crosshair, OR a bar pinned
+    // by 'on click' mode. The pin is the new third owner; without it this effect
+    // replaces the clicked bar with the latest one on the next data tick.
+    if (readoutIsOwned()) return
+    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
+  }, [effAlwaysShow, chartReady, ohlcData, overlayData])
 
   // Live legend ticking. Two pieces, deliberately split so the legend tracks the
   // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole
@@ -10054,6 +11089,17 @@ export default function StockChart({
         const series = candleSeriesRef.current
         const last = lastBarRef.current
         if (!series || !last) return
+        // NEW-SESSION GUARD (writer E is otherwise NOT date-aware — writers A/D
+        // compute today via classifyLiveBar, but A defers to E while the 1-min
+        // feed is fresh). If the loaded series still ends at a PRIOR session/period
+        // — e.g. a closed-only pack/cache painted during RTH before the initial
+        // fetch adds today's bar — NEVER fold this tick into that prior bar: that
+        // is the "Frankenstein candle" (today's price on yesterday's candle). Bail;
+        // the initial SWR fetch (Massive daily agg carries today's developing bar)
+        // re-seeds lastBarRef to today via setData, then this writer resumes on the
+        // current session. computeBarTime returns the ET day (D) / Friday (W) /
+        // 1st-of-month (M) key, directly comparable to last.time.
+        if (computeBarTime(tf, Math.floor(Date.now() / 1000)) !== last.time) return
         if (!isSaneLivePrice(c, last.close, lastServerCloseRef.current)) return
         const updated = {
           time: last.time,
@@ -10073,10 +11119,14 @@ export default function StockChart({
   }, [liveUpdates, sym, cs.heikinAshi, cs.chartType])
 
   useEffect(() => {
-    if (!alwaysShowLegend || !chartReady) return undefined
+    if (!effAlwaysShow || !chartReady) return undefined
     const id = setInterval(() => {
-      // Hover — or a synced crosshair — owns the legend; don't fight it.
-      if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
+      // Hover, a synced crosshair — or a bar PINNED by 'on click' mode — owns the
+      // readout; don't fight it. ⛔ The pin clause is load-bearing: this fires
+      // twice a second, so without it a user's clicked bar is replaced by the
+      // latest one within half a second and 'on click' looks broken on exactly
+      // the surface it was built for.
+      if (readoutIsOwned()) return
       // crosshairData lives on StockChart, so setting it re-renders this whole
       // (heavy) component. The old code set a FRESH object every 250ms
       // unconditionally → ~4 full re-renders/sec per chart, forever. With several
@@ -10091,7 +11141,7 @@ export default function StockChart({
     }, 500)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alwaysShowLegend, chartReady, sym])
+  }, [effAlwaysShow, chartReady, sym])
 
   // Publish the chart's EXACT displayed price + volume so the watchlist row for
   // this symbol can mirror it (real-time, to-the-share) instead of drifting on
@@ -10681,6 +11731,72 @@ export default function StockChart({
     }
   }, [periodSelect, chartReady, frozen, onPeriodSelected, canvasTheme, themeColors.crosshairColor])
 
+  // ── Replay Mode: click/drag to pick the cutoff bar ────────────────────────
+  // Armed by `replayPick` (Tools → Replay → "Pick on chart"). Reuses the period-select
+  // canvas + pixel→date mapping but draws ONE dashed gold vertical edge (dimming what will
+  // be hidden to its right) and reports a single ISO 'YYYY-MM-DD' cutoff on release — a
+  // plain click works, no drag needed. Fully separate from the Custom-Period-Sort drag.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !replayPick) return undefined
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const isoAtX = (x) => {
+      const chart = chartRef.current; if (!chart) return null
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { return null }
+      if (logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const bar = arr[Math.max(0, Math.min(arr.length - 1, Math.round(logical)))]
+      const t = bar?.t
+      if (t == null) return null
+      if (typeof t === 'number') return new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t))
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : null
+    }
+    const clearC = () => { const c = periodSelectCanvasRef.current; if (c) { const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height) } }
+    const drawEdge = (x, w, h) => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      ctx.fillStyle = 'rgba(201,168,76,0.08)'; ctx.fillRect(x, 0, Math.max(0, w - x), h)   // dim the hidden future
+      ctx.strokeStyle = 'rgba(201,168,76,0.95)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke(); ctx.setLineDash([])
+    }
+    const onMove = (e) => { const { x, w, h } = getPos(e); drawEdge(Math.max(0, Math.min(w, x)), w, h); setPeriodDragging(true) }
+    const end = (e) => {
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+      const { x } = getPos(e)
+      const iso = isoAtX(Math.max(0, x))
+      if (iso) onReplayCutoffPicked?.(iso)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const chart = chartRef.current; if (!chart) return
+      e.preventDefault()
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      const { x, w, h } = getPos(e); drawEdge(x, w, h)
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+    }
+  }, [replayPick, chartReady, frozen, onReplayCutoffPicked])
+
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
   // over empty chart space (the drawing overlay is pointer-events:none there),
@@ -10812,7 +11928,7 @@ export default function StockChart({
     if (!el) return undefined
     const onDown = (e) => {
       lastPointerDownAtRef.current = Date.now()
-      viewPointerRef.current = { x: e.clientX, y: e.clientY }
+      viewPointerRef.current = { x: e.clientX, y: e.clientY, moved: false }
     }
     // Capture the CURRENT (settled) view as right-relative params for the replay lock.
     // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
@@ -10829,21 +11945,66 @@ export default function StockChart({
         } catch { /* mid-load */ }
       })
     }
+    // NORMAL-mode lock (workspace): capture the settled view — right-relative
+    // horizontal window + vertical candle band — so every later ticker inherits it.
+    const _captureUserLock = () => {
+      if (!carryDragPlacement || replayCutoffRef.current) return
+      requestAnimationFrame(() => {
+        try {
+          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current)
+          if (!m) return
+          const wasH = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
+          const wasV = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null
+          const doH = m.hLocked || wasH
+          const doV = m.vLocked || wasV
+          if (doH || doV) {
+            const prev = userLockedViewRef.current || {}
+            userViewLockedRef.current = true
+            userLockedViewRef.current = {
+              // Update a dimension ONLY from a VALID new measurement; otherwise keep
+              // the stored value. A capture where a dimension reads "unlocked"
+              // (m.* null — a measurement taken mid sym-switch, or the band momentarily
+              // back at default) must NEVER null a lock the user set earlier. Only
+              // "Reset view" clears a dimension. (This is the "top:null wiped my
+              // compression on the next click" bug.)
+              anchorFrac: (doH && m.anchorFrac != null) ? m.anchorFrac : (prev.anchorFrac ?? null),
+              width: (doH && m.width > 0) ? m.width : (prev.width ?? null),
+              // Tag the horizontal lock with the tf it was captured on — `width`
+              // is in logical BARS, so a daily 232-bar window must NOT be applied
+              // on a weekly chart. The framing branch only applies horizontal when
+              // this tf matches the current one.
+              tf: (doH && m.anchorFrac != null) ? resolvedTf : (prev.tf ?? null),
+              top: (doV && m.top != null) ? m.top : (prev.top ?? null),
+              bottom: (doV && m.bottom != null) ? m.bottom : (prev.bottom ?? null),
+            }
+            persistViewLock()
+          }
+        } catch { /* mid-load */ }
+      })
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
       if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        p.moved = true                                    // gesture-scoped: this press actually dragged
         userViewMovedRef.current = true
         if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
       }
     }
     const onUp = () => {
-      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      const gestured = viewPointerRef.current && viewPointerRef.current.moved
+      if (gestured && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      // ONLY a press that actually MOVED changes the view. A plain focus-click (used
+      // to focus the chart before type-to-search a new ticker) changes nothing — and
+      // its rAF would otherwise land mid sym-switch and re-measure a transitioning
+      // chart, clobbering the lock. So capture on a real drag only; wheel handles zoom.
+      if (gestured) _captureUserLock()
       viewPointerRef.current = null
     }
     const onWheel = () => {
       userViewMovedRef.current = true
       _captureReplayLock()
+      _captureUserLock()
     }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
@@ -10946,7 +12107,7 @@ export default function StockChart({
   // re-render → no fight → smooth), so they slide with the divider in real time.
   const showVolLegend = showVolume && volInSeparatePane
   useEffect(() => {
-    if ((!showRangeSelector && !showVolLegend) || !chartReady) return
+    if ((!showRangeSelector && !showVolLegend && !verticalLegend) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
     if (!chart || !container) return
     // Track the last element too, not just the last value: on a symbol flip the
@@ -10971,13 +12132,37 @@ export default function StockChart({
             const top = Math.round(h0 + 5) // just below the boundary = volume pane top
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
+          // Responsive vertical legend: measure its bottom against the price/volume
+          // boundary (h0) and shed to fit. STAGE 1 — legend reaches the range-selector
+          // band (which sits just above the boundary) → hide that bar. STAGE 2 — legend
+          // still reaches the boundary → compact the OHLC. Hysteresis (a comfortable
+          // gap before restoring) stops it toggling on the boundary pixel.
+          // Responsive legend collapse: when the FULL legend reaches the range-selector
+          // band (rbTop = ~34px above the boundary), collapse it (hide range bar +
+          // hover-only + compact); restore when there's clear room again. Record the
+          // full height only while NOT collapsed, and evaluate even when the legend is
+          // HIDDEN (hover-only + off-hover → no node) using that remembered height, so
+          // a growing pane can still un-collapse it.
+          if (verticalLegend) {
+            const leg = legendRef.current
+            if (leg && !compactLegendRef.current) {
+              lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
+            }
+            const fullBottom = lastFullBottomRef.current
+            if (fullBottom > 0) {
+              const rbTop = h0 - 34
+              const cur = compactLegendRef.current
+              if (!cur && fullBottom > rbTop) setCompactLegend(true)
+              else if (cur && fullBottom < rbTop - 12) setCompactLegend(false)
+            }
+          }
         }
       } catch { /* pane API missing → CSS fallback */ }
       raf = requestAnimationFrame(tick)
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -11133,6 +12318,7 @@ export default function StockChart({
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
               replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
+              userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock() // and the normal view lock (+ storage)
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
@@ -11280,6 +12466,11 @@ export default function StockChart({
     if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
     const handler = (param) => {
       if (!param || !param.point) return
+      // A click on the IPO badge shares this bar's time COLUMN, and a ticker that
+      // reports right after listing (e.g. LMND) carries an earnings event on the
+      // very first bar — so the param.time fallback below would wrongly open
+      // earnings for an IPO-badge click. The IPO badge owns its own click.
+      if (ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y) != null) return
       // Prefer a pixel hit-test against the badge's actual pill (whole box is
       // clickable); fall back to exact bar-time match if the primitive has no
       // rects yet (e.g. first frame after a re-attach).
@@ -11299,6 +12490,57 @@ export default function StockChart({
 
   // Close the earnings popover when the symbol or timeframe changes out from under it.
   useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
+
+  // ── IPO badge click → "First trade" tag ──
+  // Same pixel hit-test approach as the earnings badge (LWC has no marker-click
+  // event). The tag pops ABOVE the badge (never over the volume pane below it) and
+  // a hair to the right, anchored to the badge's own rect.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !ipoEvent) { setIpoPopup(null); return }
+    const handler = (param) => {
+      if (!param || !param.point) return
+      // Require an actual PIXEL hit on the IPO pill (not just a click anywhere on
+      // the first bar's time column) so a click on the candle or a neighbouring
+      // earnings/split badge on the same bar can't open this tag.
+      const hitTime = ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
+      if (hitTime == null || String(hitTime) !== String(ipoEvent.date)) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      // Anchor to the badge pill when we have it; else fall back to the click point.
+      const r = ipoBadgeRef.current?.pointRect?.()
+      const anchorX = r ? r.x + r.w : param.point.x
+      const anchorTop = r ? r.y : param.point.y
+      const px = rect.left + anchorX + 6          // just to the right of the badge
+      const py = rect.top + anchorTop - 34         // above the badge (tag ~28px + gap)
+      setIpoPopup({ date: ipoEvent.listDate, x: px, y: py })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [ipoEvent])
+
+  useEffect(() => { setIpoPopup(null) }, [sym, resolvedTf])
+
+  // Dismiss the IPO tag on ANY interaction outside it — an outside click, or the
+  // start of a chart drag (pointerdown) — and on Escape. Fixed-positioned, so it
+  // stays locked to the screen point it opened at (never follows a chart pan).
+  useEffect(() => {
+    if (!ipoPopup) return
+    const onDown = (e) => {
+      if (ipoPopupRef.current?.contains(e.target)) return  // clicks INSIDE the tag keep it
+      setIpoPopup(null)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setIpoPopup(null) }
+    const onWheel = () => setIpoPopup(null)   // scroll-wheel zoom = chart moved → dismiss
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('wheel', onWheel, { capture: true, passive: true })
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('wheel', onWheel, { capture: true })
+    }
+  }, [ipoPopup])
 
   // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
   // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
@@ -11625,6 +12867,11 @@ export default function StockChart({
           const lb = liveBarRef.current
           const last = lastBarRef.current
           if (!lb || !last || lb.time !== last.time) return
+          // SYMBOL GUARD: the refs carry no symbol and a switch resets them via a
+          // deferred effect while this registry tick fires on its own clock — so an ARM
+          // tick could fuse onto LRCX's same-bucket bar. Only fuse when the developing
+          // bar is confirmed to own THIS sym (5/15/30/60 is intraday; daily is elsewhere).
+          if (lastBarSymRef.current !== sym) return
           const newHigh = Math.max(lb.high, price)
           const newLow = Math.min(lb.low, price)
           liveBarRef.current = { ...lb, high: newHigh, low: newLow, close: price }
@@ -11688,7 +12935,17 @@ export default function StockChart({
       const msPerBar = (lastMs - firstMs) / lastIdx
       const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
       if (!(windowBars >= 1)) return
-      ts.setVisibleLogicalRange({ from: lastIdx - windowBars, to: lastIdx + (rightPadBars || 3) })
+      // Anchor the newest candle at the SAME fractional position (lastCandlePos)
+      // as the default/reset view — NOT a fixed bars-of-right-pad. A fixed bar pad
+      // drifts the last candle left/right across ranges because bar spacing widens
+      // as fewer bars show (3M's 3-bar gap is wide; 5Y's 3-bar gap overlaps the
+      // price axis). Sizing `to` by the plot-width fraction keeps the right edge
+      // pinned so switching 3M→6M→1Y→5Y only zooms, never shifts the anchor.
+      const from = lastIdx - windowBars
+      const hist = lastIdx - from
+      const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
+      const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      ts.setVisibleLogicalRange({ from, to })
     } catch { /* noop */ }
   }
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
@@ -11739,6 +12996,31 @@ export default function StockChart({
           onClose={() => setEarningsPopup(null)}
         />
       )}
+      {ipoPopup && (() => {
+        const d = new Date(`${ipoPopup.date}T00:00:00Z`)
+        const label = isNaN(d.getTime())
+          ? ipoPopup.date
+          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        // FIXED dark menu palette (gold label, white text) — matches the earnings
+        // popover exactly and never tints with the canvas. (--menu-* is the app's
+        // single fixed-dark menu palette; see tokens.css.)
+        return (
+          <div
+            ref={ipoPopupRef}
+            style={{
+              position: 'fixed', left: ipoPopup.x, top: ipoPopup.y, zIndex: 60,
+              background: 'var(--menu-bg, #0e0e10)',
+              border: '1px solid var(--menu-border, rgba(255,255,255,0.09))', borderRadius: 6,
+              padding: '5px 9px', font: "600 11px 'Instrument Sans', sans-serif",
+              color: 'var(--menu-text, #ededed)', whiteSpace: 'nowrap', cursor: 'default',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)', pointerEvents: 'auto',
+            }}
+          >
+            <span style={{ color: 'var(--menu-accent, #c9a84c)', fontWeight: 700, marginRight: 6 }}>IPO</span>
+            First trade · {label}
+          </div>
+        )
+      })()}
       {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
           <body>, so its position in this tree is irrelevant to layout.
 
@@ -11883,7 +13165,74 @@ export default function StockChart({
       })()}
       {enabledComparisons.length > 0 && (
         <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
-          {comparisonFramed.map(f => {
+          {/* Groups (theme/sector/industry) — one collapsible row each */}
+          {comparisonLegend.groups.map(g => {
+            const open = openCmpGroups[g.name] ?? true   // expanded by default; user can collapse
+            const gUp = g.avg != null && g.avg >= 0
+            return (
+              <div key={`g:${g.name}`}>
+                <div className={styles.compareRow}>
+                  <span
+                    className={styles.compareGroupChevron}
+                    role="button"
+                    aria-label={open ? 'Collapse' : 'Expand'}
+                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !(p[g.name] ?? true) }))}
+                  >{open ? '▾' : '▸'}</span>
+                  <span className={styles.compareGroupName}>{g.name}</span>
+                  <span className={styles.compareGroupN}>· {g.items.length}</span>
+                  <span className={styles.comparePct} style={{ color: gUp ? '#3fb27f' : '#e2686b' }}>
+                    {g.avg != null ? `${gUp ? '+' : ''}${g.avg.toFixed(2)}%` : '—'}
+                  </span>
+                  <span
+                    className={styles.compareX}
+                    role="button"
+                    title={`Remove ${g.name}`}
+                    aria-label={`Remove ${g.name}`}
+                    onClick={() => handleUpdateChartSettings({
+                      ...cs,
+                      comparisonSymbols: (cs.comparisonSymbols || []).filter(x => x.group !== g.name),
+                      preset: 'custom',
+                    })}
+                  >×</span>
+                </div>
+                {open && (
+                  <div className={styles.compareGroupMembers}>
+                    {g.items.map(m => {
+                      const mmeta = comparisonMeta?.[m.sym]
+                      const mname = mmeta?.name || m.sym
+                      const mexch = mmeta?.exchange
+                      const mUp = m.pct != null && m.pct >= 0
+                      return (
+                        <div key={m.sym} className={styles.compareRow}>
+                          <span className={styles.compareLogo}><CompanyLogo sym={m.sym} name={mname} size={13} round /></span>
+                          <span className={styles.compareTicker} style={{ color: m.color }}>{m.sym}</span>
+                          <span className={styles.compareName}>
+                            {mname}{mexch ? <span className={styles.compareExch}> · {mexch}</span> : null}
+                          </span>
+                          <span className={styles.comparePct} style={{ color: m.color }}>
+                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(2)}%` : '—'}
+                          </span>
+                          <span
+                            className={styles.compareX}
+                            role="button"
+                            title={`Remove ${m.sym}`}
+                            aria-label={`Remove ${m.sym}`}
+                            onClick={() => handleUpdateChartSettings({
+                              ...cs,
+                              comparisonSymbols: (cs.comparisonSymbols || []).filter(x => String(x.sym).toUpperCase() !== m.sym),
+                              preset: 'custom',
+                            })}
+                          >×</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {/* Individual tickers */}
+          {comparisonLegend.inds.map(f => {
             const meta = comparisonMeta?.[f.sym]
             const name = meta?.name || f.sym
             const exch = meta?.exchange
@@ -11914,15 +13263,15 @@ export default function StockChart({
           })}
         </div>
       )}
-      {loading && <ChartSkeleton label={`Loading ${sym}…`} />}
+      {showSkeleton && <ChartSkeleton label={`Loading ${sym}…`} />}
       {showFatalError && (
-        <div className={styles.error}>
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>Failed to load chart for {sym}</span>
           <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
         </div>
       )}
       {!loading && !showFatalError && selectedRangeEmpty && (
-        <div className={styles.error}>
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No {sym} chart data for the selected dates.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
             The data provider has no bars in this window (the ticker may have been
@@ -11993,21 +13342,49 @@ export default function StockChart({
                 opacity: b.opacity,
                 borderRadius: 1,
               }}/>
+              {/* Recency cap: bright-gold segment on the RIGHT end sized to the
+                  share of this zone's notional that's fresh (last recentDays). A
+                  live zone gets a bright tip; a stale shelf stays dim. Hidden when
+                  recentFrac is 0 (no recent size / field absent). */}
+              {b.recentFrac > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: -b.height / 2,
+                  width: Math.max(2, b.width * b.recentFrac),
+                  height: b.height,
+                  background: 'linear-gradient(90deg,#c9a84c,#e6cd8a)',
+                  // Brighter than the dim base bar, but softened: modest opacity
+                  // bump (capped) and NO glow — the bloom made it glaring.
+                  opacity: Math.min(0.62, b.opacity + 0.16),
+                  borderRadius: 1,
+                }}/>
+              )}
               {b.showLabel && (
                 <span
+                  data-dp-label=""
                   style={{
                     position: 'absolute',
-                    right: b.width + 3,
-                    top: -7,
-                    fontSize: 9.5,
-                    color: b.color,
+                    right: b.width + 4,
+                    top: -8,
+                    fontSize: 12.5,
+                    color: b.labelColor ?? b.color,
                     fontWeight: 700,
-                    // Top 3 always need to be legible — bar opacity caps at
-                    // 0.50, so push label opacity to ~0.95 for high contrast.
-                    opacity: Math.min(1, b.opacity + 0.45),
+                    // Top 3 always need to be legible. Page path boosts bar
+                    // opacity for contrast; the setting path uses the user's
+                    // picked label alpha directly (both precomputed as labelOpacity).
+                    // Floor at 0.9 so a faint bar's (labeled) notional stays readable
+                    // on the now-large full-screen chart.
+                    opacity: Math.max(0.9, b.labelOpacity ?? Math.min(1, b.opacity + 0.45)),
                     whiteSpace: 'nowrap',
                     fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                     pointerEvents: 'none',
+                    // Dark pill so the notional stays readable over candles/wicks as
+                    // the chart is scrolled, zoomed, or price-scaled underneath it
+                    // (the label rides the same rAF y-repositioning as the bar).
+                    background: 'rgba(8,10,14,0.88)',
+                    padding: '2px 7px',
+                    borderRadius: 4,
                   }}>
                   {formatDpNotional(b.notional)}
                 </span>
@@ -12064,10 +13441,23 @@ export default function StockChart({
                     : 'Dark Pool Print'}{dpHover.bar.isLatest ? ' · LATEST' : ''}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
-              <span style={{ color: '#706b5e' }}>Date</span>
-              <span style={{ color: '#e0dac8', fontWeight: 600 }}>
-                {dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—'}
-              </span>
+              {(() => {
+                // A cluster spanning multiple days is an ACCUMULATION level — show
+                // the date SPAN (oldest→newest), not a single date, so it never
+                // reads as one recent print sitting far from the current price.
+                const ds = dpHover.bar.dateStart, de = dpHover.bar.dateEnd
+                const isSpan = dpHover.bar._isCluster && ds && de && ds !== de
+                return (
+                  <>
+                    <span style={{ color: '#706b5e' }}>{isSpan ? 'Dates' : 'Date'}</span>
+                    <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                      {isSpan
+                        ? `${ds} – ${de}`
+                        : (dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—')}
+                    </span>
+                  </>
+                )
+              })()}
               <span style={{ color: '#706b5e' }}>Price</span>
               <span style={{ color: '#c9a84c', fontWeight: 700 }}>
                 ${Number(dpHover.bar.price).toFixed(2)}
@@ -12076,6 +13466,49 @@ export default function StockChart({
               <span style={{ color: '#6ba3be', fontWeight: 600 }}>
                 {formatDpNotional(dpHover.bar.notional)}
               </span>
+              {/* For an accumulation ZONE, surface the single biggest + most-recent
+                  prints and how much notional is fresh (server `recentNotional`,
+                  last `recentDays`) — so a 6-month zone reads as live vs stale. */}
+              {dpHover.bar._isCluster && (dpHover.bar.topPrint || dpHover.bar.latestPrint) && (
+                <span style={{ gridColumn: '1 / -1', height: 1, background: '#2a2e36', margin: '3px 0' }} />
+              )}
+              {dpHover.bar._isCluster && dpHover.bar.topPrint && (
+                <>
+                  <span style={{ color: '#c9a84c' }}>★ Biggest</span>
+                  <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                    {formatDpNotional(dpHover.bar.topPrint.notional)}
+                    {dpHover.bar.topPrint.date && (
+                      <span style={{ color: '#8b8e85', fontWeight: 400 }}>
+                        {' · '}{dpHover.bar.topPrint.date}
+                        {dpHover.bar.topPrint.price ? ` @ $${Number(dpHover.bar.topPrint.price).toFixed(2)}` : ''}
+                      </span>
+                    )}
+                  </span>
+                </>
+              )}
+              {dpHover.bar._isCluster && dpHover.bar.latestPrint && (
+                <>
+                  <span style={{ color: '#706b5e' }}>Latest</span>
+                  <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                    {formatDpNotional(dpHover.bar.latestPrint.notional)}
+                    {dpHover.bar.latestPrint.date && (
+                      <span style={{ color: '#8b8e85', fontWeight: 400 }}>{' · '}{dpHover.bar.latestPrint.date}</span>
+                    )}
+                  </span>
+                </>
+              )}
+              {dpHover.bar._isCluster && Number.isFinite(dpHover.bar.recentNotional) && dpHover.bar.recentNotional > 0 && (
+                <>
+                  <span style={{ color: '#706b5e' }}>Recent</span>
+                  <span style={{ color: '#e6cd8a', fontWeight: 700 }}>
+                    {formatDpNotional(dpHover.bar.recentNotional)}
+                    <span style={{ color: '#8b8e85', fontWeight: 400 }}>
+                      {' · last '}{dpHover.bar.recentDays || 30}d
+                      {dpHover.bar.notional > 0 ? ` (${Math.round(dpHover.bar.recentNotional / dpHover.bar.notional * 100)}%)` : ''}
+                    </span>
+                  </span>
+                </>
+              )}
               {dpHover.bar.pctAvgVol > 0 && (
                 <>
                   <span style={{ color: '#706b5e' }}>Vs avg vol</span>
@@ -12133,7 +13566,20 @@ export default function StockChart({
           >%</button>
         </div>
       )}
-      {crosshairData && !hideLegend && (() => {
+      {/* ⛔ THREE INDEPENDENT VETOES, AND THEY ARE NOT THE SAME QUESTION.
+          `hideLegend` is the HOST's ("my canvas is too small for chrome" —
+          IntradayDayPopover, ChartsGallery, Model Book, the video dock).
+          `legendMode` is the USER's. `legendHeld` is the MOMENT's. Collapsing
+          any of them into another would let a host's layout decision overwrite a
+          preference, or a preference re-enable a legend on a 320px popup.
+
+          ⭐ THIS — NOT `crosshairData` — IS WHERE THE MODE APPLIES. The payload
+          is shared with the volume pane's "$ Vol · Avg 50D" strip, so gating the
+          DATA on the mode blanked that unrelated readout (measured on screen,
+          invisible to every test). The data keeps its lifecycle; the box is what
+          this decides. */}
+      {crosshairData && !hideLegend && legendMode !== 'off'
+        && (legendMode !== 'hold' || legendHeld) && (() => {
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
         // the base classes' own color; change%/overlays/indicators are intentionally
         // left to their semantic colors. undefined = keep the CSS-class default.
@@ -12196,7 +13642,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}`}
+          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it; reserve
              the right price-axis width so a horizontal legend wraps before it (the
              vertical stack is narrow + single-file, so it never needs the reserve). */
@@ -12253,7 +13699,7 @@ export default function StockChart({
                   </span>
                 )}
                 {crosshairData.overlays.map((ov, i) => (
-                  <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+                  <span key={'ov' + i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
                 ))}
               </div>
             </>
@@ -12266,18 +13712,25 @@ export default function StockChart({
               <span className={styles.vlChange} style={{ color: legChgColor }}>
                 {legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
-              <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
+              {/* OHLCV stays SINGLE-COLUMN (narrow) in every density — the compact
+                  mode saves height by dropping the MA/indicator rows + shrinking the
+                  font (see .legendCompact + the overlay/chip guards below), never by
+                  going two-up (which got too wide and ate the chart). */}
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'O' : 'Open'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'H' : 'High'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'L' : 'Low'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'C' : 'Close'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
               {crosshairData.volume != null && (
-                <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
+                <><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'V' : 'Vol'}</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
               )}
-              {crosshairData.overlays.flatMap((ov, i) => [
-                <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
-                <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
+              {/* Compact mode drops the MA + indicator value rows (the tallest part —
+                  those lines are drawn on the chart anyway) so the legend stops
+                  spilling into the volume pane WITHOUT going wider. */}
+              {!compactLegend && crosshairData.overlays.flatMap((ov, i) => [
+                <span key={'l' + i} className={styles.vlLabel} style={{ color: opaqueColor(ov.color) }}>{ov.label}</span>,
+                <span key={'v' + i} className={styles.vlVal} style={{ color: opaqueColor(ov.color) }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {indChips.map((c, i) => (
+              {!compactLegend && indChips.map((c, i) => (
                 <IndicatorChip
                   key={`${c.instanceId}::${c.plotKey}`}
                   chip={c}
@@ -12285,7 +13738,7 @@ export default function StockChart({
                   {...chipHandlers}
                 />
               ))}
-              {overflow && (
+              {!compactLegend && overflow && (
                 <button type="button" className={chipStyles.chipMore}
                   onClick={() => setChipsExpanded(true)}
                   aria-label={`Show ${moreCount} more indicators`}
@@ -12321,7 +13774,7 @@ export default function StockChart({
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
           </span>
           {crosshairData.overlays.map((ov, i) => (
-            <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+            <span key={i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
           {indChips.map((c, i) => (
             <IndicatorChip
@@ -12367,7 +13820,7 @@ export default function StockChart({
       )}
       {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner
           (black canvas / white text to match the Chart Settings menu). */}
-      {periodSelect && (<>
+      {(periodSelect || replayPick) && (<>
         <canvas
           ref={periodSelectCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
@@ -12380,17 +13833,17 @@ export default function StockChart({
           /* Fade out the moment the drag starts so it never blocks the chart. */
           opacity: periodDragging ? 0 : 1, transition: 'opacity 140ms ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>{replayPick ? 'Set replay cutoff' : 'Highlight time period'}</span>
             <button
               type="button"
-              onClick={() => onPeriodCancel?.()}
+              onClick={() => (replayPick ? onReplayPickCancel?.() : onPeriodCancel?.())}
               title="Cancel"
               aria-label="Cancel"
               style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#c9c9c9',
                 fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
             >✕</button>
           </div>
-          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
+          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>{replayPick ? 'Click the chart where price should cut off' : 'Click, hold, and drag across the chart'}</span>
         </div>
       </>)}
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
@@ -12486,7 +13939,7 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
         <div ref={rangeBarRef} className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
@@ -12560,8 +14013,13 @@ export default function StockChart({
           />
         </div>
       )}
-      {showDrawingTools && bars?.length > 0 && (
+      {showDrawingTools && (
         <>
+          {/* The drawing OVERLAY needs bars to draw; the TOOLBAR (below) does not. Gate
+              only the overlay on bars — keeping the toolbar mounted across the brief
+              bars=null gap between tickers is what stops the "toolbar flashes on every
+              fast switch" (an unmount→remount replays the .toolbar opacity fade-in). */}
+          {bars?.length > 0 && (
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
@@ -12590,8 +14048,10 @@ export default function StockChart({
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
           />
+          )}
           <ChartToolbar
             ref={toolbarRef}
+            favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
                the column, the API field, the label and the deletion guard and
                left them without one, because the only surface that could supply
@@ -12611,6 +14071,11 @@ export default function StockChart({
             setColor={setDrawColor}
             lineWidth={drawWidth}
             setLineWidth={setDrawWidth}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
+            collapsed={toolbarCollapsed}
+            onToggleCollapsed={setToolbarCollapsedPersist}
             hasSelection={!!selectedId}
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}
@@ -12746,6 +14211,7 @@ export default function StockChart({
           />
           {annotationsEditable && (
             <ChartToolbar
+              favBoundsRef={containerRef}
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
@@ -12755,6 +14221,9 @@ export default function StockChart({
               setColor={setDrawColor}
               lineWidth={drawWidth}
               setLineWidth={setDrawWidth}
+              savedColors={savedColors}
+              onSaveColor={onSaveColor}
+              onDeleteColor={onDeleteColor}
               hasSelection={!!selectedId}
               onDelete={() => { annRemove(selectedId); setSelectedId(null) }}
               onClearAll={annClear}
@@ -12839,6 +14308,7 @@ export default function StockChart({
           />
           {indexAnnotationsEditable && (
             <ChartToolbar
+              favBoundsRef={containerRef}
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
@@ -12848,6 +14318,9 @@ export default function StockChart({
               setColor={setDrawColor}
               lineWidth={drawWidth}
               setLineWidth={setDrawWidth}
+              savedColors={savedColors}
+              onSaveColor={onSaveColor}
+              onDeleteColor={onDeleteColor}
               hasSelection={!!indexSelectedId}
               onDelete={() => { idxAnnRemove(indexSelectedId); setIndexSelectedId(null) }}
               onClearAll={idxAnnClear}

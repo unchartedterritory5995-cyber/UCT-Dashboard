@@ -1036,12 +1036,13 @@ def get_day_notes(
 # ── Image attachments ────────────────────────────────────────────────────────
 
 
-_ATTACHMENT_ROOT = Path(
-    os.environ.get(
-        "J2_ATTACHMENT_ROOT",
-        str(Path(__file__).resolve().parents[3] / "data" / "j2_attachments"),
-    )
+from api.services.journal_two.attachment_root import (
+    attachment_root as _attachment_root, read_candidates as _read_candidates,
 )
+
+# ⛔ Was `<repo>/data/j2_attachments` — ephemeral on Railway (see
+# attachment_root.py). ONE authority now, shared with notes.py + the R2 backup.
+_ATTACHMENT_ROOT = _attachment_root()
 _ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 _ALLOWED_IMAGE_MIMES = {
     "image/png", "image/jpeg", "image/gif", "image/webp",
@@ -1108,15 +1109,17 @@ def serve_attachment_path(
     Date.fromisoformat(date)  # validates date format
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
-    target = (_ATTACHMENT_ROOT / user_id / date / filename).resolve()
-    root = (_ATTACHMENT_ROOT / user_id / date).resolve()
-    try:
-        target.relative_to(root)
-    except ValueError:
-        return None
-    if not target.exists():
-        return None
-    return target
+    # Primary root, then the LEGACY repo-relative tree (see attachment_root.py);
+    # the traversal guard is re-applied per candidate, never skipped.
+    for root_dir in _read_candidates(Path(user_id) / date):
+        target = (root_dir / filename).resolve()
+        try:
+            target.relative_to(root_dir.resolve())
+        except ValueError:
+            continue
+        if target.exists():
+            return target
+    return None
 
 
 def _validate_narrative(payload: dict[str, Any], key: str) -> str:

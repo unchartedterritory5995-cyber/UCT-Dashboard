@@ -2,10 +2,11 @@
  * Journal 2.0 — P4 nested-route shell (Task A2).
  *
  * Replaces the legacy 8-tab `?j2tab=` state machine (`JournalTwoRoot`, still
- * rendered by the kill-switch for `v8`) with a 5-item primary nav over nested
+ * rendered by the kill-switch for `v8`) with a 6-item primary nav over nested
  * routes:
- *   Today `/journal` · Trades `/journal/trades` · Journal `/journal/journal`
- *   · Insights `/journal/insights` · Compass `/journal/compass` (paid-gated)
+ *   Today `/journal` · Trades `/journal/trades` · Calendar `/journal/calendar`
+ *   · Notebook `/journal/notebook` · Insights `/journal/insights`
+ *   · Compass `/journal/compass` (paid-gated)
  *
  * The header pieces (AccountSelector, Generate Report, Settings gear, ?
  * shortcuts) + the consolidated modals carry over from `JournalTwoRoot`
@@ -14,8 +15,9 @@
  * context so Trades/Journal can pass it to the existing tab components.
  *
  * The surfaces GROUP the existing tab components (Open Positions + Trade
- * Journal → Trades segments; Calendar + Notebook → Journal segments; Analytics
- * → Insights; Compass → Compass) — they are NOT rewritten here. Deep
+ * Journal → Trades segments; Calendar and Notebook each → their own top-level
+ * route; Analytics → Insights; Compass → Compass) — they are NOT rewritten
+ * here. Deep
  * content-merge (single unified table, server pagination) is P5 ("nav moves
  * once").
  */
@@ -42,14 +44,15 @@ import JournalLogFab from './JournalLogFab'
 import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
 
-// The 5 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
+// The 6 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
 // Free tier sees a designed teaser, per spec §61), disabled + lock glyph when
 // the user isn't paid. Community + Accounts are reachable routes but NOT
 // primary nav items (they live in the header/overflow — A5 refines them).
 const PRIMARY_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
-  { to: '/journal/journal', label: 'Journal', icon: 'journal' },
+  { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
+  { to: '/journal/notebook', label: 'Notebook', icon: 'journal' },
   { to: '/journal/insights', label: 'Insights', icon: 'chart' },
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]
@@ -66,8 +69,8 @@ export const HOTKEY_ROUTES = {
   'g>o': '/journal', // Today (overview) — NEW primary alias
   'g>p': '/journal/trades?seg=open', // Open Positions (was `positions`)
   'g>j': '/journal/trades?seg=closed', // Closed Trades (was `journal`)
-  'g>a': '/journal/journal?seg=calendar', // Calendar
-  'g>n': '/journal/journal?seg=notebook', // Notebook
+  'g>a': '/journal/calendar', // Calendar (own top tab)
+  'g>n': '/journal/notebook', // Notebook (own top tab)
   'g>y': '/journal/insights', // Insights (was `analytics`)
   'g>t': '/journal/accounts', // Accounts
   'g>k': '/journal/compass', // Compass (paid-gated — see PAID_HOTKEY_CHORDS)

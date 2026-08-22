@@ -8,7 +8,9 @@
 const ROLE_SIZE = { ticker: 54, company: 20, sector: 14, industry: 13, theme: 13 }
 const LINE_GAP = 6                   // px between lines @ scale 1.0
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
-const makeFont = fp => `700 ${fp}px ${FONT_FAMILY}`
+// Weight is user-configurable (chart settings → Watermark → Weight) so the mark
+// can be as thin as TC2000's or as bold as before. Defaults to 700 (the old look).
+const makeFont = (fp, weight = 700) => `${weight} ${fp}px ${FONT_FAMILY}`
 
 // Returns [{ text, size }] — size = px @ sizeScale 1.0, fixed per role.
 export function composeWatermarkLines(sym, meta, lines) {
@@ -68,7 +70,7 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
@@ -78,7 +80,7 @@ export function createWatermarkPrimitive(initial) {
     let h = 0
     opts.lines.forEach((line, i) => {
       const fp = watermarkFontPx(line, opts.sizeScale)
-      ctx.font = makeFont(fp)
+      ctx.font = makeFont(fp, opts.weight)
       w = Math.max(w, ctx.measureText(line.text).width)
       h += fp + (i > 0 ? LINE_GAP * (opts.sizeScale || 1) : 0)
     })
@@ -104,7 +106,7 @@ export function createWatermarkPrimitive(initial) {
           opts.lines.forEach((line, i) => {
             const fp = watermarkFontPx(line, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
-            ctx.font = makeFont(fp)
+            ctx.font = makeFont(fp, opts.weight)
             ctx.fillText(line.text, rect.x + rect.w / 2, cy)
             cy += fp
           })

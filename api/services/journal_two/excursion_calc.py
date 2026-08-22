@@ -117,6 +117,22 @@ def compute_excursion(
     else:
         missed_r = mfe_r - r_at_exit
 
+    # true_r — the R-multiple against the risk the trade ACTUALLY took (its
+    # MAE), STOP-FREE: broker-imported trades carry no stop (mfe_r/mae_r are
+    # None on all 11,587 prod rows as of 2026-08-21), so this is the metric
+    # that lights up R analytics for auto-synced members. Price-based like
+    # exit_efficiency. A trade that never ticked against its entry has no
+    # adverse denominator → None (never a fabricated number).
+    if is_long:
+        adverse = entry_price - mae_price
+        captured_move = exit_price - entry_price
+    else:
+        adverse = mae_price - entry_price
+        captured_move = entry_price - exit_price
+    true_r: Optional[float] = (
+        captured_move / adverse if adverse > EPSILON else None
+    )
+
     return {
         "mfe_price": mfe_price,
         "mae_price": mae_price,
@@ -126,4 +142,5 @@ def compute_excursion(
         "mae_r": mae_r,
         "exit_efficiency": exit_efficiency,
         "missed_r": missed_r,
+        "true_r": true_r,
     }

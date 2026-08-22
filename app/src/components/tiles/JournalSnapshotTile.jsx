@@ -91,6 +91,13 @@ export default function JournalSnapshotTile() {
     '/api/j2/options?status=open', fetcher, SWR_OPTS,
   )
   const { data: acctData } = useSWR('/api/j2/accounts', fetcher, SWR_OPTS)
+  // Live-ish option marks (Massive option aggs) — between-syncs freshness for
+  // the headline + option rows. Portfolio-wide (no account scoping here).
+  const { data: marksData } = useSWR(
+    (optData?.strategies?.length ?? 0) > 0 ? '/api/j2/broker/option-marks' : null,
+    fetcher, SWR_OPTS,
+  )
+  const optionMarks = marksData?.marks ?? null
 
   const positions = posData?.positions ?? []
   const strategies = optData?.strategies ?? []
@@ -146,8 +153,8 @@ export default function JournalSnapshotTile() {
     return withCash.length ? withCash.reduce((s, a) => s + a.brokerCash, 0) : null
   }, [brokerAccounts])
   const brokerLive = useMemo(
-    () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices, etToday),
-    [brokerCashTotal, positions, strategies, prices, etToday],
+    () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices, etToday, optionMarks),
+    [brokerCashTotal, positions, strategies, prices, etToday, optionMarks],
   )
   const manualToday = useMemo(() => {
     let s = 0
@@ -186,9 +193,11 @@ export default function JournalSnapshotTile() {
         const dte = computeDaysToExpiration(s.legs)
         // Serializer emits camelCase `brokerCurrentValue` (was read as snake
         // `broker_current_value` → always null → option value never showed).
-        const brokerVal = Number.isFinite(s.brokerCurrentValue)
-          ? s.brokerCurrentValue
-          : null
+        // Live mark preferred; sync-time broker mark is the fallback.
+        const liveCur = optionMarks?.[s.id]?.currentValue
+        const brokerVal = Number.isFinite(liveCur)
+          ? liveCur
+          : (Number.isFinite(s.brokerCurrentValue) ? s.brokerCurrentValue : null)
         return {
           kind: 'option',
           key: `o-${s.id}`,
@@ -200,7 +209,7 @@ export default function JournalSnapshotTile() {
         }
       })
       .sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9))
-  }, [strategies])
+  }, [strategies, optionMarks])
 
   const allRows = [...equityRows, ...optionRows]
   const visibleRows = allRows.slice(0, MAX_ROWS)

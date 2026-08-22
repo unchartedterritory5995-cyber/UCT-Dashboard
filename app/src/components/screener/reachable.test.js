@@ -290,6 +290,18 @@ const AWAITING_A_DECISION = {
     + 'it as an orphan and put it back. Recording it here rather than repeating '
     + 'that: mounting it would be guessing at an owner\'s intent, and deleting '
     + 'it is the move that has already been undone once.',
+  'app/src/hooks/useTickerMentions.js':
+    'Scaffolding for a specced-but-unbuilt tab, and NOT wireable as-is. Its '
+    + 'docstring names two mounts. Phase 2C (chart markers) SHIPPED — but '
+    + 'StockChart fetches /api/education/tickers/{sym}/mentions inline with the '
+    + 'OPPOSITE error policy on purpose (degrade to {mentions: []} so one marker '
+    + 'category cannot take the others down), where this hook throws on !ok so '
+    + 'SWR retries. Pointing StockChart at it would reverse that, so this is not '
+    + 'a missing wire. Phase 2B is the real mount: the "Desk" tab in TickerPopup '
+    + '(design doc 2026-08-11-desk-ticker-moments-phase2 §B.2), which does not '
+    + 'exist — that popup\'s tabs are About / Fundamentals / The Street. Build '
+    + 'the tab or drop the pair; do not silently delete a specced feature\'s '
+    + 'scaffolding, and do not "fix" it by mounting it somewhere it would regress.',
 }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {

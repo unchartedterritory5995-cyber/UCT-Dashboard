@@ -17,7 +17,7 @@
  * (guarded by containsTableNode in the test suite).
  *
  * Keys are STABLE API: trade-review / weekly-plan / daily-prep predate this
- * catalog (P5-B3) and are deep-linkable via ?seg=notebook&new=<key>.
+ * catalog (P5-B3) and are deep-linkable via /journal/notebook?new=<key>.
  */
 
 import { h, p, labeled, linkP, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
@@ -88,7 +88,7 @@ export const TEMPLATES = [
           ? [
               h(2, 'The morning plan said'),
               ...(gp.planBullets && gp.planBullets.length ? [bullets(gp.planBullets)] : []),
-              linkP(`Open “${gp.title}” →`, `/journal/journal?seg=notebook&note=${gp.id}`),
+              linkP(`Open “${gp.title}” →`, `/journal/notebook?note=${gp.id}`),
             ]
           : [h(2, 'The morning plan said'), p('No game plan found for today — write one tomorrow before the open.')]),
         h(2, "Today's trades"),

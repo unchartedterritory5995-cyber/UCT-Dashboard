@@ -37,8 +37,11 @@ Kill switch: BARS_SANITIZE_ENABLED=0.
 from __future__ import annotations
 
 import os
+import time
 import threading
 import logging
+import contextlib
+import contextvars
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
@@ -56,6 +59,91 @@ _META_FAIL_TTL = 3600         # transient failure: retry in ~1h, don't hammer
 _warm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="barsan-warm")
 _warm_inflight: set[str] = set()
 _warm_lock = threading.Lock()
+
+# ── The brake on the meta warmer ────────────────────────────────────────────
+# 🔴 2026-08-19: a worker boot pass logged ~470 `meta fetch failed` warnings in two
+# minutes. FMP answered normally seconds later — a rate-limit burst, not an outage.
+# The warmer kept asking after the provider had already refused: two pool threads at
+# ~0.04s/call is ~50 calls/sec, far over FMP's per-minute allowance, so once a sweep
+# got ahead of the limit it stayed there. Raising MetaUnavailable (see _fetch_meta)
+# made that VISIBLE; this makes it STOP.
+#
+# ⛔ Backing off is not hiding it — the warning still fires, there are just a handful
+# per pause instead of hundreds. And a refusal is never cached as "no splits": the
+# gate skips the CALL, so nothing is written at all.
+_WARM_BACKOFF_MAX = 600.0
+_warm_gate_lock = threading.Lock()
+_warm_paused_until = 0.0
+_warm_fail_streak = 0
+
+
+def _now() -> float:
+    """Indirection so the backoff is testable without sleeping."""
+    return time.time()
+
+
+def _warm_backoff_base() -> float:
+    """Seconds for the FIRST pause; doubles per consecutive refusal.
+    0 disables the brake (the pre-2026-08-19 behaviour), no deploy needed."""
+    try:
+        return float(os.environ.get("BARS_SANITIZE_WARM_BACKOFF_SECONDS", "30"))
+    except (TypeError, ValueError):
+        return 30.0
+
+
+def _reset_warm_gate() -> None:
+    """Test seam — module globals carry between tests and poison later ones."""
+    global _warm_paused_until, _warm_fail_streak
+    with _warm_gate_lock:
+        _warm_paused_until = 0.0
+        _warm_fail_streak = 0
+
+
+def _warm_gate_open() -> bool:
+    if _warm_backoff_base() <= 0:
+        return True
+    with _warm_gate_lock:
+        return _now() >= _warm_paused_until
+
+
+def _warm_note_failure() -> float:
+    """The provider refused. Pause, exponentially, capped. Returns the deadline."""
+    global _warm_paused_until, _warm_fail_streak
+    base = _warm_backoff_base()
+    with _warm_gate_lock:
+        _warm_fail_streak += 1
+        delay = min(base * (2 ** (_warm_fail_streak - 1)), _WARM_BACKOFF_MAX)
+        _warm_paused_until = _now() + delay
+        return _warm_paused_until
+
+
+def _warm_note_success() -> None:
+    """⛔ Must reset the STREAK, not just the deadline — otherwise one bad minute
+    keeps the warmer half-asleep all day and split repair silently lags it."""
+    global _warm_paused_until, _warm_fail_streak
+    with _warm_gate_lock:
+        _warm_fail_streak = 0
+        _warm_paused_until = 0.0
+
+# When set, a cold-metadata miss does NOT schedule a background FMP warm — the
+# caller wants cache-only sanitize with ZERO provider calls. The bars-pack
+# builder sweeps the whole universe; without this, a first build over
+# never-served long-tail tickers would schedule thousands of corporate-action
+# warms at once. Default False → serve-path behavior is unchanged.
+_suppress_warm: contextvars.ContextVar = contextvars.ContextVar("bars_sanitize_suppress_warm", default=False)
+
+
+@contextlib.contextmanager
+def suppress_meta_warm():
+    """Within this context, cold-metadata misses use the metadata-free sanitize
+    path and never schedule a provider fetch. Used by the bars-pack builder so a
+    universe sweep costs zero FMP calls; the metadata cache still warms naturally
+    on the normal serve/prewarm path."""
+    token = _suppress_warm.set(True)
+    try:
+        yield
+    finally:
+        _suppress_warm.reset(token)
 
 # ── Tunables ────────────────────────────────────────────────────────────────
 _GAP_MIN_DAYS = 21            # a gap this big + a listing-date match ⇒ reuse
@@ -198,11 +286,22 @@ def _fetch_meta(ticker: str) -> dict:
 
 
 def _warm_meta(ticker: str) -> None:
+    if _suppress_warm.get():
+        return  # caller wants cache-only sanitize (e.g. the bars-pack builder)
+    if not _warm_gate_open():
+        # The provider just refused. A burst of identical refusals carries no more
+        # information than the first one, and asking through a rate limit is what
+        # keeps us inside it. Returning here writes NOTHING — the ticker stays a
+        # cold miss and is retried once the gate reopens.
+        return
+
     def _run():
         try:
             meta = _fetch_meta(ticker)
             cache.set(_META_KEY.format(ticker), meta, ttl=_META_TTL)
+            _warm_note_success()
         except Exception:
+            _warm_note_failure()
             # Cache an empty sentinel briefly so we retry later without hammering.
             cache.set(_META_KEY.format(ticker), {"ipo": None, "splits": []},
                       ttl=_META_FAIL_TTL)

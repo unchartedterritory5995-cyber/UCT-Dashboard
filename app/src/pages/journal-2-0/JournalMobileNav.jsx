@@ -1,8 +1,8 @@
 /**
  * Journal 2.0 — phone section nav (Task B5).
  *
- * A horizontal, scrollable segmented nav of the 5 primary surfaces
- * (Today · Trades · Journal · Insights · Compass) rendered at the TOP of the
+ * A horizontal, scrollable segmented nav of the 6 primary surfaces
+ * (Today · Trades · Calendar · Notebook · Insights · Compass) rendered at the TOP of the
  * journal content on phone, BELOW the header. It replaces the desktop tab rail
  * (`.nav`) on phone — NOT a second fixed BOTTOM bar (that would collide with the
  * app-wide `MobileTabBar`). Each item is a gold `UIcon` + label with a 44px tap
@@ -22,13 +22,14 @@ import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
 import styles from './JournalMobileNav.module.css'
 
-// Same 5 surfaces + icons as JournalLayout's PRIMARY_NAV. Kept as its own list
+// Same 6 surfaces + icons as JournalLayout's PRIMARY_NAV. Kept as its own list
 // (not imported) so the mobile treatment can diverge (icon-over-label) without
 // coupling to the desktop rail's shape.
 const MOBILE_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
-  { to: '/journal/journal', label: 'Journal', icon: 'journal' },
+  { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
+  { to: '/journal/notebook', label: 'Notebook', icon: 'journal' },
   { to: '/journal/insights', label: 'Insights', icon: 'chart' },
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]

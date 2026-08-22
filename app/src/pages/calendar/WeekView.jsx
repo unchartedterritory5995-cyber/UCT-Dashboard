@@ -9,7 +9,7 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import EarningsTile from './EarningsTile'
 import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
-import { impEff } from './importance'
+import { rankEntries } from './importance'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
 
@@ -106,13 +106,17 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
       {weekDates.map(ds => {
         const day = days[ds]; if (!day) return null
         const tiers = weekTiers?.[ds]
-        const impOf = e => impEff(tiers?.impBySym?.get?.(e.sym) ?? 0, e)
         const prep = (list, timing) => {
-          let rows = applyFilters((list || []).map(e => ({ ...e, _timing: timing })), filters)
-          rows = sortEntries(rows, filters.sort)
-          // mine pinned first, then personalized importance
-          rows.sort((a, b) => (b.mine === true) - (a.mine === true) || impOf(b) - impOf(a))
-          return rows
+          const rows = applyFilters((list || []).map(e => ({ ...e, _timing: timing })), filters)
+          // Default ordering IS the personalized hierarchy — one shared
+          // comparator with a deterministic tail, so a week whose enrichment
+          // overlay hasn't landed still paints ranked instead of falling
+          // through to the provider's alphabetical serialization.
+          if (!filters.sort || filters.sort === 'mine') return rankEntries(rows, tiers?.impBySym)
+          // An explicit sort choice wins outright — matching the Feed, which
+          // always honored it. Week used to re-sort by imp on top, demoting
+          // "Market cap" / "Expected move" to a mere tiebreak.
+          return sortEntries(rows, filters.sort)
         }
         const bmo = prep(day.bmo, 'bmo')
         const amc = prep(day.amc, 'amc')

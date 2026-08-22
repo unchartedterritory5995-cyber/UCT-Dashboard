@@ -27,7 +27,24 @@
 //     mistake already cost one design rework (2026-07-31).
 //
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
+
+// rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
+// widget width (a Scanner dragged/squeezed toward its minW) the list body's
+// scrollbars oscillate, and react-virtual's default ResizeObserver re-measures
+// synchronously on every tick → re-render → re-measure → React #185 "Maximum
+// update depth exceeded" (the /charts crash when a thin scanner was squeezed).
+// Deferring each measurement to the next animation frame breaks the SYNCHRONOUS
+// nesting React counts, so the loop can no longer crash the page (at worst a
+// harmless one-per-frame settle). Measuring a frame late is imperceptible.
+function rafObserveElementRect(instance, cb) {
+  let raf = 0
+  const stop = observeElementRect(instance, (rect) => {
+    if (raf) cancelAnimationFrame(raf)
+    raf = requestAnimationFrame(() => { raf = 0; cb(rect) })
+  })
+  return () => { if (raf) cancelAnimationFrame(raf); if (typeof stop === 'function') stop() }
+}
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -38,6 +55,8 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
+import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -52,6 +71,7 @@ import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
+import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
@@ -438,6 +458,8 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 30,
     overscan: 12,
+    // See rafObserveElementRect above — prevents the narrow-width #185 crash.
+    observeElementRect: rafObserveElementRect,
   })
   const vItems = virt.getVirtualItems()
   const first = vItems.length ? vItems[0].index : 0
@@ -533,12 +555,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // site theme. In WIDGET context (onSettingsPersist set) the legacy GLOBAL pref is
   // ignored — exactly like News/Profile — so a stale saved dark blob can't force the
   // widget dark on the light theme; the standalone page still reads the global.
+  const placedTheme = usePlacedTheme()
   const wlSettings = useMemo(() => {
-    const themeDefault = watchlistDefaultsForTheme(prefs?.theme)
+    const themeDefault = watchlistDefaultsForTheme(placedTheme)
     const base = settingsOverride
       ?? (onSettingsPersist ? themeDefault : (parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? themeDefault))
     return mergeWatchlistSettings(base)
-  }, [settingsOverride, onSettingsPersist, prefs])
+  }, [settingsOverride, onSettingsPersist, prefs, placedTheme])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const [filterOpen, setFilterOpen] = useState(false)   // scanner "criteria" popover
@@ -560,7 +583,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // Clear back to the theme-following default (null override for a widget; the
     // theme default blob for the standalone page).
     if (onSettingsPersist) onSettingsPersist(null)
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(prefs?.theme)))
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(placedTheme)))
   }, [setPref, onSettingsPersist, prefs])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
@@ -889,6 +912,29 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return merged
   }, [feedPrices, readoutTick])
+  // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
+  // The widget has no chrome of its own (it IS this page), so the door lives
+  // on each accordion header. Payload freeze (owner-approved): {sym, note,
+  // price, chgPct} rows as they stand — lists mutate and delete, so the
+  // capture is the only durable record. Rendered read-only by FrozenList.
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
+    setJournalMsg('sending…')
+    const rows = items.map((it) => {
+      const sym = typeof it === 'string' ? it : it.sym
+      const q = prices[sym]
+      return {
+        sym,
+        ...(typeof it === 'object' && it.notes ? { note: it.notes } : {}),
+        ...(Number.isFinite(q?.price) ? { price: q.price } : {}),
+        ...(Number.isFinite(q?.change_pct) ? { chgPct: q.change_pct } : {}),
+      }
+    })
+    setJournalMsg(await sendCaptureToJournal('watchlist', {
+      watchKey, watchName, symbols: rows.map((r) => r.sym), rows,
+    }, { label: watchName }))
+  }, [prices, setJournalMsg])
+
   // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
   // a company logo/monogram — they have no company logo.
   const breadth = useBreadthSymbols()
@@ -1374,15 +1420,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
   const listBodyRef = useRef(null)
-  const [bodyW, setBodyW] = useState(0)
-  useEffect(() => {
-    const el = listBodyRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(() => setBodyW(el.clientWidth))
-    ro.observe(el)
-    setBodyW(el.clientWidth)
-    return () => ro.disconnect()
-  }, [])
+  // ⚰️ Removed a dead-state ResizeObserver here (2026-08-20). It observed the list
+  // body and set a `bodyW` state that NOTHING read (shrink-to-fit was removed long
+  // ago — see the note by `renderedColWidths` below). At a very narrow widget width
+  // (the scanner dragged to its minW) the list body oscillates — a horizontal
+  // scrollbar appears, shrinks the height, toggles the vertical scrollbar, which
+  // changes the width again — firing that observer synchronously in a tight loop.
+  // Setting state on every fire re-rendered Watchlists repeatedly → React #185
+  // "Maximum update depth exceeded" (the crash when a thin Scanner was squeezed to
+  // its minimum). With nothing consuming the measurement, the whole observer was
+  // pure liability — deleted. A benign browser "ResizeObserver loop" warning may
+  // still print, but it can no longer take React's render loop down with it.
   // Fixed-px columns at their set widths — NO shrink-to-fit. Dragging a gridline
   // resizes only that column; when the total exceeds the widget width the columns
   // simply overflow and the rightmost ones clip off the right edge (.listBody is
@@ -1786,6 +1834,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           )}
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {items.length > 0 && (
+                <button
+                  className={styles.wlActionBtn}
+                  onClick={() => sendListToJournal(wl.id, wl.name, items)}
+                  title={`Send ${wl.name} to Journal (frozen list)`}
+                  aria-label={`Send ${wl.name} to Journal`}
+                ><UIcon name="journal" size={13} /></button>
+              )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => {
@@ -1929,6 +1985,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <span className={styles.flaggedHint}>Shift+F</span>
           {user && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {flagged.length > 0 && (
+                <button
+                  className={styles.wlActionBtn}
+                  onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
+                  title="Send Flagged to Journal (frozen list)"
+                  aria-label="Send Flagged to Journal"
+                ><UIcon name="journal" size={13} /></button>
+              )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === 'flagged' ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => {
@@ -2003,6 +2067,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         setAddingToList(pickOwnedId)
       }}
     >
+      {/* Send-to-Journal confirmation for the list-header doors. Fixed: the
+          doors live on scrolling accordion rows in both hosts (page + widget),
+          so a viewport anchor is the one spot that always reads. Below the
+          popup band (8500+). */}
+      <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
       {settingsOpen && (
         <WatchlistSettingsPanel
           settings={wlSettings}
@@ -2163,6 +2232,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                       <span className={styles.wlCount}>{syms.length}</span>
                       {isColorShared(tc.key) && <span className={styles.pubBadge}>PUB</span>}
                       <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+                        {syms.length > 0 && (
+                          <button
+                            className={styles.wlActionBtn}
+                            onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
+                            title={`Send ${tc.label} to Journal (frozen list)`}
+                            aria-label={`Send ${tc.label} to Journal`}
+                          ><UIcon name="journal" size={13} /></button>
+                        )}
                         <button
                           className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}
                           onClick={() => toggleShareColor(tc.key)}

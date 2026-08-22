@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
+import UIcon from "../components/ui/UIcon";
 import useLongPress from "../components/mobile/useLongPress";
 
 /**
@@ -1163,7 +1164,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const cpDisplayColor = rowColor;
 
   return (
-    <div style={{
+    <div className="lf-alert-row" style={{
       display: "grid",
       // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT | (admin: POSTED | PUSH)
       gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : ""),
@@ -1190,6 +1191,16 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         >
           {alert.ticker}
         </span>
+        <button
+          type="button"
+          className="lf-chart-icon"
+          onClick={(e) => { e.stopPropagation(); onOpenChart?.(alert.ticker); }}
+          title="Open chart"
+          aria-label={`Open chart for ${alert.ticker}`}
+          style={{ background: "none", border: "none", padding: 0, margin: 0, lineHeight: 0, display: "inline-flex", flexShrink: 0, cursor: "pointer" }}
+        >
+          <UIcon name="equity" size={12} />
+        </button>
         {hitCount > 1 && (
           <span style={{
             fontSize: 10, fontWeight: 700,
@@ -2926,6 +2937,7 @@ function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState
   return (
     <div style={{ marginBottom: 2 }}>
       <div
+        className="lf-contract-row"
         role="button" tabIndex={0} aria-expanded={open}
         onClick={() => setOpen(o => !o)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
@@ -2958,6 +2970,16 @@ function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState
                 style={{ color: rowColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
             {c.ticker}
           </span>
+          <button
+            type="button"
+            className="lf-chart-icon"
+            onClick={(e) => { e.stopPropagation(); onOpenChart?.(c.ticker); }}
+            title="Open chart"
+            aria-label={`Open chart for ${c.ticker}`}
+            style={{ background: "none", border: "none", padding: 0, margin: 0, lineHeight: 0, display: "inline-flex", flexShrink: 0, cursor: "pointer" }}
+          >
+            <UIcon name="equity" size={12} />
+          </button>
           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: P.ac + "30", color: P.ac, flexShrink: 0 }} title={`${c.hit_count} prints on this contract`}>
             ×{c.hit_count}
           </span>
@@ -4435,6 +4457,10 @@ export default function LiveFlowMassive() {
           0% { background: ${P.ac}30; }
           100% { background: ${P.cd}; }
         }
+        .lf-chart-icon { opacity: 0.28; transition: opacity 0.12s ease; }
+        .lf-chart-icon:hover { opacity: 1; }
+        .lf-alert-row:hover .lf-chart-icon,
+        .lf-contract-row:hover .lf-chart-icon { opacity: 0.95; }
       `}</style>
 
       <Header
@@ -4771,7 +4797,7 @@ export default function LiveFlowMassive() {
       {/* Right-click-to-chart popup — one instance for the whole page, never
           per-row. Controlled mode: TickerPopup renders no trigger, just the
           full ChartPane modal, opened/closed by chartSym. */}
-      {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
+      {chartSym && <TickerPopup sym={chartSym} open darkPool onClose={() => setChartSym(null)} />}
     </div>
       );
 }

@@ -108,6 +108,16 @@ def run_backfill(*, user_id: str | None = None, force: bool = False,
     with _STATE_LOCK:
         if _state.get("running"):
             return {"skipped": "already running"}
+
+    # True-R heal (2026-08-21): rows computed before the true_r column existed
+    # derive it from stored mae_price via pure SQL — idempotent (WHERE true_r
+    # IS NULL), near-free after the first pass, keeps the fleet healed with no
+    # separate wiring. Best-effort: never blocks the bars backfill.
+    try:
+        from api.services.journal_two.excursions_store import backfill_true_r
+        backfill_true_r(conn)
+    except Exception:  # noqa: BLE001
+        pass
         _state["running"] = True
     try:
         return _run_backfill_locked(

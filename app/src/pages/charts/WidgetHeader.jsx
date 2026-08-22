@@ -22,11 +22,22 @@ export default function WidgetHeader({
   onRenameTab,          // (tabId, name) => void — double-click a tab to rename it
   onAddTab,             // (type) => void — add a new tab of this widget type
   tabsOnly = false,     // merged mode: render ONLY the tab strip (no header chrome)
+  // In-canvas float: pop a widget off the grid to float on top of another widget.
+  onFloat,              // (grid mode) => pop this widget out to a floating panel
+  floating = false,     // true while this header is inside a floating panel
+  onDock,               // (floating) => dock back into the grid as its own widget
+  floatTabTargets = [], // (floating) [{id,label}] widgets it can be moved into as a tab
+  onFloatToTab,         // (floating) (targetId) => move this widget into that widget's tabs
+  onHeaderDragStart,    // (floating) pointerdown on the grip → the panel begins dragging
 }) {
   const isNone = color === 'N'
   const [addOpen, setAddOpen] = useState(false)
   const [addPos, setAddPos] = useState(null)         // fixed-position anchor for the portaled menu
   const addBtnRef = useRef(null)
+  // Move-into-another-widget's-tabs menu (floating mode) — portaled + fixed like addControl.
+  const [floatTabOpen, setFloatTabOpen] = useState(false)
+  const [floatTabPos, setFloatTabPos] = useState(null)
+  const floatTabBtnRef = useRef(null)
   const [confirmCloseId, setConfirmCloseId] = useState(null)
   const confirmTimer = useRef(null)
   useEffect(() => () => clearTimeout(confirmTimer.current), [])
@@ -107,6 +118,39 @@ export default function WidgetHeader({
     doc.addEventListener('keydown', onKey)
     return () => { doc.removeEventListener('mousedown', onDown, true); doc.removeEventListener('keydown', onKey) }
   }, [addOpen])
+
+  // Position + outside-close for the "move into another widget's tabs" menu
+  // (floating mode) — same portaled/fixed approach as the add-tab menu so it can't
+  // be clipped by the floating panel's overflow:hidden.
+  useLayoutEffect(() => {
+    const btn = floatTabBtnRef.current
+    if (!floatTabOpen || !btn) { setFloatTabPos(null); return }
+    const doc = btn.ownerDocument
+    const win = doc.defaultView || window
+    const place = () => {
+      const r = btn.getBoundingClientRect()
+      const W = 180
+      const left = Math.max(6, Math.min(r.right - W, win.innerWidth - W - 6))
+      setFloatTabPos({ top: Math.round(r.bottom + 4), left: Math.round(left), target: doc.body })
+    }
+    place()
+    win.addEventListener('resize', place)
+    win.addEventListener('scroll', place, true)
+    return () => { win.removeEventListener('resize', place); win.removeEventListener('scroll', place, true) }
+  }, [floatTabOpen])
+  useEffect(() => {
+    if (!floatTabOpen) return
+    const doc = floatTabBtnRef.current?.ownerDocument || document
+    const onDown = (e) => {
+      if (floatTabBtnRef.current?.contains(e.target)) return
+      if (e.target.closest?.('[data-float-tab-menu]')) return
+      setFloatTabOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setFloatTabOpen(false) }
+    doc.addEventListener('mousedown', onDown, true)
+    doc.addEventListener('keydown', onKey)
+    return () => { doc.removeEventListener('mousedown', onDown, true); doc.removeEventListener('keydown', onKey) }
+  }, [floatTabOpen])
 
   // Two-stage close so a stray click can't nuke a tab.
   const handleCloseClick = (tabId) => {
@@ -229,7 +273,13 @@ export default function WidgetHeader({
 
   return (
     <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`} style={style}>
-      <span className={`${styles.dragGrip} charts-widget-drag-handle`} aria-hidden="true">⋮⋮</span>
+      {/* Grid mode: the grip is RGL's drag handle. Floating: it drives the panel drag. */}
+      <span
+        className={`${styles.dragGrip} charts-widget-drag-handle`}
+        aria-hidden="true"
+        onPointerDown={floating ? onHeaderDragStart : undefined}
+        style={floating ? { cursor: 'grab' } : undefined}
+      >⋮⋮</span>
       <button
         type="button"
         className={`${styles.colorDot} ${styles[`colorDot${color}`]}`}
@@ -246,7 +296,17 @@ export default function WidgetHeader({
         </>
       )}
       {addControl}
-      {onPopOut && (
+      {/* Grid mode: pop this widget out to float on top of another widget. */}
+      {!floating && onFloat && (
+        <button
+          type="button"
+          className={styles.popOutBtn}
+          onClick={onFloat}
+          aria-label="Float widget on top of another"
+          title="Pop out to float on top of another widget (e.g. onto a chart)"
+        >▣</button>
+      )}
+      {!floating && onPopOut && (
         <button
           type="button"
           className={styles.popOutBtn}
@@ -254,6 +314,46 @@ export default function WidgetHeader({
           aria-label="Pop out widget"
           title="Open this widget in its own window you can drag to another monitor"
         >⧉</button>
+      )}
+      {/* Floating: dock back to the grid. */}
+      {floating && onDock && (
+        <button
+          type="button"
+          className={styles.popOutBtn}
+          onClick={onDock}
+          aria-label="Dock widget into the grid"
+          title="Dock back into the grid as its own widget"
+        >⊞</button>
+      )}
+      {/* Floating: move this widget into another widget's tab group. */}
+      {floating && onFloatToTab && floatTabTargets.length > 0 && (
+        <>
+          <button
+            ref={floatTabBtnRef}
+            type="button"
+            className={styles.popOutBtn}
+            onClick={() => setFloatTabOpen(o => !o)}
+            aria-label="Move into another widget's tabs"
+            title="Move into another widget's tabs"
+          >⧉</button>
+          {floatTabOpen && floatTabPos && createPortal(
+            <div
+              data-float-tab-menu
+              className={styles.wtabAddMenu}
+              style={{ top: floatTabPos.top, left: floatTabPos.left, minWidth: 180 }}
+            >
+              {floatTabTargets.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={styles.addMenuItem}
+                  onClick={() => { onFloatToTab(t.id); setFloatTabOpen(false) }}
+                >{t.label}</button>
+              ))}
+            </div>,
+            floatTabPos.target,
+          )}
+        </>
       )}
       <button
         type="button"

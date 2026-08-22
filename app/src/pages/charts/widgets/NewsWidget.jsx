@@ -12,10 +12,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
@@ -84,7 +87,15 @@ function chartText(e) {
   return lines.join('\n')
 }
 
-export default function NewsWidget({ color, opts, onOptsChange }) {
+export default function NewsWidget({
+  color, opts, onOptsChange,
+  // Frozen-embed mode (journal host): frozenEvents is the captured feed —
+  // rendered verbatim, never re-fetched (owner-approved payload freeze).
+  // readOnly strips the filter pills, the ⚙, and the PIN (placeOnChart
+  // writes the SHARED per-symbol drawings store — an embed reaching it
+  // would drop callouts onto the user's real charts).
+  frozenEvents = null, readOnly = false, journalDoor = true,
+}) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
   // Company name for the header (⚙ "Show" = ticker / company / both) + logo hint.
@@ -107,6 +118,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
   const placedTimerRef = useRef(null)
   useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const placeOnChart = useCallback((e, rowKey) => {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
@@ -142,8 +154,9 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   // uses the DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so
   // both the ⚙ swatches AND the rendered widget follow the site theme until edited.
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(prefs.theme)),
+    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -171,7 +184,9 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
 
   // ── Data — poll fast while historical catalysts generate, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status, events } = useNewsCatalysts(sym, { generating: fastPoll })
+  const { status: liveStatus, events: liveEvents } = useNewsCatalysts(frozenEvents ? null : sym, { generating: fastPoll })
+  const status = frozenEvents ? 'ready' : liveStatus
+  const events = frozenEvents ?? liveEvents
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
 
   const shown = useMemo(
@@ -243,6 +258,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
+        {!readOnly && (
         <div className={styles.filters}>
           {FILTERS.map(f => (
             <button
@@ -253,13 +269,38 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
             >{f.label}</button>
           ))}
         </div>
+        )}
+        {/* → Journal: freeze the displayed feed into the note (payload capture —
+            owner decision; the shown list is the whole capture). Cluster note
+            (panel finding): door + gear both carry .gearBtn's margin-left:auto,
+            which split the free space and floated the door mid-header — the
+            door keeps the auto, the gear drops to a 2px gap when the door
+            renders. */}
+        {journalDoor && !readOnly && sym && events?.length > 0 && (
+          <button
+            type="button"
+            className={styles.gearBtn}
+            onClick={async () => {
+              setJournalMsg('sending…')
+              setJournalMsg(await sendCaptureToJournal('news', {
+                symbol: sym, filter, company, settings, events,
+              }, { label: `${sym} news` }))
+            }}
+            title="Send this feed to Journal"
+            aria-label="Send this feed to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
+        <JournalToast msg={journalMsg} />
+        {!readOnly && (
         <button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+          style={journalDoor && sym && events?.length > 0 ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
         ><UIcon name="gear" size={13} /></button>
+        )}
       </div>
 
       {generating && (
@@ -325,7 +366,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
                       : <span className={styles.source}>{e.source}</span>}
                   </div>
                 </div>
-                {canPlace && (
+                {canPlace && !readOnly && (
                   <button
                     type="button"
                     className={`${styles.pinBtn}${justPlaced ? ' ' + styles.pinBtnOn : ''}`}

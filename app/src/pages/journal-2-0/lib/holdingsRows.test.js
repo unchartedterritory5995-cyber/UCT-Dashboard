@@ -91,3 +91,22 @@ describe('sortRows', () => {
     expect(rows.map((r) => r.symbol)).toEqual(before)
   })
 })
+
+describe('buildEquityRows — reconnect fidelity (2026-08-20)', () => {
+  it('an ESTIMATED entry stamped today uses prev close, not the avg cost', () => {
+    const positions = [{
+      id: 'p1', symbol: 'DELL', side: 'Long', shares: 5,
+      entryPrice: 132.726, entryDate: '2026-08-20T20:58:48Z', entryEstimated: true,
+    }]
+    const prices = { DELL: { price: 434.78, prev_close: 437.55, change_pct: -0.63 } }
+    const rows = buildEquityRows(positions, prices, '2026-08-20')
+    expect(rows[0].todayDollar).toBeCloseTo(5 * (434.78 - 437.55), 2)
+  })
+  it('prev_close 0 falls back to the change_pct derivation', () => {
+    const positions = [{ id: 'p2', symbol: 'ORCL', side: 'Long', shares: 100, entryPrice: 126, entryDate: '2026-07-21T16:36:20Z' }]
+    const prices = { ORCL: { price: 142.07, prev_close: 0, change_pct: -1.2099 } }
+    const rows = buildEquityRows(positions, prices, '2026-08-20')
+    const ref = 142.07 / (1 + -1.2099 / 100)
+    expect(rows[0].todayDollar).toBeCloseTo(100 * (142.07 - ref), 6)
+  })
+})

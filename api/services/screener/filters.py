@@ -245,7 +245,6 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Top third (>0.66)", "op": "gte", "min": 0.66},
             {"label": "Bottom third (<0.33)", "op": "lte", "max": 0.33}]),
-    _range("close_pos_dupe", "Close Position", "single_candle", "close_position", [{"label": "Any"}]),
     # ── multi candle ──
     _bool("tight_consolidation", "Tight Consolidation", "multi_candle", "tight_consolidation"),
     _bool("nr7", "NR7 (narrowest of 7)", "multi_candle", "nr7"),

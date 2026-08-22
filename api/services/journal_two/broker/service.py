@@ -522,9 +522,12 @@ def trust_summary(user_id: str) -> dict[str, Any]:
     tokenState ∈ 'ok'|'expiring'|'broken' (see connections.token_state — only
     'ok'/'broken' are reachable today; SnapTrade doesn't expose the
     authorization disabled flag on the current plan)."""
+    from api.services.journal_two.broker import mirror_check as _mirror
+
     conn = get_connection()
     try:
         accounts = connections.list_broker_accounts(user_id, conn=conn)
+        verdicts = _mirror.latest_verdicts(user_id, conn=conn)
         out: list[dict[str, Any]] = []
         for ba in accounts:
             broker_account_id = ba["id"]
@@ -561,6 +564,10 @@ def trust_summary(user_id: str) -> dict[str, Any]:
                 "positionCount": position_count,
                 # DB-read path has no live authorization → ok/broken only.
                 "tokenState": connections.token_state(account_status=ba["status"]),
+                # Mirror-drift sentinel verdict (broker/mirror_check.py):
+                # {ok, checkedAt, driftDollar, driftPct, consecutiveDrifts}
+                # or null before the first post-deploy sync.
+                "mirror": verdicts.get(broker_account_id),
             })
         return {"anyBroker": len(out) > 0, "accounts": out}
     finally:

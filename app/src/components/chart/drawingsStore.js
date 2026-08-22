@@ -165,6 +165,22 @@ export function subscribe(sym, cb) {
 export function canUndo(sym) { const e = _entries.get(sym); return !!e && e.past.length > 0 }
 export function canRedo(sym) { const e = _entries.get(sym); return !!e && e.future.length > 0 }
 
+/** Capture-time peek at one symbol's drawings for surfaces that freeze a COPY
+ *  (journal chart embeds) without mounting a chart. Prefers the live in-memory
+ *  entry, else reads localStorage directly. Side-effect free like getSnapshot —
+ *  never creates or loads a registry entry — and returns a deep copy so the
+ *  caller's frozen copy can never be mutated into (or by) the live store. */
+export function peekDrawings(sym) {
+  if (!sym) return []
+  try {
+    const e = _entries.get(sym)
+    const src = e ? e.drawings : (loadAll()[sym] || [])
+    return Array.isArray(src) ? JSON.parse(JSON.stringify(src)) : []
+  } catch {
+    return []
+  }
+}
+
 // ── Mutations (all keyed by sym; falsy sym = no-op, mirroring the legacy guard) ─
 export function addDrawing(sym, d) {
   // Legacy-hook parity: an id is returned even when sym is falsy (nothing stored).

@@ -47,6 +47,38 @@ def test_aggregate_day_rejects_the_garbage_wick_signature():
     assert "garbage-wick" in r.get("flagged", "")
 
 
+def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
+    """The seeded-open fix: the 9:30 bucket must see the FULL universe (untraded
+    names sitting at prior close), not just the handful that printed in the first
+    30 min — otherwise the open is a biased fake-low that becomes a garbage wick."""
+    from api.services import build_intraday_cache as bic
+    tickers = [f"T{i}" for i in range(10)]
+    levels = _levels_flat(tickers, close=100.0)      # prev_close = 100 for all
+
+    monkeypatch.setattr(wr.bl if hasattr(wr, "bl") else bl, "_bars_conn",
+                        lambda: None, raising=False)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None, raising=False)
+    monkeypatch.setattr(wr, "_levels_for_day", lambda conn, u, ts: levels)
+    monkeypatch.setattr(wr, "_s3_client", lambda: object())
+    # only ONE name prints in the (single) bucket; the other nine never trade
+    monkeypatch.setattr(bic, "download_and_resample",
+                        lambda client, key, mins, uni: {30: {"T0": [{"t": 1, "o": 101,
+                        "h": 101, "l": 101, "c": 101, "v": 1}]}})
+
+    captured = {}
+    real_agg = wr.aggregate_day
+    def spy(levels_, pbb, close_val, *a, **k):
+        captured["pbb"] = pbb
+        return real_agg(levels_, pbb, close_val, *a, **k)
+    monkeypatch.setattr(wr, "aggregate_day", spy)
+
+    wr.recon_day("2026-07-28", tickers, client=object(), bucket_min=30)
+    open_bucket = captured["pbb"][0]
+    assert len(open_bucket) == 10                     # full universe, not just T0
+    assert open_bucket["T0"] == 101.0                 # the name that traded
+    assert open_bucket["T5"] == 100.0                 # an untraded name → prior close
+
+
 def test_sane_wick_gate():
     assert wr.sane_wick("pct_above_50sma", 60, 70, 50, 60)[0] is True
     assert wr.sane_wick("pct_above_50sma", 20, 90, 20, 20)[0] is False   # 70-pt range

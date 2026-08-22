@@ -1,0 +1,21 @@
+<!--
+Exercises html_to_tiptap's ONE additive branch (`_html_list_or_tasklist` in
+mddoc.py): `<li data-uct-task="0"|"1">` -> taskList/taskItem(checked). This
+is the POST-pre-pass shape `convert/onenote_html.py`'s to-do rewrite
+produces (see that module) -- fed here directly into html_to_tiptap, same
+as every other fixture in this directory feeds its converter directly,
+since fixtures_gen.py globs *.html straight into html_to_tiptap. Mixed with
+a plain <li> sibling to prove the run-split mirrors mddoc.py's markdown
+checkbox path (`02-mixed-task-list.md`): TipTap's schema forbids mixing
+taskItem/listItem in one list, so this MUST split into sibling
+taskList/bulletList/taskList runs.
+
+`06-html-walker-golden.html` (committed earlier, no data-uct-task anywhere)
+is the companion inertness proof -- that fixture's committed JSON stays
+byte-for-byte unchanged because nothing in it ever sets this marker.
+-->
+<ul>
+  <li data-uct-task="0">Buy milk</li>
+  <li>Ordinary reminder, not a checkbox</li>
+  <li data-uct-task="1">Ship the schema rail</li>
+</ul>

@@ -66,8 +66,12 @@ def _merged_db_syms(etf_key: str, td: dict) -> list[str]:
             break
     if not tid:
         return []
-    return [(h.get("sym") or "").strip().upper().replace(".", "-")
+    from api.services import delisted_registry
+    syms = [(h.get("sym") or "").strip().upper().replace(".", "-")
             for h in theme_db.get_theme_holdings(tid) if h.get("sym")]
+    # Keep delisted names out of the equal-weight index basket (mirrors the
+    # _resolve_holdings filter on the wire-holdings path).
+    return [s for s in syms if not delisted_registry.is_delisted(s)]
 
 
 def resolve_theme(slug: str) -> Optional[tuple[str, dict, list[str]]]:

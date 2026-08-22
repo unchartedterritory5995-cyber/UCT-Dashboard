@@ -86,6 +86,45 @@ describe('livePriceStore', () => {
     expect(getSnapshot().AAPL.ext_price == null).toBe(true)  // cleared
   })
 
+  it('splits a union over 250 tickers into multiple ≤250-ticker requests and merges the results', async () => {
+    const many = Array.from({ length: 260 }, (_, i) => `T${i}`)
+    global.fetch = vi.fn((url) => {
+      const qs = new URL(url, 'http://x').searchParams.get('tickers')
+      const syms = qs.split(',')
+      const body = {}
+      for (const s of syms) body[s] = { price: 1 }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
+    })
+    registerTickers(many)
+    await flush()
+    expect(global.fetch.mock.calls.length).toBeGreaterThanOrEqual(2)
+    for (const call of global.fetch.mock.calls) {
+      const url = call[0]
+      const qs = new URL(url, 'http://x').searchParams.get('tickers')
+      expect(qs.split(',').length).toBeLessThanOrEqual(250)
+    }
+    expect(getSnapshot().T0).toEqual({ price: 1 })
+    expect(getSnapshot().T259).toEqual({ price: 1 })
+  })
+
+  it('keeps last-good prices when every chunk of a split request fails', async () => {
+    const many = Array.from({ length: 260 }, (_, i) => `T${i}`)
+    global.fetch = vi.fn((url) => {
+      const qs = new URL(url, 'http://x').searchParams.get('tickers')
+      const syms = qs.split(',')
+      const body = {}
+      for (const s of syms) body[s] = { price: 5 }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
+    })
+    registerTickers(many)
+    await flush()
+    expect(getSnapshot().T0).toEqual({ price: 5 })
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+    pollNow()
+    await flush()
+    expect(getSnapshot().T0).toEqual({ price: 5 }) // unchanged, both chunks failed
+  })
+
   it('ref-counts: prices clear only when the last subscriber unregisters', async () => {
     const unA = registerTickers(['AAPL'])
     const unB = registerTickers(['AAPL'])

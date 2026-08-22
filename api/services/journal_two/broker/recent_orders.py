@@ -13,10 +13,13 @@ calls, so this stays outside SnapTrade's background polling caps. The
 provisional row is excluded from the ledger heal and pruned when the real
 transaction lands in the next daily sync (activities_store.prune_provisional).
 
-v1 scope: equity fills only. Option orders are skipped — their
-order-object shape (per-leg records, per-contract vs per-share price
-conventions) doesn't round-trip safely into a provisional activity; they
-appear via holdings-as-truth after a refresh and in full on the daily sync.
+Scope: equity AND option fills. Option orders were v1-excluded because
+the per-share vs per-contract price convention doesn't round-trip safely
+blind — solved with a market-data referee: the fill price is sanity-checked
+against the contract's live Massive mark, and a price ~multiplier× the mark
+is normalized to per-share. Provisional option activities flow through the
+SAME local reconstruction (reconstruct_account runs the option pipeline),
+so a sold contract leaves Open Positions in minutes instead of T+1.
 """
 from __future__ import annotations
 
@@ -153,6 +156,131 @@ def order_to_provisional_activity(order: dict) -> dict | None:
     }
 
 
+_OPT_ACTIONS = {
+    "BUY_TO_OPEN": ("BUY", "BUY_TO_OPEN"), "BUY_OPEN": ("BUY", "BUY_TO_OPEN"),
+    "BUY_TO_CLOSE": ("BUY", "BUY_TO_CLOSE"), "BUY_CLOSE": ("BUY", "BUY_TO_CLOSE"),
+    "SELL_TO_OPEN": ("SELL", "SELL_TO_OPEN"), "SELL_OPEN": ("SELL", "SELL_TO_OPEN"),
+    "SELL_TO_CLOSE": ("SELL", "SELL_TO_CLOSE"), "SELL_CLOSE": ("SELL", "SELL_TO_CLOSE"),
+    # Plain BUY/SELL: FIFO infers open/close from the position state, same as
+    # the real Robinhood activity feed (its option trades are bare BUY/SELL).
+    "BUY": ("BUY", ""), "SELL": ("SELL", ""),
+}
+
+# A per-share option premium is never this many times the live mark; a price
+# that is ~multiplier× the mark is the PER-CONTRACT convention leaking through.
+_PRICE_REFEREE_RATIO = 25.0
+
+
+def _reference_mark(underlying, strike, expiration, contract_type) -> float | None:
+    """Best-effort live mark for the referee (snapshot → daily aggs). Never
+    raises; None just means the referee abstains and the price passes as-is."""
+    try:
+        from datetime import datetime as _dt
+        from api.services.journal_two.broker import option_marks as om
+        from api.services.journal_two.broker.historical_equity import occ_symbol
+        occ = occ_symbol(underlying, expiration, contract_type, strike)
+        mark, _prev = om._mark_from_snapshot(om._snapshot_for(underlying, occ))
+        if mark and mark > 0:
+            return float(mark)
+        bars = om._bars_for(occ, today_et=_dt.now(om._ET).date())
+        if bars and bars[-1].get("c"):
+            return float(bars[-1]["c"])
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _option_contract_of(order: dict) -> dict | None:
+    """underlying/strike/expiration/type/mini from an order's option_symbol,
+    defensively (mirrors snaptrade_adapter._extract_option_contract)."""
+    osym = order.get("option_symbol")
+    if not isinstance(osym, dict):
+        return None
+    underlying = osym.get("underlying_symbol")
+    if isinstance(underlying, dict):
+        underlying = underlying.get("symbol") or underlying.get("raw_symbol")
+    if not underlying:
+        t = str(osym.get("ticker") or "")
+        underlying = t.split(" ")[0] if " " in t else None
+    try:
+        strike = float(osym.get("strike_price") or osym.get("strike"))
+    except (TypeError, ValueError):
+        return None
+    expiration = osym.get("expiration_date") or osym.get("expiration")
+    cp = str(osym.get("option_type") or osym.get("type") or "").strip().lower()
+    ctype = "CALL" if cp.startswith("c") else ("PUT" if cp.startswith("p") else None)
+    if not underlying or not expiration or ctype is None or strike <= 0:
+        return None
+    return {
+        "underlying": str(underlying).upper(),
+        "strike": strike,
+        "expiration": str(expiration).split("T")[0],
+        "contractType": ctype,
+        "isMini": bool(osym.get("is_mini_option")),
+        "ticker": osym.get("ticker"),
+    }
+
+
+def order_to_provisional_option_activity(order: dict) -> dict | None:
+    """Convert one EXECUTED option order into a provisional activity shaped
+    like a real SnapTrade option transaction (type BUY/SELL + option_symbol
+    + option_type), or None when it can't be done safely."""
+    if str(order.get("status") or "").upper() != "EXECUTED":
+        return None
+    c = _option_contract_of(order)
+    if c is None:
+        return None
+    action = str(order.get("action") or "").upper().replace(" ", "_")
+    mapped = _OPT_ACTIONS.get(action)
+    if mapped is None:
+        return None
+    act_type, option_type = mapped
+    try:
+        units = float(order.get("filled_quantity")
+                      or order.get("total_quantity") or 0)
+        price = float(order.get("execution_price") or order.get("price") or 0)
+    except (TypeError, ValueError):
+        return None
+    if units <= 0 or price <= 0:
+        return None
+    executed_at = (order.get("time_executed") or order.get("time_updated")
+                   or order.get("time_placed"))
+    if not executed_at:
+        return None
+    # Unit referee: the ledger convention is premium PER SHARE (a BA fill at
+    # 11.50, not 1150). When the live mark is known and the price is
+    # ~multiplier× it, normalize per-contract → per-share; when the referee
+    # abstains the price passes as-is and the daily sync's real activity
+    # replaces the row within a day.
+    multiplier = 10.0 if c["isMini"] else 100.0
+    ref = _reference_mark(c["underlying"], c["strike"], c["expiration"],
+                          c["contractType"])
+    if ref and ref > 0 and (price / ref) >= _PRICE_REFEREE_RATIO:
+        price = round(price / multiplier, 6)
+    occ_ish = c["ticker"] or f'{c["underlying"]} {c["expiration"]} {c["strike"]}{c["contractType"][0]}'
+    fp = _fingerprint(order, str(occ_ish), act_type, units)
+    return {
+        "id": f"intraday:{fp}",
+        "type": act_type,
+        "option_type": option_type,
+        "units": units,
+        "price": price,
+        "fee": 0,
+        "symbol": {"symbol": c["underlying"]},
+        "option_symbol": {
+            "ticker": c["ticker"],
+            "strike_price": c["strike"],
+            "expiration_date": c["expiration"],
+            "option_type": c["contractType"],
+            "underlying_symbol": {"symbol": c["underlying"]},
+            "is_mini_option": c["isMini"],
+        },
+        "trade_date": str(executed_at),
+        "currency": "USD",
+        "_provisional": True,
+    }
+
+
 async def _fetch_orders(user_id: str, ba: dict) -> list[dict] | None:
     """Network phase only — safe to run concurrently across accounts."""
     bu = connections.get_broker_user(user_id)
@@ -169,6 +297,8 @@ def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
         if not isinstance(o, dict):
             continue
         act = order_to_provisional_activity(o)
+        if act is None:
+            act = order_to_provisional_option_activity(o)
         if act is not None:
             provisional.append(act)
     if not provisional:

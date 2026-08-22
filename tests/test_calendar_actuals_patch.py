@@ -64,3 +64,26 @@ def test_no_key_is_noop(monkeypatch):
         cal._patch_today_actuals(days, "2026-07-10")
     g.assert_not_called()
     assert days["2026-07-09"]["bmo"][0]["eps_act"] is None
+
+
+def test_an_entry_with_eps_but_no_revenue_still_gets_its_revenue(monkeypatch):
+    """LITE, 2026-08-11: the pending filter skipped any entry that already had
+    an EPS, so a revenue published later could never be patched in — and the
+    wire row downstream froze without it. Pending is field-by-field."""
+    import api.routers.calendar as cal
+    monkeypatch.setenv("FINNHUB_API_KEY", "x")
+    entry = {"sym": "LITE", "eps_act": 3.23, "eps_est": 3.1,
+             "rev_act": None, "rev_est": None}
+    days = {"2026-07-10": {"bmo": [entry], "amc": [], "tbd": []}}
+    fake = mock.Mock()
+    fake.json.return_value = {"earningsCalendar": [
+        {"symbol": "LITE", "epsActual": 9.99, "epsEstimate": 9.0,
+         "revenueActual": 495_200_000, "revenueEstimate": 480_000_000},
+    ]}
+    fake.status_code = 200
+    with mock.patch("api.services.finnhub_client.fh_get",
+                    return_value=fake.json.return_value):
+        cal._patch_today_actuals(days, "2026-07-10")
+
+    assert entry["rev_act"] == 495.2          # the missing leg was filled
+    assert entry["eps_act"] == 3.23           # the published leg was NOT clobbered

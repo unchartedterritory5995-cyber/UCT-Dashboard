@@ -1,11 +1,12 @@
 import {
-  forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
+  forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import StockChart from '../../StockChart'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
+import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import ChartSettingsModal from '../ChartSettingsModal'
 import UIcon from '../../ui/UIcon'
@@ -27,6 +28,7 @@ import {
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
+import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
@@ -106,6 +108,11 @@ function ChartPane({
   onActivate = undefined,
   showTfBar = true,
   tfCodes = null,
+  // Workspace-supplied: apply a UCT theme to EVERY chart in the layout at once.
+  // Passed through to the settings modal's themes gallery ("All charts" scope).
+  onApplyThemeAll = null,
+  // Workspace-supplied: apply a theme to EVERY widget in the layout ("All widgets").
+  onApplyThemeAllWidgets = null,
 }, ref) {
   const compact = density === 'compact'
   // mini renders ONLY the timeframe bar + the chart — no identity row, no meta
@@ -145,6 +152,10 @@ function ChartPane({
   const breadth = useBreadthSymbols()
   const breadthRec = breadth.get(sym)
   const isBreadth = !!breadthRec
+  const { isEtf } = useEtfSymbols()
+  // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
+  // dash for them (like Next Earnings), only real stocks get a value.
+  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadth || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
   const synthDailyOnly = themeIdx.isIndex || isBreadth   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
@@ -281,10 +292,50 @@ function ChartPane({
     writeActiveSettings(next)
   }, [breadthLineActive, writeActiveSettings, chartCs.chartType])
 
+  // ── Responsive header fit ──────────────────────────────────────────────────
+  // Measure the pane's own width so the header degrades gracefully as the widget
+  // narrows (see headerFit.js): collapse the title → ticker, abbreviate the
+  // session buttons (RTH / PRE|PM) + info labels (MC/NE/…), and thin the timeframe
+  // bar to just the active TF + ▾. null until measured ⇒ the ladder reports "full",
+  // so a chart never flashes a collapsed header on first paint. (The ResizeObserver
+  // that keeps paneWidth current is wired in an effect further down.)
+  const paneRef = useRef(null)
+  const [paneWidth, setPaneWidth] = useState(null)
+  // Timeframe/info collision measurement. The TF bar and the info row share one
+  // flex-wrap row; when they don't fit on one line it WRAPS (info + holdings drop
+  // to their own lines, stealing chart height). A width threshold can't see the
+  // info row's real width, so we MEASURE the wrap and shrink to fit: first drop
+  // timeframe buttons (furthest-from-active, into the ▾ menu) down to just the
+  // active TF + ▾, then — only if it still wraps — abbreviate the info labels.
+  // Both are monotonic within a given width/content and reset together when the
+  // width or info content changes, so the loop converges and never oscillates.
+  const tfBarRef = useRef(null)
+  const shownTfCountRef = useRef(0)
+  const [tfCap, setTfCap] = useState(99)
+  const [infoForceAbbrev, setInfoForceAbbrev] = useState(false)
+  // Identity-row (title · % change · session toggle · clock) collision. That row
+  // is a fixed-height overflow:hidden nowrap flex, so it doesn't wrap — it CLIPS,
+  // and the session buttons visually overlap the live % change. Its overflow point
+  // depends on the live change width (a fixed px can't know it), so we measure
+  // scrollWidth>clientWidth and shed in the owner's order: FIRST abbreviate the
+  // session buttons (RTH / PRE|PM), THEN collapse the title to the ticker.
+  const identityRef = useRef(null)
+  const [sessionForceAbbrev, setSessionForceAbbrev] = useState(false)
+  const [titleForceCollapse, setTitleForceCollapse] = useState(false)
+
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
   const hdr = chartCs.header
-  const headerLabel = isBreadth
+  // "Group only" theme view: the base ticker is hidden and the canvas shows a whole
+  // theme/sector/industry, so the header stops naming the (invisible) ticker and names
+  // the GROUP instead ("Memory & HBM"). One group → its name; several → a count.
+  const _cmpGroups = [...new Set((chartCs.comparisonSymbols || []).filter(x => x && x.enabled && x.group).map(x => x.group))]
+  const _themeViewLabel = (chartCs.compareHideBase && _cmpGroups.length)
+    ? (_cmpGroups.length === 1 ? _cmpGroups[0] : `${_cmpGroups.length} groups`)
+    : null
+  const headerLabel = _themeViewLabel
+    ? _themeViewLabel
+    : isBreadth
     ? `${sym} · ${breadthRec.name}`
     : themeIdx.isIndex
     ? indexLabel
@@ -313,6 +364,22 @@ function ChartPane({
     codes.sort((a, b) => tfSortKey(a) - tfSortKey(b))
     return codes.map(c => [c, tfLabel(c)])
   })()
+  // Responsive header fit (drives the degradation ladder). The active code is
+  // always kept when the TF bar thins; a host-locked `tfCodes` set is never
+  // trimmed (the host chose exactly those). The title-collapse override applies
+  // only to a real ticker label — a theme/breadth/group label is already compact.
+  // All header degradation is measurement-driven (see the collision effects below):
+  // tfCap thins the timeframe bar, infoForceAbbrev shortens the info labels, and the
+  // identity-row states collapse the title / abbreviate the session buttons. A
+  // host-locked tfCodes set is never trimmed.
+  const responsiveTfs = Array.isArray(effTfCodes)
+    ? visibleTfs
+    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, tfCap)
+  shownTfCountRef.current = responsiveTfs.length
+  const infoAbbrev = infoForceAbbrev
+  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
+    ? sym
+    : headerLabel
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -347,7 +414,7 @@ function ChartPane({
   const { themeData: hdrTheme } = useWatchlistThemes(wantsTheme ? [sym] : [])
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike }
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
@@ -361,9 +428,53 @@ function ChartPane({
       } else {
         finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
       }
-      return { key, label: f.label, value, color: finalColor }
+      return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName])
+  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike])
+
+  // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
+  // A signature of what occupies the row besides the timeframe buttons: the info
+  // items by label+value LENGTH (never the values themselves, so a same-width live
+  // tick doesn't reset the fit). A change here — or a pane resize — resets the
+  // shrink so the row re-measures from the full timeframe set. Deliberately does
+  // NOT depend on infoAbbrev/tfCap: those are OUR outputs, and keying the reset on
+  // them would oscillate (abbreviate → narrower → reset → un-abbreviate → …).
+  const infoSig = useMemo(
+    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}`).join(','),
+    [metaItems],
+  )
+  useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
+  useLayoutEffect(() => {
+    if (compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
+    const el = tfBarRef.current
+    if (!el) return
+    // The row is nowrap + overflow:hidden, so it stays ONE line and overflows instead
+    // of wrapping. scrollWidth>clientWidth = content clipped → shed a timeframe (then
+    // abbreviate info). Cascades synchronously before paint until it fits, so buttons
+    // vanish with no reflow/jump. jsdom lays nothing out (both 0) ⇒ inert in tests.
+    if (el.scrollWidth <= el.clientWidth + 1) return
+    if (shownTfCountRef.current > 1) {
+      setTfCap((c) => Math.max(1, Math.min(c, shownTfCountRef.current) - 1))
+    } else if (!infoForceAbbrev && metaItems.length) {
+      setInfoForceAbbrev(true)
+    }
+  }, [tfCap, infoForceAbbrev, paneWidth, infoSig, compact, mini, showTfBar, effTfCodes, metaItems.length])
+
+  // Identity-row collision. Measured EVERY render (no dep array) so it also catches
+  // the live %-change growing wide enough to touch the session buttons, not just
+  // resizes. Sheds monotonically: session buttons first, then the title. The reset
+  // below restores both when the pane widens or the symbol changes.
+  useLayoutEffect(() => {
+    if (mini) return
+    const el = identityRef.current
+    if (!el || el.scrollWidth <= el.clientWidth + 1) return
+    if (!sessionForceAbbrev) setSessionForceAbbrev(true)
+    else if (!titleForceCollapse) setTitleForceCollapse(true)
+  })
+  useLayoutEffect(() => {
+    setSessionForceAbbrev(false)
+    setTitleForceCollapse(false)
+  }, [paneWidth, headerLabel, sym])
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
@@ -405,6 +516,26 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // ResizeObserver wiring for the responsive header fit (paneRef/paneWidth are
+  // declared higher up — before the header computation that reads paneWidth).
+  useEffect(() => {
+    const el = paneRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const apply = (w) => setPaneWidth((prev) => (prev != null && Math.abs(prev - w) < 2 ? prev : Math.round(w)))
+    apply(el.getBoundingClientRect().width)
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect
+      if (cr) apply(cr.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  // Last visible time-range StockChart reported (time-space {from,to}; LWC
+  // time values — unix seconds intraday, business-day objects/strings on
+  // D/W/M). Read on demand by ref.getViewState() so a capture ("send this
+  // chart to the journal exactly as shown") can freeze the window the user
+  // was actually looking at.
+  const viewRangeRef = useRef(null)
 
   // Null-safe for the TF BAR only. StockChart keeps the raw prop: several of its
   // behaviors key off whether an onTfChange exists at all, and a surface that
@@ -474,10 +605,13 @@ function ChartPane({
     // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
     // Symbols) centre its panel on this chart.
     getRect: () => (focusableRef.current ? focusableRef.current.getBoundingClientRect() : null),
+    // The visible time-range at this instant (null before the first report) —
+    // the journal-capture read-out.
+    getViewState: () => ({ range: viewRangeRef.current }),
   }), [openSettings, handleSymbolChange])
 
   return (
-    <div className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>
+    <div ref={paneRef} className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>
       {slots?.top}
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
@@ -485,16 +619,17 @@ function ChartPane({
           no room for it in a ~320px-tall pane. */}
       {!mini && (
         <ChartIdentityRow
+          rootRef={identityRef}
           searchRef={searchRef}
           sym={sym}
-          displayLabel={headerLabel}
+          displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
-          logoSym={synthDailyOnly ? null : sym}
+          logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadth}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-          showChange={hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
+          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
@@ -502,8 +637,8 @@ function ChartPane({
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
           session={compact ? null : (isDWMtf
-            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
-            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours })}
+            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: sessionForceAbbrev }
+            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: sessionForceAbbrev })}
           showClock={!compact}
           rightSlot={slots?.headerRight}
           styles={styles}
@@ -511,8 +646,9 @@ function ChartPane({
       )}
       {showTfBar && (
         <ChartTfBar
+          rootRef={tfBarRef}
           tf={isBreadth ? breadthTf : tf}
-          visibleTfs={visibleTfs}
+          visibleTfs={responsiveTfs}
           onTf={handleTf}
           /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
              with it — otherwise the host restricts the row and the user reaches
@@ -529,7 +665,7 @@ function ChartPane({
           styles={styles}
         >
           {!compact && !mini && (
-            <ChartMetaRow items={metaItems} styles={styles} />
+            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
@@ -680,13 +816,29 @@ function ChartPane({
              "unset" → the pane's strong 0.82; any value the user picks wins. */
           watermarkOpacity={chartCs.watermark.opacity === 0.07 ? 0.82 : chartCs.watermark.opacity}
           centerWatermarkOnPlot
-          carryDragPlacement={false}
+          /* Carry the user's manual price-scale placement (a price-axis drag that
+             compresses/repositions the candles) across ticker switches — the
+             captured margins are PROPORTIONAL (scaleMargins + autoScale), so each
+             new ticker auto-fits into the same vertical band scaled to its own
+             range. Cleared only by right-click → "Reset view" (vertMarginsRef). */
+          carryDragPlacement
+          /* Persist that manual view (pan/zoom + price-scale) so it survives a page
+             refresh; restored on load, cleared by "Reset view". */
+          viewLockKey="uct.charts.viewLock"
           keepPresentOnSymbolChange
           dragMeasure
           verticalLegend
           lockWatermark
           alwaysShowLegend
-          hideLegend={!hdr.showLegend}
+          /* ⚰️ `hideLegend={!hdr.showLegend}` STOOD HERE, and it is DELETED rather
+             than translated to the new key. `hideLegend` is the HOST's veto — "my
+             canvas is too small for chrome" — and this pane's canvas is not. It was
+             standing in for the USER's preference, which meant the pane resolved
+             that preference from its own `hdr` while StockChart resolved the very
+             same blob independently: two readers, one fact, drifting the moment
+             either side learned about a mode the other didn't.
+             StockChart reads `legendModeOf(cs)` off the settings this pane already
+             hands it via `settingsOverride`, so the answer is computed once. */
           legendColor={hdrColors.legend || null}
           rightPadBars={6}
           dailyDefaultBars={126}
@@ -700,6 +852,13 @@ function ChartPane({
           priceScaleBottomMargin={0.10}
           sessionView={sessionView}
           {...(stockChartProps || {})}
+          /* AFTER the host spread on purpose (the last prop wins): record the
+             visible time-range for journal capture, CHAINING any host-supplied
+             handler so the multi-chart sync path keeps firing. Deliberately an
+             inline arrow — its per-render identity makes StockChart's
+             subscription effect re-run, which self-heals a lost subscription
+             if the underlying chart instance is ever recreated. */
+          onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
         />
         {flagToast && (
           <div className={styles.flagToast}>
@@ -713,6 +872,8 @@ function ChartPane({
         onClose={() => setSettingsOpen(false)}
         settings={chartCs}
         onChange={updateChartSettings}
+        onApplyThemeAll={onApplyThemeAll}
+        onApplyThemeAllWidgets={onApplyThemeAllWidgets}
         savedColors={savedColors}
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}

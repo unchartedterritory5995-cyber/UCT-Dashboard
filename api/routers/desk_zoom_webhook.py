@@ -79,6 +79,115 @@ async def sessions_status(request: Request):
     return {"jobs": desk_session_jobs.list_recent(20)}
 
 
+@router.post("/creative-cover-backfill")
+def creative_cover_backfill_start(request: Request, limit: int | None = None):
+    """Fire the back-catalog creative-cover sweep as ONE background daemon
+    (each cover = an LLM call + an image render — far past the request
+    budget). Idempotent/resumable via the volume ledger; re-POST after a
+    redeploy to resume. Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_backfill
+    started = desk_cover_backfill.start_background(limit=limit)
+    return {"started": started, **desk_cover_backfill.status()}
+
+
+@router.get("/creative-cover-backfill")
+def creative_cover_backfill_status(request: Request):
+    """Sweep progress: ledger counts + how many eligible videos remain.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_backfill
+    return desk_cover_backfill.status()
+
+
+@router.post("/creative-cover-retry")
+async def creative_cover_retry_enqueue(request: Request):
+    """Queue a published session for a creative-cover attempt (the publish
+    path queues its own misses; this is the owner's hand on the lever).
+    Body: {"youtube_id": "...", "drain": true} — drain kicks one background
+    pass now instead of waiting for the 15-min job. Gated by the PUSH_SECRET
+    bearer like sessions-status."""
+    from fastapi.responses import JSONResponse
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    import json as _json
+    try:
+        body = _json.loads((await request.body()).decode("utf-8") or "{}")
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    from api.services import desk_cover_retry
+    out = desk_cover_retry.enqueue_from_library(str(body.get("youtube_id") or ""))
+    if out.get("error"):
+        code = 404 if out["error"].startswith("no video") else 400
+        return JSONResponse(out, status_code=code)
+    if body.get("drain"):
+        out["drain_started"] = desk_cover_retry.start_background_drain()
+    return {**out, **desk_cover_retry.status()}
+
+
+@router.get("/creative-cover-retry")
+def creative_cover_retry_status(request: Request):
+    """The retry queue: pending videos, attempts, next due. Gated by the
+    PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_cover_retry
+    return desk_cover_retry.status()
+
+
+@router.post("/session-requeue")
+async def session_requeue(request: Request):
+    """Recovery: put a terminal (skipped/error) recording job back in the queue,
+    optionally correcting its topic. Exists because mark_skipped is terminal by
+    design — a real session recorded in a webinar named "TEST" (the dry-run
+    guard's pattern) has no other path back to publishing. Body:
+    {"meeting_uuid": "...", "topic": "Evening Update"} — topic optional.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    from fastapi.responses import JSONResponse
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    import json as _json
+    try:
+        body = _json.loads((await request.body()).decode("utf-8") or "{}")
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    uuid = (body.get("meeting_uuid") or "").strip()
+    if not uuid:
+        return JSONResponse({"error": "meeting_uuid required"}, status_code=400)
+    topic = body.get("topic")
+    current = desk_session_jobs.get_job(uuid)
+    if current is None:
+        return JSONResponse({"error": "no job with that meeting_uuid"}, status_code=404)
+    # The skip decision belongs to desk_daily_session — consult it, never copy
+    # its pattern here. Requeueing a topic the processor will immediately
+    # re-skip is a silent no-op loop; refuse it with the reason instead.
+    from api.services.desk_daily_session import _is_test_recording
+    effective_topic = topic if topic is not None else current.get("topic")
+    if _is_test_recording(effective_topic):
+        return JSONResponse(
+            {"error": f"topic {effective_topic!r} still matches the test-recording "
+                      f"skip rule; pass a corrected topic"}, status_code=400)
+    row = desk_session_jobs.requeue(uuid, topic)
+    if row is None:
+        return JSONResponse(
+            {"error": f"job status is {current.get('status')!r} — only skipped/error "
+                      f"jobs can be requeued"}, status_code=409)
+    return {"requeued": True, "job": {k: row.get(k) for k in
+                                      ("meeting_uuid", "topic", "start_time", "status")}}
+
+
 @router.get("/session-audit")
 def session_audit(request: Request):
     """Did everything land? Re-reads the ARTIFACTS for every published session

@@ -10,8 +10,17 @@ from api.services import ticker_meta
 _FMP_EMPTY = {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
 
 
-def _yf_info(longName="Tesla Inc", sector="Consumer Cyclical", industry="Auto Manufacturers"):
-    return {"longName": longName, "shortName": "Tesla", "sector": sector, "industry": industry}
+def _yf_info(longName="Tesla Inc", sector="Consumer Cyclical",
+             industry="Auto Manufacturers", exchange="NMS"):
+    """⚠️ `exchange` is a yfinance MIC-ish CODE ("NMS"), not a friendly name —
+    `_from_yfinance` maps it through `_YF_EXCHANGE`. Carrying it here also keeps
+    the happy path a genuine yfinance-ONLY path: `_base_meta` runs the FMP leg
+    whenever the name OR the exchange is missing, so a fixture without one would
+    quietly depend on whether FMP_API_KEY is set in the ambient environment."""
+    info = {"longName": longName, "shortName": "Tesla", "sector": sector, "industry": industry}
+    if exchange is not None:
+        info["exchange"] = exchange
+    return info
 
 
 def test_yfinance_happy_path():
@@ -22,9 +31,12 @@ def test_yfinance_happy_path():
          patch("yfinance.Ticker") as YF:
         YF.return_value.info = _yf_info()
         out = ticker_meta.get_ticker_meta("TSLA")
-    assert out == {"name": "Tesla Inc", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "theme": None}
+    # "NMS" is mapped to the friendly name the compare-symbols legend renders.
+    assert out == {"name": "Tesla Inc", "sector": "Consumer Cyclical",
+                   "industry": "Auto Manufacturers", "exchange": "NASDAQ", "theme": None}
     # disk/mem cache the base meta only (no theme — theme is looked up fresh per call)
-    DP.assert_called_once_with("TSLA", {"name": "Tesla Inc", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers"})
+    DP.assert_called_once_with("TSLA", {"name": "Tesla Inc", "sector": "Consumer Cyclical",
+                                        "industry": "Auto Manufacturers", "exchange": "NASDAQ"})
 
 
 def test_memory_cache_hit_skips_fetch():
@@ -52,7 +64,8 @@ def test_finnhub_fallback_when_yfinance_fails():
          patch.object(ticker_meta, "fh_get",
                       return_value={"name": "Rocket Lab USA", "finnhubIndustry": "Aerospace"}):
         out = ticker_meta.get_ticker_meta("RKLB")
-    assert out == {"name": "Rocket Lab USA", "sector": None, "industry": "Aerospace", "theme": None}
+    assert out == {"name": "Rocket Lab USA", "sector": None, "industry": "Aerospace",
+                   "exchange": None, "theme": None}
 
 
 def test_total_failure_returns_nulls_and_not_cached():
@@ -64,14 +77,15 @@ def test_total_failure_returns_nulls_and_not_cached():
          patch("yfinance.Ticker", side_effect=Exception("x")), \
          patch.object(ticker_meta, "fh_get", return_value=None):
         out = ticker_meta.get_ticker_meta("ZZZZ")
-    assert out == {"name": None, "sector": None, "industry": None, "theme": None}
+    assert out == {"name": None, "sector": None, "industry": None,
+                   "exchange": None, "theme": None}
     DP.assert_not_called()
     assert ticker_meta._mem.get("tmeta_ZZZZ") is None
 
 
 def test_disk_cache_hit_populates_mem_and_skips_fetch():
     ticker_meta._mem.clear()
-    cached = {"name": "From Disk", "sector": "Tech", "industry": "Semis"}
+    cached = {"name": "From Disk", "sector": "Tech", "industry": "Semis", "exchange": "NASDAQ"}
     with patch.object(ticker_meta, "_disk_get", return_value=cached), \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker") as YF:
@@ -80,6 +94,70 @@ def test_disk_cache_hit_populates_mem_and_skips_fetch():
     assert out == {**cached, "theme": None}
     # mem caches the base meta only — not the per-call theme
     assert ticker_meta._mem.get("tmeta_NVDA") == cached
+
+
+def test_a_disk_entry_from_before_exchange_existed_is_treated_as_STALE():
+    """⚠️ The rail this file was MISSING, and the reason its cache test looked
+    broken when `exchange` shipped (3ca0f574a).
+
+    `_base_meta` deliberately ignores a disk entry with no `exchange` key so the
+    field fills in on the next request instead of only after the 24h TTL. That
+    is a real, load-bearing branch with no test — so when the shape changed, the
+    only signal was an unrelated-looking `YF.assert_not_called()` failure."""
+    ticker_meta._mem.clear()
+    pre_exchange = {"name": "From Disk", "sector": "Tech", "industry": "Semis"}
+    with patch.object(ticker_meta, "_disk_get", return_value=pre_exchange), \
+         patch.object(ticker_meta, "_disk_put"), \
+         patch.object(ticker_meta, "_primary_theme", return_value=None), \
+         patch.object(ticker_meta, "_from_fmp", return_value=dict(_FMP_EMPTY)), \
+         patch("yfinance.Ticker") as YF:
+        YF.return_value.info = _yf_info(longName="From yfinance", exchange="NYQ")
+        out = ticker_meta.get_ticker_meta("NVDA")
+
+    YF.assert_called()                      # the stale entry did NOT short-circuit
+    assert out["name"] == "From yfinance"
+    assert out["exchange"] == "NYSE"        # …and the new field is now populated
+
+
+def test_yfinance_without_an_exchange_still_runs_the_FMP_leg_to_fill_it():
+    """The other half of the same 3ca0f574a change: the FMP leg now runs when
+    the NAME is present but the EXCHANGE is missing, because yfinance serves
+    ugly codes (or nothing) and FMP has the friendly name. yfinance's own value
+    still wins where it has one — FMP mislabels some ETFs."""
+    ticker_meta._mem.clear()
+    with patch.object(ticker_meta, "_disk_get", return_value=None), \
+         patch.object(ticker_meta, "_disk_put"), \
+         patch.object(ticker_meta, "_primary_theme", return_value=None), \
+         patch.object(ticker_meta, "_from_fmp",
+                      return_value={**_FMP_EMPTY, "exchange": "NYSE Arca"}) as FMP, \
+         patch("yfinance.Ticker") as YF:
+        YF.return_value.info = _yf_info(longName="SPDR S&P 500 ETF Trust", exchange=None)
+        out = ticker_meta.get_ticker_meta("SPY")
+
+    FMP.assert_called_once()
+    assert out["name"] == "SPDR S&P 500 ETF Trust"     # yfinance kept the name
+    assert out["exchange"] == "NYSE Arca"              # FMP filled only the gap
+
+
+def test_yfinances_exchange_WINS_over_FMPs_when_both_answer():
+    """The real SPY case the source comment cites and nothing guarded: FMP
+    mislabels some ETFs ("AMEX") where yfinance's mapped code is right ("NYSE
+    Arca"). yfinance is missing only the NAME here, so both legs run and both
+    have an opinion about the exchange — the merge must prefer yfinance's."""
+    ticker_meta._mem.clear()
+    with patch.object(ticker_meta, "_disk_get", return_value=None), \
+         patch.object(ticker_meta, "_disk_put"), \
+         patch.object(ticker_meta, "_primary_theme", return_value=None), \
+         patch.object(ticker_meta, "_from_fmp",
+                      return_value={**_FMP_EMPTY, "name": "SPDR S&P 500 ETF Trust",
+                                    "exchange": "AMEX"}), \
+         patch.object(ticker_meta, "fh_get", return_value=None), \
+         patch("yfinance.Ticker") as YF:
+        YF.return_value.info = {"exchange": "PCX"}      # no name at all
+        out = ticker_meta.get_ticker_meta("SPY")
+
+    assert out["name"] == "SPDR S&P 500 ETF Trust"      # FMP filled the gap
+    assert out["exchange"] == "NYSE Arca"               # …but did NOT overwrite
 
 
 def test_yfinance_empty_info_falls_back_to_finnhub():
@@ -95,7 +173,8 @@ def test_yfinance_empty_info_falls_back_to_finnhub():
                       return_value={"name": "SPDR S&P 500 ETF", "finnhubIndustry": "ETF"}):
         YF.return_value.info = {}
         out = ticker_meta.get_ticker_meta("SPY")
-    assert out == {"name": "SPDR S&P 500 ETF", "sector": None, "industry": "ETF", "theme": None}
+    assert out == {"name": "SPDR S&P 500 ETF", "sector": None, "industry": "ETF",
+                   "exchange": None, "theme": None}
 
 
 def test_partial_yfinance_missing_name_backfills_name_from_finnhub():
@@ -117,9 +196,11 @@ def test_partial_yfinance_missing_name_backfills_name_from_finnhub():
         # yfinance: sector/industry but NO name (the flaky partial payload)
         YF.return_value.info = {"sector": "Technology", "industry": "Semiconductors"}
         out = ticker_meta.get_ticker_meta("MU")
-    assert out == {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors", "theme": None}
+    assert out == {"name": "Micron Technology Inc", "sector": "Technology",
+                   "industry": "Semiconductors", "exchange": None, "theme": None}
     # Cached WITH the name now (not the poisoned name=None), GICS industry preserved.
-    DP.assert_called_once_with("MU", {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors"})
+    DP.assert_called_once_with("MU", {"name": "Micron Technology Inc", "sector": "Technology",
+                                      "industry": "Semiconductors", "exchange": None})
 
 
 # ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ─────────────────
@@ -153,7 +234,7 @@ def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
          patch.object(ticker_meta, "fh_get") as FH:
         out = ticker_meta.get_ticker_meta("AAPL")
     assert out == {"name": "Apple Inc.", "sector": "Technology",
-                    "industry": "Consumer Electronics", "theme": None}
+                   "industry": "Consumer Electronics", "exchange": None, "theme": None}
     FMP.assert_called_once()
     assert FMP.call_args[0][0] == "/stable/profile"
     assert FMP.call_args[0][1] == {"symbol": "AAPL"}
@@ -241,9 +322,10 @@ def test_fmp_partial_then_finnhub_fills_remainder():
                       return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
         out = ticker_meta.get_ticker_meta("MU")
     assert out == {"name": "Micron Technology Inc", "sector": "Technology",
-                    "industry": "Semiconductors", "theme": None}
+                   "industry": "Semiconductors", "exchange": None, "theme": None}
     DP.assert_called_once_with(
-        "MU", {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors"})
+        "MU", {"name": "Micron Technology Inc", "sector": "Technology",
+               "industry": "Semiconductors", "exchange": None})
 
 
 def test_primary_theme_attached_to_result():

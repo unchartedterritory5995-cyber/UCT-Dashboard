@@ -16,7 +16,12 @@ import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/re
 // call list shows the attempt) but do not take effect — `last`, which backs
 // getVisibleLogicalRange, keeps reporting the un-anchored view. jsdom has no layout, so
 // without this the race cannot be reproduced and every suite passes on a broken chart.
-const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null, swallowUntil: 0 }))
+// `perturb`: simulate real lightweight-charts nudging the SETTLED range by a hair
+// after a programmatic write (future-axis padding / rightBarStaysOnScroll / whitespace
+// bars). Defaults to 0 (mock is exact). The view-lock drift regression sets it so that
+// a design which RE-MEASURES the settled view on every switch visibly walks the frame,
+// while an apply-only design stays put.
+const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null, swallowUntil: 0, perturb: 0 }))
 
 // The marker's props are the only observable of the anchorMarker resolution. Without
 // this capture, reverting anchorMarker to the raw (bars, anchorDate) pair — undoing the
@@ -43,7 +48,8 @@ vi.mock('lightweight-charts', () => {
     setVisibleLogicalRange: (r) => {
       spy.setVisibleLogicalRange?.(r)                       // the attempt is always recorded
       if (Date.now() < spy.swallowUntil) return             // …but clamped away by the layout race
-      spy.last = r                                          // effective range (what the user sees)
+      // effective range (what the user sees) — optionally nudged, like the real lib
+      spy.last = spy.perturb ? { from: r.from + spy.perturb, to: r.to + spy.perturb } : r
     },
     getVisibleLogicalRange: () => spy.last,
     setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
@@ -149,6 +155,8 @@ beforeEach(() => {
   spy.setVisibleLogicalRange = vi.fn()
   spy.last = null
   spy.swallowUntil = 0
+  spy.perturb = 0
+  try { localStorage.clear() } catch { /* jsdom always has it */ }
   overlay.props = null
   // SWR data hooks fetch; serve real bars on the bars route, empty-ish elsewhere.
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
@@ -430,5 +438,98 @@ describe('anchorDate → marker wiring', () => {
     render(<StockChart sym="AAPL" tf="D" barsOverride={WEEKDAY_BARS} anchorDate="1999-01-04" />)
     await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 3000 })
     expect(overlay.props).toBeNull()
+  })
+})
+
+// ── VIEW-LOCK DRIFT REGRESSION (2026-08-17) ────────────────────────────────
+// The bug: on the Charts workspace, panning the chart and then flipping through
+// tickers sent the view "back in time" a couple months PER SWITCH — a runaway
+// leftward drift. Root cause: the view lock was RE-MEASURED off the freshly
+// re-framed (settled) view on every symbol switch and re-stored. measure(apply(x))
+// is not exactly x — real lightweight-charts nudges the settled range (future-axis
+// pad, rightBarStaysOnScroll, whitespace bars) — so re-storing that nudged value
+// each switch compounded without bound.
+//
+// The fix: the lock is written ONLY by an explicit user drag/zoom; a symbol switch
+// only APPLIES it. `spy.perturb` models the real-lib nudge, so the OLD re-measuring
+// design walks the stored anchorFrac every switch and this test reds; the apply-only
+// design leaves the stored lock byte-stable no matter how many tickers you flip.
+describe('view lock — no drift across ticker switches (apply-only)', () => {
+  const LOCK_KEY = 'test.viewlock'
+  const lastRange = () => {
+    const calls = spy.setVisibleLogicalRange.mock.calls
+    return calls.length ? calls[calls.length - 1][0] : null
+  }
+  const anchorFracOf = (r) => (r && (r.to - r.from) > 0) ? (LAST_IDX - r.from) / (r.to - r.from) : null
+
+  it('a pan is captured once, then N ticker switches never move the stored lock', async () => {
+    const { container, rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+        carryDragPlacement keepPresentOnSymbolChange viewLockKey={LOCK_KEY} />)
+    await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 3000 })
+
+    // Simulate a real leftward pan: the newest bar sits well left of the right edge.
+    // Then fire a genuine pointer drag so _captureUserLock records THIS view as the lock.
+    spy.last = { from: 40, to: 240 } // newest idx 199 → anchorFrac (199-40)/200 = 0.795
+    const el = container.querySelector('[class*="chart"]')
+    expect(el).toBeTruthy()
+    fireEvent.pointerDown(el, { clientX: 300, clientY: 200 })
+    fireEvent.pointerMove(el, { clientX: 120, clientY: 200 }) // >4px → a deliberate move
+    fireEvent.pointerUp(el, { clientX: 120, clientY: 200 })
+
+    await waitFor(() => expect(localStorage.getItem(LOCK_KEY)).toBeTruthy(), { timeout: 3000 })
+    const stored0 = JSON.parse(localStorage.getItem(LOCK_KEY))
+    expect(stored0.anchorFrac).toBeGreaterThan(0.02) // a real, non-default lock was taken
+    const frac0 = stored0.anchorFrac
+
+    // From here on the real lib nudges every settled range by half a bar.
+    spy.perturb = 0.5
+
+    // Flip through several tickers. The stored lock must be byte-identical each time —
+    // the OLD re-measuring code re-writes (and drifts) anchorFrac on every one of these.
+    const syms = ['MSFT', 'GOOG', 'NVDA', 'TSLA', 'AMD']
+    for (const s of syms) {
+      spy.setVisibleLogicalRange.mockClear()
+      rerender(<StockChart sym={s} tf="D" barsOverride={FIXTURE_BARS}
+        carryDragPlacement keepPresentOnSymbolChange viewLockKey={LOCK_KEY} />)
+      await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 3000 })
+      const stored = JSON.parse(localStorage.getItem(LOCK_KEY))
+      // The stored horizontal lock never moves — this is the anti-drift invariant.
+      expect(stored.anchorFrac).toBe(frac0)
+      // And the applied frame lands at that same fraction (± the single-nudge epsilon,
+      // NOT an accumulating one): the newest bar stays where the user put it.
+      expect(Math.abs(anchorFracOf(lastRange()) - frac0)).toBeLessThan(0.02)
+    }
+  })
+
+  // A plain focus-click (used to focus the chart before type-to-search) must NOT
+  // capture — a capture there re-measures a possibly-transitioning chart and clobbers
+  // the lock (this is what nulled the vertical band on prod). The lock only changes on
+  // a real drag/zoom. Discriminates: without the moved-gate the click re-stores the
+  // (now-different) view and the assertion reds.
+  it('a plain click (no drag) never overwrites the stored lock', async () => {
+    const { container } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+        carryDragPlacement keepPresentOnSymbolChange viewLockKey={LOCK_KEY} />)
+    await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 3000 })
+
+    // Establish a lock with a genuine drag.
+    spy.last = { from: 40, to: 240 }
+    const el = container.querySelector('[class*="chart"]')
+    fireEvent.pointerDown(el, { clientX: 300, clientY: 200 })
+    fireEvent.pointerMove(el, { clientX: 120, clientY: 200 })
+    fireEvent.pointerUp(el, { clientX: 120, clientY: 200 })
+    await waitFor(() => expect(localStorage.getItem(LOCK_KEY)).toBeTruthy(), { timeout: 3000 })
+    const frac0 = JSON.parse(localStorage.getItem(LOCK_KEY)).anchorFrac
+
+    // Now the view is a DIFFERENT place (as it would be mid sym-switch), and the user
+    // merely CLICKS to focus — press + release, no movement.
+    spy.last = { from: 10, to: 210 } // (199-10)/200 = 0.945 — very different from 0.795
+    fireEvent.pointerDown(el, { clientX: 500, clientY: 300 })
+    fireEvent.pointerUp(el, { clientX: 500, clientY: 300 })
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+    // The stored lock is untouched — a click captured nothing.
+    expect(JSON.parse(localStorage.getItem(LOCK_KEY)).anchorFrac).toBe(frac0)
   })
 })

@@ -92,6 +92,55 @@ def test_bad_signature_rejected(client):
     assert r.status_code == 401
 
 
+# ── /session-requeue ─────────────────────────────────────────────────────────────
+
+def _skipped_test_job():
+    q.enqueue("Uskip", "TEST", "2026-08-19T01:00:09Z", "http://dl", "tok")
+    q.claim_next(); q.mark_skipped("Uskip", "test recording: TEST")
+
+def test_session_requeue_401_without_bearer(client):
+    r = client.post("/api/desk/session-requeue", json={"meeting_uuid": "x"})
+    assert r.status_code == 401
+
+def test_session_requeue_happy_path_corrects_topic(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    _skipped_test_job()
+    r = client.post("/api/desk/session-requeue",
+                    json={"meeting_uuid": "Uskip", "topic": "Evening Update"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 200
+    assert r.json()["requeued"] is True
+    assert r.json()["job"]["topic"] == "Evening Update"
+    assert q.count_status("pending") == 1
+
+def test_session_requeue_refuses_a_topic_the_processor_would_reskip(client, monkeypatch):
+    # Requeueing without fixing the topic would silently skip again on the next
+    # drain — refuse it up front, with the reason.
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    _skipped_test_job()
+    r = client.post("/api/desk/session-requeue", json={"meeting_uuid": "Uskip"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 400
+    assert "skip rule" in r.json()["error"]
+    assert q.count_status("skipped") == 1     # untouched
+
+def test_session_requeue_404_on_unknown_uuid(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    r = client.post("/api/desk/session-requeue", json={"meeting_uuid": "ghost"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 404
+
+def test_session_requeue_409_on_a_done_job(client, monkeypatch):
+    # A published job must never be re-run through the pipeline from here.
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    q.enqueue("Udone", "Evening Update", "s", "http://dl", "tok")
+    q.claim_next(); q.mark_done("Udone", "VID")
+    r = client.post("/api/desk/session-requeue", json={"meeting_uuid": "Udone"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 409
+    assert q.count_status("done") == 1
+
+
 # ── /insights-status ─────────────────────────────────────────────────────────────
 
 def test_insights_status_401_without_bearer(client):

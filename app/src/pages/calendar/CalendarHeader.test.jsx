@@ -8,6 +8,7 @@ vi.mock('../../hooks/useBreakpoint', () => ({ useIsPhone: () => false }))
 vi.mock('../../components/mobile', () => ({ FiltersSheet: () => null }))
 
 import CalendarHeader from './CalendarHeader'
+import { DEFAULT_FILTERS } from './filterLogic'
 
 const baseFilters = {
   audience: 'mine', minMcap: 0, sort: 'mine',
@@ -232,5 +233,65 @@ describe('CalendarHeader — Week Navigator', () => {
     renderHeader({ view: 'month', dayTabs: DAY_TABS, onSearchJump: vi.fn() })
     expect(screen.queryByLabelText('Previous week')).toBeNull()
     expect(screen.getByLabelText('Previous month')).toBeTruthy()
+  })
+
+  // ── `N hidden` must offer a way out ────────────────────────────────────────
+  //
+  // 🔴 2026-08-16, TWICE IN ONE DAY. The owner reported names missing from the
+  // calendar; the second time the data was correct and the page was on the
+  // `My Stocks` audience, hiding 72 of 130. The header did say
+  // `58 reporting · 58 mine · 72 hidden` — accurate, grey, and next to nothing
+  // clickable, because `Clear` deliberately renders only for the QUICK filters
+  // (search/cap) that it can actually undo.
+  //
+  // ⭐ Audience and sector are the ones that hide with NO visible token, so they
+  // are exactly the ones that need an undo. `Show all` is that undo.
+  describe('the hidden count offers an undo for the filters that hide silently', () => {
+    const counts = { raw: 130, total: 58, mine: 58, hidden: 72 }
+
+    it('offers Show all when the AUDIENCE is scoping the week', () => {
+      renderHeader({ weekCounts: counts })          // baseFilters.audience = 'mine'
+      expect(screen.getByText('72 hidden', { exact: false })).toBeTruthy()
+      expect(screen.getByText('Show all')).toBeTruthy()
+    })
+
+    it('Show all restores BOTH scoping filters to the documented default', () => {
+      const setFilters = vi.fn()
+      renderHeader({
+        weekCounts: counts, setFilters,
+        filters: { ...baseFilters, audience: 'positions', sector: 'Technology' },
+      })
+      fireEvent.click(screen.getByText('Show all'))
+      // ⛔ Derived from `filterLogic.DEFAULT_FILTERS`, never typed here — this
+      // button's whole job is to land you where a fresh visitor lands.
+      expect(setFilters).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audience: DEFAULT_FILTERS.audience,
+          sector: DEFAULT_FILTERS.sector,
+        }))
+    })
+
+    it('offers it for a SECTOR scope too, which hides just as silently', () => {
+      renderHeader({
+        weekCounts: counts,
+        filters: { ...baseFilters, audience: 'all', sector: 'Energy' },
+      })
+      expect(screen.getByText('Show all')).toBeTruthy()
+    })
+
+    it('does NOT offer it when nothing is scoping — a dead button is worse', () => {
+      // Hidden here is the quick cap pill's doing, which `Clear` already undoes.
+      renderHeader({
+        weekCounts: counts,
+        filters: { ...baseFilters, audience: 'all', sector: null, minMcap: 10 },
+      })
+      expect(screen.queryByText('Show all')).toBeNull()
+    })
+
+    it('does not render the strip at all when nothing is hidden', () => {
+      renderHeader({ weekCounts: { raw: 58, total: 58, mine: 58, hidden: 0 } })
+      expect(screen.queryByText('Show all')).toBeNull()
+      expect(screen.queryByText('hidden', { exact: false })).toBeNull()
+    })
   })
 })

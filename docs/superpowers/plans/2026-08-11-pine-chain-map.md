@@ -12,12 +12,48 @@ the usual per-output count and they are the ones that show what is queued up
 BEHIND the first refusal. Reading both together is how you see a chain instead
 of a wall.
 
+## 🔴 FINAL MEASURED STATE, 2026-08-11 — every remaining script, individually
+
+11 of 21 read, 47 columns. **Not one of the remaining ten is a contained
+translator fix.** Each needs either a product decision or a substantial engine
+extension, and five of them SHOULD keep refusing. Measured per script, output
+walls and fold walls both:
+
+| Script | Wall | What it actually needs |
+|---|---|---|
+| 04-superguppy | `request.security` + `for` | multi-symbol data path |
+| 05-mtf | `request.security` ×3, nothing else | multi-symbol data path |
+| 09-obv | `cum`, nothing else | ⛔ inexpressible: a true cumulative changes with how many bars were fetched |
+| 14-bollinger | displaced `plot(offset=)` ×3 | ⛔ that refusal IS the non-repainting guarantee |
+| 19-strategy | `strategy()` | order simulation — a different engine |
+| 10-supertrend | `pine:state` ×5, nothing else | **closed-table: a recurrence needs its OWN bind** |
+| 21-volume-profile | state + `for` | loops |
+| 02-ict | state + `for` + `while` + 7 unparsed | loops |
+| 20-smc | `ta.pivothigh` + 3 user types + `for`/`while` | loops + UDTs + a drawing model |
+| 15-avwap | `time` ×7 + `for` | session model + loops |
+
+⭐ **THE ONE ENGINE CHANGE WITH REAL REACH IS DISTINCT RECURRENCE BINDS.** `accum`
+binds a single name, `self`. Two recurrences in one expression therefore collapse
+onto it — that is exactly what made the 10-supertrend fold emit `self` as both a
+direction and a stop price. The interpreter refuses a NESTED `accum` for the same
+reason, in its own words: *"which running value it names would depend on where a
+reader started counting."* Give each recurrence its own bind and that objection
+dissolves, 10 clears, and the whole trailing-stop family becomes expressible.
+
+⚠️ It is a closed-table change: both lanes, a parity case, the budget walker and
+the repaint linter. Not a translator patch. That is the honest next project.
+
+⛔ **AND FIVE SHOULD NEVER MOVE.** `request.security` (a scan column reads one
+symbol), `cum` (request-dependent by construction), a displaced plot (the repaint
+guarantee itself), `strategy()` (a different engine). Counting them as "remaining
+work" is how a roadmap starts lying.
+
 ## The ceiling
 
 | | scripts | why |
 |---|---|---|
-| **Reading today** | **10** | |
-| Reachable with contained work | **+1** | 06 only — 05 and 10 were re-measured and are NOT (see below) |
+| **Reading today** | **11** | 47 columns |
+| ✅ Reachable, and DONE | **+1** | 06 cleared 2026-08-11 — 9 columns |
 | Needs loops / UDTs (Phase 5) | 3 | 02, 20, 21 |
 | Structurally out, correctly | 5 | 04, **05**, 09, 14, 19 |
 | | **21** | |
@@ -63,7 +99,149 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
-🔴🔴 **ATTEMPTED AND REVERTED, 2026-08-11 — READ THIS BEFORE TRYING AGAIN.**
+### ✅ THE CONVERGENCE TEST — WRITTEN AND PROVEN. One thing left after it.
+
+**Attempt five built it and it works.** Measured, in one pass:
+
+    s = close+1 ; p = nz(s[1],s) ; if s>0 → s := high<p ? min(s,p) : s
+      → accum(close + 1, … min(close+1, nz(self, close+1)) …, 250)   ✅ translates
+    x = 0.0 ; x := x[1] + volume        → REFUSES, "never forgets"    ✅
+    x = 1.0 ; x := x[1] * 1.01          → REFUSES                     ✅
+    s = close+1 ; if s>0 → s := high    → unchanged                   ✅
+
+The analyser, verbatim in the commit history and ~30 lines: `self` may reach the
+root only through `min`/`max` (with the other operand self-free), `nz`, and
+ternary ARMS. ⚠️ A ternary's CONDITION may test `self` freely — it decides a
+branch without carrying the value. Anything else answers NO.
+
+🔴 **THE ONE REMAINING ITEM: the OUTSIDE path recurses.** Script 10 moved from
+`pine:state` to `pine:cycle` — `MAX_CALL_DEPTH` bounds it so nothing hangs and no
+wrong tree is emitted, but the resolution loops. `shortStop`'s final binding
+reaches `shortStopPrev`, which reaches `shortStop[1]`, which resolves
+`shortStop`'s final binding again. The marker prevents the WRONG answer; it does
+not prevent the re-entry.
+
+**The fix is a memo, not a redesign:** cache the built accumulator per name on
+first construction (`this.recurrenceColumns`), and have the OUTSIDE path return
+the cached column instead of resolving the final binding a second time. One map,
+set where the wrap returns, read at the top of `plainRecurrence`'s outside arm.
+
+**Two tests need deliberate updates when it lands** — both already identified:
+`pine.test.js` expects the OBV refusal at line 7 (the new one fires at the
+binding, so locate at the reassignment instead), and `pine.variables.test.js`
+pins script 10's guard as `pine:state`.
+
+⚠️ Reverted only because a translator change without its mutation pass is how the
+wrong ones shipped tonight. The analyser is right, the gate is right, and the
+remaining item is one memoisation.
+
+### ⭐ (the rule it implements) THE CONVERGENCE TEST
+
+**A re-seeded accumulator is sound if and only if it FORGETS ITS SEED.** That is
+the whole criterion, and it is why a trailing stop is safe under `accum` while a
+running total is not:
+
+| update shape | forgets the seed? | verdict |
+|---|---|---|
+| `min(x, self)` / `max(x, self)`, `x` self-free | yes, once `x` dominates | ✅ sound |
+| `cond ? self : x` — a hold or a passthrough | yes | ✅ sound |
+| `nz(self, x)` | passthrough | ✅ sound |
+| bare `self` | trivially | ✅ sound |
+| `self + x`, `self - x`, `self * x`, `self / x` | **never** | ⛔ refuse |
+| `self` inside any other call | unknown | ⛔ refuse |
+
+**The analysis:** walk the resolved update tree. `self` may reach the root ONLY
+through `min`/`max`/`nz` and through ternary ARMS. Reaching it through an
+arithmetic operator, or through any other function, refuses by name.
+
+⛔ **CONSERVATIVE ON PURPOSE.** An unrecognised shape refuses rather than being
+assumed convergent — this decides whether a member's saved indicator is the
+indicator they wrote, and the failure it prevents (a hand-rolled OBV silently
+becoming a 250-bar rolling sum) is invisible in the output.
+
+⚠️ **The refusal message must name the reason, not the shape:** *"this value adds
+to its own previous bar, so it never forgets where it started — and this engine's
+accumulator re-seeds, which would make it a rolling sum rather than a running
+total."* That sentence is also the honest answer to why `cum` refuses, so the two
+finally agree.
+
+**Then attempt five is mechanical:** the marker from attempt four (validated,
+correct) plus this gate in front of the wrap. Nothing else changes.
+
+🛑 **ATTEMPT FOUR — THE DESIGN WAS RIGHT AND THE FEATURE IS STILL WRONG.**
+
+The resolution-time marker WORKS. `buildingRecurrence` tells the two positions
+apart, and the simple trailing stop translates correctly:
+
+    s = close + 1 ; p = nz(s[1], s) ; if s > 0 → s := high < p ? min(s, p) : s
+    → accum(close + 1, close + 1 > 0 ? (high < nz(self, close+1) ? min(…) : …) : …, 250)
+
+🔴 **AND IT WOULD SILENTLY MISTRANSLATE A HAND-ROLLED CUMULATIVE.** An existing
+rail caught it — `pine.variables.test.js`, which exists for exactly this:
+
+    x = 0.0
+    x := x[1] + volume          ← OBV by hand
+
+That becomes `accum(0, self + volume, 250)`. **`accum` RE-SEEDS EVERY 250 BARS.**
+It is a rolling sum, not a cumulative — which is precisely why `cum` is refused
+in the first place: a true cumulative changes value with how many bars were
+fetched. The plain-name recurrence path cannot tell a TRAILING STOP (bounded,
+correct under a re-seeding accumulator) from a RUNNING TOTAL (unbounded, wrong
+under one), because both are spelled `x := f(x[1])`.
+
+⛔ **SO THIS IS NOT A TRANSLATOR PROBLEM EITHER.** It is the same wall as `cum`,
+reached from the other side. Any general `x := f(x[1])` fold has to answer:
+*is this update bounded?* An accumulator that re-seeds is only sound when the
+update CONVERGES — a stop that clamps to a min/max does; a sum does not.
+
+**What a fifth attempt would need, and it is a real piece of design:**
+- a convergence test on the update tree — a min/max/clamp against a bounded
+  input is safe; an unbounded `self + x` is not — and refusal by name when it
+  cannot be shown;
+- or an unbounded accumulator with an ABSOLUTE seed, which is the same thing
+  `cum` needs and which the engine forbids by construction today.
+
+⭐ Four attempts, and each one narrowed it: attempt 1 found the collision,
+2 found the shared `self`, 3 found the neighbouring-binding escape, 4 found the
+boundedness question. The engine half below is real and shipped. This half should
+not ship until boundedness has an answer.
+
+✅ **THE ENGINE HALF IS SHIPPED.** `self` now binds to the NEAREST ENCLOSING
+recurrence, so two independent accumulators can sit in one expression — proved
+across both lanes at 0.000e+00. The claim that this needed a closed-table change
+was WRONG; it was one condition in `reads()` per lane.
+
+🔴🔴 **THE TRANSLATOR HALF FAILED A THIRD TIME, AND NOW THE REASON IS EXACT.**
+Not a vague "it collided" — here is the mechanism:
+
+    shortStop     = src + atr
+    shortStopPrev = nz(shortStop[1], shortStop)   ← a DIFFERENT name
+    if …  shortStop := … shortStopPrev …
+
+`shortStop[1]` is read while resolving **`shortStopPrev`**, which is its own
+binding. My code emitted a bare `self` there and recorded the seed under
+`shortStop`. But the wrap fires on the name whose final binding is being
+resolved — and that name is `shortStopPrev`, which has no seed recorded. So the
+`self` escapes its own accumulator and is captured by whatever encloses it,
+which is `dir`'s. One accumulator, `self` meaning a direction in one place and a
+stop price in another.
+
+⭐ **AND THE CORRECT RULE IS NOW CLEAR, WHICH IS THE DELIVERABLE:**
+`name[1]` means two different trees depending on WHERE it is read.
+- **Inside that name's own update** → `self`.
+- **Anywhere else** (the `shortStopPrev` case) → `accum_name(…)[1]`, the whole
+  accumulator offset by one bar.
+
+⚠️ That second form already works for a `var` state — measured: reading a state's
+past from outside its update inlines the accumulator and offsets it. What the
+plain-name path lacks is the ability to tell the two positions apart, because it
+has no notion of "am I currently building THIS name's recurrence".
+
+**So the next attempt needs a resolution-time marker for the recurrence under
+construction** — not more folding. Reverted rather than shipped; the engine half
+stands on its own and is already in use by the multi-lag work.
+
+🔴🔴 **(history) ATTEMPTED AND REVERTED — READ THIS BEFORE TRYING AGAIN.**
 
 The recurrence fold was written exactly as specified above: `name[1]` → selfref,
 the binding in scope at the read → SEED, the folded reassignments → UPDATE,
@@ -111,7 +289,25 @@ different question. Fixing it means folding the conditional reassignment FIRST
 and offsetting the final binding. ⛔ Not "relax the guard": the guard is right,
 the fold order is what has to change.
 
-### 🛑 CONSTANT-FOLDING AN OFFSET — BUILT, WORKS, REVERTED. OWNER CALL NEEDED.
+### ✅ CONSTANT-FOLDING AN OFFSET — SHIPPED. Owner answered: the tree is frozen.
+
+**The answer resolved it toward folding, not away.** If the stored tree is
+authoritative then a LENGTH is already frozen — `ta.sma(close, n)` has folded to
+`sma(close, 10)` all along. Folding the offset makes a member's knob frozen for
+both rather than for one and not the other, which is the consistent behaviour.
+
+⛔ Still refused, and each was checked: a SERIES index, a series-NAME index,
+`1 + 1`, `1.5`, `bar_index`, and `close[-1]`.
+
+⚠️ **Two things the mutation harness corrected, both worth reading:**
+1. The `folded.value < 0` check is **unreachable today** — `-1` resolves to a
+   `u-` op, not a negative `num`, so it refuses one check earlier. Kept and
+   documented as dead rather than deleted or left looking load-bearing.
+2. `pine:offset-literal` no longer fires on ANY published script in the corpus,
+   so it left the coverage list — the pinned guard COUNT (12 → 11) is what forced
+   that to be acknowledged instead of the list going quietly stale.
+
+### 🛑 (original) CONSTANT-FOLDING AN OFFSET — the reasoning before the answer
 
 **The inconsistency is real and measured.** An input already folds when used as a
 LENGTH — `n = input.int(10)`, `ta.sma(close, n)` → `sma(close, 10)`, because the
@@ -157,7 +353,71 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06-adx-advanced — `ta.dmi` SHIPPED, and the script still refuses (correctly)
+### ✅ 06-adx-advanced — CLEARED. 10/38 → 11/47, the largest single gain yet.
+
+Both walls fell, and each needed the SAME move: defer the decision to resolve
+time, where a name is a value.
+
+1. **`switch` on a fixed subject reduces to one arm.** `smoothType` is
+   `input.string("EMA", …)`, "EMA" matches no label, so it takes the default —
+   `ema(x, len)`. A subject that moves bar to bar still refuses at `pine:block`.
+2. **`ta.dmi`'s two periods are compared as VALUES, not spellings.** The first
+   cut compared the argument NODES at fold time, which refused
+   `ta.dmi(diLen, adxSmooth)` even though both inputs hold 14 — the exact call
+   this script makes. A mismatch (14 vs 20) still refuses.
+
+⭐ **The formulas were READ, not just counted** — the lesson from the recurrence
+fold that produced plausible nonsense:
+
+    adx(high, low, close, 14) - ema(adx(high, low, close, 14), 3)   ← adxHist
+    plusDI(high, low, close, 14) · minusDI(high, low, close, 14)
+    ema(adx(high, low, close, 14), 3)                               ← adxLine
+
+🔴 **AND THE BUG THAT BLOCKED THIS FOR TWO ATTEMPTS WAS ONE LINE**, in neither of
+the two places I predicted. `pine.js`'s function-call path did
+`this.resolve(bound.value.node)` — but a function's value is a BINDING, and only
+the plain `expr` kind carries a `.node`. A body ending in anything else resolved
+`undefined`, and the TypeError surfaced as `pine:statement`: "the translator
+cannot parse this line", about a line it parsed perfectly.
+
+⚠️ The fix keeps `expr` on the direct path deliberately. Routing it through
+`resolveBinding` tripped the cycle guard on `f(f(x))` — legal Pine, and covered.
+
+**Guards closed by this, all three still live for what they actually guard:**
+`pine:block` (still refuses `for`/`while`/a moving subject) joins
+`pine:role-order` and `pine:offset-literal` as no longer reachable from any
+published script here.
+
+### 🥉 (history) 06 — the `switch` fold, before it landed
+
+**The target is right and the default arm is reachable.** `smoothType` is
+`input.string("EMA", …)` and `"EMA"` matches NO named arm, so it falls to
+`f_smooth`'s default — `ta.ema(x, len)`, a declared function. Folding the switch
+on a fixed subject yields exactly that.
+
+**The design, which I still believe is correct:**
+- In `foldStatements`, a `switch` becomes ONE binding carrying its subject, its
+  arms and its default — the arm CANNOT be chosen there, because a name is not
+  resolvable while the walk is still binding names. Same reason a tuple's parts
+  are held rather than picked.
+- In `resolveBinding`, a `switch` binding reduces: `stringValueOf(subject)` (the
+  folder already used for `==` on two strings), match an arm label, else the
+  default, else refuse by name. A subject that is not a fixed string keeps
+  refusing at `pine:block` — the branch must not move bar to bar.
+
+🔴 **IT DID NOT WORK AND I STOPPED.** A `TypeError` surfaced as `pine:statement`
+and I did not isolate it. Two candidates, both unverified: `=>` may lex as two
+tokens (`=` then `>`), which would make `findTop` for it return -1; and an arm's
+sub-statements may not carry `.header` the way I assumed. **Check both before
+writing anything** — a five-line probe printing the lexed tokens of one `switch`
+arm settles it.
+
+⚠️ **Reverted rather than left limping.** This was the third mechanical error in
+a stretch — after a wrong-but-plausible recurrence fold and a guard I mis-described
+— which is a signal about the session, not about the problem. The work is genuinely
+close; it deserves a first attempt, not a fourth.
+
+### 🥉 (context) 06 — `ta.dmi` SHIPPED, and the script still refuses (correctly)
 
 ✅ **`ta.dmi(n, n)` now maps to its three declared legs** — `plusDI`/`minusDI`/
 `adx`, each through a role order declared in `PINE_CALL_SHAPES` rather than

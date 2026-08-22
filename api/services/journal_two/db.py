@@ -385,8 +385,17 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     body_json       TEXT NOT NULL DEFAULT '{"type":"doc","content":[]}',
     body_plain      TEXT NOT NULL DEFAULT '',
     hero_image_url  TEXT,
+    -- Notebook card thumbnail cache (see the matching ALTER below): the ALTER
+    -- alone covered existing DBs but a FRESH schema (every test fixture, any
+    -- new install) never gained the column and the notes INSERT names it —
+    -- 7 import-suite reds (inherited; a new column goes in BOTH places).
+    first_image_url TEXT,
     ticker          TEXT,
     tags            TEXT NOT NULL DEFAULT '[]',
+    import_source   TEXT,
+    import_key      TEXT,
+    import_hash     TEXT,
+    imported_at     TEXT,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -396,17 +405,151 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
+-- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
+-- the initial executescript would run BEFORE run_notebook_migration_v2 adds
+-- the import_key column on a pre-existing (v1-shaped) database, raising
+-- "no such column: import_key" on every current user's DB. It is created
+-- (as a partial UNIQUE index) in ensure_schema() AFTER both notebook
+-- migrations run, and inside run_notebook_migration_v2 itself.
 
 CREATE TABLE IF NOT EXISTS j2_note_folders (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     name        TEXT NOT NULL,
+    parent_id   TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
-    UNIQUE(user_id, name)
+    UNIQUE(user_id, parent_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
     ON j2_note_folders(user_id, sort_order);
+
+-- ── Note Connectors ─────────────────────────────────────────────────────────
+-- Account-connected background sync of external note libraries (Roam/Craft/
+-- Notion/Dropbox) into the Notebook. Spec: docs/superpowers/specs/
+-- 2026-08-11-note-connectors-design.md §5. These are brand-new tables — safe
+-- as CREATE TABLE IF NOT EXISTS here (no ALTERs; nothing below references
+-- column/table state that only a migration creates). run_notebook_migration_v3
+-- (.notebook_migration_v3 flag) re-creates them for DBs whose _J2_SCHEMA
+-- predates this section; idx_j2_note_sources_user is created in
+-- ensure_schema() AFTER that migration call, mirroring how
+-- idx_j2_notes_user_import is handled above.
+CREATE TABLE IF NOT EXISTS j2_note_connectors (
+    user_id       TEXT NOT NULL,
+    provider      TEXT NOT NULL,
+    token_enc     TEXT NOT NULL,
+    account_label TEXT,
+    status        TEXT NOT NULL DEFAULT 'active',
+    consent_at    TEXT,
+    created_at    TEXT,
+    updated_at    TEXT,
+    PRIMARY KEY(user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS j2_note_sources (
+    id                TEXT PRIMARY KEY,
+    user_id           TEXT NOT NULL,
+    provider          TEXT NOT NULL,
+    remote_id         TEXT NOT NULL,
+    display_name      TEXT,
+    dest_folder_id    TEXT,
+    cursor            TEXT,
+    sync_enabled      INTEGER NOT NULL DEFAULT 1,
+    status            TEXT NOT NULL DEFAULT 'active',
+    last_sync_at      TEXT,
+    last_sync_status  TEXT,
+    last_sync_error   TEXT,
+    warming_until     TEXT,
+    created_at        TEXT NOT NULL,
+    UNIQUE(user_id, provider, remote_id)
+);
+-- idx_j2_note_sources_user is deliberately NOT created here — see the
+-- comment above and ensure_schema() below.
+
+CREATE TABLE IF NOT EXISTS j2_note_sync_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id       TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    started_at      TEXT,
+    finished_at     TEXT,
+    status          TEXT,
+    error           TEXT,
+    notes_created   INTEGER,
+    notes_updated   INTEGER,
+    notes_skipped   INTEGER,
+    media_uploaded  INTEGER,
+    conflicts       INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS j2_note_remote_index (
+    user_id           TEXT NOT NULL,
+    source_id         TEXT NOT NULL,
+    remote_id         TEXT NOT NULL,
+    import_key        TEXT NOT NULL,
+    remote_updated_at TEXT,
+    seen_at           TEXT NOT NULL,
+    miss_streak       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(user_id, source_id, remote_id)
+);
+
+-- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
+-- One row per widgetEmbed node in a note's body_json, kept in sync on every
+-- note write by notes._sync_note_embeds (create/update/import/delete). This is
+-- the indexed answer to "every entry where I traded AMD" / "every entry with a
+-- breadth widget" — queryable WITHOUT walking document blobs, and the basis
+-- for derived auto-tags. The doc's attrs stay the single authority; these rows
+-- are a rebuildable projection of them (never edited directly).
+CREATE TABLE IF NOT EXISTS j2_note_embeds (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    position    INTEGER NOT NULL,          -- document order of the embed
+    widget_id   TEXT NOT NULL,
+    symbol      TEXT,
+    timeframe   TEXT,
+    trade_ref   TEXT,
+    mode        TEXT,                      -- 'snapshot' | 'live'
+    captured_at TEXT,
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_sym
+    ON j2_note_embeds(user_id, symbol);
+CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_widget
+    ON j2_note_embeds(user_id, widget_id);
+
+-- Capture inbox: hotkey captures during the session land here and get placed
+-- into notes while writing after the close. A row is one staged widgetEmbed
+-- (params + search line + optional archived image); placing it into a note
+-- consumes the row. A TABLE, not a preference — prefs have no delete route
+-- and no size cap (see user_definitions.py's note on that hazard).
+CREATE TABLE IF NOT EXISTS j2_capture_inbox (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    widget_id    TEXT NOT NULL,
+    params_json  TEXT NOT NULL DEFAULT '{}',
+    search_text  TEXT,
+    fallback_url TEXT,
+    -- Capture-time chart drawings (chart-parity round): without them the
+    -- tray's place() re-seeded from the LIVE store at placement time — an
+    -- embed labeled "captured Monday" carried Tuesday's drawings.
+    annotations_json TEXT,
+    captured_at  TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
+    ON j2_capture_inbox(user_id, created_at DESC);
+
+-- Public share links for notebook notes (post-v1; screener-share idiom: the
+-- token IS the credential). One active token per note; revocation keeps the
+-- row so a revoked link stays dead instead of being re-mintable by accident.
+CREATE TABLE IF NOT EXISTS j2_note_shares (
+    token       TEXT PRIMARY KEY,
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    revoked_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_shares_note
+    ON j2_note_shares(note_id, user_id);
 
 -- ── Broker Sync (SnapTrade) ─────────────────────────────────────────────────
 -- One SnapTrade registration per UCT user (their "broker identity"). The
@@ -552,6 +695,39 @@ CREATE TABLE IF NOT EXISTS j2_broker_digest_dedup (
     id           TEXT PRIMARY KEY,
     fingerprint  TEXT NOT NULL,
     et_day       TEXT NOT NULL
+);
+
+-- Settlement pin for option holdings (broker/option_reconstruct.py): while a
+-- sale's activity is pending delivery (ledger > held), SnapTrade's fleet can
+-- serve DIFFERENT held counts sync to sync (measured 8/21: BA 3 and 5 all
+-- day). The pin remembers the MINIMUM held seen per contract — the most
+-- settled server's answer, i.e. what the broker's own app shows — and resets
+-- the moment the ledger changes (a real fill arrives via activities or the
+-- Recent Orders rail), so genuine trades still apply instantly.
+CREATE TABLE IF NOT EXISTS j2_broker_opt_holdings_memo (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    contract_key       TEXT NOT NULL,
+    min_held           REAL NOT NULL,
+    ledger_total       REAL NOT NULL,
+    updated_at         TEXT NOT NULL,
+    PRIMARY KEY (user_id, broker_account_id, contract_key)
+);
+
+-- Mirror-drift sentinel verdicts (broker/mirror_check.py): after every sync,
+-- the journal's own tables are compared against the broker payload that sync
+-- just used. ONE row per account = the latest verdict; consecutive_drifts
+-- distinguishes settlement-window transients from persistent divergence.
+CREATE TABLE IF NOT EXISTS j2_broker_mirror_checks (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    checked_at         TEXT NOT NULL,
+    ok                 INTEGER NOT NULL,
+    drift_dollar       REAL,
+    drift_pct          REAL,
+    consecutive_drifts INTEGER NOT NULL DEFAULT 0,
+    detail_json        TEXT,
+    PRIMARY KEY (user_id, broker_account_id)
 );
 """
 
@@ -703,6 +879,10 @@ _PHASE_2_ALTERS = [
     "bar_resolution TEXT, data_quality TEXT, computed_at TEXT NOT NULL, "
     "PRIMARY KEY (user_id, trade_ref))",
     "CREATE INDEX IF NOT EXISTS idx_j2_excursions_user ON j2_trade_excursions(user_id)",
+    # True R (2026-08-21) — stop-free R vs the risk actually taken (MAE).
+    # Derivable from stored mae_price + the trade row, so old rows backfill
+    # via pure SQL (excursions_store.backfill_true_r) with no bars refetch.
+    "ALTER TABLE j2_trade_excursions ADD COLUMN true_r REAL",
     # Journal A+ P5-A2 — per-setup rule LABELS (the checklist template each
     # trade of that setup is graded against later). JSON blob parallel to
     # `setups`: {setupName: [{id, label}]}. Defaults to {} for legacy rows.
@@ -750,6 +930,12 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_trades ADD COLUMN analytics_excluded_reason TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_trades_user_excl "
     "ON j2_trades(user_id, analytics_excluded)",
+    # Notebook card thumbnail: the src of the FIRST inline image in a note's
+    # body, cached so the (body_json-less) list projection can render a small
+    # preview glyph without shipping the whole document. Populated on every body
+    # save + lazily backfilled when a note is opened. NULL = no image (or not yet
+    # computed for a legacy note that hasn't been opened/saved since this shipped).
+    "ALTER TABLE j2_notes ADD COLUMN first_image_url TEXT",
 ]
 
 
@@ -774,6 +960,75 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         run_notebook_migration_v1(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration] aborted: {e}")
+
+    try:
+        run_notebook_migration_v2(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v2] aborted: {e}")
+
+    # Partial UNIQUE index on (user_id, import_key) — created here, AFTER both
+    # notebook migrations, so it can never reference import_key before that
+    # column exists (the Critical-1 bug: the old copy of this statement lived
+    # in _J2_SCHEMA's executescript, which ran first). DROP-then-CREATE
+    # (rather than a bare CREATE UNIQUE INDEX IF NOT EXISTS) so a dev DB still
+    # carrying the old NON-unique index (from before this fix, or from a
+    # `run_notebook_migration_v2` that already ran once under the old code)
+    # upgrades to the unique partial form cleanly. Guarded on the column
+    # actually existing + wrapped so a prior migration failure can never take
+    # startup down over an index.
+    try:
+        ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
+        if "import_key" in ncols:
+            conn.execute("DROP INDEX IF EXISTS idx_j2_notes_user_import")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+                "ON j2_notes(user_id, import_key) WHERE import_key IS NOT NULL"
+            )
+            conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v2] index creation aborted: {e}")
+
+    try:
+        run_notebook_migration_v3(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v3] aborted: {e}")
+
+    # Note Connectors additive columns (Task 8): `miss_streak` on
+    # j2_note_remote_index (2-strikes delete-detection counter) and
+    # `conflicts` on j2_note_sync_log. run_notebook_migration_v3 above is
+    # flag-gated (returns instantly once `.notebook_migration_v3` exists) AND
+    # its CREATE TABLE IF NOT EXISTS statements no-op on a table that already
+    # exists — so ANY DB that ran ensure_schema() under a _J2_SCHEMA snapshot
+    # from before these two columns existed never gains them without a
+    # dedicated ALTER. Mirrors the _PHASE_2_ALTERS idiom exactly (idempotent
+    # via try/except, since SQLite has no ADD COLUMN IF NOT EXISTS). Placed
+    # HERE, after the v3 call, so it never runs before the tables exist on a
+    # DB whose _J2_SCHEMA predates the Note Connectors tables entirely.
+    for stmt in (
+        "ALTER TABLE j2_note_remote_index ADD COLUMN miss_streak INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE j2_note_sync_log ADD COLUMN conflicts INTEGER",
+        # Chart-parity round: capture-time drawings ride the inbox row.
+        "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
+    ):
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if "duplicate column" not in msg and "already exists" not in msg:
+                raise
+    conn.commit()
+
+    # Index on j2_note_sources — created here, AFTER migration v3, so it can
+    # never run before the table exists on a DB whose _J2_SCHEMA predates the
+    # Note Connectors tables (mirrors idx_j2_notes_user_import above).
+    try:
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_j2_note_sources_user "
+            "ON j2_note_sources(user_id, provider)"
+        )
+        conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v3] index creation aborted: {e}")
 
 
 def _data_dir() -> Path:
@@ -923,3 +1178,192 @@ def run_notebook_migration_v1(conn: sqlite3.Connection) -> None:
             flag.touch()
         except Exception:
             pass
+
+
+def run_notebook_migration_v2(conn: sqlite3.Connection) -> None:
+    """Folder tree (parent_id) + import provenance columns on j2_notes.
+    Idempotent via .notebook_migration_v2 flag file AND column probes + v1 leftover
+    probe, so a fresh DB created after this ships is also handled. Every step is
+    individually idempotent and resumable (never relies on transactional DDL).
+    parent_id uses '' as the root sentinel (NULLs are distinct in SQLite UNIQUE
+    constraints, which would allow duplicate root names)."""
+    flag = _data_dir() / ".notebook_migration_v2"
+    if flag.exists():
+        return
+
+    # Probe sqlite_master for leftover v1 table (crash recovery). If a process dies
+    # between RENAME and CREATE TABLE, the next boot must detect and resume.
+    v1_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_note_folders_v1'"
+    ).fetchone() is not None
+
+    # Rebuild j2_note_folders if either:
+    # - Current table exists and is missing parent_id, OR
+    # - v1 is stranded (crashed between RENAME and CREATE new table)
+    fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
+    needs_rebuild = (fcols and "parent_id" not in fcols) or v1_exists
+
+    if needs_rebuild:
+        # Only rename if v1 doesn't exist yet (first boot of the rebuild).
+        if not v1_exists and "parent_id" not in fcols:
+            conn.execute("ALTER TABLE j2_note_folders RENAME TO j2_note_folders_v1")
+
+        # Create new shape (idempotent: IF NOT EXISTS so re-runs are safe).
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS j2_note_folders (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                parent_id   TEXT NOT NULL DEFAULT '',
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL,
+                UNIQUE(user_id, parent_id, name))"""
+        )
+
+        # Re-insert from v1 (INSERT OR IGNORE so re-runs skip already-copied rows).
+        # This is safe even if INSERT...SELECT was interrupted partway.
+        conn.execute(
+            "INSERT OR IGNORE INTO j2_note_folders (id, user_id, name, parent_id, sort_order, created_at) "
+            "SELECT id, user_id, name, '', sort_order, created_at FROM j2_note_folders_v1"
+        )
+
+        # Drop the old table (safe to re-run: DROP TABLE IF NOT EXISTS, though
+        # this one succeeds only if v1 exists, so it's idempotent by construction).
+        conn.execute("DROP TABLE IF EXISTS j2_note_folders_v1")
+
+        # Recreate the index (IF NOT EXISTS, idempotent).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user "
+            "ON j2_note_folders(user_id, sort_order)"
+        )
+
+    # Add import columns to j2_notes (each individually idempotent via ALTER IF NOT EXISTS pattern).
+    ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
+    for col in ("import_source", "import_key", "import_hash", "imported_at"):
+        if ncols and col not in ncols:
+            conn.execute(f"ALTER TABLE j2_notes ADD COLUMN {col} TEXT")
+
+    # Recreate the index as a PARTIAL UNIQUE index — DROP-then-CREATE (not
+    # just IF NOT EXISTS) so a dev DB carrying the old non-unique version of
+    # this index upgrades cleanly. WHERE import_key IS NOT NULL because most
+    # notes are never imported (mirrors the other partial-unique indexes in
+    # this file, e.g. idx_j2_trades_extid).
+    conn.execute("DROP INDEX IF EXISTS idx_j2_notes_user_import")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+        "ON j2_notes(user_id, import_key) WHERE import_key IS NOT NULL"
+    )
+
+    conn.commit()
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+    except Exception:
+        pass
+
+
+# Same DDL as the CREATE TABLE IF NOT EXISTS statements in _J2_SCHEMA (kept as
+# literal text, not shared/interpolated, so this migration reads standalone
+# like v1/v2 do). Table-probed + IF NOT EXISTS makes re-running this against a
+# DB that already has these tables (i.e. every DB created under the current
+# _J2_SCHEMA) a pure no-op.
+_NOTE_CONNECTOR_TABLE_DDL = {
+    "j2_note_connectors": """
+        CREATE TABLE IF NOT EXISTS j2_note_connectors (
+            user_id       TEXT NOT NULL,
+            provider      TEXT NOT NULL,
+            token_enc     TEXT NOT NULL,
+            account_label TEXT,
+            status        TEXT NOT NULL DEFAULT 'active',
+            consent_at    TEXT,
+            created_at    TEXT,
+            updated_at    TEXT,
+            PRIMARY KEY(user_id, provider)
+        )
+    """,
+    "j2_note_sources": """
+        CREATE TABLE IF NOT EXISTS j2_note_sources (
+            id                TEXT PRIMARY KEY,
+            user_id           TEXT NOT NULL,
+            provider          TEXT NOT NULL,
+            remote_id         TEXT NOT NULL,
+            display_name      TEXT,
+            dest_folder_id    TEXT,
+            cursor            TEXT,
+            sync_enabled      INTEGER NOT NULL DEFAULT 1,
+            status            TEXT NOT NULL DEFAULT 'active',
+            last_sync_at      TEXT,
+            last_sync_status  TEXT,
+            last_sync_error   TEXT,
+            warming_until     TEXT,
+            created_at        TEXT NOT NULL,
+            UNIQUE(user_id, provider, remote_id)
+        )
+    """,
+    "j2_note_sync_log": """
+        CREATE TABLE IF NOT EXISTS j2_note_sync_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id       TEXT NOT NULL,
+            user_id         TEXT NOT NULL,
+            started_at      TEXT,
+            finished_at     TEXT,
+            status          TEXT,
+            error           TEXT,
+            notes_created   INTEGER,
+            notes_updated   INTEGER,
+            notes_skipped   INTEGER,
+            media_uploaded  INTEGER,
+            conflicts       INTEGER
+        )
+    """,
+    "j2_note_remote_index": """
+        CREATE TABLE IF NOT EXISTS j2_note_remote_index (
+            user_id           TEXT NOT NULL,
+            source_id         TEXT NOT NULL,
+            remote_id         TEXT NOT NULL,
+            import_key        TEXT NOT NULL,
+            remote_updated_at TEXT,
+            seen_at           TEXT NOT NULL,
+            miss_streak       INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(user_id, source_id, remote_id)
+        )
+    """,
+}
+
+
+def run_notebook_migration_v3(conn: sqlite3.Connection) -> None:
+    """Creates the four Note Connectors tables (j2_note_connectors /
+    j2_note_sources / j2_note_sync_log / j2_note_remote_index) for
+    pre-existing DBs that ran ensure_schema() under an older _J2_SCHEMA that
+    didn't yet define them. Idempotent via .notebook_migration_v3 flag file
+    AND table probes + CREATE TABLE IF NOT EXISTS, so re-running this (or
+    running it against a DB that already has the tables from the current
+    _J2_SCHEMA) is always a no-op. Safe to call on every startup.
+
+    No ALTERs — these are brand-new tables, so unlike v1/v2 there is no
+    existing-column state to probe; the table-existence probe below is
+    belt-and-suspenders redundancy with the CREATE TABLE IF NOT EXISTS
+    statements already in _J2_SCHEMA.
+
+    Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §5."""
+    flag = _data_dir() / ".notebook_migration_v3"
+    if flag.exists():
+        return
+
+    existing = {
+        r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "('j2_note_connectors','j2_note_sources','j2_note_sync_log',"
+            "'j2_note_remote_index')"
+        )
+    }
+    for table, ddl in _NOTE_CONNECTOR_TABLE_DDL.items():
+        if table not in existing:
+            conn.execute(ddl)
+
+    conn.commit()
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+    except Exception:
+        pass

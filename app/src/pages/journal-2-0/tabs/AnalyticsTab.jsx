@@ -21,8 +21,10 @@ import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
 import ScopeBar from '../components/scope/ScopeBar'
 import RiskExitsSection from '../components/analytics/RiskExitsSection'
+import TaxCenterSection from '../components/analytics/TaxCenterSection'
 import InsightsHub from '../components/insights/InsightsHub'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
+import useSpyBenchmark, { closeAtOrBefore } from '../hooks/useSpyBenchmark'
 import {
   fmtSignedDollar,
   fmtSignedPct,
@@ -153,7 +155,7 @@ export default function AnalyticsTab() {
             <PerformanceSection performance={data.performance} />
           </CollapsibleSection>
           <CollapsibleSection id="distribution" title="Distribution">
-            <DistributionSection distribution={data.distribution} />
+            <DistributionSection distribution={data.distribution} rSources={data.rSources} />
           </CollapsibleSection>
           <CollapsibleSection id="attribution" title="Attribution">
             <AttributionSection attribution={data.attribution} />
@@ -166,6 +168,11 @@ export default function AnalyticsTab() {
               <RiskExitsSection data={data.exitQuality} risk={data.risk} />
             </CollapsibleSection>
           )}
+          {/* Collapsed by default => TaxCenterSection stays unmounted (its
+              fetch fires only when the user opens the section). */}
+          <CollapsibleSection id="taxCenter" title="Tax Center (beta)">
+            <TaxCenterSection />
+          </CollapsibleSection>
         </>
       )}
       {data && (data.strategyCount ?? 0) > 0 && data.options && (
@@ -271,6 +278,8 @@ function EquitySection({ equity }) {
   const { kpis, curve } = equity
   const [showDD, setShowDD] = useState(false)
   const [showLive, setShowLive] = useState(false)
+  const [showSpy, setShowSpy] = useState(false)
+  const { closes: spyCloses } = useSpyBenchmark(showSpy)
   const { accountId } = useJ2SelectedAccount()
   const { positions } = useJ2Positions()
 
@@ -300,6 +309,21 @@ function EquitySection({ equity }) {
     const equitySeries = curve.map((d) => d.equity)
     const ddSeries = curve.map((d) => d.drawdown)
 
+    // SPY benchmark: the same capital as the curve's first point, bought SPY
+    // on the curve's first date. spy[d] = anchorEquity * close_d / close_d0 —
+    // a DERIVED overlay off the shared bars rail, never a second stored curve.
+    let spySeries = null
+    if (showSpy && spyCloses && curve.length > 0) {
+      const anchorClose = closeAtOrBefore(spyCloses, curve[0].date)
+      if (anchorClose != null && anchorClose > 0) {
+        const anchorEq = curve[0].equity
+        spySeries = curve.map((d) => {
+          const c = closeAtOrBefore(spyCloses, d.date)
+          return c == null ? null : Math.round(anchorEq * (c / anchorClose) * 100) / 100
+        })
+      }
+    }
+
     // Append "now" dashed point when live toggle is on
     let liveSeries = null
     if (showLive && liveUnrealized != null && curve.length > 0) {
@@ -312,6 +336,7 @@ function EquitySection({ equity }) {
       liveSeries.push(liveEq)
       equitySeries.push(null)  // don't draw solid through "now"
       ddSeries.push(null)
+      if (spySeries) spySeries.push(null)
     }
     return {
       ...baseChart,
@@ -321,9 +346,11 @@ function EquitySection({ equity }) {
         formatter: (params) => {
           const eq = params.find((p) => p.seriesName === 'Equity')
           const dd = params.find((p) => p.seriesName === 'Drawdown')
+          const spy = params.find((p) => p.seriesName === 'SPY (same capital)')
           return `<div><b>${eq?.axisValue}</b><br/>` +
             `Equity: $${(eq?.value ?? 0).toLocaleString()}<br/>` +
-            (showDD ? `Drawdown: $${(dd?.value ?? 0).toLocaleString()}` : '') +
+            (showDD ? `Drawdown: $${(dd?.value ?? 0).toLocaleString()}<br/>` : '') +
+            (spy && spy.value != null ? `SPY: $${spy.value.toLocaleString()}` : '') +
             `</div>`
         },
       },
@@ -374,9 +401,18 @@ function EquitySection({ equity }) {
           lineStyle: { color: CHART_COLORS.gold, type: 'dashed' },
           itemStyle: { color: CHART_COLORS.gold },
         }] : []),
+        ...(spySeries ? [{
+          name: 'SPY (same capital)',
+          type: 'line',
+          data: spySeries,
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { color: CHART_COLORS.text, type: 'dashed', width: 1.5 },
+          itemStyle: { color: CHART_COLORS.text },
+        }] : []),
       ],
     }
-  }, [curve, showDD, showLive, liveUnrealized])
+  }, [curve, showDD, showLive, liveUnrealized, showSpy, spyCloses])
 
   return (
     <div className={styles.section}>
@@ -409,6 +445,14 @@ function EquitySection({ equity }) {
               title={accountId == null ? 'Select a single account to show live unrealized' : ''}
             >
               Live unrealized
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggle} ${showSpy ? styles.toggleOn : ''}`}
+              onClick={() => setShowSpy((x) => !x)}
+              title="Overlay what the same capital would be worth held in SPY from the curve's first date"
+            >
+              vs SPY
             </button>
           </div>
         </div>
@@ -524,7 +568,7 @@ function PerformanceSection({ performance }) {
 
 // ── Section 3: Distribution ──────────────────────────────────────────────────
 
-function DistributionSection({ distribution }) {
+function DistributionSection({ distribution, rSources }) {
   const longShortOption = useMemo(() => {
     const ls = distribution.longVsShort
     return {
@@ -631,6 +675,13 @@ function DistributionSection({ distribution }) {
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>R-Multiple Distribution</h4>
           <ReactECharts option={rDistOption} style={{ height: 220 }} />
+          {/* Honest source note: broker imports carry no stop, so their R is
+              True R (P&L vs the trade's own worst drawdown), never invented. */}
+          {rSources?.trueR > 0 && (
+            <p className={styles.hint}>
+              Includes True R (P&amp;L &divide; actual drawdown) for {rSources.trueR} stop-less broker trade{rSources.trueR === 1 ? '' : 's'}.
+            </p>
+          )}
         </div>
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>Win/Loss Streaks</h4>

@@ -54,7 +54,7 @@ from fastapi.concurrency import run_in_threadpool
 from collections import OrderedDict
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
-    get_stats, prune_old_data, clear_all, get_ticker_prints
+    get_stats, prune_old_data, clear_all, get_ticker_prints, get_ticker_zones
 )
 from api.darkpool_aggregator import (
     get_aggregated as get_aggregated_payload,
@@ -67,8 +67,16 @@ import gzip
 import io
 import json
 import threading
+import time
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
+
+# Small per-(sym,window) TTL cache for the pre-clustered chart-overlay zones. A
+# chart re-open (or a second surface) shouldn't re-cluster; the underlying prints
+# only change on ingest, so a short TTL is safe. Bounded so RAM can't grow.
+_ZONES_CACHE: dict = {}
+_ZONES_TTL = 180.0
+_ZONES_CACHE_MAX = 128
 
 _DARKPOOL_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
@@ -471,6 +479,45 @@ async def massive_ingest_status():
     return JSONResponse(get_run_state())
 
 
+# ── Admin: ALL-SYMBOLS dark-pool ingest from the daily stocks flat file ────────
+@router.post("/flatfile-ingest")
+async def flatfile_ingest(
+    date: str = Query(None, description="M/D/YYYY — defaults to the prior trading day (flat files are T+1)"),
+    back: int = Query(None, ge=1, le=30, description="Backfill the last N trading days in ONE server-side job (loops on the pod so it survives the client's 2-min shell cap; overrides date)."),
+    dry_run: bool = Query(False, description="Scan + report, do not write to the DB"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Scan the WHOLE day's US-stocks flat file and ingest EVERY ticker's
+    off-exchange (dark) prints >= $4M — no universe. This is the all-symbols
+    authoritative pass; the per-ticker /massive-ingest stays for real-time.
+
+    Long call (~5-15 min/day, streams ~3.5GB) — fire-and-forget; poll
+    /flatfile-ingest/status. `back=N` runs an N-day backfill sequentially in the
+    SAME background job (one POST, no 45-min client loop). Ignores
+    DARKPOOL_FLATFILE_ENABLED (that gate only governs the scheduled job) so a
+    manual run always works. Safe to re-run (darkpool_db dedups on
+    date+timestamp+ticker+price+notional+message)."""
+    try:
+        from api.darkpool_flatfile_ingest import (
+            run_flatfile_ingest_background, _last_n_trading_days)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"flatfile module unavailable: {e}")
+    dates = _last_n_trading_days(back) if back else None
+    return JSONResponse(run_flatfile_ingest_background(
+        date_mdyyyy=date, dry_run=dry_run, dates=dates))
+
+
+@router.get("/flatfile-ingest/status")
+async def flatfile_ingest_status():
+    """Progress + last result of the all-symbols flat-file ingest. `phase` shows
+    scan progress (e.g. "40M scanned, 3120 kept")."""
+    try:
+        from api.darkpool_flatfile_ingest import get_run_state
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"flatfile module unavailable: {e}")
+    return JSONResponse(get_run_state())
+
+
 # ── Member: Today's live intraday preview ─────────────────────────────────────
 @router.get("/today")
 async def get_darkpool_today(_auth: dict = Depends(require_flow_user)):
@@ -511,6 +558,57 @@ async def intraday_ingest_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
     return JSONResponse(get_run_state())
+
+
+@router.post("/intraday-scan")
+async def intraday_scan_now(_auth: dict = Depends(require_flow_admin)):
+    """Manually run the snapshot FAST-LANE now (bypasses the DARKPOOL_INTRADAY_
+    TIERED_ENABLED gate so it's testable before arming). Reads the whole-market
+    snapshot, deep-pulls off-radar volume spikes, promotes those with real dark
+    prints. Fire-and-forget — poll /intraday-ingest/status (the `scanner` block)."""
+    try:
+        from api.darkpool_intraday_ingest import run_scanner_background
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
+    return JSONResponse(run_scanner_background())
+
+
+@router.post("/intraday-warm")
+async def intraday_warm_now(_auth: dict = Depends(require_flow_admin)):
+    """Manually run the WARM poll now (full ~288 base minus hot + promoted).
+    Fire-and-forget — poll /intraday-ingest/status (the `warm` block)."""
+    try:
+        from api.darkpool_intraday_ingest import run_intraday_warm_background
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
+    return JSONResponse(run_intraday_warm_background())
+
+
+@router.post("/bigblock-scan")
+async def bigblock_scan_now(
+    date: str | None = None,
+    reset: bool = False,
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manually run the %ADV big-block alert pass (Discord ping when a single dark
+    print is >= DARKPOOL_BIGBLOCK_PCT_ADV % of the name's 50d avg daily $-volume,
+    equity-only). No `date` → scans today's live prints (darkpool_today); a `date`
+    (M/D/YYYY) → scans the authoritative darkpool_trades for that day. Self-gated on
+    DARKPOOL_BIGBLOCK_ENABLED; deduped per (date, ticker) so re-running is safe.
+    `reset=1` clears the dedup first so a re-scan re-posts the (now ETF-filtered)
+    list — a test aid, not for routine use."""
+    try:
+        from api import darkpool_bigblock
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"bigblock module unavailable: {e}")
+    cleared = darkpool_bigblock.clear_dedup() if reset else 0
+    # A manual scan posts immediately (force=True) — it must not sit in the live
+    # coalesce window; both paths default to forcing.
+    res = (darkpool_bigblock.refresh_from_trades(date) if date
+           else darkpool_bigblock.refresh_from_today(force=True))
+    if reset:
+        res = {**res, "dedup_cleared": cleared}
+    return JSONResponse(res)
 
 
 @router.get("/stats")
@@ -555,7 +653,9 @@ async def get_ticker_detail(
     sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
     _auth: dict = Depends(require_flow_user),
     days: int = Query(default=30, ge=5, le=365, description="Trading-day window"),
-    limit: int = Query(default=30, ge=5, le=100, description="Max prints to return"),
+    limit: int = Query(default=30, ge=5, le=200, description="Max prints to return"),
+    order: str = Query(default="date", pattern="^(date|notional)$",
+                       description="date = most recent first; notional = biggest first (zone overlay)"),
 ):
     """Return the dark pool print history for a single ticker.
 
@@ -578,7 +678,7 @@ async def get_ticker_detail(
         }
     """
     try:
-        prints = get_ticker_prints(sym.upper().strip(), days=days, limit=limit)
+        prints = get_ticker_prints(sym.upper().strip(), days=days, limit=limit, order=order)
         total = sum(p.get("notional") or 0 for p in prints)
         if prints:
             prints[0]["isLatest"] = True  # mark most-recent print
@@ -591,3 +691,50 @@ async def get_ticker_detail(
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ticker-detail failed: {e}")
+
+
+# ── Member: Pre-clustered dark-pool ZONES for the chart overlay ───────────────
+@router.get("/zones")
+async def get_ticker_zones_endpoint(
+    sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
+    _auth: dict = Depends(require_flow_user),
+    days: int = Query(default=180, ge=5, le=365, description="Trading-day window"),
+    zone_pct: float = Query(default=0.02, ge=0.005, le=0.10, alias="zonePct",
+                            description="Price-band half-width as a fraction (0.02 = 2%)"),
+    limit: int = Query(default=25, ge=1, le=60, description="Max zones by notional"),
+):
+    """Dark-pool zones clustered SERVER-SIDE over every print in the window (no
+    per-print cap), so a level accumulated across multiple days shows its true
+    cumulative notional. Powers the chart overlay (useDarkPoolBars) — the browser
+    renders these directly instead of fetching capped prints and clustering itself.
+
+    Response: {ticker, days, zonePct, count, totalNotional, zones:[{price,
+    priceLow, priceHigh, notional, volume, printCount, biggestPrint, date,
+    dateLong, dateRaw, pctAvgVol, isLatest, ...}]} sorted by notional desc.
+    """
+    try:
+        s = sym.upper().strip()
+        key = (s, days, round(zone_pct, 4), limit)
+        now = time.time()
+        hit = _ZONES_CACHE.get(key)
+        if hit and hit[0] > now:
+            return JSONResponse(hit[1])
+        zones = get_ticker_zones(s, days=days, zone_pct=zone_pct, limit=limit)
+        total = sum(z.get("notional") or 0 for z in zones)
+        payload = {
+            "ticker": s,
+            "days": days,
+            "zonePct": zone_pct,
+            "count": len(zones),
+            "totalNotional": total,
+            "zones": zones,
+        }
+        _ZONES_CACHE[key] = (now + _ZONES_TTL, payload)
+        if len(_ZONES_CACHE) > _ZONES_CACHE_MAX:  # drop expired, then oldest
+            for k in [k for k, (exp, _) in list(_ZONES_CACHE.items()) if exp <= now]:
+                _ZONES_CACHE.pop(k, None)
+            while len(_ZONES_CACHE) > _ZONES_CACHE_MAX:
+                _ZONES_CACHE.pop(next(iter(_ZONES_CACHE)), None)
+        return JSONResponse(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"zones failed: {e}")

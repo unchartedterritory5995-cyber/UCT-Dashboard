@@ -22,6 +22,7 @@ Routes:
 """
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Optional
@@ -31,7 +32,9 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
+    get_current_user_optional,
     get_current_user_with_plan,
+    get_user_plan,
     is_paid_user,
     require_admin,
 )
@@ -51,6 +54,46 @@ _TRANSPARENT_PIXEL = (
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="The Desk requires a paid plan")
+    return user
+
+
+# Every post the reader renders is `audience=everyone` on Substack -- free to the
+# world at the source, and the top of the funnel. Gating it at `paid` makes our
+# version strictly worse than the free original; opening it makes the archive an
+# acquisition asset. That is a business call, not a code default, so it is an ENV
+# VAR whose default is today's behaviour: roll forward and roll back without a
+# deploy, the same contract as DESK_PUBLIC_SHOWS / ALERT_EVAL_MODE.
+#   paid (default) — unchanged: pro/premium/lifetime only
+#   free           — any signed-in account
+#   public         — no session required
+_ARTICLE_ACCESS_MODES = ("paid", "free", "public")
+
+
+def article_access_mode() -> str:
+    mode = (os.environ.get("DESK_ARTICLES_ACCESS") or "paid").strip().lower()
+    return mode if mode in _ARTICLE_ACCESS_MODES else "paid"
+
+
+def require_article_reader(user: Optional[dict] = Depends(get_current_user_optional)) -> dict:
+    """Read gate for the native article surfaces.
+
+    Built on `get_current_user_optional`, NOT `get_current_user_with_plan`: the
+    latter raises 401 before this function runs, so `public` mode could never
+    fire and the env var would be a control that silently does nothing.
+
+    Fails CLOSED — an unset, empty or unrecognised DESK_ARTICLES_ACCESS resolves
+    to `paid`, never to open.
+    """
+    mode = article_access_mode()
+    if mode == "public":
+        return user or {}
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to read Desk articles")
+    if mode == "free":
+        return user
+    user["plan"] = get_user_plan(user["id"])
     if not is_paid_user(user):
         raise HTTPException(status_code=402, detail="The Desk requires a paid plan")
     return user
@@ -103,9 +146,173 @@ class MemberPatch(BaseModel):
 # ── Articles (Substack) ──────────────────────────────────────────────────────────
 
 @router.get("/articles")
-def get_articles(limit: int = 500, _user: dict = Depends(require_paid)):
+def get_articles(limit: int = 500, _user: dict = Depends(require_article_reader)):
     limit = max(1, min(int(limit), 1000))
-    return {"articles": desk_store.list_posts(limit=limit)}
+    return {"articles": desk_store.list_posts(limit=limit),
+            "access": article_access_mode()}
+
+
+@router.get("/articles/search")
+def search_articles(q: str = "", limit: int = 30,
+                    _user: dict = Depends(require_article_reader)):
+    """Full-text search across the archive.
+
+    Declared BEFORE `/articles/{post_id:path}` — that route matches greedily and
+    would otherwise swallow "search" as a post id and 404 every query.
+    """
+    limit = max(1, min(int(limit), 100))
+    query = (q or "").strip()
+    if not query:
+        return {"query": "", "results": [], "available": desk_store.fts_available()}
+    return {
+        "query": query,
+        "results": desk_store.search_posts(query, limit=limit),
+        "available": desk_store.fts_available(),
+        "indexed": desk_store.count_indexed_posts(),
+    }
+
+
+@router.get("/articles/audit")
+def article_audit(_admin: dict = Depends(require_admin)):
+    """Re-read the artifacts and report what didn't land. Read-only.
+
+    Declared before `/articles/{post_id:path}`, which would otherwise swallow
+    "audit" as a post id.
+    """
+    from api.services import desk_article_audit
+    return desk_article_audit.audit_articles()
+
+
+@router.get("/articles/for-ticker/{sym}")
+def articles_for_ticker(sym: str, limit: int = 8,
+                        _user: dict = Depends(require_article_reader)):
+    """Which issues covered this symbol — the archive, reachable from research.
+
+    Declared BEFORE `/articles/{post_id:path}`, which matches greedily and would
+    otherwise swallow "for-ticker" as a post id.
+    """
+    limit = max(1, min(int(limit), 50))
+    return {
+        "ticker": (sym or "").strip().upper(),
+        "total": desk_store.count_posts_for_ticker(sym),
+        "articles": desk_store.posts_for_ticker(sym, limit=limit),
+    }
+
+
+@router.get("/articles/anchors/{slug}")
+def article_anchors(slug: str, _user: dict = Depends(require_article_reader)):
+    """Publish-date anchor closes for an article's tickers.
+
+    The "since the issue ran" half of a covered chip: the client pairs these
+    with the live price it already polls. Declared BEFORE
+    /articles/{post_id:path}, which matches greedily and would swallow this
+    literal sibling.
+    """
+    post = desk_store.get_post_by_slug(slug) or desk_store.get_post(slug)
+    if not post:
+        raise HTTPException(404, "Article not found")
+    try:
+        from api.services import desk_article_anchors
+        anchors = desk_article_anchors.anchors_for(post)
+    except Exception:  # noqa: BLE001 — a bonus rail must not break the reader
+        anchors = {}
+    return {"anchors": anchors}
+
+
+@router.post("/articles/reindex")
+def reindex_articles(_admin: dict = Depends(require_admin)):
+    """Rebuild the search index from stored bodies. No network."""
+    from api.services import substack_bodies
+    return substack_bodies.reindex_all()
+
+
+@router.post("/articles/backfill")
+def backfill_articles(limit: int = 200, _admin: dict = Depends(require_admin)):
+    """Fetch + convert bodies for posts that don't have a current one.
+
+    Resumable and idempotent: the work list is derived from what is missing, so
+    re-running after an interruption continues rather than restarts.
+    """
+    from api.services import substack_bodies
+    limit = max(1, min(int(limit), 1000))
+    return substack_bodies.backfill_bodies(limit=limit)
+
+
+# Declared AFTER /articles/backfill: `:path` matches greedily, and a literal
+# sibling registered later would be shadowed by it.
+@router.get("/articles/{post_id:path}")
+def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
+    """One article WITH its converted body — the native reader's payload.
+
+    `post_id` is `:path` because the store keys posts on their full URL. Tries
+    the slug first so /desk/article/sunday-scans-da5 is a readable link.
+    """
+    post = desk_store.get_post_by_slug(post_id) or desk_store.get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Article not found")
+    body = post.get("body_html") or ""
+    if not body:
+        # No converted body: the reader must not render an empty page when a
+        # perfectly good link-out exists.
+        raise HTTPException(409, "Article body is not available yet")
+    # A reference to an earlier issue should open HERE, not bounce the reader to
+    # Substack to read something we are already hosting. Resolved on the way out
+    # so it stays correct as the archive backfills.
+    internal_links = 0
+    try:
+        from api.services import substack_internal_links
+        body, internal_links = substack_internal_links.rewrite(
+            body, desk_store.readable_slugs())
+    except Exception:  # noqa: BLE001 — a link is not worth losing the article over
+        pass
+    try:
+        related = desk_store.related_posts(post["id"])
+    except Exception:  # noqa: BLE001 — a discovery rail is not worth losing the article over
+        related = []
+    return {
+        "id": post["id"],
+        "slug": post.get("slug"),
+        "title": post.get("display_title") or post.get("title"),
+        "source_title": post.get("title"),
+        "url": post.get("url"),
+        "author": post.get("author"),
+        "publication_name": post.get("publication_name"),
+        "hero_image": post.get("hero_image"),
+        "published_at": post.get("published_at"),
+        "word_count": post.get("word_count"),
+        "reading_minutes": post.get("reading_minutes"),
+        "image_count": post.get("image_count"),
+        "sections": _json_list(post.get("sections_json")),
+        "tickers": _json_list(post.get("tickers_json")),
+        "related_video": _related_video(post),
+        "related": related,
+        "adjacent": desk_store.adjacent_posts(post["id"]),
+        "internal_links": internal_links,
+        "body_html": body,
+    }
+
+
+def _related_video(post: dict) -> Optional[dict]:
+    """That week's Desk session, if one exists. Never raises — the article is
+    the page; the video is a bonus link on it."""
+    try:
+        from api.services import desk_article_links
+        return desk_article_links.related_video_for(
+            post.get("display_title") or post.get("title") or "",
+            post.get("published_at"),
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _json_list(raw) -> list:
+    if not raw:
+        return []
+    try:
+        val = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return val if isinstance(val, list) else []
 
 
 @router.get("/publications")

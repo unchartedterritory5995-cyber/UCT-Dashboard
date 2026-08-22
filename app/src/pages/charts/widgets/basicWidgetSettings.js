@@ -35,6 +35,21 @@ export function mergeBasicWidgetSettings(saved) {
   }
 }
 
+/** True when a saved blob is the LEGACY auto-default (white canvas + black/near-black
+ *  text) that early AI-search widgets persisted before the dark, theme-aware default
+ *  existed. That stale global blob otherwise overrides basicDefaultsForTheme() and
+ *  pins the widget white on a dark app theme. Callers treat a match as UNCUSTOMIZED so
+ *  it falls through to the theme default (dark on OLED / white on light — same result
+ *  a light-theme user would see). Any other value is a genuine choice and is kept.
+ *  Self-heals: the next ⚙ edit writes the theme default merged with the change. */
+export function isLegacyBasicLightDefault(saved) {
+  if (!saved || typeof saved !== 'object') return false
+  if (saved.bgMode && saved.bgMode !== 'solid') return false
+  const bg = String(saved.bg || '').toLowerCase()
+  const text = String(saved.textColor || '').toLowerCase()
+  return bg === '#ffffff' && (text === '#000000' || text === '#1f2328')
+}
+
 /** Inline CSS-variable style object for the widget root. Overrides the shared theme
  *  tokens from the chosen canvas + text. Each var is emitted ONLY when it differs
  *  from the default, so the untouched look (and the theme tokens) stay byte-identical. */

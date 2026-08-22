@@ -3,6 +3,25 @@ from __future__ import annotations
 import importlib, json, os, sqlite3, tempfile, uuid
 import pytest
 
+from datetime import datetime, timedelta, timezone
+
+
+# Recent fixture days (UTC date parts) for the WINDOWED analysis tools: they
+# filter "last N days", so fixtures must always sit INSIDE the window.
+# Hardcoded 2026-05-1X literals slid out of every window as real time passed
+# and the first values-asserting test (analyze_hold_duration) went red on
+# 2026-08-09 — the classic date-rot time bomb; the shape-only siblings kept
+# passing VACUOUSLY over empty windows. The id-keyed raw-SQL inserts below
+# keep their literals on purpose (no window reads them).
+def _days_ago(n):
+    return (datetime.now(timezone.utc) - timedelta(days=n)).strftime("%Y-%m-%d")
+
+
+_DAY_A = _days_ago(4)   # was 2026-05-10
+_DAY_B = _days_ago(3)   # was 2026-05-11
+_DAY_C = _days_ago(2)   # was 2026-05-12
+
+
 
 @pytest.fixture
 def db_conn(monkeypatch):
@@ -229,7 +248,7 @@ def test_get_setup_stats_returns_per_setup_breakdown(db_conn):
     acc = _seed_account(db_conn)
     for r, setup in ((2.1, "Bull Flag"), (-1.0, "Pullback"), (1.5, "Bull Flag")):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso="2026-05-10T20:00:00+00:00",
+                      exit_iso=f"{_DAY_A}T20:00:00+00:00",
                       setup=setup, r_multiple=r,
                       result="Win" if r > 0 else "Loss",
                       pnl_dollar=r * 100)
@@ -246,12 +265,12 @@ def test_analyze_time_of_day_buckets_by_hour(db_conn):
     acc = _seed_account(db_conn)
     # 14:00 ET trades (win) and 15:00 ET trades (loss)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T18:00:00+00:00",
-                  entry_date="2026-05-11T18:00:00+00:00",  # 14:00 ET
+                  exit_iso=f"{_DAY_B}T18:00:00+00:00",
+                  entry_date=f"{_DAY_B}T18:00:00+00:00",  # 14:00 ET
                   result="Win", r_multiple=2.0, pnl_dollar=200)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T19:00:00+00:00",
-                  entry_date="2026-05-11T19:00:00+00:00",  # 15:00 ET
+                  exit_iso=f"{_DAY_B}T19:00:00+00:00",
+                  entry_date=f"{_DAY_B}T19:00:00+00:00",  # 15:00 ET
                   result="Loss", r_multiple=-1.0, pnl_dollar=-100)
     result = tools.TOOLS["analyze_time_of_day"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 30}, conn=db_conn,
@@ -264,12 +283,12 @@ def test_analyze_day_of_week_returns_weekday_buckets(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
-                  entry_date="2026-05-11T18:00:00+00:00",  # Mon
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
+                  entry_date=f"{_DAY_B}T18:00:00+00:00",  # weekday varies — assertion is shape-only
                   result="Win", r_multiple=1.0)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-12T20:00:00+00:00",
-                  entry_date="2026-05-12T18:00:00+00:00",  # Tue
+                  exit_iso=f"{_DAY_C}T20:00:00+00:00",
+                  entry_date=f"{_DAY_C}T18:00:00+00:00",  # weekday varies — assertion is shape-only
                   result="Loss", r_multiple=-1.0)
     result = tools.TOOLS["analyze_day_of_week"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 30}, conn=db_conn,
@@ -283,11 +302,11 @@ def test_analyze_hold_duration_returns_winner_loser_compare(db_conn):
     # Winners with 4-day holds, losers with 1-day holds (classic "cutting winners")
     for _ in range(3):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso="2026-05-11T20:00:00+00:00",
+                      exit_iso=f"{_DAY_B}T20:00:00+00:00",
                       hold_days=4, result="Win", r_multiple=2.0)
     for _ in range(3):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso="2026-05-11T20:00:00+00:00",
+                      exit_iso=f"{_DAY_B}T20:00:00+00:00",
                       hold_days=1, result="Loss", r_multiple=-1.0)
     result = tools.TOOLS["analyze_hold_duration"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 90}, conn=db_conn,
@@ -317,7 +336,7 @@ def test_analyze_sizing_curve_runs_without_error(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   shares=100, entry_price=100.0, original_stop=98.0,
                   r_multiple=1.0, pnl_dollar=100, result="Win")
     result = tools.TOOLS["analyze_sizing_curve"]["executor"](
@@ -339,10 +358,10 @@ def test_compare_setups_returns_side_by_side(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   setup="Bull Flag", r_multiple=2.0, result="Win", pnl_dollar=200)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   setup="Pullback", r_multiple=-1.0, result="Loss", pnl_dollar=-100)
     result = tools.TOOLS["compare_setups"]["executor"](
         user_id="u_chat", account_id=acc["id"],
@@ -840,7 +859,7 @@ def test_check_profile_divergence_flags_actual_risk_above_claimed(db_conn):
     )
     db_conn.commit()
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   shares=300, entry_price=100.0, original_stop=90.0)  # 300 * $10 = $3000 risk = 3%
     result = tools.TOOLS["check_profile_divergence"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 30}, conn=db_conn,
@@ -858,11 +877,11 @@ def test_analyze_hold_duration_includes_confidence(db_conn):
     # 4 trades — should be low confidence
     for _ in range(2):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso="2026-05-11T20:00:00+00:00",
+                      exit_iso=f"{_DAY_B}T20:00:00+00:00",
                       hold_days=4, result="Win", r_multiple=2.0)
     for _ in range(2):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso="2026-05-11T20:00:00+00:00",
+                      exit_iso=f"{_DAY_B}T20:00:00+00:00",
                       hold_days=1, result="Loss", r_multiple=-1.0)
     result = tools.TOOLS["analyze_hold_duration"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 90}, conn=db_conn,
@@ -875,10 +894,10 @@ def test_compare_setups_includes_confidence(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   setup="Bull Flag", result="Win", r_multiple=2.0)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=f"{_DAY_B}T20:00:00+00:00",
                   setup="Pullback", result="Loss", r_multiple=-1.0)
     result = tools.TOOLS["compare_setups"]["executor"](
         user_id="u_chat", account_id=acc["id"],

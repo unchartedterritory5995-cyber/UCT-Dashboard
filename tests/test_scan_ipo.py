@@ -5,6 +5,7 @@ from api.services.cache import cache
 
 def _reset():
     cache.delete_prefix("scan_ipo1y")
+    cache.delete_prefix("scan_full_market_snapshot")  # shared 30s snapshot cache
     with si._LOCK:
         si._state.update(date=None, map=None, building=False, built_at=0.0)
 

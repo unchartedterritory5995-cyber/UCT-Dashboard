@@ -191,3 +191,44 @@ describe('SyncTrustCenter', () => {
     expect(container.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
   })
 })
+
+// ── Mirror-drift sentinel chip ───────────────────────────────────────────────
+
+describe('mirror verdict chip', () => {
+  it('shows the verified line when the last sync matched the broker', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        mirror: { ok: true, checkedAt: RECENT, driftDollar: 0, consecutiveDrifts: 0 },
+      }] },
+      syncLog: [], orphans: [], reattachOrphan: reattach,
+      dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByText(/Verified against your broker/i)).toBeTruthy()
+  })
+
+  it('surfaces drift honestly instead of hiding it', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        mirror: { ok: false, checkedAt: RECENT, driftDollar: -512.34, consecutiveDrifts: 1 },
+      }] },
+      syncLog: [], orphans: [], reattachOrphan: reattach,
+      dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByRole('alert').textContent).toMatch(/\$512\.34/)
+    expect(screen.queryByText(/Verified against your broker/i)).toBeNull()
+  })
+
+  it('renders no chip before the first verdict exists', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{ ...okAccount(), mirror: null }] },
+      syncLog: [], orphans: [], reattachOrphan: reattach,
+      dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.queryByText(/Verified against your broker/i)).toBeNull()
+  })
+})

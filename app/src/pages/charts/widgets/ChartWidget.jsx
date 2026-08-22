@@ -10,10 +10,31 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
+import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
 } from '../chartTabs'
+import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
+import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { WORKSPACE_MENU_TYPES, labelMap } from '../../../widgets/registry'
+
+// Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
+// chart's right-click "Add widget" submenu never drifts from it.
+const ADD_WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const ADD_WIDGET_LABELS = labelMap('menu')
+
+// LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
+// business-day objects D/W/M ranges report). The registry's `ts` coercion
+// accepts both encodings — the same dual encoding the bars store uses.
+function lwcTimeToTs(t) {
+  if (typeof t === 'number' || typeof t === 'string') return t
+  if (t && typeof t === 'object' && t.year) {
+    return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
+  }
+  return undefined
+}
 
 // The whole chart shell — identity row, timeframe bar, meta strip, settings
 // modal, focus surface, StockChart — is ChartPane. What is left here is the
@@ -21,7 +42,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -72,6 +93,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pane owns): a synthetic index has no leveraged/inverse family, so that
   // control is hidden for one.
   const isThemeIndex = typeof sym === 'string' && sym.startsWith('$IDX:')
+
+  // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
+  // symbol at that date in the background, so switching to 5m/1m is instant (the backend
+  // fetches + persists the pre-cutoff window once). Bounded/priority-queued in prefetchBars.
+  useEffect(() => {
+    if (replayCutoff && sym) prefetchReplayTimeframes(sym, replayCutoff)
+  }, [sym, replayCutoff])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -126,6 +154,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   }, [activeChartRef])
 
   const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
+  // Ref mirrors for the capture read-out below — it lives in an effect keyed
+  // on other deps, so it must read the CURRENT symbol/tf, not a stale closure.
+  const symRef = useRef(sym)
+  symRef.current = sym
+  const tfRef = useRef(tf)
+  tfRef.current = tf
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })
@@ -178,7 +212,26 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
       getPercentScale: () => !!chartCsRef.current?.percentScale,
       setPercentScale: (on) => persistActiveSettings({ ...chartCsRef.current, percentScale: !!on, logScale: false, preset: 'custom' }),
+      // "Group only" — hide the base candles/MAs/volume so just the comparisons show.
+      getHideBase: () => !!chartCsRef.current?.compareHideBase,
+      setHideBase: (on) => persistActiveSettings({ ...chartCsRef.current, compareHideBase: !!on, preset: 'custom' }),
       getRect: () => paneRef.current?.getRect?.() || null,
+      // Journal Widgets capture: the live "what am I looking at" read-out.
+      // registry normalizeParams('chart', …) turns this into frozen embed
+      // params. Symbol is the RESOLVED ticker (never the color-group letter);
+      // settings is the fully-MERGED blob (never a null opts.settings that
+      // would re-resolve from the global seed later). All reads go through
+      // refs so the entry never goes stale between effect runs.
+      getCaptureState: () => {
+        const range = paneRef.current?.getViewState?.()?.range || null
+        return {
+          symbol: symRef.current,
+          tf: tfRef.current,
+          from: range ? lwcTimeToTs(range.from) : undefined,
+          to: range ? lwcTimeToTs(range.to) : undefined,
+          settings: chartCsRef.current,
+        }
+      },
     })
     return () => { chartApiById.current.delete(id) }
   }, [chartApiById, persistActiveSettings])
@@ -187,8 +240,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // user can type the next ticker without re-clicking the chart.
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
+    // Searching a ticker ABANDONS "Group only" theme view: restore a normal chart of
+    // the new ticker by clearing the hide-base flag + the group overlays.
+    if (chartCsRef.current?.compareHideBase) {
+      persistActiveSettings({ ...chartCsRef.current, compareHideBase: false, comparisonSymbols: [], preset: 'custom' })
+    }
     setGroupSym(activeColor, s)
-  }, [activeColor, setGroupSym])
+  }, [activeColor, setGroupSym, persistActiveSettings])
 
   // ── Tab handlers (all go through the pure chartTabs reducer) ──
   const tabList = useMemo(() => chartTabList(opts), [opts])
@@ -222,8 +280,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // clean menu: Set alert · Reset view · Chart settings · AI search (on a bar).
   const [ctxMenu, setCtxMenu] = useState(null)   // {x,y,price,bar,currentPrice,resetView,openSettings}
   const [ctxToast, setCtxToast] = useState(null)
+  const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
-  const closeCtx = useCallback(() => setCtxMenu(null), [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null) }, [])
 
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
@@ -250,6 +309,60 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     catch { setCtxToast('Could not set alert') }
     closeCtx()
   }, [ctxMenu, sym, createAlert, closeCtx])
+
+  // ── Send to Journal (Journal Widgets P5) ──────────────────────────────────
+  // One action, no modal: freeze exactly what this chart shows (resolved
+  // symbol, tf, merged settings, visible range) and land it as a widgetEmbed
+  // — in the LAST-ACTIVE notebook note when one exists, else the capture
+  // inbox. Fire the bars warm either way so the history outlives the session.
+  const buildJournalCapture = useCallback(() => {
+    const range = paneRef.current?.getViewState?.()?.range || null
+    return {
+      symbol: symRef.current,
+      tf: tfRef.current,
+      from: range ? lwcTimeToTs(range.from) : undefined,
+      to: range ? lwcTimeToTs(range.to) : undefined,
+      settings: chartCsRef.current,
+    }
+  }, [])
+
+  const handleSendToJournal = useCallback(async () => {
+    closeCtx()
+    // Shared wire (sendToJournal.js): last-active note → inbox fallback. The
+    // calendar widget's day-capture door rides the same helper — one flow,
+    // every widget type.
+    setCtxToast(await sendCaptureToJournal('chart', buildJournalCapture()))
+  }, [buildJournalCapture, closeCtx])
+
+  // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
+  // every other chart key uses: only the last-hovered chart answers, so one
+  // press banks ONE chart into the inbox even with six on the board.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
+      // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
+      // on EVERY mounted chart — N inbox rows per press. Capture demands an
+      // explicit owner.
+      if (activeChartRef?.current !== widgetIdRef.current) return
+      e.preventDefault()
+      const attrs = buildWidgetEmbedAttrs('chart', buildJournalCapture())
+      kickSnapshotWarm(attrs.params)
+      fetch('/api/j2/inbox', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgetId: 'chart', params: attrs.params,
+          searchText: attrs.searchText, capturedAt: attrs.capturedAt,
+        }),
+      }).then((r) => setCtxToast(r.ok
+        ? `${attrs.params.symbol} captured → Notebook inbox`
+        : 'Capture failed — try again'))
+        .catch(() => setCtxToast('Capture failed — try again'))
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [activeChartRef, buildJournalCapture])
 
   const barDateStr = useCallback((t) => {
     if (typeof t === 'string') return t                 // daily 'YYYY-MM-DD'
@@ -286,6 +399,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         stored={activeStoredSettings}
         onStore={persistActiveSettings}
         chartsTheme={chartsTheme}
+        onApplyThemeAll={applyThemeToAllCharts}
+        onApplyThemeAllWidgets={applyThemeToAllWidgets}
         onActivate={markActive}
         stockChartProps={{
           onCrosshairMove: reportCrosshair,
@@ -303,9 +418,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
             : undefined,
           onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
+          // Replay Mode "Pick on chart": click/drag to choose the cutoff. Only the active
+          // chart is armed (replayArmPick is a single workspace flag; the active chart is
+          // the one the user is looking at when they hit "Pick on chart").
+          replayPick: !!replayArmPick,
+          onReplayCutoffPicked: replayArmPick ? wsOnReplayCutoffPicked : undefined,
+          onReplayPickCancel: replayArmPick ? wsOnReplayPickCancel : undefined,
           // Replay mode: hide every bar after this ISO date (null = normal chart) + show
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
+          // FULLY freeze live in replay: replay is static historical data, so kill the SSE
+          // subscription + the per-tick live-price re-render (was left on, which churned the
+          // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
+          // Book's static charts. null cutoff → undefined → StockChart's live default (true).
+          liveUpdates: replayCutoff ? false : undefined,
           onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
           // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
@@ -348,7 +474,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               {/* ETF-only: takes the (absent) leverage pill's seat and opens a floating
                   live watchlist of the fund's holdings. Mutually exclusive with the
                   leverage pill — a symbol is a stock-with-family OR an ETF, never both. */}
-              {!isThemeIndex && <ViewHoldingsControl sym={sym} />}
+              {!isThemeIndex && <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (
@@ -379,27 +505,56 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
           <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
-            {Number.isFinite(ctxMenu.price) && (
-              <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
-                <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
-                Set alert @ ${ctxMenu.price.toFixed(2)}
-              </button>
-            )}
-            <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
-              <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
-            </button>
-            <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
-              <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
-            </button>
-            {ctxMenu.hasDrawings && (
-              <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
-                <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
-              </button>
-            )}
-            {ctxMenu.bar && (
-              <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
-                <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
-              </button>
+            {ctxSub === 'add' ? (
+              /* Add-widget picker — same roster the workspace Widgets menu shows.
+                 Selecting one drops it onto the canvas as a floating widget. */
+              <>
+                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub(null)}>‹ Back</button>
+                <div className={styles.menuDivider} />
+                <div style={{ maxHeight: Math.max(160, window.innerHeight - ctxMenu.y - 16), overflowY: 'auto' }}>
+                  {ADD_WIDGET_TYPES.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={styles.chartCtxItem}
+                      onClick={() => { floatNewWidget?.(t, { x: ctxMenu.rawX, y: ctxMenu.rawY }); closeCtx() }}
+                    >
+                      <UIcon name="plus" size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {Number.isFinite(ctxMenu.price) && (
+                  <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                    <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
+                    Set alert @ ${ctxMenu.price.toFixed(2)}
+                  </button>
+                )}
+                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
+                  <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
+                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
+                  <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
+                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
+                </button>
+                {ctxMenu.hasDrawings && (
+                  <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                    <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
+                  </button>
+                )}
+                {ctxMenu.bar && (
+                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
+                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
+                  </button>
+                )}
+              </>
             )}
           </div>
         </>

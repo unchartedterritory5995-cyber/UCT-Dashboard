@@ -46,13 +46,62 @@ function refusal(body) {
 // --------------------------------------------------------------------------- //
 
 describe('the offset a member may write', () => {
-  it('a variable index is refused — a window that moves cannot be bounded', () => {
+  it('⭐ a FOLDABLE index is accepted now — superseded 2026-08-11, by owner decision', () => {
+    // This asserted that `n = 3` then `close[n]` must refuse, on the reasoning
+    // that "a window that moves cannot be bounded". `n = 3` does not move — it
+    // folds to a literal, and the emitted node carries that literal exactly as a
+    // written one would.
+    //
+    // ⚠️ THE REAL QUESTION WAS NEVER BOUNDING, IT WAS FREEZING. An input folded
+    // into a saved tree stops responding to its own knob — and that was ALREADY
+    // true of every length (`ta.sma(close, n)` → `sma(close, 10)`). The owner
+    // settled it: the stored tree is authoritative, so a knob is frozen for
+    // lengths and offsets alike rather than for one and not the other.
+    //
+    // ⛔ THE ASSERTION IS INVERTED, NOT DELETED, and the guard it named is still
+    // live for everything that genuinely cannot be bounded — see below.
     const out = translatePine('//@version=5\nindicator("t")\nn = 3\nplot(close[n])\n')
-    expect(out.ok).toBe(false)
-    expect(out.refusal.guard).toBe('pine:offset-literal')
-    expect(out.refusal.line).toBe(4)
-    expect(out.refusal.column).toBe(12)
-    expect(out.refusal.token).toBe('n')
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close[3]')
+  })
+
+  it('an INPUT folds too, and lands on its default', () => {
+    const out = translatePine('//@version=5\nindicator("t")\nn = input.int(10)\nplot(close[n])\n')
+    expect(out.ok).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close[10]')
+  })
+
+  it('🔴🔴 a FOLDED NEGATIVE index refuses — the forward reference stays shut', () => {
+    // ⛔ THE MOST IMPORTANT ASSERTION ON THIS PAGE. `close[-1]` is NEXT BAR, and
+    // the whole non-repainting guarantee rests on it being inexpressible. The
+    // written form was already refused; folding opened a second door to the same
+    // place — `n = -1` then `close[n]` — and this had no test at all until the
+    // mutation harness said so.
+    //
+    // ⚠️ AND THE HARNESS CORRECTED THE CLAIM TOO: the negative CHECK inside the
+    // fold is unreachable today, because `-1` resolves to a `u-` op rather than
+    // to a negative `num`, so these refuse one check earlier as a non-whole
+    // number. The OUTCOME is what matters and is asserted; either guard name is
+    // accepted rather than pinning one that is not the one doing the work.
+    for (const src of ['n = -1\nplot(close[n])', 'n = 0 - 2\nplot(close[n])']) {
+      const out = translatePine(`//@version=5\nindicator("t")\n${src}\n`)
+      expect(out.ok, src).toBe(false)
+      expect(['pine:offset-negative', 'pine:offset-literal'], src)
+        .toContain(out.refusal.guard)
+    }
+  })
+
+  it('🔴 …but an index that CANNOT be reduced still refuses, by name', () => {
+    // ⛔ The half that keeps the feature honest. A series index is a window that
+    // genuinely moves bar to bar, and the repaint linter could not bound it.
+    for (const src of [
+      'plot(close[ta.sma(close, 3)])',
+      'n = ta.sma(close, 3)\nplot(close[n])',
+    ]) {
+      const out = translatePine(`//@version=5\nindicator("t")\n${src}\n`)
+      expect(out.ok, src).toBe(false)
+      expect(out.refusal.guard, src).toBe('pine:offset-literal')
+    }
   })
 
   it('a computed index is refused for the same reason, and names the OFFSET rule', () => {

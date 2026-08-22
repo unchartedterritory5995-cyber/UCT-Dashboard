@@ -236,7 +236,47 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // Generated ONCE, on the tree before this task's implementation, by printing
     // `digest(corpus().map(digest).join('|'))`. If it moves, a per-definition
     // door changed behaviour — that is a FINDING, not a number to refresh.
+    // 2026-08-12: re-pinned for the additive, default-OFF `compareHideBase` setting
+    // ("Group only") added to CHART_DEFAULTS + mergeChartSettings. No per-definition
+    // door changed — every corpus blob simply gained `compareHideBase:false`.
+    // (Prior value: b73bd284369a0181773fc2c4e487636726f14cb3b1196e35f01f1eaa011303d7)
+    // 2026-08-14: re-pinned for the axis-label + dark-pool settings (fd0f43658 /
+    // cc945fc64). INVESTIGATED: the CHART_DEFAULTS diff across that batch has
+    // ZERO removals — every corpus blob simply gained showPriceLabels:true,
+    // showMaLabels:false and darkPool{enabled:false,…}. No per-definition door
+    // changed. ⚠️ A genuine finding DID come out of the same batch, in the
+    // sibling rail rather than here: `darkPool` was added to CHART_DEFAULTS but
+    // not to _OVERRIDE_SECTION_KEYS, so per-chart overrides replaced the whole
+    // section instead of merging it (fixed in instanceShape.js).
+    // (Prior value: 4cd29324dc8addd6bc54e3f5cbc23bbfcecdc8dc1fea4565d1dcd7eba5ae95f6)
+    // 2026-08-16: re-pinned for `header.legendMode` (the on-chart legend's
+    // Always / On click / Off mode). INVESTIGATED BY MEASUREMENT rather than by
+    // eyeballing the diff: a throwaway rail rebuilt THIS corpus with
+    // `header.legendMode` — and only that key — stripped from every base blob,
+    // and reproduced the prior literal EXACTLY. So no per-definition door
+    // changed behaviour; each corpus blob simply gained one additive key.
+    // ⚠️ The sibling trap from the 8/14 batch was checked and does NOT apply:
+    // the new key lives inside `header`, which is already in
+    // `instanceShape.js::_OVERRIDE_SECTION_KEYS`, so a per-chart override merges
+    // the header section instead of replacing it and a grid cell cannot drop the
+    // user's mode.
+    // 2026-08-16 (second move, same day): the legend DEFAULT flipped 'always' ->
+    // 'click'. A VALUE change to the key the previous re-pin added, not a new key.
+    // INVESTIGATED BY MEASUREMENT again: rebuilding this corpus with
+    // `header.legendMode` stripped reproduces the PRE-FEATURE literal exactly, so
+    // no per-definition door changed behaviour.
+    // ⭐ 2026-08-17 — RESTORED TO THE PRE-FEATURE LITERAL. Both moves above came
+    // from the merge stamping a resolved `legendMode` into every blob; it now
+    // carries only an explicit choice, so a default blob is byte-identical to
+    // what it was before the feature. This rail coming home is the proof.
+    // ⭐ 2026-08-20 — re-pinned for this day's chart-settings additions: (1)
+    // `markers.ipo` + `markers.ipoColor` (IPO badge); (2) `crosshair.enabled: true`
+    // (crosshair on/off toggle); (3) `watermark.weight: 700` (watermark weight).
+    // All are ordinary additive default fields (same class as `markers.earnings` /
+    // `crosshair.magnet` / `watermark.sizeScale`), so the corpus digest shifts by
+    // exactly those keys. INVESTIGATED, not regenerated: no per-definition door
+    // changed behaviour.
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('b73bd284369a0181773fc2c4e487636726f14cb3b1196e35f01f1eaa011303d7')
+      .toBe('c9481a7d844f90ed9280add758fd929edadf236b554b144d9cb8b6f834ba0d9d')
   })
 })

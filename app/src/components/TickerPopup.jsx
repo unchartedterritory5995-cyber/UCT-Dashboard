@@ -1,17 +1,19 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, lazy, Suspense } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
+import { useDarkPoolBars } from './chart/useDarkPoolBars'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
-import { useTickerMentions } from '../hooks/useTickerMentions'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
 import { useTickerHub } from './mobile/TickerHubContext'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
+import JournalBacklinks from './JournalBacklinks'
+import useAppFocus from '../hooks/useAppFocus'
 import styles from './TickerPopup.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -19,15 +21,15 @@ import styles from './TickerPopup.module.css'
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
 const ChartPane = lazy(() => import('./chart/pane/ChartPane'))
 const FundamentalSnapshot = lazy(() => import('./FundamentalSnapshot'))
-const AnalystPanel = lazy(() => import('./fundamentals/AnalystPanel'))
-const OwnershipPanel = lazy(() => import('./fundamentals/OwnershipPanel'))
+const AboutPanel = lazy(() => import('./fundamentals/AboutPanel'))
+const TheStreetPanel = lazy(() => import('./fundamentals/TheStreetPanel'))
 
 // `tab` is still this component's state (the voice page hint reads it, and it
 // seeds ChartPane's timeframe), but the visible button row is ChartPane's now.
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, open: openProp, onClose }) {
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -46,17 +48,35 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
 
+  // Header symbol search. The popup opens on the caller's `sym`, but the header
+  // ticker is a search box (same predictive dropdown as /charts) so the user can
+  // pull up any other chart in place. `searchSym` overrides while the popup is
+  // open; it clears whenever the caller re-opens on a different symbol so the
+  // next chip-click always shows what was clicked, not the last thing searched.
+  const [searchSym, setSearchSym] = useState(null)
+  const activeSym = searchSym || sym
+  useEffect(() => { setSearchSym(null) }, [sym, modalOpen])
+
+  // Dark-pool overlay toggle (only meaningful when `darkPool` is passed, e.g.
+  // the Live Flow chart popup). Default ON, persisted so the choice sticks.
+  const [showDarkPool, setShowDarkPool] = useState(() => {
+    try { return localStorage.getItem('uct_liveflow_show_darkpool') !== '0' } catch { return true }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('uct_liveflow_show_darkpool', showDarkPool ? '1' : '0') } catch {}
+  }, [showDarkPool])
+  const darkPoolBars = useDarkPoolBars(activeSym, darkPool && showDarkPool && view === 'chart')
+
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
-  const tagColor = getTag(sym)
+  const tagColor = getTag(activeSym)
   const tickerActions = useTickerActions()
   const { openTicker } = useTickerHub()
   const isTouch = useIsTouch()
-  const navigate = useNavigate()
 
   // Fetch live price only when modal is open
-  const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
-  const liveData = prices[sym]
+  const { prices } = useRealtimePrices(modalOpen && activeSym ? [activeSym] : [])
+  const liveData = prices[activeSym]
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -70,24 +90,34 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     const handleKey = (e) => {
       if (e.key === 'Escape') { closeModal(); return }
       if (e.shiftKey && e.key === 'F') {
-        const willFlag = !isFlagged(sym)
-        toggleFlag(sym)
+        const willFlag = !isFlagged(activeSym)
+        toggleFlag(activeSym)
         setFlagToast(willFlag ? 'added' : 'removed')
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [modalOpen, sym, isFlagged, toggleFlag])
+  }, [modalOpen, activeSym, isFlagged, toggleFlag])
+
+  // App focus: opening a chart on a ticker IS "what I'm looking at", and this
+  // popup is the app's universal ticker surface — so it's the one writer that
+  // covers every list, table and tile at once. Storage is charts Group A (see
+  // useAppFocus), so this is the same value /charts already persists, not a
+  // second one. Set on OPEN only; a hover preview must never move focus.
+  const { setSymbol: setFocusSymbol } = useAppFocus()
+  useEffect(() => {
+    if (modalOpen && activeSym) setFocusSymbol(activeSym)
+  }, [modalOpen, activeSym, setFocusSymbol])
 
   // P4-F unification: while this ticker modal is open, tell Compass the
   // user is looking at this symbol. So if they open the orb from inside
   // the modal, Compass starts the session knowing the ticker context.
   useEffect(() => {
-    if (!modalOpen || !sym) return
+    if (!modalOpen || !activeSym) return
     const tabHint = tab && tab !== 'Daily' ? `, ${tab}` : ''
-    setVoicePageHint(`chart of ${sym}${tabHint}`)
+    setVoicePageHint(`chart of ${activeSym}${tabHint}`)
     return () => setVoicePageHint(null)
-  }, [modalOpen, sym, tab])
+  }, [modalOpen, activeSym, tab])
 
   return (
     <>
@@ -120,7 +150,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       )}
       {tickerActions.menu && <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />}
 
-      {modalOpen && (
+      {modalOpen && createPortal(
         <div
           className={styles.overlay}
           onClick={closeModal}
@@ -131,39 +161,68 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label={`${sym} chart`}
+            aria-label={`${activeSym} chart`}
           >
             <div className={styles.modalHeader}>
-              {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
-              <span className={styles.modalSym}>{sym}</span>
-              {liveData && (
-                <>
-                  <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
-                  <span className={`${styles.modalChange} ${liveData.change_pct >= 0 ? styles.modalChangeUp : styles.modalChangeDown}`}>
-                    {liveData.change_pct >= 0 ? '+' : ''}{liveData.change_pct?.toFixed(2)}%
+              <div className={styles.modalHeaderLeft}>
+                {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
+                <span className={styles.modalSym}>{activeSym}</span>
+                {/* Flow context (BULL/BEAR · premium · trades) when opened from a flow
+                    row. Hidden once the user searches to a different ticker — the
+                    flow figures belong to the ticker the caller opened, not the next. */}
+                {flowMeta && !searchSym && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginLeft: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: '#0a0e12', background: flowMeta.bull ? '#34d399' : '#f2555a' }}>
+                      {flowMeta.bull ? 'BULL' : 'BEAR'}
+                    </span>
+                    {flowMeta.premium && <span style={{ fontSize: 12, fontWeight: 800, color: '#c9a84c', background: '#c9a84c18', padding: '2px 8px', borderRadius: 4 }}>{flowMeta.premium}</span>}
+                    {flowMeta.trades != null && <span style={{ fontSize: 11, color: '#8a8a90' }}>{flowMeta.trades} trades</span>}
                   </span>
-                </>
-              )}
-              {flagToast && (
-                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                  <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
-                </span>
-              )}
-              <button
-                className={`${styles.flagBtn}${isFlagged(sym) ? ' ' + styles.flagBtnActive : ''}`}
-                onClick={() => { const willFlag = !isFlagged(sym); toggleFlag(sym); setFlagToast(willFlag ? 'added' : 'removed') }}
-                title={isFlagged(sym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                aria-label={isFlagged(sym) ? 'Remove from flagged list' : 'Add to flagged list'}
-              >
-                <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(sym) ? 'Flagged' : 'Flag'}
-              </button>
-              <button
-                className={styles.closeBtn}
-                onClick={closeModal}
-                aria-label="Close chart"
-              >
-                {'×'} close
-              </button>
+                )}
+                {liveData && (
+                  <>
+                    <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
+                    <span className={`${styles.modalChange} ${liveData.change_pct >= 0 ? styles.modalChangeUp : styles.modalChangeDown}`}>
+                      {liveData.change_pct >= 0 ? '+' : ''}{liveData.change_pct?.toFixed(2)}%
+                    </span>
+                  </>
+                )}
+                {flagToast && (
+                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                    <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
+                  </span>
+                )}
+                {/* The journal, visible from the app's universal ticker
+                    surface: "4 entries" → click through to them. Keyed to
+                    activeSym, so searching another ticker in place re-points
+                    the backlinks with it. enabled is tied to the MODAL being
+                    open — this component also renders a hover preview, and
+                    fetching there would fire one request per mouse-over of
+                    every ticker chip on screen. */}
+                <JournalBacklinks symbol={activeSym} enabled={modalOpen} style={{ marginLeft: 6 }} />
+              </div>
+              <div className={styles.modalHeaderRight}>
+                {/* Type a symbol → Enter (or click a match) pulls up that chart in
+                    place. A real <input>, not a click-to-open dropdown, so it's
+                    directly typeable inside the modal. */}
+                <SwitchTickerBox onPick={setSearchSym} />
+                <button
+                  className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
+                  onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                  title={isFlagged(activeSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                  aria-label={isFlagged(activeSym) ? 'Remove from flagged list' : 'Add to flagged list'}
+                >
+                  <UIcon name="flag" size={14} gold={isFlagged(activeSym)} />
+                </button>
+                <button
+                  className={styles.closeBtn}
+                  onClick={closeModal}
+                  title="Close"
+                  aria-label="Close chart"
+                >
+                  <UIcon name="x" size={15} gold={false} />
+                </button>
+              </div>
             </div>
 
             <div className={styles.modalModeRow}>
@@ -177,6 +236,14 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   Chart
                 </button>
                 <button
+                  className={`${styles.modalModeBtn} ${view === 'about' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('about')}
+                  role="tab"
+                  aria-selected={view === 'about'}
+                >
+                  About
+                </button>
+                <button
                   className={`${styles.modalModeBtn} ${view === 'fundamentals' ? styles.modalModeBtnActive : ''}`}
                   onClick={() => setView('fundamentals')}
                   role="tab"
@@ -185,28 +252,12 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   Fundamentals
                 </button>
                 <button
-                  className={`${styles.modalModeBtn} ${view === 'analyst' ? styles.modalModeBtnActive : ''}`}
-                  onClick={() => setView('analyst')}
+                  className={`${styles.modalModeBtn} ${view === 'street' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('street')}
                   role="tab"
-                  aria-selected={view === 'analyst'}
+                  aria-selected={view === 'street'}
                 >
-                  Analyst
-                </button>
-                <button
-                  className={`${styles.modalModeBtn} ${view === 'ownership' ? styles.modalModeBtnActive : ''}`}
-                  onClick={() => setView('ownership')}
-                  role="tab"
-                  aria-selected={view === 'ownership'}
-                >
-                  Ownership
-                </button>
-                <button
-                  className={`${styles.modalModeBtn} ${view === 'desk' ? styles.modalModeBtnActive : ''}`}
-                  onClick={() => setView('desk')}
-                  role="tab"
-                  aria-selected={view === 'desk'}
-                >
-                  Desk
+                  The Street
                 </button>
               </div>
               {/* The timeframe row used to live here. ChartPane owns it now — it
@@ -220,18 +271,46 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   {/* `stored={null}` with no `onStore` = THE user's own chart:
                       ChartPane reads and writes the global chart_settings blob, so
                       this popup renders whatever they configured on /charts.
-                      `onSymbolChange` is deliberately omitted — a TickerPopup shows
-                      the ticker its caller opened, so the identity row is a static
-                      label rather than a search box. */}
+                      `onSymbolChange` is deliberately omitted here — the popup's
+                      OWN header ticker is the search box (drives `activeSym`), so
+                      ChartPane's identity row stays a static company label. */}
                   <ChartPane
-                    sym={sym}
+                    sym={activeSym}
                     tf={TAB_TO_TF[tab]}
                     onTfChange={next => setTab(TF_TO_TAB[next] || tab)}
                     stored={null}
+                    slots={darkPool ? {
+                      // Gold-pill "Dark Pools" toggle in the TF-bar right slot —
+                      // matches the OptionsFlow chart chrome (top-right, same style).
+                      tfBarRight: (
+                        <button
+                          onClick={() => setShowDarkPool(v => !v)}
+                          title={showDarkPool ? 'Hide dark-pool prints on the chart' : 'Show dark-pool prints on the chart'}
+                          aria-pressed={showDarkPool}
+                          style={{
+                            padding: '2px 8px', borderRadius: 3,
+                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#ffffff30'),
+                            background: showDarkPool ? '#c9a84c22' : 'transparent',
+                            color: showDarkPool ? '#c9a84c' : '#8a8a90',
+                            fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                            display: 'flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          <span style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: showDarkPool ? '#c9a84c' : 'transparent',
+                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#8a8a90'),
+                            display: 'inline-block',
+                          }} />
+                          Dark Pools
+                        </button>
+                      ),
+                    } : undefined}
                     stockChartProps={{
-                      height: 'min(650px, 70vh)',
+                      height: 'min(820px, 68vh)',
                       markers,
                       priceLines,
+                      darkPoolBars,
                       compareSymbol: compareSymbol || null,
                       onCompareChange: setCompareSymbol,
                       ...(anchorDate && anchored ? {
@@ -242,70 +321,115 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                     }}
                   />
                 </Suspense>
-              ) : view === 'analyst' ? (
-                <Suspense fallback={<div className={styles.chartLoading}>Loading analyst…</div>}>
-                  <AnalystPanel sym={sym} />
+              ) : view === 'about' ? (
+                <Suspense fallback={<div className={styles.chartLoading}>Loading…</div>}>
+                  <AboutPanel
+                    sym={activeSym}
+                    onSwitch={(s) => { setSearchSym(String(s).toUpperCase()); setView('chart') }}
+                  />
                 </Suspense>
-              ) : view === 'ownership' ? (
-                <Suspense fallback={<div className={styles.chartLoading}>Loading ownership…</div>}>
-                  <OwnershipPanel sym={sym} />
+              ) : view === 'street' ? (
+                <Suspense fallback={<div className={styles.chartLoading}>Loading…</div>}>
+                  <TheStreetPanel sym={activeSym} />
                 </Suspense>
-              ) : view === 'desk' ? (
-                <DeskMentions
-                  sym={sym}
-                  enabled={view === 'desk'}
-                  onOpen={(m) => {
-                    navigate(`/desk?section=videos&v=${m.youtube_id}&t=${m.t}`)
-                    closeModal()
-                  }}
-                />
               ) : (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
-                  <FundamentalSnapshot sym={sym} enabled={view === 'fundamentals'} />
+                  <FundamentalSnapshot sym={activeSym} enabled={view === 'fundamentals'} />
                 </Suspense>
               )}
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
 }
 
-// "Desk" tab — every Desk session that discussed this ticker, newest-first in
-// server order from useTickerMentions (see spec section A: the mentions
-// endpoint is the single authority for this AND the chart-marker layer).
-// Fetches only while `enabled` (the tab is active — the whole modal already
-// only renders while open, so mounting here already implies both). Row click
-// deep-links back into the Desk player at that exact moment and closes the
-// popup — every chart becomes a door to "what did the Desk say about this."
-function DeskMentions({ sym, enabled, onOpen }) {
-  const { mentions, loading } = useTickerMentions(sym, { enabled })
-  if (loading) {
-    return <div className={styles.chartLoading}>Loading Desk sessions…</div>
+// "Switch ticker…" search box in the popup header — a REAL text input (not a
+// click-to-open dropdown), so you type a symbol and Enter opens that chart in
+// place. Predictive matches from /api/ticker-search drop down beneath it; Enter
+// takes the typed symbol unless you've arrow-navigated to a suggestion. Rendered
+// inline (no portal) so it's reliably typeable + visible inside the modal.
+function SwitchTickerBox({ onPick }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const boxRef = useRef(null)
+
+  useEffect(() => {
+    const t = q.trim()
+    if (!t) { setResults([]); return undefined }
+    const ctrl = new AbortController()
+    const id = setTimeout(() => {
+      fetch(`/api/ticker-search?q=${encodeURIComponent(t)}&limit=8`, { signal: ctrl.signal })
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d) { setResults(d.results || []); setActive(0) } })
+        .catch(() => {})
+    }, 130)
+    return () => { clearTimeout(id); ctrl.abort() }
+  }, [q])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const submit = (ticker) => {
+    const clean = String(ticker != null ? ticker : q).trim().toUpperCase()
+    if (clean) onPick(clean)
+    setQ(''); setResults([]); setOpen(false)
   }
-  if (!mentions.length) {
-    return (
-      <div className={styles.deskEmpty}>
-        No Desk sessions have covered {sym} yet.
-      </div>
-    )
+
+  const onKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      // Enter takes the TYPED symbol unless you arrowed onto a suggestion.
+      submit(active > 0 ? (results[active]?.ticker || q) : q)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault(); setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setActive(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
   }
+
   return (
-    <div className={styles.deskList} data-testid="desk-mentions-list">
-      {mentions.map((m, i) => (
-        <button
-          key={`${m.video_id}-${m.t}-${i}`}
-          type="button"
-          className={styles.deskRow}
-          onClick={() => onOpen(m)}
-        >
-          <span className={styles.deskDate}>{m.anchor_date}</span>
-          <span className={styles.deskSep} aria-hidden="true">·</span>
-          <span className={styles.deskNote}>{m.note || m.title}</span>
-        </button>
-      ))}
+    <div ref={boxRef} className={styles.switchWrap}>
+      <input
+        className={styles.switchInput}
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true) }}
+        onFocus={() => { if (results.length) setOpen(true) }}
+        onKeyDown={onKey}
+        placeholder="Switch ticker…"
+        aria-label="Switch ticker — type a symbol to open its chart"
+        spellCheck={false}
+        autoComplete="off"
+      />
+      {open && results.length > 0 && (
+        <div className={styles.switchMenu} role="listbox">
+          {results.map((r, i) => (
+            <button
+              type="button"
+              key={r.ticker}
+              className={`${styles.switchOpt} ${i === active ? styles.switchOptActive : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); submit(r.ticker) }}
+              onMouseEnter={() => setActive(i)}
+              role="option"
+              aria-selected={i === active}
+            >
+              <span className={styles.switchOptSym}>{r.ticker}</span>
+              {r.name && <span className={styles.switchOptName}>{r.name}</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -19,6 +19,14 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* The BODY canvas follows the widget's OWN --wl-bg (always emitted by
+     watchlistStyleVars from the resolved/frozen settings), NOT the theme --bg.
+     Without this it read the raw --bg, which only went light via the
+     .widgetThemeFollow/.widgetFrozenLight class — and that class is dropped the
+     moment the widget is customized, so editing any setting flipped the body back
+     to the app-theme canvas (black on OLED) while the chrome + the Canvas setting
+     stayed white. Reading --wl-bg keeps the body on its own frozen/chosen canvas. */
+  background: var(--wl-bg, var(--bg));
 }
 .pageEmbedded > .leftPanel {
   width: 100%;

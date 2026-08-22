@@ -11,7 +11,7 @@ import time as _time
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import get_current_user, require_admin
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -268,6 +268,36 @@ def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int =
     return out
 
 
+@router.post("/api/bars/warm")
+def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Journal Widgets capture-time warm: fire-and-forget deep-fill of one
+    (ticker, tf) so a freshly-captured embed's history lands in the
+    forever-store. Auth-gated (it can trigger provider fetches); returns
+    immediately — the warm itself runs on the bounded background rails.
+    Optional `to` (the capture's anchor: epoch seconds or 'YYYY-MM-DD') lets
+    the daily warm short-circuit when the store is already deep enough."""
+    from api.services.bars_fetch import _SNAPWARM_TFS, kick_snapshot_warm
+    ticker = str(payload.get("ticker") or "").strip().upper()
+    tf = str(payload.get("tf") or "D")
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+    if tf not in _SNAPWARM_TFS:
+        raise HTTPException(status_code=400, detail="unsupported tf")
+    need_before = None
+    to_raw = payload.get("to")
+    try:
+        if isinstance(to_raw, str) and len(to_raw) >= 10:
+            need_before = int(to_raw[:10].replace("-", ""))
+        elif isinstance(to_raw, (int, float)) and to_raw > 0:
+            secs = to_raw / 1000 if to_raw > 10_000_000_000 else to_raw
+            from zoneinfo import ZoneInfo
+            need_before = int(datetime.fromtimestamp(
+                secs, tz=ZoneInfo("America/New_York")).strftime("%Y%m%d"))
+    except Exception:
+        need_before = None
+    return {"ok": True, "kicked": kick_snapshot_warm(ticker, tf, need_before_ymd=need_before)}
+
+
 @router.get("/api/bars/{ticker}")
 def get_bars(
     ticker: str,
@@ -275,6 +305,7 @@ def get_bars(
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
+    warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
@@ -336,7 +367,7 @@ def get_bars(
                 response = JSONResponse(content=data)
             elif to:
                 # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
-                response = _get_bars_to_response(ticker, tf, bars, to)
+                response = _get_bars_to_response(ticker, tf, bars, to, warm=bool(warm))
             elif since:
                 response = _get_bars_since_response(ticker, tf, bars, since)
             else:

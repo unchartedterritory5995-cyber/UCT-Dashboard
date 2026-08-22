@@ -1,0 +1,40 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 14px 0;
+  line-height: 0;
+}
+.wrap .img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 4px;
+}
+.selected .img { outline: 2px solid #3a4048; }
+.wrap.resizing { user-select: none; }
+
+/* Bottom-right resize handle — matches the chart embed's "L" corner. */
+.handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+  display: none;
+}
+.wrap:hover .handle,
+.selected .handle { display: block; }
+.hSE { bottom: -3px; right: -3px; cursor: nwse-resize; }
+.handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #6b7280;
+  border-left: none;
+  border-top: none;
+  border-radius: 0 0 2px 0;
+}

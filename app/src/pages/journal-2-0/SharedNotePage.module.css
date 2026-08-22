@@ -1,0 +1,68 @@
+/* Public shared-note reading page — shell-less, matches the notebook's
+   Georgia reading face; embeds render archived images (WidgetEmbedView's
+   shareView path). */
+.page {
+  min-height: 100vh;
+  background: var(--bg, #0c0d10);
+  color: var(--text, #e6e2d8);
+  padding: 40px 20px 60px;
+}
+.column {
+  max-width: 760px;
+  margin: 0 auto;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.column :global(.ProseMirror) { outline: none; }
+.column :global(.ProseMirror h1) { font-size: 30px; margin: 28px 0 14px; line-height: 1.2; }
+.column :global(.ProseMirror h2) { font-size: 24px; margin: 24px 0 12px; line-height: 1.25; }
+.column :global(.ProseMirror h3) { font-size: 20px; margin: 20px 0 10px; }
+.column :global(.ProseMirror p) { margin: 12px 0; }
+.column :global(.ProseMirror a) { color: #c9a84c; text-decoration: underline; }
+.column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: 6px; }
+
+.hero {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 22px;
+}
+.title {
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.subtitle {
+  font-size: 18px;
+  font-style: italic;
+  color: var(--text-dim, #9a9a9a);
+  margin-bottom: 18px;
+}
+
+.centered {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  color: var(--text-dim, #9a9a9a);
+}
+.goneTitle { font-size: 18px; color: var(--text, #cfcfcf); }
+.goneWhy { font-size: 13px; }
+
+.brandFoot {
+  max-width: 760px;
+  margin: 48px auto 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #2a2a2a);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 12px;
+  color: var(--text-dim, #8a8a8a);
+}
+.brandName { color: var(--ut-gold, #c9a84c); font-weight: 600; }

@@ -16,6 +16,7 @@ import {
   classifyDebitCredit,
 } from '../../lib/optionCalcs'
 import { formatETDate } from '../../../../utils/timeAgo'
+import useJ2OptionMarks from '../../hooks/useJ2OptionMarks'
 import UIcon from '../../../../components/ui/UIcon'
 import StrategyIcon from './StrategyIcon'
 import styles from './OptionStrategiesSection.module.css'
@@ -34,7 +35,7 @@ import styles from './OptionStrategiesSection.module.css'
  * }} props
  */
 export default function OptionStrategiesSection({
-  strategies,
+  strategies: rawStrategies,
   variant,
   isLoading,
   error,
@@ -45,6 +46,20 @@ export default function OptionStrategiesSection({
   onDelete,
 }) {
   const [expandedId, setExpandedId] = useState(null)
+
+  // Live option marks (Massive NBBO midpoints, 45s) — replace the sync-time
+  // broker mark so this surface agrees with the hero/holdings list instead of
+  // showing values from the last sync. Fallback: the stored mark.
+  const { marks: optionMarks } = useJ2OptionMarks({
+    enabled: variant === 'open' && (rawStrategies?.length ?? 0) > 0,
+  })
+  const strategies = useMemo(() => {
+    if (!optionMarks) return rawStrategies || []
+    return (rawStrategies || []).map((s) => {
+      const live = optionMarks[s.id]?.currentValue
+      return Number.isFinite(live) ? { ...s, brokerCurrentValue: live } : s
+    })
+  }, [rawStrategies, optionMarks])
 
   const summary = useMemo(() => buildSummary(strategies, variant), [strategies, variant])
 

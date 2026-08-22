@@ -212,6 +212,21 @@ def list_videos() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def list_video_creative_stubs() -> list[dict]:
+    """Lean rows for the creative-cover backfill — exactly the columns it
+    filters and renders from, WITHOUT the transcript column (hundreds of KB
+    per video; a SELECT * materialized on the request path is the documented
+    524 class). Newest first, matching the backfill's priority order."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, youtube_id, title, category, created_at,
+                      headline, ticker_moments
+               FROM edu_videos
+               ORDER BY created_at DESC, id DESC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def list_categories() -> list[str]:
     """Distinct category names that currently have at least one video."""
     with contextlib.closing(_connect()) as c:

@@ -60,6 +60,10 @@
   align-items: center;
   gap: 6px;
 }
+/* UCT Chart Themes launcher — lives at the far RIGHT of the template row and
+   shares the exact template-button style (no special accent), per owner request. */
+.themesBarBtn { margin-left: auto; }
+
 .resetBtn {
   background: transparent;
   border: 1px solid var(--menu-border, #2c2c30);

@@ -141,6 +141,24 @@ export default function SyncTrustCenter({ onSynced }) {
               <Stat label="Trades" value={a.tradeCount} />
               <Stat label="Positions" value={a.positionCount} />
             </div>
+
+            {/* Mirror-drift sentinel verdict: the backend re-verifies the
+                journal against the broker payload after EVERY sync. Members
+                see the proof themselves instead of trusting us blind. */}
+            {a.mirror?.checkedAt && (a.mirror.ok ? (
+              <p className={styles.mirrorOk}>
+                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="shield" size={13} /></span>
+                Verified against your broker on last sync
+              </p>
+            ) : (
+              <p className={styles.mirrorDrift} role="alert">
+                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="warning" size={13} gold={false} /></span>
+                {Number.isFinite(a.mirror.driftDollar)
+                  ? `Last sync was $${Math.abs(a.mirror.driftDollar).toFixed(2)} off your broker's total — `
+                  : 'Last sync did not fully match your broker — '}
+                re-checking automatically; flagged for review.
+              </p>
+            ))}
           </div>
         )
       })}

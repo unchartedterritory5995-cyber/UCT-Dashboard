@@ -13,24 +13,18 @@
 //
 // All functions are PURE — they return a NEW widget object, never mutate.
 
-// Types offerable as a tab + their labels. The short label rides the compact tab
-// chip in the header; the menu label matches the "+ Add Widget" menu wording.
-// 'periodsort' is intentionally NOT offered in the +add-tab menu — it's reachable only
-// from Tools → Custom-Period Sort (add-as-tab). Its labels stay below so existing
-// periodsort tabs still render their chip/menu text.
-export const WIDGET_TAB_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
-export const WIDGET_TAB_LABEL = {
-  chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner',
-  fundamentals: 'Fundamentals', breadth: 'Breadth', aisearch: 'AI Search',
-  news: 'News', profile: 'Profile', alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
-  periodsort: 'Period Sort',
-}
-export const WIDGET_TAB_MENU_LABEL = {
-  chart: 'Chart', watchlist: 'Watchlist', themes: 'Theme Tracker', scanner: 'Scanner',
-  fundamentals: 'Fundamentals', breadth: 'Breadth', aisearch: 'AI Search',
-  news: 'News & Catalysts', profile: 'Stock Profile', alerts: 'Alerts', calendar: 'Calendar',
-  optionsflow: 'Options Flow', periodsort: 'Period Sort',
-}
+// Types offerable as a tab + their labels, derived from the widget registry
+// (src/widgets/registry.js — the single source; pins in registry.test.js).
+// The short 'tab' label rides the compact tab chip in the header; the menu
+// label matches the "+ Add Widget" menu wording. 'periodsort' is intentionally
+// NOT offered in the +add-tab menu (menus.tab: false) — it's reachable only
+// from Tools → Custom-Period Sort (add-as-tab). Its labels stay in the maps so
+// existing periodsort tabs still render their chip/menu text.
+import { TAB_MENU_TYPES, labelMap } from '../../widgets/registry'
+
+export const WIDGET_TAB_TYPES = TAB_MENU_TYPES
+export const WIDGET_TAB_LABEL = labelMap('tab')
+export const WIDGET_TAB_MENU_LABEL = labelMap('menu')
 
 // Short random id (app code — Math.random is fine here; only workflow scripts ban it).
 function _newTabId() {

@@ -164,6 +164,26 @@
   color: var(--text-muted, #8a909a);
 }
 
+/* ── Mirror-drift sentinel verdict ────────────────────────────────────────────── */
+
+.mirrorOk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--gain, #4ade80);
+}
+.mirrorDrift {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--warning, #e0a63c);
+}
+.mirrorIcon { display: inline-flex; }
+
 /* ── Dup-flags link ────────────────────────────────────────────────────────── */
 
 .dupNote {

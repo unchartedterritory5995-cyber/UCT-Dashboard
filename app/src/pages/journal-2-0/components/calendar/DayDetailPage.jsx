@@ -4,7 +4,7 @@
  * day metrics + trades table + (Steps 4-6) notes/attachments/rules.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
@@ -21,6 +21,9 @@ import {
   fmtSignedPct,
   fmtSignedR,
 } from '../../lib/calendar'
+import { useFeatureFlag } from '../../featureFlags'
+import { renderDayCardPng } from '../../lib/dayCardPng'
+import { downloadBlob, copyBlobToClipboard } from '../../../../components/chart/chartScreenshot'
 import styles from './DayDetailPage.module.css'
 
 function buildOptionsActivitySummary(strategies) {
@@ -108,7 +111,10 @@ export default function DayDetailPage() {
         </aside>
 
         <main className={styles.main}>
-          <h1 className={styles.title}>{formatLongDate(date)}</h1>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>{formatLongDate(date)}</h1>
+            <DayCardActions date={date} metrics={metrics} trades={trades} />
+          </div>
 
           {error && (
             <div className={styles.errorBanner} role="alert">
@@ -175,6 +181,59 @@ export default function DayDetailPage() {
     </div>
   )
 }
+
+/**
+ * "Save image" / "Copy image" for the day-recap card — the calendar-day
+ * sibling of TradeCardActions (lib/dayCardPng canvas draw + the reused
+ * chartScreenshot helpers). Gated on the SAME `tradePng` feature flag (one
+ * kill switch for the whole PNG-export family); inline error, never a crash.
+ */
+function DayCardActions({ date, metrics, trades }) {
+  const flagOn = useFeatureFlag('tradePng')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  if (!flagOn || !metrics) return null
+
+  const run = async (deliver) => {
+    setError(null)
+    setBusy(true)
+    try {
+      const blob = await renderDayCardPng(formatLongDate(date), metrics, trades)
+      await deliver(blob)
+    } catch {
+      setError('Couldn\u2019t build the image.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <span className={styles.dayCardActions}>
+      <button
+        type="button"
+        className={styles.dayCardBtn}
+        disabled={busy}
+        onClick={() => run((blob) => downloadBlob(blob, `day-${date}.png`))}
+      >
+        Save image
+      </button>
+      <button
+        type="button"
+        className={styles.dayCardBtn}
+        disabled={busy}
+        onClick={() => run(async (blob) => {
+          const ok = await copyBlobToClipboard(blob)
+          if (!ok) setError('Copy isn\u2019t supported in this browser \u2014 use Save image.')
+        })}
+      >
+        Copy image
+      </button>
+      {error && <span className={styles.dayCardErr} role="alert">{error}</span>}
+    </span>
+  )
+}
+
 
 function DayMetricsRow({ metrics }) {
   if (!metrics) return null

@@ -222,8 +222,62 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // baseline this task minted for itself: it is what the merge already
   // answered, and a change that moved one character of one stored blob would
   // fail here with the fixture named.
+  // 2026-08-12: re-pinned when the additive, default-OFF setting `compareHideBase`
+  // ("Group only" for Compare Symbols) was added to CHART_DEFAULTS + mergeChartSettings.
+  // Every merged blob gains `compareHideBase:false` — a new key nothing reads unless
+  // the user enables it, so no pixel moves; the digest necessarily shifts by that one
+  // additive field. (Prior value: 313352ceafb4fc29b556e053f3073463de387e96273bc4cf9b651e23db690875)
+  // 2026-08-14: re-pinned for the axis-label + dark-pool overlay settings
+  // (commits fd0f43658 / cc945fc64). INVESTIGATED, not refreshed: `git diff` of
+  // CHART_DEFAULTS across that batch contains ZERO removed lines — the merged
+  // blob gains exactly three top-level keys and loses none.
+  //   showPriceLabels: true   — the boxed last-price tag, documented in-file as
+  //                             "matches prior behavior", so nothing moves
+  //   showMaLabels: false     — opt-in, off by default
+  //   darkPool: {enabled:false,…} — opt-in + paid-gated, off by default
+  // Two default-OFF and one codifying what was already drawn ⇒ no pixel moves;
+  // the digest necessarily shifts by those additive fields.
+  // 2026-08-16: re-pinned for `header.legendMode` (the on-chart legend's
+  // Always / On click / Off mode). INVESTIGATED BY MEASUREMENT, not by reading
+  // the diff and hoping: a throwaway rail rebuilt this exact hash over these
+  // exact fixtures with `header.legendMode` — and ONLY that key — deleted from
+  // each merged blob, preserving key order so the emitted bytes matched, and it
+  // reproduced the prior literal EXACTLY. So every other byte of every fixture's
+  // merged blob is unchanged and nothing on this path answers differently.
+  //   legendMode: 'always'  — resolved by `legendMode.js::legendModeOf` from the
+  //                           legacy `header.showLegend`, so a stored blob that
+  //                           has never heard of the key merges to the behaviour
+  //                           it already had. Zero pixels move for any user.
+  // ⚠️ `showLegend` is deliberately still emitted beside it: it is the fallback
+  // INPUT the resolver reads, so removing it WOULD change the answer for every
+  // user who had turned the legend off, and would have shown up here as a
+  // non-additive move.
+  // 2026-08-16 (same day, second move): the legend's DEFAULT flipped from
+  // 'always' to 'click' (owner call — a chart now starts clean and answers when a
+  // candle is clicked). So this is a VALUE change to the one key the previous
+  // re-pin ADDED, not a new key. PROVED THE SAME WAY: a throwaway rail rebuilt
+  // this hash with `header.legendMode` stripped from each merged blob and
+  // reproduced the PRE-FEATURE literal exactly, so nothing else on this path
+  // answers differently.
+  // ⚠️ `showLegend` still rides along unchanged — it is the resolver's fallback
+  // INPUT, and an explicit `false` in it still wins as 'off'.
+  // ⭐ 2026-08-17 — AND IT IS BACK TO THE PRE-FEATURE LITERAL, WHICH IS THE
+  // POINT. The two moves above were caused by `mergeChartSettings` STAMPING the
+  // resolved `legendMode` into every merged blob; every settings write persists
+  // that blob, so the default became a recorded user choice and could never be
+  // changed again (it reached production and cost the owner the default flip).
+  // The merge now carries ONLY an explicit choice, so a default blob is byte-for-
+  // byte what it was before this feature existed — and this rail returning to its
+  // original value is the proof.
+  // ⭐ 2026-08-20 — re-pinned for this day's chart-settings additions: (1) the
+  // first-bar "IPO" badge (`markers.ipo` + `markers.ipoColor`); (2) the crosshair
+  // on/off toggle (`crosshair.enabled: true`); (3) the watermark font-weight
+  // control (`watermark.weight: 700`). All are ordinary default fields (same class
+  // as `markers.earnings` / `crosshair.magnet` / `watermark.sizeScale`) that ride
+  // along in every merged blob. INVESTIGATED, not regenerated: the only deltas vs
+  // the prior literal are those added default keys.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '313352ceafb4fc29b556e053f3073463de387e96273bc4cf9b651e23db690875'
+    'bb1a0452470e301389ce72e359de1b4b643040eb1ef28494101acc41c4c605aa'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

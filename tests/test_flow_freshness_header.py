@@ -25,7 +25,11 @@ import pytest
 
 from api import flow_router
 
-_KEY = ("stocks", 1, None)
+# (source, days, dates, max_mktcap) — the cache key `_get_cached_or_build`
+# writes. `max_mktcap` joined it when the uncapped small-cap payload arrived:
+# the capped and uncapped bodies for the same (source, days) are different
+# bytes and must never share an entry.
+_KEY = ("stocks", 1, None, None)
 
 
 @pytest.fixture(autouse=True)
@@ -64,8 +68,13 @@ def _pin_version(monkeypatch, value):
 
 def _pin_build(monkeypatch, payload=b"CreatedDate,Symbol\n7/27/2026,NVDA\n"):
     """Build returns a marker payload so we can prove WHICH bytes came back."""
+    # Signature-AGNOSTIC on purpose: this stub exists to pin WHICH BYTES come
+    # back, not the builder's parameter list. A typed signature here turned one
+    # added argument (`max_mktcap`) into eight red tests whose messages said
+    # nothing about freshness — including two that failed as a bare missing
+    # header, because `_serve_csv` turns any build error into a plain 500.
     monkeypatch.setattr(flow_router, "_build_gzipped_csv",
-                        lambda source, days, dates=None: payload)
+                        lambda *a, **kw: payload)
     return payload
 
 
@@ -217,7 +226,7 @@ def test_stale_payload_is_served_instantly_and_refreshed_in_the_background(monke
 
     started, release = threading.Event(), threading.Event()
 
-    def _slow_build(source, days, dates=None):
+    def _slow_build(*_a, **_kw):          # signature-agnostic; see _pin_build
         started.set()
         release.wait(5)          # hold the rebuild open
         return b"NEW"
@@ -257,7 +266,7 @@ def test_a_failed_background_refresh_keeps_the_last_good_payload_and_frees_the_l
 
     exploded = threading.Event()
 
-    def _explode(source, days, dates=None):
+    def _explode(*_a, **_kw):             # signature-agnostic; see _pin_build
         exploded.set()
         raise RuntimeError("build failed")
 

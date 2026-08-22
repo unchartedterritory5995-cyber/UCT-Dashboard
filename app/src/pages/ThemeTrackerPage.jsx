@@ -15,11 +15,14 @@ import TickerActionsMenu, { useTickerActions } from '../components/TickerActions
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
+import usePlacedTheme from '../hooks/usePlacedTheme'
 import { menuThemeVars } from '../utils/dividerColor'
 import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel'
 import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars, themeTrackerDefaultsForTheme } from './theme-tracker/themeTrackerSettings'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
+import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -256,10 +259,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
   // ── Theme Tracker appearance settings (⚙ panel) — mirrors the watchlist's ──
   const { prefs, setPref } = usePreferences()
+  const placedTheme = usePlacedTheme()
   // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
   // canvas + dark text), so the ⚙ swatches and the surface follow the site theme.
   const ttSettings = useMemo(
-    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null) ?? themeTrackerDefaultsForTheme(prefs?.theme)),
+    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null) ?? themeTrackerDefaultsForTheme(placedTheme)),
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -269,7 +273,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify({ ...ttSettings, ...patch }))
   }, [ttSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(themeTrackerDefaultsForTheme(prefs?.theme)))
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(themeTrackerDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])
   const ttStyle = useMemo(() => themeTrackerStyleVars(ttSettings), [ttSettings])
   // Canvas-matched palette for the settings panel (light/gold on a light canvas,
@@ -406,13 +410,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
+        // Daily is the TF a click lands on. Warm it for the WHOLE just-opened group
+        // at HIGH priority and START immediately (no idle defer) — this is the fix
+        // for the black-screen flash while arrowing fast through a group: by the
+        // time the first click commits, every holding's Daily bars are already in
+        // IDB, so the chart paints instantly instead of cold-fetching on black.
+        prefetchBarsToIDB(syms, 'D', { priority: true, immediate: true })
         prefetchBars(syms, chartPeriod)
         // Durable warm of the WHOLE group into IndexedDB so arrowing through it
         // (even with the keyboard, faster than hover) is instant — and survives a
-        // page reload, unlike the in-memory prefetch above. Also warm Daily since
-        // that's the default chart TF a click lands on.
-        prefetchBarsToIDB(syms, chartPeriod)
-        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, 'D')
+        // page reload, unlike the in-memory prefetch above.
+        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, chartPeriod)
         // Warm the whole group across ALL scan timeframes (intraday too) into
         // durable IDB so scrolling this theme is instant on 5m/30m/1h, not just
         // daily. Bounded/idle-deferred — never competes with the active chart.
@@ -482,6 +490,35 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (!q) return sortedThemes
     return sortedThemes.filter(theme => themeMatches(theme, q))
   }, [sortedThemes, debouncedSearch, themeMatches])
+
+  // ── Send the ranking to the Journal (page-seam capture door — panel batch
+  // 3). The widget has no chrome of its own (it IS this page), so the door
+  // rides the search row beside the gear. Payload freeze (owner-approved):
+  // the VISIBLE leaderboard — ETF ticker, theme name, period return, top
+  // holdings — as it stands; the taxonomy versions forward and returns have
+  // no as-of endpoint, so the capture is the only record of that ranking.
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  const sendThemesToJournal = useCallback(async () => {
+    setJournalMsg('sending…')
+    const rows = filteredThemes.slice(0, 40).map((t) => {
+      const pct = groupReturn(t, activeKey)
+      const top = [...(t.holdings || [])]
+        .sort((a, b) => (b.returns?.[activeKey] ?? -Infinity) - (a.returns?.[activeKey] ?? -Infinity))
+        .slice(0, 3).map((h) => h.sym).join(' · ')
+      return {
+        sym: t.ticker,
+        note: t.name,
+        ...(Number.isFinite(pct) ? { chgPct: pct } : {}),
+        ...(top ? { extraValue: top } : {}),
+      }
+    })
+    setJournalMsg(await sendCaptureToJournal('themes', {
+      period: activeKey, sortDir,
+      ...(openTheme ? { openTheme } : {}),
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      rows,
+    }, { label: `Themes ${PERIOD_LABELS[activeKey] || activeKey}` }))
+  }, [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch, setJournalMsg])
 
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {
@@ -660,6 +697,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           themeVars={ttMenuVars}
         />
       )}
+      {/* Send-to-Journal confirmation for the ranking door (fixed: reads the
+          same in page and widget hosts; below the popup band). */}
+      <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -687,6 +727,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           />
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
+          )}
+          {/* → Journal: freeze the visible ranking into a note (payload
+              capture — owner decision). Door-left-of-gear, the house cluster. */}
+          {filteredThemes.length > 0 && (
+            <button
+              className={styles.settingsBtn}
+              onClick={sendThemesToJournal}
+              title="Send this ranking to Journal (frozen list)"
+              aria-label="Send this ranking to Journal"
+            ><UIcon name="journal" size={14} /></button>
           )}
           {/* ⚙ Theme Tracker settings — rides the search row (a gear on its own
               wrapped period-bar row wasted a full strip of vertical space). */}

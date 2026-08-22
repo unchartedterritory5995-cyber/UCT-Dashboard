@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
@@ -101,8 +102,9 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
   // → white canvas + dark text), so both the ⚙ swatches AND the rendered widget follow
   // the site theme until the user picks colors. Reset clears back to that.
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeProfileWidgetSettings(opts?.settings ?? profileDefaultsForTheme(prefs.theme)),
+    () => mergeProfileWidgetSettings(opts?.settings ?? profileDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)

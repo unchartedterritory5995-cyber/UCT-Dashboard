@@ -10,12 +10,14 @@ snapshot shared across every row.
 """
 from __future__ import annotations
 
+import os
 import re
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
+from api.services.cache import cache
 from api.services.serve_stale import ServeStale
-from api.services.wire import store
+from api.services.wire import coverage, store
 from api.services.wire.session import market_session_date
 
 router = APIRouter()
@@ -86,6 +88,71 @@ def get_wire(date_str: str | None = Query(None, alias="date")):
     for r in rows:
         r["move_pct"] = moves.get(r["sym"])
     return {"market_date": md, "rows": rows, "expected": _expected_count(md)}
+
+
+_COVERAGE_STALE = ServeStale("wire_coverage", max_age_seconds=900)
+_COVERAGE_TTL = 300      # measured readings hold 5 min
+_COVERAGE_FAIL_TTL = 60  # an unmeasured (provider-down) reading self-heals fast
+
+
+@router.get("/api/calendar/wire-coverage")
+def wire_coverage(date_str: str | None = Query(None, alias="date")):
+    """Did every reporter make the feed? Provider truth vs the wire store.
+
+    THE completeness check for the session: FMP one-day chunk + Finnhub,
+    in-universe, reporters WITH published actuals, diffed against the wire.
+    Reads: `ok: true` = every reported name is on the feed with numbers.
+    Anything missing is NAMED and classified — `missing_not_on_roster` is a
+    calendar day-list gap, `missing_on_roster` is detector lag, and
+    `numbers_pending_on_feed` is the upgrade path lagging the provider.
+    `measured: false` means the check could not run (both providers down) —
+    it is never a clean bill.
+
+    Two bounded provider calls per cold build, cached 5 min and served
+    stale-while-revalidating, so polling it costs nothing extra.
+    """
+    if date_str and not _DATE_RE.match(date_str):
+        return {"market_date": None, "measured": False,
+                "note": "malformed date — expected YYYY-MM-DD"}
+    md = date_str or market_session_date()
+    ck = f"wire_coverage_{md}"
+
+    def _build():
+        out = coverage.build_coverage(md)
+        try:
+            cache.set(ck, out,
+                      ttl=_COVERAGE_TTL if out.get("measured") else _COVERAGE_FAIL_TTL)
+        except Exception:
+            pass
+        return out
+
+    payload = _COVERAGE_STALE.serve(
+        ck,
+        fresh=lambda: cache.get(ck),
+        build=_build,
+        good=lambda v: bool(v) and v.get("measured") is True,
+    )
+    # Overlaid OUTSIDE the cache so it can never staleness-lie across a session
+    # roll. The frontend trust line renders only for the current session —
+    # a date before the wire existed would otherwise scream "missing" about
+    # rows nobody ever recorded.
+    out = dict(payload or {})
+    out["is_current_session"] = out.get("market_date") == market_session_date()
+    return out
+
+
+@router.post("/api/calendar/wire-coverage/run")
+def wire_coverage_run(authorization: str | None = Header(None)):
+    """Run the measure→heal→re-measure→alert pass NOW (PUSH_SECRET bearer).
+
+    The scheduled job's manual trigger — a POST because the heal MUTATES
+    (forces a calendar rebuild + a detector tick); the GET above stays a pure
+    read. Same auth idiom as `/wire-feedback/recent-internal`."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services.wire import coverage_monitor
+    return coverage_monitor.run_check()
 
 
 @router.get("/api/calendar/wire-status")

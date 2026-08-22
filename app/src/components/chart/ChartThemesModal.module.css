@@ -1,0 +1,244 @@
+/* UCT Chart Themes gallery — mirrors the Chart Settings modal's design system
+   (the fixed --menu-* palette in tokens.css). Portaled to <body>, sits ABOVE the
+   settings modal (z 9000) with a restrained dim + blur backdrop. Gold is used
+   ONLY for active/selected states, exactly like the settings tabs & mode cards. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 4, 6, 0.58);
+  backdrop-filter: blur(7px) saturate(0.95);
+  -webkit-backdrop-filter: blur(7px) saturate(0.95);
+  animation: fadeIn 130ms ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.panel {
+  width: min(1080px, 95vw);
+  height: min(740px, 90vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-surface, var(--menu-bg, #0e0e10));
+  border: 1px solid var(--menu-border, #242426);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── Header (matches the settings modal header) ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  background: linear-gradient(180deg, var(--menu-bg-top, #161618) 0%, var(--menu-bg, #0e0e10) 100%);
+}
+.titleWrap { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--menu-text, #ededed);
+  white-space: nowrap;
+}
+.subtitle {
+  font-size: 11.5px;
+  color: var(--menu-text-dim, #7a7a7a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.close {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--menu-text-faint, #6b6b6b);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 120ms, background 120ms;
+}
+.close:hover { color: var(--menu-text, #ededed); background: var(--menu-input-bg, #161618); }
+
+/* ── Controls (family filter + search) ── */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  background: var(--menu-bg, #0e0e10);
+  flex-wrap: wrap;
+}
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--menu-border, #2c2c30);
+  background: transparent;
+  color: var(--menu-text-dim, #8a8a8f);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.pill:hover { color: var(--menu-text, #ededed); border-color: var(--menu-border-strong, #3a3a3e); }
+.pillOn,
+.pillOn:hover {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  border-color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #e7cf8f);
+}
+.search {
+  flex: none;
+  width: 210px;
+  max-width: 46vw;
+  padding: 6px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--menu-border, #2c2c30);
+  background: var(--menu-input-bg, #161618);
+  color: var(--menu-text, #ededed);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms;
+}
+.search:focus { border-color: var(--menu-accent, #c9a84c); }
+.search::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+
+/* ── Grid of theme tiles ── */
+.grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 9px;
+  border: 1px solid var(--menu-border, #242426);
+  background: var(--menu-input-bg, #161618);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms, background 120ms;
+}
+.tile:hover { border-color: var(--menu-accent, #c9a84c); }
+.tileApplied,
+.tileApplied:hover {
+  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+}
+.tileHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tileName {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--menu-text, #ededed);
+}
+.tileFam {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #6b6b6b);
+}
+.appliedTag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--menu-accent, #e7cf8f);
+  white-space: nowrap;
+}
+.preview {
+  width: 100%;
+  height: 120px;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.empty {
+  grid-column: 1 / -1;
+  padding: 40px 0;
+  text-align: center;
+  color: var(--menu-text-dim, #7a7a7a);
+  font-size: 12.5px;
+}
+
+/* ── Footer (apply-scope selector) ── */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--menu-divider, #202022);
+  background: var(--menu-bg, #0e0e10);
+}
+.footLabel { font-size: 11.5px; color: var(--menu-text-dim, #8a8a8f); font-weight: 600; }
+.scopeSeg {
+  display: inline-flex;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scopeBtn {
+  padding: 5px 13px;
+  background: transparent;
+  color: var(--menu-text-dim, #8a8a8f);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.scopeBtn + .scopeBtn { border-left: 1px solid var(--menu-border, #2c2c30); }
+.scopeBtn:hover:not(:disabled) { color: var(--menu-text, #ededed); }
+.scopeBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.scopeOn,
+.scopeOn:hover {
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  color: var(--menu-accent, #e7cf8f);
+}
+.footHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--menu-text-faint, #6b6b6b);
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 640px) {
+  .backdrop { padding: 0; }
+  .panel { width: 100vw; height: 100vh; border-radius: 0; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 14px; }
+  .preview { height: 96px; }
+  .search { width: 100%; max-width: none; }
+  .subtitle { display: none; }
+}

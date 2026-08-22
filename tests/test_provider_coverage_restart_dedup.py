@@ -31,6 +31,14 @@ def _stub_healthy(monkeypatch, pcm):
     monkeypatch.setattr(pcm, "_transcript_rate", lambda syms: {"observed": None, "sample": 0, "missing": []})
     monkeypatch.setattr(pcm, "_analyst_actions_rate", lambda syms: {"observed": 1.0, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
+    # Stubbed like every other measurer here: unstubbed it reads the REAL
+    # `calendar_weekly` cache, which a sibling suite in the same chunk may
+    # have seeded, and then flags a blank forward week that has nothing to
+    # do with this file. (Production cannot hit that: `calendar_weekly` is
+    # only ever written by `_build_current_week`, which writes the coverage
+    # report in the same pass.)
+    monkeypatch.setattr(pcm, "_calendar_forward_multisource_rate",
+                        lambda: {"observed": 1.0, "sample": 4})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
     monkeypatch.setattr(pcm, "_day_metrics_rate", lambda field: {"observed": 0.8, "sample": 50})

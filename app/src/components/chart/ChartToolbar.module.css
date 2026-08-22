@@ -2,7 +2,10 @@
 
 .toolbar {
   position: absolute;
-  left: 4px;
+  /* Nudged right so the FIRST tool button's left edge lines up with the left edge of
+     the crosshair-legend data below it. Measured live: the flat legend's data text
+     ("2026-…") sits 12px in from the chart wrapper, so the toolbar starts there too. */
+  left: 12px;
   top: 4px;
   /* Clear the price scale on the right. LWC sizes it to the widest label in view
      (4-digit prices + padding run ~72px+), so 64px let the right-side action icons
@@ -12,8 +15,14 @@
   z-index: 5;
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 1px;
+  /* Top-align (not center) so that when .tools shows a horizontal scrollbar as the
+     widget narrows, the scrollbar grows DOWNWARD, below the buttons — the drawing
+     tools never shift up and stay level with the right-side action buttons. The
+     padding-top preserves the old centered resting height (22px buttons in 26px). */
+  align-items: flex-start;
+  padding-top: 2px;
+  /* Even spacing between every button now that the vertical separators are gone. */
+  gap: 2px;
   pointer-events: auto;
   /* ⭐⭐ RESTING OPACITY, RAISED FROM 0.3 — AND THE COLOURS WERE NEVER THE PROBLEM.
      `toolbarFor()` already derives ink from the canvas and returns `#5a5548` on the
@@ -35,7 +44,17 @@
 .tools {
   display: flex;
   flex-direction: row;
-  gap: 1px;
+  /* Keep the buttons at the TOP of the tools box so a horizontal scrollbar renders
+     below them (never overlapping / lifting the buttons). */
+  align-items: flex-start;
+  gap: 2px;
+  /* Take the space the fixed actions group leaves, and be allowed to shrink BELOW
+     the tools' natural width (min-width:0) so the row scrolls instead of pushing
+     the actions off — the actions therefore never overlap the drawing tools as the
+     widget narrows. On a wide chart flex-grow fills the gap so actions stay right-
+     aligned. */
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -45,9 +64,35 @@
 .actions {
   display: flex;
   flex-direction: row;
-  gap: 1px;
-  flex-shrink: 0;
+  /* Centered so a LABELLED (taller) button grows symmetrically instead of
+     stretching its unlabelled neighbours to match — see .btnStacked. */
+  align-items: center;
+  gap: 2px;
+  /* Fixed width, laid out AFTER the shrinking .tools — the tools yield space first,
+     so these buttons stay fully visible and never sit on top of the drawing tools. */
+  flex: 0 0 auto;
+}
+
+/* ── Toolbar show/hide toggle ─────────────────────────────────────────────────
+   A sibling of .tools/.actions, pinned to the far right (margin-left:auto). When
+   the toolbar is expanded, .tools flex-grows to fill so there is no free space and
+   it sits right after the last action button; when collapsed, .tools/.actions are
+   removed so the auto margin pushes it to the right edge — same spot either way. */
+.toggleBtn {
+  flex: 0 0 auto;
   margin-left: auto;
+}
+/* Collapsed: hide the drawing tools + action buttons and let clicks fall through
+   the now-empty toolbar strip to the chart beneath — only the toggle stays live. */
+.collapsed .tools,
+.collapsed .actions {
+  display: none;
+}
+.collapsed {
+  pointer-events: none;
+}
+.collapsed .toggleBtn {
+  pointer-events: auto;
 }
 
 /* ── Button ── */
@@ -67,8 +112,22 @@
   color: var(--chart-toolbar-text, #a8a290);
   cursor: pointer;
   padding: 0;
-  transition: background 0.12s, color 0.12s;
+  /* width/opacity/margin are animated so show/hide of a drawing tool collapses
+     smoothly (see .toolHidden) instead of popping in/out. */
+  transition: background 0.12s, color 0.12s, width 0.18s ease, opacity 0.18s ease, margin 0.18s ease;
   flex-shrink: 0;
+}
+/* A tool the user has hidden via the Favorite Drawings menu: kept in the DOM (so
+   the collapse animates) but shrunk to zero width and made non-interactive. The
+   negative margins swallow the flex gap so no sliver is left behind. */
+.toolHidden {
+  width: 0 !important;
+  min-width: 0;
+  opacity: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+  overflow: hidden;
+  pointer-events: none;
 }
 .btn:hover {
   background: var(--chart-toolbar-bg-hover, rgba(46, 49, 39, 0.95));
@@ -79,6 +138,36 @@
   cursor: default;
   pointer-events: none;
 }
+/* ── A LABELLED action button (icon over a caption) ───────────────────────────
+   For MODE controls, which have to announce what they are rather than relying on
+   a tooltip. The legend control shipped as a bare icon in a row of seven
+   near-identical bare icons and was reported missing by the person who asked for
+   it; the sibling extended-hours toggle has always used text (EXT/RTH) for the
+   same reason.
+
+   ⚠️ It is TALLER than its neighbours by design — that is the accepted cost of a
+   findable control. `.actions` centers its children so the extra height grows
+   symmetrically instead of shoving the row's baseline. */
+.btnStacked {
+  width: auto;
+  height: auto;
+  min-width: 24px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px 1px;
+  line-height: 1;
+}
+.btnCaption {
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Inherits the button's color, so it goes gold with `.active` and dims with the
+     button when the legend is off — one visual state, not two. */
+  opacity: 0.85;
+  pointer-events: none;
+}
+
 .btn.active {
   background: rgba(201, 168, 76, 0.25);
   color: #c9a84c;
@@ -188,6 +277,19 @@
 .settingsPanel::-webkit-scrollbar { width: 4px; }
 .settingsPanel::-webkit-scrollbar-track { background: transparent; }
 .settingsPanel::-webkit-scrollbar-thumb { background: #2e3127; border-radius: 2px; }
+
+/* Drawing-tools customizer dropdown: a slim scrollbar that BLENDS with the dark
+   menu (--menu-bg / --menu-border) instead of the OS default white bar. */
+.menuScroll { scrollbar-width: thin; scrollbar-color: var(--menu-border, #232932) transparent; }
+.menuScroll::-webkit-scrollbar { width: 8px; }
+.menuScroll::-webkit-scrollbar-track { background: transparent; }
+.menuScroll::-webkit-scrollbar-thumb {
+  background: var(--menu-border, #232932);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.menuScroll::-webkit-scrollbar-thumb:hover { background: var(--menu-text-dim, #3a4150); background-clip: padding-box; }
 
 .sGroup {
   padding: 6px 0;

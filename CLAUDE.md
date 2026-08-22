@@ -153,7 +153,9 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_accounts` — multi-account model (per-account sizing/setups/goals/fees)
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
-  - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`).
+  - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Dropbox OAuth; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
+  - **OneNote + OneDrive** joined the connector roster shipped dark 2026-08-12, same branch — Microsoft Graph OAuth, one shared Azure app (`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET`), same `note_sync.py` router and the same `NOTE_SYNC_ENABLED` + per-provider msgraph-config double-gate as above. OneNote syncs via a resumable per-tick watermark queue (bounded enumeration + paced content fetch across ticks), not a one-shot pull.
   - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
   - `j2_option_strategies`, `j2_option_legs` — Pattern C multi-leg options
 - **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, ~~Playbook~~ → **Notebook**, Options multi-leg)
@@ -708,14 +710,16 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
 - **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
-- **Widget types — ⭐ measure it, don't quote it:** the authoritative list is the
-  `switch` in `app/src/pages/charts/WidgetHost.jsx`; read the `case` labels there.
-  ⚰️ This line enumerated **four** (`chart` · `watchlist` · `themes` · `scanner`)
-  while `WidgetHost` dispatched **thirteen** — the four originals plus `fundamentals`,
-  `breadth`, `aisearch`, `news`, `profile`, `alerts`, `calendar`, `optionsflow`,
-  `periodsort`. Nine widgets shipped into a doc that said they did not exist. Same
-  defect shape as the writer-index `FOUR`, the COT router's "4 routes", and the setup
-  catalog's "24": **a hand-typed enumeration beside the source that owns it.**
+- **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
+  `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
+  + journal-embed params), with the /charts component bindings in
+  `WORKSPACE_WIDGETS` in `WidgetHost.jsx` — `registry.test.js` pins that the two
+  can never drift. ⚰️ This line previously pointed at "the `switch` in
+  WidgetHost" (replaced by the registry, 2026-08-12), and before that
+  enumerated **four** types while WidgetHost dispatched **thirteen** — nine
+  widgets shipped into a doc that said they did not exist. Same defect shape as
+  the writer-index `FOUR`, the COT router's "4 routes", and the setup catalog's
+  "24": **a hand-typed enumeration beside the source that owns it.**
   Each widget is wrapped in a scoped `ChartsSymContext.Provider` so the wrapped page publishes/reads tickers from THE WIDGET'S color group, not Group A.
 - **WidgetHost** (`app/src/pages/charts/WidgetHost.jsx`): type dispatcher + `WidgetHeader`. **WidgetHeader** is the drag bar with drag grip (`.charts-widget-drag-handle` consumed by RGL `draggableHandle`), color-cycle dot, close button. **Label is visually hidden (sr-only)** — color dot + body content identify the widget.
 - **Mobile (`<640px`)** bypasses RGL entirely → `ChartsWorkspace.jsx` renders **`MobileWorkspace`** (ticker persists to `localStorage['charts_mobile_sym']`). ⚰️ This said `MobileChartFallback`, which is orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE*.
@@ -757,8 +761,9 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Files
 - Workspace: `app/src/pages/charts/{ChartsWorkspace,WidgetHost,WidgetHeader,WorkspaceContext,ChartsSymContext,LegacyRedirect}.jsx` + `ChartsWorkspace.module.css`
 - Widgets: `app/src/pages/charts/widgets/` — **list the directory, don't trust a
-  roster here** (43 `.jsx` files at 2026-08-09, tests included). Entry points are the
-  `case` labels in `WidgetHost.jsx` plus `MobileWorkspace.jsx` for the phone branch.
+  roster here** (43 `.jsx` files at 2026-08-09, tests included). Entry points are
+  `WIDGET_REGISTRY` (`app/src/widgets/registry.js`) + the `WORKSPACE_WIDGETS`
+  bindings in `WidgetHost.jsx`, plus `MobileWorkspace.jsx` for the phone branch.
   ⚰️ This named five files and included `MobileChartFallback`, which is orphaned.
 - Hooks: `app/src/hooks/useMediaQuery.js`
 - Embedded pages (existing): `app/src/pages/{Watchlists,ThemeTrackerPage,Screener}.jsx` with new `embedded` prop
@@ -2374,7 +2379,43 @@ since the template is literally named "live trading today"); any other named top
 **auto-derives** section = title = the name + thumbnail eyebrow = NAME.upper() (e.g. a
 "Post Market Recap" webinar → "Post Market Recap — {date}" in a "Post Market Recap"
 section); empty topic → default. So new content types = just name a Zoom template.
-Title `{type} — {Month D, YYYY}` (ET). `_notify_published` fires once per
+Title `{type} — {Month D, YYYY}` (ET) — **that classic format is now the
+FALLBACK: under `DESK_CREATIVE_TITLES=1` (LIVE since 2026-08-19) the shipped
+title is `"{Hook} | {type} — {Month D, YYYY}"`**, a Claude-composed topical
+hook gated deterministically (`api/services/desk_creative.py` — corn/emoji
+blocklists, market-direction honesty, whole-token number check, opener-echo
+history, `"|"` banned inside hooks). ⛔ **The hook is UNTRUSTED free text to
+every downstream consumer** — parse titles ONLY via
+`desk_creative.parse_session_title` / match suffixes via `date_suffix`
+(the format's one owner); `show_allowed`, `split_title` and
+`desk_article_links._series_of` all learned this the hard way. Under
+`DESK_CREATIVE_THUMBS=1` the thumbnail is an AI cover (art-director LLM →
+gpt-image-1 → brand frame), re-skinned once the transcript lands
+(`desk_session_insights.refresh_creative_cover`); the per-show themed cards
+below are the fallback — **a PLACEHOLDER, not the answer**: a creative cover
+that didn't render is queued in `api/services/desk_cover_retry.py`
+(`/data/desk_cover_retry.json`; scheduler drain `2/15`, exponential backoff
+15m→3h, gives up after 8 tries/48h; `POST /api/desk/creative-cover-retry`
+`{"youtube_id","drain":true}` under PUSH_SECRET is the hand lever). 2026-08-20's
+session shipped the themed card because ONE OpenAI 429 at publish time was
+final — `_openai_generate` now retries 429/5xx with backoff and logs the body.
+Both composers also get **the session's own Zoom AI-Companion summary at
+publish** (`desk_creative.session_facts_from_zoom` — headline + chapter titles;
+it is usually there by the time the recording lands), so a title can be about
+what happened in the session rather than the morning brief; the desk ships
+the editor's **pick** (not the first survivor), rotates hook forms, reads the
+full wire brief (movers/earnings/rotation/regime/index reads), and runs on
+`claude-opus-5` by default (`DESK_CREATIVE_MODEL`). ⭐ **The title register is
+Qullamaggie's REAL stream titles** (`api/services/desk_assets/qullamaggie_register.txt`,
+~80 harvested 8/20 from his channel + the 2020/2021 archives) — sentence case,
+`!`/`?`, `$TICKERS`, blunt tape reads, a BUT-contrast; never Title-Case cleverness,
+never a report card on our discipline (`_SOFT` gate). Edit the corpus file to
+steer the voice, not the prompt. Back catalog was re-skinned 2026-08-20 via
+`POST /api/desk/creative-cover-backfill` (PUSH_SECRET; atomic resumable
+ledger at `/data/desk_cover_backfill.json`). Titles are FINAL at upload
+(`youtube.upload` has no `videos.update`) — the creative title is composed
+only on the attempt that uploads and recalled (never recomposed) on a
+re-claim. `_notify_published` fires once per
 genuinely-new publish (not on idempotent re-runs); recipients = `DESK_DAILY_SESSION_ALERT_EMAILS`
 or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist — EVERY cloud
 recording on the account auto-posts (titled by its webinar name); add a skip rule in

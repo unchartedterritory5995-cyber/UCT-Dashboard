@@ -139,6 +139,13 @@ export default function MorningWire() {
   // hook is intentionally NOT invoked here — decoupled from proactive_speak so
   // proactive voice still works elsewhere, e.g. the EOD recap.)
 
+  // ⛔ MEMOIZED IDENTITY. React 19 diffs dangerouslySetInnerHTML by OBJECT
+  // identity, so an inline {__html} literal re-sets the rundown's entire
+  // innerHTML on every re-render — which WIPES the injected feedback controls
+  // below without re-running their effect (its deps are the html/date STRINGS,
+  // which a 5-min SWR revalidation leaves unchanged).
+  const rundownHtml = useMemo(() => ({ __html: rundown?.html || '' }), [rundown?.html])
+
   // Follow-along: highlight + scroll to the briefing block being read aloud.
   const rundownRef = useRef(null)
   useReadAloudFollow({
@@ -327,7 +334,7 @@ export default function MorningWire() {
               <div
                 ref={rundownRef}
                 className={styles.rundownWrap}
-                dangerouslySetInnerHTML={{ __html: rundown.html }}
+                dangerouslySetInnerHTML={rundownHtml}
               />
             )
             : <SkeletonTileContent lines={12} />

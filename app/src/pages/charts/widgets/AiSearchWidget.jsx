@@ -1,13 +1,16 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme } from './basicWidgetSettings'
+import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
 import styles from './AiSearchWidget.module.css'
 
 const AIS_SETTINGS_KEY = 'aisearch_settings'
@@ -176,7 +179,7 @@ function AnswerBody({ text, onTicker, cites }) {
 
 // One completed Q/A turn in the conversation thread. Follow-ups + the compliance
 // line render only on the latest turn (isLast) so a long thread stays clean.
-function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow }) {
+function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow, readOnly = false }) {
   return (
     <div className={styles.exchange}>
       <div className={styles.qLabel}>
@@ -190,12 +193,14 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
         <button className={styles.actionBtn} onClick={() => onCopy(entry)} title="Copy answer text">
           {copied ? 'Copied ✓' : 'Copy'}
         </button>
-        <button className={styles.actionBtn} onClick={() => onSave(entry)} title="Save this answer (reopen it later)">
-          {isSaved ? 'Saved ✓' : 'Save'}
-        </button>
+        {!readOnly && (
+          <button className={styles.actionBtn} onClick={() => onSave(entry)} title="Save this answer (reopen it later)">
+            {isSaved ? 'Saved ✓' : 'Save'}
+          </button>
+        )}
         {/* Personal answers (position-aware) are never eligible for community
             sharing — they're grounded in the member's own book, not a public take. */}
-        {!entry.personal && (
+        {!readOnly && !entry.personal && (
           <ShareToFloor
             compact
             label="Share"
@@ -205,7 +210,7 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
         )}
       </div>
 
-      {isLast && entry.related?.length > 0 && (
+      {!readOnly && isLast && entry.related?.length > 0 && (
         <div className={styles.followups}>
           <span className={styles.followLabel}>Follow-ups</span>
           <div className={styles.followList}>
@@ -257,6 +262,9 @@ export default function AiSearchWidget({
   initialQuery = null, color = null, onTicker = null,
   scope = null, chrome = true,
   initialThread = null, onThread = null,
+  // Frozen-embed mode (journal host): the restored conversation is EVIDENCE —
+  // no ask bar, no new paid queries from inside a note.
+  readOnly = false,
 }) {
   const { aiSearchBus, setGroupSym } = useWorkspace()
   const scopeSym = scope?.sym ? String(scope.sym).toUpperCase() : null
@@ -265,11 +273,23 @@ export default function AiSearchWidget({
   // ── Basic appearance settings (⚙): canvas + text. Uncustomized → the DEFAULTS
   // FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
   const { prefs, setPref } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const aisSettings = useMemo(
-    () => mergeBasicWidgetSettings(parsePref(prefs?.[AIS_SETTINGS_KEY], null) ?? basicDefaultsForTheme(prefs?.theme)),
+    () => {
+      // Ignore the stale legacy white/black auto-default so the widget follows the
+      // app theme (dark on OLED) like the sibling widgets; genuine picks are kept.
+      const saved = parsePref(prefs?.[AIS_SETTINGS_KEY], null)
+      const eff = isLegacyBasicLightDefault(saved) ? null : saved
+      return mergeBasicWidgetSettings(eff ?? basicDefaultsForTheme(placedTheme))
+    },
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // ── Send this conversation to the Journal (the capture door — shared flow:
+  // last-active note → inbox fallback). The THREAD is the frozen params;
+  // AiSearchEmbed replays it read-only. Hidden until an answer exists and in
+  // readOnly (an embed offering the door is circular). ──
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const gearRef = useRef(null)
   const rootRef = useRef(null)
   const rootStyle = useMemo(() => {
@@ -277,7 +297,7 @@ export default function AiSearchWidget({
     return v['--basic-canvas'] ? { ...v, background: v['--basic-canvas'] } : v
   }, [aisSettings])
   const patchSettings = useCallback((patch) => setPref(AIS_SETTINGS_KEY, JSON.stringify({ ...aisSettings, ...patch })), [aisSettings, setPref])
-  const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(prefs?.theme))), [setPref, prefs])
+  const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(placedTheme))), [setPref, prefs])
   const menuVars = useMemo(() => {
     const canvas = aisSettings.bgMode === 'gradient' ? (aisSettings.bgGradient?.top || aisSettings.bg) : aisSettings.bg
     return menuThemeVars(canvas) || {}
@@ -596,6 +616,21 @@ export default function AiSearchWidget({
           themeVars={menuVars}
         />
       )}
+      {chrome && !readOnly && thread.length > 0 && (
+        <button
+          type="button"
+          className={styles.gearBtn}
+          style={{ right: 30 }}
+          onClick={async () => {
+            setJournalMsg('sending…')
+            setJournalMsg(await sendCaptureToJournal('aisearch', { thread: thread.slice(-10), settings: aisSettings },
+              { label: thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer' }))
+          }}
+          title="Send this conversation to Journal"
+          aria-label="Send this conversation to Journal"
+        ><UIcon name="journal" size={13} /></button>
+      )}
+      <JournalToast msg={journalMsg} style={{ top: 26, right: 6 }} />
       {chrome && (
         <button
           ref={gearRef}
@@ -650,6 +685,7 @@ export default function AiSearchWidget({
             onSave={toggleSave}
             isSaved={saved.some((s) => s.q === entry.q)}
             onFollow={askFollowUp}
+            readOnly={readOnly}
           />
         ))}
 
@@ -686,7 +722,9 @@ export default function AiSearchWidget({
       </div>
 
       {/* Ask bar pinned at the BOTTOM (chat layout): after reading an answer the
-          follow-up input is right here — no scrolling back up to continue. */}
+          follow-up input is right here — no scrolling back up to continue.
+          Hidden in readOnly (frozen embed) — the thread is evidence. */}
+      {!readOnly && (
       <div className={styles.searchRow}>
         <span className={styles.spark}><Spark state={loading ? 'thinking' : 'idle'} /></span>
         <textarea
@@ -722,6 +760,7 @@ export default function AiSearchWidget({
           <button className={styles.askBtn} onClick={() => run()} disabled={!query.trim()}>Ask</button>
         )}
       </div>
+      )}
     </div>
   )
 }

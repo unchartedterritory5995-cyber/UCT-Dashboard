@@ -267,9 +267,20 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                         for ev in events:
                             parsed = parse_aggregate_event(ev)
                             if parsed is None:
-                                # Log status events at info level for ops visibility
+                                # Status events: routine per-subscription "success"
+                                # acks arrive in bursts of up to ~133 (one per active
+                                # symbol) on every resubscribe, and each _logger.info
+                                # is a SYNCHRONOUS write on this WS EVENT-LOOP task —
+                                # 10+/ms of it added latency to every request the pod
+                                # served (seen in a congestion diagnosis). Log routine
+                                # acks at DEBUG; keep real problems (auth/error) at INFO.
                                 if isinstance(ev, dict) and ev.get("ev") == "status":
-                                    _logger.info("[bar_stream] status: %s", ev.get("status"))
+                                    _st = ev.get("status")
+                                    if _st in ("success", "connected", "auth_success"):
+                                        _logger.debug("[bar_stream] status: %s", _st)
+                                    else:
+                                        _logger.info("[bar_stream] status: %s (%s)",
+                                                     _st, ev.get("message"))
                                 continue
                             try:
                                 kind = parsed["kind"]

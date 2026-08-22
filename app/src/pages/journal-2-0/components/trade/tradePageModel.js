@@ -81,6 +81,7 @@ export function outcomeModel(trade, excursion = null) {
     mfeR: ex.mfeR ?? null,
     maeR: ex.maeR ?? null,
     missedR: ex.missedR ?? null,
+    trueR: ex.trueR ?? null,
     dataQuality: ex.dataQuality ?? null,
   }
 }

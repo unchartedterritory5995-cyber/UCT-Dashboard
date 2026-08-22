@@ -13,11 +13,20 @@ import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
+import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
 import styles from './Settings.module.css'
+
+// Memoized {__html} object — the TOTP screen re-renders on every keystroke of
+// the 6-digit code, and React 19 diffs dangerouslySetInnerHTML by OBJECT
+// identity, so an inline literal re-parses the QR SVG per keypress.
+function TotpQr({ svg }) {
+  const html = useMemo(() => ({ __html: svg }), [svg])
+  return <div className={styles.totpQrBox} dangerouslySetInnerHTML={html} />
+}
 
 const TF_OPTIONS = [
   { value: '5', label: '5 min' },
@@ -1032,7 +1041,7 @@ function TwoFactorPanel() {
           Scan this with your authenticator app (Google Authenticator, 1Password,
           Authy…), then enter the 6-digit code it shows to finish.
         </p>
-        <div className={styles.totpQrBox} dangerouslySetInnerHTML={{ __html: setup.qr_svg }} />
+        <TotpQr svg={setup.qr_svg} />
         <p className={styles.hint}>
           Can't scan? Enter this key manually:{' '}
           <span className={styles.totpSecret}>{setup.secret}</span>
@@ -1565,6 +1574,7 @@ const SEARCH_INDEX = [
   { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
   { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
+  { card: 'noteConnectors', section: 'connections', title: 'Connected Apps',              keywords: 'notes connectors roam craft notion dropbox sync import notebook connect' },
   { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
   { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',         keywords: 'backup restore prefs preferences export import json theme chart tag' },
   { card: 'disclaimers',    section: 'legal',       title: 'Disclaimers & Attributions', keywords: 'legal advice disclaimer market data tradingview attribution' },
@@ -2316,6 +2326,7 @@ export default function Settings() {
     ],
     connections: [
       card('broker', <BrokerConnectionsCard />),
+      card('noteConnectors', <ConnectedAppsCard />),
     ],
     legal: [
       card('privacy', privacyCard),

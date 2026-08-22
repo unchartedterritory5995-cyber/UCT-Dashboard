@@ -49,9 +49,11 @@
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
   padding: 16px;
-  width: min(1400px, 94vw);
-  max-width: 94vw;
-  max-height: 92vh;
+  /* Contained card (owner preference): large and chart-forward but clearly
+     centered with margins, not edge-to-edge. Caps only bite on ultra-wide/tall. */
+  width: min(1440px, 85vw);
+  max-width: 85vw;
+  max-height: min(1150px, 88vh);
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
@@ -59,7 +61,76 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+.modalHeaderLeft { display: flex; align-items: center; min-width: 0; }
+.modalHeaderRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* "Switch ticker…" search box (top-right of the header) — a real text input:
+   type a symbol, Enter opens that chart. Gold-outlined, brightens on focus. */
+.switchWrap { position: relative; }
+.switchInput {
+  width: 148px;
+  border: 1px solid #c9a84c55;
+  border-radius: 6px;
+  padding: 6px 11px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--ut-cream);
+  background: transparent;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.switchInput::placeholder { color: var(--text-muted); }
+.switchInput:focus { border-color: #c9a84c; }
+/* Predictive matches, dropped inline beneath the input (no portal). */
+.switchMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #0e0e10;
+  border: 1px solid #242426;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.switchOpt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.switchOpt:hover, .switchOptActive { background: #ffffff12; }
+.switchOptSym {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #c9a84c;
+  flex-shrink: 0;
+}
+.switchOptName {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .modalSym {
   font-family: var(--font-mono);
@@ -88,37 +159,39 @@
 .modalChangeDown {
   color: var(--ut-red, #ef4444);
 }
+/* ── Close button (icon-only, square; red-tinted hover = the close affordance) ── */
 .closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
-  border: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
   color: var(--text-muted);
-  font-size: 22px;
   cursor: pointer;
-  line-height: 1;
-  padding: 0 4px;
-  transition: color 0.15s;
+  padding: 5px 6px;
+  transition: all 0.15s;
+  opacity: 0.6;
 }
 .closeBtn:hover {
-  color: var(--text-bright);
+  opacity: 1;
+  color: #f2555a;
+  border-color: rgba(242, 85, 90, 0.4);
+  background: rgba(242, 85, 90, 0.1);
 }
-/* ── Flag button ── */
+/* ── Flag button (icon-only, square; gold when flagged) ── */
 .flagBtn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  justify-content: center;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text-muted);
-  padding: 3px 10px;
+  padding: 5px 6px;
   cursor: pointer;
   transition: all 0.15s;
-  opacity: 0.55;
+  opacity: 0.6;
 }
 .flagBtn:hover { opacity: 1; background: var(--bg-hover); }
 .flagBtnActive {
@@ -207,14 +280,14 @@
 }
 .modalModeBtn:hover { color: var(--text-bright); }
 .modalModeBtnActive {
-  background: var(--ut-green-bright);
+  background: #c9a84c;
   color: #0a0e12 !important;
 }
 
 /* Chart area */
 .chartArea {
   padding: 12px 16px;
-  min-height: 500px;
+  min-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;

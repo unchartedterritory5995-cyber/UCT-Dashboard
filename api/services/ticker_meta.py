@@ -245,8 +245,8 @@ def _primary_theme(ticker: str):
 
 
 def get_ticker_meta(ticker: str) -> dict:
-    """{name, sector, industry, theme}. name/sector/industry are 24h-cached
-    (yfinance → Finnhub); theme is the live UCT-taxonomy primary theme."""
+    """{name, sector, industry, exchange, theme}. The first four are 24h-cached
+    (yfinance → FMP → Finnhub); theme is the live UCT-taxonomy primary theme."""
     base = _base_meta(ticker)
     return {**base, "theme": _primary_theme(ticker)}
 

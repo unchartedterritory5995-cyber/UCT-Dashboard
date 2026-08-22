@@ -2,6 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
+import ChartThemesModal from './ChartThemesModal'
+import { applyThemeToSettings } from './chartThemes'
+import { legendModeOf, LEGEND_MODES } from './legendMode'
+import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
   listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
 } from './indicatorRegistry'
@@ -138,9 +142,31 @@ const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
   { val: 'horizontal', label: 'Horizontal' },
 ]
+// When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
+// `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
+// its one-line explanation. A hand-typed value list beside the module that owns
+// it is how a fourth mode ends up unreachable from the settings UI.
+const LEGEND_MODE_LABELS = {
+  always: { label: 'Always', hint: 'On, following the crosshair as you hover' },
+  hold: { label: 'Hold', hint: 'Chart stays clean; press and hold to peek, release to hide' },
+  off: { label: 'Off', hint: 'Never shown' },
+}
+// When the hover crosshair (lines + tracking axis labels) shows. Same three-way
+// control as the legend; labels/hints only — `CROSSHAIR_MODES` owns the values.
+const CROSSHAIR_MODE_LABELS = {
+  always: { label: 'Always', hint: 'On, following the cursor as you hover' },
+  hold: { label: 'Hold', hint: 'Chart stays clean; press and hold to show it, release to hide' },
+  off: { label: 'Off', hint: 'Never shown' },
+}
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
+  // the Charts workspace (via ChartPane); when absent, the themes gallery offers
+  // only "this chart".
+  onApplyThemeAll = null,
+  // Optional: apply the theme to EVERY widget in the layout (chart or not).
+  onApplyThemeAllWidgets = null,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
@@ -154,6 +180,16 @@ export default function ChartSettingsModal({
   const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
   const [confirmReset, setConfirmReset] = useState(false)
   const resetTimerRef = useRef(null)
+  const [themesOpen, setThemesOpen] = useState(false)
+
+  // Apply a UCT theme's visual layer. 'one' → this surface (via onChange, exactly
+  // like a template); 'all' → every chart in the layout; 'allwidgets' → every
+  // widget in the layout (chart or not). The last two are workspace-supplied.
+  const applyTheme = (theme, scope) => {
+    if (scope === 'allwidgets' && onApplyThemeAllWidgets) onApplyThemeAllWidgets(theme)
+    else if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
+    else onChange?.(applyThemeToSettings(settings, theme))
+  }
 
   // ── Settings templates (save the whole look, reuse on any tab) ──────────────
   const { prefs, setPref } = usePreferences()
@@ -216,7 +252,7 @@ export default function ChartSettingsModal({
   }
   const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))
 
-  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName('') } }, [open]) // re-center + reset transient UI on each open
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
 
   // Restore all chart settings to defaults. Two-click confirm (button shows
   // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
@@ -306,6 +342,10 @@ export default function ChartSettingsModal({
   const candles = settings?.candles || {}
   const grid = settings?.grid || {}
   const crosshair = settings?.crosshair || {}
+  // Three-way crosshair state (always / hold / off) — DERIVED through the resolver,
+  // never read off a field, so a blob predating `mode` (which carries only the
+  // legacy `crosshair.enabled` boolean) resolves consistently. Mirrors legendMode.
+  const crosshairMode = crosshairModeOf(settings)
   const watermark = settings?.watermark || {}
   const isCandleType = curType === 'candles' || curType === 'hollow'
   const bgMode = settings?.bgMode || 'solid'
@@ -338,6 +378,10 @@ export default function ChartSettingsModal({
     pdlHighColor: ['prevDayLevels', 'high', 'color'],
     pdlLowColor: ['prevDayLevels', 'low', 'color'],
     pdlCloseColor: ['prevDayLevels', 'close', 'color'],
+    // Dark-pool overlay bar + label colors (Indicators tab). 8-digit hex so the
+    // color menu's opacity slider is stored inline; StockChart splits it.
+    dpBarColor: ['darkPool', 'barColor'],
+    dpLabelColor: ['darkPool', 'labelColor'],
   }
   const setColorTarget = (target, hex) => {
     if (isIndTarget(target)) {
@@ -438,6 +482,8 @@ export default function ChartSettingsModal({
       case 'pdlHighColor': return settings.prevDayLevels?.high?.color || '#3cb868'
       case 'pdlLowColor': return settings.prevDayLevels?.low?.color || '#e74c3c'
       case 'pdlCloseColor': return settings.prevDayLevels?.close?.color || '#9aa0a6'
+      case 'dpBarColor': return settings.darkPool?.barColor || '#c9a84ccc'
+      case 'dpLabelColor': return settings.darkPool?.labelColor || '#c9a84c'
       default: return '#1ae51a'
     }
   }
@@ -447,13 +493,20 @@ export default function ChartSettingsModal({
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const setWmSize = (v) => setSetting({ watermark: { ...watermark, sizeScale: v } })
+  const setWmWeight = (v) => setSetting({ watermark: { ...watermark, weight: v } })
   const wmLines = watermark.lines || {}
   const wmSize = watermark.sizeScale ?? 1.0
+  const wmWeight = watermark.weight ?? 700
   // Watermark size scale options (× the base per-role font). Shown as percent.
   const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
+  const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  // Through the resolver, never off `header.legendMode` — a user whose blob
+  // predates the mode carries only the legacy `showLegend`, and reading the field
+  // directly would show them "Always" while their chart draws nothing.
+  const legendMode = legendModeOf(settings)
   // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
   // lives up top with the other hooks (this code runs after the `!open` early return).
   const infoFields = headerFieldKeys(header)
@@ -597,6 +650,14 @@ export default function ChartSettingsModal({
               title="Save the current chart settings as a reusable template"
             >＋ Save as Template</button>
           )}
+          {/* Pushed to the far right of the template row; same visual style as the
+              template buttons (not a special accent) per owner request. */}
+          <button
+            type="button"
+            className={`${styles.tplBtn} ${styles.themesBarBtn}`}
+            onClick={() => setThemesOpen(true)}
+            title="Browse UCT chart themes — one-click looks for this chart"
+          >🎨 UCT Chart Themes</button>
         </div>
 
         <div className={styles.tabs} role="tablist">
@@ -672,10 +733,30 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Crosshair &amp; Text</div>
             <div className={styles.card}>
+              {/* Three-way control (Always / Hold / Off), mirroring Chart legend.
+                  Writes ONLY `crosshair.mode`; the legacy `crosshair.enabled`
+                  boolean survives as a read-only fallback (see crosshairMode.js),
+                  so nothing here toggles it. */}
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Crosshair</span>
-                {colorSwatch('crosshair', 'Crosshair')}
+                <div className={styles.seg} role="tablist">
+                  {CROSSHAIR_MODES.map((val) => (
+                    <button
+                      key={val} type="button" role="tab"
+                      aria-selected={crosshairMode === val}
+                      title={CROSSHAIR_MODE_LABELS[val].hint}
+                      className={`${styles.segBtn} ${crosshairMode === val ? styles.segBtnActive : ''}`}
+                      onClick={() => setSetting({ crosshair: { ...crosshair, mode: val } })}
+                    >{CROSSHAIR_MODE_LABELS[val].label}</button>
+                  ))}
+                </div>
               </div>
+              {crosshairMode !== 'off' && (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Line color</span>
+                  {colorSwatch('crosshair', 'Crosshair')}
+                </div>
+              )}
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale text</span>
                 <div className={styles.fieldControls}>
@@ -689,6 +770,34 @@ export default function ChartSettingsModal({
                   </select>
                   {colorSwatch('text', 'Scale Text')}
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Axis Labels</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price labels</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.showPriceLabels !== false}
+                  aria-label="Show price labels on the axis"
+                  className={`${styles.toggle} ${settings.showPriceLabels !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ showPriceLabels: settings.showPriceLabels === false })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Moving average labels</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!settings.showMaLabels}
+                  aria-label="Show moving average labels on the axis"
+                  className={`${styles.toggle} ${settings.showMaLabels ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ showMaLabels: !settings.showMaLabels })}
+                ><span className={styles.toggleKnob} /></button>
               </div>
             </div>
           </section>
@@ -733,6 +842,17 @@ export default function ChartSettingsModal({
                   </select>
                 </div>
                 <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Weight</span>
+                  <select
+                    className={styles.sizeSelect}
+                    value={wmWeight}
+                    onChange={(e) => setWmWeight(Number(e.target.value))}
+                    aria-label="Watermark font weight"
+                  >
+                    {WM_WEIGHTS.map(([w, label]) => <option key={w} value={w}>{label}</option>)}
+                  </select>
+                </div>
+                <div className={styles.field}>
                   <span className={styles.fieldLabel}>Color &amp; opacity</span>
                   {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
                 </div>
@@ -774,9 +894,33 @@ export default function ChartSettingsModal({
                         if (f.showIf && !f.showIf(row.values)) return null
                         const val = row.values?.[f.key]
                         const dis = !!f.disabled
+                        // ⛔ THE REASON HAS TO REACH A SCREEN READER, NOT JUST A POINTER.
+                        //
+                        // `f.disabled` carries a sentence ("Coming soon — needs renderer
+                        // support", "Fixed by this chart's layout") and it was rendered
+                        // ONLY as a `title` on the row below — a hover tooltip. Measured
+                        // on production 2026-08-15: the five MA rows ship `Offset` and
+                        // `Plot style` inert, and the controls carried `disabled` with
+                        // NO `aria-disabled` and no description, so assistive tech got
+                        // "dimmed, no reason" while a mouse user got the sentence. The
+                        // toggle branch below already put the reason on the control; the
+                        // number and select branches did not, which is the same
+                        // inconsistency that let the toggle ship live-but-inert.
+                        //
+                        // `IndicatorSettingsDialog` states the rule this follows:
+                        // "`aria-disabled` alongside `disabled` so the reason reaches
+                        // assistive tech, which a bare `disabled` attribute does not
+                        // carry." The sentence is bound with `aria-describedby` to a
+                        // visually-hidden span (the global `.sr-only` in tokens.css), so
+                        // nothing about the rendered layout changes.
+                        const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
+                        const inert = dis
+                          ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
+                          : {}
                         return (
                           <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+                            {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
                             {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
                             {f.type === 'toggle' && (
                               /* `disabled` is load-bearing, not decoration: a disabled
@@ -787,21 +931,21 @@ export default function ChartSettingsModal({
                                  could still look (and act) live. */
                               <button
                                 type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                                disabled={dis} title={f.disabled || undefined}
+                                {...inert}
                                 className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
                                 onClick={() => set({ [f.key]: val === false })}
                               ><span className={styles.toggleKnob} /></button>
                             )}
                             {f.type === 'number' && (
                               <input
-                                type="number" className={styles.indNum} disabled={dis}
+                                type="number" className={styles.indNum} {...inert}
                                 min={f.min} max={f.max} step={f.step} value={val ?? ''}
                                 onChange={(e) => set({ [f.key]: Number(e.target.value) })}
                               />
                             )}
                             {f.type === 'select' && (
                               <select
-                                className={styles.indSelect} disabled={dis} value={val ?? ''}
+                                className={styles.indSelect} {...inert} value={val ?? ''}
                                 onChange={(e) => {
                                   const raw = e.target.value
                                   const opt = f.options.find(([v]) => String(v) === raw)
@@ -855,10 +999,33 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Chart Legend</div>
             <div className={styles.card}>
-              {renderShowRow('showLegend', 'Chart legend', [['hdrLegend', 'Chart legend color']])}
+              {/* ⚰️ A SHOW/HIDE TOGGLE STOOD HERE (`renderShowRow('showLegend', …)`)
+                  and is replaced by a three-way control rather than joined by one.
+                  Two controls over one fact — a boolean AND a mode — is the defect
+                  the resolver exists to prevent; `header.showLegend` survives ONLY
+                  as a read-only fallback for blobs written before the mode, and
+                  nothing writes it any more. The toolbar's eye button cycles the
+                  same key. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Chart legend</span>
+                <div className={styles.hdrRowCtl}>
+                  {legendMode !== 'off' && colorSwatch('hdrLegend', 'Chart legend color')}
+                  <div className={styles.seg} role="tablist">
+                    {LEGEND_MODES.map((val) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={legendMode === val}
+                        title={LEGEND_MODE_LABELS[val].hint}
+                        className={`${styles.segBtn} ${legendMode === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setHeader({ legendMode: val })}
+                      >{LEGEND_MODE_LABELS[val].label}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
               {/* Legend shape. Only meaningful while the legend is shown, and only the
                   Charts workspace honors it (other surfaces keep their own inline row). */}
-              {header.showLegend !== false && (
+              {legendMode !== 'off' && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Legend layout</span>
                   <div className={styles.seg} role="tablist">
@@ -1035,6 +1202,33 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
+          {/* Dark Pool — brings the Dark Pool page's print-level bars onto this
+              chart. Off by default; paid-gated at fetch (empty for free users).
+              Bar + label colors carry opacity via the color menu. */}
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Dark pool</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show dark pool bars</span>
+                <button
+                  type="button" role="switch" aria-checked={!!settings.darkPool?.enabled} aria-label="Show dark pool bars"
+                  className={`${styles.toggle} ${settings.darkPool?.enabled ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ darkPool: { ...(settings.darkPool || {}), enabled: !settings.darkPool?.enabled } })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {settings.darkPool?.enabled && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Bar color</span>
+                  <div className={styles.hdrRowCtl}>{colorSwatch('dpBarColor', 'Bar color')}</div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label color</span>
+                  <div className={styles.hdrRowCtl}>{colorSwatch('dpLabelColor', 'Label color')}</div>
+                </div>
+              </>)}
+            </div>
+          </section>
+
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Countdown</div>
             <div className={styles.card}>
@@ -1206,6 +1400,15 @@ export default function ChartSettingsModal({
         </div>,
         document.body,
       )}
+      <ChartThemesModal
+        open={themesOpen}
+        onClose={() => setThemesOpen(false)}
+        onApply={applyTheme}
+        canApplyAll={!!onApplyThemeAll}
+        canApplyAllWidgets={!!onApplyThemeAllWidgets}
+        currentSettings={settings}
+        themeVars={themeVars}
+      />
     </>
   )
 }

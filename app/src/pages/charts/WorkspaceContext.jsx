@@ -23,10 +23,24 @@ const FALLBACK = {
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
   exitReplay: () => {},
+  // Replay Mode "Pick on chart": arm click/drag on the active chart to choose the cutoff.
+  replayArmPick: false,
+  onReplayCutoffPicked: () => {},
+  onReplayPickCancel: () => {},
   // Custom-Period Sort "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold
   // vertical line | 'candle' gold start-date candle). Cleared by exitReplay.
   startMarker: null,
   startMarkerStyle: 'line',
+  // Create a NEW widget of `type` and immediately float it on top of the canvas
+  // (TC2000-style overlay), opening small at `at` = {x,y} (the right-click point).
+  // Used by a chart's right-click "Add widget" submenu.
+  floatNewWidget: () => {},
+  // Apply a UCT chart theme's visual layer to EVERY chart in the layout at once
+  // (base widgets + chart tabs + widget tabs). null-safe no-op off the workspace.
+  applyThemeToAllCharts: () => {},
+  // Apply a theme to EVERY widget in the layout — chart or not (watchlist, theme
+  // tracker, fundamentals, breadth, …). null-safe no-op off the workspace.
+  applyThemeToAllWidgets: () => {},
 }
 
 export function useWorkspace() {

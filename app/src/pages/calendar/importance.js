@@ -81,6 +81,55 @@ export function impEff(imp, entry) {
   return imp + boost
 }
 
+// ── ordering ─────────────────────────────────────────────────────────────────
+
+/** Positive finite, else null. A 0/negative cap or ew is a provider gap, not a rank. */
+const rankNum = v => (v != null && Number.isFinite(v) && v > 0) ? v : null
+
+/** Descending by value, MISSING values last — never interleaved with real ones. */
+function byDesc(av, bv) {
+  if (av == null && bv == null) return 0
+  if (av == null) return 1
+  if (bv == null) return -1
+  return bv - av
+}
+
+/**
+ * rankEntries(rows, impBySym) → a NEW sorted array.
+ *
+ * THE single ordering authority for the calendar's ranked surfaces (the Week
+ * mosaic and the Feed). It was hand-copied into both views as
+ * `mine desc || imp desc`, and BOTH keys collapse to zero on first paint:
+ *
+ *   • `mine` is uniform under the My Stocks audience (every visible row is mine)
+ *   • `imp` is 0 for EVERY name until the enrichment-batch and day-metrics-batch
+ *     fetches land — computeImportance's zMap() bails to `() => 0` when it has
+ *     fewer than two defined values, which is exactly the pre-overlay state.
+ *
+ * A comparator that returns 0 for every pair makes Array#sort a NO-OP, so the
+ * grid rendered the provider's own serialization — alphabetical — for the first
+ * seconds of every load and then visibly re-shuffled. Hence the deterministic
+ * tail: mc_b and ew ride the BASE /api/calendar payload (they do not wait on an
+ * overlay), so first paint is already ranked and the overlay only refines it.
+ *
+ * Symbol is the LAST key, deliberately — alphabetical is now a considered final
+ * tiebreak between genuinely equal rows, never an accident of fetch order.
+ */
+export function rankEntries(rows, impBySym) {
+  const effOf = e => impEff(impBySym?.get?.(e.sym) ?? 0, e)
+  const dollarVol = e => (e._avg_vol != null && e._price != null)
+    ? e._avg_vol * e._price
+    : null
+  return [...rows].sort((a, b) =>
+    (b.mine === true) - (a.mine === true) ||
+    effOf(b) - effOf(a) ||
+    byDesc(rankNum(a.mc_b), rankNum(b.mc_b)) ||
+    byDesc(rankNum(dollarVol(a)), rankNum(dollarVol(b))) ||
+    byDesc(rankNum(a.ew), rankNum(b.ew)) ||
+    (a.sym || '').localeCompare(b.sym || '')
+  )
+}
+
 // ── tiering ──────────────────────────────────────────────────────────────────
 
 export const FEATURED_CAP = 4        // per day, INCLUDING the Main Event

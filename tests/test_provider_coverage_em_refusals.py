@@ -107,3 +107,74 @@ class TestRefusalsLeaveTheDenominator:
         assert "em_refused" in pcm._enrichment_with_em_rate.__code__.co_consts + names, \
             "the rate must read the published em_refused key"
         assert "REFUSAL_REASONS" not in names, "must not re-derive refusal semantics"
+
+
+class TestAForwardOnlyFieldIsNotGradedOnPastDates:
+    """🔴 2026-08-18, 8:59 PM CT — `provider_coverage_regression:
+    enrichment_with_em=0%(blank)` paged the owner four minutes after a web
+    redeploy, while nothing was wrong.
+
+    ⭐ EXPECTED MOVE IS STRUCTURALLY FORWARD-ONLY. It is the market's implied
+    move BEFORE a report; once the date is past there is nothing left to price.
+    Measured live the same night, over every date the endpoint carries:
+
+        past=False dates   with_em 57%-97%  (18/26, 22/29, 21/27, 30/31, 35/38 ...)
+        past=True  dates   with_em 0 of 1,656 reporters across 10 dates, always
+
+    So a past date's 0% is not coverage, it is the absence of a question. The
+    monitor walked `sorted(dates, reverse=True)` and graded the newest date with
+    any reporters — and a cold enrichment cache right after a redeploy can leave
+    a PAST date newest, which reads as a fabricated 0% and fires.
+
+    🔑 THE CALENDAR ALREADY KNEW. Its own collapse detector is
+    `em_collapsed = (not is_past) and ... with_em == 0 and em_refused == 0` —
+    `not is_past` is the first term. The monitor three files away did not read
+    it: a second authority over one value, disagreeing with the first. This is
+    the same shape as the refusal bug above, which is why it survived the fix
+    for it.
+    """
+
+    def test_a_PAST_date_is_never_the_one_graded(self, monkeypatch):
+        """The 8:59 PM shape: cache holds only finished days."""
+        pcm = _mod()
+        r = _stats(monkeypatch, pcm, {
+            "2026-08-17": {"total": 26, "with_em": 0, "em_refused": 0, "past": True},
+            "2026-08-14": {"total": 40, "with_em": 0, "em_refused": 0, "past": True},
+        })
+        assert r["sample"] == 0, "a finished day was graded on a forward-only field"
+        assert r["observed"] is None
+        assert pcm._evaluate_field("enrichment_with_em", r["observed"], r["sample"],
+                                   baseline=None, provider_moved=False) is None
+
+    def test_it_falls_through_to_the_newest_UPCOMING_date(self, monkeypatch):
+        """⛔ Skipping past dates must not mean skipping the measurement — the
+        newest date that CAN carry an expected move is the one to grade."""
+        pcm = _mod()
+        r = _stats(monkeypatch, pcm, {
+            "2026-08-19": {"total": 29, "with_em": 22, "em_refused": 2, "past": False},
+            "2026-08-17": {"total": 26, "with_em": 0, "em_refused": 0, "past": True},
+        })
+        assert r["sample"] == 27
+        assert r["observed"] == pytest.approx(22 / 27)
+
+    def test_THE_CONTROL_a_real_outage_on_an_UPCOMING_date_still_fires(self, monkeypatch):
+        """⛔ The whole point. An option-chain collapse hits the dates that
+        SHOULD price, so the field must still go to 0% over them — otherwise
+        this fix has quietly switched the detector off."""
+        pcm = _mod()
+        r = _stats(monkeypatch, pcm, {
+            "2026-08-20": {"total": 27, "with_em": 0, "em_refused": 0, "past": False},
+            "2026-08-17": {"total": 26, "with_em": 0, "em_refused": 0, "past": True},
+        })
+        assert r["sample"] == 27
+        assert r["observed"] == 0.0
+
+    def test_a_record_with_NO_past_flag_is_still_measured(self, monkeypatch):
+        """Back-compat: stats cached before `past` existed must keep their old
+        reading rather than silently switching the field off — the same
+        fail-open choice the `em_refused` fallback makes one line below."""
+        pcm = _mod()
+        r = _stats(monkeypatch, pcm,
+                   {"2026-08-20": {"total": 10, "with_em": 4, "em_refused": 0}})
+        assert r["sample"] == 10
+        assert r["observed"] == pytest.approx(0.4)

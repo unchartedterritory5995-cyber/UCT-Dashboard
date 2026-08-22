@@ -137,3 +137,51 @@ def test_the_two_lanes_declare_the_same_ceiling():
     assert marker in text, "the JS lane no longer declares MAX_SELF_LAG"
     declared = int(text.split(marker, 1)[1].split("\n", 1)[0].strip())
     assert declared == ai.MAX_SELF_LAG
+
+
+# --------------------------------------------------------------------------- #
+# `self` binds to the NEAREST ENCLOSING recurrence
+# --------------------------------------------------------------------------- #
+
+NESTED = pathlib.Path(__file__).parent / "fixtures" / "ast" / "nested_recurrence_parity.json"
+
+
+def _nested_doc() -> dict:
+    return json.load(io.open(NESTED, encoding="utf-8"))
+
+
+def test_a_nested_independent_recurrence_matches_the_other_lane():
+    """⭐⭐ THE SCOPING RULE, HELD ACROSS BOTH LANES.
+
+    A nested recurrence brings its OWN running value. Until this rule existed the
+    planner descended into an inner ``accum`` and counted that inner ``self`` as a
+    read of the OUTER's bind, so an INDEPENDENT inner accumulator was refused as
+    though it were ambiguous.
+
+    ⛔ The JS rail reads this same fixture, so a lane that drifts fails against
+    the other lane's own output rather than against a retyped copy."""
+    doc = _nested_doc()
+    got = ai.interpret(doc["ast"], _bars(), {})
+    expected = doc["expected"]
+    assert len(got) == len(expected)
+    for i, (a, b) in enumerate(zip(got, expected)):
+        if b is None:
+            assert a is None, f"bar {i}: this lane produced {a}, the other produced nothing"
+            continue
+        assert a is not None, f"bar {i}: this lane produced nothing, the other produced {b}"
+        assert abs(a - b) < 1e-9, f"bar {i}: {a} vs {b}"
+
+
+def test_the_nested_fixture_is_not_mostly_holes():
+    # ⛔ NON-VACUITY. The comparison above passes on an all-null column.
+    assert sum(1 for v in _nested_doc()["expected"] if v is not None) > 150
+
+
+def test_self_inside_a_window_still_refuses_in_this_lane_too():
+    """⛔ The scoping rule closed ONE shape, not the guard. `self` inside a
+    windowed function is still a running value read over a span of bars the step
+    loop never held, and it still refuses."""
+    tree = _accum({"type": "call", "name": "sma",
+                   "args": [{"type": "series", "name": "self"}, {"type": "num", "value": 3}]})
+    with pytest.raises(Exception):
+        ai.interpret(tree, _bars(), {})
