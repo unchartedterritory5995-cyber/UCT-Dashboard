@@ -85,7 +85,10 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
 
   const flaggedLabel = flaggedName || 'Flagged'
   const showFlagged = match(flaggedLabel)
-  const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => match(wl.name))
+  // The admin account OWNS every prebuilt (UCT-curated) list, so the owner's own fetch
+  // returns ~30 UCT names — including the 12 dated Sunday Scans issues — as "his".
+  // They have their own tab; My Lists is for lists a person curates themselves.
+  const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => !wl?.is_prebuilt && match(wl.name))
   const community = (Array.isArray(communityLists) ? communityLists : []).filter(wl => match(wl.name))
   const prebuilt = (Array.isArray(prebuiltLists) ? prebuiltLists : []).filter(wl => match(wl.name))
   // Prebuilt lists render grouped under section headers (their `category` from the config —

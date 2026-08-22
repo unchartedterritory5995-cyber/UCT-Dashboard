@@ -160,3 +160,25 @@ test('dated prebuilt lists render newest-first in a single column; undated secti
   expect(cellOf('Sunday Scans — August 16, 2026').className).toMatch(/pList/)
   expect(cellOf('Liquid Major ETFs').className).toMatch(/pGrid/)
 })
+
+test('My Lists hides prebuilt rows the admin account owns — they live under Prebuilt', async () => {
+  const user = userEvent.setup()
+  vi.stubGlobal('fetch', vi.fn((url) => {
+    if (String(url) === '/api/watchlists') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([
+        { id: 'mine-1', name: 'Breakouts', items: [] },
+        { id: 'a16', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1, items: [] },
+      ]) })
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
+  }))
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <WatchlistPicker onPick={() => {}} />
+    </SWRConfig>,
+  )
+  await user.click(screen.getByRole('tab', { name: /my lists/i }))
+  // A My Lists row renders two buttons (pick + hover-reveal delete) — count, don't single out.
+  expect((await screen.findAllByRole('button', { name: /breakouts/i })).length).toBeGreaterThan(0)  // control
+  expect(screen.queryAllByRole('button', { name: /sunday scans/i })).toHaveLength(0)
+})

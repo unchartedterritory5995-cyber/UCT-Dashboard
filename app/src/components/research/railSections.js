@@ -16,11 +16,19 @@ export const DEFAULT_SECTION = 'setup'
 // without ever leaving the pop-up.
 export const SECTIONS = [
   { id: 'setup', label: 'Setup', icon: 'chart' },
+  // Owner ask (2026-08-21): "what does the company do, market cap, this year's
+  // story" belongs in the calendar too, not only on the /charts Profile widget.
+  // It answers a question no other section did — the bar for a new entry.
+  { id: 'profile', label: 'Profile', icon: 'info' },
   { id: 'history', label: 'Earnings History', icon: 'clock' },
   { id: 'brief', label: 'Brief', icon: 'document' },
   { id: 'call', label: 'Call', icon: 'chat' },
   { id: 'financials', label: 'Financials', icon: 'chart' },
   { id: 'analysts', label: 'Analysts', icon: 'user' },
+  // Our generated catalysts (+ earnings reactions + curated wire) sit right
+  // beside News on purpose: News is outside links; this is OUR read of what
+  // actually moved the stock.
+  { id: 'catalysts', label: 'Catalysts', icon: 'bolt' },
   { id: 'news', label: 'News', icon: 'document' },
   { id: 'filings', label: 'Filings', icon: 'document' },
   // Last on purpose (owner, 2026-08-10: "just under News and Filings"). It is the

@@ -35,7 +35,7 @@ export default function BriefSection({ sym, row, stepping }) {
   // no longer trusts this flag alone — see useEarningsBrief's `firstSym`
   // identity check, review r1 C1 — but it's still a legitimate additional
   // signal, so it's still passed through.)
-  const { data, isLoading, generate, retry } = useEarningsBrief(sym, { cachedOnly: !!stepping })
+  const { data, isLoading, generating, generate, retry } = useEarningsBrief(sym, { cachedOnly: !!stepping })
 
   // A bare 200px grey box held the canvas for 10-15s with nothing to read: the
   // brief is LLM-generated on a cold symbol, so this is the longest wait in the
@@ -44,12 +44,19 @@ export default function BriefSection({ sym, row, stepping }) {
   // The skeleton stays (it is the §3.4 size contract — removing it reintroduces
   // layout shift when the prose lands); it just gains a caption. role=status +
   // aria-live announces the wait to a screen reader, which a naked div cannot.
-  if (isLoading) {
+  // `generating` is the server saying "not written yet, I'm on it" — the
+  // request itself came back in milliseconds and the hook is polling. It is
+  // the same visual state as loading, but the copy must be honest about the
+  // wait: an uncovered name is ~half a minute, not "a few seconds".
+  if (isLoading || generating) {
     return (
-      <div className={styles.wrap} role="status" aria-live="polite" data-testid="brief-loading">
+      <div className={styles.wrap} role="status" aria-live="polite"
+           data-testid={generating ? 'brief-generating' : 'brief-loading'}>
         <EyebrowLabel>{PROVENANCE}</EyebrowLabel>
         <p className={styles.provenance}>
-          Writing this brief — a name we haven&apos;t covered today takes a few seconds.
+          {generating
+            ? 'Writing this brief now — about half a minute for a name we haven\'t covered yet. It appears here on its own; the rest of the report is ready meanwhile.'
+            : 'Opening this brief…'}
         </p>
         <SkeletonBlock height={200} />
       </div>

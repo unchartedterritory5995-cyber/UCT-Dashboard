@@ -1,0 +1,38 @@
+.wrap { display: flex; flex-direction: column; gap: var(--space-md); }
+.bar { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.pill {
+  min-height: 28px; padding: 0 var(--space-sm); border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border-neutral); background: var(--glass-surface);
+  color: var(--text-muted); font-size: var(--text-xs); cursor: pointer;
+}
+.pillOn { color: var(--text-bright); border-color: var(--text-muted); }
+.pill:focus-visible { outline: var(--focus-ring); }
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.item { display: flex; gap: var(--space-sm); padding: var(--space-sm) 0; border-bottom: 1px solid var(--glass-border-neutral); }
+.icon {
+  flex: none; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--glass-border-neutral); background: var(--glass-surface);
+}
+.main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); font-size: var(--text-xs); color: var(--text-muted); }
+.kind { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 9.5px; }
+.date { font-variant-numeric: tabular-nums; }
+.move { font-variant-numeric: tabular-nums; font-weight: 600; }
+.source { color: var(--text-muted); text-decoration: none; }
+a.source:hover { text-decoration: underline; }
+a.source:focus-visible { outline: var(--focus-ring); }
+.title { font-size: var(--text-sm); color: var(--text-bright); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+.desc { margin: 0; font-size: var(--text-sm); color: var(--text); line-height: var(--lh-snug); }
+.up { color: var(--gain); }
+.down { color: var(--loss); }
+.neutral { color: var(--text-muted); }
+
+.generating { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-sm); color: var(--text-muted); }
+.spinner {
+  flex: none; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--glass-border-neutral); border-top-color: var(--text-bright);
+  animation: catalysts-spin .9s linear infinite;
+}
+@keyframes catalysts-spin { to { transform: rotate(360deg); } }
+.provenance { font-size: var(--text-xs); color: var(--text-muted); }
