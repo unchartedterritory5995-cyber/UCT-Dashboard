@@ -67,7 +67,14 @@ profitable_days · avg_true_r · max_drawdown
 - [ ] T5 wire into AnalyticsTab (top section, defaultOpen), build, vitest
 - [ ] T6 ship → deploy-verify → prod smoke on the owner's book → memory
 
-## Explicitly deferred (recorded, not forgotten)
-- Drag-grid dashboard (react-grid-layout) — v1 is an ordered card list.
-- Formula functions (rolling(), by_setup()) — vocabulary-only v1.
-- Per-card date overrides — the global Scope governs all cards in v1.
+## Deferred → CLEARED 2026-08-22 (`3c88d9628`)
+- ~~Drag-grid dashboard~~ → native HTML5 drag-to-reorder (RGL judged
+  disproportionate for a card list; ↑/↓ kept for keyboard access).
+- ~~Formula functions~~ → abs/min/max/round in the AST allowlist; PLUS
+  per-KPI periods (rolling()/by_setup() remain out — a table-shaped
+  return needs its own card design, recorded here, not forgotten).
+- ~~Per-card date overrides~~ → `key@30d|90d|365d|ytd|all` tokens; one
+  Ctx per distinct period; unknown periods reported, never inherited.
+
+Still parked BY DATA, not by effort: multi-leg option contract
+excursions — the entire prod book is single-leg (0 rows to serve).
