@@ -254,3 +254,62 @@ def test_uncovered_target_ticker_absent_from_result(monkeypatch, tmp_path):
     out = pj.read_pattern_fields(["SEEDED", "UNSEEDED"])
     assert "SEEDED" in out
     assert "UNSEEDED" not in out
+
+
+# ── the two review-round pins (A2 review, Important 1): both paths were
+# verified correct by out-of-suite probes; these make a future regression
+# fail HERE instead of shipping green. ─────────────────────────────────────
+
+def test_confidence_tie_breaks_to_the_newer_detected_at(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(
+        id="old", sym="AAPL", pattern_id="bull_flag", direction="bullish",
+        confidence=70.0, start_t=1, end_t=2,
+        detected_at=_NOW - 3600, last_seen_at=_NOW - 3600,
+    ))
+    memory.store_detection(_detection(
+        id="new", sym="AAPL", pattern_id="cup_handle", direction="bearish",
+        confidence=70.0, start_t=3, end_t=4,
+        levels={"entry": 200.0, "stop": 190.0, "target_primary": 220.0,
+                "entry_condition": "", "stop_basis": "",
+                "target_secondary": None, "risk_reward": 2.0},
+        detected_at=_NOW, last_seen_at=_NOW,
+    ))
+
+    row = pj.read_pattern_fields(["AAPL"])["AAPL"]
+    # Equal confidence: the NEWER detected_at wins best -- a swapped
+    # tuple-comparison order would hand it to the older bull_flag.
+    assert row["pattern_engine_dir"] == -1
+    assert row["pattern_entry_px"] == 200.0
+
+
+def test_malformed_levels_json_survives_and_stays_honest(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.pattern_engine.pattern_db import get_connection
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(
+        id="d1", sym="AAPL", pattern_id="bull_flag",
+        start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW,
+    ))
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE pattern_detections SET levels_json = ?",
+                     ("not json{",))
+        conn.commit()
+    finally:
+        conn.close()
+
+    out = pj.read_pattern_fields(["AAPL"])
+    row = out["AAPL"]
+    # The read SURVIVES; ids/conf still populate; nothing level-derived is
+    # fabricated off a row whose levels cannot be parsed.
+    assert row["pattern_engine_ids"] == "bull_flag"
+    assert row["pattern_engine_conf"] == 75.0
+    assert "pattern_engine_dir" not in row
+    assert "pattern_entry_px" not in row
+    assert "pattern_stop_px" not in row

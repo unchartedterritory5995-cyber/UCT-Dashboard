@@ -104,6 +104,11 @@ def _note(failures, source, outcome) -> None:
 
 
 def _direction_num(direction) -> int:
+    # The store's Direction is Literal["bullish","bearish","neutral"] with no
+    # DB-level CHECK, so an unrecognized value here would be a data-integrity
+    # breach one layer up — it reads as 0 (neutral) by this fallthrough, the
+    # least-claiming encoding. If corruption is ever suspected, this is the
+    # seam to instrument.
     if direction == "bullish":
         return 1
     if direction == "bearish":
