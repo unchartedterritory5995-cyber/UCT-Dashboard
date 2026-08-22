@@ -1289,7 +1289,9 @@ def register_screener_jobs(scheduler):
     # ⚠️ MASTER-FLAG COUPLING: this whole function early-returns on
     # SCREENER_SNAPSHOT_ENABLED=0 (top of register_screener_jobs), so each
     # per-job flag below is necessary but NOT sufficient — pausing the
-    # snapshot build pauses these four source pulls too. Deliberate: the
+    # snapshot build pauses EVERY source pull registered in this function
+    # (no count here on purpose -- counts beside lists drift; opt_flow_pull
+    # joined after this comment first said "four"). Deliberate: the
     # 03:00 build is their only consumer, so pulling without it just burns
     # provider quota into artifacts nothing reads.
     log = logging.getLogger(__name__)
@@ -1322,6 +1324,28 @@ def register_screener_jobs(scheduler):
             _run_earnings_dates,
             trigger=CronTrigger(hour=2, minute=50, timezone=_ET),
             id="screener_earnings_dates", max_instances=1, replace_existing=True)
+
+    # -- Wave 5: pull the flow-worker's nightly per-ticker options aggregate
+    # (screener/opt_flow_agg.json, written by api/flow_opt_aggregate.py) down
+    # to a local artifact. 02:55 ET — after the 02:45/02:50 siblings above,
+    # same master-flag coupling (this whole function early-returns on
+    # SCREENER_SNAPSHOT_ENABLED=0). Defaults ON like its Wave-2 siblings: a
+    # local run with R2 unconfigured is harmless — `data_sync.get_bytes`
+    # never raises, returns None, and `opt_flow.run_pull` refuses cleanly.
+    from api.services.screener import opt_flow
+
+    def _run_opt_flow_pull():
+        try:
+            receipt = opt_flow.run_pull()
+            log.info("[screener] %s receipt: %s", "screener_opt_flow_pull", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener opt flow pull error: {e}")
+
+    if os.environ.get("SCREENER_OPTFLOW_PULL_ENABLED", "1") == "1":
+        scheduler.add_job(
+            _run_opt_flow_pull,
+            trigger=CronTrigger(hour=2, minute=55, timezone=_ET),
+            id="screener_opt_flow_pull", max_instances=1, replace_existing=True)
 
     def _run_insider_capture():
         try:
@@ -3987,6 +4011,28 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
+
+        # COT narrative pre-warm (2026-08-21): once the Friday refresh and its
+        # 16:15/16:45 retries have landed, write this week's read for every
+        # symbol so Monday's first COT-tab visit serves cached prose. The Saturday
+        # re-run is free for symbols already written (cache hits) and catches a
+        # Friday whose CFTC publish ran late. Inert without the facts bundle
+        # (`app/dist/cot-facts.cjs` + node) or with COT_PREWARM_ENABLED=0.
+        def _cot_narrative_prewarm_job():
+            try:
+                from api.services import cot_prewarm as _cot_prewarm
+                out = _cot_prewarm.run_prewarm()
+                if out.get("skipped"):
+                    print(f"[scheduler] COT narrative prewarm skipped: {out['skipped']}")
+                else:
+                    print(f"[scheduler] COT narrative prewarm: generated={out.get('generated')} "
+                          f"cached={out.get('cached')} errors={len(out.get('errors') or [])} "
+                          f"report={out.get('report_date')}")
+            except Exception as _e_cp:
+                print(f"[scheduler] COT narrative prewarm failed (non-fatal): {_e_cp}")
+
+        _scheduler.add_job(_cot_narrative_prewarm_job, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5, timezone=_ET), id="cot_narrative_prewarm", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_narrative_prewarm_job, trigger=CronTrigger(day_of_week="sat", hour=9, minute=0, timezone=_ET), id="cot_narrative_prewarm_retry", max_instances=1, replace_existing=True)
 
         # Implied-move nightly capture (post-close, pre-report snapshot for the
         # history hero). Gated -- ONLY the scheduler job; the read endpoint is

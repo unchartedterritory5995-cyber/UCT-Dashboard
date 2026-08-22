@@ -30,6 +30,7 @@ import { AuthContext } from '../context/AuthContext'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration,
 } from '../components/chart/engine/nativeRegistry'
+import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
 
@@ -116,7 +117,7 @@ export async function saveUserDefinition(definition, defId = null) {
     // scannable "My Scans" filter entry — revalidate the rail's category so
     // every door (BuilderSheet included) sees it without waiting out
     // useScreenerMeta's 6h SWR dedupe.
-    mutate('/api/screener/meta')
+    mutate(META_KEY)
     let row = null
     try { row = await r.json() } catch { /* a body-less 200 is still an accepted save */ }
     return { ok: true, row }
@@ -243,7 +244,7 @@ export async function deleteUserDefinition(defId) {
     mutate(USER_DEFINITIONS_KEY)
     // K3: a deleted definition may have been the last scannable one — same
     // revalidation as the save path above.
-    mutate('/api/screener/meta')
+    mutate(META_KEY)
     return r.ok
   } catch {
     return false

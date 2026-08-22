@@ -1,5 +1,8 @@
 /* app/src/components/screener/SavedScreensPanel.module.css
-   The saved-formula screens tab on the Scanner Hub.
+   SavedScreensPanel.jsx (the file this module was named for) is deleted;
+   these styles now style ScreensManager.jsx's definition-detail session
+   controls (the expanded My-scans row's session-date input + "Use as filter"
+   action).
 
    ⛔ NO NEW CHROME (spec §1.5). Every token here is one the app already
    declares, every glyph in the JSX is a `UIcon`, and both interactive controls

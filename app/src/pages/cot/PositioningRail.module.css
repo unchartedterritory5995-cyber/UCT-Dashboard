@@ -486,3 +486,27 @@
   line-height: 1.45;
   color: var(--text-muted);
 }
+
+/* ── Foldable sections (Price check, Precedents): open on wide screens, a tap
+   target on a phone so the rail stays scannable ────────────────────────── */
+.fold > summary {
+  list-style: none;
+  cursor: default;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > .section { margin-top: 8px; }
+
+@media (max-width: 640px) {
+  .fold > summary {
+    cursor: pointer;
+    min-height: var(--tap-min, 44px);
+    align-items: center;
+  }
+  .fold > summary::after {
+    content: '\25B8';
+    margin-left: auto;
+    color: var(--ut-gold);
+    font-size: 11px;
+  }
+  .fold[open] > summary::after { content: '\25BE'; }
+}

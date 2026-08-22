@@ -28,6 +28,12 @@ def _scan_clauses(f, clauses, params, scan_joins):
     hashes = [h for h in hashes if isinstance(h, str) and h.strip()]
     if not hashes or (isinstance(raw, list) and len(hashes) != len(raw)):
         raise ValueError("scan filter requires def_hash value(s)")
+    # Dedupe AFTER validation: the len-mismatch guard above compares against
+    # the RAW list, so a malformed mixed list (e.g. containing "") still
+    # refuses; only a clean, hand-crafted repeat like ["H1","H1"] collapses
+    # to one clause. First-seen order preserved.
+    seen = set()
+    hashes = [h for h in hashes if not (h in seen or seen.add(h))]
     # ONE batched read for every hash (the primitive's own contract: meta()
     # and this request path both run on the one shared loop — no N+1).
     covered = scan_store.latest_coverage_for(hashes, scan_store.SCAN_JOIN_TF)

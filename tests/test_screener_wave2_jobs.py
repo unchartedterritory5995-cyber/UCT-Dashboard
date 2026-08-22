@@ -28,5 +28,6 @@ def test_wave2_jobs_are_registered():
     assert "screener_snapshot_nightly" in ids          # control: probe sees
     assert "definitely_not_a_job" not in ids           # control: probe honest
     for jid in ("screener_finviz_universe", "screener_earnings_dates",
-                "screener_insider_capture", "screener_analyst_pass"):
+                "screener_insider_capture", "screener_analyst_pass",
+                "screener_opt_flow_pull"):
         assert jid in ids, jid

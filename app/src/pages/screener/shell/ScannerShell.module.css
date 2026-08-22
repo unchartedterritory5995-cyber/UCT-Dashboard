@@ -36,8 +36,20 @@
 .pickerMove button { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; }
 .pickerMove button:hover { color: var(--ut-gold); }
 
-/* ShellToolbar — views as presets, density, the provenance seal */
-.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 3; }
+/* ShellToolbar — views as presets, density, the provenance seal.
+   ⛔ z-index MUST stay above .gridHead's (4 below): a child's z-index can
+   never escape its own ancestor's stacking context, no matter how high —
+   .pickerPop and .sealPop are z-index:20 but that only ranks them among
+   .toolbar's OWN descendants. With .toolbar at z:3 < .gridHead's z:4, the
+   grid's sticky column-header row painted on TOP of the toolbar's own
+   popovers at this viewport (1568x900, first interaction, no load
+   involved) — the header row's search input / Reset / Close controls sat
+   at the same screen position gridHead occupies and lost the paint order,
+   confirmed via elementFromPoint (a grid header sort button intercepted
+   the Close button's click point). Bumping .toolbar's z-index above
+   .gridHead's raises the WHOLE popover-owning subtree, not just the
+   popover — the actual fix (see 2026-08-22 screener stress-fix round). */
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 6; }
 .viewTabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .viewTab { padding: 5px 11px; border-radius: var(--radius-sm, 6px); background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 12px; min-height: 30px; }
 .viewTabOn { background: var(--bg-elevated); border-color: var(--ut-gold); color: var(--ut-gold); }

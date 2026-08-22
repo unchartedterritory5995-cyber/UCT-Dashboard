@@ -293,6 +293,7 @@ export default function FundamentalsWidget({
           style={journalDoor && !isPanelView && (hasAnnual || hasQ) ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
           title="Fundamentals settings"
+          aria-label="Fundamentals settings"
         ><UIcon name="gear" size={13} /></button>
         )}
       </div>

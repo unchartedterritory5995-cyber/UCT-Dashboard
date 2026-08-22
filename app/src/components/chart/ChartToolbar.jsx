@@ -1148,6 +1148,7 @@ function ChartToolbar({
             className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
             onClick={() => selectTool(t.id)}
             title={t.label}
+            aria-label={t.label}
           >
             {ICONS[t.id]}
           </button>
@@ -1159,6 +1160,7 @@ function ChartToolbar({
             className={`${styles.btn} ${favMenuOpen ? styles.active : ''}`}
             onClick={openFavMenu}
             title="Customize drawing tools — show/hide & favorite"
+            aria-label="Customize drawing tools"
           >
             {ICONS.favorites}
           </button>
@@ -1173,6 +1175,7 @@ function ChartToolbar({
             className={`${styles.btn} ${magnet ? styles.active : ''}`}
             onClick={() => setMagnet(!magnet)}
             title={magnet ? 'Magnet: ON — snaps to candle O/H/L/C' : 'Magnet: OFF'}
+            aria-label={magnet ? 'Magnet: on' : 'Magnet: off'}
             style={{ fontSize: '13px' }}
           >
             <UIcon name="magnet" size={15} />
@@ -1223,6 +1226,7 @@ function ChartToolbar({
           className={`${styles.btn} ${repeatMode ? styles.active : ''}`}
           onClick={() => setRepeatMode(!repeatMode)}
           title={repeatMode ? 'Repeat drawing: ON' : 'Repeat drawing: OFF'}
+          aria-label={repeatMode ? 'Repeat drawing: on' : 'Repeat drawing: off'}
         >
           {ICONS.repeat}
         </button>
@@ -1302,6 +1306,7 @@ function ChartToolbar({
             className={`${styles.btn} ${replayMode ? styles.active : ''}`}
             onClick={onReplayToggle}
             title="Replay / Time Machine"
+            aria-label="Replay / Time Machine"
           >
             {ICONS.replay}
           </button>
@@ -1383,6 +1388,7 @@ function ChartToolbar({
               className={`${styles.btn} ${showSettings ? styles.active : ''}`}
               onClick={() => { setShowSettings(!showSettings); closeOthers('settings') }}
               title="Chart Settings"
+              aria-label="Chart settings"
             >
               {ICONS.settings}
             </button>
@@ -1475,6 +1481,7 @@ function ChartToolbar({
             className={styles.btn}
             onClick={toggleColorPanel}
             title="Color"
+            aria-label="Drawing color"
           >
             <div className={styles.colorSwatch} style={{ background: color }} />
           </button>
@@ -1504,6 +1511,7 @@ function ChartToolbar({
             className={styles.btn}
             onClick={() => { setShowWidths(!showWidths); closeOthers('widths') }}
             title={`Line width: ${lineWidth}px`}
+            aria-label={`Line width: ${lineWidth}px`}
           >
             <svg viewBox="0 0 14 14" width="14" height="14">
               <line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1" />
@@ -1547,6 +1555,7 @@ function ChartToolbar({
               className={styles.btn}
               onClick={() => { setShowFonts(!showFonts); closeOthers('fonts') }}
               title={`Text size: ${fontSize}px — applies to new text and the selected text`}
+              aria-label={`Text size: ${fontSize}px`}
               style={{ width: 'auto', padding: '0 8px', fontWeight: 700, whiteSpace: 'nowrap' }}
             >
               <span style={{ fontSize: 15, lineHeight: 1 }}>A</span>
@@ -1575,6 +1584,7 @@ function ChartToolbar({
           onClick={() => onUpdateSettings?.({ ...chartSettings, hideDrawings: !chartSettings?.hideDrawings })}
           disabled={!drawingCount}
           title={chartSettings?.hideDrawings ? 'Show drawings' : 'Hide all drawings'}
+          aria-label={chartSettings?.hideDrawings ? 'Show drawings' : 'Hide all drawings'}
           aria-pressed={!!chartSettings?.hideDrawings}
         >
           {chartSettings?.hideDrawings ? ICONS.eyeOff : ICONS.eye}
@@ -1587,6 +1597,7 @@ function ChartToolbar({
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
+            aria-label="Undo"
           >
             {ICONS.undo}
           </button>
@@ -1597,6 +1608,7 @@ function ChartToolbar({
             onClick={onRedo}
             disabled={!canRedo}
             title="Redo (Ctrl+Y)"
+            aria-label="Redo"
           >
             {ICONS.redo}
           </button>
@@ -1608,6 +1620,7 @@ function ChartToolbar({
           onClick={onDelete}
           disabled={!hasSelection}
           title="Delete selected (Del)"
+          aria-label="Delete selected"
         >
           {ICONS.delete}
         </button>
@@ -1618,6 +1631,7 @@ function ChartToolbar({
           onClick={() => { if (drawingCount > 0 && confirm('Clear all drawings on this chart?')) onClearAll() }}
           disabled={!drawingCount}
           title={`Clear all (${drawingCount})`}
+          aria-label={`Clear all drawings (${drawingCount})`}
         >
           {ICONS.clear}
         </button>
@@ -1630,6 +1644,7 @@ function ChartToolbar({
         className={`${styles.btn} ${styles.toggleBtn}`}
         onClick={toggleCollapsed}
         title={collapsed ? 'Show toolbar' : 'Hide toolbar'}
+        aria-label={collapsed ? 'Show toolbar' : 'Hide toolbar'}
         aria-pressed={collapsed}
       >
         {collapsed ? ICONS.chevronLeft : ICONS.chevronRight}

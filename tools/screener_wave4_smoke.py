@@ -211,14 +211,13 @@ def run_smoke():
     finally:
         # Clean up connections and temp directory
         try:
-            import sqlite3
-            sqlite3.reset_the_debug_flag()  # Reset any open connections
-        except:
+            import sqlite3  # noqa: F401 (kept for parity with the guarded block below)
+        except Exception:
             pass
         import shutil
         try:
             shutil.rmtree(tmp_path, ignore_errors=True)
-        except:
+        except Exception:
             pass
 
 if __name__ == "__main__":

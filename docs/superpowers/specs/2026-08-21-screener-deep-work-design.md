@@ -81,7 +81,7 @@ Authority change recorded: `inst_pct` writer moves from the ratings store (yfina
 
 | Column | Source |
 |---|---|
-| `pattern_engine_ids`, `pattern_engine_conf`, `pattern_engine_dir` | patterns.db `pattern_detections` (active, tf=D, last 7 days) — local join. The 50-detector engine replaces the cheap heuristics as the headline pattern data; cheap set retained as its own clearly-tiered columns |
+| `pattern_engine_ids`, `pattern_engine_conf`, `pattern_engine_dir` | patterns.db `pattern_detections` (active, tf=D, last 7 days) — local join. The pattern engine (measured 2026-08-21: **85 registered detectors** — "50" was stale when this spec was written) replaces the cheap heuristics as the headline pattern data; cheap set retained as its own clearly-tiered columns |
 | `pattern_entry_dist_pct`, `pattern_stop_dist_pct` | from `levels_json` of the best active detection |
 | `pattern_expectancy_r` | `pattern_stats` for (pattern, tf, current regime bucket) |
 | `dp_notional_1d`, `dp_prints_1d`, `dp_notional_5d` | `/data/darkpool.db` (web-local) nightly aggregation |
@@ -221,9 +221,9 @@ Current build reads 400 D bars/ticker. Wave 1 needs: SPY bars once per build (RS
 
 Direct replacement: the new shell ships as THE Scanner tab once the parity checklist is green (all 43 existing filters + saved screens + share + CSV + views + live overlay + charts view). Old components deleted in the same wave (`reachable.test.js` sweeps orphans). No long-lived dual UI.
 
-## 7. Flagship presets (owner thresholds — confirm at spec review)
+## 7. Flagship presets — ✅ ALL SIX CONFIRMED AS DRAFTED BY THE OWNER 2026-08-21
 
-Spec-starters (registry lane) and AST starters (starter library) both grow. Draft thresholds derived from in-product published sources (scanner hard gates, existing starters); **owner confirms or edits each number before the preset ships** (E-8):
+Spec-starters (registry lane) and AST starters (starter library) both grow. Draft thresholds derived from in-product published sources (scanner hard gates, existing starters). **Owner confirmed every number below as drafted (2026-08-21 ~23:00 CT, recorded in the Wave-5 SDD ledger) — Wave 6 builds these without re-asking** (E-8):
 
 | Preset | Draft definition |
 |---|---|

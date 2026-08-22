@@ -776,6 +776,107 @@ def test_check_refuses_while_there_is_no_frozen_log():
     assert ac.main(["--check"]) == ac.EXIT_NO_GUARD
 
 
+# --------------------------------------------------------------------------- #
+# declared vacuity is not silent vacuity -- the P0 backlog fix
+# --------------------------------------------------------------------------- #
+#
+# The 22-case pure-math/sum/dev/adx backlog (`cb81c15d4`, `22c96a2f1`, `6e44c8b01`)
+# includes six cases that are DELIBERATELY all-NaN on every bar (a domain error --
+# sqrt of a negative, ln of zero, a zero divisor -- that both lanes must answer
+# identically). `_cmd_record`'s own non-vacuity guard could not tell that apart
+# from a case that is SILENTLY blind by accident, so recording the backlog
+# crashed with an unhandled AssertionError the first time anyone tried. These
+# three tests pin the fix in all three directions, entirely on a SYNTHETIC
+# corpus/log/manifest -- never the real fixtures, per this file's own idiom.
+
+def _synthetic_record(monkeypatch, tmp_path, cases: list, columns: dict,
+                       manifest: dict) -> str:
+    """Route `_cmd_record`/`_cmd_check` through an entirely synthetic
+    corpus/log/manifest. `columns` is handed back verbatim as BOTH lanes'
+    output, so `compare_lanes` always agrees and the vacuity guard is the only
+    thing under test."""
+    bars = [{} for _ in range(len(next(iter(columns.values()))))]
+    log_path = str(tmp_path / "conformance_log.json")
+    monkeypatch.setattr(ac, "LOG_PATH", log_path)
+    monkeypatch.setattr(
+        ac, "load_corpus",
+        lambda path=None: {"bars": "fixture#synthetic", "cases": cases})
+    monkeypatch.setattr(ac, "corpus_bars", lambda doc=None: bars)
+    monkeypatch.setattr(ac, "load_manifest", lambda path=None: manifest)
+    monkeypatch.setattr(ac, "run_js", lambda cs, bs: columns)
+    monkeypatch.setattr(ac, "run_py", lambda cs, bs: columns)
+    return log_path
+
+
+def test_a_declared_allNaN_case_records_and_checks_GREEN(monkeypatch, tmp_path):
+    """The design decision: `"allNaN": true` plus a `why` string is the corpus
+    author ASSERTING vacuity -- the opposite of the SILENT vacuity this guard
+    exists to catch -- so it is exempt from the blind check, and its digest
+    (repr(None) at every bar, both lanes) hashes and checks like any other."""
+    cases = [
+        {"id": "control", "why": "a finite case, so the log itself is not vacuous",
+         "ast": {"type": "series", "name": "close"}},
+        {"id": "sqrt_of_a_negative",
+         "why": "a NEGATIVE root on every bar -- both lanes must say NaN",
+         "ast": {"type": "series", "name": "close"}, "allNaN": True},
+    ]
+    columns = {"control": [1.0, 2.0, 3.0, 4.0],
+               "sqrt_of_a_negative": [None, None, None, None]}
+    manifest = {"functions": {}, "operators": {}, "series": {"close": {}}}
+    log_path = _synthetic_record(monkeypatch, tmp_path, cases, columns, manifest)
+
+    assert ac._cmd_record(force=True) == 0
+    written = json.loads(pathlib.Path(log_path).read_text(encoding="utf-8"))
+    assert set(written["digests"]) == {"control", "sqrt_of_a_negative"}
+
+    assert ac._cmd_check() == 0, (
+        "a declared-allNaN digest must CHECK clean too -- it is not a special "
+        "case to the checker, only to the recorder's vacuity guard")
+
+
+def test_an_UNDECLARED_allNaN_case_still_refuses(monkeypatch, tmp_path):
+    """The accidental-vacuity protection this guard exists for is UNTOUCHED: a
+    case that produces zero finite values and never declared `allNaN` is still
+    a digest of nothing, exactly as before this fix."""
+    cases = [
+        {"id": "control", "why": "a finite control case",
+         "ast": {"type": "series", "name": "close"}},
+        {"id": "silently_blind", "why": "produces nothing, and never says so",
+         "ast": {"type": "series", "name": "close"}},
+    ]
+    columns = {"control": [1.0, 2.0, 3.0, 4.0],
+               "silently_blind": [None, None, None, None]}
+    manifest = {"functions": {}, "operators": {}, "series": {"close": {}}}
+    _synthetic_record(monkeypatch, tmp_path, cases, columns, manifest)
+
+    with pytest.raises(AssertionError, match=r"ZERO finite values.*silently_blind"):
+        ac._cmd_record(force=True)
+
+
+def test_a_declared_allNaN_case_that_is_actually_finite_refuses_BY_NAME(
+        monkeypatch, tmp_path):
+    """The converse. A case cannot declare its way past the guard and then
+    drift: a declared-allNaN case that produces even one finite row is a
+    LIE-SHAPED escape hatch, and the record refuses it BY NAME rather than
+    freezing a declaration that is no longer true."""
+    cases = [
+        {"id": "control", "why": "a finite control case",
+         "ast": {"type": "series", "name": "close"}},
+        {"id": "not_really_all_nan",
+         "why": "claims allNaN but is not",
+         "ast": {"type": "series", "name": "close"}, "allNaN": True},
+    ]
+    columns = {"control": [1.0, 2.0, 3.0, 4.0],
+               "not_really_all_nan": [None, None, 5.0, None]}
+    manifest = {"functions": {}, "operators": {}, "series": {"close": {}}}
+    _synthetic_record(monkeypatch, tmp_path, cases, columns, manifest)
+
+    with pytest.raises(AssertionError,
+                        match=r"declared allNaN but produced finite rows.*"
+                              r"not_really_all_nan"):
+        ac._cmd_record(force=True)
+
+
 def test_the_escapes_cli_reports_non_zero_and_exits_no_guard_today():
     if ac.guard_state() != "absent":
         pytest.skip("a guarded interpreter exists; Task 6 owns this exit code")

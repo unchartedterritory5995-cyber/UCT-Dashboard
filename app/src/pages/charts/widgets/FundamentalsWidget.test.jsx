@@ -136,3 +136,13 @@ test('shows empty state when data has no rows', () => {
   render(<Wrap sym="ZZ" />)
   expect(screen.getByText(/no fundamentals/i)).toBeInTheDocument()
 })
+
+// FIX C (8/21 UI stress sweep, zero_a11y_name:_gearBtn_edx06_211): the
+// icon-only settings gear had only a `title`, which the sweep's a11y check
+// (aria-label OR textContent) never reads — an icon-only button with no
+// aria-label and no text is invisible to it. Pin the fix.
+test('the icon-only settings gear button has an accessible name', () => {
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap />)
+  expect(screen.getByRole('button', { name: 'Fundamentals settings' })).toBeInTheDocument()
+})

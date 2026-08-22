@@ -49,7 +49,8 @@ export default function ShareToFloor({ card, label = 'Share to Floor', compact =
     return (
       <button className={compact ? styles.btnCompact : styles.btn}
         onClick={share} disabled={state === 'sending' || state === 'done'}
-        title={err || 'Share to The Floor'}>
+        title={err || 'Share to The Floor'}
+        aria-label={compact ? (err || 'Share to The Floor') : undefined}>
         <UIcon name="community" size={compact ? 13 : 14} />
         {!compact && <span>{state === 'done' ? 'Shared' : state === 'sending' ? 'Sharing…' : label}</span>}
       </button>
@@ -59,7 +60,8 @@ export default function ShareToFloor({ card, label = 'Share to Floor', compact =
   return (
     <div className={styles.wrap}>
       <button className={compact ? styles.btnCompact : styles.btn} onClick={() => setOpen((o) => !o)}
-        title="Share to The Floor">
+        title="Share to The Floor"
+        aria-label={compact ? 'Share to The Floor' : undefined}>
         <UIcon name="community" size={compact ? 13 : 14} />
         {!compact && <span>{label}</span>}
       </button>

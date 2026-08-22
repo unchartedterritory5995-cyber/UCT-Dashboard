@@ -8,7 +8,8 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                  uct_composite via the same percentile path as the research page;
                  Wave 2 adds the rating_eps/growth/value/smr components,
                  sector_rs_pct and sponsorship — see that module's docstring)
-  - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``)
+  - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``);
+                computes once on a cold cache — see ``_read_rs_map``
   - meta     -> ``ticker_meta`` cache (name/sector/industry)
   - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
   - bulk fun -> ``fundamentals_bulk.fetch_bulk`` — the ten Group-A columns
@@ -28,6 +29,18 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 growth — ``pt_upside_pct`` is derived HERE from ``pt_target``
                 and the bar-derived ``price``, beside ``dollar_vol_30d``), and
                 ``insider_capture`` (days since the latest cluster buy).
+  - patterns/flow -> three Wave 5 readers, same ``market_row`` merge, ONE
+                read per build each: ``pattern_join`` (active 7-day
+                pattern-engine detections + regime-blind expectancy — its two
+                CARRIER keys ``pattern_entry_px``/``pattern_stop_px`` never
+                become columns; ``pattern_entry_dist_pct``/
+                ``pattern_stop_dist_pct`` are derived HERE, beside
+                ``pt_upside_pct``, from those carriers and the bar-derived
+                ``price``), ``darkpool_agg`` (block-print notional/prints +
+                signature-DPL distance — needs last night's close, read via
+                ONE ``screener_rows`` query into ``prev_closes`` before the
+                per-ticker loop), and ``opt_flow`` (the flow-worker's
+                per-ticker options aggregate, bridged via R2).
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -47,7 +60,7 @@ import time
 
 from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
-              analyst_pass, insider_capture)
+              analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow)
 
 log = logging.getLogger(__name__)
 
@@ -107,9 +120,22 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     that module's docstring), next-earnings date/session (``earnings_dates``),
     last-report move + implied move/setup-grade (``earnings_context``'s two
     readers), analyst consensus/price-target/grade-actions/eps-growth
-    (``analyst_pass``), and insider cluster-days (``insider_capture``). Disjoint
-    from every other source by construction (each reader owns its own
-    columns). Merged AFTER ``ratings_row`` and BEFORE ``context_row``.
+    (``analyst_pass``), and insider cluster-days (``insider_capture``) —
+    PLUS the THREE Wave 5 readers, same shape: ``pattern_join`` (pattern-engine
+    ids/confidence/direction/expectancy — see below), ``darkpool_agg``
+    (block-print notional/prints + signature-DPL distance), and ``opt_flow``
+    (the flow-worker options aggregate). Disjoint from every other source by
+    construction (each reader owns its own columns). Merged AFTER
+    ``ratings_row`` and BEFORE ``context_row``.
+
+    🔑 ``pattern_join`` rides TWO non-column CARRIER keys into ``market_row``
+    on purpose — ``pattern_entry_px``/``pattern_stop_px``, the best active
+    detection's raw entry/stop (K5: either, or both, may be absent). They are
+    deliberately absent from ``snapshot_db.COLUMNS``, so the generic merge
+    loop below drops them from ``row`` by construction (``if k in row``) —
+    they never persist under their own name. The pattern-distance derivation
+    block below reads them off the ``market_row`` PARAMETER directly, for
+    exactly that reason.
 
     ``context_row`` is one ticker's merge of the four ``context_joins`` readers
     (breadth/uct20/index/etf) — classification flags, disjoint from every other
@@ -187,6 +213,17 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     if (pt_target is not None and price is not None
             and pt_target > 0 and price > 0):
         row["pt_upside_pct"] = round((pt_target / price - 1) * 100, 2)
+    # Pure derivations, single writers: distance to the best active pattern
+    # detection's entry/stop (pattern_join supplies the raw levels as CARRIER
+    # keys that are deliberately not columns; K5 — either may be absent).
+    # Distances are vs THIS row's price; both factors must be positive.
+    _pe = (market_row or {}).get("pattern_entry_px")
+    _ps = (market_row or {}).get("pattern_stop_px")
+    price = row.get("price")
+    if _pe is not None and price is not None and _pe > 0 and price > 0:
+        row["pattern_entry_dist_pct"] = round((_pe / price - 1) * 100, 2)
+    if _ps is not None and price is not None and _ps > 0 and price > 0:
+        row["pattern_stop_dist_pct"] = round((_ps / price - 1) * 100, 2)
     # Pure derivation, single writer: age from the profile-bulk listing date.
     if row.get("ipo_date"):
         try:
@@ -351,15 +388,54 @@ def _read_ratings(ticker, failures=None):
 
 
 def _read_rs_map():
-    """``{TICKER: rs_row}`` from `rs_ranking`'s warmed cache. ``{}`` when cold.
+    """``{TICKER: rs_row}`` from `rs_ranking`'s warmed cache — COMPUTING ON
+    COLD, but only on this nightly-build path.
 
-    ⛔ ONE READ PER BUILD, AND NEVER A COMPUTE. See
-    `rs_ranking.cached_rank_map` for why the ~17s full-universe rebuild belongs
-    to the background warmer and not here.
+    ⛔ ONE READ PER BUILD. See `rs_ranking.cached_rank_map`'s own docstring for
+    why it itself never computes: that rationale is about REQUEST-path callers
+    racing the boot warmers with a fetch herd. It does NOT bind this function —
+    the 3 a.m. scheduler thread that calls it isn't racing anything, and a
+    ~17s compute here is cheap insurance against a universe-wide NULL night.
+
+    ⚠️ 2026-08-22 RECEIPT (the motivating incident): the 03:04 ET build logged
+    ``rs_map=0``, ``sources["rs_ranking"] == {"no_rank": 3741}`` — rs_rank,
+    rs_return, chg_pct_3m and chg_pct_6m NULL for the ENTIRE universe.
+    Mechanism, proven: `rs_ranking`'s cache lives under ONE key in the shared
+    bounded LRU (`api/services/cache.py`, max 1000 entries); the 06:41Z warm
+    (of the 05:50/06:41/07:31Z 50-min cadence) was evicted by the overnight
+    job flood before the 07:00Z build ran — the build landed squarely in that
+    gap. Not a broken mechanism: the SAME deployment cached 3,646 rankings
+    fine at 09:12Z. So: when the warmed cache is cold, THIS reader (and only
+    this reader) calls `rs_ranking.compute_rs_scores()` once (``force=False``
+    — an untouched cold cache entry is exactly what `force=False` already
+    recomputes, so there is nothing to force) and re-reads
+    `cached_rank_map()`. A compute failure degrades to the pre-existing ``{}``
+    + warning, never raises — honest-None is preserved either way.
+    `cached_rank_map` ITSELF is unchanged: request-path callers keep the
+    no-compute contract.
+
+    The receipt must say which source answered — logged as
+    ``rs_map source=cache-warm`` or ``rs_map source=computed-on-cold``.
     """
     try:
         from api.services import rs_ranking
-        return rs_ranking.cached_rank_map()
+        rs_map = rs_ranking.cached_rank_map()
+        if rs_map:
+            log.info("[screener] rs_map source=cache-warm n=%d", len(rs_map))
+            return rs_map
+        log.warning("[screener] rs_ranking cache cold at build time — "
+                    "computing on cold (nightly-build path only, see "
+                    "_read_rs_map docstring)")
+        try:
+            rs_ranking.compute_rs_scores(force=False)
+        except Exception:
+            log.warning("[screener] rs_ranking compute-on-cold failed; "
+                        "rs_rank/rs_return will be NULL for this build",
+                        exc_info=True)
+            return {}
+        rs_map = rs_ranking.cached_rank_map()
+        log.info("[screener] rs_map source=computed-on-cold n=%d", len(rs_map))
+        return rs_map
     except Exception:
         log.warning("[screener] rs_ranking unavailable; rs_rank/rs_return "
                     "will be NULL for this build", exc_info=True)
@@ -400,9 +476,13 @@ def _read_bulk_fundamentals(targets, failures=None):
 
 
 def _read_market_source(label, reader, targets, failures=None) -> dict:
-    """Call one Wave 2 ``market_row`` reader, guarded at the CONSUMER SEAM.
+    """Call one ``market_row`` reader, guarded at the CONSUMER SEAM.
 
-    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the six
+    Used by EVERY ``market_row`` reader ``run_build`` joins (Wave 2's six,
+    Wave 5's three, and whatever joins next — no count here on purpose;
+    counts beside lists drift).
+
+    🔴 FIX ROUND 1 (2026-08-22 review, Critical 1). Every one of the
     Wave 2 readers already guards its OWN internal work — but
     ``insider_capture.read_insider_fields`` calls ``_init_db()`` BEFORE its
     own try/except (insider_capture.py:178, init at :83-94), so a dead store
@@ -416,8 +496,8 @@ def _read_market_source(label, reader, targets, failures=None) -> dict:
     per-reader: a raise degrades to ``{}`` and is COUNTED under ``label`` in
     the same ``failures``/``sources`` census every reader already reports
     into — a dead source must be REPORTED, never silent, never fatal — and,
-    because each of the six calls is wrapped independently, one bad source
-    can never hide the other five.
+    because each call site is wrapped independently, one bad source can
+    never hide the others.
     """
     try:
         return reader(targets, failures=failures) or {}
@@ -458,6 +538,32 @@ def _stalest(tickers, limit):
         tickers,
         key=lambda t: (built.get(t.upper()) is not None, built.get(t.upper()) or 0))
     return ordered[:limit] if limit else ordered
+
+
+def _read_prev_closes() -> dict:
+    """``{TICKER: price}`` off last night's already-persisted ``screener_rows``
+    -- ONE query, before the per-ticker loop.
+
+    This is `darkpool_agg.read_darkpool_fields`'s ``closes`` argument (its DPL
+    distance needs a close price per ticker). The PREVIOUS build's `price` is
+    the honest anchor available at read time: this build's own bar-derived
+    price for a given ticker does not exist yet when the market-row readers
+    run (they run once, up front, before the per-ticker bar-fetch loop below)
+    -- reaching for it would mean a second pass or a per-ticker query, either
+    of which this file's other whole-market readers deliberately avoid (K4).
+    A cold/empty table (first-ever build) degrades to `{}`, same as every
+    other reader in this file -- `darkpool_agg` already treats `closes=None`
+    as "skip DPL for everyone, still emit the aggregates."
+    """
+    try:
+        with snapshot_db.connect() as conn:
+            return {r["ticker"]: r["price"] for r in
+                    conn.execute("SELECT ticker, price FROM screener_rows")
+                    if r["price"] is not None}
+    except Exception:
+        log.warning("[screener] prev_closes unavailable; darkpool dp_level_dist_pct "
+                    "will be NULL for this build", exc_info=True)
+        return {}
 
 
 def run_build(max_tickers=None) -> dict:
@@ -521,6 +627,31 @@ def run_build(max_tickers=None) -> dict:
         "analyst_pass", analyst_pass.read_analyst_fields, targets, sources)
     insider_map = _read_market_source(
         "insider_capture", insider_capture.read_insider_fields, targets, sources)
+    # ⭐ Three Wave 5 readers, same shape as the six above -- each wrapped by
+    # `_read_market_source` so a dead source degrades to {} and is COUNTED,
+    # never fatal. `darkpool_agg` additionally needs a close price per ticker
+    # for its DPL-distance leg; `prev_closes` is the ONE query documented on
+    # `_read_prev_closes` above, read once here (never per-ticker) and closed
+    # over by the lambda below.
+    #
+    # ⚠️ DIVERGENCE FROM THE TASK BRIEF'S SKETCH: `_read_market_source` calls
+    # `reader(targets, failures=failures)` -- ONE positional arg plus the
+    # KEYWORD `failures`, not `reader(targets, failures)` positionally. A
+    # `lambda t, f: ...` wrap (the brief's literal sketch) would raise
+    # `TypeError: unexpected keyword argument 'failures'` the first time this
+    # runs, because `f` is not the keyword name `failures`. The wrap below
+    # names its second parameter `failures` (with a default, so it also
+    # tolerates a bare-positional call) to match the real call shape exactly.
+    pattern_map = _read_market_source(
+        "pattern_join", pattern_join.read_pattern_fields, targets, sources)
+    prev_closes = _read_prev_closes()
+    dp_map = _read_market_source(
+        "darkpool_agg",
+        lambda tt, failures=None: darkpool_agg.read_darkpool_fields(
+            tt, closes=prev_closes, failures=failures),
+        targets, sources)
+    optflow_map = _read_market_source(
+        "opt_flow", opt_flow.read_opt_flow_fields, targets, sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -551,7 +682,9 @@ def run_build(max_tickers=None) -> dict:
                            **index_map.get(T, {}), **etf_map.get(T, {})}
             market_row = {**finviz_map.get(T, {}), **edates_map.get(T, {}),
                           **lastmove_map.get(T, {}), **implied_map.get(T, {}),
-                          **analyst_map.get(T, {}), **insider_map.get(T, {})}
+                          **analyst_map.get(T, {}), **insider_map.get(T, {}),
+                          **pattern_map.get(T, {}), **dp_map.get(T, {}),
+                          **optflow_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),

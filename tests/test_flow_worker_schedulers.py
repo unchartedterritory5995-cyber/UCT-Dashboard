@@ -38,6 +38,31 @@ def test_flow_worker_registers_nightly_prune(monkeypatch):
         sched.shutdown(wait=False)
 
 
+def test_flow_worker_registers_flow_opt_aggregate(monkeypatch):
+    """Mirrors test_flow_worker_registers_flatfiles's shape for the new
+    nightly options-flow aggregate job (screener Wave 5, Task A4): dark by
+    default (FLOW_OPT_AGG_ENABLED unset) -> job id absent; armed -> present."""
+    from api import flow_worker_main
+
+    _quiet_existing(monkeypatch)
+    monkeypatch.setattr("api.massive_flatfiles_worker.register_jobs",
+                        lambda s: False, raising=True)
+
+    monkeypatch.delenv("FLOW_OPT_AGG_ENABLED", raising=False)
+    dark_sched = flow_worker_main._start_flow_schedulers()
+    assert dark_sched is not None
+    assert dark_sched.get_job("flow_opt_aggregate") is None
+    if getattr(dark_sched, "running", False):
+        dark_sched.shutdown(wait=False)
+
+    monkeypatch.setenv("FLOW_OPT_AGG_ENABLED", "1")
+    armed_sched = flow_worker_main._start_flow_schedulers()
+    assert armed_sched is not None
+    assert armed_sched.get_job("flow_opt_aggregate") is not None
+    if getattr(armed_sched, "running", False):
+        armed_sched.shutdown(wait=False)
+
+
 def test_worker_mounts_massive_stream_router():
     """The instant-tape SSE route must resolve on flow-worker post-cutover —
     the proxy forwards /api/live/massive/stream here (flow.db + tailer live

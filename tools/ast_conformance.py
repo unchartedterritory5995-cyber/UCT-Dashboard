@@ -1699,10 +1699,28 @@ def _cmd_record(force: bool) -> int:
         "every row is finite -- no case exercises a warmup pad, so the NaN "
         "convention (the two lanes' most likely silent disagreement, `None` here "
         "and `NaN` there) is untested by this log")
+    # ─── DECLARED vacuity is not SILENT vacuity ──────────────────────────────
+    #
+    # A corpus case may declare `"allNaN": true` -- the case author asserting
+    # "this case's correct cross-lane behaviour IS all-NaN on every bar" (a
+    # domain error -- sqrt of a negative, ln of zero, a zero divisor -- that
+    # both lanes must propagate identically). That is the OPPOSITE of the
+    # silent blindness this guard exists to catch, so a declared-allNaN case is
+    # exempt from the blind check below -- but only as long as the declaration
+    # is TRUE. A case that claims allNaN and then produces a finite row
+    # anywhere would be a lie-shaped escape hatch (declare your way past the
+    # guard, then drift), so the converse refuses it by name just as loudly as
+    # an undeclared blind case does.
+    declared_all_nan = {c["id"] for c in corpus["cases"] if c.get("allNaN")}
     blind = [c for c, n in per_case_finite.items() if not n]
-    assert not blind, (
-        f"a case produced ZERO finite values across the whole series: {blind} -- "
-        "its digest is a digest of nothing")
+    undeclared_blind = [c for c in blind if c not in declared_all_nan]
+    assert not undeclared_blind, (
+        f"a case produced ZERO finite values across the whole series: "
+        f"{undeclared_blind} -- its digest is a digest of nothing")
+    lying_all_nan = sorted(c for c in declared_all_nan if per_case_finite.get(c, 0))
+    assert not lying_all_nan, (
+        "declared allNaN but produced finite rows: " + ", ".join(
+            f"{c} ({per_case_finite[c]} finite rows)" for c in lying_all_nan))
     # ARMED AT TASK 2, FIRST ENFORCED AT THE RECORD. Every manifest entry must be
     # exercised by the corpus, DERIVED from the manifest and never hand-listed.
     manifest = load_manifest()
