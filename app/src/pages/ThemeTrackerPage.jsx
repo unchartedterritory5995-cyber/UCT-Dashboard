@@ -745,6 +745,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
             onClick={() => setSettingsOpen(o => !o)}
             title="Theme Tracker settings"
+            aria-label="Theme Tracker settings"
           ><UIcon name="gear" size={14} /></button>
         </div>
 
