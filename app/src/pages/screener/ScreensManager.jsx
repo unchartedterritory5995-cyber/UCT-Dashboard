@@ -3,7 +3,9 @@ import UIcon from '../../components/ui/UIcon'
 import useSavedScreens from './hooks/useSavedScreens'
 import { sharedScreenUrl } from './screenShareLink'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
-import { scannableScreens } from '../../components/screener/SavedScreensPanel'
+import { scannableScreens, SCAN_TF, defaultSession } from '../../components/screener/scanSession'
+import ScanResults from '../../components/screener/ScanResults'
+import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 
 // ScreensManager — replaces SaveScreenBar (commit A of the E-4 unification
@@ -26,9 +28,20 @@ import styles from './ScannerPro.module.css'
 // or an empty scans list. The two pictures look identical and send a member
 // to different fixes.
 //
-// ⛔ NO Details AFFORDANCE YET. Task 6 of the plan adds definition detail
-// (ScanResults mounted under a picked row); a disabled stub here would be
-// worse than nothing, so this commit omits it entirely.
+// ─── DEFINITION DETAIL (Task 6) ─────────────────────────────────────────────
+//
+// Clicking a My-scans row's name expands `ScanResults` beneath it, seeded
+// with the same session control `SavedScreensPanel` carried (`defaultSession`,
+// a member-driven `<input type="date">` — the exchange's calendar day is a
+// CONTROL, not a re-derivation of a server-owned fact; see `scanSession.js`
+// and the panel's own header for why).
+//
+// ⛔ THIS FILE IMPORTS `ScanResults`, NEVER `CoverageLine` DIRECTLY.
+// `CoverageLine` is reached only through `ScanResults` — `reachable.test.js`'s
+// planted-cut control (re-pointed at this file in Task 7) asserts exactly
+// that chain. Importing `CoverageLine` here would give the four-outcome
+// receipt a second door into the app, which is the thing that rail exists to
+// prevent.
 
 const badgeStyle = {
   fontSize: 9, letterSpacing: '.5px', color: 'var(--text-muted)',
@@ -60,6 +73,11 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const [renameVal, setRenameVal] = useState('')
   const [shareId, setShareId] = useState(null)
   const [copied, setCopied] = useState(false)
+  // Definition detail (Task 6): which My-scans row is expanded, and the one
+  // session control shared by whichever row is open — mirrors
+  // `SavedScreensPanel`'s single selected-screen + single session state.
+  const [detailId, setDetailId] = useState(null)
+  const [session, setSession] = useState(defaultSession)
   const wrapRef = useRef(null)
 
   useEffect(() => {
@@ -216,15 +234,39 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
               <div className={styles.saveMenuEmpty}>No scannable formulas yet</div>
             ) : scans.map(row => {
               const name = scanName(row)
+              const isOpen = detailId === row.def_id
               return (
-                <div key={row.def_id} className={styles.saveMenuItem}>
-                  <span className={styles.saveMenuName}>{name}</span>
-                  <span className={styles.saveMenuAct}>
-                    <button type="button" aria-label={`Use ${name} as filter`}
-                      onClick={() => onUseScan(row.ast_hash, name)}>
-                      Use as filter
+                <div key={row.def_id}>
+                  <div className={styles.saveMenuItem}>
+                    {/* 🔴 THE DOOR. Toggles the detail below — the name is the
+                        click target, mirroring the panel's tab-button rows. */}
+                    <button type="button" className={styles.saveMenuName}
+                      aria-expanded={isOpen}
+                      onClick={() => setDetailId(id => (id === row.def_id ? null : row.def_id))}>
+                      {name}
                     </button>
-                  </span>
+                    <span className={styles.saveMenuAct}>
+                      <button type="button" aria-label={`Use ${name} as filter`}
+                        onClick={() => onUseScan(row.ast_hash, name)}>
+                        Use as filter
+                      </button>
+                    </span>
+                  </div>
+
+                  {isOpen && (
+                    <div data-testid={`scan-detail-${row.def_id}`}>
+                      <label className={panelStyles.session}>
+                        <span className={panelStyles.sessionLabel}>Session</span>
+                        <input
+                          type="date"
+                          className={panelStyles.sessionInput}
+                          value={session}
+                          onChange={(e) => setSession(e.target.value)}
+                        />
+                      </label>
+                      <ScanResults definition={row.definition} asOf={session} tf={SCAN_TF} />
+                    </div>
+                  )}
                 </div>
               )
             })}

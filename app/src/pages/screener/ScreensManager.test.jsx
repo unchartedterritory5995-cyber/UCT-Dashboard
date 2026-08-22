@@ -29,10 +29,21 @@ vi.mock('../../hooks/useUserDefinitions', () => ({
   useUserDefinitions: () => userDefinitionsState,
 }))
 
+// The definition detail (Task 6). Mocked at the manager-test level per the
+// brief — the REAL wire (`ScanResults` actually rendering `CoverageLine` off
+// a live fetch) is `Screener.scanmount.test.jsx`'s job, re-targeted here in
+// Task 7. This spy exists only to assert the PROPS the manager hands it.
+const ScanResultsSpy = vi.fn()
+vi.mock('../../components/screener/ScanResults', () => ({
+  default: (props) => { ScanResultsSpy(props); return <div data-testid="scan-results-mock" /> },
+}))
+
 import ScreensManager from './ScreensManager'
+import { defaultSession } from '../../components/screener/scanSession'
 
 beforeEach(() => {
   create.mockClear(); update.mockClear(); remove.mockClear()
+  ScanResultsSpy.mockClear()
   savedScreensState.saved = [{ id: 9, name: 'My RSI', spec: { view: 'technical' }, is_public: false, share_token: null }]
   savedScreensState.starters = [{ id: 's1', name: 'Oversold', spec: { view: 'overview' } }]
   savedScreensState.error = null
@@ -132,4 +143,35 @@ test('a refused definitions read renders the error testid for the scans section'
   open()
   expect(screen.getByTestId('screens-manager-error')).toBeInTheDocument()
   expect(screen.queryByText('No scannable formulas yet')).not.toBeInTheDocument()
+})
+
+test('clicking a scan row name mounts ScanResults with definition/asOf/tf', () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(ScanResultsSpy).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('scan-results-mock')).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+
+  expect(screen.getByTestId('scan-results-mock')).toBeInTheDocument()
+  expect(ScanResultsSpy).toHaveBeenCalledWith({
+    definition: SCANNABLE_ROW.definition,
+    asOf: defaultSession(),
+    tf: 'D',
+  })
+})
+
+test('the session date input changes the asOf prop ScanResults receives', () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+  ScanResultsSpy.mockClear()
+
+  fireEvent.change(screen.getByLabelText('Session'), { target: { value: '2026-01-02' } })
+
+  expect(ScanResultsSpy).toHaveBeenCalledWith({
+    definition: SCANNABLE_ROW.definition,
+    asOf: '2026-01-02',
+    tf: 'D',
+  })
 })
