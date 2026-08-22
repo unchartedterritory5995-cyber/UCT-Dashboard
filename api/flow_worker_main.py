@@ -5,11 +5,14 @@ Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
 is shared by all three services): api/{massive_ws_worker,massive_processor,
-flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,worker_main,
+flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
-oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning}.py
-+ railway.json + requirements.txt. Keep tools/git-hooks/pre-push's FLOW_WATCHED
-list in sync. Until 2026-07-17 the patterns were effectively api/** — ANY web
+oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
+flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
++ railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
+— the dashboard is the only authority; this mirror had drifted to include a
+worker_main.py the dashboard never had and to miss four real entries). Keep
+tools/git-hooks/pre-push's FLOW_WATCHED list in sync. Until 2026-07-17 the patterns were effectively api/** — ANY web
 push bounced the OPRA consumer mid-session (8 deploys / ~13.9k lost prints on
 2026-07-16 alone); that is fixed at the source now. A push touching none of the
 watched files is SKIPPED ("No changes to watched files"); a change to any other

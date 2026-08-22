@@ -34,7 +34,8 @@ api/flow_router_mount.py api/flow_heal_enrich.py api/flow_gap_autofill.py \
 api/massive_flatfiles_worker.py api/flow_watchdog.py api/oi_snapshots.py \
 api/flow_rest_backfill.py \
 api/massive_stream.py api/flow_tape_spool.py api/flow_backup.py \
-api/dealer_positioning.py api/flow_opt_aggregate.py railway.json requirements.txt"
+api/dealer_positioning.py api/alpha_gold_eod.py api/weekly_flow.py \
+api/flow_opt_aggregate.py railway.json requirements.txt"
 
 pushes_master=0
 flow_touched=""

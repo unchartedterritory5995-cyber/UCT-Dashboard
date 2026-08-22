@@ -2739,9 +2739,14 @@ nightly prune) run on the **FLOW-WORKER service**. Web serves every flow-family 
 Env: flow-worker `MASSIVE_WS_ENABLED=1` + `MASSIVE_S3_*` + backup/gap-fill flags; web
 `MASSIVE_WS_ENABLED=0`, `FLOW_BACKUP_ENABLED=0`, `FLOW_GAP_AUTOFILL_ENABLED=0`,
 `MASSIVE_FLATFILES_ENABLED=0`. **Web deploys no longer touch the options tape.** flow-worker
-deploys still cost a ~15-60s single-slot WS handoff — they are RARE (manual `railway up
---detach -s flow-worker` from a CURRENT worktree; NO GitHub trigger until deliberately
-reconnected with narrow watch paths) and ship after-hours. Rollback = flip the env sets back
+deploys still cost a ~15-60s single-slot WS handoff — they are RARE and ship after-hours.
+⚰️ This said *"manual `railway up --detach -s flow-worker`; NO GitHub trigger until
+deliberately reconnected"* — **the reconnection happened 2026-07-17**: flow-worker IS
+GitHub-triggered on NARROW watch paths set per-service in the Railway dashboard (the
+dashboard is the ONLY authority; the mirrors are the `api/flow_worker_main.py` header
+comment + `tools/git-hooks/pre-push`'s FLOW_WATCHED, both synced to the live dashboard
+list 2026-08-21). A push touching a watched file bounces the tape — that is exactly what
+the pre-push hook's dual-override (`UCT_FLOW_OVERRIDE`) exists to stop mid-session. Rollback = flip the env sets back
 (web consumer on, proxy off; flow-worker consumer off) + redeploy flow-worker-then-web.
 Web's `/data/flow.db` is a FROZEN pre-cutover copy — retire after ~30d green. Massive OPRA
 does NOT replay — every feed gap is permanent until the T+1 flat file. Full design:
