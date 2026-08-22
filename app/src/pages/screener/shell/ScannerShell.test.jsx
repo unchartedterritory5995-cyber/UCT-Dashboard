@@ -37,7 +37,7 @@ vi.mock('../../../components/PatternFeedbackChip', () => ({ default: () => null 
 
 import ScannerShell from './ScannerShell'
 
-// Resolve any stray fetch (SaveScreenBar's useSavedScreens is mocked above,
+// Resolve any stray fetch (ScreensManager's useSavedScreens is mocked above,
 // but prefetchBars / ticker-meta warmers still fire relative-URL fetches) so
 // jsdom never raises an unhandled URL-parse error after a test completes —
 // same guard as ScannerPro.test.jsx.
