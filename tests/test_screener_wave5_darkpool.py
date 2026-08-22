@@ -206,3 +206,26 @@ def test_full_read_never_mutates_darkpool_trades_or_schema(dp_db, monkeypatch):
 
     assert after_count == before_count
     assert after_tables == before_tables
+
+
+def test_in_5d_window_but_not_newest_session_omits_the_1d_keys(dp_db):
+    """The A3-review pin: a ticker with qualifying prints inside the 5-newest-
+    dates window but NOT on the single newest session carries dp_notional_5d
+    with the 1d keys ABSENT — never a fabricated $0/0-print newest session
+    (the exact `agg1.get(t, (0, 0))` refactor this rail exists to catch)."""
+    from api.services.screener import darkpool_agg
+
+    _insert([
+        ("8/20/2026", "9:31:00 AM", "AAPL", 10000, 190.0, 5_000_000.0, "Block"),
+        ("8/21/2026", "9:32:00 AM", "MSFT", 20000, 500.0, 12_000_000.0, "Block"),
+    ])
+
+    out = darkpool_agg.read_darkpool_fields(["AAPL", "MSFT"])
+    # AAPL is inside the 5-date window (8/20) but absent from the newest
+    # session (8/21): 5d present, 1d keys OMITTED.
+    assert out["AAPL"]["dp_notional_5d"] == 5_000_000.0
+    assert "dp_notional_1d" not in out["AAPL"]
+    assert "dp_prints_1d" not in out["AAPL"]
+    # MSFT prints on the newest session: all three present.
+    assert out["MSFT"]["dp_notional_1d"] == 12_000_000.0
+    assert out["MSFT"]["dp_prints_1d"] == 1
