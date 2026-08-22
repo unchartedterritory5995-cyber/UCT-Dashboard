@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tooltipLines } from './cotTooltip'
+import { tooltipLines, tooltipRows } from './cotTooltip'
 
 const row = {
   date: '2026-08-11',
@@ -36,5 +36,31 @@ describe('tooltipLines', () => {
 
   it('returns no lines without a row', () => {
     expect(tooltipLines(null, 'commercials')).toEqual([])
+  })
+
+  it('appends a price line when a proxy close is supplied', () => {
+    const lines = tooltipLines(row, 'commercials', { ticker: 'SPY', close: 645.123 })
+    expect(lines).toHaveLength(5)
+    expect(lines[4]).toBe('Price (SPY): 645.12')
+  })
+
+  it('puts the price line first when the price pane is hovered', () => {
+    const lines = tooltipLines(row, 'price', { ticker: 'SPY', close: 645.123 })
+    expect(lines[0]).toBe('Price (SPY): 645.12')
+    expect(lines).toHaveLength(5)
+  })
+
+  it('omits the price line when the close is missing', () => {
+    expect(tooltipLines(row, 'price', { ticker: 'SPY', close: null })).toHaveLength(4)
+  })
+})
+
+describe('tooltipRows', () => {
+  it('returns keyed rows in the same order as the lines, flagging the hovered one', () => {
+    const rows = tooltipRows(row, 'largeSpecs', { ticker: 'SPY', close: 645.123 })
+    expect(rows.map(r => r.key)).toEqual(['largeSpecs', 'commercials', 'smallSpecs', 'openInterest', 'price'])
+    expect(rows[0]).toEqual({ key: 'largeSpecs', label: 'Large Speculators', value: '(10,560)', hot: true })
+    expect(rows[4]).toEqual({ key: 'price', label: 'Price (SPY)', value: '645.12', hot: false })
+    expect(tooltipLines(row, 'largeSpecs', { ticker: 'SPY', close: 645.123 })).toEqual(rows.map(r => `${r.label}: ${r.value}`))
   })
 })
