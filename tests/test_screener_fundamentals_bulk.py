@@ -406,6 +406,23 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
     `enrich.ratings_fields`'s Wave 2 `sector_rs_pct` (gated on `if sdists:`)
     is exercised too — without it that column never appears and the rail
     would never see it collide.
+
+    ⭐ Task A6 adds the THREE Wave 5 readers, 17 sources total.
+    `pattern_join`/`darkpool_agg` monkeypatch their own store-connection seams
+    (`PATTERN_DB_PATH` env override for pattern_db — it re-reads the env var
+    per call, so `monkeypatch.setenv` alone suffices, mirroring
+    `test_screener_wave5_patterns.py`; `darkpool_db.DB_DIR`/`DB_PATH`
+    attribute-patched directly, mirroring `test_screener_wave5_darkpool.py`'s
+    `dp_db` fixture, since that module freezes its path at IMPORT and may
+    already be imported under a different `RAILWAY_VOLUME_MOUNT_PATH` by an
+    earlier test module in this session). `opt_flow` uses the same flat-JSON
+    artifact idiom as finviz/edates above (`SCREENER_OPTFLOW_ARTIFACT`),
+    padded to >= `opt_flow._MIN_TICKERS` rows. `pattern_join`'s seeded
+    detection carries non-null entry/stop (K5) AND a matching `pattern_stats`
+    row so its full column set — INCLUDING the two non-column CARRIER keys
+    `pattern_entry_px`/`pattern_stop_px` (see `test_screener_wave5_wiring.py`
+    and this file's `test_pattern_join_carrier_keys_are_named_and_never_columns`)
+    — is exercised, never a subset.
     """
     import api.services.screener.snapshot_builder as b
     from api.services.screener import enrich, context_joins as cj
@@ -516,6 +533,93 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
              int(time.time())))
         iconn.commit()
 
+    # ── pattern_join: one active detection with non-null entry+stop (K5) +
+    # a matching pattern_stats row, so pattern_expectancy_r AND the two
+    # carrier keys are all exercised (never a subset of what the reader can
+    # emit). `PATTERN_DB_PATH` is re-read per call by `pattern_db._db_path()`
+    # — `monkeypatch.setenv` alone isolates it, mirroring
+    # `test_screener_wave5_patterns.py`. ──
+    monkeypatch.setenv("PATTERN_DB_PATH", str(tmp_path / "srckeys_patterns.db"))
+    from api.services.pattern_engine import memory as pattern_memory
+    from api.services.pattern_engine.pattern_db import get_connection as _pattern_conn
+    from api.services.screener import pattern_join
+    _now = int(time.time())
+    pattern_memory.store_detection({
+        "id": "srckeys-det-1", "sym": "AAA", "tf": "D",
+        "pattern_id": "bull_flag", "category": "classical", "direction": "bullish",
+        "start_t": 1, "end_t": 2,
+        "geometry": {"shape": "trendline_pair", "anchors": [], "extras": {}},
+        "levels": {"entry": 100.0, "entry_condition": "", "stop": 95.0,
+                   "stop_basis": "", "target_primary": 110.0,
+                   "target_secondary": None, "risk_reward": 2.0},
+        "context": {"trend_stage": 2, "rs_trend": "up",
+                    "ma_alignment": "stacked_bullish",
+                    "volume_signature": "contracting", "regime": "unknown",
+                    "nearest_resistance": 110.0, "nearest_support": 95.0,
+                    "days_to_earnings": None, "sector_strength_rank": None},
+        "confidence": 75.0,
+        "quality_components": {"geometry_score": 80.0, "volume_score": 75.0,
+                                "context_score": 70.0, "historical_score": 50.0},
+        "narrative": {"headline": "t", "what_it_is": "", "why_it_matters": "",
+                      "what_to_watch_for": "", "failure_signal": ""},
+        "status": "ready", "detected_at": _now, "last_seen_at": _now,
+    })
+    _pconn = _pattern_conn()
+    try:
+        _pconn.execute(
+            """INSERT INTO pattern_stats
+                 (pattern_id, tf, regime_bucket, n_total, n_resolved,
+                  n_entry_hit, n_target_hit, n_stop_hit, avg_mfe_pct,
+                  avg_mae_pct, median_bars, hit_rate, expectancy_R,
+                  last_updated)
+               VALUES ('bull_flag', 'D', 'unknown', 10, 10, 10, 6, 4, 5.0,
+                       3.0, 8, 0.6, 0.42, ?)""",
+            (_now,))
+        _pconn.commit()
+    finally:
+        _pconn.close()
+
+    # ── darkpool_agg: one qualifying block print for AAA (K7: direct INSERT,
+    # never the ingest helpers — Windows-unsafe strftime) + a stubbed
+    # signature-DPL level so dp_level_dist_pct is exercised too. Attribute-
+    # patched (never env-var-timed) — `api.darkpool_db` freezes DB_DIR/DB_PATH
+    # at IMPORT, and another test module in this session may already have
+    # imported it under a different RAILWAY_VOLUME_MOUNT_PATH; mirrors
+    # `test_screener_wave5_darkpool.py`'s `dp_db` fixture (K9: read-only
+    # afterward — this only ever SELECTs through the reader). ──
+    from api import darkpool_db
+    from api.services.signature import darkpool_levels
+    from api.services.screener import darkpool_agg
+    monkeypatch.setattr(darkpool_db, "DB_DIR", str(tmp_path))
+    monkeypatch.setattr(darkpool_db, "DB_PATH", str(tmp_path / "srckeys_darkpool.db"))
+    darkpool_db.init_db()
+    _dconn = darkpool_db.get_conn()
+    try:
+        _dconn.execute(
+            "INSERT INTO darkpool_trades "
+            "(date, timestamp, ticker, volume, price, notional, type) "
+            "VALUES (?,?,?,?,?,?,?)",
+            ("8/21/2026", "10:00:00 AM", "AAA", 1000, 105.0, 5_000_000.0, "Block"))
+        _dconn.commit()
+    finally:
+        _dconn.close()
+    monkeypatch.setattr(darkpool_levels, "fetch_dp_levels", lambda sym: {
+        "levels": [{"price": 100.0}], "datesCovered": 20})
+
+    # ── opt_flow: the finviz/edates flat-JSON-artifact idiom, padded to
+    # >= _MIN_TICKERS rows. ──
+    from api.services.screener import opt_flow
+    monkeypatch.setenv("SCREENER_OPTFLOW_ARTIFACT", str(tmp_path / "srckeys_opt_flow.json"))
+    optflow_rows = {f"PAD{i}": {"opt_net_premium_1d": 1.0, "opt_bull_pct_1d": 50.0,
+                                 "opt_net_premium_5d": 2.0}
+                     for i in range(opt_flow._MIN_TICKERS)}
+    optflow_rows["AAA"] = {"opt_net_premium_1d": 1_000_000.0,
+                            "opt_bull_pct_1d": 62.5,
+                            "opt_net_premium_5d": 4_200_000.0}
+    opt_flow._atomic_write_json(opt_flow._artifact_path(), {
+        "as_of": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "days": [], "rows": optflow_rows, "census": {}})
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -533,6 +637,10 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
             set(earnings_context.read_implied_context(["AAA"])["AAA"]),
         "analyst_pass": set(analyst_pass.read_analyst_fields(["AAA"])["AAA"]),
         "insider_capture": set(insider_capture.read_insider_fields(["AAA"])["AAA"]),
+        "pattern_join": set(pattern_join.read_pattern_fields(["AAA"])["AAA"]),
+        "darkpool_agg": set(
+            darkpool_agg.read_darkpool_fields(["AAA"], closes={"AAA": 105.0})["AAA"]),
+        "opt_flow": set(opt_flow.read_opt_flow_fields(["AAA"])["AAA"]),
     }
 
 
@@ -562,8 +670,9 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # "14 sources, zero overlaps" unless the count itself is asserted.
     # Growing (or shrinking) the source list means bumping this number
     # DELIBERATELY, in the same commit, never by accident.
-    assert len(sets) == 14, (
-        f"_source_key_sets returned {len(sets)} sources, expected 14 — a "
+    # 14 -> 17 (2026-08-22, Task A6): pattern_join / darkpool_agg / opt_flow.
+    assert len(sets) == 17, (
+        f"_source_key_sets returned {len(sets)} sources, expected 17 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     # The derivation proves nothing if a source emitted nothing.
@@ -600,6 +709,47 @@ def test_no_shared_column_allowance_outlives_its_overlap(monkeypatch, tmp_path):
             assert column in (sets[a] & sets[bb]), (
                 f"{a} and {bb} no longer both write {column} — delete its "
                 f"allowance rather than leaving a dead exemption behind")
+
+
+def test_pattern_join_carrier_keys_are_named_and_never_columns(monkeypatch, tmp_path):
+    """🔑 CONTROLLER RULING (Task A6 pre-flight): this file has NO general
+    "every source key ⊆ snapshot_db.COLUMNS" assertion to extend — the only
+    schema-membership check in the file is `test_every_column_written_is_a_
+    real_snapshot_column`, and it is scoped to `fundamentals_bulk.
+    COLUMNS_WRITTEN` alone. So `pattern_join`'s two CARRIER keys
+    (`pattern_entry_px`/`pattern_stop_px` — the best active detection's raw
+    entry/stop, which `build_row` reads off the `market_row` PARAMETER to
+    derive `pattern_entry_dist_pct`/`pattern_stop_dist_pct`, then discards —
+    `build_row`'s `row = {c: None for c in snapshot_db.COLUMNS}` + `if k in
+    row` merge already drops any key that is not a real column, by
+    construction) need an EXPLICIT, NAMED allowance here rather than living
+    only as a comment in `pattern_join.py`: this is that allowance, scoped to
+    exactly the two keys it exists for, in both directions.
+    """
+    sets = _source_key_sets(monkeypatch, tmp_path)
+    carriers = {"pattern_entry_px", "pattern_stop_px"}
+
+    # Direction 1: pattern_join really does emit both (the derivation proves
+    # nothing if the fixture forgot to give it a best detection with levels).
+    assert carriers <= sets["pattern_join"], (
+        f"pattern_join did not emit its carrier keys: "
+        f"{carriers - sets['pattern_join']} missing")
+
+    # Direction 2: neither carrier is a real snapshot column — they must
+    # never reach `screener_rows` under their own name.
+    assert not (carriers & set(snapshot_db.COLUMNS)), (
+        "a pattern_join carrier key is declared as a snapshot column — "
+        "carriers must ride market_row only, never persist")
+
+    # Direction 3: no OTHER source may emit either name — a carrier key is
+    # pattern_join's alone by construction, never a second authority.
+    for label, keys in sets.items():
+        if label == "pattern_join":
+            continue
+        collision = carriers & keys
+        assert not collision, (
+            f"{label} also emits pattern_join's carrier key(s) {collision} — "
+            f"carriers must be pattern_join-exclusive")
 
 
 def test_the_three_handed_over_columns_are_written_here_and_nowhere_else(monkeypatch, tmp_path):
