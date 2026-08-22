@@ -1621,7 +1621,20 @@
     "last_report_move_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "implied_move_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "earnings_setup_grade": "TEXT -- a classification label, for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
-    "insider_cluster_days": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted"
+    "insider_cluster_days": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
+    "pattern_engine_ids": "a comma-joined LIST, not a scalar -- same reason as patterns. Also a Wave 5 column, permanently excluded",
+    "pattern_engine_conf": "a Wave 5 screener column, not yet promoted to a scalar -- Stage B of the Wave 5 plan declares it after the first nightly fill",
+    "pattern_engine_dir": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "pattern_entry_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "pattern_stop_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "pattern_expectancy_r": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "dp_notional_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "dp_prints_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "dp_notional_5d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "dp_level_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "opt_net_premium_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "opt_bull_pct_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
+    "opt_net_premium_5d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted"
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent."

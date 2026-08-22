@@ -59,6 +59,11 @@ COLUMNS = [
     "next_earnings_date", "earnings_session", "days_to_earnings",
     "last_report_move_pct", "implied_move_pct", "earnings_setup_grade",
     "insider_cluster_days",
+    # patterns + flow (Wave 5)
+    "pattern_engine_ids", "pattern_engine_conf", "pattern_engine_dir",
+    "pattern_entry_dist_pct", "pattern_stop_dist_pct", "pattern_expectancy_r",
+    "dp_notional_1d", "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
+    "opt_net_premium_1d", "opt_bull_pct_1d", "opt_net_premium_5d",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -72,7 +77,12 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "accdis", "rs_line_trend", "theme",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
-         "earnings_setup_grade", "analyst_consensus", "sponsorship"}
+         "earnings_setup_grade", "analyst_consensus", "sponsorship",
+         # Wave 5 -- comma-joined DISTINCT pattern-engine ids, same shape as
+         # `patterns`. `pattern_engine_dir` is NOT here: the reader re-encodes
+         # the store's TEXT direction to a NUMBER (+1/-1/0) before it reaches
+         # this table (ruling D4) -- see `_INT` below.
+         "pattern_engine_ids"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "consecutive_up", "consecutive_down", "built_at",
         # bools stored as 0/1
@@ -86,7 +96,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # Wave 2
         "ipo_age_days", "days_to_earnings", "upgrades_30d", "downgrades_30d",
         "insider_cluster_days", "sector_rs_pct", "rating_eps",
-        "rating_growth", "rating_value", "rating_smr"}
+        "rating_growth", "rating_value", "rating_smr",
+        # Wave 5 -- `pattern_engine_dir` is the reader-encoded +1/-1/0
+        # (ruling D4, never the store's raw TEXT); `dp_prints_1d` is a count.
+        "pattern_engine_dir", "dp_prints_1d"}
 
 
 # ---------------------------------------------------------------------------
