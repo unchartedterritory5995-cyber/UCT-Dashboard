@@ -27,6 +27,16 @@ const densityKey = 'uct.screener.density'
 // empty/error states (all present at once by construction — no `!data ?
 // <spinner> : <table>` binary), the live-sort honesty chip, the loud CSV
 // export path, and the desktop-rail / phone-sheet split.
+//
+// ⛔ MOUNTS AHEAD OF THE CANDIDATE-BOARD GATE, DELIBERATELY (Wave 4 Task 7).
+// `ScreensManager` — and through it the My-scans definition detail
+// (`ScanResults` → `CoverageLine`, the four-outcome coverage receipt) — lives
+// inside THIS component, in the `saveBar` slot below. `Screener.jsx` renders
+// `<ScannerShell/>` in the FIRST arm of its tab ternary (`pageTab ===
+// 'scanner'`), ahead of the `/api/candidates` chain (`error ? … : !data ?
+// <SkeletonTable/> : …`) — verified in that file. A saved formula's scan
+// receipt reads its own store, has nothing to do with the 7 AM candidate
+// board's feed, and must never go blank because that unrelated fetch failed.
 export default function ScannerShell({ embedded = false }) {
   const { meta } = useScreenerMeta()
   const isPhone = useIsPhone()
