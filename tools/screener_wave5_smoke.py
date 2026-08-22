@@ -2,7 +2,16 @@
 13 columns + 2 carrier keys, honest absence reporting.
 
 Uses tmp SCREENER_DB_PATH, PATTERN_DB_PATH, RAILWAY_VOLUME_MOUNT_PATH,
-and SCREENER_OPTFLOW_ARTIFACT env BEFORE imports. Mirrors wave2 honesty + wave4 join state."""
+and SCREENER_OPTFLOW_ARTIFACT env BEFORE imports. Mirrors wave2 honesty + wave4 join state.
+
+Stage B (B3) appends three verification checks after the Stage-A section:
+  B-1  filters.meta() serves 137 filters (125 through Wave 4 + 12 Wave-5) and all
+       12 Wave-5 keys are present. On a count mismatch it reports the measured
+       number and the per-category breakdown (the WHY) instead of forcing the pin.
+  B-2  the Python formula lane resolves a PROMOTED scalar: ast_table.scalar_source
+       ("float_pct") -> {store: screener_rows, column: float_pct} (B1's manifest bump).
+  B-3  tools/ast_conformance.py --coverage and --check both exit 0 (run as
+       subprocesses from the repo root, same interpreter)."""
 import json
 import os
 import sys
@@ -304,6 +313,86 @@ def run_smoke():
         if rows_built < 1:
             print("\n[FAIL] No rows built")
             return 1
+
+        # ------------------------------------------------------------------
+        # STAGE B (B3): filter vocabulary + formula lane + conformance gates
+        # ------------------------------------------------------------------
+        print("\n" + "=" * 70)
+        print("STAGE B: meta count / promoted-scalar resolution / conformance gates")
+        print("=" * 70)
+
+        # [B-1] filters.meta() count -- 137 expected (125 through Wave 4 + 12 Wave 5).
+        # Called WITHOUT user_id on purpose: the per-user my_scans entry would
+        # inflate the count by one and the pin is about the shared vocabulary.
+        print("\n[STAGE B-1] filters.meta() count (expect 137 = 125 + 12)")
+        from api.services.screener import filters
+        meta_out = filters.meta()
+        meta_keys = [f["key"] for f in meta_out["filters"]]
+        meta_count = len(meta_keys)
+        print(f"  measured: {meta_count}")
+
+        wave5_filter_keys = {
+            "pattern_engine_conf", "pattern_engine_dir", "pattern_entry_dist_pct",
+            "pattern_stop_dist_pct", "pattern_expectancy_r",
+            "dp_notional_1d", "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
+            "opt_net_premium_1d", "opt_bull_pct_1d", "opt_net_premium_5d",
+        }
+        missing_wave5 = sorted(wave5_filter_keys - set(meta_keys))
+        if meta_count != 137 or missing_wave5:
+            # Report the measured number and WHY -- never force the pin.
+            from collections import Counter
+            by_cat = Counter(f["category"] for f in meta_out["filters"])
+            print(f"  [FAIL] measured {meta_count} filters (expected 137); "
+                  f"Wave-5 keys missing: {missing_wave5 or 'none'}")
+            print(f"  Per-category breakdown (the WHY): {dict(sorted(by_cat.items()))}")
+            dupes = sorted(k for k, n in Counter(meta_keys).items() if n > 1)
+            if dupes:
+                print(f"  Duplicate keys: {dupes}")
+            return 1
+        print(f"  all 12 Wave-5 filter keys present")
+        print("  [PASS]")
+
+        # [B-2] promoted-scalar resolution via the Python lane (ast closedTable):
+        # float_pct was PROMOTED by B1 (Wave-2 exclusion deleted, scalar declared),
+        # so a formula naming it must resolve to the screener_rows column.
+        print("\n[STAGE B-2] promoted scalar resolves (ast_table.scalar_source)")
+        from api.services import ast_table
+        try:
+            src = dict(ast_table.scalar_source("float_pct"))
+        except KeyError:
+            print("  [FAIL] float_pct is not a declared scalar "
+                  "(closedTable promotion missing?)")
+            return 1
+        print(f"  float_pct -> {src}")
+        if src != {"store": "screener_rows", "column": "float_pct"}:
+            print("  [FAIL] expected {'store': 'screener_rows', 'column': 'float_pct'}")
+            return 1
+        print("  [PASS]")
+
+        # [B-3] the conformance gates: --coverage (manifest totality) and --check
+        # (two-lane digest gate) must BOTH exit 0. Run from the repo root with the
+        # same interpreter; the tmp env pins are inherited and harmless (the tool
+        # reads closedTable.json + committed fixtures, never a data root).
+        print("\n[STAGE B-3] ast_conformance --coverage / --check both green")
+        import subprocess
+        repo_root = Path(__file__).resolve().parents[1]
+        tool = repo_root / "tools" / "ast_conformance.py"
+        for flag in ("--coverage", "--check"):
+            proc = subprocess.run(
+                [sys.executable, str(tool), flag],
+                cwd=str(repo_root), capture_output=True, text=True, timeout=600)
+            tail = (proc.stdout or "").strip().splitlines()[-1:] or ["<no output>"]
+            if proc.returncode != 0:
+                print(f"  {flag}: [FAIL] exit {proc.returncode}")
+                print("  --- stdout tail ---")
+                for line in (proc.stdout or "").strip().splitlines()[-15:]:
+                    print(f"  {line}")
+                print("  --- stderr tail ---")
+                for line in (proc.stderr or "").strip().splitlines()[-15:]:
+                    print(f"  {line}")
+                return 1
+            print(f"  {flag}: exit 0 -- {tail[0]}")
+        print("  [PASS]")
 
         print("\n" + "=" * 70)
         print("ALL TESTS PASSED")
