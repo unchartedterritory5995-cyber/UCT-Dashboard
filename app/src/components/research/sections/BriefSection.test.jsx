@@ -252,7 +252,9 @@ describe('the loading state is labeled', () => {
     expect(box.getAttribute('role')).toBe('status')
     expect(box.getAttribute('aria-live')).toBe('polite')
     // And it reads as work-in-progress, not as an error or an empty answer.
-    expect(screen.getByText(/Writing this brief/i)).toBeTruthy()
+    // ("Opening" while the cache answers; "Writing" once the server says it is
+    // generating — see the generating-state test below.)
+    expect(screen.getByText(/(Writing|Opening) this brief/i)).toBeTruthy()
     expect(screen.queryByText(/unavailable/i)).toBeNull()
   })
 
@@ -261,4 +263,30 @@ describe('the loading state is labeled', () => {
     expect(await screen.findByText(/Guidance is the whole story/)).toBeTruthy()
     expect(screen.queryByTestId('brief-loading')).toBeNull()
   })
+})
+
+describe('BriefSection — a brief still being written', () => {
+  it('shows the writing state, polls the same key, and lands on its own', async () => {
+    let n = 0
+    const urls = []
+    global.fetch = vi.fn((url) => {
+      urls.push(url)
+      return Promise.resolve({
+        ok: true,
+        json: async () => (n++ === 0
+          ? { sym: 'GEN', cached: false, generating: true, preview_text: '', preview_bullets: [], news: [] }
+          : { sym: 'GEN', cached: true, preview_text: 'Landed on its own.', preview_bullets: [], news: [] }),
+      })
+    })
+    render(
+      <BriefSection sym="GEN" row={{ sym: 'GEN', verdict: 'pending' }} reportDate="2026-08-27"
+                    lifecycle="PRE" stepping={false} expectedMove={null} />,
+    )
+    expect(await screen.findByTestId('brief-generating')).toBeTruthy()
+    expect(urls[0]).toContain('background=1')           // never holds a 40s request open
+    expect(urls[0]).not.toContain('cached_only')
+    expect(await screen.findByText(/Landed on its own/, {}, { timeout: 6000 })).toBeTruthy()
+    expect(screen.queryByTestId('brief-generating')).toBeNull()
+    expect(urls.length).toBeGreaterThanOrEqual(2)       // the poll is what landed it
+  }, 10000)
 })

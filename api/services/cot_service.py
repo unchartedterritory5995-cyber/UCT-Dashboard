@@ -256,6 +256,16 @@ def init_db() -> None:
                 market_name TEXT PRIMARY KEY,
                 first_seen  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS cot_narratives (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol      TEXT NOT NULL,
+                report_date TEXT NOT NULL,
+                facts_hash  TEXT NOT NULL UNIQUE,
+                text        TEXT NOT NULL,
+                model       TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            );
         """)
 
 

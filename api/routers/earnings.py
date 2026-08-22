@@ -1,4 +1,8 @@
+import logging
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import APIRouter, HTTPException, Request
 from api.services.engine import get_earnings, _generate_earnings_analysis, _generate_earnings_preview
 from api.services.earnings_estimates import get_earnings_intel
@@ -223,33 +227,58 @@ def earnings_intel(ticker: str):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@router.get("/api/earnings-analysis/{sym}")
-@limiter.limit("10/minute")
-def earnings_analysis(request: Request, sym: str, cached_only: bool = False):
-    sym = sym.upper()
+_logger = logging.getLogger(__name__)
 
-    # §4.3.3 / §7: arrow-key stepping across a 40-name day must never auto-fire
-    # the LLM path. `cached_only=1` answers ONLY from the two cache keys the
-    # generators write and returns `cached: false` instead of generating — the
-    # Brief section then renders a "Generate brief" affordance. This branch does
-    # no provider work at all, which is what makes it safe to fire on every step.
-    if cached_only:
-        for key in (f"earnings_analysis_v2_{sym}", f"earnings_preview_v2_{sym}"):
-            hit = cache.get(key)
-            if hit:
-                return {**hit, "cached": True}
-        return {
-            "sym": sym, "cached": False,
-            "analysis": None, "analysis_headline": None, "analysis_summary": None,
-            "analysis_bullets": [], "preview_text": "", "preview_bullets": [],
-            "beat_history": [], "yoy_eps_growth": None, "beat_streak": None,
-            "news": [], "key_quotes": [],
-        }
+# ── Click-path generation pool ───────────────────────────────────────────────
+# `?background=1` is what the earnings modal's Brief section sends. A cold name
+# used to pin the request thread for the 25-40s a Sonnet generation takes (the
+# documented 524-outage class — see engine._fetch_quarterly_history) while the
+# modal showed a grey box. Now the request answers in milliseconds with
+# `generating: True`, the generator runs on this bounded pool (in-flight
+# dedupe: ONE generation per name no matter how many viewers poll), and the
+# client re-polls the same URL until the generators' own mem/disk caches
+# answer. The synchronous default is unchanged for every other consumer
+# (useResearchOverview on /research, scripts, tests).
+_CLICK_WORKERS = int(os.environ.get("EARNINGS_CLICK_WORKERS", "3") or 3)
+_CLICK_POOL = ThreadPoolExecutor(max_workers=_CLICK_WORKERS, thread_name_prefix="earn-click")
+_inflight: set = set()
+_inflight_lock = threading.Lock()
 
-    # Find the earnings row for this sym (provides context to the analysis).
-    # Search today's bmo/amc first, then fall back to the weekly calendar for
-    # future-dated earnings (e.g., user clicks AMT on the calendar before its
-    # report date — it's not in today's data but it IS in the calendar).
+
+def _empty_analysis(sym: str, **extra) -> dict:
+    return {
+        "sym": sym, "cached": False,
+        "analysis": None, "analysis_headline": None, "analysis_summary": None,
+        "analysis_bullets": [], "preview_text": "", "preview_bullets": [],
+        "beat_history": [], "yoy_eps_growth": None, "beat_streak": None,
+        "news": [], "key_quotes": [],
+        **extra,
+    }
+
+
+def _cached_for(kind: str, sym: str):
+    """Memory, then the disk store (which survives redeploys), hydrating memory
+    on a disk hit. FREE — no provider work. Until 2026-08-21 the stepping probe
+    read memory only, so after every redeploy a name with a perfectly good
+    brief on disk rendered "No brief generated yet"."""
+    from api.services import earnings_ai_store
+    from api.services.engine import _EARNINGS_CACHE_TTL_HIT
+    key = f"earnings_{kind}_v2_{sym}"
+    hit = cache.get(key)
+    if hit:
+        return hit
+    disk = earnings_ai_store.get(kind, sym)
+    if disk:
+        cache.set(key, disk, ttl=_EARNINGS_CACHE_TTL_HIT)
+        return disk
+    return None
+
+
+def _resolve_row(sym: str):
+    """The earnings row for this sym (context for the generators). Today's
+    bmo/amc first, then the weekly calendar for future-dated reports (e.g. a
+    click on AMT before its report date — not in today's data but on the
+    calendar). None for an unknown name."""
     try:
         data = get_earnings()
     except Exception:
@@ -263,39 +292,92 @@ def earnings_analysis(request: Request, sym: str, cached_only: bool = False):
                 break
         if row:
             break
-
-    # Fallback: scan the weekly calendar for future earnings entries
-    if row is None:
-        try:
-            from api.services.engine import _load_wire_data
-            wire = _load_wire_data() or {}
-            cal = wire.get("weekly_calendar") or {}
-            for date_str, day in cal.items():
-                if not isinstance(day, dict):
-                    continue
-                for bucket in ("bmo", "amc"):
-                    for entry in day.get(bucket, []) or []:
-                        if isinstance(entry, dict) and entry.get("sym") == sym:
-                            row = dict(entry)
-                            # Future earnings → mark pending so preview path is used
-                            row.setdefault("verdict", "Pending")
-                            break
-                    if row:
-                        break
-                if row:
-                    break
-        except Exception:
-            pass
+    if row is not None:
+        return row
 
     try:
-        # Treat as pending if explicitly marked OR if no reported_eps yet (future
-        # earnings on calendar that don't have a verdict set).
-        is_pending = (
-            (row and row.get("verdict", "").lower() == "pending")
-            or (row and row.get("reported_eps") is None)
-            or (row is None)  # unknown sym: still try preview, gives useful output
-        )
-        if is_pending:
+        from api.services.engine import _load_wire_data
+        wire = _load_wire_data() or {}
+        cal = wire.get("weekly_calendar") or {}
+        for date_str, day in cal.items():
+            if not isinstance(day, dict):
+                continue
+            for bucket in ("bmo", "amc"):
+                for entry in day.get(bucket, []) or []:
+                    if isinstance(entry, dict) and entry.get("sym") == sym:
+                        row = dict(entry)
+                        # Future earnings → mark pending so preview path is used
+                        row.setdefault("verdict", "Pending")
+                        return row
+    except Exception:
+        pass
+    return None
+
+
+def _is_pending(row) -> bool:
+    # Pending if explicitly marked OR if no reported_eps yet (a future report
+    # with no verdict set) OR unknown sym (still try a preview — useful output).
+    return (
+        row is None
+        or (row.get("verdict") or "").lower() == "pending"
+        or row.get("reported_eps") is None
+    )
+
+
+def _kick_generation(sym: str, row, pending: bool) -> bool:
+    """Run the generator on the click pool unless one is already in flight for
+    this name. Returns whether a NEW job was started."""
+    with _inflight_lock:
+        if sym in _inflight:
+            return False
+        _inflight.add(sym)
+
+    def _job():
+        try:
+            gen = _generate_earnings_preview if pending else _generate_earnings_analysis
+            gen(sym, row or {"sym": sym})
+        except Exception as e:
+            _logger.warning("background earnings AI failed for %s: %s", sym, e)
+        finally:
+            with _inflight_lock:
+                _inflight.discard(sym)
+
+    _CLICK_POOL.submit(_job)
+    return True
+
+
+@router.get("/api/earnings-analysis/{sym}")
+@limiter.limit("60/minute")
+def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
+                      background: bool = False):
+    sym = sym.upper()
+
+    # §4.3.3 / §7: arrow-key stepping across a 40-name day must never auto-fire
+    # the LLM path. `cached_only=1` answers ONLY from the caches the generators
+    # write (memory, then disk) and returns `cached: false` instead of
+    # generating — the Brief section then renders a "Generate brief"
+    # affordance. This branch does no provider work at all (not even the row
+    # lookup), which is what makes it safe to fire on every step.
+    if cached_only:
+        for kind in ("analysis", "preview"):
+            hit = _cached_for(kind, sym)
+            if hit:
+                return {**hit, "cached": True}
+        return _empty_analysis(sym)
+
+    row = _resolve_row(sym)
+    pending = _is_pending(row)
+    hit = _cached_for("preview" if pending else "analysis", sym)
+    if hit:
+        return {**hit, "cached": True}
+
+    # The modal's path: answer NOW, generate on the pool, let the client poll.
+    if background:
+        _kick_generation(sym, row, pending)
+        return _empty_analysis(sym, generating=True)
+
+    try:
+        if pending:
             return _generate_earnings_preview(sym, row or {"sym": sym})
         return _generate_earnings_analysis(sym, row)
     except Exception as e:

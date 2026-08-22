@@ -26,6 +26,8 @@ import { SECTIONS, normalizeSection, railLinks } from './railSections'
 import SetupSection from './sections/SetupSection'
 import EarningsHistorySection from './sections/EarningsHistorySection'
 import BriefSection from './sections/BriefSection'
+import ProfileSection from './sections/ProfileSection'
+import CatalystsSection from './sections/CatalystsSection'
 import CallSection from './sections/CallSection'
 import FilingsTab from '../../pages/research/tabs/FilingsTab'
 import QuoteStrip from './QuoteStrip'
@@ -40,6 +42,8 @@ import styles from './EarningsResearchModal.module.css'
 // because the canvas is empty for every section without data providers.
 export const PANELS = {
   setup: SetupSection,
+  // The /charts Profile widget's dossier, in the modal (owner, 2026-08-21).
+  profile: ProfileSection,
   history: EarningsHistorySection,
   brief: BriefSection,
   call: CallSection,
@@ -47,6 +51,8 @@ export const PANELS = {
   // separate rail entries asking one question.
   financials: FinancialsSection,
   analysts: AnalystsSection,
+  // Our generated catalysts beside the outside-links News feed.
+  catalysts: CatalystsSection,
   news: NewsSection,
   filings: FilingsTab,
   // Composes the app's existing AI Search, scoped to this company. Last in the

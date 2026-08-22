@@ -15,7 +15,9 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import PositioningRail from './cot/PositioningRail'
 import { SERIES_COLORS, HOVER_COLORS } from './cot/cotPalette'
 import { fmtDate, fmtNum, fmtCompact } from './cot/cotFormat'
-import { tooltipLines } from './cot/cotTooltip'
+import { tooltipRows } from './cot/cotTooltip'
+import { proxyFor } from './cot/cotProxies'
+import { alignPrice } from './cot/cotAnalogs'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -81,7 +83,19 @@ const LOOKBACKS = [
 // visible window alone cannot supply.
 const FETCH_WEEKS = 520
 
+// Weekly closes of the ETF proxy (price context for the rail's precedents and
+// divergence checks, and the price pane). 600 > FETCH_WEEKS so every report
+// week has a bar; missing weeks simply align to null.
+const PRICE_BARS = 600
+const PRICE_COLOR = '#f0ead8'
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+// "via USO (ETF proxy — roll drag)" → "ETF proxy — roll drag"; "via SPY" → "".
+function proxyExtra(proxy) {
+  if (!proxy?.note) return ''
+  return proxy.note.replace(/^via\s+\S+\s*/, '').replace(/^\(|\)$/g, '').trim()
+}
 
 // Round up/down to 2-significant-digit precision (e.g. 201,000 → 210,000; 317,489 → 320,000)
 function roundUpNice(val) {
@@ -117,6 +131,7 @@ export default function CotData() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [search,       setSearch]       = useState('')
   const [data,         setData]         = useState(null)   // full FETCH_WEEKS history for `symbol`
+  const [bars,         setBars]         = useState(null)   // weekly bars of the price proxy, or null
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
   const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default
@@ -136,6 +151,9 @@ export default function CotData() {
   const hoverDateRef = useRef(null) // "Week of …" chip
   const railRef      = useRef(null) // PositioningRail imperative handle
   const dataRef      = useRef(null) // the VISIBLE slice
+  const priceRef     = useRef(null) // proxy closes aligned to the VISIBLE slice
+  const proxyRef     = useRef(null) // { ticker, note } or null
+  const tipElRef     = useRef(null) // the ONE HTML tooltip shared by every pane
   const lastHoverRef = useRef(undefined)
 
   // Close dropdown on outside click
@@ -259,9 +277,34 @@ export default function CotData() {
     return () => { cancelled = true }
   }, [symbol])
 
+  // Price context: the proxy ETF's weekly closes, fetched alongside (never
+  // blocking) the COT history. Symbols without a liquid proxy get none.
+  const proxy = useMemo(() => proxyFor(symbol), [symbol])
+  useEffect(() => {
+    let cancelled = false
+    setBars(null)
+    if (!proxy) return undefined
+    fetch(`/api/bars/${proxy.ticker}?tf=W&bars=${PRICE_BARS}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled) setBars(Array.isArray(d?.bars) ? d.bars : []) })
+      .catch(() => { if (!cancelled) setBars([]) })
+    return () => { cancelled = true }
+  }, [proxy])
+
   // The visible window: the last `weeks` reports of the fetched history.
   const view      = useMemo(() => (data ? data.slice(-weeks) : null), [data, weeks])
   const viewStart = data && view ? data.length - view.length : 0
+
+  // One close per report week (first Friday bar on/after the Tuesday report).
+  const priceAligned = useMemo(
+    () => (data && bars && bars.length ? alignPrice(data, bars) : null),
+    [data, bars],
+  )
+  const priceView = useMemo(
+    () => (priceAligned && view ? priceAligned.slice(-view.length) : null),
+    [priceAligned, view],
+  )
+  const hasPrice = !!(priceView && priceView.some(v => v != null))
 
   // Filter symbol groups by search query
   const filteredGroups = Object.entries(SYMBOL_GROUPS).reduce((acc, [grp, syms]) => {
@@ -287,7 +330,13 @@ export default function CotData() {
   const AXIS_FIT = axis => { axis.width = 64 }
 
   // ── Cross-pane hover sync ────────────────────────────────────────────────────
-  dataRef.current = view
+  dataRef.current  = view
+  priceRef.current = priceView
+  proxyRef.current = proxy
+
+  const priceInfoAt = i => (proxyRef.current && priceRef.current
+    ? { ticker: proxyRef.current.ticker, close: priceRef.current[i] ?? null }
+    : undefined)
 
   const FIELD_BY_KEY = {
     commercials: 'commercial_net',
@@ -325,6 +374,24 @@ export default function CotData() {
     setDeltaEl(deltaElRef.current.openInterest,
       prevRow ? row.open_interest - prevRow.open_interest : null)
 
+    // Price pane readout: close + week-over-week % (the proxy's own scale).
+    const pEl = readoutRef.current.price
+    const px  = priceRef.current
+    if (pEl && px) {
+      const cur = px[i], prv = i > 0 ? px[i - 1] : null
+      pEl.textContent = cur == null ? '—' : cur.toFixed(2)
+      const dEl = deltaElRef.current.price
+      if (dEl) {
+        if (cur == null || prv == null || prv === 0 || cur === prv) dEl.style.visibility = 'hidden'
+        else {
+          const pct = ((cur - prv) / prv) * 100
+          dEl.style.visibility = 'visible'
+          dEl.textContent = `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}% wk`
+          dEl.className = pct > 0 ? styles.paneDeltaUp : styles.paneDeltaDown
+        }
+      }
+    }
+
     const dEl = hoverDateRef.current
     if (dEl) {
       dEl.textContent   = idx == null ? '' : `Week of ${fmtDate(row.date)}`
@@ -332,6 +399,7 @@ export default function CotData() {
     }
 
     railRef.current?.setIndex(idx == null ? null : viewStart + idx)
+    if (idx == null) hideTip()
 
     for (const [key, chart] of Object.entries(chartInstRef.current)) {
       if (!chart || key === sourceKey) continue
@@ -350,27 +418,63 @@ export default function CotData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view])
 
-  const tooltipStyle = {
-    backgroundColor: '#22251e',
-    titleColor:      '#f0ead8',
-    titleFont:       { weight: 'bold', size: 12 },
-    bodyColor:       '#e0dac8',
-    bodyFont:        { size: 11 },
-    bodySpacing:     4,
-    borderColor:     'rgba(201, 168, 76, 0.35)',
-    borderWidth:     1,
-    padding:         10,
-    cornerRadius:    6,
+  // Every pane's tooltip lists ALL series for the hovered week — the hovered
+  // pane's own series first (highlighted), the rest beneath. It is ONE HTML
+  // element inside panesWrap rather than Chart.js's canvas tooltip: a canvas
+  // tooltip is clipped by its own pane, and with five stacked panes no pane is
+  // tall enough for six lines.
+  const TIP_COLORS = { ...SERIES_COLORS, price: PRICE_COLOR }
+
+  function hideTip() {
+    const el = tipElRef.current
+    if (el) el.style.opacity = '0'
   }
 
-  // Every pane's tooltip lists ALL series for the hovered week — the hovered
-  // pane's own series first (with its swatch), the rest beneath it.
-  function tooltipCallbacks(key, color) {
+  function renderTip(el, title, rows) {
+    while (el.firstChild) el.removeChild(el.firstChild)
+    const t = document.createElement('div')
+    t.className = styles.tipTitle
+    t.textContent = title
+    el.appendChild(t)
+    for (const r of rows) {
+      const line = document.createElement('div')
+      line.className = r.hot ? `${styles.tipRow} ${styles.tipRowHot}` : styles.tipRow
+      const dot = document.createElement('span')
+      dot.className = styles.tipDot
+      dot.style.background = TIP_COLORS[r.key] || AXIS_TEXT
+      const lab = document.createElement('span')
+      lab.className = styles.tipLabel
+      lab.textContent = r.label
+      const val = document.createElement('span')
+      val.className = styles.tipVal
+      val.textContent = r.value
+      line.append(dot, lab, val)
+      el.appendChild(line)
+    }
+  }
+
+  function tooltipPlugin(key) {
     return {
-      title:      items => (items[0]?.label ? `Week of ${items[0].label}` : ''),
-      label:      ctx   => tooltipLines(dataRef.current?.[ctx.dataIndex], key)[0] || '',
-      afterBody:  items => tooltipLines(dataRef.current?.[items[0]?.dataIndex], key).slice(1),
-      labelColor: ()    => ({ borderColor: color, backgroundColor: color, borderRadius: 2 }),
+      enabled: false,
+      external: ({ chart, tooltip }) => {
+        const el = tipElRef.current
+        if (!el) return
+        const i = tooltip?.dataPoints?.[0]?.dataIndex
+        const row = tooltip && tooltip.opacity !== 0 && i != null ? dataRef.current?.[i] : null
+        if (!row) { el.style.opacity = '0'; return }
+        renderTip(el, `Week of ${fmtDate(row.date)}`, tooltipRows(row, key, priceInfoAt(i)))
+        const wrap = el.parentElement
+        const c = chart.canvas.getBoundingClientRect()
+        const w = wrap.getBoundingClientRect()
+        const pad = 14
+        let x = c.left - w.left + tooltip.caretX + pad
+        let y = c.top - w.top + tooltip.caretY - el.offsetHeight / 2
+        if (x + el.offsetWidth > wrap.clientWidth) x = c.left - w.left + tooltip.caretX - pad - el.offsetWidth
+        y = Math.max(0, Math.min(y, wrap.clientHeight - el.offsetHeight))
+        el.style.left = `${Math.round(x)}px`
+        el.style.top  = `${Math.round(y)}px`
+        el.style.opacity = '1'
+      },
     }
   }
 
@@ -426,10 +530,7 @@ export default function CotData() {
         onHover: (evt, els) => applyHover(els.length ? els[0].index : null, def.key),
         plugins: {
           legend:  { display: false },
-          tooltip: {
-            ...tooltipStyle,
-            callbacks: tooltipCallbacks(def.key, color),
-          },
+          tooltip: tooltipPlugin(def.key),
         },
         scales: {
           x: {
@@ -465,6 +566,45 @@ export default function CotData() {
     }
   }) : []
 
+  // Price pane (proxy ETF weekly closes) — sits above the trader groups so the
+  // reader sees what price did before reading who was positioned for it.
+  const priceData = hasPrice ? {
+    labels,
+    datasets: [{
+      type:            'line',
+      label:           `Price (${proxy.ticker})`,
+      data:            priceView,
+      borderColor:     PRICE_COLOR,
+      borderWidth:     1.5,
+      tension:         0.25,
+      pointRadius:     0,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: PRICE_COLOR,
+      spanGaps:        false,
+    }],
+  } : null
+
+  const priceOptions = {
+    responsive:          true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    onHover: (evt, els) => applyHover(els.length ? els[0].index : null, 'price'),
+    plugins: {
+      legend:  { display: false },
+      tooltip: tooltipPlugin('price'),
+    },
+    scales: {
+      x: { grid: { display: false }, border: { display: false }, ticks: { display: false } },
+      y: {
+        afterFit: AXIS_FIT,
+        grid:     { color: GRID_FAINT },
+        border:   { display: false },
+        ticks:    { color: AXIS_TEXT, maxTicksLimit: 4, font: { size: 10 },
+                    callback: v => (Math.abs(v) >= 1000 ? fmtCompact(v) : String(Math.round(v))) },
+      },
+    },
+  }
+
   const oiData = hasData ? {
     labels,
     datasets: [
@@ -491,10 +631,7 @@ export default function CotData() {
     onHover: (evt, els) => applyHover(els.length ? els[0].index : null, 'openInterest'),
     plugins: {
       legend:  { display: false },
-      tooltip: {
-        ...tooltipStyle,
-        callbacks: tooltipCallbacks('openInterest', SERIES_COLORS.openInterest),
-      },
+      tooltip: tooltipPlugin('openInterest'),
     },
     scales: {
       x: {
@@ -685,6 +822,38 @@ export default function CotData() {
                 </span>
               </div>
               <div className={styles.hoverDate} ref={hoverDateRef} aria-hidden="true" />
+              <div className={styles.tip} ref={tipElRef} aria-hidden="true" />
+
+              {hasPrice && (
+                <div className={`${styles.pane} ${styles.panePrice}`}>
+                  <div className={styles.paneHeader}>
+                    <span className={styles.paneDot} style={{ background: PRICE_COLOR }} />
+                    <span className={styles.paneLabel}>Price · {proxy.ticker}</span>
+                    {proxyExtra(proxy) && <span className={styles.paneNote}>{proxyExtra(proxy)}</span>}
+                    <span
+                      className={styles.paneVal}
+                      ref={el => { readoutRef.current.price = el }}
+                    >
+                      {priceView[priceView.length - 1] != null ? priceView[priceView.length - 1].toFixed(2) : '—'}
+                    </span>
+                    <span
+                      ref={el => { deltaElRef.current.price = el }}
+                      className={styles.paneDeltaUp}
+                      style={{ visibility: 'hidden' }}
+                    >
+                      —
+                    </span>
+                  </div>
+                  <div className={styles.paneBody}>
+                    <Chart
+                      type="line"
+                      data={priceData}
+                      options={priceOptions}
+                      ref={el => { chartInstRef.current.price = el }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {panes.map(p => (
                 <div key={p.key} className={styles.pane}>
@@ -788,6 +957,9 @@ export default function CotData() {
             rows={data}
             symbol={symbol}
             name={SYMBOL_NAMES[symbol] || symbol}
+            bars={bars}
+            priceAligned={priceAligned}
+            proxy={proxy}
           />
         </div>
       )}
