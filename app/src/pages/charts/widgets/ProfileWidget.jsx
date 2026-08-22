@@ -25,71 +25,11 @@ import {
   mergeProfileWidgetSettings, profileWidgetStyleVars, profileDefaultsForTheme,
 } from './profileWidgetSettings'
 import styles from './ProfileWidget.module.css'
+import {
+  fmtAge, fmtEarnDate, fmtEps, fmtPct, fmtQuarter, fmtRevenue, fmtShares, fmtVol,
+  pctCell, websiteDomain,
+} from '../../../utils/profileFormat'
 
-// +952% / -63% — signed, rounded to a whole percent (Model Book style).
-function fmtPct(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n)) return '—'
-  return `${n >= 0 ? '+' : ''}${Math.round(n)}%`
-}
-// $11.8M — dollar volume with a magnitude suffix (Model Book fmtVol).
-function fmtVol(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n) || n <= 0) return '—'
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
-  return `$${Math.round(n)}`
-}
-function fmtEps(v) {
-  const n = Number(v)
-  return Number.isFinite(n) ? n.toFixed(2) : '—'
-}
-function fmtRevenue(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n) || n === 0) return '—'
-  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
-  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  if (Math.abs(n) >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
-  return `$${Math.round(n)}`
-}
-// A % surprise cell → {text, dir} so the caller can color it up/down.
-function pctCell(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n)) return { text: '—', dir: 0 }
-  return { text: `${n >= 0 ? '+' : ''}${Math.round(n)}%`, dir: n > 0 ? 1 : n < 0 ? -1 : 0 }
-}
-function fmtQuarter(r) {
-  return `Q${r?.quarter ?? '?'} ${r?.year ?? ''}`.trim()
-}
-function fmtShares(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n) || n <= 0) return '—'
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
-  return String(Math.round(n))
-}
-function fmtEarnDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
-  return (m && d && y) ? `${m}/${d}/${String(y).slice(-2)}` : String(iso)
-}
-// Time trading since inception (first-trade date): years / months / weeks / days.
-function fmtAge(iso) {
-  if (!iso) return '—'
-  const start = Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z')
-  if (Number.isNaN(start)) return '—'
-  const days = (Date.now() - start) / 86400000
-  if (days < 0) return '—'
-  if (days >= 365.25) return `${(days / 365.25).toFixed(1)} years`
-  if (days >= 30.44) return `${(days / 30.44).toFixed(1)} months`
-  if (days >= 7) return `${(days / 7).toFixed(1)} weeks`
-  return `${Math.max(1, Math.round(days))} days`
-}
-function websiteDomain(url) {
-  return String(url || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
-}
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
 export default function ProfileWidget({ color, opts, onOptsChange }) {

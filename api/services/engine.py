@@ -141,14 +141,23 @@ def _earnings_signals_hash(row: dict) -> str:
             return None
 
     try:
+        def _pick(*keys):
+            # Engine spelling first, calendar spelling second. A calendar row
+            # (eps_est / rev_est) used to hash every estimate as None, so the
+            # "inputs unchanged" check could never see a consensus move.
+            for k in keys:
+                if row.get(k) is not None:
+                    return row.get(k)
+            return None
+
         payload = {
-            "eps_est":  _num(row.get("eps_estimate")),
-            "rev_est":  _num(row.get("rev_estimate")),
-            "eps_act":  _num(row.get("reported_eps") if row.get("reported_eps") is not None else row.get("eps_act")),
-            "rev_act":  _num(row.get("rev_actual") if row.get("rev_actual") is not None else row.get("rev_act")),
+            "eps_est":  _num(_pick("eps_estimate", "eps_est")),
+            "rev_est":  _num(_pick("rev_estimate", "rev_est")),
+            "eps_act":  _num(_pick("reported_eps", "eps_act", "eps_actual")),
+            "rev_act":  _num(_pick("rev_actual", "rev_act")),
             "surprise": _num(row.get("surprise_pct")),
             "date":     row.get("date") or row.get("earnings_date"),
-            "timing":   (row.get("session") or row.get("when") or "").upper(),
+            "timing":   str(row.get("session") or row.get("when") or "").upper(),
         }
         raw = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha1(raw.encode("utf-8")).hexdigest()

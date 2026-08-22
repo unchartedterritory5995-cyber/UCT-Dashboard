@@ -4631,10 +4631,12 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_earn_warm,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20, timezone=_ET),
                 id="earnings_preview_warm", max_instances=1, replace_existing=True)
-            # Reported analyses: after the close, when AMC names print — so the
-            # post-earnings read is instant, not a cold 24s wait for the first viewer.
+            # Reported analyses: after the BMO prints (8:35 / 9:35 / 11:35) and
+            # after the close when AMC names print — so the post-earnings read is
+            # instant, not a cold 25-40s wait for the first viewer. Skip-if-stable
+            # makes the extra morning passes near-free.
             _scheduler.add_job(_earn_analysis_warm,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=35, timezone=_ET),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="8,9,11,16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
 
         # -- Earnings wire detector (Phase 1) -------------------------------

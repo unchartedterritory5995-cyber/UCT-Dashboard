@@ -3,12 +3,23 @@
 // §4.3.3 / §7: stepping never auto-fires the LLM path. A symbol reached by
 // arrow/chevron requests `?cached_only=1` — a probe that does no provider work
 // at all — and the section offers "Generate brief" if nothing is cached. A
-// symbol opened by CLICK requests the normal endpoint, which is the existing
-// (cost-guarded, cached) behaviour.
-import { useCallback, useRef, useState } from 'react'
-import useSWR from 'swr'
+// symbol opened by CLICK requests `?background=1`: a cached brief comes back at
+// once; an uncached one comes back as `{generating: true}` in milliseconds
+// while the server writes it on a bounded pool, and this hook polls the same
+// key until the text lands. The modal never holds a 25-40s request open
+// (api/routers/earnings.py), and the reader can use every other section
+// meanwhile.
+import { useCallback, useEffect, useRef, useState } from 'react'
+import useMobileSWR from './useMobileSWR'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+
+// The poll is a NUMERIC interval flipped from state in an effect (the
+// ProfileWidget pattern). SWR's function-form refreshInterval is read once in
+// its mount effect, when a cold key has no data yet, so a poll that has to
+// START from a settled payload never starts. Through useMobileSWR so the
+// poll stops on a hidden tab and halves on a phone (pollingSites.rail).
+export const GENERATING_POLL_MS = 3000
 
 export default function useEarningsBrief(sym, { cachedOnly = false } = {}) {
   const s = (sym || '').toUpperCase().trim()
@@ -52,24 +63,37 @@ export default function useEarningsBrief(sym, { cachedOnly = false } = {}) {
   const firstSym = useRef(s)
   const wantCached = (cachedOnly || s !== firstSym.current) && !escalated
   const key = s
-    ? `/api/earnings-analysis/${encodeURIComponent(s)}${wantCached ? '?cached_only=1' : ''}`
+    ? `/api/earnings-analysis/${encodeURIComponent(s)}${wantCached ? '?cached_only=1' : '?background=1'}`
     : null
 
-  const { data, isLoading, mutate } = useSWR(key, fetcher, {
-    refreshInterval: 0, revalidateOnFocus: false, shouldRetryOnError: false,
-    // The LLM path can take 12-18s cold; do not let SWR fire a second one.
-    dedupingInterval: 5 * 60 * 1000,
+  const [polling, setPolling] = useState(false)
+  const { data, isLoading, mutate } = useMobileSWR(key, fetcher, {
+    refreshInterval: polling ? GENERATING_POLL_MS : 0,
+    revalidateOnFocus: false, shouldRetryOnError: false,
+    // Dedupe only has to cover a double-mount: the server dedupes in-flight
+    // generation per name itself, and this interval MUST sit under the poll
+    // interval or SWR would dedupe the poll away and the brief never lands.
+    dedupingInterval: 1500,
   })
 
   // M1: `generate` used to also call `mutate()` here — redundant. Flipping
   // `escalated` changes `key` (drops `?cached_only=1`), and a KEY change is
   // already what makes SWR fetch; the extra `mutate()` fired a SECOND request
-  // against the still-current (about-to-be-stale) key on a 10/minute endpoint.
+  // against the still-current (about-to-be-stale) key.
   const generate = useCallback(() => { setEscalated(true) }, [])
   // A plain revalidate of the CURRENT key — for retrying a failed fetch
   // without changing cached-only/escalated semantics (a network blip on a
   // cached-only probe should retry the probe, not silently start billing).
   const retry = useCallback(() => { mutate() }, [mutate])
 
-  return { data: data || null, isLoading: isLoading && !data, generate, retry }
+  const generating = !!data?.generating
+  useEffect(() => { setPolling(generating) }, [generating])
+
+  return {
+    data: data || null,
+    isLoading: isLoading && !data,
+    generating,
+    generate,
+    retry,
+  }
 }

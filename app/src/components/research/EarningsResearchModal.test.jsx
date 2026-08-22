@@ -767,17 +767,19 @@ describe('the modal never hands the reader off', () => {
 })
 
 describe('the rail is curated, and old links still land', () => {
-  it('is NINE curated sections, not the eleven it sprawled to', () => {
-    // Eleven shallow entries split one question across three clicks and made
-    // the rail scroll on phone. Consolidated to six, then News earned its own
-    // place — it answers "what else happened", which nothing else covered.
+  it('is ELEVEN curated sections, each answering a question no other does', () => {
+    // Eleven shallow entries once split one question across three clicks and
+    // made the rail scroll on phone. Consolidated to six, then News earned its
+    // own place — it answers "what else happened", which nothing else covered.
     // Ask AI earned the ninth (2026-08-10): every other section presents what we
     // HOLD, and it is the only one that answers a question the reader brought.
-    // The bar for a tenth is the same — a question no existing section answers.
-    expect(SECTIONS).toHaveLength(9)
+    // Profile and Catalysts earned the tenth and eleventh (owner, 2026-08-21):
+    // "what does this company do / what is it worth" and "what actually moved
+    // it this year" — neither was answered anywhere in the modal before.
+    expect(SECTIONS).toHaveLength(11)
     expect(SECTIONS.map(s => s.id)).toEqual(
-      ['setup', 'history', 'brief', 'call', 'financials', 'analysts',
-       'news', 'filings', 'ai'])
+      ['setup', 'profile', 'history', 'brief', 'call', 'financials', 'analysts',
+       'catalysts', 'news', 'filings', 'ai'])
   })
 
   it('every id still has a panel', () => {
