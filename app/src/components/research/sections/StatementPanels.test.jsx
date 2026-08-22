@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { money, PANEL_SPECS, yoyShift } from './StatementPanels'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { money, PANEL_SPECS, yoyShift, PANEL_HEIGHT, EXPANDED_HEIGHT } from './StatementPanels'
 
 const captured = []
 vi.mock('../../research-kit', () => ({
@@ -134,5 +134,67 @@ describe('the ghost bar is context, not the subject', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /year-ago/i }))
     const income = captured.find(c => c.series.some(s => s.name === 'Revenue'))
     expect(income.series.every(s => !/yr ago/.test(s.name))).toBe(true)
+  })
+})
+
+describe('expand — any panel pops out into a larger modal', () => {
+  const openIncome = () => {
+    captured.length = 0
+    render(<StatementPanels sym="AAPL" />)
+    fireEvent.click(screen.getByRole('button', { name: /expand income statement/i }))
+    return screen.getByRole('dialog', { name: /income statement/i })
+  }
+
+  it('the expand button opens a dialog named for THAT panel, and only that one', () => {
+    expect(openIncome()).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: /net income/i })).toBeNull()
+  })
+
+  it('draws the SAME series as the card, at the expanded height', () => {
+    openIncome()
+    const card = captured.find(c => c.height === PANEL_HEIGHT && c.series.some(s => s.name === 'Revenue'))
+    const big = captured.filter(c => c.height === EXPANDED_HEIGHT)
+    expect(big.length).toBeGreaterThanOrEqual(1)
+    const last = big.at(-1)
+    // Same names, same values, same order — including the ghost bars. A modal
+    // that rebuilt its own series list is a second copy waiting to drift.
+    expect(last.series.map(s => s.name)).toEqual(card.series.map(s => s.name))
+    expect(last.series.map(s => s.values)).toEqual(card.series.map(s => s.values))
+    expect(last.mode).toBe('bars')
+  })
+
+  it('Escape closes the expanded chart WITHOUT reaching the host modal', () => {
+    // The earnings modal closes itself on a window-level Escape. A nested
+    // Escape must close the chart only — the reader lands back on the
+    // Financials tab, not on the calendar.
+    const spy = vi.fn()
+    window.addEventListener('keydown', spy)
+    try {
+      const dlg = openIncome()
+      fireEvent.keyDown(dlg, { key: 'Escape' })
+      expect(screen.queryByRole('dialog', { name: /income statement/i })).toBeNull()
+      expect(spy).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('keydown', spy)
+    }
+  })
+
+  it('the period toggle inside the modal changes the REQUEST and keeps it open', () => {
+    const dlg = openIncome()
+    fireEvent.click(within(dlg).getByRole('button', { name: /^Annual$/i }))
+    expect(url).toContain('period=annual')
+    expect(screen.getByRole('dialog', { name: /income statement/i })).toBeTruthy()
+  })
+
+  it('clicking the card itself opens it — the icon is the hint, not the only door', () => {
+    render(<StatementPanels sym="AAPL" />)
+    fireEvent.click(screen.getByText('Cash flow'))
+    expect(screen.getByRole('dialog', { name: /cash flow/i })).toBeTruthy()
+  })
+
+  it('the close button dismisses it', () => {
+    const dlg = openIncome()
+    fireEvent.click(within(dlg).getByRole('button', { name: /^Close$/i }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

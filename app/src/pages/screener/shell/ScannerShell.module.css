@@ -75,6 +75,11 @@
 .stickyCol { position: sticky; left: 0; z-index: 2; }
 .gridHead .stickyCol { z-index: 5; background: var(--bg); }
 .symCell { color: var(--ut-gold); font-weight: 600; gap: 6px; }
+/* The admin curation chip: visibility (not display) keeps the row's layout
+   stable; hover-reveal only where hover exists — touch keeps it visible. */
+.rowFb { visibility: hidden; }
+[role="row"]:hover .rowFb, .rowFb:focus-within { visibility: visible; }
+@media (hover: none) { .rowFb { visibility: visible; } }
 .dotLive, .dotStatic { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .dotLive { background: var(--ut-gold); }
 .dotStatic { border: 1px solid var(--text-muted); background: transparent; }

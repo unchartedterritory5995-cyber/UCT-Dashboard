@@ -33,6 +33,18 @@ describe('PatternFeedbackChip', () => {
     expect(screen.getByText('refine ↗')).toBeInTheDocument()
   })
 
+  it('compact mode keeps thumbs inline and folds note/refine behind ⋯', () => {
+    renderAs('admin', { compact: true })
+    expect(screen.getByLabelText('thumbs up')).toBeInTheDocument()
+    expect(screen.getByLabelText('thumbs down')).toBeInTheDocument()
+    // The 108px scanner cell cannot hold four controls: note/refine start hidden.
+    expect(screen.queryByText('note')).not.toBeInTheDocument()
+    expect(screen.queryByText('refine ↗')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('more feedback options'))
+    expect(screen.getByPlaceholderText('why? (optional)')).toBeInTheDocument()
+    expect(screen.getByText('refine ↗')).toBeInTheDocument()
+  })
+
   it('posts feedback with source on 👎', () => {
     renderAs('admin', { source: 'scanner', setup: 'scan:pullback', ticker: 'AAPL' })
     fireEvent.click(screen.getByLabelText('thumbs down'))

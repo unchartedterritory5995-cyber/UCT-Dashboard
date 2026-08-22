@@ -28,13 +28,19 @@
   gap: 10px;
 }
 
+/* The whole card is a door to the pop-out. Hover says so without a second
+   gold border — §3.1 keeps gold for the hero — so the lift is a brighter
+   hairline and a touch more surface. */
 .panel {
   padding: 10px 12px 6px;
   border: 1px solid rgba(255, 255, 255, .07);
   border-radius: 6px;
   background: rgba(255, 255, 255, .02);
   min-width: 0;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
 }
+.panel:hover { border-color: rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .035); }
 
 .title {
   margin-bottom: 2px;
@@ -42,6 +48,21 @@
   text-transform: uppercase;
   color: var(--color-text, #d8dade);
 }
+
+.titleRow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; margin-bottom: 2px;
+}
+.titleRow .title { margin-bottom: 0; }
+
+.expand {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; margin: -4px -6px -4px 0;
+  border: 0; border-radius: 4px; background: transparent;
+  color: var(--color-text-muted, #8a8f98); cursor: pointer; opacity: .55;
+}
+.panel:hover .expand, .expand:focus-visible { opacity: 1; color: var(--ut-gold, #c9a84c); }
+.expand:focus-visible { outline: 1px solid var(--ut-gold, #c9a84c); outline-offset: 1px; }
 
 .note { margin: 0; font-size: 12px; color: var(--color-text-muted, #8a8f98); }
 
@@ -55,3 +76,33 @@
   color: var(--color-text-muted, #8a8f98); cursor: pointer;
 }
 .yoy input { accent-color: var(--ut-gold, #c9a84c); cursor: pointer; }
+
+/* ── Pop-out ─────────────────────────────────────────────────────────────── */
+
+/* Sheet's desktop panel is width:100% up to the maxWidth it is handed; on a
+   phone it is the bottom sheet and this class is inert. */
+.sheet { width: 100%; }
+
+.expanded { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+.expandedHead {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.expandedTitle {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--color-text, #d8dade);
+}
+.expandedSym {
+  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.close {
+  flex: 0 0 auto;
+  min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px);
+  margin: -10px -12px 0 0;
+  background: none; border: 0; border-radius: 6px;
+  color: var(--color-text-muted, #8a8f98); font-size: 24px; line-height: 1; cursor: pointer;
+}
+.close:hover { color: var(--color-text, #d8dade); background: rgba(255, 255, 255, .06); }

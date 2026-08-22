@@ -1,5 +1,5 @@
 // app/src/pages/CotData.jsx
-import { useState, useRef, useEffect, Component } from 'react'
+import { useState, useRef, useEffect, useMemo, Component } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -12,6 +12,10 @@ import styles from './CotData.module.css'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import Sheet from '../components/mobile/Sheet'
 import { useIsTouch } from '../hooks/useBreakpoint'
+import PositioningRail from './cot/PositioningRail'
+import { SERIES_COLORS, HOVER_COLORS } from './cot/cotPalette'
+import { fmtDate, fmtNum, fmtCompact } from './cot/cotFormat'
+import { tooltipLines } from './cot/cotTooltip'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -20,24 +24,9 @@ ChartJS.register(
   Title, Tooltip, Legend, Filler,
 )
 
-// UCT series palette — validated (dark surface #14160f): CVD ΔE 21.8, contrast ≥3:1.
-// Deliberately breaks from the red/blue/yellow COT convention.
-const SERIES_COLORS = {
-  commercials: '#2d8c4e',   // UCT green — the hedgers
-  largeSpecs:  '#b18c33',   // UCT gold — institutional trend money
-  smallSpecs:  '#4a90c2',   // steel blue — the crowd
-  openInterest:'#d4c9a8',   // UCT cream — OI strip
-}
 const AXIS_TEXT  = '#706b5e'
 const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
 const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
-
-// Brightened variants for the hover-synced active bar in each pane
-const HOVER_COLORS = {
-  commercials: '#41b06d',
-  largeSpecs:  '#d1a94a',
-  smallSpecs:  '#6cb0e0',
-}
 
 // Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
@@ -86,33 +75,19 @@ const LOOKBACKS = [
   { label: '5Y', weeks: 260 },
 ]
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// One fetch per symbol: the API maximum (10 years). The chart shows the
+// selected lookback as a client-side slice, and the positioning rail needs the
+// three years BEHIND every visible week for its COT Index — history the
+// visible window alone cannot supply.
+const FETCH_WEEKS = 520
 
-function fmtDate(iso) {
-  // "2025-11-07" → "11/7/2025"
-  const [y, m, d] = iso.split('-')
-  return `${parseInt(m)}/${parseInt(d)}/${y}`
-}
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 // Round up/down to 2-significant-digit precision (e.g. 201,000 → 210,000; 317,489 → 320,000)
 function roundUpNice(val) {
   if (val <= 0) return 0
   const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
   return Math.ceil(val / mag) * mag
-}
-
-function fmtNum(v) {
-  if (v == null) return ''
-  const abs = Math.abs(Math.round(v)).toLocaleString()
-  return v < 0 ? `(${abs})` : abs
-}
-
-function fmtCompact(v) {
-  if (v == null) return ''
-  const abs = Math.abs(v)
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`
-  if (abs >= 1e3) return `${Math.round(v / 1e3)}K`
-  return String(Math.round(v))
 }
 
 // ── Error boundary ─────────────────────────────────────────────────────────────
@@ -141,23 +116,26 @@ export default function CotData() {
   const [weeks,        setWeeks]        = useState(52)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [search,       setSearch]       = useState('')
-  const [data,         setData]         = useState(null)
+  const [data,         setData]         = useState(null)   // full FETCH_WEEKS history for `symbol`
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
   const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default
   const [resizing,     setResizing]     = useState(null)   // 'right' | 'bottom' | 'corner' | null
   const dropdownRef    = useRef(null)
   const chartWrapRef   = useRef(null)
+  const railWrapRef    = useRef(null)
   const resizeStateRef = useRef(null)
   const isTouch        = useIsTouch()
 
   // Cross-pane hover sync — written via DOM refs (never React state) so a
-  // mousemove doesn't re-render four Chart.js instances.
+  // mousemove doesn't re-render four Chart.js instances. The positioning rail
+  // owns its own state behind an imperative handle for the same reason.
   const chartInstRef = useRef({})   // pane key -> Chart.js instance
   const readoutRef   = useRef({})   // pane key -> value <span>
   const deltaElRef   = useRef({})   // pane key -> delta <span>
   const hoverDateRef = useRef(null) // "Week of …" chip
-  const dataRef      = useRef(null)
+  const railRef      = useRef(null) // PositioningRail imperative handle
+  const dataRef      = useRef(null) // the VISIBLE slice
   const lastHoverRef = useRef(undefined)
 
   // Close dropdown on outside click
@@ -198,14 +176,19 @@ export default function CotData() {
       const dx = e.clientX - state.startX
       const dy = e.clientY - state.startY
       const next = { ...(state.startSize) }
-      const parentWidth = chartWrapRef.current?.parentElement?.clientWidth || window.innerWidth
-      const maxHeight   = window.innerHeight - 100
+      const parent      = chartWrapRef.current?.parentElement
+      const parentWidth = parent?.clientWidth || window.innerWidth
+      // Leave room for the rail beside the chart (it stacks below on narrow screens).
+      const railEl    = railWrapRef.current
+      const railBeside = railEl && parent && railEl.offsetTop === chartWrapRef.current.offsetTop
+      const maxWidth  = railBeside ? parentWidth - railEl.offsetWidth - 16 : parentWidth
+      const maxHeight = window.innerHeight - 100
 
       if (state.axis === 'right' || state.axis === 'corner') {
-        next.width = Math.max(400, Math.min(parentWidth, state.startSize.width + dx))
+        next.width = Math.max(400, Math.min(maxWidth, state.startSize.width + dx))
       }
       if (state.axis === 'left') {
-        next.width = Math.max(400, Math.min(parentWidth, state.startSize.width - dx))
+        next.width = Math.max(400, Math.min(maxWidth, state.startSize.width - dx))
       }
       if (state.axis === 'bottom' || state.axis === 'corner') {
         next.height = Math.max(300, Math.min(maxHeight, state.startSize.height + dy))
@@ -261,18 +244,24 @@ export default function CotData() {
     setSearch('')
   }
 
-  // Fetch COT data when symbol or weeks changes
+  // Fetch the full history once per symbol; lookback is a client-side slice.
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/cot/${symbol}?weeks=${weeks}`)
+    fetch(`/api/cot/${symbol}?weeks=${FETCH_WEEKS}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then(d  => { setData(d);          setLoading(false) })
-      .catch(e => { setError(e.message); setLoading(false) })
-  }, [symbol, weeks])
+      .then(d  => { if (!cancelled) { setData(d);          setLoading(false) } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
+    return () => { cancelled = true }
+  }, [symbol])
+
+  // The visible window: the last `weeks` reports of the fetched history.
+  const view      = useMemo(() => (data ? data.slice(-weeks) : null), [data, weeks])
+  const viewStart = data && view ? data.length - view.length : 0
 
   // Filter symbol groups by search query
   const filteredGroups = Object.entries(SYMBOL_GROUPS).reduce((acc, [grp, syms]) => {
@@ -287,18 +276,18 @@ export default function CotData() {
   }, {})
 
   // ── Chart config ─────────────────────────────────────────────────────────────
-  const labels  = data ? data.map(d => fmtDate(d.date)) : []
-  const hasData = data && data.length > 0
+  const labels  = view ? view.map(d => fmtDate(d.date)) : []
+  const hasData = view && view.length > 0
 
   // Latest report + week-over-week deltas for the pane headers
-  const latest = hasData ? data[data.length - 1] : null
-  const prev   = hasData && data.length > 1 ? data[data.length - 2] : null
+  const latest = hasData ? view[view.length - 1] : null
+  const prev   = hasData && view.length > 1 ? view[view.length - 2] : null
 
   // Fixed axis width so all stacked panes align vertically
   const AXIS_FIT = axis => { axis.width = 64 }
 
   // ── Cross-pane hover sync ────────────────────────────────────────────────────
-  dataRef.current = data
+  dataRef.current = view
 
   const FIELD_BY_KEY = {
     commercials: 'commercial_net',
@@ -314,8 +303,9 @@ export default function CotData() {
     el.className = delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown
   }
 
-  // Hovering a week in ANY pane highlights it in every pane and live-updates
-  // all pane-header readouts to that week; idx null restores the latest report.
+  // Hovering a week in ANY pane highlights it in every pane, live-updates all
+  // pane-header readouts, and points the positioning rail at that week;
+  // idx null restores the latest report.
   function applyHover(idx, sourceKey) {
     if (lastHoverRef.current === idx) return
     lastHoverRef.current = idx
@@ -341,6 +331,8 @@ export default function CotData() {
       dEl.style.opacity = idx == null ? '0' : '1'
     }
 
+    railRef.current?.setIndex(idx == null ? null : viewStart + idx)
+
     for (const [key, chart] of Object.entries(chartInstRef.current)) {
       if (!chart || key === sourceKey) continue
       try {
@@ -356,7 +348,7 @@ export default function CotData() {
     lastHoverRef.current = undefined
     applyHover(null, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data])
+  }, [view])
 
   const tooltipStyle = {
     backgroundColor: '#22251e',
@@ -364,10 +356,22 @@ export default function CotData() {
     titleFont:       { weight: 'bold', size: 12 },
     bodyColor:       '#e0dac8',
     bodyFont:        { size: 11 },
+    bodySpacing:     4,
     borderColor:     'rgba(201, 168, 76, 0.35)',
     borderWidth:     1,
     padding:         10,
     cornerRadius:    6,
+  }
+
+  // Every pane's tooltip lists ALL series for the hovered week — the hovered
+  // pane's own series first (with its swatch), the rest beneath it.
+  function tooltipCallbacks(key, color) {
+    return {
+      title:      items => (items[0]?.label ? `Week of ${items[0].label}` : ''),
+      label:      ctx   => tooltipLines(dataRef.current?.[ctx.dataIndex], key)[0] || '',
+      afterBody:  items => tooltipLines(dataRef.current?.[items[0]?.dataIndex], key).slice(1),
+      labelColor: ()    => ({ borderColor: color, backgroundColor: color, borderRadius: 2 }),
+    }
   }
 
   // One pane per trader group — each with its own zero line, symmetric to its
@@ -382,7 +386,7 @@ export default function CotData() {
     v == null ? '' : v < 0 ? `(${fmtCompact(Math.abs(v))})` : fmtCompact(v)
 
   const panes = hasData ? PANE_DEFS.map(def => {
-    const series = data.map(d => d[def.field])
+    const series = view.map(d => d[def.field])
     // Asymmetric bounds: fit each side to that group's own extremes so a
     // one-sided group (e.g. always-short large specs) uses the full pane
     // height. The minority side keeps a 12% floor so small bars stay visible.
@@ -424,11 +428,7 @@ export default function CotData() {
           legend:  { display: false },
           tooltip: {
             ...tooltipStyle,
-            callbacks: {
-              title: items => items[0]?.label || '',
-              label: ctx   => `  ${def.label}: ${fmtNum(ctx.raw)}`,
-              labelColor: () => ({ borderColor: color, backgroundColor: color, borderRadius: 2 }),
-            },
+            callbacks: tooltipCallbacks(def.key, color),
           },
         },
         scales: {
@@ -471,7 +471,7 @@ export default function CotData() {
       {
         type:            'line',
         label:           'Open Interest',
-        data:            data.map(d => d.open_interest),
+        data:            view.map(d => d.open_interest),
         borderColor:     SERIES_COLORS.openInterest,
         backgroundColor: 'rgba(212, 201, 168, 0.10)',
         fill:            true,
@@ -493,15 +493,7 @@ export default function CotData() {
       legend:  { display: false },
       tooltip: {
         ...tooltipStyle,
-        callbacks: {
-          title: items => items[0]?.label || '',
-          label: ctx   => `  Open Interest: ${Math.round(ctx.raw).toLocaleString()}`,
-          labelColor: () => ({
-            borderColor:     SERIES_COLORS.openInterest,
-            backgroundColor: SERIES_COLORS.openInterest,
-            borderRadius:    2,
-          }),
-        },
+        callbacks: tooltipCallbacks('openInterest', SERIES_COLORS.openInterest),
       },
     },
     scales: {
@@ -643,7 +635,9 @@ export default function CotData() {
 
       </div>
 
-      {/* Chart */}
+      {/* Chart + positioning rail */}
+      <div className={styles.body}>
+
       <div
         ref={chartWrapRef}
         className={styles.chartWrap}
@@ -660,7 +654,7 @@ export default function CotData() {
             {error}
           </div>
         )}
-        {!loading && !error && (!data || data.length === 0) && (
+        {!loading && !error && (!view || view.length === 0) && (
           <div className={styles.overlay}>
             No COT data available for {symbol}
             {data !== null && ' — database may still be seeding'}
@@ -783,6 +777,21 @@ export default function CotData() {
           onMouseDown={e => startResize('corner', e)}
           title="Drag to adjust chart width and height"
         />
+      </div>
+
+      {/* The rail tracks the hovered week; it reads from the FULL history so
+          the 3-year index is right even at the left edge of the chart. */}
+      {!loading && !error && hasData && (
+        <div ref={railWrapRef} className={styles.railCol}>
+          <PositioningRail
+            ref={railRef}
+            rows={data}
+            symbol={symbol}
+            name={SYMBOL_NAMES[symbol] || symbol}
+          />
+        </div>
+      )}
+
       </div>
 
     </div>
