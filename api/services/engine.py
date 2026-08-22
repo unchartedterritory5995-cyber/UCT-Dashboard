@@ -76,8 +76,12 @@ def _get_anthropic_client():
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
 _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
-_EARNINGS_AI_MAX_TOKENS         = 1800     # post-earnings: rich narrative + 5 substantive bullets
-_EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
+# 2026-08-22: 1800 truncated ~1 in 3 warm generations mid-string ("Unterminated
+# string … char 4431") — the prompt asks for a 5-8 sentence note PLUS five
+# 60-90-word bullets, which lands right on the cap. Output tokens are billed
+# as used, so the headroom costs nothing on a normal reply.
+_EARNINGS_AI_MAX_TOKENS         = 2800     # post-earnings: rich narrative + 5 substantive bullets
+_EARNINGS_PREVIEW_AI_MAX_TOKENS = 2800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 # `enrich_earnings_response` (earnings_enrichment.py) ALWAYS returns a dict
@@ -180,11 +184,81 @@ def _parse_json_block(raw: str) -> dict:
             raw = raw.strip()
     try:
         return json.loads(raw)
-    except Exception:
+    except Exception as first_err:
         i, j = raw.find("{"), raw.rfind("}")
         if i != -1 and j != -1 and j > i:
-            return json.loads(raw[i:j + 1])
+            try:
+                return json.loads(raw[i:j + 1])
+            except Exception:
+                pass
+        salvaged = _salvage_json_fields(raw)
+        if salvaged:
+            _logger.warning("earnings JSON salvaged (%s): kept %s",
+                            first_err, sorted(salvaged.keys()))
+            return salvaged
         raise
+
+
+_JSON_TEXT_KEYS = ("headline", "summary", "preview", "analysis")
+# A string field ends at a quote that is FOLLOWED by JSON structure — the next
+# `, "key":` or the closing brace — so an unescaped quote inside the prose
+# cannot end the value early.
+_FIELD_END_RE = re.compile(r'"(?=\s*(?:,\s*"[A-Za-z_]+"\s*:|\}))')
+
+
+def _salvage_json_fields(raw: str) -> dict:
+    """Last resort for a reply that is JSON in spirit but not in letter. The
+    two failure modes seen live (2026-08-22, warm pass, 3 of the first 8
+    generations): an UNESCAPED double quote inside a string ("Expecting ','
+    delimiter") and TRUNCATION at max_tokens mid-string ("Unterminated
+    string"). Either one used to throw the whole reply away — the name stayed
+    cold, nothing persisted, and the next warm pass paid for it again.
+
+    Recovers every text field whose closing quote is unambiguous (a truncated
+    paragraph is kept up to its last full sentence when it is substantial),
+    and every COMPLETE element of the bullets array — one bullet per line, as
+    the prompt's template lays them out. Returns {} when nothing usable."""
+    raw = raw or ""
+    out: dict = {}
+    for key in _JSON_TEXT_KEYS:
+        m = re.search(r'"%s"\s*:\s*"' % key, raw)
+        if not m:
+            continue
+        start = m.end()
+        end = _FIELD_END_RE.search(raw, start)
+        if end:
+            val = raw[start:end.start()]
+        else:
+            frag = raw[start:]
+            cut = max(frag.rfind(". "), frag.rfind(".\n"))
+            if cut < 200:            # too little to be a usable paragraph
+                continue
+            val = frag[:cut + 1]
+        val = val.replace('\\"', '"').replace("\\n", " ").strip()
+        if val:
+            out[key] = val
+
+    m = re.search(r'"bullets"\s*:\s*\[', raw)
+    if m:
+        seg = raw[m.end():]
+        close = seg.find("]")
+        if close != -1:
+            seg = seg[:close]
+        bullets = []
+        for line in seg.splitlines():
+            t = line.strip().rstrip(",").strip()
+            if len(t) >= 2 and t.startswith('"') and t.endswith('"'):
+                inner = t[1:-1].replace('\\"', '"').strip()
+                if inner:
+                    bullets.append(inner)
+        if not bullets:
+            # Everything on one line — only works when there are no inner quotes.
+            bullets = [b for b in re.findall(r'"((?:[^"\\]|\\.)*)"', seg) if b.strip()]
+        if bullets:
+            out["bullets"] = bullets
+    if not any(k in out for k in _JSON_TEXT_KEYS):
+        return {}
+    return out
 
 
 def _fetch_quarterly_history(sym: str) -> list:
@@ -1377,7 +1451,9 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 "  - Macro/peer dynamics relevant to this name (peer prints, "
                 "AI capex cycle, ad market, rates, regulatory)\n\n"
                 "==== OUTPUT FORMAT ====\n"
-                "Return JSON only — no markdown fences, no preamble outside the JSON:\n"
+                "Return JSON only — no markdown fences, no preamble outside the JSON. "
+                "Inside every JSON string use single quotes for any quotation — "
+                "never an unescaped double quote:\n"
                 "{\n"
                 '  "headline": "<1-2 sentence verdict that captures the print + '
                 "reaction in trader terms — e.g., 'Q1 came in $0.12 ahead on the "
@@ -1754,7 +1830,9 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
             "  - The macro/peer dynamics in play right now relevant to this name "
             "(peer prints, AI capex cycle, ad market trends, rates, regulatory)\n\n"
             "==== OUTPUT FORMAT ====\n"
-            "Return JSON only — no markdown fences, no preamble outside the JSON:\n"
+            "Return JSON only — no markdown fences, no preamble outside the JSON. "
+            "Inside every JSON string use single quotes for any quotation — "
+            "never an unescaped double quote:\n"
             "{\n"
             '  "preview": "<5-8 sentence strategist-note paragraph that reads '
             "like a buy-side morning note. MUST include: (1) company + report "
