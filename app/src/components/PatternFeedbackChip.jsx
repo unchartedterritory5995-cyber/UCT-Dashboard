@@ -12,6 +12,11 @@ export default function PatternFeedbackChip({ ticker, tf = 'D', setup, asofDate 
   const [sent, setSent] = useState(null)
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
+  // Compact mode (dense grids: the scanner's 108px sticky ticker cell): only
+  // the thumbs stay inline; note + refine collapse behind a "⋯" popover so the
+  // chip can NEVER wrap into the next 30px row — the wrap was the every-row
+  // visual breakage admins saw on /screener.
+  const [moreOpen, setMoreOpen] = useState(false)
 
   if (user?.role !== 'admin' || !ticker || !setup) return null
 
@@ -46,17 +51,42 @@ export default function PatternFeedbackChip({ ticker, tf = 'D', setup, asofDate 
         title="Wrong — bad call" aria-label="thumbs down"
         onClick={(e) => { stop(e); send('down') }}
       >👎</button>
-      <button
-        className={styles.link} title="Add a note"
-        onClick={(e) => { stop(e); setNoteOpen((v) => !v) }}
-      >note</button>
-      <a
-        className={styles.link} href="/admin/pattern-review"
-        title="Open Pattern Review to draw the ideal"
-        onClick={(e) => e.stopPropagation()}
-      >refine ↗</a>
+      {compact ? (
+        <button
+          className={styles.link} title="Note / refine" aria-label="more feedback options"
+          onClick={(e) => { stop(e); setMoreOpen((v) => !v) }}
+        >⋯</button>
+      ) : (
+        <>
+          <button
+            className={styles.link} title="Add a note"
+            onClick={(e) => { stop(e); setNoteOpen((v) => !v) }}
+          >note</button>
+          <a
+            className={styles.link} href="/admin/pattern-review"
+            title="Open Pattern Review to draw the ideal"
+            onClick={(e) => e.stopPropagation()}
+          >refine ↗</a>
+        </>
+      )}
       {sent && <span className={styles.ok}>✓</span>}
-      {noteOpen && (
+      {compact && moreOpen && (
+        <span className={styles.pop} onClick={stop}>
+          <input
+            className={styles.note} value={note} autoFocus
+            placeholder="why? (optional)"
+            onClick={stop}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { stop(e); setMoreOpen(false) } }}
+          />
+          <a
+            className={styles.link} href="/admin/pattern-review"
+            title="Open Pattern Review to draw the ideal"
+            onClick={(e) => e.stopPropagation()}
+          >refine ↗</a>
+        </span>
+      )}
+      {!compact && noteOpen && (
         <input
           className={styles.note} value={note} autoFocus
           placeholder="why? (optional)"
