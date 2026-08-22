@@ -1323,6 +1323,28 @@ def register_screener_jobs(scheduler):
             trigger=CronTrigger(hour=2, minute=50, timezone=_ET),
             id="screener_earnings_dates", max_instances=1, replace_existing=True)
 
+    # -- Wave 5: pull the flow-worker's nightly per-ticker options aggregate
+    # (screener/opt_flow_agg.json, written by api/flow_opt_aggregate.py) down
+    # to a local artifact. 02:55 ET — after the 02:45/02:50 siblings above,
+    # same master-flag coupling (this whole function early-returns on
+    # SCREENER_SNAPSHOT_ENABLED=0). Defaults ON like its Wave-2 siblings: a
+    # local run with R2 unconfigured is harmless — `data_sync.get_bytes`
+    # never raises, returns None, and `opt_flow.run_pull` refuses cleanly.
+    from api.services.screener import opt_flow
+
+    def _run_opt_flow_pull():
+        try:
+            receipt = opt_flow.run_pull()
+            log.info("[screener] %s receipt: %s", "screener_opt_flow_pull", receipt)
+        except Exception as e:
+            print(f"[scheduler] screener opt flow pull error: {e}")
+
+    if os.environ.get("SCREENER_OPTFLOW_PULL_ENABLED", "1") == "1":
+        scheduler.add_job(
+            _run_opt_flow_pull,
+            trigger=CronTrigger(hour=2, minute=55, timezone=_ET),
+            id="screener_opt_flow_pull", max_instances=1, replace_existing=True)
+
     def _run_insider_capture():
         try:
             receipt = insider_capture.run_capture()
