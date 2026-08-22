@@ -1,4 +1,5 @@
 import importlib
+import logging
 
 
 def test_build_row_merges_all_groups(tmp_path, monkeypatch):
@@ -72,6 +73,84 @@ def test_the_rs_authority_wins_over_a_ratings_row_that_still_carries_rank(tmp_pa
                       {}, {"rs_rank": 97, "rs_score": 41.25})
     assert row["rs_rank"] == 97
     assert row["rs_return"] == 41.25
+
+
+# ───────────────────── FIX 3 (2026-08-22 receipts-fix): _read_rs_map ────────
+#
+# 🔴 THE DEFECT. The 2026-08-22 03:04 ET build logged `rs_map=0`,
+# `sources["rs_ranking"] == {"no_rank": 3741}` — rs_rank/rs_return/
+# chg_pct_3m/chg_pct_6m NULL universe-wide. Proven mechanism: `rs_ranking`'s
+# warmed cache lives under ONE key in the shared bounded LRU and was evicted
+# by the overnight job flood between the 06:41Z warm and the 07:00Z build.
+# `_read_rs_map` (and ONLY this nightly-build reader) now computes once on a
+# cold cache rather than accepting `{}` — `cached_rank_map` itself keeps its
+# no-compute contract for request-path callers.
+
+def test_read_rs_map_warm_cache_never_computes(monkeypatch, caplog):
+    from api.services import rs_ranking
+    from api.services.screener import snapshot_builder as b
+
+    warm_map = {"AAA": {"ticker": "AAA", "rs_rank": 90, "rs_score": 12.5}}
+    monkeypatch.setattr(rs_ranking, "cached_rank_map", lambda: warm_map)
+
+    calls = {"compute": 0}
+
+    def _boom_if_called(force=False):
+        calls["compute"] += 1
+        raise AssertionError("compute_rs_scores must not be called on a warm cache")
+
+    monkeypatch.setattr(rs_ranking, "compute_rs_scores", _boom_if_called)
+
+    with caplog.at_level(logging.INFO, logger=b.log.name):
+        out = b._read_rs_map()
+
+    assert out == warm_map
+    assert calls["compute"] == 0
+    assert any("source=cache-warm" in r.getMessage() for r in caplog.records)
+
+
+def test_read_rs_map_computes_on_cold_and_succeeds(monkeypatch, caplog):
+    from api.services import rs_ranking
+    from api.services.screener import snapshot_builder as b
+
+    populated = {"AAA": {"ticker": "AAA", "rs_rank": 77, "rs_score": 5.0}}
+    state = {"computed": False}
+
+    def _cached_rank_map():
+        return populated if state["computed"] else {}
+
+    def _compute_rs_scores(force=False):
+        assert force is False
+        state["computed"] = True
+        return list(populated.values())
+
+    monkeypatch.setattr(rs_ranking, "cached_rank_map", _cached_rank_map)
+    monkeypatch.setattr(rs_ranking, "compute_rs_scores", _compute_rs_scores)
+
+    with caplog.at_level(logging.INFO, logger=b.log.name):
+        out = b._read_rs_map()
+
+    assert out == populated
+    assert any("source=computed-on-cold" in r.getMessage() for r in caplog.records)
+
+
+def test_read_rs_map_cold_compute_raises_degrades_to_empty_no_raise(monkeypatch, caplog):
+    from api.services import rs_ranking
+    from api.services.screener import snapshot_builder as b
+
+    monkeypatch.setattr(rs_ranking, "cached_rank_map", lambda: {})
+
+    def _boom(force=False):
+        raise RuntimeError("no universe available")
+
+    monkeypatch.setattr(rs_ranking, "compute_rs_scores", _boom)
+
+    with caplog.at_level(logging.WARNING, logger=b.log.name):
+        out = b._read_rs_map()  # must not raise
+
+    assert out == {}
+    warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert warnings, "a failed compute-on-cold logged nothing"
 
 
 def test_read_fundamentals_counts_a_MISS_not_only_a_raise(monkeypatch):

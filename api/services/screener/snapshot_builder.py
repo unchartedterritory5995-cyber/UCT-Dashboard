@@ -387,15 +387,54 @@ def _read_ratings(ticker, failures=None):
 
 
 def _read_rs_map():
-    """``{TICKER: rs_row}`` from `rs_ranking`'s warmed cache. ``{}`` when cold.
+    """``{TICKER: rs_row}`` from `rs_ranking`'s warmed cache — COMPUTING ON
+    COLD, but only on this nightly-build path.
 
-    ⛔ ONE READ PER BUILD, AND NEVER A COMPUTE. See
-    `rs_ranking.cached_rank_map` for why the ~17s full-universe rebuild belongs
-    to the background warmer and not here.
+    ⛔ ONE READ PER BUILD. See `rs_ranking.cached_rank_map`'s own docstring for
+    why it itself never computes: that rationale is about REQUEST-path callers
+    racing the boot warmers with a fetch herd. It does NOT bind this function —
+    the 3 a.m. scheduler thread that calls it isn't racing anything, and a
+    ~17s compute here is cheap insurance against a universe-wide NULL night.
+
+    ⚠️ 2026-08-22 RECEIPT (the motivating incident): the 03:04 ET build logged
+    ``rs_map=0``, ``sources["rs_ranking"] == {"no_rank": 3741}`` — rs_rank,
+    rs_return, chg_pct_3m and chg_pct_6m NULL for the ENTIRE universe.
+    Mechanism, proven: `rs_ranking`'s cache lives under ONE key in the shared
+    bounded LRU (`api/services/cache.py`, max 1000 entries); the 06:41Z warm
+    (of the 05:50/06:41/07:31Z 50-min cadence) was evicted by the overnight
+    job flood before the 07:00Z build ran — the build landed squarely in that
+    gap. Not a broken mechanism: the SAME deployment cached 3,646 rankings
+    fine at 09:12Z. So: when the warmed cache is cold, THIS reader (and only
+    this reader) calls `rs_ranking.compute_rs_scores()` once (``force=False``
+    — an untouched cold cache entry is exactly what `force=False` already
+    recomputes, so there is nothing to force) and re-reads
+    `cached_rank_map()`. A compute failure degrades to the pre-existing ``{}``
+    + warning, never raises — honest-None is preserved either way.
+    `cached_rank_map` ITSELF is unchanged: request-path callers keep the
+    no-compute contract.
+
+    The receipt must say which source answered — logged as
+    ``rs_map source=cache-warm`` or ``rs_map source=computed-on-cold``.
     """
     try:
         from api.services import rs_ranking
-        return rs_ranking.cached_rank_map()
+        rs_map = rs_ranking.cached_rank_map()
+        if rs_map:
+            log.info("[screener] rs_map source=cache-warm n=%d", len(rs_map))
+            return rs_map
+        log.warning("[screener] rs_ranking cache cold at build time — "
+                    "computing on cold (nightly-build path only, see "
+                    "_read_rs_map docstring)")
+        try:
+            rs_ranking.compute_rs_scores(force=False)
+        except Exception:
+            log.warning("[screener] rs_ranking compute-on-cold failed; "
+                        "rs_rank/rs_return will be NULL for this build",
+                        exc_info=True)
+            return {}
+        rs_map = rs_ranking.cached_rank_map()
+        log.info("[screener] rs_map source=computed-on-cold n=%d", len(rs_map))
+        return rs_map
     except Exception:
         log.warning("[screener] rs_ranking unavailable; rs_rank/rs_return "
                     "will be NULL for this build", exc_info=True)
