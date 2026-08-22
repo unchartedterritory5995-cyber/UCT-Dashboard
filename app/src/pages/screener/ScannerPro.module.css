@@ -87,7 +87,7 @@
 
 /* ── Saved-screens menu ── */
 .saveMenuWrap { position: relative; display: inline-block; }
-.saveMenuPop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; min-width: 240px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
+.saveMenuPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 240px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
 .saveMenuSection { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .saveMenuHdr { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 2px 8px; }
 .saveMenuEmpty { color: var(--text-muted); font-size: 11.5px; padding: 4px 8px; }
