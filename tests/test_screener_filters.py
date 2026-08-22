@@ -8,6 +8,7 @@ never search on it. "The data exists" and "a member can use it" are two facts,
 and only one of them had a test.
 """
 import importlib
+import re
 
 from api.services.screener import filters, snapshot_db
 
@@ -496,3 +497,75 @@ def test_the_control_LABEL_and_the_read_back_SENTENCE_stay_TWO_STRINGS():
     assert set(labels) & set(sentences) == set(), (
         "a control label and a read-back sentence are now the same string. One "
         "string cannot do both jobs; keep the two phrasings and keep this rail.")
+
+
+# ───────── Wave 5 — the flow category (K5 both halves) + honest wording ─────
+#
+# ⚠️ These cases deliberately consult ONLY this task's own artifacts
+# (filters.py + columnDefs.js) — never the closed-table manifest, which Task B1
+# edits concurrently. The two-lane rails above light up over the Wave-5 columns
+# on their own the moment B1's declarations land; nothing here pre-empts them.
+
+def test_every_filter_category_key_is_a_rendered_category():
+    """⛔ THE HALF THAT FAILS SILENTLY. `FilterRail` groups controls under
+    `meta()['categories']`; a filter whose category key has no CATEGORIES entry
+    renders in NO group — a shipped control no member can reach. Derived over
+    every filter, so the next category typo goes red without a new pin."""
+    cat_keys = {c["key"] for c in filters.CATEGORIES}
+    orphans = {k: f["category"] for k, f in filters.FILTERS.items()
+               if f["category"] not in cat_keys}
+    assert not orphans, (
+        f"filters grouped under a category CATEGORIES never renders: {orphans}")
+    # Non-vacuity: the set this rail sweeps includes the Wave-5 newcomer.
+    assert "flow" in {f["category"] for f in filters.FILTERS.values()}
+
+
+def test_the_flow_category_is_present_in_BOTH_halves():
+    """K5 both halves, pinned explicitly: the category ENTRY exists (the
+    rendered half) AND controls actually reference it (the populated half).
+    Either alone is a silent nothing — an entry with no filters is hidden by
+    `FilterRail`, and filters with no entry render in no group."""
+    entries = [c for c in filters.CATEGORIES if c["key"] == "flow"]
+    assert entries == [{"key": "flow", "label": "Positioning & Flow"}], (
+        f"CATEGORIES half wrong or duplicated: {entries}")
+    members = {k for k, f in filters.FILTERS.items() if f["category"] == "flow"}
+    dp_opt = {k for k in filters.FILTERS if k.startswith(("dp_", "opt_"))}
+    assert members and members == dp_opt, (
+        f"the flow category holds {sorted(members)} but the dp_*/opt_* controls "
+        f"are {sorted(dp_opt)} — one category owns ALL of them and nothing else")
+    # ...and pattern_engine_* joined the EXISTING pattern category — never a
+    # second pattern group (K5's other half of the same ruling).
+    engine = {k for k in filters.FILTERS if k.startswith("pattern_engine")}
+    assert engine, "no pattern_engine_* controls found — the sweep is vacuous"
+    for key in engine:
+        assert filters.FILTERS[key]["category"] == "pattern", (
+            f"{key} sits in {filters.FILTERS[key]['category']!r}, not 'pattern'")
+    # The served payload carries the new category too (what the panel reads).
+    assert "flow" in {c["key"] for c in filters.meta()["categories"]}
+
+
+def _column_def_block(name):
+    """One entry's source text from columnDefs.js — the established
+    `test_screener_wave1_columndefs.py` read-off-the-artifact idiom, extended
+    to capture the (multi-line) entry body rather than just the key."""
+    src = open("app/src/pages/screener/columnDefs.js", encoding="utf-8").read()
+    m = re.search(rf"^  {re.escape(name)}: \{{(?P<body>.*?)(?=^  [a-z_]\w*: \{{|^\}})",
+                  src, flags=re.M | re.S)
+    assert m, f"columnDefs.js has no entry for {name}"
+    return m.group("body")
+
+
+def test_pattern_expectancy_r_tells_the_member_the_R_is_ASSUMED():
+    """🔴 D3: `expectancy_R` is SYNTHETIC — the pattern's hit rate applied at a
+    fixed 2R-win/1R-loss assumption, not measured realized R. A member sizing a
+    trade off a column called "Expect R" that never says so is being handed an
+    assumption dressed as a measurement. The word "assumed" in the member-facing
+    description is the honesty this pin protects."""
+    body = _column_def_block("pattern_expectancy_r")
+    assert "assumed" in body, (
+        "pattern_expectancy_r's columnDefs description no longer says the "
+        "2R-win/1R-loss is ASSUMED (ruling D3) — synthetic expectancy must "
+        "never read as measured R")
+    # Non-vacuity control: the extractor sees ONE entry, not the whole file —
+    # a neighbouring block does not carry the word.
+    assert "assumed" not in _column_def_block("pattern_engine_conf")

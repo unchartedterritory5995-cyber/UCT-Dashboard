@@ -439,6 +439,50 @@ FILTERS = dict([
     _open_range("rating_smr", "SMR Rating", "fundamental", "rating_smr"),
     _enum("sponsorship", "Sponsorship Grade", "fundamental", "sponsorship",
           [{"label": "Any"}], options_column="sponsorship"),
+    # ── Wave 5: pattern engine (pattern) · dark pool + options flow (flow) ──
+    # All twelve ship BARE (`_open_range`, "Any" + custom only): nobody at this
+    # firm has published a threshold for engine confidence, block notional or
+    # premium share, and E-8 says an unpublished threshold must not ship
+    # wearing the firm's name. Every control is a range because the closed
+    # table declares each column `yields:"num"` — the two-lane rail pairs them
+    # the moment Stage B's manifest lands. `pattern_engine_ids` (comma-joined
+    # TEXT list) deliberately has NO control here — the `patterns` precedent:
+    # a list column is a display surface, not a scalar.
+    _open_range("pattern_engine_conf", "Pattern Engine Confidence", "pattern",
+                "pattern_engine_conf"),
+    # Reader-encoded direction (ruling D4): +1 bullish · -1 bearish · 0 neutral.
+    _open_range("pattern_engine_dir", "Pattern Engine Direction", "pattern",
+                "pattern_engine_dir"),
+    _open_range("pattern_entry_dist_pct", "Pattern Entry Distance", "pattern",
+                "pattern_entry_dist_pct", unit="%"),
+    _open_range("pattern_stop_dist_pct", "Pattern Stop Distance", "pattern",
+                "pattern_stop_dist_pct", unit="%"),
+    # SYNTHETIC expectancy (ruling D3): hit rate at an ASSUMED 2R-win/1R-loss,
+    # joined regime-blind. The member-facing description (columnDefs.js) says
+    # "assumed" in as many words; the rail on that word lives in
+    # tests/test_screener_filters.py.
+    _open_range("pattern_expectancy_r", "Pattern Expectancy", "pattern",
+                "pattern_expectancy_r", unit="R"),
+    # dp_*/opt_* join ONE new category (spec §2's fourth family). K5 both
+    # halves: the key is used here AND the entry is appended to CATEGORIES
+    # below — a filter whose category has no CATEGORIES entry renders in no
+    # group and becomes a shipped control nobody can reach.
+    _open_range("dp_notional_1d", "Dark Pool Block Notional (1d)", "flow",
+                "dp_notional_1d", unit="$"),
+    _open_range("dp_prints_1d", "Dark Pool Block Prints (1d)", "flow",
+                "dp_prints_1d"),
+    _open_range("dp_notional_5d", "Dark Pool Block Notional (5d)", "flow",
+                "dp_notional_5d", unit="$"),
+    _open_range("dp_level_dist_pct", "Dark Pool Level Distance", "flow",
+                "dp_level_dist_pct", unit="%"),
+    _open_range("opt_net_premium_1d", "Options Net Premium (1d)", "flow",
+                "opt_net_premium_1d", unit="$"),
+    # K3: the share is of CLASSIFIED premium only — blank-Side prints are
+    # directionless by honesty and sit outside the denominator.
+    _open_range("opt_bull_pct_1d", "Options Bullish Premium (1d)", "flow",
+                "opt_bull_pct_1d", unit="%"),
+    _open_range("opt_net_premium_5d", "Options Net Premium (5d)", "flow",
+                "opt_net_premium_5d", unit="$"),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -493,6 +537,11 @@ CATEGORIES = [
     {"key": "ownership", "label": "Ownership & Insiders"},
     {"key": "events", "label": "Events & Analysts"},
     {"key": "context", "label": "Context"},
+    # Wave 5's fourth family (spec §2): dark-pool block aggregates + the
+    # flow-worker's options-premium aggregate. APPENDED so every existing
+    # category keeps its position; `pattern_engine_*` joined the existing
+    # "pattern" category instead of minting a second pattern group (K5).
+    {"key": "flow", "label": "Positioning & Flow"},
 ]
 
 

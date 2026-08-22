@@ -22,6 +22,16 @@ const shares = v => v == null ? '—'
   : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M`
   : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K`
   : `${v}`
+// signed dollars — opt_net_premium_* goes negative (bear premium exceeded
+// bull); dollarVol above would print "$-2000K". Null stays an em dash.
+const netUsd = v => {
+  if (v == null) return '—'
+  const a = Math.abs(v)
+  const s = a >= 1e9 ? `$${(a / 1e9).toFixed(1)}B`
+    : a >= 1e6 ? `$${(a / 1e6).toFixed(1)}M`
+    : `$${(a / 1e3).toFixed(0)}K`
+  return `${v < 0 ? '-' : '+'}${s}`
+}
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -169,4 +179,41 @@ export const COLUMN_DEFS = {
   rating_value: { label: 'Val Rt', fmt: num(0), heat: heatRs },
   rating_smr: { label: 'SMR', fmt: num(0), heat: heatRs },
   sponsorship: { label: 'Spons', fmt: v => v || '—' },
+  // ── Wave 5: pattern engine + positioning & flow ──
+  // `desc` is the member-facing honesty for each column (rendered wherever a
+  // description surface consumes COLUMN_DEFS): the D3 synthetic-expectancy
+  // sentence, the D6 engine-vs-cheap-`patterns` scale split, the D7 $4M block
+  // floor + three-way-ambiguous-blank coverage caveat, and the K3
+  // classified-only denominator. A blank cell is an em dash, never a zero —
+  // NULL here means "no active detection / no qualifying print / not in the
+  // aggregate", three facts a fabricated 0 would silently overwrite.
+  pattern_engine_ids: { label: 'Engine Pat', fmt: v => v ? v.split(',')[0] : '—',
+    desc: 'Active pattern-engine detections (daily timeframe, 7-day window) from the 85-detector engine — a different instrument from the always-on patterns heuristic column, though five pattern names exist in both vocabularies. Shows the first of up to 10 comma-joined detector ids.' },
+  pattern_engine_conf: { label: 'Eng Conf', fmt: num(0),
+    desc: 'Confidence of the best active pattern-engine detection on a 0-100 scale — NOT the 0-1 scale of Pattern Confidence (pattern_conf_max) beside the cheap patterns column; the two engines share five pattern names but are different instruments. Blank = no active detection.' },
+  pattern_engine_dir: { label: 'Eng Dir',
+    fmt: v => v == null ? '—' : v > 0 ? 'Bull' : v < 0 ? 'Bear' : 'Neut',
+    desc: 'Direction of the best active engine detection, encoded +1 bullish / -1 bearish / 0 neutral. Only detections carrying both entry and stop levels qualify as "best"; blank = none do.' },
+  pattern_entry_dist_pct: { label: 'Entry Dist', fmt: pct,
+    desc: 'Percent from the last close to the best active detection\'s entry level (positive = entry above price). Blank when no active detection carries both entry and stop levels.' },
+  pattern_stop_dist_pct: { label: 'Stop Dist', fmt: pct,
+    desc: 'Percent from the last close to the best active detection\'s stop level (negative = stop below price). Blank when no active detection carries both entry and stop levels.' },
+  pattern_expectancy_r: { label: 'Expect R', fmt: v => v == null ? '—' : `${v.toFixed(2)}R`,
+    desc: 'Synthetic expectancy for the best detection\'s pattern type: the historical hit rate applied at an assumed 2R-win / 1R-loss — an assumption, not measured realized R — and joined regime-blind (every measured stats row lives under the "unknown" regime bucket). Blank = no stats measured for that pattern yet.' },
+  dp_notional_1d: { label: 'DP $ 1d', fmt: dollarVol,
+    desc: 'Dark-pool BLOCK notional on the newest ingested session: off-exchange prints of $4M or more each — institutional block notional, NOT total dark-pool volume. Reads the session as the nightly ingest saw it (the T+1 flat-file backfill lands after the 03:00 build). Blank is three-way ambiguous: no qualifying blocks, sub-$4M prints only, or the ticker was never polled — coverage depends on which ingest writers are armed.' },
+  dp_prints_1d: { label: 'DP Prints', fmt: num(0),
+    desc: 'Count of qualifying dark-pool block prints ($4M+ each, off-exchange) on the newest ingested session. Blank is three-way ambiguous: no qualifying blocks, sub-$4M prints only, or the ticker was never polled.' },
+  dp_notional_5d: { label: 'DP $ 5d', fmt: dollarVol,
+    desc: 'Qualifying $4M+ block notional summed across the 5 newest ingested sessions (includes whatever contributed to the 1d figure). Same block floor and coverage caveats as the 1d columns.' },
+  dp_level_dist_pct: { label: 'DPL Dist', fmt: pctPlain(1),
+    desc: 'Percent distance from the last close to the nearest signature dark-pool level (the owner-tuned 0.25%-bin / $10M-floor clusterer). Blank = no signature levels exist for this name.' },
+  opt_net_premium_1d: { label: 'Net Prem 1d', fmt: netUsd,
+    heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
+    desc: 'Bullish minus bearish options premium on the newest flow-ledger session (T-1), single stocks only — ETF/index flow is out of scope. Direction math mirrors the flow board\'s conviction rules.' },
+  opt_bull_pct_1d: { label: 'Bull %', fmt: pctPlain(0),
+    desc: 'Bullish options premium as a percent of CLASSIFIED premium on the newest session — prints with no side recorded are directionless by honesty and sit outside both the numerator and the denominator, so this is a share of what could be classified, not of everything that traded.' },
+  opt_net_premium_5d: { label: 'Net Prem 5d', fmt: netUsd,
+    heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
+    desc: 'Bullish minus bearish options premium across the 5 newest flow-ledger sessions, single stocks only — ETF/index flow is out of scope.' },
 }
