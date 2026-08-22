@@ -124,6 +124,54 @@ def test_no_api_key_is_a_quiet_no_op():
         assert fmp.fetch_us_econ_week("2026-08-03", "2026-08-07") == {}
 
 
+def _fetch_jh(rows, **kw):
+    resp = mock.Mock(ok=True)
+    resp.json.return_value = rows
+    with mock.patch("requests.get", return_value=resp), \
+         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+        return fmp.fetch_us_econ_week("2026-08-24", "2026-08-28", **kw)
+
+
+# THE 8/21/26 GAP: FMP ships the symposium as a Medium unknown and never lists
+# the Chair's Friday keynote — the Warsh speech was on no calendar surface.
+_SYMPOSIUM = _row("Jackson Hole Symposium", "2026-08-27 12:00:00", "Medium",
+                  est=None, prev=None)
+
+
+def test_jackson_hole_symposium_lands_in_the_fed_timeline():
+    out = _fetch_jh([_SYMPOSIUM])
+    thu = out.get("2026-08-27", [])
+    sym = [e for e in thu if e["event"] == "Jackson Hole Symposium"]
+    assert len(sym) == 1 and sym[0]["is_fed"] is True
+    assert sym[0]["time"] == "8:00 AM"                        # 12:00Z = 08:00 ET
+
+
+def test_chair_keynote_is_derived_the_morning_after_the_symposium_opens():
+    out = _fetch_jh([_SYMPOSIUM])
+    fri = out.get("2026-08-28", [])
+    kn = [e for e in fri if "Keynote" in e["event"]]
+    assert len(kn) == 1 and kn[0]["time"] == "10:00 AM" and kn[0]["is_fed"] is True
+    # ROLE, never a name — a stale Chair name must never render.
+    assert not any(n in kn[0]["event"].lower() for n in ("warsh", "powell"))
+
+
+def test_a_provider_chair_row_suppresses_the_derived_keynote():
+    rows = [_SYMPOSIUM,
+            _row("Fed Chair Warsh Speaks at Jackson Hole",
+                 "2026-08-28 14:00:00", "High", est=None, prev=None)]
+    out = _fetch_jh(rows)
+    fri = out.get("2026-08-28", [])
+    assert [e["event"] for e in fri] == ["Fed Chair Warsh Speaks at Jackson Hole"]
+
+
+def test_a_chair_speech_row_never_seeds_a_keynote_of_its_own():
+    # Only the symposium row derives — a chair row mentioning Jackson Hole must
+    # not spawn a phantom keynote the day after the speech.
+    rows = [_row("Fed Chair Warsh Speaks at Jackson Hole",
+                 "2026-08-28 14:00:00", "High", est=None, prev=None)]
+    assert fmp.with_symposium_keynote(rows) == rows
+
+
 def test_marquee_releases_are_flagged_is_key_for_the_cards_accent_rail():
     """The card's gold rail must be driven by real importance, not styling."""
     out = _fetch([

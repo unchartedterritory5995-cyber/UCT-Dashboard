@@ -70,3 +70,20 @@
 .monthCardBtn:disabled { opacity: 0.5; cursor: default; }
 
 .monthCardErr { font-size: 12px; color: var(--danger, #ef4444); }
+
+/* Phone: the floating Compass orb rests fixed bottom-right (18px inset,
+   user-draggable) — a right-aligned button row near the viewport bottom
+   sits exactly under it at first paint. Left-align + reserve the orb's
+   corner zone so the buttons are always clear. */
+@media (max-width: 640px) {
+  .monthCardRow {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    /* clear BOTH fixed FABs: the "?" feedback button (bottom-left) and the
+       Compass orb's resting zone (bottom-right) */
+    padding-left: 60px;
+    /* the orb CLUSTER (orb + hub icons) is ~150px wide anchored right:18px —
+       clear its full width, not just the corner */
+    padding-right: 172px;
+  }
+}

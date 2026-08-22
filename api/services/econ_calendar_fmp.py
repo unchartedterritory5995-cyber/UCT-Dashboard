@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, time as _time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 _logger = logging.getLogger(__name__)
@@ -60,6 +60,51 @@ def _fmt_time(dt: datetime) -> str:
     return f"{h}:{dt.minute:02d} {ap}"
 
 
+def _et_date(row) -> str | None:
+    """ET calendar date of a raw FMP row, or None."""
+    try:
+        return (datetime.strptime(str(row.get("date") or "")[:19], "%Y-%m-%d %H:%M:%S")
+                .replace(tzinfo=timezone.utc).astimezone(_ET).strftime("%Y-%m-%d"))
+    except ValueError:
+        return None
+
+
+def with_symposium_keynote(rows: list) -> list:
+    """FMP dates Jackson Hole's opening day ("Jackson Hole Symposium", Thu) but —
+    most years — never the Chair's keynote the following morning, the event the
+    desk actually trades (found 8/21/26: Warsh's 8/28 keynote was nowhere in the
+    feed). Derive it from the DATED symposium row, never from recall: next day,
+    10:00 ET (the symposium's traditional keynote slot), role-labeled so a stale
+    Chair name can never render. A provider row already covering that day wins."""
+    for row in rows:
+        title = (str(row.get("event") or "")).lower()
+        if "jackson hole" not in title:
+            continue
+        # Only the symposium row seeds the derivation — a chair-speech row that
+        # itself mentions Jackson Hole must not spawn a keynote the day after.
+        if any(w in title for w in ("chair", "keynote", "speech", "speaks")):
+            continue
+        if (row.get("country") or "").upper() not in ("US", "USA"):
+            continue
+        ds = _et_date(row)
+        if ds is None:
+            continue
+        target = (datetime.strptime(ds, "%Y-%m-%d") + timedelta(days=1)).date()
+        covered = any(
+            _et_date(r) == target.isoformat()
+            and ("chair" in str(r.get("event") or "").lower()
+                 or "jackson hole" in str(r.get("event") or "").lower())
+            for r in rows if r is not row)
+        if covered:
+            break
+        keynote_utc = datetime.combine(target, _time(10, 0), tzinfo=_ET).astimezone(timezone.utc)
+        return rows + [{
+            "date": keynote_utc.strftime("%Y-%m-%d %H:%M:%S"), "country": "US",
+            "event": "Fed Chair Keynote (Jackson Hole)", "impact": "High",
+        }]
+    return rows
+
+
 def _clean(v) -> str | None:
     if v is None or v == "":
         return None
@@ -94,6 +139,7 @@ def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
     except Exception as exc:                            # noqa: BLE001
         _logger.warning("[econ-fmp-full] fetch failed: %s", exc)
         return {}
+    rows = with_symposium_keynote(rows)
 
     from api.routers.calendar import _is_fed_speaker, _is_high_impact
 
@@ -162,6 +208,7 @@ def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict
     except Exception as exc:                            # noqa: BLE001
         _logger.warning("[econ-fmp] fetch failed: %s", exc)
         return {}
+    rows = with_symposium_keynote(rows)
 
     # Imported lazily so this module stays independent of the router. Reusing
     # the calendar's OWN _KEY_TERMS/_is_key_event means the Discord card and the
