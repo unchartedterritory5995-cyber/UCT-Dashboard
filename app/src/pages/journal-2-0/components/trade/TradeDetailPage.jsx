@@ -33,6 +33,7 @@ import { renderTradeCardPng } from '../../lib/tradeCardPng'
 import { downloadBlob, copyBlobToClipboard } from '../../../../components/chart/chartScreenshot'
 import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
 import TradeScreenshots from './TradeScreenshots'
+import TradeReplay from './TradeReplay'
 import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
@@ -103,6 +104,25 @@ function signClass(n) {
  * Gated on the `tradePng` feature flag → renders null when off (instant
  * per-browser kill). Surfaces a tiny inline error instead of crashing the page.
  */
+/** Bar-by-bar replay of this trade (own modal chart — see TradeReplay). */
+function ReplayButton({ trade }) {
+  const [open, setOpen] = useState(false)
+  if (!trade?.symbol || !trade?.entryDate) return null
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.replayBtn}
+        onClick={() => setOpen(true)}
+      >
+        ▶ Replay
+      </button>
+      {open && <TradeReplay trade={trade} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+
 function TradeCardActions({ trade }) {
   const flagOn = useFeatureFlag('tradePng')
   const [busy, setBusy] = useState(false)
@@ -397,6 +417,7 @@ export default function TradeDetailPage() {
           </span>
         )}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+          <ReplayButton trade={trade} />
           <TradeCardActions trade={trade} />
           <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
         </span>
