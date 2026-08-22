@@ -809,9 +809,16 @@ def _node_run(driver_source: str, payload: dict) -> dict:
             pass
 
     if proc.returncode != 0:
-        raise LaneUnavailable(
-            f"the JS lane exited {proc.returncode}: "
-            f"{(proc.stderr or proc.stdout)[-2000:]}")
+        # ⚠️ HEAD AND TAIL, NOT TAIL ALONE. A JS refusal opens with the part a
+        # caller greps for ("unknown name `lineWidth` -- not one of: ...") and
+        # then enumerates the WHOLE declared vocabulary; a tail-only slice sized
+        # to yesterday's manifest cut the name clean off the day the Stage-B
+        # bump took the table 124 -> 164 names, and the control test matching
+        # on "lineWidth" went red against a refusal that was correct.
+        err = (proc.stderr or proc.stdout) or ""
+        if len(err) > 4000:
+            err = err[:2000] + "\n... [middle elided] ...\n" + err[-2000:]
+        raise LaneUnavailable(f"the JS lane exited {proc.returncode}: {err}")
     try:
         doc = json.loads(proc.stdout)
     except json.JSONDecodeError as exc:

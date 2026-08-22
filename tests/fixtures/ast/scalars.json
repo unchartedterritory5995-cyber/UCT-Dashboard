@@ -652,6 +652,486 @@
       "asOf": "bars_asof",
       "cadence": "nightly",
       "yields": "num"
+    },
+    {
+      "id": "quick_ratio",
+      "scalar": "quick_ratio",
+      "ast": {
+        "type": "series",
+        "name": "quick_ratio"
+      },
+      "value": 1.35,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "p_fcf",
+      "scalar": "p_fcf",
+      "ast": {
+        "type": "series",
+        "name": "p_fcf"
+      },
+      "value": 22.4,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "p_ocf",
+      "scalar": "p_ocf",
+      "ast": {
+        "type": "series",
+        "name": "p_ocf"
+      },
+      "value": 15.8,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "payout_ratio",
+      "scalar": "payout_ratio",
+      "ast": {
+        "type": "series",
+        "name": "payout_ratio"
+      },
+      "value": 34.6,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "roic",
+      "scalar": "roic",
+      "ast": {
+        "type": "series",
+        "name": "roic"
+      },
+      "value": 18.2,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "lt_debt_to_capital",
+      "scalar": "lt_debt_to_capital",
+      "ast": {
+        "type": "series",
+        "name": "lt_debt_to_capital"
+      },
+      "value": 41.7,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "ipo_age_days",
+      "scalar": "ipo_age_days",
+      "ast": {
+        "type": "series",
+        "name": "ipo_age_days"
+      },
+      "value": 5479,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "shares_outstanding",
+      "scalar": "shares_outstanding",
+      "ast": {
+        "type": "series",
+        "name": "shares_outstanding"
+      },
+      "value": 24221000000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "float_shares",
+      "scalar": "float_shares",
+      "ast": {
+        "type": "series",
+        "name": "float_shares"
+      },
+      "value": 15750000000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "float_pct",
+      "scalar": "float_pct",
+      "ast": {
+        "type": "series",
+        "name": "float_pct"
+      },
+      "value": 87.3,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "short_float_pct",
+      "scalar": "short_float_pct",
+      "ast": {
+        "type": "series",
+        "name": "short_float_pct"
+      },
+      "value": 3.9,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "short_ratio",
+      "scalar": "short_ratio",
+      "ast": {
+        "type": "series",
+        "name": "short_ratio"
+      },
+      "value": 2.6,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "insider_own_pct",
+      "scalar": "insider_own_pct",
+      "ast": {
+        "type": "series",
+        "name": "insider_own_pct"
+      },
+      "value": 12.4,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pt_target",
+      "scalar": "pt_target",
+      "ast": {
+        "type": "series",
+        "name": "pt_target"
+      },
+      "value": 212.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pt_upside_pct",
+      "scalar": "pt_upside_pct",
+      "ast": {
+        "type": "series",
+        "name": "pt_upside_pct"
+      },
+      "value": 18.7,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "upgrades_30d",
+      "scalar": "upgrades_30d",
+      "ast": {
+        "type": "series",
+        "name": "upgrades_30d"
+      },
+      "value": 4,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "downgrades_30d",
+      "scalar": "downgrades_30d",
+      "ast": {
+        "type": "series",
+        "name": "downgrades_30d"
+      },
+      "value": 2,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "eps_next_y_growth",
+      "scalar": "eps_next_y_growth",
+      "ast": {
+        "type": "series",
+        "name": "eps_next_y_growth"
+      },
+      "value": 24.3,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "blended_growth",
+      "scalar": "blended_growth",
+      "ast": {
+        "type": "series",
+        "name": "blended_growth"
+      },
+      "value": 31.9,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "sector_rs_pct",
+      "scalar": "sector_rs_pct",
+      "ast": {
+        "type": "series",
+        "name": "sector_rs_pct"
+      },
+      "value": 82,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rating_eps",
+      "scalar": "rating_eps",
+      "ast": {
+        "type": "series",
+        "name": "rating_eps"
+      },
+      "value": 93,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rating_growth",
+      "scalar": "rating_growth",
+      "ast": {
+        "type": "series",
+        "name": "rating_growth"
+      },
+      "value": 88,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rating_value",
+      "scalar": "rating_value",
+      "ast": {
+        "type": "series",
+        "name": "rating_value"
+      },
+      "value": 41,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rating_smr",
+      "scalar": "rating_smr",
+      "ast": {
+        "type": "series",
+        "name": "rating_smr"
+      },
+      "value": 77,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "days_to_earnings",
+      "scalar": "days_to_earnings",
+      "ast": {
+        "type": "series",
+        "name": "days_to_earnings"
+      },
+      "value": 12,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "last_report_move_pct",
+      "scalar": "last_report_move_pct",
+      "ast": {
+        "type": "series",
+        "name": "last_report_move_pct"
+      },
+      "value": 8.4,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "implied_move_pct",
+      "scalar": "implied_move_pct",
+      "ast": {
+        "type": "series",
+        "name": "implied_move_pct"
+      },
+      "value": 6.8,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "insider_cluster_days",
+      "scalar": "insider_cluster_days",
+      "ast": {
+        "type": "series",
+        "name": "insider_cluster_days"
+      },
+      "value": 9,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_engine_conf",
+      "scalar": "pattern_engine_conf",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_conf"
+      },
+      "value": 72,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_engine_dir",
+      "scalar": "pattern_engine_dir",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_dir"
+      },
+      "value": -1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_entry_dist_pct",
+      "scalar": "pattern_entry_dist_pct",
+      "ast": {
+        "type": "series",
+        "name": "pattern_entry_dist_pct"
+      },
+      "value": 2.15,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_stop_dist_pct",
+      "scalar": "pattern_stop_dist_pct",
+      "ast": {
+        "type": "series",
+        "name": "pattern_stop_dist_pct"
+      },
+      "value": -4.35,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_expectancy_r",
+      "scalar": "pattern_expectancy_r",
+      "ast": {
+        "type": "series",
+        "name": "pattern_expectancy_r"
+      },
+      "value": 1.4,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dp_notional_1d",
+      "scalar": "dp_notional_1d",
+      "ast": {
+        "type": "series",
+        "name": "dp_notional_1d"
+      },
+      "value": 18500000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dp_prints_1d",
+      "scalar": "dp_prints_1d",
+      "ast": {
+        "type": "series",
+        "name": "dp_prints_1d"
+      },
+      "value": 3,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dp_notional_5d",
+      "scalar": "dp_notional_5d",
+      "ast": {
+        "type": "series",
+        "name": "dp_notional_5d"
+      },
+      "value": 96500000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dp_level_dist_pct",
+      "scalar": "dp_level_dist_pct",
+      "ast": {
+        "type": "series",
+        "name": "dp_level_dist_pct"
+      },
+      "value": 1.85,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "opt_net_premium_1d",
+      "scalar": "opt_net_premium_1d",
+      "ast": {
+        "type": "series",
+        "name": "opt_net_premium_1d"
+      },
+      "value": 2400000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "opt_bull_pct_1d",
+      "scalar": "opt_bull_pct_1d",
+      "ast": {
+        "type": "series",
+        "name": "opt_bull_pct_1d"
+      },
+      "value": 64,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "opt_net_premium_5d",
+      "scalar": "opt_net_premium_5d",
+      "ast": {
+        "type": "series",
+        "name": "opt_net_premium_5d"
+      },
+      "value": -5100000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
     }
   ],
   "trees": [

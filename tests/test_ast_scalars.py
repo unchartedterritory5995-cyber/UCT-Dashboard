@@ -171,7 +171,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
         f"column that is neither granted nor refused, and "
         f"{sorted(declared | excluded - columns)} is named here and not a column")
     assert not (declared & excluded), sorted(declared & excluded)
-    assert (len(declared), len(excluded)) == (54, 97)
+    assert (len(declared), len(excluded)) == (94, 57)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -528,6 +528,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     at all, which is the whole reason these are two numbers. Seventeen indicators
     became callable and each one owed a bar-corpus case; not one scalar did.
 
+    ⭐ AND THE SCALAR FLOOR MOVED 54 -> 94 ON THE WAVE-5 STAGE-B BUMP
+    (2026-08-22: 28 Wave-2 promotions + 12 Wave-5 declarations) while the BAR
+    floor did not move at all — the same partition carrying its weight in the
+    other direction: forty per-symbol names became sayable and not one frozen
+    per-ast bar digest moved (ruling D15).
+
     ⭐ 69 -> 70 ON 2026-08-11 WITH ``adx``, AND THIS PAIR OF NUMBERS IS EXACTLY
     WHAT CAUGHT IT. ADX was declared, implemented in both lanes and shipped
     earlier the same day; what it never got was a bar-corpus case, so its
@@ -540,7 +546,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 54
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 94
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

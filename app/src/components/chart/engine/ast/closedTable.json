@@ -1515,6 +1515,526 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the highest detected pattern confidence"
+    },
+    "quick_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "quick_ratio"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the quick ratio"
+    },
+    "p_fcf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "p_fcf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the price to free-cash-flow ratio"
+    },
+    "p_ocf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "p_ocf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the price to operating-cash-flow ratio"
+    },
+    "payout_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "payout_ratio"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dividend payout ratio"
+    },
+    "roic": {
+      "source": {
+        "store": "screener_rows",
+        "column": "roic"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the return on invested capital"
+    },
+    "lt_debt_to_capital": {
+      "source": {
+        "store": "screener_rows",
+        "column": "lt_debt_to_capital"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the long-term debt to total capital ratio"
+    },
+    "ipo_age_days": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ipo_age_days"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days since the IPO"
+    },
+    "shares_outstanding": {
+      "source": {
+        "store": "screener_rows",
+        "column": "shares_outstanding"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of shares outstanding"
+    },
+    "float_shares": {
+      "source": {
+        "store": "screener_rows",
+        "column": "float_shares"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of shares in the public float"
+    },
+    "float_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "float_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the public float as a percentage of shares outstanding"
+    },
+    "short_float_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "short_float_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the short interest as a percentage of the float"
+    },
+    "short_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "short_ratio"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the short-interest days-to-cover ratio"
+    },
+    "insider_own_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_own_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the insider ownership percentage"
+    },
+    "pt_target": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pt_target"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the consensus analyst price target"
+    },
+    "pt_upside_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pt_upside_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage upside to the consensus price target"
+    },
+    "upgrades_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "upgrades_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of analyst upgrades in the last 30 days"
+    },
+    "downgrades_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "downgrades_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of analyst downgrades in the last 30 days"
+    },
+    "eps_next_y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_next_y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the estimated next-year earnings-per-share growth"
+    },
+    "blended_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "blended_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the blended earnings and revenue growth"
+    },
+    "sector_rs_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "sector_rs_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the sector relative-strength percentile"
+    },
+    "rating_eps": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rating_eps"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the earnings-per-share strength rating"
+    },
+    "rating_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rating_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the growth strength rating"
+    },
+    "rating_value": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rating_value"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the value strength rating"
+    },
+    "rating_smr": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rating_smr"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the sales-margins-returns composite rating"
+    },
+    "days_to_earnings": {
+      "source": {
+        "store": "screener_rows",
+        "column": "days_to_earnings"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days until the next earnings report"
+    },
+    "last_report_move_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "last_report_move_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage move on the last earnings report"
+    },
+    "implied_move_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "implied_move_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the options-implied move into the next report"
+    },
+    "insider_cluster_days": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_cluster_days"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days since the last insider cluster buy"
+    },
+    "pattern_engine_conf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_conf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the highest active pattern-engine confidence, on the engine's 0-100 scale"
+    },
+    "pattern_engine_dir": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_dir"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the best active pattern's direction, encoded 1 for bullish, -1 for bearish and 0 for neutral"
+    },
+    "pattern_entry_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_entry_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance from the last price to the best pattern's entry level"
+    },
+    "pattern_stop_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_stop_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance from the last price to the best pattern's stop level"
+    },
+    "pattern_expectancy_r": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_expectancy_r"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the pattern's historical expectancy in R, derived from its hit rate at an assumed 2R win and 1R loss"
+    },
+    "dp_notional_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_notional_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dark-pool block notional on the latest session"
+    },
+    "dp_prints_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_prints_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of dark-pool block prints on the latest session"
+    },
+    "dp_notional_5d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_notional_5d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dark-pool block notional across the five latest sessions"
+    },
+    "dp_level_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_level_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance to the nearest signature dark-pool level"
+    },
+    "opt_net_premium_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_net_premium_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net options premium on the latest session"
+    },
+    "opt_bull_pct_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_bull_pct_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the bullish share of classified options premium on the latest session"
+    },
+    "opt_net_premium_5d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_net_premium_5d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net options premium across the five latest sessions"
     }
   },
   "_functions_excluded": {
@@ -1587,54 +2107,14 @@
     "stage2": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage4": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "hvc_52w": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "quick_ratio": "a Wave 2 screener column, not yet promoted to a scalar -- declaring the Wave 2 additions into the formula vocabulary is a future wave's job, so no formula can read it until then",
-    "p_fcf": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "p_ocf": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "payout_ratio": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "roic": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "lt_debt_to_capital": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "ipo_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",
-    "ipo_age_days": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "country": "TEXT, for the same reason as `sector` -- also a Wave 2 column not yet promoted",
-    "shares_outstanding": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "float_shares": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "float_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "short_float_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "short_ratio": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "insider_own_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "analyst_consensus": "TEXT -- a classification label (e.g. `buy`/`hold`/`sell`), for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
-    "pt_target": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "pt_upside_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "upgrades_30d": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "downgrades_30d": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "eps_next_y_growth": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "blended_growth": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "sector_rs_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "rating_eps": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "rating_growth": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "rating_value": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "rating_smr": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "sponsorship": "TEXT -- a classification label, for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
     "next_earnings_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",
     "earnings_session": "TEXT -- a classification label (`bmo`/`amc`), for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
-    "days_to_earnings": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "last_report_move_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "implied_move_pct": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
     "earnings_setup_grade": "TEXT -- a classification label, for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
-    "insider_cluster_days": "for the same reason as `quick_ratio` -- Wave 2, not yet promoted",
-    "pattern_engine_ids": "a comma-joined LIST, not a scalar -- same reason as patterns. Also a Wave 5 column, permanently excluded",
-    "pattern_engine_conf": "a Wave 5 screener column, not yet promoted to a scalar -- Stage B of the Wave 5 plan declares it after the first nightly fill",
-    "pattern_engine_dir": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "pattern_entry_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "pattern_stop_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "pattern_expectancy_r": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "dp_notional_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "dp_prints_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "dp_notional_5d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "dp_level_dist_pct": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "opt_net_premium_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "opt_bull_pct_1d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted",
-    "opt_net_premium_5d": "for the same reason as `pattern_engine_conf` -- Wave 5, not yet promoted"
+    "pattern_engine_ids": "a comma-joined LIST, not a scalar -- same reason as patterns. Also a Wave 5 column, permanently excluded"
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent."

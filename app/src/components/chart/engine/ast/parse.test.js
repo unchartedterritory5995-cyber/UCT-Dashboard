@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 50 functions and 54 scalars — 124 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 50 functions and 94 scalars — 164 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -444,7 +444,12 @@ describe('the manifest', () => {
     // number here would have been "fixed" with nobody able to see which half
     // moved — and Phase F is exactly that event: the bar half went 31 -> 48 and
     // the scalar half did not move at all. `accum` took the bar half to 49 and the Pine parity six took it to 55.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(54)
+    // ⭐ 54 -> 94 IS THE WAVE-5 STAGE-B BUMP (2026-08-22): the 28 measured
+    // Wave-2 numerics promoted out of `_scalars_excluded` plus the 12 Wave-5
+    // pattern/darkpool/options columns declared, every one `snapshot_date` /
+    // `nightly` / `num`. The BAR half below did not move at all — a scalar
+    // rides the `series` node, so no astHash and no frozen digest moved.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(94)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
@@ -453,7 +458,7 @@ describe('the manifest', () => {
     // been keeping it out — its window is 2 x period and the table could not say so.
     expect(bar.size).toBe(70)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(124)
+    expect(declared.size).toBe(164)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the
