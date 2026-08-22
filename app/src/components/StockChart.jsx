@@ -3438,6 +3438,13 @@ export default function StockChart({
         // that's the "reset does nothing / candles gone off-screen" bug.
         vertMarginsRef.current = null
         focusPriceRangeRef.current = null
+        // Drop any manual price-axis DRAG pin too. A price-axis drag latches
+        // priceManualRef + priceManualRangeRef and installs an autoscaleInfoProvider
+        // that FORCES the dragged vertical range back even after autoScale:true — so
+        // without clearing these the reset re-fits horizontally but the vertical stays
+        // compressed. Mirrors the double-click axis reset (onDbl) and the sym-switch reset.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         try {
           mainPriceScale()?.applyOptions({
             autoScale: true,
@@ -3466,6 +3473,10 @@ export default function StockChart({
       try {
         // Clear any locked vertical placement and restore the default candle band.
         vertMarginsRef.current = null
+        // Also release a manual price-axis drag pin (see resetView) — otherwise its
+        // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         mainPriceScale()?.applyOptions({
           autoScale: true,
           scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
