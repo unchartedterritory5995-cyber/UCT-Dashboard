@@ -40,6 +40,31 @@ test('scanJoins applied:false forces first sweep tonight even when meta carries 
     .toBe('Breakout base — first sweep tonight')
 })
 
+// F1 (final review): scanJoins wins in BOTH directions. An applied join must
+// never render as inert — a chip claiming "first sweep tonight" over rows the
+// join is actively filtering reads a scan-filtered set as the whole market.
+test('applied:true with NO meta entry renders SWEPT off the join, never first-sweep-tonight', () => {
+  const spec = { op: 'in', value: H3, label: 'Shared scan name' }
+  const scanJoins = [{ def_hash: H3, as_of: 20260821, applied: true }]
+  expect(scanChipText({ scans, spec, hash: H3, scanJoins }))
+    .toBe('Shared scan name — swept 2026-08-21')
+})
+
+test('applied:true with a STALE meta (different as_of) shows the join date and DROPS the counts', () => {
+  // The 05:00 sweep crossed an open tab: meta still says 08-20, the join ran 08-21.
+  const spec = { op: 'in', value: H1 }
+  const scanJoins = [{ def_hash: H1, as_of: 20260821, applied: true }]
+  expect(scanChipText({ scans, spec, hash: H1, scanJoins }))
+    .toBe('Breakout base — swept 2026-08-21')
+})
+
+test('applied:true with a MATCHING meta keeps the full one-authority counts text', () => {
+  const spec = { op: 'in', value: H1 }
+  const scanJoins = [{ def_hash: H1, as_of: 20260820, applied: true }]
+  expect(scanChipText({ scans, spec, hash: H1, scanJoins }))
+    .toBe('Breakout base — swept 2026-08-20 · 8/10 answered · 1 dropped')
+})
+
 test('each chip’s × calls onRemoveHash with its hash', () => {
   const onRemoveHash = vi.fn()
   render(<ScanFilterChip scans={scans} spec={{ op: 'in', value: H1 }} scanJoins={[]}
