@@ -14,7 +14,7 @@ import styles from './ScannerShell.module.css'
 export const LIVE_WINDOW = 300
 const ROW_H = { compact: 30, comfortable: 38 }
 const colWidth = key =>
-  key === 'ticker' ? '108px'
+  key === 'ticker' ? '128px'
   : key === 'company' ? 'minmax(150px, 1.4fr)'
   : ['sector', 'industry', 'theme', 'patterns'].includes(key) ? 'minmax(120px, 1fr)'
   : '92px'
@@ -87,8 +87,13 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
                         <span {...ta.longPressProps(row.ticker)}>
                           <TickerPopup sym={row.ticker}>{row.ticker}</TickerPopup>
                         </span>
-                        <PatternFeedbackChip ticker={row.ticker}
-                          setup={`scan:${view || 'screener'}`} source="scanner" compact />
+                        {/* Admin curation chip: hover-revealed on pointer
+                            devices so a scanned grid stays clean; always
+                            visible where hover doesn't exist (touch). */}
+                        <span className={styles.rowFb}>
+                          <PatternFeedbackChip ticker={row.ticker}
+                            setup={`scan:${view || 'screener'}`} source="scanner" compact />
+                        </span>
                       </div>
                     )
                   }
