@@ -232,6 +232,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
         onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
+        aria-label={sym ? `${sym} — click to search a different ticker` : 'Search ticker'}
       >
         {displayLabel ? (
           // fullLabel: lift the 240px cap so the whole name has real layout width
