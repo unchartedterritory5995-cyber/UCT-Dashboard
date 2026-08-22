@@ -112,3 +112,34 @@ test('an explicit lists prop wins — no self-fetch fires', async () => {
   await screen.findByRole('button', { name: 'Provided' })
   expect(global.fetch).not.toHaveBeenCalledWith('/api/watchlists', expect.anything())
 })
+
+test('prebuilt (UCT-curated) lists are not offered — the seeder owns them, and the owner holds ~30', async () => {
+  global.fetch = vi.fn(async (url) => {
+    if (url === '/api/watchlists') {
+      return { ok: true, json: async () => [
+        { id: 'a', name: 'Momentum' },
+        { id: 'p', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1 },
+        { id: 'q', name: 'Liquid Major ETFs', is_prebuilt: 1 },
+      ] }
+    }
+    return { ok: true, json: async () => ({}) }
+  })
+  renderMenu()
+  fireEvent.click(screen.getByRole('button', { name: /add to list/i }))
+  await screen.findByRole('button', { name: 'Momentum' })   // control: the fetch wire is live
+  expect(screen.queryByRole('button', { name: /sunday scans/i })).toBeNull()
+  expect(screen.queryByRole('button', { name: /liquid major/i })).toBeNull()
+})
+
+test('an account whose only lists are prebuilt still gets the inline "New list" path, not a wall of UCT names', async () => {
+  global.fetch = vi.fn(async (url) => {
+    if (url === '/api/watchlists') {
+      return { ok: true, json: async () => [{ id: 'p', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1 }] }
+    }
+    return { ok: true, json: async () => ({}) }
+  })
+  renderMenu()
+  fireEvent.click(screen.getByRole('button', { name: /add to list/i }))
+  await screen.findByText(/no lists yet/i)
+  expect(screen.getByPlaceholderText(/new list/i)).toBeInTheDocument()
+})
