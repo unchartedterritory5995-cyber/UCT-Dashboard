@@ -285,6 +285,32 @@ function CardBody({ metricKey, p }) {
           Needs {p.minTrades} closed trades — {p.trades} so far.
         </p>
       )
+    case 'dividends':
+      return (
+        <div className={styles.tables}>
+          <div className={styles.stats}>
+            <Stat label="Dividends" value={usd(p.dividendsTotal)} />
+            <Stat label="Interest" value={usd(p.interestTotal)} />
+          </div>
+          {p.byMonth?.length > 0 && (
+            <MiniTable
+              title="By month (last 12)"
+              cols={['Month', 'Amount']}
+              rows={p.byMonth.map((m) => [m.month, usd(m.amount)])}
+            />
+          )}
+          {p.topSymbols?.length > 0 && (
+            <MiniTable
+              title="Top payers"
+              cols={['Symbol', 'Amount']}
+              rows={p.topSymbols.map((t) => [t.symbol, usd(t.amount)])}
+            />
+          )}
+          {p.count === 0 && (
+            <p className={styles.gateNote}>No dividend or interest activity in the ledger yet.</p>
+          )}
+        </div>
+      )
     default:
       return <p className={styles.hint}>Unknown card.</p>
   }

@@ -280,3 +280,44 @@ def test_monte_carlo_deterministic_and_sane():
     assert a["terminal"]["p50"] > 0
     assert a["maxDrawdown"]["p50"] <= 0
     assert 0 <= a["probDown10"] <= 1
+
+
+# ── dividends ────────────────────────────────────────────────────────────────
+
+def _cash_activity(conn, aid, *, typ, amount, symbol=None, when="2026-06-15",
+                   user_id="u1", broker_account="ba1"):
+    import json
+    conn.execute(
+        "INSERT INTO j2_broker_activities (id, user_id, broker_account_id, "
+        "external_id, activity_type, symbol, occurred_at, raw_json, processed, "
+        "created_at) VALUES (?,?,?,?,?,?,?,?,1,'2026-06-15T00:00:00')",
+        (aid, user_id, broker_account, aid, "cash", symbol, when,
+         json.dumps({"type": typ, "amount": amount})),
+    )
+    conn.commit()
+
+
+def test_dividends_card_hand_worked():
+    conn = _conn()
+    _cash_activity(conn, "d1", typ="DIVIDEND", amount=12.5, symbol="SCHD",
+                   when="2026-05-10")
+    _cash_activity(conn, "d2", typ="DIVIDEND", amount=7.5, symbol="SCHD",
+                   when="2026-06-10")
+    _cash_activity(conn, "d3", typ="STOCK_DIVIDEND", amount=3.0, symbol="O",
+                   when="2026-06-12")
+    _cash_activity(conn, "i1", typ="INTEREST", amount=1.25, when="2026-06-30")
+    _cash_activity(conn, "x1", typ="WITHDRAWAL", amount=500.0)   # not income
+    d = _out(conn, ["dividends"])["metrics"]["dividends"]
+    assert d["dividendsTotal"] == 23.0
+    assert d["interestTotal"] == 1.25
+    assert d["count"] == 4 and d["unparsed"] == 0
+    assert {m["month"]: m["amount"] for m in d["byMonth"]} == {
+        "2026-05": 12.5, "2026-06": 10.5}
+    assert d["topSymbols"][0] == {"symbol": "SCHD", "amount": 20.0}
+
+
+def test_dividends_empty_book_is_honest_zero():
+    conn = _conn()
+    d = _out(conn, ["dividends"])["metrics"]["dividends"]
+    assert d == {"dividendsTotal": 0.0, "interestTotal": 0.0, "count": 0,
+                 "unparsed": 0, "byMonth": [], "topSymbols": []}

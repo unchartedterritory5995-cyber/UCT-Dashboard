@@ -485,6 +485,69 @@ def _monte_carlo(ctx: Ctx) -> dict[str, Any]:
     return base
 
 
+_DIV_TYPES = {"DIVIDEND", "STOCK_DIVIDEND"}
+_INT_TYPES = {"INTEREST"}
+
+
+def _dividends(ctx: Ctx) -> dict[str, Any]:
+    """Dividend + interest income from the raw broker activities ledger
+    (the portfolio-tracker staple). Cash rows are few, so raw_json is parsed
+    Python-side; a row with no parsable amount is COUNTED as unparsed, never
+    guessed. Manual-only accounts return zeros with count 0 (honest empty)."""
+    import json as _json
+    base = "user_id = ? AND activity_type = 'cash'"
+    params: list[Any] = [ctx.user_id]
+    if ctx.account_id:
+        base += (" AND broker_account_id IN (SELECT id FROM j2_broker_accounts "
+                 "WHERE user_id = ? AND j2_account_id = ?)")
+        params += [ctx.user_id, ctx.account_id]
+    rows = ctx.conn.execute(
+        f"SELECT symbol, occurred_at, raw_json FROM j2_broker_activities "
+        f" WHERE {base}", params,
+    ).fetchall()
+
+    div_total = int_total = 0.0
+    count = unparsed = 0
+    by_month: dict[str, float] = {}
+    by_symbol: dict[str, float] = {}
+    for r in rows:
+        try:
+            raw = _json.loads(r["raw_json"])
+        except (ValueError, TypeError):
+            unparsed += 1
+            continue
+        typ = str(raw.get("type") or "").strip().upper()
+        if typ not in _DIV_TYPES and typ not in _INT_TYPES:
+            continue
+        try:
+            amt = float(raw.get("amount"))
+        except (TypeError, ValueError):
+            unparsed += 1
+            continue
+        count += 1
+        if typ in _INT_TYPES:
+            int_total += amt
+            continue
+        div_total += amt
+        ym = str(r["occurred_at"] or "")[:7]
+        if ym:
+            by_month[ym] = by_month.get(ym, 0.0) + amt
+        sym = r["symbol"]
+        if sym:
+            by_symbol[sym] = by_symbol.get(sym, 0.0) + amt
+
+    months = sorted(by_month.items())[-12:]
+    top = sorted(by_symbol.items(), key=lambda kv: -kv[1])[:5]
+    return {
+        "dividendsTotal": round(div_total, 2),
+        "interestTotal": round(int_total, 2),
+        "count": count,
+        "unparsed": unparsed,
+        "byMonth": [{"month": m, "amount": round(v, 2)} for m, v in months],
+        "topSymbols": [{"symbol": sym, "amount": round(v, 2)} for sym, v in top],
+    }
+
+
 # ── Custom-KPI vocabulary + AST-safe evaluator ──────────────────────────────
 
 def build_vocabulary(ctx: Ctx) -> dict[str, float | None]:
@@ -626,6 +689,9 @@ METRICS: dict[str, MetricDef] = {m.key: m for m in [
               "1,000 bootstrap paths of your next 100 trades from your own "
               "P&L distribution — terminal range, drawdown odds.",
               "risk", _monte_carlo),
+    MetricDef("dividends", "Dividends & Interest",
+              "Income the broker paid you — dividends by month and symbol, "
+              "plus interest.", "income", _dividends),
 ]}
 
 VOCABULARY_KEYS = [
