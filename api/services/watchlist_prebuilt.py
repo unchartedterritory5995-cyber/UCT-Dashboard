@@ -37,6 +37,11 @@ _LIQUID_NAME = "liquid major etfs"
 # retention is pruned by the family's own reconcile, BY ISSUE DATE.
 SUNDAY_SCANS_NAME = "Sunday Scans"
 SUNDAY_SCANS_KEEP = 12
+# A widget pinned to a dated list stays on that issue. The NEWEST issue's list also
+# carries this stable alias, so a widget pinned to `community:alias:<alias>` follows
+# each new issue as it lands (resolved client-side by pages/watchlist/communityPick.js).
+SUNDAY_SCANS_LATEST_ALIAS = "sunday-scans-latest"
+SUNDAY_SCANS_LATEST_LABEL = f"{SUNDAY_SCANS_NAME} — Latest issue"
 _COMMUNITY_CATEGORY = "UCT Community"
 _ISSUE_DATE_FMT = "%B %d, %Y"          # "August 16, 2026" — the article's own date style
 _NAME_SEP = " — "
@@ -169,6 +174,18 @@ def issue_date_map():
     Sunday Scans archive) — the picker orders those newest-first instead of A→Z."""
     return {l["name"].strip().lower(): l["issue_date"]
             for l in _load_committed() if l.get("issue_date")}
+
+
+def alias_map():
+    """{lowercased list name: {"alias", "label"}} — the stable alias the NEWEST
+    Sunday Scans issue carries (exactly one row, or none when the store is
+    unavailable), so a widget can pin "the latest issue" rather than a date."""
+    specs = sunday_scans_specs()
+    if not specs:
+        return {}
+    newest = max(specs, key=lambda s: s["issue_date"])
+    return {newest["name"].strip().lower():
+            {"alias": SUNDAY_SCANS_LATEST_ALIAS, "label": SUNDAY_SCANS_LATEST_LABEL}}
 
 
 def _reconcile_sunday_family(existing) -> dict:

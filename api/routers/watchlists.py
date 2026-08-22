@@ -167,18 +167,25 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
     rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
     try:
         from api.services.watchlist_prebuilt import (
-            category_map, sample_map, category_order, issue_date_map, _DEFAULT_CATEGORY,
+            category_map, sample_map, category_order, issue_date_map, alias_map,
+            _DEFAULT_CATEGORY,
         )
         cats = category_map()
         samples = sample_map()
         order = category_order()
         dated = issue_date_map()
+        aliases = alias_map()
         for r in rows:
             key = (r.get("name") or "").strip().lower()
             r["category"] = cats.get(key, _DEFAULT_CATEGORY)
             r["sample"] = samples.get(key, [])
             if dated.get(key):
                 r["issue_date"] = dated[key]     # 'YYYY-MM-DD' — only the dated archive lists
+            if aliases.get(key):
+                # The newest issue also answers to a STABLE key (community:alias:<alias>)
+                # so a widget can follow each new issue instead of pinning one date.
+                r["alias"] = aliases[key]["alias"]
+                r["alias_label"] = aliases[key]["label"]
         # Group rows by the config's section order (ETF → Index → Breadth → Community) so the
         # picker's first-seen grouping is deterministic, not dependent on each section's
         # alphabetically first list name. Within a section: DATED lists first, newest first

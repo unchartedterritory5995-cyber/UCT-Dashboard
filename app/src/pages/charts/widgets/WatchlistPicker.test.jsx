@@ -182,3 +182,29 @@ test('My Lists hides prebuilt rows the admin account owns — they live under Pr
   expect((await screen.findAllByRole('button', { name: /breakouts/i })).length).toBeGreaterThan(0)  // control
   expect(screen.queryAllByRole('button', { name: /sunday scans/i })).toHaveLength(0)
 })
+
+test('the newest issue also offers a "Latest issue" cell first, whose pick follows the alias', async () => {
+  const user = userEvent.setup()
+  const onPick = vi.fn()
+  const rows = PREBUILT.map(r => r.id === 'a16'
+    ? { ...r, alias: 'sunday-scans-latest', alias_label: 'Sunday Scans — Latest issue' }
+    : r)
+  vi.stubGlobal('fetch', vi.fn((url) => {
+    if (String(url) === '/api/watchlists/prebuilt') return Promise.resolve({ ok: true, json: () => Promise.resolve(rows) })
+    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
+  }))
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <WatchlistPicker onPick={onPick} />
+    </SWRConfig>,
+  )
+  await user.click(screen.getByRole('tab', { name: /prebuilt/i }))
+  const dated = (await screen.findAllByRole('button', { name: /sunday scans/i })).map(b => b.textContent)
+  expect(dated[0]).toMatch(/latest issue/i)                       // pinned first
+  expect(dated[1]).toMatch(/august 16, 2026/i)                    // then the dated rows, newest first
+  expect(dated).toHaveLength(4)                                    // 1 alias cell + 3 issues, no duplicates
+  await user.click(screen.getByRole('button', { name: /latest issue/i }))
+  expect(onPick).toHaveBeenCalledWith(expect.objectContaining({
+    key: 'community:alias:sunday-scans-latest', name: 'Sunday Scans — Latest issue',
+  }))
+})

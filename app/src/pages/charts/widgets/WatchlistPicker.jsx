@@ -17,6 +17,7 @@ import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
+import { aliasKey } from '../../watchlist/communityPick'
 import styles from './WatchlistPicker.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : []))
@@ -111,11 +112,18 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
       return (a.name || '').localeCompare(b.name || '')
     }
     order.forEach(c => byCat.get(c).sort(byIssueThenName))
-    return order.map(c => ({
-      category: c,
-      lists: byCat.get(c),
-      dated: byCat.get(c).some(l => !!l.issue_date),
-    }))
+    // A row carrying a stable `alias` (the newest Sunday Scans issue) ALSO offers a
+    // "follows each issue" cell, pinned first: picking it stores community:alias:<alias>,
+    // which resolves to whichever row carries the alias when the next issue lands — a
+    // dated pick stays on its date. (Synthetic row: same count, its own pick key.)
+    return order.map(c => {
+      const lists = byCat.get(c)
+      const follow = lists.filter(l => l.alias).map(l => ({
+        ...l, id: `alias:${l.alias}`, name: l.alias_label || `${l.name} (latest)`,
+        pickKey: aliasKey(l.alias), hint: `Always the newest issue — today ${l.name}`,
+      }))
+      return { category: c, lists: [...follow, ...lists], dated: lists.some(l => !!l.issue_date) }
+    })
   })()
 
   const closeCreate = useCallback(() => { setCreating(false); setNewName(''); setCreateErr('') }, [])
@@ -174,7 +182,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
 
   // Compact 2-column prebuilt cell: gold name + plain count, hairline grid, hover highlight.
   const PrebuiltCell = ({ wl, onClick }) => (
-    <button type="button" className={styles.pCell} title={wl.name} onClick={onClick}>
+    <button type="button" className={styles.pCell} title={wl.hint || wl.name} onClick={onClick}>
       <span className={styles.pCellName}>{wl.name}</span>
       {countOf(wl) != null && <span className={styles.pCellCount}>{countOf(wl)}</span>}
     </button>
@@ -257,7 +265,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
               <div className={g.dated ? styles.pList : styles.pGrid}>
                 {g.lists.map(wl => (
                   <PrebuiltCell key={`p${wl.id}`} wl={wl}
-                    onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
+                    onClick={() => handlePick({ key: wl.pickKey || `community:${wl.id}`, name: wl.name })} />
                 ))}
               </div>
             </div>

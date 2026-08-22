@@ -33,6 +33,10 @@ def test_prebuilt_rows_carry_issue_date_and_order_newest_first_within_the_sectio
     })
     monkeypatch.setattr(wp, "sample_map", lambda: {})
     monkeypatch.setattr(wp, "category_order", lambda: ["UCT ETF Lists", "UCT Community"])
+    monkeypatch.setattr(wp, "alias_map", lambda: {
+        "sunday scans — august 16, 2026": {"alias": "sunday-scans-latest",
+                                            "label": "Sunday Scans — Latest issue"},
+    })
     monkeypatch.setattr(wp, "issue_date_map", lambda: {
         "sunday scans — august 2, 2026": "2026-08-02",
         "sunday scans — august 16, 2026": "2026-08-16",
@@ -44,3 +48,6 @@ def test_prebuilt_rows_carry_issue_date_and_order_newest_first_within_the_sectio
     assert out[2]["issue_date"] == "2026-08-16"
     assert out[4]["issue_date"] == "2026-08-02"
     assert "issue_date" not in out[0] and "issue_date" not in out[5]   # undated rows carry no key
+    # The newest issue ALSO answers to a stable alias; no other row does.
+    assert out[2]["alias"] == "sunday-scans-latest" and out[2]["alias_label"] == "Sunday Scans — Latest issue"
+    assert all("alias" not in o for o in out if o["id"] != "a16")
