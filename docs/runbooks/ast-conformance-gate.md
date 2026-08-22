@@ -165,7 +165,7 @@ pixel number is entitled to say about it.**
 | the parser | `parse.test.js` + the escape corpus; `jsep` pinned **exact** and the `binary_ops` stale-copy control | nothing |
 | the two interpreters | `ast_conformance.py --check` — per-case, per-bar digests at `REL_TOL = 1e-9`: **`CONFORMANCE LOG MATCHES, 17 asts × 579 bars`**, exit 0 | nothing |
 | the closed table | `--escapes` **CLOSED, 0 escaped of 16 parsed**, ⛔ **with `--escapes --unguarded` reading 16 of 16** — the pair, never the zero alone — plus `declared == fired` for all 16 and **0 lane disagreements** | nothing |
-| totality | `--coverage`: **31 declared entries, ALL COVERED**, both directions, the floor a **31-name LIST and not the count** | nothing |
+| totality | `--coverage`: **70 declared entries, ALL COVERED**, both directions, the floor a **70-name LIST and not the count** | nothing |
 | budgets | `budget.test.js` + `test_ast_budget.py` — refusal **at the boundary**, the guard NAMED, and `try` forbidden in both lanes by AST because the behavioural test provably could not reach the case | nothing |
 | the repaint linter | `must_repaint.json` — **11 cases, 7 dirty / 4 clean** (measured; a ratio, not a count) + the shipped-definition verdict table + TWO guard-deletion controls returning 3-of-7 and 4-of-7 wrongly clean, **the difference proving they are different deletions** | nothing |
 | the `ast` lane registering | `defSchema.test.js`, `nativeRegistry.test.js`, and the ONE equality that replaced eleven count literals: `idsByLane(listDefinitions())` **toEqual** `SHIPPED_DEF_IDS` | nothing |
