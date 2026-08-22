@@ -72,6 +72,39 @@ def test_parse_junk_is_none():
     assert fv._parse("abc%", True) is None
 
 
+# ── FIX 1 (2026-08-22 receipts-fix): raw-millions scale for shares_outstanding
+# /float_shares. Proven on prod: NVDA's bare export values were being stored
+# as a literal share count (24221 shares instead of 24.22B).
+
+def test_parse_raw_millions_bare_number_scales_by_1e6():
+    from api.services.screener import finviz_universe as fv
+    # NVDA prod receipt: bare 24221 -> 24,221,000,000 (true value ~24.22B)
+    assert fv._parse("24221", False, raw_millions=True) == 24_221_000_000
+    assert fv._parse("23280.5", False, raw_millions=True) == 23_280_500_000.0
+
+
+def test_parse_raw_millions_suffixed_value_is_unaffected():
+    """A suffixed value on a raw_millions column still parses via the
+    suffix — the ×1e6 only fires when NO suffix was present."""
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse("1.5B", False, raw_millions=True) == 1.5e9
+    assert fv._parse("500K", False, raw_millions=True) == 500e3
+
+
+def test_parse_raw_millions_never_touches_a_percent_column():
+    """A percent string returns via the '%' branch before `raw_millions` is
+    ever consulted — structurally impossible to scale a percent column,
+    regardless of the flag's value."""
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse("3.45%", True, raw_millions=True) == 3.45
+
+
+def test_parse_raw_millions_dash_and_blank_still_none():
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse("-", False, raw_millions=True) is None
+    assert fv._parse("", False, raw_millions=True) is None
+
+
 # ── the safe-degrade fetch path (no token -> no socket) ─────────────────
 
 def test_fetch_csv_text_without_token_returns_empty(monkeypatch):
@@ -105,6 +138,30 @@ def test_run_pull_keeps_rows_and_writes_artifact(monkeypatch, tmp_path):
     assert row0["short_ratio"] == 2.1
     assert row0["insider_own_pct"] == 0.5
     assert row0["inst_pct"] == 85.3
+
+
+def test_run_pull_scales_bare_shares_columns_as_raw_millions(monkeypatch, tmp_path):
+    """2026-08-22 prod receipt: NVDA's bare export values (24221 /
+    23280.5) are Finviz raw-millions, not a literal share count — a
+    suffixed row elsewhere in the same pull is unaffected."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    rows = [_full_row(f"T{i:04d}") for i in range(1004)]
+    rows.append(["NVDA", "24221", "23280.5", "80.00%", "3.45%", "2.1",
+                 "0.50%", "85.30%"])
+    csv_text = _csv(FULL_HEADERS, rows)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
+
+    fv.run_pull()
+
+    payload = json.loads(artifact.read_text())
+    nvda = payload["rows"]["NVDA"]
+    assert nvda["shares_outstanding"] == 24_221_000_000
+    assert nvda["float_shares"] == 23_280_500_000.0
+    t0 = payload["rows"]["T0000"]
+    assert t0["shares_outstanding"] == 1.5e9  # suffixed row: unaffected
 
 
 def test_run_pull_records_missing_header_and_still_writes(monkeypatch, tmp_path):

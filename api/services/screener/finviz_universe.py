@@ -6,8 +6,11 @@ by tools/screener_wave2_finviz_ids.py on 2026-08-22, parsed BY HEADER NAME
 
 ⛔ The whole-market pull carries NO `f=` filter, so the fail-open token
 trap cannot bite — there is no clause to silently drop. What CAN bite is
-units: Finviz mixes suffixed absolutes ('1.5B'), raw-thousands, and
-'3.45%' strings. `_parse` handles all three shapes and the tests pin each.
+units: Finviz mixes suffixed absolutes ('1.5B'), raw-thousands, '3.45%'
+strings, and — for `shares_outstanding`/`float_shares` specifically, per the
+2026-08-22 SCALE ASSUMPTION adjudication below `_C_IDS` — a BARE number
+that is raw millions, no suffix. `_parse` handles all these shapes and the
+tests pin each.
 ⛔ Never on a request path (90s-class fetch); the job owns it, with an
 in-flight flag. ⛔ An empty/short result never overwrites a good artifact.
 
@@ -98,19 +101,35 @@ _HEADERS = {
     "insider_own_pct":    "Insider Ownership",
     "inst_pct":           "Institutional Ownership",
 }
-# SCALE ASSUMPTION: `shares_outstanding`/`float_shares` are assumed to arrive
-# SUFFIXED ("1.5B" -> 1.5e9 via _parse). Finviz's elite export serves some
-# columns in raw millions with NO suffix (Market Cap is the Wave-1 lesson); a
-# bare number here would be stored as a literal share count, understating by
-# 1e6-1e9x. The first production pull adjudicates: eyeball one receipt row
-# against a known float before trusting either column.
+# SCALE ASSUMPTION — ADJUDICATED 2026-08-22 (prod receipt): `shares_outstanding`
+# /`float_shares` do NOT arrive suffixed. Finviz's elite export serves these
+# two columns as BARE RAW MILLIONS, no suffix at all (Market Cap was the
+# Wave-1 instance of the same trap) — confirmed on the first production
+# pull's NVDA row (`shares_outstanding=24221`, `float_shares=23280.5`; true
+# values 24.22B/23.28B, eyeballed against a known float) and fixed at the
+# `_parse` boundary: a SUFFIXED value ("1.5B") still parses via the suffix
+# exactly as before; a BARE numeric value on one of these two columns is
+# Finviz raw-millions and is multiplied by 1e6. Never guess per-magnitude
+# beyond that one rule — a bare "8.2" IS a legitimate 8.2M-share microcap
+# float; the export never emits an absolute bare share count, which is the
+# whole asymmetry the rule leans on. See `_RAW_MILLIONS_COLUMNS` and
+# `_parse`'s `raw_millions` argument.
+_RAW_MILLIONS_COLUMNS = {"shares_outstanding", "float_shares"}
 _PCT_COLUMNS = {"float_pct", "short_float_pct", "insider_own_pct", "inst_pct"}
 _MIN_ROWS = 1000        # an artifact below this is a failed pull, not a market
 _STALE_DAYS = 4
 
 
-def _parse(text, is_pct):
-    """'1.5B' -> 1.5e9 · '3.45%' -> 3.45 · '12.3' -> 12.3 · '-'/'' -> None."""
+def _parse(text, is_pct, raw_millions=False):
+    """'1.5B' -> 1.5e9 · '3.45%' -> 3.45 · '12.3' -> 12.3 · '-'/'' -> None.
+
+    ``raw_millions=True`` (only ever passed for `_RAW_MILLIONS_COLUMNS`) marks
+    a column where Finviz serves a BARE (no-suffix) number as raw millions —
+    2026-08-22 adjudication, see the SCALE ASSUMPTION comment above
+    `_RAW_MILLIONS_COLUMNS`. A SUFFIXED value on that same column ("1.5B")
+    still parses via the suffix exactly like any other column; the ×1e6 only
+    applies when NO suffix was present.
+    """
     s = (text or "").strip().replace(",", "")
     if not s or s == "-":
         return None
@@ -121,14 +140,18 @@ def _parse(text, is_pct):
         except ValueError:
             return None
     mult = 1.0
+    suffixed = False
     if s and s[-1] in "KMBT":
         mult = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12}[s[-1]]
         s = s[:-1]
+        suffixed = True
     try:
         val = float(s) * mult
     except ValueError:
         return None
-    return val if not is_pct else val
+    if raw_millions and not suffixed:
+        val *= 1e6
+    return val
 
 
 def _note(failures, source, outcome) -> None:
@@ -243,7 +266,8 @@ def run_pull() -> dict:
             continue
         row = {}
         for col, hdr in present.items():
-            val = _parse(raw.get(hdr), col in _PCT_COLUMNS)
+            val = _parse(raw.get(hdr), col in _PCT_COLUMNS,
+                         raw_millions=col in _RAW_MILLIONS_COLUMNS)
             if val is not None:
                 row[col] = val
         if row:
