@@ -388,6 +388,64 @@ def coverage(def_hash: str, tf: Any, as_of: Any) -> Optional[dict]:
 
 
 # --------------------------------------------------------------------------- #
+# the latest-coverage primitives (Wave 4 Task 1)
+# --------------------------------------------------------------------------- #
+
+#: The sweep's timeframe, spelled ONCE for request-path consumers. It equals
+#: scan_evaluator.DEFAULT_TF, restated here because the off-request-path rail
+#: (tests/test_scan_evaluator_off_request_path.py) forbids importing the
+#: evaluator from anything a route handler reaches; the equality is pinned by
+#: tests/test_screener_wave4_store.py::test_scan_join_tf_is_the_sweeps_default_tf.
+SCAN_JOIN_TF = "D"
+
+
+def latest_covered_as_of(def_hash: str, tf: Any) -> Optional[int]:
+    """MAX(as_of) holding a COVERAGE row for this (def_hash, tf), else None.
+
+    None == "nobody has ever looked" == the chip's "first sweep tonight".
+    Delegates to latest_coverage_for — one query shape, one owner.
+    """
+    row = latest_coverage_for([def_hash], tf).get(str(def_hash or "").strip())
+    return row["as_of"] if row else None
+
+
+def latest_coverage_for(def_hashes, tf) -> dict:
+    """{def_hash: {as_of, evaluated, answered, dropped, not_computable,
+    freshness}} for each hash's LATEST swept session.
+
+    ⛔ scan_coverage ONLY, never scan_hits: a swept zero-hit session writes a
+    coverage row and no hits rows, so a hits-derived latest would silently
+    join an OLDER day's matches — the "quiet market" lie the three-state
+    contract exists to kill. A hash with no coverage row is ABSENT from the
+    result (never null-filled): absent IS the answer.
+
+    One statement regardless of input size — meta() calls this per request on
+    the one shared uvicorn loop; an N+1 here multiplies into every member's
+    page load.
+    """
+    code = _normalise_tf(tf)
+    hashes = sorted({str(h).strip() for h in (def_hashes or []) if str(h or "").strip()})
+    if not hashes:
+        return {}
+    _ensure()
+    marks = ",".join("?" for _ in hashes)
+    sql = (
+        "SELECT c.def_hash, c.as_of, c.evaluated, c.answered, c.dropped, "
+        "c.not_computable, c.freshness FROM scan_coverage c "
+        "JOIN (SELECT def_hash, MAX(as_of) AS m FROM scan_coverage "
+        "      WHERE tf=? AND def_hash IN (" + marks + ") GROUP BY def_hash) x "
+        "  ON x.def_hash = c.def_hash AND x.m = c.as_of "
+        "WHERE c.tf=?")
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        rows = conn.execute(sql, [code, *hashes, code]).fetchall()
+    return {r["def_hash"]: {
+        "as_of": r["as_of"], "evaluated": r["evaluated"],
+        "answered": r["answered"], "dropped": r["dropped"],
+        "not_computable": r["not_computable"], "freshness": r["freshness"],
+    } for r in rows}
+
+
+# --------------------------------------------------------------------------- #
 # the join, and the horizon
 # --------------------------------------------------------------------------- #
 
@@ -396,8 +454,10 @@ def join_clause(def_hash: str, tf: Any, as_of: Any) -> tuple:
 
     ⛔ A FRAGMENT, NOT A WIRING. Whether a scan reaches the screener as a
     ``filters.FILTERS`` entry, as a new filter TYPE inside ``query.run_scan``, or
-    as its own endpoint is E-4's decision (E4-A5, controller resolution 7), and
-    E-2 is dark — no route, no writer, no caller.
+    as its own endpoint was E-4's decision (E4-A5, controller resolution 7).
+    E-4 (Wave 4) wired it: ``query.build_where``'s scan branch and
+    ``scan_results._hit_tickers`` are the two callers, both binding the
+    fragment's params verbatim.
 
     ⛔ WHAT E-2 OWES IS THAT WHATEVER TAKES IT CANNOT BUILD SQL FROM A CLIENT
     STRING. ``filters.column_for`` and ``filters.is_valid_op`` gate every existing

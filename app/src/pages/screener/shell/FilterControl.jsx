@@ -35,6 +35,10 @@ export default function FilterControl({ filter, value, onChange }) {
     if (p.value !== undefined) spec.value = p.value
     if (p.min !== undefined) spec.min = p.min
     if (p.max !== undefined) spec.max = p.max
+    // The label rides into saved/shared specs; K9 — preset re-find above
+    // compares only op/value/min/max, so this extra field is invisible to
+    // currentLabel and can never cause a preset to mismatch itself.
+    if (filter.key === 'scan' && p.label && p.label !== 'Any') spec.label = p.label
     onChange(spec)
   }
 

@@ -396,20 +396,26 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   // run on this box. The budget exists to absorb machine load, and the failure
   // this rail is FOR is a severed import edge, which takes microseconds.
   it('PLANTED CUT: remove the mount\'s import and ScanResults goes unreachable', () => {
-    const panel = path.join(SCREENER_DIR, 'SavedScreensPanel.jsx')
-    const src = read(panel)
-    const IMPORT = "import ScanResults from './ScanResults'\n"
+    // Wave 4 Task 7 re-points this anchor: the My-scans definition detail
+    // (`SavedScreensPanel.jsx`, deleted this task) moved into
+    // `pages/screener/ScreensManager.jsx`, which is the sole remaining
+    // importer of `ScanResults` — and, by Task 6's constraint, never imports
+    // `CoverageLine` directly, so the (b) assertion below still holds: cutting
+    // this one line orphans BOTH.
+    const manager = path.join(SRC, 'pages', 'screener', 'ScreensManager.jsx')
+    const src = read(manager)
+    const IMPORT = "import ScanResults from '../../components/screener/ScanResults'\n"
     // ⛔ NEVER `str.replace` WITHOUT PROVING THE ANCHOR WAS THERE
     // (`lesson_test_that_passes_vacuously`): a mutation that silently failed to
     // apply produces a control that "passes" while measuring the unmutated tree.
     expect(src.includes(IMPORT),
-      `the mount import moved — this control cannot cut a wire it cannot find in ${key(panel)}`)
+      `the mount import moved — this control cannot cut a wire it cannot find in ${key(manager)}`)
       .toBe(true)
     const cut = src.replace(IMPORT, '')
     expect(cut).not.toEqual(src)
 
-    const after = reachableFrom(ROOTS, new Map([[panel, cut]]))
-    expect(after.has(panel), 'the panel itself must stay reachable — otherwise this '
+    const after = reachableFrom(ROOTS, new Map([[manager, cut]]))
+    expect(after.has(manager), 'the manager itself must stay reachable — otherwise this '
       + 'control proves nothing about the edge it cut').toBe(true)
     expect(after.has(path.join(SCREENER_DIR, 'ScanResults.jsx')),
       'cutting the mount left ScanResults reachable, so this rail cannot see a '

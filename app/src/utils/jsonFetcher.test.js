@@ -178,7 +178,6 @@ export const STILL_UNCHECKED = [
   'pages/modelbook/builder/BuilderView.jsx',
   'pages/modelbook/builder/UpbEntryPage.jsx',
   'pages/patterns/PatternFilter.jsx',
-  'pages/screener/hooks/useSavedScreens.js',
   'pages/screener/hooks/useScreenerMeta.js',
   'utils/prefetchBars.js',
 ]

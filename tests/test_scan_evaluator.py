@@ -1320,14 +1320,21 @@ def test_the_scan_sweep_is_its_OWN_job_at_a_LATER_hour_and_not_chained_to_run_bu
 
 
 def test_the_scan_sweep_job_is_OFF_by_default(monkeypatch):
-    """⛔ E-4 has not wired a surface to these results. A sweep that ran by
-    default would spend the pod's night writing rows nothing can read."""
+    """The sweep's code default stays OFF (=1 on Railway): a bare local run
+    must never spend the night sweeping. E-4 IS wired (Wave 4) — the old
+    'no surface reads these rows' rationale is gone; the default-off contract
+    is about LOCAL honesty now. ⛔ This test pins the SWEEP's absence, not the
+    whole registry — asserting the exact job list was the count-beside-list
+    defect: Wave 2's three default-ON source jobs (finviz/edates/insider)
+    turned it red for weeks while every scoped gate looked elsewhere."""
     import api.main as main_mod
     monkeypatch.delenv("SCAN_SWEEP_ENABLED", raising=False)
     monkeypatch.setattr(main_mod, "start_screener_snapshot_warm", lambda: None)
     sched = _FakeScheduler()
     main_mod.register_screener_jobs(sched)
-    assert [j["id"] for j in sched.jobs] == ["screener_snapshot_nightly"]
+    ids = [j["id"] for j in sched.jobs]
+    assert "screener_scan_sweep" not in ids
+    assert "screener_snapshot_nightly" in ids
 
 
 def test_the_job_reads_the_ARTIFACT_back_rather_than_trusting_its_return_value(

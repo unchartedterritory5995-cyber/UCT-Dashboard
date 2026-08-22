@@ -9,7 +9,7 @@ import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
-import SaveScreenBar from '../SaveScreenBar'
+import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
@@ -27,6 +27,16 @@ const densityKey = 'uct.screener.density'
 // empty/error states (all present at once by construction — no `!data ?
 // <spinner> : <table>` binary), the live-sort honesty chip, the loud CSV
 // export path, and the desktop-rail / phone-sheet split.
+//
+// ⛔ MOUNTS AHEAD OF THE CANDIDATE-BOARD GATE, DELIBERATELY (Wave 4 Task 7).
+// `ScreensManager` — and through it the My-scans definition detail
+// (`ScanResults` → `CoverageLine`, the four-outcome coverage receipt) — lives
+// inside THIS component, in the `saveBar` slot below. `Screener.jsx` renders
+// `<ScannerShell/>` in the FIRST arm of its tab ternary (`pageTab ===
+// 'scanner'`), ahead of the `/api/candidates` chain (`error ? … : !data ?
+// <SkeletonTable/> : …`) — verified in that file. A saved formula's scan
+// receipt reads its own store, has nothing to do with the 7 AM candidate
+// board's feed, and must never go blank because that unrelated fetch failed.
 export default function ScannerShell({ embedded = false }) {
   const { meta } = useScreenerMeta()
   const isPhone = useIsPhone()
@@ -107,13 +117,24 @@ export default function ScannerShell({ embedded = false }) {
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
-          saveBar={<SaveScreenBar currentSpec={s.baseSpec} onApply={s.applySpec} />} />
+          saveBar={<ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
+            onUseScan={(hash, name) => {
+              // useScreenSpec already exposes `filters` as the raw map keyed
+              // by filter key (see shell/useScreenSpec.js's return object) —
+              // no hook change was needed for this escape hatch.
+              const cur = s.filters?.scan
+              const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
+              const value = have.includes(hash) ? have : [...have, hash]
+              s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value,
+                                    label: name })
+            }} />} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
           </button>
           <FilterChips meta={meta} activeFilters={s.filters}
-            onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters} />
+            onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
+            scanJoins={result?.scan_joins} onReplace={(k, v) => s.setFilter(k, v)} />
           {liveSortEligible && (
             <span className={styles.sortHonesty}>
               {!liveSortOn && <span className={styles.snapChip}>snapshot order</span>}

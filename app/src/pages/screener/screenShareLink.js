@@ -11,7 +11,7 @@
 //
 // So the prefix is spelled ONCE, here, and both sides derive from it:
 //   * `App.jsx` routes on `SHARED_SCREEN_ROUTE`
-//   * `SaveScreenBar` builds its copyable URL with `sharedScreenUrl`
+//   * `ScreensManager` builds its copyable URL with `sharedScreenUrl`
 //   * `SharedScreen` reads `SHARED_SCREEN_ENDPOINT` for the server read
 //
 // ⛔ The API path is spelled once too. `api/routers/screener.py` serves

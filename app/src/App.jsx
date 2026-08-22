@@ -19,7 +19,7 @@ import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // can read the flag without a reload. Mirrors StockChart's uct.barsPush gate.
 import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // The screener share link's route pattern. ⛔ DERIVED, never retyped: the copy-
-// link button in `SaveScreenBar` builds its URL from this same module, so the
+// link button in `ScreensManager` builds its URL from this same module, so the
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'

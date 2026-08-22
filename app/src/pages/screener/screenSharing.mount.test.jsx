@@ -10,6 +10,12 @@
 // never match a row, and a complete public-sharing backend was unreachable by
 // construction (`.superpowers/sdd/audit/reachability-report.md` §3a).
 //
+// ⚠️ HISTORY NOTE (Wave 4, 2026-08-21): everything above describes the ORIGINAL
+// defect and its original home. `SaveScreenBar`/`ScannerPro` are DELETED —
+// `ScreensManager` (inside the Wave-3 `ScannerShell`) owns the menu and the
+// share panel now, and the assertions below were re-pointed with that move.
+// The prose is kept as the record of WHY this rail exists.
+//
 // ⭐ SO THIS FILE RENDERS `<Screener/>` — the module `App.jsx` mounts at
 // `/screener`, the destination `NavBar` labels "Screener" — and drives the only
 // controls a member has: open the menu, open the share panel, click publish.
@@ -250,7 +256,7 @@ describe('the controls that keep the rail honest', () => {
     // file is entitled to — a control that cannot tell those apart would have to
     // be loosened until it stopped measuring anything.
     const ON_THE_CHAIN = new Set([
-      'Screener', 'ScannerShell', 'SaveScreenBar', 'useSavedScreens', 'screenShareLink',
+      'Screener', 'ScannerShell', 'ScreensManager', 'useSavedScreens', 'screenShareLink',
     ])
     const mocked = mockedSpecifiers(read('app/src/pages/screener/screenSharing.mount.test.jsx'))
     expect(mocked.length, 'the mock scan found nothing — this control is vacuous')
@@ -267,19 +273,20 @@ describe('the controls that keep the rail honest', () => {
   })
 
   it('exactly one module emits the share panel', () => {
-    const owners = ['app/src/pages/screener/SaveScreenBar.jsx',
+    const owners = ['app/src/pages/screener/ScreensManager.jsx',
       'app/src/pages/screener/shell/ScannerShell.jsx',
       'app/src/pages/Screener.jsx']
       .filter((rel) => read(rel).includes('data-testid={`share-panel-'))
-    expect(owners).toEqual(['app/src/pages/screener/SaveScreenBar.jsx'])
+    expect(owners).toEqual(['app/src/pages/screener/ScreensManager.jsx'])
   })
 
   it('the component test this replaces mocks the hook, and so cannot see the wire', () => {
     // The measurement, executable so it does not rot into folklore: the reason
-    // `SaveScreenBar.test.jsx` stayed green through the whole defect.
-    const mocked = mockedSpecifiers(read('app/src/pages/screener/SaveScreenBar.test.jsx'))
+    // `ScreensManager.test.jsx` (SaveScreenBar's successor) stays green through
+    // any future defect on this same wire.
+    const mocked = mockedSpecifiers(read('app/src/pages/screener/ScreensManager.test.jsx'))
     expect(mocked,
-      'SaveScreenBar.test.jsx no longer stubs the saved-screens hook — if it now '
+      'ScreensManager.test.jsx no longer stubs the saved-screens hook — if it now '
       + 'drives the real one, this record is stale and should move')
       .toContain('./hooks/useSavedScreens')
   })

@@ -23,6 +23,9 @@ export function chipLabel(def, spec) {
     case 'lt': return `${def.label}: < ${n(spec.max)}`
     case 'eq': return `${def.label}: ${spec.value}`
     case 'contains': return `${def.label}: ${spec.value}`
+    // Fallback only (SharedScreen and any surface without the scan chip):
+    // the filter object may carry the scan's name as `label`.
+    case 'in': return spec.label || def.label
     default: return def.label
   }
 }
