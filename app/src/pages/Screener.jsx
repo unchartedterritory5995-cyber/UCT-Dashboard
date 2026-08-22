@@ -3,6 +3,7 @@ import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import ScannerShell from './screener/shell/ScannerShell'
+import ErrorBoundary from '../components/ErrorBoundary'
 import { SkeletonTable } from '../components/Skeleton'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import UIcon from '../components/ui/UIcon'
@@ -423,9 +424,52 @@ function PremarketBar({ premarket }) {
   )
 }
 
+// ── ScannerShell error fallback — defense-in-depth (the stress-sweep's
+// blank-root finding traced to the SPA's static asset delivery, not a React
+// escape — see project_screener_deep_work_2026_08_21.md — but a render throw
+// INSIDE ScannerShell is still possible and had no boundary of its own
+// before this: it sat above `error ?/!data ?` branches, not below them).
+// `onRetry` bumps a key one level up, remounting both this boundary and the
+// shell fresh — mirrors the `key={openSeq}` idiom in Calendar.jsx/CatalystFlow.jsx. ─
+function ScannerShellErrorFallback({ onRetry }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '320px',
+      padding: '24px',
+      textAlign: 'center',
+      color: 'var(--text-muted)',
+      fontSize: '13px',
+      gap: '12px',
+    }}>
+      <p style={{ margin: 0 }}>Screener hit an error.</p>
+      <button
+        onClick={onRetry}
+        style={{
+          background: 'var(--ut-gold, #c9a84c)',
+          color: '#0e0f0d',
+          border: 'none',
+          padding: '8px 16px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          letterSpacing: '0.3px',
+        }}
+      >
+        Retry
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Screener({ embedded = false }) {
   const [pageTab, setPageTab] = useState('scanner')
+  const [shellKey, setShellKey] = useState(0)
 
   const { data, error } = useMobileSWR('/api/candidates', fetcher, {
     refreshInterval: 30 * 60 * 1000,
@@ -480,7 +524,12 @@ export default function Screener({ embedded = false }) {
         // (via `ScreensManager`), and ScannerShell mounts here, ahead of the
         // `error ? … : !data ? <SkeletonTable/> : …` chain below — so it never
         // goes blank on a morning the pre-market candidate scan fails upstream.
-        <ScannerShell embedded={embedded} />
+        <ErrorBoundary
+          key={shellKey}
+          fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
+        >
+          <ScannerShell embedded={embedded} />
+        </ErrorBoundary>
       ) : error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
       ) : !data ? (
