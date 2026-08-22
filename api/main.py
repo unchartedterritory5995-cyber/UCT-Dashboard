@@ -1250,9 +1250,9 @@ def register_screener_jobs(scheduler):
     # that ran by default would spend the pod's night writing rows nothing can
     # read." **That is false, and it has already cost two agents an hour each
     # this week** -- both stopped mid-task to work out whether the comment or
-    # the code was right. The surface shipped: `/screener` -> `pages/Screener.jsx`
-    # -> `components/screener/SavedScreensPanel.jsx` -> `ScanResults.jsx` ->
-    # `CoverageLine.jsx`, reading `GET /api/scans/definition-results`
+    # the code was right. The surface shipped (Wave 4 moved the door): `/screener`
+    # -> `pages/Screener.jsx` -> `pages/screener/ScreensManager.jsx` ->
+    # `ScanResults.jsx` -> `CoverageLine.jsx`, reading `GET /api/scans/definition-results`
     # (`api/routers/scan_results.py`, mounted below), with
     # `components/screener/reachable.test.js` and
     # `app/src/pages/Screener.scanmount.test.jsx` as the standing rails.
@@ -5807,11 +5807,12 @@ app.include_router(news.router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
-# ── THE SURFACE E-2's `join_clause` REACHES (Phase E, E4-A5) ─────────────────
-# Its OWN module and its own route rather than a `filters.FILTERS` entry or a
-# new filter type inside `query.run_scan` — a `def_hash` is not a column, and a
-# nightly scan receipt and a live screener query are different freshness stories
-# a member must be able to tell apart. Reasoning in the module docstring.
+# ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
+# SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
+# filter branch; the freshness objection is answered by disclosure (each joined
+# hash reports its own as_of in `scan_joins` and on the chip). This route stays
+# the DETAIL door: full receipt + hit list for a chosen session. Reasoning in
+# the module docstring, which records the supersession.
 # ⛔ REGISTERED, so E-7's derived census walks it off `router.routes` rather than
 # typing the path.
 from api.routers import scan_results as scan_results_router

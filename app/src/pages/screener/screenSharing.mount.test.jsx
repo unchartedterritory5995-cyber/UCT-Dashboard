@@ -10,6 +10,12 @@
 // never match a row, and a complete public-sharing backend was unreachable by
 // construction (`.superpowers/sdd/audit/reachability-report.md` §3a).
 //
+// ⚠️ HISTORY NOTE (Wave 4, 2026-08-21): everything above describes the ORIGINAL
+// defect and its original home. `SaveScreenBar`/`ScannerPro` are DELETED —
+// `ScreensManager` (inside the Wave-3 `ScannerShell`) owns the menu and the
+// share panel now, and the assertions below were re-pointed with that move.
+// The prose is kept as the record of WHY this rail exists.
+//
 // ⭐ SO THIS FILE RENDERS `<Screener/>` — the module `App.jsx` mounts at
 // `/screener`, the destination `NavBar` labels "Screener" — and drives the only
 // controls a member has: open the menu, open the share panel, click publish.

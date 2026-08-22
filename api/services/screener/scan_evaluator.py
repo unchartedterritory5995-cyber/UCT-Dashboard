@@ -1398,7 +1398,8 @@ def sweep_job() -> None:
 
 
 def enabled() -> bool:
-    """The sweep's own flag, default OFF. ⛔ E-4 has not wired a surface to these
-    results yet, so a sweep that ran by default would spend the pod's night
-    building rows nothing can read."""
+    """The sweep's own flag, default OFF in code — =1 on Railway web. E-4 IS
+    wired (Wave 4): the results feed `query.run_scan`'s scan filter, the
+    my_scans meta category, and `GET /api/scans/definition-results`. Default
+    stays OFF so a bare local run never spends the night sweeping."""
     return os.environ.get("SCAN_SWEEP_ENABLED", "0") == "1"
