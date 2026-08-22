@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { clearIntroSeen } from '../components/intro/introStorage'
 
 export const AuthContext = createContext(null)
@@ -13,8 +13,33 @@ export function AuthProvider({ children }) {
   // Whether an annual Stripe price is configured (pricing page honest copy).
   const [annualAvailable, setAnnualAvailable] = useState(false)
   const [loading, setLoading] = useState(true)
+  // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
+  // (5xx, or the fetch itself threw) must never read as "logged out" — only a
+  // definitive answer from the backend (ok, or a 4xx rejection) may decide
+  // auth state. True only when the INITIAL /api/auth/me could not answer for
+  // a transient reason; AuthGuard renders its splash + auto-retries on it
+  // instead of bouncing to /login.
+  const [authTransient, setAuthTransient] = useState(false)
+
+  // Mirror of `user` for fetchUser's transient branch. fetchUser is a stable
+  // useCallback([]) — reading the `user` state inside it would be a stale
+  // closure, so the ref tracks the last committed value instead.
+  const userRef = useRef(null)
+  useEffect(() => { userRef.current = user }, [user])
 
   const fetchUser = useCallback(async () => {
+    // The backend did not ANSWER (>=500, or fetch threw). Distinct from a
+    // 401/403, which is the backend answering "no".
+    const transientFailure = () => {
+      if (!userRef.current) {
+        // Initial load: we don't KNOW yet — flag it rather than committing
+        // user=null-as-logged-out.
+        setAuthTransient(true)
+      }
+      // A refetch blip with a user already in state: keep the user and ALL
+      // plan state untouched — a 503 must not log anyone out.
+      return { plan: 'free', role: null, transient: true }
+    }
     try {
       const res = await fetch('/api/auth/me')
       if (res.ok) {
@@ -24,20 +49,22 @@ export function AuthProvider({ children }) {
         setSubscription(data.subscription || null)
         setTrial(data.trial || null)
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+        setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
+      } else if (res.status >= 500) {
+        return transientFailure()
       } else {
+        // Definitive rejection — 401/403 (and every other 4xx, unchanged
+        // from today's behavior): logged out, and any transient flag clears.
         setUser(null)
         setPlan('free')
         setSubscription(null)
         setTrial(null)
+        setAuthTransient(false)
         return { plan: 'free', role: null }
       }
     } catch {
-      setUser(null)
-      setPlan('free')
-      setSubscription(null)
-      setTrial(null)
-      return { plan: 'free', role: null }
+      return transientFailure()
     } finally {
       setLoading(false)
     }
@@ -146,7 +173,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import BrandSplash from './BrandSplash'
@@ -51,7 +51,7 @@ function MaintenancePage() {
 }
 
 export default function AuthGuard() {
-  const { user, isPaid, loading } = useAuth()
+  const { user, isPaid, loading, authTransient, retryAuth } = useAuth()
   const location = useLocation()
   const [maintenance, setMaintenance] = useState(false)
   const [maintenanceChecked, setMaintenanceChecked] = useState(false)
@@ -64,6 +64,23 @@ export default function AuthGuard() {
       .finally(() => setMaintenanceChecked(true))
   }, [])
 
+  // R2 (2026-08-22 stress repro): when the initial /api/auth/me failed
+  // TRANSIENTLY (5xx / network throw — authTransient, set in AuthContext),
+  // schedule a one-shot auto-retry pair at ~4s and ~10s instead of bouncing
+  // to /login. A retry that returns 401 clears authTransient in the context
+  // and the normal <Navigate to="/login"> below happens on that render; a
+  // retry that 5xxs again keeps the splash — a blip must never log anyone
+  // out. The ref makes the schedule one-shot per mount.
+  const retryScheduledRef = useRef(false)
+  useEffect(() => {
+    if (user || !authTransient) return undefined
+    if (retryScheduledRef.current) return undefined
+    retryScheduledRef.current = true
+    const t1 = setTimeout(() => { retryAuth?.() }, 4000)
+    const t2 = setTimeout(() => { retryAuth?.() }, 10000)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [user, authTransient, retryAuth])
+
   if (loading || !maintenanceChecked) {
     return <BrandSplash label="Signing you in" />
   }
@@ -71,6 +88,13 @@ export default function AuthGuard() {
   // Maintenance mode: block non-admins
   if (maintenance && (!user || user.role !== 'admin')) {
     return <MaintenancePage />
+  }
+
+  // R2: the backend could not ANSWER the session check (5xx / network) — that
+  // is not a "logged out" verdict. Same splash as the loading state, while
+  // the scheduled retries (effect above) run. Never /login on a 5xx.
+  if (!user && authTransient) {
+    return <BrandSplash label="Signing you in" />
   }
 
   if (!user) {
