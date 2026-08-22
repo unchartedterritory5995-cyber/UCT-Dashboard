@@ -12313,6 +12313,13 @@ export default function StockChart({
               // range the horizontal reframe can't undo — "reset does nothing" bug).
               vertMarginsRef.current = null
               focusPriceRangeRef.current = null
+              // The price-axis DRAG pin is the actual culprit on /charts: a drag latches
+              // priceManualRef + priceManualRangeRef, and the candle series'
+              // autoscaleInfoProvider FORCES that pinned range back even after
+              // autoScale:true — so clearing autoScale alone leaves the chart pinched.
+              // Mirrors the double-click axis reset (onDbl) and the sym-switch reset.
+              priceManualRef.current = false
+              priceManualRangeRef.current = null
               try {
                 mainPriceScale()?.applyOptions({
                   autoScale: true,
