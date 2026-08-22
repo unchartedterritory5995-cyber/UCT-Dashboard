@@ -24,6 +24,7 @@ import RiskExitsSection from '../components/analytics/RiskExitsSection'
 import TaxCenterSection from '../components/analytics/TaxCenterSection'
 import MetricsDashboard from '../components/metrics/MetricsDashboard'
 import BrokerEquityCurve from '../components/broker/BrokerEquityCurve'
+import TrackRecordShareCard from '../components/analytics/TrackRecordShareCard'
 import InsightsHub from '../components/insights/InsightsHub'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import useSpyBenchmark, { closeAtOrBefore } from '../hooks/useSpyBenchmark'
@@ -184,6 +185,9 @@ export default function AnalyticsTab() {
               fetch fires only when the user opens the section). */}
           <CollapsibleSection id="taxCenter" title="Tax Center (beta)">
             <TaxCenterSection />
+          </CollapsibleSection>
+          <CollapsibleSection id="trackRecord" title="Public Track Record">
+            <TrackRecordShareCard />
           </CollapsibleSection>
         </>
       )}

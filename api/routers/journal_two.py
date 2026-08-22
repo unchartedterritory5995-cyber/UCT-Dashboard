@@ -1850,6 +1850,41 @@ def get_strategy_excursion_route(
         conn.close()
 
 
+@router.get("/track-record-link")
+def get_track_record_link(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The caller's public track-record link state (owner-side control)."""
+    from api.services.journal_two import public_profile
+    return public_profile.get_state(user["id"])
+
+
+@router.post("/track-record-link")
+def create_track_record_link(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Mint (or ROTATE — old link dies) the caller's public track-record token."""
+    from api.services.journal_two import public_profile
+    return public_profile.create_or_rotate(user["id"])
+
+
+@router.delete("/track-record-link")
+def revoke_track_record_link(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    from api.services.journal_two import public_profile
+    public_profile.revoke(user["id"])
+    return {"enabled": False, "token": None, "createdAt": None}
+
+
+@router.get("/public/track-record/{token}")
+def public_track_record(token: str) -> dict[str, Any]:
+    """PUBLIC (no auth): the far end of a track-record share link — the token
+    IS the credential (screener/notebook share posture). Unknown, revoked,
+    and kill-switched (J2_TRACK_RECORD_ENABLED=0) all 404 identically.
+    Payload carries display name + stats + dollars + recent trades (owner
+    decision 2026-08-22) and NEVER email/account ids/broker names."""
+    from api.services.journal_two import public_profile
+    out = public_profile.track_record(token)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return out
+
+
 @router.get("/metrics/registry")
 def metrics_registry_route(
     user: dict = Depends(get_current_user),

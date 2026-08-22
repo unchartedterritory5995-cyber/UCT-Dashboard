@@ -1,0 +1,75 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blurb {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted, #8a8a8a);
+  line-height: 1.5;
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+}
+
+.linkInput {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  background: var(--surface-2, #16161a);
+  color: #c9a84c;
+  font-size: 12.5px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border: 1px solid #c9a84c;
+  border-radius: 8px;
+  background: rgba(201, 168, 76, 0.1);
+  color: #c9a84c;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn:hover { border-color: #c9a84c; color: #c9a84c; }
+.btn:disabled, .primaryBtn:disabled, .dangerBtn:disabled { opacity: 0.5; cursor: default; }
+
+.dangerBtn {
+  padding: 6px 14px;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 8px;
+  background: transparent;
+  color: #ef8a8a;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.dangerBtn:hover { border-color: #ef4444; color: #ef4444; }
