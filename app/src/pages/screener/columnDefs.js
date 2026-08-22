@@ -212,7 +212,7 @@ export const COLUMN_DEFS = {
     heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
     desc: 'Bullish minus bearish options premium on the newest flow-ledger session (T-1), single stocks only — ETF/index flow is out of scope. Direction math mirrors the flow board\'s conviction rules.' },
   opt_bull_pct_1d: { label: 'Bull %', fmt: pctPlain(0),
-    desc: 'Bullish options premium as a percent of CLASSIFIED premium on the newest session — prints with no side recorded are directionless by honesty and sit outside both the numerator and the denominator, so this is a share of what could be classified, not of everything that traded.' },
+    desc: 'Bullish options premium as a percent of CLASSIFIED premium on the newest session, single stocks only — ETF/index flow is out of scope. Prints with no side recorded are directionless by honesty and sit outside both the numerator and the denominator, so this is a share of what could be classified, not of everything that traded.' },
   opt_net_premium_5d: { label: 'Net Prem 5d', fmt: netUsd,
     heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
     desc: 'Bullish minus bearish options premium across the 5 newest flow-ledger sessions, single stocks only — ETF/index flow is out of scope.' },
