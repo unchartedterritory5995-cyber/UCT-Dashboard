@@ -28,6 +28,7 @@ import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import HoldingsList from '../components/HoldingsList'
 import HoldingsListSkeleton from '../components/HoldingsListSkeleton'
 import BrokerAccountHero from '../components/BrokerAccountHero'
+import BrokerEquityCurve from '../components/broker/BrokerEquityCurve'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import SyncTrustCenter from '../components/trust/SyncTrustCenter'
 import BrokerImportingBanner from '../components/BrokerImportingBanner'
@@ -340,6 +341,10 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         prices={prices}
         optionMarketValue={optionMarketValue}
       />
+      {/* The REAL account-value chart (daily net-liq snapshots + live point).
+          Self-gating: null with <2 snapshot points, so manual accounts see
+          nothing extra. */}
+      <BrokerEquityCurve liveNetLiq={isStreaming ? liveSummary?.netLiq ?? null : null} />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}
       <div className={styles.statsBar}>

@@ -93,7 +93,12 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
     menu && showAddList && !lists ? '/api/watchlists' : null,
     _listsFetcher,
   )
-  const effLists = lists || fetchedLists
+  // Prebuilt (UCT-curated) lists are OWNED by the admin account, so the owner's own
+  // fetch returns them too — ~30 UCT names (12 of them the dated Sunday Scans archive)
+  // stacked above his personal lists. They are also config-managed: the boot seeder
+  // reverts any symbol added by hand on the next boot. So the quick-add picker offers
+  // only lists a person actually curates. (Members never receive prebuilt rows here.)
+  const effLists = (lists || fetchedLists)?.filter(wl => !wl?.is_prebuilt)
   const effMutate = mutateLists || mutateFetched
 
   if (!menu) return null

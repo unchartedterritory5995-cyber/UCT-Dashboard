@@ -198,7 +198,7 @@ def test_kpi_arithmetic_and_vocabulary():
 
 def test_kpi_rejects_calls_attributes_unknowns():
     assert eval_kpi_expr("__import__('os')", {})["error"]
-    assert "disallowed" in eval_kpi_expr("(1).bit_length()", {})["error"]
+    assert eval_kpi_expr("(1).bit_length()", {})["error"]  # attribute call rejected
     assert "unknown variable" in eval_kpi_expr("evil_var + 1", {"net_pnl": 1})["error"]
     assert eval_kpi_expr("a" * 300, {})["error"].startswith("expression longer")
 
@@ -280,3 +280,87 @@ def test_monte_carlo_deterministic_and_sane():
     assert a["terminal"]["p50"] > 0
     assert a["maxDrawdown"]["p50"] <= 0
     assert 0 <= a["probDown10"] <= 1
+
+
+# ── dividends ────────────────────────────────────────────────────────────────
+
+def _cash_activity(conn, aid, *, typ, amount, symbol=None, when="2026-06-15",
+                   user_id="u1", broker_account="ba1"):
+    import json
+    conn.execute(
+        "INSERT INTO j2_broker_activities (id, user_id, broker_account_id, "
+        "external_id, activity_type, symbol, occurred_at, raw_json, processed, "
+        "created_at) VALUES (?,?,?,?,?,?,?,?,1,'2026-06-15T00:00:00')",
+        (aid, user_id, broker_account, aid, "cash", symbol, when,
+         json.dumps({"type": typ, "amount": amount})),
+    )
+    conn.commit()
+
+
+def test_dividends_card_hand_worked():
+    conn = _conn()
+    _cash_activity(conn, "d1", typ="DIVIDEND", amount=12.5, symbol="SCHD",
+                   when="2026-05-10")
+    _cash_activity(conn, "d2", typ="DIVIDEND", amount=7.5, symbol="SCHD",
+                   when="2026-06-10")
+    _cash_activity(conn, "d3", typ="STOCK_DIVIDEND", amount=3.0, symbol="O",
+                   when="2026-06-12")
+    _cash_activity(conn, "i1", typ="INTEREST", amount=1.25, when="2026-06-30")
+    _cash_activity(conn, "x1", typ="WITHDRAWAL", amount=500.0)   # not income
+    d = _out(conn, ["dividends"])["metrics"]["dividends"]
+    assert d["dividendsTotal"] == 23.0
+    assert d["interestTotal"] == 1.25
+    assert d["count"] == 4 and d["unparsed"] == 0
+    assert {m["month"]: m["amount"] for m in d["byMonth"]} == {
+        "2026-05": 12.5, "2026-06": 10.5}
+    assert d["topSymbols"][0] == {"symbol": "SCHD", "amount": 20.0}
+
+
+def test_dividends_empty_book_is_honest_zero():
+    conn = _conn()
+    d = _out(conn, ["dividends"])["metrics"]["dividends"]
+    assert d == {"dividendsTotal": 0.0, "interestTotal": 0.0, "count": 0,
+                 "unparsed": 0, "byMonth": [], "topSymbols": []}
+
+
+# ── safe functions + per-period cards/KPIs (2026-08-22) ─────────────────────
+
+def test_kpi_safe_functions():
+    v = {"net_pnl": -250.0, "avg_win": 200.0, "avg_loss": 100.0}
+    assert eval_kpi_expr("abs(net_pnl)", v)["value"] == 250.0
+    assert eval_kpi_expr("max(avg_win, avg_loss)", v)["value"] == 200.0
+    assert eval_kpi_expr("min(avg_win, avg_loss) / 2", v)["value"] == 50.0
+    assert eval_kpi_expr("round(avg_win / 3)", v)["value"] == pytest.approx(67.0)
+    # non-whitelisted calls still rejected BY NAME
+    assert eval_kpi_expr("pow(2, 10)", {})["error"]
+    assert eval_kpi_expr("abs()", {})["error"]
+
+
+def test_per_card_period_overrides_scope():
+    conn = _conn()
+    _trade(conn, "old", day="2020-01-06", pnl=1000, result="Win")
+    _trade(conn, "new", day="2026-08-04", pnl=100, result="Win")
+    out = _out(conn, ["consistency", "consistency@30d"])
+    assert out["metrics"]["consistency"]["tradingDays"] == 2       # whole book
+    recent = out["metrics"]["consistency@30d"]
+    assert recent["tradingDays"] == 1                              # 30d window
+    assert recent["period"] == "30d"
+
+
+def test_per_kpi_period_and_unknown_period():
+    conn = _conn()
+    _trade(conn, "old", day="2020-01-06", pnl=1000, result="Win")
+    _trade(conn, "new", day="2026-08-04", pnl=100, result="Win")
+    out = _out(conn, [], kpis=[("all_pnl", "net_pnl"),
+                               ("recent_pnl@30d", "net_pnl"),
+                               ("bad@2weeks", "net_pnl")])
+    by = {c["name"]: c for c in out["custom"]}
+    assert by["all_pnl"]["value"] == 1100.0
+    assert by["recent_pnl@30d"]["value"] == 100.0
+    assert "unknown period" in by["bad@2weeks"]["error"]
+
+
+def test_unknown_period_on_card_reported():
+    conn = _conn()
+    out = _out(conn, ["consistency@fortnight"])
+    assert out["unknownKeys"] == ["consistency@fortnight"]

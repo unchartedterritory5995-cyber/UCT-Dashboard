@@ -181,6 +181,10 @@ SYMBOL_NAMES: dict[str, str] = {
 }
 
 SYMBOL_GROUPS: dict[str, list[str]] = {
+    # The "Most watched" roster the COT tab pins at the top of its picker
+    # (app/src/pages/CotData.jsx SYMBOL_GROUPS) and the set the Friday weekly
+    # post covers (api/services/cot_weekly_post.py). Keep the two in step.
+    "MOST WATCHED":     ["ES", "NQ", "YM", "QR", "EW", "VI", "NK", "DX", "J6", "ZN", "BTC", "ETH"],
     "INDICES":          ["ES", "NQ", "YM", "QR", "EW", "VI", "NK"],
     "METALS":           ["GC", "SI", "HG", "PL", "PA", "AL"],
     "ENERGIES":         ["CL", "HO", "RB", "NG", "FL", "BZ"],
@@ -255,6 +259,16 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS cot_symbols_unmapped (
                 market_name TEXT PRIMARY KEY,
                 first_seen  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS cot_narratives (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol      TEXT NOT NULL,
+                report_date TEXT NOT NULL,
+                facts_hash  TEXT NOT NULL UNIQUE,
+                text        TEXT NOT NULL,
+                model       TEXT NOT NULL,
+                created_at  TEXT NOT NULL
             );
         """)
 

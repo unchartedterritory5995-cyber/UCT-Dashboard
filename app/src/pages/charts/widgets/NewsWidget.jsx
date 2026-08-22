@@ -26,6 +26,7 @@ import {
   mergeNewsWidgetSettings, newsWidgetStyleVars, newsDefaultsForTheme,
 } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
+import { fmtDate, fmtMove } from '../../../utils/feedFormat'
 
 const SOURCE_ICON = { catalyst: 'bolt', earnings: 'calendar', breaking: 'bell' }
 const SOURCE_LABEL = { catalyst: 'Catalyst', earnings: 'Earnings', breaking: 'Wire' }
@@ -34,22 +35,10 @@ const FILTERS = [
   { key: 'up', label: '▲ Up' },
   { key: 'down', label: '▼ Down' },
 ]
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 // Beyond this, an item's headline is clamped (with a "Show more" toggle) so a single
 // long wire tweet can't dominate the whole feed.
 const LONG_TITLE_CHARS = 220
 
-function fmtDate(d) {
-  if (!d) return ''
-  const parts = String(d).slice(0, 10).split('-')
-  const y = Number(parts[0]), m = Number(parts[1]), day = Number(parts[2])
-  return (m >= 1 && m <= 12) ? `${MON[m - 1]} ${day}, ${y}` : String(d)
-}
-function fmtMove(mp) {
-  const n = Number(mp)
-  if (!Number.isFinite(n)) return ''
-  return `${n >= 0 ? '+' : ''}${Number.isInteger(n) ? n : n.toFixed(1)}%`
-}
 // Capitalize the first letter of every word, leaving the rest untouched (owner ask:
 // "all catalyst labels capitalized on every word"). Preserves acronyms/tickers/$/%
 // (e.g. FY2026, EPS, $42.7M stay as-is; "earnings — beat" → "Earnings — Beat").

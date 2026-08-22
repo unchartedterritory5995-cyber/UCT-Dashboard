@@ -28,13 +28,18 @@ _CONFIG_PATHS = [_LISTS_PATH]
 _OVERLAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "prebuilt_lists_overlay.json")
 _LIQUID_NAME = "liquid major etfs"
 
-# The auto-maintained community list built from the newest Desk article's ticker
-# roster (Sunday Scans). Its SOURCE is the desk store, not the committed config,
-# so the seeder must never treat "source unreadable right now" as "retired":
-# names in _PROTECTED are exempt from the delete-what-isn't-configured step.
+# The auto-maintained community lists built from the Desk's Sunday Scans issues:
+# ONE DATED LIST PER ISSUE, the newest SUNDAY_SCANS_KEEP kept — a rolling
+# one-quarter look-back. Their SOURCE is the desk store, not the committed config,
+# so the seeder must never treat "source unreadable right now" as "retired": the
+# whole family (any name starting with SUNDAY_SCANS_NAME — dated, or the legacy
+# undated list) is exempt from the delete-what-isn't-configured step, and
+# retention is pruned by the family's own reconcile, BY ISSUE DATE.
 SUNDAY_SCANS_NAME = "Sunday Scans"
+SUNDAY_SCANS_KEEP = 12
 _COMMUNITY_CATEGORY = "UCT Community"
-_PROTECTED = {SUNDAY_SCANS_NAME.strip().lower()}
+_ISSUE_DATE_FMT = "%B %d, %Y"          # "August 16, 2026" — the article's own date style
+_NAME_SEP = " — "
 
 
 def _admin_user_id():
@@ -74,78 +79,161 @@ def _load_committed():
         except Exception:
             continue
     out.extend(_breadth_lists())
-    spec = _sunday_scans_spec()
-    if spec:
-        out.append(spec)
+    out.extend(sunday_scans_specs())
     return out
 
 
-def _sunday_scans_spec():
-    """The auto-maintained community list: the ticker roster of the NEWEST Desk
-    article that carries one ('Charts Covered' heading + chart labels, in the
-    author's own order). None when the desk store is unavailable — callers must
-    treat that as 'leave the existing list alone', never 'delete it'."""
+# ── The Sunday Scans family: one dated list per issue ────────────────────────
+
+def _issue_day(published_at):
+    """The issue's calendar date in ET (an 11pm-Saturday publish is still Saturday)."""
+    from datetime import datetime, timezone
     try:
-        from api.services import desk_store
-        row = desk_store.latest_post_with_tickers()
-        if not row or not row.get("tickers"):
-            return None
-        tickers = [str(t).upper() for t in row["tickers"] if t]
-        if not tickers:
-            return None
-        when = ""
-        try:
-            from datetime import datetime
-            from zoneinfo import ZoneInfo
-            when = datetime.fromtimestamp(
-                int(row["published_at"]), ZoneInfo("America/New_York")
-            ).strftime("%B %d, %Y").replace(" 0", " ")
-        except Exception:
-            when = ""
-        desc = "Every chart from the latest Sunday Scans issue"
-        if when:
-            desc += f" ({when})"
-        desc += " — updates automatically when a new issue lands."
-        return {
-            "name": SUNDAY_SCANS_NAME,
-            "desc": desc,
-            "category": _COMMUNITY_CATEGORY,
-            "tickers": tickers,
-        }
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("America/New_York")
     except Exception:
+        tz = timezone.utc
+    return datetime.fromtimestamp(int(published_at), tz).date()
+
+
+def _name_for_day(day) -> str:
+    label = day.strftime(_ISSUE_DATE_FMT).replace(" 0", " ")
+    return f"{SUNDAY_SCANS_NAME}{_NAME_SEP}{label}"
+
+
+def sunday_scans_list_name(row) -> str:
+    """'Sunday Scans — August 16, 2026' for a desk post row ({published_at, …}).
+    The ONE owner of the family's name format; _issue_date_from_name is its
+    inverse (retention prunes by the date parsed back out of the name), and the
+    article audit derives the expected name from here rather than restating it."""
+    return _name_for_day(_issue_day(row["published_at"]))
+
+
+def _is_sunday_family(name) -> bool:
+    return (name or "").strip().lower().startswith(SUNDAY_SCANS_NAME.lower())
+
+
+def _issue_date_from_name(name):
+    """The issue date carried by a dated family list name; None for the legacy
+    undated list or anything that isn't one of ours."""
+    from datetime import datetime
+    nm = (name or "").strip()
+    if not _is_sunday_family(nm):
+        return None
+    tail = nm[len(SUNDAY_SCANS_NAME):]
+    sep = _NAME_SEP.strip()
+    if not tail.strip().startswith(sep):
+        return None
+    try:
+        return datetime.strptime(tail.strip()[len(sep):].strip(), _ISSUE_DATE_FMT).date()
+    except ValueError:
         return None
 
 
-def sync_sunday_scans() -> dict:
-    """Reconcile ONLY the Sunday Scans community list against the newest issue.
-
-    Called by the hourly substack poller so the list updates within the hour a
-    new letter lands (the boot-time seeder covers it too — this is the fresh
-    path). Set comparison, delete-and-recreate on drift, exactly the seeder's
-    own idiom. Fail-soft: an unreadable source returns 'unavailable' and
-    touches nothing."""
+def sunday_scans_specs() -> list:
+    """One dated list spec per issue, newest first: the newest SUNDAY_SCANS_KEEP
+    Sunday Scans issues that carry a roster ('Charts Covered' heading + chart
+    labels, in the author's own order). [] when the desk store is unavailable —
+    callers must treat that as 'leave the existing lists alone', never 'delete
+    them'."""
     try:
-        spec = _sunday_scans_spec()
-        if not spec:
-            return {"status": "unavailable"}
-        desired = {t.upper() for t in spec["tickers"]}
+        from api.services import desk_store
+        rows = desk_store.sunday_scans_posts(SUNDAY_SCANS_KEEP) or []
+    except Exception:
+        return []
+    specs = []
+    for row in list(rows)[:SUNDAY_SCANS_KEEP]:
+        try:
+            tickers = [str(t).upper() for t in (row.get("tickers") or []) if t]
+            if not tickers:
+                continue
+            day = _issue_day(row["published_at"])
+        except Exception:
+            continue
+        name = _name_for_day(day)
+        label = name[len(SUNDAY_SCANS_NAME) + len(_NAME_SEP):]
+        specs.append({
+            "name": name,
+            "desc": (f"Every chart from the Sunday Scans issue of {label} — the community "
+                     f"keeps the last {SUNDAY_SCANS_KEEP} issues, one list each."),
+            "category": _COMMUNITY_CATEGORY,
+            "tickers": tickers,
+            "issue_date": day.isoformat(),
+            "published_at": int(row["published_at"]),
+        })
+    return specs
+
+
+def issue_date_map():
+    """{lowercased list name: 'YYYY-MM-DD'} for the DATED prebuilt lists (the
+    Sunday Scans archive) — the picker orders those newest-first instead of A→Z."""
+    return {l["name"].strip().lower(): l["issue_date"]
+            for l in _load_committed() if l.get("issue_date")}
+
+
+def _reconcile_sunday_family(existing) -> dict:
+    """Make the prebuilt store's Sunday Scans family match the specs: create a
+    missing issue list, rebuild one whose ticker set drifted (set comparison,
+    delete-and-recreate — bulk_add only ADDS), keep exactly one per issue, and
+    RETIRE what fell out of the window: the legacy undated list, plus — only once
+    the store can fill the whole window — any dated list older than the oldest
+    kept issue. A dated list inside the window with no spec (its post gone from
+    the store) is left standing: the failure direction is stale-persists.
+
+    ONE owner for the boot seeder and the hourly poller. `existing` = the
+    prebuilt rows as already listed by the caller."""
+    specs = sunday_scans_specs()
+    if not specs:
+        return {"status": "unavailable"}
+    family = [w for w in existing if _is_sunday_family(w.get("name"))]
+    oldest_kept = (min(s["issue_date"] for s in specs)
+                   if len(specs) >= SUNDAY_SCANS_KEEP else None)
+    pruned = rebuilt = current = 0
+    standing = []
+    for w in family:
+        d = _issue_date_from_name(w.get("name"))
+        retire = d is None or (oldest_kept is not None and d.isoformat() < oldest_kept)
+        if retire and w.get("user_id"):
+            wl.delete_watchlist(w["user_id"], w["id"])
+            pruned += 1
+        else:
+            standing.append(w)
+    admin = None
+    for spec in specs:
         nm = spec["name"].strip().lower()
+        desired = {t.upper() for t in spec["tickers"]}
         keep = None
-        for w in wl.list_prebuilt_watchlists(500):
+        for w in standing:
             if (w.get("name") or "").strip().lower() != nm:
                 continue
             cur = {(i.get("sym") or "").upper() for i in (w.get("items") or [])}
             if cur == desired and keep is None:
-                keep = w
+                keep = w                                   # first correct one stays
             elif w.get("user_id"):
-                wl.delete_watchlist(w["user_id"], w["id"])
+                wl.delete_watchlist(w["user_id"], w["id"])   # drifted set or duplicate → drop
+                pruned += 1
         if keep:
-            return {"status": "current", "count": len(desired)}
-        admin = _admin_user_id()
+            current += 1
+            continue
+        if admin is None:
+            admin = _admin_user_id()
         if not admin:
-            return {"status": "no_admin"}
+            return {"status": "no_admin", "lists": len(specs),
+                    "current": current, "rebuilt": rebuilt, "pruned": pruned}
         _create_list(admin, spec["name"], spec["desc"], spec["tickers"])
-        return {"status": "rebuilt", "count": len(spec["tickers"])}
+        rebuilt += 1
+    return {"status": "rebuilt" if (rebuilt or pruned) else "current",
+            "lists": len(specs), "current": current, "rebuilt": rebuilt, "pruned": pruned}
+
+
+def sync_sunday_scans() -> dict:
+    """Reconcile the Sunday Scans family against the desk store — the hourly
+    path (the substack poller calls it right after storing a new issue's
+    roster, so the new list lands within the hour; the boot seeder runs the
+    same reconcile). Fail-soft: an unreadable source returns 'unavailable'
+    and touches nothing."""
+    try:
+        return _reconcile_sunday_family(wl.list_prebuilt_watchlists(500))
     except Exception as e:
         _log.warning("[prebuilt] sunday-scans sync failed: %s", e)
         return {"status": "error", "error": str(e)[:200]}
@@ -265,23 +353,29 @@ def seed_prebuilt_watchlists() -> None:
         config = {l["name"].strip().lower(): l for l in lists}
 
         # Group every existing prebuilt list by lowercased name.
+        existing = wl.list_prebuilt_watchlists(500)
         existing_by_name = defaultdict(list)
-        for w in wl.list_prebuilt_watchlists(500):
+        for w in existing:
             existing_by_name[(w.get("name") or "").strip().lower()].append(w)
 
         # 1. Delete any prebuilt list NOT in the config (retired/renamed — e.g. Delisted Legends).
-        #    _PROTECTED names are exempt: their source is the desk store, so an unreadable
-        #    source at boot must leave the existing list standing, never wipe it.
+        #    The Sunday Scans family is exempt: its source is the desk store, so an unreadable
+        #    source at boot must leave the existing lists standing, never wipe them — the
+        #    family's own reconcile (step 3) retires what genuinely fell out of the window.
         for nm, rows in existing_by_name.items():
-            if nm not in config and nm not in _PROTECTED:
+            if nm not in config and not _is_sunday_family(nm):
                 for w in rows:
                     if w.get("user_id"):
                         wl.delete_watchlist(w["user_id"], w["id"])
 
         # 2. Reconcile each configured list — keep exactly one with the right ticker set,
         #    rebuild if the set drifted (bulk_add only ADDS, so removals need a recreate).
+        #    The Sunday Scans family is step 3's (its rosters are NOT overlay-pruned: a
+        #    dated issue list is a record of what the issue covered).
         admin = None
         for nm, l in config.items():
+            if _is_sunday_family(nm):
+                continue
             desired = {t.upper() for t in l["tickers"]}
             rows = existing_by_name.get(nm, [])
             keep = None
@@ -299,5 +393,8 @@ def seed_prebuilt_watchlists() -> None:
                 _log.info("[prebuilt] no admin user yet — '%s' seed deferred to next boot", l["name"])
                 continue
             _create_list(admin, l["name"], l["desc"], l["tickers"])
+
+        # 3. The Sunday Scans family — the same reconcile the hourly poller runs.
+        _reconcile_sunday_family(existing)
     except Exception as e:
         _log.warning("[prebuilt] seed failed: %s", e)

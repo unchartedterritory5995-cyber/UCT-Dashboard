@@ -333,13 +333,16 @@ def _backfill_slice() -> None:
 
 
 def _sync_sunday_scans_watchlist() -> None:
-    """Keep the auto-maintained 'Sunday Scans' community watchlist on the newest
-    issue's ticker roster. Rides the poll that just stored that roster, so the
-    list updates within the same hour a new letter lands. Never breaks the poll."""
+    """Keep the auto-maintained 'Sunday Scans' community watchlists (one dated
+    list per issue, the newest 12 kept) on the issues' ticker rosters. Rides
+    the poll that just stored a new roster, so the new issue's list lands within
+    the same hour the letter does. Never breaks the poll."""
     try:
         from api.services import watchlist_prebuilt
         got = watchlist_prebuilt.sync_sunday_scans()
         if got.get("status") == "rebuilt":
-            print(f"[substack] sunday-scans watchlist rebuilt ({got.get('count')} tickers)")
+            print(f"[substack] sunday-scans watchlists reconciled — created/rebuilt "
+                  f"{got.get('rebuilt', 0)}, retired {got.get('pruned', 0)}, "
+                  f"{got.get('lists')} issues kept")
     except Exception as e:  # noqa: BLE001 — a watchlist is not worth losing the poll over
         print(f"[substack] sunday-scans watchlist sync failed (non-fatal): {str(e)[:200]}")

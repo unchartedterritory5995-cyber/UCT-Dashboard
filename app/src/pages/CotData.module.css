@@ -135,11 +135,30 @@
   color: var(--ut-gold);
 }
 
+/* ── Body: chart on the left, positioning rail on the right ──────── */
+.body {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The rail column stretches to the chart's height when its content is
+   shorter, and takes its natural height when taller — nothing is ever
+   clipped. The rail's own width lives in PositioningRail.module.css. */
+.railCol {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 /* ── Chart container ─────────────────────────────────────────────── */
 .chartWrap {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
   background: #14160f;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -263,6 +282,44 @@
   pointer-events: none;
 }
 
+/* The shared hover tooltip — HTML, so it is never clipped by a pane's canvas */
+.tip {
+  position: absolute;
+  z-index: 6;
+  min-width: 190px;
+  padding: 8px 10px 7px;
+  background: #22251e;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.08s;
+  pointer-events: none;
+  font-size: 11px;
+  color: #e0dac8;
+}
+.tipTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f0ead8;
+  margin-bottom: 5px;
+}
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 1.5px 0;
+}
+.tipRowHot { color: #f0ead8; font-weight: 700; }
+.tipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.tipLabel { flex: 1; }
+.tipVal { font-variant-numeric: tabular-nums; }
+
 .pane {
   display: flex;
   flex-direction: column;
@@ -274,6 +331,15 @@
 .pane + .pane { border-top: 1px solid var(--border); margin-top: 4px; }
 
 .paneOi { flex: 0.85; }
+.panePrice { flex: 1.05; }
+
+/* Proxy disclosure beside the price pane label ("via SPY (ETF proxy)") */
+.paneNote {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+  margin-left: -2px;
+}
 
 .paneHeader {
   display: flex;
@@ -455,6 +521,11 @@
 .sheetItemActive { background: #3B82F6; }
 .sheetItemActive .dropdownSym,
 .sheetItemActive .dropdownName { color: white; }
+
+/* ── Narrow layouts: the rail drops below the chart ──────────────── */
+@media (max-width: 960px) {
+  .body { flex-direction: column; }
+}
 
 /* ── Phone layout ────────────────────────────────────────────────── */
 @media (max-width: 640px) {

@@ -23,6 +23,7 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
+import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
@@ -54,6 +55,7 @@ const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
 const ArticleReader = lazy(() => import('./pages/desk/ArticleReader'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
+const TrackRecordPage = lazy(() => import('./pages/journal-2-0/TrackRecordPage'))
 // A2: the new nested-route shell (v5). Renders a header + 5-item primary nav +
 // <Outlet/>; the child routes below render into that Outlet. The legacy
 // JournalTwoRoot (v8) has NO Outlet, so under v8 the deep /journal/* routes
@@ -304,6 +306,13 @@ export default function App() {
                 so the whole public surface has an env kill-switch.
                 Rail: journal-2-0/sharedNote.route.test.jsx. */}
             <Route path={SHARED_NOTE_ROUTE} element={<SharedNotePage />} />
+
+            {/* The far end of a public TRACK-RECORD share link — same posture:
+                token IS the credential, OUTSIDE AuthGuard, NOT behind
+                PreLaunchGate, path DERIVED from trackRecordLink.js (one
+                authority; the copy-link button builds from the same module).
+                Server side has its own kill switch (J2_TRACK_RECORD_ENABLED). */}
+            <Route path={TRACK_RECORD_ROUTE} element={<TrackRecordPage />} />
 
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart

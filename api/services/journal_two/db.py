@@ -541,6 +541,15 @@ CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
 -- row so a revoked link stays dead instead of being re-mintable by accident.
+-- Public track-record share (2026-08-22): one row per user; the token IS
+-- the credential (same posture as note/screener shares). Revoke = row
+-- delete; rotate = new token. Payload assembly lives in public_profile.py.
+CREATE TABLE IF NOT EXISTS j2_public_profiles (
+    user_id     TEXT PRIMARY KEY,
+    token       TEXT NOT NULL UNIQUE,
+    created_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS j2_note_shares (
     token       TEXT PRIMARY KEY,
     note_id     TEXT NOT NULL,

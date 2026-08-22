@@ -85,11 +85,18 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
 
   const flaggedLabel = flaggedName || 'Flagged'
   const showFlagged = match(flaggedLabel)
-  const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => match(wl.name))
+  // The admin account OWNS every prebuilt (UCT-curated) list, so the owner's own fetch
+  // returns ~30 UCT names — including the 12 dated Sunday Scans issues — as "his".
+  // They have their own tab; My Lists is for lists a person curates themselves.
+  const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => !wl?.is_prebuilt && match(wl.name))
   const community = (Array.isArray(communityLists) ? communityLists : []).filter(wl => match(wl.name))
   const prebuilt = (Array.isArray(prebuiltLists) ? prebuiltLists : []).filter(wl => match(wl.name))
   // Prebuilt lists render grouped under section headers (their `category` from the config —
-  // e.g. "UCT ETF Lists"). Category order is first-seen; lists sort A→Z within each section.
+  // e.g. "UCT ETF Lists"). Category order is first-seen. Within a section, DATED lists (the
+  // server tags each Sunday Scans issue list with `issue_date`) come first, newest first —
+  // A→Z would scramble April < August < July — and a dated section renders as ONE column so
+  // the full dated name stays readable (the two-column cell ellipsizes exactly the date off
+  // the end). Everything else sorts A→Z in the compact two-column grid.
   const prebuiltGroups = (() => {
     const order = []
     const byCat = new Map()
@@ -98,8 +105,17 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
       if (!byCat.has(cat)) { byCat.set(cat, []); order.push(cat) }
       byCat.get(cat).push(wl)
     }
-    order.forEach(c => byCat.get(c).sort((a, b) => (a.name || '').localeCompare(b.name || '')))
-    return order.map(c => ({ category: c, lists: byCat.get(c) }))
+    const byIssueThenName = (a, b) => {
+      const da = a.issue_date || '', db = b.issue_date || ''
+      if (da !== db) return !da ? 1 : !db ? -1 : db.localeCompare(da)
+      return (a.name || '').localeCompare(b.name || '')
+    }
+    order.forEach(c => byCat.get(c).sort(byIssueThenName))
+    return order.map(c => ({
+      category: c,
+      lists: byCat.get(c),
+      dated: byCat.get(c).some(l => !!l.issue_date),
+    }))
   })()
 
   const closeCreate = useCallback(() => { setCreating(false); setNewName(''); setCreateErr('') }, [])
@@ -238,7 +254,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 <span>{g.category}</span>
                 <span className={styles.catCount}>{g.lists.length} lists</span>
               </div>
-              <div className={styles.pGrid}>
+              <div className={g.dated ? styles.pList : styles.pGrid}>
                 {g.lists.map(wl => (
                   <PrebuiltCell key={`p${wl.id}`} wl={wl}
                     onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />

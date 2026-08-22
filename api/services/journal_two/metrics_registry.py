@@ -120,6 +120,40 @@ def _build_ctx(conn, user_id, account_id, spec) -> Ctx:
     return Ctx(conn, user_id, account_id, spec, rows, r_map, r_sources, start)
 
 
+# ── Per-card periods (2026-08-22) ───────────────────────────────────────────
+# A card key may carry a period suffix: "consistency@30d". The period OVERRIDES
+# the Scope's date facet for that card only (non-date facets still apply).
+# Distinct periods each get their own Ctx, built once per request.
+
+_PERIODS = {"30d": 30, "90d": 90, "365d": 365}
+
+
+def _period_spec(spec: FilterSpec, period: str | None) -> FilterSpec:
+    """The FilterSpec for one card's period. None/'' = inherit the Scope."""
+    if not period:
+        return spec
+    today = datetime.now(_ET).date()
+    if period == "all":
+        return spec.model_copy(update={"date_from": None, "date_to": None})
+    if period == "ytd":
+        return spec.model_copy(update={
+            "date_from": f"{today.year:04d}-01-01", "date_to": None})
+    days = _PERIODS.get(period)
+    if days is None:
+        return spec  # unknown period → inherit (reported via unknownKeys path)
+    from datetime import timedelta
+    return spec.model_copy(update={
+        "date_from": (today - timedelta(days=days)).isoformat(),
+        "date_to": None,
+    })
+
+
+def _split_period(token: str) -> tuple[str, str | None]:
+    """'consistency@30d' → ('consistency', '30d'); bare keys pass through."""
+    name, sep, per = token.partition("@")
+    return (name.strip(), per.strip() or None) if sep else (token.strip(), None)
+
+
 # ── Card computes ────────────────────────────────────────────────────────────
 
 def _consistency(ctx: Ctx) -> dict[str, Any]:
@@ -485,6 +519,69 @@ def _monte_carlo(ctx: Ctx) -> dict[str, Any]:
     return base
 
 
+_DIV_TYPES = {"DIVIDEND", "STOCK_DIVIDEND"}
+_INT_TYPES = {"INTEREST"}
+
+
+def _dividends(ctx: Ctx) -> dict[str, Any]:
+    """Dividend + interest income from the raw broker activities ledger
+    (the portfolio-tracker staple). Cash rows are few, so raw_json is parsed
+    Python-side; a row with no parsable amount is COUNTED as unparsed, never
+    guessed. Manual-only accounts return zeros with count 0 (honest empty)."""
+    import json as _json
+    base = "user_id = ? AND activity_type = 'cash'"
+    params: list[Any] = [ctx.user_id]
+    if ctx.account_id:
+        base += (" AND broker_account_id IN (SELECT id FROM j2_broker_accounts "
+                 "WHERE user_id = ? AND j2_account_id = ?)")
+        params += [ctx.user_id, ctx.account_id]
+    rows = ctx.conn.execute(
+        f"SELECT symbol, occurred_at, raw_json FROM j2_broker_activities "
+        f" WHERE {base}", params,
+    ).fetchall()
+
+    div_total = int_total = 0.0
+    count = unparsed = 0
+    by_month: dict[str, float] = {}
+    by_symbol: dict[str, float] = {}
+    for r in rows:
+        try:
+            raw = _json.loads(r["raw_json"])
+        except (ValueError, TypeError):
+            unparsed += 1
+            continue
+        typ = str(raw.get("type") or "").strip().upper()
+        if typ not in _DIV_TYPES and typ not in _INT_TYPES:
+            continue
+        try:
+            amt = float(raw.get("amount"))
+        except (TypeError, ValueError):
+            unparsed += 1
+            continue
+        count += 1
+        if typ in _INT_TYPES:
+            int_total += amt
+            continue
+        div_total += amt
+        ym = str(r["occurred_at"] or "")[:7]
+        if ym:
+            by_month[ym] = by_month.get(ym, 0.0) + amt
+        sym = r["symbol"]
+        if sym:
+            by_symbol[sym] = by_symbol.get(sym, 0.0) + amt
+
+    months = sorted(by_month.items())[-12:]
+    top = sorted(by_symbol.items(), key=lambda kv: -kv[1])[:5]
+    return {
+        "dividendsTotal": round(div_total, 2),
+        "interestTotal": round(int_total, 2),
+        "count": count,
+        "unparsed": unparsed,
+        "byMonth": [{"month": m, "amount": round(v, 2)} for m, v in months],
+        "topSymbols": [{"symbol": sym, "amount": round(v, 2)} for sym, v in top],
+    }
+
+
 # ── Custom-KPI vocabulary + AST-safe evaluator ──────────────────────────────
 
 def build_vocabulary(ctx: Ctx) -> dict[str, float | None]:
@@ -527,15 +624,19 @@ def build_vocabulary(ctx: Ctx) -> dict[str, float | None]:
     }
 
 
+_SAFE_FUNCS = {"abs": abs, "min": min, "max": max, "round": round}
+
+
 class _NullResult(Exception):
     """A variable was null / division by zero — the KPI is null, not an error."""
 
 
 def eval_kpi_expr(expr: str, variables: dict[str, float | None]) -> dict[str, Any]:
     """Evaluate one custom-KPI formula. Allowed: numbers, the vocabulary
-    names, + - * /, parentheses, unary +/-. Anything else (calls, attributes,
-    subscripts, unknown names, comparisons) is rejected BY NAME. A null
-    variable or division by zero yields value null, never an error page."""
+    names, + - * /, parentheses, unary +/-, and the four safe functions
+    abs/min/max/round. Anything else (other calls, attributes, subscripts,
+    unknown names, comparisons) is rejected BY NAME. A null variable or
+    division by zero yields value null, never an error page."""
     if not isinstance(expr, str) or not expr.strip():
         return {"value": None, "error": "empty expression"}
     if len(expr) > _EXPR_MAX_LEN:
@@ -562,6 +663,15 @@ def eval_kpi_expr(expr: str, variables: dict[str, float | None]) -> dict[str, An
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
             v = ev(node.operand)
             return -v if isinstance(node.op, ast.USub) else v
+        if isinstance(node, ast.Call):
+            if (isinstance(node.func, ast.Name)
+                    and node.func.id in _SAFE_FUNCS
+                    and not node.keywords):
+                args = [ev(a) for a in node.args]
+                if not args:
+                    raise ValueError(f"{node.func.id}() needs arguments")
+                return float(_SAFE_FUNCS[node.func.id](*args))
+            raise ValueError("only abs/min/max/round calls are allowed")
         if isinstance(node, ast.BinOp) and isinstance(
                 node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
             left, right = ev(node.left), ev(node.right)
@@ -626,6 +736,9 @@ METRICS: dict[str, MetricDef] = {m.key: m for m in [
               "1,000 bootstrap paths of your next 100 trades from your own "
               "P&L distribution — terminal range, drawdown odds.",
               "risk", _monte_carlo),
+    MetricDef("dividends", "Dividends & Interest",
+              "Income the broker paid you — dividends by month and symbol, "
+              "plus interest.", "income", _dividends),
 ]}
 
 VOCABULARY_KEYS = [
@@ -660,23 +773,44 @@ def compute_metrics(
     own = conn is None
     conn = conn or get_connection()
     try:
-        ctx = _build_ctx(conn, user_id, account_id, spec)
+        # One Ctx per DISTINCT period (None = the Scope itself), built lazily.
+        ctx_cache: dict[str | None, Ctx] = {}
+
+        def _ctx_for(period: str | None) -> Ctx:
+            if period not in ctx_cache:
+                ctx_cache[period] = _build_ctx(
+                    conn, user_id, account_id, _period_spec(spec, period))
+            return ctx_cache[period]
+
         out: dict[str, Any] = {}
         unknown: list[str] = []
-        for k in keys:
+        for token in keys:
+            k, period = _split_period(token)
             m = METRICS.get(k)
-            if m is None:
-                unknown.append(k)
-            else:
-                out[k] = m.compute(ctx)
+            if m is None or (period and period not in _PERIODS
+                             and period not in ("ytd", "all")):
+                unknown.append(token)
+                continue
+            payload = m.compute(_ctx_for(period))
+            if period:
+                payload = {**payload, "period": period}
+            out[token] = payload
         custom: list[dict[str, Any]] = []
         if kpis:
-            vocab = build_vocabulary(ctx)
+            vocab_cache: dict[str | None, dict[str, float | None]] = {}
             for name, expr in kpis[:_KPI_MAX]:
-                res = eval_kpi_expr(expr, vocab)
+                kname, period = _split_period(name)
+                if period and period not in _PERIODS and period not in ("ytd", "all"):
+                    custom.append({"name": name, "expr": expr, "value": None,
+                                   "error": f"unknown period '{period}'"})
+                    continue
+                if period not in vocab_cache:
+                    vocab_cache[period] = build_vocabulary(_ctx_for(period))
+                res = eval_kpi_expr(expr, vocab_cache[period])
                 custom.append({"name": name, "expr": expr, **res})
+        base_ctx = _ctx_for(None)
         return {"metrics": out, "custom": custom, "unknownKeys": unknown,
-                "tradeCount": len(ctx.rows), "rSources": ctx.r_sources}
+                "tradeCount": len(base_ctx.rows), "rSources": base_ctx.r_sources}
     finally:
         if own:
             conn.close()

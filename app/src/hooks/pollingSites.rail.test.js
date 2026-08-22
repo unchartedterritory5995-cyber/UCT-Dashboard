@@ -214,7 +214,6 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useCallRecap.js': 1,
   'app/src/hooks/useCatalysts.js': 1,
   'app/src/hooks/useEarningsAudio.js': 1,
-  'app/src/hooks/useEarningsBrief.js': 1,
   'app/src/hooks/useEarningsTable.js': 1,
   'app/src/hooks/useExpectedMove.js': 1,
   'app/src/hooks/useFilings.js': 1,

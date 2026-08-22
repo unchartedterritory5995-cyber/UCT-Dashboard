@@ -12,7 +12,7 @@
  * docs/superpowers/plans/2026-08-21-custom-metrics-dashboard.md.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
 import styles from './MetricsDashboard.module.css'
@@ -25,6 +25,21 @@ const fetcher = (url) =>
 
 const DEFAULT_STATE = { cards: ['consistency', 'payoff_kelly', 'time_intel'], kpis: [] }
 
+// Per-card period choices — '' inherits the global Scope; others override
+// the date facet for that card only (backend `key@period` tokens).
+const PERIODS = [
+  { value: '', label: 'Scope' },
+  { value: '30d', label: '30D' },
+  { value: '90d', label: '90D' },
+  { value: 'ytd', label: 'YTD' },
+  { value: 'all', label: 'All' },
+]
+
+/** Stored card entry (legacy string OR {key, period}) → {key, period}. */
+const normCard = (c) => (typeof c === 'string' ? { key: c, period: '' } : { key: c.key, period: c.period || '' })
+const cardToken = (c) => (c.period ? `${c.key}@${c.period}` : c.key)
+const kpiName = (k) => (k.period ? `${k.name}@${k.period}` : k.name)
+
 const pct = (v, dp = 1) => (v == null ? '—' : `${(v * 100).toFixed(dp)}%`)
 const usd = (v) => (v == null ? '—' : `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}`)
 const num = (v, dp = 2) => (v == null ? '—' : Number(v).toFixed(dp))
@@ -32,7 +47,7 @@ const num = (v, dp = 2) => (v == null ? '—' : Number(v).toFixed(dp))
 export default function MetricsDashboard({ apiParams }) {
   const { prefs, setPref } = usePreferences()
   const state = parsePref(prefs.j2_custom_dashboard, DEFAULT_STATE)
-  const cards = Array.isArray(state.cards) ? state.cards : DEFAULT_STATE.cards
+  const cards = (Array.isArray(state.cards) ? state.cards : DEFAULT_STATE.cards).map(normCard)
   const kpis = Array.isArray(state.kpis) ? state.kpis : []
 
   const { data: registryRaw } = useMobileSWR('/api/j2/metrics/registry', fetcher, {
@@ -50,8 +65,8 @@ export default function MetricsDashboard({ apiParams }) {
         params.set(k, String(v))
       }
     }
-    params.set('keys', cards.join(','))
-    for (const k of kpis) params.append('kpi', `${k.name}:${k.expr}`)
+    params.set('keys', cards.map(cardToken).join(','))
+    for (const k of kpis) params.append('kpi', `${kpiName(k)}:${k.expr}`)
     return `/api/j2/metrics?${params.toString()}`
   }, [apiParams, cards, kpis])
 
@@ -62,18 +77,33 @@ export default function MetricsDashboard({ apiParams }) {
 
   const save = (next) => setPref('j2_custom_dashboard', { cards, kpis, ...next })
 
-  const addCard = (key) => { if (key && !cards.includes(key)) save({ cards: [...cards, key] }) }
-  const removeCard = (key) => save({ cards: cards.filter((c) => c !== key) })
+  const addCard = (key) => {
+    if (key && !cards.some((c) => c.key === key)) save({ cards: [...cards, { key, period: '' }] })
+  }
+  const removeCard = (key) => save({ cards: cards.filter((c) => c.key !== key) })
+  const setPeriod = (key, period) =>
+    save({ cards: cards.map((c) => (c.key === key ? { ...c, period } : c)) })
   const moveCard = (key, dir) => {
-    const i = cards.indexOf(key)
+    const i = cards.findIndex((c) => c.key === key)
     const j = i + dir
     if (i < 0 || j < 0 || j >= cards.length) return
     const next = [...cards]
     ;[next[i], next[j]] = [next[j], next[i]]
     save({ cards: next })
   }
+  const dragKeyRef = useRef(null)  // survives re-renders mid-drag
+  const onDragStart = (key) => { dragKeyRef.current = key }
+  const onDropOn = (key) => {
+    const from = cards.findIndex((c) => c.key === dragKeyRef.current)
+    const to = cards.findIndex((c) => c.key === key)
+    if (from < 0 || to < 0 || from === to) return
+    const next = [...cards]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    save({ cards: next })
+  }
 
-  const available = registry.filter((r) => r.key !== 'custom' && !cards.includes(r.key))
+  const available = registry.filter((r) => r.key !== 'custom' && !cards.some((c) => c.key === r.key))
   const registryByKey = useMemo(
     () => Object.fromEntries(registry.map((r) => [r.key, r])), [registry],
   )
@@ -105,14 +135,18 @@ export default function MetricsDashboard({ apiParams }) {
       {isLoading && !data && <p className={styles.hint}>Loading…</p>}
 
       <div className={styles.grid}>
-        {cards.map((key) => (
+        {cards.map((c) => (
           <MetricCard
-            key={key}
-            metaTitle={registryByKey[key]?.title || key}
-            metricKey={key}
-            payload={data?.metrics?.[key]}
-            onRemove={() => removeCard(key)}
-            onMove={(d) => moveCard(key, d)}
+            key={c.key}
+            metaTitle={registryByKey[c.key]?.title || c.key}
+            metricKey={c.key}
+            period={c.period}
+            payload={data?.metrics?.[cardToken(c)]}
+            onRemove={() => removeCard(c.key)}
+            onMove={(d) => moveCard(c.key, d)}
+            onPeriod={(p) => setPeriod(c.key, p)}
+            onDragStart={() => onDragStart(c.key)}
+            onDropOn={() => onDropOn(c.key)}
           />
         ))}
         <CustomKpiCard
@@ -126,12 +160,27 @@ export default function MetricsDashboard({ apiParams }) {
   )
 }
 
-function MetricCard({ metaTitle, metricKey, payload, onRemove, onMove }) {
+function MetricCard({ metaTitle, metricKey, period, payload, onRemove, onMove, onPeriod, onDragStart, onDropOn }) {
   return (
-    <div className={styles.card}>
+    <div
+      className={styles.card}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.preventDefault(); onDropOn() }}
+    >
       <div className={styles.cardHead}>
         <h5 className={styles.cardTitle}>{metaTitle}</h5>
         <span className={styles.cardBtns}>
+          <select
+            className={styles.periodSelect}
+            value={period || ''}
+            onChange={(e) => onPeriod(e.target.value)}
+            aria-label={`${metaTitle} period`}
+            title="Date window for this card (Scope = the global filter)"
+          >
+            {PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
           <button type="button" className={styles.iconBtn} onClick={() => onMove(-1)} aria-label={`Move ${metaTitle} up`}>↑</button>
           <button type="button" className={styles.iconBtn} onClick={() => onMove(1)} aria-label={`Move ${metaTitle} down`}>↓</button>
           <button type="button" className={styles.iconBtn} onClick={onRemove} aria-label={`Remove ${metaTitle}`}>✕</button>
@@ -285,6 +334,32 @@ function CardBody({ metricKey, p }) {
           Needs {p.minTrades} closed trades — {p.trades} so far.
         </p>
       )
+    case 'dividends':
+      return (
+        <div className={styles.tables}>
+          <div className={styles.stats}>
+            <Stat label="Dividends" value={usd(p.dividendsTotal)} />
+            <Stat label="Interest" value={usd(p.interestTotal)} />
+          </div>
+          {p.byMonth?.length > 0 && (
+            <MiniTable
+              title="By month (last 12)"
+              cols={['Month', 'Amount']}
+              rows={p.byMonth.map((m) => [m.month, usd(m.amount)])}
+            />
+          )}
+          {p.topSymbols?.length > 0 && (
+            <MiniTable
+              title="Top payers"
+              cols={['Symbol', 'Amount']}
+              rows={p.topSymbols.map((t) => [t.symbol, usd(t.amount)])}
+            />
+          )}
+          {p.count === 0 && (
+            <p className={styles.gateNote}>No dividend or interest activity in the ledger yet.</p>
+          )}
+        </div>
+      )
     default:
       return <p className={styles.hint}>Unknown card.</p>
   }
@@ -293,15 +368,17 @@ function CardBody({ metricKey, p }) {
 function CustomKpiCard({ kpis, results, vocabulary, onChange }) {
   const [name, setName] = useState('')
   const [expr, setExpr] = useState('')
+  const [period, setPeriod] = useState('')
   const byName = Object.fromEntries(results.map((r) => [r.name, r]))
 
   const add = () => {
     const n = name.trim()
     const e = expr.trim()
     if (!n || !e || kpis.some((k) => k.name === n)) return
-    onChange([...kpis, { name: n, expr: e }])
+    onChange([...kpis, { name: n, expr: e, period }])
     setName('')
     setExpr('')
+    setPeriod('')
   }
 
   return (
@@ -312,10 +389,13 @@ function CustomKpiCard({ kpis, results, vocabulary, onChange }) {
       {kpis.length > 0 && (
         <div className={styles.stats}>
           {kpis.map((k) => {
-            const r = byName[k.name]
+            const r = byName[kpiName(k)]
             return (
               <div key={k.name} className={styles.kpiRow}>
-                <span className={styles.kpiName} title={k.expr}>{k.name}</span>
+                <span className={styles.kpiName} title={k.expr}>
+                  {k.name}
+                  {k.period && <span className={styles.kpiPeriod}> · {k.period}</span>}
+                </span>
                 <span className={styles.kpiValue}>
                   {r?.error
                     ? <span className={styles.err} title={r.error}>invalid</span>
@@ -342,10 +422,19 @@ function CustomKpiCard({ kpis, results, vocabulary, onChange }) {
           onChange={(e) => setExpr(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') add() }}
         />
+        <select
+          className={styles.periodSelect} value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          aria-label="KPI period"
+        >
+          {PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </select>
         <button type="button" className={styles.addBtn} onClick={add}>Add</button>
       </div>
       {vocabulary.length > 0 && (
-        <p className={styles.vocab}>Variables: {vocabulary.join(' · ')}</p>
+        <p className={styles.vocab}>
+          Variables: {vocabulary.join(' · ')} — plus abs() · min() · max() · round()
+        </p>
       )}
     </div>
   )

@@ -1,0 +1,512 @@
+/* ── Positioning rail (COT tab, right-hand column) ───────────────────────── */
+/* Reads as a continuation of the chart card: same surface, same eyebrow idiom,
+   same series palette. The 3Y-index meters are the one expressive element. */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 380px;
+  flex: 0 0 380px;
+  box-sizing: border-box;
+  padding: 20px 18px 18px;
+  background: #14160f;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.eyebrow::before {
+  content: '';
+  width: 18px;
+  height: 1px;
+  background: var(--ut-gold);
+  opacity: 0.6;
+}
+
+.when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  line-height: 1.2;
+}
+.whenLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.whenDate {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.whenScrub .whenLabel,
+.whenScrub .whenDate { color: var(--ut-gold); }
+
+/* ── Verdict tiles ──────────────────────────────────────────────────────── */
+.verdicts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tile {
+  padding: 9px 11px 8px;
+  background: rgba(224, 218, 200, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.tileLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.tileValue {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  line-height: 1.15;
+}
+
+.tileSub {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toneBull    { color: var(--gain); }
+.toneBear    { color: var(--loss); }
+.toneNeutral { color: var(--text-bright); }
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+.table {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 66px 50px 46px 66px;
+  column-gap: 6px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(168, 162, 144, 0.08);
+  font-size: 11px;
+}
+.row:last-child { border-bottom: 1px solid var(--border); }
+
+.rowHead {
+  padding: 7px 0 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rowHead .cellLabel { font-weight: 700; color: var(--text-muted); }
+.rowHead .cell:last-child { text-align: right; }
+
+.cellLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cell { min-width: 0; }
+
+.cellNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.up   { color: var(--gain); font-weight: 600; }
+.down { color: var(--loss); font-weight: 600; }
+.flat { color: var(--text-muted); }
+
+/* The 3Y-index meter: a track in the series hue with the fill in that hue and
+   a bright marker at the index. 0 = max short, 100 = max long (3-year window). */
+.meterCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meterTrack {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+  overflow: visible;
+}
+
+.meterFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--c);
+  opacity: 0.75;
+}
+
+.meterMark {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  border: 1.5px solid #14160f;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px var(--c);
+}
+
+.meterNum {
+  width: 18px;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+}
+
+/* ── The read ───────────────────────────────────────────────────────────── */
+.read {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.headline {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-heading);
+}
+
+.points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.point {
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.pointDot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  margin-top: 5px;
+}
+
+.watch {
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--ut-gold-glow);
+  border-left: 2px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  background: var(--ut-gold-dim);
+}
+
+.watchLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  margin-bottom: 4px;
+}
+
+.watchText {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-bright);
+}
+
+.fine {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding-left: 10px;
+  border-left: 1px solid var(--border-accent);
+}
+
+/* ── Narrow layouts: rail drops below the chart, full width ─────────────── */
+@media (max-width: 960px) {
+  .rail {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .rail { padding: 14px 12px; }
+  .row { grid-template-columns: minmax(0, 1fr) 62px 46px 44px 60px; }
+}
+
+/* ── v2: signals chips ──────────────────────────────────────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-accent);
+  background: rgba(224, 218, 200, 0.03);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-bright);
+  cursor: default;
+}
+.chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.chipBull::before    { background: var(--gain); }
+.chipBear::before    { background: var(--loss); }
+.chipNeutral::before { background: var(--ut-gold); }
+
+/* ── v2: sections ───────────────────────────────────────────────────────── */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionSub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+
+/* ── v2: the written read ───────────────────────────────────────────────── */
+.narrative {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+.narrative p { margin: 0; }
+
+.narrativeSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.narrativeSkeleton span {
+  display: block;
+  height: 9px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(224,218,200,0.05), rgba(224,218,200,0.12), rgba(224,218,200,0.05));
+  background-size: 200% 100%;
+  animation: railShimmer 1.4s linear infinite;
+}
+.narrativeSkeleton span:nth-child(2) { width: 92%; }
+.narrativeSkeleton span:nth-child(3) { width: 78%; }
+.narrativeSkeleton span:nth-child(5) { width: 60%; }
+@keyframes railShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .narrativeSkeleton span { animation: none; } }
+
+.narrativeMeta {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+/* Collapsible group-by-group detail under the written read */
+.details summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+.details summary::-webkit-details-marker { display: none; }
+.details summary::before { content: '▸ '; color: var(--ut-gold); }
+.details[open] summary::before { content: '▾ '; }
+.details .points { margin-top: 8px; }
+
+/* ── v2: price check (divergences) ──────────────────────────────────────── */
+.checkItem {
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.checkDot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--text-muted);
+}
+.checkBull    { background: var(--gain); }
+.checkBear    { background: var(--loss); }
+.checkCaution { background: var(--ut-gold); }
+.checkInfo    { background: var(--info); }
+.checkLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 1px;
+}
+
+/* ── v2: precedents ─────────────────────────────────────────────────────── */
+.precGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.precCell {
+  padding: 8px 9px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(224, 218, 200, 0.03);
+  min-width: 0;
+}
+.precH {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.precHit {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.1;
+}
+.precHitBull { color: var(--gain); }
+.precHitBear { color: var(--loss); }
+.precSub {
+  margin-top: 3px;
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.precDates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.precDate {
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.precDateUp   { color: var(--gain); border-color: var(--gain-border); }
+.precDateDown { color: var(--loss); border-color: var(--loss-border); }
+
+.precEmpty {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* ── Foldable sections (Price check, Precedents): open on wide screens, a tap
+   target on a phone so the rail stays scannable ────────────────────────── */
+.fold > summary {
+  list-style: none;
+  cursor: default;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > .section { margin-top: 8px; }
+
+@media (max-width: 640px) {
+  .fold > summary {
+    cursor: pointer;
+    min-height: var(--tap-min, 44px);
+    align-items: center;
+  }
+  .fold > summary::after {
+    content: '\25B8';
+    margin-left: auto;
+    color: var(--ut-gold);
+    font-size: 11px;
+  }
+  .fold[open] > summary::after { content: '\25BE'; }
+}

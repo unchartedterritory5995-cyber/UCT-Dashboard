@@ -639,7 +639,7 @@ def get_key_quotes(sym: str) -> Optional[list]:
         return None
 
     try:
-        from api.services.engine import _get_anthropic_client, _EARNINGS_AI_MODEL
+        from api.services.engine import _get_anthropic_client, _EARNINGS_AI_MODEL, _anthropic_text
     except Exception:
         return None
 
@@ -659,10 +659,15 @@ def get_key_quotes(sym: str) -> Optional[list]:
         msg = client.messages.create(
             model=_EARNINGS_AI_MODEL,
             max_tokens=600,
+            # Claude 5 models emit a ThinkingBlock FIRST by default: it ate
+            # `content[0]` (→ `'ThinkingBlock' object has no attribute 'text'`,
+            # live 2026-08-22 for FLXS) and part of the 600-token budget. Same
+            # two guards as engine's own generators.
+            thinking={"type": "disabled"},
             metadata={"user_id": "earnings_enrichment:global"},
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = msg.content[0].text.strip()
+        raw = _anthropic_text(msg)
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
