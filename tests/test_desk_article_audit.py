@@ -16,6 +16,15 @@ import pytest
 WEEK = 7 * 86400
 
 
+def _wl_rows(store, items):
+    """One dated community list per Sunday Scans issue in the store, every list
+    carrying `items` — the healthy shape. Names DERIVED, never restated."""
+    from api.services import watchlist_prebuilt as wp
+    return [{"id": f"wl-{p['id']}", "user_id": "admin", "name": wp.sunday_scans_list_name(p),
+             "items": [{"sym": s} for s in items]}
+            for p in store.sunday_scans_posts(wp.SUNDAY_SCANS_KEEP)]
+
+
 @pytest.fixture()
 def store(tmp_path, monkeypatch):
     monkeypatch.setenv("DESK_DB_PATH", str(tmp_path / "desk.db"))
@@ -32,14 +41,11 @@ def audit(store, monkeypatch):
     from api.services import desk_article_audit as a
     importlib.reload(a)
     # Every seeded post carries tickers ["MU"], so a healthy archive REQUIRES a
-    # matching community watchlist — the fixture supplies one. Tests that probe
-    # the watchlist check override this with a mismatch / missing / raising read.
-    from api.services import watchlist_prebuilt as wp
+    # matching dated community watchlist PER ISSUE — the fixture supplies them,
+    # derived from the store (names via the module that owns them). Tests that
+    # probe the watchlist check override this with a mismatch / missing / raising read.
     from api.services import watchlist_service as wl
-    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: [
-        {"id": "wl-ss", "user_id": "admin", "name": wp.SUNDAY_SCANS_NAME,
-         "items": [{"sym": "MU"}]},
-    ])
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(store, ["MU"]))
     return a
 
 
@@ -144,10 +150,6 @@ def test_a_stalled_converter_bump_is_flagged(store, audit):
 
 # ── the community watchlist is a downstream artifact of the newest issue ─────
 
-def _wl_rows(items):
-    from api.services import watchlist_prebuilt as wp
-    return [{"id": "wl-ss", "user_id": "admin", "name": wp.SUNDAY_SCANS_NAME,
-             "items": [{"sym": s} for s in items]}]
 
 
 def test_a_stale_community_watchlist_is_flagged_with_the_symbol_diff(store, audit, monkeypatch):
@@ -155,12 +157,12 @@ def test_a_stale_community_watchlist_is_flagged_with_the_symbol_diff(store, audi
     quiet failure the hourly sync could produce — the audit names the diff."""
     from api.services import watchlist_service as wl
     seed(store, "u1", "s1", published_at=NOW - WEEK)
-    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["KO"]))
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(store, ["KO"]))
     r = audit.audit_articles(now=NOW)
     stale = [p for p in r["problems"] if "STALE" in p]
     assert stale and "MU" in stale[0] and "KO" in stale[0]
     # Control (non-vacuity): the same archive with a MATCHING list is silent.
-    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["MU"]))
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(store, ["MU"]))
     r2 = audit.audit_articles(now=NOW)
     assert not any("STALE" in p or "MISSING" in p for p in r2["problems"])
     assert r2["sunday_scans_watchlist"] == {"listed": 1, "expected": 1}
@@ -174,12 +176,45 @@ def test_a_missing_community_watchlist_is_flagged(store, audit, monkeypatch):
     assert any("MISSING" in p for p in r["problems"])
 
 
+def test_a_missing_newest_list_is_reported_once_not_as_an_archive_gap_too(store, audit, monkeypatch):
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW - WEEK)
+    seed(store, "u2", "s2", published_at=NOW - 2 * WEEK)
+    full = _wl_rows(store, ["MU"])
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists",
+                        lambda n=500: [r for r in full if r["id"] != "wl-u1"])
+    r = audit.audit_articles(now=NOW)
+    assert sum("MISSING" in p for p in r["problems"]) == 1
+    assert not any("archive" in p.lower() for p in r["problems"])
+
+
+def test_a_missing_archive_issue_is_flagged_by_name(store, audit, monkeypatch):
+    """The look-back is the product: an OLDER issue's dated list quietly gone
+    (a failed create, a hand delete) is named. Control: the full archive is silent."""
+    from api.services import watchlist_service as wl
+    seed(store, "u1", "s1", published_at=NOW - WEEK)
+    seed(store, "u2", "s2", published_at=NOW - 2 * WEEK)
+    seed(store, "u3", "s3", published_at=NOW - 3 * WEEK)
+    full = _wl_rows(store, ["MU"])
+    gone = next(r for r in full if r["id"] == "wl-u2")
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists",
+                        lambda n=500: [r for r in full if r is not gone])
+    r = audit.audit_articles(now=NOW)
+    hits = [p for p in r["problems"] if "archive" in p.lower()]
+    assert hits and gone["name"] in hits[0]
+    assert r["sunday_scans_archive"] == {"listed": 2, "expected": 3}
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: full)
+    r2 = audit.audit_articles(now=NOW)
+    assert not any("archive" in p.lower() for p in r2["problems"])
+    assert r2["sunday_scans_archive"] == {"listed": 3, "expected": 3}
+
+
 def test_a_fresh_issue_inside_the_grace_window_is_not_flagged(store, audit, monkeypatch):
     """The sync is hourly; an issue minutes old with a not-yet-updated list is
     NORMAL. Without the grace this fires every Sunday afternoon and gets muted."""
     from api.services import watchlist_service as wl
     seed(store, "u1", "s1", published_at=NOW)
-    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(["KO"]))
+    monkeypatch.setattr(wl, "list_prebuilt_watchlists", lambda n=500: _wl_rows(store, ["KO"]))
     r = audit.audit_articles(now=NOW)
     assert not any("STALE" in p or "MISSING" in p for p in r["problems"])
 
