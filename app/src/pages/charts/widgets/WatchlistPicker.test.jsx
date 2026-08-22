@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 import WatchlistPicker from './WatchlistPicker'
+import { SWRConfig } from 'swr'
 
 // A Watchlist widget scopes to ONE list, so this "Add a Watchlist" screen is the
 // only place a new list can be created from the widget. These cover that path.
@@ -117,4 +118,45 @@ test('Escape abandons the new-list input', async () => {
 
   await waitFor(() => expect(screen.queryByLabelText(/new watchlist name/i)).not.toBeInTheDocument())
   expect(screen.getByRole('button', { name: /new watchlist/i })).toBeInTheDocument()
+})
+
+// ── Dated prebuilt lists (the Sunday Scans archive) ───────────────────────────
+// The server tags each issue list with `issue_date`. Inside a section those
+// render NEWEST FIRST in a single column (the full dated name must be readable —
+// a 2-column cell ellipsizes exactly the date off the end), while undated
+// sections keep their A→Z two-column grid.
+// Server order: sections come grouped (ETF → … → Community); the picker keeps that
+// first-seen section order and only re-sorts WITHIN a section. The dated rows are
+// deliberately shuffled here so the test proves the picker's own ordering.
+const PREBUILT = [
+  { id: 'liq', name: 'Liquid Major ETFs', category: 'UCT ETF Lists', items: [] },
+  { id: 'bb', name: 'Bull & Bear ETFs', category: 'UCT ETF Lists', items: [] },
+  { id: 'a2', name: 'Sunday Scans — August 2, 2026', category: 'UCT Community', issue_date: '2026-08-02', items: [] },
+  { id: 'a16', name: 'Sunday Scans — August 16, 2026', category: 'UCT Community', issue_date: '2026-08-16', items: [] },
+  { id: 'a9', name: 'Sunday Scans — August 9, 2026', category: 'UCT Community', issue_date: '2026-08-09', items: [] },
+]
+
+test('dated prebuilt lists render newest-first in a single column; undated sections stay A→Z', async () => {
+  const user = userEvent.setup()
+  vi.stubGlobal('fetch', vi.fn((url) => {
+    if (String(url) === '/api/watchlists/prebuilt') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(PREBUILT) })
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
+  }))
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <WatchlistPicker onPick={() => {}} />
+    </SWRConfig>,
+  )
+  await user.click(screen.getByRole('tab', { name: /prebuilt/i }))
+
+  const names = (await screen.findAllByRole('button', { name: /sunday scans|etfs/i })).map(b => b.getAttribute('title'))
+  expect(names).toEqual([
+    'Bull & Bear ETFs', 'Liquid Major ETFs',                      // undated: A→Z
+    'Sunday Scans — August 16, 2026', 'Sunday Scans — August 9, 2026', 'Sunday Scans — August 2, 2026',
+  ])
+  const cellOf = (title) => screen.getByTitle(title).parentElement
+  expect(cellOf('Sunday Scans — August 16, 2026').className).toMatch(/pList/)
+  expect(cellOf('Liquid Major ETFs').className).toMatch(/pGrid/)
 })

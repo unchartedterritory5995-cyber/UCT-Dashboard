@@ -167,20 +167,27 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
     rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
     try:
         from api.services.watchlist_prebuilt import (
-            category_map, sample_map, category_order, _DEFAULT_CATEGORY,
+            category_map, sample_map, category_order, issue_date_map, _DEFAULT_CATEGORY,
         )
         cats = category_map()
         samples = sample_map()
         order = category_order()
+        dated = issue_date_map()
         for r in rows:
             key = (r.get("name") or "").strip().lower()
             r["category"] = cats.get(key, _DEFAULT_CATEGORY)
             r["sample"] = samples.get(key, [])
-        # Group rows by the config's section order (ETF → Index → Breadth) so the picker's
-        # first-seen grouping is deterministic, not dependent on each section's alphabetically
-        # first list name. Within a section, name-sorted (the picker re-sorts A→Z anyway).
+            if dated.get(key):
+                r["issue_date"] = dated[key]     # 'YYYY-MM-DD' — only the dated archive lists
+        # Group rows by the config's section order (ETF → Index → Breadth → Community) so the
+        # picker's first-seen grouping is deterministic, not dependent on each section's
+        # alphabetically first list name. Within a section: DATED lists first, newest first
+        # (the Sunday Scans archive — A→Z would scramble April < August < July; a negated
+        # YYYYMMDD sorts every dated row ahead of the undated 0), then the rest by name
+        # (the picker re-sorts those A→Z anyway).
         rows.sort(key=lambda r: (
             order.index(r["category"]) if r.get("category") in order else len(order),
+            -int(str(r["issue_date"]).replace("-", "")) if r.get("issue_date") else 0,
             (r.get("name") or "").lower(),
         ))
     except Exception:

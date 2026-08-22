@@ -596,33 +596,52 @@ def count_posts_for_ticker(sym: str) -> int:
         ).fetchone()[0]
 
 
-def latest_post_with_tickers() -> Optional[dict]:
-    """The newest post that carries a ticker roster — the source for the
-    auto-maintained 'Sunday Scans' community watchlist.
+# The issue series the community watchlist archive is built from — matched against
+# the feed title (the substack feed's 'SUNDAY SCANS') OR the reader's display title.
+_SUNDAY_SCANS_SERIES = "sunday scans"
 
-    Returns {id, title, published_at, tickers} or None. Tickers keep the
+
+def sunday_scans_posts(limit: int = 12) -> list[dict]:
+    """The newest `limit` Sunday Scans issues that carry a ticker roster, newest
+    first — the source for the auto-maintained community watchlist archive
+    (one dated list per issue).
+
+    Restricted to the series BY TITLE: 'The Rest of the Week' posts carry a
+    3-4 name roster too and must never become (or displace) a Sunday Scans
+    list. Each row is {id, title, published_at, tickers}; tickers keep the
     author-curated order from the issue's own 'Charts Covered' heading."""
+    like = f"%{_SUNDAY_SCANS_SERIES}%"
     with contextlib.closing(_connect()) as c:
-        row = c.execute(
+        rows = c.execute(
             """SELECT id, title, display_title, published_at, tickers_json
                  FROM substack_posts
                 WHERE tickers_json IS NOT NULL AND tickers_json != '' AND tickers_json != '[]'
-                ORDER BY published_at DESC, id DESC LIMIT 1"""
-        ).fetchone()
-    if not row:
-        return None
-    try:
-        tickers = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str) and t]
-    except Exception:
-        return None
-    if not tickers:
-        return None
-    return {
-        "id": row["id"],
-        "title": row["display_title"] or row["title"],
-        "published_at": row["published_at"],
-        "tickers": tickers,
-    }
+                  AND (LOWER(title) LIKE ? OR LOWER(COALESCE(display_title, '')) LIKE ?)
+                ORDER BY published_at DESC, id DESC LIMIT ?""",
+            (like, like, max(1, int(limit))),
+        ).fetchall()
+    out = []
+    for row in rows:
+        try:
+            tickers = [t for t in json.loads(row["tickers_json"]) if isinstance(t, str) and t]
+        except Exception:
+            continue
+        if not tickers:
+            continue
+        out.append({
+            "id": row["id"],
+            "title": row["display_title"] or row["title"],
+            "published_at": row["published_at"],
+            "tickers": tickers,
+        })
+    return out
+
+
+def latest_post_with_tickers() -> Optional[dict]:
+    """The newest Sunday Scans issue with a roster (the archive's head), or None.
+    Derived from sunday_scans_posts so the audit and the lists share ONE source."""
+    rows = sunday_scans_posts(1)
+    return rows[0] if rows else None
 
 
 def adjacent_posts(post_id: str) -> dict:
