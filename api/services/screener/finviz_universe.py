@@ -60,15 +60,22 @@ LIVE against elite.finviz.com and is "Exchange", not "Float %". The full
 125-153 id range was walked end to end (All-Time High/Low, EPS/Revenue
 Surprise, Exchange, Dividend TTM/Ex Date, EPS/Sales YoY TTM, 52W Range,
 News Time/URL/Title, Perf 3Y/5Y/10Y, AH Volume, EPS/Sales Past 3Y, EV,
-EV/EBITDA, EV/Sales, Div Gr 1Y/3Y/5Y, Daily Digest, Security Type) and NO
-"Float %" column exists anywhere in the v152 export — Finviz only ever
-renders it computed, on the UI. `float_pct` is therefore no longer
-requested at all (removed from `_C_IDS`/`_HEADERS`); it is DERIVED instead
-from the two share counts this module already carries
-(`float_shares / shares_outstanding * 100`, both post-SCALE-ASSUMPTION-fix
-absolute counts — see that comment below `_C_IDS`), honest-`None` when
-either side is absent or `shares_outstanding` is `0`. This module remains
-`float_pct`'s ONE writer — see `_derive_float_pct` and `read_finviz_fields`.
+EV/EBITDA, EV/Sales, Div Gr 1Y/3Y/5Y, Daily Digest, Security Type) and no
+"Float %" column exists in THAT range. ⚠️ CORRECTION, same day, wider walk
+for Wave 6: "Float %" DOES exist in the classic range, at `c=85` (the
+71-94 walk mapped 80=Optionable · 83=Shortable · 84=Short Interest ·
+85=Float % beside AH Close/Change, Book/Cash per share, EPS next Q, Index,
+Prev Close, Sales, OHL, Trades, Perf 1-10 Min). The original claim's scope
+was only 125-153; the conclusion overreached. THE FIX STANDS ANYWAY, and
+deliberately: `float_pct` is DERIVED from the two share counts this module
+already carries (`float_shares / shares_outstanding * 100`, both
+post-SCALE-ASSUMPTION-fix absolute counts — see that comment below
+`_C_IDS`), honest-`None` when either side is absent or
+`shares_outstanding` is `0`. Deriving from columns we already hold beats
+importing a THIRD authority over the same fact (`c=85`) that could drift
+against its own inputs — the repo's derive-never-restate rule. This module
+remains `float_pct`'s ONE writer — see `_derive_float_pct` and
+`read_finviz_fields`.
 """
 from __future__ import annotations
 

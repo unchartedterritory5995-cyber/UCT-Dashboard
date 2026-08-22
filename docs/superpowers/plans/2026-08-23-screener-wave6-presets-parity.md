@@ -154,7 +154,8 @@
 - Tests: `tests/test_screener_wave2_finviz.py` + `tests/test_screener_filters.py` fixtures
 
 **Interfaces:**
-- **CONTROLLER PRE-GATE (before dispatch):** verify the ids live via the owner-browser method (proven 8/22): expected `27` = "Insider Transactions", `29` = "Institutional Transactions", plus locate "Optionable"/"Shortable" ids in the classic range. The task brief receives the VERIFIED ids; header-name parsing still guards a wrong pin (degrades to `missing_headers`).
+- **CONTROLLER PRE-GATE — DONE 8/23 (owner-browser, live):** ids VERIFIED: `27` = Insider Trans · `29` = Inst Trans · `80` = Optionable · `83` = Shortable (71-94 walk also mapped 84 = Short Interest, 85 = Float % — see the note below). Page headers are DISPLAY forms; the export serves fuller names — `_HEADERS` guesses "Insider Transactions"/"Institutional Transactions"/"Optionable"/"Shortable" and the first pull's `missing_headers` receipt adjudicates spelling (a miss degrades honestly by construction).
+- **Recorded correction:** "Float %" DOES exist at classic `c=85` — the 8/22 "not a Finviz column" conclusion overreached its 125-153 scope. Ruling: the DERIVE fix stands (single-authority beats a third column over the same fact); module docstring corrected same day. Do NOT re-pin float_pct to 85.
 - Transactions pair: signed % columns → `_PCT_COLUMNS` membership; NOT raw-millions.
 - Option/short flags: Finviz serves "Yes"/"No" → new `_BOOL_COLUMNS` set + a boolean branch in the parse path (Yes→1, No→0, else None); columns land in `snapshot_db._INT`.
 - **Parser debts (same file, same task):** delete the dead `is_pct` parameter from `_parse` (AST-verified unused) OR make it real — pick one, say which; add the bare-percent guard: a `_PCT_COLUMNS` member whose text carries no `%` suffix parses the bare number but is counted in a new receipt field `bare_pct` (honest disclosure, no magnitude guessing).
