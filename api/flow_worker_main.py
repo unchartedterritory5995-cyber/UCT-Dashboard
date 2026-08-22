@@ -434,6 +434,39 @@ def _start_flow_schedulers():
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
 
         try:
+            # Nightly per-ticker options-flow aggregate -> R2 (screener Wave
+            # 5, Task A4). Dark by default; only registers when armed. Runs
+            # HERE (owns flow.db). The 02:35 slot deliberately trails the
+            # 02:30 R2 backup kickoff (flow_backup.py) by 5 minutes — different
+            # files, idle tape, no contention with either the backup or the
+            # (long since idle) OPRA writer. timezone EXPLICIT on the trigger
+            # (K2 — the recurring ET-vs-UTC CronTrigger gotcha noted above).
+            #
+            # ⚠ DEPLOY GOTCHA (K8): api/flow_opt_aggregate.py is a NEW module
+            # and was NOT yet in the flow-worker's Railway watch paths at the
+            # time this registration landed — a push touching ONLY that file
+            # is SKIPPED ("No changes to watched files") and the worker keeps
+            # stale code. It is being added to tools/git-hooks/pre-push's
+            # FLOW_WATCHED list in this same commit; the Railway dashboard's
+            # own watch-path list (pod-only setting, this repo cannot verify
+            # or edit it) must be updated at ship time — same two-list sync
+            # this file's header already asks for.
+            if os.getenv("FLOW_OPT_AGG_ENABLED", "0") == "1":
+                from apscheduler.triggers.cron import CronTrigger as _OptAggCron
+                from api import flow_opt_aggregate as _foa
+                sched.add_job(_foa.run_aggregate,
+                              trigger=_OptAggCron(hour=2, minute=35,
+                                                  timezone=ZoneInfo("America/New_York")),
+                              id="flow_opt_aggregate", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow opt-aggregate cron registered (02:35 ET)")
+            else:
+                log.info("[startup] flow opt-aggregate disabled (FLOW_OPT_AGG_ENABLED != 1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow opt-aggregate scheduling failed: %s", e)
+
+        try:
             # Weekly Conviction Flow → Discord (P2). Fri 16:15 ET; posts one card
             # per cap in WEEKLY_FLOW_CRON_CAPS (default all + mid_small). Dark
             # until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET trigger.
