@@ -1,5 +1,9 @@
 import { Suspense } from 'react'
-import BrandSplash from './components/BrandSplash'
+// Route-level Suspense fallback: BrandSplash as before, plus a recovery panel
+// after ~20s of continuous mounting — a lazy chunk that never settles (503
+// storm, dropped connection) otherwise strands "Loading page" forever, and
+// React.lazy's cached promise means only a document reload can retry it.
+import StalledLoadFallback from './components/StalledLoadFallback'
 import { SWRConfig } from 'swr'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
@@ -243,7 +247,7 @@ export default function App() {
         <GlobalVideoLayer />
         <RouteErrorBoundary>
           <Suspense fallback={
-            <BrandSplash label="Loading page" />
+            <StalledLoadFallback label="Loading page" />
           }>
             <Routes>
             {/* Public routes — redirect to dashboard if already logged in.
