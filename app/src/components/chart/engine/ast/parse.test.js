@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 50 functions and 99 scalars — 169 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 50 functions and 106 scalars — 176 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -456,7 +456,16 @@ describe('the manifest', () => {
     // ⭐ 98 -> 99 (2026-08-23): `hvc_52w` promoted — the owner-confirmed
     // unlock for the HVC formula-library starter. A `bool` off the breadth
     // universe's context join, dated `snapshot_date`. The BAR half did not move.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(99)
+    // ⭐ 99 -> 106 (2026-08-23): the SEVEN Wave-6 finviz-parity columns, in ONE
+    // governed bump — the signed ownership-CHANGE pair
+    // (`insider_trans_pct`/`inst_trans_pct`, which are NOT the
+    // `insider_own_pct`/`inst_pct` LEVELS beside them), the two `bool`
+    // instrument flags (`optionable`/`shortable`) and the growth trio
+    // (`eps_past_5y_growth`/`eps_next_5y_growth`/`sales_past_5y_growth`, the
+    // middle one an ANALYST ESTIMATE and its sentence says so). All seven come
+    // off the builder's finviz leg, so all seven are dated `snapshot_date`.
+    // The BAR half, once again, did not move.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(106)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
@@ -465,7 +474,7 @@ describe('the manifest', () => {
     // been keeping it out — its window is 2 x period and the table could not say so.
     expect(bar.size).toBe(70)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(169)
+    expect(declared.size).toBe(176)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the

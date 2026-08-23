@@ -1192,6 +1192,90 @@
       "asOf": "snapshot_date",
       "cadence": "nightly",
       "yields": "bool"
+    },
+    {
+      "id": "insider_trans_pct",
+      "scalar": "insider_trans_pct",
+      "ast": {
+        "type": "series",
+        "name": "insider_trans_pct"
+      },
+      "value": -0.3,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "inst_trans_pct",
+      "scalar": "inst_trans_pct",
+      "ast": {
+        "type": "series",
+        "name": "inst_trans_pct"
+      },
+      "value": 0.77,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "optionable",
+      "scalar": "optionable",
+      "ast": {
+        "type": "series",
+        "name": "optionable"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "shortable",
+      "scalar": "shortable",
+      "ast": {
+        "type": "series",
+        "name": "shortable"
+      },
+      "value": 0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "eps_past_5y_growth",
+      "scalar": "eps_past_5y_growth",
+      "ast": {
+        "type": "series",
+        "name": "eps_past_5y_growth"
+      },
+      "value": 24.6,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "eps_next_5y_growth",
+      "scalar": "eps_next_5y_growth",
+      "ast": {
+        "type": "series",
+        "name": "eps_next_5y_growth"
+      },
+      "value": 18.2,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "sales_past_5y_growth",
+      "scalar": "sales_past_5y_growth",
+      "ast": {
+        "type": "series",
+        "name": "sales_past_5y_growth"
+      },
+      "value": -4.1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
     }
   ],
   "trees": [

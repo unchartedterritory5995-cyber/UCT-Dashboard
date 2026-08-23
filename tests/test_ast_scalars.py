@@ -171,7 +171,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
         f"column that is neither granted nor refused, and "
         f"{sorted(declared | excluded - columns)} is named here and not a column")
     assert not (declared & excluded), sorted(declared & excluded)
-    assert (len(declared), len(excluded)) == (99, 59)
+    assert (len(declared), len(excluded)) == (106, 52)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -546,6 +546,21 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     context leg's `snapshot_date` stamp, never `bars_asof`. The bar floor,
     once more, did not move.
 
+    ⭐ 99 -> 106 (2026-08-23): the SEVEN Wave-6 finviz-parity columns, promoted
+    in ONE governed bump — `insider_trans_pct`/`inst_trans_pct` (the signed
+    ownership CHANGE, which is NOT the `insider_own_pct`/`inst_pct` LEVELS
+    already declared beside them), the two `bool` instrument flags
+    `optionable`/`shortable`, and the growth trio `eps_past_5y_growth` /
+    `eps_next_5y_growth` / `sales_past_5y_growth`. All seven ride the builder's
+    FINVIZ leg — `finviz_universe` merges into `market_row`, which `build_row`
+    folds in OUTSIDE the `if bars:` block — so every one is stamped
+    `snapshot_date`, never `bars_asof`; the as-of rail above judged that rather
+    than a guess. ⚠️ THE GROWTH TRIO IS STILL EMPTY AND DECLARING IT ANYWAY IS
+    THE DECISION: its header spellings were corrected in `f8374d725` and it
+    fills on the next nightly pull, and a formula naming one meanwhile answers
+    `not_computable`, which is TRUE. One bump, one provenance decision. The bar
+    floor, again, did not move.
+
     ⭐ 69 -> 70 ON 2026-08-11 WITH ``adx``, AND THIS PAIR OF NUMBERS IS EXACTLY
     WHAT CAUGHT IT. ADX was declared, implemented in both lanes and shipped
     earlier the same day; what it never got was a bar-corpus case, so its
@@ -558,7 +573,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 99
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 106
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

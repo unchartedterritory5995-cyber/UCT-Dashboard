@@ -2100,6 +2100,97 @@
       "cadence": "nightly",
       "yields": "bool",
       "sentence": "the 52-week high-volume-close flag from the breadth universe"
+    },
+    "insider_trans_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_trans_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net change in insider ownership over the trailing window (buying minus selling, not the ownership level)"
+    },
+    "inst_trans_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "inst_trans_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net change in institutional ownership over the trailing window (buying minus selling, not the ownership level)"
+    },
+    "optionable": {
+      "source": {
+        "store": "screener_rows",
+        "column": "optionable"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether listed options trade on the stock"
+    },
+    "shortable": {
+      "source": {
+        "store": "screener_rows",
+        "column": "shortable"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the stock is available to short"
+    },
+    "eps_past_5y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_past_5y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the annualised earnings-per-share growth over the past five years"
+    },
+    "eps_next_5y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_next_5y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the analysts' estimated annual earnings-per-share growth over the next five years (a forecast, not a realised figure)"
+    },
+    "sales_past_5y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "sales_past_5y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the annualised sales growth over the past five years"
     }
   },
   "_functions_excluded": {
@@ -2174,14 +2265,7 @@
     "next_earnings_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",
     "earnings_session": "TEXT -- a classification label (`bmo`/`amc`), for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
     "earnings_setup_grade": "TEXT -- a classification label, for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",
-    "pattern_engine_ids": "a comma-joined LIST, not a scalar -- same reason as patterns. Also a Wave 5 column, permanently excluded",
-    "insider_trans_pct": "a Wave 6 finviz-parity column AWAITING ITS FIRST NIGHTLY FILL -- R8: never declare a scalar before a receipt shows population; promote (yields num) after the first pull's receipt",
-    "inst_trans_pct": "a Wave 6 finviz-parity column awaiting its first nightly fill -- same R8 rule as insider_trans_pct; promote (yields num) after a receipt shows population",
-    "optionable": "a Wave 6 finviz-parity FLAG awaiting its first nightly fill -- R8: never declare before population; promotes as a bool scalar after a receipt shows population",
-    "shortable": "a Wave 6 finviz-parity FLAG awaiting its first nightly fill -- same R8 rule as optionable; promotes as a bool scalar after a receipt shows population",
-    "eps_past_5y_growth": "a Wave 6 finviz-parity growth column AWAITING ITS FIRST NIGHTLY FILL -- R8: never declare a scalar before a receipt shows population; promote (yields num) after the first pull's receipt",
-    "eps_next_5y_growth": "a Wave 6 finviz-parity growth column awaiting its first nightly fill -- same R8 rule as eps_past_5y_growth; an ANALYST ESTIMATE besides, which the promotion's sentence must say; promote (yields num) after a receipt shows population",
-    "sales_past_5y_growth": "a Wave 6 finviz-parity growth column awaiting its first nightly fill -- same R8 rule as eps_past_5y_growth; promote (yields num) after a receipt shows population"
+    "pattern_engine_ids": "a comma-joined LIST, not a scalar -- same reason as patterns. Also a Wave 5 column, permanently excluded"
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent."
