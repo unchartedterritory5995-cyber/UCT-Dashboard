@@ -13,6 +13,13 @@ const num = (d = 1) => v => v == null ? '—' : v.toFixed(d)
 const heatPos = v => v == null ? '' : v > 2 ? 'g' : v < -2 ? 'r' : ''
 const heatRs = v => v == null ? '' : v >= 80 ? 'g' : v >= 60 ? 'g1' : ''
 const bool = v => v == null ? '—' : v ? '✓' : '—'
+// TRI-STATE, and the difference from `bool` is the whole point: `bool` renders 0
+// and null identically (an em dash), which is correct only where "false" is not a
+// fact worth stating. On a column where 0 means "we looked and the answer is no"
+// and null means "we never looked", `bool` would print a confident no as a blank.
+// Reach for `tri` on any nullable flag; reach for `bool` only when a 0 carries no
+// information the reader needs.
+const tri = v => v == null ? '—' : v ? '✓' : '✗'
 const dollarVol = v => v == null ? '—'
   : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B`
   : v >= 1e6 ? `$${(v / 1e6).toFixed(0)}M`
@@ -223,8 +230,8 @@ export const COLUMN_DEFS = {
   inst_trans_pct: { label: 'Inst Trans', fmt: pct },
   // tri-state on purpose: Finviz answers Yes(1)/No(0), and a confident No must
   // not render like never-answered (the shared `bool` collapses 0 into '—').
-  optionable: { label: 'Optionable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
-  shortable: { label: 'Shortable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
+  optionable: { label: 'Optionable', fmt: tri },
+  shortable: { label: 'Shortable', fmt: tri },
   // ── Wave 6 (parity2): finviz parity — the growth trio ──
   // SIGNED (a shrinking base prints negative); a null is an em dash, never a
   // zero — the nightly pull simply never answered for that ticker. EPS Q/Q /
@@ -237,13 +244,13 @@ export const COLUMN_DEFS = {
   sales_past_5y_growth: { label: 'Sales 5Y', fmt: pct,
     desc: 'Annualized sales growth over the past 5 years, from the nightly Finviz pull.' },
   // ── Wave 6: per-pattern engine flags ──
-  // Tri-state on purpose, the `optionable`/`shortable` precedent: ✓ the engine
+  // `tri`, not `bool`, the `optionable`/`shortable` precedent: ✓ the engine
   // detected this pattern, ✗ the engine has active detections on this symbol
   // and none is this pattern, — the engine has no active detection for this
-  // symbol at all. The shared `bool` formatter collapses 0 into an em dash and
-  // would render a confident "no" identically to "never looked".
-  pattern_engine_vcp: { label: 'VCP (Eng)', fmt: v => v == null ? '—' : v ? '✓' : '✗',
+  // symbol at all. `bool` collapses 0 into an em dash and would render a
+  // confident "no" identically to "never looked".
+  pattern_engine_vcp: { label: 'VCP (Eng)', fmt: tri,
     desc: 'The pattern ENGINE has an active VCP detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "vcp" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a VCP; a blank means the engine has no active detection for this symbol at all, which is not the same as "no".' },
-  pattern_engine_flat_base: { label: 'Flat Base (Eng)', fmt: v => v == null ? '—' : v ? '✓' : '✗',
+  pattern_engine_flat_base: { label: 'Flat Base (Eng)', fmt: tri,
     desc: 'The pattern ENGINE has an active flat-base detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "flat_base" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a flat base; a blank means the engine has no active detection for this symbol at all.' },
 }
