@@ -347,7 +347,14 @@ FILTERS = dict([
            {"label": "Flat", "op": "eq", "value": "flat"},
            {"label": "Falling", "op": "eq", "value": "down"}]),
     # ── technical: expose the dark columns (registry/UI only) ──
-    _open_range("atr_pct", "ATR %", "technical", "atr_pct", unit="%"),
+    # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
+    # name `atr` (the manifest's own indicator call), and the plain-language
+    # door's stem index cannot arbitrate a tie between a filter's label and a
+    # declared function's name (`tests/test_definition_concierge.py::
+    # test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it`). Worded
+    # like the ownership-section's own "Float % of Shares" / "Short % of
+    # Float" idiom — a ratio's label names its denominator.
+    _open_range("atr_pct", "ATR % of Price", "technical", "atr_pct", unit="%"),
     _open_range("pct_vs_sma20", "SMA20 Distance", "technical", "pct_vs_sma20",
                 unit="%"),
     _open_range("adr_pct_1w", "ADR % (5-day)", "technical", "adr_pct_1w",

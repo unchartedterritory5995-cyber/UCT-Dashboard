@@ -819,6 +819,110 @@
           "preset": "Mega (>$200B)"
         }
       ]
+    },
+    "pullback to the 20ema": {
+      "source": "rs_rank >= 80 && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2 && ema_stack_intact && vol_nweek_low >= 10",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">=",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "rs_rank"
+                          },
+                          {
+                            "type": "num",
+                            "value": 80
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">=",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "pct_vs_ema20"
+                          },
+                          {
+                            "type": "op",
+                            "name": "u-",
+                            "args": [
+                              {
+                                "type": "num",
+                                "value": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "<=",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "pct_vs_ema20"
+                      },
+                      {
+                        "type": "num",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "ema_stack_intact"
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "vol_nweek_low"
+              },
+              {
+                "type": "num",
+                "value": 10
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "((((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)) and whether the EMA stack is intact (close above EMA10 above EMA20, both rising)) and (1 when the volume-dryness bar count (20 = 4-week low, 15 = 3-week, 10 = 2-week) is greater than or equal to 10 and 0 otherwise)",
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_pullback_20ema"
+        }
+      ],
+      "attribution": {
+        "setup": "Classic Flag/Pullback"
+      },
+      "note": "The firm ships this screen. Every term is one of its four filters, at its thresholds."
     }
   },
   "_refused_why": "EACH REASON NAMES THE WORD, because a member who is refused needs to know which of their words could not be ground -- not that `something` failed. These are words a member will plausibly say and this vocabulary deliberately declines to guess at.",
