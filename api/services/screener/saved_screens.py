@@ -116,4 +116,55 @@ def starters():
              {"key": "roe", "op": "gte", "min": 15},
              {"key": "eps_growth", "op": "gte", "min": 15}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},
+        # ── the six flagship presets (spec §7, owner-confirmed 2026-08-21) ──
+        # Registry starters are the publication surface for these numbers —
+        # FILTERS[…]["presets"] deliberately gains nothing (preset-free rails
+        # stay binding). Two §7 literals were unit-corrected on the way in:
+        #   * vol_nweek_low stores BAR COUNTS (20/15/10 = 4w/3w/2w low), so
+        #     §7's "≥ 2" becomes `gte 10` ("2-week volume low or drier") —
+        #     the literal 2 would pass the whole universe.
+        #   * dollar_vol_30d holds RAW DOLLARS (measured 2026-08-22: MU row =
+        #     price × avg_volume_30d = 3.909e10), so $20M/$10M pin as 2e7/1e7.
+        # "Implied move present" = `gte 0`: SQL `>= 0` excludes NULL, which IS
+        # presence — no new operator this wave (controller ruling, recorded).
+        {"id": "starter_momentum_leaders", "name": "Momentum Leaders",
+         "spec": {"filters": [
+             {"key": "rs_rank", "op": "gte", "min": 90},
+             {"key": "adr_pct", "op": "gte", "min": 4},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
+             {"key": "price", "op": "gte", "min": 5},
+             {"key": "above_50sma", "op": "eq", "value": 1}],
+          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_pullback_20ema", "name": "Pullback to the 20EMA",
+         "spec": {"filters": [
+             {"key": "rs_rank", "op": "gte", "min": 80},
+             {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
+             {"key": "ema_stack_intact", "op": "eq", "value": 1},
+             {"key": "vol_nweek_low", "op": "gte", "min": 10}],
+          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_tight_base", "name": "Tight Base Near Highs",
+         "spec": {"filters": [
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
+             {"key": "close_cv_pct", "op": "lte", "max": 2.5},
+             {"key": "vol_updown_ratio", "op": "gte", "min": 1},
+             {"key": "rs_rank", "op": "gte", "min": 70}],
+          "view": "technical", "sort": {"key": "dist_52w_high_pct", "dir": "desc"}}},
+        {"id": "starter_gap_movers", "name": "Gap Movers",
+         "spec": {"filters": [
+             {"key": "gap_pct", "op": "gte", "min": 8},
+             {"key": "vol_ratio", "op": "gte", "min": 3},
+             {"key": "market_cap", "op": "gte", "min": 300_000_000}],
+          "view": "momentum", "sort": {"key": "gap_pct", "dir": "desc"}}},
+        {"id": "starter_52w_breakout", "name": "52-Week Breakout on Volume",
+         "spec": {"filters": [
+             {"key": "new_52w_high", "op": "eq", "value": 1},
+             {"key": "vol_ratio", "op": "gte", "min": 1.5},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
+          "view": "technical", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+        {"id": "starter_earnings_momentum", "name": "Earnings Momentum",
+         "spec": {"filters": [
+             {"key": "days_to_earnings", "op": "between", "min": 0, "max": 7},
+             {"key": "implied_move_pct", "op": "gte", "min": 0},
+             {"key": "rs_rank", "op": "gte", "min": 70}],
+          "view": "overview", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
     ]
