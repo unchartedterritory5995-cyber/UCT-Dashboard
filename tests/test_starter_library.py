@@ -30,6 +30,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -452,6 +453,81 @@ def test_the_reasons_are_NOT_ONE_SENTENCE_REPEATED():
     # Strip the setup name and the tails must still be distinct.
     stripped = {r.replace(s, "") for s, r in sl.ungrounded_setups().items()}
     assert len(stripped) == len(reasons)
+
+
+CLOSED_TABLE_PATH = (ROOT / "app" / "src" / "components" / "chart" / "engine"
+                     / "ast" / "closedTable.json")
+
+#: THE ONE MACHINE-READABLE SHAPE OF A MISSING-COLUMN CLAIM: ``no `column```.
+#: A refusal reason is prose, but the column it blames is an identifier, and
+#: this is the citation form the catalogue's reasons use when they lean on a
+#: column's ABSENCE (as opposed to merely mentioning one that exists). The
+#: truth side is never prose — it is ``json.load`` over the closed table.
+_MISSING_CITE = re.compile(r"\bno\s+`([A-Za-z_][A-Za-z0-9_]*)`", re.IGNORECASE)
+
+
+def test_a_reason_citing_a_MISSING_column_names_one_the_table_ACTUALLY_lacks():
+    """⭐ WAVE-6 T5's MECHANICAL-TRUTH RAIL. The refusal reasons are CLAIMS
+    about the closed table, and the two claim shapes they carry are verified
+    against the artifact on every run rather than trusted — because a reason
+    that has quietly stopped being true still satisfies every SHAPE rail above
+    (names its setup, long enough, distinct) while teaching a member a
+    vocabulary gap the table no longer has.
+
+    1. ``no `column``` — the missing-column citation — must name a column
+       ABSENT from ``closedTable.json``'s declared scalars, truth side
+       json-loaded from the manifest, never read off prose. ⭐ THE DAY SUCH A
+       COLUMN IS PROMOTED, THE REASON LEANING ON ITS ABSENCE GOES RED BY NAME
+       and gets re-adjudicated — the staleness class that let ``ipo_age_days``
+       enter the vocabulary while 'IPO Base' still said no listing-age column
+       exists anywhere.
+
+    2. No reason may cite ``_no_offset`` as a live blocker. ``291c9d8a``
+       shipped the bounded backward offset, and the SHIPPED PARSER proves it
+       here by parsing ``close[1]`` — the staleness class that left five
+       offset-blocked refusals standing after the gap closed. And if the
+       offset ever LEAVES the grammar this test goes red the other way,
+       because every reason re-adjudicated against its existence would be
+       stale again in the opposite direction.
+    """
+    with io.open(CLOSED_TABLE_PATH, encoding="utf-8") as fh:
+        table = json.load(fh)
+    declared = set(table["scalars"])
+    assert declared, "the closed table declares no scalars — every check " \
+                     "below would pass vacuously"
+
+    refusals = sl.declared_refusals()
+    assert refusals, "no declared refusals — the rail has nothing to check"
+
+    # ── tooth 2: the offset node is REAL, proven by the shipped parser.
+    probe = _js({"probe": "close[1]"})["probe"]
+    assert probe["ok"], (
+        "the shipped parser refuses `close[1]` — the offset node left the "
+        "grammar, and every reason re-adjudicated against its existence "
+        f"(291c9d8a) is stale the other way: {probe.get('error')}")
+    deniers = sorted(s for s, r in refusals.items() if "_no_offset" in r)
+    assert deniers == [], (
+        f"{deniers} still cite `_no_offset` as a blocker, but the offset node "
+        "shipped (291c9d8a) and the parser just proved it above — these "
+        "refusals need re-adjudication, not repetition")
+
+    # ── tooth 1: every missing-column citation is TRUE against the manifest.
+    cited = {s: _MISSING_CITE.findall(r) for s, r in refusals.items()}
+    stale = sorted(f"{s} claims `{c}` is missing" for s, cols in cited.items()
+                   for c in cols if c in declared)
+    assert stale == [], (
+        "these refusals blame a column that closedTable.json now DECLARES — "
+        f"the setup needs re-adjudication, not a stale sentence: {stale}")
+
+    # …and the citation form is actually in use, or the tooth bites nothing.
+    assert any(cols for cols in cited.values()), (
+        "no refusal carries a ``no `column``` citation — the missing-column "
+        "tooth has nothing to check and would pass forever")
+
+    # ── the control: a planted FALSE claim is caught by the same machinery.
+    planted = "Foo is refused because the table ships no `rs_rank` column."
+    caught = [c for c in _MISSING_CITE.findall(planted) if c in declared]
+    assert caught == ["rs_rank"], caught
 
 
 def test_every_DECLARED_starter_ACTUALLY_RESOLVES():
