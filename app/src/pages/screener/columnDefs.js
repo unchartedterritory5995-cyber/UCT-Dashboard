@@ -221,6 +221,8 @@ export const COLUMN_DEFS = {
   // never a zero — the nightly pull simply never answered for that ticker.
   insider_trans_pct: { label: 'Ins Trans', fmt: pct },
   inst_trans_pct: { label: 'Inst Trans', fmt: pct },
-  optionable: { label: 'Optionable', fmt: bool },
-  shortable: { label: 'Shortable', fmt: bool },
+  // tri-state on purpose: Finviz answers Yes(1)/No(0), and a confident No must
+  // not render like never-answered (the shared `bool` collapses 0 into '—').
+  optionable: { label: 'Optionable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
+  shortable: { label: 'Shortable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
 }

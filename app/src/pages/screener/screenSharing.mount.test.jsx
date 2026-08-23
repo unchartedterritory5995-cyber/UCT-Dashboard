@@ -30,7 +30,7 @@
 // `ScreensManager`, `useSavedScreens`, `screenShareLink` and the network calls
 // they make are all the shipped modules. The stubs are the scan data lane
 // (`useScreenerMeta` / `useScreenerScan`, which own three polls and an
-// append-on-identity hazard documented in `ScannerPro.test.jsx`), the SSE price
+// append-on-identity hazard the deleted `ScannerPro.test.jsx` documented), the SSE price
 // pool, and the ticker popover — none of which can send `is_public: true` or
 // render a share link, and `test_this_file_mocks_nothing_on_the_sharing_chain`
 // asserts exactly that.
@@ -51,7 +51,7 @@ import { VoiceProvider } from '../../context/VoiceContext'
 import { sharedScreenUrl } from './screenShareLink'
 
 // ── the scan data lane: three hooks, none of them on the sharing path ───────
-// Frozen module constants, per the hazard `ScannerPro.test.jsx` documents: a
+// Frozen module constants, per the hazard the deleted `ScannerPro.test.jsx` documented: a
 // fresh object literal per call gives `result` a new identity every render and
 // re-fires the accumulate effect forever.
 const { META, SCAN } = vi.hoisted(() => ({
