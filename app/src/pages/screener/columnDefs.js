@@ -225,4 +225,15 @@ export const COLUMN_DEFS = {
   // not render like never-answered (the shared `bool` collapses 0 into '—').
   optionable: { label: 'Optionable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
   shortable: { label: 'Shortable', fmt: v => v == null ? '—' : v ? '✓' : '✗' },
+  // ── Wave 6 (parity2): finviz parity — the growth trio ──
+  // SIGNED (a shrinking base prints negative); a null is an em dash, never a
+  // zero — the nightly pull simply never answered for that ticker. EPS Q/Q /
+  // Sales Q/Q are deliberately NOT here: eps_growth / rev_growth above
+  // already carry those exact facts (one writer per fact).
+  eps_past_5y_growth: { label: 'EPS 5Y', fmt: pct,
+    desc: 'Annualized EPS growth over the past 5 years, from the nightly Finviz pull.' },
+  eps_next_5y_growth: { label: 'EPS Next 5Y', fmt: pct,
+    desc: 'ANALYST ESTIMATE — projected long-term annual EPS growth over the next 5 years, a forecast rather than a measurement. From the nightly Finviz pull.' },
+  sales_past_5y_growth: { label: 'Sales 5Y', fmt: pct,
+    desc: 'Annualized sales growth over the past 5 years, from the nightly Finviz pull.' },
 }

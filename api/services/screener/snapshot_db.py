@@ -68,6 +68,13 @@ COLUMNS = [
     # (net insider/institutional buying vs selling over the trailing window);
     # the two flags are Yes/No -> 1/0 via finviz_universe's bool parse class.
     "insider_trans_pct", "inst_trans_pct", "optionable", "shortable",
+    # finviz parity (Wave 6 parity2) — the growth trio, SIGNED percent (a
+    # shrinking EPS/sales base prints negative). `eps_next_5y_growth` is an
+    # ANALYST ESTIMATE (long-term projected annual growth), not a measurement.
+    # ⛔ EPS Q/Q and Sales Q/Q (verified ids 22/23) are DELIBERATELY ABSENT:
+    # `eps_growth`/`rev_growth` above already carry those exact facts — see
+    # finviz_universe's `_C_IDS` comment.
+    "eps_past_5y_growth", "eps_next_5y_growth", "sales_past_5y_growth",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]

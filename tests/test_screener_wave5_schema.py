@@ -22,7 +22,7 @@ def test_wave5_columns_are_declared(monkeypatch, tmp_path):
     missing = [c for c in WAVE5 if c not in snapshot_db.COLUMNS]
     assert not missing, missing
     assert len(WAVE5) == 13  # the reference table's own count, pinned
-    assert len(snapshot_db.COLUMNS) == 155
+    assert len(snapshot_db.COLUMNS) == 158
 
 
 def test_wave5_type_set_membership(monkeypatch, tmp_path):
@@ -49,11 +49,11 @@ def test_init_db_creates_all_151(monkeypatch, tmp_path):
     with snapshot_db.connect() as c:
         have = {r[1] for r in c.execute("PRAGMA table_info(screener_rows)")}
     assert set(snapshot_db.COLUMNS) <= have
-    assert len(snapshot_db.COLUMNS) == 155
+    assert len(snapshot_db.COLUMNS) == 158
 
 
 def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):
-    """A prod DB that stopped short of Wave 5 (142 columns incl. the Wave-6 parity four) gains the 13 on init --
+    """A prod DB that stopped short of Wave 5 (145 columns incl. the Wave-6 parity four + the parity2 growth trio) gains the 13 on init --
     the PRAGMA-diff ALTER path (`init_db`'s `have`/`COLUMNS` diff), no
     migration script (map 4 §8 tail).
 
@@ -66,7 +66,7 @@ def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):
     from api.services.screener import snapshot_db
     real_columns = snapshot_db.COLUMNS
     pre_wave5_cols = [c for c in real_columns if c not in WAVE5]
-    assert len(pre_wave5_cols) == 142
+    assert len(pre_wave5_cols) == 145
 
     monkeypatch.setattr(snapshot_db, "COLUMNS", pre_wave5_cols)
     snapshot_db.init_db()

@@ -409,6 +409,75 @@ def test_wave6_controls_run_end_to_end_against_real_rows(tmp_path, monkeypatch):
         {"key": "shortable", "op": "eq", "value": 1}]}) == ["BUYS", "SELL"]
 
 
+# ───────── Wave 6 (parity2) — finviz parity: the growth trio ────────────────
+
+def test_parity2_growth_trio_ships_preset_free():
+    """The three signed-% growth controls carry NO editorial threshold (E-8):
+    nobody at this firm has published what a 'strong' five-year growth rate
+    is, so the control ships bare and the member types the number."""
+    for key in ("eps_past_5y_growth", "eps_next_5y_growth",
+                "sales_past_5y_growth"):
+        f = filters.FILTERS[key]
+        assert f["type"] == "range", key
+        assert f["category"] == "fundamental", key
+        assert f["unit"] == "%", key
+        assert f.get("presets_deferred") is True, key
+        assert [p["label"] for p in f["presets"]] == ["Any"], key
+        assert f["allow_custom"] is True, key
+    # The estimate column's label SAYS it is an estimate — the honesty is on
+    # the control, not buried in a tooltip.
+    assert "est" in filters.FILTERS["eps_next_5y_growth"]["label"].lower()
+
+
+def test_parity2_qoq_facts_keep_their_one_existing_control_each():
+    """⛔ EPS Q/Q and Sales Q/Q ship NO new controls: `eps_growth` and
+    `rev_growth` are those facts already (latest quarter vs the year-ago
+    quarter). A second key over either would be the second-authority defect.
+    """
+    assert "eps_qoq_growth" not in filters.FILTERS
+    assert "sales_qoq_growth" not in filters.FILTERS
+    assert "rev_qoq_growth" not in filters.FILTERS
+    assert filters.FILTERS["eps_growth"]["column"] == "eps_growth"
+    assert filters.FILTERS["rev_growth"]["column"] == "rev_growth"
+
+
+def test_parity2_growth_controls_run_end_to_end_against_real_rows(
+        tmp_path, monkeypatch):
+    """Registry -> build_where -> SQL -> rows for the three growth controls.
+    NULL is honest-absence throughout (an unfilled growth never matches a
+    range), and a NEGATIVE bound selects the shrinkers — the signed lane the
+    trio exists for."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "GROW", "eps_past_5y_growth": 34.0,
+         "eps_next_5y_growth": 22.5, "sales_past_5y_growth": 18.0,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "SHRK", "eps_past_5y_growth": -41.07,
+         "eps_next_5y_growth": 4.0, "sales_past_5y_growth": -3.1,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "DARK", "eps_past_5y_growth": None,
+         "eps_next_5y_growth": None, "sales_past_5y_growth": None,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(spec):
+        return sorted(r["ticker"] for r in query.run_scan(spec)["rows"])
+
+    assert tickers({"filters": [
+        {"key": "eps_past_5y_growth", "op": "gte", "min": 25}]}) == ["GROW"]
+    assert tickers({"filters": [
+        {"key": "eps_past_5y_growth", "op": "lte", "max": -25}]}) == ["SHRK"]
+    assert tickers({"filters": [
+        {"key": "eps_next_5y_growth", "op": "gte", "min": 10}]}) == ["GROW"]
+    assert tickers({"filters": [
+        {"key": "sales_past_5y_growth", "op": "lte", "max": 0}]}) == ["SHRK"]
+    # DARK matches nothing — an unanswered growth is absence, never a zero.
+    assert tickers({"filters": [
+        {"key": "sales_past_5y_growth", "op": "gte", "min": -100}]}) == [
+        "GROW", "SHRK"]
+
+
 # ───────────────── the controls actually select ─────────────────────────────
 
 def test_the_new_controls_run_end_to_end_against_real_rows(tmp_path, monkeypatch):

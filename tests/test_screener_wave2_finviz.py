@@ -10,16 +10,23 @@ from datetime import datetime, timedelta, timezone
 # ⛔ 2026-08-22: "Float %" is DELIBERATELY ABSENT — c=129 measured "Exchange"
 # live, no Float % column exists in the v152 export (see finviz_universe's
 # module docstring ADJUDICATION). float_pct is derived, never requested.
-# Wave 6 (T6): the last four headers are the module's GUESSES at the export's
-# fuller names for page-verified ids 27/29/80/83 — the first real pull's
-# `missing_headers` receipt adjudicates the spelling (a miss degrades
-# honestly), so these fixtures deliberately serve the guessed spellings.
+# Wave 6 (T6): the "Insider Transactions".."Shortable" headers are the
+# module's GUESSES at the export's fuller names for page-verified ids
+# 27/29/80/83 — the first real pull's `missing_headers` receipt adjudicates
+# the spelling (a miss degrades honestly), so these fixtures deliberately
+# serve the guessed spellings.
+# Wave 6 (parity2): the last three headers are the same class of GUESS for
+# page-verified ids 19/20/21 (EPS Past 5Y / EPS Next 5Y / Sales Past 5Y).
+# EPS Q/Q / Sales Q/Q (ids 22/23) are deliberately absent — never requested;
+# `eps_growth`/`rev_growth` already carry those exact facts.
 FULL_HEADERS = [
     "Ticker", "Shares Outstanding", "Shares Float",
     "Short Float", "Short Ratio", "Insider Ownership",
     "Institutional Ownership",
     "Insider Transactions", "Institutional Transactions",
     "Optionable", "Shortable",
+    "EPS growth past 5 years", "EPS growth next 5 years",
+    "Sales growth past 5 years",
 ]
 
 
@@ -31,8 +38,11 @@ def _csv(headers, rows):
 
 
 def _full_row(ticker):
+    # The growth trio's -12.40% keeps a SIGNED NEGATIVE in the shared fixture
+    # on purpose — shrinking-EPS names are normal and the sign must survive.
     return [ticker, "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
-            "-2.34%", "1.85%", "Yes", "No"]
+            "-2.34%", "1.85%", "Yes", "No",
+            "-12.40%", "22.50%", "8.75%"]
 
 
 def _make_full_csv(n=1005):
@@ -232,14 +242,22 @@ def test_run_pull_keeps_rows_and_writes_artifact(monkeypatch, tmp_path):
     assert row0["inst_trans_pct"] == 1.85
     assert row0["optionable"] == 1
     assert row0["shortable"] == 0
+    # Wave 6 (parity2): the growth trio keeps its sign — a shrinking 5-year
+    # EPS base is a NEGATIVE fact, not a parse casualty.
+    assert row0["eps_past_5y_growth"] == -12.4
+    assert row0["eps_next_5y_growth"] == 22.5
+    assert row0["sales_past_5y_growth"] == 8.75
 
     out = fv.read_finviz_fields(["T0000"])
     assert out["T0000"]["float_pct"] == 80.0  # 1.2e9 / 1.5e9 * 100
-    # ...and the four Wave 6 columns flow through the reader unchanged.
+    # ...and the Wave 6 columns flow through the reader unchanged.
     assert out["T0000"]["insider_trans_pct"] == -2.34
     assert out["T0000"]["inst_trans_pct"] == 1.85
     assert out["T0000"]["optionable"] == 1
     assert out["T0000"]["shortable"] == 0
+    assert out["T0000"]["eps_past_5y_growth"] == -12.4
+    assert out["T0000"]["eps_next_5y_growth"] == 22.5
+    assert out["T0000"]["sales_past_5y_growth"] == 8.75
 
 
 def test_run_pull_never_lists_float_pct_as_a_missing_header(monkeypatch, tmp_path):
@@ -267,7 +285,7 @@ def test_run_pull_scales_bare_shares_columns_as_raw_millions(monkeypatch, tmp_pa
 
     rows = [_full_row(f"T{i:04d}") for i in range(1004)]
     rows.append(["NVDA", "24221", "23280.5", "3.45%", "2.1", "0.50%", "85.30%",
-                 "-2.34%", "1.85%", "Yes", "Yes"])
+                 "-2.34%", "1.85%", "Yes", "Yes", "-12.40%", "22.50%", "8.75%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -290,7 +308,7 @@ def test_run_pull_records_missing_header_and_still_writes(monkeypatch, tmp_path)
 
     def _csv_without_inst_pct():
         rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%",
-                 "-2.34%", "1.85%", "Yes", "No"]
+                 "-2.34%", "1.85%", "Yes", "No", "-12.40%", "22.50%", "8.75%"]
                  for i in range(1005)]
         return _csv(headers, rows)
 
@@ -320,7 +338,8 @@ def test_run_pull_missing_wave6_headers_degrade_by_name(monkeypatch, tmp_path):
 
     def _csv_without_wave6():
         rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%",
-                 "85.30%"] for i in range(1005)]
+                 "85.30%", "-12.40%", "22.50%", "8.75%"]
+                for i in range(1005)]
         return _csv(headers, rows)
 
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", _csv_without_wave6)
@@ -337,6 +356,101 @@ def test_run_pull_missing_wave6_headers_degrade_by_name(monkeypatch, tmp_path):
     assert row0["inst_pct"] == 85.3  # the rest of the pull is untouched
 
 
+def test_run_pull_missing_parity2_growth_headers_degrade_by_name(monkeypatch,
+                                                                 tmp_path):
+    """The header spellings for ids 19/20/21 are GUESSES until the first real
+    pull adjudicates them — a wrong guess must land in `missing_headers`
+    name-for-name (all three), never a wrong value, and never a failed pull."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    parity2 = {"EPS growth past 5 years", "EPS growth next 5 years",
+               "Sales growth past 5 years"}
+    headers = [h for h in FULL_HEADERS if h not in parity2]
+
+    def _csv_without_parity2():
+        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%",
+                 "85.30%", "-2.34%", "1.85%", "Yes", "No"]
+                for i in range(1005)]
+        return _csv(headers, rows)
+
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", _csv_without_parity2)
+
+    receipt = fv.run_pull()
+
+    # (`missing_headers` is served sorted — the receipt's contract.)
+    assert receipt["missing_headers"] == [
+        "eps_next_5y_growth", "eps_past_5y_growth", "sales_past_5y_growth"]
+    assert receipt["wrote"] is True
+    row0 = json.loads(artifact.read_text())["rows"]["T0000"]
+    for col in ("eps_past_5y_growth", "eps_next_5y_growth",
+                "sales_past_5y_growth"):
+        assert col not in row0
+    assert row0["inst_pct"] == 85.3  # the rest of the pull is untouched
+
+
+def test_run_pull_growth_trio_signed_and_junk_is_absent(monkeypatch, tmp_path):
+    """A SIGNED NEGATIVE growth survives the pull with its sign, and a '-'
+    placeholder is honest-absence for that ticker's column — never a zero
+    (0% growth is a real, different fact)."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    rows = [_full_row(f"T{i:04d}") for i in range(1004)]
+    rows.append(["GDIM", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
+                 "-2.34%", "1.85%", "Yes", "No", "-41.07%", "-", "-3.10%"])
+    csv_text = _csv(FULL_HEADERS, rows)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
+
+    fv.run_pull()
+
+    gdim = json.loads(artifact.read_text())["rows"]["GDIM"]
+    assert gdim["eps_past_5y_growth"] == -41.07
+    assert "eps_next_5y_growth" not in gdim   # '-' = no estimate published
+    assert gdim["sales_past_5y_growth"] == -3.1
+
+
+def test_run_pull_counts_a_bare_growth_percent_in_the_receipt(monkeypatch,
+                                                              tmp_path):
+    """The growth trio rides the same bare-percent receipt as the T6 pair: a
+    `_PCT_COLUMNS` growth value served WITHOUT its '%' suffix parses the bare
+    number (no magnitude guessing — negative growth is normal, so no
+    heuristic is safe) and is COUNTED into `bare_pct`."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    rows = [_full_row(f"T{i:04d}") for i in range(1004)]
+    rows.append(["BGRW", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
+                 "-2.34%", "1.85%", "Yes", "No", "-12.40", "22.50%", "8.75%"])
+    csv_text = _csv(FULL_HEADERS, rows)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
+
+    receipt = fv.run_pull()
+
+    assert receipt["bare_pct"] == 1
+    bgrw = json.loads(artifact.read_text())["rows"]["BGRW"]
+    assert bgrw["eps_past_5y_growth"] == -12.4  # parsed bare, disclosed above
+
+
+def test_qoq_pair_is_deliberately_not_requested():
+    """⛔ THE SKIP IS A DECISION, PINNED. EPS Q/Q (id 22) and Sales Q/Q
+    (id 23) were VERIFIED live in the same walk as ids 19/20/21 and are NOT
+    requested: `eps_growth`/`rev_growth` already carry those exact facts
+    (latest quarter vs the year-ago quarter — `earnings_growth_fmp`'s
+    measured definition match). A future agent adding them here would put a
+    second authority over two shipped columns; this test names the ruling."""
+    from api.services.screener import finviz_universe as fv
+    assert 22 not in fv._C_IDS.values()
+    assert 23 not in fv._C_IDS.values()
+    for col in fv._C_IDS:
+        assert "qoq" not in col, (
+            f"{col}: a QoQ column joined the finviz pull — eps_growth/"
+            "rev_growth already own those facts (see _C_IDS's adjudication)")
+
+
 def test_run_pull_counts_bare_percent_rows_in_the_receipt(monkeypatch, tmp_path):
     """One ticker's Insider Transactions arrives without its '%' suffix: the
     bare number is parsed as-is (no magnitude guessing) and the receipt's
@@ -347,7 +461,7 @@ def test_run_pull_counts_bare_percent_rows_in_the_receipt(monkeypatch, tmp_path)
 
     rows = [_full_row(f"T{i:04d}") for i in range(1004)]
     rows.append(["BARE", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
-                 "-2.34", "1.85%", "Yes", "No"])
+                 "-2.34", "1.85%", "Yes", "No", "-12.40%", "22.50%", "8.75%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -369,7 +483,7 @@ def test_run_pull_bool_junk_is_absent_never_zero(monkeypatch, tmp_path):
 
     rows = [_full_row(f"T{i:04d}") for i in range(1004)]
     rows.append(["JUNK", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
-                 "-2.34%", "1.85%", "-", "Maybe"])
+                 "-2.34%", "1.85%", "-", "Maybe", "-12.40%", "22.50%", "8.75%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -408,7 +522,7 @@ def test_run_pull_drops_a_row_with_no_ticker(monkeypatch, tmp_path):
 
     rows = [_full_row(f"T{i:04d}") for i in range(1005)]
     rows.append(["", "1.0B", "1.0B", "10%", "1.0", "1%", "1%",
-                 "0.5%", "0.5%", "Yes", "Yes"])
+                 "0.5%", "0.5%", "Yes", "Yes", "5%", "5%", "5%"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 

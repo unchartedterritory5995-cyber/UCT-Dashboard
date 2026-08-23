@@ -120,6 +120,22 @@ _C_IDS = {
     "inst_trans_pct": 29,
     "optionable": 80,
     "shortable": 83,
+    # Wave 6 (parity2) — growth ids VERIFIED by the controller's owner-browser
+    # pre-gate (2026-08-22, classic range walk): 19 = EPS Past 5Y ·
+    # 20 = EPS Next 5Y · 21 = Sales Past 5Y. Page display names; the export's
+    # fuller spellings are guessed in `_HEADERS` below and adjudicated by the
+    # first pull's `missing_headers` receipt (a miss degrades honestly by
+    # construction, never a wrong value).
+    # ⛔ 22 = EPS Q/Q and 23 = Sales Q/Q were VERIFIED in the same walk and are
+    # DELIBERATELY NOT REQUESTED: those exact facts (latest quarter vs the
+    # year-ago quarter) already have one writer each — `eps_growth` and
+    # `rev_growth`, written by `enrich.ratings_fields` off the provider
+    # metrics (`earnings_growth_fmp`'s module note documents the definition
+    # match, measured 2026-08-06). Requesting them here would put a second
+    # authority over two shipped columns — the repo's cardinal defect.
+    "eps_past_5y_growth": 19,
+    "eps_next_5y_growth": 20,
+    "sales_past_5y_growth": 21,
 }
 
 _HEADERS = {
@@ -138,6 +154,14 @@ _HEADERS = {
     "inst_trans_pct":     "Institutional Transactions",
     "optionable":         "Optionable",
     "shortable":          "Shortable",
+    # Wave 6 (parity2) — GUESSED fuller export spellings (the classic export
+    # long-forms) for page names "EPS Past 5Y"/"EPS Next 5Y"/"Sales Past 5Y"
+    # (ids 19/20/21 above). UNVERIFIED against a live export until the first
+    # nightly pull: a miss lands name-for-name in `missing_headers` and drops
+    # only that column, never a wrong value.
+    "eps_past_5y_growth":   "EPS growth past 5 years",
+    "eps_next_5y_growth":   "EPS growth next 5 years",
+    "sales_past_5y_growth": "Sales growth past 5 years",
 }
 # SCALE ASSUMPTION — ADJUDICATED 2026-08-22 (prod receipt): `shares_outstanding`
 # /`float_shares` do NOT arrive suffixed. Finviz's elite export serves these
@@ -155,7 +179,12 @@ _HEADERS = {
 _RAW_MILLIONS_COLUMNS = {"shares_outstanding", "float_shares"}
 _PCT_COLUMNS = {"short_float_pct", "insider_own_pct", "inst_pct",
                 # Wave 6 (T6) — SIGNED percent (net selling is negative).
-                "insider_trans_pct", "inst_trans_pct"}
+                "insider_trans_pct", "inst_trans_pct",
+                # Wave 6 (parity2) — SIGNED percent (shrinking EPS/sales print
+                # negative). NOT raw-millions, NOT bool; the bare-percent
+                # receipt counter covers all three.
+                "eps_past_5y_growth", "eps_next_5y_growth",
+                "sales_past_5y_growth"}
 # Wave 6 (T6) — the boolean parse class: Finviz serves "Yes"/"No" TEXT for
 # these; `_parse_bool` maps Yes->1 / No->0 / anything else -> None. Their
 # snapshot columns live in `snapshot_db._INT`.

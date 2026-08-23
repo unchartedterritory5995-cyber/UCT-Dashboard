@@ -5,11 +5,11 @@ Uses tmp SCREENER_DB_PATH, PATTERN_DB_PATH, RAILWAY_VOLUME_MOUNT_PATH,
 and SCREENER_OPTFLOW_ARTIFACT env BEFORE imports. Mirrors wave2 honesty + wave4 join state.
 
 Stage B (B3) appends three verification checks after the Stage-A section:
-  B-1  filters.meta() serves 142 filters (125 through Wave 4 + 12 Wave-5 +
-       1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6]) and all 12
-       Wave-5 keys plus the 4 Wave-6 T6 keys are present. On a count mismatch
-       it reports the measured number and the per-category breakdown (the WHY)
-       instead of forcing the pin.
+  B-1  filters.meta() serves 145 filters (125 through Wave 4 + 12 Wave-5 +
+       1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6] + 3 finviz
+       growth trio [Wave-6 parity2]) and all 12 Wave-5 keys plus the 7 Wave-6
+       keys are present. On a count mismatch it reports the measured number
+       and the per-category breakdown (the WHY) instead of forcing the pin.
   B-2  the Python formula lane resolves a PROMOTED scalar: ast_table.scalar_source
        ("float_pct") -> {store: screener_rows, column: float_pct} (B1's manifest bump).
   B-3  tools/ast_conformance.py --coverage and --check both exit 0 (run as
@@ -323,13 +323,17 @@ def run_smoke():
         print("STAGE B: meta count / promoted-scalar resolution / conformance gates")
         print("=" * 70)
 
-        # [B-1] filters.meta() count -- 142 expected (125 through Wave 4 +
-        # 12 Wave 5 + 1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6]).
+        # [B-1] filters.meta() count -- 145 expected (125 through Wave 4 +
+        # 12 Wave 5 + 1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6]
+        # + 3 finviz growth trio [Wave-6 parity2]).
         # Pin history: B3 pinned 137 pre-Wave-6; T1's accdis enum moved the
-        # measured count to 138; T6's four moved it to 142 and this pin WITH it.
+        # measured count to 138; T6's four moved it to 142; parity2's growth
+        # trio (ids 19/20/21; Q/Q pair deliberately SKIPPED -- eps_growth/
+        # rev_growth already carry those facts) moved it to 145, each time
+        # WITH the pin.
         # Called WITHOUT user_id on purpose: the per-user my_scans entry would
         # inflate the count by one and the pin is about the shared vocabulary.
-        print("\n[STAGE B-1] filters.meta() count (expect 142 = 125 + 12 + 1 + 4)")
+        print("\n[STAGE B-1] filters.meta() count (expect 145 = 125 + 12 + 1 + 4 + 3)")
         from api.services.screener import filters
         meta_out = filters.meta()
         meta_keys = [f["key"] for f in meta_out["filters"]]
@@ -344,22 +348,24 @@ def run_smoke():
         }
         wave6_t6_filter_keys = {
             "insider_trans_pct", "inst_trans_pct", "optionable", "shortable",
+            # Wave-6 parity2 growth trio rides the same presence check.
+            "eps_past_5y_growth", "eps_next_5y_growth", "sales_past_5y_growth",
         }
         missing_wave5 = sorted(wave5_filter_keys - set(meta_keys))
         missing_wave6 = sorted(wave6_t6_filter_keys - set(meta_keys))
-        if meta_count != 142 or missing_wave5 or missing_wave6:
+        if meta_count != 145 or missing_wave5 or missing_wave6:
             # Report the measured number and WHY -- never force the pin.
             from collections import Counter
             by_cat = Counter(f["category"] for f in meta_out["filters"])
-            print(f"  [FAIL] measured {meta_count} filters (expected 142); "
+            print(f"  [FAIL] measured {meta_count} filters (expected 145); "
                   f"Wave-5 keys missing: {missing_wave5 or 'none'}; "
-                  f"Wave-6 T6 keys missing: {missing_wave6 or 'none'}")
+                  f"Wave-6 keys missing: {missing_wave6 or 'none'}")
             print(f"  Per-category breakdown (the WHY): {dict(sorted(by_cat.items()))}")
             dupes = sorted(k for k, n in Counter(meta_keys).items() if n > 1)
             if dupes:
                 print(f"  Duplicate keys: {dupes}")
             return 1
-        print(f"  all 12 Wave-5 + 4 Wave-6 T6 filter keys present")
+        print(f"  all 12 Wave-5 + 7 Wave-6 filter keys present")
         print("  [PASS]")
 
         # [B-2] promoted-scalar resolution via the Python lane (ast closedTable):

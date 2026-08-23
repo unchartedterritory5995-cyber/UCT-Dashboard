@@ -157,6 +157,19 @@ FILTERS = dict([
     _range("rev_growth", "Revenue Growth", "fundamental", "rev_growth",
            [{"label": "Any"}, {"label": "Positive", "op": "gte", "min": 0},
             {"label": "Over 20%", "op": "gte", "min": 20}], unit="%"),
+    # ── finviz parity (Wave 6 parity2): the growth trio ──
+    # SIGNED percent, preset-free (E-8): nobody at this firm has published
+    # what a "strong" five-year growth rate is, so the member types the
+    # number. `eps_next_5y_growth` is an ANALYST ESTIMATE, and its label says
+    # so. ⛔ EPS Q/Q / Sales Q/Q ship as NO new controls: `eps_growth` and
+    # `rev_growth` directly above ARE those facts (latest quarter vs the
+    # year-ago quarter) — see finviz_universe's `_C_IDS` adjudication.
+    _open_range("eps_past_5y_growth", "EPS Growth Past 5Y", "fundamental",
+                "eps_past_5y_growth", unit="%"),
+    _open_range("eps_next_5y_growth", "EPS Growth Next 5Y (est)",
+                "fundamental", "eps_next_5y_growth", unit="%"),
+    _open_range("sales_past_5y_growth", "Sales Growth Past 5Y", "fundamental",
+                "sales_past_5y_growth", unit="%"),
     _range("op_margin", "Operating Margin", "fundamental", "op_margin",
            [{"label": "Any"}, {"label": "Positive", "op": "gte", "min": 0},
             {"label": "Over 20%", "op": "gte", "min": 20}], unit="%"),
