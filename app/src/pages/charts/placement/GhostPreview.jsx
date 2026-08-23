@@ -80,14 +80,14 @@ export default function GhostPreview({
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
-      {/* Backdrop: blur + dim the whole layout behind, and BLOCK all interaction with
-          it while placing (click anywhere off the ghost = cancel). */}
+      {/* Backdrop: transparent, so the rest of the layout stays crisp — its only job
+          is to BLOCK all interaction with the layout while placing (click anywhere off
+          the ghost = cancel). The blur is scoped to the ghost slot itself, below. */}
       <div
         onClick={onCancel}
         style={{
           position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'default',
-          background: 'rgba(10,11,14,0.34)',
-          backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+          background: 'transparent',
         }}
       />
 
@@ -103,7 +103,8 @@ export default function GhostPreview({
         />
       ))}
 
-      {/* The proposed slot for the new widget — lighter fill + glow to stand out. */}
+      {/* The proposed slot for the new widget — ONLY this area blurs the layout behind
+          it; lighter fill + glow so it stands out. */}
       {ghost && (
         <div
           onClick={onConfirm}
@@ -111,6 +112,7 @@ export default function GhostPreview({
             position: 'absolute', left: ghost.left, top: ghost.top, width: ghost.width, height: ghost.height,
             border: `2px solid ${LIGHT}`, borderRadius: 6, boxSizing: 'border-box',
             background: `${LIGHT}3d`, pointerEvents: 'auto', cursor: 'pointer',
+            backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
             boxShadow: `0 0 0 1px ${LIGHT}55, 0 6px 28px rgba(201,168,76,0.28)`,
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
           }}
