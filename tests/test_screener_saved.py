@@ -143,13 +143,26 @@ def test_flagship_unit_rulings_hold(tmp_path, monkeypatch):
 # blocks a working criterion.
 _KNOWN_EMPTY_IN_PROD = {
     "implied_move_pct": (
-        "non-null on 0 of 3,745 prod rows, measured 2026-08-23. `earnings_context`"
-        " reads `implied_store`, which captures the pre-report straddle only the"
-        " night before a report (first-write-wins per (sym, report_date)), so"
-        " coverage is inherently sparse and was zero on that Sunday build."
-        " `IMPLIED_STORE_ENABLED` IS set in prod — whether a weekday build carries"
-        " a handful of rows is UNMEASURED. Re-measure on a weekday before treating"
-        " this as permanent."
+        "non-null on 0 of 3,745 prod rows, measured 2026-08-23 — and the CAUSE is"
+        " now read, not guessed (lane-a diagnostic, same day): an unstated SCOPE"
+        " MISMATCH between two individually-correct components."
+        " `implied_store.run_nightly_capture` only considers reporters with"
+        " report_date in [today, today + IMPLIED_CAPTURE_WINDOW_DAYS] (default 1),"
+        " so the store can only ever hold the last two calendar days of report"
+        " dates. `earnings_context.read_implied_context` asks"
+        " `upcoming_reporters(days=14)`. The build runs 03:00 ET, BEFORE that"
+        " day's 16:35 capture, so the only date that CAN overlap is"
+        " report_date == today, written at 16:35 the previous evening."
+        " ⇒ Sunday and MONDAY builds are structurally ZERO (the last capture was"
+        " Friday, covering Fri/Sat); Tue-Fri the ceiling is 'names reporting"
+        " today', a handful of 3,745. Not a defect in either file."
+        " ⛔ DO NOT 'fix' this by simply widening IMPLIED_CAPTURE_WINDOW_DAYS:"
+        " first-write-wins would then LOCK IN the earliest capture, so the column"
+        " would hold a straddle priced days before the report while still calling"
+        " itself the pre-report move — more coverage, wrong meaning. Widening"
+        " requires changing the write rule too, and that is an owner call about"
+        " what the number MEANS. Use GET /api/screener/earnings-context-status"
+        " to see the join before touching either side."
     ),
     "earnings_setup_grade": (
         "non-null on 0 of 3,745 prod rows, measured 2026-08-23. A SEPARATE source"
