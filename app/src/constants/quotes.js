@@ -1,9 +1,9 @@
 // app/src/constants/quotes.js — the UCT Quote of the Day library.
 //
 // ONE authority: quotes.json, beside this file. This module imports it for the
-// three frontend surfaces (Dashboard FuturesStrip, the MarketStatusBar line, the
-// Morning Wire banner); the FastAPI backend reads the same JSON for
-// /api/quote-of-the-day, so the site and the Substack letter agree. The morning-wire HTML template used to carry a
+// two frontend surfaces (the Dashboard FuturesStrip panel and the Morning Wire
+// banner); the FastAPI backend reads the same JSON for /api/quote-of-the-day,
+// so the site and the Substack letter agree. The morning-wire HTML template used to carry a
 // hand-typed second copy with a random pick; it was removed 2026-08-22.
 //
 // Entry shape (quotes.json): { t: text, a: author, src: where it is from, tags: [...] }

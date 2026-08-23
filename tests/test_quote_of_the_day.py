@@ -179,12 +179,36 @@ def test_route_rejects_a_malformed_date(client):
     assert client.get("/api/quote-of-the-day", params={"date": "2026-13-40"}).status_code == 400
 
 
-def test_route_defaults_to_today_et_and_the_wire_tier(client, monkeypatch):
-    monkeypatch.setattr(qotd, "current_label", lambda: "Defensive")
+def test_route_default_is_anchored_to_the_latest_wire(client, monkeypatch):
+    # Saturday: the latest wire is Friday's. The site shows Friday's quote until
+    # Monday's wire lands — not a midnight flip, not a provisional pick.
+    monkeypatch.setattr(qotd, "current_wire", lambda: (date(2026, 8, 21), "Neutral"))
+    monkeypatch.setattr(qotd, "today_et", lambda: date(2026, 8, 22))
+    body = client.get("/api/quote-of-the-day").json()
+    assert body["date"] == "2026-08-21" and body["label"] == "Neutral"
+    assert body["quote"] == qotd.pick(date(2026, 8, 21), "Neutral")["quote"]
+    # ...and the engine, asking for that wire's date + tier explicitly, gets the same line.
+    explicit = client.get("/api/quote-of-the-day", params={"date": "2026-08-21", "label": "Neutral"}).json()
+    assert explicit["quote"] == body["quote"]
+
+
+def test_route_with_no_wire_falls_back_to_today_et_and_the_whole_library(client, monkeypatch):
+    monkeypatch.setattr(qotd, "current_wire", lambda: (None, None))
     monkeypatch.setattr(qotd, "today_et", lambda: date(2026, 8, 24))
     body = client.get("/api/quote-of-the-day").json()
-    assert body["label"] == "Defensive" and body["date"] == "2026-08-24"
-    assert body["quote"] == qotd.pick(date(2026, 8, 24), "Defensive")["quote"]
+    assert body["date"] == "2026-08-24" and body["label"] is None
+    assert body["pool_size"] == len(qotd.load_library())
+
+
+def test_current_wire_parses_the_date_and_tier_and_tolerates_garbage(monkeypatch):
+    from api.services import engine
+    monkeypatch.setattr(engine, "_load_wire_data",
+                        lambda: {"date": "2026-08-21", "game_plan": {"exposure_tier": "neutral"}})
+    assert qotd.current_wire() == (date(2026, 8, 21), "Neutral")
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: {"date": "21/08/2026", "game_plan": "nope"})
+    assert qotd.current_wire() == (None, None)
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: "not a dict")
+    assert qotd.current_wire() == (None, None)
 
 
 def test_route_treats_an_unknown_label_as_no_regime(client):

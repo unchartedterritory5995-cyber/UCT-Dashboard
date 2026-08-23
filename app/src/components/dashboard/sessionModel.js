@@ -1,6 +1,7 @@
 // app/src/components/dashboard/sessionModel.js — pure session helpers shared by
-// MarketStatusBar, MarketClock and ChartMarketClock. They live apart from the
-// component so the component module only exports components (react-refresh rule).
+// MarketClock and ChartMarketClock. Extracted 2026-08-22 from MarketStatusBar.jsx,
+// a header strip that was built but never mounted and has since been deleted;
+// these helpers were the only part of it anything imported.
 
 export function sessionModel({ isOpen, isPremarket, isExtended }) {
   if (isOpen) return { label: 'MARKET OPEN', tone: 'open' }

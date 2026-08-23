@@ -307,14 +307,7 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
-    'app/src/components/dashboard/MarketStatusBar.jsx':
-    'BUILT, NEVER MOUNTED. Until 2026-08-22 it read as reachable only because MarketClock and '
-    + 'ChartMarketClock imported two helpers (sessionModel, nextOpenHint) from it; those now '
-    + 'live in dashboard/sessionModel.js, and the component itself has no importer. Its own header '
-    + 'says it replaces the FuturesStrip row on desktop — that is the Dashboard restyle the owner '
-    + 'explicitly deferred, so mounting it here would be taking a product decision for him. It is '
-    + 'kept current (server quote pick) so it works the day it is mounted. Mount or delete: owner call.',
-}
+  }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
   const reachable = reachableFrom(ROOTS)

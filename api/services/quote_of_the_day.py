@@ -134,17 +134,39 @@ def pick(d: date, label: str | None = None) -> dict:
     }
 
 
-def current_label() -> str | None:
-    """The exposure tier of the latest pushed wire, or None if there is none."""
+def current_wire() -> tuple:
+    """(date, tier) of the latest pushed wire — (None, None) if there is none or
+    it is unreadable. Never raises: a quote must never 500 on the wire cache."""
     try:
         from api.services import engine as _engine   # local import: engine is heavy
         wire = _engine._load_wire_data()
-    except Exception as exc:  # noqa: BLE001 — a quote must never 500 on the wire cache
+    except Exception as exc:  # noqa: BLE001
         log.warning("[qotd] wire unavailable: %s", exc)
-        return None
-    gp = (wire or {}).get("game_plan") if isinstance(wire, dict) else None
-    return normalize_label((gp or {}).get("exposure_tier"))
+        return (None, None)
+    if not isinstance(wire, dict):
+        return (None, None)
+    try:
+        wire_date = datetime.strptime(str(wire.get("date") or ""), "%Y-%m-%d").date()
+    except ValueError:
+        wire_date = None
+    gp = wire.get("game_plan")
+    tier = normalize_label((gp or {}).get("exposure_tier")) if isinstance(gp, dict) else None
+    return (wire_date, tier)
+
+
+def current_label() -> str | None:
+    """The exposure tier of the latest pushed wire, or None if there is none."""
+    return current_wire()[1]
 
 
 def pick_today(label: str | None = None) -> dict:
-    return pick(today_et(), label if label is not None else current_label())
+    """The site's pick, ANCHORED TO THE WIRE: keyed on the latest pushed wire's own
+    date and tier, so the quote changes exactly once per trading day — when the
+    wire lands (~7:47 ET), the same moment the rest of the wire page changes —
+    never at midnight and never twice. The engine asks for the same date + tier
+    when it builds the letter, so site and letter agree by construction; over a
+    weekend or holiday Friday's quote simply stands, like Friday's wire does.
+    With no wire at all (a fresh volume) fall back to today in ET and the whole
+    library."""
+    wire_date, tier = current_wire()
+    return pick(wire_date or today_et(), tier if label is None else normalize_label(label))

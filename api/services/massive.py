@@ -996,8 +996,8 @@ def get_snapshot() -> dict:
         yf_snaps = dict(ex.map(_fetch, jobs))
 
     etfs["VIX"] = _make_entry(yf_snaps["VIX"]) if yf_snaps.get("VIX") else dict(_EMPTY)
-    # "futures" is now BTC only. The key name stays because MorningWireIndexes,
-    # MarketStatusBar and FuturesStrip all read BTC from data.futures.BTC.
+    # "futures" is now BTC only. The key name stays because MorningWireIndexes
+    # and FuturesStrip read BTC from data.futures.BTC.
     futures = {"BTC": _make_entry(yf_snaps["BTC"]) if yf_snaps.get("BTC") else dict(_EMPTY)}
 
     data = {"futures": futures, "etfs": etfs}

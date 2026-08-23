@@ -202,7 +202,6 @@ const BARE_POLL_SITES = {
   'app/src/components/admin/CatalystRulesPanel.jsx': 1,
   'app/src/components/admin/CommunityReportsPanel.jsx': 1,
   'app/src/components/admin/TwitterAccountsPanel.jsx': 2,
-  'app/src/components/dashboard/MarketStatusBar.jsx': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
   'app/src/components/research/sections/SetupSection.jsx': 1,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,
