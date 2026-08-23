@@ -59,12 +59,23 @@ lands, ``get_full_market_snapshot`` emits only ``last_price``/``prev_close``/
 feed input and **keep their nightly value**, counted in ``live_cols`` as not
 recomputed. That is the honest degradation, not a bug: the moment the parse
 widens (three additive extractions, zero provider cost) they light up with no
-change here. The receipt makes the gap visible — ``cols_recomputed_total``
-lands at ~18/row rather than ~22/row.
+change here.
+
+⛔⛔ AND THE DISCLOSURE MUST NOT NAME THEM. ``LIVE_COLUMNS`` is what the tier
+*aspires* to recompute; ``live_columns_effective()`` is what it **measured
+itself recomputing on the last cycle**, and the provenance surface (spec §8,
+Lane B) must read the second one. Naming a column "live as of 10:42" while it
+carries the prior session's value is an honest value under a dishonest label —
+constraint 2's exact failure mode, and worse than no overlay at all, because a
+member filtering ``gap_pct > 3`` during RTH would read yesterday's gappers as
+today's. The receipt carries ``columns_not_recomputed`` **by name** (never a
+count) so no surface has to subtract anything to get this right, and the
+fallback before the first sweep of a process UNDER-claims rather than over-.
 """
 import logging
 import math
 import os
+import sqlite3
 import time
 from datetime import date, timedelta
 
@@ -115,6 +126,27 @@ LIVE_COLUMNS = (
     "pt_upside_pct",            # 22 pt_target is a stored column, not an anchor
 )
 
+#: ⭐ THE COLUMNS THAT NEED A FEED FIELD THE SNAPSHOT PARSE MAY NOT EMIT, and
+#: the field each one needs. Everything else in ``LIVE_COLUMNS`` derives from
+#: ``last_price`` + ``prev_close`` + a stored anchor, all three of which the
+#: sanity gate already guarantees before ``derive_row`` runs — so this dict IS
+#: the complete list of ways a passing row can still keep a nightly value for
+#: a *structural* reason rather than a per-symbol one (a null anchor or a 2-dp
+#: ``ma_stack`` tie are per-symbol; these four are per-DEPLOY).
+#:
+#: ⛔ This is a DECLARATION, not the authority. The authority is what the sweep
+#: measured (``live_columns_effective()``); this only decides what the very
+#: first cycle of a process is allowed to claim before it has measured
+#: anything, and it is pinned against ``derive_row`` by
+#: ``test_the_feed_dependency_declaration_matches_what_derive_row_actually_does``
+#: — a fifth dependency added to ``derive_row`` and not to this dict goes RED.
+FEED_FIELD_DEPENDENCIES = {
+    "chg_from_open_pct": "day_open",
+    "gap_pct":           "day_open",
+    "new_52w_high":      "day_high",
+    "new_ath":           "day_high",
+}
+
 #: Stored columns the derivation READS that are not themselves live.
 #: ``bars_asof`` dates the anchor (the freshness gate + the disclosure);
 #: ``atr_pct`` is the denominator of #12; ``pt_target`` is the numerator of #22.
@@ -150,6 +182,43 @@ SKIP_REASONS = ("no_feed", "not_traded", "no_price", "no_prev_close",
 def enabled() -> bool:
     """Master switch. Default OFF. Read per call on the writer AND the reader."""
     return os.environ.get("SCREENER_LIVE_TIER_ENABLED", "0") == "1"
+
+
+#: What the LAST cycle that wrote anything actually recomputed, or ``None``
+#: before this process has measured. Per-process, like every other status
+#: surface on this single-uvicorn pod.
+_EFFECTIVE_COLUMNS: tuple | None = None
+
+
+def live_columns_effective() -> tuple:
+    """⭐ THE COLUMN LIST THE DISCLOSURE MAY NAME AS LIVE. Read THIS, never
+    ``LIVE_COLUMNS``, in any surface that says "live as of 10:42".
+
+    ``LIVE_COLUMNS`` is the set this tier aspires to recompute; this is the set
+    it *measured itself recomputing* on the last cycle that wrote a row — so a
+    column the feed cannot answer for (spec §3.2 unlanded), or one no row in
+    the universe has an anchor for, is **structurally absent from the claim**
+    rather than absent from a hand-maintained subtraction somewhere downstream.
+
+    Before the first writing sweep of a process it falls back to the DECLARED
+    set (``LIVE_COLUMNS`` minus everything in ``FEED_FIELD_DEPENDENCIES``),
+    which **under-claims**: it names 18 even on a pod whose parse emits all the
+    feed fields, and the first sweep corrects that within one cadence. That
+    direction is deliberate — a column silently missing from the claim is a
+    smaller lie than a nightly column wearing a live label, and it self-heals.
+    """
+    if _EFFECTIVE_COLUMNS is not None:
+        return _EFFECTIVE_COLUMNS
+    return tuple(c for c in LIVE_COLUMNS if c not in FEED_FIELD_DEPENDENCIES)
+
+
+def columns_not_recomputed() -> tuple:
+    """The complement of :func:`live_columns_effective`, **by name** — what the
+    overlay is carrying forward from the 03:00 build. Named, never counted:
+    "4 of 22 are nightly" tells a member nothing they can act on
+    (``lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report``)."""
+    live = set(live_columns_effective())
+    return tuple(c for c in LIVE_COLUMNS if c not in live)
 
 
 def _env_float(name: str, default: float) -> float:
@@ -419,7 +488,8 @@ def sanity_reason(anchor_row: dict, quote, ymd: int) -> str | None:
 # the derivation (spec §2.1/§2.2) — pure, no I/O
 # --------------------------------------------------------------------------- #
 
-def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float) -> dict | None:
+def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
+               recomputed_out: set | None = None) -> dict | None:
     """One overlay row, or ``None`` when the sanity gate refuses the symbol.
 
     ⭐ THE WRITE RULE IS "COPY THE NIGHTLY VALUE FORWARD". An overlay row
@@ -430,6 +500,11 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float) -> dict | No
     makes the overlay row a complete, self-consistent picture that can be read
     and audited on its own, and it is constraint 1 spelled literally: *not
     computable live ⇒ keeps its nightly value.*
+
+    ``recomputed_out``, when given, is filled with the NAMES of the columns
+    this row genuinely recomputed. ⭐ That is what makes the disclosure
+    measured rather than declared: ``live_cols`` says HOW MANY kept 03:00, and
+    only the names say WHICH — and a surface cannot subtract a count.
     """
     if sanity_reason(anchor_row, quote, ymd) is not None:
         return None
@@ -453,6 +528,8 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float) -> dict | No
             return
         out[col] = value
         recomputed += 1
+        if recomputed_out is not None:
+            recomputed_out.add(col)
 
     pct = technicals._pct   # ONE rounding/None convention, the builder's own
 
@@ -585,11 +662,17 @@ def _blank_receipt(**over) -> dict:
         "aborted": None,
         "feed_symbols": 0,
         "rows_considered": 0,
+        "rows_matched": 0,
         "rows_written": 0,
         "rows_kept_nightly": 0,
         "cols_recomputed_total": 0,
+        # WHICH columns, not just how many — the disclosure reads these, and a
+        # count cannot be subtracted from a column list.
+        "cols_recomputed_by_column": {c: 0 for c in LIVE_COLUMNS},
+        "columns_not_recomputed": tuple(LIVE_COLUMNS),
         "skipped": {k: 0 for k in SKIP_REASONS},
         "dead_cycle": False,
+        "feed_blackout": False,
         "lock_wait_ms": 0.0,
         "held_lock_ms": 0.0,
         "duration_ms": 0.0,
@@ -607,6 +690,19 @@ def _abort_reason(matched: int, traded: int) -> str | None:
     the sweep would publish ``chg_pct_1d = 0.00`` FOR THE ENTIRE UNIVERSE and
     every "up 3% today" screen would return nothing, confidently. Leaving the
     previous overlay to age out is the safe direction.
+
+    ⚠️ WHAT THIS GATE CANNOT SEE, stated so a receipt is read correctly. It
+    measures ``traded/matched`` — never ``matched/rows_considered`` — so a feed
+    that answers for 3 of 3,745 symbols PASSES it and the sweep writes a 3-row
+    overlay. Per row that is honest (the other 3,742 stay nightly and are
+    counted under ``no_feed``), and a near-total provider outage is therefore a
+    LARGE ``no_feed``, not an abort. The receipt exposes the denominator
+    directly as ``rows_matched`` for exactly this reading, and the total case —
+    ``rows_matched == 0`` with rows to sweep — raises ``feed_blackout`` and
+    logs at WARNING. ⛔ Do not "fix" this by adding a second abort threshold on
+    the match rate: symbol-form drift (spec §3.1, dot vs hyphen) and a provider
+    outage look identical here, and refusing to write on drift would take the
+    overlay down for a bug that costs nobody a wrong number.
     """
     if matched <= 0:
         return None
@@ -636,7 +732,12 @@ def run_sweep() -> dict:
     # DDL before the lock: it is idempotent, it is not derivation, and doing it
     # under the lock would inflate `held_lock_ms` — the one number that keeps
     # "sharing the build lock is safe" a MEASUREMENT rather than a claim.
-    snapshot_db.init_db()
+    # ⭐ And ONCE PER PROCESS, not once per cycle: `init_db` takes the global
+    # `snapshot_db._WRITE_LOCK` for a CREATE TABLE + PRAGMA table_info + the
+    # ALTER-add loop + 8 CREATE INDEX + two executescripts, and at ~390 cycles
+    # per session that is a needless per-minute serialization point against the
+    # nightly builder's own writes.
+    _ensure_schema()
 
     # ⛔ THE SHARED LOCK, ACQUIRED NON-BLOCKING, AND NEVER QUEUED. A queued
     # sweep would run against anchors the build is rewriting underneath it.
@@ -662,10 +763,34 @@ def run_sweep() -> dict:
     t_held = time.time()
     try:
         _sweep_locked(receipt, ymd, scan_volume)
+    except sqlite3.OperationalError:
+        # The one thing a once-per-process DDL flag can get wrong: the file it
+        # was true of is gone (a wiped volume, a fresh mount, a test swapping
+        # `SCREENER_DB_PATH` under us). Forget it so the next cycle re-runs the
+        # DDL instead of failing forever on a missing table.
+        _forget_schema()
+        raise
     finally:
         snapshot_builder._BUILD_LOCK.release()
         receipt["held_lock_ms"] = round((time.time() - t_held) * 1000, 2)
     return _finish(receipt, t0)
+
+
+#: Which screener.db files this PROCESS has already run the DDL against, keyed
+#: by the resolved path so a test (or a re-pointed volume) gets its own.
+_SCHEMA_READY: set = set()
+
+
+def _ensure_schema() -> None:
+    path = snapshot_db.get_db_path()
+    if path in _SCHEMA_READY:
+        return
+    snapshot_db.init_db()
+    _SCHEMA_READY.add(path)
+
+
+def _forget_schema() -> None:
+    _SCHEMA_READY.discard(snapshot_db.get_db_path())
 
 
 def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
@@ -689,6 +814,8 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
                 traded += 1
         graded.append((row, quote, reason))
 
+    receipt["rows_matched"] = matched
+
     abort = _abort_reason(matched, traded)
     if abort:
         receipt["aborted"] = abort
@@ -696,20 +823,37 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
 
     as_of = time.time()
     out_rows = []
+    per_col = {c: 0 for c in LIVE_COLUMNS}
     for row, quote, reason in graded:
         if reason is not None:
             receipt["skipped"][reason] += 1
             continue
-        derived = derive_row(row, quote, ymd, as_of)
+        got: set = set()
+        derived = derive_row(row, quote, ymd, as_of, recomputed_out=got)
         if derived is None:          # defensive; the gate already answered
             receipt["skipped"]["no_feed"] += 1
             continue
         receipt["cols_recomputed_total"] += derived["live_cols"]
+        for c in got:
+            per_col[c] += 1
         out_rows.append(derived)
 
     receipt["as_of"] = as_of
     receipt["rows_written"] = snapshot_db.upsert_live_rows(out_rows)
     snapshot_db.prune_live_rows(ymd)
+
+    # ⭐ THE DISCLOSURE IS MEASURED HERE, from the same pass that wrote the
+    # rows — never declared, never a second count. A column no written row
+    # recomputed is NOT live this cycle, whatever `LIVE_COLUMNS` aspires to,
+    # and the surface reads `live_columns_effective()` so it structurally
+    # cannot name it. Only a cycle that actually wrote something gets to move
+    # the claim: a cycle that wrote nothing has measured nothing.
+    receipt["cols_recomputed_by_column"] = per_col
+    receipt["columns_not_recomputed"] = tuple(
+        c for c in LIVE_COLUMNS if per_col[c] == 0)
+    if receipt["rows_written"] > 0:
+        global _EFFECTIVE_COLUMNS
+        _EFFECTIVE_COLUMNS = tuple(c for c in LIVE_COLUMNS if per_col[c] > 0)
 
 
 def _finish(receipt: dict, t0: float) -> dict:
@@ -720,6 +864,20 @@ def _finish(receipt: dict, t0: float) -> dict:
         and receipt["aborted"] is None
         and receipt["rows_written"] == 0
         and receipt["rows_kept_nightly"] == 0
+    )
+    # ⭐ A TOTAL FEED BLACKOUT IS NOT A DEAD CYCLE, AND IT MUST STILL SHOUT.
+    # `dead_cycle` is 0-written AND 0-kept; a cycle where the feed returned {}
+    # has `no_feed == rows_considered`, so `rows_kept_nightly` is the whole
+    # universe and `dead_cycle` is False. Members are safe (the overlay ages
+    # out in SCREENER_LIVE_MAX_AGE_S), but with nothing else the ONLY tell is
+    # an INFO line reading `updated=0 kept_nightly=3745` — which is precisely
+    # the silent-failure shape `sweep_job`'s own docstring cites
+    # (`built=3708 skipped=0 errors=0`). So it gets its own flag and its own
+    # WARNING.
+    receipt["feed_blackout"] = (
+        receipt["skipped_reason"] is None
+        and receipt["rows_considered"] > 0
+        and receipt["rows_matched"] == 0
     )
     return receipt
 
@@ -753,28 +911,60 @@ def sweep_job() -> dict:
     are what make a silent failure visible — and a cycle that updated NOBODY
     and skipped NOBODY is a DEAD JOB, so it does not get to look like a quiet
     market: it logs at WARNING and says the words.
+
+    THREE things get a WARNING, because three different things can go quiet:
+
+    * ``feed_blackout`` — the snapshot answered for nobody. Reads as
+      ``updated=0 kept_nightly=3745`` at INFO otherwise, which is the exact
+      shape of the build above.
+    * ``dead_cycle`` — 0 updated AND 0 kept: the job answered for no one at all.
+    * a raised cycle — stamped into ``_LAST_RECEIPT`` before it re-raises, so
+      the status endpoint cannot keep showing the last good sweep.
+
+    The INFO line names ``not_live=`` — the columns this cycle carried forward
+    from 03:00, BY NAME — so the log and the member-facing disclosure are
+    reading the same measurement.
     """
     global _LAST_RECEIPT
-    receipt = run_sweep()
+    try:
+        receipt = run_sweep()
+    except Exception as exc:
+        # ⛔ A THROWN CYCLE MUST NOT LEAVE THE LAST GOOD RECEIPT STANDING. The
+        # scheduler wrapper swallows this so the job survives, and without a
+        # stamp here `GET /api/screener/live-status` would keep serving the
+        # last successful cycle with only a slowly-ageing `swept_at` as the
+        # tell — a status surface reading healthy through a total failure.
+        _LAST_RECEIPT = _blank_receipt(skipped_reason="error",
+                                       aborted=f"{type(exc).__name__}: {exc}")
+        log.warning("[screener-live] cycle RAISED (%s: %s) — the overlay ages "
+                    "out and the status endpoint now says so", type(exc).__name__, exc)
+        raise
     _LAST_RECEIPT = receipt
     if receipt["skipped_reason"]:
         log.info("[screener-live] cycle skipped: %s (session=%s)",
                  receipt["skipped_reason"], receipt["session"])
         return receipt
     reasons = " ".join(f"{k}={receipt['skipped'][k]}" for k in SKIP_REASONS)
+    not_live = ",".join(receipt["columns_not_recomputed"]) or "-"
     line = (
         f"as_of={receipt['as_of']} session_ymd={receipt['session_ymd']} "
         f"updated={receipt['rows_written']} "
         f"kept_nightly={receipt['rows_kept_nightly']} ({reasons}) "
         f"cols_recomputed={receipt['cols_recomputed_total']} "
+        f"not_live={not_live} "
         f"rows_considered={receipt['rows_considered']} "
+        f"rows_matched={receipt['rows_matched']} "
         f"feed_symbols={receipt['feed_symbols']} "
         f"aborted={receipt['aborted']} "
         f"lock_wait_ms={receipt['lock_wait_ms']} "
         f"held_lock_ms={receipt['held_lock_ms']} "
         f"duration_ms={receipt['duration_ms']}"
     )
-    if receipt["dead_cycle"]:
+    if receipt["feed_blackout"]:
+        log.warning("[screener-live] FEED BLACKOUT — the snapshot answered for "
+                    "0 of %d symbols; every row keeps its nightly value and the "
+                    "overlay ages out. %s", receipt["rows_considered"], line)
+    elif receipt["dead_cycle"]:
         log.warning("[screener-live] DEAD CYCLE — 0 updated and 0 kept-nightly: "
                     "this sweep answered for NOBODY. %s", line)
     elif receipt["aborted"]:

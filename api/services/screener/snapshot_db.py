@@ -241,6 +241,28 @@ def upsert_live_rows(rows: list) -> int:
     every symbol it answers for (a column it could not recompute carries the
     NIGHTLY value verbatim) — so an overlay row is always a complete,
     self-consistent picture and never a half-updated one.
+
+    ⚠️ WRITE VOLUME THE SPEC DID NOT MEASURE — read this before arming. At the
+    default 60 s cadence this is ~3,745 `INSERT OR REPLACE` per minute × ~390
+    RTH minutes ≈ **1.5M row-writes per session, into the same `screener.db`
+    file every member scan reads**. WAL keeps readers unblocked and the
+    measured `held_lock_ms` is ~122 ms per cycle, but WAL GROWTH and checkpoint
+    churn on the Railway volume were NOT measured. Spec §13's arming receipts
+    must add: watch the WAL sidecar's size across a full session next to the
+    provider-load check, and if it grows without bounding, the lever is
+    `SCREENER_LIVE_INTERVAL_S` (the cadence), not a second writer.
+
+    ⚠️ AND THE COPIED-FORWARD VALUES SHADOW `screener_rows` FOR ONE CADENCE.
+    An overlay row carries the nightly value for the columns it could not
+    recompute, and the read path COALESCEs the overlay first — so if an admin
+    `POST /api/screener/refresh` lands intraday and moves, say, `pt_target` or
+    the pattern levels while `bars_asof` stays at D-1, the overlay serves its
+    pre-refresh COPY of those columns until the next sweep (≤60 s). Spec §4's
+    "complete, self-consistent overlay row" rule chose this and it self-heals,
+    but it is a second authority over those columns for the duration of the
+    window. ⛔ The fix if it ever matters is to store NULL for a column that was
+    not recomputed (COALESCE then falls through to the live nightly value) —
+    which is a SPEC change to §4, not a patch here.
     """
     if not rows:
         return 0

@@ -1404,6 +1404,31 @@ def register_screener_jobs(scheduler):
     # snapshot also pauses the overlay. That is the right direction -- a paused
     # snapshot means the anchors stop advancing, and the serve predicate would
     # keep serving the overlay against ever-staler levels.
+    #
+    # ⛔⛔ WHAT THE DISCLOSURE MAY NAME AS LIVE IS `live_tier.
+    # live_columns_effective()`, NEVER `live_tier.LIVE_COLUMNS`. The second is
+    # what the tier aspires to recompute (22); the first is what the last sweep
+    # MEASURED itself recomputing, and until the spec §3.2 parse widening lands
+    # in `massive.get_full_market_snapshot` those differ by four --
+    # `chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath`, all of which
+    # keep their nightly value. `live_tier.columns_not_recomputed()` names the
+    # gap, and every receipt carries `columns_not_recomputed` by NAME. A
+    # popover that reads `LIVE_COLUMNS` labels four nightly columns "live as of
+    # 10:42" -- an honest value under a dishonest label, which constraint 2
+    # rules out more sharply than a missing value would be.
+    #
+    # ⚠️ THREE THINGS THE CONTROLLER READS BEFORE ARMING that spec §13 does not
+    # list, all on `GET /api/screener/live-status`:
+    #   * `columns_not_recomputed` -- empty is the only state in which the
+    #     popover may say "22 columns".
+    #   * `rows_matched` vs `rows_considered` -- the holiday abort measures
+    #     traded/matched and cannot see a provider outage; a large `no_feed` is
+    #     that outage (or symbol-form drift, spec §3.1), and `feed_blackout`
+    #     covers only the total case.
+    #   * WAL growth on the Railway volume -- ~1.5M overlay row-writes per
+    #     session into the file every member scan reads (see
+    #     `snapshot_db.upsert_live_rows`); unmeasured, and the lever is this
+    #     job's cadence.
     from api.services.screener import live_tier
 
     def _run_live_tier():

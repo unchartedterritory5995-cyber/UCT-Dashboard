@@ -86,6 +86,9 @@ def live_env(monkeypatch, tmp_path):
     monkeypatch.setattr(
         live_tier, "_now_et",
         lambda: datetime.datetime(2026, 8, 24, 10, 42, tzinfo=ET))
+    # the measured claim is per-PROCESS state; a test must not inherit the
+    # previous test's measurement
+    monkeypatch.setattr(live_tier, "_EFFECTIVE_COLUMNS", None)
     snapshot_db.init_db()
     return monkeypatch
 
@@ -387,6 +390,127 @@ def test_the_feed_fields_the_parse_does_not_yet_emit_keep_their_nightly_value(
 
 
 # --------------------------------------------------------------------------- #
+# THE DISCLOSURE — a column may be NAMED live only if it was MEASURED live
+#
+# The defect these pin: `LIVE_COLUMNS` declares 22 while the unlanded §3.2
+# parse widening leaves 4 of them on their nightly value, so a surface reading
+# the tuple verbatim labels yesterday's `gap_pct` "live as of 10:42" — an
+# honest value under a dishonest label, which is constraint 2's failure mode.
+# --------------------------------------------------------------------------- #
+
+def test_the_disclosure_names_only_the_columns_the_sweep_measured_recomputing(
+        live_env, monkeypatch):
+    """⭐ THE FIX FOR THE 18-of-22 OVER-CLAIM. With the §3.2 keys absent from
+    the feed, the four that need them must be missing from what a surface is
+    allowed to call live — and named, so nothing downstream has to subtract."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})       # no day_open/day_high
+
+    r = live_tier.run_sweep()
+
+    assert r["rows_written"] == 1
+    assert set(r["columns_not_recomputed"]) == {
+        "chg_from_open_pct", "gap_pct", "new_52w_high", "new_ath"}
+    assert set(live_tier.columns_not_recomputed()) == set(
+        r["columns_not_recomputed"])
+    effective = live_tier.live_columns_effective()
+    assert set(effective) < set(live_tier.LIVE_COLUMNS)
+    assert "gap_pct" not in effective and "new_ath" not in effective
+    # and every column it DOES name was genuinely recomputed for a written row
+    assert all(r["cols_recomputed_by_column"][c] > 0 for c in effective)
+
+
+def test_the_over_claim_control_a_widened_feed_puts_all_twenty_two_back(
+        live_env, monkeypatch):
+    """The control that proves the subtraction is measured, not hard-coded: the
+    moment `massive.get_full_market_snapshot` emits `day_open`/`day_high`, the
+    claim widens to all 22 with NO change in this module."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch,
+          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0)})
+
+    r = live_tier.run_sweep()
+
+    assert r["columns_not_recomputed"] == ()
+    assert set(live_tier.live_columns_effective()) == set(live_tier.LIVE_COLUMNS)
+    assert live_tier.columns_not_recomputed() == ()
+
+
+def test_before_the_first_sweep_the_claim_under_claims_rather_than_over_claims(
+        monkeypatch):
+    """A fresh process has measured nothing. The safe direction is to name
+    FEWER columns than are live, never more — a column missing from the claim
+    is a smaller lie than a nightly column wearing a live label, and the first
+    sweep corrects it within one cadence."""
+    monkeypatch.setattr(live_tier, "_EFFECTIVE_COLUMNS", None)
+    fallback = set(live_tier.live_columns_effective())
+    assert fallback == set(live_tier.LIVE_COLUMNS) - set(
+        live_tier.FEED_FIELD_DEPENDENCIES)
+    assert fallback < set(live_tier.LIVE_COLUMNS)
+
+
+def test_a_cycle_that_wrote_nothing_does_not_move_the_claim(live_env,
+                                                            monkeypatch):
+    """A sweep that wrote no rows has MEASURED nothing, so it must not be
+    allowed to declare every column dead — that would flap the popover to "0
+    columns live" on one bad minute while the previous overlay is still being
+    served."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch,
+          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0)})
+    live_tier.run_sweep()
+    assert live_tier.columns_not_recomputed() == ()
+
+    _feed(monkeypatch, {})                    # the feed goes dark
+    r = live_tier.run_sweep()
+    assert r["rows_written"] == 0
+    assert live_tier.columns_not_recomputed() == ()      # the claim held
+
+
+def test_the_feed_dependency_declaration_matches_what_derive_row_actually_does(
+        live_env, monkeypatch):
+    """⛔ THE DECLARATION IS PINNED TO THE CODE, not to this file's memory of
+    it. `FEED_FIELD_DEPENDENCIES` decides what the very first cycle of a
+    process may claim, so a fifth feed-dependent column added to `derive_row`
+    and not to the dict would over-claim for one cadence on every deploy.
+    Derived by running `derive_row`, never by reading a list."""
+    row = _nightly_row()
+
+    minimal = set()
+    live_tier.derive_row(row, _quote(last=110.0), YMD, 1.0,
+                         recomputed_out=minimal)
+    missing_on_minimal = set(live_tier.LIVE_COLUMNS) - minimal
+    assert missing_on_minimal == set(live_tier.FEED_FIELD_DEPENDENCIES)
+
+    # and each declared column really does hang on the field it declares
+    widened = {"day_open": 105.0, "day_high": 131.0}
+    for col, field in live_tier.FEED_FIELD_DEPENDENCIES.items():
+        without = {k: v for k, v in widened.items() if k != field}
+        got = set()
+        live_tier.derive_row(row, _quote(last=130.0, **without), YMD, 1.0,
+                             recomputed_out=got)
+        assert col not in got, f"{col} was recomputed without {field}"
+        got_all = set()
+        live_tier.derive_row(row, _quote(last=130.0, **widened), YMD, 1.0,
+                             recomputed_out=got_all)
+        assert col in got_all, f"{col} stayed nightly WITH {field}"
+
+
+def test_the_receipt_names_the_carried_forward_columns_never_only_a_count(
+        live_env, monkeypatch, caplog):
+    """`cols_recomputed_total` says HOW MANY kept 03:00. Only the names say
+    WHICH, and a surface cannot subtract a count from a column list."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    with caplog.at_level("INFO"):
+        r = live_tier.sweep_job()
+    assert r["cols_recomputed_total"] == 18
+    assert "not_live=" in caplog.text
+    for col in ("gap_pct", "new_ath"):
+        assert col in caplog.text
+
+
+# --------------------------------------------------------------------------- #
 # THE SHARED LOCK (constraint 3)
 # --------------------------------------------------------------------------- #
 
@@ -597,6 +721,101 @@ def test_every_cycle_returns_the_same_key_set(live_env, monkeypatch):
     assert set(disabled) == set(live)
     live_tier.sweep_job()
     assert set(live_tier.last_receipt()) == set(live)
+
+
+def test_a_total_feed_blackout_shouts_instead_of_reading_as_a_quiet_market(
+        live_env, monkeypatch, caplog):
+    """⭐ A blackout is NOT a dead cycle — every row lands under `no_feed`, so
+    `rows_kept_nightly` is the whole universe and `dead_cycle` is False. At
+    INFO that reads `updated=0 kept_nightly=3745`, which is exactly the
+    silent-failure shape `built=3708 skipped=0 errors=0`. Members are safe (the
+    overlay ages out); the ALERTING is what this closes."""
+    snapshot_db.upsert_rows([_nightly_row("AAA"), _nightly_row("BBB")])
+    _feed(monkeypatch, {})
+    with caplog.at_level("WARNING"):
+        r = live_tier.sweep_job()
+
+    assert r["feed_blackout"] is True
+    assert r["dead_cycle"] is False              # ⛔ the reason this exists
+    assert r["rows_matched"] == 0
+    assert r["rows_kept_nightly"] == 2
+    assert "FEED BLACKOUT" in caplog.text
+
+
+def test_the_blackout_control_a_feed_that_answers_says_nothing(live_env,
+                                                               monkeypatch,
+                                                               caplog):
+    snapshot_db.upsert_rows([_nightly_row("AAA"), _nightly_row("BBB")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0), "BBB": _quote(last=105.0)})
+    with caplog.at_level("WARNING"):
+        r = live_tier.sweep_job()
+    assert r["feed_blackout"] is False
+    assert r["rows_matched"] == 2
+    assert "FEED BLACKOUT" not in caplog.text
+
+
+def test_a_partial_feed_is_not_a_blackout_and_the_receipt_shows_the_denominator(
+        live_env, monkeypatch):
+    """⚠️ The holiday abort measures traded/matched, never matched/considered,
+    so a feed answering for 1 of 3 PASSES it and writes a 1-row overlay. That
+    is honest per row — but the receipt has to expose the denominator or only a
+    human reading `no_feed` can tell an outage from symbol-form drift."""
+    snapshot_db.upsert_rows([_nightly_row("AAA"), _nightly_row("BBB"),
+                             _nightly_row("CCC")])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    r = live_tier.run_sweep()
+    assert r["aborted"] is None
+    assert r["rows_written"] == 1
+    assert r["rows_matched"] == 1 and r["rows_considered"] == 3
+    assert r["skipped"]["no_feed"] == 2
+    assert r["feed_blackout"] is False
+
+
+def test_a_raised_cycle_stamps_an_error_receipt_over_the_last_good_one(
+        live_env, monkeypatch):
+    """⛔ Without this the status endpoint keeps serving the last SUCCESSFUL
+    sweep through a total failure, with a slowly-ageing `swept_at` as the only
+    tell — a health surface reading a proxy instead of the artifact."""
+    from api.services import scan_volume
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    assert live_tier.sweep_job()["rows_written"] == 1
+
+    monkeypatch.setattr(scan_volume, "full_market_snapshot",
+                        lambda: (_ for _ in ()).throw(RuntimeError("provider down")))
+    with pytest.raises(RuntimeError):
+        live_tier.sweep_job()
+
+    last = live_tier.last_receipt()
+    assert last["skipped_reason"] == "error"
+    assert "provider down" in (last["aborted"] or "")
+    assert last["rows_written"] == 0
+    assert set(last) == set(live_tier._blank_receipt())
+
+
+def test_the_ddl_runs_once_per_process_not_once_per_cycle(live_env, monkeypatch):
+    """`init_db` takes the global `snapshot_db._WRITE_LOCK` for a CREATE TABLE,
+    a PRAGMA, an ALTER loop, 8 CREATE INDEX and two executescripts. At ~390
+    cycles a session that is a needless per-minute serialization point against
+    the nightly builder's own writes."""
+    real = snapshot_db.init_db
+    calls = []
+
+    def _counted():
+        calls.append(1)
+        real()
+    monkeypatch.setattr(snapshot_db, "init_db", _counted)
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+
+    for _ in range(3):
+        assert live_tier.run_sweep()["rows_written"] == 1
+    assert len(calls) == 1
+
+    # CONTROL: the flag is per-DB-FILE, so a re-pointed volume re-runs the DDL
+    live_tier._forget_schema()
+    live_tier.run_sweep()
+    assert len(calls) == 2
 
 
 def test_held_lock_ms_is_measured_every_cycle_that_takes_the_lock(live_env,
