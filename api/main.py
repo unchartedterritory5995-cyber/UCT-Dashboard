@@ -1374,6 +1374,51 @@ def register_screener_jobs(scheduler):
             trigger=CronTrigger(hour=2, minute=0, timezone=_ET),
             id="screener_analyst_pass", max_instances=1, replace_existing=True)
 
+    # -- the LIVE TIER sweep: the ONLY intraday screener job ------------------
+    #
+    # Spec: `.superpowers/sdd/live-tier-2026-08-23/00-spec.md` §6/§7/§9.
+    # It re-derives the 22 price-anchored columns into the `screener_live`
+    # OVERLAY table (never into `screener_rows`) from the whole-market snapshot
+    # this pod already refreshes every 30-60s for the /charts preset scans, so
+    # it adds ZERO provider calls in the steady state.
+    #
+    # ⭐ REGISTERED UNCONDITIONALLY, GATED IN THE BODY -- and the spec is of two
+    # minds about this, so the choice is stated rather than left to a reader.
+    # §9 says "off => no job registration"; §7 says "the job still fires every
+    # 60s and returns at step 1 or 2 ... the controller arming the flag needs no
+    # restart". §7 wins because it is the one that discharges CONSTRAINT 4 as
+    # written: `rollback = unset the env var, NO DEPLOY`. A job registered only
+    # under the flag cannot be turned off without one, and "restart to roll
+    # back" is exactly the property a dark launch must not have. The cost when
+    # off is one `os.environ` read per minute, at step 1, before anything else.
+    # ⚠️ The CADENCE is read at registration, so changing
+    # `SCREENER_LIVE_INTERVAL_S` does need a restart; the master flag does not.
+    #
+    # ⛔ IT SHARES `snapshot_builder._BUILD_LOCK` -- `live_tier.run_sweep`
+    # acquires it non-blocking and REFUSES (never queues) when a build holds it,
+    # so the anchors can never be read from a snapshot being rewritten
+    # underneath the sweep. Do not give it a lock of its own.
+    #
+    # ⚠️ MASTER-FLAG COUPLING, same as every job above: this whole function
+    # early-returns on SCREENER_SNAPSHOT_ENABLED=0, so pausing the nightly
+    # snapshot also pauses the overlay. That is the right direction -- a paused
+    # snapshot means the anchors stop advancing, and the serve predicate would
+    # keep serving the overlay against ever-staler levels.
+    from api.services.screener import live_tier
+
+    def _run_live_tier():
+        try:
+            live_tier.sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener live tier error: {e}")
+
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(
+        _run_live_tier,
+        trigger=IntervalTrigger(seconds=live_tier.interval_s()),
+        id="screener_live_tier", max_instances=1, replace_existing=True,
+        coalesce=True)
+
     start_screener_snapshot_warm()
     return True
 
