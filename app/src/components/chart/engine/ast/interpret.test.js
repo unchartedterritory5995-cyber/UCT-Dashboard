@@ -6,6 +6,7 @@ import { parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCE
 import {
   interpret, maxLookback, nodeCount, FN, TableRefusal, REFUSALS, MAX_RECURRENCE_STEPS,
 } from './interpret.js'
+import { DEFAULT_BUDGET } from './budget.js'
 
 /** The repo root, found by walking up — same helper `parse.test.js` uses, and it
  *  THROWS BY NAME rather than defaulting, because a helper that returned a
@@ -364,8 +365,12 @@ describe('the escape census, run in the language the corpus was written for', ()
     expect(outcome).toBe('REFUSAL:budget:nodes')
     // ⭐ THE NUMBER IS WHAT MAKES IT A MEASUREMENT RATHER THAN A CRASH WEARING A
     // LABEL: a caught `RangeError` could not carry a truthful node count.
-    expect(nodeCount(deep)).toBe(40001)
-    expect(measured).toContain('measures 40001')
+    // ⚠️ 20001, NOT 40001, SINCE 2026-08-22: `nodeCount` counts DISTINCT subtrees.
+    // `nestedSum` is `1 + (1 + (1 + …))`, so every depth is its own subtree but all
+    // 20000 `1` leaves are ONE — hence n+1 rather than 2n+1. The point of the
+    // assertion is unchanged: a caught `RangeError` could not carry a truthful count.
+    expect(nodeCount(deep)).toBe(20001)
+    expect(measured).toContain('measures 20001')
   })
 })
 
@@ -578,17 +583,44 @@ describe('maxLookback and nodeCount — measurements, not guards', () => {
     expect(spec, 'the corpus lost its generated deep-tree case').toBeTruthy()
     const n = nestSizeOf(spec.astFrom)
     const deep = nestedSum(n)
-    expect(nodeCount(deep)).toBe(2 * n + 1)
+    // n + 1 distinct: every nesting depth differs, the `1` leaf is shared.
+    expect(nodeCount(deep)).toBe(n + 1)
     expect(maxLookback(deep)).toBe(0)
     // …and one deep enough that a recursive counter certainly dies.
-    expect(nodeCount(nestedSum(200000))).toBe(400001)
+    expect(nodeCount(nestedSum(200000))).toBe(200001)
   })
 
-  it('nodeCount counts every node of an ordinary tree', () => {
+  it('nodeCount counts every DISTINCT subtree of an ordinary tree', () => {
+    // ⭐⭐ DISTINCT, NOT TOTAL, SINCE 2026-08-22. A translated script inlines
+    // rather than names — the closed table cannot bind an intermediate — so a
+    // pasted indicator repeats the same subexpression many times. Charging a
+    // member once per REPEAT bills them for work the interpreter does once.
     expect(nodeCount(ast('close'))).toBe(1)
     expect(nodeCount(ast('sma(close, 20)'))).toBe(3)
-    expect(nodeCount(ast('sma(close, 20) - sma(close, 200)'))).toBe(7)
+    // 6, not 7: two `sma` calls differ, but they SHARE the `close` leaf.
+    expect(nodeCount(ast('sma(close, 20) - sma(close, 200)'))).toBe(6)
     expect(nodeCount(ast('close > open ? high : low'))).toBe(6)
+  })
+
+  it('⭐ a repeated subtree costs ONCE, and a distinct one still costs', () => {
+    // 🔴 THIS IS THE RAIL THAT MAKES THE BUDGET HONEST. `nodeCount` may only
+    // discount a repeat because `interpret` MEMOISES on the same ids. If the memo
+    // is ever narrowed or removed, this pair is what should go red — the count
+    // and the work move together or the budget reports a cost nobody pays.
+    const repeated = ast('sma(close, 20) + sma(close, 20) + sma(close, 20)')
+    const distinct = ast('sma(close, 20) + sma(close, 21) + sma(close, 22)')
+    // both are 11 nodes flat; the repeated one holds far fewer real subtrees
+    expect(nodeCount(repeated)).toBeLessThan(nodeCount(distinct))
+    // ⛔ AND IT IS NOT COLLAPSING EVERYTHING — a tree of genuinely different
+    // subtrees must still be charged for them, or the budget stops bounding.
+    expect(nodeCount(distinct)).toBeGreaterThan(6)
+  })
+
+  it('⛔ …and structurally different nodes never share an id', () => {
+    // A delimiter bug would let `op`+`u-`+`''` collide with `op`+`u`+`-`, and a
+    // collision UNDER-counts — the one direction that stops a guard guarding.
+    expect(nodeCount(ast('close - open'))).toBe(3)
+    expect(nodeCount(ast('close - close'))).toBe(2)
   })
 })
 
@@ -1068,10 +1100,15 @@ describe('the bounded backward offset, evaluated', () => {
     let deep = null
     try { col('sma(close[400], 200)') } catch (e) { deep = e }
     expect(deep?.guard).toBe('budget:lookback')
-    // 500 is the cap, so 499 draws and 501 does not
-    expect(() => col('close[499]')).not.toThrow()
+    // ⛔ THE BOUNDARY IS DERIVED FROM THE CAP, NOT RETYPED BESIDE IT. This read
+    // `close[499]` / `close[501]` against a hard-coded 500, so when the cap moved
+    // to 550 the "one over" case sat 49 bars INSIDE it and the test passed while
+    // proving nothing. A boundary written as a literal stops being a boundary the
+    // moment the thing it bounds moves.
+    const cap = DEFAULT_BUDGET.maxLookback
+    expect(() => col(`close[${cap - 1}]`)).not.toThrow()
     let over = null
-    try { col('close[501]') } catch (e) { over = e }
+    try { col(`close[${cap + 1}]`) } catch (e) { over = e }
     expect(over?.guard).toBe('budget:lookback')
   })
 
@@ -1127,6 +1164,46 @@ describe('the bounded backward offset, evaluated', () => {
 
   it('the offset counts toward the node budget like every other node', () => {
     expect(nodeCount(ast('close[1]'))).toBe(2)
-    expect(nodeCount(ast('close - close[1]'))).toBe(4)
+    // 3, not 4: the offset is its own subtree, but both `close` reads are ONE.
+    expect(nodeCount(ast('close - close[1]'))).toBe(3)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 🔴🔴 THE BUDGET AND THE MEMO MOVE TOGETHER, OR THE BUDGET LIES
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// `nodeCount` discounts a repeated subtree. That is honest ONLY because
+// `interpret` memoises on the same ids and therefore computes it once. Delete
+// the memo and the count keeps discounting — a budget under-reporting real cost
+// is a guard that has stopped guarding, and NOTHING ELSE IN THIS SUITE NOTICES:
+// the memo is a pure speed-up, so every behavioural test stays green without it.
+//
+// ⛔ A SOURCE RAIL, DELIBERATELY. There is no runtime seam that counts
+// evaluations, and inventing one would put a second authority on "did the memo
+// run". This reads the shipped file — the same idiom as `singleWriterIndex` —
+// and fails when the wiring is cut.
+describe('the node budget may only discount what the interpreter actually shares', () => {
+  // ⛔ `SELF`, not a second path literal — this suite already owns that value.
+  const SRC = fs.readFileSync(SELF, 'utf8')
+
+  it('🔴 `nodeCount` counts DISTINCT subtrees via the shared walk', () => {
+    expect(SRC).toMatch(/export function nodeCount[\s\S]{0,200}?structuralMaps\(ast\)\.distinct/)
+  })
+
+  it('🔴 …and `interpret` memoises on the ids from that SAME walk', () => {
+    // the memo must key off `idOf` (identity from structuralMaps), not off
+    // anything it computes for itself
+    expect(SRC).toMatch(/const \{ idOf, freeOf \} = structuralMaps\(ast\)/)
+    expect(SRC).toMatch(/const id = freeOf\.get\(n\) \? idOf\.get\(n\) : undefined/)
+    expect(SRC).toMatch(/if \(id !== undefined && memo\.has\(id\)\) return memo\.get\(id\)/)
+    expect(SRC).toMatch(/if \(id !== undefined\) memo\.set\(id, value\)/)
+  })
+
+  it('⛔ …and the walk refuses to invent an id for a child it has not keyed', () => {
+    // The first version of this walk pushed a placeholder instead, and a 128-deep
+    // chain collapsed to TWO distinct shapes — `nodeCount` answered 2. Silent
+    // fallback = under-count = the one direction that stops a budget guarding.
+    expect(SRC).toMatch(/throw new Error\('structuralMaps: a child was keyed after its parent/)
   })
 })

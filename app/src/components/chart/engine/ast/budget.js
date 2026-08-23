@@ -61,10 +61,21 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  *                     past anything a human composes and far short of anything
  *                     that blocks a frame at the 5,000-bar cap. Measured: the
  *                     whole committed AST corpus tops out at NINE nodes.
- *  maxLookback 500  — the chart holds 5,000 bars on every timeframe, and a
- *                     500-bar warmup already leaves 90% of a full window
- *                     drawable. Above that the user sees a mostly-empty pane and
- *                     reads it as broken. Measured: the corpus tops out at 200.
+ *  maxLookback 550  — the chart holds 5,000 bars on every timeframe, and a
+ *                     550-bar warmup still leaves 89% of a full window drawable.
+ *                     Above that the user sees a mostly-empty pane and reads it
+ *                     as broken. Measured: the corpus tops out at 524.
+ *                     ⚠️ 500 UNTIL 2026-08-22, and the move is recorded rather
+ *                     than smoothed over: a NESTED recurrence legitimately needs
+ *                     TWO warmups. Script 10's trailing stop is `accum` inside
+ *                     `accum` — the outer needs the inner correct across its own
+ *                     250-bar window — so 250 + 250 + ATR's 22 + 1 = 524, and the
+ *                     old cap refused the whole trailing-stop family by 24 bars.
+ *                     ⛔ The UX rule did NOT change, only the number it yields:
+ *                     90% became 89%, which is half a percent of one pane against
+ *                     every SuperTrend-shaped script a member can paste. If this
+ *                     ever needs to move again, move it for a reason of the same
+ *                     kind — never to make one script pass.
  *  maxSeriesRefs 8  — spec §5's perf budget is ≤60 series and ≤8 panes per
  *                     chart; eight base-series reads inside ONE definition is
  *                     already the whole pane budget's worth of data in a single
@@ -93,7 +104,7 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  */
 export const DEFAULT_BUDGET = Object.freeze({
   maxNodes: 128,
-  maxLookback: 500,
+  maxLookback: 550,
   maxSeriesRefs: 8,
 })
 

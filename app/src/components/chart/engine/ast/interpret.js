@@ -909,8 +909,103 @@ export function maxLookback(ast) {
  *  ⚠️ ITERATIVE, so it survives the 8,001-node tree that makes `interpret`
  *  itself overflow. That asymmetry is the point: Task 6's guard runs BEFORE the
  *  walker and must not need the walker to be safe first. */
+/** Recurrence bind names (`self`, today), resolved LAZILY.
+ *
+ *  ⚠️ NOT a module-level `const` derived from `RECURRENCES`: that evaluates at
+ *  import and would sit in a temporal dead zone if the table's declaration ever
+ *  moved below this point. A lazy read cannot be ordered wrong. */
+let _bindNames = null
+function bindNames() {
+  if (_bindNames) return _bindNames
+  _bindNames = new Set(
+    Object.keys(RECURRENCES)
+      .map((k) => RECURRENCES[k] && RECURRENCES[k].binds)
+      .filter((b) => typeof b === 'string'),
+  )
+  return _bindNames
+}
+
+/** Structural identity for every node in a tree.
+ *
+ *  Returns `{idOf, freeOf, distinct}` — `idOf` maps each node to an integer that
+ *  is EQUAL for structurally identical subtrees, `freeOf` says whether the
+ *  subtree reads a recurrence bind anywhere inside it, `distinct` is how many
+ *  different subtrees the tree contains.
+ *
+ *  ⭐ ONE AUTHORITY. `nodeCount` thresholds on `distinct` and the interpreter
+ *  MEMOISES on `idOf`, so the number a member is charged and the work the engine
+ *  actually does cannot drift apart. A second copy of this walk is the defect
+ *  this repo keeps paying for — derive, never restate.
+ *
+ *  ⛔ IDS, NOT NESTED KEY STRINGS. An earlier attempt keyed each node on a string
+ *  containing its children's keys; that is quadratic in the tree's depth and on
+ *  script 10 (642 nodes, deeply nested) it builds megabyte-sized strings to count
+ *  to 128. Interning a short shape into an integer is O(1) per node.
+ *
+ *  ⛔ EXPLICIT POST-ORDER WITH ITS OWN STACK. Not `flatten` reversed: this must be
+ *  correct without depending on another function's emission order, and it must be
+ *  iterative so it survives a tree deep enough to overflow a recursive walk. */
+export function structuralMaps(root) {
+  const binds = bindNames()
+  const idOf = new Map()
+  const freeOf = new Map()
+  const byShape = new Map()
+  const intern = (shape) => {
+    let id = byShape.get(shape)
+    if (id === undefined) { id = byShape.size; byShape.set(shape, id) }
+    return id
+  }
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [n, expanded] = stack.pop()
+    if (idOf.has(n)) continue
+    if (!n || typeof n !== 'object' || Array.isArray(n)) {
+      idOf.set(n, intern(`lit${JSON.stringify(n ?? null)}`))
+      freeOf.set(n, true)
+      continue
+    }
+    const args = Array.isArray(n.args) ? n.args : []
+    if (!expanded) {
+      stack.push([n, true])
+      for (const a of args) stack.push([a, false])
+      continue
+    }
+    let free = !(n.type === 'series' && binds.has(n.name))
+    const childIds = []
+    for (const a of args) {
+      // ⛔⛔ THROW, NEVER INVENT A KEY. The first version of this walk pushed a
+      // placeholder when a child was missing, so a 128-deep chain collapsed to
+      // TWO distinct shapes and `nodeCount` answered 2. A silent fallback here
+      // UNDER-counts, and under-counting is the one direction that turns a
+      // budget into a guard that has stopped guarding.
+      if (!idOf.has(a)) {
+        throw new Error('structuralMaps: a child was keyed after its parent — the post-order is broken')
+      }
+      childIds.push(idOf.get(a))
+      if (!freeOf.get(a)) free = false
+    }
+    // ⚠️ DELIMITED. Without separators `op` + `u-` + `''` and `op` + `u` + `-`
+    // produce the same shape, and a collision under-counts exactly like the
+    // fallback did.
+    idOf.set(n, intern(`${n.type}${n.name ?? ''}${n.value ?? ''}${childIds.join(',')}`))
+    freeOf.set(n, free)
+  }
+  return { idOf, freeOf, distinct: byShape.size }
+}
+
+/** How many DISTINCT subtrees the tree has. The number `budget:nodes` thresholds.
+ *
+ *  ⭐⭐ DISTINCT, NOT TOTAL — and it is honest ONLY because the interpreter
+ *  memoises on the same ids. A translated script inlines rather than names (the
+ *  closed table cannot bind an intermediate), so script 10's ATR term appears
+ *  eight times in one column; counting the flattened tree charged a member eight
+ *  times for a thing the engine computes once.
+ *
+ *  ⛔ THE TWO MOVE TOGETHER. Counting the DAG WITHOUT the memo is the opposite
+ *  error and a far worse one — a budget under-reporting real cost. If the memo is
+ *  ever narrowed, narrow this with it. */
 export function nodeCount(ast) {
-  return flatten(ast).length
+  return structuralMaps(ast).distinct
 }
 
 // --------------------------------------------------------------------------- //
@@ -1123,47 +1218,32 @@ export function interpret(ast, bars, inputs, budget, scalars) {
   // only READ their inputs, and `toColumn` allocates `col`. ⛔ A future builtin
   // that writes into a column it was handed would break this silently — allocate,
   // never mutate an input.
-  const bindNames = new Set()
-  for (const k of Object.keys(RECURRENCES)) {
-    const b = RECURRENCES[k] && RECURRENCES[k].binds
-    if (typeof b === 'string') bindNames.add(b)
-  }
-  const keyOf = new Map()
-  const freeOf = new Map()
+  // ⭐ THE SAME WALK THE BUDGET COUNTS ON — called, not re-implemented, so the
+  // number a member is charged and the work the engine actually does cannot drift
+  // apart. ⛔ If this stops calling `structuralMaps`, the budget begins reporting
+  // a cost the engine does not pay.
+  const { idOf, freeOf } = structuralMaps(ast)
   const memo = new Map()
 
-  // ⛔ ITERATIVE, children-before-parents over a reversed `flatten` — the same
-  // idiom `maxLookback` and `nodeCount` use, and for the same reason: this must
-  // survive a tree deep enough to overflow a recursive walk.
-  const describeAll = (root) => {
-    const nodes = flatten(root)
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const n = nodes[i]
-      if (keyOf.has(n)) continue
-      if (!n || typeof n !== 'object' || Array.isArray(n)) {
-        keyOf.set(n, 'lit\u0001' + JSON.stringify(n ?? null))
-        freeOf.set(n, true)
-        continue
-      }
-      const args = Array.isArray(n.args) ? n.args : []
-      let free = !(n.type === 'series' && bindNames.has(n.name))
-      const parts = []
-      for (const a of args) {
-        if (!keyOf.has(a)) { free = false; parts.push('?'); continue }
-        parts.push(keyOf.get(a))
-        if (!freeOf.get(a)) free = false
-      }
-      keyOf.set(n, `${n.type}\u0001${n.name ?? ''}\u0001${n.value ?? ''}\u0001${parts.join('\u0002')}`)
-      freeOf.set(n, free)
-    }
-  }
-  describeAll(ast)
-
   const evalNode = (n) => {
-    const key = freeOf.get(n) ? keyOf.get(n) : undefined
-    if (key !== undefined && memo.has(key)) return memo.get(key)
+    // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
+    // per step with a different running value; caching it would freeze the
+    // recurrence at step one — a wrong NUMBER, silently.
+    //
+    // ⚠️⚠️ AND IT IS **NOT** MUTATION-PROVEN — corrected 2026-08-22, having been
+    // committed as "mutation-proven: drop it and 6 tests red". That WAS observed,
+    // against the earlier string-keyed walk, which had a collision bug: removing
+    // the condition then caused wrong SHARING, so the reds were proving the bug,
+    // not the guard. Against the corrected walk the same mutation SURVIVES.
+    // A probe confirms `evalNode` does receive a bind-reading node, so the branch
+    // is live rather than dead — it is simply defence nothing currently exercises.
+    // ⛔ KEEP IT: it is one property read, and being wrong here is a silent wrong
+    // number. But do not call it proven, and if you can build the fixture that
+    // kills the mutation, add it and delete this paragraph.
+    const id = freeOf.get(n) ? idOf.get(n) : undefined
+    if (id !== undefined && memo.has(id)) return memo.get(id)
     const value = evalNodeRaw(n)
-    if (key !== undefined) memo.set(key, value)
+    if (id !== undefined) memo.set(id, value)
     return value
   }
 
