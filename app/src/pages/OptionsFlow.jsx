@@ -608,6 +608,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  const [searchCP, setSearchCP] = useState("All");  // Search Top-Trades C/P filter: All | C | P
   // ─── OI-Confirmation state for Search ─────────────────────────────────────
   // Toggle to filter Search bull/bear totals to only trades on contracts
   // whose OI grew in the days after the trade — separating real position
@@ -7577,12 +7578,24 @@ export default function OptionsFlowDashboard() {
                 if (dateFilter === "All") return rows;
                 if (dateFilter.startsWith("Last")) {
                   const n = parseInt(dateFilter.replace("Last",""))||3;
-                  // recent-N dates computed from THESE rows, chronologically —
-                  // never from the main dataset (which may not contain them).
-                  const uniq = [...new Set(rows.map(t => t.Dt && t.Dt.trim()).filter(Boolean))]
+                  // "Last N" = the last N MARKET trading days (calendar window), NOT
+                  // the last N dates THIS ticker traded. A thin name (few active days)
+                  // must not silently reach past the N-day window: GEMI has ~14 active
+                  // days over 6 months, so "last 90 of its OWN dates" = all of them,
+                  // back to Feb, under a "90d" badge. Derive a cutoff DATE from
+                  // availableDates (the fetched market calendar) and keep ticker rows
+                  // on/after it.
+                  //
+                  // This is a `>=` cutoff compare, NOT the set-MEMBERSHIP against
+                  // availableDates that caused the 2026-07-18 intermittent zero-out
+                  // (a bad-overlap membership dropped EVERY row → NEUTRAL/$0). A cutoff
+                  // can't zero out: an empty/absent calendar returns rows unfiltered,
+                  // and format is aligned through mdyToDate on both sides.
+                  const mkt = [...availableDates].map(d => d && d.trim()).filter(Boolean)
                     .sort((a,b) => mdyToDate(a) - mdyToDate(b));
-                  const recent = new Set(uniq.slice(-n));
-                  return rows.filter(t => t.Dt && recent.has(t.Dt.trim()));
+                  if (!mkt.length) return rows;
+                  const cutoff = mdyToDate(mkt[Math.max(0, mkt.length - n)]);
+                  return rows.filter(t => { if(!t.Dt) return false; const d = mdyToDate(t.Dt.trim()); return d >= cutoff; });
                 }
                 return rows.filter(t => t.Dt && t.Dt.trim() === dateFilter);
               };
@@ -7906,7 +7919,7 @@ export default function OptionsFlowDashboard() {
                           cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:!oiConfirmedOnly?P.bu+"22":"transparent", color:!oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title="Premiums reflect flow that TRADED in the selected date range (matches the range buttons above)."
+                        title={"In-window flow — ALL directional premium that TRADED in the selected date range (matches the range buttons above). An ACTIVITY read: it counts a position even if it has since been closed. The dim ‘Still open’ subline shows how much of that flow is still on the book. → Switch to ‘Still open (all)’ to headline only what’s still open."}
                       >
                         {_windowBtnLabel}
                       </button>
@@ -7925,7 +7938,7 @@ export default function OptionsFlowDashboard() {
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
                           color:oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Positions still open by Live OI. Clicking auto-fetches live OI, then shows what's still on the book."}
+                        title={stillOpenComputable ? "Still open (all) — headlines ONLY positions still on the book by Live OI (current OI still near its peak, i.e. not closed/rolled/profit-taken), REGARDLESS of when they opened. A POSITIONING read: it drops window flow that’s since been closed and INCLUDES older builds opened before this window that are still on. Range-independent (unlike ‘in-window flow’)." : "Still open (all) — positions still on the book by Live OI, regardless of when they opened. Clicking auto-fetches Live OI, then headlines only what’s still open (drops closed positions, includes older still-open builds)."}
                       >
                         {(fetchLoading && oiConfirmedOnly && !stillOpenComputable) ? "Still open \u00b7 fetching\u2026" : "Still open (all)"}
                       </button>
@@ -7952,17 +7965,40 @@ export default function OptionsFlowDashboard() {
                           a ticker's whole history under a "1d" badge. FRMI read
                           $34.2M / 557 trades across 91 days when the day itself
                           was $200K / 6. The totals were never wrong; nothing
-                          said what they covered. */}
+                          said what they covered. 2026-08-23: the label below now
+                          anchors to the SELECTED window (range + active/total day
+                          count) instead of the ticker's first/last print, and the
+                          "Last N" scope is real market days, not the ticker's own
+                          (see _scopeAllDirectional). */}
                       {(() => {
                         const ds = [...new Set(ccTrades.map(t => t.Dt).filter(Boolean))];
                         if (!ds.length) return null;
-                        const key = s => { const p = String(s).split("/"); return (parseInt(p[0])||0)*100 + (parseInt(p[1])||0); };
-                        ds.sort((a,b) => key(a) - key(b));
-                        const multi = ds.length > 1;
+                        const activeDays = ds.length;                 // days THIS ticker printed flow
+                        // Anchor to the SELECTED WINDOW (what you picked), not the ticker's
+                        // first/last print — so "All" reads "1/2 – 8/21 · 40/157 active days"
+                        // even though VSAT had no flow before 5/26. winDays mirrors the
+                        // rail's own day count (Search.jsx range logic). 2026-08-23.
+                        const _md = s => { s=String(s||""); if(!s) return ""; if(s.includes("-")){const p=s.split("-");return `${+p[1]}/${+p[2]}`;} const p=s.split("/"); return `${+p[0]}/${+p[1]}`; };
+                        const _last = availableDates.length ? availableDates[availableDates.length-1] : "";
+                        let ws="", we="", winDays=0;
+                        if (dateFrom && dateTo) {
+                          ws=dateFrom; we=dateTo;
+                          winDays = availableDates.filter(d => { const iso=mdyToIso(d); return iso>=dateFrom && iso<=dateTo; }).length;
+                        } else if (dateFilter === "All") {
+                          ws=availableDates[0]||""; we=_last; winDays=availableDates.length;
+                        } else if (dateFilter.startsWith("Last")) {
+                          const n=parseInt(dateFilter.replace("Last",""))||1;
+                          winDays=Math.min(n, availableDates.length);
+                          ws=availableDates[Math.max(0, availableDates.length-n)]||""; we=_last;
+                        } else { ws=dateFilter; we=dateFilter; winDays=1; }
+                        const rangeTxt = (ws && we && ws!==we) ? `${_md(ws)} – ${_md(we)}` : (ws ? _md(ws) : "");
+                        const label = (winDays<=1)
+                          ? (rangeTxt || `${activeDays} active`)
+                          : `${rangeTxt} · ${activeDays} active day${activeDays!==1?"s":""}`;
                         return (
-                          <div style={{ fontSize:9, color:multi?P.ac:P.dm, marginTop:3, fontWeight:multi?700:400 }}
-                               title={multi ? "Search shows this ticker's full flow across every loaded date — not just the selected day." : "Single trading day."}>
-                            {multi ? `across ${ds.length} trading days · ${ds[0]} – ${ds[ds.length-1]}` : `${ds[0]} only`}
+                          <div style={{ fontSize:9, color:P.ac, marginTop:3, fontWeight:700 }}
+                               title={`Selected window${rangeTxt?` (${rangeTxt})`:""}: ${tk.s} printed directional flow on ${activeDays} of its ${winDays} trading day${winDays!==1?"s":""}. "Still open (all)" can also include positions opened before this window.`}>
+                            {label}
                           </div>
                         );
                       })()}
@@ -8047,7 +8083,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <button onClick={_fetchAllSearchOI} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
@@ -8055,13 +8091,37 @@ export default function OptionsFlowDashboard() {
                     </button>
                     <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
                     {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                    {/* C/P filter for the Top-Trades table — isolate the active
+                        calls vs puts (green Calls / red Puts). Table-only; the
+                        Net Direction / Bull / Bear cards above stay unfiltered. */}
+                    <div style={{ marginLeft:"auto", display:"flex", gap:4, alignItems:"center" }}>
+                      <span style={{ fontSize:9, color:P.dm, marginRight:2 }}>Show</span>
+                      {[{k:"All",l:"All",c:P.ac},{k:"C",l:"Calls",c:P.bu},{k:"P",l:"Puts",c:P.be}].map(o => {
+                        const on = searchCP===o.k;
+                        return (
+                          <button key={o.k} onClick={()=>setSearchCP(o.k)}
+                            style={{ padding:"4px 10px", borderRadius:6, cursor:"pointer",
+                              border:"1px solid "+(on?o.c:P.bd), background:on?o.c+"22":"transparent",
+                              color:on?o.c:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit" }}>
+                            {o.l}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   {/* Top Trades table — panelFn intentionally omitted. The
                       outer modal-version of renderDetailPanel (just below)
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" \u2014 Top Trades \u00b7 "+(_useOpen ? "still open (all dates)" : _rangeLabel)} sub={(_useOpen ? _tkTradesFull : _tkTradesScoped).length+" total"}><TT rows={_useOpen ? _tkTradesFull : _tkTradesScoped} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  {(() => {
+                    const _base = _useOpen ? _tkTradesFull : _tkTradesScoped;
+                    const _rows = searchCP === "All" ? _base : _base.filter(r => r.CP === searchCP);
+                    const _cpLabel = searchCP === "C" ? " \u00b7 calls" : searchCP === "P" ? " \u00b7 puts" : "";
+                    return (
+                      <Card title={tk.s+" \u2014 Top Trades \u00b7 "+(_useOpen ? "still open (all dates)" : _rangeLabel)+_cpLabel} sub={_rows.length+" total"}><TT rows={_rows} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                    );
+                  })()}
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
