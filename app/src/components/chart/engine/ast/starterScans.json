@@ -7,7 +7,7 @@
   "_no_sentence": "NO READ-BACK IS FROZEN HERE, and that is the one place this file deliberately differs from `conceptVocabulary.json`. The card's blurb is `sentenceFor(tree)` in the browser and `sentence_for(tree)` on the server -- derived on every render from the tree that IS the scan. A hand-written blurb would be a second description of one tree and the prose one is the one that drifts (D-A5).",
   "_no_hash": "NO `def_hash` IS PRECOMPUTED HERE. The handle is `astHash` over the tree, minted by the shipped save path when a member installs one; a catalogue that carried its own copy would be a second registry and two authorities over one identity.",
   "_ungrounded_rule": "A SETUP WITH NO EXPRESSIBLE CONDITION IS NAMED, NOT APPROXIMATED. The member trusts the firm's name on a starter, so a scan that half-means `High Tight Flag` is worse than no scan (AMENDMENT 1's refusal rule, applied to the library). Each reason names its setup and says what is missing -- a column, a published threshold, or the cadence -- because those are three different decisions for the owner. And `rsi(close,14)` is NOT available to close a gap here: E-A9 is open and out of scope, so a setup needing a function the table does not declare stays ungrounded until that phase happens.",
-  "version": "2026-08-23.1",
+  "version": "2026-08-23.2",
   "starters": {
     "Classic Flag/Pullback": {
       "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
@@ -227,6 +227,65 @@
           "column": "hvc_52w"
         }
       ]
+    },
+    "Remount": {
+      "source": "(close < sma(close, 50))[1] && above_50sma",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "offset",
+            "value": 1,
+            "args": [
+              {
+                "type": "op",
+                "name": "<",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "above_50sma"
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "classifier",
+          "module": "api.services.screener.technicals",
+          "function": "compute_technicals",
+          "label": "above_50sma",
+          "windows_from": [
+            "_sma"
+          ]
+        },
+        {
+          "kind": "filter_preset",
+          "key": "above_50sma",
+          "preset": "Yes"
+        }
+      ]
     }
   },
   "_ungrounded": {
@@ -240,7 +299,7 @@
     "Wedge Drop": "Wedge Drop is Wedge Pop inverted and stays ungrounded for the mirrored reason: the converging boundaries that define a wedge exist in no column the table declares, in no preset that `FILTERS['pattern']` ships, and in no scalar the pattern engine surfaces -- its names ride `pattern_engine_ids`, a comma-joined list excluded by shape.",
     "Episodic Pivot": "Episodic Pivot is a gap on a MAJOR CATALYST in a neglected name. The gap and the volume are expressible -- `gap_pct` and `vol_ratio` are declared with published thresholds -- and the earnings-dated flavour of the trade already ships as the Power Earnings Gap starter. The catalyst itself is what the table cannot check: it declares no `news` column and no filing column, and a scan called Episodic Pivot that returned every 3% gapper would be putting the firm's name on a guess.",
     "2B Reversal": "2B Reversal turns on a PRIOR EXTREME being broken and not held, and the offset node that landed in `291c9d8a` finally lets a formula read the bar where the break failed. WHICH extreme is still unsayable: naming it needs `lowest(low, N)` or `highest(high, N)`, and no artifact at the firm publishes an N. The functions exist; the number is still nobody's.",
-    "Kicker Candle": "Kicker Candle is a TWO-BAR relationship -- yesterday closes weak, today gaps over yesterday's high and holds it -- and as of 2026-08-23 it clears every gate `starter_library._admit` runs: `((close - low) / (high - low))[1] <= 0.33 && open > high[1] && close > high[1]` is canonical, inside budget, a yes-or-no condition, and grounded whole (0.33 is `close_position`'s `Bottom third (<0.33)` preset and the citation resolves). Even the server read-back that refused it on 8/22 renders now -- `c6ae15171` ported the offset rule into `definition_concierge`. What refuses it is a THIRD walker: the Conditions picker. `builder/criteria.js` reads num, series, call and op and has no row for the offset node, so `fromAst` hands back `picker:node` -- 'this formula uses a construction the picker has no row for' -- and the catalogue's own rail, that a shipped starter must open in the Conditions door, goes red. A starter a member cannot edit is the one thing the gallery exists to prevent. Port the offset row into the picker and Kicker Candle ships exactly as written.",
+    "Kicker Candle": "Kicker Candle is a TWO-BAR relationship -- yesterday closes weak, today gaps over yesterday's high and holds it -- and as of 2026-08-23 `((close - low) / (high - low))[1] <= 0.33 && open > high[1] && close > high[1]` clears every gate `starter_library._admit` runs: canonical, inside budget, a yes-or-no condition, grounded whole (0.33 is `close_position`'s `Bottom third (<0.33)` preset and the citation resolves) and read back by BOTH sentence lanes. The blocker is no longer a lagging walker -- the Conditions picker learned the offset construction the same day, and `open > high[1]` opens there now. It is the FIRST CLAUSE: `(close - low) / (high - low)` is an ARITHMETIC TERM, and arithmetic terms are the one shape the picker deliberately does not take, so it refuses with `picker:term` -- 'one side of a comparison here is a longer expression than a single value, name or function call'. That is a recorded design decision rather than staleness: arithmetic makes a term a TREE one layer below the row, so every term slot in every row shape would become a recursive editor. One substitution unblocks it and it is the owner's call, not this file's: the closed table already declares `close_position` -- `the close's position inside the bar's range`, which is exactly what the clause rebuilds (`setup_score.py` computes `(c - l) / rng`) -- so `close_position[1] <= 0.33 && open > high[1] && close > high[1]` is the same setup spelled with the firm's own column and it opens in every door today. Swapping the clause changes the frozen tree and needs its own grounding run, so it is recorded here rather than done.",
     "News Gappers": "News Gappers is the same gap the firm's `Gappers holding gains` starter screen publishes (`gap_pct >= 3 && above_50sma`) -- and, since the flagship presets landed, its bigger cousin `Gap Movers` (`gap_pct >= 8` on 3x volume) -- with one extra claim the table cannot check: that the gap was news-driven. It declares no `news` column, so a member scanning News Gappers would get index rebalances and sympathy moves under a name that promised a catalyst. Ship the screens under their own names, or declare a news column.",
     "4B Setup (Stan Weinstein)": "4B Setup (Stan Weinstein) is a STAGE call -- where the symbol sits in Weinstein's four-stage cycle, read off a 30-week line and its slope. The firm now labels stages: the screener carries `stage2` and `stage4` booleans off the breadth store, with `Weinstein Stage 2` and `Weinstein Stage 4` filters. But both sit in the closed table's excluded list, so there is still no `stage4` scalar a formula can read; the slope booleans beside them (`ema10_rising`, `ema20_rising`) are excluded too, and nothing anywhere measures the 30-week line. Promote the stage booleans and the stage half of this setup grounds in one line.",
     "Failed H&S/Rounded Top": "Failed H&S/Rounded Top is a pattern defined by NOT resolving: everyone sees the top, the breakdown does not come. The offset node (`291c9d8a`) can now read the bars where the breakdown should have printed -- that half of the old objection is gone -- but the NECKLINE is still unnameable: it needs a swing lookback, `lowest(low, N)`, whose N nobody at the firm publishes, and no `neckline` column exists to carry it precomputed.",
@@ -251,7 +310,6 @@
     "Slingshot": "Slingshot is defined against the 4-period exponential average OF THE HIGHS. `ema` takes any series and `high` is declared, so the shape is within the grammar's reach -- but 4 is not a window any firm artifact publishes, and a starter that picked one would be inventing the setup's own definition. The missing thing is the number, not the grammar.",
     "Oops Reversal": "Oops Reversal gaps BELOW the prior day's low and closes back through it, and the offset node from `291c9d8a` made the whole thing sayable without one invented number: `open < low[1] && close > low[1]` names both bars exactly. What Oops Reversal does not have is a citation -- no starter screen, no preset and no labelled branch of firm code encloses that definition, and the catalogue's rule is that an uncited tree is somebody's opinion rather than the firm's answer. Adjudicated 8/22: the uncited-tree rule is structural (`resolve_grounding` refuses a tree with zero citations, and zero literals waives nothing), so Oops Reversal stays refused until a firm artifact encloses its definition.",
     "News Failure": "News Failure is a headline that does not hold. It needs the headline, and the table declares no `news` column -- the gap that also refuses News Gappers and Episodic Pivot -- and the FAILURE half needs the headline's date besides, to say the move since it has been given back. A nightly snapshot row can check neither half today.",
-    "Remount": "Remount requires the symbol to have been BELOW its average and to be back above it, and as of 2026-08-23 `(close < sma(close, 50))[1] && above_50sma` clears every gate `starter_library._admit` runs -- including both that used to refuse it. The 50 is the firm's own number at last: a `classifier` citation over `api.services.screener.technicals.compute_technicals`, the branch that writes `above_50sma` off `_sma(closes, 50)`, RESOLVES and publishes 20, 50 and 200, with the `Yes` preset naming the scalar; and the server read-back landed in `c6ae15171`. One refusal is left and it is not the grammar -- `builder/criteria.js` never got the offset node either, so the Conditions picker refuses the tree with `picker:node` and the rail that says a shipped starter must open in that door goes red. The offset node is now proven in four walkers and missing from one. Port the picker's row and Remount ships as written.",
     "Red to Green": "Red to Green turns on the zero line -- open below the prior close, close back above it -- and the offset node from `291c9d8a` made that exact sentence legal with no threshold at all: `open < close[1] && close > close[1]`. Two things keep it refused: no firm artifact encloses that definition for a citation to resolve, and the sweep reads the LAST CONFIRMED bar, so a list under this name would show transitions that finished yesterday while the firm trades Red to Green as a live intraday trigger. Adjudicated 8/22: both blockers stand -- zero literals does not waive the citation rule, and the cadence mismatch is the product's honesty line, not a vocabulary gap -- so Red to Green stays refused.",
     "Opening Range Breakout": "Opening Range Breakout is an INTRADAY setup and the sweep is a last-confirmed-DAILY-bar screen. Blocked on cadence (design section 8.5), not on vocabulary: the opening range is not a column the nightly snapshot holds.",
     "Opening Range Breakdown": "Opening Range Breakdown is the short side of the same intraday range and is blocked on the same cadence: the sweep runs on the last confirmed daily bar and the snapshot carries no opening range.",
