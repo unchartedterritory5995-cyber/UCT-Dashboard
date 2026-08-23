@@ -772,3 +772,42 @@ def test_pattern_expectancy_r_tells_the_member_the_R_is_ASSUMED():
     # Non-vacuity control: the extractor sees ONE entry, not the whole file —
     # a neighbouring block does not carry the word.
     assert "assumed" not in _column_def_block("pattern_engine_conf")
+
+
+def test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view():
+    """⛔ A FILTER CATEGORY WITH NO VIEW BEHIND IT IS A HALF-SHIPPED FAMILY.
+
+    Found on 2026-08-23 by OPENING THE SCREEN, not by a test: Waves 5-6 shipped
+    the pattern engine, dark-pool/options positioning and the ownership/short
+    block — each with its own filter category — and not one of their columns
+    appeared in ANY view. A member could filter on dark-pool notional and then
+    have no way to SEE it short of hand-picking the column out of the picker.
+    Measuring the gap found three MORE families in the same state since Waves
+    1-2 (`context`, `events`, `multi_candle`).
+
+    ⭐ DERIVED BOTH SIDES — categories come from `FILTERS` and columns from
+    `VIEWS`, so a family added tomorrow is covered the day it lands. `my_scans`
+    is exempt BY NAME and for a reason: its filter selects membership in a
+    saved scan, it is not a column family, and there is no column to show.
+    """
+    view_cols = {c for v in filters.VIEWS.values() for c in v["columns"]}
+    by_cat: dict[str, list[str]] = {}
+    for key, f in filters.FILTERS.items():
+        by_cat.setdefault(f.get("category"), []).append(f.get("column") or key)
+
+    invisible = {
+        cat: cols for cat, cols in by_cat.items()
+        if cat != "my_scans" and not (set(cols) & view_cols)
+    }
+    assert not invisible, (
+        "these filter families are filterable but INVISIBLE — no view shows any "
+        f"of their columns: { {k: sorted(v)[:4] for k, v in invisible.items()} }")
+
+
+def test_every_view_is_LABELLED_and_leads_with_the_ticker():
+    """The two things a view must get right to be usable at all."""
+    for vkey, v in filters.VIEWS.items():
+        assert v.get("label"), f"{vkey} has no label"
+        assert v["columns"][0] == "ticker", (
+            f"{vkey} must lead with ticker; leads with {v['columns'][0]}")
+        assert len(v["columns"]) == len(set(v["columns"])), f"{vkey} repeats a column"

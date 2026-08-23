@@ -559,6 +559,46 @@ VIEWS = {
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
         "vol_updown_ratio", "rs_line_trend", "chg_pct_1d"]},
+    # ⭐ THE THREE VIEWS BELOW EXIST BECAUSE SOMEBODY OPENED THE SCREEN
+    # (2026-08-23). Waves 5-6 shipped three whole data families — the pattern
+    # engine, dark-pool/options positioning, and the ownership/short block —
+    # each with its own filter category and, measured on prod, NOT ONE of them
+    # visible in ANY of the eight views. A member could filter on dark-pool
+    # notional and then have no way to SEE it short of hand-picking the column.
+    # A filter category with no view behind it is a half-shipped family; these
+    # close that. (Nothing rails "every filter category has a view" — the gap
+    # was invisible to 400+ green tests and obvious in one screenshot.)
+    "patterns": {"label": "Patterns", "columns": [
+        "ticker", "company", "pattern_engine_ids", "pattern_engine_conf",
+        "pattern_engine_dir", "pattern_expectancy_r", "pattern_entry_dist_pct",
+        "pattern_stop_dist_pct", "patterns", "pattern_conf_max",
+        "candle_score"]},
+    "flow": {"label": "Positioning & Flow", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "dp_notional_1d",
+        "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
+        "opt_net_premium_1d", "opt_bull_pct_1d", "opt_net_premium_5d"]},
+    "ownership": {"label": "Ownership & Short", "columns": [
+        "ticker", "company", "shares_outstanding", "float_shares", "float_pct",
+        "inst_pct", "inst_trans_pct", "insider_own_pct", "insider_trans_pct",
+        "short_float_pct", "short_ratio", "optionable", "shortable"]},
+    # …and measuring the gap found three MORE families in the same state —
+    # `context`, `events` and `multi_candle` were filterable-but-unviewable
+    # since Waves 1-2. Closing all six makes the invariant below TRUE, which is
+    # what lets it become a rail instead of a wish.
+    "events": {"label": "Events & Analysts", "columns": [
+        "ticker", "company", "next_earnings_date", "days_to_earnings",
+        "earnings_session", "implied_move_pct", "last_report_move_pct",
+        "earnings_setup_grade", "analyst_consensus", "pt_upside_pct",
+        "upgrades_30d", "downgrades_30d"]},
+    "context": {"label": "Context", "columns": [
+        "ticker", "company", "theme", "in_uct20", "index_sp500", "index_ndx",
+        "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
+        "hvc_52w"]},
+    "candles": {"label": "Candles", "columns": [
+        "ticker", "company", "candle_type", "close_position", "body_pct",
+        "upper_wick_pct", "lower_wick_pct", "tight_consolidation", "nr7",
+        "inside_bar_run", "higher_lows_run", "pullback_depth_pct",
+        "consecutive_up", "consecutive_down"]},
 }
 
 CATEGORIES = [
