@@ -377,3 +377,64 @@ that stops a guard guarding.
 4. Regenerate the corpus measured; expect `saveable` 11 -> 12.
 5. Mutations: count back to `flatten().length` · memo dropped · self-free scoping
    dropped (already proven lethal).
+
+---
+
+# WAVE 1 SHIPPED · WAVE 2 WAS THE WRONG PLAN (2026-08-22)
+
+## Wave 1 — done
+`saveable` **11 → 12**; translating and saveable are the same set. `nodeCount`
+counts DISTINCT subtrees via `structuralMaps`, the one walk `interpret` also
+memoises on. Script 10: **642 → 57 nodes**. `maxLookback` 500 → 550 (owner call —
+a nested recurrence honestly needs two 250-bar warmups; the UX rule held, 90% of
+the pane drawable became 89%). Interned ids, explicit post-order, and a missing
+child THROWS rather than taking a placeholder.
+
+⚠️ CORRECTED: the memo's self-free scoping was committed as "mutation-proven". It
+was not — those reds came from the OLD walk's collision bug. Against the corrected
+walk that mutation survives. The branch is live (probed); the guard stays; the
+comment now says plainly it is unproven.
+
+## 🔴 WAVE 2 (bounded-loop unrolling) UNLOCKS NOTHING — DO NOT BUILD IT
+
+The premise was "Pine loops are overwhelmingly `for i = 0 to 19`, so unroll them".
+**Measured against the actual corpus, that is false twice over:**
+
+1. **NOT ONE refusing script refuses at a loop guard.** They stop earlier — at
+   `pine:state`, `pine:builtin`, `pine:function`, `pine:request`.
+2. The loops that exist mostly iterate COLLECTIONS — `array.size(...)`,
+   `matrix.rows(...)`, `obs.size()` — which is a different, deliberate refusal
+   (`pine:collection`). A literal-range unroller does not touch them.
+
+⛔ This is why a wave gets re-measured before it gets built: the plan was written
+from what Pine looks like in general, not from what THIS corpus does.
+
+## What the remaining nine actually need — measured, not assumed
+
+| script | guard | token | verdict |
+|---|---|---|---|
+| 02-ict-retracement | `pine:state` | `entry_signal[1]` | engine — recurrence family |
+| 04-superguppy | `pine:request` | `security` | ⛔ BY DESIGN (multi-symbol) |
+| 05-mtf-structure | `pine:request` | `request.security` | ⛔ BY DESIGN |
+| 09-on-balance-volume | `pine:function` | `cum` | ⛔ BY DESIGN — the running total that cannot re-seed. **The convergence gate refuses the hand-rolled form for the same reason; the two agree.** |
+| 14-bollinger-fixed-tf | `pine:undefined` | `isintraday` | ⭐ MANIFEST — timeframe booleans |
+| 15-anchored-vwap | `pine:builtin` | `time` | ⭐ MANIFEST — bar timestamp series |
+| 19-strategy-supertrend | `pine:declaration-strategy` | `strategy` | ⛔ BY DESIGN (orders, not a column) |
+| 20-smc-toolkit-udt | `pine:function` | `ta.pivothigh` | ⭐ MANIFEST — then UDTs behind it |
+| 21-volume-profile | `pine:state` | `var float alert_poc = na` | engine — recurrence seeded `na` |
+
+**Ceiling is 12 + 5 = 17 of 21, with FOUR permanent correct refusals.**
+
+## Revised order — cheapest first, and PROBE before committing to any of them
+1. **Manifest additions** (14 `isintraday`/`isdaily`/`isweekly`, 15 `time`,
+   20 `ta.pivothigh`/`ta.pivotlow`). Closed-table work, not engine work.
+   ⛔ PROBE FIRST: add the name, re-run the corpus, and read the NEXT wall. A
+   script may need three more things behind the one that is named today — 20 has
+   user-defined types waiting behind `ta.pivothigh`.
+2. **02 and 21** — both `pine:state`, both adjacent to the shipped plain-name
+   recurrence. 21's `var … = na` seed is the interesting one.
+3. **User-defined types** — only worth it if 20's probe says it is the last wall.
+
+⛔ THE FOUR BY-DESIGN REFUSALS ARE THE ANSWER, NOT A BACKLOG. `request.security`
+is a multi-symbol DATA decision; `strategy.*` places orders; `cum` cannot be
+re-seeded. Counting them as "remaining" is how a finish line moves forever.
