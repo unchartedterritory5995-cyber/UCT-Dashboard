@@ -570,3 +570,39 @@ def test_saved_screens_roundtrip(tmp_path, monkeypatch):
     sid = created.json()["id"]
     assert any(s["id"] == sid for s in client.get("/api/screener/saved-screens").json()["saved"])
     assert client.request("DELETE", f"/api/screener/saved-screens/{sid}").json()["deleted"] is True
+
+
+def test_a_second_build_is_REFUSED_not_queued_and_the_caller_is_TOLD():
+    """⛔ THE GUARD THAT COST FIVE HOURS OF STALE SNAPSHOT TO LEARN.
+
+    2026-08-23: `POST /api/screener/refresh` spawned a daemon thread per call
+    with nothing stopping a second, and `fundamentals_bulk` fetches the WHOLE
+    universe regardless of `max_tickers` — so "just 60 tickers" is not a small
+    build. Three triggers in twenty minutes produced three concurrent
+    whole-universe builds that starved each other; NONE finished, the snapshot
+    went five hours without a completed build, and every call had answered
+    `{"started": true}`. A silent daemon thread that loses a race reports
+    nothing, which is exactly how it hid.
+
+    Two halves, and the second is the one that would have saved the afternoon:
+    the build REFUSES (never queues — a queued twin re-runs the universe the
+    moment the first ends), and the CALLER is told rather than handed an
+    optimistic receipt.
+    """
+    from api.services.screener import snapshot_builder
+
+    assert not snapshot_builder.build_in_flight(), "no build should be running"
+
+    # Hold the lock the way a real in-flight build does.
+    assert snapshot_builder._BUILD_LOCK.acquire(blocking=False)
+    try:
+        assert snapshot_builder.build_in_flight() is True
+        receipt = snapshot_builder.run_build(max_tickers=1)
+        assert receipt["skipped_reason"] == "a build is already in flight"
+        assert receipt["built"] == 0, "a refused build must not claim work"
+    finally:
+        snapshot_builder._BUILD_LOCK.release()
+
+    # …and the lock is released, so the NEXT build is allowed — a guard that
+    # latches on would be worse than none.
+    assert not snapshot_builder.build_in_flight()

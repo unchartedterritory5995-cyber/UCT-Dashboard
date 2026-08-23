@@ -56,6 +56,7 @@ column that came out 0/N by NAME. See ``tests/test_scalar_population_rail.py``.
 import datetime
 import logging
 import os
+import threading
 import time
 
 from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
@@ -566,6 +567,27 @@ def _read_prev_closes() -> dict:
         return {}
 
 
+# ⛔ ONE BUILD AT A TIME, PROCESS-WIDE — and the guard lives HERE, not in the
+# route, because there are two callers: the 03:00 ET nightly job and the admin
+# `POST /api/screener/refresh`. A guard in either caller alone still allows the
+# other to start a second one.
+#
+# 🔴 MEASURED 2026-08-23, and it is why this exists: the refresh route spawned a
+# fresh daemon thread per call with nothing stopping a second. Three manual
+# triggers in twenty minutes produced THREE concurrent whole-universe builds —
+# `fundamentals_bulk` fetches the entire universe regardless of `max_tickers`,
+# so "just 60 tickers" is not a small build — and none of the three ever
+# finished. The snapshot went 5 hours without a completed build while every
+# trigger politely answered `{"started": true}`. A silent daemon thread that
+# loses a race reports nothing, which is exactly how this hid.
+_BUILD_LOCK = threading.Lock()
+
+
+def build_in_flight() -> bool:
+    """True while a build holds the lock. Read-only; for status surfaces."""
+    return _BUILD_LOCK.locked()
+
+
 def run_build(max_tickers=None) -> dict:
     """Build + upsert the snapshot, and REPORT WHAT ACTUALLY LANDED.
 
@@ -583,6 +605,23 @@ def run_build(max_tickers=None) -> dict:
     line could have told anyone. ``errors`` counts rows LOST; it has never
     counted a column that silently came back empty on every row that survived.
     """
+    if not _BUILD_LOCK.acquire(blocking=False):
+        # ⛔ REFUSE, never queue: a queued second build would run the whole
+        # universe again the moment the first finished, doubling provider spend
+        # for a snapshot that is already fresh. The caller gets a receipt that
+        # SAYS SO — `{"skipped": "..."}` is an answer, `{"started": true}` on a
+        # thread that will lose a race is not.
+        log.warning("[screener] build REFUSED — another build already in flight")
+        return {"skipped_reason": "a build is already in flight", "built": 0,
+                "skipped": 0, "errors": 0, "populated": {}, "empty_columns": [],
+                "sources": {}}
+    try:
+        return _run_build_locked(max_tickers)
+    finally:
+        _BUILD_LOCK.release()
+
+
+def _run_build_locked(max_tickers=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
     cap = max_tickers or int(os.environ.get("SCREENER_SNAPSHOT_MAX_PER_RUN", "4000"))

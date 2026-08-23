@@ -156,9 +156,24 @@ def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
 
     Stays `require_admin` — STRICTER than paid, not an exception to it. A paid
     member gets 403 here, and that is the point: this is the only route in the
-    router that spends provider budget."""
+    router that spends provider budget.
+
+    ⛔ ANSWERS `already_in_flight` RATHER THAN STARTING A SECOND ONE. Measured
+    2026-08-23: this route used to spawn a thread per call with nothing stopping
+    a second, and three triggers in twenty minutes produced three concurrent
+    whole-universe builds that starved each other — the snapshot went five hours
+    without a completed build while every call cheerfully returned
+    `{"started": true}`. The guard itself lives in `snapshot_builder` (the
+    nightly job is the other caller and needs the same protection); this reads
+    it so the CALLER learns the truth instead of watching a timestamp that never
+    moves.
+    """
     import threading
     from api.services.screener import snapshot_builder
+    if snapshot_builder.build_in_flight():
+        return {"started": False, "already_in_flight": True,
+                "detail": "a snapshot build is already running; this call did "
+                          "nothing rather than start a competing one"}
     threading.Thread(
         target=lambda: snapshot_builder.run_build(max_tickers=max_tickers),
         daemon=True, name="screener-refresh").start()
