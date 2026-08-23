@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { QUOTES, quoteOfTheDay, dayOrdinal, STRIDE } from './quotes'
+import { QUOTES, quoteOfTheDay, dayOrdinal, TAGS } from './quotes'
+import { strideFor } from './quoteRotation'
 
 // Typography-insensitive form so a curly-vs-straight apostrophe or a trailing
 // period can't hide a duplicate.
@@ -56,6 +57,25 @@ describe('quote library (content contract)', () => {
     const straight = QUOTES.filter((q) => q.t.includes('"')).map((q) => q.t)
     expect(straight).toEqual([])
   })
+
+  it('every entry carries 1–3 theme tags from the fixed vocabulary', () => {
+    const bad = []
+    for (const q of QUOTES) {
+      const ok = Array.isArray(q.tags) && q.tags.length >= 1 && q.tags.length <= 3
+        && q.tags.every((t) => TAGS.includes(t)) && new Set(q.tags).size === q.tags.length
+      if (!ok) bad.push(`${q.t} → ${JSON.stringify(q.tags)}`)
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('every theme has a usable pool — a regime pick must never run dry', () => {
+    // The server picks from the pool carrying a regime's preferred tags; a tag
+    // with a handful of quotes would repeat inside a month.
+    const counts = Object.fromEntries(TAGS.map((t) => [t, 0]))
+    for (const q of QUOTES) for (const t of q.tags) counts[t] += 1
+    const thin = Object.entries(counts).filter(([, n]) => n < 25)
+    expect(thin).toEqual([])
+  })
 })
 
 describe('quoteOfTheDay (rotation contract)', () => {
@@ -80,7 +100,7 @@ describe('quoteOfTheDay (rotation contract)', () => {
     // The legacy YYYYMMDD*97 seed jumped unevenly at month ends and reached only
     // ~141 of 392 quotes across a year of weekdays. A day-ordinal with a stride
     // coprime to the length is a full cycle by construction — assert both halves.
-    expect(gcd(STRIDE, QUOTES.length)).toBe(1)
+    expect(gcd(strideFor(QUOTES.length), QUOTES.length)).toBe(1)
     const seen = new Set()
     const start = new Date(2026, 7, 24)
     for (let i = 0; i < QUOTES.length; i++) {

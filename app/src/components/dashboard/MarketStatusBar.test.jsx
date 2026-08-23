@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import MarketStatusBar, { sessionModel } from './MarketStatusBar'
+import MarketStatusBar from './MarketStatusBar'
+import { sessionModel } from './sessionModel'
 
 let mockSession = { isOpen: true, isPremarket: false, isExtended: false }
 vi.mock('../../hooks/useMarketOpen', () => ({ default: () => mockSession }))
@@ -10,6 +11,12 @@ vi.mock('swr', () => ({ default: () => ({ data: mockSnap }) }))
 
 let mockBreadth = null
 vi.mock('../../hooks/useMobileSWR', () => ({ default: () => ({ data: mockBreadth }) }))
+
+// The quote comes from the server pick (hooks/useQuoteOfTheDay); pin one so
+// the assertions below never depend on the calendar or the API.
+vi.mock('../../hooks/useQuoteOfTheDay', () => ({
+  default: () => ({ quote: { t: 'Only price pays.', a: 'Brian Shannon', src: 'Alphatrends' }, label: null, source: 'server' }),
+}))
 
 beforeEach(() => {
   mockSession = { isOpen: true, isPremarket: false, isExtended: false }
@@ -32,8 +39,9 @@ describe('MarketStatusBar', () => {
     expect(screen.getByText('MARKET OPEN')).toBeInTheDocument()
     expect(screen.getByText(/· \d{1,2}:\d{2}.*ET/)).toBeInTheDocument()
     // ⚠️ A DATE BOMB, FIRED FOR REAL on 2026-08-04. This was `getByText(/—/)`
-    // — "some element contains an em dash" — and the quote is DATE-SEEDED
-    // (`seed * 97 % 392` over a 392-entry library, so it changes every day).
+    // — "some element contains an em dash" — and the quote used to be DATE-SEEDED
+    // (`seed * 97 % 392` over a 392-entry library, so it changed every day; it is
+    // now the server's pick, mocked above — the shape-anchored matcher stays).
     // The day it rotated onto Henry Ford's "…you think you can't — you're
     // right." there were TWO matching elements and `getByText` threw
     // "Found multiple elements". Nothing changed in the component; the calendar

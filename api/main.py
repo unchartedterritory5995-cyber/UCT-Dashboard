@@ -47,6 +47,7 @@ from api.routers import cot as cot_router
 from api.routers import render_panels as render_panels_router
 from api.routers import live_prices as live_prices_router
 from api.routers import ticker_meta as ticker_meta_router
+from api.routers import quote_of_the_day as quote_of_the_day_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import compare as compare_router
 from api.routers import breadth_monitor as breadth_monitor_router
@@ -5875,6 +5876,7 @@ app.include_router(scan_results_router.router)
 # `api/services/journal_two/test_trades.py` (Journal 2.0, live).
 app.include_router(traders.router)
 app.include_router(push.router)
+app.include_router(quote_of_the_day_router.router)   # public: the day's quote, same for site + letter
 app.include_router(charts.router)
 app.include_router(bars_router.router)
 app.include_router(cot_router.router)

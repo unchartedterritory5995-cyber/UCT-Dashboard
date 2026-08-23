@@ -1,5 +1,4 @@
 // app/src/components/tiles/FuturesStrip.jsx
-import { useMemo } from 'react'
 // useMobileSWR, not bare useSWR: this tile polls every 10s and is mounted TWICE
 // (Dashboard renders the desktop and mobile layouts together and hides one with
 // CSS), so a backgrounded tab was costing 8,640 requests/day/user for a strip
@@ -9,18 +8,24 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import UIcon from '../ui/UIcon'
 import styles from './FuturesStrip.module.css'
 import TickerPopup from '../TickerPopup'
-import { quoteOfTheDay } from '../../constants/quotes'
+import useQuoteOfTheDay from '../../hooks/useQuoteOfTheDay'
+import SaveQuoteButton from '../quote/SaveQuoteButton'
 
 // ─── UCT Quote of the Day ─────────────────────────────────────────────────────
 
 function QuoteOfTheDay() {
-  const quote = useMemo(() => quoteOfTheDay(), [])
+  const { quote } = useQuoteOfTheDay()
 
   return (
     <div className={styles.quotePanel}>
       <div className={styles.quoteLabel}><UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 5 }} />Quote of the Day</div>
-      <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
-      <div className={styles.quoteAuthor}>— {quote.a}<span className={styles.quoteSrc}> · {quote.src}</span></div>
+      {quote && (
+        <>
+          <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
+          <div className={styles.quoteAuthor}>— {quote.a}{quote.src && <span className={styles.quoteSrc}> · {quote.src}</span>}</div>
+          <SaveQuoteButton quote={quote} compact />
+        </>
+      )}
     </div>
   )
 }

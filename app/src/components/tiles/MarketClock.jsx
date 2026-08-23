@@ -5,7 +5,7 @@
 // status can never disagree with the Dashboard's session pill.
 import { useEffect, useState } from 'react'
 import useMarketOpen from '../../hooks/useMarketOpen'
-import { sessionModel, nextOpenHint } from '../dashboard/MarketStatusBar'
+import { sessionModel, nextOpenHint } from '../dashboard/sessionModel'
 import styles from './MarketClock.module.css'
 
 function useEtNow() {

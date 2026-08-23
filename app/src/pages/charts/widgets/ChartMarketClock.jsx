@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { sessionModel, nextOpenHint } from '../../../components/dashboard/MarketStatusBar'
+import { sessionModel, nextOpenHint } from '../../../components/dashboard/sessionModel'
 import styles from '../ChartsWorkspace.module.css'
 
 export default function ChartMarketClock() {
