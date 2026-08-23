@@ -185,6 +185,13 @@ def minimal_op(name: str) -> dict:
     return {"type": "op", "name": name, "args": [s() for _ in range(arity)]}
 
 
+def off(child: dict, bars_back) -> dict:
+    """`child[bars_back]` — 291c9d8a's bounded backward offset. The count rides
+    the NODE, never a `num` child (`parse.js::readOffset`'s ruling), so there is
+    no slot for an expression and a forward reference stays inexpressible."""
+    return {"type": "offset", "value": bars_back, "args": [child]}
+
+
 # ═══ 2b. OPERANDS OF EVERY KIND THE MANIFEST CAN DECLARE ═══════════════════
 #
 # 🔴 A PARITY RAIL WHOSE CORPUS CANNOT REACH THE DIVERGENT CASE IS NOT A PARITY
@@ -373,6 +380,37 @@ def corpus() -> Dict[str, dict]:
                 "type": "op", "name": name, "args": [dict(field), dict(other)]}
             out[f"op::{name}::mixed-{i}-field-second"] = {
                 "type": "op", "name": name, "args": [dict(other), dict(field)]}
+
+    # ⭐ THE FIFTH NODE TYPE — `expr[n]`, 291c9d8a's bounded backward offset. An
+    # offset is not a DECLARED entry (the bar count IS the node — `parse.js`'s
+    # own ruling), so no section loop above can ever produce one: it has to be
+    # planted here or the parity rail is structurally BLIND to the one node type
+    # whose Python branch went missing. That blindness is not hypothetical — the
+    # sentence dispatcher refused `offset` BY NAME, its own roster listing it,
+    # for as long as this corpus carried none, and every rail here stayed green.
+    # ⚠️ NO ZERO-OFFSET CASE, AND ITS ABSENCE IS THE PARSER'S RULING: `convert`
+    # FOLDS `x[0]` to `x` (one column, one `astHash`), so `{offset, 0, [x]}` is
+    # a tree no source can parse back to and it cannot ride a round-tripping
+    # corpus. Its identity reading — both walkers render the inner text
+    # unadorned — is railed in section 4c instead.
+    out["offset::series"] = off(s(), 1)
+    out["offset::series-plural"] = off(s(), 3)
+    out["offset::scalar"] = off(s(SCALARS[0]), 1)
+    out["offset::over-an-op"] = off(minimal_op(BINARY_OP), 1)
+    out["offset::over-a-call"] = off(windowed(20), 2)
+    out["offset::inside-an-op"] = {
+        "type": "op", "name": BINARY_OP, "args": [off(s(), 1), s()]}
+    out["offset::inside-a-call"] = {
+        "type": "call", "name": WINDOWED, "args": [off(s(), 1), n(20)]}
+    # …and THROUGH the logical chrome: an offset changes *when*, never *what*,
+    # so a smoothing operator handed offsets of conditions must smooth in BOTH
+    # lanes — the kind has to pass through the offset in each lane's `yields`
+    # resolver for these sentences to come out byte-identical.
+    for name in _binary_operators():
+        for i, other in enumerate(conditions[:1]):
+            out[f"op::{name}::offset-of-condition-{i}"] = {
+                "type": "op", "name": name,
+                "args": [off(dict(other), 1), off(dict(other), 2)]}
 
     out["composite::nested"] = {
         "type": "op", "name": BINARY_OP,
@@ -839,6 +877,114 @@ def test_the_chrome_reads_the_MANIFEST_the_RULES_were_compiled_from(concierge):
         joined(a_number), {}, planted)["text"], (
         f"`{a_number}` was re-declared as a condition and the read-back still "
         "scaffolded — the chrome is reading the shipped manifest, not this one")
+
+
+# ═══ 4c. THE FIFTH NODE TYPE READS BACK — the offset, 291c9d8a's lagging port ═
+#
+# ⛔ THE DISPATCHER REFUSED WHAT ITS OWN ROSTER DECLARED. `NODE_TYPES` (read off
+# `user_definitions.NODE_TYPES`) has said `offset` since 291c9d8a, and the
+# refusal message even spelled it — "the canonical types are num, series, op,
+# call, offset" — while `_render_node` had no branch for it. Every other walker
+# in both lanes handles the node (`assert_canonical`, `ast_budget`, `ast_lint`,
+# `ast_freshness`, `scan_definition`, `interpret`, and the JS lane's
+# `renderOffset`); the server read-back was the ONE laggard, so every member
+# formula containing `expr[n]` refused at readback. These cases rail the branch
+# itself; the BYTE parity with `renderOffset` is pinned where parity lives —
+# the `offset::*` cases in `corpus()`, rendered through the shipped
+# `sentence.js` under node in section 5.
+
+def test_an_offset_over_a_bar_series_reads_back_as_bars_ago(concierge):
+    """`close[1]` → `close 1 bar ago` — singular at exactly one bar, plural
+    beyond it, and the trace names the rule so the sentence is attributable."""
+    got = concierge.explain_sentence(off(s(), 1))
+    assert got["text"] == f"{FIRST_SERIES} 1 bar ago"
+    assert {"path": "$", "rule": "offset"} in got["trace"]
+    assert concierge.sentence_for(off(s(), 3)) == f"{FIRST_SERIES} 3 bars ago"
+
+
+def test_an_offset_over_a_nested_expression_brackets_the_inner_sentence(concierge):
+    """`sma(close, 20)[2]` → `(the …) 2 bars ago` — the child rides
+    `_render_arg`, so a composite is bracketed exactly as it is in every other
+    operand slot and a leaf is not."""
+    inner = concierge.sentence_for(windowed(20))
+    assert concierge.sentence_for(off(windowed(20), 2)) == f"({inner}) 2 bars ago"
+    op_inner = concierge.sentence_for(minimal_op(BINARY_OP))
+    assert concierge.sentence_for(off(minimal_op(BINARY_OP), 1)) \
+        == f"({op_inner}) 1 bar ago"
+
+
+def test_an_offset_of_a_scalar_says_the_manifest_phrase(concierge):
+    """`market_cap[1]` is named legal by 291c9d8a. A scalar rides the `series`
+    node, is a LEAF to `_render_arg`, and reads back as the manifest's own
+    `sentence` — so the offset appends to the phrase, unbracketed, exactly as
+    `renderOffset` renders it (byte-pinned by `offset::scalar` in the corpus)."""
+    name = SCALARS[0]
+    phrase = TABLE[ast_table.SCALARS_SECTION][name]["sentence"]
+    assert concierge.sentence_for(off(s(name), 1)) == f"{phrase} 1 bar ago"
+
+
+def test_offset_zero_reads_as_the_bar_itself(concierge):
+    """⛔ `0` READS AS THE BAR ITSELF, NOT "0 bars ago". `close[0]` is `close` —
+    the identity Pine spells the same way — and `renderOffset` returns the inner
+    text unadorned, so this lane must too. It cannot ride the round-trip corpus:
+    `parse.js::convert` FOLDS `x[0]` to `x`, so the zero-bar tree is unreachable
+    from any source and its identity reading is pinned here instead."""
+    assert concierge.sentence_for(off(s(), 0)) == concierge.sentence_for(s())
+
+
+def test_the_MODEL_BOUNDARY_floor_is_one_bar_because_the_parser_folds_zero(concierge):
+    """⭐ THE `num`-NEGATIVE RULING APPLIED AGAIN. The parser folds `x[0]` to `x`
+    (one column, one `astHash`), so a zero-bar offset is a tree no `source` can
+    parse back to and `defSchema`'s round-trip would refuse it at registration.
+    The boundary refuses it one door earlier, by name — while `value >= 1`
+    spells and round-trips (`close[1]`), and the READ-BACK above still renders
+    a stored zero, because the walker's job is whatever the store holds."""
+    assert concierge.formula_for(off(s(), 1)) == f"{FIRST_SERIES}[1]"
+    for bad in (0, -1, 1.5, True, None):
+        try:
+            concierge.formula_for(off(s(), bad))
+        except Exception as exc:                  # noqa: BLE001 — the gate is the point
+            assert getattr(exc, "gate", None) == "schema:number", (bad, exc)
+        else:
+            raise AssertionError(f"offset value {bad!r} spelled instead of refusing")
+
+
+def test_the_offset_window_boundary_refuses_everything_below_a_whole_bar(concierge):
+    """Below the boundary sits `sentence:window`, the same guard `renderOffset`
+    throws: a negative count, a fraction, a boolean, a string, a missing value,
+    a non-finite float — every one refuses BY NAME rather than rendering
+    English about maths the engine will never run."""
+    for bad in (-1, 1.5, True, "1", None, float("nan"), float("inf")):
+        try:
+            concierge.sentence_for(off(s(), bad))
+        except Exception as exc:                  # noqa: BLE001 — the gate is the point
+            assert getattr(exc, "gate", None) == "sentence:window", (bad, exc)
+        else:
+            raise AssertionError(f"offset value {bad!r} rendered instead of refusing")
+
+
+def test_a_malformed_offset_arity_refuses_first_exactly_as_the_js_lane_does(concierge):
+    """An offset reads exactly one child column. Zero children, two, or a
+    missing `args` is `sentence:arity` — and it fires BEFORE the window check,
+    the order `renderOffset` pins, so a doubly-malformed node refuses at the
+    same door in both lanes."""
+    for args in ([], [s(), s()], None):
+        node = {"type": "offset", "value": 1}
+        if args is not None:
+            node["args"] = args
+        try:
+            concierge.sentence_for(node)
+        except Exception as exc:                  # noqa: BLE001 — the gate is the point
+            assert getattr(exc, "gate", None) == "sentence:arity", (args, exc)
+        else:
+            raise AssertionError(f"offset args {args!r} rendered instead of refusing")
+    # …and the ORDER: bad args AND a bad value refuse on arity, not window.
+    try:
+        concierge.sentence_for({"type": "offset", "value": -1, "args": []})
+    except Exception as exc:                      # noqa: BLE001 — the gate is the point
+        assert getattr(exc, "gate", None) == "sentence:arity", exc
+    else:
+        raise AssertionError("a doubly-malformed offset rendered")
 
 
 # ═══ 5. THE CROSS-LANE RAIL: the Python read-back IS `sentence.js`'s ════════

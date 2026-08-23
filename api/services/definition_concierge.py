@@ -206,9 +206,11 @@ class _Refused(Exception):
 
 TOOL_NAME = "emit_formula"
 
-#: The four canonical node types. Read from the store's own declaration rather
+#: The canonical node types. Read from the store's own declaration rather
 #: than re-typed: a third spelling of the node vocabulary is a third thing to
-#: keep in step.
+#: keep in step. ⚰️ This said "The four" while the tuple it reads had held five
+#: since 291c9d8a's `offset` — a hand-typed count beside the derivation that
+#: owns it, and the very module that kept refusing the fifth type it declared.
 NODE_TYPES: Tuple[str, ...] = tuple(user_definitions.NODE_TYPES)
 
 
@@ -373,6 +375,32 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
                              "maxItems": max(fn_arities or [3])},
                 },
             },
+            # ⭐ THE FIFTH SHAPE CARRIES NO NAME — the bar count IS the node
+            # (`parse.js::readOffset`'s ruling), so there is no enum to derive:
+            # `EXPR[N]` has no slot for an expression, which is what keeps "the
+            # offset is a literal" true by construction in the schema exactly
+            # as it is in the store. ⚰️ Until this entry landed, `oneOf` above
+            # emitted a DANGLING `#/$defs/offset` ref — the roster said five
+            # while the definitions said four.
+            #
+            # ⚠️ `minimum` IS 1, NOT THE STORE'S 0, AND THAT IS THE `num` RULING
+            # APPLIED AGAIN: the ONE parser FOLDS `x[0]` to `x` (one column,
+            # one `astHash`), so a zero-bar offset is a tree no `source` can
+            # parse back to and the round-trip would refuse the definition at
+            # registration. Refusing it here, one door earlier, is the same
+            # refusal with a repair turn attached. The READ-BACK still renders
+            # a stored zero as the bar itself — `renderOffset`'s own leniency,
+            # mirrored — because the walker's job is whatever the store holds.
+            "offset": {
+                "type": "object", "additionalProperties": False,
+                "required": ["type", "value", "args"],
+                "properties": {
+                    "type": {"const": "offset"},
+                    "value": {"type": "integer", "minimum": 1},
+                    "args": {"type": "array", "items": node,
+                             "minItems": 1, "maxItems": 1},
+                },
+            },
         },
     }
 
@@ -448,11 +476,12 @@ def vocabulary_text(table: Optional[Mapping[str, Any]] = None) -> str:
 SYSTEM_PROMPT = (
     "You turn a trader's plain-English description into ONE canonical formula "
     "tree, and you emit nothing else.\n\n"
-    "A tree is built from four node shapes and no others:\n"
+    "A tree is built from these node shapes and no others:\n"
     '  {"type":"num","value":<non-negative number>}\n'
     '  {"type":"series","name":<a series or scalar below>}\n'
     '  {"type":"op","name":<an operator below>,"args":[...]}\n'
-    '  {"type":"call","name":<a function below>,"args":[...]}\n\n'
+    '  {"type":"call","name":<a function below>,"args":[...]}\n'
+    '  {"type":"offset","value":<whole bars back, 1 or more>,"args":[<one node>]}\n\n'
     "Rules that are enforced, not requested:\n"
     "  * every name must come from the vocabulary below; there is no other list\n"
     "  * a window argument must be a plain whole-number node, never an expression\n"
@@ -518,6 +547,31 @@ def _assert_within_schema(tree: Any, table: Optional[Mapping[str, Any]] = None) 
         kind = node["type"]
         if kind == "num":
             _spell_number(node.get("value"))
+            continue
+        if kind == "offset":
+            # ⭐ NO NAME TO CHECK — the bar count IS the node. What the schema
+            # declares is exactly this: a whole number of bars, ONE OR MORE,
+            # over one child. `type(...) is bool` first, as everywhere: a
+            # boolean sails through every obvious numeric guard. Zero is
+            # refused for the `num`-negative reason — the parser FOLDS `x[0]`
+            # to `x`, so a zero-bar node is a tree no source parses back to.
+            value = node.get("value")
+            if (type(value) is bool
+                    or not (isinstance(value, int)
+                            or (isinstance(value, float) and math.isfinite(value)
+                                and value.is_integer()))
+                    or value < 1):
+                raise _Refused(
+                    "schema:number",
+                    f"{value!r} -- a bar offset is a plain whole number of "
+                    "bars backwards, at least one, written on the node itself; "
+                    "a zero-bar offset is spelled as the bar itself")
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 1:
+                raise _Refused(
+                    "schema:node",
+                    f"an offset node carries exactly one child; got {args!r}")
+            stack.extend(args)
             continue
         name = node.get("name")
         if not isinstance(name, str) or name not in names[kind]:
@@ -595,6 +649,13 @@ def formula_for(ast_obj: Any, table: Optional[Mapping[str, Any]] = None) -> str:
             return _spell_number(node["value"])
         if kind == "series":
             return node["name"]
+        if kind == "offset":
+            # ⭐ THE ONE POSTFIX FORM — `close[1]`, `(close - low)[1]`,
+            # `sma(close, 20)[2]`. A composite child is already bracketed by
+            # its own branch, so appending `[n]` round-trips by shape; the
+            # count is an int by the boundary gate above, spelled the way
+            # `String(n)` spells it.
+            return f"{render(node['args'][0])}[{int(node['value'])}]"
         args = [render(a) for a in node["args"]]
         if kind == "call":
             return f"{node['name']}({', '.join(args)})"
@@ -950,6 +1011,8 @@ def _render_node(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
         return _render_op(node, rules, inputs, path, trace)
     if kind == "call":
         return _render_call(node, rules, inputs, path, trace)
+    if kind == "offset":
+        return _render_offset(node, rules, inputs, path, trace)
     raise _SentenceRefused(
         "sentence:node",
         f"at {path}: node type {json.dumps(kind) if isinstance(kind, str) else kind!r} "
@@ -1069,6 +1132,48 @@ def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                      if kind == "int"
                      else _render_arg(node["args"][i], rules, inputs, child, trace))
     return _fill(rule["phrase"], parts, f"function {name}", path)
+
+
+def _render_offset(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
+                   path: str, trace: List[Dict[str, str]]) -> str:
+    """``close[1]`` -> ``close 1 bar ago``. ``sma(close, 20)[2]`` -> ``(the
+    20-bar simple moving average of close) 2 bars ago``.
+
+    ⭐ THE PHRASE IS WRITTEN HERE AND NOT IN THE MANIFEST — ``renderOffset``
+    makes the same call for the same reason: ``closedTable.json`` declares a
+    phrase per NAME (a series, an operator, a function), and an offset names
+    nothing; the bar count IS the node. There is no manifest entry for it to be
+    a second copy of.
+
+    ⛔ ``0`` READS AS THE BAR ITSELF, NOT "0 bars ago". ``close[0]`` is
+    ``close`` — the identity Pine spells the same way — and "close 0 bars ago"
+    is English that makes a reader stop and work out whether it means today or
+    yesterday. The store's canonical floor is ``value >= 0``
+    (``parse.js::readOffset``), so this walker mirrors the JS lane's guard
+    exactly rather than inventing a tighter one.
+    """
+    value = node.get("value")
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 1:
+        shown = len(args) if isinstance(args, list) else repr(args)
+        raise _SentenceRefused(
+            "sentence:arity",
+            f"at {path}: an offset reads exactly one child column, got {shown}")
+    ok = (type(value) is not bool
+          and (isinstance(value, int)
+               or (isinstance(value, float) and math.isfinite(value)
+                   and value.is_integer()))
+          and value >= 0)
+    if not ok:
+        raise _SentenceRefused(
+            "sentence:window",
+            f"at {path}: a bar offset counts whole bars backwards; got {value!r}")
+    trace.append({"path": path, "rule": "offset"})
+    inner = _render_arg(node["args"][0], rules, inputs, f"{path}.args[0]", trace)
+    count = int(value)
+    if count == 0:
+        return inner
+    return f"{inner} {count} bar{'' if count == 1 else 's'} ago"
 
 
 def explain_sentence(ast_obj: Any, inputs: Optional[Mapping[str, Any]] = None,
