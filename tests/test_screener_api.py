@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import pytest
@@ -247,6 +248,13 @@ def _status(client):
     return r.json()
 
 
+def _reporters_key(days=14):
+    """The cache key `implied_store.upcoming_reporters` itself writes — same
+    naive-local clock, so the peek can't read permanently cold."""
+    import datetime as dt
+    return f"impstore::reporters::{days}::{dt.datetime.now().date().isoformat()}"
+
+
 def test_earnings_context_status_is_admin_only(tmp_path, monkeypatch):
     """STRICTER than paid, and shown to be — a paid member is refused and an
     admin is answered, so the gate cannot pass by refusing everybody."""
@@ -272,7 +280,8 @@ def test_the_payload_answers_the_four_worlds_without_a_follow_up_call(tmp_path, 
     function that only ever returns one answer would pass a single-scenario
     test and tell an operator nothing.
     """
-    from api.routers.screener import EARNINGS_CONTEXT_WORLDS
+    from api.routers.screener import (EARNINGS_CONTEXT_POINTERS,
+                                      EARNINGS_CONTEXT_WORLDS)
     from api.services import implied_store, setup_grade
 
     # WORLD 4 — the store and the snapshot agree on a real (symbol, date) pair
@@ -285,7 +294,14 @@ def test_the_payload_answers_the_four_worlds_without_a_follow_up_call(tmp_path, 
 
     body = _status(client)
     assert body["implied"]["world"] == 4
-    assert body["implied"]["reading"] == EARNINGS_CONTEXT_WORLDS[4]
+    # The reading is the world sentence + THAT SOURCE's pointer, and the two
+    # sources must not be handed each other's — a grade operator sent to
+    # `implied.max_captured_at` is looking for a field the grade block lacks.
+    assert body["implied"]["reading"] == (
+        EARNINGS_CONTEXT_WORLDS[4] + " " + EARNINGS_CONTEXT_POINTERS["implied"][4])
+    assert body["grade"]["reading"] == (
+        EARNINGS_CONTEXT_WORLDS[4] + " " + EARNINGS_CONTEXT_POINTERS["grade"][4])
+    assert body["implied"]["reading"] != body["grade"]["reading"]
     assert body["grade"]["world"] == 4
     assert body["join"]["pairs_joining_reader_normalisation"] == 1
     assert body["join"]["pairs_sample"] == ["AAA@2026-08-25"]
@@ -303,8 +319,10 @@ def test_the_payload_answers_the_four_worlds_without_a_follow_up_call(tmp_path, 
     assert body["snapshot"]["next_earnings_date_non_null"] == 2
     assert body["config"]["capture_hour_et"] == implied_store.CAPTURE_HOUR_ET
     assert body["config"]["grade_surface"] == setup_grade.SURFACE
-    # The reading and the number come off ONE mapping, shipped in the payload.
+    # The reading and the number come off TWO mappings, both shipped whole in
+    # the payload so an operator can read a world this call did not return.
     assert body["worlds"]["4"] == EARNINGS_CONTEXT_WORLDS[4]
+    assert body["world_pointers"]["grade"]["4"] == EARNINGS_CONTEXT_POINTERS["grade"][4]
 
     # WORLD 3 — the store holds rows, for a date nothing asks about.
     _seed_implied(tmp_path, monkeypatch, implied_rows=[("AAA", "2026-07-01")])
@@ -384,6 +402,158 @@ def test_the_ask_set_is_read_from_the_reporter_CACHE_and_never_fetched(tmp_path,
     assert "upcoming_reporters" in warm["join"]["basis"]
     assert warm["join"]["dates_in_both"] == ["2026-08-25"]
     assert warm["join"]["dates_ask_only"] == ["2026-09-04"]
+    # The pair axis is read out of the same cached rows, so it is countable too.
+    assert warm["screener_ask"]["pairs"] == 2
+    assert cold["screener_ask"]["pairs"] is None
+
+
+def test_the_pair_axis_reads_the_SAME_artifact_the_date_axis_did(tmp_path, monkeypatch):
+    """🔑 ONE ARTIFACT DECIDES BOTH AXES — the fix this route needed most.
+
+    The reader asks `implied_store.upcoming_reporters`; the snapshot's
+    `next_earnings_date` is written by `earnings_dates`, a DIFFERENT reader over
+    a different provider chain, so the two can carry a different forward date
+    for the same symbol. A verdict whose dates came from the reader and whose
+    (symbol, date) pairs came from the snapshot names the wrong world in exactly
+    the case this endpoint exists to resolve — and it does so in BOTH
+    directions, which is why both are driven here:
+
+      * the reader's own join HITS while the snapshot's date differs → the
+        mixed basis reports WORLD 2, "a normalisation mismatch on the SYMBOL
+        side", with `normalisation_gap` sitting at 0;
+      * a genuine WORLD 3 scope mismatch gets MASKED as a healthy join because
+        the snapshot's older forward date happens to match a stored row.
+
+    ⭐ Each direction carries its control: the identical fixture with the cache
+    COLD, which is the documented snapshot fallback and answers differently. A
+    pair axis still wired to the snapshot would pass one of these by accident;
+    it cannot pass a warm/cold pair that disagree in the direction claimed.
+    """
+    from api.services import implied_store
+
+    client = _admin_client(tmp_path, monkeypatch)
+    key = _reporters_key()
+
+    # ── A · the reader joins, and the snapshot's forward date does NOT ───────
+    _seed_rows_with_earnings([("AAA", "2026-08-26")])
+    _seed_implied(tmp_path, monkeypatch, implied_rows=[("AAA", "2026-08-25")])
+
+    control = _status(client)  # cold: the snapshot decides both axes, and says so
+    assert control["screener_ask"]["state"] == "cold"
+    assert "next_earnings_date" in control["join"]["pairs_basis"]
+    assert control["join"]["pairs_joining_reader_normalisation"] == 0
+
+    implied_store._REPORTERS_CACHE.set(
+        key, [{"sym": "AAA", "report_date": "2026-08-25"}], 60)
+    try:
+        warm = _status(client)
+    finally:
+        implied_store._REPORTERS_CACHE.invalidate(key)
+
+    assert "upcoming_reporters" in warm["join"]["pairs_basis"]
+    assert warm["join"]["dates_in_both_count"] == 1
+    # ⛔ THE ASSERTION THE OLD CODE FAILED: the pair count is the READER's join,
+    # not the snapshot's — the snapshot's own pairs hit nothing and are reported
+    # beside it, so the disagreement stays visible instead of deciding.
+    assert warm["join"]["pairs_joining_reader_normalisation"] == 1
+    assert warm["join"]["snapshot_pairs_in_store"] == 0
+    assert warm["join"]["pairs_ask_only_snapshot_disagrees"] == 1
+    assert warm["join"]["normalisation_gap"] == 0
+    assert warm["implied"]["world"] == 4, warm["implied"]["reading"]
+
+    # ── B · the inverse: a real scope mismatch the snapshot would have hidden ─
+    _seed_rows_with_earnings([("AAA", "2026-07-01")])
+    _seed_implied(tmp_path, monkeypatch, implied_rows=[("AAA", "2026-07-01")])
+
+    control = _status(client)  # cold: the stale snapshot date joins, reading healthy-ish
+    assert control["join"]["pairs_joining_reader_normalisation"] == 1
+    assert control["implied"]["world"] == 4
+
+    implied_store._REPORTERS_CACHE.set(
+        key, [{"sym": "AAA", "report_date": "2026-08-25"}], 60)
+    try:
+        warm = _status(client)
+    finally:
+        implied_store._REPORTERS_CACHE.invalidate(key)
+
+    assert warm["join"]["dates_in_both_count"] == 0
+    assert warm["join"]["pairs_joining_reader_normalisation"] == 0
+    assert warm["join"]["snapshot_pairs_in_store"] == 1  # the probe still says so
+    assert warm["implied"]["world"] == 3, warm["implied"]["reading"]
+
+
+def test_every_pointer_a_reading_gives_names_a_field_the_payload_carries(tmp_path, monkeypatch):
+    """⛔ A POINTER TO A FIELD THAT IS NOT THERE IS WORSE THAN NO POINTER.
+
+    `grade.reading` used to ship the implied source's sentences verbatim, so the
+    likeliest grade outcome told an operator to read `implied.max_captured_at`
+    (the grade block carries `grade.max_date`) and to check a job that is not
+    the one that writes it. This walks EVERY pointer in the mapping — both
+    sources, every world, not just the one this call returned — and resolves
+    each dotted field it names against a real payload.
+    """
+    from api.routers.screener import EARNINGS_CONTEXT_POINTERS
+    from api.services import setup_grade
+
+    client = _admin_client(tmp_path, monkeypatch)
+    _seed_rows_with_earnings([("AAA", "2026-08-25")])
+    _seed_implied(tmp_path, monkeypatch,
+                  implied_rows=[("AAA", "2026-08-25")],
+                  grade_rows=[("AAA", "2026-08-22", setup_grade.SURFACE, "B")])
+    body = _status(client)
+
+    field_re = re.compile(r"\b(config|implied|grade|snapshot|join)\.([a-z_]+)\b")
+    seen = 0
+    for source, by_world in EARNINGS_CONTEXT_POINTERS.items():
+        for world, pointer in by_world.items():
+            named = field_re.findall(pointer)
+            assert named, f"{source} world {world} points at no field at all"
+            for block, field in named:
+                seen += 1
+                assert field in body[block], (
+                    f"{source} world {world} sends the operator to "
+                    f"{block}.{field}, which this payload does not carry")
+    # Control: the walker is really reading the text, and really resolving —
+    # a pointer at a field nobody ships must NOT resolve.
+    assert seen >= 2 * len(EARNINGS_CONTEXT_POINTERS)
+    bogus = field_re.findall("read grade.max_captured_at for the answer")
+    assert bogus == [("grade", "max_captured_at")]
+    assert "max_captured_at" not in body["grade"]
+
+    # …and the two sources genuinely differ where it matters: world 1 is the
+    # likeliest grade outcome and must not send anyone to the implied fields.
+    assert "grade.max_date" in EARNINGS_CONTEXT_POINTERS["grade"][1]
+    assert "implied.max_captured_at" not in EARNINGS_CONTEXT_POINTERS["grade"][1]
+    assert "config.capture_due_by_now" not in EARNINGS_CONTEXT_POINTERS["grade"][1]
+    assert "implied.max_captured_at" in EARNINGS_CONTEXT_POINTERS["implied"][1]
+
+
+def test_an_unreadable_snapshot_is_not_reported_as_an_empty_one(tmp_path, monkeypatch):
+    """`_ec_snapshot_facts` answers an unreadable snapshot honest-None
+    (`rows: None`), which the emptiness branch cannot tell apart from a table
+    that genuinely holds nothing — so the reading named the wrong cause. Both
+    sources must say READ, not empty, and point at `snapshot.error`."""
+    client = _admin_client(tmp_path, monkeypatch)
+    _seed_rows_with_earnings([("AAA", "2026-08-25")])
+    _seed_implied(tmp_path, monkeypatch, implied_rows=[("AAA", "2026-08-25")])
+
+    control = _status(client)  # a readable snapshot still reaches a WORLD
+    assert control["snapshot"]["readable"] is True
+    assert control["implied"]["world"] is not None
+
+    junk = tmp_path / "not-a-database.db"
+    junk.write_bytes(b"this file exists and is not a sqlite database\n")
+    monkeypatch.setenv("SCREENER_DB_PATH", str(junk))
+
+    body = _status(client)
+    assert body["snapshot"]["readable"] is False
+    assert body["snapshot"]["error"]
+    assert body["snapshot"]["rows"] is None  # honest-None, never a fabricated 0
+    assert body["implied"]["world"] is None and body["grade"]["world"] is None
+    for reading in (body["implied"]["reading"], body["grade"]["reading"]):
+        assert "could not be READ" in reading
+        assert "snapshot.error" in reading
+        assert "the screener snapshot itself is empty" not in reading
 
 
 def test_saved_screens_roundtrip(tmp_path, monkeypatch):
