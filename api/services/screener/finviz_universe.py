@@ -130,9 +130,14 @@ _C_IDS = {
     # DELIBERATELY NOT REQUESTED: those exact facts (latest quarter vs the
     # year-ago quarter) already have one writer each — `eps_growth` and
     # `rev_growth`, written by `enrich.ratings_fields` off the provider
-    # metrics (`earnings_growth_fmp`'s module note documents the definition
-    # match, measured 2026-08-06). Requesting them here would put a second
-    # authority over two shipped columns — the repo's cardinal defect.
+    # metrics. ⚠️ Evidentiary asymmetry, stated (2026-08-23 review): the EPS
+    # half is MEASURED (`earnings_growth_fmp`'s module note, 2026-08-06); the
+    # sales half is PLAUSIBLE-NOT-MEASURED — `rev_growth` = yfinance
+    # `info["revenueGrowth"]`, which Yahoo publishes as "Quarterly Revenue
+    # Growth (yoy)" beside the earnings twin, but no repo artifact has
+    # measured it. If that ever proves wrong, the fix is a WRITER SWAP on
+    # `rev_growth`, never a second column here. Requesting 22/23 would put a
+    # second authority over two shipped columns — the repo's cardinal defect.
     "eps_past_5y_growth": 19,
     "eps_next_5y_growth": 20,
     "sales_past_5y_growth": 21,
