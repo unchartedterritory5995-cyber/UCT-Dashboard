@@ -2,9 +2,18 @@
 
 All column names come from the registry (never from the client). Every value is
 bound as a parameter, so the API surface is injection-safe.
+
+This module also owns the READ PATH's live-tier disclosure (`live_tier_state`
+and the `snapshot.live` block below). See the block comment above
+`live_tier_state` for why the surface reads the tier's own facts rather than
+recomputing any of its gates.
 """
+import datetime as _dt
+from zoneinfo import ZoneInfo
+
 from . import filters, scan_store, snapshot_db
 
+_ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
 _MAX_PAGE = 500
 _SCAN_KEY = "scan"
@@ -91,6 +100,271 @@ def build_where(filter_specs, scan_joins=None):
     return where, params
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# THE LIVE TIER, AS THE MEMBER'S SURFACE SEES IT
+#
+# The live tier re-derives a NAMED SUBSET of the snapshot's columns from the
+# live price during the regular session and serves them as an overlay. Two
+# facts about that are the member's business, and a screen that states neither
+# is a lie of omission:
+#
+#   1. WHICH COLUMNS on screen are live, and AS OF WHEN.
+#   2. That everything else -- and, when the overlay is not running, EVERY
+#      column -- is last night's 03:00 build.
+#
+# ⛔ NOTHING HERE RECOMPUTES A GATE THE TIER ALREADY OWNS. Not the flag, not
+# the serve predicate, not the freshness cutoff. `live_tier.enabled()` answers
+# "is it on"; the sweeper's own receipt answers "when did it last run"; the
+# SERVED ROWS answer "did any of it reach this screen". A surface that
+# re-derived "is it serving?" from an env var and a clock would be a second
+# authority over the writer's own decision -- this repo's most repeated defect
+# -- and it would disagree with the writer on precisely the days that matter
+# (a holiday abort, a dead sweeper, a mid-session flag flip).
+#
+# ⛔ AND IT NEVER GUESSES IN THE DIRECTION OF "LIVE". Three refusals:
+#   * the tier module is absent            -> the screen says NIGHTLY (true)
+#   * the tier is on, receipt unreadable   -> the STATUS says `unreadable`,
+#     never `off`. "I cannot tell" and "it is off" are different facts, and
+#     collapsing them is how a broken accessor would read as a healthy screen.
+#   * the tier is on but no served row carries a live value -> the SCREEN says
+#     NIGHTLY, because what is on screen is what the member acts on. The tier's
+#     own state ships beside it (`live.tier`) so an operator can see the
+#     disagreement instead of the member inheriting it.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: The one sentence that says what a live column is measured AGAINST. Owned
+#: server-side so the API and the toolbar cannot phrase the anchor contract
+#: differently -- the surface renders this string, it does not compose its own.
+#: (Spec §1.5: every live column is f(live tick, a level from sessions COMPLETED
+#: through the row's `bars_asof`); today's developing session is never folded in.)
+LIVE_ANCHOR_NOTE = (
+    "Levels — moving averages, 52-week and 20-day extremes, pattern entry and "
+    "stop — are from each row's last completed session and do not move during "
+    "the day. Only the price-derived columns below are live."
+)
+
+#: Where a receipt's timestamp may live, most-specific first. Reported as
+#: `as_of_key` so a receipt that changed shape is visible rather than silently
+#: undated.
+_AS_OF_KEYS = ("swept_at", "live_asof", "as_of", "generated_at")
+
+
+def _live_tier_module():
+    """Import the sibling lane's `live_tier`, or None.
+
+    Catches Exception, not just ImportError: a module that is present but
+    raises at import time must read as "not available", never crash a scan.
+    """
+    try:
+        from api.services.screener import live_tier  # noqa: PLC0415
+        return live_tier
+    except Exception:  # noqa: BLE001 — a disclosure must not break the screen
+        return None
+
+
+def _live_receipt(mod):
+    """The sweeper's last receipt, WITHOUT typing its accessor's name.
+
+    ⛔ The accessor is the sibling lane's to name. Hard-coding one guess and
+    then reading that guess's absence as "the tier is off" is exactly the lie
+    this surface exists to prevent, so the candidates are DERIVED from the
+    module (`dir()`), every name carrying "receipt" is tried in a stable order,
+    and the name that answered is REPORTED (`receipt_source`) alongside the
+    ones that were tried (`receipt_candidates`). If the tier is on and nothing
+    answers, the state is `unreadable` -- named, not silently off.
+
+    ⛔ PUBLIC NAMES ONLY, AND THAT RESTRICTION IS LOAD-BEARING -- IT CAUGHT A
+    REAL FABRICATION. `live_tier` carries `_blank_receipt(**over)`: a private
+    FACTORY that returns a fresh, all-zero receipt stamped `swept_at =
+    time.time()`. It takes no required argument, its name contains "receipt",
+    and it sorts BEFORE the real `last_receipt` -- so a probe that walked
+    private names manufactured a sweep that never happened, timestamped NOW,
+    and the surface reported it as the live tier's as-of (measured 2026-08-23,
+    against the real module). A private helper is not a contract; a factory is
+    not a fact. Only public names are considered, and a tier that exposes its
+    receipt privately reads as `unreadable` -- the honest direction.
+
+    ⚠️ It still CALLS what it finds, so the substring is the guard: the module
+    also exposes `run_sweep()` -- zero-arg, public, and it would sweep. Widen
+    the match at your peril.
+
+    Returns ``(receipt|None, source_name|None, candidates)``.
+    """
+    try:
+        names = sorted(n for n in dir(mod)
+                       if "receipt" in n.lower() and not n.startswith("_"))
+    except Exception:  # noqa: BLE001
+        return None, None, []
+    for name in names:
+        try:
+            attr = getattr(mod, name)
+            value = attr() if callable(attr) else attr
+        except Exception:  # noqa: BLE001 — wrong arity / not ready yet
+            continue
+        if isinstance(value, dict) and value:
+            return value, name, names
+    return None, None, names
+
+
+def _receipt_as_of(receipt):
+    """``(as_of, key)`` off a receipt — a unix float or an already-formatted
+    string, whichever the writer used. Honest-None when neither is present."""
+    if not isinstance(receipt, dict):
+        return None, None
+    for key in _AS_OF_KEYS:
+        value = receipt.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value), key
+        if isinstance(value, str) and value.strip():
+            return value.strip(), key
+    return None, None
+
+
+def _et_clock(as_of):
+    """A member-readable ET wall clock for `as_of`, or None. A string as_of is
+    passed through untouched — reformatting a timestamp we did not parse would
+    be inventing precision."""
+    if isinstance(as_of, str):
+        return as_of
+    if isinstance(as_of, (int, float)) and not isinstance(as_of, bool):
+        try:
+            return _dt.datetime.fromtimestamp(as_of, _ET).strftime("%H:%M:%S ET")
+        except (OverflowError, OSError, ValueError):
+            return None
+    return None
+
+
+def live_tier_state() -> dict:
+    """What the LIVE TIER itself is doing — facts, read off the tier.
+
+    `state` is one of:
+      * ``unavailable`` — the module is not installed on this pod
+      * ``off``         — installed, `enabled()` is false (the shipped default)
+      * ``on``          — installed, enabled, and its last receipt was read
+      * ``unreadable``  — installed and enabled, but NO receipt could be read.
+                          ⛔ This is deliberately not `off`: the overlay may be
+                          writing while this surface is blind to it, and the
+                          honest answer to "is the screen live?" is then
+                          "I cannot tell", which the toolbar renders as nightly
+                          WITH the reason, never as silence.
+
+    `config` is derived from the module's own scalar UPPERCASE constants rather
+    than a list typed here, so a constant the sibling lane adds tomorrow shows
+    up without an edit on this side.
+    """
+    mod = _live_tier_module()
+    if mod is None:
+        return {
+            "state": "unavailable", "available": False, "enabled": None,
+            "enabled_error": None, "columns": [], "column_count": 0,
+            "receipt": None, "receipt_source": None, "receipt_candidates": [],
+            "as_of": None, "as_of_et": None, "as_of_key": None, "config": {},
+            "reason": "The live overlay is not running on this pod.",
+            "note": ("the live tier is not installed on this pod — every "
+                     "column is from the 03:00 build"),
+        }
+    try:
+        enabled = bool(mod.enabled())
+        enabled_error = None
+    except Exception as e:  # noqa: BLE001 — missing/raising flag reads as OFF
+        enabled, enabled_error = False, f"{type(e).__name__}: {e}"
+    try:
+        columns = [str(c) for c in (getattr(mod, "LIVE_COLUMNS", None) or [])]
+    except Exception:  # noqa: BLE001
+        columns = []
+    receipt, source, candidates = _live_receipt(mod)
+    as_of, as_of_key = _receipt_as_of(receipt)
+    config = {}
+    try:
+        for name in sorted(n for n in dir(mod) if n.isupper()):
+            value = getattr(mod, name, None)
+            if isinstance(value, (int, float, str, bool)):
+                config[name] = value
+    except Exception:  # noqa: BLE001
+        config = {}
+    # TWO SENTENCES PER CONDITION, ONE BRANCH — different audiences, never a
+    # second decision. `note` is the operator's line on the status endpoint,
+    # where it stands alone; `reason` is the CAUSE CLAUSE the toolbar appends
+    # after its own "every column is from the 03:00 build" lead. Folding the
+    # lead into `reason` is what made the popover read *"…is from the 03:00
+    # build. …is from the 03:00 build."* — the defect was invisible in every
+    # green test and obvious the moment the rendered text was read.
+    if not enabled:
+        state = "off"
+        reason = "The live overlay is switched off."
+        note = "the live overlay is switched off — every column is from the 03:00 build"
+    elif receipt is None:
+        state = "unreadable"
+        reason = ("The live overlay is switched on, but no sweep receipt could "
+                  "be read — it may not have run yet.")
+        note = ("the live overlay is switched on, but no sweep receipt could be "
+                "read — it may not have run yet, or this surface cannot see it; "
+                "treat every column as the 03:00 build until one appears")
+    else:
+        state = "on"
+        reason = None
+        note = "the live overlay is switched on"
+    return {
+        "state": state, "available": True, "enabled": enabled,
+        "enabled_error": enabled_error,
+        "columns": columns, "column_count": len(columns),
+        "receipt": receipt, "receipt_source": source,
+        "receipt_candidates": candidates,
+        "as_of": as_of, "as_of_et": _et_clock(as_of), "as_of_key": as_of_key,
+        "config": config, "reason": reason, "note": note,
+    }
+
+
+def live_screen_state(rows, tier=None) -> dict:
+    """What THIS RESULT SET is: live, or last night's snapshot.
+
+    ⭐ THE VERDICT IS DERIVED FROM THE ROWS BEING SERVED, never from the flag.
+    `live_row` is the 0/1 marker the overlay join stamps on a row it overlaid;
+    a page where no row carries it is a page of nightly values, whatever the
+    tier believes about itself. That is what makes this honest in the one
+    direction that matters — and it means the disclosure lights up the day the
+    join lands, with no edit here, because the evidence is the artifact.
+
+    ⚠️ The counts are PAGE-scoped and say so (`scope_note`). A whole-result-set
+    `rows_live` has to come from the same statement that returned the rows
+    (spec §8.4/R13); counting it a second way here would be exactly the drift
+    `run_scan`'s `total` comment already refuses.
+    """
+    tier = tier if tier is not None else live_tier_state()
+    rows = rows or []
+    live_n = sum(1 for r in rows if r.get("live_row"))
+    state = "live" if live_n else "nightly"
+
+    if state == "live":
+        off_reason = None
+    elif not rows:
+        off_reason = "This screen returned no rows, so there is nothing to describe."
+    elif tier.get("reason"):
+        off_reason = tier["reason"]
+    else:
+        aborted = (tier.get("receipt") or {}).get("aborted")
+        off_reason = ("No row in this result carries a live value"
+                      + (f" — the last sweep reported {aborted}." if aborted
+                         else " — the overlay has not reached these symbols."))
+
+    return {
+        "state": state,
+        "as_of": tier["as_of"] if state == "live" else None,
+        "as_of_et": tier["as_of_et"] if state == "live" else None,
+        "columns": tier["columns"] if state == "live" else [],
+        "column_count": tier["column_count"] if state == "live" else 0,
+        "rows_on_page": len(rows),
+        "live_rows_on_page": live_n,
+        "scope_note": ("counted on the rows this page returned, not on the "
+                       "whole result set"),
+        "anchor_note": LIVE_ANCHOR_NOTE,
+        "off_reason": off_reason,
+        "tier": tier,
+    }
+
+
 def run_scan(spec):
     spec = spec or {}
     scan_joins = []
@@ -148,10 +422,22 @@ def run_scan(spec):
         # the price of a missing-data bug -- and a screen that quietly returns
         # fewer names looks like a quiet market.
         snap = snapshot_db.describe_rows(conn, where, params)
+    out_rows = [dict(r) for r in rows]
+    # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
+    #
+    # `snapshot` is already this response's provenance object and is already
+    # threaded to the toolbar's Seal (`ScannerShell.jsx` passes
+    # `snapshot={result?.snapshot}`), which is the surface that owns "how old
+    # is what I am looking at". Putting the live block anywhere else would mean
+    # either a second copy in the payload -- two addresses one consumer can read
+    # and a later edit can drift -- or a disclosure wired to a prop nobody
+    # passes, which is the built-tested-green-and-unreachable failure this repo
+    # has already paid for twice. One block, one address, reachable today.
+    snap["live"] = live_screen_state(out_rows)
     # `total` IS the described row count. One `GROUP BY` already counted every
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.
-    return {"total": snap["rows"], "rows": [dict(r) for r in rows],
+    return {"total": snap["rows"], "rows": out_rows,
             "view": view_key, "view_columns": out_columns,
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,
             "page": page, "page_size": page_size, "scan_joins": scan_joins}

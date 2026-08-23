@@ -145,8 +145,27 @@ def screener_snapshot_status(user=Depends(require_paid)):
     is honest, but it is NOT the snapshot's age: measured 2026-08-09, the MAX
     was carried by ONE row out of 3,589 while 3,583 were 28 days stale, and a
     gate reading it waved a month-old universe through (E-3 report §3).
+
+    ⭐ `live` IS THE SAME QUESTION FOR THE OTHER TIER, ON THE SAME ENDPOINT.
+    During the regular session a flag-gated overlay re-derives a named subset
+    of these columns from the live price. This block carries that tier's state,
+    its last sweep's AS-OF, and its per-cycle RECEIPT verbatim
+    (`live.receipt` — the counts and the per-reason `skipped` map the sweeper
+    logged), so the surface, the controller arming the flag, and this endpoint
+    all read ONE source instead of three.
+
+    ⛔ IT IS ONE ENDPOINT ON PURPOSE. A separate `/live-status` beside this one
+    would be a second authority over "how fresh is the screener", and the two
+    would answer differently the moment a caller polled one and not the other.
+
+    ⛔ `live.state == "unreadable"` IS NOT `"off"`. Enabled-but-unreadable means
+    the overlay may be writing while this surface is blind to it; the honest
+    answer is "I cannot tell", and the member-facing screen renders that as
+    nightly WITH the reason rather than as silence. The whole block is built by
+    `query.live_tier_state()` — read the block comment above it before changing
+    any of these words.
     """
-    return scr_db.status()
+    return {**scr_db.status(), "live": scr_query.live_tier_state()}
 
 
 @router.post("/api/screener/refresh")
