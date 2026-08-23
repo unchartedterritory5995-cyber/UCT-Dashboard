@@ -75,6 +75,17 @@ COLUMNS = [
     # `eps_growth`/`rev_growth` above already carry those exact facts — see
     # finviz_universe's `_C_IDS` comment.
     "eps_past_5y_growth", "eps_next_5y_growth", "sales_past_5y_growth",
+    # per-pattern engine flags (Wave 6) — ONE writer, `pattern_join`, which
+    # states the rule in its docstring. 1 = the engine has an active detection
+    # of THIS pattern; 0 = it has active detections and none is this one;
+    # NULL = it has no active detection for the symbol at all. ⛔ The third
+    # case is why these are not defaulted to 0: "the engine says no" and "the
+    # engine has not looked" are different facts, and only NULL carries the
+    # second. ⚠️ These are the pattern ENGINE's answer, not the always-on
+    # `patterns` heuristic beside them — the two vocabularies share the key
+    # strings `vcp`/`flat_base` on purpose (pattern_join's D6 note) and are
+    # different instruments, which is why the names carry `engine`.
+    "pattern_engine_vcp", "pattern_engine_flat_base",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -113,7 +124,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "pattern_engine_dir", "dp_prints_1d",
         # Wave 6 (T6) -- Finviz Yes/No flags stored 0/1 (bool parse class in
         # finviz_universe; anything else is honest-None, never a guessed 0).
-        "optionable", "shortable"}
+        "optionable", "shortable",
+        # Wave 6 -- per-pattern engine flags stored 0/1 (never a guessed 0;
+        # an unscanned symbol stays NULL -- see `pattern_join`).
+        "pattern_engine_vcp", "pattern_engine_flat_base"}
 
 
 # ---------------------------------------------------------------------------

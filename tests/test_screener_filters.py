@@ -811,3 +811,89 @@ def test_every_view_is_LABELLED_and_leads_with_the_ticker():
         assert v["columns"][0] == "ticker", (
             f"{vkey} must lead with ticker; leads with {v['columns'][0]}")
         assert len(v["columns"]) == len(set(v["columns"])), f"{vkey} repeats a column"
+
+
+# ───────── Wave 6 — per-pattern engine flags (the formula lane's unlock) ────
+
+def test_pattern_engine_flags_are_preset_free_bool_controls():
+    """⭐ THE CONTROL SHIPS AND NO OPINION SHIPS WITH IT.
+
+    Yes/No over a stored 1/0 is what the flag IS — there is no other boundary a
+    reasonable trader could pick, which is the same reasoning that lets
+    `optionable`/`shortable` ship Yes/No while `pe_ttm` ships bare. Nothing
+    editorial rides here: no confidence floor, no "high-quality VCP" threshold.
+    """
+    for key in ("pattern_engine_vcp", "pattern_engine_flat_base"):
+        f = filters.FILTERS[key]
+        assert f["type"] == "bool", key
+        assert f["category"] == "pattern", key
+        assert [p["label"] for p in f["presets"]] == ["Any", "Yes", "No"], key
+        yes = next(p for p in f["presets"] if p["label"] == "Yes")
+        no = next(p for p in f["presets"] if p["label"] == "No")
+        assert (yes["op"], yes["value"]) == ("eq", 1), key
+        assert (no["op"], no["value"]) == ("eq", 0), key
+        assert f["allow_custom"] is False, key
+        assert f["unit"] is None, key
+        assert filters.is_valid_op(key, "eq"), key
+    # ⛔ AND THE LABEL SAYS WHICH ENGINE ANSWERED. The always-on `patterns`
+    # heuristic ships its own "VCP"/"Flat Base" presets on the `pattern` enum
+    # over a different column; two controls reading "VCP" over two different
+    # instruments is the second-authority defect wearing one word.
+    for key in ("pattern_engine_vcp", "pattern_engine_flat_base"):
+        assert "engine" in filters.FILTERS[key]["label"].lower(), key
+    enum_labels = [p["label"] for p in filters.FILTERS["pattern"]["presets"]]
+    assert "VCP" in enum_labels and "Flat Base" in enum_labels
+    assert filters.FILTERS["pattern"]["column"] == "patterns"
+
+
+def test_the_flag_controls_are_derived_from_the_ONE_writer():
+    """⛔ DERIVED, NOT TYPED. `pattern_join._PATTERN_FLAG_COLUMNS` is the single
+    authority on which per-pattern flags exist; a flag that gains a column and
+    no control is a populated column a member cannot search on — the exact gap
+    `test_every_column_the_bulk_pass_fills_has_a_filter_control` exists for,
+    which does not reach this writer.
+    """
+    from api.services.screener import pattern_join
+    written = set(pattern_join._PATTERN_FLAG_COLUMNS)
+    assert written, "the writer declares no flags — this rail would be vacuous"
+    by_column = {f["column"] for f in filters.FILTERS.values()}
+    missing = sorted(written - by_column)
+    assert not missing, (
+        f"`pattern_join` writes {missing} and the registry offers no control — "
+        f"the column is populated and unscreenable through the classic door")
+    # …and every flag has a seat in a view, so the member can SEE the answer.
+    seen = set()
+    for v in filters.VIEWS.values():
+        seen |= set(v["columns"])
+    assert not sorted(written - seen), sorted(written - seen)
+
+
+def test_pattern_engine_flags_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
+    """Registry -> build_where -> SQL -> rows. 🔴 THE NULL ROW IS THE POINT: a
+    symbol the engine never answered for is returned by NEITHER Yes NOR No, so
+    the control can never present "the engine has not looked" as "no VCP"."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "COIL", "pattern_engine_vcp": 1, "pattern_engine_flat_base": 0,
+         "snapshot_date": "2026-08-23", "built_at": 1},
+        {"ticker": "BASE", "pattern_engine_vcp": 0, "pattern_engine_flat_base": 1,
+         "snapshot_date": "2026-08-23", "built_at": 1},
+        {"ticker": "DARK", "pattern_engine_vcp": None, "pattern_engine_flat_base": None,
+         "snapshot_date": "2026-08-23", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(spec):
+        return sorted(r["ticker"] for r in query.run_scan(spec)["rows"])
+
+    assert tickers({"filters": [
+        {"key": "pattern_engine_vcp", "op": "eq", "value": 1}]}) == ["COIL"]
+    assert tickers({"filters": [
+        {"key": "pattern_engine_vcp", "op": "eq", "value": 0}]}) == ["BASE"]
+    assert tickers({"filters": [
+        {"key": "pattern_engine_flat_base", "op": "eq", "value": 1}]}) == ["BASE"]
+    # DARK appears in NEITHER answer for either flag.
+    for key in ("pattern_engine_vcp", "pattern_engine_flat_base"):
+        both = set(tickers({"filters": [{"key": key, "op": "eq", "value": 1}]})) | \
+               set(tickers({"filters": [{"key": key, "op": "eq", "value": 0}]}))
+        assert "DARK" not in both, key

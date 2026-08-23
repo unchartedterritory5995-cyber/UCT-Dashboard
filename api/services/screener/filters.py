@@ -519,6 +519,25 @@ FILTERS = dict([
                 "opt_bull_pct_1d", unit="%"),
     _open_range("opt_net_premium_5d", "Options Net Premium (5d)", "flow",
                 "opt_net_premium_5d", unit="$"),
+    # ── Wave 6: per-pattern engine flags (pattern) ──
+    # ⭐ WHY A BOOL AND NOT A SEVENTH ENTRY ON THE `pattern` ENUM ABOVE. That
+    # enum's presets are `contains` over `patterns` — the always-on HEURISTIC
+    # column — and its "VCP"/"Flat Base" labels already name that instrument.
+    # Adding the engine's answer there would put two authorities under one
+    # label; these are separate controls whose labels SAY which engine
+    # answered, and the columns beneath them are the engine's.
+    #
+    # Preset-free in the sense E-8 means: Yes/No over a stored 1/0 is what the
+    # flag IS, not a threshold anybody chose (the `optionable`/`shortable`
+    # precedent). `_bool` ships no editorial number and there is none to ship.
+    #
+    # ⚠️ A NULL flag is returned by NEITHER Yes NOR No, by construction — the
+    # engine has no active detection for that symbol, and a control that
+    # counted it as "No" would answer a question it has no data for.
+    _bool("pattern_engine_vcp", "VCP (Pattern Engine)", "pattern",
+          "pattern_engine_vcp"),
+    _bool("pattern_engine_flat_base", "Flat Base (Pattern Engine)", "pattern",
+          "pattern_engine_flat_base"),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -571,7 +590,8 @@ VIEWS = {
     "patterns": {"label": "Patterns", "columns": [
         "ticker", "company", "pattern_engine_ids", "pattern_engine_conf",
         "pattern_engine_dir", "pattern_expectancy_r", "pattern_entry_dist_pct",
-        "pattern_stop_dist_pct", "patterns", "pattern_conf_max",
+        "pattern_stop_dist_pct", "pattern_engine_vcp",
+        "pattern_engine_flat_base", "patterns", "pattern_conf_max",
         "candle_score"]},
     "flow": {"label": "Positioning & Flow", "columns": [
         "ticker", "company", "price", "chg_pct_1d", "dp_notional_1d",

@@ -72,7 +72,38 @@ column; Task A6's builder derives `pattern_entry_dist_pct` /
 `pattern_stop_dist_pct` from them against the row's own price and then
 discards them (they never reach `screener_rows`).
 
-**as-of family: `snapshot_date`, for all four persisted columns (K6).**
+**PER-PATTERN 0/1 FLAGS — this module is their ONE writer.** `pattern_engine_ids`
+is TEXT and permanently excluded from the closed table by shape, and
+`pattern_engine_conf` carries a confidence with no NAME attached, so a formula
+could not ask *"is this a VCP?"*. `_PATTERN_FLAG_COLUMNS` below maps a snapshot
+column to the detector id that sets it — the SET is deliberately tiny and each
+entry earns its place by clearing a named refusal in
+`app/src/components/chart/engine/ast/starterScans.json::_ungrounded`; see
+`.superpowers/sdd/2026-08-22-screener-wave5-patterns-flow/lane-b-pattern-flags-report.md`
+for the measurement and the unlock table. ⛔ This is NOT one column per
+detector: 85 detectors are registered and 78 of them fired in the last seven
+days, and a column named for a setup nothing refuses is nightly compute nobody
+asked for.
+
+⛔⛔ **0 AND NULL ARE DIFFERENT FACTS AND THIS IS THE WHOLE HONESTY OF THE
+COLUMN.** A ticker with active detections and no `vcp` among them gets `0` —
+the engine looked and the answer is no. A ticker with NO active detection at
+all is absent from this reader's output entirely (the `if not dets: continue`
+below), so every flag reads NULL downstream — the engine has told us nothing
+about that symbol, which is not the same as telling us "no". Writing a 0 there
+would turn "we have no data" into a confident negative, and a member screening
+`pattern_engine_vcp == 0` would be handed ~700 symbols the engine never
+scanned. The evidence that a symbol WAS scanned is the presence of at least one
+active detection; there is no scan ledger to consult, so the conservative
+direction (NULL, not 0) is the honest one.
+
+⭐ **The flags read the UNCAPPED id set, and that is why they are not derivable
+from `pattern_engine_ids`.** That column is capped at `_MAX_IDS` by confidence
+desc for display; a `vcp` sitting eleventh on a busy symbol falls off the TEXT
+list while the flag still says 1. `seen_set` below is the uncapped set and is
+what the flags read — never `seen[:_MAX_IDS]`.
+
+**as-of family: `snapshot_date`, for every column this reader persists (K6).**
 A detection's `detected_at`/expectancy age independently of the bar series
 this build ran against — `bars_asof` would falsely claim "the newest bar the
 math saw."
@@ -93,6 +124,15 @@ import time
 _ACTIVE_STATUSES = ("forming", "ready", "triggered")
 _WINDOW_SECS = 7 * 24 * 3600
 _MAX_IDS = 10
+
+#: snapshot column -> pattern-engine detector id. See the docstring: each entry
+#: exists to clear a NAMED refusal in the formula library's `_ungrounded` set,
+#: and the detector id on the right is a real registered id (the rail derives
+#: the check from `detectors.registry.list_pattern_ids()`, never a typed list).
+_PATTERN_FLAG_COLUMNS = {
+    "pattern_engine_vcp": "vcp",
+    "pattern_engine_flat_base": "flat_base",
+}
 
 
 def _note(failures, source, outcome) -> None:
@@ -219,6 +259,14 @@ def read_pattern_fields(targets, failures=None) -> dict:
                 seen.append(pid)
         row["pattern_engine_ids"] = ",".join(seen[:_MAX_IDS])
         row["pattern_engine_conf"] = max(d["confidence"] for d in dets)
+
+        # Per-pattern flags, from the UNCAPPED id set (`seen_set`, never
+        # `seen[:_MAX_IDS]` — see the docstring). We only reach this line
+        # because `dets` is non-empty, which IS the evidence that the engine
+        # has an answer for this symbol; a symbol it has said nothing about
+        # never gets a `row` at all and reads NULL, not 0.
+        for col, pid in _PATTERN_FLAG_COLUMNS.items():
+            row[col] = 1 if pid in seen_set else 0
 
         best = best_by_ticker.get(tu)
         if best is not None:

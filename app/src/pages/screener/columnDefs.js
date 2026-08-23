@@ -236,4 +236,14 @@ export const COLUMN_DEFS = {
     desc: 'ANALYST ESTIMATE — projected long-term annual EPS growth over the next 5 years, a forecast rather than a measurement. From the nightly Finviz pull.' },
   sales_past_5y_growth: { label: 'Sales 5Y', fmt: pct,
     desc: 'Annualized sales growth over the past 5 years, from the nightly Finviz pull.' },
+  // ── Wave 6: per-pattern engine flags ──
+  // Tri-state on purpose, the `optionable`/`shortable` precedent: ✓ the engine
+  // detected this pattern, ✗ the engine has active detections on this symbol
+  // and none is this pattern, — the engine has no active detection for this
+  // symbol at all. The shared `bool` formatter collapses 0 into an em dash and
+  // would render a confident "no" identically to "never looked".
+  pattern_engine_vcp: { label: 'VCP (Eng)', fmt: v => v == null ? '—' : v ? '✓' : '✗',
+    desc: 'The pattern ENGINE has an active VCP detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "vcp" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a VCP; a blank means the engine has no active detection for this symbol at all, which is not the same as "no".' },
+  pattern_engine_flat_base: { label: 'Flat Base (Eng)', fmt: v => v == null ? '—' : v ? '✓' : '✗',
+    desc: 'The pattern ENGINE has an active flat-base detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "flat_base" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a flat base; a blank means the engine has no active detection for this symbol at all.' },
 }
