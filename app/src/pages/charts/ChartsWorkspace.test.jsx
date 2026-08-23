@@ -169,14 +169,48 @@ test('a widget can be added to the board from the toolbar', () => {
 
   const offered = widgetChoices()
   expect(offered.length, 'Add Widget offered nothing to add').toBeGreaterThan(0)
-  // The widget catalog's labels are the source's to own, so this asserts the
-  // CAPABILITY — some offered choice puts a widget on the board — instead of
-  // naming a type (or naming the panel's own back control to skip it).
-  for (let i = 0; i < offered.length && onBoard() === 0; i++) {
+  // Smart placement (Phase 2) is suggest-then-confirm: picking a widget shows a ghost
+  // preview with a "Place" button, and only confirming commits it. This asserts the
+  // CAPABILITY — some offered choice, once confirmed, puts a widget on the board —
+  // instead of naming a type (or naming the panel's own back control to skip it).
+  const placeButton = () => [...document.querySelectorAll('button')].find(b => b.textContent === 'Place')
+  let placed = false
+  for (let i = 0; i < offered.length && !placed; i++) {
     const choices = widgetChoices()
     act(() => { choices[i].click() })
+    const btn = placeButton()
+    if (btn) { act(() => { btn.click() }); placed = true }
   }
-  expect(onBoard(), 'no choice under Add Widget reached the board').toBe(1)
+  expect(onBoard(), 'no choice under Add Widget reached the board (via ghost confirm)').toBe(1)
+})
+
+test('smart placement previews before committing — Cancel adds nothing', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
+  const rootButtons = new Set(document.querySelector('header').querySelectorAll('button'))
+  const openMenu = () => {
+    clickToolbar(/add widget/i)
+    return [...document.querySelector('header').querySelectorAll('button')].filter(b => !rootButtons.has(b))
+  }
+  const btnByText = (t) => [...document.querySelectorAll('button')].find(b => b.textContent === t)
+
+  // Pick some widget choice until the ghost's confirm bar appears — board still empty.
+  const offered = openMenu()
+  let ghostShown = false
+  for (let i = 0; i < offered.length && !ghostShown; i++) {
+    const choices = openMenu()
+    act(() => { choices[i].click() })
+    if (btnByText('Place')) ghostShown = true
+  }
+  expect(ghostShown, 'no widget choice produced a placement ghost').toBe(true)
+  expect(btnByText('Cancel')).toBeTruthy()
+  expect(onBoard(), 'ghost preview must not commit the widget').toBe(0)
+
+  // Cancel → nothing added, ghost dismissed.
+  act(() => { btnByText('Cancel').click() })
+  expect(onBoard()).toBe(0)
+  expect(btnByText('Place'), 'ghost should be gone after Cancel').toBeFalsy()
 })
 
 test('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {

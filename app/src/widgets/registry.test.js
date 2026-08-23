@@ -87,6 +87,18 @@ describe('widget registry — metadata pins', () => {
     })
   })
 
+  it('every widget declares a smart-placement family (chart | panel)', () => {
+    // Consumed by pages/charts/placement/. A new widget without a family would
+    // silently fall to the 'panel' default in familyOf() — pin it here so the
+    // family is a deliberate choice per widget, not an accident.
+    for (const id of WIDGET_IDS) {
+      const p = WIDGET_REGISTRY[id].placement
+      expect(p, `${id} is missing a placement block`).toBeDefined()
+      expect(['chart', 'panel'], `${id} has an unknown family`).toContain(p.family)
+    }
+    expect(WIDGET_REGISTRY.chart.placement.family).toBe('chart')
+  })
+
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',

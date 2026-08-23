@@ -150,6 +150,10 @@ export const WIDGET_REGISTRY = deepFreeze({
   chart: {
     labels: { header: 'Chart', menu: 'Chart', tab: 'Chart' },
     defaults: { w: 12, h: 12, minW: 6, minH: 6 },
+    // Smart-placement metadata (see pages/charts/placement/). `family` groups
+    // like-with-like when auto-placing a new widget; `fill` hints wide vs narrow
+    // preference. Charts cluster together and want wide, landscape space.
+    placement: { family: 'chart', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: true, journal: true },
     themeFollow: false,
     paramsSchema: [
@@ -166,6 +170,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   watchlist: {
     labels: { header: 'Watchlist', menu: 'Watchlist', tab: 'Watchlist' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -189,6 +194,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   themes: {
     labels: { header: 'Themes', menu: 'Theme Tracker', tab: 'Themes' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -214,6 +220,7 @@ export const WIDGET_REGISTRY = deepFreeze({
     // minW matches the Watchlist widget (2) so the Scanner can be narrowed to a
     // thin rail; the results table scrolls/shrinks rather than forcing a wide cell.
     defaults: { w: 8, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -235,6 +242,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   fundamentals: {
     labels: { header: 'Fundamentals', menu: 'Fundamentals', tab: 'Fundamentals' },
     defaults: { w: 8, h: 6, minW: 6, minH: 2 },
+    placement: { family: 'panel', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -256,6 +264,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   breadth: {
     labels: { header: 'Breadth', menu: 'Breadth', tab: 'Breadth' },
     defaults: { w: 8, h: 10, minW: 4, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -279,6 +288,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   aisearch: {
     labels: { header: 'AI Search', menu: 'AI Search', tab: 'AI Search' },
     defaults: { w: 7, h: 10, minW: 3, minH: 3 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -300,6 +310,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   news: {
     labels: { header: 'News', menu: 'News & Catalysts', tab: 'News' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -318,6 +329,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   profile: {
     labels: { header: 'Profile', menu: 'Stock Profile', tab: 'Profile' },
     defaults: { w: 6, h: 12, minW: 3, minH: 5 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -333,6 +345,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   alerts: {
     labels: { header: 'Alerts', menu: 'Alerts', tab: 'Alerts' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -352,6 +365,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   calendar: {
     labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -374,6 +388,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   optionsflow: {
     labels: { header: 'Options Flow', menu: 'Options Flow', tab: 'Flow' },
     defaults: { w: 8, h: 12, minW: 4, minH: 5 },
+    placement: { family: 'panel', fill: 'wide' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
@@ -391,6 +406,7 @@ export const WIDGET_REGISTRY = deepFreeze({
     // ~fits Flag·Symbol·%·Industry with no blank filler
     labels: { header: 'Period Sort', menu: 'Period Sort', tab: 'Period Sort' },
     defaults: { w: 6, h: 12, minW: 3, minH: 5 },
+    placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: false, tab: false, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
