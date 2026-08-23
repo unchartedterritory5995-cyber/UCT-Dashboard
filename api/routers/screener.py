@@ -194,6 +194,437 @@ def screener_finviz_refresh(user=Depends(require_admin)):
     return finviz_universe.run_pull()
 
 
+# ─── Earnings-context diagnostic (admin, STRICTLY READ-ONLY) ─────────────────
+
+#: How many names any one sample list in the diagnostic payload may carry. The
+#: COUNT beside each sample is always the full one — a sample is for reading,
+#: never for counting (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+_EC_SAMPLE = 25
+
+#: 🔑 THE FOUR WORLDS THIS ENDPOINT EXISTS TO TELL APART, and world 0 for the
+#: case where nothing is wrong. The payload carries the NUMBER and the SENTENCE
+#: off this one mapping, so the handler docstring can point at an artifact
+#: instead of restating it (a restated verdict list is a second authority over
+#: one value — this repo's most repeated defect).
+EARNINGS_CONTEXT_WORLDS = {
+    0: ("HEALTHY — the store and the screener agree on real (symbol, date) "
+        "pairs and the column is populated. Nothing to diagnose."),
+    1: ("WORLD 1 — THE STORE IS EMPTY. Zero rows, so no join could ever hit. "
+        "The capture is not running (or has never written): read "
+        "config.implied_store_enabled, config.capture_due_by_now, and "
+        "implied.max_captured_at (null = nothing was EVER written), then check "
+        "that the 16:35 ET job is registered on the pod holding this file "
+        "(config.implied_store_db)."),
+    2: ("WORLD 2 — KEYS DISAGREE. The store holds rows under report dates the "
+        "screener also asks about, yet not one (symbol, date) pair joins. That "
+        "is a normalisation/format mismatch on the SYMBOL side, not a coverage "
+        "problem — read `normalisation_gap` and the two sample lists."),
+    3: ("WORLD 3 — SCOPE MISMATCH. The store holds rows, but for report dates "
+        "the screener never asks about. The capture window is [today, "
+        "today+IMPLIED_CAPTURE_WINDOW_DAYS] while the screener asks for every "
+        "reporter inside 14 days — read `dates_ask_only` for what is asked and "
+        "never covered."),
+    4: ("WORLD 4 — BOTH AGREE AND THE COLUMN IS STILL EMPTY. Real (symbol, "
+        "date) pairs exist in both, so the loss is DOWNSTREAM of the join: the "
+        "reader's wiring, an exception counted in the build's `sources`, or a "
+        "build that has not re-run since the store filled."),
+}
+
+
+def _ec_ro_sqlite(path: str):
+    """Open `path` STRICTLY for reading. Returns ``(conn, readonly, error)``.
+
+    ``mode=ro`` refuses to CREATE the file, which is what makes this route's
+    "no writes" property structural rather than a promise. A WAL database whose
+    -wal still needs recovery can refuse a pure read-only handle; in that one
+    case a normal handle is used instead, but ONLY when the file already exists
+    — nothing here can ever bring a database into being, and the payload says
+    which of the two happened (`readonly_open`).
+    """
+    import os
+    import sqlite3
+    if not os.path.exists(path):
+        return None, None, f"no such file: {path}"
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+        conn.row_factory = sqlite3.Row
+        return conn, True, None
+    except sqlite3.Error as ro_err:
+        try:
+            conn = sqlite3.connect(path, timeout=5)
+            conn.row_factory = sqlite3.Row
+            return conn, False, None
+        except sqlite3.Error as rw_err:  # pragma: no cover — both opens failing
+            return None, None, f"{type(ro_err).__name__}: {ro_err} / {rw_err}"
+
+
+def _ec_implied_facts(conn) -> dict:
+    """What `implied_snapshots` actually holds — counts, extremes, and the KEY
+    SET (`report_dates`) the join depends on. Everything is read off the table;
+    nothing is inferred."""
+    import sqlite3
+    try:
+        head = conn.execute(
+            "SELECT COUNT(*) AS rows, COUNT(DISTINCT sym) AS syms, "
+            "MAX(captured_at) AS max_captured_at, MIN(report_date) AS min_rd, "
+            "MAX(report_date) AS max_rd FROM implied_snapshots").fetchone()
+        by_date = conn.execute(
+            "SELECT report_date, COUNT(*) AS n FROM implied_snapshots "
+            "GROUP BY report_date ORDER BY report_date").fetchall()
+        syms = [r["sym"] for r in
+                conn.execute("SELECT DISTINCT sym FROM implied_snapshots ORDER BY sym")]
+        pairs = {(r["sym"], r["report_date"]) for r in
+                 conn.execute("SELECT sym, report_date FROM implied_snapshots")}
+    except sqlite3.Error as e:
+        return {"readable": False, "error": f"{type(e).__name__}: {e}",
+                "rows": None, "report_dates": [], "_syms": set(), "_pairs": set()}
+    return {
+        "readable": True, "error": None,
+        "rows": head["rows"], "symbols": head["syms"],
+        "max_captured_at": head["max_captured_at"],
+        "min_report_date": head["min_rd"], "max_report_date": head["max_rd"],
+        "rows_by_report_date": {r["report_date"]: r["n"] for r in by_date},
+        "report_dates": [r["report_date"] for r in by_date],
+        "symbols_sample": syms[:_EC_SAMPLE],
+        "_syms": set(syms), "_pairs": pairs,
+    }
+
+
+def _ec_grade_facts(conn, surface: str) -> dict:
+    """The SEPARATE grade source, in the same shape. ⛔ `grade_snapshots` is not
+    the implied-move store's table in disguise: it has its own writer
+    (`setup_grade.run_daily_grade_snapshot`), its own schedule (16:40 ET) and
+    its own key (`surface`). `rows_by_surface` is here because a grade written
+    under a surface the reader does not ask for is world 2 for THIS source and
+    invisible from the implied side."""
+    import sqlite3
+    try:
+        head = conn.execute(
+            "SELECT COUNT(*) AS rows, COUNT(DISTINCT sym) AS syms, MAX(date) AS max_date "
+            "FROM grade_snapshots WHERE surface = ?", (surface,)).fetchone()
+        all_surfaces = conn.execute(
+            "SELECT surface, COUNT(*) AS n, MAX(date) AS max_date FROM grade_snapshots "
+            "GROUP BY surface ORDER BY surface").fetchall()
+        by_date = conn.execute(
+            "SELECT date, COUNT(*) AS n FROM grade_snapshots WHERE surface = ? "
+            "GROUP BY date ORDER BY date DESC LIMIT 14", (surface,)).fetchall()
+        syms = [r["sym"] for r in conn.execute(
+            "SELECT DISTINCT sym FROM grade_snapshots WHERE surface = ? ORDER BY sym",
+            (surface,))]
+    except sqlite3.Error as e:
+        return {"readable": False, "error": f"{type(e).__name__}: {e}",
+                "surface_asked": surface, "rows": None, "_syms": set()}
+    return {
+        "readable": True, "error": None,
+        "surface_asked": surface,
+        "rows": head["rows"], "symbols": head["syms"], "max_date": head["max_date"],
+        "rows_by_surface": {r["surface"]: r["n"] for r in all_surfaces},
+        "surfaces_present_but_not_asked": sorted(
+            r["surface"] for r in all_surfaces if r["surface"] != surface),
+        "rows_by_date_recent": {r["date"]: r["n"] for r in by_date},
+        "symbols_sample": syms[:_EC_SAMPLE],
+        "_syms": set(syms),
+    }
+
+
+def _ec_snapshot_facts(conn) -> dict:
+    """The member-facing side: how empty the two columns actually are, and the
+    screener's OWN forward earnings dates.
+
+    ⭐ `next_earnings_date` is a provider-FREE proxy for what the join wants —
+    it is written by `earnings_dates` (a different reader from
+    `implied_store.upcoming_reporters`) and is therefore reported as a
+    CORROBORATING probe, never as the reader's own ask. It is what makes this
+    endpoint answer on a cold reporter cache instead of shrugging.
+    """
+    import sqlite3
+    try:
+        head = conn.execute(
+            "SELECT COUNT(*) AS rows, "
+            "SUM(implied_move_pct IS NOT NULL) AS implied_non_null, "
+            "SUM(earnings_setup_grade IS NOT NULL) AS grade_non_null, "
+            "SUM(next_earnings_date IS NOT NULL) AS ned_non_null "
+            "FROM screener_rows").fetchone()
+        rows = conn.execute(
+            "SELECT ticker, next_earnings_date FROM screener_rows "
+            "WHERE next_earnings_date IS NOT NULL").fetchall()
+        tickers = [r["ticker"] for r in conn.execute(
+            "SELECT ticker FROM screener_rows WHERE ticker IS NOT NULL")]
+    except sqlite3.Error as e:
+        return {"readable": False, "error": f"{type(e).__name__}: {e}",
+                "rows": None, "_pairs": set(), "_tickers": set(),
+                "next_earnings_dates": []}
+    dates = sorted({r["next_earnings_date"] for r in rows})
+    return {
+        "readable": True, "error": None,
+        "rows": head["rows"],
+        "implied_move_pct_non_null": head["implied_non_null"] or 0,
+        "earnings_setup_grade_non_null": head["grade_non_null"] or 0,
+        "next_earnings_date_non_null": head["ned_non_null"] or 0,
+        "next_earnings_date_count": len(dates),
+        "next_earnings_dates_sample": dates[:_EC_SAMPLE],
+        "_pairs": {((r["ticker"] or "").upper(), r["next_earnings_date"]) for r in rows},
+        "_tickers": {(t or "").upper() for t in tickers},
+        "_dates": set(dates),
+    }
+
+
+def _ec_reporter_ask(implied_store, today_iso: str) -> dict:
+    """The report dates `earnings_context.read_implied_context` WOULD ask the
+    store for — read out of `implied_store`'s OWN reporter cache.
+
+    ⛔ NO PROVIDER CALL. `upcoming_reporters` fetches on a miss, so this peeks
+    at the cache the store itself populates (16:35 capture, 16:40 grade
+    snapshot, 03:00 build) rather than calling it. The keys found are REPORTED,
+    not assumed, so a cache-key format that drifts is visible in the payload
+    instead of silently reading as "cold". A cold cache is answered honest-None
+    (`report_dates: null`), never a fabricated empty set — and the verdict then
+    falls back to the snapshot's own forward dates, which is stated in
+    `join.basis`.
+    """
+    cache = implied_store._REPORTERS_CACHE
+    prefix = "impstore::reporters::"
+    try:
+        keys = sorted(cache.keys_with_prefix(prefix))
+    except Exception:  # noqa: BLE001 — a diagnostic must never fail on its own probe
+        keys = []
+    # `read_implied_context` asks for days=14; prefer that entry for today, then
+    # any entry for today. `cache.get` is the cache's OWN expiry authority — the
+    # one and only side effect anywhere in this route is its expiry reap.
+    ordered = ([k for k in keys if k.endswith("::" + today_iso) and "::14::" in k]
+               + [k for k in keys if k.endswith("::" + today_iso) and "::14::" not in k])
+    for key in ordered:
+        reporters = cache.get(key)
+        if not reporters:
+            continue
+        dates = sorted({r.get("report_date") for r in reporters if r.get("report_date")})
+        syms = {(r.get("sym") or "").upper() for r in reporters if r.get("sym")}
+        return {"state": "warm", "key_used": key, "keys_present": keys,
+                "reporters": len(reporters), "symbols": len(syms),
+                "report_dates": dates, "_dates": set(dates), "_syms": syms}
+    return {"state": "cold", "key_used": None, "keys_present": keys,
+            "reporters": None, "symbols": None, "report_dates": None,
+            "_dates": None, "_syms": None,
+            "note": ("no live reporter list is cached for today, and this route "
+                     "will not call a provider to make one. The store's own jobs "
+                     "warm it (16:35 / 16:40 ET) and it holds for 6h; until then "
+                     "the verdict is computed against the snapshot's own "
+                     "next_earnings_date set — see join.basis.")}
+
+
+def _ec_verdict(*, readable, store_rows, snapshot_rows, dates_overlap, join_hits,
+                column_non_null):
+    """The four-worlds decision, as ONE pure function so both sources are judged
+    by the same rule and the rule can be tested without a database.
+
+    Returns ``(world, sentence)`` off `EARNINGS_CONTEXT_WORLDS`; ``(None, …)``
+    when the inputs cannot support a verdict at all.
+    """
+    if not readable:
+        return None, ("UNDECIDABLE — the source could not be read; see its "
+                      "`error`. Nothing below this line means anything yet.")
+    if not snapshot_rows:
+        return None, ("UNDECIDABLE — the screener snapshot itself is empty, so "
+                      "there is no member-facing column to explain.")
+    if not store_rows:
+        return 1, EARNINGS_CONTEXT_WORLDS[1]
+    if join_hits:
+        return (0, EARNINGS_CONTEXT_WORLDS[0]) if column_non_null else (4, EARNINGS_CONTEXT_WORLDS[4])
+    return (2, EARNINGS_CONTEXT_WORLDS[2]) if dates_overlap else (3, EARNINGS_CONTEXT_WORLDS[3])
+
+
+@router.get("/api/screener/earnings-context-status")
+def screener_earnings_context_status(user=Depends(require_admin)):
+    """Admin: WHY are `implied_move_pct` and `earnings_setup_grade` empty?
+
+    ⭐ WHY THIS EXISTS (2026-08-23): those two are the last empty columns in the
+    snapshot — non-null on 0 of 3,745 prod rows — and a flagship starter
+    (`starter_earnings_momentum`) had to stop filtering on the first one because
+    the clause was an unsatisfiable AND. Nobody could say WHY: `railway ssh` is
+    blocked in this environment and there is no HTTP surface over
+    `implied_store`, so the question was unanswerable rather than merely
+    unanswered. This is that surface.
+
+    ⛔ STRICTLY READ-ONLY, AND STRUCTURALLY SO. Every database is opened
+    `mode=ro` (which refuses to create a file), no `_ensure_init` / `init_db` is
+    called, and NO provider is contacted — the reporter list is PEEKED out of
+    `implied_store`'s own TTL cache, never fetched. The single side effect
+    anywhere in this handler is that cache's own expiry reap on read.
+
+    ⛔ IT OBSERVES AND DOES NOT REPAIR. A diagnostic that also changes behaviour
+    cannot be trusted to describe it.
+
+    🔑 HOW TO READ THE ANSWER — `implied.world` / `grade.world` carry a number
+    and the matching sentence out of `EARNINGS_CONTEXT_WORLDS`, which is the ONE
+    place those readings are written down:
+
+      * **0 · healthy** — pairs join and the column is populated.
+      * **1 · the store is EMPTY** — the capture never wrote. Confirm with
+        `config.implied_store_enabled`, `config.capture_due_by_now` and
+        `implied.max_captured_at` (the last write's own timestamp, read off the
+        table — this route never calls the store's `latest_capture_date`
+        helper, because that one runs `_ensure_init` and would write schema).
+      * **2 · the keys DISAGREE** — the two sides cover the same report dates
+        and still nothing joins, i.e. the symbol form differs. `normalisation_gap`
+        counts snapshot tickers that match the store under `implied_store._canon`
+        (upper + dot→hyphen, what the WRITER uses) but not under the plain
+        `.upper()` the READER uses — a non-zero there is the bug, named.
+      * **3 · the SCOPE differs** — the store's dates and the asked dates never
+        meet. `dates_ask_only` is what is wanted and never covered;
+        `config.capture_window_days` is why (the capture only ever covers
+        [today, today+WINDOW], while the screener asks across 14 days).
+      * **4 · both AGREE and the column is still empty** — the loss is
+        downstream of the join.
+
+    ⚠️ TWO SOURCES, JUDGED SEPARATELY. `implied_move_pct` comes from
+    `implied_snapshots` keyed by (sym, report_date); `earnings_setup_grade`
+    comes from `grade_snapshots` keyed by (sym, date, surface) with a different
+    writer and a different schedule. They are reported side by side and never
+    merged — one filling tells you nothing about the other.
+
+    ⚠️ `snapshot.*` IS A CORROBORATING PROBE, NOT THE READER'S OWN ASK. The
+    reader asks `implied_store.upcoming_reporters`; the snapshot's
+    `next_earnings_date` is written by `earnings_dates`. It is used for the
+    pair-level join because it needs no provider call and is therefore always
+    available — `join.basis` says which set the verdict was computed against.
+    """
+    import datetime as dt
+    import os
+
+    from api.services import implied_store, setup_grade
+    from api.services.screener import snapshot_db as _scr_db
+
+    now_et = dt.datetime.now(implied_store._ET)
+    surface = setup_grade.SURFACE
+
+    # ── the two stores, both read-only ───────────────────────────────────────
+    imp_conn, imp_ro, imp_err = _ec_ro_sqlite(implied_store.DB_PATH)
+    if imp_conn is None:
+        implied = {"readable": False, "error": imp_err, "rows": None,
+                   "report_dates": [], "_syms": set(), "_pairs": set()}
+        grades = {"readable": False, "error": imp_err, "surface_asked": surface,
+                  "rows": None, "_syms": set()}
+    else:
+        try:
+            implied = _ec_implied_facts(imp_conn)
+            grades = _ec_grade_facts(imp_conn, surface)
+        finally:
+            imp_conn.close()
+        implied["readonly_open"] = imp_ro
+
+    scr_path = _scr_db.get_db_path()
+    scr_conn, scr_ro, scr_err = _ec_ro_sqlite(scr_path)
+    if scr_conn is None:
+        snapshot = {"readable": False, "error": scr_err, "rows": None,
+                    "_pairs": set(), "_tickers": set(), "_dates": set()}
+    else:
+        try:
+            snapshot = _ec_snapshot_facts(scr_conn)
+        finally:
+            scr_conn.close()
+        snapshot["readonly_open"] = scr_ro
+
+    # ── what the screener's own path WOULD ask for ───────────────────────────
+    # `upcoming_reporters` keys its cache off a NAIVE local date, so the peek
+    # has to use the same clock or it would look permanently cold.
+    ask = _ec_reporter_ask(implied_store, dt.datetime.now().date().isoformat())
+
+    # ── the join, both ways ──────────────────────────────────────────────────
+    store_dates = set(implied.get("report_dates") or [])
+    ask_dates = ask.get("_dates")
+    if ask_dates is None:
+        basis = ("snapshot.next_earnings_date — the live reporter list is not "
+                 "cached and this route will not fetch one")
+        compare_dates = snapshot.get("_dates") or set()
+    else:
+        basis = "implied_store.upcoming_reporters (cached) — the reader's own source"
+        compare_dates = ask_dates
+    join = {
+        "basis": basis,
+        "dates_in_both": sorted(store_dates & compare_dates),
+        "dates_ask_only": sorted(compare_dates - store_dates)[:_EC_SAMPLE],
+        "dates_store_only": sorted(store_dates - compare_dates)[:_EC_SAMPLE],
+        "dates_in_both_count": len(store_dates & compare_dates),
+        "dates_ask_only_count": len(compare_dates - store_dates),
+        "dates_store_only_count": len(store_dates - compare_dates),
+    }
+    if ask_dates is not None:
+        # Reported BESIDE the verdict basis, never folded into it: the reader's
+        # own ask and the snapshot's forward dates are two different artifacts.
+        snap_dates = snapshot.get("_dates") or set()
+        join["snapshot_dates_in_store"] = len(store_dates & snap_dates)
+        join["snapshot_dates_ask_only"] = len(snap_dates - store_dates)
+
+    # Pair-level: the actual (symbol, date) join, plus the normalisation the
+    # WRITER uses vs the one the READER uses. `_canon` is imported, never
+    # re-implemented — a second copy of that rule is how the two sides drift.
+    snap_pairs = snapshot.get("_pairs") or set()
+    store_pairs = implied.get("_pairs") or set()
+    pair_hits = sorted(snap_pairs & store_pairs)
+    canon_pairs = {(implied_store._canon(t), d) for t, d in snap_pairs}
+    canon_hits = canon_pairs & store_pairs
+    store_syms = implied.get("_syms") or set()
+    snap_tickers = snapshot.get("_tickers") or set()
+    canon_tickers = {implied_store._canon(t) for t in snap_tickers}
+    join["pairs_joining_reader_normalisation"] = len(pair_hits)
+    join["pairs_joining_writer_normalisation"] = len(canon_hits)
+    join["pairs_sample"] = [f"{s}@{d}" for s, d in pair_hits[:_EC_SAMPLE]]
+    join["normalisation_gap"] = len(canon_hits) - len(pair_hits)
+    join["snapshot_tickers_in_implied_store"] = len(snap_tickers & store_syms)
+    join["snapshot_tickers_in_implied_store_canon"] = len(canon_tickers & store_syms)
+    grade_syms = grades.get("_syms") or set()
+    join["snapshot_tickers_in_grade_store"] = len(snap_tickers & grade_syms)
+
+    # ── the two verdicts ─────────────────────────────────────────────────────
+    imp_world, imp_reading = _ec_verdict(
+        readable=implied.get("readable"),
+        store_rows=implied.get("rows") or 0,
+        snapshot_rows=snapshot.get("rows") or 0,
+        dates_overlap=join["dates_in_both_count"],
+        join_hits=len(pair_hits),
+        column_non_null=snapshot.get("implied_move_pct_non_null") or 0,
+    )
+    # The grade join carries NO date key — `_latest_grades` matches on symbol
+    # alone — so "keys agree" for this source means the surface exists, and the
+    # join hit is a symbol overlap.
+    grd_world, grd_reading = _ec_verdict(
+        readable=grades.get("readable"),
+        store_rows=grades.get("rows") or 0,
+        snapshot_rows=snapshot.get("rows") or 0,
+        dates_overlap=bool(grades.get("surfaces_present_but_not_asked")),
+        join_hits=join["snapshot_tickers_in_grade_store"],
+        column_non_null=snapshot.get("earnings_setup_grade_non_null") or 0,
+    )
+
+    for d in (implied, grades, snapshot):
+        for k in [k for k in d if k.startswith("_")]:
+            d.pop(k)
+
+    return {
+        "generated_at": now_et.isoformat(timespec="seconds"),
+        "implied": {**implied, "world": imp_world, "reading": imp_reading},
+        "grade": {**grades, "world": grd_world, "reading": grd_reading},
+        "snapshot": snapshot,
+        "screener_ask": {k: v for k, v in ask.items() if not k.startswith("_")},
+        "join": join,
+        "config": {
+            "implied_store_enabled": os.environ.get("IMPLIED_STORE_ENABLED"),
+            "implied_store_db": implied_store.DB_PATH,
+            "screener_db": scr_path,
+            "capture_hour_et": implied_store.CAPTURE_HOUR_ET,
+            "capture_minute_et": implied_store.CAPTURE_MINUTE_ET,
+            "capture_window_days": os.environ.get("IMPLIED_CAPTURE_WINDOW_DAYS", "1"),
+            "capture_due_by_now": implied_store.capture_due_by(now_et),
+            "grade_surface": surface,
+            "grade_snapshot_hour_et": setup_grade.GRADE_SNAPSHOT_HOUR_ET,
+            "grade_snapshot_minute_et": setup_grade.GRADE_SNAPSHOT_MINUTE_ET,
+            "grade_snapshot_due_by_now": setup_grade.grade_snapshot_due_by(now_et),
+            "grade_snapshot_max_symbols": setup_grade.MAX_SNAPSHOT_SYMBOLS,
+        },
+        "worlds": EARNINGS_CONTEXT_WORLDS,
+    }
+
+
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()

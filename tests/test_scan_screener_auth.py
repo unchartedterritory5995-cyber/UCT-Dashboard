@@ -83,10 +83,19 @@ ROOT = Path(__file__).resolve().parents[1]
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 13  # +1 2026-08-23: POST /api/screener/finviz-refresh
+EXPECTED_SCREENER_ROUTES = 14  # +1 2026-08-23: POST /api/screener/finviz-refresh
 # (admin) — the missing upstream half of POST /api/screener/refresh. A header
 # correction could not reach members until the next 02:45 ET pull; this makes
 # 'wait for tonight' a two-call operation. Deliberate, and admin-classed below.
+#
+# +1 2026-08-23: GET /api/screener/earnings-context-status (admin). The
+# DELIBERATE edit this rail demands, and the reason is a measurement:
+# `implied_move_pct` and `earnings_setup_grade` are non-null on 0 of 3,745 prod
+# rows and nothing could say why — `railway ssh` is blocked here and there was
+# no HTTP surface over `implied_store`. The route is strictly read-only (every
+# database opened `mode=ro`, no provider call) and admin-classed below beside
+# the two refresh routes. It is NOT paid: it exposes store internals and job
+# schedules, which is operator information, not member information.
 
 #: The 402 sentence each router speaks. Asserted rather than imported so a quiet
 #: edit to the message is a failure here and not a silent change to what a
@@ -355,13 +364,18 @@ def test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door(
         by_klass[_klass(route)].append((name, sorted(route.methods - {"HEAD", "OPTIONS"})[0],
                                         route.path))
 
-    # -3: the two admin refresh routes + the one public door. Both asserts
-    # below NAME their members rather than trusting this count.
-    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 3, \
+    # -4: the three admin routes + the one public door. Both asserts below NAME
+    # their members rather than trusting this count.
+    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 4, \
         by_klass
     # BOTH halves of the manual-refresh pair are admin and neither may drift to
-    # paid: each spends provider budget on a whole-market call.
+    # paid: each spends provider budget on a whole-market call. The
+    # earnings-context diagnostic is admin for a different reason — it spends
+    # nothing, but it reports store paths, job schedules and raw coverage, which
+    # is operator information. Either way the direction is the same: STRICTER
+    # than paid, never weaker.
     assert sorted((m, p) for _, m, p in by_klass["admin"]) == [
+        ("GET", "/api/screener/earnings-context-status"),
         ("POST", "/api/screener/finviz-refresh"),
         ("POST", "/api/screener/refresh"),
     ], \
