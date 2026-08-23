@@ -25,8 +25,8 @@ FULL_HEADERS = [
     "Institutional Ownership",
     "Insider Transactions", "Institutional Transactions",
     "Optionable", "Shortable",
-    "EPS growth past 5 years", "EPS growth next 5 years",
-    "Sales growth past 5 years",
+    "EPS Growth Past 5 Years", "EPS Growth Next 5 Years",
+    "Sales Growth Past 5 Years",
 ]
 
 
@@ -365,8 +365,8 @@ def test_run_pull_missing_parity2_growth_headers_degrade_by_name(monkeypatch,
     monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
     from api.services.screener import finviz_universe as fv
 
-    parity2 = {"EPS growth past 5 years", "EPS growth next 5 years",
-               "Sales growth past 5 years"}
+    parity2 = {"EPS Growth Past 5 Years", "EPS Growth Next 5 Years",
+               "Sales Growth Past 5 Years"}
     headers = [h for h in FULL_HEADERS if h not in parity2]
 
     def _csv_without_parity2():

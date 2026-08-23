@@ -159,14 +159,16 @@ _HEADERS = {
     "inst_trans_pct":     "Institutional Transactions",
     "optionable":         "Optionable",
     "shortable":          "Shortable",
-    # Wave 6 (parity2) — GUESSED fuller export spellings (the classic export
-    # long-forms) for page names "EPS Past 5Y"/"EPS Next 5Y"/"Sales Past 5Y"
-    # (ids 19/20/21 above). UNVERIFIED against a live export until the first
-    # nightly pull: a miss lands name-for-name in `missing_headers` and drops
-    # only that column, never a wrong value.
-    "eps_past_5y_growth":   "EPS growth past 5 years",
-    "eps_next_5y_growth":   "EPS growth next 5 years",
-    "sales_past_5y_growth": "Sales growth past 5 years",
+    # Wave 6 (parity2) — ✅ MEASURED against the live export 2026-08-23 after
+    # the first pull adjudicated the guesses (receipt named all three in
+    # `missing_headers`, zero wrong values — the honest-degradation contract
+    # doing exactly its job). ⛔ THE MISS WAS CASE ALONE: the guesses read
+    # "EPS growth past 5 years"; the export serves Title Case. Header matching
+    # is EXACT, so a lowercase word is as fatal as a wrong word — measure, do
+    # not sentence-case a page label.
+    "eps_past_5y_growth":   "EPS Growth Past 5 Years",
+    "eps_next_5y_growth":   "EPS Growth Next 5 Years",
+    "sales_past_5y_growth": "Sales Growth Past 5 Years",
 }
 # SCALE ASSUMPTION — ADJUDICATED 2026-08-22 (prod receipt): `shares_outstanding`
 # /`float_shares` do NOT arrive suffixed. Finviz's elite export serves these
