@@ -171,7 +171,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
         f"column that is neither granted nor refused, and "
         f"{sorted(declared | excluded - columns)} is named here and not a column")
     assert not (declared & excluded), sorted(declared & excluded)
-    assert (len(declared), len(excluded)) == (94, 57)
+    assert (len(declared), len(excluded)) == (98, 53)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -534,6 +534,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     other direction: forty per-symbol names became sayable and not one frozen
     per-ast bar digest moved (ruling D15).
 
+    ⭐ THEN 94 -> 98 ON WAVE-6 T1 (2026-08-23): the five Wave-1 preset columns
+    promoted (dollar_vol_30d, close_cv_pct, vol_updown_ratio, vol_nweek_low,
+    ema_stack_intact) and `accdis` EXCLUDED — it holds letter grades, and
+    declaring it `num` was the live two-lane defect. The bar floor, again,
+    did not move.
+
     ⭐ 69 -> 70 ON 2026-08-11 WITH ``adx``, AND THIS PAIR OF NUMBERS IS EXACTLY
     WHAT CAUGHT IT. ADX was declared, implemented in both lanes and shipped
     earlier the same day; what it never got was a bar-corpus case, so its
@@ -546,7 +552,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 94
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 98
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

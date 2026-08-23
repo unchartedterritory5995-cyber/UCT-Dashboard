@@ -282,18 +282,6 @@
       "yields": "num"
     },
     {
-      "id": "accdis",
-      "scalar": "accdis",
-      "ast": {
-        "type": "series",
-        "name": "accdis"
-      },
-      "value": 24.5,
-      "asOf": "snapshot_date",
-      "cadence": "nightly",
-      "yields": "num"
-    },
-    {
       "id": "chg_pct_1d",
       "scalar": "chg_pct_1d",
       "ast": {
@@ -1132,6 +1120,66 @@
       "asOf": "snapshot_date",
       "cadence": "nightly",
       "yields": "num"
+    },
+    {
+      "id": "dollar_vol_30d",
+      "scalar": "dollar_vol_30d",
+      "ast": {
+        "type": "series",
+        "name": "dollar_vol_30d"
+      },
+      "value": 45000000.0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "close_cv_pct",
+      "scalar": "close_cv_pct",
+      "ast": {
+        "type": "series",
+        "name": "close_cv_pct"
+      },
+      "value": 2.1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "vol_updown_ratio",
+      "scalar": "vol_updown_ratio",
+      "ast": {
+        "type": "series",
+        "name": "vol_updown_ratio"
+      },
+      "value": 1.32,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "vol_nweek_low",
+      "scalar": "vol_nweek_low",
+      "ast": {
+        "type": "series",
+        "name": "vol_nweek_low"
+      },
+      "value": 15,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "ema_stack_intact",
+      "scalar": "ema_stack_intact",
+      "ast": {
+        "type": "series",
+        "name": "ema_stack_intact"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
     }
   ],
   "trees": [

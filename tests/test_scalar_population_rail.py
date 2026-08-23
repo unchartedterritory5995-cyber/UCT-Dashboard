@@ -91,18 +91,46 @@ def declared_scalar_columns() -> dict:
 def _assigned_string_keys(path: pathlib.Path) -> set:
     """String keys this module can WRITE into a dict, read by AST.
 
-    Two shapes, and only two, because they are the two the builder uses:
-    ``d["col"] = v`` (an assignment whose target is a constant subscript) and
-    ``{"col": v}`` (a dict literal, which `build_row` merges wholesale).
+    Three shapes, because they are the three the package uses:
+    ``d["col"] = v`` (an assignment whose target is a constant subscript),
+    ``{"col": v}`` (a dict literal, which `build_row` merges wholesale), and
+    ``for col in _FIELDS: row[col] = …`` (a subscript-assign whose slice is
+    the loop variable of a ``for`` over a tuple/list of string constants —
+    `opt_flow.read_opt_flow_fields`' guarded per-column copy, which shipped
+    with Wave 5 and made the two-shape census read a REAL collector as absent:
+    2026-08-23 Wave-6 T1 found `opt_net_premium_1d`/`opt_bull_pct_1d`/
+    `opt_net_premium_5d` orphaned by the derivation, not by the builder).
 
     ⛔ AST, NEVER GREP, and never an import either — `test_ast_scalars.py` sets
     that precedent for exactly this reason. A grep over `snapshot_db.py` would
     count all 65 names in `COLUMNS`; `COLUMNS` is a LIST, so no name in it is
     either an assignment target or a dict key, and the AST reads zero writers
-    there. That distinction is the whole check.
+    there. That distinction is the whole check — and shape three keeps it:
+    the sequence's strings count ONLY when the loop body assigns through the
+    loop name, so `snapshot_db`'s `for c in COLUMNS:` (ALTER TABLE, no
+    subscript-assign) still contributes nothing.
     """
     tree = pyast.parse(path.read_text(encoding="utf-8"))
     found = set()
+
+    def _string_seq(node) -> set:
+        """{strings} for a Tuple/List literal made ENTIRELY of string constants."""
+        if not isinstance(node, (pyast.Tuple, pyast.List)) or not node.elts:
+            return set()
+        strings = {e.value for e in node.elts
+                   if isinstance(e, pyast.Constant) and isinstance(e.value, str)}
+        return strings if len(strings) == len(node.elts) else set()
+
+    # module-level `NAME = ("a", "b", …)` bindings, for shape three's iterable
+    const_seqs = {}
+    for node in tree.body:
+        if isinstance(node, pyast.Assign):
+            strings = _string_seq(node.value)
+            if strings:
+                for tgt in node.targets:
+                    if isinstance(tgt, pyast.Name):
+                        const_seqs[tgt.id] = strings
+
     for node in pyast.walk(tree):
         targets = []
         if isinstance(node, pyast.Assign):
@@ -118,6 +146,21 @@ def _assigned_string_keys(path: pathlib.Path) -> set:
             for key in node.keys:
                 if isinstance(key, pyast.Constant) and isinstance(key.value, str):
                     found.add(key.value)
+        if isinstance(node, pyast.For) and isinstance(node.target, pyast.Name):
+            if isinstance(node.iter, pyast.Name):
+                seq = const_seqs.get(node.iter.id, set())
+            else:
+                seq = _string_seq(node.iter)
+            if seq and any(
+                    isinstance(tgt, pyast.Subscript)
+                    and isinstance(tgt.slice, pyast.Name)
+                    and tgt.slice.id == node.target.id
+                    for sub in pyast.walk(node)
+                    for tgt in (list(sub.targets) if isinstance(sub, pyast.Assign)
+                                else [sub.target] if isinstance(
+                                    sub, (pyast.AugAssign, pyast.AnnAssign))
+                                else [])):
+                found |= seq
     return found
 
 
@@ -218,7 +261,9 @@ ARTIFACT_EMPTY.update({
     "rev_growth":    "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
     "pe_fwd":        "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
     "inst_pct":      "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
-    "accdis":        "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    # (`accdis` was listed here until 2026-08-23 Wave-6 T1 EXCLUDED it from the
+    # manifest — it holds letter grades, so it is no longer a declared scalar
+    # and `test_every_allowance_names_a_declared_scalar` demands its removal.)
     "uct_composite": "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
     # ⭐ THREE COLUMNS CHANGED HANDS, so their reason changed too. `op_margin`,
     # `roe` and `peg` are no longer waiting on `research_ratings.db` — they are
@@ -339,6 +384,14 @@ def test_the_writer_derivation_can_tell_a_list_from_a_dict():
         "cannot fail while it does")
     # ...and it does find a genuine writer in the builder.
     assert "market_cap" in _assigned_string_keys(SCREENER_PKG / "snapshot_builder.py")
+    # ⭐ SHAPE THREE'S BOTH DIRECTIONS, on the module that forced it. opt_flow's
+    # `for col in _FIELDS: row[col] = src[col]` is a real collector and must
+    # count; and `snapshot_db.py` iterates `COLUMNS` too (the ALTER-add loop),
+    # so the `dividend_yield` assertion above is ALSO the negative control that
+    # a for-loop with no subscript-assign through its loop name stays invisible.
+    assert "opt_net_premium_1d" in _assigned_string_keys(SCREENER_PKG / "opt_flow.py"), (
+        "the walker lost shape three — a per-column guarded copy over a module "
+        "tuple — and §1 will orphan every collector written that way")
 
 
 # ───────────────────────── §2 artifact: measured population ─────────────────

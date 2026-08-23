@@ -1113,19 +1113,6 @@
       "yields": "num",
       "sentence": "the relative-strength return"
     },
-    "accdis": {
-      "source": {
-        "store": "screener_rows",
-        "column": "accdis"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the accumulation/distribution score"
-    },
     "chg_pct_1d": {
       "source": {
         "store": "screener_rows",
@@ -2035,6 +2022,71 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the net options premium across the five latest sessions"
+    },
+    "dollar_vol_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dollar_vol_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the average daily dollar volume over 30 days"
+    },
+    "close_cv_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "close_cv_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the closing-price tightness (coefficient of variation of recent closes, %)"
+    },
+    "vol_updown_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "vol_updown_ratio"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the up-day to down-day volume ratio"
+    },
+    "vol_nweek_low": {
+      "source": {
+        "store": "screener_rows",
+        "column": "vol_nweek_low"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the volume-dryness bar count (20 = 4-week low, 15 = 3-week, 10 = 2-week)"
+    },
+    "ema_stack_intact": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ema_stack_intact"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the EMA stack is intact (close above EMA10 above EMA20, both rising)"
     }
   },
   "_functions_excluded": {
@@ -2069,6 +2121,7 @@
     "snapshot_date": "an `as_of` SOURCE. Declaring it as a scalar would let a formula compute on its own freshness stamp -- and it is TEXT besides",
     "bars_asof": "the same, for the bar-dated family",
     "built_at": "an operations timestamp. It dates the WRITE, not the value, so a formula reading it would be screening on when the builder ran",
+    "accdis": "holds letter grades A-E, not a number -- declaring it `num` was the live two-lane defect (W5 plan ruling D4): a formula comparing it compared a string, and the hole-guard read non-null as resolved; the enum filter is the honest surface -- see 2026-08-23 Wave-6 T1",
     "chg_pct_3m": "a Wave 1 screener column, not yet promoted to a scalar -- declaring the Wave 1 additions into the formula vocabulary is Wave 6's job (spec Section 2.4), so no formula can read it until then",
     "chg_pct_6m": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "chg_pct_1y": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
@@ -2079,14 +2132,10 @@
     "dist_20d_low_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "dist_ath_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "new_ath": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dollar_vol_30d": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "pole_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "vol_nweek_low": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "vol_updown_ratio": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ema_touch_count": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ema10_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ema20_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema_stack_intact": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "candle_score": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "atr_ext_sma50": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "rs_line_trend": "TEXT -- a classification label (`up`/`down`/`flat`), for the same reason as `candle_type`. Also a Wave 1 column not yet promoted",
@@ -2094,7 +2143,6 @@
     "prev_day_high": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "prev_day_low": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "prev_day_close": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "close_cv_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "avg_body_pct_5": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "theme": "TEXT, for the same reason as `sector` -- a single category label surfaced as an `options_column` filter, not a magnitude a formula reads",
     "in_uct20": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
