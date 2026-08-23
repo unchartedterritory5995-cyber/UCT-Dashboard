@@ -37,10 +37,13 @@ const COMMUNITY_WL = {
   items: [{ id: 'ci1', sym: 'TSLA', notes: 'his note, not yours' }],
 }
 const mutateMine = vi.fn()
+// Prebuilt rows are swapped per test (an alias pick needs one carrying `alias`).
+const hoisted = vi.hoisted(() => ({ prebuilt: [] }))
 vi.mock('swr', () => ({
   default: (key) => {
     if (key === '/api/watchlists') return { data: [WL], mutate: mutateMine }
     if (key === '/api/watchlists/public') return { data: [COMMUNITY_WL], mutate: () => {} }
+    if (key === '/api/watchlists/prebuilt') return { data: hoisted.prebuilt, mutate: () => {} }
     return { data: [], mutate: () => {} }
   },
 }))
@@ -91,6 +94,7 @@ const Watchlists = (await import('./Watchlists')).default
 
 let fetchMock
 beforeEach(() => {
+  hoisted.prebuilt = []
   mutateMine.mockClear()
   createAlert.mockClear()
   localStorage.clear()
@@ -169,4 +173,20 @@ test("a community row opens no menu, so a shared list's notes stay read-only", a
   // and no remove either. This is the guard that keeps shared notes read-only.
   expect(screen.queryByRole('button', { name: /^notes$/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /remove from watchlist/i })).not.toBeInTheDocument()
+})
+
+test('an ALIAS pick (the latest Sunday Scans issue) resolves to whichever prebuilt row carries the alias', async () => {
+  // The widget stored community:alias:sunday-scans-latest, never an id. This week the
+  // alias sits on Aug 16; the page must open THAT list — through the real resolver.
+  hoisted.prebuilt = [
+    { id: 'a9', name: 'Sunday Scans — August 9, 2026', items: [{ id: 'x1', sym: 'NBIS', notes: '' }] },
+    { id: 'a16', name: 'Sunday Scans — August 16, 2026', alias: 'sunday-scans-latest',
+      items: [{ id: 'x2', sym: 'INTC', notes: '' }, { id: 'x3', sym: 'ALAB', notes: '' }] },
+  ]
+  render(<Watchlists embedded pickList="community:alias:sunday-scans-latest" pickName="Sunday Scans — Latest issue" />)
+  expect(await screen.findByText('INTC')).toBeInTheDocument()
+  expect(screen.getByText('ALAB')).toBeInTheDocument()
+  expect(screen.queryByText('NBIS')).not.toBeInTheDocument()     // not the older issue
+  // Control: a plain id pick still resolves exactly (the pre-existing path).
+  expect(screen.getByText(/august 16, 2026/i)).toBeInTheDocument()
 })

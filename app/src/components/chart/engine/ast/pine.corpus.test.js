@@ -107,19 +107,21 @@ describe('every script lands exactly where the snapshot says', () => {
 
 describe('a script that translates goes all the way through the SHIPPED doors', () => {
   const TRANSLATING = FILES.filter((f) => SNAPSHOT[f].translates)
-  // ⭐ TRANSLATING IS NOT THE SAME SET AS SAVEABLE, and 2026-08-12 is the day
-  // that stopped being a distinction without a difference. Script 10 clears the
-  // `pine:state` wall now — its two trailing stops emit as correctly nested
-  // accumulators — and then every one of its five columns hits `budget:nodes` at
-  // 642 nodes against a cap of 128. The closed table has no way to NAME a
-  // subexpression, so `(high+low)/2 + 3*atr(…)` is re-inlined at each of its
-  // eight uses and the two stops are inlined again inside the direction column.
+  // ⭐⭐ TRANSLATING AND SAVEABLE ARE THE SAME SET AGAIN, 2026-08-22.
   //
-  // ⛔ THE SPLIT IS RECORDED, NOT PAPERED OVER. The block below runs on scripts
-  // the snapshot says clear the save gate; the one that does not is asserted BY
-  // NAME immediately after, with its guard. A `filter` that quietly shrinks a
-  // rail's input set is how a wall becomes invisible — the assertion after this
-  // loop is what stops that.
+  // ⚰️ WHAT THIS SAID UNTIL TODAY: script 10 clears `pine:state` and then hits
+  // `budget:nodes` at 642 against a cap of 128. TRUE WHEN WRITTEN — and the fix
+  // was NOT to raise that cap. The engine was charging a member once per REPEAT
+  // of a subexpression it computes a SINGLE time, because the closed table cannot
+  // name an intermediate, so `(high+low)/2 + 3*atr(…)` is inlined eight times.
+  // Counting DISTINCT subtrees took 642 to 57. The wall behind it was real and
+  // different: a nested recurrence honestly needs TWO 250-bar warmups, so 524 met
+  // a 500-bar lookback cap — and THAT one moved, to 550, on a stated UX rule.
+  //
+  // ⛔ THE MACHINERY BELOW STAYS THOUGH `blocked` IS NOW EMPTY. A `filter` that
+  // quietly shrinks a rail's input set is how a wall becomes invisible, so
+  // anything that translates and cannot be saved is NAMED here with its guard
+  // rather than disappearing from a headline count.
   const THROUGH = TRANSLATING.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
 
   it('there is more than one of them, or this whole block is decorative', () => {
@@ -131,7 +133,7 @@ describe('a script that translates goes all the way through the SHIPPED doors', 
     // fails this and gets promoted into THROUGH; one that starts failing it gets
     // caught by the loop above.
     const blocked = TRANSLATING.filter((f) => !SNAPSHOT[f].downstream || !SNAPSHOT[f].downstream.ok)
-    expect(blocked).toEqual(['10-supertrend.pine'])
+    expect(blocked).toEqual([])
     for (const f of blocked) {
       const out = translatePine(read(f))
       const down = evaluateFormula(out.outputs[out.selected].formula, BUILDER_INPUT_SCOPE)
@@ -357,11 +359,13 @@ describe('the whole corpus, in one number', () => {
     // accumulator anywhere else), a memo, a per-recurrence cycle stack, and a
     // convergence gate that still refuses `x := x[1] + volume`.
     //
-    // ⚠️⚠️ READ THE NEXT BLOCK BEFORE QUOTING 52. Five of those columns cannot be
-    // SAVED — they translate and then hit `budget:nodes` at 642 against a cap of
-    // 128, because the closed table cannot name a subexpression and the ATR term
-    // is re-inlined eight times. `saveable` below is still 11, deliberately, and
-    // it is the number that describes what a member can do.
+    // ⭐⭐ ALL 52 ARE SAVEABLE AS OF 2026-08-22 — `saveable` below is 12, and
+    // `translating` and `saveable` are the same set again.
+    //
+    // ⚰️ THIS SAID "READ THE NEXT BLOCK BEFORE QUOTING 52 — five of those columns
+    // cannot be SAVED". True for ten days and worth keeping: a headline column
+    // count that nobody can act on is worse than a smaller honest one, which is
+    // why the two numbers are asserted separately and always have been.
     expect(translating).toBe(12)
     expect(columns).toBe(52)
   })
@@ -372,7 +376,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(11)
+    expect(saveable.length).toBe(12)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

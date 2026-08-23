@@ -105,6 +105,9 @@ describe("the firm's Slingshot column, pasted as TC2000", () => {
     // Recorded rather than merely asserted: a member's real screen is 52 nodes
     // and reaches 7 bars back, which is the scale the nightly sweep is sized for.
     expect(ev.measured.maxLookback).toBe(7)
-    expect(ev.measured.maxNodes).toBe(52)
+    // ⚠️ 34, NOT 52, SINCE 2026-08-22 — `maxNodes` counts DISTINCT subtrees now.
+    // The formula did not shrink; it stopped being billed once per REPEAT of a
+    // subexpression the interpreter memoises and computes a single time.
+    expect(ev.measured.maxNodes).toBe(34)
   })
 })

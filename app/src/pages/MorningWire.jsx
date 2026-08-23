@@ -12,7 +12,8 @@ import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
-import { quoteOfTheDay } from '../constants/quotes'
+import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
+import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon from '../components/ui/UIcon'
 import styles from './MorningWire.module.css'
 
@@ -65,19 +66,25 @@ function EarningsRow({ row }) {
 }
 
 // ── Quote of the Day ──────────────────────────────────────────────────────────
-// Reuses the Dashboard's shared, date-seeded quote library so both surfaces show
-// the same quote on a given day.
+// The server's regime-aware pick (GET /api/quote-of-the-day) — the same line the
+// Dashboard, the status bar and the Substack letter show; the local rotation in
+// constants/quotes.js is only the offline fallback inside useQuoteOfTheDay.
 
 function QuoteOfTheDay() {
-  const quote = useMemo(() => quoteOfTheDay(), [])
+  const { quote } = useQuoteOfTheDay()
 
   return (
     <div className={styles.quoteBanner}>
       <div className={styles.quoteLabel}>
         <UIcon name="sparkle" size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />Quote of the Day
       </div>
-      <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
-      <div className={styles.quoteAuthor}>— {quote.a}</div>
+      {quote && (
+        <>
+          <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
+          <div className={styles.quoteAuthor}>— {quote.a}{quote.src && <span className={styles.quoteSrc}> · {quote.src}</span>}</div>
+          <SaveQuoteButton quote={quote} />
+        </>
+      )}
     </div>
   )
 }

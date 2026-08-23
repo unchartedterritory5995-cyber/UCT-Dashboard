@@ -73,6 +73,7 @@ import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
+import { resolveCommunityPick, ALIAS_PREFIX } from './watchlist/communityPick'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
 // its `{detail}` body is truthy, so every `!data` loading guard below is
@@ -830,6 +831,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     () => [...(communityLists || []), ...(prebuiltLists || [])],
     [communityLists, prebuiltLists],
   )
+  // An ALIAS pick (community:alias:<alias>, e.g. "the latest Sunday Scans issue") names
+  // no id up front — it resolves to whichever row carries the alias once the pools load.
+  // Expand THAT list's group when it does; the first-paint effect above only knows ids.
+  useEffect(() => {
+    if (!pickList || !pickList.startsWith(ALIAS_PREFIX)) return
+    const wl = resolveCommunityPick(communityResolvable, pickList)
+    if (!wl) return
+    setExpandedLists(prev => {
+      if (prev.has(wl.id)) return prev
+      const n = new Set(prev)
+      n.add(wl.id)
+      return n
+    })
+  }, [pickList, communityResolvable])
   const { tagColors: TAG_COLORS, tagByKey: TAG_BY_KEY } = useTagColors()
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
@@ -1374,7 +1389,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       return wl ? (wl.items || []).length : 0
     }
     if (pickList.startsWith('community:')) {
-      const wl = communityResolvable.find(w => `community:${w.id}` === pickList)
+      const wl = resolveCommunityPick(communityResolvable, pickList)
       return wl ? (wl.items || []).length : 0
     }
     return 0
@@ -2310,7 +2325,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   <div className={styles.emptyText}>No community lists shared yet.</div>
                 </div>
               ) : (pickList
-                  ? communityResolvable.filter(wl => pickList === `community:${wl.id}`)
+                  ? [resolveCommunityPick(communityResolvable, pickList)].filter(Boolean)
                   : communityLists
                 ).map(wl => renderWatchlistGroup(wl, false))}
             </>

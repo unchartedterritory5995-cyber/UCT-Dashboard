@@ -1,11 +1,11 @@
 // app/src/components/tiles/MarketClock.jsx
 // Ambient market clock for the Morning Wire's top-left corner. Live ET time +
 // session status (open / pre-market / after-hours / closed) + next-open hint.
-// Reuses the shared session logic from useMarketOpen + MarketStatusBar so the
-// status can never disagree with the Dashboard's session pill.
+// Reuses the shared session logic from useMarketOpen + dashboard/sessionModel so
+// every surface that names the session agrees (ChartMarketClock uses the same).
 import { useEffect, useState } from 'react'
 import useMarketOpen from '../../hooks/useMarketOpen'
-import { sessionModel, nextOpenHint } from '../dashboard/MarketStatusBar'
+import { sessionModel, nextOpenHint } from '../dashboard/sessionModel'
 import styles from './MarketClock.module.css'
 
 function useEtNow() {

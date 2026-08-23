@@ -302,7 +302,12 @@ const AWAITING_A_DECISION = {
     + 'exist — that popup\'s tabs are About / Fundamentals / The Street. Build '
     + 'the tab or drop the pair; do not silently delete a specced feature\'s '
     + 'scaffolding, and do not "fix" it by mounting it somewhere it would regress.',
-}
+    'app/src/pages/cot/cotFactsEntry.js':
+    'NOT dead — the ENTRY POINT of the COT facts bundle: app/scripts/build-cot-facts.mjs '
+    + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
+    + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
+    + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
+  }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
   const reachable = reachableFrom(ROOTS)

@@ -198,6 +198,21 @@ def test_committed_config_carries_every_issue_list_and_the_category(prebuilt, mo
     assert "liquid major etfs" not in prebuilt.issue_date_map()
 
 
+def test_alias_map_tags_exactly_the_newest_issue(prebuilt, monkeypatch):
+    """A widget pinned to `community:alias:sunday-scans-latest` must follow each
+    new issue: the alias sits on the NEWEST list only, moves with it, and is
+    absent when the store is unreadable (nothing for a widget to resolve —
+    never a stale guess)."""
+    _fake_desk(monkeypatch, ISSUES)
+    got = prebuilt.alias_map()
+    assert got == {"sunday scans — august 16, 2026": {
+        "alias": prebuilt.SUNDAY_SCANS_LATEST_ALIAS, "label": "Sunday Scans — Latest issue"}}
+    _fake_desk(monkeypatch, ISSUES[1:])           # Aug 16 gone → the alias moves to Aug 9
+    assert list(prebuilt.alias_map()) == ["sunday scans — august 9, 2026"]
+    _fake_desk(monkeypatch, None)
+    assert prebuilt.alias_map() == {}
+
+
 # ── the seeder ───────────────────────────────────────────────────────────────
 
 def _wire(prebuilt, monkeypatch, rows, *, admin="admin"):
