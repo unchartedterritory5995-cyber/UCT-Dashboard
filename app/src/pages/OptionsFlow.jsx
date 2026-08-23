@@ -7919,7 +7919,7 @@ export default function OptionsFlowDashboard() {
                           cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:!oiConfirmedOnly?P.bu+"22":"transparent", color:!oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title="Premiums reflect flow that TRADED in the selected date range (matches the range buttons above)."
+                        title={"In-window flow — ALL directional premium that TRADED in the selected date range (matches the range buttons above). An ACTIVITY read: it counts a position even if it has since been closed. The dim ‘Still open’ subline shows how much of that flow is still on the book. → Switch to ‘Still open (all)’ to headline only what’s still open."}
                       >
                         {_windowBtnLabel}
                       </button>
@@ -7938,7 +7938,7 @@ export default function OptionsFlowDashboard() {
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
                           color:oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Positions still open by Live OI. Clicking auto-fetches live OI, then shows what's still on the book."}
+                        title={stillOpenComputable ? "Still open (all) — headlines ONLY positions still on the book by Live OI (current OI still near its peak, i.e. not closed/rolled/profit-taken), REGARDLESS of when they opened. A POSITIONING read: it drops window flow that’s since been closed and INCLUDES older builds opened before this window that are still on. Range-independent (unlike ‘in-window flow’)." : "Still open (all) — positions still on the book by Live OI, regardless of when they opened. Clicking auto-fetches Live OI, then headlines only what’s still open (drops closed positions, includes older still-open builds)."}
                       >
                         {(fetchLoading && oiConfirmedOnly && !stillOpenComputable) ? "Still open \u00b7 fetching\u2026" : "Still open (all)"}
                       </button>
