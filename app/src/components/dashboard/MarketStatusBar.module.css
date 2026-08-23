@@ -123,6 +123,12 @@
   text-overflow: ellipsis;
 }
 
+/* Citation — muted, normal weight; the line is nowrap+ellipsis so it truncates before the chips do. */
+.quoteSrc {
+  color: var(--text-muted, #9a978f);
+  font-style: normal;
+  font-size: 11px;
+}
 .quoteAuthor {
   color: var(--accent, #c9a84c);
   font-style: normal;

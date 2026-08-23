@@ -1612,7 +1612,7 @@ earnings hub. Full detail: `docs/superpowers/specs/2026-06-01-calendar-dominant-
 - Each index tile has a background sparkline SVG: linearGradient stroke, feGaussianBlur glow, fog fill polygon, last-point circle marker
 - Static SPARK point arrays per symbol (pos/neg/neu variants)
 - **Layout**: left 50% = index grid (QQQ/SPY/IWM/DIA/BTC/VIX), right 50% = Quote of the Day panel
-- **Quote of the Day**: 392-quote library (ported from morning-wire `ut_morning_wire_template.html`) — legendary traders, stoics, UCT KB voices. Date-seeded (`seed * 97 % 392`) so quote is stable all day and jumps ~97 positions each day for variety. No backend needed — pure client-side.
+- **Quote of the Day**: `app/src/constants/quotes.js` is the ONE library — 686 cited quotes `{t, a, src}` (trading canon, Market Wizards, UCT KB voices, Stoics, performance; the morning-wire template copy was removed 2026-08-22). Rotation = local day-ordinal × prime `STRIDE` 131 mod length: stable all day, full cycle before any repeat (`quotes.test.js` asserts gcd, no dupes/Unknown, every `src`, ≤240 chars). No backend — pure client-side; FuturesStrip, MarketStatusBar and the Wire banner all show the same quote.
 - Mobile (<900px): stacks index grid above quote panel, border flips left→top
 
 ## Key Components Built (2026-02-23)

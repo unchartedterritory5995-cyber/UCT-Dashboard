@@ -77,7 +77,7 @@ function QuoteOfTheDay() {
         <UIcon name="sparkle" size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />Quote of the Day
       </div>
       <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
-      <div className={styles.quoteAuthor}>— {quote.a}</div>
+      <div className={styles.quoteAuthor}>— {quote.a}<span className={styles.quoteSrc}> · {quote.src}</span></div>
     </div>
   )
 }

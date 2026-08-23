@@ -106,7 +106,7 @@ export default function MarketStatusBar() {
 
       <div className={styles.quoteLine}>
         <span className={styles.quoteText}>&#8220;{quote.t}&#8221;</span>
-        <span className={styles.quoteAuthor}> — {quote.a}</span>
+        <span className={styles.quoteAuthor}> — {quote.a}</span><span className={styles.quoteSrc}> · {quote.src}</span>
       </div>
     </div>
   )
