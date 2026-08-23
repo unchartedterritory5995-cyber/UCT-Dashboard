@@ -5801,19 +5801,6 @@ export default function OptionsFlowDashboard() {
               );
             })()}
 
-            {/* ─── Chart Modal (uses StockChart — same colors as renderDetailPanel) ─── */}
-            {chartModal && chartModal.sym && (
-              // The shared TickerPopup owns the chart shell — tabs (Chart / About /
-              // Fundamentals / The Street), dark-pool overlay, switch-ticker, flag
-              // and close. Clean header (ticker · price · change) matching Live Flow;
-              // no flow badge (BULL/BEAR · premium · trades) per owner preference.
-              <TickerPopup
-                sym={chartModal.sym}
-                open
-                darkPool
-                onClose={() => setChartModal(null)}
-              />
-            )}
           </div>
         )}
 
@@ -9069,6 +9056,20 @@ export default function OptionsFlowDashboard() {
             per-row. Controlled mode: TickerPopup renders no trigger, just the
             full ChartPane modal, opened/closed by chartSym. */}
         {chartSym && <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />}
+
+        {/* Header-search chart modal — TOP-LEVEL so it opens from ANY tab. It was
+            nested inside the Market Read block, so a header search from another tab
+            set chartModal but rendered nothing until you switched to Market Read.
+            The shared TickerPopup owns the chart shell (tabs, dark-pool overlay,
+            switch-ticker, flag, close). */}
+        {chartModal && chartModal.sym && (
+          <TickerPopup
+            sym={chartModal.sym}
+            open
+            darkPool
+            onClose={() => setChartModal(null)}
+          />
+        )}
       </div>
     </div>
   );
