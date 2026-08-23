@@ -7577,12 +7577,24 @@ export default function OptionsFlowDashboard() {
                 if (dateFilter === "All") return rows;
                 if (dateFilter.startsWith("Last")) {
                   const n = parseInt(dateFilter.replace("Last",""))||3;
-                  // recent-N dates computed from THESE rows, chronologically —
-                  // never from the main dataset (which may not contain them).
-                  const uniq = [...new Set(rows.map(t => t.Dt && t.Dt.trim()).filter(Boolean))]
+                  // "Last N" = the last N MARKET trading days (calendar window), NOT
+                  // the last N dates THIS ticker traded. A thin name (few active days)
+                  // must not silently reach past the N-day window: GEMI has ~14 active
+                  // days over 6 months, so "last 90 of its OWN dates" = all of them,
+                  // back to Feb, under a "90d" badge. Derive a cutoff DATE from
+                  // availableDates (the fetched market calendar) and keep ticker rows
+                  // on/after it.
+                  //
+                  // This is a `>=` cutoff compare, NOT the set-MEMBERSHIP against
+                  // availableDates that caused the 2026-07-18 intermittent zero-out
+                  // (a bad-overlap membership dropped EVERY row → NEUTRAL/$0). A cutoff
+                  // can't zero out: an empty/absent calendar returns rows unfiltered,
+                  // and format is aligned through mdyToDate on both sides.
+                  const mkt = [...availableDates].map(d => d && d.trim()).filter(Boolean)
                     .sort((a,b) => mdyToDate(a) - mdyToDate(b));
-                  const recent = new Set(uniq.slice(-n));
-                  return rows.filter(t => t.Dt && recent.has(t.Dt.trim()));
+                  if (!mkt.length) return rows;
+                  const cutoff = mdyToDate(mkt[Math.max(0, mkt.length - n)]);
+                  return rows.filter(t => { if(!t.Dt) return false; const d = mdyToDate(t.Dt.trim()); return d >= cutoff; });
                 }
                 return rows.filter(t => t.Dt && t.Dt.trim() === dateFilter);
               };
