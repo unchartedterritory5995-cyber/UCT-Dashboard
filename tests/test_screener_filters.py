@@ -305,6 +305,45 @@ def test_a_dynamic_enum_needs_no_edit_to_meta_to_get_its_options(
     assert [p["label"] for p in got["brand_new_static"]] == ["Any"]
 
 
+def test_accdis_ships_as_the_enum_it_always_was(tmp_path, monkeypatch):
+    """🔴 THE HONEST SURFACE, Wave 6 lane 2. The column has held letter grades
+    A–E since v1 (`ratings._accdis_letter`), while the manifest declared it
+    `yields:"num"` and `filters.py` deliberately shipped NO control (the
+    containment comment this task removes). T1 excluded the lying scalar; the
+    filter the Wave-1 plan drafted can now land: an enum whose options come off
+    the artifact — the same dynamic mechanism as sector/exchange — so the
+    control offers exactly the grades the rows hold, never a typed A–E list.
+    """
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "ACCU", "accdis": "A",
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "DIST", "accdis": "E",
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "BARE", "accdis": None,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+    ])
+    f = filters.FILTERS["accdis"]
+    assert f["type"] == "enum", "accdis is letter grades — an enum, never a range"
+    assert f["column"] == "accdis"
+    assert f["category"] == "fundamental"
+    assert f["label"] == "Acc/Dis Grade"
+    assert f["allow_custom"] is False
+
+    # Options are READ OFF THE ROWS (options_column), never typed: only the
+    # grades actually present appear, and NULL never becomes an option.
+    got = {x["key"]: x["presets"] for x in filters.meta()["filters"]}
+    assert [p["label"] for p in got["accdis"]] == ["Any", "A", "E"]
+    assert got["accdis"][1] == {"label": "A", "op": "eq", "value": "A"}
+
+    # ⭐ A registry entry is not a control until a scan runs through it.
+    from api.services.screener import query
+    importlib.reload(query)
+    assert filters.is_valid_op("accdis", "eq")
+    rows = query.run_scan(
+        {"filters": [{"key": "accdis", "op": "eq", "value": "A"}]})["rows"]
+    assert sorted(r["ticker"] for r in rows) == ["ACCU"]
+
+
 # ───────────────── the controls actually select ─────────────────────────────
 
 def test_the_new_controls_run_end_to_end_against_real_rows(tmp_path, monkeypatch):
@@ -497,6 +536,36 @@ def test_the_control_LABEL_and_the_read_back_SENTENCE_stay_TWO_STRINGS():
     assert set(labels) & set(sentences) == set(), (
         "a control label and a read-back sentence are now the same string. One "
         "string cannot do both jobs; keep the two phrasings and keep this rail.")
+
+
+def test_accdis_control_is_unpaired_BY_EXCLUSION_not_by_accident():
+    """⭐ WHY THE ENUM IS LEGAL under the yields↔control rail above. That rail
+    pairs BY DECLARED SCALAR, so an enum over a column with no scalar pairs
+    with nothing — which is exactly accdis's governed state after T1: the
+    scalar that lied (`yields:"num"` over letter grades) is EXCLUDED with a
+    written reason, not merely missing. This pins all three facts together so
+    a future re-declaration of an accdis scalar goes red HERE, by name, the
+    moment it would put the enum control and a scalar over one column
+    (`test_the_two_lanes_AGREE…` would then fail on the type mismatch, but
+    this failure says WHY).
+    """
+    from api.services import ast_table
+
+    assert "accdis" in filters.FILTERS, (
+        "the accdis enum control is gone — the column is back to sortable-"
+        "but-unscreenable through the classic door")
+    declared = {k for k in ast_table.TABLE["scalars"] if not k.startswith("_")}
+    assert "accdis" not in declared, (
+        "an accdis scalar is DECLARED again while the enum control ships — "
+        "that re-creates the two-lane contradiction T1/T2 existed to end; "
+        "one lane must go")
+    reason = ast_table.TABLE["_scalars_excluded"].get("accdis", "")
+    assert len(reason) >= 20, (
+        f"accdis's exclusion carries no written reason ({reason!r}) — "
+        "unpaired-by-exclusion is only honest while the manifest says why")
+    assert "accdis" not in _paired_columns(), (
+        "the pairing reader sees accdis in both lanes — the exclusion above "
+        "is not doing what this test claims it does")
 
 
 # ───────── Wave 5 — the flow category (K5 both halves) + honest wording ─────

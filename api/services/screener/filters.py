@@ -359,10 +359,12 @@ FILTERS = dict([
                 "inst_pct", unit="%"),
     _open_range("rs_return", "RS Weighted Return", "technical", "rs_return",
                 unit="%"),
-    # accdis filter DELIBERATELY ABSENT: closedTable.json declares accdis
-    # yields:"num" while the column holds letter grades (pre-existing;
-    # surfaced by the two-lanes rail 2026-08-21). The filter lands with
-    # Wave 6's governed manifest correction.
+    # Wave 6: lands WITH the manifest correction that excluded the lying
+    # `yields:"num"` scalar (the column holds letter grades A-E). Options
+    # derive from the grades the rows actually hold — same dynamic mechanism
+    # as sector/exchange, never a typed A-E list.
+    _enum("accdis", "Acc/Dis Grade", "fundamental", "accdis",
+          [{"label": "Any"}], options_column="accdis"),
     _open_range("body_pct", "Last-Bar Body", "single_candle", "body_pct"),
     _open_range("upper_wick_pct", "Upper Wick", "single_candle",
                 "upper_wick_pct"),
