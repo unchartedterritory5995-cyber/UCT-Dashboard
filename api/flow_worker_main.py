@@ -470,28 +470,30 @@ def _start_flow_schedulers():
             log.warning("flow opt-aggregate scheduling failed: %s", e)
 
         try:
-            # Weekly Conviction Flow → Discord (P2). Fri 16:15 ET; posts one card
-            # per cap in WEEKLY_FLOW_CRON_CAPS (default all + mid_small). Dark
-            # until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET trigger.
-            # ⚠ Same watch-path caveat as alpha_gold_eod: weekly_flow.py rides
-            # this file's builds until it's added to the worker watch paths.
-            # Merged "Open Flow" card (Weekly Conviction + Open Flow unified 8/2):
-            # the Friday push now posts run_standing_cron (Open Flow, net, all +
-            # mid-small). Either arm flag works so an existing WEEKLY_FLOW_ENABLED
-            # setup keeps firing without re-arming.
+            # Weekly Conviction Flow → Discord. Fri 16:15 ET; posts one 5-day
+            # weekly card per cap in WEEKLY_FLOW_CRON_CAPS (default
+            # mega,large,mid_small — a board per tier so megacaps can't out-size
+            # smaller names). Mega+Large are clean-only (WEEKLY_FLOW_CLEAN_CAPS).
+            # Dark until armed. Runs HERE (flow.db + OI snapshots). Explicit-ET.
+            # ⚠ Same watch-path caveat as alpha_gold_eod: weekly_flow.py rides this
+            # file's builds until it's added to the worker watch paths.
+            # 2026-08-22: switched back from run_standing_cron (60-day Open Flow) to
+            # run_weekly_cron (true 5-day week, per owner). Either arm flag works so
+            # an existing WEEKLY_FLOW_ENABLED / STANDING_FLOW_ENABLED setup keeps firing.
             if (os.getenv("WEEKLY_FLOW_ENABLED", "0") == "1"
                     or os.getenv("STANDING_FLOW_ENABLED", "0") == "1"):
                 from apscheduler.triggers.cron import CronTrigger as _WFCron
                 from api import weekly_flow as _wf
-                sched.add_job(_wf.run_standing_cron,
+                sched.add_job(_wf.run_weekly_cron,
                               trigger=_WFCron(day_of_week="fri", hour=16, minute=15,
                                               timezone=ZoneInfo("America/New_York")),
-                              id="open_flow_push", max_instances=1,
+                              id="weekly_flow_push", max_instances=1,
                               coalesce=True, replace_existing=True)
                 n += 1
-                log.info("[startup] Open Flow cron registered (Fri 16:15 ET)")
+                log.info("[startup] Weekly Flow cron registered (Fri 16:15 ET, "
+                         "per-tier mega/large/mid-small)")
             else:
-                log.info("[startup] Open Flow push disabled (set STANDING_FLOW_ENABLED=1)")
+                log.info("[startup] Weekly Flow push disabled (set WEEKLY_FLOW_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Weekly Flow scheduling failed: %s", e)
         if n:

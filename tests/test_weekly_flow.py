@@ -142,6 +142,33 @@ def test_load_premium_floor_casts_text(tmp_path, monkeypatch):
     assert len(allout) == 6
 
 
+def test_clean_only_keeps_confirmed_colors(tmp_path, monkeypatch):
+    """clean_only=True keeps ONLY confirmed clusters (YELLOW/MAGENTA) and drops
+    WHITE (unconfirmed); clean_only=False (default) keeps all directional. ORANGE/
+    ARB are dropped either way. Powers the mega/large weekly cards."""
+    from datetime import date
+    db = tmp_path / "flow.db"
+    # identical bullish call sweeps, distinct symbols, differing ONLY in Color.
+    colors = {"YEL": "YELLOW", "MAG": "MAGENTA", "WHT": "WHITE",
+              "ORN": "ORANGE", "ARBX": "ARB"}
+    rows = []
+    for i, (sym, color) in enumerate(colors.items()):
+        rows.append(("stocks", "8/1/2026", f"10:0{i}:00", sym, "SWEEP", "10",
+                     "AA", "CALL", "105", "100", "200000", "12/18/2026", color,
+                     "137", "", "5000000000", "0"))
+    _seed_flow_db(str(db), rows)
+    monkeypatch.setattr(wf, "_flow_db_path", lambda: str(db))
+
+    clean, _ = wf.load_directional_trades(5, 30, "all", today=date(2026, 8, 3),
+                                          clean_only=True)
+    assert sorted(t["S"] for t in clean) == ["MAG", "YEL"]   # WHITE dropped, ORANGE/ARB gone
+
+    allout, _ = wf.load_directional_trades(5, 30, "all", today=date(2026, 8, 3),
+                                           clean_only=False)
+    # WHITE now kept; ORANGE/ARB still dropped regardless of clean_only
+    assert sorted(t["S"] for t in allout) == ["MAG", "WHT", "YEL"]
+
+
 def test_render_returns_png():
     agg = {"bulls": [{"sym": "BE", "bull": 26e6, "bear": 1e6, "net": 25e6, "bullPct": 96,
                       "top": {"cp": "C", "K": 210, "exp": "9/18/2026"}}],

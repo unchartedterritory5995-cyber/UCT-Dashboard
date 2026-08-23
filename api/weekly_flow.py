@@ -186,7 +186,8 @@ def _last_n_dates(conn, n: int, source: str = "stocks") -> list[str]:
 
 def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
                             today: date | None = None,
-                            min_premium: float = 0.0) -> tuple[list[dict], list[str]]:
+                            min_premium: float = 0.0,
+                            clean_only: bool = False) -> tuple[list[dict], list[str]]:
     """Port of flowCompute.js `filtered` + `all_directional`, plus the weekly
     DTE≥min_dte cut. Returns (trades, window_dates). Each trade dict carries the
     fields the aggregation + card need. `min_premium` pushes a SQL-level premium
@@ -236,6 +237,12 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
             continue
         color = _color_norm(r["Color"])
         if color in ("ORANGE", "ARB"):     # dark-pool + arb noise dropped
+            continue
+        # clean-only: keep just CONFIRMED clusters (YELLOW/MAGENTA), drop
+        # unconfirmed WHITE flow. Used for the mega/large weekly cards where the
+        # owner wants only clean, high-conviction names (WHITE-dominant megacap
+        # flow is noisy and out-sizes everything). Mid-small keeps all directional.
+        if clean_only and color not in ("YELLOW", "MAGENTA"):
             continue
         mktcap = _pfloat(r["MktCap"])
         stk = (r["StockEtf"] or "").upper().strip()
@@ -703,8 +710,11 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
     WEEKLY_FLOW_ENABLED gate (manual trigger). post=False returns the PNG under
     'png' for preview. `cap` = all/mega/large/mid_small. Never raises."""
     try:
-        if os.getenv("WEEKLY_FLOW_ENABLED", "0") != "1" and not force:
-            return {"ok": False, "reason": "disabled (WEEKLY_FLOW_ENABLED != 1)"}
+        # Either arm flag works (mirrors run_standing) so a worker set up with
+        # STANDING_FLOW_ENABLED keeps firing after the Friday cron switches to weekly.
+        if (os.getenv("WEEKLY_FLOW_ENABLED", "0") != "1"
+                and os.getenv("STANDING_FLOW_ENABLED", "0") != "1" and not force):
+            return {"ok": False, "reason": "disabled (set WEEKLY_FLOW_ENABLED=1)"}
         n_days = days if days is not None else int(os.getenv("WEEKLY_FLOW_DAYS", "5"))
         top_n = int(os.getenv("WEEKLY_FLOW_TOP_N", "10"))
         min_dte = int(os.getenv("WEEKLY_FLOW_MIN_DTE", "30"))
@@ -713,23 +723,32 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
         sort_bull = (sort_bull or os.getenv("WEEKLY_FLOW_SORT_BULL", "net")).strip().lower()
         sort_bear = (sort_bear or os.getenv("WEEKLY_FLOW_SORT_BEAR", "net")).strip().lower()
 
+        # clean-only caps: these cards show only CONFIRMED (YELLOW/MAGENTA) flow.
+        # Owner wants mega/large restricted to clean names (WHITE-dominant megacap
+        # flow is noisy and out-sizes smaller names); mid-small stays all-directional.
+        clean_caps = {c.strip().lower() for c in
+                      os.getenv("WEEKLY_FLOW_CLEAN_CAPS", "mega,large").split(",") if c.strip()}
+        clean_only = cap in clean_caps
+
         floor = _card_floor(cap)
 
         def _build():
             trades, window = load_directional_trades(n_days, min_dte, cap,
-                                                     min_premium=floor)
+                                                     min_premium=floor,
+                                                     clean_only=clean_only)
             agg = aggregate(trades, top_n, frac, sort_bull, sort_bear)
             # Same look/columns as the Open Flow card (TICKER·BULL·BEAR·NET·EXP·
             # STRIKE·C/P·SINCE·PERF·DTE) — just the "Weekly Conviction" title.
             _sl = sort_bull if sort_bull == sort_bear else "net/premium"
+            _cap = f"top {top_n} by {_sl}" + (" · clean" if clean_only else "")
             return {"png": render_standing_card(agg, window, top_n,
                         cap_label=_CAP_LABELS.get(cap, ""), title="Weekly Conviction",
-                        caption=f"top {top_n} by {_sl}"),
+                        caption=_cap),
                     "names": agg["n_names"], "bulls": len(agg["bulls"]),
                     "bears": len(agg["bears"]), "open_contracts": agg["open_contracts"]}
-        built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear, floor), _build)
+        built = _cached_card(("weekly", n_days, cap, top_n, min_dte, frac, sort_bull, sort_bear, floor, clean_only), _build)
         png = built["png"]
-        res = {"ok": True, "days": n_days, "cap": cap, "names": built["names"],
+        res = {"ok": True, "days": n_days, "cap": cap, "clean": clean_only, "names": built["names"],
                "bulls": built["bulls"], "bears": built["bears"],
                "open_contracts": built["open_contracts"]}
         if not post:
@@ -750,12 +769,14 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
 
 
 def run_weekly_cron() -> dict:
-    """Scheduled Friday push (P2) — posts ONE card per cap in WEEKLY_FLOW_CRON_CAPS
-    (default 'all,mid_small': the big board + the mid-small board). Each goes
-    through run_weekly (gated by WEEKLY_FLOW_ENABLED). Never raises."""
+    """Scheduled Friday push — posts ONE card per cap in WEEKLY_FLOW_CRON_CAPS
+    (default 'mega,large,mid_small': a board per cap tier so megacaps can't out-size
+    smaller names in a single ranking). Mega + Large are clean-only (see
+    WEEKLY_FLOW_CLEAN_CAPS); Mid-Small keeps all-directional. Each goes through
+    run_weekly (gated by WEEKLY_FLOW_ENABLED / STANDING_FLOW_ENABLED). Never raises."""
     try:
         caps = [c.strip().lower() for c in
-                os.getenv("WEEKLY_FLOW_CRON_CAPS", "all,mid_small").split(",") if c.strip()]
+                os.getenv("WEEKLY_FLOW_CRON_CAPS", "mega,large,mid_small").split(",") if c.strip()]
         return {"posts": [run_weekly(cap=cap) for cap in (caps or ["all"])]}
     except Exception as e:  # noqa: BLE001
         log.exception("[weekly-flow] cron failed")
