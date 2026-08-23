@@ -59,19 +59,37 @@ function largestMember(region, family = null) {
 const tallest = arr => (arr || []).reduce((a, b) => (!a || b.h > a.h ? b : a), null)
 const widest = arr => (arr || []).reduce((a, b) => (!a || b.w > a.w ? b : a), null)
 
-// 50/50 vertical split: `target` keeps the top half, the newcomer takes the bottom
-// half at the target's full width. Returns { place, mutations } or null if either
-// half would fall below its min height.
-function splitVertical(d, target) {
+// Vertical split: `target` keeps the top, the newcomer takes the bottom at the
+// target's full width. `newHArg` sets the newcomer's height (clamped so neither half
+// drops below its min); omitted → a 50/50 split. Returns { place, mutations } or null.
+function splitVertical(d, target, newHArg) {
   if (!target) return null
   const targetMinH = defOf(target.type).minH || 3
-  const newH = Math.floor(target.h / 2)
+  const dMinH = d.minH || 3
+  let newH = newHArg != null ? newHArg : Math.floor(target.h / 2)
+  newH = Math.max(dMinH, Math.min(newH, target.h - targetMinH))
   const shrunkH = target.h - newH
-  if (newH < (d.minH || 3) || shrunkH < targetMinH) return null
+  if (newH < dMinH || shrunkH < targetMinH) return null
   return {
     place: { x: target.x, y: target.y + shrunkH, w: target.w, h: newH },
     mutations: [{ id: target.id, h: shrunkH }],
   }
+}
+
+// The chart region with the most chart area (a widget that docks below "the chart"
+// targets this one). Null when the board has no chart.
+function chartRegionOf(regions) {
+  const charts = regions.filter(r => r.dominantFamily === 'chart')
+  if (!charts.length) return null
+  const area = r => r.members.reduce((s, m) => s + (m.w | 0) * (m.h | 0), 0)
+  return [...charts].sort((a, b) => area(b) - area(a))[0]
+}
+
+// The bottom-most chart in a region (what a below-chart dock sits under).
+function bottomChart(region) {
+  const charts = region.members.filter(m => familyOf(m.type) === 'chart')
+  return (charts.length ? charts : region.members)
+    .reduce((a, b) => (!a || (b.y + b.h) > (a.y + a.h) ? b : a), null)
 }
 
 // 50/50 horizontal split: newcomer takes the LEFT half at the target's full height,
@@ -93,6 +111,22 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
   const family = familyOf(type)
   const minGapH = d.minH || 3
   const regions = inferRegions(widgets, cols, rows)
+
+  // 1. Dock-below-chart widgets (e.g. Fundamentals) ALWAYS sit under a chart when one
+  // exists — a short strip at the chart's width, filling the bottom gap or splitting a
+  // strip off the bottom of the chart. Falls through to normal panel logic if no chart.
+  const dock = WIDGET_REGISTRY[type]?.placement?.dock
+  if (dock === 'below-chart') {
+    const cr = chartRegionOf(regions)
+    if (cr) {
+      const gap = tallestGap(cr.gaps)
+      if (gap && gap.h >= minGapH) {
+        return { place: clampPlace({ x: cr.x, y: gap.y, w: cr.w, h: gap.h }, d, cols, rows), mutations: [] }
+      }
+      const split = splitVertical(d, bottomChart(cr), d.h)
+      if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    }
+  }
 
   const affinity = pickAffinityRegion(regions, family, minGapH)
 

@@ -62,6 +62,7 @@ export default function GhostPreview({
   if (!plan) return null
 
   const GOLD = '#c9a84c'
+  const LIGHT = '#e6d29a'   // lighter gold so the ghost boxes stand out over the blur
   // metrics can be unmeasurable (e.g. a zero-size jsdom grid); the confirm bar still
   // renders so the action is always reachable — only the on-grid rects are skipped.
   const ghost = metrics ? toPx(plan.place, metrics, rowHeight) : null
@@ -78,31 +79,43 @@ export default function GhostPreview({
     : { top: 12, left: '50%', transform: 'translateX(-50%)' }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 40, pointerEvents: 'none' }}>
-      {/* Widgets that would shrink to make room. */}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
+      {/* Backdrop: blur + dim the whole layout behind, and BLOCK all interaction with
+          it while placing (click anywhere off the ghost = cancel). */}
+      <div
+        onClick={onCancel}
+        style={{
+          position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'default',
+          background: 'rgba(10,11,14,0.34)',
+          backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+        }}
+      />
+
+      {/* Widgets that would shrink to make room (visual only — clicks fall through). */}
       {mutRects.map(r => (
         <div
           key={r.id}
           style={{
             position: 'absolute', left: r.left, top: r.top, width: r.width, height: r.height,
-            border: `2px dashed ${GOLD}80`, borderRadius: 6, boxSizing: 'border-box',
-            background: `${GOLD}12`,
+            border: `2px dashed ${LIGHT}99`, borderRadius: 6, boxSizing: 'border-box',
+            background: `${LIGHT}1f`, pointerEvents: 'none',
           }}
         />
       ))}
 
-      {/* The proposed slot for the new widget. */}
+      {/* The proposed slot for the new widget — lighter fill + glow to stand out. */}
       {ghost && (
         <div
           onClick={onConfirm}
           style={{
             position: 'absolute', left: ghost.left, top: ghost.top, width: ghost.width, height: ghost.height,
-            border: `2px dashed ${GOLD}`, borderRadius: 6, boxSizing: 'border-box',
-            background: `${GOLD}22`, pointerEvents: 'auto', cursor: 'pointer',
+            border: `2px solid ${LIGHT}`, borderRadius: 6, boxSizing: 'border-box',
+            background: `${LIGHT}3d`, pointerEvents: 'auto', cursor: 'pointer',
+            boxShadow: `0 0 0 1px ${LIGHT}55, 0 6px 28px rgba(201,168,76,0.28)`,
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
           }}
         >
-          <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 11, fontWeight: 600, color: GOLD, letterSpacing: 0.3 }}>
+          <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
             {label}
           </div>
         </div>

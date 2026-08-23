@@ -38,6 +38,26 @@ describe('planPlacement — general behavior', () => {
     expect(mutations).toEqual([])
   })
 
+  test('fundamentals docks BELOW the chart, not into the sidebar rail', () => {
+    // chart on the left + a right rail (watchlist over theme). Fundamentals must go
+    // under the chart (splitting a short strip off its bottom), not into the rail.
+    const layout = [
+      { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
+      { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 10 },
+      { id: 't1', type: 'themes', x: 18, y: 10, w: 6, h: 10 },
+    ]
+    const { place, mutations } = planPlacement(layout, 'fundamentals', COLS, ROWS)
+    expect(place).toMatchObject({ x: 0, y: 14, w: 18, h: 6 }) // strip under the chart, chart width
+    expect(mutations).toEqual([{ id: 'c1', h: 14 }])          // chart shrinks to make room
+  })
+
+  test('fundamentals fills an existing empty gap below the chart without resizing', () => {
+    const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 14 }]
+    const { place, mutations } = planPlacement(layout, 'fundamentals', COLS, ROWS)
+    expect(place).toMatchObject({ x: 0, y: 14, w: 18 }) // drops into the empty bottom gap
+    expect(mutations).toEqual([])
+  })
+
   test('a panel with no matching rail carves one beside the widest widget', () => {
     const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
     const { place, mutations } = planPlacement(layout, 'themes', COLS, ROWS)
