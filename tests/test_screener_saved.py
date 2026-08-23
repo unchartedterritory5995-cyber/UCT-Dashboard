@@ -107,8 +107,10 @@ def test_flagship_unit_rulings_hold(tmp_path, monkeypatch):
       snapshot (MU: price 966.78 × avg_volume_30d 40,433,469.5 =
       39,090,269,643.21 = the stored value), corroborated by the filter's
       unit="$" and columnDefs' dollarVol formatter. $20M/$10M pin as 2e7/1e7.
-    - implied_move_pct "present" = ``gte 0`` — SQL ``>= 0`` excludes NULL,
-      which IS presence; no new operator this wave (controller ruling).
+    - Earnings Momentum's third criterion is ``optionable eq 1``. It shipped as
+      ``implied_move_pct gte 0`` ("present" — SQL ``>= 0`` excludes NULL, which
+      IS presence; controller ruling), and that clause made the preset return
+      ZERO forever: see ``_KNOWN_EMPTY_IN_PROD`` below for the measurement.
     """
     ss = _svc(tmp_path, monkeypatch)
     by_id = {s["id"]: s["spec"] for s in ss.starters()}
@@ -124,5 +126,96 @@ def test_flagship_unit_rulings_hold(tmp_path, monkeypatch):
     assert leaders["op"] == "gte" and leaders["min"] == 20_000_000
     breakout = _only(by_id["starter_52w_breakout"], "dollar_vol_30d")
     assert breakout["op"] == "gte" and breakout["min"] == 10_000_000
-    earnings = _only(by_id["starter_earnings_momentum"], "implied_move_pct")
-    assert earnings["op"] == "gte" and earnings["min"] == 0
+    earnings = _only(by_id["starter_earnings_momentum"], "optionable")
+    assert earnings["op"] == "eq" and earnings["value"] == 1
+
+
+# ⛔ COLUMNS THAT ARE NON-NULL ON **ZERO** PROD ROWS. A starter filtering one of
+# these is a screen that returns nothing FOREVER, and no validity test above can
+# see it: the key exists in FILTERS, the op is legal for its control type, the
+# view resolves, the sort column is real, and the AST starter citing it grounds
+# cleanly. Every gate is green and the member gets an empty table.
+#
+# ⭐ EACH ENTRY CARRIES ITS REASON AND THE DATE IT WAS MEASURED, because "empty
+# today" and "empty by construction" are different facts and only the second one
+# is permanent. Re-measure before treating an entry as either dead or healed —
+# and DELETE an entry once its column fills, rather than leaving a stale ban that
+# blocks a working criterion.
+_KNOWN_EMPTY_IN_PROD = {
+    "implied_move_pct": (
+        "non-null on 0 of 3,745 prod rows, measured 2026-08-23. `earnings_context`"
+        " reads `implied_store`, which captures the pre-report straddle only the"
+        " night before a report (first-write-wins per (sym, report_date)), so"
+        " coverage is inherently sparse and was zero on that Sunday build."
+        " `IMPLIED_STORE_ENABLED` IS set in prod — whether a weekday build carries"
+        " a handful of rows is UNMEASURED. Re-measure on a weekday before treating"
+        " this as permanent."
+    ),
+    "earnings_setup_grade": (
+        "non-null on 0 of 3,745 prod rows, measured 2026-08-23. A SEPARATE source"
+        " from implied move — `earnings_context._latest_grades` — so do not"
+        " conflate the two when one of them fills."
+    ),
+}
+
+
+def _starters_filtering_an_empty_column(starters, registry):
+    """The rail's one decision, shared by the real check and its control.
+
+    Returns ``[(starter_id, key, column), …]`` for every filter whose registry
+    COLUMN (not merely its key — the two can differ) is in the ban list.
+    """
+    hits = []
+    for s in starters:
+        for f in s["spec"]["filters"]:
+            entry = registry.get(f["key"]) or {}
+            column = entry.get("column", f["key"])
+            if column in _KNOWN_EMPTY_IN_PROD:
+                hits.append((s["id"], f["key"], column))
+    return hits
+
+
+def test_no_starter_filters_a_column_that_is_empty_in_prod(tmp_path, monkeypatch):
+    """A starter may not filter on a column that holds no values.
+
+    ⭐ THIS IS THE TOOTH FOR A CLASS NO VALIDITY TEST CAN SEE. "Earnings
+    Momentum" shipped filtering `implied_move_pct >= 0` and returned 0 rows on
+    every prod run from the day it landed; its other two criteria alone yield 38
+    names. Nothing above went red, because nothing above asks whether the column
+    can answer. Only RUNNING all ten starters against prod found it.
+    """
+    ss = _svc(tmp_path, monkeypatch)
+    from api.services.screener import filters as scr_filters
+    hits = _starters_filtering_an_empty_column(ss.starters(), scr_filters.FILTERS)
+    assert not hits, (
+        "these starters filter on a column that is non-null on ZERO prod rows, so "
+        "they return nothing forever: "
+        + "; ".join(
+            f"{sid} filters {key!r} -> {col} ({_KNOWN_EMPTY_IN_PROD[col]})"
+            for sid, key, col in hits))
+
+
+def test_the_empty_column_rail_can_fail(tmp_path, monkeypatch):
+    """NON-VACUITY CONTROL — the rail above passes because the starters are
+    clean, not because it looks at nothing.
+
+    Feeds the SAME decision function a starter that filters a banned column and
+    proves it is reported. Delete the ban list, stop reading `column`, or return
+    an empty list from the helper, and this goes red.
+    """
+    from api.services.screener import filters as scr_filters
+    seeded = sorted(_KNOWN_EMPTY_IN_PROD)
+    assert seeded, "the ban list is empty, so the rail above cannot fail"
+    # Every seeded column, not just the first — a ban nobody has seen fire is
+    # not a ban. (The helper reads `key`, so no `op` is needed to exercise it.)
+    for banned in seeded:
+        fake = [{"id": "starter_control", "name": "Control",
+                 "spec": {"filters": [{"key": banned}], "view": "events"}}]
+        assert _starters_filtering_an_empty_column(fake, scr_filters.FILTERS) == [
+            ("starter_control", banned, banned)], banned
+    # …and a starter on a column that DOES carry values is not flagged, so the
+    # helper is not simply reporting everything.
+    ok = [{"id": "starter_control_ok", "name": "Control",
+           "spec": {"filters": [{"key": "rs_rank", "op": "gte", "min": 70}],
+                    "view": "technical"}}]
+    assert _starters_filtering_an_empty_column(ok, scr_filters.FILTERS) == []

@@ -161,10 +161,29 @@ def starters():
              {"key": "vol_ratio", "op": "gte", "min": 1.5},
              {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
           "view": "technical", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+        # ⛔ 2026-08-23: THIS PRESET RETURNED ZERO ROWS, ALWAYS — caught by
+        # running all ten starters against prod rather than by any test.
+        # Spec §7 asked for "implied move present", which shipped as
+        # `implied_move_pct >= 0` (the presence ruling: `col >= 0` excludes
+        # NULL). MEASURED on prod the same morning: `implied_move_pct` is
+        # non-null on **0 of 3,745 rows**, so that clause is an unsatisfiable
+        # AND — the other two criteria alone yield 38 names.
+        # WHY the column is empty (stated to the limit of what was measured,
+        # not further): `earnings_context` reads `implied_store`, which
+        # captures the pre-report straddle *the night before* a report —
+        # first-write-wins per (sym, report_date) — so coverage is inherently
+        # sparse, and it was zero on this Sunday build. `IMPLIED_STORE_ENABLED`
+        # IS set in prod. Whether a weekday build carries a handful of rows is
+        # UNMEASURED; re-measure before treating the column as dead.
+        # THE SUBSTITUTE: `optionable` carries the surviving intent — "this
+        # name has a real options market for the event to be priced in" — and
+        # it is REAL DATA (3,117 of 3,745, so it genuinely discriminates; the
+        # preset yields 37 vs 38 unfiltered). It shipped in the Wave-6 finviz
+        # parity pull and populated on its first night.
         {"id": "starter_earnings_momentum", "name": "Earnings Momentum",
          "spec": {"filters": [
              {"key": "days_to_earnings", "op": "between", "min": 0, "max": 7},
-             {"key": "implied_move_pct", "op": "gte", "min": 0},
+             {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
-          "view": "overview", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
+          "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
     ]
