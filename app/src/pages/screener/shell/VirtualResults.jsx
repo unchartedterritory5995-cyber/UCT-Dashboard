@@ -61,8 +61,14 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
       <div role="table" aria-label="Scan results" aria-rowcount={displayRows.length}
         className={styles.grid} style={{ '--grid-cols': gridCols }}>
         <div role="row" className={`${styles.gridRow} ${styles.gridHead}`}>
+          {/* `columnDefs.desc` surfaces as a native title on the header cell —
+              the minimal description surface, deliberately no tooltip
+              framework. Not an a11y affordance: the header's accessible name
+              stays the button's text (the harness reads aria-label/text,
+              never title). */}
           {columns.map(c => (
             <div role="columnheader" aria-sort={ariaSort(c)} key={c}
+              title={COLUMN_DEFS[c]?.desc || undefined}
               className={`${styles.hcell} ${c === 'ticker' ? styles.stickyCol : ''}`}>
               <button type="button" className={styles.hbtn} onClick={() => toggleSort(c)}>
                 {COLUMN_DEFS[c]?.label || c}

@@ -503,7 +503,7 @@ describe('the scan surface is a real destination, not a rail-satisfying stub', (
     const user = userEvent.setup()
     renderScreenerPage()
     await openScreensMenu(user)
-    await waitFor(() => expect(screen.getByTestId('screens-manager-error')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('screens-manager-error--scans')).toBeInTheDocument())
     expect(screen.queryByText(/no scannable formulas yet/i)).toBeNull()
   })
 })

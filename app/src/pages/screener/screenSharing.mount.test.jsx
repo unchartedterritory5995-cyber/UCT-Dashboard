@@ -4,28 +4,30 @@
 //
 // `saved_screens.update` mints `share_token = secrets.token_urlsafe(8)` ONLY
 // when `is_public` is true, and **`is_public` was never sent true from anywhere
-// in the app**. `useSavedScreens` had exactly two call sites, both in
-// `SaveScreenBar.jsx`: `create(name, currentSpec)` (default false) and
-// `update(id, { name })`. So no token was ever minted, `get_public()` could
-// never match a row, and a complete public-sharing backend was unreachable by
-// construction (`.superpowers/sdd/audit/reachability-report.md` §3a).
+// in the app**. `useSavedScreens` had exactly two call sites, both in the
+// since-deleted `SaveScreenBar.jsx` (they live in `ScreensManager.jsx` now):
+// `create(name, currentSpec)` (default false) and `update(id, { name })`. So no
+// token was ever minted, `get_public()` could never match a row, and a complete
+// public-sharing backend was unreachable by construction
+// (`.superpowers/sdd/audit/reachability-report.md` §3a).
 //
 // ⚠️ HISTORY NOTE (Wave 4, 2026-08-21): everything above describes the ORIGINAL
-// defect and its original home. `SaveScreenBar`/`ScannerPro` are DELETED —
-// `ScreensManager` (inside the Wave-3 `ScannerShell`) owns the menu and the
-// share panel now, and the assertions below were re-pointed with that move.
-// The prose is kept as the record of WHY this rail exists.
+// defect and its original home, the deleted `SaveScreenBar`/`ScannerPro` pair.
+// `ScreensManager` (inside the Wave-3 `ScannerShell`) is the CURRENT owner of
+// the menu and the share panel, and the assertions below were re-pointed with
+// that move. The prose is kept as the record of WHY this rail exists.
 //
 // ⭐ SO THIS FILE RENDERS `<Screener/>` — the module `App.jsx` mounts at
 // `/screener`, the destination `NavBar` labels "Screener" — and drives the only
 // controls a member has: open the menu, open the share panel, click publish.
-// `SaveScreenBar.test.jsx` renders the bar directly with `useSavedScreens`
-// MOCKED, so it stayed green for the whole time the publish path did not exist
-// and would stay green if `<SaveScreenBar/>` were deleted from `ScannerPro`.
+// `ScreensManager.test.jsx` renders the manager directly with `useSavedScreens`
+// MOCKED, so it would stay green if `<ScreensManager/>` were unplugged from
+// `ScannerShell` — exactly as its deleted predecessor's test stayed green for
+// the whole time the publish path did not exist.
 // That is the split: both halves of a severed wire remain individually correct.
 //
-// ⛔ NOTHING ON THE SHARING PATH IS MOCKED. `Screener`, `ScannerPro`,
-// `SaveScreenBar`, `useSavedScreens`, `screenShareLink` and the network calls
+// ⛔ NOTHING ON THE SHARING PATH IS MOCKED. `Screener`, `ScannerShell`,
+// `ScreensManager`, `useSavedScreens`, `screenShareLink` and the network calls
 // they make are all the shipped modules. The stubs are the scan data lane
 // (`useScreenerMeta` / `useScreenerScan`, which own three polls and an
 // append-on-identity hazard documented in `ScannerPro.test.jsx`), the SSE price
@@ -282,8 +284,8 @@ describe('the controls that keep the rail honest', () => {
 
   it('the component test this replaces mocks the hook, and so cannot see the wire', () => {
     // The measurement, executable so it does not rot into folklore: the reason
-    // `ScreensManager.test.jsx` (SaveScreenBar's successor) stays green through
-    // any future defect on this same wire.
+    // `ScreensManager.test.jsx` — the component test of the current owner,
+    // `ScreensManager` — stays green through any future defect on this same wire.
     const mocked = mockedSpecifiers(read('app/src/pages/screener/ScreensManager.test.jsx'))
     expect(mocked,
       'ScreensManager.test.jsx no longer stubs the saved-screens hook — if it now '

@@ -409,7 +409,7 @@ def latest_covered_as_of(def_hash: str, tf: Any) -> Optional[int]:
     return row["as_of"] if row else None
 
 
-def latest_coverage_for(def_hashes, tf) -> dict:
+def latest_coverage_for(def_hashes: Iterable[Any], tf: Any) -> dict:
     """{def_hash: {as_of, evaluated, answered, dropped, not_computable,
     freshness}} for each hash's LATEST swept session.
 

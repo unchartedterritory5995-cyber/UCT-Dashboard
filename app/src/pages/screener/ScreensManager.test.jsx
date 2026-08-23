@@ -1,11 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 
-// ScreensManager.test.jsx — the mount rail's "hook is mocked here" record
-// (screenSharing.mount.test.jsx points at THIS file now, not
-// SaveScreenBar.test.jsx). Both data sources are mocked at the component
-// level: `useSavedScreens` (screen specs) and `useUserDefinitions` (formula
-// definitions, filtered through the REAL `scannableScreens`).
+// ScreensManager.test.jsx — the mount rail's "hook is mocked here" record for
+// `ScreensManager`, the current owner of the screens menu + share panel
+// (screenSharing.mount.test.jsx points at THIS file; the deleted
+// SaveScreenBar's test held that role before the Wave-4 supersession). Both
+// data sources are mocked at the component level: `useSavedScreens` (screen
+// specs) and `useUserDefinitions` (formula definitions, filtered through the
+// REAL `scannableScreens`).
 
 const create = vi.fn()
 const update = vi.fn()
@@ -132,7 +134,10 @@ test('a refused saved-screens read renders the error testid, never "None saved y
   savedScreensState.error = new Error('saved-screens 402')
   render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
   open()
-  expect(screen.getByTestId('screens-manager-error')).toBeInTheDocument()
+  // Suffixed per section so a screens-lane failure can never satisfy an
+  // assertion aimed at the scans lane (and vice versa).
+  expect(screen.getByTestId('screens-manager-error--screens')).toBeInTheDocument()
+  expect(screen.queryByTestId('screens-manager-error--scans')).not.toBeInTheDocument()
   expect(screen.queryByText('None saved yet')).not.toBeInTheDocument()
 })
 
@@ -141,7 +146,8 @@ test('a refused definitions read renders the error testid for the scans section'
   userDefinitionsState.error = new Error('user-definitions 402')
   render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
   open()
-  expect(screen.getByTestId('screens-manager-error')).toBeInTheDocument()
+  expect(screen.getByTestId('screens-manager-error--scans')).toBeInTheDocument()
+  expect(screen.queryByTestId('screens-manager-error--screens')).not.toBeInTheDocument()
   expect(screen.queryByText('No scannable formulas yet')).not.toBeInTheDocument()
 })
 

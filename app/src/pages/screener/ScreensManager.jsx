@@ -24,9 +24,9 @@ import styles from './ScannerPro.module.css'
 //
 // ⛔ ERROR ≠ EMPTY (K7). `useSavedScreens`' fetcher now throws on a non-ok
 // response, and `useUserDefinitions` already did — a refused read renders
-// `data-testid="screens-manager-error"` (role=alert), never "None saved yet"
-// or an empty scans list. The two pictures look identical and send a member
-// to different fixes.
+// `data-testid="screens-manager-error--screens"` (My screens) or `--scans`
+// (My scans), role=alert, never "None saved yet" or an empty scans list. The
+// two pictures look identical and send a member to different fixes.
 //
 // ─── DEFINITION DETAIL (Task 6) ─────────────────────────────────────────────
 //
@@ -141,7 +141,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           <div className={styles.saveMenuSection}>
             <div className={styles.saveMenuHdr}>My screens<TypeBadge>SCREEN</TypeBadge></div>
             {savedError ? (
-              <p role="alert" data-testid="screens-manager-error" className={styles.saveMenuEmpty}>
+              <p role="alert" data-testid="screens-manager-error--screens" className={styles.saveMenuEmpty}>
                 Your saved screens could not be read ({String(savedError.message || savedError)}).
               </p>
             ) : saved.length === 0 ? (
@@ -227,7 +227,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           <div className={styles.saveMenuSection}>
             <div className={styles.saveMenuHdr}>My scans<TypeBadge>SCAN</TypeBadge></div>
             {defsError ? (
-              <p role="alert" data-testid="screens-manager-error" className={styles.saveMenuEmpty}>
+              <p role="alert" data-testid="screens-manager-error--scans" className={styles.saveMenuEmpty}>
                 Your saved scans could not be read ({String(defsError.message || defsError)}).
               </p>
             ) : scans.length === 0 ? (

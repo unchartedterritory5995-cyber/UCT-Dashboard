@@ -82,8 +82,11 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   const applySpec = useCallback(s => {
     setFilters(specToFilters(s))
     if (s?.view) setViewState(s.view)
-    if (s?.sort) setSortState(s.sort)
-    setColumnsState(Array.isArray(s?.columns) && s.columns.length ? s.columns : null)
+    // Copy, never alias: the spec belongs to the caller (a saved row in the SWR
+    // cache, a fetched shared screen) — aliasing `sort`/`columns` into state
+    // would let a later in-place edit reach back into the cached spec.
+    if (s?.sort) setSortState({ ...s.sort })
+    setColumnsState(Array.isArray(s?.columns) && s.columns.length ? [...s.columns] : null)
     setPage(1)
   }, [])
   const loadMore = useCallback(() => setPage(p => p + 1), [])
