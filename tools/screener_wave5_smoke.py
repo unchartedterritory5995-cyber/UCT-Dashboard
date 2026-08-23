@@ -5,11 +5,12 @@ Uses tmp SCREENER_DB_PATH, PATTERN_DB_PATH, RAILWAY_VOLUME_MOUNT_PATH,
 and SCREENER_OPTFLOW_ARTIFACT env BEFORE imports. Mirrors wave2 honesty + wave4 join state.
 
 Stage B (B3) appends three verification checks after the Stage-A section:
-  B-1  filters.meta() serves 145 filters (125 through Wave 4 + 12 Wave-5 +
+  B-1  filters.meta() serves 147 filters (125 through Wave 4 + 12 Wave-5 +
        1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6] + 3 finviz
-       growth trio [Wave-6 parity2]) and all 12 Wave-5 keys plus the 7 Wave-6
-       keys are present. On a count mismatch it reports the measured number
-       and the per-category breakdown (the WHY) instead of forcing the pin.
+       growth trio [Wave-6 parity2] + 2 per-pattern engine flags [Wave-6])
+       and all 12 Wave-5 keys plus the 9 Wave-6 keys are present. On a count
+       mismatch it reports the measured number and the per-category breakdown
+       (the WHY) instead of forcing the pin.
   B-2  the Python formula lane resolves a PROMOTED scalar: ast_table.scalar_source
        ("float_pct") -> {store: screener_rows, column: float_pct} (B1's manifest bump).
   B-3  tools/ast_conformance.py --coverage and --check both exit 0 (run as
@@ -323,17 +324,23 @@ def run_smoke():
         print("STAGE B: meta count / promoted-scalar resolution / conformance gates")
         print("=" * 70)
 
-        # [B-1] filters.meta() count -- 145 expected (125 through Wave 4 +
+        # [B-1] filters.meta() count -- 147 expected (125 through Wave 4 +
         # 12 Wave 5 + 1 accdis enum [Wave-6 T1] + 4 finviz parity [Wave-6 T6]
-        # + 3 finviz growth trio [Wave-6 parity2]).
+        # + 3 finviz growth trio [Wave-6 parity2] + 2 per-pattern engine flags
+        # [Wave-6]).
+        # ⛔ THE PIN STAYS HAND-TYPED. Deriving it from `filters.meta()` -- the
+        # only artifact that owns the number -- would compare the measurement
+        # to itself and pass through any vocabulary change, which is the whole
+        # thing this stage exists to notice. It is a tripwire, so moving it is
+        # supposed to cost somebody a deliberate edit.
         # Pin history: B3 pinned 137 pre-Wave-6; T1's accdis enum moved the
         # measured count to 138; T6's four moved it to 142; parity2's growth
         # trio (ids 19/20/21; Q/Q pair deliberately SKIPPED -- eps_growth/
-        # rev_growth already carry those facts) moved it to 145, each time
-        # WITH the pin.
+        # rev_growth already carry those facts) moved it to 145; the two
+        # per-pattern engine flags moved it to 147, each time WITH the pin.
         # Called WITHOUT user_id on purpose: the per-user my_scans entry would
         # inflate the count by one and the pin is about the shared vocabulary.
-        print("\n[STAGE B-1] filters.meta() count (expect 145 = 125 + 12 + 1 + 4 + 3)")
+        print("\n[STAGE B-1] filters.meta() count (expect 147 = 125 + 12 + 1 + 4 + 3 + 2)")
         from api.services.screener import filters
         meta_out = filters.meta()
         meta_keys = [f["key"] for f in meta_out["filters"]]
@@ -350,14 +357,17 @@ def run_smoke():
             "insider_trans_pct", "inst_trans_pct", "optionable", "shortable",
             # Wave-6 parity2 growth trio rides the same presence check.
             "eps_past_5y_growth", "eps_next_5y_growth", "sales_past_5y_growth",
+            # Wave-6 per-pattern engine flags -- the count alone would go green
+            # on any two filters, so the new keys join the presence check too.
+            "pattern_engine_vcp", "pattern_engine_flat_base",
         }
         missing_wave5 = sorted(wave5_filter_keys - set(meta_keys))
         missing_wave6 = sorted(wave6_t6_filter_keys - set(meta_keys))
-        if meta_count != 145 or missing_wave5 or missing_wave6:
+        if meta_count != 147 or missing_wave5 or missing_wave6:
             # Report the measured number and WHY -- never force the pin.
             from collections import Counter
             by_cat = Counter(f["category"] for f in meta_out["filters"])
-            print(f"  [FAIL] measured {meta_count} filters (expected 145); "
+            print(f"  [FAIL] measured {meta_count} filters (expected 147); "
                   f"Wave-5 keys missing: {missing_wave5 or 'none'}; "
                   f"Wave-6 keys missing: {missing_wave6 or 'none'}")
             print(f"  Per-category breakdown (the WHY): {dict(sorted(by_cat.items()))}")
@@ -365,7 +375,10 @@ def run_smoke():
             if dupes:
                 print(f"  Duplicate keys: {dupes}")
             return 1
-        print(f"  all 12 Wave-5 + 7 Wave-6 filter keys present")
+        # Counts DERIVED from the sets just checked -- a hand-typed "7" here is
+        # what went stale when the flags landed.
+        print(f"  all {len(wave5_filter_keys)} Wave-5 + {len(wave6_t6_filter_keys)} "
+              f"Wave-6 filter keys present")
         print("  [PASS]")
 
         # [B-2] promoted-scalar resolution via the Python lane (ast closedTable):

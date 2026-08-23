@@ -1,5 +1,13 @@
 """Wave 5 schema: the 13 new columns exist, type-set membership holds, and the
-widen path still works (138 -> 151)."""
+widen path still works (a pre-Wave-5 table gains exactly those 13 on init).
+
+⚠️ THE WIDTH PINS BELOW ARE HAND-TYPED ON PURPOSE and they are the ONLY
+hand-typed numbers here. `len(snapshot_db.COLUMNS)` is a tripwire: a column
+added or dropped anywhere in the screener schema should make somebody look, so
+deriving it from `COLUMNS` itself would make the assertion say nothing. Every
+OTHER number in this file is derived, and the prose no longer restates a width
+-- three waves in a row bumped an assert and left a stale count in a docstring
+or a test NAME, which is what sent the last reader to the wrong number."""
 import sqlite3
 
 
@@ -22,7 +30,9 @@ def test_wave5_columns_are_declared(monkeypatch, tmp_path):
     missing = [c for c in WAVE5 if c not in snapshot_db.COLUMNS]
     assert not missing, missing
     assert len(WAVE5) == 13  # the reference table's own count, pinned
-    assert len(snapshot_db.COLUMNS) == 158
+    # Width tripwire. Moved 158 -> 160 by the Wave-6 per-pattern engine flags
+    # (`pattern_engine_vcp`, `pattern_engine_flat_base`).
+    assert len(snapshot_db.COLUMNS) == 160
 
 
 def test_wave5_type_set_membership(monkeypatch, tmp_path):
@@ -42,31 +52,40 @@ def test_wave5_type_set_membership(monkeypatch, tmp_path):
     assert not (snapshot_db._TEXT & snapshot_db._INT)
 
 
-def test_init_db_creates_all_151(monkeypatch, tmp_path):
+def test_init_db_creates_every_declared_column(monkeypatch, tmp_path):
+    """⚠️ Named `test_init_db_creates_all_151` through three schema waves that
+    each bumped the assert below and left the NAME saying 151 -- a count in a
+    test name is a second authority over a width nothing checks it against.
+    The width lives in the assert, once."""
     _fresh(monkeypatch, tmp_path)
     from api.services.screener import snapshot_db
     snapshot_db.init_db()
     with snapshot_db.connect() as c:
         have = {r[1] for r in c.execute("PRAGMA table_info(screener_rows)")}
     assert set(snapshot_db.COLUMNS) <= have
-    assert len(snapshot_db.COLUMNS) == 158
+    assert len(snapshot_db.COLUMNS) == 160
 
 
 def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):
-    """A prod DB that stopped short of Wave 5 (145 columns incl. the Wave-6 parity four + the parity2 growth trio) gains the 13 on init --
-    the PRAGMA-diff ALTER path (`init_db`'s `have`/`COLUMNS` diff), no
-    migration script (map 4 §8 tail).
+    """A prod DB that stopped short of Wave 5 gains the 13 on init -- the
+    PRAGMA-diff ALTER path (`init_db`'s `have`/`COLUMNS` diff), no migration
+    script (map 4 §8 tail).
 
-    `COLUMNS` itself is monkeypatched to the pre-Wave-5 138 for the FIRST
+    `COLUMNS` itself is monkeypatched to the pre-Wave-5 set for the FIRST
     `init_db()` call (so the table is created the way `init_db` would have
-    shaped it before this task), then restored to the real 151 so the SECOND
+    shaped it before this task), then restored to the real one so the SECOND
     call exercises the exact ALTER-diff path a live pod hits on redeploy.
+
+    ⭐ The pre-Wave-5 width is DERIVED, not typed. It used to be a literal and
+    it went stale on every wave that widened the schema; the subtraction below
+    still fails loudly on the thing the literal was there to catch -- a WAVE5
+    name that is missing from `COLUMNS`, or listed in it twice.
     """
     _fresh(monkeypatch, tmp_path)
     from api.services.screener import snapshot_db
     real_columns = snapshot_db.COLUMNS
     pre_wave5_cols = [c for c in real_columns if c not in WAVE5]
-    assert len(pre_wave5_cols) == 145
+    assert len(pre_wave5_cols) == len(real_columns) - len(WAVE5)
 
     monkeypatch.setattr(snapshot_db, "COLUMNS", pre_wave5_cols)
     snapshot_db.init_db()
