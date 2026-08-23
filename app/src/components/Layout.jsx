@@ -41,29 +41,21 @@ export default function Layout({ children }) {
   // inside the authed shell (never for anonymous landing-page visitors).
   useEffect(() => { initBarsPack() }, [])
 
-  // Apply theme to <html> element with system preference detection
+  // Apply the app theme to the <html> element.
+  //
+  // Two ALWAYS-PRESENT base themes: 'oled' (default) and 'light'. The legacy
+  // 'midnight' / 'dim' / 'system' options were removed 2026-08-23 — any account
+  // still holding one of those values resolves to OLED here (we never fall back
+  // to bare :root, so the retired Midnight-green palette can no longer render).
+  // 'light' is the only value that sets data-theme="light". Everything else —
+  // including the future 'uct:<id>' custom-theme values, which are applied by a
+  // separate effect — falls through to OLED as the safe base until that lands.
   useEffect(() => {
-    const applyTheme = (theme) => {
-      if (theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        // System: use oled for dark preference, dim for light
-        document.documentElement.dataset.theme = prefersDark ? '' : 'dim'
-        if (prefersDark) delete document.documentElement.dataset.theme
-      } else if (theme && theme !== 'midnight') {
-        document.documentElement.dataset.theme = theme
-      } else {
-        delete document.documentElement.dataset.theme
-      }
-    }
-
-    applyTheme(prefs.theme)
-
-    // Listen for OS theme changes when set to "system"
-    if (prefs.theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      const handler = () => applyTheme('system')
-      mq.addEventListener('change', handler)
-      return () => mq.removeEventListener('change', handler)
+    const t = prefs.theme
+    if (t === 'light') {
+      document.documentElement.dataset.theme = 'light'
+    } else {
+      document.documentElement.dataset.theme = 'oled'
     }
   }, [prefs.theme])
 

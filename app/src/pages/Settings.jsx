@@ -36,14 +36,15 @@ const TF_OPTIONS = [
   { value: 'W', label: 'Weekly' },
 ]
 
+// The two ALWAYS-PRESENT base app themes. OLED Black is the default for every
+// current and new user (hooks/usePreferences DEFAULTS.theme = 'oled'). The old
+// Midnight / Dim / System options were removed 2026-08-23; any account still
+// holding one of those values resolves to OLED at apply-time (see Layout.jsx).
+// The "UCT App Themes" gallery (10-20 custom skins) is a SEPARATE picker; each of
+// its themes stores a value like 'uct:slate' and never touches these two.
 const THEME_OPTIONS = [
-  { value: 'midnight', label: 'Midnight', desc: 'Deep dark green', swatch: '#0e0f0d' },
   { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
-  { value: 'dim', label: 'Dim', desc: 'Softer for daytime', swatch: '#1a1d1a' },
-  // Light: the app-wide counterpart of the charts "TSDR — Sunset" look. Selecting it
-  // also flips every StockChart to the Sunset canvas (see StockChart's canvasTheme).
-  { value: 'light', label: 'Light', desc: 'TSDR Sunset white', swatch: '#e8eff5' },
-  { value: 'system', label: 'System', desc: 'Match your OS', swatch: null },
+  { value: 'light', label: 'Light', desc: 'Clean white', swatch: '#e8eff5' },
 ]
 
 // ── Helpers ──
@@ -1561,7 +1562,7 @@ const SEARCH_INDEX = [
   { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
-  { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled dim system default chart timeframe appearance' },
+  { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
   { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
   { card: 'indicatorAlerts', section: 'preferences', title: 'Indicator Alerts',          keywords: 'indicator alert rsi macd chart alerts armed not firing needs attention manager list all symbols' },
   { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
