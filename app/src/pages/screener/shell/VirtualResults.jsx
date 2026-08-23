@@ -3,7 +3,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
 import PatternFeedbackChip from '../../../components/PatternFeedbackChip'
-import { COLUMN_DEFS } from '../columnDefs'
+import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
+import ColumnDesc from './ColumnDesc'
 import { sortRowsLive } from './liveSort'
 import styles from './ScannerShell.module.css'
 
@@ -13,11 +14,16 @@ import styles from './ScannerShell.module.css'
 // the load-more append both have to happen without ever touching that.
 export const LIVE_WINDOW = 300
 const ROW_H = { compact: 30, comfortable: 38 }
+// A described column's track is widened by exactly the disclosure trigger, so
+// the LABEL keeps its usual 92px instead of being squeezed by the icon.
+// Derived from `descFor`, never a hand-listed set of keys.
+const NUM_W = 92
 const colWidth = key =>
   key === 'ticker' ? '128px'
   : key === 'company' ? 'minmax(150px, 1.4fr)'
   : ['sector', 'industry', 'theme', 'patterns'].includes(key) ? 'minmax(120px, 1fr)'
-  : '92px'
+  : descFor(key) ? `${NUM_W + DESC_TRIGGER_W}px`
+  : `${NUM_W}px`
 
 export default function VirtualResults({ rows, columns, sort, onSort, livePrices,
   liveSortOn, density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }) {
@@ -61,16 +67,31 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
       <div role="table" aria-label="Scan results" aria-rowcount={displayRows.length}
         className={styles.grid} style={{ '--grid-cols': gridCols }}>
         <div role="row" className={`${styles.gridRow} ${styles.gridHead}`}>
-          {/* `columnDefs.desc` surfaces as a native title on the header cell —
-              the minimal description surface, deliberately no tooltip
-              framework. Not an a11y affordance: the header's accessible name
-              stays the button's text (the harness reads aria-label/text,
-              never title). */}
+          {/* `columnDefs.desc` reaches the member TWICE here, from one source.
+              The native `title` on the cell stays: it is free, it is the
+              existing idiom, and it gives hover-anywhere discovery. It is NOT
+              the surface — it is hover-only, unreachable by keyboard, unread by
+              a screen reader, and the OS truncates the long ones (the $4M block
+              floor, the classified-denominator note). `ColumnDesc` is the real
+              affordance: a focusable button that opens the full text. It
+              renders nothing at all on a column with no `desc`, so the header
+              never grows an info icon that opens onto a blank.
+
+              The trigger LEADS the label here, unlike the filter rail where it
+              trails it. The header row draws no column separators, so an icon
+              parked at a cell's right edge sits closer to the NEXT column's
+              label than to its own and reads as that one's. Leading it is
+              unambiguous, and it keeps `.hbtn` full-width so the whole
+              remaining cell stays the sort target. */}
           {columns.map(c => (
             <div role="columnheader" aria-sort={ariaSort(c)} key={c}
               title={COLUMN_DEFS[c]?.desc || undefined}
+              style={{ display: 'flex', alignItems: 'center' }}
               className={`${styles.hcell} ${c === 'ticker' ? styles.stickyCol : ''}`}>
-              <button type="button" className={styles.hbtn} onClick={() => toggleSort(c)}>
+              <ColumnDesc colKey={c} name={COLUMN_DEFS[c]?.label || c} />
+              <button type="button" className={styles.hbtn}
+                style={{ flex: '1 1 auto', minWidth: 0 }}
+                onClick={() => toggleSort(c)}>
                 {COLUMN_DEFS[c]?.label || c}
                 {sort?.key === c && <span aria-hidden="true">{sort.dir === 'desc' ? ' ↓' : ' ↑'}</span>}
               </button>

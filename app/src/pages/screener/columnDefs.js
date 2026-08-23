@@ -1,6 +1,34 @@
 // Column formatters + heat-map classifiers for the results table.
 // NOTE: margins / growth / roe / roa / dividend_yield are stored as PERCENT
 // numbers by the snapshot builder (e.g. 25.0 == 25%), so format directly.
+//
+// ── `desc` — the member-facing honesty text, and who renders it ──
+// An OPTIONAL field on a column. It is the sentence that keeps a member from
+// misreading the number: the $4M dark-pool block floor, the pattern-ENGINE vs
+// cheap-heuristic scale split, the three-way-ambiguous blank, the
+// classified-only denominator on options bull %, the ANALYST ESTIMATE
+// disclosure on 5-year forward EPS.
+//
+// ⭐ ONE READER, TWO SURFACES: `shell/ColumnDesc.jsx`. It renders the results
+// column header (`VirtualResults`) AND the filter control (`FilterControl`,
+// joined on filter.key === column key), so the text a member reads while
+// setting a threshold is byte-identical to the one beside the cell. Until
+// 2026-08-23 the only consumer was a native `title` on the header — hover-only,
+// keyboard-unreachable, and truncated by the OS on the long ones, which is to
+// say these strings protected nobody.
+//
+// ⛔ A COLUMN WITHOUT ONE RENDERS NO AFFORDANCE. `ColumnDesc` returns null on a
+// missing/blank `desc` rather than opening an empty box. Most columns have none
+// (18 of 157 carry one at 2026-08-23) and that gap closes by writing the text
+// HERE — never by having the surface improvise one.
+
+// `descFor` and the trigger's width live in this component-free module so both
+// the affordance and the layout that reserves room for it read ONE value.
+export const descFor = key => {
+  const d = COLUMN_DEFS[key]?.desc
+  return typeof d === 'string' && d.trim() ? d.trim() : null
+}
+export const DESC_TRIGGER_W = 20
 const pct = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 const pctPlain = (d = 0) => v => v == null ? '—' : `${v.toFixed(d)}%`
 const usd = v => v == null ? '—'
@@ -187,8 +215,9 @@ export const COLUMN_DEFS = {
   rating_smr: { label: 'SMR', fmt: num(0), heat: heatRs },
   sponsorship: { label: 'Spons', fmt: v => v || '—' },
   // ── Wave 5: pattern engine + positioning & flow ──
-  // `desc` is the member-facing honesty for each column (rendered wherever a
-  // description surface consumes COLUMN_DEFS): the D3 synthetic-expectancy
+  // `desc` is the member-facing honesty for each column (rendered by
+  // `shell/ColumnDesc.jsx` on both the results header and the filter control —
+  // see the contract at the top of this file): the D3 synthetic-expectancy
   // sentence, the D6 engine-vs-cheap-`patterns` scale split, the D7 $4M block
   // floor + three-way-ambiguous-blank coverage caveat, and the K3
   // classified-only denominator. A blank cell is an em dash, never a zero —

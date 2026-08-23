@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FilterControl from './FilterControl'
+import { COLUMN_DEFS } from '../columnDefs'
 
 const RS = { key: 'rs_rank', label: 'RS Rank', type: 'range', allow_custom: true,
   presets: [{ label: 'Any' }, { label: 'Over 80', op: 'gte', min: 80 }], unit: null }
@@ -59,5 +60,43 @@ describe('FilterControl', () => {
     fireEvent.change(screen.getByLabelText('RS Rank'), { target: { value: 'Custom…' } })
     expect(screen.getByLabelText('RS Rank min')).toHaveValue(60)
     expect(screen.getByLabelText('RS Rank max')).toHaveValue(90)
+  })
+})
+
+// The misreading happens when a member picks a THRESHOLD, not only when they
+// read a cell — so the same `columnDefs.desc` has to reach the rail. `meta()`
+// ships no description of its own; the join is filter.key → COLUMN_DEFS[key].
+const DP = { key: 'dp_notional_1d', label: 'Dark Pool Block Notional (1d)',
+  type: 'range', allow_custom: true, presets: [{ label: 'Any' }], unit: '$' }
+const infoButtons = () => screen.queryAllByRole('button', { name: /^What .+ means$/ })
+
+describe('FilterControl — column description surface', () => {
+  it('the described filter opens the full column text from the keyboard', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+    await user.tab()
+    expect(document.activeElement).toBe(btn) // in tab order ahead of the select
+
+    await user.keyboard('{Enter}')
+    // The $4M block floor and the three-way-ambiguous blank, in full — the two
+    // facts a member setting this threshold would otherwise get wrong.
+    expect(screen.getByRole('note')).toHaveTextContent(COLUMN_DEFS.dp_notional_1d.desc)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('a filter whose column has no desc grows NO affordance — same probe, both populations', () => {
+    // CONTROL: absence is only evidence if the query can see a present one.
+    const { unmount } = render(<FilterControl filter={RS} value={null} onChange={() => {}} />)
+    expect(COLUMN_DEFS.rs_rank.desc).toBeUndefined()
+    expect(infoButtons()).toHaveLength(0)
+    unmount()
+
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    expect(infoButtons().map(b => b.dataset.coldesc)).toEqual(['dp_notional_1d'])
   })
 })

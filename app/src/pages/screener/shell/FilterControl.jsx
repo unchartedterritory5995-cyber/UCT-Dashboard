@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
 
 const currentLabel = (filter, value, customOpen) => {
@@ -48,7 +49,17 @@ export default function FilterControl({ filter, value, onChange }) {
 
   return (
     <div className={styles.filterRow}>
-      <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
+      {/* The honesty text belongs HERE as much as on the results header: the
+          misreading that matters happens when a member picks a threshold, not
+          when they read a cell back. `meta()` ships no description of its own,
+          so the join is filter.key → COLUMN_DEFS[key] — the registry keys the
+          snapshot column of the same name for every filter but one (`pattern`,
+          whose column is `patterns` and which carries no `desc`). `ColumnDesc`
+          renders nothing when the column has none, so most rows are unchanged. */}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
+        <ColumnDesc colKey={filter.key} name={filter.label} />
+      </span>
       <select id={`fc_${filter.key}`} aria-label={filter.label}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
         value={currentLabel(filter, value, customOpen)}
