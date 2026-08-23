@@ -7,7 +7,7 @@
   "_no_sentence": "NO READ-BACK IS FROZEN HERE, and that is the one place this file deliberately differs from `conceptVocabulary.json`. The card's blurb is `sentenceFor(tree)` in the browser and `sentence_for(tree)` on the server -- derived on every render from the tree that IS the scan. A hand-written blurb would be a second description of one tree and the prose one is the one that drifts (D-A5).",
   "_no_hash": "NO `def_hash` IS PRECOMPUTED HERE. The handle is `astHash` over the tree, minted by the shipped save path when a member installs one; a catalogue that carried its own copy would be a second registry and two authorities over one identity.",
   "_ungrounded_rule": "A SETUP WITH NO EXPRESSIBLE CONDITION IS NAMED, NOT APPROXIMATED. The member trusts the firm's name on a starter, so a scan that half-means `High Tight Flag` is worse than no scan (AMENDMENT 1's refusal rule, applied to the library). Each reason names its setup and says what is missing -- a column, a published threshold, or the cadence -- because those are three different decisions for the owner. And `rsi(close,14)` is NOT available to close a gap here: E-A9 is open and out of scope, so a setup needing a function the table does not declare stays ungrounded until that phase happens.",
-  "version": "2026-08-09.1",
+  "version": "2026-08-22.1",
   "starters": {
     "Classic Flag/Pullback": {
       "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
@@ -87,6 +87,89 @@
           "screen": "starter_leaders_pullback"
         }
       ]
+    },
+    "Power Earnings Gap": {
+      "source": "days_to_earnings >= 0 && days_to_earnings <= 7 && implied_move_pct >= 0 && rs_rank >= 70",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "days_to_earnings"
+                      },
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "<=",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "days_to_earnings"
+                      },
+                      {
+                        "type": "num",
+                        "value": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">=",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "implied_move_pct"
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 70
+              }
+            ]
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_earnings_momentum"
+        }
+      ]
     }
   },
   "_ungrounded": {
@@ -101,7 +184,6 @@
     "Episodic Pivot": "Episodic Pivot is a gap on a MAJOR CATALYST in a neglected name. The table declares `gap_pct` and `vol_ratio`, so the gap and the volume are expressible -- the catalyst is not. There is no news, filing or earnings-date column, and a scan called Episodic Pivot that returned every 3% gapper would be putting the firm's name on a guess.",
     "2B Reversal": "2B Reversal turns on a PRIOR EXTREME being broken and not held. Naming that extreme needs a swing lookback -- `lowest(low, N)` or `highest(high, N)` -- and no artifact at the firm publishes an N. The functions exist; the number is nobody's.",
     "Kicker Candle": "Kicker Candle is a TWO-BAR relationship: yesterday closes weak, today gaps up and closes above yesterday's high. `gap_pct` names the gap, but the closed table has no bar-offset node -- `_no_offset` -- so 'yesterday's high' cannot be named, and 'closes weak' has no published threshold.",
-    "Power Earnings Gap": "Power Earnings Gap needs to know the gap was an EARNINGS gap. The table declares no earnings date and no surprise column, so `gap_pct >= 3` is the most it could say -- which is the firm's `Gappers holding gains` starter screen wearing a different name, and half-meaning Power Earnings Gap is worse than not shipping it.",
     "News Gappers": "News Gappers is the same gap as the firm's own `Gappers holding gains` starter screen (`gap_pct >= 3 && above_50sma`) with one extra claim the table cannot check: that the gap was news-driven. A member scanning News Gappers would get index rebalances and sympathy moves under a name that promised a catalyst. Ship the screen under its own name, or declare a news column.",
     "4B Setup (Stan Weinstein)": "4B Setup (Stan Weinstein) is a STAGE call -- where the symbol sits in Weinstein's four-stage cycle, read off a 30-week line and its slope. The table declares `above_50sma` and `pct_vs_sma200` but no stage label and no moving-average SLOPE, and `screener/technicals.py` labels an MA STACK, not a stage.",
     "Failed H&S/Rounded Top": "Failed H&S/Rounded Top is a pattern that is defined by NOT resolving: everyone sees the top, the breakdown does not come. Naming the neckline needs a swing lookback nobody publishes, and 'the breakdown did not come' needs a bar offset the closed table does not carry.",
