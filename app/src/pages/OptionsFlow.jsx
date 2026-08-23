@@ -7965,17 +7965,40 @@ export default function OptionsFlowDashboard() {
                           a ticker's whole history under a "1d" badge. FRMI read
                           $34.2M / 557 trades across 91 days when the day itself
                           was $200K / 6. The totals were never wrong; nothing
-                          said what they covered. */}
+                          said what they covered. 2026-08-23: the label below now
+                          anchors to the SELECTED window (range + active/total day
+                          count) instead of the ticker's first/last print, and the
+                          "Last N" scope is real market days, not the ticker's own
+                          (see _scopeAllDirectional). */}
                       {(() => {
                         const ds = [...new Set(ccTrades.map(t => t.Dt).filter(Boolean))];
                         if (!ds.length) return null;
-                        const key = s => { const p = String(s).split("/"); return (parseInt(p[0])||0)*100 + (parseInt(p[1])||0); };
-                        ds.sort((a,b) => key(a) - key(b));
-                        const multi = ds.length > 1;
+                        const activeDays = ds.length;                 // days THIS ticker printed flow
+                        // Anchor to the SELECTED WINDOW (what you picked), not the ticker's
+                        // first/last print — so "All" reads "1/2 – 8/21 · 40/157 active days"
+                        // even though VSAT had no flow before 5/26. winDays mirrors the
+                        // rail's own day count (Search.jsx range logic). 2026-08-23.
+                        const _md = s => { s=String(s||""); if(!s) return ""; if(s.includes("-")){const p=s.split("-");return `${+p[1]}/${+p[2]}`;} const p=s.split("/"); return `${+p[0]}/${+p[1]}`; };
+                        const _last = availableDates.length ? availableDates[availableDates.length-1] : "";
+                        let ws="", we="", winDays=0;
+                        if (dateFrom && dateTo) {
+                          ws=dateFrom; we=dateTo;
+                          winDays = availableDates.filter(d => { const iso=mdyToIso(d); return iso>=dateFrom && iso<=dateTo; }).length;
+                        } else if (dateFilter === "All") {
+                          ws=availableDates[0]||""; we=_last; winDays=availableDates.length;
+                        } else if (dateFilter.startsWith("Last")) {
+                          const n=parseInt(dateFilter.replace("Last",""))||1;
+                          winDays=Math.min(n, availableDates.length);
+                          ws=availableDates[Math.max(0, availableDates.length-n)]||""; we=_last;
+                        } else { ws=dateFilter; we=dateFilter; winDays=1; }
+                        const rangeTxt = (ws && we && ws!==we) ? `${_md(ws)} – ${_md(we)}` : (ws ? _md(ws) : "");
+                        const label = (winDays<=1)
+                          ? (rangeTxt || `${activeDays} active`)
+                          : `${rangeTxt} · ${activeDays} active day${activeDays!==1?"s":""}`;
                         return (
-                          <div style={{ fontSize:9, color:multi?P.ac:P.dm, marginTop:3, fontWeight:multi?700:400 }}
-                               title={multi ? "Search shows this ticker's full flow across every loaded date — not just the selected day." : "Single trading day."}>
-                            {multi ? `across ${ds.length} trading days · ${ds[0]} – ${ds[ds.length-1]}` : `${ds[0]} only`}
+                          <div style={{ fontSize:9, color:P.ac, marginTop:3, fontWeight:700 }}
+                               title={`Selected window${rangeTxt?` (${rangeTxt})`:""}: ${tk.s} printed directional flow on ${activeDays} of its ${winDays} trading day${winDays!==1?"s":""}. "Still open (all)" can also include positions opened before this window.`}>
+                            {label}
                           </div>
                         );
                       })()}
