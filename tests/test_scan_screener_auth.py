@@ -83,7 +83,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 12
+EXPECTED_SCREENER_ROUTES = 13  # +1 2026-08-23: POST /api/screener/finviz-refresh
+# (admin) — the missing upstream half of POST /api/screener/refresh. A header
+# correction could not reach members until the next 02:45 ET pull; this makes
+# 'wait for tonight' a two-call operation. Deliberate, and admin-classed below.
 
 #: The 402 sentence each router speaks. Asserted rather than imported so a quiet
 #: edit to the message is a failure here and not a silent change to what a
@@ -352,9 +355,16 @@ def test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door(
         by_klass[_klass(route)].append((name, sorted(route.methods - {"HEAD", "OPTIONS"})[0],
                                         route.path))
 
-    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 2, \
+    # -3: the two admin refresh routes + the one public door. Both asserts
+    # below NAME their members rather than trusting this count.
+    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 3, \
         by_klass
-    assert [(m, p) for _, m, p in by_klass["admin"]] == [("POST", "/api/screener/refresh")], \
+    # BOTH halves of the manual-refresh pair are admin and neither may drift to
+    # paid: each spends provider budget on a whole-market call.
+    assert sorted((m, p) for _, m, p in by_klass["admin"]) == [
+        ("POST", "/api/screener/finviz-refresh"),
+        ("POST", "/api/screener/refresh"),
+    ], \
         by_klass["admin"]
     assert {(m, p) for _, m, p in by_klass["open"]} == PUBLIC_BY_DESIGN, (
         "the set of un-gated routes changed. If a route was deliberately opened, "

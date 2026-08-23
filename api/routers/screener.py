@@ -165,6 +165,35 @@ def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
     return {"started": True, "max_tickers": max_tickers}
 
 
+@router.post("/api/screener/finviz-refresh")
+def screener_finviz_refresh(user=Depends(require_admin)):
+    """Admin: re-run the whole-market Finviz pull NOW and return its receipt
+    SYNCHRONOUSLY, instead of waiting for the 02:45 ET job.
+
+    ⭐ WHY THIS EXISTS (2026-08-23): the pull writes the artifact the 03:00
+    build joins, so a code fix to `_C_IDS`/`_HEADERS` cannot reach members
+    until the next nightly cycle — a header correction shipped at 10:45 sat
+    dark for sixteen hours purely because nothing could re-run the pull. The
+    snapshot side already had `POST /api/screener/refresh`; this is its
+    missing upstream half, and the pair together turn "wait for tonight"
+    into two calls.
+
+    ⛔ SYNCHRONOUS ON PURPOSE, unlike the snapshot refresh: this is ONE
+    outbound request and the whole point is to read `missing_headers` back —
+    a fire-and-forget version would hand you `{"started": true}` and hide the
+    exact fact you ran it for. It is `require_admin` (stricter than paid) and
+    it spends provider budget, same posture as the snapshot refresh beside it.
+
+    ⚠️ The pull's own guards still apply and are the safety net: a result
+    under `_MIN_ROWS` is treated as a failed pull and the prior artifact is
+    left completely alone, so the worst case of calling this is a wasted
+    request, never a blanked artifact. Follow it with
+    `POST /api/screener/refresh` to join the fresh columns into the rows.
+    """
+    from api.services.screener import finviz_universe
+    return finviz_universe.run_pull()
+
+
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
