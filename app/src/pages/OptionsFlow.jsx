@@ -608,6 +608,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  const [searchCP, setSearchCP] = useState("All");  // Search Top-Trades C/P filter: All | C | P
   // ─── OI-Confirmation state for Search ─────────────────────────────────────
   // Toggle to filter Search bull/bear totals to only trades on contracts
   // whose OI grew in the days after the trade — separating real position
@@ -8059,7 +8060,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <button onClick={_fetchAllSearchOI} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
@@ -8067,13 +8068,37 @@ export default function OptionsFlowDashboard() {
                     </button>
                     <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
                     {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                    {/* C/P filter for the Top-Trades table — isolate the active
+                        calls vs puts (green Calls / red Puts). Table-only; the
+                        Net Direction / Bull / Bear cards above stay unfiltered. */}
+                    <div style={{ marginLeft:"auto", display:"flex", gap:4, alignItems:"center" }}>
+                      <span style={{ fontSize:9, color:P.dm, marginRight:2 }}>Show</span>
+                      {[{k:"All",l:"All",c:P.ac},{k:"C",l:"Calls",c:P.bu},{k:"P",l:"Puts",c:P.be}].map(o => {
+                        const on = searchCP===o.k;
+                        return (
+                          <button key={o.k} onClick={()=>setSearchCP(o.k)}
+                            style={{ padding:"4px 10px", borderRadius:6, cursor:"pointer",
+                              border:"1px solid "+(on?o.c:P.bd), background:on?o.c+"22":"transparent",
+                              color:on?o.c:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit" }}>
+                            {o.l}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   {/* Top Trades table — panelFn intentionally omitted. The
                       outer modal-version of renderDetailPanel (just below)
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" \u2014 Top Trades \u00b7 "+(_useOpen ? "still open (all dates)" : _rangeLabel)} sub={(_useOpen ? _tkTradesFull : _tkTradesScoped).length+" total"}><TT rows={_useOpen ? _tkTradesFull : _tkTradesScoped} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  {(() => {
+                    const _base = _useOpen ? _tkTradesFull : _tkTradesScoped;
+                    const _rows = searchCP === "All" ? _base : _base.filter(r => r.CP === searchCP);
+                    const _cpLabel = searchCP === "C" ? " \u00b7 calls" : searchCP === "P" ? " \u00b7 puts" : "";
+                    return (
+                      <Card title={tk.s+" \u2014 Top Trades \u00b7 "+(_useOpen ? "still open (all dates)" : _rangeLabel)+_cpLabel} sub={_rows.length+" total"}><TT rows={_rows} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                    );
+                  })()}
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
