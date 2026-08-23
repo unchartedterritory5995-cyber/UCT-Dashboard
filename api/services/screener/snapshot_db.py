@@ -64,6 +64,10 @@ COLUMNS = [
     "pattern_entry_dist_pct", "pattern_stop_dist_pct", "pattern_expectancy_r",
     "dp_notional_1d", "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
     "opt_net_premium_1d", "opt_bull_pct_1d", "opt_net_premium_5d",
+    # finviz parity (Wave 6 T6) — the transactions pair is SIGNED percent
+    # (net insider/institutional buying vs selling over the trailing window);
+    # the two flags are Yes/No -> 1/0 via finviz_universe's bool parse class.
+    "insider_trans_pct", "inst_trans_pct", "optionable", "shortable",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -99,7 +103,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "rating_growth", "rating_value", "rating_smr",
         # Wave 5 -- `pattern_engine_dir` is the reader-encoded +1/-1/0
         # (ruling D4, never the store's raw TEXT); `dp_prints_1d` is a count.
-        "pattern_engine_dir", "dp_prints_1d"}
+        "pattern_engine_dir", "dp_prints_1d",
+        # Wave 6 (T6) -- Finviz Yes/No flags stored 0/1 (bool parse class in
+        # finviz_universe; anything else is honest-None, never a guessed 0).
+        "optionable", "shortable"}
 
 
 # ---------------------------------------------------------------------------

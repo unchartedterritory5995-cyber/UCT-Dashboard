@@ -10,10 +10,16 @@ from datetime import datetime, timedelta, timezone
 # ⛔ 2026-08-22: "Float %" is DELIBERATELY ABSENT — c=129 measured "Exchange"
 # live, no Float % column exists in the v152 export (see finviz_universe's
 # module docstring ADJUDICATION). float_pct is derived, never requested.
+# Wave 6 (T6): the last four headers are the module's GUESSES at the export's
+# fuller names for page-verified ids 27/29/80/83 — the first real pull's
+# `missing_headers` receipt adjudicates the spelling (a miss degrades
+# honestly), so these fixtures deliberately serve the guessed spellings.
 FULL_HEADERS = [
     "Ticker", "Shares Outstanding", "Shares Float",
     "Short Float", "Short Ratio", "Insider Ownership",
     "Institutional Ownership",
+    "Insider Transactions", "Institutional Transactions",
+    "Optionable", "Shortable",
 ]
 
 
@@ -25,7 +31,8 @@ def _csv(headers, rows):
 
 
 def _full_row(ticker):
-    return [ticker, "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%"]
+    return [ticker, "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
+            "-2.34%", "1.85%", "Yes", "No"]
 
 
 def _make_full_csv(n=1005):
@@ -73,6 +80,61 @@ def test_parse_junk_is_none():
     from api.services.screener import finviz_universe as fv
     assert fv._parse("N/A", False) is None
     assert fv._parse("abc%", True) is None
+
+
+def test_parse_signed_percent():
+    """The Wave 6 transactions pair is SIGNED — net insider selling is a
+    negative percentage and must survive the parse with its sign."""
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse("-2.34%", True) == -2.34
+    assert fv._parse("1.85%", True) == 1.85
+
+
+# ── Wave 6 (T6): is_pct is REAL now — it drives the bare-percent receipt ─────
+
+def test_parse_counts_a_bare_percent_and_still_parses_it():
+    """A `_PCT_COLUMNS` member served WITHOUT its '%' suffix parses the bare
+    number (no magnitude guessing) and is COUNTED in `receipt['bare_pct']` —
+    honest disclosure, never a silent unguarded parse."""
+    from api.services.screener import finviz_universe as fv
+    receipt = {}
+    assert fv._parse("12.3", True, receipt=receipt) == 12.3
+    assert receipt["bare_pct"] == 1
+    # A properly-suffixed percent is NOT counted.
+    assert fv._parse("3.45%", True, receipt=receipt) == 3.45
+    assert receipt["bare_pct"] == 1
+    # A non-percent column never counts, suffix or not.
+    assert fv._parse("12.3", False, receipt=receipt) == 12.3
+    assert fv._parse("1.5B", False, receipt=receipt) == 1.5e9
+    assert receipt["bare_pct"] == 1
+    # An unparseable value on a pct column is None, not a count.
+    assert fv._parse("-", True, receipt=receipt) is None
+    assert fv._parse("N/A", True, receipt=receipt) is None
+    assert receipt["bare_pct"] == 1
+
+
+def test_parse_without_a_receipt_still_parses_bare_percent():
+    """The counter is optional — the direct-call sites in these tests and any
+    future caller without a receipt keep the old behavior byte-for-byte."""
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse("12.3", True) == 12.3
+
+
+# ── Wave 6 (T6): the boolean parse class (Optionable / Shortable) ───────────
+
+def test_parse_bool_yes_no_else_none():
+    from api.services.screener import finviz_universe as fv
+    assert fv._parse_bool("Yes") == 1
+    assert fv._parse_bool("No") == 0
+    # Case/whitespace tolerant — Finviz serves "Yes"/"No" but a parse class
+    # should not silently drop a re-cased value.
+    assert fv._parse_bool(" yes ") == 1
+    assert fv._parse_bool("NO") == 0
+    # Everything else is honest-None, never a guessed 0.
+    assert fv._parse_bool("") is None
+    assert fv._parse_bool(None) is None
+    assert fv._parse_bool("-") is None
+    assert fv._parse_bool("Maybe") is None
 
 
 # ── FIX 1 (2026-08-22 receipts-fix): raw-millions scale for shares_outstanding
@@ -151,6 +213,8 @@ def test_run_pull_keeps_rows_and_writes_artifact(monkeypatch, tmp_path):
     assert receipt["rows"] == 1005
     assert receipt["kept"] == 1005
     assert receipt["missing_headers"] == []
+    # Wave 6: a clean pull (every pct value suffixed) counts ZERO bare percents.
+    assert receipt["bare_pct"] == 0
     assert artifact.exists()
 
     payload = json.loads(artifact.read_text())
@@ -163,9 +227,19 @@ def test_run_pull_keeps_rows_and_writes_artifact(monkeypatch, tmp_path):
     assert row0["short_ratio"] == 2.1
     assert row0["insider_own_pct"] == 0.5
     assert row0["inst_pct"] == 85.3
+    # Wave 6 (T6): the transactions pair keeps its sign; the flags are 1/0.
+    assert row0["insider_trans_pct"] == -2.34
+    assert row0["inst_trans_pct"] == 1.85
+    assert row0["optionable"] == 1
+    assert row0["shortable"] == 0
 
     out = fv.read_finviz_fields(["T0000"])
     assert out["T0000"]["float_pct"] == 80.0  # 1.2e9 / 1.5e9 * 100
+    # ...and the four Wave 6 columns flow through the reader unchanged.
+    assert out["T0000"]["insider_trans_pct"] == -2.34
+    assert out["T0000"]["inst_trans_pct"] == 1.85
+    assert out["T0000"]["optionable"] == 1
+    assert out["T0000"]["shortable"] == 0
 
 
 def test_run_pull_never_lists_float_pct_as_a_missing_header(monkeypatch, tmp_path):
@@ -192,7 +266,8 @@ def test_run_pull_scales_bare_shares_columns_as_raw_millions(monkeypatch, tmp_pa
     from api.services.screener import finviz_universe as fv
 
     rows = [_full_row(f"T{i:04d}") for i in range(1004)]
-    rows.append(["NVDA", "24221", "23280.5", "3.45%", "2.1", "0.50%", "85.30%"])
+    rows.append(["NVDA", "24221", "23280.5", "3.45%", "2.1", "0.50%", "85.30%",
+                 "-2.34%", "1.85%", "Yes", "Yes"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 
@@ -214,7 +289,8 @@ def test_run_pull_records_missing_header_and_still_writes(monkeypatch, tmp_path)
     headers = [h for h in FULL_HEADERS if h != "Institutional Ownership"]
 
     def _csv_without_inst_pct():
-        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%"]
+        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%",
+                 "-2.34%", "1.85%", "Yes", "No"]
                  for i in range(1005)]
         return _csv(headers, rows)
 
@@ -228,6 +304,81 @@ def test_run_pull_records_missing_header_and_still_writes(monkeypatch, tmp_path)
     row0 = payload["rows"]["T0000"]
     assert "inst_pct" not in row0
     assert row0["short_float_pct"] == 3.45
+
+
+def test_run_pull_missing_wave6_headers_degrade_by_name(monkeypatch, tmp_path):
+    """The header spellings for ids 27/29/80/83 are GUESSES until the first
+    real pull adjudicates them — a wrong guess must land in `missing_headers`
+    name-for-name (all four), never a wrong value, and never a failed pull."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    wave6 = {"Insider Transactions", "Institutional Transactions",
+             "Optionable", "Shortable"}
+    headers = [h for h in FULL_HEADERS if h not in wave6]
+
+    def _csv_without_wave6():
+        rows = [[f"T{i:04d}", "1.50B", "1.20B", "3.45%", "2.1", "0.50%",
+                 "85.30%"] for i in range(1005)]
+        return _csv(headers, rows)
+
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", _csv_without_wave6)
+
+    receipt = fv.run_pull()
+
+    assert receipt["missing_headers"] == [
+        "insider_trans_pct", "inst_trans_pct", "optionable", "shortable"]
+    assert receipt["wrote"] is True
+    row0 = json.loads(artifact.read_text())["rows"]["T0000"]
+    for col in ("insider_trans_pct", "inst_trans_pct", "optionable",
+                "shortable"):
+        assert col not in row0
+    assert row0["inst_pct"] == 85.3  # the rest of the pull is untouched
+
+
+def test_run_pull_counts_bare_percent_rows_in_the_receipt(monkeypatch, tmp_path):
+    """One ticker's Insider Transactions arrives without its '%' suffix: the
+    bare number is parsed as-is (no magnitude guessing) and the receipt's
+    `bare_pct` counts exactly that one occurrence."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    rows = [_full_row(f"T{i:04d}") for i in range(1004)]
+    rows.append(["BARE", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
+                 "-2.34", "1.85%", "Yes", "No"])
+    csv_text = _csv(FULL_HEADERS, rows)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
+
+    receipt = fv.run_pull()
+
+    assert receipt["bare_pct"] == 1
+    assert receipt["wrote"] is True
+    bare = json.loads(artifact.read_text())["rows"]["BARE"]
+    assert bare["insider_trans_pct"] == -2.34  # parsed bare, disclosed above
+
+
+def test_run_pull_bool_junk_is_absent_never_zero(monkeypatch, tmp_path):
+    """A flag value that is neither Yes nor No ('-', blank, anything else) is
+    honest-absence for that ticker's column — never a fabricated 0, which
+    would read as a confident 'No'."""
+    artifact = tmp_path / "finviz.json"
+    monkeypatch.setenv("SCREENER_FINVIZ_ARTIFACT", str(artifact))
+    from api.services.screener import finviz_universe as fv
+
+    rows = [_full_row(f"T{i:04d}") for i in range(1004)]
+    rows.append(["JUNK", "1.50B", "1.20B", "3.45%", "2.1", "0.50%", "85.30%",
+                 "-2.34%", "1.85%", "-", "Maybe"])
+    csv_text = _csv(FULL_HEADERS, rows)
+    monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
+
+    fv.run_pull()
+
+    junk = json.loads(artifact.read_text())["rows"]["JUNK"]
+    assert "optionable" not in junk
+    assert "shortable" not in junk
+    assert junk["insider_trans_pct"] == -2.34  # the row itself survived
 
 
 def test_run_pull_refuses_below_min_rows_and_preserves_prior(monkeypatch, tmp_path):
@@ -256,7 +407,8 @@ def test_run_pull_drops_a_row_with_no_ticker(monkeypatch, tmp_path):
     from api.services.screener import finviz_universe as fv
 
     rows = [_full_row(f"T{i:04d}") for i in range(1005)]
-    rows.append(["", "1.0B", "1.0B", "10%", "1.0", "1%", "1%"])
+    rows.append(["", "1.0B", "1.0B", "10%", "1.0", "1%", "1%",
+                 "0.5%", "0.5%", "Yes", "Yes"])
     csv_text = _csv(FULL_HEADERS, rows)
     monkeypatch.setattr(fv, "_fetch_finviz_csv_text", lambda: csv_text)
 

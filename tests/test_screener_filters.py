@@ -344,6 +344,71 @@ def test_accdis_ships_as_the_enum_it_always_was(tmp_path, monkeypatch):
     assert sorted(r["ticker"] for r in rows) == ["ACCU"]
 
 
+# ───────── Wave 6 (T6) — finviz parity: transactions pair + option/short ────
+
+def test_wave6_transactions_pair_ships_preset_free():
+    """The two signed-% controls carry NO editorial threshold (E-8): nobody at
+    this firm has published what a 'heavy' insider-selling percentage is, so
+    the control ships bare and the member types the number."""
+    for key in ("insider_trans_pct", "inst_trans_pct"):
+        f = filters.FILTERS[key]
+        assert f["type"] == "range", key
+        assert f["category"] == "ownership", key
+        assert f["unit"] == "%", key
+        assert f.get("presets_deferred") is True, key
+        assert [p["label"] for p in f["presets"]] == ["Any"], key
+        assert f["allow_custom"] is True, key
+
+
+def test_wave6_option_short_flags_are_bool_controls():
+    """Optionable/Shortable are Yes/No facts about the instrument — a bool
+    control (Any/Yes/No over the stored 1/0), never a range over a flag."""
+    for key in ("optionable", "shortable"):
+        f = filters.FILTERS[key]
+        assert f["type"] == "bool", key
+        assert f["category"] == "descriptive", key
+        assert [p["label"] for p in f["presets"]] == ["Any", "Yes", "No"], key
+        yes = next(p for p in f["presets"] if p["label"] == "Yes")
+        no = next(p for p in f["presets"] if p["label"] == "No")
+        assert (yes["op"], yes["value"]) == ("eq", 1), key
+        assert (no["op"], no["value"]) == ("eq", 0), key
+        assert filters.is_valid_op(key, "eq"), key
+
+
+def test_wave6_controls_run_end_to_end_against_real_rows(tmp_path, monkeypatch):
+    """Registry -> build_where -> SQL -> rows for all four Wave 6 controls.
+    NULL is honest-absence throughout: an unknown flag is returned by NEITHER
+    Yes nor No, and an unknown transactions % never matches a range."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "SELL", "insider_trans_pct": -7.5, "inst_trans_pct": 2.0,
+         "optionable": 1, "shortable": 1,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "BUYS", "insider_trans_pct": 4.2, "inst_trans_pct": -1.0,
+         "optionable": 0, "shortable": 1,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+        {"ticker": "DARK", "insider_trans_pct": None, "inst_trans_pct": None,
+         "optionable": None, "shortable": None,
+         "snapshot_date": "2026-08-22", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(spec):
+        return sorted(r["ticker"] for r in query.run_scan(spec)["rows"])
+
+    assert tickers({"filters": [
+        {"key": "insider_trans_pct", "op": "lte", "max": -5}]}) == ["SELL"]
+    assert tickers({"filters": [
+        {"key": "inst_trans_pct", "op": "gte", "min": 1}]}) == ["SELL"]
+    assert tickers({"filters": [
+        {"key": "optionable", "op": "eq", "value": 1}]}) == ["SELL"]
+    # A NULL flag is neither Yes nor No — DARK appears in neither answer.
+    assert tickers({"filters": [
+        {"key": "optionable", "op": "eq", "value": 0}]}) == ["BUYS"]
+    assert tickers({"filters": [
+        {"key": "shortable", "op": "eq", "value": 1}]}) == ["BUYS", "SELL"]
+
+
 # ───────────────── the controls actually select ─────────────────────────────
 
 def test_the_new_controls_run_end_to_end_against_real_rows(tmp_path, monkeypatch):

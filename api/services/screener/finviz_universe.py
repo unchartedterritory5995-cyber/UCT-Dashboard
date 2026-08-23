@@ -110,6 +110,16 @@ _C_IDS = {
     "short_ratio": 31,
     "insider_own_pct": 26,
     "inst_pct": 28,
+    # Wave 6 (T6) — ids VERIFIED by the controller's owner-browser pre-gate
+    # (2026-08-23, live page walk): 27 = Insider Trans · 29 = Inst Trans ·
+    # 80 = Optionable · 83 = Shortable. Those are the PAGE display names; the
+    # export serves fuller header names, guessed in `_HEADERS` below — the
+    # first real pull's `missing_headers` receipt adjudicates the spelling
+    # (a wrong guess degrades honestly by construction, never a wrong value).
+    "insider_trans_pct": 27,
+    "inst_trans_pct": 29,
+    "optionable": 80,
+    "shortable": 83,
 }
 
 _HEADERS = {
@@ -120,6 +130,14 @@ _HEADERS = {
     "short_ratio":         "Short Ratio",
     "insider_own_pct":    "Insider Ownership",
     "inst_pct":           "Institutional Ownership",
+    # Wave 6 (T6) — GUESSED fuller export spellings for page names "Insider
+    # Trans"/"Inst Trans"/"Optionable"/"Shortable" (ids 27/29/80/83 above).
+    # UNVERIFIED against a live export until the first nightly pull: a miss
+    # lands name-for-name in `missing_headers` and drops only that column.
+    "insider_trans_pct":  "Insider Transactions",
+    "inst_trans_pct":     "Institutional Transactions",
+    "optionable":         "Optionable",
+    "shortable":          "Shortable",
 }
 # SCALE ASSUMPTION — ADJUDICATED 2026-08-22 (prod receipt): `shares_outstanding`
 # /`float_shares` do NOT arrive suffixed. Finviz's elite export serves these
@@ -135,13 +153,28 @@ _HEADERS = {
 # whole asymmetry the rule leans on. See `_RAW_MILLIONS_COLUMNS` and
 # `_parse`'s `raw_millions` argument.
 _RAW_MILLIONS_COLUMNS = {"shares_outstanding", "float_shares"}
-_PCT_COLUMNS = {"short_float_pct", "insider_own_pct", "inst_pct"}
+_PCT_COLUMNS = {"short_float_pct", "insider_own_pct", "inst_pct",
+                # Wave 6 (T6) — SIGNED percent (net selling is negative).
+                "insider_trans_pct", "inst_trans_pct"}
+# Wave 6 (T6) — the boolean parse class: Finviz serves "Yes"/"No" TEXT for
+# these; `_parse_bool` maps Yes->1 / No->0 / anything else -> None. Their
+# snapshot columns live in `snapshot_db._INT`.
+_BOOL_COLUMNS = {"optionable", "shortable"}
 _MIN_ROWS = 1000        # an artifact below this is a failed pull, not a market
 _STALE_DAYS = 4
 
 
-def _parse(text, is_pct, raw_millions=False):
+def _parse(text, is_pct, raw_millions=False, receipt=None):
     """'1.5B' -> 1.5e9 · '3.45%' -> 3.45 · '12.3' -> 12.3 · '-'/'' -> None.
+
+    ``is_pct`` was a DEAD parameter until Wave 6 T6 (the %-strip rides the
+    suffix, so the body never read it). The parser-debt ruling offered
+    delete-or-make-real; it is MADE REAL: it marks a `_PCT_COLUMNS` member,
+    and its one job is the bare-percent guard — a percent column whose text
+    carries NO '%' suffix parses the bare number exactly as before (no
+    magnitude guessing; negative growth is normal, so no heuristic is safe)
+    but the occurrence is COUNTED into ``receipt["bare_pct"]`` when a receipt
+    dict is passed. Honest disclosure, zero behavior change to the value.
 
     ``raw_millions=True`` (only ever passed for `_RAW_MILLIONS_COLUMNS`) marks
     a column where Finviz serves a BARE (no-suffix) number as raw millions —
@@ -171,7 +204,26 @@ def _parse(text, is_pct, raw_millions=False):
         return None
     if raw_millions and not suffixed:
         val *= 1e6
+    if is_pct and receipt is not None:
+        # A percent column reached the non-'%' branch and produced a value:
+        # that is a bare percent, disclosed in the pull receipt.
+        receipt["bare_pct"] = receipt.get("bare_pct", 0) + 1
     return val
+
+
+def _parse_bool(text):
+    """The Wave 6 boolean parse class: "Yes" -> 1 · "No" -> 0 · else None.
+
+    Case/whitespace tolerant, and everything that is not an unambiguous
+    yes/no ('-', blank, a re-labeled value) is honest-``None`` — a guessed 0
+    would read as a confident "No" on a ticker Finviz never answered for.
+    """
+    s = (text or "").strip().lower()
+    if s == "yes":
+        return 1
+    if s == "no":
+        return 0
+    return None
 
 
 def _derive_float_pct(row):
@@ -285,6 +337,8 @@ def run_pull() -> dict:
     recorded by snapshot-column name), never the whole pull. A `kept` below
     `_MIN_ROWS` is treated as a failed pull, not a quiet market — nothing
     is written and the prior artifact (if any) is left completely alone.
+    `bare_pct` (Wave 6 T6) counts every `_PCT_COLUMNS` value that arrived
+    WITHOUT its '%' suffix — parsed as the bare number, disclosed here.
     """
     as_of = _now_iso()
     text = _fetch_finviz_csv_text()
@@ -296,6 +350,7 @@ def run_pull() -> dict:
                               if hdr not in fieldnames)
     present = {col: hdr for col, hdr in _HEADERS.items() if hdr in fieldnames}
 
+    pct_receipt = {"bare_pct": 0}
     out_rows: dict[str, dict] = {}
     for raw in data_rows:
         ticker = (raw.get("Ticker") or "").strip().upper()
@@ -303,8 +358,12 @@ def run_pull() -> dict:
             continue
         row = {}
         for col, hdr in present.items():
-            val = _parse(raw.get(hdr), col in _PCT_COLUMNS,
-                         raw_millions=col in _RAW_MILLIONS_COLUMNS)
+            if col in _BOOL_COLUMNS:
+                val = _parse_bool(raw.get(hdr))
+            else:
+                val = _parse(raw.get(hdr), col in _PCT_COLUMNS,
+                             raw_millions=col in _RAW_MILLIONS_COLUMNS,
+                             receipt=pct_receipt)
             if val is not None:
                 row[col] = val
         if row:
@@ -315,6 +374,7 @@ def run_pull() -> dict:
         "rows": len(data_rows),
         "kept": kept,
         "missing_headers": missing_headers,
+        "bare_pct": pct_receipt["bare_pct"],
         "wrote": False,
         "as_of": as_of,
     }

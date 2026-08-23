@@ -216,4 +216,11 @@ export const COLUMN_DEFS = {
   opt_net_premium_5d: { label: 'Net Prem 5d', fmt: netUsd,
     heat: v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : '',
     desc: 'Bullish minus bearish options premium across the 5 newest flow-ledger sessions, single stocks only — ETF/index flow is out of scope.' },
+  // ── Wave 6 (T6): finviz parity — transactions pair + option/short flags ──
+  // The pair is SIGNED (net selling prints negative); a null is an em dash,
+  // never a zero — the nightly pull simply never answered for that ticker.
+  insider_trans_pct: { label: 'Ins Trans', fmt: pct },
+  inst_trans_pct: { label: 'Inst Trans', fmt: pct },
+  optionable: { label: 'Optionable', fmt: bool },
+  shortable: { label: 'Shortable', fmt: bool },
 }

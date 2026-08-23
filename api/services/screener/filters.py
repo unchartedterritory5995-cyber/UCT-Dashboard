@@ -402,6 +402,20 @@ FILTERS = dict([
     _open_range("insider_cluster_days", "Insider Cluster Buy (days ago)",
                 "ownership", "insider_cluster_days"),
     # inst_pct's existing filter keeps its key/category; only its writer moved.
+    # ── finviz parity (Wave 6 T6) ──
+    # The transactions pair is SIGNED percent (net selling is negative) and
+    # ships preset-free: nobody at this firm has published what a "heavy"
+    # insider-selling percentage is (E-8), so the member types the number.
+    _open_range("insider_trans_pct", "Insider Transactions", "ownership",
+                "insider_trans_pct", unit="%"),
+    _open_range("inst_trans_pct", "Institutional Transactions", "ownership",
+                "inst_trans_pct", unit="%"),
+    # Optionable/Shortable are Yes/No facts about the instrument (Finviz's own
+    # screener files them under Descriptive) — bool controls over the stored
+    # 1/0, never a range over a flag. NULL is honest-absence: neither Yes nor
+    # No returns a ticker the nightly pull never answered for.
+    _bool("optionable", "Optionable", "descriptive", "optionable"),
+    _bool("shortable", "Shortable", "descriptive", "shortable"),
     # ── events (Wave 2) ──
     _open_range("next_earnings_date", "Next Earnings Date", "events",
                 "next_earnings_date"),
