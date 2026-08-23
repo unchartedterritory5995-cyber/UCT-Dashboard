@@ -2087,6 +2087,19 @@
       "cadence": "nightly",
       "yields": "bool",
       "sentence": "whether the EMA stack is intact (close above EMA10 above EMA20, both rising)"
+    },
+    "hvc_52w": {
+      "source": {
+        "store": "screener_rows",
+        "column": "hvc_52w"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "the 52-week high-volume-close flag from the breadth universe"
     }
   },
   "_functions_excluded": {
@@ -2154,7 +2167,6 @@
     "is_leveraged": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage2": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage4": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "hvc_52w": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ipo_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",
     "country": "TEXT, for the same reason as `sector` -- also a Wave 2 column not yet promoted",
     "analyst_consensus": "TEXT -- a classification label (e.g. `buy`/`hold`/`sell`), for the same reason as `candle_type`. Also a Wave 2 column not yet promoted",

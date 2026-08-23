@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 50 functions and 98 scalars — 168 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 50 functions and 99 scalars — 169 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -453,7 +453,10 @@ describe('the manifest', () => {
     // promoted (ema_stack_intact the lone `bool`) and `accdis` EXCLUDED —
     // it holds letter grades A-E, and declaring it `num` was the live
     // two-lane defect. Again the BAR half did not move.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(98)
+    // ⭐ 98 -> 99 (2026-08-23): `hvc_52w` promoted — the owner-confirmed
+    // unlock for the HVC formula-library starter. A `bool` off the breadth
+    // universe's context join, dated `snapshot_date`. The BAR half did not move.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(99)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
@@ -462,7 +465,7 @@ describe('the manifest', () => {
     // been keeping it out — its window is 2 x period and the table could not say so.
     expect(bar.size).toBe(70)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(168)
+    expect(declared.size).toBe(169)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the

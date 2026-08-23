@@ -1180,6 +1180,18 @@
       "asOf": "bars_asof",
       "cadence": "nightly",
       "yields": "bool"
+    },
+    {
+      "id": "hvc_52w",
+      "scalar": "hvc_52w",
+      "ast": {
+        "type": "series",
+        "name": "hvc_52w"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
     }
   ],
   "trees": [
