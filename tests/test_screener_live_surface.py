@@ -44,22 +44,47 @@ from api.services.screener import query
 # carry a number of its own.
 _COLS = ["price", "chg_pct_1d", "pct_vs_sma50", "dist_52w_high_pct"]
 
+#: 🔴 THE TWO CLOCKS, DELIBERATELY FOUR HOURS APART. `as_of` is when the overlay
+#: rows were DERIVED (the sweep stamps it onto every row it wrote); `swept_at`
+#: is when the last CYCLE ran, and `_blank_receipt()` stamps that on every
+#: cycle — including the ones that skip and write nothing. A fixture where the
+#: two are equal cannot tell a correct surface from one reading the wrong field,
+#: which is exactly how the first cut of this suite pinned the defect.
+_AS_OF = 1755954127.4
+_SWEPT_AT = _AS_OF + 4 * 3600
+
+#: Shaped like the REAL `live_tier._blank_receipt()` — same key set, every
+#: branch. A fixture missing `as_of`/`skipped_reason`/`dead_cycle` is a fixture
+#: that can never see a skipped cycle, and a skipped cycle is the one this
+#: surface gets wrong.
 _RECEIPT = {
-    "swept_at": 1755954127.4,
+    "swept_at": _SWEPT_AT,
+    "as_of": _AS_OF,
     "session": "regular",
     "session_ymd": 20260823,
+    "enabled": True,
+    "skipped_reason": None,
     "feed_symbols": 10412,
     "rows_considered": 3742,
     "rows_written": 3610,
+    "rows_kept_nightly": 132,
     "cols_recomputed_total": 78122,
     "skipped": {"no_feed": 61, "not_traded": 44, "no_price": 0,
                 "no_prev_close": 3, "bad_anchor": 12, "stale_anchor": 9,
                 "insane_deviation": 3},
     "aborted": None,
+    "dead_cycle": False,
     "lock_wait_ms": 0,
     "held_lock_ms": 118,
     "duration_ms": 402,
 }
+
+#: What `sweep_job()` leaves in `_LAST_RECEIPT` after 16:00 — and all weekend.
+#: `swept_at` is NOW; `as_of` is None because this cycle wrote nothing.
+_SKIP_RECEIPT = {**_RECEIPT, "as_of": None, "session": "closed",
+                 "skipped_reason": "not_regular_session", "rows_written": 0,
+                 "rows_kept_nightly": 0, "cols_recomputed_total": 0,
+                 "skipped": {k: 0 for k in _RECEIPT["skipped"]}}
 
 
 # ─── fixtures: the tier, in every state it can actually be in ────────────────
@@ -132,7 +157,12 @@ def test_status_carries_the_live_as_of_and_the_whole_sweep_receipt(tmp_path, mon
     """ONE source for the surface and the controller: the tier's as-of plus the
     per-cycle receipt VERBATIM — including the per-reason `skipped` map, which
     is the half that makes a silent failure visible (`rows_written` alone is
-    not a receipt)."""
+    not a receipt).
+
+    ⛔ AND THE AS-OF IS THE OVERLAY'S, NOT THE CYCLE'S. Spec §13 receipt 2 has
+    the controller read exactly this field before arming, so the two clocks are
+    four hours apart in the fixture and BOTH are asserted by name.
+    """
     _seed(tmp_path, monkeypatch)
     _install(monkeypatch, _fake_tier(receipt=_RECEIPT))
     client = TestClient(app)
@@ -144,9 +174,14 @@ def test_status_carries_the_live_as_of_and_the_whole_sweep_receipt(tmp_path, mon
 
     assert live["state"] == "on"
     assert live["available"] is True and live["enabled"] is True
-    assert live["as_of"] == _RECEIPT["swept_at"]
-    assert live["as_of_key"] == "swept_at"
+    assert live["as_of"] == _RECEIPT["as_of"]
+    assert live["as_of_key"] == "as_of"
     assert live["as_of_et"].endswith(" ET")
+    # the cycle clock is a real operator fact — reported, under its own name,
+    # and never mistaken for the one above
+    assert live["swept_at"] == _RECEIPT["swept_at"]
+    assert live["swept_at_key"] == "swept_at"
+    assert live["as_of"] != live["swept_at"]
     # verbatim, not a re-shaped summary
     assert live["receipt"] == _RECEIPT
     assert live["receipt"]["skipped"]["insane_deviation"] == 3
@@ -205,6 +240,74 @@ def test_status_still_answers_when_the_tiers_flag_raises(tmp_path, monkeypatch):
     live = client.get("/api/screener/snapshot-status").json()["live"]
     assert live["state"] == "off"
     assert "RuntimeError" in live["enabled_error"]
+
+
+# ═══ 1b. THE TWO CLOCKS — a skipped cycle must not date the overlay ══════════
+
+def test_a_skipped_cycle_dates_nothing_even_though_it_stamped_a_clock(monkeypatch):
+    """🔴 THE FABRICATED FRESHNESS CLAIM THIS EXISTS TO STOP.
+
+    From 16:00 every 60 s cycle returns `skipped_reason="not_regular_session"`
+    with `as_of=None` and `swept_at=now`, and `sweep_job()` overwrites
+    `_LAST_RECEIPT` with it. A surface reading `swept_at` as the served as-of
+    would print `⚡ LIVE 19:24:48 ET` over 15:59 prices — and a weekend would
+    date Friday's overlay with Saturday's clock. So: the cycle clock is
+    reported, the overlay as-of is honestly absent, and NO time reaches the
+    chip.
+    """
+    _install(monkeypatch, _fake_tier(receipt=_SKIP_RECEIPT))
+    state = query.live_tier_state()
+
+    assert state["state"] == "on"                    # the tier is running
+    assert state["as_of"] is None and state["as_of_et"] is None
+    assert state["as_of_key"] is None
+    assert state["swept_at"] == _SKIP_RECEIPT["swept_at"]
+    assert state["swept_at_et"].endswith(" ET")
+    assert state["receipt"]["skipped_reason"] == "not_regular_session"
+
+    # CONTROL — the SAME module with a receipt from a cycle that actually
+    # wrote rows does date the overlay, so the silence above is about the skip,
+    # not about the probe being broken.
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT))
+    wrote = query.live_tier_state()
+    assert wrote["as_of"] == _AS_OF and wrote["as_of_key"] == "as_of"
+
+
+def test_the_served_as_of_comes_off_the_rows_served(monkeypatch):
+    """⭐ ROWS ARE THE EVIDENCE — for the timestamp as well as the verdict.
+
+    `live_asof` is the stamp the sweep wrote ONTO each overlay row, so the
+    newest one on the page is literally when these values were derived. The
+    worst day, end to end: the last real sweep was 15:59, every cycle since has
+    skipped, and the rows on screen are still the 15:59 ones. The screen must
+    say 15:59.
+    """
+    _install(monkeypatch, _fake_tier(receipt=_SKIP_RECEIPT))
+    out = query.live_screen_state([
+        {"ticker": "AAA", "live_row": 1, "live_asof": _AS_OF},
+        {"ticker": "BBB", "live_row": 1, "live_asof": _AS_OF - 60},
+        {"ticker": "CCC", "live_row": 0, "live_asof": _SWEPT_AT},   # not overlaid
+    ])
+    assert out["state"] == "live"
+    assert out["as_of"] == _AS_OF          # the newest OVERLAID row, not the skip
+    assert out["as_of_source"] == "rows"
+    assert out["as_of_note"] is None
+    # and never the cycle clock, which is four hours newer and on the page
+    assert out["as_of"] != _SWEPT_AT
+
+    # the receipt is the FALLBACK, named as such, when the join has not landed
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT))
+    fallback = query.live_screen_state([{"ticker": "AAA", "live_row": 1}])
+    assert fallback["as_of"] == _AS_OF and fallback["as_of_source"] == "receipt"
+
+    # CONTROL — neither source has a time: no time is shown, and it SAYS so
+    # rather than borrowing the cycle clock that is sitting right there.
+    _install(monkeypatch, _fake_tier(receipt=_SKIP_RECEIPT))
+    silent = query.live_screen_state([{"ticker": "AAA", "live_row": 1}])
+    assert silent["state"] == "live"
+    assert silent["as_of"] is None and silent["as_of_et"] is None
+    assert silent["as_of_source"] is None
+    assert "did not report when" in silent["as_of_note"]
 
 
 # ═══ 2. enabled-but-unreadable is NOT "off" ══════════════════════════════════
@@ -299,15 +402,69 @@ def test_the_probe_reads_the_REAL_live_tier_module_without_fabricating(monkeypat
         assert (state["receipt"] is None) == (live_tier.last_receipt() is None)
         if state["receipt"] is None:
             assert state["as_of"] is None and state["as_of_et"] is None
+    # ⛔ EXACTLY ONE, AND IT FAILS BY NAME. The fallback CALLS what it finds and
+    # this runs on the member request path, so the day the engine lane adds a
+    # public `reset_receipt()` / `refresh_receipt()` this must go RED here
+    # rather than go green while a member's scan invokes it. (The direct-read
+    # ordering below means it would not actually be called today — this is the
+    # second lock on the same door, because the fallback is still reachable for
+    # a tier that renames its accessor.)
+    assert set(query.live_tier_state()["receipt_candidates"]) == {"last_receipt"}
+
+
+def test_the_named_accessor_is_read_directly_and_nothing_else_is_invoked(monkeypatch):
+    """⛔ THE MEMBER REQUEST PATH INVOKES `last_receipt` AND NOTHING ELSE.
+
+    Every `run_scan` and every `snapshot-status` runs this. The derivation is a
+    fallback for a tier that names its accessor differently — it must not be
+    the first move, because it CALLS what it finds and the only thing standing
+    between it and a side-effecting sibling is a substring.
+    """
+    called = []
+    mod = _fake_tier(receipt=_RECEIPT)
+    mod.refresh_receipt = lambda: called.append("refresh_receipt") or {"swept_at": 1.0}
+    _install(monkeypatch, mod)
+
+    state = query.live_tier_state()
+    assert state["receipt_source"] == "last_receipt"
+    assert state["receipt"] == _RECEIPT
+    assert called == []                       # the sibling was never invoked
+    # it is still REPORTED, so an operator can see the name that would have
+    # been tried had the contract been missing
+    assert "refresh_receipt" in state["receipt_candidates"]
+
+    # …and "no sweep yet" from the named accessor is an ANSWER, not a cue to
+    # start groping at the siblings.
+    mod.last_receipt = lambda: None
+    _install(monkeypatch, mod)
+    quiet = query.live_tier_state()
+    assert quiet["state"] == "unreadable" and quiet["receipt"] is None
+    assert called == []
+
+    # CONTROL — remove the contract entirely and the fallback DOES run, so the
+    # restraint above is about ordering, not about the fallback being dead.
+    del mod.last_receipt
+    _install(monkeypatch, mod)
+    derived = query.live_tier_state()
+    assert derived["receipt_source"] == "refresh_receipt"
+    assert called == ["refresh_receipt"]
 
 
 def test_a_receipt_timestamp_that_is_already_a_string_is_passed_through(monkeypatch):
     """Reformatting a timestamp we did not parse would be inventing precision."""
     _install(monkeypatch, _fake_tier(
-        receipt={"swept_at": "10:42:07 ET", "rows_written": 5}))
+        receipt={"as_of": "10:42:07 ET", "rows_written": 5}))
     state = query.live_tier_state()
     assert state["as_of"] == "10:42:07 ET"
     assert state["as_of_et"] == "10:42:07 ET"
+
+    # CONTROL — the same string under the CYCLE's key is a cycle clock, and it
+    # never becomes the overlay's as-of no matter how well-formed it looks.
+    _install(monkeypatch, _fake_tier(
+        receipt={"swept_at": "19:24:48 ET", "rows_written": 0}))
+    cycle = query.live_tier_state()
+    assert cycle["swept_at"] == "19:24:48 ET"
+    assert cycle["as_of"] is None and cycle["as_of_et"] is None
 
 
 # ═══ 4. the SCREEN's verdict is evidence-based, both directions ══════════════
@@ -322,7 +479,7 @@ def test_the_screen_says_live_only_when_a_served_row_carries_a_live_value(monkey
                                     {"ticker": "BBB", "live_row": 0}])
     assert live["state"] == "live"
     assert live["live_rows_on_page"] == 1 and live["rows_on_page"] == 2
-    assert live["as_of"] == _RECEIPT["swept_at"]
+    assert live["as_of"] == _RECEIPT["as_of"]
     assert live["as_of_et"].endswith(" ET")
     assert live["columns"] == _COLS and live["column_count"] == len(_COLS)
     assert live["off_reason"] is None
@@ -341,6 +498,70 @@ def test_the_screen_says_live_only_when_a_served_row_carries_a_live_value(monkey
     # the disagreement stays VISIBLE to an operator instead of being inherited
     # by the member: the screen says nightly, the tier still says it is on.
     assert nightly["tier"]["state"] == "on"
+
+
+def test_the_anchor_note_names_the_date_only_when_one_date_is_true(monkeypatch):
+    """Spec §8.1 / §13 receipt 4 — 'the popover names the anchor date'.
+
+    ⛔ And it names it ONLY when one date is true of the whole page. `bars_asof`
+    is per row and `describe_rows.mixed` exists because a page can hold three
+    of them; a representative pick would print 'levels from the 2026-08-22
+    close' over rows anchored to 2026-08-19.
+    """
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT))
+
+    one = query.live_screen_state([
+        {"ticker": "AAA", "live_row": 1, "anchor_bars_asof": "20260822"},
+        {"ticker": "BBB", "live_row": 1, "bars_asof": "20260822"},
+        {"ticker": "CCC", "live_row": 0, "bars_asof": "20260819"},  # not overlaid
+    ])
+    assert one["anchor_date"] == "2026-08-22"
+    assert "from the 2026-08-22 close" in one["anchor_note"]
+    assert "do not move during the day" in one["anchor_note"]
+
+    # CONTROL — two anchors among the LIVE rows: no date, the general sentence.
+    mixed = query.live_screen_state([
+        {"ticker": "AAA", "live_row": 1, "bars_asof": "20260822"},
+        {"ticker": "BBB", "live_row": 1, "bars_asof": "20260819"},
+    ])
+    assert mixed["anchor_date"] is None
+    assert mixed["anchor_note"] == query.LIVE_ANCHOR_NOTE
+    assert "each row's last completed session" in mixed["anchor_note"]
+
+    # CONTROL — the column was not selected, or is unreadable: no date either.
+    for row in ({"ticker": "AAA", "live_row": 1},
+                {"ticker": "AAA", "live_row": 1, "bars_asof": "not-a-date"}):
+        out = query.live_screen_state([row])
+        assert out["anchor_date"] is None
+        assert out["anchor_note"] == query.LIVE_ANCHOR_NOTE
+
+    # ONE TEMPLATE, so the dated and the general form cannot drift apart.
+    assert query.anchor_note() == query.LIVE_ANCHOR_NOTE
+    assert query.anchor_note("2026-08-22") != query.LIVE_ANCHOR_NOTE
+
+
+def test_overlaid_rows_with_no_named_columns_refuse_BOTH_words(monkeypatch):
+    """The roster IS the disclosure, so a roster of none cannot be `live`.
+
+    ⛔ And it cannot be `nightly` either — that would be false about values
+    that were recomputed. Unreachable while the tier ships `LIVE_COLUMNS`; if
+    it is ever reached, an unclaimed screen is the safe direction.
+    """
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT, columns=[]))
+    out = query.live_screen_state([{"ticker": "AAA", "live_row": 1}])
+    assert out["state"] == "live_unnamed"
+    assert out["columns"] == [] and out["column_count"] == 0
+    assert "did not say which columns" in out["off_reason"]
+    assert out["live_rows_on_page"] == 1
+
+    # CONTROL 1 — the same rows with a named roster ARE live.
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT))
+    assert query.live_screen_state([{"ticker": "AAA", "live_row": 1}])["state"] == "live"
+
+    # CONTROL 2 — an empty roster with NO overlaid rows is plain nightly, so
+    # the third word is about the roster, not about the empty list.
+    _install(monkeypatch, _fake_tier(receipt=_RECEIPT, columns=[]))
+    assert query.live_screen_state([{"ticker": "AAA"}])["state"] == "nightly"
 
 
 def test_an_aborted_sweep_is_named_in_the_reason(monkeypatch):

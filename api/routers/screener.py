@@ -149,10 +149,19 @@ def screener_snapshot_status(user=Depends(require_paid)):
     ⭐ `live` IS THE SAME QUESTION FOR THE OTHER TIER, ON THE SAME ENDPOINT.
     During the regular session a flag-gated overlay re-derives a named subset
     of these columns from the live price. This block carries that tier's state,
-    its last sweep's AS-OF, and its per-cycle RECEIPT verbatim
-    (`live.receipt` — the counts and the per-reason `skipped` map the sweeper
-    logged), so the surface, the controller arming the flag, and this endpoint
-    all read ONE source instead of three.
+    the OVERLAY's as-of, the last CYCLE's clock, and its per-cycle RECEIPT
+    verbatim (`live.receipt` — the counts and the per-reason `skipped` map the
+    sweeper logged), so the surface, the controller arming the flag, and this
+    endpoint all read ONE source instead of three.
+
+    ⛔ `live.as_of` AND `live.swept_at` ARE DIFFERENT FACTS — read the right one
+    (spec §13 receipt 2 reads this endpoint, so getting it wrong here is what
+    the controller arms against). `as_of` is when the values an overlay row
+    carries were DERIVED; `swept_at` is when the last cycle ran, and every
+    cycle stamps it — including the ones that skip and write nothing. At 19:24
+    on a day whose last real sweep was 15:59, `swept_at` is 19:24 and `as_of`
+    is 15:59 (or absent, if the newest receipt is a skip). Dating the overlay
+    with `swept_at` manufactures a freshness claim four hours out.
 
     ⛔ IT IS ONE ENDPOINT ON PURPOSE. A separate `/live-status` beside this one
     would be a second authority over "how fresh is the screener", and the two

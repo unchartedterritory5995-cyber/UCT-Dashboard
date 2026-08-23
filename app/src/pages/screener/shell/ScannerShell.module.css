@@ -72,16 +72,25 @@
 .sealMixed { margin: 6px 0 0; color: var(--ut-gold); font-size: 11px; line-height: 1.5; }
 
 /* ── the live tier, disclosed inside the SAME seal ──
-   Two states, never a third and never silence: `.sealLive` (gold, the loud
-   one) or `.sealNightly` (muted, deliberately quiet but always present, so a
-   member who saw the live chip once can never read a bare date as live).
-   Both are inline spans inside the seal BUTTON — one control, not a second. */
+   Never silence, and never a claim wider than the evidence: `.sealLive` (gold,
+   the loud one) or `.sealNightly` (muted, deliberately quiet but always
+   present, so a member who saw the live chip once can never read a bare date
+   as live) — plus `.sealUnnamed`, which is NOT a third claim but a REFUSAL to
+   make either of the first two: rows carry overlay values while the tier named
+   no columns, so `LIVE` would shout over a disclosure that names nothing and
+   `nightly` would be false. It is styled as a warning, not as a live chip.
+   All three are inline spans inside the seal BUTTON — one control, not a second. */
 .sealLive { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--ut-gold); font-weight: 600; }
+.sealUnnamed { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--warning, #d9a441); font-family: var(--font-sans, inherit); font-size: 10px; letter-spacing: .3px; }
 .sealNightly { margin-left: 2px; padding-left: 6px; border-left: 1px solid var(--border); color: var(--text-muted); font-family: var(--font-sans, inherit); font-size: 10px; text-transform: lowercase; letter-spacing: .3px; }
 .sealLiveBlock { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .sealLiveLead { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-muted); }
 .sealLiveLead b { color: var(--ut-gold); }
 .sealLiveNote { margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-muted); }
+/* The server's own qualifier on the page-scoped counts. It sits directly under
+   the seal's result-set-scoped "Rows served", where the two numbers read as a
+   contradiction without it. */
+.sealLiveScope { margin: 3px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--text-dim, var(--text-muted)); font-style: italic; }
 /* The column roster can run long — it is the whole point of the disclosure, so
    it scrolls inside the popover rather than being truncated into a half-truth. */
 .sealLiveCols { margin: 5px 0 0; font-size: 10.5px; line-height: 1.45; color: var(--text-muted); max-height: 96px; overflow-y: auto; }

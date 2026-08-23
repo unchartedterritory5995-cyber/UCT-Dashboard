@@ -9,23 +9,39 @@ const SNAP = { rows: 3742, snapshot_date: '2026-08-21', rows_on_snapshot_date: 3
   rows_missing_snapshot_date: 0, mixed: true }
 
 const LIVE_COLS = ['price', 'chg_pct_1d', 'pct_vs_sma50', 'dist_52w_high_pct']
-// verbatim `api/services/screener/query.py::LIVE_ANCHOR_NOTE` — the server owns
-// this sentence; the fixture copies it rather than paraphrasing so a wording
-// change on the server shows up here as a diff, not as a silent divergence.
-const ANCHOR = "Levels — moving averages, 52-week and 20-day extremes, pattern entry "
-  + "and stop — are from each row's last completed session and do not move during "
-  + "the day. Only the price-derived columns below are live."
+// verbatim `api/services/screener/query.py::anchor_note()` — the server owns
+// this sentence (ONE template, `basis` the only variable); the fixture copies
+// both forms rather than paraphrasing so a wording change on the server shows
+// up here as a diff, not as a silent divergence.
+const anchorFor = basis => `Levels — moving averages, 52-week and 20-day extremes, `
+  + `pattern entry and stop — are from ${basis} and do not move during the day. `
+  + 'Only the price-derived columns below are live.'
+const ANCHOR = anchorFor("each row's last completed session")
+const ANCHOR_DATED = anchorFor('the 2026-08-22 close')
+const SCOPE = 'counted on the rows this page returned, not on the whole result set'
 const LIVE_ON = {
   state: 'live', as_of: 1755954127.4, as_of_et: '10:42:07 ET',
+  as_of_source: 'rows', as_of_note: null,
   columns: LIVE_COLS, column_count: LIVE_COLS.length,
-  rows_on_page: 200, live_rows_on_page: 193,
-  anchor_note: ANCHOR, off_reason: null, tier: { state: 'on' },
+  rows_on_page: 200, live_rows_on_page: 193, scope_note: SCOPE,
+  anchor_date: '2026-08-22', anchor_note: ANCHOR_DATED,
+  off_reason: null, tier: { state: 'on' },
 }
 const LIVE_OFF = {
-  state: 'nightly', as_of: null, as_of_et: null, columns: [], column_count: 0,
-  rows_on_page: 200, live_rows_on_page: 0, anchor_note: ANCHOR,
+  state: 'nightly', as_of: null, as_of_et: null, as_of_source: null,
+  as_of_note: null, columns: [], column_count: 0,
+  rows_on_page: 200, live_rows_on_page: 0, scope_note: SCOPE,
+  anchor_date: null, anchor_note: ANCHOR,
   off_reason: 'The live overlay is switched off.',
   tier: { state: 'off' },
+}
+// Rows carry overlay values but the tier named NO columns. The roster IS the
+// disclosure, so this must claim neither word.
+const LIVE_UNNAMED = {
+  ...LIVE_ON, state: 'live_unnamed', columns: [], column_count: 0,
+  live_rows_on_page: 193, anchor_date: null, anchor_note: ANCHOR,
+  off_reason: 'Some values on this screen were recomputed from the live price, '
+    + 'but the overlay did not say which columns — so nothing here can be named live.',
 }
 const base = {
   meta: META, view: 'overview', onView: vi.fn(), visibleColumns: ['ticker'], allColumns: [],
@@ -100,8 +116,56 @@ describe('ShellToolbar — live-tier disclosure', () => {
     // labels, not raw keys — and read out of COLUMN_DEFS rather than typed here
     for (const c of LIVE_COLS) expect(pop).toHaveTextContent(COLUMN_DEFS[c].label)
     expect(pop).toHaveTextContent(/Every other column is from the 03:00 build/)
-    // the anchor sentence is the SERVER's string, rendered verbatim
+    // the anchor sentence is the SERVER's string, rendered verbatim — and when
+    // one anchor session is true of the whole page it NAMES THE DATE
+    // (spec §8.1 / §13 receipt 4)
+    expect(pop).toHaveTextContent(/from the 2026-08-22 close/)
     expect(pop).toHaveTextContent(/do not move during the day/)
+    // ⛔ the page-scoped counts sit directly under the seal's result-set-scoped
+    // "Rows served" (3,742) — without the server's own qualifier the two read
+    // as a contradiction
+    expect(pop).toHaveTextContent(/3,742/)
+    expect(pop).toHaveTextContent(/counted on the rows this page returned/)
+  })
+
+  it('a mixed page keeps the general anchor sentence — the server decides, not the toolbar', () => {
+    render(<ShellToolbar {...withLive({ ...LIVE_ON, anchor_date: null, anchor_note: ANCHOR })} />)
+    fireEvent.click(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
+    const pop = screen.getByRole('dialog', { name: /provenance/i })
+    expect(pop).toHaveTextContent(/each row's last completed session/)
+    expect(pop).not.toHaveTextContent(/2026-08-22 close/)
+  })
+
+  it('a live screen with no as-of shows NO time and says why, rather than borrowing one', () => {
+    render(<ShellToolbar {...withLive({
+      ...LIVE_ON, as_of: null, as_of_et: null, as_of_source: null,
+      as_of_note: 'The overlay did not report when these values were derived, so no time is shown.',
+    })} />)
+    // the chip still says LIVE — that is derived from the rows — but with no clock
+    expect(screen.getByText(/LIVE/)).toBeInTheDocument()
+    expect(screen.queryByText(/10:42:07 ET/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
+    const pop = screen.getByRole('dialog', { name: /provenance/i })
+    expect(pop).not.toHaveTextContent(/recomputed at/)
+    expect(pop).toHaveTextContent(/did not report when these values were derived/)
+  })
+
+  it('overlaid rows with no named columns claim NEITHER live nor nightly', () => {
+    render(<ShellToolbar {...withLive(LIVE_UNNAMED)} />)
+    // ⛔ not the loud word…
+    expect(screen.queryByText(/LIVE/)).not.toBeInTheDocument()
+    // …and not the quiet one either, which would be false about recomputed values
+    expect(screen.queryByText('nightly')).not.toBeInTheDocument()
+    expect(screen.getByText(/overlay \(unnamed\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
+      .toHaveAccessibleName(/did not name which columns/i)
+    fireEvent.click(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
+    const pop = screen.getByRole('dialog', { name: /provenance/i })
+    expect(pop).toHaveTextContent(/193 of 200 rows loaded here carry overlay values/)
+    expect(pop).toHaveTextContent(/did not name which columns it recomputed/)
+    expect(pop).toHaveTextContent(/Treat every column as the 03:00 build/)
+    // it names no roster, because there is none to name
+    expect(pop).not.toHaveTextContent(/Live columns/)
   })
 
   it('says nightly on the chip and states the reason in the popover when it is not live', () => {

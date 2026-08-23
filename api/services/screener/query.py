@@ -132,21 +132,61 @@ def build_where(filter_specs, scan_joins=None):
 #     disagreement instead of the member inheriting it.
 # ═══════════════════════════════════════════════════════════════════════════
 
-#: The one sentence that says what a live column is measured AGAINST. Owned
+#: The one sentence that says what a live column is measured AGAINST, from ONE
+#: template so the general form and the dated form cannot drift apart. Owned
 #: server-side so the API and the toolbar cannot phrase the anchor contract
 #: differently -- the surface renders this string, it does not compose its own.
 #: (Spec §1.5: every live column is f(live tick, a level from sessions COMPLETED
 #: through the row's `bars_asof`); today's developing session is never folded in.)
-LIVE_ANCHOR_NOTE = (
+_ANCHOR_NOTE_TMPL = (
     "Levels — moving averages, 52-week and 20-day extremes, pattern entry and "
-    "stop — are from each row's last completed session and do not move during "
-    "the day. Only the price-derived columns below are live."
+    "stop — are from {basis} and do not move during the day. Only the "
+    "price-derived columns below are live."
 )
+#: The general form: correct on ANY page, including a mixed one.
+LIVE_ANCHOR_NOTE = _ANCHOR_NOTE_TMPL.format(basis="each row's last completed session")
 
-#: Where a receipt's timestamp may live, most-specific first. Reported as
-#: `as_of_key` so a receipt that changed shape is visible rather than silently
-#: undated.
-_AS_OF_KEYS = ("swept_at", "live_asof", "as_of", "generated_at")
+
+def anchor_note(anchor_date=None) -> str:
+    """The anchor sentence, naming the DATE when one date is true of the whole
+    page (spec §8.1 / §13 receipt 4) and generalising when it is not.
+
+    ⛔ A representative date is not an option here. `bars_asof` is per row and
+    `describe_rows.mixed` exists precisely because a page can hold three of
+    them; picking one would print *"levels from the 2026-08-22 close"* over
+    rows anchored to 2026-08-19. One date, or none.
+    """
+    if not anchor_date:
+        return LIVE_ANCHOR_NOTE
+    return _ANCHOR_NOTE_TMPL.format(basis=f"the {anchor_date} close")
+
+
+# ⛔ TWO TIMESTAMPS, AND CONFLATING THEM DATES THE OVERLAY WITH THE WRONG CLOCK.
+#
+# A sweep receipt carries BOTH "when did the last cycle run" and "when were the
+# values now on screen derived", and in the real `live_tier` they are routinely
+# HOURS apart:
+#
+#   * `swept_at` is stamped by `_blank_receipt()` on EVERY cycle, including the
+#     ones that write nothing (`skipped_reason="disabled" / "not_regular_session"
+#     / "build_in_flight"`, and the holiday abort). `sweep_job()` overwrites
+#     `_LAST_RECEIPT` with those skip receipts.
+#   * `as_of` is set ONLY on a cycle that actually wrote rows, and it is
+#     literally the `live_asof` stamped onto each overlay row.
+#
+# So at 19:24 on a day whose last real sweep was 15:59, the newest receipt is a
+# `not_regular_session` skip with `swept_at = now` and `as_of = None`, while the
+# rows still being served are four hours old. Reading `swept_at` as the served
+# as-of would print *"⚡ LIVE 19:24:48 ET"* over 15:59 prices — a fabricated
+# freshness claim, which is constraint 1 broken in the one direction that
+# matters. A weekend is worse: Friday's overlay dated with Saturday's clock.
+#
+# Hence: `as_of` NEVER comes from a cycle clock. `swept_at` is still reported —
+# it is a real operator fact and the controller reads it — under its own name.
+#: Where the OVERLAY's own timestamp may live, most-specific first.
+_AS_OF_KEYS = ("as_of", "live_asof", "overlay_asof", "generated_at")
+#: Where the LAST CYCLE's clock may live. ⛔ Never a fallback for the above.
+_SWEPT_AT_KEYS = ("swept_at", "cycle_at", "ran_at")
 
 
 def _live_tier_module():
@@ -162,16 +202,34 @@ def _live_tier_module():
         return None
 
 
-def _live_receipt(mod):
-    """The sweeper's last receipt, WITHOUT typing its accessor's name.
+#: The accessor the shipped `live_tier` exposes today. Tried BY NAME first so
+#: the member request path calls exactly this and nothing else; the derivation
+#: below is the fallback for a tier that names it differently.
+_RECEIPT_ACCESSOR = "last_receipt"
 
-    ⛔ The accessor is the sibling lane's to name. Hard-coding one guess and
-    then reading that guess's absence as "the tier is off" is exactly the lie
-    this surface exists to prevent, so the candidates are DERIVED from the
-    module (`dir()`), every name carrying "receipt" is tried in a stable order,
-    and the name that answered is REPORTED (`receipt_source`) alongside the
-    ones that were tried (`receipt_candidates`). If the tier is on and nothing
-    answers, the state is `unreadable` -- named, not silently off.
+
+def _live_receipt(mod):
+    """The sweeper's last receipt: the known accessor first, derivation second.
+
+    ⛔ THE DERIVATION IS A FALLBACK, NOT THE FIRST MOVE, AND THAT ORDER IS THE
+    GUARD. This runs on the MEMBER REQUEST PATH -- every `run_scan`, every
+    `snapshot-status` -- and the fallback CALLS what it finds. The substring
+    match is all that stands between it and `run_sweep()`, which is public and
+    zero-arg; the day the engine lane adds `reset_receipt()` or
+    `refresh_receipt()`, a member's scan would invoke it. Reading
+    `last_receipt` directly means that on the shipped module nothing else is
+    ever touched, and `tests/test_screener_live_surface.py` pins the REAL
+    module's candidate set to exactly `{"last_receipt"}` so a new public name
+    fails BY NAME instead of being called.
+
+    ⛔ The accessor is still the sibling lane's to name. Hard-coding one guess
+    and then reading that guess's absence as "the tier is off" is exactly the
+    lie this surface exists to prevent, so when `last_receipt` is missing the
+    candidates are DERIVED from the module (`dir()`), every name carrying
+    "receipt" is tried in a stable order, and the name that answered is
+    REPORTED (`receipt_source`) alongside the ones that were tried
+    (`receipt_candidates`). If the tier is on and nothing answers, the state is
+    `unreadable` -- named, not silently off.
 
     ⛔ PUBLIC NAMES ONLY, AND THAT RESTRICTION IS LOAD-BEARING -- IT CAUGHT A
     REAL FABRICATION. `live_tier` carries `_blank_receipt(**over)`: a private
@@ -184,9 +242,8 @@ def _live_receipt(mod):
     not a fact. Only public names are considered, and a tier that exposes its
     receipt privately reads as `unreadable` -- the honest direction.
 
-    ⚠️ It still CALLS what it finds, so the substring is the guard: the module
-    also exposes `run_sweep()` -- zero-arg, public, and it would sweep. Widen
-    the match at your peril.
+    ⚠️ The fallback still CALLS what it finds, so the substring stays the
+    guard there. Widen the match at your peril.
 
     Returns ``(receipt|None, source_name|None, candidates)``.
     """
@@ -195,7 +252,9 @@ def _live_receipt(mod):
                        if "receipt" in n.lower() and not n.startswith("_"))
     except Exception:  # noqa: BLE001
         return None, None, []
-    for name in names:
+    ordered = ([_RECEIPT_ACCESSOR] if _RECEIPT_ACCESSOR in names else []) + \
+              [n for n in names if n != _RECEIPT_ACCESSOR]
+    for name in ordered:
         try:
             attr = getattr(mod, name)
             value = attr() if callable(attr) else attr
@@ -203,15 +262,28 @@ def _live_receipt(mod):
             continue
         if isinstance(value, dict) and value:
             return value, name, names
+        if name == _RECEIPT_ACCESSOR:
+            # The contract answered "no sweep yet". That is an ANSWER, and
+            # groping at the other public names after it would be the very
+            # invocation this ordering exists to avoid. (A RAISING accessor is
+            # different — it answered nothing, so the fallback still runs.)
+            return None, None, names
     return None, None, names
 
 
-def _receipt_as_of(receipt):
-    """``(as_of, key)`` off a receipt — a unix float or an already-formatted
-    string, whichever the writer used. Honest-None when neither is present."""
+def _receipt_stamp(receipt, keys):
+    """``(value, key)`` for the first of `keys` a receipt carries — a unix float
+    or an already-formatted string, whichever the writer used. Honest-None when
+    none is present.
+
+    ⛔ `keys` is passed in, never defaulted: the caller must say WHICH clock it
+    is asking for. See the `_AS_OF_KEYS` comment — the overlay's timestamp and
+    the cycle's timestamp are different facts and one silently standing in for
+    the other is a fabricated freshness claim.
+    """
     if not isinstance(receipt, dict):
         return None, None
-    for key in _AS_OF_KEYS:
+    for key in keys:
         value = receipt.get(key)
         if isinstance(value, bool):
             continue
@@ -250,6 +322,11 @@ def live_tier_state() -> dict:
                           "I cannot tell", which the toolbar renders as nightly
                           WITH the reason, never as silence.
 
+    `as_of` is the OVERLAY's timestamp — when the values a member could be
+    looking at were derived. `swept_at` is when the last CYCLE ran, which on a
+    skipped cycle is now and says nothing about the data. They are reported
+    separately and neither ever substitutes for the other; see `_AS_OF_KEYS`.
+
     `config` is derived from the module's own scalar UPPERCASE constants rather
     than a list typed here, so a constant the sibling lane adds tomorrow shows
     up without an edit on this side.
@@ -260,7 +337,9 @@ def live_tier_state() -> dict:
             "state": "unavailable", "available": False, "enabled": None,
             "enabled_error": None, "columns": [], "column_count": 0,
             "receipt": None, "receipt_source": None, "receipt_candidates": [],
-            "as_of": None, "as_of_et": None, "as_of_key": None, "config": {},
+            "as_of": None, "as_of_et": None, "as_of_key": None,
+            "swept_at": None, "swept_at_et": None, "swept_at_key": None,
+            "config": {},
             "reason": "The live overlay is not running on this pod.",
             "note": ("the live tier is not installed on this pod — every "
                      "column is from the 03:00 build"),
@@ -275,7 +354,8 @@ def live_tier_state() -> dict:
     except Exception:  # noqa: BLE001
         columns = []
     receipt, source, candidates = _live_receipt(mod)
-    as_of, as_of_key = _receipt_as_of(receipt)
+    as_of, as_of_key = _receipt_stamp(receipt, _AS_OF_KEYS)
+    swept_at, swept_at_key = _receipt_stamp(receipt, _SWEPT_AT_KEYS)
     config = {}
     try:
         for name in sorted(n for n in dir(mod) if n.isupper()):
@@ -313,8 +393,57 @@ def live_tier_state() -> dict:
         "receipt": receipt, "receipt_source": source,
         "receipt_candidates": candidates,
         "as_of": as_of, "as_of_et": _et_clock(as_of), "as_of_key": as_of_key,
+        "swept_at": swept_at, "swept_at_et": _et_clock(swept_at),
+        "swept_at_key": swept_at_key,
         "config": config, "reason": reason, "note": note,
     }
+
+
+def _served_as_of(rows):
+    """⭐ THE SERVED AS-OF COMES OFF THE ROWS SERVED, exactly like the verdict.
+
+    `live_asof` is the stamp the sweep wrote ONTO each overlay row, so the
+    newest one on this page is literally when the values on screen were
+    derived — not when some later cycle happened to tick. Honest-None when the
+    join has not landed or the column was not selected; the caller then falls
+    back to the receipt's own `as_of` (never to a cycle clock).
+    """
+    best = None
+    for r in rows:
+        if not r.get("live_row"):
+            continue
+        v = r.get("live_asof")
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+            continue
+        if best is None or v > best:
+            best = float(v)
+    return best
+
+
+def _served_anchor_date(rows):
+    """The ONE anchor session every live row on this page was measured against,
+    as `YYYY-MM-DD`, or None when the page is mixed / the column is absent.
+
+    `bars_asof` is an 8-char `YYYYMMDD` string (`snapshot_builder.build_row`
+    stamps `str(bars[-1]["t"])`, and daily `ts` is a `YYYYMMDD` int). The
+    overlay copies the one it derived against into `anchor_bars_asof`, which is
+    preferred because it is the anchor the live numbers actually used.
+    """
+    seen = set()
+    for r in rows:
+        if not r.get("live_row"):
+            continue
+        raw = r.get("anchor_bars_asof") or r.get("bars_asof")
+        text = str(raw).strip() if raw is not None else ""
+        if len(text) != 8 or not text.isdigit():
+            return None
+        seen.add(text)
+        if len(seen) > 1:
+            return None
+    if len(seen) != 1:
+        return None
+    d = seen.pop()
+    return f"{d[:4]}-{d[4:6]}-{d[6:]}"
 
 
 def live_screen_state(rows, tier=None) -> dict:
@@ -327,7 +456,27 @@ def live_screen_state(rows, tier=None) -> dict:
     direction that matters — and it means the disclosure lights up the day the
     join lands, with no edit here, because the evidence is the artifact.
 
-    ⚠️ The counts are PAGE-scoped and say so (`scope_note`). A whole-result-set
+    ⭐ SO DOES THE AS-OF, AND THAT IS THE SAME PRINCIPLE. `_served_as_of` reads
+    the `live_asof` the sweep stamped on these very rows; the receipt's own
+    `as_of` is the fallback. ⛔ A CYCLE CLOCK IS NEVER THE FALLBACK — see the
+    `_AS_OF_KEYS` comment for the 19:24-over-15:59-prices case that made this
+    the blocking defect of the first cut.
+
+    `state` is one of:
+      * ``live``          — rows carry overlay values AND the tier names which
+                            columns those are;
+      * ``live_unnamed``  — rows carry overlay values but the tier named NO
+                            columns. The roster is the whole disclosure, so
+                            this refuses to claim `live`; it equally refuses to
+                            say `nightly`, which would be false about values
+                            that were recomputed. Unreachable while the tier
+                            ships `LIVE_COLUMNS` — and if it ever is reached,
+                            an unclaimed screen is the safe direction.
+      * ``nightly``       — no row on this page carries a live value.
+
+    ⚠️ The counts are PAGE-scoped and say so (`scope_note`, which the surface
+    renders — a page-scoped number printed beside the seal's result-set-scoped
+    "Rows served" reads as a contradiction without it). A whole-result-set
     `rows_live` has to come from the same statement that returned the rows
     (spec §8.4/R13); counting it a second way here would be exactly the drift
     `run_scan`'s `total` comment already refuses.
@@ -335,10 +484,20 @@ def live_screen_state(rows, tier=None) -> dict:
     tier = tier if tier is not None else live_tier_state()
     rows = rows or []
     live_n = sum(1 for r in rows if r.get("live_row"))
-    state = "live" if live_n else "nightly"
+    columns = tier.get("columns") or []
+    if live_n and columns:
+        state = "live"
+    elif live_n:
+        state = "live_unnamed"
+    else:
+        state = "nightly"
 
     if state == "live":
         off_reason = None
+    elif state == "live_unnamed":
+        off_reason = ("Some values on this screen were recomputed from the "
+                      "live price, but the overlay did not say which columns — "
+                      "so nothing here can be named live.")
     elif not rows:
         off_reason = "This screen returned no rows, so there is nothing to describe."
     elif tier.get("reason"):
@@ -349,17 +508,36 @@ def live_screen_state(rows, tier=None) -> dict:
                       + (f" — the last sweep reported {aborted}." if aborted
                          else " — the overlay has not reached these symbols."))
 
+    row_as_of = _served_as_of(rows) if live_n else None
+    if row_as_of is not None:
+        as_of, as_of_source = row_as_of, "rows"
+    elif live_n and tier.get("as_of") is not None:
+        as_of, as_of_source = tier["as_of"], "receipt"
+    else:
+        as_of, as_of_source = None, None
+    # ⛔ NO TIME AT ALL rather than a borrowed one. A live screen whose overlay
+    # never reported when it derived these values says so in words; the chip
+    # simply reads `⚡ LIVE` with no clock beside it.
+    as_of_note = None
+    if live_n and as_of is None:
+        as_of_note = ("The overlay did not report when these values were "
+                      "derived, so no time is shown.")
+    anchor_date = _served_anchor_date(rows) if live_n else None
+
     return {
         "state": state,
-        "as_of": tier["as_of"] if state == "live" else None,
-        "as_of_et": tier["as_of_et"] if state == "live" else None,
-        "columns": tier["columns"] if state == "live" else [],
-        "column_count": tier["column_count"] if state == "live" else 0,
+        "as_of": as_of,
+        "as_of_et": _et_clock(as_of),
+        "as_of_source": as_of_source,
+        "as_of_note": as_of_note,
+        "columns": columns if state == "live" else [],
+        "column_count": len(columns) if state == "live" else 0,
         "rows_on_page": len(rows),
         "live_rows_on_page": live_n,
         "scope_note": ("counted on the rows this page returned, not on the "
                        "whole result set"),
-        "anchor_note": LIVE_ANCHOR_NOTE,
+        "anchor_date": anchor_date,
+        "anchor_note": anchor_note(anchor_date),
         "off_reason": off_reason,
         "tier": tier,
     }

@@ -22,9 +22,15 @@ import styles from './ScannerShell.module.css'
 // ⛔ AND THE WORDING NEVER IMPLIES THE WHOLE ROW IS LIVE. The chip is a
 // pointer; the popover states the count, names every live column, and says in
 // the same breath that everything else is from the 03:00 build. `live.columns`
-// and `live.anchor_note` come from the SERVER (`query.LIVE_ANCHOR_NOTE`) — this
+// and `live.anchor_note` come from the SERVER (`query.anchor_note`) — this
 // component renders the contract, it does not compose a second copy of it, and
 // the count is `.length` of the list it is showing, never a number typed here.
+//
+// ⛔ AND A ROSTER OF NONE IS NOT A LIVE CLAIM. `live_unnamed` is the server's
+// word for "these rows carry overlay values but the tier named no columns".
+// The chip must not shout LIVE over a disclosure that names nothing, and it
+// must not say `nightly` either — that would be false about values that were
+// recomputed. It says the honest third thing, quietly.
 
 function liveChipLabel(live) {
   if (!live) return null
@@ -33,12 +39,39 @@ function liveChipLabel(live) {
     return `${live.column_count} price-derived columns are live${when}; `
       + 'every other column on the row is from the 03:00 build'
   }
+  if (live.state === 'live_unnamed') {
+    return 'the live overlay did not name which columns it recomputed'
+      + (live.off_reason ? `. ${live.off_reason}` : '')
+  }
   return 'nightly snapshot — every column is from the 03:00 build'
     + (live.off_reason ? `. ${live.off_reason}` : '')
 }
 
+//: The page-scoped counts sit directly under the seal's result-set-scoped
+//: "Rows served", so the server's own qualifier is rendered with them —
+//: without it the two numbers read as a contradiction.
+function ScopeNote({ live }) {
+  if (!live?.scope_note) return null
+  return <p className={styles.sealLiveScope}>{live.scope_note}.</p>
+}
+
 function LiveBlock({ live }) {
   if (!live) return null
+  if (live.state === 'live_unnamed') {
+    return (
+      <div className={styles.sealLiveBlock}>
+        <p className={styles.sealLiveOff}>
+          <b>Live overlay — unnamed</b> —{' '}
+          {(live.live_rows_on_page ?? 0).toLocaleString()} of{' '}
+          {(live.rows_on_page ?? 0).toLocaleString()} rows loaded here carry overlay
+          values, but the overlay did not name which columns it recomputed.
+          {live.off_reason ? ` ${live.off_reason}` : ''} Treat every column as the
+          03:00 build until it does.
+        </p>
+        <ScopeNote live={live} />
+      </div>
+    )
+  }
   if (live.state !== 'live') {
     return (
       <div className={styles.sealLiveBlock}>
@@ -57,6 +90,8 @@ function LiveBlock({ live }) {
         {(live.rows_on_page ?? 0).toLocaleString()} rows loaded here carry live values
         {live.as_of_et ? `, recomputed at ${live.as_of_et}` : ''} from the live price.
       </p>
+      <ScopeNote live={live} />
+      {live.as_of_note && <p className={styles.sealLiveNote}>{live.as_of_note}</p>}
       {live.anchor_note && <p className={styles.sealLiveNote}>{live.anchor_note}</p>}
       {labels.length > 0 && (
         <p className={styles.sealLiveCols}>
@@ -93,6 +128,10 @@ function Seal({ snapshot, snapshotDate }) {
         {live && (live.state === 'live' ? (
           <span className={styles.sealLive}>
             <UIcon name="bolt" size={10} /> LIVE{live.as_of_et ? ` ${live.as_of_et}` : ''}
+          </span>
+        ) : live.state === 'live_unnamed' ? (
+          <span className={styles.sealUnnamed}>
+            <UIcon name="warning" size={10} /> overlay (unnamed)
           </span>
         ) : (
           <span className={styles.sealNightly}>{' '}nightly</span>
