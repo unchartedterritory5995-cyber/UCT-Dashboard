@@ -1096,9 +1096,16 @@ def test_the_offset_ceiling_IS_the_existing_lookback_budget():
     with pytest.raises(ast_interpret.TableRefusal) as deep:
         run(CALL("sma", OFF(400, SER("close")), NUM(200)))
     assert deep.value.guard == "budget:lookback"
-    run(OFF(499, SER("close")))                       # 500 is the cap: 499 draws
+    # ⛔ THE BOUNDARY IS DERIVED, NOT TYPED. This read `499`/`501` against a
+    # hard-typed 500 until 2026-08-23, when the JS lane raised the cap to 550
+    # and the Python twin followed: a typed boundary silently stops testing
+    # the ceiling the moment the ceiling moves, which is the same second-
+    # authority-over-one-value defect this whole file exists to refuse.
+    from api.services import ast_budget
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    run(OFF(cap - 1, SER("close")))                   # one under the cap draws
     with pytest.raises(ast_interpret.TableRefusal) as over:
-        run(OFF(501, SER("close")))
+        run(OFF(cap + 1, SER("close")))               # one over refuses
     assert over.value.guard == "budget:lookback"
 
 

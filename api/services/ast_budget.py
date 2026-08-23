@@ -54,9 +54,23 @@ from api.services.ast_interpret import TableRefusal, max_lookback, node_count
 #:                      past anything a human composes and far short of anything
 #:                      that blocks a frame at the 5,000-bar cap. Measured: the
 #:                      whole committed AST corpus tops out at NINE nodes.
-#:   maxLookback 500  — the chart holds 5,000 bars on every timeframe, and a
-#:                      500-bar warmup already leaves 90% of a full window
-#:                      drawable. Measured: the corpus tops out at 200.
+#:   maxLookback 550  — the chart holds 5,000 bars on every timeframe, and a
+#:                      550-bar warmup still leaves 89% of a full window
+#:                      drawable. Above that the user sees a mostly-empty pane
+#:                      and reads it as broken. Measured: the corpus tops out
+#:                      at 524.
+#:                      ⚠️ 500 UNTIL 2026-08-23 IN THIS LANE — the JS twin moved
+#:                      to 550 on 2026-08-22 (`942415444`) and this half was
+#:                      missed, so for a day the browser ACCEPTED what the server
+#:                      REFUSED: a nested recurrence legitimately needs TWO
+#:                      warmups (script 10's trailing stop is `accum` inside
+#:                      `accum`: 250 + 250 + ATR's 22 + 1 = 524), which is the
+#:                      very family that change was made to admit — and every
+#:                      one of them still died here on save. The two-lane rail
+#:                      caught it; no gate list ran that rail for a day.
+#:                      ⛔ The UX rule did NOT change, only the number it yields:
+#:                      90% became 89%. If this ever moves again, move it for a
+#:                      reason of the same kind — never to make one script pass.
 #:   maxSeriesRefs 8  — spec §5's perf budget is ≤60 series and ≤8 panes per
 #:                      chart; eight base-series reads inside ONE definition is
 #:                      already the whole pane budget's worth of data in a single
@@ -73,7 +87,7 @@ from api.services.ast_interpret import TableRefusal, max_lookback, node_count
 #: nothing can trip.
 DEFAULT_BUDGET: Mapping[str, int] = {
     "maxNodes": 128,
-    "maxLookback": 500,
+    "maxLookback": 550,
     "maxSeriesRefs": 8,
 }
 
