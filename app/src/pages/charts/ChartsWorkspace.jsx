@@ -513,13 +513,9 @@ export default function ChartsWorkspace() {
   const gridGap = merged ? 0 : MARGIN_Y
   const toggleMerged = useCallback(() => setPref('charts_merged', JSON.stringify(!merged)), [merged, setPref])
 
-  // Smart-placement suggest-then-confirm (Phase 2). When on (default), a newly ADDED
-  // widget shows a ghost preview at its planned slot before committing; the user
-  // confirms (Place/Enter/click) or cancels (Esc). "skip next time" persists the
-  // pref off for instant placement thereafter.
-  const smartPlaceConfirm = parsePref(prefs?.smart_place_confirm, true) === true
-  const smartConfirmRef = useRef(smartPlaceConfirm)
-  smartConfirmRef.current = smartPlaceConfirm
+  // Smart-placement suggest-then-confirm. The ghost preview shows ONLY when placing a
+  // widget requires resizing/moving an existing one (plan.mutations non-empty); when it
+  // fits in empty space it's placed immediately with no confirm step.
   // The pending add awaiting confirmation: { type, seedOpts, newId, place, mutations }.
   const [pendingAdd, setPendingAdd] = useState(null)
   const pendingAddRef = useRef(null)
@@ -1194,16 +1190,19 @@ export default function ChartsWorkspace() {
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
     const newId = `w-${type}-${Date.now()}`
-    // Smart-placement suggest-then-confirm: compute where the widget WOULD land and
-    // show a ghost preview instead of committing. commitPendingAdd finishes the add
-    // when the user confirms. (Float-on-create and the instant/legacy paths below are
-    // unaffected.) `instant` bypasses the ghost for programmatic prerequisite adds
-    // (e.g. Compare/Replay auto-opening a chart) where the user didn't ask to add one.
-    if (!float && !instant && SMART_PLACEMENT && smartConfirmRef.current) {
+    // Smart-placement: the ghost preview appears ONLY when placing the widget requires
+    // resizing/moving an existing one (plan.mutations non-empty). When it fits in empty
+    // space, fall through and place it immediately — no confirm step. (Float-on-create
+    // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
+    // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
+    if (!float && !instant && SMART_PLACEMENT) {
       const base = layoutRef.current?.widgets || []
       const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
-      setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
-      return
+      if (plan.mutations && plan.mutations.length > 0) {
+        setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
+        return
+      }
+      // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
@@ -1318,11 +1317,6 @@ export default function ChartsWorkspace() {
     setPendingAdd(null)
   }, [groupSyms, scheduleSave])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
-  // "skip next time" — persist the confirm pref off, then place immediately.
-  const skipConfirmAndPlace = useCallback(() => {
-    setPref('smart_place_confirm', JSON.stringify(false))
-    commitPendingAdd()
-  }, [setPref, commitPendingAdd])
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -2114,7 +2108,6 @@ export default function ChartsWorkspace() {
               label={HEADER_LABELS[pendingAdd.type] || 'Widget'}
               onConfirm={commitPendingAdd}
               onCancel={cancelPendingAdd}
-              onSkipConfirm={skipConfirmAndPlace}
             />
           )}
           {/* Merged mode: draggable seams between adjacent widgets (TC2000-style

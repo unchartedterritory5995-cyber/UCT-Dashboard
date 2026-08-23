@@ -92,18 +92,43 @@ function bottomChart(region) {
     .reduce((a, b) => (!a || (b.y + b.h) > (a.y + a.h) ? b : a), null)
 }
 
-// 50/50 horizontal split: newcomer takes the LEFT half at the target's full height,
-// target shrinks to the right. Used to carve a rail when no matching region exists.
-function splitHorizontal(d, target) {
+// Horizontal split: newcomer takes the LEFT slice at the target's full height, target
+// shrinks to the right. `newWArg` sets the newcomer's width (a rail carved beside a
+// chart adopts the existing rail's width); omitted → a 50/50 split. When a rail width
+// is requested it may go below the newcomer's own minW (the rail width is authoritative,
+// matching the panel rail-match rule); the target must still keep its minW.
+function splitHorizontal(d, target, newWArg) {
   if (!target) return null
   const targetMinW = defOf(target.type).minW || 2
-  const newW = Math.floor(target.w / 2)
+  const floorW = newWArg != null ? 1 : (d.minW || 2)
+  let newW = newWArg != null ? newWArg : Math.floor(target.w / 2)
+  newW = Math.max(floorW, Math.min(newW, target.w - targetMinW))
   const shrunkW = target.w - newW
-  if (newW < (d.minW || 2) || shrunkW < targetMinW) return null
+  if (newW < floorW || shrunkW < targetMinW) return null
   return {
     place: { x: target.x, y: target.y, w: newW, h: target.h },
     mutations: [{ id: target.id, x: target.x + newW, w: shrunkW }],
   }
+}
+
+// Final fallback: reserve a full-width strip across the BOTTOM, shrinking every widget
+// that crosses into it so the newcomer sits below on-screen (never off the bottom).
+// Returns { place, mutations } or null when a widget already occupies the strip or
+// can't shrink enough — the true last resort then places bare.
+function bottomStripWithMutations(widgets, d, cols, rows) {
+  const stripH = Math.max(d.minH || 3, Math.min(d.h, Math.floor(rows / 2)))
+  const cutY = rows - stripH
+  const mutations = []
+  for (const w of widgets || []) {
+    const wy = w.y | 0, wh = w.h | 0
+    if (wy >= cutY) return null
+    if (wy + wh > cutY) {
+      const nh = cutY - wy
+      if (nh < (defOf(w.type).minH || 3)) return null
+      mutations.push({ id: w.id, h: nh })
+    }
+  }
+  return { place: { x: 0, y: cutY, w: cols, h: stripH }, mutations }
 }
 
 export function planPlacement(widgets, type, cols = 24, rows = 20) {
@@ -146,20 +171,29 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
 
   // 4. Resize an existing widget to make room.
   if (family === 'chart') {
+    // Split the chart region's dominant chart 50/50 (stack a second chart).
     const target = affinity ? largestMember(affinity, 'chart') : tallest(widgets)
     const split = splitVertical(d, target)
     if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
-  } else if (affinity) {
-    // Panel with a matching rail but no gap → stack into the rail (split its widget).
-    const split = splitVertical(d, largestMember(affinity))
-    if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
   } else {
-    // Panel with no rail → carve one beside the widest widget.
-    const split = splitHorizontal(d, widest(widgets))
+    // Panel: first try to stack into a matching rail (split one of its widgets). When
+    // the rail is FULL (splitVertical can't halve any member without going below its
+    // min), carve a NEW rail beside the widest chart at the existing rail's width — the
+    // "the right side is full, put it on the left" case — instead of overflowing.
+    const railW = affinity ? affinity.w : undefined
+    let split = affinity ? splitVertical(d, largestMember(affinity)) : null
+    if (!split) {
+      const charts = widgets.filter(w => familyOf(w.type) === 'chart')
+      const target = widest(charts.length ? charts : widgets)
+      split = splitHorizontal(d, target, railW)
+    }
     if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
   }
 
-  // 5. Last resort — full-width slot the caller bottom-packs (mirrors old behavior).
+  // 5. Last resort — reserve a bottom strip, shrinking crossers so the newcomer stays
+  // on-screen (a bare overlapping placement would let RGL shove it off the bottom).
+  const strip = bottomStripWithMutations(widgets, d, cols, rows)
+  if (strip) return { place: clampPlace(strip.place, d, cols, rows), mutations: strip.mutations }
   return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
 }
 

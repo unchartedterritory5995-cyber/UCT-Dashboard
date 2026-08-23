@@ -58,6 +58,32 @@ describe('planPlacement — general behavior', () => {
     expect(mutations).toEqual([])
   })
 
+  test('when the sidebar rail is FULL, a panel carves a new rail beside the chart (img 13)', () => {
+    // chart on the left + a right rail packed with 4 panels (no room to stack a 5th).
+    const layout = [
+      { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
+      { id: 't', type: 'themes', x: 18, y: 0, w: 6, h: 5 },
+      { id: 'b', type: 'breadth', x: 18, y: 5, w: 6, h: 5 },
+      { id: 'wl', type: 'watchlist', x: 18, y: 10, w: 6, h: 5 },
+      { id: 'n', type: 'news', x: 18, y: 15, w: 6, h: 5 },
+    ]
+    const { place, mutations } = planPlacement(layout, 'optionsflow', COLS, ROWS)
+    // New rail carved on the LEFT at the existing rail's width; the chart shrinks right.
+    expect(place).toMatchObject({ x: 0, y: 0, w: 6, h: 20 })
+    expect(mutations).toEqual([{ id: 'c1', x: 6, w: 12 }])
+  })
+
+  test('a full board never places a widget off-screen — it always makes room (mutations)', () => {
+    // A single full-width chart: any panel add must resize it, never overflow the grid.
+    const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
+    for (const type of ['alerts', 'optionsflow', 'watchlist', 'chart']) {
+      const { place, mutations } = planPlacement(layout, type, COLS, ROWS)
+      expect(mutations.length, `${type} must make room, not overflow`).toBeGreaterThan(0)
+      expect(place.x + place.w).toBeLessThanOrEqual(COLS)
+      expect(place.y + place.h).toBeLessThanOrEqual(ROWS)
+    }
+  })
+
   test('a panel with no matching rail carves one beside the widest widget', () => {
     const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
     const { place, mutations } = planPlacement(layout, 'themes', COLS, ROWS)

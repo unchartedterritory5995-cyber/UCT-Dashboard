@@ -35,7 +35,7 @@ function toPx(cell, m, rowHeight) {
 
 export default function GhostPreview({
   bodyRef, widgets, plan, rowHeight, gap, cols, label,
-  onConfirm, onCancel, onSkipConfirm,
+  onConfirm, onCancel,
 }) {
   // Re-render on window resize so the measured geometry stays current while the
   // preview is open. The grid element is always mounted by the time a ghost shows,
@@ -150,17 +150,6 @@ export default function GhostPreview({
           }}
         >Cancel</button>
         <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>Enter · Esc</span>
-        {onSkipConfirm && (
-          <button
-            type="button"
-            onClick={onSkipConfirm}
-            title="Place now and stop asking for confirmation (re-enable in settings)"
-            style={{
-              background: 'transparent', color: '#7a7a7a', border: 'none', borderRadius: 5,
-              padding: '4px 4px', fontSize: 10, cursor: 'pointer', textDecoration: 'underline',
-            }}
-          >skip next time</button>
-        )}
       </div>
     </div>
   )
