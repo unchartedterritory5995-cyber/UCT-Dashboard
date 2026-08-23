@@ -60,6 +60,15 @@ function rng(seed) {
  *     collapsing it; generating one would make the identity property assert that
  *     a refusal round-trips. The generator wraps AT MOST ONCE, by construction —
  *     `negate` is applied to a freshly-built child and never to its own output.
+ *   * a ZERO-BAR QUALIFIER. `parse.js::convert` FOLDS `x[0]` to `x`, so a picker
+ *     carrying `bars: 0` spells source that reads back as the UNQUALIFIED
+ *     picker — a different shape — and generating one would make the identity
+ *     property assert that a fold round-trips. `qualified` starts at 1.
+ *   * a QUALIFIER ON A GROUP OR ON A NEGATION. `(a && b)[1]` and `(!x)[1]` are
+ *     legal formulas the picker refuses BY NAME (the qualifier rides the leaf it
+ *     reads, and a negation is written over the qualified condition), so
+ *     generating one would make the identity property assert that a refusal
+ *     round-trips.
  */
 function genCorpus(seed, n) {
   const r = rng(seed)
@@ -75,9 +84,17 @@ function genCorpus(seed, n) {
   const flags = [...VOCAB.flags.keys()]
   const other = (join) => (join === 'and' ? 'or' : 'and')
 
+  // ⭐ THE FIFTH SHAPE, AND IT IS THE ONE THAT IS NOT A SHAPE — a QUALIFIER on
+  // the thing it reads. It rides a TERM and it rides a LEAF ROW, so it is
+  // applied at both layers; a corpus that only qualified terms would leave
+  // `(close < sma(close, 50))[1]` — the firm's own Remount — unmeasured while
+  // every property below stayed green. ⚠️ Never a `num` term, never a call
+  // ARGUMENT, never a group and never a negation: all four are refused by name.
+  const qualified = (node) => (r() < 0.2 ? { ...node, bars: 1 + Math.floor(r() * 9) } : node)
+
   const term = () => {
     const roll = r()
-    if (roll < 0.35) return { t: 'name', name: pick(names) }
+    if (roll < 0.35) return qualified({ t: 'name', name: pick(names) })
     if (roll < 0.48) return { t: 'num', value: Math.floor(r() * 400) }
     // ⭐ AND NEGATIVE LITERALS. The grammar has no negative `num` — `-2` is an
     // OPERATOR node over a positive one — so a corpus of non-negative numbers
@@ -87,19 +104,19 @@ function genCorpus(seed, n) {
     if (roll < 0.55) return { t: 'num', value: -(1 + Math.floor(r() * 400)) }
     const name = pick(fns)
     const spec = VOCAB.functions.get(name)
-    return {
+    return qualified({
       t: 'call',
       name,
       args: spec.args.map((kind) => (kind === 'int'
         ? { t: 'num', value: 2 + Math.floor(r() * 50) }
         : { t: 'name', name: pick(names) })),
-    }
+    })
   }
   const row = () => {
     const roll = r()
-    if (flags.length && roll < 0.15) return { kind: 'flag', name: pick(flags) }
-    if (crosses.length && roll < 0.40) return { kind: 'cross', left: term(), fn: pick(crosses), right: term() }
-    return { kind: 'row', left: term(), cmp: pick(cmps), right: term() }
+    if (flags.length && roll < 0.15) return qualified({ kind: 'flag', name: pick(flags) })
+    if (crosses.length && roll < 0.40) return qualified({ kind: 'cross', left: term(), fn: pick(crosses), right: term() })
+    return qualified({ kind: 'row', left: term(), cmp: pick(cmps), right: term() })
   }
   // ⭐ THE FOURTH SHAPE, AND IT IS THE ONLY ONE THAT WRAPS. Applied to whatever
   // the child turned out to be — a row of any of the three leaf shapes OR a
@@ -207,6 +224,51 @@ describe('the corpus is not vacuous', () => {
     }
     CORPUS.forEach(walk)
     expect(negatives).toBeGreaterThan(0)
+  })
+
+  it('and the BARS-AGO QUALIFIER reaches BOTH layers and EVERY shape that may carry one', () => {
+    // ⛔ THE CENSUS THE OTHER FOUR SHAPES ALREADY HAVE, for the fifth. A
+    // generator that only qualified TERMS would leave `(close < sma(close,
+    // 50))[1]` — the firm's own Remount, and the reason this task exists —
+    // unmeasured while all 400 identity cases stayed green. That is exactly the
+    // state the crossing row was in before it was generated.
+    const onTerms = new Set()
+    const onRows = new Set()
+    const walkTerm = (t) => { if (t.bars) onTerms.add(t.t) }
+    const walk = (n) => {
+      if (n.kind === 'group') { n.children.forEach(walk); return }
+      if (n.kind === 'not') { walk(n.child); return }
+      if (n.bars) onRows.add(n.kind)
+      if (n.kind === 'flag') return
+      ;[n.left, n.right].forEach(walkTerm)
+    }
+    CORPUS.forEach(walk)
+    // ⛔ AND NEVER ON A NUMBER — `5[1]` is not even a formula the parser accepts
+    // (jsep reads `[1]` after a literal as an array), so a qualified number is a
+    // picker shape no source can spell.
+    expect([...onTerms].sort()).toEqual(['call', 'name'])
+    expect([...onRows].sort()).toEqual(['cross', 'flag', 'row'])
+  })
+
+  it('and every generated qualifier counts at least ONE bar — a zero would be a FOLD, not a shape', () => {
+    // ⛔ `parse.js::convert` folds `x[0]` to `x`, so a picker carrying `bars: 0`
+    // spells source that reads back as the UNQUALIFIED picker. Generating one
+    // would make the identity property assert that a fold round-trips.
+    let seen = 0
+    const check = (node) => {
+      if (node.bars === undefined) return
+      seen += 1
+      expect(Number.isInteger(node.bars) && node.bars >= 1, JSON.stringify(node)).toBe(true)
+    }
+    const walk = (n) => {
+      if (n.kind === 'group') { n.children.forEach(walk); return }
+      if (n.kind === 'not') { walk(n.child); return }
+      check(n)
+      if (n.kind === 'flag') return
+      ;[n.left, n.right].forEach(check)
+    }
+    CORPUS.forEach(walk)
+    expect(seen).toBeGreaterThan(0)
   })
 
   it('and the corpus contains both joins and at least one nested group', () => {
@@ -1041,6 +1103,225 @@ describe('⭐ EVERY DECLARED OPERATOR, DERIVED — and the shape NOT taken still
       expect(res.guard, name).toBe('picker:not-a-condition')
       expect(res.group, name).toBeUndefined()
     }
+  })
+})
+
+describe('⭐ THE BARS-AGO QUALIFIER — the fifth node, and the walker that lagged three commits', () => {
+  // 🔴 THE LAST WALKER. `291c9d8a` added `offset` to the canonical vocabulary —
+  // `{type:'offset', value: N>=1, args:[child]}`, spelled `expr[N]` — and every
+  // reader in the repo learned it EXCEPT this one. `assert_canonical`,
+  // `ast_budget`, `ast_lint`, `ast_freshness` and `sentence.js` shipped with it;
+  // `c6ae15171` closed the Python sentence lane. `criteria.js` dispatched
+  // num / series / op / call and answered `picker:node` — so two of the firm's
+  // own setups (both TWO-BAR relationships) could not be opened in the door that
+  // exists to teach the syntax, and the catalogue rail below went red on them.
+  //
+  // ⭐ AND IT IS A QUALIFIER, NOT A ROW — which is why it did not fall out of the
+  // negation's generalisation. Every earlier shape was a thing on the page: a
+  // comparison, a crossing, a name, a condition said the other way round. `x[1]`
+  // is none of those. It says WHEN to read something that is already there, so
+  // it rides the operand — and the leaf row — it qualifies, as a `bars` field.
+  //
+  // ⛔ AND THE PHRASE IS THE SENTENCE LANE'S, NOT A SECOND ONE. `sentence.js`
+  // renders `{inner} N bar(s) ago` and `definition_concierge._render_offset`
+  // mirrors it decision-for-decision; the picker's control says the same words
+  // over the same number, and `CriteriaPicker.test.jsx` is where that is seen.
+
+  const opens = (src) => {
+    const parsed = parseFormula(src)
+    expect(parsed.ok, `${src} did not parse: ${parsed.error}`).toBe(true)
+    const back = fromAst(parsed.ast, VOCAB)
+    expect(back.ok, `${src} could not be opened: ${back.reason}`).toBe(true)
+    expect(isCanonical(back.group), src).toBe(true)
+    // ⛔ THE HASH, NOT THE STRING. A qualifier that re-spelled to a different
+    // tree — a lost parenthesis, a dropped `[1]`, the fold — round-trips through
+    // the picker's own shape and only this sees it.
+    expect(astHash(parseFormula(toSource(back.group, VOCAB)).ast), src)
+      .toBe(astHash(parsed.ast))
+    return back.group
+  }
+
+  it('the canonical node exists and the parser FOLDS a zero-bar one away', () => {
+    // ⛔ THE PRECONDITION, MEASURED. `close[0]` and `close` are ONE column and
+    // therefore one `astHash`, so `bars: 0` is not a shape the picker may carry
+    // — every refusal below rests on this being true of the shipped parser
+    // rather than on this file remembering that it is.
+    expect(parseFormula('close[1]').ast.type).toBe('offset')
+    expect(parseFormula('close[1]').ast.value).toBe(1)
+    expect(astHash(parseFormula('close[0] > open').ast))
+      .toBe(astHash(parseFormula('close > open').ast))
+    const back = fromSource('close[0] > open')
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.children[0]).toEqual(
+      { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'name', name: 'open' } })
+  })
+
+  it('a BAR SERIES one bar ago is a TERM, and the row is otherwise unchanged', () => {
+    const group = opens('close > high[1]')
+    expect(group.children[0]).toEqual({
+      kind: 'row',
+      left: { t: 'name', name: 'close' },
+      cmp: '>',
+      right: { t: 'name', name: 'high', bars: 1 },
+    })
+  })
+
+  it('a SCALAR one bar ago is a term too — the node tag does not decide, the vocabulary does', () => {
+    const group = opens('rs_rank[1] > 80')
+    expect(group.children[0].left).toEqual({ t: 'name', name: 'rs_rank', bars: 1 })
+    expect(group.children[0].right).toEqual({ t: 'num', value: 80 })
+  })
+
+  it('a CALL one bar ago is a term, and its own arguments are untouched', () => {
+    const group = opens('sma(close, 50)[3] > close')
+    expect(group.children[0].left).toEqual({
+      t: 'call', name: 'sma', args: [{ t: 'name', name: 'close' }, { t: 'num', value: 50 }], bars: 3,
+    })
+  })
+
+  it('a FLAG one bar ago is still ONE control — a yes-or-no fact, read a bar back', () => {
+    const flag = [...VOCAB.flags.keys()][0]
+    const group = opens(`${flag}[2]`)
+    expect(group.children).toEqual([{ kind: 'flag', name: flag, bars: 2 }])
+  })
+
+  it('a CROSSING one bar ago is still a crossing row', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const group = opens(`${fn}(close, open)[1]`)
+    expect(group.children).toEqual([{
+      kind: 'cross', left: { t: 'name', name: 'close' }, fn, right: { t: 'name', name: 'open' }, bars: 1,
+    }])
+  })
+
+  it('🔴 A WHOLE COMPARISON one bar ago — the shape the firm\'s Remount is', () => {
+    const group = opens('(close < sma(close, 50))[1]')
+    expect(group.children).toEqual([{
+      kind: 'row',
+      left: { t: 'name', name: 'close' },
+      cmp: '<',
+      right: { t: 'call', name: 'sma', args: [{ t: 'name', name: 'close' }, { t: 'num', value: 50 }] },
+      bars: 1,
+    }])
+  })
+
+  it('🔴 AND NESTED INSIDE A BINARY OP, which is Remount whole', () => {
+    // ⭐ THE CATALOGUE ENTRY, BEFORE IT IS IN THE CATALOGUE. A qualifier that
+    // only worked as the WHOLE formula would leave the shipped starter refused
+    // with every case above green.
+    const group = opens('(close < sma(close, 50))[1] && above_50sma')
+    expect(group.join).toBe('and')
+    expect(group.children.map((c) => c.kind)).toEqual(['row', 'flag'])
+    expect(group.children[0].bars).toBe(1)
+    expect(group.children[1]).toEqual({ kind: 'flag', name: 'above_50sma' })
+  })
+
+  it('and a qualified term sits inside a binary op just as happily', () => {
+    const group = opens('open > high[1] && close > high[1]')
+    expect(group.children.map((c) => c.right.bars)).toEqual([1, 1])
+  })
+
+  it('a NEGATION over a qualified condition is the negation of what happened a bar ago', () => {
+    // ⛔ THE NESTING IS ONE WAY ROUND, AND THAT IS THE DECISION. `!(x[1])` is the
+    // shape the picker carries — the qualifier is the leaf's, and the negate
+    // toggle is written over the qualified condition. `(!x)[1]` is refused below.
+    const group = opens('!(close > open)[1]')
+    expect(group.children[0].kind).toBe('not')
+    expect(group.children[0].child.bars).toBe(1)
+  })
+
+  it('⛔ A QUALIFIER ON A GROUP IS REFUSED IN BOTH DIRECTIONS, so they cannot disagree', () => {
+    // ⭐ AND THE REASON IS THE IDENTITY PROPERTY, not taste. A one-child group
+    // spells its child and nothing else, so `group{bars:1}[flag]` and
+    // `flag{bars:1}` would be TWO pickers with ONE tree — the picker would hand
+    // back a shape the member did not assemble. Refusing the whole level costs a
+    // formula nobody can otherwise reach and keeps the round trip an identity.
+    expect(fromSource('((close > open) && (high > low))[1]').guard).toBe('picker:node')
+    const bad = {
+      kind: 'group', join: 'and', bars: 1, children: [ROW_A, ROW_B],
+    }
+    expect(() => toSource({ kind: 'group', join: 'and', children: [bad] }, VOCAB)).toThrow(/no row for/i)
+    expect(() => canonicalPicker(bad)).toThrow(/no row for/i)
+    expect(isCanonical(bad)).toBe(false)
+  })
+
+  it('⛔ AND A QUALIFIER OUTSIDE A NEGATION IS REFUSED THE SAME WAY', () => {
+    expect(fromSource('(!(close > open))[1]').guard).toBe('picker:node')
+    const bad = { kind: 'not', bars: 1, child: ROW_A }
+    expect(() => toSource({ kind: 'group', join: 'and', children: [bad] }, VOCAB)).toThrow(/no row for/i)
+    expect(() => canonicalPicker(bad)).toThrow(/no row for/i)
+    // …and the supported nesting still works, so the refusal is about the ORDER
+    // and not about negation.
+    expect(fromSource('!(close > open)[1]').ok).toBe(true)
+  })
+
+  it('⛔ AND NEVER INSIDE A CALL ARGUMENT — refused on BOTH sides, exactly as a negative literal is', () => {
+    // A qualified argument spells `sma(close[1], 20)`, and the picker's argument
+    // controls are a name picker and a window box: rendering one would show a
+    // member `sma(close, 20)` for a formula that says something else. The
+    // control the argument would need is the row's, one level up.
+    expect(fromSource('sma(close[1], 20) > 1').guard).toBe('picker:term')
+    expect(() => toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'row',
+        left: { t: 'call', name: 'sma', args: [{ t: 'name', name: 'close', bars: 1 }, { t: 'num', value: 20 }] },
+        cmp: [...VOCAB.comparators][0],
+        right: { t: 'num', value: 1 },
+      }],
+    }, VOCAB)).toThrow(/longer expression/i)
+  })
+
+  it('⛔ AND A ZERO-BAR QUALIFIER REFUSES IN ALL THREE PLACES, because the parser FOLDS it', () => {
+    // ⭐ THE `-0` RULING, ONE NODE OVER. `close[0]` is `close`, so a picker
+    // carrying `bars: 0` spells source that reads back as a DIFFERENT picker.
+    // It is refused where it is spelled and where it is normalised; it cannot be
+    // READ at all, because no tree the parser produces contains one.
+    const zeroRow = { ...ROW_A, bars: 0 }
+    expect(() => toSource({ kind: 'group', join: 'and', children: [zeroRow] }, VOCAB)).toThrow(/no row for/i)
+    expect(() => canonicalPicker(zeroRow)).toThrow(/no row for/i)
+    expect(isCanonical(zeroRow)).toBe(false)
+    const zeroTerm = {
+      kind: 'group',
+      join: 'and',
+      children: [{ ...ROW_A, left: { t: 'name', name: 'close', bars: 0 } }],
+    }
+    expect(() => toSource(zeroTerm, VOCAB)).toThrow(/longer expression/i)
+    // …and a fraction and a negative are refused for the same reason: neither is
+    // a whole count of bars, and `readOffset` in the parser says so first.
+    expect(() => toSource({ kind: 'group', join: 'and', children: [{ ...ROW_A, bars: 1.5 }] }, VOCAB))
+      .toThrow(/no row for/i)
+    expect(() => toSource({ kind: 'group', join: 'and', children: [{ ...ROW_A, bars: -1 }] }, VOCAB))
+      .toThrow(/no row for/i)
+  })
+
+  it('⛔ AND THE REFUSAL INSIDE A QUALIFIER IS THE OPERAND\'S OWN, never a second sentence', () => {
+    // The same rule the negation already follows: what is wrong is INSIDE the
+    // qualifier, and the picker says so in the sentence it already had.
+    // ⚠️ `((close - low) / (high - low))[1]` is the Kicker Candle clause, and it
+    // is refused for ARITHMETIC — the shape this task deliberately did not take
+    // — not for the qualifier. Recorded here so the two are never confused.
+    expect(fromSource('((close - low) / (high - low))[1] <= 0.33').guard).toBe('picker:term')
+    expect(fromSource('(close + open)[1] > 1').guard).toBe('picker:term')
+    expect(fromSource('sma(close, 20)[1]').guard).toBe('picker:not-a-condition')
+    expect(fromSource('close[1]').guard).toBe('picker:not-a-condition')
+  })
+
+  it('⛔ AND A CHAIN IS UNREACHABLE FROM SOURCE AND REFUSED FROM A TREE', () => {
+    // `close[1][2]` is `canonicalise:offset-chained` at the parser — one column,
+    // one tree — so the picker can never be handed one by a member. A
+    // hand-built double still refuses rather than silently reading the outer.
+    expect(parseFormula('close[1][2]').ok).toBe(false)
+    expect(parseFormula('close[1][2]').guard).toBe('canonicalise:offset-chained')
+    const chained = {
+      type: 'op',
+      name: '>',
+      args: [
+        { type: 'offset', value: 2, args: [{ type: 'offset', value: 1, args: [{ type: 'series', name: 'close' }] }] },
+        { type: 'series', name: 'open' },
+      ],
+    }
+    expect(fromAst(chained, VOCAB).guard).toBe('picker:term')
   })
 })
 

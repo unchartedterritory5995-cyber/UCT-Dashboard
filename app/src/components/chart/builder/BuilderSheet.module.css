@@ -408,6 +408,28 @@
 .pickerNum { flex: 0 1 96px; }
 .pickerCmp { flex: 0 0 auto; }
 
+/* The bars-ago qualifier — `expr[N]`, the fifth canonical node. It rides an
+   operand and it rides a row, so it is deliberately SMALLER than the controls it
+   sits beside: a count and two words, not a third dropdown. The words are part
+   of the control rather than a tooltip because a bare `1` next to a ticker name
+   is unreadable, and `white-space: nowrap` keeps "bar ago" from breaking across
+   the number it belongs to. The 44px floor is the tap target, carried by the
+   label exactly as `.pickerNot` carries the checkbox's. */
+.pickerBars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* ⛔ NARROWER THAN `.pickerNum`'s 96px, and it must come AFTER it to win the
+   cascade. A bar count is one or two digits; giving it a threshold's width is
+   what would push a three-control row past its line on a phone. */
+.pickerBarsNum { flex: 0 0 64px; }
+
 .pickerArgs {
   display: flex;
   align-items: center;

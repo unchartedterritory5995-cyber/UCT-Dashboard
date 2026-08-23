@@ -26,5 +26,11 @@
   {"source": "close > -0",                   "guard": "picker:term",
    "why": "`-0` spells back as `0`, which is a DIFFERENT tree, so admitting it would make the AST identity property false for a shape no member can reach by any other route"},
   {"source": "sma(close, -2) > 1",           "guard": "picker:term",
-   "why": "a negative literal inside a CALL puts an operator node in an argument slot, and a function's `int` argument is a LOOKBACK. Refused on BOTH sides — `readTerm` here, `leafSource` when spelling — so the two directions cannot disagree."}
+   "why": "a negative literal inside a CALL puts an operator node in an argument slot, and a function's `int` argument is a LOOKBACK. Refused on BOTH sides — `readTerm` here, `leafSource` when spelling — so the two directions cannot disagree."},
+  {"source": "((close > open) && (high > low))[1]", "guard": "picker:node",
+   "why": "a bars-ago qualifier on a GROUP. A one-child group spells its child and nothing else, so a qualified group and a qualified leaf would be two pickers with ONE tree — the round trip would stop being an identity. The qualifier rides the leaf it reads. (`(close > open)[1]` itself is now a row: see the qualifier block in criteria.test.js.)"},
+  {"source": "(!(close > open))[1]",         "guard": "picker:node",
+   "why": "a bars-ago qualifier OUTSIDE a negation. The picker carries one nesting — the qualifier is the leaf's and the negate toggle is written over the qualified condition, `!(x[1])` — so the other order is refused rather than rendered with a control the row does not have."},
+  {"source": "sma(close[1], 20) > 1",        "guard": "picker:term",
+   "why": "a bars-ago qualifier inside a CALL ARGUMENT. A call's arguments are a name picker and a window box; rendering a qualified one would show `sma(close, 20)` for a formula that says something else. Refused on BOTH sides — `readTerm` here, `leafSource` when spelling — exactly as a negative literal in an argument is."}
 ]

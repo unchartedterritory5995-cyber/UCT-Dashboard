@@ -504,6 +504,186 @@ describe('⭐ THE NEGATION TOGGLE — the fourth shape, on the condition it wrap
   })
 })
 
+describe('⭐ THE BARS-AGO CONTROL — the fifth node, SHOWN rather than merely carried', () => {
+  // 🔴 THE WIRE FOR THE QUALIFIER, AND IT IS THE HALF `criteria.test.js` CANNOT
+  // SEE. That file can prove `(close < sma(close, 50))[1]` round-trips through
+  // the model byte-for-byte while this component renders a row that says
+  // `close < sma(close, 50)` — a row that is TRUE OF A DIFFERENT FORMULA. A
+  // starter opened as a lie is worse than the refusal it replaced, so the
+  // assertions here are about what a human READS, not about the shape.
+  //
+  // ⛔ THE WORDS ARE THE SENTENCE LANE'S. `sentence.js::renderOffset` renders
+  // `{inner} N bar(s) ago` and `definition_concierge._render_offset` mirrors it;
+  // the control says the same two words over the same number, singular at one.
+
+  const barsOn = (where) => screen.getByLabelText(`Condition ${where} bars ago`)
+  const termBars = (where, side) => screen.getByLabelText(`Condition ${where} ${side} side bars ago`)
+  /** ⛔ THE WORDS BESIDE **THIS** BOX. A row can carry three qualifiers — one per
+   *  operand and one for the whole condition — so an assertion on the ROW's
+   *  textContent would pass on any of them and prove nothing about the one under
+   *  test. Every control is one `<label>` wrapping its own input and its own
+   *  words, which is what makes the reading scopeable. */
+  const wordsBeside = (input) => input.closest('label').textContent
+
+  it('🔴 A TYPED QUALIFIED TERM IS ON SCREEN — the number AND the words beside it', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > high[1]') })
+    expect(screen.getByLabelText('Condition 0 right side')).toHaveValue('high')
+    expect(termBars('0', 'right')).toHaveValue(1)
+    // ⛔ THE READABLE HALF, AND IT IS THE POINT OF THIS FILE. A number input
+    // alone says `1` beside a ticker name and means nothing to a human; a row
+    // that round-trips byte-for-byte while READING as a different formula is
+    // worse than the refusal it replaced.
+    expect(wordsBeside(termBars('0', 'right'))).toContain('bar ago')
+    // …and the untouched side reads as the bar it is on, not as a blank.
+    expect(termBars('0', 'left')).toHaveValue(0)
+    expect(wordsBeside(termBars('0', 'left'))).toContain('bars ago')
+    expect(onSourceChange).not.toHaveBeenCalled()
+  })
+
+  it('and the words agree with the NUMBER — singular at one, plural at two', () => {
+    // ⛔ THE SENTENCE LANE'S OWN RULE (`sentence.js::renderOffset`:
+    // `bar${n === 1 ? '' : 's'}`). A control that said "1 bars ago" would be the
+    // one place in the product where the two lanes disagreed about one node.
+    mount({ ast: astOf('close > high[2]') })
+    expect(termBars('0', 'right')).toHaveValue(2)
+    expect(wordsBeside(termBars('0', 'right'))).toContain('bars ago')
+    cleanup()
+    mount({ ast: astOf('close > high[1]') })
+    expect(wordsBeside(termBars('0', 'right')).trim()).toBe('bar ago')
+  })
+
+  it('🔴 A TYPED QUALIFIED COMPARISON renders ONE row with the qualifier on the ROW', () => {
+    // ⭐ THE FIRM'S REMOUNT. `(close < sma(close, 50))[1]` is a comparison read a
+    // bar back — one row, its own terms unqualified, and the qualifier at the
+    // row's own level. A component that put it on a term would show a member a
+    // formula they did not write.
+    const { onSourceChange } = mount({ ast: astOf('(close < sma(close, 50))[1] && above_50sma') })
+    const rows = screen.getAllByTestId('picker-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['row', 'flag'])
+    expect(barsOn('0')).toHaveValue(1)
+    expect(wordsBeside(barsOn('0'))).toContain('bar ago')
+    // …and its own operands are NOT qualified, which is the difference between
+    // `(close < sma(close, 50))[1]` and `close[1] < sma(close, 50)[1]`.
+    expect(termBars('0', 'left')).toHaveValue(0)
+    expect(termBars('0', 'right')).toHaveValue(0)
+    // …and the sibling flag is not qualified either, so the control is per-condition.
+    expect(barsOn('1')).toHaveValue(0)
+    expect(onSourceChange).not.toHaveBeenCalled()
+  })
+
+  it('the qualifier can be ADDED with clicks, and emits the string `toSource` would spell', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.change(barsOn('0'), { target: { value: '1' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(parseFormula(emitted).ok, emitted).toBe(true)
+    expect(emitted).toBe(toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'row',
+        left: { t: 'name', name: 'close' },
+        cmp: '>',
+        right: { t: 'name', name: 'open' },
+        bars: 1,
+      }],
+    }, VOCAB))
+  })
+
+  it('and so can a TERM\'s, on either side', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.change(termBars('0', 'right'), { target: { value: '1' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf('close > open[1]')))
+  })
+
+  it('and setting it back to ZERO removes it — the parser FOLDS `x[0]`, so the model must not carry one', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > high[1]') })
+    fireEvent.change(termBars('0', 'right'), { target: { value: '0' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(emitted).toBe('(close > high)')
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf('close > high[0]')))
+  })
+
+  it('editing a term INSIDE a qualified row keeps the qualifier', () => {
+    // ⭐ THE WRAPPER-SURVIVES-AN-EDIT CASE, for the field version of it. A
+    // component that rebuilt the row from its controls and forgot the `bars`
+    // would silently drop the member's `[1]` on their next keystroke.
+    const { onSourceChange } = mount({ ast: astOf('(close < sma(close, 50))[1]') })
+    fireEvent.change(screen.getByLabelText('Condition 0 right side sma argument 2'), { target: { value: '20' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf('(close < sma(close, 20))[1]')))
+  })
+
+  it('⛔ AND NO OTHER CONTROL ON THE ROW MAY DROP IT — the relation, and the fact', () => {
+    // 🔴 THE LOSSY-EDIT CLASS, AND BOTH SITES REALLY WERE LOSSY. `withRelation`
+    // rebuilt a row from `{left, right}` and `FlagEditor` rebuilt one from
+    // `{kind, name}` — harmless while those were all the keys a row had, and a
+    // silent deletion of the member's `[1]` the moment it grew one. A row is
+    // EDITED, never re-made from the fields one control happens to know about.
+    const fn = [...VOCAB.crossings.keys()][0]
+    const first = mount({ ast: astOf('(close > open)[2]') })
+    fireEvent.change(screen.getByLabelText('Condition 0 comparison'), { target: { value: fn } })
+    expect(astHash(parseFormula(first.onSourceChange.mock.calls.at(-1)[0]).ast))
+      .toBe(astHash(astOf(`${fn}(close, open)[2]`)))
+
+    cleanup()
+    const names = [...VOCAB.flags.keys()]
+    const second = mount({ ast: astOf(`${names[0]}[2]`) })
+    fireEvent.change(screen.getByLabelText('Condition 0 fact'), { target: { value: names[1] } })
+    expect(astHash(parseFormula(second.onSourceChange.mock.calls.at(-1)[0]).ast))
+      .toBe(astHash(astOf(`${names[1]}[2]`)))
+  })
+
+  it('and NEGATING a qualified row keeps BOTH, in the order the model carries', () => {
+    const { onSourceChange } = mount({ ast: astOf('(close > open)[1]') })
+    fireEvent.click(screen.getByLabelText('Negate condition 0'))
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf('!(close > open)[1]')))
+  })
+
+  it('a FLAG carries one too — a yes-or-no fact read a bar back is still one control', () => {
+    const name = [...VOCAB.flags.keys()][0]
+    const { onSourceChange } = mount({ ast: astOf(`${name}[1]`) })
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-kind', 'flag')
+    expect(barsOn('0')).toHaveValue(1)
+    expect(screen.queryByLabelText('Condition 0 comparison')).toBeNull()
+    fireEvent.change(barsOn('0'), { target: { value: '3' } })
+    expect(onSourceChange.mock.calls.at(-1)[0]).toBe(toSource({
+      kind: 'group', join: 'and', children: [{ kind: 'flag', name, bars: 3 }],
+    }, VOCAB))
+  })
+
+  it('⛔ A NUMBER TERM IS OFFERED NO QUALIFIER — `5[1]` is not even a formula', () => {
+    // The control must not exist where the model refuses one: `readTerm` refuses
+    // a qualified number, and jsep reads `[1]` after a literal as an ARRAY, so a
+    // box there would build source that does not parse at all.
+    mount({ ast: astOf('close > 5') })
+    expect(screen.getByLabelText('Condition 0 right side value')).toHaveValue(5)
+    expect(screen.queryByLabelText('Condition 0 right side bars ago')).toBeNull()
+    // …and the NAME beside it still has one, so the absence is the number's.
+    expect(screen.getByLabelText('Condition 0 left side bars ago')).toHaveValue(0)
+  })
+
+  it('⛔ AND A GROUP IS OFFERED NONE EITHER — the model refuses a qualified group', () => {
+    mount({ ast: astOf('(close > open) && ((high > low) || (volume > 1))') })
+    expect(screen.queryByLabelText('Group top bars ago')).toBeNull()
+    expect(screen.queryByLabelText('Group 1 bars ago')).toBeNull()
+  })
+
+  it('⛔ AND NO CONTROL CAN BUILD A NEGATIVE OR FRACTIONAL COUNT', () => {
+    // A bar count is whole and backward — `readOffset` refuses the rest by name
+    // — so the control cannot ask the model for one.
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    expect(barsOn('0')).toHaveAttribute('min', '0')
+    fireEvent.change(barsOn('0'), { target: { value: '-2' } })
+    expect(onSourceChange.mock.calls.at(-1)[0]).toBe('(close > open)')
+    fireEvent.change(barsOn('0'), { target: { value: '1.5' } })
+    expect(parseFormula(onSourceChange.mock.calls.at(-1)[0]).ok).toBe(true)
+    expect(astHash(parseFormula(onSourceChange.mock.calls.at(-1)[0]).ast))
+      .toBe(astHash(astOf('(close > open)[1]')))
+  })
+})
+
 describe('no new chrome', () => {
   it('every glyph is a UIcon and not one emoji reaches the DOM', () => {
     const { container } = mount({ ast: astOf('(close > open) && (high > low)') })

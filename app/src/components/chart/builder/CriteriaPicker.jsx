@@ -64,16 +64,23 @@ const FLAG_OPTIONS = Object.freeze([...VOCAB.flags].map(([name, spec]) => ({ val
 /** The value the relation control shows for a row of either shape. */
 const relationOf = (row) => (row.kind === 'cross' ? row.fn : row.cmp)
 
-/** Re-shape a row around a newly-picked relation, KEEPING BOTH TERMS. The two
- *  shapes have the same operands, so switching between them must not throw the
- *  member's left and right sides away. */
+/** Re-shape a row around a newly-picked relation, KEEPING BOTH TERMS — and
+ *  everything else the row carries. The two shapes have the same operands and
+ *  the same qualifier, so switching between them must not throw the member's
+ *  left side, right side or `[N]` away.
+ *
+ *  ⛔ THE RELATION KEY IS THE ONLY THING THAT MOVES. `cmp` and `fn` are the two
+ *  spellings of one field and exactly one may be present, so the other is
+ *  deleted rather than left behind — a row carrying both would spell one shape
+ *  and read back as the other. */
 function withRelation(row, value) {
   const rel = RELATION_BY_VALUE.get(value)
-  const kind = rel ? rel.kind : 'row'
-  const base = { left: row.left, right: row.right }
-  return kind === 'cross'
-    ? { kind: 'cross', ...base, fn: value }
-    : { kind: 'row', ...base, cmp: value }
+  const next = { ...row }
+  delete next.cmp
+  delete next.fn
+  return rel && rel.kind === 'cross'
+    ? { ...next, kind: 'cross', fn: value }
+    : { ...next, kind: 'row', cmp: value }
 }
 
 /** The sentinel the term dropdown uses for "a plain number". It cannot collide
@@ -193,6 +200,58 @@ function NumberField({ value, label, onChange, allowNegative = false }) {
   )
 }
 
+/** ⭐ THE FIFTH NODE'S CONTROL, AND IT IS AN ADVERB RATHER THAN A ROW. `expr[N]`
+ *  says WHEN to read something already on the row, so it is not a container and
+ *  it is not a second row — it is a count and two words, sitting beside the
+ *  thing it qualifies. `criteria.js` carries it as an optional `bars` field on a
+ *  TERM and on a LEAF ROW, and these are the two places it renders.
+ *
+ *  ⛔ THE WORDS ARE THE SENTENCE LANE'S, NOT A THIRD PHRASING.
+ *  `sentence.js::renderOffset` renders `{inner} N bar(s) ago` and
+ *  `definition_concierge._render_offset` mirrors it decision-for-decision; a
+ *  control that said "1 bars ago" would be the one place in the product where
+ *  the three lanes disagreed about one node. Zero says `0 bars ago` and means
+ *  it: `parse.js` FOLDS `x[0]` to `x`, so a count of zero IS this bar.
+ *
+ *  ⚠️ AND IT IS ALWAYS ON SCREEN, WHICH IS A DECIDED TRADE. A control rendered
+ *  only where a qualifier already exists reads more quietly, and it would leave
+ *  `close > high[1]` — the commonest two-bar sentence there is — impossible to
+ *  BUILD in the door that exists to teach the syntax: there would be no zero to
+ *  raise. The negate toggle already made this call for the same reason and sits
+ *  on every row at rest. */
+function BarsField({ bars, label, onChange }) {
+  const n = Number.isInteger(bars) && bars > 0 ? bars : 0
+  return (
+    <label className={styles.pickerBars}>
+      <input
+        type="number"
+        className={`${styles.pickerNum} ${styles.pickerBarsNum}`}
+        aria-label={label}
+        min="0"
+        step="1"
+        value={n}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      {n === 1 ? 'bar ago' : 'bars ago'}
+    </label>
+  )
+}
+
+/** The qualifier, put back on the node it qualifies — or TAKEN OFF it.
+ *
+ *  ⛔ ZERO DELETES THE KEY RATHER THAN STORING A ZERO. `criteria.js` refuses
+ *  `bars: 0` in all three of its doors because `parse.js` folds `x[0]` to `x`,
+ *  so a model carrying one would spell source that reads back as a DIFFERENT
+ *  picker. ⛔ AND THE COUNT IS FLOORED, not rounded: a bar count is whole and it
+ *  reads backwards, which is `readOffset`'s rule, and a control that handed the
+ *  model `1.5` would surface as a throw out of an edit. */
+function withBars(node, value) {
+  const n = Number.isFinite(value) ? Math.floor(value) : 0
+  const next = { ...node }
+  delete next.bars
+  return n >= 1 ? { ...next, bars: n } : next
+}
+
 /** The negate control, and it is the SAME control on a row, on a flag and on a
  *  group — because to the model they are one thing: a condition, wrapped.
  *
@@ -263,6 +322,19 @@ function TermEditor({ term, label, onChange }) {
           {NAME_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       )))}
+      {/* ⛔ NOT ON A NUMBER, AND NOT ON AN ARGUMENT. `5[1]` is not a formula the
+          parser accepts at all (jsep reads `[1]` after a literal as an array),
+          and `criteria.leafSource` refuses a qualified call ARGUMENT for the
+          reason it refuses a negative one there — so a control in either place
+          would build source the picker could not read back. The argument's
+          qualifier is the row's, one level up. */}
+      {term.t !== 'num' && (
+        <BarsField
+          bars={term.bars}
+          label={`${label} bars ago`}
+          onChange={(v) => onChange(withBars(term, v))}
+        />
+      )}
     </span>
   )
 }
@@ -299,6 +371,16 @@ function RowEditor({ row, where, negated, onNegate, onChange, onRemove }) {
         label={`Condition ${where} right side`}
         onChange={(t) => onChange({ ...row, right: t })}
       />
+      {/* ⭐ THE ROW'S OWN QUALIFIER, AND ITS POSITION IS ITS MEANING. A count
+          inline after a term qualifies THAT TERM; this one sits after the whole
+          sentence, so it reads over the whole sentence — which is the difference
+          between `close < sma(close, 50)[1]` and `(close < sma(close, 50))[1]`,
+          two different questions and the second one is the firm's Remount. */}
+      <BarsField
+        bars={row.bars}
+        label={`Condition ${where} bars ago`}
+        onChange={(v) => onChange(withBars(row, v))}
+      />
       <button
         type="button"
         className={styles.pickerIconBtn}
@@ -327,10 +409,23 @@ function FlagEditor({ row, where, negated, onNegate, onChange, onRemove }) {
         className={styles.pickerSelect}
         aria-label={`Condition ${where} fact`}
         value={row.name}
-        onChange={(e) => onChange({ kind: 'flag', name: e.target.value })}
+        // ⛔ SPREAD, NOT REBUILT. This wrote `{kind:'flag', name}` from scratch,
+        // which was harmless while a flag row had exactly two keys — and the
+        // moment it grew a `bars` qualifier, picking a different fact would have
+        // silently dropped the member's `[1]`. A row is EDITED here, never
+        // re-made from the fields this control happens to know about.
+        onChange={(e) => onChange({ ...row, name: e.target.value })}
       >
         {FLAG_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
+      {/* A yes-or-no fact read a bar back is still ONE control plus its count —
+          `above_50sma[1]` — so the qualifier sits where it does on every other
+          row rather than turning a flag into a second kind of thing. */}
+      <BarsField
+        bars={row.bars}
+        label={`Condition ${where} bars ago`}
+        onChange={(v) => onChange(withBars(row, v))}
+      />
       <button
         type="button"
         className={styles.pickerIconBtn}

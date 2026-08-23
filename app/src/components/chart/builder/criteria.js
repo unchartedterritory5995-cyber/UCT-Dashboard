@@ -17,10 +17,22 @@
 // ⛔ `fromAst` IS PARTIAL AND REFUSES BY NAME. A picker that silently drops a
 // term it cannot show IS the TC2000 PCF seam one hop earlier.
 //
-// ⛔ AND THE CANONICAL NODE VOCABULARY IS FOUR TYPES. E-1 settled the scalar
-// encoding: a scalar rides the `series` node and `NODE_TYPES` does not grow, so
-// there is no `'scalar'` node type to test for here. What distinguishes a scalar
-// from a bar series is the VOCABULARY LOOKUP below, not the node tag.
+// ⛔ AND A SCALAR IS NOT A NODE TYPE. E-1 settled the scalar encoding: a scalar
+// rides the `series` node, so there is no `'scalar'` node type to test for here.
+// What distinguishes a scalar from a bar series is the VOCABULARY LOOKUP below,
+// not the node tag.
+//
+// ⚰️ THIS SAID "THE CANONICAL NODE VOCABULARY IS FOUR TYPES", AND IT WAS THE
+// SENTENCE THAT KEPT THIS FILE THREE COMMITS BEHIND THE GRAMMAR. `291c9d8a`
+// added a fifth — `offset` — and `parse.js::NODE_TYPES` has read five ever
+// since; `assert_canonical`, `ast_budget`, `ast_lint`, `ast_freshness` and
+// `sentence.js` all learned it, and `c6ae15171` closed the Python sentence lane.
+// This module dispatched four and answered `picker:node` for the fifth, so two
+// of the firm's own two-bar setups could not be opened in the door that exists
+// to teach the syntax. ⛔ DO NOT WRITE A COUNT HERE AGAIN — read
+// `parse.js::NODE_TYPES`, which is the one authority, and note that the reason
+// this drifted invisibly is that a picker with no row for a node REFUSES, and a
+// refusal reads exactly like a decision.
 //
 // ⭐⭐ TWO ROW SHAPES, AND THE SECOND ONE IS WHY THE TWO DOORS NOW OFFER THE SAME
 // SET. Spec §1.1 is that the definition consumed by chart, alerts, screener and
@@ -98,6 +110,41 @@
 // the picker does not have (one toggle per condition says "negated", not "how
 // many times"). So a negation of a negation refuses BY NAME, in `readCondition`,
 // in `toSource` and in `canonicalPicker`, and the picker cannot build one.
+//
+// ⭐⭐ AND A FIFTH SHAPE, WHICH IS NOT A SHAPE AT ALL BUT A QUALIFIER ON ONE.
+// `expr[N]` — the `offset` node — says WHEN to read something that is already
+// there. It is not a row, it is not a relation and it is not a name: every one
+// of the four above is a THING ON THE PAGE, and this one is an adverb. So it
+// does not get a container. It rides the operand it qualifies, and the leaf row
+// it qualifies, as one optional field:
+//
+//   * `bars: N` (a whole number ≥ 1) on a TERM — `{t:'name', name:'high',
+//     bars:1}` spells `high[1]`;
+//   * `bars: N` on a LEAF ROW — a comparison, a crossing or a flag — so
+//     `{kind:'row', …, bars:1}` spells `(close < sma(close, 50))[1]`, which is
+//     the firm's own Remount.
+//
+// ⛔ ONE (a whole number), NOT ZERO, AND THE REASON IS THE PARSER'S. `convert`
+// FOLDS `close[0]` to `close` — one column, one `astHash` — so a picker carrying
+// `bars: 0` would spell source that reads back as the UNQUALIFIED picker: a
+// different shape than the one handed in, which is the `-0` ruling one node
+// over. It is refused where it is spelled and where it is normalised, and it
+// cannot be read at all because no tree the parser produces contains one.
+//
+// ⛔ AND NOT ON A GROUP, NOT ON A NEGATION, AND NOT INSIDE A CALL — each refused
+// BY NAME in both directions, each for its own reason:
+//
+//   * a GROUP because a ONE-CHILD group spells its child and nothing else, so a
+//     qualified group and a qualified leaf would be TWO pickers with ONE tree
+//     and the round trip would stop being an identity;
+//   * a NEGATION because there is one nesting and it is `!(x[1])` — the
+//     qualifier is the leaf's, the toggle is written over the qualified
+//     condition — and `(!x)[1]` would need a second control saying which came
+//     first;
+//   * a CALL ARGUMENT because an argument's controls are a name picker and a
+//     window box, so a qualified one would put `sma(close, 20)` on screen for a
+//     formula that says `sma(close[1], 20)`. That is the same refusal, for the
+//     same reason, that `leafSource` already makes for a negative literal.
 //
 // ⏳ NOT TAKEN, AND SAID PLAINLY: arithmetic TERMS (`close + open > 1`) are
 // scannable-when-typed and still refuse here. They do not fall out of any of the
@@ -436,6 +483,48 @@ export function vocabulary(table = TABLE) {
 // picker -> source
 // --------------------------------------------------------------------------- //
 
+// --------------------------------------------------------------------------- //
+// the bars-ago qualifier, on both layers
+// --------------------------------------------------------------------------- //
+
+/** The bar count a picker node carries, VALIDATED — or `null` when it carries
+ *  none.
+ *
+ *  ⛔ THE FLOOR IS ONE, AND IT IS THE PARSER'S RULE, NOT A TASTE. `convert`
+ *  folds `x[0]` to `x`, so a node carrying `bars: 0` spells source that reads
+ *  back as the UNQUALIFIED node — a different picker than the one handed in.
+ *  Same ruling as `-0`, one node type over. A fraction and a negative are
+ *  refused for the reason `readOffset` refuses them: a bar count is whole and it
+ *  reads backwards.
+ *
+ *  ⚠️ THE GUARD IS THE CALLER'S LAYER. A term that cannot be shown is
+ *  `picker:term`; a condition the picker has no control for is `picker:node`.
+ *  That split is the one this module already draws everywhere else, and passing
+ *  it in is what keeps ONE validation behind both. */
+function barsOf(node, guard) {
+  const n = node ? node.bars : undefined
+  if (n === undefined || n === null) return null
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) throw new PickerRefusal(guard)
+  return n
+}
+
+/** ⛔ THE SPELLING IS THE GRAMMAR'S `expr[N]` AND NOTHING ELSE. It is appended
+ *  to whatever spelled the thing being qualified — a name and a call are already
+ *  primary expressions and a row brings its own parentheses — so there is one
+ *  place the brackets are written and both layers use it. */
+const qualify = (text, bars) => (bars === null ? text : `${text}[${bars}]`)
+
+/** The bar count of a CANONICAL `offset` node, validated the same way the picker
+ *  side is, so a tree and a picker can never disagree about which offsets exist.
+ *  ⛔ THE ARITY IS CHECKED FIRST, exactly as `sentence.js::renderOffset` checks
+ *  it first: an offset reads ONE child, and a malformed node is not a shape. */
+function offsetBars(n, guard) {
+  if (!Array.isArray(n.args) || n.args.length !== 1) throw new PickerRefusal(guard)
+  const v = n.value
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) throw new PickerRefusal(guard)
+  return v
+}
+
 function spellNumber(v) {
   // ⭐ THE SIGN IS THE NUMBER'S, NOT AN OPERATOR THIS FILE SPELLS. `String(-5)`
   // is `-5`, which the parser reads back as `op u- [num 5]` — the grammar's only
@@ -449,14 +538,24 @@ function spellNumber(v) {
 
 function termSource(t, vocab) {
   if (!t || typeof t !== 'object') throw new PickerRefusal('picker:term')
-  if (t.t === 'num') return spellNumber(t.value)
+  const bars = barsOf(t, 'picker:term')
+  if (t.t === 'num') {
+    // ⛔ AND A NUMBER CARRIES NO QUALIFIER. `5[1]` is not a formula this grammar
+    // has — jsep reads `[1]` after a literal as an ARRAY, which `offencesIn`
+    // fates to `canonicalise:array` — so spelling one would produce source the
+    // parser rejects outright. A bar count only means something about a thing
+    // the bars HOLD.
+    if (bars !== null) throw new PickerRefusal('picker:term')
+    return spellNumber(t.value)
+  }
   if (t.t === 'name') {
     if (!vocab.series.has(t.name) && !vocab.scalars.has(t.name)) throw new PickerRefusal('picker:term')
-    return t.name
+    return qualify(t.name, bars)
   }
   if (t.t === 'call') {
     if (!vocab.functions.has(t.name)) throw new PickerRefusal('picker:term')
-    return `${t.name}(${(t.args || []).map((a) => leafSource(a, vocab)).join(', ')})`
+    return qualify(
+      `${t.name}(${(t.args || []).map((a) => leafSource(a, vocab)).join(', ')})`, bars)
   }
   throw new PickerRefusal('picker:term')
 }
@@ -475,6 +574,13 @@ function leafSource(t, vocab) {
   // Refusing it HERE keeps the two directions symmetric by construction rather
   // than by two lists that have to agree.
   if (t && t.t === 'num' && !(t.value >= 0)) throw new PickerRefusal('picker:term')
+  // ⛔ AND NO BARS-AGO QUALIFIER INSIDE A CALL, for the third time and the same
+  // reason. `sma(close[1], 20)` is a legal formula, but an argument's controls
+  // are a name picker and a window box — rendering a qualified one would put
+  // `sma(close, 20)` on screen for a formula that says something else. Refusing
+  // it HERE keeps the two directions symmetric by construction rather than by
+  // two lists that have to agree; `readTerm`'s call branch is the other half.
+  if (t && t.bars !== undefined && t.bars !== null) throw new PickerRefusal('picker:term')
   return termSource(t, vocab)
 }
 
@@ -484,7 +590,13 @@ export function toSource(node, vocab = vocabulary()) {
   if (!node || typeof node !== 'object') throw new PickerRefusal('picker:shape')
   if (node.kind === 'row') {
     if (!vocab.comparators.has(node.cmp)) throw new PickerRefusal('picker:comparator')
-    return `(${termSource(node.left, vocab)} ${node.cmp} ${termSource(node.right, vocab)})`
+    // ⭐ THE ROW'S OWN PARENTHESES ARE WHAT THE QUALIFIER ATTACHES TO. `(a > b)`
+    // is already wrapped, so `[N]` lands on the comparison rather than on `b` —
+    // which is the whole difference between `(close < sma(close, 50))[1]` and
+    // `close < sma(close, 50)[1]`, two different questions.
+    return qualify(
+      `(${termSource(node.left, vocab)} ${node.cmp} ${termSource(node.right, vocab)})`,
+      barsOf(node, 'picker:node'))
   }
   if (node.kind === 'cross') {
     // ⛔ THE SAME SENTENCE, SPELLED AS A CALL. A call is already a primary
@@ -492,7 +604,9 @@ export function toSource(node, vocab = vocabulary()) {
     // supplies every one the tree depends on, and adding a second pair here
     // would be spelling the parser cannot distinguish but a reader can.
     if (!vocab.crossings.has(node.fn)) throw new PickerRefusal('picker:comparator')
-    return `${node.fn}(${termSource(node.left, vocab)}, ${termSource(node.right, vocab)})`
+    return qualify(
+      `${node.fn}(${termSource(node.left, vocab)}, ${termSource(node.right, vocab)})`,
+      barsOf(node, 'picker:node'))
   }
   if (node.kind === 'flag') {
     // ⛔ AND THE REFUSAL IS THE READ SIDE'S OWN, not a new sentence. A name this
@@ -502,8 +616,9 @@ export function toSource(node, vocab = vocabulary()) {
     // drift into telling a member two different things about one name.
     if (!vocab.flags.has(node.name)) throw new PickerRefusal('picker:not-a-condition')
     // A bare name is already a primary expression: the group's `reduce` supplies
-    // every parenthesis the tree depends on, exactly as it does for a call.
-    return node.name
+    // every parenthesis the tree depends on, exactly as it does for a call — and
+    // it is what `[N]` attaches to without a pair of its own.
+    return qualify(node.name, barsOf(node, 'picker:node'))
   }
   if (node.kind === 'not') {
     // ⛔ THE OPERATOR IS THE VOCABULARY'S, NEVER A CHARACTER TYPED HERE — and a
@@ -516,6 +631,12 @@ export function toSource(node, vocab = vocabulary()) {
     // can spell something it cannot read back, which is the asymmetry the
     // identity property exists to catch.
     if (node.child && node.child.kind === 'not') throw new PickerRefusal('picker:node')
+    // ⛔ AND A NEGATION CARRIES NO QUALIFIER OF ITS OWN. There is ONE nesting —
+    // `!(x[1])`, the qualifier on the leaf and the toggle written over the
+    // qualified condition — because a row has one negate control and one bar
+    // count, and nothing on it could say which was applied first. `(!x)[1]`
+    // therefore refuses here and in `readCondition`, with one guard between them.
+    if (node.bars !== undefined && node.bars !== null) throw new PickerRefusal('picker:node')
     // The operand is parenthesised by whatever spells it — a row and a group
     // both come back wrapped, a flag and a crossing are already primary
     // expressions — and the outer pair is this shape's own, so a negation sits
@@ -523,6 +644,15 @@ export function toSource(node, vocab = vocabulary()) {
     return `(${vocab.notOp}${toSource(node.child, vocab)})`
   }
   if (node.kind === 'group') {
+    // ⛔⛔ AND A GROUP CARRIES NO QUALIFIER EITHER, AND THIS IS THE ONE THAT
+    // WOULD BREAK THE IDENTITY PROPERTY RATHER THAN MERELY LOOK ODD. A ONE-CHILD
+    // group spells its child and NOTHING ELSE — that is what `reduce` does with
+    // a single part, and it is why "add an any-of group" seeds two rows — so
+    // `group{bars:1}[flag]` and `flag{bars:1}` would spell the SAME source and
+    // therefore the same tree. Two pickers, one tree: the read-back would hand a
+    // member a shape they did not assemble. Refusing the level costs a formula
+    // no other route reaches and keeps the round trip an identity.
+    if (node.bars !== undefined && node.bars !== null) throw new PickerRefusal('picker:node')
     const parts = (node.children || []).map((c) => toSource(c, vocab))
     if (!parts.length) throw new PickerRefusal('picker:shape')
     const op = vocab.joins.get(node.join)
@@ -537,6 +667,21 @@ export function toSource(node, vocab = vocabulary()) {
 // --------------------------------------------------------------------------- //
 
 function readTerm(n, vocab) {
+  // ⭐ THE QUALIFIER IS STRIPPED FIRST AND PUT BACK ON WHATEVER IT WAS READING.
+  // `high[1]` is the SAME term as `high`, read a bar earlier — so it is not a
+  // term shape of its own, and the recursion is what keeps every rule below
+  // (the vocabulary lookup, the one-level call, the negative literal) applying
+  // to it unchanged.
+  if (n.type === 'offset') {
+    const bars = offsetBars(n, 'picker:term')
+    const inner = readTerm(n.args[0], vocab)
+    // ⛔ NOT OVER A NUMBER and NOT OVER A QUALIFIER. `5[1]` is not a formula the
+    // parser accepts, and `x[1][2]` is `canonicalise:offset-chained` there — so
+    // both are trees no member can hand us, and reading either would let the
+    // picker spell source that does not parse back.
+    if (inner.t === 'num' || inner.bars !== undefined) throw new PickerRefusal('picker:term')
+    return { ...inner, bars }
+  }
   if (n.type === 'num') return { t: 'num', value: n.value }
   // ⭐ A NEGATIVE LITERAL IS A NUMBER, NOT ARITHMETIC. The canonical tree has no
   // negative `num`, so `-2` is an operator node over a positive one — and a
@@ -559,7 +704,11 @@ function readTerm(n, vocab) {
   if (n.type === 'call' && vocab.functions.has(n.name)) {
     // ONE level. A nested call is a real formula and the formula field shows it.
     const args = (n.args || []).map((a) => {
-      if (a.type === 'call' || a.type === 'op') throw new PickerRefusal('picker:term')
+      // ⛔ AND NOT AN `offset` EITHER — the other half of `leafSource`'s refusal,
+      // so the two directions cannot disagree about `sma(close[1], 20)`.
+      if (a.type === 'call' || a.type === 'op' || a.type === 'offset') {
+        throw new PickerRefusal('picker:term')
+      }
       return readTerm(a, vocab)
     })
     return { t: 'call', name: n.name, args }
@@ -568,6 +717,23 @@ function readTerm(n, vocab) {
 }
 
 function readCondition(n, vocab) {
+  // ⭐ THE FIFTH NODE, AND IT IS READ THE SAME WAY ON THIS LAYER AS ON THE TERM
+  // LAYER: strip the qualifier, read what it qualified, put the count back on
+  // it. Which means every refusal INSIDE a qualifier is the operand's own —
+  // `(close + open)[1]` says the arithmetic is the problem, not the `[1]`.
+  if (n && n.type === 'offset') {
+    const bars = offsetBars(n, 'picker:node')
+    const inner = readCondition(n.args[0], vocab)
+    // ⛔ ONLY A LEAF. A qualified GROUP is two pickers with one tree (see
+    // `toSource`) and a qualified NEGATION is the nesting this model does not
+    // carry; both refuse here with the guard the spelling side uses, so the
+    // directions cannot disagree. `LEAF_KINDS` is the one list of what a leaf
+    // is — declared beside `canonicalPicker`, which asks the same question.
+    if (!LEAF_KINDS.includes(inner.kind) || inner.bars !== undefined) {
+      throw new PickerRefusal('picker:node')
+    }
+    return { ...inner, bars }
+  }
   if (n && n.type === 'op') {
     const join = vocab.joinOf.get(n.name)
     if (join) {
@@ -703,8 +869,20 @@ const LEAF_KINDS = Object.freeze(['row', 'cross', 'flag'])
 
 export function canonicalPicker(node) {
   if (!node || typeof node !== 'object') throw new PickerRefusal('picker:shape')
-  if (LEAF_KINDS.includes(node.kind)) return node
+  if (LEAF_KINDS.includes(node.kind)) {
+    // ⛔ THE QUALIFIER IS VALIDATED HERE TOO, and it has to be: `isCanonical` is
+    // what the UI trusts before it emits, so a leaf carrying `bars: 0` that this
+    // waved through would reach `toSource` as a throw out of an edit rather than
+    // as a shape the model reported. The count itself needs no normalising — a
+    // leaf has nothing to flatten — so the node is handed straight back.
+    barsOf(node, 'picker:node')
+    return node
+  }
   if (node.kind === 'not') {
+    // ⛔ AND NEITHER A NEGATION NOR A GROUP MAY CARRY A QUALIFIER — the third
+    // place each of those refuses, so a shape only the normal form admitted
+    // could not slip past the two doors that spell and read it.
+    if (node.bars !== undefined && node.bars !== null) throw new PickerRefusal('picker:node')
     // ⛔ A NEGATION IS A BARRIER, NOT A LEVEL TO FLATTEN THROUGH. `!(a && b)`
     // inside an all-of group is NOT `a && b` inside it, so the child is
     // canonicalised on its own and never absorbed by the parent — which the
@@ -719,6 +897,7 @@ export function canonicalPicker(node) {
     return { kind: 'not', child }
   }
   if (node.kind !== 'group') throw new PickerRefusal('picker:shape')
+  if (node.bars !== undefined && node.bars !== null) throw new PickerRefusal('picker:node')
   const children = []
   for (const raw of node.children || []) {
     const c = canonicalPicker(raw)
