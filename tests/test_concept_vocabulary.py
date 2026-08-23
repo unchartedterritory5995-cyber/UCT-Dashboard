@@ -14,8 +14,8 @@ Four properties, and each one has a control that makes it able to fail:
      naming a lost name proving the rail can go red.
   2. **Every grounding is looked up, never trusted.** A preset the screener
      stopped shipping, a starter screen that was renamed, a classifier label
-     that moved — each one refuses the concept BY NAME rather than shipping a
-     word that expands into nothing.
+     that moved, a setup definition the firm reworded — each one refuses the
+     concept BY NAME rather than shipping a word that expands into nothing.
   3. **No threshold in the vocabulary is the author's.** Every numeric literal
      in a concept's tree must be published by one of its own citations. This is
      the rail that separates "the firm's vocabulary" from "somebody's opinion
@@ -248,6 +248,260 @@ def test_a_concept_with_NO_CITATION_AT_ALL_is_refused():
     planted = _raw()
     planted["concepts"]["leader"]["grounding"] = []
     assert cv.resolve("leader", vocab=planted)["ok"] is False
+
+
+# --------------------------------------------------------------------------- #
+# 2b. the FIFTH kind: the firm's own PUBLISHED DEFINITION of a setup
+# --------------------------------------------------------------------------- #
+#
+# ⭐⭐ WHAT THIS SECTION IS DEFENDING, because a fifth citation kind is the exact
+# shape of a weakened gate and has to be read as one until proven otherwise.
+# `setup_catalog` exists for a tree that states NO NUMBER: the four older kinds
+# all answer "who published this threshold?", and a literal-free formula has no
+# threshold for them to discharge. What it does assert is an IDENTITY — this
+# shape is that setup — and the artifact that can vouch for an identity is the
+# firm's own written definition, which it publishes in the Setup Library and
+# shows to members.
+#
+# ⛔ SO THE TWO PROPERTIES THAT KEEP IT FROM BEING A LOOPHOLE ARE ASSERTED FIRST
+# AND HARDEST: it publishes NOTHING (so a definition can never launder a number
+# or a column), and it names no setup of its own (so a starter cannot be
+# grounded in a different setup's definition than the one it is filed under).
+#
+# ⛔ AND EVERY SUBJECT BELOW IS DERIVED FROM `setupCatalog.js`. A test that typed
+# a setup name and a quoted phrase would keep passing after the firm reworded
+# the definition it claims to be checking — which is the precise staleness this
+# kind exists to catch.
+
+
+def _defs():
+    return cv.setup_definitions()
+
+
+def _subject():
+    """A setup the firm publishes a definition AND a trigger level for."""
+    for name in sorted(_defs()):
+        if _defs()[name]["pivot"]:
+            return name
+    pytest.fail("no published definition carries a pivot; the level check has "
+                "no subject and would pass vacuously")
+
+
+def _shared_phrase():
+    """A word from the SUBJECT'S definition that also describes another setup.
+
+    ⛔ DERIVED, because the discrimination control cannot be a typed word: the
+    day the catalogue's prose moves, a typed collision quietly stops colliding
+    and the control passes for the wrong reason — a generic phrase would then be
+    sailing through the very check this proves is real.
+    """
+    defs = _defs()
+    mine = cv._prose(defs[_subject()]["essence"])
+    others = {n: cv._prose(e["essence"]) for n, e in defs.items() if n != _subject()}
+    counts = {word: sum(1 for text in others.values() if word in text)
+              for word in sorted(set(re.findall(r"[a-z]{4,}", mine)))}
+    counts = {w: n for w, n in counts.items() if n}
+    assert counts, ("no word in this setup's published definition describes any "
+                    "other setup; the collision control has no subject")
+    return max(sorted(counts), key=lambda w: counts[w])
+
+
+#: A literal-free, scalar-free condition over two bar series — the CLASS of tree
+#: this kind exists for, and the reason it is written here rather than lifted
+#: from a starter: this file's subject is the resolver, not the catalogue.
+_SHAPE = {"type": "op", "name": ">", "args": [{"type": "series", "name": "close"},
+                                              {"type": "series", "name": "open"}]}
+
+
+def _cite(subject=None, **over):
+    entry = _defs()[subject or _subject()]
+    cite = {"kind": "setup_catalog", "direction": entry["direction"],
+            "level": entry["pivot"], "describes": [entry["essence"]]}
+    cite.update(over)
+    return cite
+
+
+def _ground(cite=None, *, setup=..., tree=None):
+    subject = _subject() if setup is ... else setup
+    return cv.resolve_grounding(
+        tree or _SHAPE, [cite if cite is not None else _cite()],
+        attribution={"setup": subject} if subject else None)
+
+
+def test_the_SETUP_LIBRARY_reader_is_DERIVED_and_REFUSES_TO_READ_NOTHING(tmp_path):
+    """⛔ `firm_setups`' rule, and its reason. A reader that returned an empty
+    mapping when the file moved would make every definition citation refuse with
+    "the Setup Library publishes no definition of X" — a red that names the
+    setup when the fault is the path, and one somebody would act on by deleting
+    a perfectly good starter."""
+    defs = _defs()
+    assert defs, "the Setup Library read as empty; every check here is vacuous"
+    for name, entry in defs.items():
+        assert entry["name"] == name
+        assert entry["essence"].strip() and entry["direction"].strip()
+        assert entry["family"].strip()
+
+    with pytest.raises(FileNotFoundError):
+        cv.setup_definitions(tmp_path / "nope.js")
+    empty = tmp_path / "setupCatalog.js"
+    with io.open(empty, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("export const SETUP_CATALOG = [\n]\n")
+    with pytest.raises(ValueError, match="no setup definitions"):
+        cv.setup_definitions(empty)
+    halfread = tmp_path / "half.js"
+    with io.open(halfread, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("export const SETUP_CATALOG = [\n"
+                 "  {\n    name: 'Zzz',\n    family: 'Nowhere',\n"
+                 "    direction: 'long',\n  },\n]\n")
+    with pytest.raises(ValueError, match="essence"):
+        cv.setup_definitions(halfread)
+
+
+def test_a_DEFINITION_grounds_a_LITERAL_FREE_tree_and_PUBLISHES_NOTHING():
+    """⭐ THE WHOLE POINT, AND THE HALF THAT KEEPS IT HONEST IN ONE ASSERTION.
+
+    The citation resolves — and it hands back NO values and NO columns, so a
+    definition can vouch for a shape and can never be the thing that publishes a
+    number. The detail it carries is the firm's OWN English, not a phrase this
+    resolver composed.
+    """
+    got = _ground()
+    assert got["ok"] is True, got.get("detail")
+    (cite,) = got["grounding"]
+    assert cite["kind"] == "setup_catalog"
+    assert cite["values"] == set() and cite["keys"] == set()
+    assert _defs()[_subject()]["essence"] in cite["detail"]
+    assert _subject() in cite["detail"]
+
+
+def test_a_DEFINITION_CANNOT_LAUNDER_A_NUMBER_or_a_COLUMN():
+    """⛔⛔ THE LOOPHOLE THIS KIND WOULD BE IF IT PUBLISHED ANYTHING.
+
+    A definition is prose; if citing one made a tree "grounded" outright, every
+    invented threshold in the repo could be shipped under a setup name. It
+    cannot: the two rails that follow the citation loop draw on what the
+    citations PUBLISH, and this one publishes an empty set — so a tree carrying
+    any number, or screening on any table-declared scalar, is refused NAMING it
+    even though its definition citation resolved perfectly.
+    """
+    numbered = copy.deepcopy(_SHAPE)
+    numbered["args"][1] = {"type": "num", "value": 42}
+    out = _ground(tree=numbered)
+    assert out["ok"] is False and "42" in out["detail"], out
+
+    columned = {"type": "op", "name": "&&", "args": [
+        copy.deepcopy(_SHAPE), {"type": "series", "name": "above_50sma"}]}
+    out = _ground(tree=columned)
+    assert out["ok"] is False and "above_50sma" in out["detail"], out
+
+
+def test_a_DEFINITION_citation_NAMES_NO_SETUP__it_reads_the_ATTRIBUTION():
+    """⛔ A `setup` FIELD ON THE CITATION WOULD BE THE WHOLE DEFECT.
+
+    A starter's attribution is its catalogue entry's own KEY, so resolving
+    against the attributed name makes it structurally impossible to file a
+    starter under one setup and ground it in another's definition. Here the
+    citation is handed a DIFFERENT setup's name and it changes nothing — the
+    resolution still follows the attribution — and with no attribution at all
+    the citation refuses rather than picking one.
+    """
+    other = sorted(set(_defs()) - {_subject()})[0]
+    honest = _ground()
+    smuggled = _ground(_cite(**{"setup": other}))
+    assert smuggled["ok"] is True
+    assert smuggled["grounding"][0]["detail"] == honest["grounding"][0]["detail"]
+    assert other not in smuggled["grounding"][0]["detail"]
+
+    orphan = _ground(setup=None)
+    assert orphan["ok"] is False and "attributed to no setup" in orphan["detail"]
+
+
+def test_a_DEFINITION_the_SETUP_LIBRARY_DOES_NOT_PUBLISH_is_REFUSED_BY_NAME():
+    """⚠️ THE NON-VACUITY CONTROL, AND IT HAS A REAL SUBJECT ON THIS BOX.
+
+    The firm's two setup files do not agree: `setupGroups.js` names setups the
+    Setup Library publishes no definition for. A citation for one of those has
+    nothing to quote and must refuse NAMING it — which is exactly what keeps a
+    literal-free tree for such a setup out of the library rather than letting
+    "it has no numbers" read as "it needs no grounding".
+    """
+    unpublished = sorted(cv.firm_setups() - set(_defs()))
+    assert unpublished, (
+        "every setup the taxonomy names now has a published definition — this "
+        "control has no subject, and every refusal leaning on the gap needs "
+        "re-adjudicating")
+    victim = unpublished[0]
+    out = cv.resolve_grounding(
+        _SHAPE, [{"kind": "setup_catalog", "direction": "long",
+                  "describes": ["anything at all"]}],
+        attribution={"setup": victim})
+    assert out["ok"] is False
+    assert victim in out["detail"] and "publishes no definition" in out["detail"]
+
+
+def test_a_REWORDED_definition_takes_the_citation_DOWN_WITH_IT():
+    """⭐ THE MECHANICAL GUARANTEE, STATED EXACTLY. Nothing here proves the
+    quoted words MEAN the tree — that is a review judgement, as it is for every
+    other kind. What IS proven is the negative: the phrases must still be in the
+    firm's published definition, verbatim, or the citation refuses and somebody
+    re-reads the pair."""
+    out = _ground(_cite(describes=["zz the firm never wrote this"]))
+    assert out["ok"] is False
+    assert "zz the firm never wrote this" in out["detail"]
+    assert "no longer says" in out["detail"]
+
+    # ⚠️ …and the fold is EXACTLY as wide as the smart-quote problem. The
+    # artifact writes `day’s` with U+2019; an ASCII apostrophe must still match,
+    # and nothing beyond quotes, dashes, case and whitespace may.
+    entry = _defs()[_subject()]
+    ascii_quoted = entry["essence"].replace("’", "'").replace("—", "-")
+    assert _ground(_cite(describes=[ascii_quoted.upper()]))["ok"] is True
+    assert _ground(_cite(describes=[entry["essence"].replace("e", "3")]))["ok"] is False
+
+
+def test_a_DEFINITION_citation_must_SINGLE_ITS_SETUP_OUT():
+    """⭐⭐ THE TOOTH THAT SEPARATES A DEFINITION FROM A WORD-MENTION.
+
+    "The catalogue mentions this setup" is worth nothing — the whole objection to
+    grounding a shape in prose is that prose is loose. So the phrases a citation
+    quotes must describe THIS setup and no other one the firm publishes, and the
+    refusal names the setups it collides with. The colliding phrase is DERIVED
+    from the catalogue, so it cannot stop colliding while the test goes on
+    passing.
+    """
+    generic = _shared_phrase()
+    out = _ground(_cite(describes=[generic]))
+    assert out["ok"] is False, f"{generic!r} described more than one setup and passed"
+    assert "do not single" in out["detail"]
+    others = [n for n, e in _defs().items()
+              if n != _subject() and cv._prose(generic) in cv._prose(e["essence"])]
+    assert others and all(n in out["detail"] for n in others), (others, out["detail"])
+
+    # …and quoting NOTHING is its own refusal: a citation that only asserts the
+    # name exists says nothing whatever about the shape being screened.
+    for nothing in ([], ["   "], None):
+        out = _ground(_cite(describes=nothing))
+        assert out["ok"] is False and "quotes nothing" in out["detail"], nothing
+
+
+def test_the_DIRECTION_and_the_TRIGGER_LEVEL_are_the_FIRMS_and_are_CHECKED():
+    """A setup the firm re-classifies, or re-draws, takes a tree written for the
+    old reading down with it. Both claims are one word wide and both go red."""
+    entry = _defs()[_subject()]
+    wrong = {"long": "short", "short": "long", "both": "long"}[entry["direction"]]
+    out = _ground(_cite(direction=wrong))
+    assert out["ok"] is False and wrong in out["detail"] and entry["direction"] in out["detail"]
+
+    # …and an UNSTATED direction is not a pass — a citation must make the claim.
+    out = _ground(_cite(direction=None))
+    assert out["ok"] is False
+
+    levels = {"h", "l", "c"} - {entry["pivot"]}
+    out = _ground(_cite(level=sorted(levels)[0]))
+    assert out["ok"] is False and "trigger line" in out["detail"]
+    # The level is the one optional claim (a published definition need not carry
+    # a glyph pivot), so omitting it resolves — and stating it wrongly does not.
+    assert _ground(_cite(level=None))["ok"] is True
 
 
 # --------------------------------------------------------------------------- #

@@ -16,10 +16,14 @@ test corrected twice and still unparseable). One file, both lanes, one diff.
 point of the task:
 
   1. **Every concept cites a firm artifact that already exists**, and the
-     citation is RESOLVED here rather than trusted. Four kinds, four lookups:
+     citation is RESOLVED here rather than trusted. Five kinds, five lookups:
      a preset in ``screener/filters.py::FILTERS``; a shipped screen in
      ``screener/saved_screens.py::starters()``; a column the closed table
-     declares as a scalar; a labelled branch of firm code, located by AST.
+     declares as a scalar; a labelled branch of firm code, located by AST; and
+     the firm's own PUBLISHED DEFINITION of a setup, in the Setup Library's
+     ``setupCatalog.js`` — see ``_resolve_setup_catalog`` for what that fifth
+     kind proves, what it deliberately does not, and why it can only ever
+     ground a tree that states no number at all.
   2. **No number in a concept's tree may be the author's.** Every numeric
      literal must be derivable from the concept's own citations, and every
      scalar the tree names must be one a citation names. ``rs_rank >= 80`` is
@@ -87,16 +91,41 @@ SETUP_GROUPS_PATH: pathlib.Path = (
     / "app" / "src" / "constants" / "setupGroups.js"
 )
 
+#: Where the firm PUBLISHES WHAT EACH SETUP IS — the Setup Library's field guide,
+#: rendered to members at ``/model-book`` → Setups (``SetupsView.jsx`` shows the
+#: ``essence`` on the card, in the rail and in its search). ``setupGroups.js``
+#: above is a list of NAMES and says nothing about any shape; this file is the
+#: one place the firm writes the definition down.
+#:
+#: ⚠️ ``starter_library`` ALSO reads this file, for its ``taxonomy_conflict``
+#: report, with a names-only regex of its own. Two readers of one file is one
+#: too many unless they are pinned to each other, and they are: the starter
+#: library's tests assert both this constant and the NAME SET agree with that
+#: module's. It is read here rather than there because a citation kind lives
+#: where citations are resolved.
+SETUP_CATALOG_PATH: pathlib.Path = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "app" / "src" / "pages" / "modelbook" / "setupCatalog.js"
+)
+
 #: Structure keys of the vocabulary. These name the dictionaries, never a word
 #: inside one.
 VOCAB_VERSION_KEY = "version"
 CONCEPTS_KEY = "concepts"
 REFUSED_KEY = "_refused"
 
-#: The four citation kinds, each with a lookup below. A fifth kind is a DECISION
-#: — it means a new class of firm artifact is being treated as authoritative —
-#: so an unknown kind refuses rather than being ignored.
-GROUNDING_KINDS = ("filter_preset", "starter_screen", "scalar", "classifier")
+#: The citation kinds, each with a lookup below. A NEW kind is a DECISION — it
+#: means a new class of firm artifact is being treated as authoritative — so an
+#: unknown kind refuses rather than being ignored.
+#:
+#: ⭐ ``setup_catalog`` WAS THAT DECISION, TAKEN 2026-08-23, and it is recorded
+#: here because the first four kinds all answer "who published this NUMBER?"
+#: while it answers a different question: "who says this SHAPE is that setup?"
+#: A literal-free formula states no number, so the first four have nothing to
+#: discharge and the tree's only assertion is an IDENTITY. See
+#: ``_resolve_setup_catalog``.
+GROUNDING_KINDS = ("filter_preset", "starter_screen", "scalar", "classifier",
+                   "setup_catalog")
 
 #: The two refusal gates, in the concierge's existing gate-attribution style.
 #: ``ambiguous`` is a word the file has DECIDED not to ground and says why;
@@ -300,6 +329,86 @@ def firm_setups(path: Optional[pathlib.Path] = None) -> frozenset:
 
 
 # --------------------------------------------------------------------------- #
+# the firm's PUBLISHED DEFINITIONS of its setups
+# --------------------------------------------------------------------------- #
+
+#: The array this reads, scoped first so nothing outside it can be mistaken for
+#: an entry, and the entry/field shapes inside it. ⛔ DERIVED, NEVER COPIED, and
+#: no count of the entries is written anywhere in this module.
+_CATALOG_BLOCK = re.compile(
+    r"export const SETUP_CATALOG\s*=\s*\[(.*?)\n\]", re.DOTALL)
+_CATALOG_ENTRY = re.compile(
+    r"\{\s*(?://[^\n]*\n\s*)?name:\s*'([^']+)'(.*?)\n\s*\},", re.DOTALL)
+_CATALOG_PIVOT = re.compile(r"pivot:\s*\{[^}]*side:\s*'([^']+)'")
+
+#: The fields an entry must carry for a citation to resolve against it. The
+#: glyph fields (``candles``, ``emas``, ``trend``) are drawing instructions and
+#: are deliberately not read: nothing here should depend on how a sketch is
+#: shaped.
+_CATALOG_FIELDS = ("family", "direction", "essence")
+
+
+def setup_definitions(path: Optional[pathlib.Path] = None) -> Mapping[str, Mapping[str, Any]]:
+    """``{name: {name, family, direction, essence, pivot}}`` from ``setupCatalog.js``.
+
+    ⛔ READ, NEVER RESTATED — ``firm_setups``' rule, for its reason. And it
+    RAISES rather than returning an empty mapping: a moved file or a changed
+    shape would otherwise make every definition citation refuse with "the Setup
+    Library publishes no definition of X", which is a red that names the wrong
+    thing and would be read as a finding about the setup.
+    """
+    p = pathlib.Path(path) if path is not None else SETUP_CATALOG_PATH
+    if not p.exists():
+        raise FileNotFoundError(
+            f"the firm's setup definitions are missing at {p}; a definition "
+            "citation is resolved against them and cannot be resolved against "
+            "nothing.")
+    with io.open(p, encoding="utf-8") as fh:
+        src = fh.read()
+    block = _CATALOG_BLOCK.search(src)
+    if not block:
+        raise ValueError(
+            f"{p} declares no SETUP_CATALOG array. Its shape changed; every "
+            "definition citation would refuse for the wrong reason.")
+    out: dict[str, dict] = {}
+    for name, body in _CATALOG_ENTRY.findall(block.group(1)):
+        entry = {"name": name}
+        for field in _CATALOG_FIELDS:
+            found = re.search(field + r":\s*'([^']*)'", body)
+            if not found or not found.group(1).strip():
+                raise ValueError(
+                    f"{p}: the entry for {name!r} declares no {field!r}. Its "
+                    "shape changed, and a citation resolved against a "
+                    "half-read entry would pass on the half that survived.")
+            entry[field] = found.group(1)
+        pivot = _CATALOG_PIVOT.search(body)
+        entry["pivot"] = pivot.group(1) if pivot else None
+        out[name] = entry
+    if not out:
+        raise ValueError(
+            f"{p} yielded no setup definitions. Its shape changed; the "
+            "definition check is reading nothing and would refuse everything.")
+    return out
+
+
+def _prose(text: Any) -> str:
+    """One spelling rule for PROSE, applied to both sides of every quote check.
+
+    ⚠️ THE SMART QUOTE IS THE WHOLE REASON THIS EXISTS. The Setup Library is
+    authored prose and writes ``day’s`` with U+2019; a citation typed with an
+    ASCII apostrophe would refuse against a definition that had not moved a
+    character, and the next author would "fix" it by loosening the check. So
+    the curly quotes and the long dashes are folded, whitespace is collapsed
+    and case is dropped — and NOTHING else is, because every further
+    normalisation is a word a citation would no longer have to get right.
+    """
+    s = str(text or "")
+    for pair in ("’'", "‘'", '“"', '”"', "—-", "–-"):
+        s = s.replace(pair[0], pair[1])
+    return re.sub(r"\s+", " ", s).strip().casefold()
+
+
+# --------------------------------------------------------------------------- #
 # resolving one citation
 # --------------------------------------------------------------------------- #
 
@@ -449,8 +558,121 @@ def _resolve_classifier(cite: Mapping[str, Any]) -> dict:
             "detail": f"{module_name}.{cite.get('function')} -> {cite.get('label')!r}"}
 
 
+def _resolve_setup_catalog(cite: Mapping[str, Any],
+                           setup: Optional[str]) -> dict:
+    """THE FIRM'S OWN PUBLISHED DEFINITION of the setup this tree is attributed to.
+
+    ⭐⭐ WHY A FIFTH KIND EXISTS AT ALL, and it is the only argument that
+    justifies one. Grounding is here so a starter cannot assert a number the
+    firm never published. A LITERAL-FREE formula asserts no number — the
+    invented-threshold check has nothing to reject and the cited-column check
+    has nothing to name — and what it does assert is an IDENTITY: *this shape is
+    that setup*. The four older kinds cannot answer that, because a preset, a
+    screen, a column and a classifier branch all publish NUMBERS. The artifact
+    that can is the firm's own written definition of the setup, which it
+    publishes in the Setup Library and shows to members.
+
+    ⛔ AND IT PUBLISHES NOTHING — ``values`` and ``keys`` come back EMPTY, on
+    purpose and permanently. That is what keeps this from being a loophole: a
+    tree grounded only by a definition may contain no numeric literal and may
+    screen on no table-declared scalar, because there is nothing for those two
+    checks to draw on. A definition can vouch for a SHAPE and can never launder
+    a threshold. Anything numeric still needs a preset, a screen or a
+    classifier beside it, exactly as before.
+
+    ⛔ THE CITATION DOES NOT NAME THE SETUP, and cannot. It resolves against the
+    entry the ATTRIBUTION names — the starter library's attribution is the
+    catalogue entry's own KEY — so it is structurally impossible for a starter
+    filed under one setup to be grounded in another setup's definition. A
+    ``setup`` field on the citation would reintroduce exactly that, which is why
+    ``test_the_ATTRIBUTION_is_the_ENTRY_KEY…`` forbids the key outright.
+
+    FOUR THINGS IT PROVES, each refusing BY NAME:
+
+      1. the Setup Library still publishes a definition under that setup's name
+         — which also forces the two setup taxonomies to AGREE for this name,
+         since the attribution is checked against ``setupGroups.js``;
+      2. the firm still publishes it in the DIRECTION the citation claims — a
+         re-classified setup takes a long-side tree down with it;
+      3. every phrase the citation QUOTES is still in the published definition,
+         verbatim (modulo ``_prose``) — a reworded definition goes red rather
+         than leaving a tree standing on words the firm no longer writes;
+      4. those phrases SINGLE THIS SETUP OUT — no other definition the firm
+         publishes contains them all. This is the tooth that separates "the
+         entry describes this shape" from "some file mentions the word": quote
+         something generic and the refusal names the setups it collides with.
+
+    ⚠️ AND ONE THING IT DOES NOT PROVE, stated plainly so nobody later mistakes
+    it for more: that the quoted words MEAN this tree. Reading "a gap below the
+    prior day's low" as ``open < low[1]`` is a human judgement made in review,
+    and the mechanical guarantee is only the negative one — if the definition
+    moves, this goes red. That is the same division of labour every other kind
+    already runs on (nothing proves ``Remount``'s first clause is the classifier
+    it cites either), and it is why a definition citation is reviewed rather
+    than merely written.
+    """
+    if not setup:
+        raise _CitationFailed(
+            "cites the firm's published definition of a setup while being "
+            "attributed to no setup, so there is no entry to resolve it "
+            "against; a definition citation reads the attribution's name and "
+            "never one of its own")
+    defs = setup_definitions()
+    entry = defs.get(setup)
+    if entry is None:
+        raise _CitationFailed(
+            f"the Setup Library publishes no definition of {setup!r}, so the "
+            "firm has written down no shape for this citation to quote (it "
+            f"publishes {sorted(defs)})")
+
+    declared_direction = cite.get("direction")
+    if declared_direction != entry["direction"]:
+        raise _CitationFailed(
+            f"the Setup Library publishes {setup!r} as a "
+            f"{entry['direction']!r} setup, not the {declared_direction!r} this "
+            "citation claims")
+
+    phrases = [p for p in (cite.get("describes") or ()) if str(p).strip()]
+    if not phrases:
+        raise _CitationFailed(
+            f"this citation quotes nothing from the Setup Library's definition "
+            f"of {setup!r}, so it attests that the name exists and nothing "
+            "whatever about the shape being screened")
+
+    essence = _prose(entry["essence"])
+    for phrase in phrases:
+        if _prose(phrase) not in essence:
+            raise _CitationFailed(
+                f"the Setup Library's definition of {setup!r} no longer says "
+                f"{str(phrase)!r} — it says {entry['essence']!r}")
+
+    collides = sorted(
+        name for name, other in defs.items()
+        if name != setup
+        and all(_prose(p) in _prose(other["essence"]) for p in phrases))
+    if collides:
+        raise _CitationFailed(
+            f"the phrases this citation quotes also describe {collides}, so "
+            f"they do not single {setup!r} out of the definitions the firm "
+            "publishes and cannot vouch for this shape being that setup")
+
+    level = cite.get("level")
+    if level is not None and level != entry["pivot"]:
+        raise _CitationFailed(
+            f"the Setup Library draws {setup!r}'s trigger line at "
+            f"{entry['pivot']!r}, not the {level!r} this citation claims")
+
+    #: ⭐ THE DETAIL IS THE ARTIFACT'S OWN ENGLISH — ``_resolve_scalar``'s rule.
+    #: The firm already wrote what this setup is; restating it here in other
+    #: words would be the second vocabulary in miniature.
+    return {"values": set(), "keys": set(),
+            "detail": f"{setup} ({entry['family']}) — the Setup Library's "
+                      f"published definition: {entry['essence']}"}
+
+
 def _resolve_citation(cite: Mapping[str, Any],
-                      table: Optional[Mapping[str, Any]] = None) -> dict:
+                      table: Optional[Mapping[str, Any]] = None,
+                      *, attributed: Optional[str] = None) -> dict:
     kind = cite.get("kind")
     if kind == "filter_preset":
         out = _resolve_filter_preset(cite)
@@ -460,6 +682,8 @@ def _resolve_citation(cite: Mapping[str, Any],
         out = _resolve_scalar(cite, table)
     elif kind == "classifier":
         out = _resolve_classifier(cite)
+    elif kind == "setup_catalog":
+        out = _resolve_setup_catalog(cite, attributed)
     else:
         raise _CitationFailed(
             f"{kind!r} is not a grounding kind this reader resolves "
@@ -551,7 +775,12 @@ def resolve_grounding(tree: Any, citations: Any, *,
 
     …and then the optional sixth: an ``attribution`` names a setup the firm's own
     taxonomy declares (and, where the Brain Pack is installed, one the KB still
-    resolves a playbook for). ⛔ Never a grounding — adjudication A-1.
+    resolves a playbook for). ⛔ Never a grounding — adjudication A-1: a KB
+    playbook is prose that no lookup can hold to any shape, so it attests to the
+    NAME and stops there. A ``setup_catalog`` citation is not that and does not
+    reopen it — it resolves the firm's published DEFINITION of the attributed
+    setup field by field, refuses when the words move, and publishes no number
+    for a tree to spend (``_resolve_setup_catalog`` has the whole argument).
     """
     undeclared = sorted(names_in(tree) - ast_table.declared_names(table))
     if undeclared:
@@ -568,9 +797,17 @@ def resolve_grounding(tree: Any, citations: Any, *,
     resolved = []
     allowed_values: Set[float] = set()
     allowed_keys: Set[str] = set()
+    #: ⛔ THE NAME, NOT THE RESOLVED ATTRIBUTION, and the ORDER IS UNCHANGED. A
+    #: `setup_catalog` citation resolves against the entry the attribution
+    #: NAMES, so the name has to be in hand here — but resolving the attribution
+    #: early would reorder the refusals a member reads, and the taxonomy half of
+    #: it still runs below and still refuses a name the firm does not declare.
+    #: Both must pass, so a definition citation forces the two setup taxonomies
+    #: to agree for that one name.
+    attributed = (attribution or {}).get("setup")
     for cite in cites:
         try:
-            got = _resolve_citation(cite, table)
+            got = _resolve_citation(cite, table, attributed=attributed)
         except _CitationFailed as exc:
             return {"ok": False, "detail": f"is no longer grounded: {exc.detail}"}
         resolved.append(got)

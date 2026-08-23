@@ -2,12 +2,12 @@
   "_": "THE FIRM'S SETUPS AS ORDINARY DEFINITIONS. TC2000 and TradingView both ship dozens of built-in scans and it is the ONBOARDING PATH, not decoration: a member picks a named setup, gets a WORKING scan, and then EDITS it -- which is how people learn a syntax. A blank formula box loses the wide audience.",
   "_ordinary": "EVERY ENTRY IS AN ORDINARY DEFINITION: same store, same `def_hash`, same read-back, editable on arrival. There is no starter flag, no `is_builtin` column and no branch in the save path -- a starter that is special-cased is a second class of object and re-creates the asymmetry spec section 1.1 forbids. This file holds a SOURCE and a frozen TREE; installing one is the member's action through the shipped save path, and the identity is `astHash`'s.",
   "_taxonomy": "THE NAMES COME FROM `app/src/constants/setupGroups.js` AND ARE NOT COPIED HERE AS A LIST. This file holds a `source` per setup it can express; the SET of setups and the FAMILY each one belongs to are read from the taxonomy at run time, which is why no entry carries a `family`. A setup with no entry must appear in `_ungrounded` with a reason -- that identity is what makes a NEW setup land RED until somebody decides about it. Two files in this repo carry setup taxonomies and they do not agree: `setupGroups.js` (the labeling taxonomy the Model Book store, the concept vocabulary's attribution check and this file all read) and `app/src/pages/modelbook/setupCatalog.js` (the Setup Library's field-guide, with its own families and its own display names). `setupGroups.js` is authoritative here. Neither count is written down anywhere in this file.",
-  "_grounding": "GROUNDING IS A LIST OF CITATIONS THAT RESOLVE, AND IT IS RESOLVED RATHER THAN TRUSTED (controller adjudication A-1). Three kinds appear here: `starter_screen` (a screen `saved_screens.py::starters()` ships), `filter_preset` (a labelled threshold in `screener/filters.py::FILTERS`) and `classifier` (a labelled branch of firm code, located by AST). A PLAYBOOK IS NEVER A GROUNDING -- it is prose and cannot mechanically produce a tree -- so the setup name rides as an `attribution`, which this file does not spell either: it is the entry's own KEY.",
+  "_grounding": "GROUNDING IS A LIST OF CITATIONS THAT RESOLVE, AND IT IS RESOLVED RATHER THAN TRUSTED (controller adjudication A-1). Four kinds appear here: `starter_screen` (a screen `saved_screens.py::starters()` ships), `filter_preset` (a labelled threshold in `screener/filters.py::FILTERS`), `classifier` (a labelled branch of firm code, located by AST) and `setup_catalog` (the firm's own PUBLISHED DEFINITION of a setup, in the Setup Library's `setupCatalog.js`). The first three answer 'who published this NUMBER?'. The fourth answers the only question a LITERAL-FREE tree asks -- 'who says this SHAPE is that setup?' -- and it publishes no number and no column at all, so it can vouch for a shape and can never launder a threshold. A KB PLAYBOOK IS STILL NEVER A GROUNDING: it is prose no lookup can hold to a shape, so the setup name rides as an `attribution`, which this file does not spell either -- it is the entry's own KEY. `setup_catalog` does not reopen that. It names no setup either (it resolves against the entry the ATTRIBUTION names, so a starter cannot be grounded in another setup's definition), and it goes RED when the firm's published wording, direction or trigger level moves, or when the phrases it quotes are generic enough to describe some other setup too.",
   "_no_invented_numbers": "EVERY NUMERIC LITERAL IN A STARTER'S TREE MUST BE PUBLISHED BY ONE OF ITS OWN CITATIONS, and every scalar it screens on must be one a citation names. `rs_rank >= 80` is here because the firm ships a preset labelled `Over 80`; 75 would go red NAMING 75. This is the rail that stops a starter from looking like the firm's answer while carrying the catalogue author's opinion.",
   "_no_sentence": "NO READ-BACK IS FROZEN HERE, and that is the one place this file deliberately differs from `conceptVocabulary.json`. The card's blurb is `sentenceFor(tree)` in the browser and `sentence_for(tree)` on the server -- derived on every render from the tree that IS the scan. A hand-written blurb would be a second description of one tree and the prose one is the one that drifts (D-A5).",
   "_no_hash": "NO `def_hash` IS PRECOMPUTED HERE. The handle is `astHash` over the tree, minted by the shipped save path when a member installs one; a catalogue that carried its own copy would be a second registry and two authorities over one identity.",
   "_ungrounded_rule": "A SETUP WITH NO EXPRESSIBLE CONDITION IS NAMED, NOT APPROXIMATED. The member trusts the firm's name on a starter, so a scan that half-means `High Tight Flag` is worse than no scan (AMENDMENT 1's refusal rule, applied to the library). Each reason names its setup and says what is missing -- a column, a published threshold, or the cadence -- because those are three different decisions for the owner. And `rsi(close,14)` is NOT available to close a gap here: E-A9 is open and out of scope, so a setup needing a function the table does not declare stays ungrounded until that phase happens.",
-  "version": "2026-08-23.4",
+  "version": "2026-08-23.5",
   "starters": {
     "Classic Flag/Pullback": {
       "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
@@ -167,6 +167,66 @@
           "kind": "filter_preset",
           "key": "close_position",
           "preset": "Bottom third (<0.33)"
+        }
+      ]
+    },
+    "Oops Reversal": {
+      "source": "open < low[1] && close > low[1]",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "<",
+            "args": [
+              {
+                "type": "series",
+                "name": "open"
+              },
+              {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "low"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "low"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "setup_catalog",
+          "direction": "long",
+          "level": "l",
+          "describes": [
+            "A gap below the prior day's low",
+            "reverses and closes the gap"
+          ]
         }
       ]
     },
@@ -369,9 +429,8 @@
     "Go Signal": "Go Signal is a catalyst gap digesting into a short average and then one wide candle closing above the catalyst high. The candle half got closer -- `wide_bar` (>1.5 ATR) is declared with a `Yes` preset, and the offset node can read prior bars -- but the setup still fails twice: the catalyst has no column (the same `news` gap that refuses News Gappers and Episodic Pivot), and the 9-period average Go Signal is defined against is a window no firm artifact publishes. Locating 'the catalyst high' needs the catalyst's date, which is the first gap again.",
     "Wick Play": "Wick Play is a single-bar discretionary read on where the wick sits relative to the range. `upper_wick_pct` and `lower_wick_pct` ARE declared scalars -- but the only preset the screener ships on either is `Any`, so every threshold this scan could use would be the catalogue author's. Publish a wick preset and Wick Play becomes expressible in one line.",
     "Slingshot": "Slingshot is defined against the 4-period exponential average OF THE HIGHS. `ema` takes any series and `high` is declared, so the shape is within the grammar's reach -- but 4 is not a window any firm artifact publishes, and a starter that picked one would be inventing the setup's own definition. The missing thing is the number, not the grammar.",
-    "Oops Reversal": "Oops Reversal gaps BELOW the prior day's low and closes back through it, and the offset node from `291c9d8a` made the whole thing sayable without one invented number: `open < low[1] && close > low[1]` names both bars exactly. What Oops Reversal does not have is a citation -- no starter screen, no preset and no labelled branch of firm code encloses that definition, and the catalogue's rule is that an uncited tree is somebody's opinion rather than the firm's answer. Adjudicated 8/22: the uncited-tree rule is structural (`resolve_grounding` refuses a tree with zero citations, and zero literals waives nothing), so Oops Reversal stays refused until a firm artifact encloses its definition.",
     "News Failure": "News Failure is a headline that does not hold. It needs the headline, and the table declares no `news` column -- the gap that also refuses News Gappers and Episodic Pivot -- and the FAILURE half needs the headline's date besides, to say the move since it has been given back. A nightly snapshot row can check neither half today.",
-    "Red to Green": "Red to Green turns on the zero line -- open below the prior close, close back above it -- and the offset node from `291c9d8a` made that exact sentence legal with no threshold at all: `open < close[1] && close > close[1]`. Two things keep it refused: no firm artifact encloses that definition for a citation to resolve, and the sweep reads the LAST CONFIRMED bar, so a list under this name would show transitions that finished yesterday while the firm trades Red to Green as a live intraday trigger. Adjudicated 8/22: both blockers stand -- zero literals does not waive the citation rule, and the cadence mismatch is the product's honesty line, not a vocabulary gap -- so Red to Green stays refused.",
+    "Red to Green": "Red to Green turns on the zero line -- open below the prior close, close back above it -- and the offset node from `291c9d8a` made that exact sentence legal with no threshold at all: `open < close[1] && close > close[1]`. Re-adjudicated 8/23 against the `setup_catalog` citation kind that shipped for Oops Reversal, and BOTH blockers survived it. First, the Setup Library publishes no definition of Red to Green -- `setupCatalog.js` is where the firm writes down what a setup IS, and this name is one the report's own `taxonomy_conflict` measures as carried by `setupGroups.js` alone -- so the kind that grounds a literal-free shape refuses this one by name, and the firm has published no wording for a citation to quote. Second, and independently, the sweep reads the LAST CONFIRMED bar, so a list under this name would show transitions that finished yesterday while the firm trades Red to Green as a live intraday trigger -- the product's honesty line, not a vocabulary gap. Either one alone keeps it refused.",
     "Opening Range Breakout": "Opening Range Breakout is an INTRADAY setup and the sweep is a last-confirmed-DAILY-bar screen. Blocked on cadence (design section 8.5), not on vocabulary: the opening range is not a column the nightly snapshot holds.",
     "Opening Range Breakdown": "Opening Range Breakdown is the short side of the same intraday range and is blocked on the same cadence: the sweep runs on the last confirmed daily bar and the snapshot carries no opening range.",
     "Red to Green (Intraday)": "Red to Green (Intraday) is explicitly intraday and the sweep is a last-confirmed-DAILY-bar screen. Blocked on cadence (design section 8.5).",

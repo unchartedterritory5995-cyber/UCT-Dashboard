@@ -406,6 +406,84 @@ def test_the_TWO_READERS_of_setupGroups_agree__and_a_divergence_RAISES(tmp_path,
         sl.taxonomy()
 
 
+def test_the_TWO_READERS_of_setupCatalog_AGREE_and_the_PATH_IS_ONE_CONSTANT(tmp_path):
+    """⛔ ONE FILE, TWO PARSERS AGAIN — and this pair is newer and less obvious.
+
+    ``setupCatalog.js`` is read HERE for the ``taxonomy_conflict`` report (names
+    only) and in ``concept_vocabulary`` for the ``setup_catalog`` citation kind
+    (names, family, direction, essence, pivot). Neither module can import the
+    other's reader — this one already imports the vocabulary, so the dependency
+    only runs one way — so the two are pinned by NAME SET here, exactly as the
+    ``setupGroups.js`` pair above is. A divergence would let a starter be
+    grounded in a definition the conflict report says does not exist.
+    """
+    assert sl.SETUP_CATALOG_PATH == concept_vocabulary.SETUP_CATALOG_PATH, (
+        "two spellings of one file's location is the second authority this "
+        "repo pays for most often")
+    with io.open(sl.SETUP_CATALOG_PATH, encoding="utf-8") as fh:
+        src = fh.read()
+    names_only = set(sl._CATALOG_NAME.findall(src))
+    definitions = set(concept_vocabulary.setup_definitions())
+    assert names_only, "the names-only reader saw nothing; this rail is vacuous"
+    assert names_only == definitions, sorted(names_only ^ definitions)
+
+    # ⚠️ THE CONTROL: the two readers CAN disagree, so the equality above is a
+    # measurement. The names-only regex sees any `name:` line in the file; the
+    # citation reader is scoped to the SETUP_CATALOG array.
+    strayed = tmp_path / "setupCatalog.js"
+    with io.open(strayed, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(src + "\nexport const ORPHAN = {\n  name: 'Zz Outside The Array',\n}\n")
+    with io.open(strayed, encoding="utf-8") as fh:
+        loose = set(sl._CATALOG_NAME.findall(fh.read()))
+    assert loose - set(concept_vocabulary.setup_definitions(strayed)) == \
+        {"Zz Outside The Array"}
+
+
+#: THE SECOND MACHINE-READABLE CLAIM SHAPE A REFUSAL CAN CARRY, beside
+#: ``no `column```: a setup the firm has written down no DEFINITION for. The
+#: truth side is ``setupCatalog.js``, read by the same function the citation
+#: kind resolves against — never prose, and never a second copy of the list.
+_LIBRARY_SILENT = "the Setup Library publishes no definition of"
+
+
+def test_a_refusal_LEANING_ON_THE_SETUP_LIBRARYS_SILENCE_is_TRUE_TODAY():
+    """⭐ THE SAME ANTI-STALENESS TOOTH AS THE MISSING-COLUMN RAIL, aimed at the
+    other kind of gap a refusal can blame.
+
+    ``setup_catalog`` grounds a LITERAL-FREE tree in the firm's own published
+    definition, so "the firm has published no definition of this setup" became a
+    real, checkable blocker the day that kind shipped — and it is a blocker the
+    owner can clear by writing one paragraph in the Setup Library. A reason that
+    goes on citing the gap after the definition is published still satisfies
+    every SHAPE rail above (names its setup, long enough, distinct) while
+    teaching a member the firm cannot say what it now says. So the claim is
+    measured on every run: the day the Setup Library gains the entry, the
+    refusal leaning on its absence goes RED BY NAME and gets re-adjudicated.
+    """
+    published = concept_vocabulary.setup_definitions()
+    assert published, "the Setup Library read as empty; this rail is vacuous"
+    refusals = sl.declared_refusals()
+    leaning = sorted(s for s, r in refusals.items() if _LIBRARY_SILENT in r)
+    assert leaning, (
+        "no refusal cites the Setup Library's silence — either every refused "
+        "setup is now published (re-adjudicate them) or this tooth has nothing "
+        "to check and would pass forever")
+    stale = sorted(s for s in leaning if s in published)
+    assert stale == [], (
+        "these refusals say the firm has published no definition of a setup the "
+        f"Setup Library now DOES define: {stale}. A literal-free scan for one of "
+        "them may now be groundable — re-adjudicate, do not re-word.")
+
+    # ⚠️ THE CONTROL, with a REAL subject: several refused setups already have a
+    # published definition, so planting the claim on one must be caught.
+    victim = sorted(set(refusals) & set(published))[0]
+    planted = dict(refusals)
+    planted[victim] = f"{victim} is refused because {_LIBRARY_SILENT} {victim}."
+    caught = sorted(s for s, r in planted.items()
+                    if _LIBRARY_SILENT in r and s in published)
+    assert caught == [victim], caught
+
+
 def test_the_report_records_the_TWO_TAXONOMIES_THAT_DO_NOT_AGREE():
     """⚠️ MEASURED ON EVERY RUN, NOT REMEMBERED. ``setupGroups.js`` and
     ``setupCatalog.js`` both claim to be the firm's setup list and they name
@@ -658,6 +736,51 @@ def test_every_starter_is_GROUNDED_in_an_artifact_THE_FIRM_SHIPS():
         for cite in e["grounding"]:
             assert cite["kind"] in concept_vocabulary.GROUNDING_KINDS
             assert cite["detail"]
+
+
+def test_a_DEFINITION_GROUNDED_starter_STATES_NO_NUMBER_AND_SCREENS_ON_NO_COLUMN():
+    """⛔⛔ THE CONTAINMENT THAT MAKES THE FIFTH CITATION KIND SAFE TO SHIP.
+
+    ``setup_catalog`` grounds a starter in the firm's own PUBLISHED DEFINITION
+    of the setup — prose, which cannot publish a threshold — so it hands back an
+    empty ``publishes`` and an empty ``columns``. The consequence, and the whole
+    reason a prose artifact may ground anything at all: a starter standing on a
+    definition ALONE can carry no numeric literal and can screen on no
+    table-declared scalar, because there is nothing for those two rails to draw
+    on. It vouches for a SHAPE and can never launder a number.
+
+    ⛔ DERIVED FROM THE CITATION KINDS IN USE, never from a setup name typed
+    here — the day a second definition-grounded starter ships it is covered
+    without an edit, and the day one quietly gains a literal it goes red.
+    """
+    rows = [e for e in sl.catalog()
+            if {c["kind"] for c in e["grounding"]} == {"setup_catalog"}]
+    assert rows, (
+        "no starter is grounded by the firm's published definition alone — this "
+        "rail has nothing to check, and the fifth citation kind is unused")
+    for e in rows:
+        assert concept_vocabulary.literals_in(e["ast"]) == set(), (
+            f"{e['setup']} states a number while citing only a definition, "
+            "which publishes none")
+        assert concept_vocabulary.scalars_in(e["ast"]) == set(), e["setup"]
+        for cite in e["grounding"]:
+            assert cite["publishes"] == [] and cite["columns"] == [], cite
+            # …and the citation quotes the firm's own words rather than merely
+            # naming the setup: the detail carries the published definition.
+            assert cite["cite"]["describes"], cite
+            assert all(str(p) in cite["detail"].replace("’", "'")
+                       for p in cite["cite"]["describes"]), cite
+
+    # ⚠️ THE CONTROL: bolt a literal onto one of them and the SAME resolver
+    # refuses it NAMING the number, because a definition publishes nothing.
+    doc = copy.deepcopy(sl._thaw(sl.CATALOG))
+    victim = rows[0]["setup"]
+    doc["starters"][victim]["ast"] = {"type": "op", "name": "&&", "args": [
+        doc["starters"][victim]["ast"],
+        {"type": "op", "name": ">", "args": [
+            {"type": "series", "name": "close"}, {"type": "num", "value": 11}]}]}
+    reason = sl.ungrounded_setups(vocab=doc)[victim]
+    assert victim in reason and "11" in reason, reason
 
 
 def test_the_ATTRIBUTION_is_the_ENTRY_KEY_and_never_reads_as_a_verified_playbook():
