@@ -1122,15 +1122,16 @@
 .workspaceTitle { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; color: var(--text-bright); }
 
 .toolbarBtn {
-  /* Grey label (NOT the theme accent) — brightens to --text-bright on hover.
-     Uses --text (body tone) rather than --text-muted so WIDGETS/LAYOUTS/TOOLS
-     read clearly while still sitting below the white "Charts" title. */
-  background: var(--bg-elevated, #1f2937); color: var(--text, #b6b09d);
-  border: none; padding: 6px 12px; border-radius: 3px;
+  /* Outlined rounded pill — matches the Calendar view/chip aesthetic (was a
+     filled sharp-cornered chip). Grey label brightens on hover; border lifts. */
+  background: transparent; color: var(--text, #b6b09d);
+  border: 1px solid var(--border-accent); padding: 6px 13px; border-radius: 8px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-  font-weight: 600;   /* was inherited-normal — too faint at 10px, esp. in light mode */
+  font-weight: 600;
   cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.toolbarBtn:hover { color: var(--text-bright); border-color: var(--ut-gold-glow); background: var(--bg-hover); }
 .toolbarBtn.ghost { background: transparent; color: var(--text, #b6b09d); }
 .toolbarBtn:hover { color: var(--text-bright, #e5e7eb); }
 
