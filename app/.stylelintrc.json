@@ -1,0 +1,20 @@
+{
+  "//": "UI consistency guardrail. Flags raw hex/rgb(a) used for text `color:` so it must come from a token (var(--text*)/var(--menu-text*)). PHASE 0: severity is 'warning' (report mode) so it inventories drift without breaking the build. PHASE 2 flips this to an error and wires `npm run lint:css` into pre-push. tokens.css is the ONE place raw colors are allowed; OptionsFlow/intro are out of scope (partner-owned / documented decoration exception).",
+  "rules": {
+    "declaration-property-value-disallowed-list": [
+      {
+        "/^color$/": ["/#[0-9a-fA-F]{3,8}\\b/", "/\\brgba?\\(/"]
+      },
+      {
+        "severity": "warning",
+        "message": "Use a text token — var(--text) / --text-muted / --text-bright / --text-heading (or --menu-text*) — instead of a raw color for `color:`. See docs/superpowers/2026-08-24-color-inventory.md."
+      }
+    ]
+  },
+  "ignoreFiles": [
+    "src/styles/tokens.css",
+    "src/**/OptionsFlow*.css",
+    "src/**/DarkPool*.css",
+    "src/components/intro/**"
+  ]
+}
