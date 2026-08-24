@@ -1876,6 +1876,10 @@ export default function ChartsWorkspace() {
       isBounded={true}
       onLayoutChange={h.onLayoutChange}
       draggableHandle=".charts-widget-drag-handle"
+      /* The whole widget header is the drag handle now, so exempt every interactive
+         control in it (color dot, +add, float/pop-out/close, tab chips) from starting
+         a drag — a click on those must act, not move the widget. */
+      draggableCancel="button, input, textarea, a, select, [role=tab], .charts-no-drag"
       isDraggable={!merged}
       /* RGL's own resize is OFF when we supply custom handles (main board) — see
          the "Custom resize" comment on startResize for why. Popped-out boards
@@ -1886,11 +1890,13 @@ export default function ChartsWorkspace() {
          widget from its top edge made it float back up to fill the space above —
          it wouldn't stay on the bottom half where the user put it. */
       compactType={null}
-      /* DRAG-move: preventCollision keeps a dragged widget from shoving a neighbour
-         off the fixed-row viewport (it just can't drop onto occupied space).
-         Resize yield (shrink the neighbour) is handled by our custom overlay, not
-         RGL. Make-room-on-ADD is handled in handleAddWidget (reserveBottomStrip). */
-      preventCollision={true}
+      /* DRAG-move AUTO-ADJUST: dropping a widget onto occupied space PUSHES the
+         widgets in the way down to make room (RGL moveElement), instead of the old
+         preventCollision=true behavior where the drop was refused and the widget
+         snapped back. `clampWidgetsToRows` in handleLayoutChange keeps any pushed
+         widget on-screen (never below the fixed 20 rows). Resize yield is still our
+         custom overlay; make-room-on-ADD is still handleAddWidget/planPlacement. */
+      preventCollision={false}
       margin={[gridGap, gridGap]}
       resizeHandles={['nw', 'ne', 'sw', 'se']}
       /* Position grid items with top/left, NOT transform: translate().
