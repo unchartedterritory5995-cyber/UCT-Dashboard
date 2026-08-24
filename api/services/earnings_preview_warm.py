@@ -356,8 +356,8 @@ def _needs_companion(sym: str) -> bool:
     return False
 
 
-def is_covered(sym: str) -> bool:
-    """Would clicking this name RIGHT NOW answer instantly, from artifacts?
+def is_covered(sym: str, *, want_brief: bool = True) -> bool:
+    """Is everything we PROMISED for this name present, from artifacts?
 
     ⛔ Read the artifacts, never the pass's own bookkeeping. `submitted=80` in
     a log line is a statement of intent; this is a statement of fact. Both warm
@@ -365,12 +365,20 @@ def is_covered(sym: str) -> bool:
     disk, and the gap between those two sentences is the only thing that would
     have shown it (`lesson_a_warm_pass_that_persists_nothing_reads_as_healthy`).
 
+    ⛔ `want_brief` IS THE PROMISE, and it is not always true. The board this
+    is measured over is the COMPANION horizon (4 weeks); briefs are warmed for
+    2, and never for a fund. Demanding a brief from every name on the board
+    made ~100 of them permanently uncoverable, so the floor below warned on
+    every pass forever — and an alarm that always cries is one people mute,
+    which is how a real outage would hide behind it. Measured 2026-08-24:
+    `board=307 covered=206 companions=0` — nothing was wrong, the metric was.
+
     "Instant" is deliberately generous about the catalysts: a name that was
     ATTEMPTED and genuinely has nothing to report (a bond fund) answers
     immediately with an empty feed, and that is a covered click, not a hole."""
     try:
-        if not (earnings_ai_store.is_fresh("preview", sym)
-                or earnings_ai_store.is_fresh("analysis", sym)):
+        if want_brief and not (earnings_ai_store.is_fresh("preview", sym)
+                               or earnings_ai_store.is_fresh("analysis", sym)):
             return False
         from api.services.stock_brief import service as sb, store as sb_store
         if not sb_store.has_content(sym, sb._period(sb._year())):
@@ -464,7 +472,11 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # COVERED is measured from the artifacts, not from what this pass just
         # queued — see `is_covered`. It is the number that makes a silently
         # broken warm impossible to mistake for a healthy one.
-        covered = sum(1 for r in board if is_covered(r["sym"]))
+        # A brief is promised only for the names THIS pass selected; every
+        # board name is promised its company pages. Measuring anything else
+        # invents a promise and then reports us failing it.
+        covered = sum(1 for r in board
+                      if is_covered(r["sym"], want_brief=r["sym"] in brief_rows))
         if board and covered * 100 < len(board) * _COVERAGE_FLOOR_PCT:
             _logger.warning(
                 "[earn-warm:%s] COVERAGE %d/%d (%d%%) is below the %d%% floor — "
