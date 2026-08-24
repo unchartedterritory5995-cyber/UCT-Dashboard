@@ -12,7 +12,7 @@ import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaults
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -130,6 +130,20 @@ const UCT_DEFAULT_LAYOUT = {
 // predates. See the comment there for why that is a ship-blocker and not a
 // tidy-up.
 const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+
+// A new widget inherits the last UCT chart theme the user applied at "all charts" /
+// "all widgets" scope (persisted as { id, scope }). `charts` scope only skins new
+// CHART widgets; `widgets` scope skins every new widget. Global-pref widgets (theme
+// tracker / fundamentals / breadth / AI search) inherit via their already-themed pref,
+// so patching their opts is a no-op — that's expected.
+function themeNewWidgetOpts(type, opts, stored, seed) {
+  if (!stored || !stored.id) return opts
+  const theme = CHART_THEME_BY_ID[stored.id]
+  if (!theme) return opts
+  if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
+  if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
+  return opts
+}
 
 // ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
 //
@@ -502,6 +516,11 @@ export default function ChartsWorkspace() {
   // placement color across reloads; only NEW widgets pick up the current theme).
   const themeRef = useRef(prefs?.theme)
   themeRef.current = prefs?.theme
+  // Last UCT chart theme applied at all-charts / all-widgets scope ({ id, scope }) —
+  // new widgets inherit it. Kept in a ref so the add path reads the latest value
+  // synchronously (a fresh pref round-trip lags a click); seeded from the pref.
+  const newWidgetThemeRef = useRef(parsePref(prefs?.charts_widget_theme, null))
+  useEffect(() => { newWidgetThemeRef.current = parsePref(prefs?.charts_widget_theme, null) }, [prefs?.charts_widget_theme])
 
   // "Merge widgets": lock the board in place (no move / resize / delete / color
   // edits), drop every widget border + header bar, and tighten the inter-widget gap
@@ -1091,7 +1110,10 @@ export default function ChartsWorkspace() {
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave, prefs.chart_settings])
+    // Remember this as the default look for NEW chart widgets (persists across reloads).
+    newWidgetThemeRef.current = { id: theme.id, scope: 'charts' }
+    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
+  }, [scheduleSave, prefs.chart_settings, setPref])
   applyThemeAllRef.current = applyThemeToAllCharts
 
   // "All widgets": every widget in the layout — chart or not — adopts the theme.
@@ -1131,6 +1153,9 @@ export default function ChartsWorkspace() {
       const base = parsePref(prefs?.[key], null) || {}
       setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
     }
+    // Remember this as the default look for EVERY new widget (persists across reloads).
+    newWidgetThemeRef.current = { id: theme.id, scope: 'widgets' }
+    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
 
@@ -1260,7 +1285,7 @@ export default function ChartsWorkspace() {
         id: newId,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: newOpts,
+        opts: themeNewWidgetOpts(type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
@@ -1303,7 +1328,7 @@ export default function ChartsWorkspace() {
         id: cur.newId,
         type: cur.type, color,
         x: cur.place.x, y: cur.place.y, w: cur.place.w, h: cur.place.h,
-        opts: newOpts,
+        opts: themeNewWidgetOpts(cur.type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)

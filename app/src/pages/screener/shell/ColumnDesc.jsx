@@ -43,6 +43,30 @@ import styles from './ColumnDesc.module.css'
  * now lives in `ColumnDesc.module.css` as `calc(var(--z-modal) + 10)` and is
  * verified by measuring `elementFromPoint` in a real browser at 390x780.
  *
+ * ⛔⛔ AN IMPLICIT DISMISSAL MUST NOT MOVE THE VIEWPORT. Focus is MOVED INTO
+ * the panel on open (see below), so on every close `document.activeElement` is
+ * inside a node that is about to be removed — and restoring it to the trigger
+ * with a bare `focus()` scrolls that trigger back into view, which inside an
+ * `overflow:auto` container means DISCARDING the member's scroll position.
+ * `9d76cb410` shipped exactly that: the scroll-away handler went from
+ * `setOpen(null)` to a focus-restoring dismiss in the same round that made the
+ * focus move unconditional, so every flick threw the member back to the filter
+ * they had opened. Measured in Chromium at 390x780 against the real
+ * `FiltersSheet` (scrollHeight 15072 / clientHeight 574): a 600px flick with a
+ * description open landed 5px BEHIND where it started.
+ *
+ * So the two kinds of close are not the same close:
+ *   • EXPLICIT — Escape, the dismiss button, Tab. The member asked to come
+ *     back, so `focus()` normally; scrolling the trigger into view is right.
+ *   • IMPLICIT — scroll, resize, an outside click. Focus still returns to the
+ *     trigger (dropping it on `document.body` would dump a keyboard user to the
+ *     top of the document), but with `{ preventScroll: true }` — the one option
+ *     that keeps a keyboard user oriented WITHOUT moving what a reader is
+ *     reading. That is the whole distinction `dismiss`'s second argument
+ *     carries; do not collapse it back into one call.
+ * ⚠️ `resize` is not a rare case on a phone: hiding the URL bar IS a resize,
+ * and scrolling is what hides it, so the two implicit paths fire together.
+ *
  * ⛔ ACCESSIBILITY IS THE POINT, not a checkbox. This is the ARIA disclosure
  * pattern: a real <button> in tab order with a spoken name ("What Bull % means"),
  * `aria-expanded`, `aria-controls`/`aria-describedby` pointing at the panel
@@ -104,7 +128,16 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
     if (!open) return
     const inside = t => btnRef.current?.contains(t) || panelRef.current?.contains(t)
     const focusInPanel = () => !!panelRef.current?.contains(document.activeElement)
-    const dismiss = restore => { setOpen(null); if (restore) btnRef.current?.focus() }
+    // `implicit` = the member did not ask to come back (scroll, resize, an
+    // outside click). Focus still returns to the trigger — losing it to
+    // `document.body` restarts a keyboard user at the top of the document —
+    // but `preventScroll` stops that restoration from also hauling the
+    // scroller back to the trigger and discarding the scroll they just made.
+    // See the ⛔⛔ block at the top of this file for the measurement.
+    const dismiss = (restore, implicit = false) => {
+      setOpen(null)
+      if (restore) btnRef.current?.focus(implicit ? { preventScroll: true } : undefined)
+    }
 
     // The content is at the END of <body> and linked only by id. A screen
     // reader is told the trigger expanded, not what it says — so move focus to
@@ -112,7 +145,7 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
     // read its own text. Escape and the dismiss both hand focus back.
     panelRef.current?.focus()
 
-    const onDown = e => { if (!inside(e.target)) dismiss(focusInPanel()) }
+    const onDown = e => { if (!inside(e.target)) dismiss(focusInPanel(), true) }
     const onKey = e => {
       if (e.key === 'Escape') {
         // ⛔ ESCAPE IS ANSWERED ON `window`, IN CAPTURE, ON PURPOSE.
@@ -137,8 +170,11 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
       if (e.key === 'Tab' && panelRef.current?.contains(e.target)) dismiss(true)
     }
     // A fixed panel does not ride a scrolling header or rail — close instead of
-    // letting it drift away from the control it describes.
-    const away = () => dismiss(focusInPanel())
+    // letting it drift away from the control it describes. ⛔ IMPLICIT: the
+    // member is scrolling (or the phone's URL bar just resized the viewport
+    // BECAUSE they scrolled). Restoring focus with a bare `focus()` here is the
+    // regression this file's second ⛔⛔ block records.
+    const away = () => dismiss(focusInPanel(), true)
     document.addEventListener('mousedown', onDown, true)
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('scroll', away, true)

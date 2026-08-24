@@ -147,6 +147,64 @@ describe('FilterControl — column description surface', () => {
     expect(document.activeElement).toBe(btn)
   })
 
+  // ⛔⛔ THE ONE THAT SHIPPED. `9d76cb410` made the focus move into the panel
+  // unconditional and, in the same round, changed the scroll-away handler to
+  // restore focus. Inside an `overflow:auto` container a bare `focus()` scrolls
+  // its target back into view, so every flick with a description open threw the
+  // member back to the filter they had opened — on the sheet that is the ONLY
+  // filter surface on touch.
+  //
+  // ⚠️ WHAT THIS LAYER CAN AND CANNOT SEE. jsdom has no layout and no scrolling,
+  // so NO test here can observe the viewport moving; 182 green tests were blind
+  // to the regression for exactly that reason. What it CAN see is the
+  // distinction the fix encodes — implicit dismissals restore focus with
+  // `preventScroll`, explicit ones do not — and these go red on the shipped
+  // code. The viewport consequence itself is measured in Chromium against the
+  // real FiltersSheet and lives in the punch-list report, not in CI.
+  const openPanelAndWatchTrigger = async user => {
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+    await user.click(btn)
+    expect(screen.getByRole('note')).toBeTruthy()
+    return { btn, focusSpy: vi.spyOn(btn, 'focus') }
+  }
+  const lastFocusOptions = spy => {
+    expect(spy).toHaveBeenCalled() // a spy that never fired proves nothing
+    return spy.mock.calls.at(-1)[0]
+  }
+
+  it.each([
+    ['a scroll', () => fireEvent.scroll(window)],
+    ['a resize — the phone URL bar hiding BECAUSE the member scrolled',
+      () => fireEvent.resize(window)],
+    ['an outside click', () => fireEvent.mouseDown(document.body)],
+  ])('%s restores focus WITHOUT scrolling the trigger back into view', async (_label, act) => {
+    const user = userEvent.setup()
+    const { btn, focusSpy } = await openPanelAndWatchTrigger(user)
+    act()
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn) // never stranded on <body>
+    expect(lastFocusOptions(focusSpy)).toEqual({ preventScroll: true })
+  })
+
+  it.each([
+    ['Escape', async user => { await user.keyboard('{Escape}') }],
+    ['the dismiss button', async user => {
+      await user.click(screen.getByRole('button', { name: 'Close description' }))
+    }],
+  ])('%s is EXPLICIT — the member asked to come back, so focus scrolls normally',
+    async (_label, act) => {
+      const user = userEvent.setup()
+      const { btn, focusSpy } = await openPanelAndWatchTrigger(user)
+      await act(user)
+      expect(screen.queryByRole('note')).toBeNull()
+      expect(document.activeElement).toBe(btn)
+      // No options object at all — the browser's default scroll-into-view is
+      // the RIGHT behaviour here and suppressing it would strand a keyboard
+      // user looking at a control they can no longer see.
+      expect(lastFocusOptions(focusSpy)).toBeUndefined()
+    })
+
   it('a filter whose column has no desc grows NO affordance — same probe, both populations', () => {
     // CONTROL: absence is only evidence if the query can see a present one.
     const { unmount } = render(<FilterControl filter={RS} value={null} onChange={() => {}} />)

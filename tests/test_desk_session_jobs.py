@@ -79,3 +79,44 @@ def test_get_job_returns_row_or_none(db):
     db.enqueue("u", "t", "s", "http://dl", "tok")
     assert db.get_job("u")["meeting_uuid"] == "u"
     assert db.get_job("nope") is None
+
+
+# ── cancel ───────────────────────────────────────────────────────────────────────
+
+def test_cancel_flips_pending_to_skipped_so_the_processor_never_claims_it(db):
+    db.enqueue("u", "SUNDAY SCANS", "2026-08-23T02:00:00Z", "http://dl", "tok")
+    row = db.cancel("u", "bad take, re-recorded")
+    assert row["status"] == "skipped" and row["error"] == "bad take, re-recorded"
+    # the ARTIFACT that matters: the drain can no longer pick it up
+    assert db.claim_next() is None
+
+
+def test_cancel_works_on_an_errored_job(db, monkeypatch):
+    monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
+    db.enqueue("u", "t", "s", "u", "k")
+    db.claim_next(); db.mark_error("u", "boom")
+    assert db.count_status("error") == 1
+    assert db.cancel("u", "give up")["status"] == "skipped"
+
+
+def test_cancel_refuses_processing_and_done(db):
+    # processing: an upload may already be in flight; skipping cannot recall it
+    db.enqueue("p", "t", "s", "u", "k"); db.claim_next()
+    assert db.cancel("p", "too late") is None
+    assert db.get_job("p")["status"] == "processing"
+    # done: already public, and publishing is one-way
+    db.enqueue("d", "t", "s", "u", "k"); db.claim_next(); db.mark_done("d", "VID")
+    assert db.cancel("d", "too late") is None
+    assert db.get_job("d")["status"] == "done"
+
+
+def test_cancel_unknown_uuid_returns_none(db):
+    assert db.cancel("ghost", "r") is None
+
+
+def test_cancelled_job_can_still_be_requeued_if_it_was_the_good_take(db):
+    """Cancel must not be a one-way door — requeue is the documented recovery."""
+    db.enqueue("u", "SUNDAY SCANS", "s", "http://dl", "tok")
+    db.cancel("u", "thought this was the bad one")
+    assert db.requeue("u")["status"] == "pending"
+    assert db.claim_next()["meeting_uuid"] == "u"

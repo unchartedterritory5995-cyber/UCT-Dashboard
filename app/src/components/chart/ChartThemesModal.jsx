@@ -112,7 +112,15 @@ function isApplied(settings, theme) {
 export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, canApplyAllWidgets = false, currentSettings = null, themeVars = null }) {
   const [family, setFamily] = useState('all')
   const [query, setQuery] = useState('')
-  const [scope, setScope] = useState('one')
+  // The apply scope STICKS across opens (owner request) — a member who picks
+  // "all widgets" keeps it selected until they change it. Persisted in localStorage.
+  const [scope, setScopeState] = useState(() => {
+    try { return localStorage.getItem('uct.charts.themeScope') || 'one' } catch { return 'one' }
+  })
+  const setScope = (v) => {
+    setScopeState(v)
+    try { localStorage.setItem('uct.charts.themeScope', v) } catch { /* ignore */ }
+  }
   const famLabel = (id) => (THEME_FAMILIES.find(f => f.id === id) || {}).label || id
 
   useEffect(() => {
@@ -122,8 +130,8 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  // Reset transient UI each open.
-  useEffect(() => { if (open) { setFamily('all'); setQuery(''); setScope('one') } }, [open])
+  // Reset transient UI each open — but the apply scope persists (see above).
+  useEffect(() => { if (open) { setFamily('all'); setQuery('') } }, [open])
   // A scope is only honored when the surface actually supports it — clamp at read
   // time so a stale scope can never fall through to the wrong target.
   const effScope = (scope === 'allwidgets' && canApplyAllWidgets) ? 'allwidgets'
