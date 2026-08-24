@@ -93,6 +93,18 @@ AUDITED_PREFIXES = (
     # was not looking at the admin surface at all, so ~30 destructive ops sat
     # open with a green fingerprint in the log every morning.
     "/api/admin",
+    # 🔴 ADDED 2026-08-24, closing the backtest wiring review's concern #3
+    # ("no auth-rail completeness assertion — any new router added to this repo
+    # today lands unchecked"). `/api/screener` carries the saved-screen and
+    # scan-refresh mutations and, once `SCREEN_BACKTEST_ENABLED` is set, the
+    # backtest POST as well. Its routes are gated per-handler and the source is
+    # covered by `tests/test_screener_backtest_auth.py`, but "gated in git" and
+    # "gated in production" are the two different facts this module exists to
+    # separate — the backtest router is mounted BEHIND A FLAG, so the surface
+    # this pod actually serves is not knowable from the source at all.
+    # ⚠️ MEASURED BEFORE ADDING: the real audit run over the live app with this
+    # prefix reports ZERO ungated mutating routes, so it cannot page on boot.
+    "/api/screener",
 )
 
 # Routes with no Depends() gate that are nonetheless protected, each with its
