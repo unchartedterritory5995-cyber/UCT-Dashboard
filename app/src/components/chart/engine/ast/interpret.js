@@ -960,7 +960,7 @@ export function structuralMaps(root) {
     const [n, expanded] = stack.pop()
     if (idOf.has(n)) continue
     if (!n || typeof n !== 'object' || Array.isArray(n)) {
-      idOf.set(n, intern(`lit${JSON.stringify(n ?? null)}`))
+      idOf.set(n, intern(`lit\u0001${JSON.stringify(n ?? null)}`))
       freeOf.set(n, true)
       continue
     }
@@ -987,7 +987,7 @@ export function structuralMaps(root) {
     // ⚠️ DELIMITED. Without separators `op` + `u-` + `''` and `op` + `u` + `-`
     // produce the same shape, and a collision under-counts exactly like the
     // fallback did.
-    idOf.set(n, intern(`${n.type}${n.name ?? ''}${n.value ?? ''}${childIds.join(',')}`))
+    idOf.set(n, intern(`${n.type}\u0001${n.name ?? ''}\u0001${n.value ?? ''}\u0001${childIds.join(',')}`))
     freeOf.set(n, free)
   }
   return { idOf, freeOf, distinct: byShape.size }

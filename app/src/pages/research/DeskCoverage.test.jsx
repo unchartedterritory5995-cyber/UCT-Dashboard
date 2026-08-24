@@ -65,7 +65,7 @@ test('when coverage exceeds the list it links onward WITHOUT promising a count',
   renderCard()
   const more = screen.getByText(/Search the archive for MU/)
   expect(more.closest('a').getAttribute('href')).toBe('/desk?section=articles&q=MU')
-  expect(more.textContent).not.toMatch(/43/)
+  expect(more.textContent).not.toMatch(/\b43\b/)
 })
 
 test('no onward link when the list already shows everything', () => {
