@@ -166,21 +166,34 @@ def _occ(sym: str, cp: str, strike, exp_mdy: str) -> str:
     return f"O:{str(sym).upper().strip()}{y % 100:02d}{m:02d}{d:02d}{c}{int(round(float(strike) * 1000)):08d}"
 
 
-def _contract_day_volume(sym: str, cp: str, strike, exp: str, on_iso: str) -> int:
-    """Total market VOLUME for the option contract on `on_iso` (YYYY-MM-DD) via the
-    Massive daily aggregate. Returns 0 when unknown (no key / no bar / error).
-    Fetched only for the displayed top-N, so the call count is bounded."""
-    if not _MASSIVE_KEY or not on_iso:
+def _contract_window_volume(sym: str, cp: str, strike, exp: str,
+                            from_iso: str, to_iso: str) -> int:
+    """Sum the option's daily VOLUME over the ΔOI window — the trading sessions AFTER
+    `from_iso` (the prior OI snapshot) through `to_iso` (the latest), i.e. exactly the
+    days whose trading drove the OI change. This period-matches the denominator to
+    ΔOI so CARRY% is sane: a single day's volume can't back a multi-day ΔOI (that's
+    what produced carry > 100%). `from_iso` None → just the single day `to_iso`.
+
+    Massive daily agg via stdlib urllib (httpx MIA on flow-worker). Fetched only for
+    the displayed top-N, so the call count is bounded. 0 when unknown."""
+    if not _MASSIVE_KEY or not to_iso:
         return 0
     try:
+        start = to_iso
+        if from_iso and from_iso < to_iso:
+            # day AFTER the baseline snapshot; the agg range returns only real
+            # trading-day bars in between, so no weekend/holiday handling needed.
+            from datetime import date as _date, timedelta as _td
+            y, m, dd = [int(x) for x in from_iso.split("-")]
+            start = (_date(y, m, dd) + _td(days=1)).isoformat()
         occ = _occ(sym, cp, strike, exp)
         url = (f"{_MASSIVE_BASE}/v2/aggs/ticker/{urllib.parse.quote(occ)}"
-               f"/range/1/day/{on_iso}/{on_iso}?adjusted=true&apiKey={urllib.parse.quote(_MASSIVE_KEY)}")
+               f"/range/1/day/{start}/{to_iso}?adjusted=true&limit=50000"
+               f"&apiKey={urllib.parse.quote(_MASSIVE_KEY)}")
         req = urllib.request.Request(url, headers=_UA_HDR)
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.load(r)
-        res = data.get("results") or []
-        return int(res[-1].get("v") or 0) if res else 0
+        return sum(int(b.get("v") or 0) for b in (data.get("results") or []))
     except Exception:  # noqa: BLE001
         return 0
 
@@ -196,24 +209,25 @@ def _ty(t) -> str | None:
     return None
 
 
-def _oi_deltas(keys) -> dict:
-    """{contract_key: (prior_oi, last_oi, last_date)} using the TWO most recent
-    global snapshot dates in contract_oi_snapshots.
+def _oi_deltas(keys):
+    """Return (deltas, d_last, d_prior).
 
-    prior_oi = the day-before OI (the real overnight baseline); 0 when the contract
-    has no earlier snapshot (a brand-new position built from scratch). A contract
-    absent from the latest snapshot is omitted (can't confirm). One bounded batch
-    query over both dates — no per-contract fetch."""
+    deltas = {contract_key: (prior_oi, last_oi)} using the TWO most recent global
+    snapshot dates in contract_oi_snapshots (d_last, d_prior, both ISO). prior_oi =
+    the day-before OI (the overnight baseline); 0 when the contract has no earlier
+    snapshot (a brand-new position). A contract absent from the latest snapshot is
+    omitted. One bounded batch query over both dates. d_last/d_prior are also the
+    window CARRY% divides volume over."""
     keys = list(dict.fromkeys(k for k in keys if k))
     if not keys:
-        return {}
+        return {}, None, None
     conn = sqlite3.connect(oi_snapshots.OI_DB_PATH, timeout=10)
     try:
         dates = [r[0] for r in conn.execute(
             "SELECT DISTINCT snap_date FROM contract_oi_snapshots "
             "ORDER BY snap_date DESC LIMIT 2").fetchall()]
         if not dates:
-            return {}
+            return {}, None, None
         d_last = dates[0]
         d_prior = dates[1] if len(dates) > 1 else None
         want = [d for d in (d_last, d_prior) if d]
@@ -236,8 +250,8 @@ def _oi_deltas(keys) -> dict:
         if last is None:
             continue
         prior = m.get(d_prior, 0) if d_prior else 0
-        out[ck] = (prior or 0, last, d_last)
-    return out
+        out[ck] = (prior or 0, last)
+    return out, d_last, d_prior
 
 
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
@@ -307,14 +321,15 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     if not agg:
         return [], window
 
-    deltas = _oi_deltas(list(agg.keys()))
+    deltas, d_last, d_prior = _oi_deltas(list(agg.keys()))
 
     out = []
     for key, e in agg.items():
         dv = deltas.get(key)
         if not dv:                            # no fresh OI snapshot → can't confirm
             continue
-        prior_oi, last_oi, snap_date = dv
+        prior_oi, last_oi = dv
+        snap_date = d_last
         if not last_oi:
             continue
         # First OI = the prior-day snapshot (the real overnight baseline); fall back
@@ -344,12 +359,12 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     out.sort(key=lambda x: x["delta"], reverse=True)
     out = out[:top_n]
 
-    # Total flow-day VOLUME (Massive daily agg) for the displayed top-N only →
-    # CARRY% = ΔOI / volume ("how much of the day's volume stuck as open interest").
-    # Bounded to top_n external calls; carry is None when volume is unavailable.
-    flow_iso = _mdy_to_iso(window[-1]) if window else ""
+    # Total VOLUME over the ΔOI window (Massive daily agg) for the displayed top-N
+    # only → CARRY% = ΔOI / volume ("how much of the volume stuck as open interest").
+    # Volume is summed over the SAME days the ΔOI spans (d_prior→d_last) so carry is
+    # period-matched — dividing a multi-day ΔOI by one day's volume gave carry >100%.
     for e in out:
-        vt = _contract_day_volume(e["sym"], e["cp"], e["K"], e["E"], flow_iso)
+        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], d_prior, d_last)
         e["volTotal"] = vt
         e["carry"] = round(e["delta"] / vt * 100) if vt > 0 else None
     return out, window
