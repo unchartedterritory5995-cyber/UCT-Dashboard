@@ -136,6 +136,50 @@ def _ty(t) -> str | None:
     return None
 
 
+def _oi_deltas(keys) -> dict:
+    """{contract_key: (prior_oi, last_oi, last_date)} using the TWO most recent
+    global snapshot dates in contract_oi_snapshots.
+
+    prior_oi = the day-before OI (the real overnight baseline); 0 when the contract
+    has no earlier snapshot (a brand-new position built from scratch). A contract
+    absent from the latest snapshot is omitted (can't confirm). One bounded batch
+    query over both dates — no per-contract fetch."""
+    keys = list(dict.fromkeys(k for k in keys if k))
+    if not keys:
+        return {}
+    conn = sqlite3.connect(oi_snapshots.OI_DB_PATH, timeout=10)
+    try:
+        dates = [r[0] for r in conn.execute(
+            "SELECT DISTINCT snap_date FROM contract_oi_snapshots "
+            "ORDER BY snap_date DESC LIMIT 2").fetchall()]
+        if not dates:
+            return {}
+        d_last = dates[0]
+        d_prior = dates[1] if len(dates) > 1 else None
+        want = [d for d in (d_last, d_prior) if d]
+        dph = ",".join("?" * len(want))
+        by_ck: dict = {}
+        for i in range(0, len(keys), 400):
+            chunk = keys[i:i + 400]
+            kph = ",".join("?" * len(chunk))
+            for ck, sd, oi in conn.execute(
+                f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+                f"WHERE contract_key IN ({kph}) AND snap_date IN ({dph})",
+                (*chunk, *want),
+            ):
+                by_ck.setdefault(ck, {})[sd] = oi
+    finally:
+        conn.close()
+    out = {}
+    for ck, m in by_ck.items():
+        last = m.get(d_last)
+        if last is None:
+            continue
+        prior = m.get(d_prior, 0) if d_prior else 0
+        out[ck] = (prior or 0, last, d_last)
+    return out
+
+
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
 def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                min_premium: float = 0.0):
@@ -193,16 +237,19 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     if not agg:
         return [], window
 
-    latest = oi_snapshots.get_latest_oi_batch(list(agg.keys())) or {}
+    deltas = _oi_deltas(list(agg.keys()))
 
     out = []
     for key, e in agg.items():
-        lv = latest.get(key)
-        last_oi = lv[0] if isinstance(lv, (tuple, list)) else (lv or 0)
-        snap_date = lv[1] if isinstance(lv, (tuple, list)) and len(lv) > 1 else None
-        if not last_oi:                       # no fresh snapshot → can't confirm
+        dv = deltas.get(key)
+        if not dv:                            # no fresh OI snapshot → can't confirm
             continue
-        first_oi = e["flowOI"]
+        prior_oi, last_oi, snap_date = dv
+        if not last_oi:
+            continue
+        # First OI = the prior-day snapshot (the real overnight baseline); fall back
+        # to the flow-time OI, else 0 (a brand-new position built from scratch).
+        first_oi = prior_oi if prior_oi > 0 else e["flowOI"]
         delta = last_oi - first_oi
         if delta < min_delta:
             continue
@@ -213,28 +260,19 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                 else "SWP" if "SWP" in tset
                 else "BLK" if "BLK" in tset
                 else "ML")
+        if flow == "ML":                      # pure multi-leg = non-directional, drop
+            continue
         _d = _dte(e["E"])
+        if _d is not None and _d < 0:         # expired contract, drop
+            continue
         out.append({**e, "firstOI": first_oi, "lastOI": last_oi, "delta": delta,
                     "flow": flow, "snapDate": snap_date,
-                    "dte": _d if _d is not None else e["dte"]})
+                    "dte": _d if _d is not None else e["dte"],
+                    "state": ("NEW" if first_oi == 0
+                              else "BUILDING" if last_oi > first_oi else "")})
 
     out.sort(key=lambda x: x["delta"], reverse=True)
-    out = out[:top_n]
-
-    # State (top_n only — cheap): NEW = first snapshot, BUILDING = OI grew across days.
-    for e in out:
-        try:
-            hist = oi_snapshots.get_history(
-                oi_snapshots.make_key(e["sym"], e["cp"], e["K"], e["E"]), days=10)
-        except Exception:  # noqa: BLE001
-            hist = []
-        if len(hist) <= 1:
-            e["state"] = "NEW"
-        elif hist[-1]["oi"] > hist[0]["oi"]:
-            e["state"] = "BUILDING"
-        else:
-            e["state"] = ""
-    return out, window
+    return out[:top_n], window
 
 
 # ── render ───────────────────────────────────────────────────────────────
