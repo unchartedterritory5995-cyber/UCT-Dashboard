@@ -283,31 +283,26 @@ export default function MorningWire() {
     <PageHeader icon="wire" title="Morning Wire" />
     <div className={styles.page}>
 
-      {/* ── Intro stack: header · index strip · quote ────────────── */}
-      <div className={styles.topStack}>
-
-      {/* ── Page header — centered title, date beneath ───────────── */}
-      <div className={styles.pageHeader}>
-        <div className={styles.titleRow}>
-          <span className={styles.wireName}>The Morning Wire</span>
+      {/* ── Masthead band: one carded strip — clock · dateline+quote ·
+           indexes — so the top reads as a single deliberate header instead
+           of three stranded corner cards. ────────────────────────────── */}
+      <div className={styles.masthead}>
+        <div className={styles.mastClock}>
+          <MarketClock />
         </div>
-        {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
-      </div>
-
-      {/* ── Quote of the Day ─────────────────────────────────────── */}
-      <QuoteOfTheDay />
-
-      </div>{/* /topStack */}
-
-      {/* ── Top-left corner: ambient market clock ────────────────── */}
-      <div className={styles.tlCorner}>
-        <MarketClock />
-      </div>
-
-      {/* ── Top-right corner: index ETFs + BTC/VIX (3×2 grid) ────── */}
-      <div className={styles.trCorner}>
-        <div className={styles.railLabel}>Indexes</div>
-        <MorningWireIndexes grid />
+        <div className={styles.mastCenter}>
+          <div className={styles.pageHeader}>
+            <div className={styles.titleRow}>
+              <span className={styles.wireName}>The Morning Wire</span>
+            </div>
+            {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
+          </div>
+          <QuoteOfTheDay />
+        </div>
+        <div className={styles.mastIndexes}>
+          <div className={styles.railLabel}>Indexes</div>
+          <MorningWireIndexes grid />
+        </div>
       </div>
 
       {/* ── Main reading column: the rundown + disclaimer ────────── */}
@@ -364,17 +359,13 @@ export default function MorningWire() {
 
       </div>{/* /mainStack */}
 
-      {/* ── Stock Catalysts — left rail on desktop ───────────────── */}
-      <aside className={styles.lrail}>
+      {/* ── Right rail: pre-market movers + live tape, stacked. Single
+           sidebar beside the wide rundown (article + sidebar), so nothing
+           is stranded in a tall skinny column. ─────────────────────────── */}
+      <aside className={styles.rail}>
         <CatalystTable compact datePicker title="PRE MARKET MOVERS" />
+        {TWITTER_UI_ENABLED && <OnTheTape />}
       </aside>
-
-      {/* ── On The Tape (live tweet feed) — right rail on desktop ── */}
-      {TWITTER_UI_ENABLED && (
-        <aside className={styles.rail}>
-          <OnTheTape />
-        </aside>
-      )}
 
     </div>
     </div>

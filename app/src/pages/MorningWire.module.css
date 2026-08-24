@@ -20,27 +20,64 @@
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    "top"
-    "tlcorn"
-    "trcorn"
+    "masthead"
     "main"
-    "lrail"
-    "rrail";
+    "rail";
   gap: 16px;
   padding: 20px 24px 40px;
-  max-width: 900px;
+  max-width: 920px;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
 }
 
-/* Header + index strip + quote — the full-width intro stack. */
-.topStack {
-  grid-area: top;
+/* ── Masthead band ────────────────────────────────────────────────
+   One carded strip spanning the top: ambient clock (left) · dateline +
+   Quote of the Day (center) · index grid (right). Stacks to a column on
+   narrow widths; becomes a true horizontal band at ≥720px. */
+.masthead {
+  grid-area: masthead;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl, 16px);
+  box-shadow: var(--header-shadow, 0 8px 18px -10px rgba(0, 0, 0, 0.55));
+  overflow: hidden;
+}
+.mastClock,
+.mastIndexes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 22px;
   min-width: 0;
+}
+.mastCenter {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 24px;
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+/* At ≥720px the three segments sit side by side as a real band, divided by
+   vertical hairlines instead of horizontal ones. */
+@container mw (min-width: 720px) {
+  .masthead { flex-direction: row; align-items: stretch; }
+  .mastClock   { flex: 0 0 auto; min-width: 210px; }
+  .mastIndexes { flex: 0 0 auto; min-width: 240px; }
+  .mastCenter {
+    border-top: none;
+    border-bottom: none;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
 }
 
 /* The rundown card + disclaimer — the main reading column. */
@@ -52,16 +89,16 @@
   min-width: 0;
 }
 
-/* Stock Catalysts (left) + On The Tape (right) — full width when stacked,
-   side rails when there's room. */
-.lrail { grid-area: lrail; min-width: 0; }
-.rail  { grid-area: rrail; min-width: 0; }
+/* Right rail — pre-market movers over the live tape, stacked. */
+.rail {
+  grid-area: rail;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-/* Corners: market clock (top-left) + index grid (top-right), above the rails. */
-.tlCorner { grid-area: tlcorn; min-width: 0; }
-.trCorner { grid-area: trcorn; min-width: 0; }
-
-/* "FUTURES" caption above the index grid — same gold as the other labels. */
+/* "INDEXES" caption above the index grid — same gold as the other labels. */
 .railLabel {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -73,34 +110,20 @@
   margin-bottom: 10px;
 }
 
-/* ── Wide content area (≥1280px): true 3-pane — catalysts · brief · tape ──
-   The center brief is capped at a comfortable reading width; the two side
-   rails flex (1fr) so they split all the leftover width equally and fill the
-   page. Everything shares one grid row and scrolls together — no sticky, no
-   inner scroll. The `top` intro sits above the center column only, so the
-   rails top-align with the start of the brief. */
-@container mw (min-width: 1280px) {
+/* ── Wide content area (≥1120px): masthead band over article + sidebar ──
+   The full-width masthead sits above; below it the wide rundown (1fr) reads
+   like the article and a single slim right rail (movers + tape) is the
+   sidebar. Everything scrolls together — no sticky, no inner scroll. This
+   replaces the old three-stranded-corners + two-ballooning-rails layout. */
+@container mw (min-width: 1120px) {
   .page {
-    /* Slim fixed rails + a flexible center so the brief stays the dominant
-       column instead of two ballooning 1fr rails dwarfing a 900px reading
-       column (the old "sprawl / dead space" look). Tighter max-width keeps the
-       whole thing a contained product, not a stretched-to-the-monitor page. */
-    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
     grid-template-areas:
-      "tlcorn top   trcorn"
-      "lrail  main  rrail";
+      "masthead masthead"
+      "main     rail";
     column-gap: 28px;
-    max-width: 1560px;
+    max-width: 1400px;
     align-items: start;
-  }
-  /* Vertically center the corner content against the taller centered intro so
-     the clock isn't shoved to the top and the index grid reads balanced. */
-  .tlCorner,
-  .trCorner {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
   }
 }
 
@@ -112,7 +135,6 @@
   align-items: baseline;
   justify-content: center;
   gap: 12px;
-  padding-bottom: 14px;
 }
 
 .titleRow {
