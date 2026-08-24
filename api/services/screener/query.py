@@ -13,7 +13,7 @@ than recomputing any of its gates.
 import datetime as _dt
 from zoneinfo import ZoneInfo
 
-from . import filters, scan_store, snapshot_db
+from . import filters, ranking, scan_store, snapshot_db
 
 _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
@@ -917,6 +917,19 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
     # authenticated dependency and nowhere else.
     where, where_params = build_where(spec.get("filters"), scan_joins, overlay,
                                       list_joins=list_joins, user_id=user_id)
+    # 🔴 THE MEMBER'S OWN WEIGHTED COMPOSITE (benchmark 432-435). Parsed before
+    # anything else uses it so a malformed rank REFUSES rather than degrading to
+    # an unranked list the member did not ask for.
+    rank = ranking.parse(spec.get("rank"))
+    base_where, base_params = where, list(where_params)
+    if rank:
+        # A row missing a weighted criterion cannot be ranked against rows that
+        # have it — see `ranking`'s docstring for why neither a fabricated zero
+        # nor a renormalised score is acceptable. It is excluded HERE and
+        # counted in the receipt.
+        extra = ranking.completeness_clauses(rank, overlay.col_expr)
+        joiner = " AND " if where.strip() else " WHERE "
+        where = f"{where}{joiner}{' AND '.join(extra)}"
     view_key = spec.get("view") or "overview"
     view = filters.VIEWS.get(view_key, filters.VIEWS["overview"])
     sort = spec.get("sort") or {}
@@ -963,9 +976,25 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
         select_sql = ", ".join(
             [overlay.select_item(c) for c in select_cols] + overlay.extra_select())
 
-    sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
-           f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST "
-           f"LIMIT ? OFFSET ?")
+    if rank:
+        # ⛔ A CTE, because a window function cannot be used in the ORDER BY of
+        # the same SELECT that defines it. The scoring pass runs over the
+        # screened set once, then the outer statement pages the scored rows.
+        score = ranking.score_expr(rank, overlay.col_expr)
+        sql = (f"SELECT * FROM (SELECT {select_sql}, {score} AS rank_score "
+               f"FROM {overlay.from_sql()}{where}) "
+               f"ORDER BY rank_score DESC NULLS LAST, ticker ASC "
+               f"LIMIT ? OFFSET ?")
+        # `top_n` caps the WHOLE ranked list, so it bounds this page rather than
+        # being a second LIMIT the pager would fight with.
+        if rank["top_n"] is not None:
+            page_size = max(min(page_size, rank["top_n"] - offset), 0)
+        if "rank_score" not in out_columns:
+            out_columns = [*out_columns, "rank_score"]
+    else:
+        sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
+               f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST "
+               f"LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
     describe_params = [*overlay.join_params, *where_params]
@@ -981,6 +1010,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
         "date_expr": overlay.col_expr("snapshot_date"),
         "scan_joins": scan_joins,
         "list_joins": list_joins,
+        "rank": rank,
+        # The WHERE before the rank's completeness clauses — what "matched your
+        # filters" means, so the receipt can say how many the rank had to drop.
+        "base_where": base_where,
+        "base_params": base_params,
         "view": view_key,
         "view_columns": out_columns,
         "page": page,
@@ -1022,6 +1056,21 @@ def run_scan(spec, user_id=None):
         snap = snapshot_db.describe_rows(
             conn, plan["where"], plan["describe_params"],
             from_sql=plan["from_sql"], date_expr=plan["date_expr"])
+        rank_receipt = None
+        if plan["rank"]:
+            # ⭐ TWO COUNTS, because a ranked screen returns FEWER rows than the
+            # same filters unranked and the difference is missing data, not a
+            # quiet market. `matched` is the filters alone; `ranked` is what
+            # survived the completeness requirement.
+            def _count(where, params):
+                return conn.execute(
+                    f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
+                    [*plan["overlay"].join_params, *params]).fetchone()[0]
+            rank_receipt = ranking.receipt(
+                plan["rank"],
+                matched=_count(plan["base_where"], plan["base_params"]),
+                ranked=_count(plan["where"], plan["describe_params"][
+                    len(plan["overlay"].join_params):]))
     out_rows = [dict(r) for r in rows]
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
@@ -1042,4 +1091,5 @@ def run_scan(spec, user_id=None):
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,
             "page": plan["page"], "page_size": plan["page_size"],
             "scan_joins": plan["scan_joins"],
-            "list_joins": plan["list_joins"]}
+            "list_joins": plan["list_joins"],
+            "rank": rank_receipt}
