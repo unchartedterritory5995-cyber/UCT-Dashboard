@@ -38,7 +38,7 @@
 .scanBtn {
   background: rgba(201, 168, 76, 0.18);
   border: 1px solid rgba(201, 168, 76, 0.5);
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
@@ -93,7 +93,7 @@
 .filterActive {
   background: rgba(201, 168, 76, 0.18);
   border-color: rgba(201, 168, 76, 0.6);
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .empty {
@@ -149,7 +149,7 @@
 .rowSymbol {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #c9a84c;
+  color: var(--accent);
   background: rgba(201, 168, 76, 0.10);
   padding: 1px 6px;
   border-radius: 3px;

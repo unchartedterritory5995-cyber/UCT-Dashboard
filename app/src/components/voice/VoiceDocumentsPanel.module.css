@@ -19,7 +19,7 @@
 .refresh {
   background: rgba(201, 168, 76, 0.15);
   border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
@@ -36,7 +36,7 @@
   background: rgba(201, 168, 76, 0.1);
   padding: 1px 4px;
   border-radius: 3px;
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 11px;
 }
 
@@ -83,7 +83,7 @@
 .pickerBtn {
   background: transparent;
   border: none;
-  color: #c9a84c;
+  color: var(--accent);
   text-decoration: underline;
   font-size: 13px;
   cursor: pointer;

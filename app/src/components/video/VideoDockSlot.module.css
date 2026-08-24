@@ -154,7 +154,7 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .restoreTitle {
   font-size: 13px;
@@ -201,7 +201,7 @@
   padding: 7px 13px;
   border: 1px solid rgba(201, 168, 76, 0.35);
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
@@ -216,7 +216,7 @@
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .title {
   font-size: 16px;
@@ -280,7 +280,7 @@
   margin-bottom: 0;
 }
 .followToggle:hover .insHead {
-  color: #c9a84c;
+  color: var(--accent);
 }
 .followState {
   font-size: 10px;
@@ -309,7 +309,7 @@
   flex: none;
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
@@ -332,7 +332,7 @@
   cursor: pointer;
   padding: 2px 6px;
 }
-.tickerSortBtn:hover { color: #c9a84c; }
+.tickerSortBtn:hover { color: var(--accent); }
 /* Collapsible header (chevron + label + count). */
 .tickersToggle {
   display: flex;
@@ -361,7 +361,7 @@
 .tickersCount {
   font-size: 11px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   background: rgba(201, 168, 76, 0.12);
   border: 1px solid rgba(201, 168, 76, 0.28);
   border-radius: 999px;
@@ -409,7 +409,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .tickerSym:hover {
   text-decoration: underline;
@@ -424,7 +424,7 @@
   font-variant-numeric: tabular-nums;
 }
 .tickerTime:hover {
-  color: #c9a84c;
+  color: var(--accent);
 }
 /* Since-session % tag — green/red pill, sits between the RS badge and time. */
 .tickerRet {
@@ -526,7 +526,7 @@
   min-width: 52px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 .chapterTitle {
@@ -590,7 +590,7 @@
 .noteAddBtn {
   border: 1px solid rgba(201, 168, 76, 0.5);
   background: rgba(201, 168, 76, 0.1);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   padding: 4px 10px;
@@ -611,7 +611,7 @@
 .noteComposerT {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .noteInput {
   width: 100%;
@@ -661,7 +661,7 @@
   cursor: pointer;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
   text-align: left;
 }
@@ -688,7 +688,7 @@
   width: 100%;
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   padding: 7px;

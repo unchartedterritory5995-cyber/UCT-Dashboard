@@ -4,9 +4,9 @@
   gap: 12px;
   padding: 4px 0;
 }
-.title { color: #c9a84c; font-size: 15px; font-weight: 600; margin: 0; }
+.title { color: var(--accent); font-size: 15px; font-weight: 600; margin: 0; }
 .subtitle { font-size: 12px; opacity: 0.75; margin: 0 0 6px 0; }
-.subhead { color: #c9a84c; font-size: 13px; font-weight: 600; margin: 18px 0 6px 0; opacity: 0.85; }
+.subhead { color: var(--accent); font-size: 13px; font-weight: 600; margin: 18px 0 6px 0; opacity: 0.85; }
 .error { color: #f87171; font-size: 12px; }
 
 .addRow { display: flex; gap: 8px; align-items: stretch; }
@@ -20,7 +20,7 @@
   border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 6px;
 }
 .addBtn {
-  background: rgba(201, 168, 76, 0.18); color: #c9a84c;
+  background: rgba(201, 168, 76, 0.18); color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4); border-radius: 6px;
   padding: 6px 14px; cursor: pointer; font-weight: 600;
 }
@@ -34,7 +34,7 @@
 }
 .factCategory {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-  color: #c9a84c; background: rgba(201, 168, 76, 0.12);
+  color: var(--accent); background: rgba(201, 168, 76, 0.12);
   border-radius: 4px; padding: 2px 6px; min-width: 80px; text-align: center;
 }
 .factText { flex: 1; font-size: 13px; }
@@ -51,6 +51,6 @@
 .summaryText { font-size: 12px; line-height: 1.5; }
 .summaryTopics { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .topic {
-  font-size: 10px; background: rgba(201, 168, 76, 0.1); color: #c9a84c;
+  font-size: 10px; background: rgba(201, 168, 76, 0.1); color: var(--accent);
   padding: 1px 6px; border-radius: 4px;
 }

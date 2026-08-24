@@ -29,14 +29,14 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .change { font-size: 14px; font-weight: 700; }
-.pos { color: #3cb868; }
-.neg { color: #e74c3c; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 
 .rangeNote {
   font-size: 11px;
@@ -56,8 +56,8 @@
   cursor: pointer;
 }
 
-.pill:hover { color: #c9a84c; border-color: #c9a84c; }
-.pillOn { color: #c9a84c; border-color: #c9a84c; background: rgba(201, 168, 76, 0.08); }
+.pill:hover { color: var(--accent); border-color: #c9a84c; }
+.pillOn { color: var(--accent); border-color: #c9a84c; background: rgba(201, 168, 76, 0.08); }
 
 .footnote {
   margin: 0;

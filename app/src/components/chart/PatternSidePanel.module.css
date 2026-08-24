@@ -104,7 +104,7 @@
 }
 .dirBullish { background: rgba(60, 184, 104, 0.18); color: #4ade80; }
 .dirBearish { background: rgba(231, 76, 60, 0.18); color: #f87171; }
-.dirNeutral { background: rgba(201, 168, 76, 0.18); color: #c9a84c; }
+.dirNeutral { background: rgba(201, 168, 76, 0.18); color: var(--accent); }
 
 .confidenceWrap {
   flex: 1;
@@ -134,7 +134,7 @@
 .confidenceValue {
   font-size: 12px;
   font-weight: 600;
-  color: #c9a84c;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
   min-width: 28px;
   text-align: right;
@@ -175,7 +175,7 @@
 }
 .summaryValueGreen { color: #4ade80; }
 .summaryValueRed { color: #f87171; }
-.summaryValueGold { color: #c9a84c; }
+.summaryValueGold { color: var(--accent); }
 
 /* ── Body (scrollable) ── */
 .body {
@@ -206,7 +206,7 @@
   padding: 10px 12px;
   border: none;
   background: transparent;
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -389,7 +389,7 @@
 .feedbackActive {
   border-color: #c9a84c;
   background: rgba(201, 168, 76, 0.18);
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .noteInput {

@@ -4,7 +4,7 @@
   font: 700 11px 'Instrument Sans', sans-serif; letter-spacing: .4px; border-radius: 6px;
   cursor: pointer; transition: background .15s, color .15s; }
 .btn:hover { color: var(--text-bright); }
-.btnActive { background: rgba(201,168,76,0.18); color: #c9a84c; }
+.btnActive { background: rgba(201,168,76,0.18); color: var(--accent); }
 
 /* Phone — 8 view buttons wrap to 2-3 bulky rows. Convert to a single
    horizontal scroll strip with ≥44px tap targets (mirrors the Breadth tab

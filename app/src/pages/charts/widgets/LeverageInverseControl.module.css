@@ -225,7 +225,7 @@
    set from the canvas), so the menu matches (e.g. blue up / pink down). */
 .rowFactorLong { color: var(--li-up, #6fbf82); }
 .rowFactorShort { color: var(--li-down, #d07a83); }
-.rowFactorStock { color: #c9a84c; }
+.rowFactorStock { color: var(--accent); }
 .rowVol {
   flex-shrink: 0;
   min-width: 58px;

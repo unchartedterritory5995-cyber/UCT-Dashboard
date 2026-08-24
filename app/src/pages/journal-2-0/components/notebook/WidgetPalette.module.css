@@ -40,7 +40,7 @@
   padding: 4px 6px;
   border-radius: 5px;
 }
-.headBtn:hover { color: #c9a84c; }
+.headBtn:hover { color: var(--accent); }
 .typeList { display: flex; flex-direction: column; gap: 6px; }
 .typeBtn {
   display: flex;
@@ -93,13 +93,13 @@
 .tfPillActive {
   background: rgba(201, 168, 76, 0.15);
   border-color: #c9a84c;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .insertBtn {
   margin-top: 6px;
   background: rgba(201, 168, 76, 0.15);
   border: 1px solid #c9a84c;
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 7px;
   padding: 8px 10px;
   font-size: 13px;

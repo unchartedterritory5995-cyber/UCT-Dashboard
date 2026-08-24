@@ -229,7 +229,7 @@
 .drawerAvatarInitials {
   font-size: 14px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   font-family: var(--font-display);
   line-height: 1;
   display: flex;

@@ -389,7 +389,7 @@
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
-.badgePro { background: rgba(60,184,104,0.15); color: #3cb868; }
+.badgePro { background: rgba(60,184,104,0.15); color: var(--gain); }
 .badgeFree { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 .badgeComped { background: rgba(201,168,76,0.15); color: var(--ut-gold); }
 
@@ -1218,7 +1218,7 @@
   opacity: 0.6;
 }
 .tagRemove:hover { opacity: 1; }
-.tagVip { background: rgba(201,168,76,0.2); color: #c9a84c; }
+.tagVip { background: rgba(201,168,76,0.2); color: var(--accent); }
 .tagBeta { background: rgba(96,165,250,0.15); color: #60a5fa; }
 .tagRisk { background: rgba(239,68,68,0.15); color: #f87171; }
 .tagWhale { background: rgba(74,222,128,0.15); color: #4ade80; }
@@ -1338,7 +1338,7 @@
 .ticketFilterActive {
   background: rgba(201,168,76,0.12);
   border-color: rgba(201,168,76,0.35);
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .ticketRow { cursor: pointer; transition: background 0.1s; }
@@ -1362,7 +1362,7 @@
 }
 .tCat_bug { background: rgba(239,68,68,0.12); color: #f87171; }
 .tCat_feature { background: rgba(59,130,246,0.12); color: #60a5fa; }
-.tCat_account { background: rgba(168,130,76,0.12); color: #c9a84c; }
+.tCat_account { background: rgba(168,130,76,0.12); color: var(--accent); }
 .tCat_question { background: rgba(74,222,128,0.12); color: #4ade80; }
 .tCat_other { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 .tCat_general { background: rgba(255,255,255,0.06); color: var(--text-muted); }
@@ -1488,7 +1488,7 @@
 .ticketDrawerReplyInput:focus { border-color: rgba(201,168,76,0.4); }
 .ticketDrawerReplyBtn {
   background: rgba(201,168,76,0.15);
-  color: #c9a84c;
+  color: var(--accent);
   border: 1px solid rgba(201,168,76,0.3);
   border-radius: var(--radius-md);
   padding: 8px 14px;

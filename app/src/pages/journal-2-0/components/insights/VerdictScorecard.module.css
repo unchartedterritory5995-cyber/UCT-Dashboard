@@ -44,7 +44,7 @@
 .headlineGlyph {
   flex: 0 0 auto;
   margin-top: 1px;
-  color: #e74c3c;
+  color: var(--loss);
 }
 
 .headlineText {

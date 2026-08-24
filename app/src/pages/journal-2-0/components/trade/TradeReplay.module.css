@@ -54,7 +54,7 @@
   border-radius: 6px;
 }
 
-.close:hover { color: #c9a84c; }
+.close:hover { color: var(--accent); }
 
 .chart {
   width: 100%;
@@ -93,7 +93,7 @@
   border: 1px solid #c9a84c;
   border-radius: 8px;
   background: rgba(201, 168, 76, 0.1);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -110,7 +110,7 @@
   cursor: pointer;
 }
 
-.speedOn { color: #c9a84c; border-color: #c9a84c; }
+.speedOn { color: var(--accent); border-color: #c9a84c; }
 
 .scrub {
   flex: 1 1 160px;

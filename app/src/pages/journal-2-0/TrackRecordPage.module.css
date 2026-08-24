@@ -22,7 +22,7 @@
 .brand {
   font-weight: 700;
   font-size: 15px;
-  color: #c9a84c;
+  color: var(--accent);
   letter-spacing: 0.06em;
 }
 
@@ -82,7 +82,7 @@
 .sectionTitle {
   margin: 0 0 10px;
   font-size: 13px;
-  color: #c9a84c;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -102,7 +102,7 @@
 
 .table td { padding: 7px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
 
-.sym { font-weight: 700; color: #c9a84c; }
+.sym { font-weight: 700; color: var(--accent); }
 .right { text-align: right; }
 .pos { color: #22c55e; }
 .neg { color: #ef4444; }
@@ -121,7 +121,7 @@
 .tagline { font-style: italic; font-size: 13px; color: var(--text-muted); }
 
 .cta {
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;

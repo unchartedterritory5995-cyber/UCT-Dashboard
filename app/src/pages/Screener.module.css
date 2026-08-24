@@ -815,7 +815,7 @@
   transition: color 0.15s;
 }
 .cotTileLink:hover .cotArrow {
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .cotTileBody {

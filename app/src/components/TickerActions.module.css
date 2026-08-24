@@ -193,7 +193,7 @@
 .newListInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
 .newListBtn {
   border: 1px solid rgba(201,168,76,0.35); background: rgba(201,168,76,0.12);
-  color: #c9a84c; border-radius: 5px; padding: 4px 9px; cursor: pointer;
+  color: var(--accent); border-radius: 5px; padding: 4px 9px; cursor: pointer;
   font-size: 12px; font-family: inherit;
 }
 .newListBtn:disabled { opacity: 0.45; cursor: default; }

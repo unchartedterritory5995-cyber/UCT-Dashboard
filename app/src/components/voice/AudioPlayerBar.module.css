@@ -20,7 +20,7 @@
 .iconBtn {
   background: transparent;
   border: none;
-  color: #c9a84c;
+  color: var(--accent);
   width: 30px;
   height: 30px;
   border-radius: 50%;

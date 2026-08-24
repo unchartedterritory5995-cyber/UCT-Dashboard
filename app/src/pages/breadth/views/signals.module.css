@@ -35,7 +35,7 @@
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
-.kickerSignal  { color: #c9a84c; }
+.kickerSignal  { color: var(--accent); }
 .kickerNotable { color: #fbbf24; }
 
 .chipLabel { color: var(--text-bright); font-weight: 700; }

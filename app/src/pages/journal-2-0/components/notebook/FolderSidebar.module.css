@@ -46,8 +46,8 @@
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
-.sbHeaderBtn:hover { color: #c9a84c; background: var(--color-surface-hover, #1c2028); }
-.sbHeaderBtnActive { color: #c9a84c; background: rgba(201, 168, 76, 0.14); }
+.sbHeaderBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+.sbHeaderBtnActive { color: var(--accent); background: rgba(201, 168, 76, 0.14); }
 
 /* ── Search view (replaces the tree when Search mode is active) ────────────── */
 .searchView { display: flex; flex-direction: column; gap: 8px; }
@@ -86,7 +86,7 @@
   font-size: 16px;
   line-height: 1;
 }
-.searchClear:hover { color: #c9a84c; }
+.searchClear:hover { color: var(--accent); }
 .searchCount {
   font-size: 10px;
   text-transform: uppercase;
@@ -140,7 +140,7 @@
   text-align: left;
 }
 .row:hover { background: var(--color-surface-hover, #1c2028); }
-.rowActive { background: rgba(201, 168, 76, 0.15); color: #c9a84c; }
+.rowActive { background: rgba(201, 168, 76, 0.15); color: var(--accent); }
 .count { font-size: 11px; color: var(--color-text-muted, #98a0aa); }
 .addBtn {
   margin-top: 4px;
@@ -152,7 +152,7 @@
   cursor: pointer;
   font-size: 12px;
 }
-.addBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+.addBtn:hover { border-color: #c9a84c; color: var(--accent); }
 .editInput {
   width: 100%;
   background: var(--color-surface, #14171c);
@@ -182,7 +182,7 @@
   border-radius: 3px;
   padding: 0;
 }
-.disclosureBtn:hover { color: #c9a84c; background: var(--color-surface-hover, #1c2028); }
+.disclosureBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
 .chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }
@@ -227,7 +227,7 @@
   border-radius: 3px;
 }
 .iconBtn:hover { color: #ef4444; }
-.iconBtnAdd:hover { color: #c9a84c; }
+.iconBtnAdd:hover { color: var(--accent); }
 .addForm { display: flex; padding: 0 6px; }
 
 /* Touch: no hover to reveal row actions, so keep them always visible and

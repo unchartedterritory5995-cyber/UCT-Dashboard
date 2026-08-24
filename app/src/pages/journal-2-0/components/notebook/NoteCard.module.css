@@ -52,7 +52,7 @@
 }
 .date { color: var(--color-text-muted, #98a0aa); }
 .ticker {
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   font-family: var(--font-mono);
   letter-spacing: 0.5px;

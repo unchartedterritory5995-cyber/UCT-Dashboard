@@ -37,7 +37,7 @@
   cursor: pointer;
 }
 
-.csvBtn:hover:not(:disabled) { border-color: #c9a84c; color: #c9a84c; }
+.csvBtn:hover:not(:disabled) { border-color: #c9a84c; color: var(--accent); }
 .csvBtn:disabled { opacity: 0.5; cursor: default; }
 
 .totalsRow {
@@ -79,7 +79,7 @@
 .washTitle {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .washTable {
@@ -107,7 +107,7 @@
 
 .pos { color: #22c55e; }
 .neg { color: #ef4444; }
-.warn { color: #c9a84c; }
+.warn { color: var(--accent); }
 
 .disclaimer {
   font-size: 12px;

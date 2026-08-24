@@ -27,7 +27,7 @@
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 .sidebarToggle:hover {
-  color: #c9a84c;
+  color: var(--accent);
   border-color: #c9a84c;
   background: var(--color-surface-hover, #1c2028);
 }
@@ -144,7 +144,7 @@
 .newBtn:hover { background: #d8b962; }
 .templatesBtn {
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4);
   padding: 7px 14px;
   border-radius: 6px;
@@ -177,7 +177,7 @@
 }
 .importBtnEmphasized {
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   border-color: rgba(201, 168, 76, 0.4);
 }
 .importBtnEmphasized:hover { background: rgba(201, 168, 76, 0.16); border-color: #c9a84c; }

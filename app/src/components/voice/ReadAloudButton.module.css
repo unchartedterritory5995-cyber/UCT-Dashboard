@@ -4,7 +4,7 @@
   gap: 6px;
   background: rgba(201, 168, 76, 0.08);
   border: 1px solid rgba(201, 168, 76, 0.25);
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 999px;
   cursor: pointer;
   font: 12px/1.2 var(--font-sans);

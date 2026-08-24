@@ -59,7 +59,7 @@
 }
 .dayBtnActive {
   background: rgba(201, 168, 76, 0.18);
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .loading,
@@ -181,7 +181,7 @@
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .alignRight {
   text-align: right;

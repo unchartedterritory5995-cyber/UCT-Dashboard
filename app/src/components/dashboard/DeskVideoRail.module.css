@@ -24,7 +24,7 @@
   margin-left: auto;
   border: none;
   background: transparent;
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

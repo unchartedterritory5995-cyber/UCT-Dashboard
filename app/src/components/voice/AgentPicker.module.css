@@ -21,11 +21,11 @@
   opacity: 1;
   transform: scale(1.08);
   border-color: rgba(201, 168, 76, 0.6);
-  color: #c9a84c;
+  color: var(--accent);
 }
 .toggle[aria-expanded="true"] {
   border-color: #c9a84c;
-  color: #c9a84c;
+  color: var(--accent);
   opacity: 1;
 }
 

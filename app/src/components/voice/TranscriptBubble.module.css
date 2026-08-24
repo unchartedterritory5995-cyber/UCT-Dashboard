@@ -20,13 +20,13 @@
   animation: rise 200ms ease-out;
 }
 .tag {
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   margin-right: 4px;
 }
 .you { margin-bottom: 6px; opacity: 0.9; }
 .assistant {}
-.listening, .thinking { color: #c9a84c; opacity: 0.85; font-style: italic; }
+.listening, .thinking { color: var(--accent); opacity: 0.85; font-style: italic; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
@@ -36,7 +36,7 @@
 .cursor {
   display: inline-block;
   margin-left: 2px;
-  color: #c9a84c;
+  color: var(--accent);
   animation: blink 1s steps(2, start) infinite;
 }
 @keyframes blink {
@@ -69,7 +69,7 @@
   display: inline-block;
   margin-left: 8px;
   font-size: 11px;
-  color: #c9a84c;
+  color: var(--accent);
   opacity: 0.8;
 }
 .fbInputWrap {

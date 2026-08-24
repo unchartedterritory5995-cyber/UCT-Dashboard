@@ -20,7 +20,7 @@
 .refresh {
   background: rgba(201, 168, 76, 0.15);
   border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #c9a84c;
+  color: var(--accent);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
@@ -114,7 +114,7 @@
 .toolName {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .bad {
   color: #fca5a5;
@@ -135,7 +135,7 @@
 }
 .failureTool {
   font-family: var(--font-mono);
-  color: #c9a84c;
+  color: var(--accent);
   margin-bottom: 2px;
 }
 .failureError {

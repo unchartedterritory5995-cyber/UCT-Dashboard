@@ -441,7 +441,7 @@
   border: 1px solid #c9a84c;
   border-radius: 8px;
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
   cursor: pointer;
 }
 

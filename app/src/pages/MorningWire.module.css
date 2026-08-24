@@ -533,13 +533,13 @@
 .rundownWrap :global(.rd-urg-near) { color: var(--text); }
 .rundownWrap :global(.rd-urg-mid)  { color: var(--text-muted); }
 .rundownWrap :global(.rd-urg-leap) { color: var(--text-muted); }
-.rundownWrap :global(.rd-order-tag) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #c9a84c; }
+.rundownWrap :global(.rd-order-tag) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: var(--accent); }
 .rundownWrap :global(.rd-order-bought) { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .rundownWrap :global(.rd-order-prem) { text-align: right; font-weight: 700; font-size: 14px; color: var(--text-heading); }
 .rundownWrap :global(.rd-flowboard-er) {
   font-size: 8px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.5);
   border-radius: 3px;
   padding: 0 3px;
@@ -727,7 +727,7 @@
 .rundownWrap :global(.rd-cal-row) { display: flex; align-items: baseline; gap: 12px; padding: 7px 16px; font-size: 13.5px; }
 .rundownWrap :global(.rd-cal-key) { background: rgba(201, 120, 40, 0.08); }
 .rundownWrap :global(.rd-cal-key) :global(.rd-cal-ev) { color: #f0d9a8; font-weight: 600; }
-.rundownWrap :global(.rd-cal-time) { font-family: var(--font-mono); font-weight: 700; color: #c9a84c; min-width: 52px; }
+.rundownWrap :global(.rd-cal-time) { font-family: var(--font-mono); font-weight: 700; color: var(--accent); min-width: 52px; }
 .rundownWrap :global(.rd-cal-ev) { color: var(--text-bright); }
 .rundownWrap :global(.rd-cal-est) { color: var(--text-muted); font-size: 12px; }
 .rundownWrap :global(.rd-cal-fed) :global(.rd-cal-ev) { color: #9ab8e0; }
@@ -786,7 +786,7 @@
   font-family: var(--font-mono) !important;
   font-size: 16px !important;
   font-weight: 700 !important;
-  color: #c9a84c !important;
+  color: var(--accent) !important;
   letter-spacing: 2px !important;
   white-space: nowrap;
 }
@@ -824,7 +824,7 @@
   font-size: 8px !important;
   font-weight: 700 !important;
   letter-spacing: 0.12em !important;
-  color: #c9a84c !important;
+  color: var(--accent) !important;
   text-transform: uppercase !important;
   min-width: 80px;
   flex-shrink: 0;
@@ -1057,7 +1057,7 @@
 }
 .aSumUp   { color: var(--gain); }
 .aSumDown { color: var(--loss); }
-.aSumPt   { color: #c9a84c; }
+.aSumPt   { color: var(--accent); }
 .aSumDot  { color: var(--text-muted); }
 
 .analystTabs {
@@ -1189,7 +1189,7 @@
 .aeBadgeUp   { background: var(--gain-bg);              color: var(--gain);  border: 1px solid var(--gain-border); }
 .aeBadgeDown { background: var(--loss-bg);              color: var(--loss);  border: 1px solid var(--loss-border); }
 .aeBadgeInit { background: rgba(80,130,210,0.12);       color: #6ba4e8;      border: 1px solid rgba(80,130,210,0.3); }
-.aeBadgePtUp { background: rgba(201,168,76,0.12);       color: #c9a84c;      border: 1px solid rgba(201,168,76,0.3); }
+.aeBadgePtUp { background: rgba(201,168,76,0.12);       color: var(--accent);      border: 1px solid rgba(201,168,76,0.3); }
 .aeBadgePtDn { background: rgba(200,60,60,0.12);        color: var(--loss);  border: 1px solid var(--loss-border); }
 .aeBadgeMuted{ background: rgba(255,255,255,0.05);      color: var(--text-muted); border: 1px solid var(--border); }
 
@@ -1226,7 +1226,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: #c9a84c;
+  color: var(--accent);
   white-space: nowrap;
   text-align: right;
 }
@@ -1484,7 +1484,7 @@
    interest, so it cannot be a closing trade. Dim amber = volume UNDER open
    interest, which cannot be told apart from someone closing — the ambiguity the
    old board rendered as an empty cell. */
-.rundownWrap :global(.rd-order-tag.rd-oi-new) { color: #c9a84c; }
+.rundownWrap :global(.rd-order-tag.rd-oi-new) { color: var(--accent); }
 .rundownWrap :global(.rd-order-tag.rd-oi-likely) { color: var(--text); }
 .rundownWrap :global(.rd-order-tag.rd-oi-grew) { color: var(--text); }
 .rundownWrap :global(.rd-order-tag.rd-oi-unconfirmed) { color: #8a6a3a; }

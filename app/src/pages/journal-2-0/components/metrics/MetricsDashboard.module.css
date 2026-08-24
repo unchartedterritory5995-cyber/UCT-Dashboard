@@ -59,7 +59,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -76,7 +76,7 @@
   border-radius: 6px;
 }
 
-.iconBtn:hover { color: #c9a84c; background: rgba(201, 168, 76, 0.08); }
+.iconBtn:hover { color: var(--accent); background: rgba(201, 168, 76, 0.08); }
 
 .stats {
   display: grid;
@@ -164,7 +164,7 @@
   margin-left: auto;
   font-size: 15px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .kpiForm {
@@ -196,7 +196,7 @@
   cursor: pointer;
 }
 
-.addBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+.addBtn:hover { border-color: #c9a84c; color: var(--accent); }
 
 .vocab {
   margin: 0;
@@ -218,7 +218,7 @@
   cursor: pointer;
 }
 
-.periodSelect:hover { color: #c9a84c; border-color: #c9a84c; }
+.periodSelect:hover { color: var(--accent); border-color: #c9a84c; }
 
 .kpiPeriod {
   font-size: 11px;

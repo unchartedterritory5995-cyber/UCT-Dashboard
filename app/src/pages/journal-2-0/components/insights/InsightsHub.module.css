@@ -205,11 +205,11 @@
 }
 
 .pos {
-  color: #3cb868;
+  color: var(--gain);
 }
 
 .neg {
-  color: #e74c3c;
+  color: var(--loss);
 }
 
 .hint {

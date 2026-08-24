@@ -170,7 +170,7 @@
 
 .btn.active {
   background: rgba(201, 168, 76, 0.25);
-  color: #c9a84c;
+  color: var(--accent);
   box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.4);
 }
 .btn.danger:not(:disabled):hover {
@@ -254,7 +254,7 @@
 }
 .widthOption.widthActive {
   border-color: #c9a84c;
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 /* ── Settings Panel ── */
@@ -339,7 +339,7 @@
 .presetActive {
   background: rgba(201, 168, 76, 0.15);
   border-color: rgba(201, 168, 76, 0.5);
-  color: #c9a84c;
+  color: var(--accent);
 }
 .presetDot {
   width: 8px;
@@ -369,7 +369,7 @@
 .sPillActive {
   background: rgba(201, 168, 76, 0.18);
   border-color: rgba(201, 168, 76, 0.5);
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .sCheck {

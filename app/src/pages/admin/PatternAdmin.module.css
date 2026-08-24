@@ -215,7 +215,7 @@
 
 .conf {
   font-size: 11px;
-  color: #c9a84c;
+  color: var(--accent);
   letter-spacing: 0.5px;
 }
 
@@ -279,7 +279,7 @@
 }
 
 .status {
-  color: #c9a84c;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

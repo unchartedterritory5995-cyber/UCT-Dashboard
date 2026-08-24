@@ -15,7 +15,7 @@
   font-weight: 700;
   font-family: var(--font-sans);
   letter-spacing: 1px;
-  color: #c9a84c;
+  color: var(--accent);
   background: none;
   border: none;
   cursor: pointer;

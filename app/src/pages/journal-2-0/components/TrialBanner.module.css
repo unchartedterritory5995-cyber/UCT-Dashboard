@@ -25,10 +25,10 @@
   flex: 0 0 auto;
 }
 .text { color: var(--color-text, #e4e6ea); }
-.text strong { color: #c9a84c; font-weight: 700; }
+.text strong { color: var(--accent); font-weight: 700; }
 .cta {
   margin-left: auto;
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   white-space: nowrap;
 }

@@ -10,18 +10,18 @@
   font-size: 14px;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
-.empty:hover { border-color: #c9a84c; color: #c9a84c; }
+.empty:hover { border-color: #c9a84c; color: var(--accent); }
 .empty:focus {
   outline: none;
   border-color: #c9a84c;
-  color: #c9a84c;
+  color: var(--accent);
   box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
 }
 .empty.dragOver {
   border-color: #c9a84c;
   border-style: solid;
   background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
+  color: var(--accent);
 }
 .filled {
   position: relative;
@@ -73,7 +73,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 16px;
   font-weight: 600;
   pointer-events: none;

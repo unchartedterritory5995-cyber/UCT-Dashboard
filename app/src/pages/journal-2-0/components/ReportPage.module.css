@@ -120,7 +120,7 @@
 }
 
 .pos { color: #1a7f3e; }
-.neg { color: #c0392b; }
+.neg { color: var(--ut-red); }
 
 .edge {
   margin: 16px 0 0;

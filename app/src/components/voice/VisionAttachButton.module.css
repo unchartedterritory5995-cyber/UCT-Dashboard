@@ -13,7 +13,7 @@
   border-radius: 999px;
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(0, 0, 0, 0.4);
-  color: #c9a84c;
+  color: var(--accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -58,7 +58,7 @@
   padding: 8px 0;
 }
 .busyLabel {
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12px;
 }
 
@@ -104,7 +104,7 @@
 .title {
   font-weight: 600;
   font-size: 13px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .confidence {
   font-size: 11px;
