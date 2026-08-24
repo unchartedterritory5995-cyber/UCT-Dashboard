@@ -83,7 +83,7 @@ ROOT = Path(__file__).resolve().parents[1]
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 18  # +1 2026-08-23: POST /api/screener/finviz-refresh
+EXPECTED_SCREENER_ROUTES = 19  # +1 2026-08-23: POST /api/screener/finviz-refresh
 #                              # +1 2026-08-24: POST /api/screener/count — the
 #   pre-run match count (benchmark metric 450). ⛔ It is PAID like /scan and
 #   takes the SAME ScanSpec, which is the reason it belongs behind the same
@@ -94,6 +94,12 @@ EXPECTED_SCREENER_ROUTES = 18  # +1 2026-08-23: POST /api/screener/finviz-refres
 #   trio (GET/POST/DELETE /api/screener/alerts). PAID because a subscription
 #   is a member's own row and the list route enumerates it -- an open GET
 #   would hand out which screens somebody watches.
+#                              # +1 2026-08-24: GET /api/screener/methodology --
+#   how the composite columns are computed (benchmark metric 552). PAID like
+#   its neighbours: rivals publish their method on the open web, but every other
+#   door on this router is gated and `PUBLIC_BY_DESIGN`'s size is asserted
+#   precisely so a second open route cannot join it quietly. Opening it is a
+#   deliberate marketing decision, not a side effect of documenting a column.
 # (admin) — the missing upstream half of POST /api/screener/refresh. A header
 # correction could not reach members until the next 02:45 ET pull; this makes
 # 'wait for tonight' a two-call operation. Deliberate, and admin-classed below.

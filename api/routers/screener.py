@@ -133,6 +133,24 @@ class ScreenAlertSub(BaseModel):
     mode: str = "both"
 
 
+@router.get("/api/screener/methodology")
+def screener_methodology(column: str = "", user=Depends(require_paid)):
+    """How the composite columns are computed — benchmark metric 552.
+
+    Zacks publishes a definition and a measured range on all 136 criteria;
+    Stock Rover ships a 182-page reference and a Metric Browser. We published
+    the scores and not the method, which is the family we finished LAST in.
+    """
+    from api.services.screener import methodology
+    if column:
+        found = methodology.for_column(column)
+        if found is None:
+            raise HTTPException(status_code=404,
+                                detail=f"no published method for {column!r}")
+        return found
+    return methodology.all_methods()
+
+
 @router.get("/api/screener/alerts")
 def screener_alerts_list(user=Depends(require_paid)):
     from api.services.screener import screen_alerts
