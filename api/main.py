@@ -825,8 +825,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
-            _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
+            # earnings-previews only needs `_calendar` (it reads the week list),
+            # NOT `_enrichment` — and `_enrichment` is the 60-100s step in this
+            # chain. Running it first pushed the AI warm ~2 minutes past boot,
+            # then its own 3-worker queue behind that. It is the step users feel
+            # (a cold Profile/Catalysts click is a 25-40s spinner), so it goes
+            # first of the two; enrichment's own cost is paid by a background
+            # fetch the modal does not block on.
             _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
+            _warm("enrichment", _enrichment)  # after calendar (it reads the week's day-list)
             _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
@@ -4766,8 +4773,12 @@ async def lifespan(app: FastAPI):
             )
             # Pending previews: pre-market + through the day (new names + report-
             # date shifts). Skip-if-stable makes repeat runs near-free.
+            # EVERY DAY, not mon-fri: the reader who opens Wednesday's NVDA tile
+            # on a SUNDAY was the reported symptom (2026-08-23). A weekday-only
+            # warm leaves the whole weekend cold for next week's board — which
+            # is exactly when someone sits down to prepare for it.
             _scheduler.add_job(_earn_warm,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20, timezone=_ET),
+                trigger=CronTrigger(hour="6,10,14,18", minute=20, timezone=_ET),
                 id="earnings_preview_warm", max_instances=1, replace_existing=True)
             # Reported analyses: after the BMO prints (8:35 / 9:35 / 11:35) and
             # after the close when AMC names print — so the post-earnings read is

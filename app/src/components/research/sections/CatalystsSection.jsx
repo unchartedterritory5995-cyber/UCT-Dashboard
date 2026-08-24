@@ -15,7 +15,7 @@ import UIcon from '../../ui/UIcon'
 import { EmptyState } from '../../research-kit'
 import { SkeletonBlock } from '../../Skeleton'
 import { fmtDate, fmtMove } from '../../../utils/feedFormat'
-import { GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
+import { FETCH_FAILED, GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
 import styles from './CatalystsSection.module.css'
 
 const SOURCE_ICON = { catalyst: 'bolt', earnings: 'calendar', breaking: 'bell' }
@@ -31,7 +31,7 @@ export default function CatalystsSection({ sym }) {
   const [filter, setFilter] = useState('all')
   // Poll fast only while the catalysts are being written, then stop.
   const [polling, setPolling] = useState(false)
-  const { data } = useMobileSWR(
+  const { data, error, mutate } = useMobileSWR(
     s ? `/api/news-catalysts/${encodeURIComponent(s)}` : null, paidFetcher,
     { refreshInterval: polling ? GENERATING_POLL_MS : 0, dedupingInterval: 1500, revalidateOnFocus: false },
   )
@@ -44,6 +44,9 @@ export default function CatalystsSection({ sym }) {
   )
 
   if (!s) return null
+  // A failed request is not "no catalysts" and not a permanent skeleton — the
+  // old fetcher resolved null on failure, so `loading` below stayed true forever.
+  if (error) return <EmptyState {...FETCH_FAILED} onRetry={() => mutate()} />
   if (data?.paywalled) {
     return (
       <EmptyState

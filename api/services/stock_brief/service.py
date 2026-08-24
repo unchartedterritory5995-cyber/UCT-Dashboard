@@ -35,7 +35,13 @@ from api.services.stock_brief import store
 _logger = logging.getLogger(__name__)
 
 _MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
-_STATS_TTL = int(os.environ.get("STOCK_BRIEF_STATS_TTL", "120") or 120)      # ~2 min → develops through the day
+# 15 min, matching _EARN_TTL. Was 120s, which sat UNDER the bars layer's own
+# 300s daily TTL (`bars_fetch._CACHE_TTL['D']`) — so a recompute reliably
+# outlived the cache it read from, and every third view or so paid the full
+# bars path again. That was survivable at 120s only because it was cheap; it
+# was NOT cheap (see `daily_bars_needed_since`). These are YTD gain, the year's
+# range and average dollar volume — they do not move on a 2-minute scale.
+_STATS_TTL = int(os.environ.get("STOCK_BRIEF_STATS_TTL", "900") or 900)
 _STATS_FAIL_TTL = 30          # a bars-fetch failure/empty year self-heals in 30s, not 2 min
 _EARN_TTL = int(os.environ.get("STOCK_BRIEF_EARN_TTL", "900") or 900)        # 15 min
 _EARN_FAIL_TTL = 60           # get_chart_markers raising self-heals in 1 min, not 15
@@ -70,10 +76,18 @@ def _period(year: int) -> str:
 
 def _year_bars(sym: str, year: int) -> list:
     """This-year daily bars via the in-process bars path (same one the Model Book
-    + News widget use). Filtered to the calendar year by the ISO date prefix."""
+    + News widget use). Filtered to the calendar year by the ISO date prefix.
+
+    Depth is sized to the year being asked for. This used to request 5000 —
+    ~20 years — to keep the ~160 bars of one year, which put it over
+    `_DEEP_REQUEST_THRESHOLD` and onto the synchronous full-history backfill
+    path: 4-31s per symbol in production, INSIDE this modal's request. The
+    Profile tab's description and its "SO FAR" stat block ride one payload, so
+    that stall blanked both at once."""
     try:
         from api.services import bars_fetch
-        resp = bars_fetch._get_bars_inner(sym, "D", 5000)
+        depth = bars_fetch.daily_bars_needed_since(f"{year}-01-01")
+        resp = bars_fetch._get_bars_inner(sym, "D", depth)
         body = getattr(resp, "body", None)
         data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
         ystr = str(year)

@@ -466,10 +466,15 @@ def _date_ts(date_str: str) -> int:
 
 
 def _daily_bars_since(sym: str, lo: str = YTD_LO) -> list:
-    """2026-YTD daily bars via the in-process bars path (same parse modelbook uses)."""
+    """2026-YTD daily bars via the in-process bars path (same parse modelbook uses).
+
+    Depth is sized to `lo`. Asking 5000 for a YTD window crossed
+    `_DEEP_REQUEST_THRESHOLD` and took the synchronous full-history backfill
+    path — 4-31s per symbol in production, paid inside the Catalysts tab's
+    own request."""
     try:
         from api.services import bars_fetch
-        resp = bars_fetch._get_bars_inner(sym, "D", 5000)
+        resp = bars_fetch._get_bars_inner(sym, "D", bars_fetch.daily_bars_needed_since(lo))
         body = getattr(resp, "body", None)
         data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
         bars = [b for b in data.get("bars", []) if str(b.get("t", "")) >= lo]

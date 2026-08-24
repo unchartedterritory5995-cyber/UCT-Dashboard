@@ -159,17 +159,27 @@ def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
                     if mc is None:
                         mc = (metrics.get(sym) or {}).get("mc_b")
                     is_tracked = sym in tracked
-                    if mc is not None and mc < _MIN_MC_B and not is_tracked:
+                    # Below the house $300M floor → DEMOTED, not dropped. Owner
+                    # 2026-08-23: "every reporter you can see" — a sub-$300M
+                    # name still has a tile on the board, and a tile that opens
+                    # to a 30s spinner is the exact complaint. The budget
+                    # (`top_n`) is what bounds the spend now; the floor only
+                    # decides who gets warmed LAST. Set
+                    # EARNINGS_WARM_DROP_BELOW_FLOOR=1 to restore the old drop.
+                    below_floor = mc is not None and mc < _MIN_MC_B and not is_tracked
+                    if below_floor and _drop_below_floor():
                         continue
                     row = engine_row(e, ds, bucket)
                     row["mc_b"] = mc
                     row["_is_tracked"] = is_tracked
+                    row["_below_floor"] = below_floor
                     cur = best.get(sym)
                     if cur is None or (mc or -1) > (cur.get("mc_b") or -1):
                         best[sym] = row
     return sorted(
         best.values(),
-        key=lambda r: (r.get("_is_tracked", False), r.get("mc_b") is not None, r.get("mc_b") or 0),
+        key=lambda r: (r.get("_is_tracked", False), not r.get("_below_floor", False),
+                       r.get("mc_b") is not None, r.get("mc_b") or 0),
         reverse=True,
     )
 
@@ -182,6 +192,11 @@ def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
 
 def _companions_enabled() -> bool:
     return os.environ.get("EARNINGS_WARM_COMPANIONS", "1").lower() in ("1", "true", "yes")
+
+
+def _drop_below_floor() -> bool:
+    """Restore the pre-2026-08-23 behaviour of excluding sub-floor caps entirely."""
+    return os.environ.get("EARNINGS_WARM_DROP_BELOW_FLOOR", "0").lower() in ("1", "true", "yes")
 
 
 def _needs_profile(sym: str) -> bool:
@@ -234,7 +249,11 @@ def _run(kind: str, generator, reported: bool) -> dict:
     if not lock.acquire(blocking=False):
         return {"skipped": "already-running"}
     try:
-        top_n = int(os.environ.get("EARNINGS_WARM_TOPN", "200"))
+        # 500 covers a full two-week board (~137 reporters in a busy single week)
+        # with the sub-floor names now included rather than dropped. Raised from
+        # 200 for the owner's "no cold click, ever" call — `dropped_by_topn` is
+        # logged below so a bounded warm still never reads as full coverage.
+        top_n = int(os.environ.get("EARNINGS_WARM_TOPN", "500"))
         weeks = int(os.environ.get("EARNINGS_WARM_WEEKS", "2"))
         recheck = float(os.environ.get("EARNINGS_WARM_RECHECK_HOURS", "6")) * 3600
         tracked = _tracked_union()
@@ -242,24 +261,31 @@ def _run(kind: str, generator, reported: bool) -> dict:
         chosen = ranked[:top_n]
         dropped = len(ranked) - len(chosen)
 
-        submitted = fresh = 0
+        # ── Submit order IS the priority order ────────────────────────────────
+        # `chosen` is ranked by (is-tracked, market-cap), but the pool is a
+        # 3-worker FIFO: whatever is submitted first is what gets warmed first.
+        # This loop used to queue EVERY preview and only then start on the
+        # companions, so the Profile and Catalysts tabs of the #1-ranked name
+        # sat behind up to `top_n` preview generations — at ~30s each across 3
+        # workers, half an hour before the biggest reporter's Profile even
+        # STARTED. The ranking was computed correctly and then thrown away by
+        # the queue. A name's three jobs now go in together, so rank survives
+        # into the pool and the front of the list is warm within a minute.
+        want_companions = _companions_enabled()
+        submitted = fresh = companions = 0
         for row in chosen:
             sym = row["sym"]
             age = earnings_ai_store.age(kind, sym)
             if age is not None and age < recheck:
                 fresh += 1          # checked recently → don't re-fetch this cycle
-                continue
-            # force_fresh_check=True → the generator re-checks the signals_hash and
-            # only calls Claude if the inputs changed.
-            _POOL.submit(_safe_gen, generator, sym, row)
-            submitted += 1
-
-        companions = 0
-        if _companions_enabled():
-            for row in chosen:
-                if _needs_companion(row["sym"]):
-                    _POOL.submit(_safe_companions, row["sym"])
-                    companions += 1
+            else:
+                # force_fresh_check=True → the generator re-checks the signals_hash
+                # and only calls Claude if the inputs changed.
+                _POOL.submit(_safe_gen, generator, sym, row)
+                submitted += 1
+            if want_companions and _needs_companion(sym):
+                _POOL.submit(_safe_companions, sym)
+                companions += 1
 
         # `dropped_by_topn` is logged so a bounded warm never reads as "covered
         # everything" — a silently truncated list is how a cold click hides.

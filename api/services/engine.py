@@ -81,7 +81,7 @@ _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
 # 60-90-word bullets, which lands right on the cap. Output tokens are billed
 # as used, so the headroom costs nothing on a normal reply.
 _EARNINGS_AI_MAX_TOKENS         = 2800     # post-earnings: rich narrative + 5 substantive bullets
-_EARNINGS_PREVIEW_AI_MAX_TOKENS = 2800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
+_EARNINGS_PREVIEW_AI_MAX_TOKENS = 1100     # pre-earnings: ~120-word note + 3 one-line bullets (was 2800 for the pre-2026-08-23 long form)
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 # `enrich_earnings_response` (earnings_enrichment.py) ALWAYS returns a dict
@@ -1218,11 +1218,12 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     force_fresh_check (background warm): skip the fast mem/disk return and
     re-check the inputs' signals_hash, regenerating only if they changed.
 
-    Cache key is versioned (v2) — bumped when the strategist-note prompt
-    redesign shipped so users get fresh richer output instead of short
-    bullets cached under v1.
+    Cache key is versioned (v3) — bumped 2026-08-23 with the recap rewrite to a
+    STANDALONE result summary (~120 words + 3 one-line bullets). Same reason as
+    the preview's bump: v2's prompt mandated the long form, so every warm name
+    would keep serving it from disk.
     """
-    cache_key = f"earnings_analysis_v2_{sym}"
+    cache_key = f"earnings_analysis_v3_{sym}"
     from api.services import earnings_ai_store as _ai_store
     if not force_fresh_check:
         cached = cache.get(cache_key)
@@ -1455,39 +1456,42 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 "Inside every JSON string use single quotes for any quotation — "
                 "never an unescaped double quote:\n"
                 "{\n"
-                '  "headline": "<1-2 sentence verdict that captures the print + '
-                "reaction in trader terms — e.g., 'Q1 came in $0.12 ahead on the "
-                "line but light on data center; stock sold the news inside the "
-                'implied move\'>",\n'
-                '  "summary": "<5-8 sentence strategist-note paragraph: (1) what '
-                "the company reported with specific surprise %, (2) what the most "
-                "important segment(s) or KPI(s) did or implied, (3) how the stock "
-                "reaction compares to the options-implied move and historical "
-                "move and what that means for positioning, (4) what guidance "
-                "signaled for forward (specific bracket / segment / margin), (5) "
-                "where the print fits in the recent narrative arc (extend "
-                "beat-and-raise / break it / accelerate / decelerate), (6) what "
-                'the buy-side debate is going forward.>",\n'
+                '  "headline": "<ONE sentence, 20 WORDS MAX: the result and the '
+                "reaction. e.g. 'Beat by $0.12 on record data-center revenue; "
+                "stock +4% after hours, inside the implied move.'>\","
+                "\n"
+                '  "summary": "<A SELF-CONTAINED result summary - 4 to 5 sentences, '
+                "120 WORDS MAX, a hard ceiling. It must read completely on its own: "
+                "assume the reader never saw the preview and do NOT refer to it, "
+                "score it, or use phrases like 'as expected' or 'we flagged'. In "
+                "order: (1) EPS and revenue actual vs estimate with the beat/miss %; "
+                "(2) what guidance said against the street's number; (3) the one or "
+                "two segment/margin figures that explain the result; (4) how the "
+                "stock reacted against the options-implied move. Every number from "
+                'CONTEXT.>",'
+                "\n"
                 '  "bullets": [\n'
-                '    "<THE PRINT: EPS and revenue surprise magnitudes (quote '
-                "them) + what they say about underlying business health vs the "
-                'prior trend. 60-90 words.>",\n'
-                '    "<REACTION DECODED: actual stock move vs implied move vs '
-                "historical — was this in-line, under-, or over- expected? "
-                "What does that say about positioning, expectations, and "
-                'whether the move is fadeable or extendable? 60-90 words.>",\n'
-                '    "<TREND CONSISTENCY: how this print fits vs the last 4 '
-                "surprise magnitudes and YoY trajectory — accelerating, "
-                'decelerating, breaking, or stable? Quote the magnitudes. 60-90 words.>",\n'
-                '    "<GUIDANCE / OUTLOOK: what the company said (or implied) '
-                "about forward — be specific to a metric/segment/range. If "
-                'missing, name the gap and what was expected. 60-90 words.>",\n'
-                '    "<NEXT CATALYST OR RISK: a SPECIFIC event/segment/KPI to '
-                "watch into next quarter — name it concretely (margin line, "
-                "segment growth rate, capex digestion, peer print, regulatory "
-                'event, etc.). 60-90 words.>"\n'
+                '    "<THE PRINT: EPS and revenue, actual vs estimate, with the '
+                "surprise %. ONE line, 25 WORDS MAX.>\","
+                "\n"
+                '    "<THE GUIDE: what they guided to vs what the street had, or '
+                "say plainly that no guide was given. ONE line, 25 WORDS MAX.>\","
+                "\n"
+                '    "<THE REACTION: the actual move against the implied move, and '
+                "what that says about positioning. ONE line, 25 WORDS MAX.>\""
+                "\n"
                 '  ]\n'
                 "}\n\n"
+                "==== LENGTH IS A HARD CONSTRAINT ====\n"
+                "This replaced a recap that ran 5-8 sentences plus five 60-90 word "
+                "bullets. It is read right after the print, when the reader wants "
+                "the number and the reaction in one glance.\n"
+                "- summary: 120 words MAX. bullets: EXACTLY 3, 25 words MAX each.\n"
+                "- STANDALONE: never reference the preview or grade what was "
+                "predicted. This is a report of what happened.\n"
+                "- Every sentence carries a number or a named driver, or it goes.\n"
+                "- Give the NUMBER with the plain-words anchor: not '+4%' alone, "
+                "but '+4%, inside the 6.1% the options were pricing'.\n\n"
                 "==== RULES ====\n"
                 f"- Be SPECIFIC to {sym}'s actual business. Don't write generic "
                 "'investors will watch' when you can write 'AWS growth rate "
@@ -1578,13 +1582,15 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     if the inputs changed (skip-if-stable). The user-facing click path leaves it
     False so a cached preview is served instantly.
 
-    Cache key is versioned (v2) — bumped when the strategist-note prompt
-    redesign shipped so users get fresh richer output instead of short
-    bullets cached under v1.
+    Cache key is versioned (v3) — bumped 2026-08-23 when the preview was cut to
+    ~120 words + 3 one-line bullets (owner: 'more simple, concise, direct').
+    v2's prompt MANDATED a 5-8 sentence paragraph plus five 60-90 word bullets,
+    so the wall of text was the SPEC, not model drift. Without the bump every
+    already-warm name would keep serving the long form from disk forever.
     """
     if row is None:
         row = {"sym": sym}
-    cache_key = f"earnings_preview_v2_{sym}"
+    cache_key = f"earnings_preview_v3_{sym}"
     from api.services import earnings_ai_store as _ai_store
     if not force_fresh_check:
         cached = cache.get(cache_key)
@@ -1834,42 +1840,41 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
             "Inside every JSON string use single quotes for any quotation — "
             "never an unescaped double quote:\n"
             "{\n"
-            '  "preview": "<5-8 sentence strategist-note paragraph that reads '
-            "like a buy-side morning note. MUST include: (1) company + report "
-            "date/timing framing, (2) specific consensus EPS and revenue + "
-            "implied YoY % growth, (3) what the last reported quarter did and "
-            "the narrative arc that creates (beat-and-raise / accelerating / "
-            "decelerating / transition), (4) the 2-3 specific business drivers "
-            "that determine this print outcome — named segments and KPIs, (5) "
-            "what management's prior guidance signals or the bracket the buy-side "
-            "is watching, (6) a binary or trinary scenario setup framed against "
-            "the implied move (clean beat → reaction; in-line/soft → fade; "
-            "miss → downside). Reference real numbers, real segment names, real KPIs.>\","
+            '  "preview": "<A TIGHT paragraph - 4 to 5 sentences, 120 WORDS MAX, '
+            "a hard ceiling. Same analyst voice, a quarter of the length. In order: "
+            "(1) who reports, when, and the session; (2) consensus EPS and revenue "
+            "with the implied YoY %; (3) the narrative arc the last few prints "
+            "created, in plain words (beat-and-raise, decelerating, turnaround); "
+            "(4) the ONE driver that actually decides this print, named concretely; "
+            "(5) what the options are pricing and what that makes the bar. "
+            "Every number must come from CONTEXT. Cut every clause that does not "
+            'carry a fact - no throat-clearing, no hedging stacks.>",'
             "\n"
             '  "bullets": [\n'
-            '    "<THE BACKDROP: Recent narrative arc — quote the last 4 surprise '
-            "magnitudes from CONTEXT and frame what this print needs to do to "
-            'extend or break the arc. 60-90 words.>",\n'
-            '    "<BUSINESS DRIVERS: The 2-3 specific segments, products, or '
-            "KPIs that determine print outcome — name them concretely (e.g., "
-            "'Reels monetization,' 'AWS growth rate,' 'iPhone ASP,' 'cloud "
-            "margin,' 'AI capex absorption'). Tie each to a number when "
-            'possible. 60-90 words.>",\n'
-            '    "<EXPECTATIONS BAR: Combine consensus EPS + revenue + YoY % '
-            "implied with pre-print positioning (revisions trend, stock action "
-            "heading in, options pricing ±X% vs historical ±Y%). What is the "
-            'buy-side actually modeled at vs whisper? 60-90 words.>",\n'
-            '    "<GUIDANCE SETUP: Specific forward commentary the market is '
-            "focused on — full-year revenue growth bracket, capex range, "
-            "segment color, margin trajectory. Name the specific data points "
-            'investors are listening for on the call. 60-90 words.>",\n'
-            '    "<SCENARIO MAP: Binary or trinary setup tied to the implied '
-            "move. Clean beat + raise → expected reaction direction and "
-            "magnitude vs implied; in-line + flat guide → likely faded move; "
-            "miss or soft guide → downside setup. Quote the implied % so the "
-            'trader can size against it. 60-90 words.>"\n'
+            '    "<WHAT DECIDES IT: the single segment, product or KPI that moves '
+            "the stock, plus the number the street wants. ONE line, 25 WORDS MAX.>\","
+            "\n"
+            '    "<THE SECOND THING: the next most important line item or margin '
+            "trajectory, with its number. ONE line, 25 WORDS MAX.>\","
+            "\n"
+            '    "<THE BAR: what is already priced - the implied move against the '
+            "positioning going in, and what would count as a disappointment. ONE "
+            "line, 25 WORDS MAX.>\""
+            "\n"
             '  ]\n'
             "}\n\n"
+            "==== LENGTH IS A HARD CONSTRAINT ====\n"
+            "This replaced a preview that ran 200+ words of prose plus five 60-90 "
+            "word bullets. It is read on a phone, minutes before the print, across "
+            "a dozen names a night. A reader who has to hunt for the number has "
+            "been failed no matter how good the analysis underneath is.\n"
+            "- preview: 120 words MAX. bullets: EXACTLY 3, 25 words MAX each.\n"
+            "- Every sentence must carry a number or a named driver. If it carries "
+            "neither, delete it.\n"
+            "- Give the NUMBER and the plain-words anchor together: not '48% YoY' "
+            "on its own, but '48% YoY, still faster than the pre-Blackwell base'.\n"
+            "- Say it directly. No 'it is worth noting', no 'investors will be "
+            "watching closely', no sentence that would survive being deleted.\n\n"
             "==== RULES ====\n"
             f"- Be SPECIFIC to {sym}'s actual business. Don't write generic "
             "'ad spending environment' when you can write 'Reels engagement and "
@@ -1960,11 +1965,11 @@ def _prewarm_earnings_analysis(data: dict) -> None:
 
             if is_pending:
                 # Full AI preview (AV history + news + Claude)
-                if not cache.get(f"earnings_preview_v2_{sym}"):
+                if not cache.get(f"earnings_preview_v3_{sym}"):
                     _prewarm_executor.submit(_generate_earnings_preview, sym, dict(entry))
             else:
                 # Full post-earnings analysis (AV history + news + Claude)
-                if not cache.get(f"earnings_analysis_v2_{sym}"):
+                if not cache.get(f"earnings_analysis_v3_{sym}"):
                     _prewarm_executor.submit(_generate_earnings_analysis, sym, dict(entry))
 
 
