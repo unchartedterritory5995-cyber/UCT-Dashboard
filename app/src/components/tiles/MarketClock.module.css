@@ -6,9 +6,13 @@
   justify-content: center;
   gap: 9px;
   height: 100%;
-  min-height: 140px;
-  padding: 12px;
+  min-height: 148px;
+  padding: 20px 16px;
   text-align: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl, 16px);
+  box-shadow: var(--header-shadow, 0 8px 18px -10px rgba(0, 0, 0, 0.55));
 }
 
 .market {

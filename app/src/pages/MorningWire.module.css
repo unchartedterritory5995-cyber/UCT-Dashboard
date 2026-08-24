@@ -81,12 +81,16 @@
    rails top-align with the start of the brief. */
 @container mw (min-width: 1280px) {
   .page {
-    grid-template-columns: minmax(320px, 1fr) minmax(0, 900px) minmax(320px, 1fr);
+    /* Slim fixed rails + a flexible center so the brief stays the dominant
+       column instead of two ballooning 1fr rails dwarfing a 900px reading
+       column (the old "sprawl / dead space" look). Tighter max-width keeps the
+       whole thing a contained product, not a stretched-to-the-monitor page. */
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(300px, 340px);
     grid-template-areas:
       "tlcorn top   trcorn"
       "lrail  main  rrail";
     column-gap: 28px;
-    max-width: 2100px;
+    max-width: 1560px;
     align-items: start;
   }
   /* Vertically center the corner content against the taller centered intro so
@@ -100,35 +104,43 @@
   }
 }
 
-/* ── Page header ─────────────────────────────────────────────── */
+/* ── Slim editorial nameplate ─────────────────────────────────────
+   The section already carries the standard bordered PageHeader bar, so this
+   is a quiet publication dateline, not a second giant title. */
 .pageHeader {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  padding-bottom: 14px;
 }
 
 .titleRow {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .wireName {
   font-family: var(--font-display);
-  font-size: 27px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 5px;
+  letter-spacing: 3.5px;
   text-transform: uppercase;
-  color: var(--text-heading);
+  color: var(--text-bright);
+}
+
+.wireName::after {
+  content: "·";
+  margin-left: 12px;
+  color: var(--border-accent);
+  font-weight: 400;
 }
 
 .wireDate {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 1px;
 }
