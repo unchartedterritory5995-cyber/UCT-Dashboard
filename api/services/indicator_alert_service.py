@@ -1089,8 +1089,9 @@ def user_definition_refusals(user_id: Optional[Any] = None) -> list[dict]:
 #
 #   ⚠️ IT ASKS AT CALL TIME, NOT AT COMMIT TIME, AND THAT IS THE WHOLE POINT.
 #   `ALERT_EVAL_MODE` is the committed DEFAULT; the Railway variable overrides it
-#   with no deploy at all (that is the rollback lever, and it exists because the
-#   pre-push hook blocks 09:15-16:20 ET). A gate wired to a lane by commit
+#   with no deploy at all (that is the rollback lever; it was born under the
+#   09:15-16:20 ET push freeze, removed 2026-08-24, and still beats a ~10-minute
+#   build mid-incident). A gate wired to a lane by commit
 #   ordering would therefore be WRONG the moment an operator rolls back
 #   mid-incident — refusing, at creation, an address that had just started
 #   working again. Reading `eval_mode()` makes the disagreement impossible

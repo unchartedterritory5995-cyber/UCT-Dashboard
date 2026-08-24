@@ -414,11 +414,13 @@ def past_reports(sym: str, limit: int) -> list[dict]:
 # capture does.
 #
 # NOT 17:00, which is where this sat for its first four nights and never once
-# finished. The pre-push hook opens the deploy window at 16:20 ET, so shipping
-# clusters into the hour right after the close — on 08-06 there were eight
-# deploys between 16:53 and 19:48 ET, the second of which killed the sweep 13
-# minutes in. Every restart costs the whole run, because a cron job that has
-# already fired does not re-fire when the process comes back.
+# finished. The pre-push freeze then in force opened the deploy window at 16:20
+# ET, so shipping clustered into the hour right after the close — on 08-06 there
+# were eight deploys between 16:53 and 19:48 ET, the second of which killed the
+# sweep 13 minutes in. Every restart costs the whole run, because a cron job that has
+# already fired does not re-fire when the process comes back. (The freeze was
+# removed 2026-08-24, so deploys now spread across the day instead of clustering
+# — which makes 21:00 no worse, and the restart hazard no better.)
 #
 # 21:00 sits after that rush and, with the ceiling below, finishes before the
 # 23:00 theme-engine job. It is a probability reduction, not a guarantee — the

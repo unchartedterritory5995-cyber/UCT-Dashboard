@@ -674,11 +674,14 @@ class TestNightlySweep:
                (setup_grade.GRADE_SNAPSHOT_HOUR_ET, setup_grade.GRADE_SNAPSHOT_MINUTE_ET)
 
     def test_it_runs_clear_of_the_post_close_deploy_rush(self):
-        """The reason it never finished for four nights. `.git/hooks/pre-push`
-        opens the deploy window at 16:20 ET, so shipping piles into the hour
-        after the close; on 08-06 eight deploys landed between 16:53 and 19:48
-        and the second killed the 17:00 run 13 minutes in. A fired cron does
-        not re-fire when the process restarts, so each one cost the night."""
+        """The reason it never finished for four nights. The `.git/hooks/pre-push`
+        freeze then in force opened the deploy window at 16:20 ET, so shipping
+        piled into the hour after the close; on 08-06 eight deploys landed
+        between 16:53 and 19:48 and the second killed the 17:00 run 13 minutes
+        in. A fired cron does not re-fire when the process restarts, so each one
+        cost the night. The freeze was removed 2026-08-24 and deploys no longer
+        cluster there, but 21:00 is still correct on its own terms: after the
+        16:35 capture, clear of any post-close rush, done before 23:00."""
         assert (ib.SWEEP_HOUR_ET, ib.SWEEP_MINUTE_ET) >= (21, 0), \
             "back inside the post-close deploy window"
         # ...and still finished before the 23:00 ET theme-engine job.

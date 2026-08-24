@@ -3,10 +3,11 @@
 ⭐ WHY THIS EXISTS, AND IT IS NOW LOAD-BEARING RATHER THAN PRECAUTIONARY. Task 8
 has flipped the committed constant to `"closed"`. If the closed lane misbehaves,
 that is discovered DURING A SESSION — and rolling back used to mean a code edit,
-a push and a Railway build (~10 minutes), except that the pre-push hook BLOCKS
-pushes 09:15-16:20 ET, which is exactly the window in which the rollback would be
-wanted. That is a full trading session of wrong alert behaviour with no
-mitigation. The lever is one Railway variable:
+a push and a Railway build (~10 minutes) — and until 2026-08-24 the pre-push hook
+also BLOCKED pushes 09:15-16:20 ET, exactly the window in which the rollback would
+be wanted. The freeze is gone; the ~10-minute build is not, and a full trading
+session of wrong alert behaviour is still the thing being avoided. The lever is
+one Railway variable:
 
     railway variables --service web --set "ALERT_EVAL_MODE=forming"
 

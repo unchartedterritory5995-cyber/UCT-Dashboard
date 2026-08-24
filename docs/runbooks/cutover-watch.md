@@ -259,7 +259,7 @@ cannot turn the two green controls red.
 | | how | needs a push? | works 09:15–16:20 ET? |
 |---|---|---|---|
 | **A — the lever** | a Railway **variable** | no | **yes** |
-| **B — the constant** | edit + commit + push + build | yes | no (pre-push hook) |
+| **B — the constant** | edit + commit + push + build | yes | yes since the freeze lifted 2026-08-24 — but it is a ~10-min build |
 
 ### A. The lever — one variable, no deploy of yours
 
@@ -273,7 +273,7 @@ railway variables --service web --set "ALERT_EVAL_MODE=forming"
 
 …or, identically, **Railway dashboard → web → Variables → New Variable**
 `ALERT_EVAL_MODE` = `forming`. That is the whole rollback. Nothing is committed,
-nothing is pushed, and the pre-push hook is not involved.
+nothing is pushed, and no build is involved.
 
 ⚠️ **Confirm a deployment actually started.** `railway variables --set` has been
 observed *both* auto-redeploying and merely staging on this project, at different CLI
@@ -416,16 +416,13 @@ variable in the same operation, and read back `override_present: false`.
 
 ### ⚠️ The thing that will bite you mid-session
 
-**The pre-push hook blocks pushes 09:15–16:20 ET** — precisely the window in which a
-rollback would be wanted. **That is what lever A is for, and it is why you take A and
-not B during a session.** A still requires nothing from `git` at all.
-
-If for some reason you must take **B** inside the freeze, the options are unchanged:
-pre-authorise `UCT_PUSH_OVERRIDE` for that one push (the ledger records one prior
-misuse of it costing eight tape gaps — this is not that: the flow worker is now a
-separate service and a web deploy costs a ~1-minute `/api/*` blip, not a tape gap), or
-wait for 16:20 ET. `tools/alert_soak_matrix.py --disarm` is **not** a mitigation — it
-only removes the 31 soak rows and does nothing for real members.
+**Historical note:** a pre-push hook used to block pushes 09:15–16:20 ET — precisely the
+window in which a rollback would be wanted — which is why this runbook reaches for lever A
+during a session. That freeze was removed 2026-08-24, so **B** is now available mid-session
+with no override. Prefer **A** anyway, on the merits: it requires nothing from `git` at all,
+while B costs a ~1-minute `/api/*` blip for live members (the flow worker is a separate
+service now, so B is not a tape gap). `tools/alert_soak_matrix.py --disarm` is **not** a
+mitigation — it only removes the 31 soak rows and does nothing for real members.
 
 ---
 
@@ -438,4 +435,4 @@ only removes the 31 soak rows and does nothing for real members.
 | every ~30 min | re-run. Watch `undeclared`, `unexpected` silence, and `deliverable_now`. |
 | immediately after the flip | re-run. Header must show `ALERT_EVAL_MODE = 'closed'`, `lever : ALERT_EVAL_MODE unset — EFFECTIVE LANE 'closed'`, and the diff should now read the *same* two lanes (the tool passes `mode=` explicitly, so it does not start comparing closed against closed). |
 | ~15:50 ET | last read of the session. |
-| the Monday after | if the closed lane misbehaves, take **lever A** (§6). It is one variable, it works inside the push freeze, and the readback is a URL. |
+| the Monday after | if the closed lane misbehaves, take **lever A** (§6). It is one variable, it needs no deploy at all, and the readback is a URL. |

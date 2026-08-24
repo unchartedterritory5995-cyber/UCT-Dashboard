@@ -20,17 +20,20 @@ This same procedure ends Class B stalls (watchdog→cooldown loops): a fresh pro
 
 **Cost note:** each restart blips the dashboard for ~200 users (SSE drops, warm caches reset). The gates exist so the price is only paid when flow is genuinely down.
 
-## Shipping windows (until P1 is verified live)
-- **Green:** after **4:20 PM ET** (options tape runs to 4:15) or before **~9:15 AM ET**.
-- **Red:** 9:15 AM–4:15 PM ET for anything that deploys web — today that is EVERY commit.
+## Shipping windows — NO FREEZE (2026-08-24)
+The market-hours push freeze and both its guards were removed by owner decision. Push whenever.
+The physics did not change, so know what a mid-session push costs:
+- A **web** swap blips `/api/*` for ~1 min. Since the 2026-07-17 cutover the flow worker is a
+  separate service, so a web-only push does NOT gap the tape.
+- A push touching a **flow-worker watched file** (list in `api/flow_worker_main.py`'s header)
+  bounces the OPRA consumer, and that gap is PERMANENT until the overnight T+1 flat file.
 - A **failed** build is harmless (no swap; old container keeps streaming). Only a **successful** swap kills the consumer.
 
-## Urgent mid-day fix protocol (pre-P1)
-1. Can it wait until 4:20 PM ET? Most "urgent" fixes can.
-2. If genuinely urgent: push it. When the new deployment goes ACTIVE, watch `/api/live/massive/status`:
+## Mid-day fix protocol
+1. Push it. When the new deployment goes ACTIVE, watch `/api/live/massive/status`:
    - `connected: true` within ~2 min → done, touch nothing.
    - age climbing past ~3 min → it's in the 600s cooldown → run the unstick procedure above (gates will already be satisfied). Two-step (deploy → conditional Restart) cuts ~9-10 min to ~3-5 min.
-3. Do not stack a third action within 10 min. If two kicks didn't restore flow, escalate (second-client check → Massive support).
+2. Do not stack a third action within 10 min. If two kicks didn't restore flow, escalate (second-client check → Massive support).
 
 **Context:** full design in `docs/superpowers/specs/2026-07-06-liveflow-worker-deploy-survival-design.md`. This runbook retires once P1 (graceful stop + reconnect ladder) is live and drill-verified.
 

@@ -42,8 +42,9 @@ which is what the tests do.
 
 ⭐ AND THE LANE NOW HAS A ROLLBACK LEVER: the ``ALERT_EVAL_MODE`` **environment
 variable** overrides the constant, so the mode can be reverted from the Railway
-dashboard without a git push — the only mitigation that exists inside the
-09:15-16:20 ET push freeze. It ships INERT (no such variable is set on the web
+dashboard without a git push. It was the only mitigation that existed inside the
+09:15-16:20 ET push freeze (removed 2026-08-24); it is still the only one that
+does not cost a ~10-minute build. It ships INERT (no such variable is set on the web
 service) and it is read in exactly one place, inside ``eval_mode()``. The full
 argument, including why an unrecognised value is REFUSED rather than guessed at,
 is at the constant itself; the operator procedure is
@@ -125,8 +126,10 @@ EVAL_MODES: tuple[str, ...] = ("forming", "closed")
 #
 # ⭐ THE CONSTANT ABOVE IS THE COMMITTED DEFAULT; THIS VARIABLE OVERRIDES IT.
 # Until this existed, changing the lane was a code edit + a push + a Railway
-# build — ~10 minutes — and the pre-push hook BLOCKS pushes 09:15-16:20 ET,
-# which is precisely the window a rollback would be wanted in. The owner flips
+# build — ~10 minutes — and until 2026-08-24 the pre-push hook also BLOCKED
+# pushes 09:15-16:20 ET, precisely the window a rollback would be wanted in.
+# The freeze is gone; the ~10-minute build is not, and it is still the wrong
+# shape for a mid-session rollback. The owner flips
 # the constant after Friday's close; a closed-lane defect surfaces Monday DURING
 # the session; without a lever that is a full trading session of wrong alert
 # behaviour with no mitigation. `railway variables --set ALERT_EVAL_MODE=forming`

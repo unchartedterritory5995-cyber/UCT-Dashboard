@@ -375,10 +375,11 @@ def lever_report() -> dict:
     """The ROLLBACK LEVER's state: is an environment override deciding the lane?
 
     `ALERT_EVAL_MODE` can be overridden from the Railway dashboard without a
-    deploy, which is the only mitigation that exists inside the 09:15-16:20 ET
-    push freeze. That makes "the constant" and "the lane that is running" two
-    different questions for the first time, so this tool has to report BOTH and
-    say which one an operator is looking at.
+    deploy. That was the only mitigation available inside the 09:15-16:20 ET push
+    freeze (removed 2026-08-24), and it is still the only one that skips a
+    ~10-minute build. That makes "the constant" and "the lane that is running" two
+    different questions, so this tool has to report BOTH and say which one an
+    operator is looking at.
 
     ⚠️ IT ASKS THE EVALUATOR, IT DOES NOT RE-DERIVE THE ANSWER. A tool that read
     the environment itself and applied its own rules would report the lane it
