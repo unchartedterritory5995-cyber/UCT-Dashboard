@@ -1524,7 +1524,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
             parsed = _parse_json_block(_anthropic_text(msg))
             analysis_headline = str(parsed.get("headline", "")).strip()
             analysis_summary  = str(parsed.get("summary",  "")).strip()
-            analysis_bullets  = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
+            analysis_bullets  = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
             # Populate legacy `analysis` field — prefer summary, fall back to headline
             analysis = analysis_summary or analysis_headline
         except Exception as _e:
@@ -1569,6 +1569,25 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     if complete:
         _ai_store.put("analysis", sym, result)   # persist only real, complete output
     return result
+
+
+def _human_report_date(iso: str) -> str:
+    """'2026-08-26' -> 'Wednesday, Aug 26'.
+
+    The preview prompt used to receive the raw ISO string and the model echoed
+    it into the prose ("NVDA reports 2026-08-26 after the close"), which reads
+    like a log line rather than the brief's own voice. Falls back to the input
+    unchanged on anything unparseable, so a junk date degrades to what it was.
+
+    Day-of-month is interpolated rather than using strftime %-d, which is not
+    portable to Windows (this repo's dev box).
+    """
+    from datetime import datetime as _dt
+    try:
+        d = _dt.strptime(str(iso)[:10], "%Y-%m-%d").date()
+        return f"{d:%A, %b} {d.day}"
+    except Exception:
+        return str(iso or "")
 
 
 def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
@@ -1726,7 +1745,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
             else "after the close" if timing_label in ("AMC", "AFTER", "POST")
             else ""
         )
-        report_date = row.get("date") or row.get("earnings_date") or ""
+        report_date = _human_report_date(row.get("date") or row.get("earnings_date") or "")
         when_parts = [p for p in [report_date, timing_str] if p]
         if when_parts:
             ctx.append(f"Report timing: {' '.join(when_parts)}")
@@ -1903,7 +1922,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         )
         parsed = _parse_json_block(_anthropic_text(msg))
         preview_text    = str(parsed.get("preview", "")).strip()
-        preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
+        preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
     except Exception as _e:
         _logger.warning("AI preview failed for %s: %s", sym, _e, exc_info=True)
         preview_text    = ""
