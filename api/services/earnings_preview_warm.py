@@ -118,10 +118,25 @@ def _tracked_union() -> set:
         return set()
 
 
-def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
-    """Collect this-and-next-week reporters (pending previews or reported
-    analyses), dedupe by sym keeping the best market cap, and rank by
-    (is-tracked, market-cap) descending. Rows come back in ENGINE spelling."""
+def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
+    """Collect this-and-next-week reporters, dedupe by sym keeping the best
+    market cap, and rank by (is-tracked, market-cap) descending. Rows come back
+    in ENGINE spelling.
+
+    `reported` selects WHICH names, and it has three modes:
+      False → pending names that carry a consensus (the preview budget)
+      True  → names that have already printed (the analysis budget)
+      None  → EVERY name on the board, printed or not, consensus or not.
+
+    None exists for the COMPANIONS (Profile + Catalysts). Those two tabs
+    describe the COMPANY — what it does, its market cap, what moved it this
+    year — none of which depends on a consensus estimate for the upcoming
+    print. Riding the preview's eligibility meant a name with no consensus in
+    our feed got no brief AND no profile AND no catalysts: measured 2026-08-24,
+    61 of 252 names on the board had no Profile and 68 had no Catalysts, and
+    every one of them was a name `reported=False` had filtered out. Whether we
+    can price tonight's print is simply not a fact about whether we can say
+    what the company does."""
     from datetime import timedelta
     from api.routers.calendar import get_calendar, get_day_metrics, _week_dates
 
@@ -146,15 +161,19 @@ def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
                     if not sym:
                         continue
                     actual = has_actual(e)
-                    if reported and not actual:
-                        continue
-                    if not reported:
-                        if actual:                 # already reported → analysis path
+                    if reported is not None:
+                        if reported and not actual:
                             continue
-                        # PENDING preview: require a consensus so we never warm an
-                        # "N/A" preview (skip-if-stable regenerates once it appears).
-                        if not has_consensus(e):
-                            continue
+                        if not reported:
+                            if actual:             # already reported → analysis path
+                                continue
+                            # PENDING preview: require a consensus so we never warm
+                            # an "N/A" preview (skip-if-stable regenerates once it
+                            # appears). ⛔ This rule is the PREVIEW's, and it stays
+                            # the preview's — `reported is None` (companions) never
+                            # reaches it, deliberately.
+                            if not has_consensus(e):
+                                continue
                     mc = e.get("mc_b")
                     if mc is None:
                         mc = (metrics.get(sym) or {}).get("mc_b")
@@ -189,6 +208,15 @@ def _rank(weeks: int, *, reported: bool, tracked: set) -> list[dict]:
 # spend), but each `_gen_async` spawns an UNBOUNDED thread per name — kicking
 # 180 of them at once is a fan-out the web pod cannot absorb. So the warm calls
 # their synchronous generators on THIS pool, paced by its worker count.
+
+def _companion_top_n() -> int:
+    """Companion budget. Sized ABOVE the preview budget on purpose: the board
+    is bigger than the brief-eligible set (the whole point of walking it), and
+    a Profile is generate-once + disk-persisted, so a covered name costs
+    nothing on every later pass. Both companion services keep their own daily
+    caps, which is what actually bounds spend."""
+    return int(os.environ.get("EARNINGS_WARM_COMPANION_TOPN", "400") or 400)
+
 
 def _companions_enabled() -> bool:
     return os.environ.get("EARNINGS_WARM_COMPANIONS", "1").lower() in ("1", "true", "yes")
@@ -272,17 +300,29 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # the queue. A name's three jobs now go in together, so rank survives
         # into the pool and the front of the list is warm within a minute.
         want_companions = _companions_enabled()
+        # The BOARD — every name a reader can see this window, in the same rank
+        # order — is what the companions walk. `chosen` (brief-eligible, budget-
+        # truncated) is a SUBSET of it, so iterating the board keeps the
+        # interleaving the ranking exists for AND reaches the names the preview
+        # filter drops. One loop, so a name's brief and its two companions still
+        # go into the pool together.
+        brief_rows = {r["sym"]: r for r in chosen}
+        board = _rank(weeks, reported=None, tracked=tracked) if want_companions else chosen
+        board = board[:max(top_n, _companion_top_n())]
+
         submitted = fresh = companions = 0
-        for row in chosen:
+        for row in board:
             sym = row["sym"]
-            age = earnings_ai_store.age(kind, sym)
-            if age is not None and age < recheck:
-                fresh += 1          # checked recently → don't re-fetch this cycle
-            else:
-                # force_fresh_check=True → the generator re-checks the signals_hash
-                # and only calls Claude if the inputs changed.
-                _POOL.submit(_safe_gen, generator, sym, row)
-                submitted += 1
+            brief_row = brief_rows.get(sym)
+            if brief_row is not None:
+                age = earnings_ai_store.age(kind, sym)
+                if age is not None and age < recheck:
+                    fresh += 1      # checked recently → don't re-fetch this cycle
+                else:
+                    # force_fresh_check=True → the generator re-checks the
+                    # signals_hash and only calls Claude if the inputs changed.
+                    _POOL.submit(_safe_gen, generator, sym, brief_row)
+                    submitted += 1
             if want_companions and _needs_companion(sym):
                 _POOL.submit(_safe_companions, sym)
                 companions += 1
@@ -290,11 +330,12 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # `dropped_by_topn` is logged so a bounded warm never reads as "covered
         # everything" — a silently truncated list is how a cold click hides.
         _logger.info("[earn-warm:%s] candidates=%d tracked=%d submitted=%d recent=%d "
-                     "companions=%d dropped_by_topn=%d",
+                     "board=%d companions=%d dropped_by_topn=%d",
                      kind, len(ranked), sum(1 for r in ranked if r.get("_is_tracked")),
-                     submitted, fresh, companions, dropped)
+                     submitted, fresh, len(board), companions, dropped)
         return {"kind": kind, "candidates": len(ranked), "submitted": submitted,
-                "recent": fresh, "companions": companions, "dropped_by_topn": dropped}
+                "recent": fresh, "board": len(board), "companions": companions,
+                "dropped_by_topn": dropped}
     except Exception as e:
         _logger.warning("[earn-warm:%s] pass failed: %s", kind, e)
         return {"error": str(e)}
