@@ -1116,7 +1116,7 @@
   flex-shrink: 0;
 }
 
-.workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-bright); }
+.workspaceTitle { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; color: var(--text-bright); }
 
 .toolbarBtn {
   /* Grey label (NOT the theme accent) — brightens to --text-bright on hover.

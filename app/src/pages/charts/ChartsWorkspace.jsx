@@ -2064,7 +2064,7 @@ export default function ChartsWorkspace() {
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         <header className={styles.workspaceHeader}>
-          <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
+          <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
           {!gridMode && (
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
