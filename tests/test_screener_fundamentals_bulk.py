@@ -150,9 +150,17 @@ def test_a_peg_of_zero_is_refused_because_it_needs_a_pe_of_zero():
     assert fb.value_for(fb.RATIO_SPECS["peg"], dead) is None
     # ⭐ A NEGATIVE PEG IS A REAL ANSWER and must survive — shrinking earnings
     # against a positive P/E. ABCB reads -6.01, RIVN -0.27. A blanket
-    # "refuse anything odd" rule would blank both.
+    # "refuse anything odd" rule would blank both. That ruling STANDS and is
+    # re-asserted in test_screener_valuation_sign_guard.
+    # ⚠️ THE P/E IS NOW PART OF THE FIXTURE, and it belongs there: `peg` gained
+    # `requires_positive=("priceToEarningsRatioTTM",)` for defect #1, so a row
+    # carrying a PEG and no P/E is refused as unverifiable. This row was always
+    # meant to be the "positive P/E, shrinking earnings" case its own comment
+    # describes — it just never said so. Measured cost of the absent branch in
+    # production: 0 rows, the two fields are present on the same 3,653.
     assert fb.value_for(fb.RATIO_SPECS["peg"],
-                        {"priceToEarningsGrowthRatioTTM": "-6.007024067388682"}
+                        {"priceToEarningsGrowthRatioTTM": "-6.007024067388682",
+                         "priceToEarningsRatioTTM": "11.4"}
                         ) == pytest.approx(-6.007, abs=0.001)
 
 

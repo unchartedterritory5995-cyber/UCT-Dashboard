@@ -356,6 +356,11 @@ class _Spec(NamedTuple):
                     traded price is positive, so a positive P/B beside a
                     negative book value is not a disagreement about basis — it
                     is two halves of one division that cannot both be right.
+    `requires_positive`
+                    fields in the SAME row that must be present and positive
+                    for this value to mean anything. Only `peg` uses it, and
+                    only for the case a sign test cannot see: PEG = P/E ÷
+                    growth, so two negatives make an ATTRACTIVE POSITIVE.
     `impossible_above`
                     a ceiling in STORED units that the definition itself
                     implies. Only `gross_margin` uses it: gross profit is
@@ -371,6 +376,7 @@ class _Spec(NamedTuple):
     zero_ok_if_resolves: tuple = ()
     same_sign_as: str = ""
     impossible_above: float | None = None
+    requires_positive: tuple = ()
 
 
 #: Hoisted out of `RATIO_SPECS` so `lt_debt_to_capital` can name it as the
@@ -421,7 +427,8 @@ RATIO_SPECS = {
     # 3 zeros (AGCC, MGRT, NPCT), each with `priceToEarningsRatioTTM == 0` and
     # `netIncomePerShareTTM == 0`. PEG = P/E ÷ growth, so a PEG of exactly 0
     # requires a P/E of exactly 0 — the same dead numerator `pe_ttm` refuses.
-    "peg":            _Spec("priceToEarningsGrowthRatioTTM", 1.0, ()),
+    "peg":            _Spec("priceToEarningsGrowthRatioTTM", 1.0, (),
+                            requires_positive=("priceToEarningsRatioTTM",)),
     # 238 of 240 zeros are corroborated by two further debt quotients reading
     # zero — a genuinely debt-free balance sheet, not a missing denominator.
     "debt_to_equity": _DEBT_TO_EQUITY,
@@ -557,6 +564,48 @@ def value_for(spec: _Spec, raw_row: dict):
     val = _num(raw_row.get(spec.field))
     if val is None:
         return None
+    # 🔴 ACCURACY AUDIT DEFECT #1 — the worst case in the audit, and
+    # the ONLY half of it that is still live. Re-derived 2026-08-24, because
+    # the audit's own account of the mechanism had gone stale:
+    #
+    # The audit reported that `filters.py` ships
+    # `_range("peg", …, {"label": "Under 1", "op": "lte", "max": 1})` rendered
+    # as a bare `peg <= ?`, so negative PEGs passed the preset. THAT IS NO
+    # LONGER TRUE — the presets are `{"op": "between", "min": 0, "max": 1}`
+    # and `query.py` renders `between` as a real `>= ? AND <= ?`, so a negative
+    # PEG is already excluded from every PEG preset we ship.
+    #
+    # ⭐ WHAT SURVIVES THAT GUARD IS THE HALF A SIGN TEST CANNOT SEE. PEG =
+    # P/E ÷ growth, so two negatives make an ATTRACTIVE POSITIVE, and a
+    # positive sails through `>= 0`. Measured against the live provider over
+    # our universe, 2026-08-24 (3,655 of 3,714 symbols matched):
+    # **614 rows publish a positive PEG off a NON-POSITIVE P/E** — ACHC 0.0025
+    # on a P/E of −2.23, ABVX 0.3369 on −20.50, AAL 0.1797 on −28.20. LCID,
+    # the audit's headline, is this shape: peg 0.019 off a P/E of −0.40 with a
+    # −264% net margin, the LOWEST PEG in its sample. +0.0025 is
+    # indistinguishable from the cheapest real growth stock on the board, and
+    # it is what "PEG Under 1" hands a member today.
+    #
+    # ⛔ A NEGATIVE PEG IS NOT REFUSED, and that is a deliberate reversal of
+    # this pass's first cut. A negative PEG is a REAL answer — a positive P/E
+    # against shrinking earnings — and `test_a_peg_of_zero_is_refused_because
+    # _it_needs_a_pe_of_zero` already defends ABCB at −6.01 by name. Blanking
+    # it would delete 1,185 true values to fix a preset that is already
+    # guarded. The same argument applies to `pe_ttm`, `pb`, `p_fcf` and
+    # `p_ocf`: all four are `_open_range` with NO shipped preset, so the only
+    # way to select their negatives is for a member to type a range, and the
+    # honest answer to that is the member-facing `desc` those columns still
+    # lack — not a mass refusal. Measured cost of the mass refusal that was
+    # NOT taken: 1,005 pe_ttm + 981 p_fcf + 713 p_ocf + 164 pb rows.
+    for gate_field in spec.requires_positive:
+        gate = _num(raw_row.get(gate_field))
+        if gate is None or gate <= 0:
+            # An ABSENT gate refuses too: a multiple we cannot show to be
+            # meaningful is not one to publish. ⚠️ Measured cost of the absent
+            # branch: 0 rows — `priceToEarningsRatioTTM` and
+            # `priceToEarningsGrowthRatioTTM` are present on exactly the same
+            # 3,653 rows.
+            return None
     if val == 0:
         # An uncorroborated zero is the provider saying "undefined", not "zero".
         if not spec.zero_ok_when and not spec.zero_ok_if_resolves:
