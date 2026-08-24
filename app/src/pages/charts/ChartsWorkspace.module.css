@@ -1284,6 +1284,23 @@
   pointer-events: none;
 }
 
+/* While a widget is being dragged it must FULLY occlude whatever it passes over —
+   no column headers, corner "L" marks, or other-widget content bleeding through.
+   Two causes, both handled here:
+   1) RGL gives the dragged item only z-index:3 (inline), but sibling widgets are
+      z-index:auto (no stacking context of their own), so THEIR z-indexed descendants
+      — sticky column headers (z-10) and the gold .rzCorner resize marks (z-6) — land
+      in the grid's root stacking context ABOVE the dragged item and paint through it.
+      Lifting the dragged item to z-50 puts it (and its own contents) above all of them.
+   2) A widget canvas can be translucent, which would composite over the widget BEHIND
+      instead of the board. An opaque underlay (the same colour the board shows behind a
+      widget normally) makes it composite over that instead — so the moved widget looks
+      exactly as it does at rest, just relocated. */
+:global(.react-grid-item.react-draggable-dragging) {
+  z-index: 50 !important;
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+}
+
 /* Hide RGL's drag placeholder box (the lagging gold rectangle) — the dragged
    widget's own gold tint above now shows the move; neighbours still reflow to
    indicate where it will land. */

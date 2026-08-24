@@ -146,7 +146,10 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
     if (cr) {
       const gap = tallestGap(cr.gaps)
       if (gap && gap.h >= minGapH) {
-        return { place: clampPlace({ x: cr.x, y: gap.y, w: cr.w, h: gap.h }, d, cols, rows), mutations: [] }
+        // Sit directly under the chart at the strip's NATURAL height — don't stretch to
+        // fill a tall gap (that's the "fundamentals has a lot of empty space" case).
+        const gh = Math.min(gap.h, d.h)
+        return { place: clampPlace({ x: cr.x, y: gap.y, w: cr.w, h: gh }, d, cols, rows), mutations: [] }
       }
       const split = splitVertical(d, bottomChart(cr), d.h)
       if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
@@ -361,8 +364,14 @@ function resolveOwnColumn(columns, gap, ghostType, cols, rows) {
     const rail = columns.find(c => c.family === 'panel' && c.key !== flex.key)
     gw = rail ? rail.w : (d.minW || 2)
   }
+  // The carved column must be at least the ghost's OWN min width. Otherwise clampPlace
+  // (which enforces minW) would later widen the ghost past the slot we cut for it, so its
+  // right edge would overlap the column to its right (the rail). Give it exactly the room
+  // it will occupy — and if the flex chart can't spare that much while staying above its
+  // own min, this move isn't offered (the arrow hides) rather than overlapping.
+  gw = Math.max(gw, d.minW || 2)
   gw = Math.min(gw, flex.w - flexMinW)
-  if (gw < 1 || flex.w - gw < flexMinW) return null
+  if (gw < (d.minW || 2) || flex.w - gw < flexMinW) return null
 
   const slots = columns.map(c => ({ col: c, w: c.key === flex.key ? c.w - gw : c.w }))
   slots.splice(gap, 0, { ghost: true, w: gw })

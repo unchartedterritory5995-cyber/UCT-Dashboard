@@ -29,15 +29,24 @@ Env (flow-worker):
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import sqlite3
+import urllib.parse
+import urllib.request
 from datetime import date
 
 from api.alpha_gold_eod import _fmt_prem, _post_discord_image
 from api import oi_snapshots
 
 log = logging.getLogger("oi_morning")
+
+# Massive REST for per-contract daily VOLUME (CARRY% = ΔOI / volume). stdlib urllib
+# because httpx is MIA in the flow-worker container (this card runs there).
+_MASSIVE_BASE = os.environ.get("MASSIVE_REST_BASE", "https://api.massive.com")
+_MASSIVE_KEY = os.environ.get("MASSIVE_API_KEY", "")
+_UA_HDR = {"User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)"}
 
 _ASSETS = os.path.join(os.path.dirname(__file__), "services", "desk_assets")
 
@@ -106,6 +115,19 @@ def _fmt_delta(n) -> str:
     return ("+" if n >= 0 else "−") + _fmt_oi(abs(n))
 
 
+def _fmt_prem_k(v) -> str:
+    """Premium: $X.XXB / $X.XXM for ≥ $1M, else $NNNK (sub-million shown in K, not
+    a fractional M like '$0.52M')."""
+    v = float(v or 0)
+    if v >= 1e9:
+        return f"${v/1e9:.2f}B"
+    if v >= 1e6:
+        return f"${v/1e6:.2f}M"
+    if v >= 1e3:
+        return f"${v/1e3:.0f}K"
+    return f"${v:.0f}"
+
+
 def _fmt_date(iso_or_mdy) -> str:
     """ISO (YYYY-MM-DD) or M/D/YYYY → 'Mon D, YYYY'."""
     s = str(iso_or_mdy or "")
@@ -128,6 +150,54 @@ def _flow_db_path() -> str:
     return DB_PATH
 
 
+def _mdy_to_iso(mdy) -> str:
+    try:
+        m, d, y = [int(x) for x in str(mdy).split("/")[:3]]
+        return f"{(y if y > 99 else y + 2000):04d}-{m:02d}-{d:02d}"
+    except (ValueError, TypeError):
+        return ""
+
+
+def _occ(sym: str, cp: str, strike, exp_mdy: str) -> str:
+    """OCC option symbol: O:{TICKER}{YYMMDD}{C/P}{strike*1000:08d}."""
+    m, d, y = [int(x) for x in str(exp_mdy).split("/")[:3]]
+    y = y if y > 99 else y + 2000
+    c = "C" if str(cp).upper().startswith("C") else "P"
+    return f"O:{str(sym).upper().strip()}{y % 100:02d}{m:02d}{d:02d}{c}{int(round(float(strike) * 1000)):08d}"
+
+
+def _contract_window_volume(sym: str, cp: str, strike, exp: str,
+                            from_iso: str, to_iso: str) -> int:
+    """Sum the option's daily VOLUME over the ΔOI window — the trading sessions AFTER
+    `from_iso` (the prior OI snapshot) through `to_iso` (the latest), i.e. exactly the
+    days whose trading drove the OI change. This period-matches the denominator to
+    ΔOI so CARRY% is sane: a single day's volume can't back a multi-day ΔOI (that's
+    what produced carry > 100%). `from_iso` None → just the single day `to_iso`.
+
+    Massive daily agg via stdlib urllib (httpx MIA on flow-worker). Fetched only for
+    the displayed top-N, so the call count is bounded. 0 when unknown."""
+    if not _MASSIVE_KEY or not to_iso:
+        return 0
+    try:
+        start = to_iso
+        if from_iso and from_iso < to_iso:
+            # day AFTER the baseline snapshot; the agg range returns only real
+            # trading-day bars in between, so no weekend/holiday handling needed.
+            from datetime import date as _date, timedelta as _td
+            y, m, dd = [int(x) for x in from_iso.split("-")]
+            start = (_date(y, m, dd) + _td(days=1)).isoformat()
+        occ = _occ(sym, cp, strike, exp)
+        url = (f"{_MASSIVE_BASE}/v2/aggs/ticker/{urllib.parse.quote(occ)}"
+               f"/range/1/day/{start}/{to_iso}?adjusted=true&limit=50000"
+               f"&apiKey={urllib.parse.quote(_MASSIVE_KEY)}")
+        req = urllib.request.Request(url, headers=_UA_HDR)
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.load(r)
+        return sum(int(b.get("v") or 0) for b in (data.get("results") or []))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def _ty(t) -> str | None:
     t = (t or "").upper().strip()
     if t.startswith("ML/") or t == "ML/":
@@ -139,24 +209,25 @@ def _ty(t) -> str | None:
     return None
 
 
-def _oi_deltas(keys) -> dict:
-    """{contract_key: (prior_oi, last_oi, last_date)} using the TWO most recent
-    global snapshot dates in contract_oi_snapshots.
+def _oi_deltas(keys):
+    """Return (deltas, d_last, d_prior).
 
-    prior_oi = the day-before OI (the real overnight baseline); 0 when the contract
-    has no earlier snapshot (a brand-new position built from scratch). A contract
-    absent from the latest snapshot is omitted (can't confirm). One bounded batch
-    query over both dates — no per-contract fetch."""
+    deltas = {contract_key: (prior_oi, last_oi)} using the TWO most recent global
+    snapshot dates in contract_oi_snapshots (d_last, d_prior, both ISO). prior_oi =
+    the day-before OI (the overnight baseline); 0 when the contract has no earlier
+    snapshot (a brand-new position). A contract absent from the latest snapshot is
+    omitted. One bounded batch query over both dates. d_last/d_prior are also the
+    window CARRY% divides volume over."""
     keys = list(dict.fromkeys(k for k in keys if k))
     if not keys:
-        return {}
+        return {}, None, None
     conn = sqlite3.connect(oi_snapshots.OI_DB_PATH, timeout=10)
     try:
         dates = [r[0] for r in conn.execute(
             "SELECT DISTINCT snap_date FROM contract_oi_snapshots "
             "ORDER BY snap_date DESC LIMIT 2").fetchall()]
         if not dates:
-            return {}
+            return {}, None, None
         d_last = dates[0]
         d_prior = dates[1] if len(dates) > 1 else None
         want = [d for d in (d_last, d_prior) if d]
@@ -179,8 +250,8 @@ def _oi_deltas(keys) -> dict:
         if last is None:
             continue
         prior = m.get(d_prior, 0) if d_prior else 0
-        out[ck] = (prior or 0, last, d_last)
-    return out
+        out[ck] = (prior or 0, last)
+    return out, d_last, d_prior
 
 
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
@@ -250,14 +321,15 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     if not agg:
         return [], window
 
-    deltas = _oi_deltas(list(agg.keys()))
+    deltas, d_last, d_prior = _oi_deltas(list(agg.keys()))
 
     out = []
     for key, e in agg.items():
         dv = deltas.get(key)
         if not dv:                            # no fresh OI snapshot → can't confirm
             continue
-        prior_oi, last_oi, snap_date = dv
+        prior_oi, last_oi = dv
+        snap_date = d_last
         if not last_oi:
             continue
         # First OI = the prior-day snapshot (the real overnight baseline); fall back
@@ -285,19 +357,29 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                               else "BUILDING" if last_oi > first_oi else "")})
 
     out.sort(key=lambda x: x["delta"], reverse=True)
-    return out[:top_n], window
+    out = out[:top_n]
+
+    # Total VOLUME over the ΔOI window (Massive daily agg) for the displayed top-N
+    # only → CARRY% = ΔOI / volume ("how much of the volume stuck as open interest").
+    # Volume is summed over the SAME days the ΔOI spans (d_prior→d_last) so carry is
+    # period-matched — dividing a multi-day ΔOI by one day's volume gave carry >100%.
+    for e in out:
+        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], d_prior, d_last)
+        e["volTotal"] = vt
+        e["carry"] = round(e["delta"] / vt * 100) if vt > 0 else None
+    return out, window
 
 
 # ── render ───────────────────────────────────────────────────────────────
 _W = 1240
 # (key, header, x, align)
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 118, "l"),
-    ("strike", "STRIKE", 210, "r"), ("exp", "EXP", 250, "l"),
-    ("dte", "DTE", 392, "r"), ("prem", "PREM", 500, "r"),
-    ("flow", "FLOW", 566, "l"), ("vol", "VOL", 712, "r"),
-    ("first", "FIRST OI", 838, "r"), ("last", "LAST OI", 958, "r"),
-    ("delta", "Δ OI", 1076, "r"), ("state", "STATE", 1096, "l"),
+    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 128, "l"),
+    ("strike", "STRIKE", 226, "r"), ("exp", "EXP", 266, "l"),
+    ("dte", "DTE", 400, "r"), ("prem", "PREM", 516, "r"),
+    ("vol", "VOLUME", 660, "r"), ("delta", "Δ OI", 790, "r"),
+    ("carry", "CARRY %", 912, "r"), ("last", "LAST OI", 1028, "r"),
+    ("state", "STATE", 1050, "l"),
 ]
 
 
@@ -343,14 +425,14 @@ def render_card(rows: list, window: list) -> bytes:
         pass
     tx = 94
     tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
-    txt(tx, 18, "· Overnight OI", f_title, _GOLD_DIM)
+    txt(tx, 18, "· OI Update", f_title, _GOLD_DIM)
     # subtitle: which session's flow + when OI was measured
     _sess = ""
     if window:
         a, b = window[0], window[-1]
         _sess = _fmt_date(a) if a == b else f"{_fmt_date(a)} – {_fmt_date(b)}"
     _asof = rows[0].get("snapDate") if rows else None
-    _sub = f"flow {_sess}" + (f"   ·   OI as of {_fmt_date(_asof)}" if _asof else "") + "   ·   biggest OI builds on flow contracts"
+    _sub = f"flow {_sess}" + (f"   ·   OI as of {_fmt_date(_asof)}" if _asof else "") + "   ·   heavy volume that carried into open interest"
     txt(94, 60, _sub, f_date, _DIM)
 
     # column headers
@@ -380,17 +462,23 @@ def render_card(rows: list, window: list) -> bytes:
             elif key == "dte":
                 txt(x, y, f'{e["dte"]}d' if e.get("dte") is not None else "—", f_row, _DIM, "r")
             elif key == "prem":
-                txt(x, y, _fmt_prem(e["prem"]), f_rowb, _TXT, "r")
-            elif key == "flow":
-                txt(x, y, e["flow"], f_row, _DIM)
+                txt(x, y, _fmt_prem_k(e["prem"]), f_rowb, _TXT, "r")
             elif key == "vol":
-                txt(x, y, f'{e["vol"]:,}', f_row, _DIM, "r")
-            elif key == "first":
-                txt(x, y, _fmt_oi(e["firstOI"]), f_row, _DIM, "r")
-            elif key == "last":
-                txt(x, y, _fmt_oi(e["lastOI"]), f_row, _TXT, "r")
+                vt = e.get("volTotal") or 0
+                txt(x, y, f"{vt:,}" if vt else "—", f_row, _DIM, "r")
             elif key == "delta":
                 txt(x, y, _fmt_delta(e["delta"]), f_rowb, _UP, "r")
+            elif key == "carry":
+                c = e.get("carry")
+                if c is None:
+                    txt(x, y, "—", f_row, _DIM, "r")
+                else:
+                    # ≥100% = the whole day's volume (or more) stuck as OI — the
+                    # strongest "traded and held it" signal.
+                    ccol = _UP if c >= 100 else _TXT if c >= 50 else _DIM
+                    txt(x, y, f"{c}%", f_rowb, ccol, "r")
+            elif key == "last":
+                txt(x, y, _fmt_oi(e["lastOI"]), f_row, _TXT, "r")
             elif key == "state":
                 st = e.get("state") or ""
                 if st:
@@ -398,7 +486,7 @@ def render_card(rows: list, window: list) -> bytes:
         y += ROWH
 
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
-    txt(36, H - 32, f"UCT Intelligence  ·  {len(rows)} contracts  ·  overnight OI growth on flow-confirmed contracts",
+    txt(36, H - 32, f"UCT Intelligence  ·  {len(rows)} contracts  ·  heavy-volume flow that carried into open interest the next day",
         f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 

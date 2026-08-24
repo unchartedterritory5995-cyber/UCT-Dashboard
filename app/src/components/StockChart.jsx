@@ -12965,6 +12965,31 @@ export default function StockChart({
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
       ts.setVisibleLogicalRange({ from, to })
+      // PERSIST the chosen range as the active view-lock so EVERY next ticker
+      // (searched or scanned) opens on this same window — until the user pans/zooms
+      // or hits "Reset view". Same mechanism a manual pan uses (_captureUserLock):
+      // store the horizontal window (right-relative anchorFrac + bar width, tf-tagged)
+      // and persist it. TIME ONLY — the vertical band is left untouched so price keeps
+      // auto-scaling per symbol. Gated to the workspace carry (carryDragPlacement),
+      // off during replay.
+      if (carryDragPlacement && !replayCutoffRef.current) {
+        requestAnimationFrame(() => {
+          try {
+            const m = measureViewLockRef.current?.(chartRef.current, filteredBars)
+            if (!m || m.anchorFrac == null || !(m.width > 0)) return
+            const prev = userLockedViewRef.current || {}
+            userViewLockedRef.current = true
+            userLockedViewRef.current = {
+              ...prev,               // keep any vertical lock (top/bottom/vLocked)
+              anchorFrac: m.anchorFrac,
+              width: m.width,
+              tf: resolvedTf,        // width is in bars → must not apply on another tf
+              hLocked: true,
+            }
+            persistViewLock()        // no-ops when viewLockKey unset; survives refresh on /charts
+          } catch { /* noop */ }
+        })
+      }
     } catch { /* noop */ }
   }
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))

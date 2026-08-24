@@ -47,8 +47,8 @@ describe('planPlacement — general behavior', () => {
       { id: 't1', type: 'themes', x: 18, y: 10, w: 6, h: 10 },
     ]
     const { place, mutations } = planPlacement(layout, 'fundamentals', COLS, ROWS)
-    expect(place).toMatchObject({ x: 0, y: 14, w: 18, h: 6 }) // strip under the chart, chart width
-    expect(mutations).toEqual([{ id: 'c1', h: 14 }])          // chart shrinks to make room
+    expect(place).toMatchObject({ x: 0, y: 16, w: 18, h: 4 }) // short strip under the chart, chart width
+    expect(mutations).toEqual([{ id: 'c1', h: 16 }])          // chart shrinks to make room
   })
 
   test('fundamentals fills an existing empty gap below the chart without resizing', () => {
@@ -147,6 +147,28 @@ describe('nudgePlan — column-model directional move', () => {
     expect(place).toMatchObject({ x: 0, y: 0, w: 6, h: 20 })
     expect(mutations).toContainEqual({ id: 'c1', x: 6, w: 12 })
     expect(anchor).toEqual({ kind: 'col', gap: 0 })
+  })
+
+  // ── Fundamentals (minW 6) nudged RIGHT into its own column must NOT overlap the
+  //    rail: the carved column has to be at least the ghost's min width so clampPlace
+  //    can't widen it past the slot into the theme/watchlist rail. ──
+  test('fundamentals nudged RIGHT into its own column never overlaps the rail', () => {
+    const board = [
+      { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
+      { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 10 },
+      { id: 't1', type: 'themes', x: 18, y: 10, w: 6, h: 10 },
+    ]
+    // Fundamentals as it lands docked below the chart, then step RIGHT.
+    const docked = { type: 'fundamentals', place: { x: 0, y: 16, w: 18, h: 4 }, mutations: [{ id: 'c1', h: 16 }] }
+    const res = nudgePlan(board, docked, 'right', COLS, ROWS)
+    expect(res).not.toBeNull()
+    expect(res.place.x + res.place.w).toBeLessThanOrEqual(18)  // right edge butts the rail, never past it
+    expect(res.place.w).toBeGreaterThanOrEqual(6)              // shrank to its min width (6), not wider
+    for (const r of board.filter(w => w.id !== 'c1')) {        // no overlap with either rail widget
+      const g = res.place
+      const over = g.x < r.x + r.w && r.x < g.x + g.w && g.y < r.y + r.h && r.y < g.y + g.h
+      expect(over).toBe(false)
+    }
   })
 
   // ── Image 26: a panel stacked in the rail walks the RAIL's slots on UP/DOWN,
