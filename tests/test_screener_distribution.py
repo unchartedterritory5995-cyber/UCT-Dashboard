@@ -16,6 +16,7 @@ a threshold. `presets_deferred` stays TRUE — that is asserted in
 `test_screener_filters.py`, where the preset rails already live.
 """
 import importlib
+import re
 
 import pytest
 
@@ -389,6 +390,107 @@ def test_the_basis_states_both_floors_and_says_it_recommends_NOTHING(
             f"the band's own caption says {word!r} — that is an editorial "
             f"claim, and this payload exists precisely because we do not make "
             f"one: {basis['label']!r} / {basis['note']!r}")
+
+
+#: A census sentence, in the shapes the two stale copies actually took. Numbers
+#: elsewhere in these files are NOT the target — a percentile name, a floor, a
+#: row count in a cost note are all fine. What must never come back is a
+#: hand-typed tally of the module's own output sitting beside the code that
+#: produces it.
+_CENSUS = re.compile(
+    r"\b\d[\d,]*\s+(?:"
+    r"of\s+(?:those|\d[\d,]*)"           # "42 of 102" · "40 of those"
+    r"|(?:are\s+)?refused"                # "55 are refused"
+    r"|carrying"                          # "107 carrying an entry"
+    r"|emitting"                          # "40 emitting numbers"
+    r"|(?:numeric\s+)?range\s+columns?"     # "102 numeric range columns"
+    r"|range\s+controls?"                   # "109 range controls"
+    r")", re.I)
+
+
+def _min_coverage_comment():
+    """The `#:` block documenting `MIN_COVERAGE`, walked back from the
+    ASSIGNMENT — never a line number, which is what drifted last time."""
+    import inspect
+    src = inspect.getsource(distribution).splitlines()
+    i = next(n for n, line in enumerate(src) if line.startswith("MIN_COVERAGE"))
+    block = []
+    n = i - 1
+    while n >= 0 and src[n].startswith("#:"):
+        block.append(src[n])
+        n -= 1
+    assert block, "MIN_COVERAGE lost its comment block — the probe reads nothing"
+    return "\n".join(reversed(block))
+
+
+def test_the_coverage_census_is_MEASURED_not_typed(tmp_path, monkeypatch):
+    """🔴 THE SIGNATURE DEFECT, IN A MODULE ABOUT MEASURED HONESTY.
+
+    "42 of 102 numeric range columns clear it, 55 are refused" sat beside
+    `MIN_COVERAGE`, and a SECOND count of the same quantity sat in
+    `filters.meta`'s docstring. Both hand-typed; one went stale inside the very
+    commit that moved the other. Correcting 55 to 62 would have re-armed it.
+
+    So the number lives in NO prose, and this rail is in two halves:
+
+    1. the recipe the comment now gives is EXECUTABLE and total — run it, and
+       every entry in the payload lands in exactly one bucket;
+    2. neither prose block carries a census literal any more, checked with a
+       two-sided control so a green result cannot mean the probe matches
+       nothing (or everything).
+    """
+    from collections import Counter
+
+    from api.services.screener import filters
+
+    _db(tmp_path, monkeypatch,
+        _rows(400,
+              # emits: 400 distinct values at full coverage
+              price=[float(i + 1) for i in range(400)],
+              # below_coverage_floor: 120 of 400 answer
+              dp_notional_1d=[float(i) if i < 120 else None for i in range(400)],
+              # binary: a yes/no flag
+              consecutive_up=[i % 2 for i in range(400)],
+              # below_min_non_null: too few values to BE a distribution
+              peg=[1.5 + i if i < 40 else None for i in range(400)]))
+
+    # ── 1 · the documented recipe, run verbatim ──
+    cols = distribution.distributions()["columns"]
+    census = Counter(b.get("refused", "emitted") for b in cols.values())
+
+    assert sum(census.values()) == len(cols), (
+        "the recipe is not total over the payload — an entry carried neither "
+        "percentiles nor a refusal, and any census taken with it under-counts")
+    assert census["emitted"] >= 1 and "price" in cols and "refused" not in cols["price"]
+    for reason in (distribution.REFUSED_COVERAGE, distribution.REFUSED_BINARY,
+                   distribution.REFUSED_MIN_NON_NULL, distribution.REFUSED_NO_DATA):
+        assert census[reason] >= 1, (
+            f"{reason} never occurred, so this fixture cannot show the census "
+            f"distinguishing kinds: {dict(census)}")
+
+    # ── 2 · and no prose restates it ──
+    prose = {"distribution.MIN_COVERAGE comment": _min_coverage_comment(),
+             "filters.meta docstring": filters.meta.__doc__ or ""}
+    for where, text in prose.items():
+        hit = _CENSUS.search(text)
+        assert hit is None, (
+            f"{where} carries a hand-typed census ({hit.group(0)!r}). It is a "
+            f"measurement of tonight's snapshot and it goes stale the next time "
+            f"a column lands — run the recipe beside MIN_COVERAGE instead")
+
+    # CONTROL, both directions. Without the first pair a deleted regex passes
+    # this test for every input; without the second it would fail the honest
+    # prose the module is required to keep.
+    for stale in ("42 of 102 numeric range columns clear it, 55 are refused",
+                  "109 range controls, 107 carrying an entry, 40 of those emitting"):
+        assert _CENSUS.search(stale), f"the probe cannot see {stale!r} — vacuous"
+    for honest in ("the 5th, 25th, 50th, 75th and 95th percentile of the symbols",
+                   "p5/p25/p50/p75/p95 for its column, WITH the coverage that "
+                   "produced them, refused outright below a stated floor",
+                   "Measured on a 3,714-row snapshot: the one-pass compute costs ~55 ms"):
+        assert not _CENSUS.search(honest), (
+            f"the probe flags honest prose {honest!r} — it would force the "
+            f"module to delete the measurements it is right to publish")
 
 
 # ─────────────────────────── the cache ──────────────────────────────────────

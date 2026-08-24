@@ -93,11 +93,28 @@ MIN_NON_NULL = 100
 #: 🔴 FLOOR TWO — a STRICT MAJORITY of the universe must have answered.
 #: Not a tuned number: below one half, the median of the answered rows is simply
 #: not the median of the universe, and no caption repairs that. Provider-gated
-#: columns are the case that matters — `dp_notional_1d` is non-null on the 13%
-#: of names that printed a dark-pool block, and the "typical" block size among
-#: names that had one says nothing about the universe a member is screening.
-#: Measured on this box's snapshot: 42 of 102 numeric range columns clear it,
-#: 55 are refused (50 of those hold no data at all) and the rest fall between.
+#: columns are the case that matters — `dp_notional_1d` is non-null only on the
+#: minority of names that printed a dark-pool block, and the "typical" block size
+#: among names that had one says nothing about the universe a member is screening.
+#:
+#: ⛔⛔ NO CENSUS ON THESE LINES, AND NOT IN `filters.meta` EITHER. Two
+#: hand-typed sentences used to count the same quantity in those two places —
+#: how many numeric range columns clear this floor, how many are refused, how
+#: many emit numbers. They disagreed, because one of them went stale inside the
+#: very commit that moved the other, in the one module whose entire subject is
+#: that a coverage number never lies. There is now no copy to keep in sync,
+#: because the census is a MEASUREMENT of tonight's snapshot. Take it:
+#:
+#:     from collections import Counter
+#:     from api.services.screener import distribution
+#:     cols = distribution.distributions()["columns"]
+#:     Counter(b.get("refused", "emitted") for b in cols.values())
+#:
+#: The RULE is what belongs in prose, and it is one sentence: every entry either
+#: emits percentiles or names the floor it hit, so that `Counter` is total over
+#: the payload and always adds up. `tests/test_screener_distribution.py::
+#: test_the_coverage_census_is_MEASURED_not_typed` runs exactly that recipe and
+#: fails if either prose block re-arms the trap with a typed count.
 MIN_COVERAGE = 0.50
 
 #: 🔴 FLOOR THREE — the column must hold at least as many DISTINCT values as the

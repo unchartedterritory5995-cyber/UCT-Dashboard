@@ -768,8 +768,14 @@ def meta(user_id=None) -> dict:
     everything else gets one, and a column this pod's table has not been ALTERed
     to hold yet arrives REFUSED as `column_absent` rather than dropping out of
     the payload, where "not migrated" and "not applicable" look identical.
-    Measured on this box: 109 range controls, 107 carrying an entry, 40 of those
-    emitting numbers.
+
+    ⛔⛔ AND NO COUNT OF ANY OF THAT HERE. How many range controls exist, how
+    many carry an entry and how many emit numbers is a measurement of tonight's
+    snapshot. A copy of it lived in this docstring and another in
+    `distribution.MIN_COVERAGE`'s comment — two hand-typed authorities over one
+    value, which is this repo's most repeated defect and which duly went stale
+    in the commit that moved one of them. The recipe for taking the measurement
+    is beside `MIN_COVERAGE`; read it there and run it.
     """
     from api.services.screener import distribution  # noqa: PLC0415 — lazy, as above
 
