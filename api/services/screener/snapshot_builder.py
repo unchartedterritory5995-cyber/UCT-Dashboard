@@ -256,22 +256,35 @@ def _refuse_contradictions(row, state):
         return
     if not fired:
         return
-    cap = state.setdefault("_cap", identity_row_cap())
     for ident in fired:
-        c = state.setdefault(ident.name, {"rows": 0, "withheld": 0,
-                                          "systemic": False,
-                                          "columns": list(ident.columns)})
-        c["rows"] += 1
-        if c["rows"] > cap:
-            if not c["systemic"]:
-                c["systemic"] = True
-                log.error("[screener] identity %s fired on more than %d rows — "
-                          "NOT withholding further; this is an upstream change, "
-                          "not %d bad rows", ident.name, cap, c["rows"])
-            continue
-        for col in ident.columns:
-            row[col] = None
-        c["withheld"] += 1
+        _withhold(row, state, ident.name, ident.columns)
+
+
+def _withhold(row, state, name, columns) -> bool:
+    """Blank ``columns`` on ``row``, counted under ``name``, under the cap.
+
+    ⛔ ONE PLACE, because there are now two refusals that mean the same thing —
+    the cross-column identities and the self-contradicting price series — and
+    two copies of a cap is two caps that drift.
+    """
+    if state is None:
+        return False
+    cap = state.setdefault("_cap", identity_row_cap())
+    c = state.setdefault(name, {"rows": 0, "withheld": 0, "systemic": False,
+                                "columns": sorted(columns)})
+    c["rows"] += 1
+    c["columns"] = sorted(set(c["columns"]) | set(columns))
+    if c["rows"] > cap:
+        if not c["systemic"]:
+            c["systemic"] = True
+            log.error("[screener] %s fired on more than %d rows — NOT "
+                      "withholding further; this is an upstream change, not "
+                      "%d bad rows", name, cap, c["rows"])
+        return False
+    for col in columns:
+        row[col] = None
+    c["withheld"] += 1
+    return True
 
 
 def rs_fields(rs_row) -> dict:
@@ -456,6 +469,20 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         # row still says which session its bars came from — a row that cannot
         # date itself is the one shape no downstream label can rescue.
         row["bars_asof"] = _asof_of(bars)
+        # 🔴 A SERIES THAT CONTRADICTS ITSELF POISONS EVERY WINDOW OVER
+        # IT — see `technicals.series_contradicts_itself` for the measurement
+        # and for why the test is a direction REVERSAL rather than a seam
+        # count. This is the audit addendum's honest interim: withheld and
+        # counted, never published. It is counted in the SAME receipt as the
+        # identity refusals because it is the same statement — "this value
+        # contradicts something we also hold" — just within one column's own
+        # history instead of across two columns.
+        _seam_cols = _step("bars_seam_scan",
+                           lambda: {"c": technicals.seam_withheld_columns(bars)}
+                           ).get("c") or set()
+        if _seam_cols:
+            _withhold(row, identity_state, "series_contradicts_itself",
+                      sorted(_seam_cols))
 
     # How old this row's price is, decided ONCE and read by every cross-clock
     # derivation below. See the module-level block above for what this does and

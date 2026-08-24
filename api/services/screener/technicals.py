@@ -246,6 +246,163 @@ def ath_fields(all_bars: list[dict]) -> dict:
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  A series that contradicts itself
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 🔴 ONE UPSTREAM DEFECT REPORTED THREE TIMES AS THREE COLUMN BUGS. The
+# 2026-08-23 audit's flow lane reported `dp_level_dist_pct` WRONG on MNST
+# (close $47.79 against a nearest dark-pool level of $95.76 → 100.38%) and
+# blamed level staleness. The technicals lane independently reported MQ and
+# CLBK wrong on `chg_pct_1y`, `pct_vs_sma50/200` and `dist_52w_high/low`. Same
+# cause, and it is in neither column: **`bars.db` is interleaving
+# split-adjusted and unadjusted rows for a handful of symbols.**
+#
+# MNST crosses the ~$95/~$47 boundary SEVEN TIMES in eleven weeks, alternating
+# almost exactly reciprocally — 0.489, 1.956, 0.493, 1.941, 0.498, 1.919,
+# 0.504. ⭐ A real split happens ONCE AND STAYS. A series that leaves a price
+# regime and comes back has not had a corporate action, it has had two
+# different answers merged into one table.
+#
+# Every window statistic over such a series is computed ACROSS BOTH REGIMES,
+# which is why one corruption surfaced as six wrong columns simultaneously.
+#
+# ⛔ THE REPAIR IS NOT HERE, AND THIS IS NOT IT. `bars.db` owns the value;
+# `bars_reconciliation.py` owns the repair. ⚠️ MEASURED 2026-08-24:
+# `RECONCILE_ENABLED` is NOT set on either `web` or `flow-worker`, and the code
+# default is ON (`os.environ.get("RECONCILE_ENABLED", "1") != "0"`, default-on
+# since 2026-05-30) — **so reconciliation has been running the whole time and
+# these six symbols are still interleaved.** That is a finding, not a to-do
+# closed: the upstream fix does not currently cover this shape. ⛔ And do NOT
+# hand-repair `bars.db` — that is how it was emptied on 2026-08-10.
+#
+# What this module owes a member in the meantime is the honest interim the
+# audit's addendum asked for: a symbol whose own series contradicts itself has
+# its window statistics WITHHELD AND COUNTED, not published.
+
+#: Day-over-day close ratios outside this band are a "seam". Wide on purpose:
+#: the band has to clear an ordinary limit-down/limit-up day so that real
+#: volatility is not read as corruption. These are the audit's own bounds.
+_SEAM_LO, _SEAM_HI = 0.70, 1.42
+
+#: A "round trip": two seams close together whose ratios multiply back to ~1 —
+#: the series left a price regime and came back. ⛔ THE GAP IS SMALL ON
+#: PURPOSE. Over a 400-bar window a biotech will fall 50% on a failed readout
+#: and double a year later, and that is a market, not a merge.
+_ROUND_TRIP_GAP, _ROUND_TRIP_TOL = 5, 0.15
+
+#: A single seam this large is not a price move at anyone's definition — it is
+#: an adjustment factor appearing and disappearing.
+_EXTREME_RATIO = 5.0
+
+
+def _seam_ratios(bars):
+    """``[(index, ratio), …]`` for each day-over-day close jump out of band."""
+    out = []
+    for i in range(1, len(bars)):
+        prev, cur = bars[i - 1].get("c"), bars[i].get("c")
+        if not prev or not cur or prev <= 0:
+            continue
+        r = cur / prev
+        if r < _SEAM_LO or r > _SEAM_HI:
+            out.append((i, r))
+    return out
+
+
+def _round_trips(seams):
+    """Seam pairs that leave a price regime and return within a few bars."""
+    return [(i, j, ri, rj)
+            for a, (i, ri) in enumerate(seams)
+            for (j, rj) in seams[a + 1:]
+            if j - i <= _ROUND_TRIP_GAP and abs(ri * rj - 1.0) <= _ROUND_TRIP_TOL]
+
+
+def series_contradicts_itself(bars):
+    """``(is_interleaved, bars_since_the_newest_offending_seam)``.
+
+    ⭐ THE TEST IS A REPEATED ROUND TRIP, AND GETTING HERE TOOK THREE TRIES.
+    Each rejected rule is recorded because each is the obvious one:
+
+      1. ``len(seams) >= 2`` — the audit's own shape, measured over its own
+         eleven-week window. Over the 400 bars this module is actually handed
+         it fires on **81 of 3,711 symbols (2.18%)**, and the list is a
+         who's-who of trial-readout biotech — ABVX, CMPS, EDIT, QURE, WVE.
+         Those are markets, not merges.
+      2. ``>= 2 seams that reverse direction`` — same problem. Nineteen months
+         is long enough for any volatile small cap to move hard both ways.
+      3. **One** near-reciprocal round trip — 12 symbols, and the shape is
+         indistinguishable from a real crash-and-rebound (YDES −56% then +136%
+         the next session).
+
+    What survives is a series that round-trips REPEATEDLY, or once by a factor
+    no market produces:
+
+        MNST  7 seams, 7 round trips   0.489 1.956 0.493 1.941 0.498 1.919 …
+        VCX   8 seams, 8 round trips   1.545 1.630 1.642 0.689 0.660 0.642 …
+        RGC  15 seams, 2 round trips
+        BYND  7 seams, 1 round trip at 25.967 × 0.034 — a ~26× factor
+              appearing and disappearing
+
+    **4 of 3,711 symbols (0.11%).** A real split happens ONCE AND STAYS; a
+    series that leaves a price regime and comes back twice has two different
+    answers merged into one table.
+
+    ⚠️ WHAT THIS DELIBERATELY DOES NOT CATCH: a SINGLE round trip. NMRA, YDES,
+    STRO and PLYX each show one, and each is equally consistent with a genuine
+    collapse-and-bounce. They remain candidates, and the honest place for a
+    candidate is a receipt somebody reads, not a rule that blanks columns.
+    """
+    seams = _seam_ratios(bars)
+    trips = _round_trips(seams)
+    if not trips:
+        return False, None
+    repeated = len(trips) >= 2
+    extreme = any(max(ri, rj) >= _EXTREME_RATIO for _i, _j, ri, rj in trips)
+    if not (repeated or extreme):
+        return False, None
+    newest = max(j for _i, j, _ri, _rj in trips)
+    return True, (len(bars) - 1) - newest
+
+
+#: column -> how many trailing bars its value READS. A statistic is withheld
+#: when the newest seam falls inside its own window; one that does not reach
+#: back that far is measured entirely within a single price regime and is fine.
+#: ⛔ `rsi14` and `pct_vs_ema20` carry the WHOLE series because both are
+#: seeded-and-smoothed over everything they are handed, not over a fixed window.
+_WINDOW_BARS = {
+    "chg_pct_1d": 2, "gap_pct": 2, "prev_day_open": 2, "prev_day_high": 2,
+    "prev_day_low": 2, "prev_day_close": 2,
+    "adr_pct_1w": 6, "chg_pct_1w": 6,
+    "atr_pct": 15, "vol_ratio": 31,
+    "adr_pct": 21, "dist_20d_high_pct": 20, "dist_20d_low_pct": 20,
+    "pct_vs_sma20": 20, "chg_pct_1m": 22,
+    "pct_vs_sma50": 50, "above_50sma": 50, "atr_ext_sma50": 50,
+    "pole_pct": 60,
+    "pct_vs_sma200": 200, "ma_stack": 200,
+    "dist_52w_high_pct": 252, "dist_52w_low_pct": 252, "new_52w_high": 252,
+    "chg_pct_ytd": 252, "chg_pct_1y": 253,
+    "rsi14": 10 ** 9, "pct_vs_ema20": 10 ** 9,
+    "dist_ath_pct": 10 ** 9, "new_ath": 10 ** 9,
+}
+
+#: Facts about ONE bar. They cannot span a seam, so they are never withheld —
+#: and they are listed rather than inferred so the rail below can prove that
+#: every column this module writes has been classified one way or the other.
+_SINGLE_BAR = {"price", "chg_from_open_pct"}
+
+
+def seam_withheld_columns(bars) -> set:
+    """The columns whose window crosses a seam in a self-contradicting series.
+
+    Empty for every ordinary symbol — this returns early on the seam count, so
+    the cost on 3,469 of 3,475 tickers is one pass over the closes.
+    """
+    interleaved, since = series_contradicts_itself(bars)
+    if not interleaved:
+        return set()
+    return {c for c, w in _WINDOW_BARS.items() if w > since}
+
+
 def compute_technicals(bars: list[dict]) -> dict:
     out = {k: None for k in (
         "chg_pct_1d", "chg_pct_1w", "chg_pct_1m", "rsi14", "pct_vs_sma20",
