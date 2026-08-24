@@ -33,7 +33,10 @@
      logo to the middle of the expanded rail — visibly right of the icons below).
      padding-left centers the 46px logo on the ~27px nav-icon center. */
   align-self: stretch;
-  padding-left: 5px;
+  /* 9px centers the 46px logo in the collapsed 60px rail (visually a touch right
+     to offset the compass mark's left-weighted glyph); still reads aligned with
+     the nav icons when expanded. */
+  padding-left: 9px;
   margin-bottom: 24px;
   text-decoration: none;
   cursor: pointer;
