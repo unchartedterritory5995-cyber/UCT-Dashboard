@@ -405,7 +405,7 @@ def test_the_census_counts_coverage_from_artifacts_not_from_its_own_queue(monkey
     monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
     monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
     # THE ORIGINAL BUG'S SIGNATURE: plenty submitted, nothing on disk.
-    monkeypatch.setattr(w, "is_covered", lambda sym: False)
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: False)
     out = w._run("preview", lambda *a, **k: None, reported=False)
     assert out["submitted"] > 0, "the pass believes it is working…"
     assert out["covered"] == 0, "…and the artifacts say otherwise"
@@ -421,7 +421,7 @@ def test_a_broken_warm_says_so_at_warning(monkeypatch, fake_calendar, caplog):
     monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
     monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
     monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
-    monkeypatch.setattr(w, "is_covered", lambda sym: False)
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: False)
     with caplog.at_level(logging.WARNING, logger="api.services.earnings_preview_warm"):
         w._run("preview", lambda *a, **k: None, reported=False)
     assert any("COVERAGE" in r.message for r in caplog.records), \
@@ -439,7 +439,7 @@ def test_a_fully_covered_board_stays_silent(monkeypatch, fake_calendar, caplog):
     monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
     monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
     monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
-    monkeypatch.setattr(w, "is_covered", lambda sym: True)
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: True)
     with caplog.at_level(logging.WARNING, logger="api.services.earnings_preview_warm"):
         out = w._run("preview", lambda *a, **k: None, reported=False)
     assert out["covered"] == out["board"]
@@ -464,3 +464,51 @@ def test_is_covered_requires_all_three_artifacts(monkeypatch):
     monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
     monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
     assert w.is_covered("X") is False, "no brief → not an instant click"
+
+
+def test_coverage_does_not_demand_a_brief_the_pass_never_promised(monkeypatch, fake_calendar):
+    """THE GUARD'S OWN BUG, caught by watching it fire (2026-08-24).
+
+    The board is the COMPANION horizon (4 weeks); briefs are warmed for 2, and
+    never for a fund. Requiring a brief from every board name made ~100 of them
+    permanently uncoverable — `board=307 covered=206 companions=0` — so the
+    floor warned on every pass forever. An alarm that always cries is one
+    people mute, and then a real outage hides behind it."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    from api.services.stock_brief import store as sb_store
+    from api.services.news_catalysts import service as nc
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    # Company pages exist for EVERY name; a brief exists for NONE.
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    out = w._run("preview", lambda *a, **k: None, reported=False)
+    # The brief-eligible names are genuinely missing their brief and must count
+    # as uncovered; the companion-only names must NOT be penalised for a brief
+    # nobody promised them.
+    assert 0 < out["covered"] < out["board"]
+    covered_syms = out["board"] - out["covered"]
+    assert covered_syms == out["candidates"], \
+        "exactly the brief-eligible names should be short a brief"
+
+
+def test_a_companion_only_name_is_covered_without_a_brief(monkeypatch):
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    from api.services.stock_brief import store as sb_store
+    from api.services.news_catalysts import service as nc
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    assert w.is_covered("X", want_brief=False) is True
+    assert w.is_covered("X", want_brief=True) is False
+    # …and the company pages are still required either way.
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: False)
+    assert w.is_covered("X", want_brief=False) is False
