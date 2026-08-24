@@ -309,12 +309,6 @@ function clampWidgetsToRows(widgets) {
   })
 }
 
-// Bounded drag-move resolve. The moved widget keeps the slot the user dropped it on
-// (clamped inside the grid); every OTHER widget it collides with relocates to the
-// nearest free vertical space in its own column band, ALWAYS within the fixed rows —
-// so a displaced widget can never be pushed off the bottom of the visible canvas.
-// Returns a NON-overlapping, in-bounds list, so RGL (preventCollision off) has nothing
-// left to shove. `rect` is the dropped {x,y,w,h}; `movedId` the dragged widget's id.
 function clampOne(w, cols, rows) {
   const def = WIDGET_DEFAULTS[w.type] || {}
   const minH = def.minH || 3, minW = def.minW || 2
@@ -324,29 +318,63 @@ function clampOne(w, cols, rows) {
   let h = Math.max(minH, Math.min(w.h | 0, rows)); if (y + h > rows) h = rows - y
   return { ...w, x, y, w: cw, h }
 }
-function resolveMoveWithinBounds(widgets, movedId, rect, cols = GRID_COLS, rows = FIXED_ROWS) {
-  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
+// On-DROP re-pack (the grid uses allowOverlap so NOTHING moves while you drag — the
+// board only rearranges once, here, when you let go). The moved widget keeps exactly
+// the slot it was dropped on (clamped inside the grid). Every OTHER widget is then
+// re-tiled around it, BIGGEST-first — so the large chart claims the big open region
+// and small panels tuck into the leftover corners. Each keeps its native size when it
+// fits; otherwise it shrinks (height preserved, width first) to the largest size that
+// does, landing as close to where it already was as possible. Every widget is placed
+// STRICTLY inside the grid (a full 2-D fit test, not a vertical push), so a displaced
+// widget can never overlap the newcomer or shoot off the visible canvas. `rect` is the
+// dropped {x,y,w,h}; `movedId` the dragged widget's id.
+export function repackAroundMoved(widgets, movedId, rect, cols = GRID_COLS, rows = FIXED_ROWS) {
   const moved0 = widgets.find(w => w.id === movedId)
   if (!moved0) return widgets
   const moved = clampOne({ ...moved0, x: rect.x, y: rect.y, w: rect.w, h: rect.h }, cols, rows)
-  const placed = [moved]
-  // Nearest free y (to the widget's own y) in its x-band that keeps it fully in bounds.
-  const freeY = (item) => {
-    const cands = []
-    for (let y = 0; y <= rows - item.h; y++) cands.push(y)
-    cands.sort((p, q) => Math.abs(p - item.y) - Math.abs(q - item.y) || p - q)
-    for (const y of cands) if (!placed.some(p => overlaps(p, { ...item, y }))) return y
-    return null
+
+  // Cell-occupancy grid. Seed it with the moved widget; everything else fits around it.
+  const occ = Array.from({ length: rows }, () => new Array(cols).fill(false))
+  const fill = (r) => {
+    for (let y = r.y; y < r.y + r.h && y < rows; y++)
+      for (let x = r.x; x < r.x + r.w && x < cols; x++) occ[y][x] = true
   }
-  const rest = widgets.filter(w => w.id !== movedId).map(w => clampOne(w, cols, rows)).sort((a, b) => (a.y - b.y) || (a.x - b.x))
+  const freeAt = (x, y, w, h) => {
+    if (x < 0 || y < 0 || x + w > cols || y + h > rows) return false
+    for (let yy = y; yy < y + h; yy++)
+      for (let xx = x; xx < x + w; xx++) if (occ[yy][xx]) return false
+    return true
+  }
+  fill(moved)
+
+  const rest = widgets.filter(w => w.id !== movedId).map(w => clampOne(w, cols, rows))
+  rest.sort((a, b) => (b.w * b.h) - (a.w * a.h) || (a.y - b.y) || (a.x - b.x))
+
+  const placed = [moved]
   for (const w of rest) {
-    let item = w
-    if (placed.some(p => overlaps(p, item))) {
-      const y = freeY(item)
-      // No full-height free slot in-bounds → pin to the bottom (still visible), never off-canvas.
-      item = { ...item, y: y != null ? y : Math.max(0, rows - item.h) }
+    const def = WIDGET_DEFAULTS[w.type] || {}
+    const minW = def.minW || 2, minH = def.minH || 3
+    let best = null
+    // Keep native size if it fits; otherwise shrink height LAST (a chart stays tall,
+    // narrowing first). Among the free spots at the chosen size, land nearest to where
+    // the widget already was so it doesn't teleport across the board.
+    for (let th = Math.min(w.h, rows); th >= minH && !best; th--) {
+      for (let tw = Math.min(w.w, cols); tw >= minW && !best; tw--) {
+        let spot = null
+        for (let y = 0; y <= rows - th; y++) {
+          for (let x = 0; x <= cols - tw; x++) {
+            if (!freeAt(x, y, tw, th)) continue
+            const d = Math.abs(x - w.x) + Math.abs(y - w.y)
+            if (!spot || d < spot.d) spot = { x, y, d }
+          }
+        }
+        if (spot) best = { x: spot.x, y: spot.y, w: tw, h: th }
+      }
     }
-    placed.push(item)
+    if (!best) best = { x: 0, y: Math.max(0, rows - minH), w: minW, h: minH } // grid full — unreachable with a handful of widgets
+    fill(best)
+    placed.push({ ...w, x: best.x, y: best.y, w: best.w, h: best.h })
   }
   const byId = Object.fromEntries(placed.map(p => [p.id, p]))
   return widgets.map(w => byId[w.id] || w)
@@ -873,12 +901,11 @@ export default function ChartsWorkspace() {
 
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
-  // Drag-move + programmatic changes. RGL never reports overlaps here (drag-move is
-  // preventCollision-guarded, resize is our own overlay), so a straight merge +
-  // bounds-clamp is all this needs.
-  // Pre-drag snapshot + a one-shot guard so RGL's own onLayoutChange (fired right
-  // after onDragStop with its pushed, possibly-off-screen positions) is ignored — our
-  // bounded resolve in handleDragStop is the authority for a drag-move.
+  // Drag-move. The grid runs with allowOverlap, so while the user drags NOTHING else
+  // moves — the board rearranges ONCE, on drop, via repackAroundMoved. We snapshot the
+  // layout at drag start (the pre-drag geometry is the authority — RGL's own overlapped
+  // end-state is discarded) and swallow the follow-up onLayoutChange with a one-shot
+  // guard so it can't re-introduce the overlap.
   const dragSnapshotRef = useRef(null)
   const skipLayoutChangeRef = useRef(false)
   const handleDragStart = useCallback(() => {
@@ -890,7 +917,7 @@ export default function ChartsWorkspace() {
     dragSnapshotRef.current = null
     if (!newItem) return
     const base = snap || layoutRef.current?.widgets || []
-    const resolved = resolveMoveWithinBounds(base, newItem.i, { x: newItem.x, y: newItem.y, w: newItem.w, h: newItem.h })
+    const resolved = repackAroundMoved(base, newItem.i, { x: newItem.x, y: newItem.y, w: newItem.w, h: newItem.h })
     skipLayoutChangeRef.current = true
     setLayout(prev => {
       const next = { ...prev, widgets: resolved }
@@ -1959,13 +1986,16 @@ export default function ChartsWorkspace() {
          widget from its top edge made it float back up to fill the space above —
          it wouldn't stay on the bottom half where the user put it. */
       compactType={null}
-      /* DRAG-move AUTO-ADJUST: dropping a widget onto occupied space PUSHES the
-         widgets in the way down to make room (RGL moveElement), instead of the old
-         preventCollision=true behavior where the drop was refused and the widget
-         snapped back. `clampWidgetsToRows` in handleLayoutChange keeps any pushed
-         widget on-screen (never below the fixed 20 rows). Resize yield is still our
-         custom overlay; make-room-on-ADD is still handleAddWidget/planPlacement. */
+      /* DRAG-move: while dragging, NOTHING else moves (allowOverlap lets the dragged
+         widget float freely over the others). The board rearranges exactly ONCE, on
+         drop, in handleDragStop → repackAroundMoved: the dropped widget keeps its slot
+         and every other widget re-tiles around it strictly inside the grid, so nothing
+         can be shoved off the bottom. allowOverlap is gated on onDragStop so ONLY the
+         main board (which has the repack) gets it; pop-out boards keep the default
+         push. Resize yield is still our custom overlay; make-room-on-ADD is still
+         handleAddWidget/planPlacement. */
       preventCollision={false}
+      allowOverlap={!!h.onDragStop}
       margin={[gridGap, gridGap]}
       resizeHandles={['nw', 'ne', 'sw', 'se']}
       /* Position grid items with top/left, NOT transform: translate().
