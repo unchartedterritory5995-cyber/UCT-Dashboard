@@ -19,7 +19,7 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
-import { planPlacement, reflowOnClose } from './placement/place'
+import { planPlacement, nudgePlan } from './placement/place'
 import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
@@ -996,16 +996,11 @@ export default function ChartsWorkspace() {
     window.addEventListener('pointerup', onUp)
   }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
 
-  const handleRemoveWidget = useCallback((id, { reflow = true } = {}) => {
+  const handleRemoveWidget = useCallback((id) => {
     setLayout(prev => {
-      // Close reflow (Phase 3): the widget adjacent to the closed one in the same
-      // column band grows to reclaim the freed space (symmetric inverse of add).
-      // Skipped for floating/popped removals — their grid slot is a reserved parking
-      // spot, not a real neighbor, so reflowing off it would grow the wrong widget.
-      const widgets = (SMART_PLACEMENT && reflow)
-        ? reflowOnClose(prev.widgets, id)
-        : prev.widgets.filter(w => w.id !== id)
-      const next = { ...prev, widgets }
+      // Delete removes ONLY the closed widget — no reflow. Every other widget keeps
+      // its exact position/size (owner decision); the freed space is simply left blank.
+      const next = { ...prev, widgets: prev.widgets.filter(w => w.id !== id) }
       scheduleSave(next)
       return next
     })
@@ -1317,6 +1312,15 @@ export default function ChartsWorkspace() {
     setPendingAdd(null)
   }, [groupSyms, scheduleSave])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
+  // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
+  // its place + the widgets it displaces) before the user commits with Place.
+  const handleNudge = useCallback((dir) => {
+    setPendingAdd(cur => {
+      if (!cur) return cur
+      const next = nudgePlan(layoutRef.current?.widgets || [], cur, dir, COLS.lg, FIXED_ROWS)
+      return next ? { ...cur, place: next.place, mutations: next.mutations } : cur
+    })
+  }, [])
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -1643,7 +1647,7 @@ export default function ChartsWorkspace() {
   // Closing a widget from inside its own window should delete it, not dock it.
   const handleRemovePoppedWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => prev.filter(x => x !== id))
-    handleRemoveWidget(id, { reflow: false })
+    handleRemoveWidget(id)
   }, [handleRemoveWidget])
 
   // ── In-canvas float: pop a widget onto another widget, dock it back, move it
@@ -1663,7 +1667,7 @@ export default function ChartsWorkspace() {
   const handleRemoveFloatWidget = useCallback((id) => {
     setFloatingWidgetIds(prev => prev.filter(x => x !== id))
     clearFloatSpawn(id)
-    handleRemoveWidget(id, { reflow: false })
+    handleRemoveWidget(id)
   }, [handleRemoveWidget, clearFloatSpawn])
   const handleFloatWidgetToTab = useCallback((floatId, targetId) => {
     if (floatId === targetId) return
@@ -2108,6 +2112,13 @@ export default function ChartsWorkspace() {
               label={HEADER_LABELS[pendingAdd.type] || 'Widget'}
               onConfirm={commitPendingAdd}
               onCancel={cancelPendingAdd}
+              onNudge={handleNudge}
+              arrows={{
+                up: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'up', COLS.lg, FIXED_ROWS),
+                down: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'down', COLS.lg, FIXED_ROWS),
+                left: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'left', COLS.lg, FIXED_ROWS),
+                right: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'right', COLS.lg, FIXED_ROWS),
+              }}
             />
           )}
           {/* Merged mode: draggable seams between adjacent widgets (TC2000-style

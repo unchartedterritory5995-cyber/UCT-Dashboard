@@ -35,7 +35,7 @@ function toPx(cell, m, rowHeight) {
 
 export default function GhostPreview({
   bodyRef, widgets, plan, rowHeight, gap, cols, label,
-  onConfirm, onCancel,
+  onConfirm, onCancel, onNudge, arrows,
 }) {
   // Re-render on window resize so the measured geometry stays current while the
   // preview is open. The grid element is always mounted by the time a ghost shows,
@@ -73,9 +73,10 @@ export default function GhostPreview({
     return { id: mut.id, ...toPx(geom, metrics, rowHeight) }
   }).filter(Boolean) : []
 
-  // Confirm bar: centered over the ghost when measured, else pinned near the top.
+  // Confirm bar: centered IN the ghost (vertically too) so it clears the edge arrows;
+  // pinned near the top when geometry is unmeasurable.
   const bar = ghost
-    ? { top: Math.max((metrics.originY || 0) + metrics.gap, ghost.top + 8), left: ghost.left + ghost.width / 2, transform: 'translateX(-50%)' }
+    ? { top: ghost.top + ghost.height / 2 - 16, left: ghost.left + ghost.width / 2, transform: 'translateX(-50%)' }
     : { top: 12, left: '50%', transform: 'translateX(-50%)' }
 
   return (
@@ -122,6 +123,38 @@ export default function GhostPreview({
           </div>
         </div>
       )}
+
+      {/* Directional move arrows — one per edge, shown only where the move is possible.
+          Siblings of the ghost (not children) so a click nudges rather than places. */}
+      {ghost && onNudge && arrows && (() => {
+        const SZ = 26
+        const mkBtn = (dir, glyph, style) => arrows[dir] ? (
+          <button
+            key={dir}
+            type="button"
+            title={`Move ${dir}`}
+            onClick={(e) => { e.stopPropagation(); onNudge(dir) }}
+            style={{
+              position: 'absolute', width: SZ, height: SZ, ...style,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(18,18,20,0.92)', color: LIGHT,
+              border: `1px solid ${LIGHT}`, borderRadius: '50%',
+              fontSize: 13, lineHeight: 1, cursor: 'pointer', pointerEvents: 'auto',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+            }}
+          >{glyph}</button>
+        ) : null
+        const cx = ghost.left + ghost.width / 2 - SZ / 2
+        const cy = ghost.top + ghost.height / 2 - SZ / 2
+        return (
+          <>
+            {mkBtn('up', '▲', { left: cx, top: ghost.top + 6 })}
+            {mkBtn('down', '▼', { left: cx, top: ghost.top + ghost.height - SZ - 6 })}
+            {mkBtn('left', '◀', { left: ghost.left + 6, top: cy })}
+            {mkBtn('right', '▶', { left: ghost.left + ghost.width - SZ - 6, top: cy })}
+          </>
+        )
+      })()}
 
       {/* Confirm / cancel bar. */}
       <div

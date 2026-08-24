@@ -197,30 +197,75 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
   return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
 }
 
-// Close reflow — the symmetric inverse of add. When a widget is removed, the
-// widget vertically adjacent to it WITHIN THE SAME COLUMN BAND reclaims the freed
-// space (the theme tracker grows to fill the rail when the breadth panel below it
-// closes; a split chart's sibling grows back to full height). Returns the new
-// widgets array (removed widget gone, neighbor grown) — or just the removed-widget
-// filtered list when nothing sits flush against the vacated slot.
-export function reflowOnClose(widgets, removedId) {
-  const removed = (widgets || []).find(w => w.id === removedId)
-  const rest = (widgets || []).filter(w => w.id !== removedId)
-  if (!removed) return rest
-  // Same column band: members whose x-span substantially overlaps the removed one.
-  const band = rest.filter(w => overlapRatio(w, removed) >= 0.5)
-  if (!band.length) return rest
-  const rTop = removed.y, rBot = removed.y + removed.h
-  // Prefer the widget directly ABOVE (grows downward); else the one directly BELOW
-  // (grows upward). "Directly" = its edge is flush against the vacated slot.
-  const above = band.filter(w => w.y + w.h <= rTop).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0]
-  const below = band.filter(w => w.y >= rBot).sort((a, b) => a.y - b.y)[0]
-  let grown = null
-  if (above && above.y + above.h === rTop) {
-    grown = { id: above.id, patch: { h: above.h + removed.h } }
-  } else if (below && below.y === rBot) {
-    grown = { id: below.id, patch: { y: below.y - removed.h, h: below.h + removed.h } }
+// ── Ghost-mode directional nudge ─────────────────────────────────────────────
+// While the placement ghost is open, arrows let the user move the proposed widget
+// around the board before committing. Each nudge returns a fresh { place, mutations }
+// (or null when the move isn't possible → that arrow is hidden).
+
+function applyMutations(orig, muts) {
+  const byId = Object.fromEntries((muts || []).map(m => [m.id, m]))
+  return (orig || []).map(w => (byId[w.id] ? { ...w, ...byId[w.id] } : { ...w }))
+}
+
+// Complete geometry diff of `proposed` vs `orig` → the mutation list for widgets
+// whose x/y/w/h changed (the ghost itself is not a widget and isn't included).
+function diffMutations(orig, proposed) {
+  const pById = Object.fromEntries(proposed.map(w => [w.id, w]))
+  const out = []
+  for (const o of orig || []) {
+    const p = pById[o.id]
+    if (!p) continue
+    const patch = {}
+    for (const k of ['x', 'y', 'w', 'h']) if ((p[k] | 0) !== (o[k] | 0)) patch[k] = p[k]
+    if (Object.keys(patch).length) out.push({ id: o.id, ...patch })
   }
-  if (!grown) return rest
-  return rest.map(w => (w.id === grown.id ? { ...w, ...grown.patch } : w))
+  return out
+}
+
+// dir ∈ 'up' | 'down' | 'left' | 'right'. `cur` = the current { place, mutations }.
+// up/down swap the ghost with the flush neighbor in its column band; left/right carve
+// a fresh full-height rail at that edge of the widest chart (recomputed from original,
+// discarding prior displacement). Returns { place, mutations } or null.
+export function nudgePlan(widgets, cur, dir) {
+  const orig = (widgets || []).filter(w => w && Number.isFinite(w.x) && Number.isFinite(w.y))
+  const g = cur?.place
+  if (!g) return null
+
+  if (dir === 'up' || dir === 'down') {
+    const proposed = applyMutations(orig, cur.mutations)
+    const band = proposed.filter(w => overlapRatio(w, g) >= 0.5)
+    if (dir === 'down') {
+      const below = band.find(w => (w.y | 0) === g.y + g.h)
+      if (!below) return null
+      below.y = g.y                                   // neighbor rises into the ghost's slot
+      const place = { ...g, y: g.y + below.h }        // ghost drops below it
+      return { place, mutations: diffMutations(orig, proposed) }
+    }
+    const above = band.filter(w => (w.y | 0) + (w.h | 0) === g.y).sort((a, b) => b.y - a.y)[0]
+    if (!above) return null
+    const place = { ...g, y: above.y }                // ghost rises to the neighbor's slot
+    above.y = above.y + g.h                           // neighbor drops below the ghost
+    return { place, mutations: diffMutations(orig, proposed) }
+  }
+
+  // left / right — carve a full-height rail at that edge of the widest chart.
+  const charts = orig.filter(w => familyOf(w.type) === 'chart')
+  const target = widest(charts.length ? charts : orig)
+  if (!target) return null
+  const targetMinW = defOf(target.type).minW || 2
+  const railW = Math.max(1, Math.min(g.w, target.w - targetMinW))
+  if (target.w - railW < targetMinW) return null
+  const proposed = orig.map(w => ({ ...w }))
+  const t = proposed.find(w => w.id === target.id)
+  let place
+  if (dir === 'left') {
+    place = { x: t.x, y: t.y, w: railW, h: t.h }
+    t.x = t.x + railW; t.w = t.w - railW
+  } else {
+    t.w = t.w - railW
+    place = { x: t.x + t.w, y: t.y, w: railW, h: t.h }
+  }
+  // Don't offer a move that lands the ghost where it already sits.
+  if (place.x === g.x && place.y === g.y && place.w === g.w && place.h === g.h) return null
+  return { place, mutations: diffMutations(orig, proposed) }
 }

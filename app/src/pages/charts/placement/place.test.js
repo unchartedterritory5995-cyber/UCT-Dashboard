@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { planPlacement, reflowOnClose } from './place'
+import { planPlacement, nudgePlan } from './place'
 
 const COLS = 24
 const ROWS = 20
@@ -103,55 +103,50 @@ describe('planPlacement — general behavior', () => {
 
 })
 
-describe('reflowOnClose — close reflow (symmetric inverse of add)', () => {
-  // Inverse of img 3: closing the breadth panel → the theme tracker above it grows
-  // to reclaim the full rail.
-  test('rail panel grows to fill the space a closed panel leaves', () => {
+describe('nudgePlan — ghost-mode directional move', () => {
+  // A right rail: theme (top) + calendar (bottom), ghost currently the theme slot.
+  const RAIL = [
+    { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
+    { id: 'cal', type: 'calendar', x: 18, y: 10, w: 6, h: 10 },
+  ]
+  // Ghost occupies the TOP half of the rail; calendar is flush below it.
+  const ghostTop = { place: { x: 18, y: 0, w: 6, h: 10 }, mutations: [] }
+
+  test('DOWN swaps the ghost below the flush neighbor, neighbor rises', () => {
+    const { place, mutations } = nudgePlan(RAIL, ghostTop, 'down', COLS, ROWS)
+    expect(place).toMatchObject({ x: 18, y: 10, w: 6, h: 10 }) // ghost now bottom
+    expect(mutations).toEqual([{ id: 'cal', y: 0 }])           // calendar rose to top
+  })
+
+  test('DOWN with nothing below returns null (arrow hidden)', () => {
+    const ghostBottom = { place: { x: 18, y: 10, w: 6, h: 10 }, mutations: [] }
+    expect(nudgePlan(RAIL, ghostBottom, 'down', COLS, ROWS)).toBeNull()
+  })
+
+  test('UP swaps the ghost above the flush neighbor', () => {
+    // ghost bottom, calendar top
     const layout = [
       { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
-      { id: 't1', type: 'themes', x: 18, y: 0, w: 6, h: 10 },
-      { id: 'b1', type: 'breadth', x: 18, y: 10, w: 6, h: 10 },
+      { id: 'cal', type: 'calendar', x: 18, y: 0, w: 6, h: 10 },
     ]
-    const next = reflowOnClose(layout, 'b1')
-    expect(next.find(w => w.id === 'b1')).toBeUndefined()
-    expect(next.find(w => w.id === 't1')).toMatchObject({ x: 18, y: 0, w: 6, h: 20 })
-    expect(next.find(w => w.id === 'c1')).toMatchObject({ h: 20 }) // untouched
+    const ghostBottom = { place: { x: 18, y: 10, w: 6, h: 10 }, mutations: [] }
+    const { place, mutations } = nudgePlan(layout, ghostBottom, 'up', COLS, ROWS)
+    expect(place).toMatchObject({ x: 18, y: 0, w: 6, h: 10 })  // ghost rose to top
+    expect(mutations).toEqual([{ id: 'cal', y: 10 }])          // calendar dropped
   })
 
-  // Inverse of img 6: closing the bottom chart → the top chart grows back to full height.
-  test('a split chart sibling grows back to full height (close bottom)', () => {
-    const layout = [
-      { id: 'a', type: 'chart', x: 0, y: 0, w: 18, h: 10 },
-      { id: 'b', type: 'chart', x: 0, y: 10, w: 18, h: 10 },
-    ]
-    const next = reflowOnClose(layout, 'b')
-    expect(next).toHaveLength(1)
-    expect(next[0]).toMatchObject({ id: 'a', x: 0, y: 0, w: 18, h: 20 })
+  test('LEFT carves a rail on the chart’s left edge; chart shifts right', () => {
+    const { place, mutations } = nudgePlan(RAIL, ghostTop, 'left', COLS, ROWS)
+    expect(place).toMatchObject({ x: 0, y: 0, w: 6, h: 20 })   // new left rail, full height
+    expect(mutations).toEqual([{ id: 'c1', x: 6, w: 12 }])     // chart shifted right + shrank
   })
 
-  test('closing the TOP of a stack pulls the survivor up to reclaim the space', () => {
-    const layout = [
-      { id: 'a', type: 'chart', x: 0, y: 0, w: 18, h: 10 },
-      { id: 'b', type: 'chart', x: 0, y: 10, w: 18, h: 10 },
-    ]
-    const next = reflowOnClose(layout, 'a')
-    expect(next).toHaveLength(1)
-    expect(next[0]).toMatchObject({ id: 'b', x: 0, y: 0, w: 18, h: 20 })
-  })
-
-  test('closing a lone widget leaves the rest untouched (nothing flush to reclaim)', () => {
-    const layout = [
-      { id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 },
-      { id: 't1', type: 'themes', x: 18, y: 0, w: 6, h: 10 },
-    ]
-    const next = reflowOnClose(layout, 't1')
-    expect(next).toHaveLength(1)
-    expect(next[0]).toMatchObject({ id: 'c1', x: 0, y: 0, w: 18, h: 20 }) // unchanged
-  })
-
-  test('a no-op close of an unknown id just returns the list', () => {
-    const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 }]
-    expect(reflowOnClose(layout, 'nope')).toHaveLength(1)
+  test('RIGHT carves a rail on the chart’s right edge; chart shrinks', () => {
+    const solo = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
+    const ghost = { place: { x: 0, y: 0, w: 6, h: 20 }, mutations: [{ id: 'c1', x: 6, w: 18 }] }
+    const { place, mutations } = nudgePlan(solo, ghost, 'right', COLS, ROWS)
+    expect(place).toMatchObject({ x: 18, y: 0, w: 6, h: 20 })  // rail on the far right
+    expect(mutations).toEqual([{ id: 'c1', w: 18 }])           // chart keeps x:0, shrinks
   })
 })
 
