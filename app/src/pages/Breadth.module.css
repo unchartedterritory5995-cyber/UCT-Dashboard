@@ -82,20 +82,28 @@
 }
 
 /* ── Table scroll container ─────────────────────────────────────────────────── */
+/* Full-bleed: the monitor grid meets the sidebar and the page edges rather than
+   floating as a rounded card. It escapes the page padding with negative margins
+   (like the header bar) and keeps only a top hairline as the seam under the
+   header — the dense grid gets every pixel of width and reads as one surface. */
 .tableWrap {
   overflow-x: auto;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: none;
+  border-top: 1px solid var(--header-line, var(--border));
+  border-radius: 0;
+  margin: 0 calc(-1 * var(--page-pad-x, 24px)) calc(-1 * var(--page-pad-top, 20px));
 }
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
 .table {
   border-collapse: separate;
   border-spacing: 0;
-  font-family: var(--font-mono);
+  /* Brand font, not mono — tabular-nums keeps the columns aligned. */
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   white-space: nowrap;
   width: max-content;
@@ -110,12 +118,13 @@
 
 /* ── Header cells ────────────────────────────────────────────────────────────── */
 .th {
-  padding: 7px 12px;
+  padding: 8px 12px;
   text-align: center;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.2px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line, var(--border));
   border-right: 1px solid rgba(255,255,255,0.04);
 }
 
@@ -130,7 +139,7 @@
 
 .colLabel {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 /* Date column — sticky left */
@@ -169,7 +178,8 @@
   position: sticky;
   left: 0;
   background: var(--bg);
-  color: var(--text-muted);
+  color: var(--text);
+  font-weight: 600;
   text-align: left;
   border-right: 1px solid var(--border);
   z-index: 1;
@@ -177,9 +187,9 @@
 }
 
 .rowEven .dateCell { background: var(--bg); }
-.rowOdd  .dateCell { background: #0e1014; }
+.rowOdd  .dateCell { background: var(--bg-surface); }
 .rowEven           { background: transparent; }
-.rowOdd            { background: #0e1014; }
+.rowOdd            { background: rgba(255,255,255,0.018); }
 
 .table tbody tr:hover td {
   background: rgba(255,255,255,0.025);
@@ -189,14 +199,16 @@
 }
 
 /* ── Cell background tiers (8-tier heat-map system) ─────────────────────────── */
-/* Extremes = dark ink. Mild = light tint. Text stays uniform white.            */
-.bgG3 { background: rgba(10,  50,  22, 0.97); }   /* extreme bullish — near-black green */
-.bgG2 { background: rgba(22,  100, 48, 0.80); }   /* bullish — dark forest green */
-.bgG1 { background: rgba(74,  222, 128, 0.16); }  /* mild bullish — light mint tint */
-.bgA  { background: rgba(180, 130,  20, 0.32); }  /* caution — dark amber */
-.bgR1 { background: rgba(248, 113, 113, 0.16); }  /* mild bearish — light red tint */
-.bgR2 { background: rgba(160,  25,  25, 0.80); }  /* bearish — dark crimson */
-.bgR3 { background: rgba(55,   6,   6, 0.97); }   /* extreme bearish — near-black red */
+/* A single saturation ramp per direction, built from the brand --gain / --loss
+   / --ut-gold hues over the graphite ground: more signal = more saturated brand
+   colour (not muddy forest→near-black). Text stays uniform bright white. */
+.bgG3 { background: rgba( 52, 209, 124, 0.62); }  /* extreme bullish */
+.bgG2 { background: rgba( 52, 209, 124, 0.36); }  /* bullish */
+.bgG1 { background: rgba( 52, 209, 124, 0.13); }  /* mild bullish */
+.bgA  { background: rgba(220, 187,  94, 0.22); }  /* caution — brand gold */
+.bgR1 { background: rgba(242,  75,  66, 0.13); }  /* mild bearish */
+.bgR2 { background: rgba(242,  75,  66, 0.36); }  /* bearish */
+.bgR3 { background: rgba(242,  75,  66, 0.62); }  /* extreme bearish */
 
 /* ── Collapsible group headers ───────────────────────────────────────────────── */
 .groupHeaderClickable {
