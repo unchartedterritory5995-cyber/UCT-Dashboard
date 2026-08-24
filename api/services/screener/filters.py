@@ -744,14 +744,50 @@ def _my_scans_entry(user_id):
 
 
 def meta(user_id=None) -> dict:
+    """The whole panel payload.
+
+    ⭐ `distribution` RIDES BESIDE EACH RANGE CONTROL, AND IS NOT A PRESET.
+    81 of these controls ship with no presets and must keep doing so (E-8: a
+    threshold nobody at the firm publishes must not ship wearing the firm's
+    name). What a bare box could never tell a member is *what the data looks
+    like*, and that is a measurement, not an opinion — so each range control
+    carries the universe's p5/p25/p50/p75/p95 for its column, WITH the coverage
+    that produced them, refused outright below a stated floor.
+
+    ⛔ `presets_deferred` STAYS TRUE and `presets` are UNTOUCHED by this. See
+    `api/services/screener/distribution.py`'s module docstring for why a band is
+    structurally incapable of being rendered as a preset (it carries none of the
+    five keys a preset carries), and `tests/test_screener_filters.py::
+    test_a_measured_band_is_not_an_editorial_preset` for the rail.
+
+    ⚠️ Only `type == "range"` controls get one, and only over a column the live
+    table declares INTEGER/REAL. `ipo_date` and `next_earnings_date` are range
+    controls over TEXT columns — a "typical range" of an earnings date is not a
+    thing — and they are excluded by that gate rather than by name. Those two
+    are the ONLY range controls that carry no `distribution` key at all:
+    everything else gets one, and a column this pod's table has not been ALTERed
+    to hold yet arrives REFUSED as `column_absent` rather than dropping out of
+    the payload, where "not migrated" and "not applicable" look identical.
+    Measured on this box: 109 range controls, 107 carrying an entry, 40 of those
+    emitting numbers.
+    """
+    from api.services.screener import distribution  # noqa: PLC0415 — lazy, as above
+
+    dist = distribution.distributions()
+    bands = dist.get("columns") or {}
     out_filters = []
     for key, f in FILTERS.items():
         presets = (_distinct_options(f["options_column"])
                    if f.get("options_column") else f["presets"])
-        out_filters.append({"key": key, "label": f["label"],
-                            "category": f["category"], "type": f["type"],
-                            "presets": presets, "allow_custom": f["allow_custom"],
-                            "unit": f["unit"]})
+        entry = {"key": key, "label": f["label"],
+                 "category": f["category"], "type": f["type"],
+                 "presets": presets, "allow_custom": f["allow_custom"],
+                 "unit": f["unit"]}
+        if f["type"] == "range":
+            band = bands.get(f["column"])
+            if band is not None:
+                entry["distribution"] = band
+        out_filters.append(entry)
     categories = CATEGORIES
     if user_id is not None:
         entry = _my_scans_entry(user_id)
@@ -760,4 +796,8 @@ def meta(user_id=None) -> dict:
             categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
     return {"filters": out_filters,
             "views": [{"key": k, **v} for k, v in VIEWS.items()],
-            "categories": categories}
+            "categories": categories,
+            # The floors, the wording and the vintage the bands were measured
+            # on — stated ONCE, beside them, so no surface has to guess at any
+            # of the three. `None` when the snapshot could not be read.
+            "distribution_basis": dist.get("basis")}

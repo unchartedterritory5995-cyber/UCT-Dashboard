@@ -189,6 +189,112 @@ CREATE TABLE IF NOT EXISTS scan_coverage (
 """
 
 
+# ---------------------------------------------------------------------------
+# The LIVE TIER overlay, and why it is a THIRD table in this same file.
+#
+# Spec: `.superpowers/sdd/live-tier-2026-08-23/00-spec.md` §4.
+#
+# ⛔ THE TIER WRITES NOTHING INTO `screener_rows`. In-place writes would (i) put
+# a SECOND WRITER on 22 columns, and (ii) make "never fabricate a live value"
+# unimplementable — you cannot "keep the nightly value" for a symbol whose
+# nightly value you overwrote at 10:00 and whose price went stale at 10:15.
+# `screener_rows` keeps exactly one writer: `upsert_rows`, called only by
+# `snapshot_builder`. That does not change.
+#
+# SAME FILE, DIFFERENT TABLE — the precedent `_SCAN_SCHEMA` states above, for
+# the same reason: the read path LEFT JOINs the overlay to `screener_rows` in
+# ONE SQL string on ONE connection, and a cross-database join needs ATTACH,
+# which `connect()` does not do.
+#
+# ⭐ THE SHAPE IS DERIVED FROM `live_tier.LIVE_COLUMNS` AND THIS FILE'S OWN
+# `_coldef`, never retyped. A hand-typed overlay column with the wrong declared
+# type is a silently-NULL column on a member's screen — and a hand-typed LIST
+# is one that drifts the day a 23rd live column lands.
+def _live_schema_sql() -> str:
+    from api.services.screener import live_tier
+    cols = ",\n  ".join(_coldef(c) for c in live_tier.LIVE_COLUMNS)
+    return f"""
+CREATE TABLE IF NOT EXISTS {live_tier.LIVE_TABLE} (
+  ticker             TEXT PRIMARY KEY,
+  live_session_ymd   INTEGER NOT NULL,
+  live_asof          REAL    NOT NULL,
+  anchor_bars_asof   TEXT,
+  src_price          REAL    NOT NULL,
+  anchor_price       REAL    NOT NULL,
+  live_cols          INTEGER NOT NULL,
+  {cols}
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_screener_live_session
+  ON {live_tier.LIVE_TABLE}(live_session_ymd);
+"""
+
+
+def _live_write_columns() -> list:
+    from api.services.screener import live_tier
+    return list(live_tier.LIVE_META_COLUMNS) + list(live_tier.LIVE_COLUMNS)
+
+
+def upsert_live_rows(rows: list) -> int:
+    """Write the overlay. ONE writer, and this is it.
+
+    Rows come from `live_tier.derive_row`, which returns all 22 columns for
+    every symbol it answers for (a column it could not recompute carries the
+    NIGHTLY value verbatim) — so an overlay row is always a complete,
+    self-consistent picture and never a half-updated one.
+
+    ⚠️ WRITE VOLUME THE SPEC DID NOT MEASURE — read this before arming. At the
+    default 60 s cadence this is ~3,745 `INSERT OR REPLACE` per minute × ~390
+    RTH minutes ≈ **1.5M row-writes per session, into the same `screener.db`
+    file every member scan reads**. WAL keeps readers unblocked and the
+    measured `held_lock_ms` is ~122 ms per cycle, but WAL GROWTH and checkpoint
+    churn on the Railway volume were NOT measured. Spec §13's arming receipts
+    must add: watch the WAL sidecar's size across a full session next to the
+    provider-load check, and if it grows without bounding, the lever is
+    `SCREENER_LIVE_INTERVAL_S` (the cadence), not a second writer.
+
+    ⚠️ AND THE COPIED-FORWARD VALUES SHADOW `screener_rows` FOR ONE CADENCE.
+    An overlay row carries the nightly value for the columns it could not
+    recompute, and the read path COALESCEs the overlay first — so if an admin
+    `POST /api/screener/refresh` lands intraday and moves, say, `pt_target` or
+    the pattern levels while `bars_asof` stays at D-1, the overlay serves its
+    pre-refresh COPY of those columns until the next sweep (≤60 s). Spec §4's
+    "complete, self-consistent overlay row" rule chose this and it self-heals,
+    but it is a second authority over those columns for the duration of the
+    window. ⛔ The fix if it ever matters is to store NULL for a column that was
+    not recomputed (COALESCE then falls through to the live nightly value) —
+    which is a SPEC change to §4, not a patch here.
+    """
+    if not rows:
+        return 0
+    from api.services.screener import live_tier
+    cols = _live_write_columns()
+    placeholders = ", ".join("?" for _ in cols)
+    sql = (f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} "
+           f"({', '.join(cols)}) VALUES ({placeholders})")
+    payload = [[_coerce(c, r.get(c)) for c in cols] for r in rows]
+    with _WRITE_LOCK, connect() as conn:
+        conn.executemany(sql, payload)
+        conn.commit()
+    return len(rows)
+
+
+def prune_live_rows(session_ymd: int) -> int:
+    """Drop overlay rows from an earlier session.
+
+    Belt and braces only — the serve predicate (`live_session_ymd >
+    CAST(bars_asof AS INTEGER)`) already makes a stale row unservable, which is
+    what lets the tier and the nightly build need NO coordination at all. This
+    just stops the table carrying yesterday around.
+    """
+    from api.services.screener import live_tier
+    with _WRITE_LOCK, connect() as conn:
+        cur = conn.execute(
+            f"DELETE FROM {live_tier.LIVE_TABLE} WHERE live_session_ymd < ?",
+            (int(session_ymd),))
+        conn.commit()
+        return cur.rowcount or 0
+
+
 def get_db_path() -> str:
     p = os.environ.get("SCREENER_DB_PATH")
     if p:
@@ -238,6 +344,12 @@ def init_db() -> None:
         # no separate flag -- the same reason `ledger._ensure_init` runs both of
         # its scripts through one call.
         conn.executescript(_SCAN_SCHEMA)
+        # A THIRD executescript, below `_SCAN_SCHEMA`, touching neither
+        # `screener_rows` nor its eight indexes. `CREATE TABLE IF NOT EXISTS`
+        # is why a pod already holding a nightly snapshot gains the overlay on
+        # its next init with no migration step and no separate flag — the same
+        # reason the scan tables above need none.
+        conn.executescript(_live_schema_sql())
         conn.commit()
 
 
@@ -331,7 +443,9 @@ def count_rows() -> int:
 # permanently mixed table by construction, and `MAX` then reports the last
 # partial build as though it were the whole snapshot. That is a property of the
 # builder, not an accident of this box.
-def describe_rows(conn, where: str = "", params=()) -> dict:
+def describe_rows(conn, where: str = "", params=(),
+                  from_sql: str = "screener_rows",
+                  date_expr: str = "snapshot_date") -> dict:
     """Describe the `snapshot_date` provenance of the rows `where` selects.
 
     `conn` is the CALLER'S connection so the description and the result set are
@@ -341,10 +455,22 @@ def describe_rows(conn, where: str = "", params=()) -> dict:
 
     ONE `GROUP BY` supplies every field, so `rows` here IS the caller's total by
     construction rather than a second count of the same thing.
+
+    ⛔ `from_sql` AND `date_expr` ARE PASSED IN, NEVER REBUILT HERE, and that is
+    the whole reason they exist. Once the live overlay is serving,
+    `query.run_scan`'s where clause can reference the OVERLAY's alias
+    (`COALESCE(l."chg_pct_1d", …) >= ?`), so this statement has to run against
+    the SAME `FROM …LEFT JOIN…` the rows came out of -- against `screener_rows`
+    alone it would not merely disagree, it would raise `no such column: l.…`.
+    Composing a second join here instead of taking the caller's would be a
+    second authority over which rows are being described, and `total` and the
+    rows it labels are coupled BY DESIGN (`query.run_scan`'s own comment).
+    Defaults reproduce the pre-overlay statement byte for byte for every other
+    caller (`distribution`, `status`).
     """
     hist = conn.execute(
-        f"SELECT snapshot_date d, COUNT(*) n FROM screener_rows{where} "
-        f"GROUP BY snapshot_date", list(params)).fetchall()
+        f"SELECT {date_expr} d, COUNT(*) n FROM {from_sql}{where} "
+        f"GROUP BY {date_expr}", list(params)).fetchall()
     dated = sorted(((r["d"], r["n"]) for r in hist if r["d"] is not None),
                    key=lambda pair: str(pair[0]))
     undated = sum(r["n"] for r in hist if r["d"] is None)

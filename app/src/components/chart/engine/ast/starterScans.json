@@ -2,12 +2,12 @@
   "_": "THE FIRM'S SETUPS AS ORDINARY DEFINITIONS. TC2000 and TradingView both ship dozens of built-in scans and it is the ONBOARDING PATH, not decoration: a member picks a named setup, gets a WORKING scan, and then EDITS it -- which is how people learn a syntax. A blank formula box loses the wide audience.",
   "_ordinary": "EVERY ENTRY IS AN ORDINARY DEFINITION: same store, same `def_hash`, same read-back, editable on arrival. There is no starter flag, no `is_builtin` column and no branch in the save path -- a starter that is special-cased is a second class of object and re-creates the asymmetry spec section 1.1 forbids. This file holds a SOURCE and a frozen TREE; installing one is the member's action through the shipped save path, and the identity is `astHash`'s.",
   "_taxonomy": "THE NAMES COME FROM `app/src/constants/setupGroups.js` AND ARE NOT COPIED HERE AS A LIST. This file holds a `source` per setup it can express; the SET of setups and the FAMILY each one belongs to are read from the taxonomy at run time, which is why no entry carries a `family`. A setup with no entry must appear in `_ungrounded` with a reason -- that identity is what makes a NEW setup land RED until somebody decides about it. Two files in this repo carry setup taxonomies and they do not agree: `setupGroups.js` (the labeling taxonomy the Model Book store, the concept vocabulary's attribution check and this file all read) and `app/src/pages/modelbook/setupCatalog.js` (the Setup Library's field-guide, with its own families and its own display names). `setupGroups.js` is authoritative here. Neither count is written down anywhere in this file.",
-  "_grounding": "GROUNDING IS A LIST OF CITATIONS THAT RESOLVE, AND IT IS RESOLVED RATHER THAN TRUSTED (controller adjudication A-1). Four kinds appear here: `starter_screen` (a screen `saved_screens.py::starters()` ships), `filter_preset` (a labelled threshold in `screener/filters.py::FILTERS`), `classifier` (a labelled branch of firm code, located by AST) and `setup_catalog` (the firm's own PUBLISHED DEFINITION of a setup, in the Setup Library's `setupCatalog.js`). The first three answer 'who published this NUMBER?'. The fourth answers the only question a LITERAL-FREE tree asks -- 'who says this SHAPE is that setup?' -- and it publishes no number and no column at all, so it can vouch for a shape and can never launder a threshold. A KB PLAYBOOK IS STILL NEVER A GROUNDING: it is prose no lookup can hold to a shape, so the setup name rides as an `attribution`, which this file does not spell either -- it is the entry's own KEY. `setup_catalog` does not reopen that. It names no setup either (it resolves against the entry the ATTRIBUTION names, so a starter cannot be grounded in another setup's definition), and it goes RED when the firm's published wording, direction or trigger level moves, or when the phrases it quotes are generic enough to describe some other setup too.",
+  "_grounding": "GROUNDING IS A LIST OF CITATIONS THAT RESOLVE, AND IT IS RESOLVED RATHER THAN TRUSTED (controller adjudication A-1). Five kinds appear here: `starter_screen` (a screen `saved_screens.py::starters()` ships), `filter_preset` (a labelled threshold in `screener/filters.py::FILTERS`), `scalar` (a column the screener computes nightly and the closed table declares), `classifier` (a labelled branch of firm code, located by AST) and `setup_catalog` (the firm's own PUBLISHED DEFINITION of a setup, in the Setup Library's `setupCatalog.js`). The first four answer 'who published this NUMBER?' -- and `scalar` is the one `resolve_grounding`'s FIFTH check needs by name, because every table-declared column a tree screens on must be NAMED by a citation, not merely have its literals published. The fourth answers the only question a LITERAL-FREE tree asks -- 'who says this SHAPE is that setup?' -- and it publishes no number and no column at all, so it can vouch for a shape and can never launder a threshold. A KB PLAYBOOK IS STILL NEVER A GROUNDING: it is prose no lookup can hold to a shape, so the setup name rides as an `attribution`, which this file does not spell either -- it is the entry's own KEY. `setup_catalog` does not reopen that. It names no setup either (it resolves against the entry the ATTRIBUTION names, so a starter cannot be grounded in another setup's definition), and it goes RED when the firm's published wording, direction or trigger level moves, or when the phrases it quotes are generic enough to describe some other setup too.",
   "_no_invented_numbers": "EVERY NUMERIC LITERAL IN A STARTER'S TREE MUST BE PUBLISHED BY ONE OF ITS OWN CITATIONS, and every scalar it screens on must be one a citation names. `rs_rank >= 80` is here because the firm ships a preset labelled `Over 80`; 75 would go red NAMING 75. This is the rail that stops a starter from looking like the firm's answer while carrying the catalogue author's opinion.",
   "_no_sentence": "NO READ-BACK IS FROZEN HERE, and that is the one place this file deliberately differs from `conceptVocabulary.json`. The card's blurb is `sentenceFor(tree)` in the browser and `sentence_for(tree)` on the server -- derived on every render from the tree that IS the scan. A hand-written blurb would be a second description of one tree and the prose one is the one that drifts (D-A5).",
   "_no_hash": "NO `def_hash` IS PRECOMPUTED HERE. The handle is `astHash` over the tree, minted by the shipped save path when a member installs one; a catalogue that carried its own copy would be a second registry and two authorities over one identity.",
   "_ungrounded_rule": "A SETUP WITH NO EXPRESSIBLE CONDITION IS NAMED, NOT APPROXIMATED. The member trusts the firm's name on a starter, so a scan that half-means `High Tight Flag` is worse than no scan (AMENDMENT 1's refusal rule, applied to the library). Each reason names its setup and says what is missing -- a column, a published threshold, or the cadence -- because those are three different decisions for the owner. And `rsi(close,14)` is NOT available to close a gap here: E-A9 is open and out of scope, so a setup needing a function the table does not declare stays ungrounded until that phase happens.",
-  "version": "2026-08-23.5",
+  "version": "2026-08-23.6",
   "starters": {
     "Classic Flag/Pullback": {
       "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
@@ -408,12 +408,45 @@
           "preset": "Yes"
         }
       ]
+    },
+    "VCP": {
+      "source": "pattern_engine_vcp",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_vcp"
+      },
+      "grounding": [
+        {
+          "kind": "scalar",
+          "column": "pattern_engine_vcp"
+        }
+      ]
+    },
+    "Flat Base Breakout": {
+      "source": "pattern_engine_flat_base",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_flat_base"
+      },
+      "grounding": [
+        {
+          "kind": "scalar",
+          "column": "pattern_engine_flat_base"
+        },
+        {
+          "kind": "setup_catalog",
+          "direction": "long",
+          "level": "h",
+          "describes": [
+            "drying-up selling pressure",
+            "compressed volatility before the move through resistance"
+          ]
+        }
+      ]
     }
   },
   "_ungrounded": {
     "High Tight Flag (Powerplay)": "High Tight Flag (Powerplay) turns on a PRIOR RUN -- roughly a double in four to eight weeks -- and then a shallow, tight flag on top of it. The table declares `chg_pct_1m` and `pullback_depth_pct`, but the only `chg_pct_1m` preset the screener ships is `Any`, so the size of the run that makes a flag 'high and tight' is still nobody's written-down number -- and the scanner's own run-size column, `pole_pct`, still sits in the closed table's excluded list. Publish a `chg_pct_1m` threshold and this becomes expressible.",
-    "VCP": "VCP is the VOLATILITY CONTRACTION pattern, and the contraction SEQUENCE is the tell: successive shallower pullbacks with drying volume into a tight pivot -- the firm's pattern engine, its coach and its course all teach exactly that. The firm DETECTS it -- `screener/patterns.py` emits `vcp` and `FILTERS['pattern']` ships a `VCP` preset -- but the detection lands in `patterns` and `pattern_engine_ids`, comma-joined TEXT lists the closed table excludes by shape, and the pattern scalars the table does declare (`pattern_conf_max`, `pattern_engine_conf`, `pattern_engine_dir`) carry a confidence and a direction with nothing saying WHICH pattern earned them. There is still no `vcp` scalar. The nearest declared boolean, `tight_consolidation`, is a DIFFERENT measurement -- the coefficient of variation of one flat window, no sequence in it -- and the firm's own screen built from it is named `High-RS tight bases`, not VCP. The fix is a per-pattern 0/1 column, not a formula.",
-    "Flat Base Breakout": "Flat Base Breakout is a pattern the firm ALREADY DETECTS -- `FILTERS['pattern']` ships a `Flat Base` preset -- but the detection lands in `patterns`, a comma-joined TEXT list the closed table excludes by shape, and there is still no `flat_base` scalar to screen on. `pattern_conf_max` and `pattern_engine_conf` both carry a confidence with nothing attached saying which pattern earned it. The fix is a per-pattern 0/1 column, not a formula.",
     "IPO Base": "IPO Base is defined by how long the symbol has been listed and by WHICH base it is building. The listing-age half is finally in the vocabulary -- `ipo_age_days` is a declared scalar since Wave 2 -- but the only preset the screener ships on it is `Any`, so how young counts as 'recent' is nobody's published number and no citation can ground a threshold. And nothing counts bases: with no `base_count` column anywhere, a first base and a fourth read identically. Publish an `ipo_age_days` preset and the age half grounds in one line.",
     "Parabolic Short": "Parabolic Short is a judgement about the ANGLE of a three-to-five day blow-off and how far it has stretched above its averages. The run half is publishable now -- `consecutive_up` ships a `3+` preset -- but the STRETCH is not: `pct_vs_sma20` ships only `Any`, `pct_vs_ema20` only the `Within 2%` proximity band (the opposite end of the same column), `pct_vs_sma50` and `pct_vs_sma200` carry no filter entry at all, and the scanner's ATR-extension column, `atr_ext_sma50`, sits in the excluded list. The number that makes a move parabolic is still nobody's.",
     "Parabolic Long": "Parabolic Long is the same stretch measurement as Parabolic Short taken from the other side, and it fails the same way: not one `pct_vs_*` column publishes an extension-side threshold, `atr_ext_sma50` is excluded from the closed table, and a nightly row cannot say 'the curve is steepening' without a comparison window nobody has written down -- the offset node could compare today's stretch to last week's, but the week would be this catalogue's number, not the firm's.",

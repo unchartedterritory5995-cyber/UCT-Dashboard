@@ -169,25 +169,22 @@ test('a widget can be added to the board from the toolbar', () => {
 
   const offered = widgetChoices()
   expect(offered.length, 'Add Widget offered nothing to add').toBeGreaterThan(0)
-  // Smart placement (Phase 2) is suggest-then-confirm: picking a widget shows a ghost
-  // preview with a "Place" button, and only confirming commits it. This asserts the
-  // CAPABILITY — some offered choice, once confirmed, puts a widget on the board —
-  // instead of naming a type (or naming the panel's own back control to skip it).
-  const placeButton = () => [...document.querySelectorAll('button')].find(b => b.textContent === 'Place')
-  let placed = false
-  for (let i = 0; i < offered.length && !placed; i++) {
+  // On an EMPTY board the widget fits in empty space with no adjustment, so smart
+  // placement commits it IMMEDIATELY (no ghost). This asserts the CAPABILITY — some
+  // offered choice puts a widget on the board — instead of naming a type.
+  for (let i = 0; i < offered.length && onBoard() === 0; i++) {
     const choices = widgetChoices()
     act(() => { choices[i].click() })
-    const btn = placeButton()
-    if (btn) { act(() => { btn.click() }); placed = true }
   }
-  expect(onBoard(), 'no choice under Add Widget reached the board (via ghost confirm)').toBe(1)
+  expect(onBoard(), 'no choice under Add Widget reached the board').toBe(1)
 })
 
-test('smart placement previews before committing — Cancel adds nothing', () => {
-  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+test('ghost preview appears only when a widget must be adjusted — Cancel adds nothing', () => {
+  // A full-width chart fills the board, so adding any widget must resize it → ghost.
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [{ id: 'c1', type: 'chart', color: 'A', x: 0, y: 0, w: 24, h: 20, opts: {} }], cols: 24 }) }
   renderWS()
   const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
+  expect(onBoard()).toBe(1) // the seeded chart
   const rootButtons = new Set(document.querySelector('header').querySelectorAll('button'))
   const openMenu = () => {
     clickToolbar(/add widget/i)
@@ -195,7 +192,7 @@ test('smart placement previews before committing — Cancel adds nothing', () =>
   }
   const btnByText = (t) => [...document.querySelectorAll('button')].find(b => b.textContent === t)
 
-  // Pick some widget choice until the ghost's confirm bar appears — board still empty.
+  // Pick some widget choice — the full board forces an adjustment → the ghost appears.
   const offered = openMenu()
   let ghostShown = false
   for (let i = 0; i < offered.length && !ghostShown; i++) {
@@ -203,13 +200,13 @@ test('smart placement previews before committing — Cancel adds nothing', () =>
     act(() => { choices[i].click() })
     if (btnByText('Place')) ghostShown = true
   }
-  expect(ghostShown, 'no widget choice produced a placement ghost').toBe(true)
+  expect(ghostShown, 'adding to a full board should preview via ghost').toBe(true)
   expect(btnByText('Cancel')).toBeTruthy()
-  expect(onBoard(), 'ghost preview must not commit the widget').toBe(0)
+  expect(onBoard(), 'ghost preview must not commit the widget').toBe(1) // still just the chart
 
   // Cancel → nothing added, ghost dismissed.
   act(() => { btnByText('Cancel').click() })
-  expect(onBoard()).toBe(0)
+  expect(onBoard()).toBe(1)
   expect(btnByText('Place'), 'ghost should be gone after Cancel').toBeFalsy()
 })
 

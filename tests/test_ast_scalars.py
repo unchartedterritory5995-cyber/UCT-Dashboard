@@ -175,7 +175,14 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # (`pattern_engine_vcp`, `pattern_engine_flat_base`) land EXCLUDED, which
     # is R8 working exactly as written — a brand-new column that has never
     # been written cannot be a scalar yet, and the DECLARED side did not move.
-    assert (len(declared), len(excluded)) == (106, 54)
+    # (106, 54) -> (108, 52) LATER THE SAME DAY, and it is the OTHER half of R8:
+    # the fill arrived (a clean production build, both flags populated and
+    # screenable — 492 `vcp` and 260 `flat_base` hits universe-wide, 300/300
+    # non-null across the top-300 by market cap), so the two columns MOVE from
+    # the refused side to the granted side. ⛔ `COLUMNS` DID NOT MOVE and must
+    # not: a promotion re-decides a column the schema already had, so the total
+    # above stays 160 and only the split changes.
+    assert (len(declared), len(excluded)) == (108, 52)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -565,6 +572,22 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     `not_computable`, which is TRUE. One bump, one provenance decision. The bar
     floor, again, did not move.
 
+    ⭐ 106 -> 108 (2026-08-23): the two PER-PATTERN ENGINE FLAGS,
+    `pattern_engine_vcp` and `pattern_engine_flat_base`, promoted out of
+    `_scalars_excluded` the same day they landed in it. They shipped EXCLUDED
+    under R8 (fill-then-declare) because a column that has never been written
+    cannot be a scalar; the fill then arrived — a clean production build with
+    both flags populated and screenable, 492 and 260 hits universe-wide and
+    300/300 non-null across the top-300 by market cap — so the refusal expired
+    and the promotion is the receipt being spent. Both are `bool`, and both ride
+    the pattern-engine JOIN leg: `pattern_join.read_pattern_fields` reaches
+    `build_row` through `market_row`, which is folded in OUTSIDE the `if bars:`
+    block, so they are stamped `snapshot_date` exactly as `pattern_engine_conf`
+    and `pattern_engine_dir` beside them already are. The derived as-of rail
+    above judged that (the technicals/candles/setup_score producer census does
+    not emit either name), not a guess. The bar floor did not move — a scalar
+    rides the `series` node, so no astHash and no frozen digest moved.
+
     ⭐ 69 -> 70 ON 2026-08-11 WITH ``adx``, AND THIS PAIR OF NUMBERS IS EXACTLY
     WHAT CAUGHT IT. ADX was declared, implemented in both lanes and shipped
     earlier the same day; what it never got was a bar-corpus case, so its
@@ -577,7 +600,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 106
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 108
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

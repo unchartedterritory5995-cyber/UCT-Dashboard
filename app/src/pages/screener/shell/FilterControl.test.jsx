@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FilterControl from './FilterControl'
+import { COLUMN_DEFS } from '../columnDefs'
 
 const RS = { key: 'rs_rank', label: 'RS Rank', type: 'range', allow_custom: true,
   presets: [{ label: 'Any' }, { label: 'Over 80', op: 'gte', min: 80 }], unit: null }
@@ -59,5 +60,101 @@ describe('FilterControl', () => {
     fireEvent.change(screen.getByLabelText('RS Rank'), { target: { value: 'Custom…' } })
     expect(screen.getByLabelText('RS Rank min')).toHaveValue(60)
     expect(screen.getByLabelText('RS Rank max')).toHaveValue(90)
+  })
+})
+
+// The misreading happens when a member picks a THRESHOLD, not only when they
+// read a cell — so the same `columnDefs.desc` has to reach the rail. `meta()`
+// ships no description of its own; the join is filter.key → COLUMN_DEFS[key].
+const DP = { key: 'dp_notional_1d', label: 'Dark Pool Block Notional (1d)',
+  type: 'range', allow_custom: true, presets: [{ label: 'Any' }], unit: '$' }
+const infoButtons = () => screen.queryAllByRole('button', { name: /^What .+ means$/ })
+
+describe('FilterControl — column description surface', () => {
+  it('the described filter opens the full column text from the keyboard', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+    await user.tab()
+    expect(document.activeElement).toBe(btn) // in tab order ahead of the select
+
+    await user.keyboard('{Enter}')
+    // The $4M block floor and the three-way-ambiguous blank, in full — the two
+    // facts a member setting this threshold would otherwise get wrong.
+    expect(screen.getByRole('note')).toHaveTextContent(COLUMN_DEFS.dp_notional_1d.desc)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('Escape closes the description and never reaches the sheet hosting the rail', async () => {
+    const user = userEvent.setup()
+    // Below 1024px the rail is display:none and FiltersSheet re-hosts it, so
+    // this IS the shipping arrangement on touch. `Sheet.jsx` registers Escape
+    // on `document` in CAPTURE when it opens — before the panel exists — and
+    // two listeners on one node fire in registration order, so a
+    // stopImmediatePropagation from the panel would arrive second and too
+    // late. Dismissing a tooltip must not dump the member out of the sheet.
+    const hostEscape = vi.fn()
+    document.addEventListener('keydown', hostEscape, true)
+    try {
+      render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+      const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+      // CONTROL: with nothing open the host DOES hear Escape. Without this the
+      // assertion below could pass because the probe never fires at all.
+      await user.keyboard('{Escape}')
+      expect(hostEscape).toHaveBeenCalledTimes(1)
+
+      await user.click(btn)
+      expect(screen.getByRole('note')).toBeTruthy()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('note')).toBeNull()
+      expect(hostEscape).toHaveBeenCalledTimes(1) // still 1 — the sheet never heard it
+      expect(document.activeElement).toBe(btn)
+    } finally {
+      document.removeEventListener('keydown', hostEscape, true)
+    }
+  })
+
+  it('the panel carries a labelled dismiss, and Tab leaves by the on-screen order', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+    await user.click(btn)
+    // A touch screen reader has no Escape key; the dismiss is how it closes.
+    await user.click(screen.getByRole('button', { name: 'Close description' }))
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+
+    // Tab out of a panel portaled to the END of <body> would otherwise strand
+    // focus there. The panel closes and focus is handed back to the trigger,
+    // so it is never left on a node that has just been removed.
+    //
+    // ⚠️ RAW keyDown, not `user.tab()`, and the difference is the point. jsdom
+    // has no default action for Tab, so userEvent supplies its own focus move
+    // AFTER the handlers run — from the panel, which is the last thing in
+    // <body>, it lands on <body>. Asserting through it would be asserting
+    // userEvent's internals. This dispatches the key and asserts exactly the
+    // half this component owns; that the browser's default Tab then continues
+    // from the trigger to the select is verified in Chromium (surface report).
+    await user.click(btn)
+    fireEvent.keyDown(screen.getByRole('note'), { key: 'Tab' })
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('a filter whose column has no desc grows NO affordance — same probe, both populations', () => {
+    // CONTROL: absence is only evidence if the query can see a present one.
+    const { unmount } = render(<FilterControl filter={RS} value={null} onChange={() => {}} />)
+    expect(COLUMN_DEFS.rs_rank.desc).toBeUndefined()
+    expect(infoButtons()).toHaveLength(0)
+    unmount()
+
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    expect(infoButtons().map(b => b.dataset.coldesc)).toEqual(['dp_notional_1d'])
   })
 })

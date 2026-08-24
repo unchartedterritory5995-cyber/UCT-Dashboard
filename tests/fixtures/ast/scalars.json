@@ -1276,6 +1276,30 @@
       "asOf": "snapshot_date",
       "cadence": "nightly",
       "yields": "num"
+    },
+    {
+      "id": "pattern_engine_vcp",
+      "scalar": "pattern_engine_vcp",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_vcp"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "pattern_engine_flat_base",
+      "scalar": "pattern_engine_flat_base",
+      "ast": {
+        "type": "series",
+        "name": "pattern_engine_flat_base"
+      },
+      "value": 0,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
     }
   ],
   "trees": [

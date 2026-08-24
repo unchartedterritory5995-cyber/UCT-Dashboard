@@ -145,8 +145,36 @@ def screener_snapshot_status(user=Depends(require_paid)):
     is honest, but it is NOT the snapshot's age: measured 2026-08-09, the MAX
     was carried by ONE row out of 3,589 while 3,583 were 28 days stale, and a
     gate reading it waved a month-old universe through (E-3 report §3).
+
+    ⭐ `live` IS THE SAME QUESTION FOR THE OTHER TIER, ON THE SAME ENDPOINT.
+    During the regular session a flag-gated overlay re-derives a named subset
+    of these columns from the live price. This block carries that tier's state,
+    the OVERLAY's as-of, the last CYCLE's clock, and its per-cycle RECEIPT
+    verbatim (`live.receipt` — the counts and the per-reason `skipped` map the
+    sweeper logged), so the surface, the controller arming the flag, and this
+    endpoint all read ONE source instead of three.
+
+    ⛔ `live.as_of` AND `live.swept_at` ARE DIFFERENT FACTS — read the right one
+    (spec §13 receipt 2 reads this endpoint, so getting it wrong here is what
+    the controller arms against). `as_of` is when the values an overlay row
+    carries were DERIVED; `swept_at` is when the last cycle ran, and every
+    cycle stamps it — including the ones that skip and write nothing. At 19:24
+    on a day whose last real sweep was 15:59, `swept_at` is 19:24 and `as_of`
+    is 15:59 (or absent, if the newest receipt is a skip). Dating the overlay
+    with `swept_at` manufactures a freshness claim four hours out.
+
+    ⛔ IT IS ONE ENDPOINT ON PURPOSE. A separate `/live-status` beside this one
+    would be a second authority over "how fresh is the screener", and the two
+    would answer differently the moment a caller polled one and not the other.
+
+    ⛔ `live.state == "unreadable"` IS NOT `"off"`. Enabled-but-unreadable means
+    the overlay may be writing while this surface is blind to it; the honest
+    answer is "I cannot tell", and the member-facing screen renders that as
+    nightly WITH the reason rather than as silence. The whole block is built by
+    `query.live_tier_state()` — read the block comment above it before changing
+    any of these words.
     """
-    return scr_db.status()
+    return {**scr_db.status(), "live": scr_query.live_tier_state()}
 
 
 @router.post("/api/screener/refresh")

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import ColumnDesc from './ColumnDesc'
+import FilterBand from './FilterBand'
 import styles from './ScannerShell.module.css'
 
 const currentLabel = (filter, value, customOpen) => {
@@ -9,7 +11,7 @@ const currentLabel = (filter, value, customOpen) => {
   return match ? match.label : 'Custom…'
 }
 
-export default function FilterControl({ filter, value, onChange }) {
+export default function FilterControl({ filter, value, onChange, basis = null }) {
   const [customOpen, setCustomOpen] = useState(false)
   const [minV, setMinV] = useState(value?.min ?? '')
   const [maxV, setMaxV] = useState(value?.max ?? '')
@@ -48,13 +50,37 @@ export default function FilterControl({ filter, value, onChange }) {
 
   return (
     <div className={styles.filterRow}>
-      <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
+      {/* The honesty text belongs HERE as much as on the results header: the
+          misreading that matters happens when a member picks a threshold, not
+          when they read a cell back. `meta()` ships no description of its own,
+          so the join is filter.key → COLUMN_DEFS[key] — the registry keys the
+          snapshot column of the same name for every filter but one (`pattern`,
+          whose column is `patterns` and which carries no `desc`). `ColumnDesc`
+          renders nothing when the column has none, so most rows are unchanged. */}
+      {/* `tapTarget` is set HERE and nowhere else. Below 1024px this rail is
+          `display:none` and its whole content is re-hosted inside FiltersSheet,
+          so the rail IS the touch surface for filters — and the row has slack
+          beside the label, which the 112px results-header track does not. The
+          span is `align-items:center`, so a 44px trigger raises the span (and
+          the row with it) instead of overflowing anything. */}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
+        <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
+      </span>
       <select id={`fc_${filter.key}`} aria-label={filter.label}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
         value={currentLabel(filter, value, customOpen)}
         onChange={e => onSelect(e.target.value)}>
         {options.map(o => <option key={o}>{o}</option>)}
       </select>
+      {/* ⭐ THE MEASUREMENT, ON SCREEN, WHERE THE THRESHOLD IS SET. `meta()` has
+          shipped p5/p25/p50/p75/p95 per range control since the bands lane, and
+          for one commit nothing rendered them — the payload existed and the
+          member still saw a blank box, which is the very finding that lane was
+          opened to answer. It sits BELOW the select on purpose: the numbers are
+          context for the value you are about to type, not a value to pick, and
+          nothing about them may look like an option in the list. */}
+      <FilterBand band={filter.distribution} basis={basis} unit={filter.unit} />
       {customOpen && (
         <div className={styles.customRange}>
           <input type="number" placeholder="min" aria-label={`${filter.label} min`}

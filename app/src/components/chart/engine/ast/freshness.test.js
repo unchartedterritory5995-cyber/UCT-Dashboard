@@ -54,7 +54,7 @@ const BARS = Array.from({ length: 6 }, (_, i) => ({
 describe('the closed table declares scalars, and both lanes read the same one', () => {
   it('declares a fourth section whose entries carry a source, an as-of column, a cadence and a yield', () => {
     const names = Object.keys(TABLE.scalars)
-    expect(names.length).toBe(106)
+    expect(names.length).toBe(108)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -67,7 +67,7 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // ⛔ AND THE EXCLUDED HALF IS DECLARED TOO, each with a stated reason. A
     // granted list without a refused list is a list of what somebody remembered.
     const excluded = TABLE._scalars_excluded
-    expect(Object.keys(excluded).length).toBe(54)
+    expect(Object.keys(excluded).length).toBe(52)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

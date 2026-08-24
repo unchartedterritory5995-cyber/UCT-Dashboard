@@ -1,7 +1,107 @@
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
+import { COLUMN_DEFS } from '../columnDefs'
 import ColumnPicker from './ColumnPicker'
 import styles from './ScannerShell.module.css'
+
+// ── THE SEAL SAYS WHICH TIER YOU ARE LOOKING AT, ALWAYS ──────────────────────
+//
+// The seal already answered "how old is this data?" for the nightly snapshot.
+// The live tier makes that question two-part: a NAMED SUBSET of columns can be
+// recomputed from the live price during the session while every other column
+// stays last night's. So the seal now carries BOTH answers, in one button and
+// one popover — the existing provenance vocabulary extended, not a second one
+// invented beside it.
+//
+// ⛔ SILENCE IS THE FAILURE MODE. A member who saw `⚡ LIVE 10:42` once and
+// later sees a bare date will read the bare date as live. So whenever the
+// server sends a `live` block at all — which it does on every scan once the
+// read path knows the tier exists — the chip says one of exactly two words:
+// `LIVE <time>` or `nightly`. Never nothing.
+//
+// ⛔ AND THE WORDING NEVER IMPLIES THE WHOLE ROW IS LIVE. The chip is a
+// pointer; the popover states the count, names every live column, and says in
+// the same breath that everything else is from the 03:00 build. `live.columns`
+// and `live.anchor_note` come from the SERVER (`query.anchor_note`) — this
+// component renders the contract, it does not compose a second copy of it, and
+// the count is `.length` of the list it is showing, never a number typed here.
+//
+// ⛔ AND A ROSTER OF NONE IS NOT A LIVE CLAIM. `live_unnamed` is the server's
+// word for "these rows carry overlay values but the tier named no columns".
+// The chip must not shout LIVE over a disclosure that names nothing, and it
+// must not say `nightly` either — that would be false about values that were
+// recomputed. It says the honest third thing, quietly.
+
+function liveChipLabel(live) {
+  if (!live) return null
+  if (live.state === 'live') {
+    const when = live.as_of_et ? ` as of ${live.as_of_et}` : ''
+    return `${live.column_count} price-derived columns are live${when}; `
+      + 'every other column on the row is from the 03:00 build'
+  }
+  if (live.state === 'live_unnamed') {
+    return 'the live overlay did not name which columns it recomputed'
+      + (live.off_reason ? `. ${live.off_reason}` : '')
+  }
+  return 'nightly snapshot — every column is from the 03:00 build'
+    + (live.off_reason ? `. ${live.off_reason}` : '')
+}
+
+//: The page-scoped counts sit directly under the seal's result-set-scoped
+//: "Rows served", so the server's own qualifier is rendered with them —
+//: without it the two numbers read as a contradiction.
+function ScopeNote({ live }) {
+  if (!live?.scope_note) return null
+  return <p className={styles.sealLiveScope}>{live.scope_note}.</p>
+}
+
+function LiveBlock({ live }) {
+  if (!live) return null
+  if (live.state === 'live_unnamed') {
+    return (
+      <div className={styles.sealLiveBlock}>
+        <p className={styles.sealLiveOff}>
+          <b>Live overlay — unnamed</b> —{' '}
+          {(live.live_rows_on_page ?? 0).toLocaleString()} of{' '}
+          {(live.rows_on_page ?? 0).toLocaleString()} rows loaded here carry overlay
+          values, but the overlay did not name which columns it recomputed.
+          {live.off_reason ? ` ${live.off_reason}` : ''} Treat every column as the
+          03:00 build until it does.
+        </p>
+        <ScopeNote live={live} />
+      </div>
+    )
+  }
+  if (live.state !== 'live') {
+    return (
+      <div className={styles.sealLiveBlock}>
+        <p className={styles.sealLiveOff}>
+          <b>Live overlay off</b> — every column on this screen is from the 03:00 build.
+          {live.off_reason ? ` ${live.off_reason}` : ''}
+        </p>
+      </div>
+    )
+  }
+  const labels = (live.columns || []).map(c => COLUMN_DEFS[c]?.label || c)
+  return (
+    <div className={styles.sealLiveBlock}>
+      <p className={styles.sealLiveLead}>
+        <b>Live overlay</b> — {(live.live_rows_on_page ?? 0).toLocaleString()} of{' '}
+        {(live.rows_on_page ?? 0).toLocaleString()} rows loaded here carry live values
+        {live.as_of_et ? `, recomputed at ${live.as_of_et}` : ''} from the live price.
+      </p>
+      <ScopeNote live={live} />
+      {live.as_of_note && <p className={styles.sealLiveNote}>{live.as_of_note}</p>}
+      {live.anchor_note && <p className={styles.sealLiveNote}>{live.anchor_note}</p>}
+      {labels.length > 0 && (
+        <p className={styles.sealLiveCols}>
+          <span className={styles.sealLiveColsLabel}>Live columns ({labels.length}):</span>{' '}
+          {labels.join(', ')}. Every other column is from the 03:00 build.
+        </p>
+      )}
+    </div>
+  )
+}
 
 function Seal({ snapshot, snapshotDate }) {
   const [open, setOpen] = useState(false)
@@ -12,13 +112,30 @@ function Seal({ snapshot, snapshotDate }) {
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
-  if (!snapshotDate) return null
+  const live = snapshot?.live
+  // Nothing to attest to at all — no date AND no live block — is the one case
+  // that still renders nothing. A live block with no date must still show,
+  // because "which tier am I on" is answerable even when the date is not.
+  if (!snapshotDate && !live) return null
+  const label = `Snapshot ${snapshotDate || 'date unknown'} — data provenance`
+    + (live ? `; ${liveChipLabel(live)}` : '')
   return (
     <span className={styles.sealWrap} ref={ref}>
       <button type="button" className={styles.seal} aria-expanded={open}
-        aria-label={`Snapshot ${snapshotDate} — data provenance`}
+        aria-label={label}
         onClick={() => setOpen(o => !o)}>
-        <UIcon name="check" size={10} /> {snapshotDate}
+        <UIcon name="check" size={10} /> {snapshotDate || 'no date'}
+        {live && (live.state === 'live' ? (
+          <span className={styles.sealLive}>
+            <UIcon name="bolt" size={10} /> LIVE{live.as_of_et ? ` ${live.as_of_et}` : ''}
+          </span>
+        ) : live.state === 'live_unnamed' ? (
+          <span className={styles.sealUnnamed}>
+            <UIcon name="warning" size={10} /> overlay (unnamed)
+          </span>
+        ) : (
+          <span className={styles.sealNightly}>{' '}nightly</span>
+        ))}
       </button>
       {open && snapshot && (
         <div className={styles.sealPop} role="dialog" aria-label="Snapshot provenance">
@@ -33,6 +150,7 @@ function Seal({ snapshot, snapshotDate }) {
           {snapshot.mixed && (
             <p className={styles.sealMixed}>Mixed snapshot — not every row was rebuilt the same night.</p>
           )}
+          <LiveBlock live={live} />
         </div>
       )}
     </span>

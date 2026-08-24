@@ -1,0 +1,88 @@
+/* ColumnDesc — the parts of the disclosure that a media query has to decide.
+ *
+ * WHY A FILE AT ALL. Everything else in this component is inline, because
+ * `ScannerShell.module.css` is owned by a concurrent workflow. Two of these
+ * rules cannot be inline at any price:
+ *
+ *   1. `z-index`. The panel portals to `document.body` and has to sit ABOVE
+ *      `Sheet.module.css .backdrop` (`--z-modal`, 1000), because below 1024px
+ *      `.railSlot` is `display:none` and the ONLY filter surface is the sheet.
+ *      It is written as one `calc()` off the shared rung rather than a literal
+ *      so it can never drift from the token it must beat.
+ *   2. The touch tap box. `--tap-min` applies on touch ONLY; a 44px trigger on
+ *      desktop would blow the results header from ~29px to 44px and, in the
+ *      rail, widen every described filter row. Inline styles hold no media
+ *      query, so the class is the only honest home for it.
+ *
+ * The canonical breakpoint strings come from `styles/breakpoints.css` — TOUCH
+ * is `max-width: 1024px`. Do not invent a new literal here.
+ */
+
+.panel {
+  /* +10, not a bare 1010: the sheet's backdrop is exactly --z-modal, and a
+     literal here would silently stop winning the day that rung moves. */
+  z-index: calc(var(--z-modal, 1000) + 10);
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The width is ONE value, handed down from `columnDefs.DESC_TRIGGER_W` as a
+     custom property, because the results grid reserves the same number in its
+     `--grid-cols` track. A literal here would be a second authority over it. */
+  flex: 0 0 var(--desc-trigger-w, 20px);
+  width: var(--desc-trigger-w, 20px);
+  /* `stretch` so the target grows with its row instead of a fixed height. */
+  align-self: stretch;
+  min-height: var(--desc-trigger-w, 20px);
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  line-height: 0;
+}
+
+/* TOUCH — opt-in, and only where there is room for it.
+ *
+ * The filter rail (and its phone sheet) has a full-width row with slack beside
+ * the label, so the trigger can own a real 44x44 box there. The results header
+ * deliberately does NOT opt in: its track is `NUM_W + DESC_TRIGGER_W` = 112px,
+ * so a 44px trigger would squeeze a `white-space:nowrap` label like
+ * `FLAT BASE (ENG)` into 68px. That header is already 44px TALL on touch
+ * (`.hbtn`'s own rule) and is not rendered on phones at all — ScannerShell
+ * swaps in ResultCards below 640px — so what remains there is a 20x44 target
+ * on tablet, recorded as a known limit rather than papered over.
+ */
+@media (max-width: 1024px) {
+  .trigger.tap {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+}
+
+.dismiss {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dismiss:hover,
+.dismiss:focus-visible {
+  color: var(--text);
+}
+
+@media (max-width: 1024px) {
+  .dismiss {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+}

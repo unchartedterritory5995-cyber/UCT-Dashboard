@@ -191,16 +191,18 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # a whole multiple of an argument (`2*arg3`), which is the ONLY thing that
     # had been keeping it out — its window is 2 x period and the table could
     # not say so, and UNDER-declaring is the one direction a budget cannot use.
-    # ⭐ 54 -> 106 IS EVERY SCALAR BUMP SINCE (Wave-5 Stage B 54->94, Wave-6 T1
-    # 94->98, `hvc_52w` 98->99, and the seven finviz-parity columns 99->106 on
-    # 2026-08-23). 🔴 THIS PAIR SAT AT `54`/`124` THROUGH ALL OF THEM AND WAS
-    # RED ON THE BRANCH — which meant the assertion BELOW, the one this test is
-    # actually named for, never ran. A vacuity guard that goes stale takes the
-    # real check down with it, so the two numbers move with the manifest and the
-    # SPLIT is what makes "which half moved" answerable at a glance.
+    # ⭐ 54 -> 108 IS EVERY SCALAR BUMP SINCE (Wave-5 Stage B 54->94, Wave-6 T1
+    # 94->98, `hvc_52w` 98->99, the seven finviz-parity columns 99->106, and the
+    # two per-pattern engine flags `pattern_engine_vcp`/`pattern_engine_flat_base`
+    # 106->108 — all on 2026-08-23). 🔴 THIS PAIR SAT AT `54`/`124` THROUGH THE
+    # FIRST FEW OF THEM AND WAS RED ON THE BRANCH — which meant the assertion
+    # BELOW, the one this test is actually named for, never ran. A vacuity guard
+    # that goes stale takes the real check down with it, so the two numbers move
+    # with the manifest and the SPLIT is what makes "which half moved" answerable
+    # at a glance. The bar half has not moved once across any scalar bump.
     assert len(ast_table.bar_names()) == 70, len(ast_table.bar_names())
-    assert len(ast_table.scalar_names()) == 106, len(ast_table.scalar_names())
-    assert len(declared) == 176, f"the table declares {len(declared)} names, not 176"
+    assert len(ast_table.scalar_names()) == 108, len(ast_table.scalar_names())
+    assert len(declared) == 178, f"the table declares {len(declared)} names, not 178"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

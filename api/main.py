@@ -1374,6 +1374,76 @@ def register_screener_jobs(scheduler):
             trigger=CronTrigger(hour=2, minute=0, timezone=_ET),
             id="screener_analyst_pass", max_instances=1, replace_existing=True)
 
+    # -- the LIVE TIER sweep: the ONLY intraday screener job ------------------
+    #
+    # Spec: `.superpowers/sdd/live-tier-2026-08-23/00-spec.md` §6/§7/§9.
+    # It re-derives the 22 price-anchored columns into the `screener_live`
+    # OVERLAY table (never into `screener_rows`) from the whole-market snapshot
+    # this pod already refreshes every 30-60s for the /charts preset scans, so
+    # it adds ZERO provider calls in the steady state.
+    #
+    # ⭐ REGISTERED UNCONDITIONALLY, GATED IN THE BODY -- and the spec is of two
+    # minds about this, so the choice is stated rather than left to a reader.
+    # §9 says "off => no job registration"; §7 says "the job still fires every
+    # 60s and returns at step 1 or 2 ... the controller arming the flag needs no
+    # restart". §7 wins because it is the one that discharges CONSTRAINT 4 as
+    # written: `rollback = unset the env var, NO DEPLOY`. A job registered only
+    # under the flag cannot be turned off without one, and "restart to roll
+    # back" is exactly the property a dark launch must not have. The cost when
+    # off is one `os.environ` read per minute, at step 1, before anything else.
+    # ⚠️ The CADENCE is read at registration, so changing
+    # `SCREENER_LIVE_INTERVAL_S` does need a restart; the master flag does not.
+    #
+    # ⛔ IT SHARES `snapshot_builder._BUILD_LOCK` -- `live_tier.run_sweep`
+    # acquires it non-blocking and REFUSES (never queues) when a build holds it,
+    # so the anchors can never be read from a snapshot being rewritten
+    # underneath the sweep. Do not give it a lock of its own.
+    #
+    # ⚠️ MASTER-FLAG COUPLING, same as every job above: this whole function
+    # early-returns on SCREENER_SNAPSHOT_ENABLED=0, so pausing the nightly
+    # snapshot also pauses the overlay. That is the right direction -- a paused
+    # snapshot means the anchors stop advancing, and the serve predicate would
+    # keep serving the overlay against ever-staler levels.
+    #
+    # ⛔⛔ WHAT THE DISCLOSURE MAY NAME AS LIVE IS `live_tier.
+    # live_columns_effective()`, NEVER `live_tier.LIVE_COLUMNS`. The second is
+    # what the tier aspires to recompute (22); the first is what the last sweep
+    # MEASURED itself recomputing, and until the spec §3.2 parse widening lands
+    # in `massive.get_full_market_snapshot` those differ by four --
+    # `chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath`, all of which
+    # keep their nightly value. `live_tier.columns_not_recomputed()` names the
+    # gap, and every receipt carries `columns_not_recomputed` by NAME. A
+    # popover that reads `LIVE_COLUMNS` labels four nightly columns "live as of
+    # 10:42" -- an honest value under a dishonest label, which constraint 2
+    # rules out more sharply than a missing value would be.
+    #
+    # ⚠️ THREE THINGS THE CONTROLLER READS BEFORE ARMING that spec §13 does not
+    # list, all on `GET /api/screener/live-status`:
+    #   * `columns_not_recomputed` -- empty is the only state in which the
+    #     popover may say "22 columns".
+    #   * `rows_matched` vs `rows_considered` -- the holiday abort measures
+    #     traded/matched and cannot see a provider outage; a large `no_feed` is
+    #     that outage (or symbol-form drift, spec §3.1), and `feed_blackout`
+    #     covers only the total case.
+    #   * WAL growth on the Railway volume -- ~1.5M overlay row-writes per
+    #     session into the file every member scan reads (see
+    #     `snapshot_db.upsert_live_rows`); unmeasured, and the lever is this
+    #     job's cadence.
+    from api.services.screener import live_tier
+
+    def _run_live_tier():
+        try:
+            live_tier.sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener live tier error: {e}")
+
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(
+        _run_live_tier,
+        trigger=IntervalTrigger(seconds=live_tier.interval_s()),
+        id="screener_live_tier", max_instances=1, replace_existing=True,
+        coalesce=True)
+
     start_screener_snapshot_warm()
     return True
 

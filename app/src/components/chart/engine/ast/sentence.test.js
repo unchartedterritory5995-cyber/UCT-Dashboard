@@ -1372,7 +1372,7 @@ describe('the logical chrome drops `!= 0` when every operand already yields bool
       + ' are both not zero, 0 when either is zero, and nothing while either is unknown')
   })
 
-  it('⭐ ALL 106 SCALARS, DERIVED — the bool ones smooth, the num ones do not', () => {
+  it('⭐ ALL 108 SCALARS, DERIVED — the bool ones smooth, the num ones do not', () => {
     // ⭐ THE GENERALISATION. Every declared scalar is conjoined with a declared
     // `bool` scalar and the reading is decided by ITS OWN `yields`. A
     // fifty-fifth scalar is covered the day it is declared, with no edit here.
