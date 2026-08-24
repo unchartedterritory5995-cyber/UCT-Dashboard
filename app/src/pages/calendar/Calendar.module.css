@@ -1063,8 +1063,8 @@
 
 /* Header (defined here so all header classes resolve for CalendarHeader in Task 13) */
 .header {
-  background: linear-gradient(90deg, var(--bg-surface), var(--bg));
-  border-bottom: 1px solid var(--cal-line);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
   padding: 0;
 }
 
@@ -1073,8 +1073,10 @@
   align-items: center;
   flex-wrap: wrap;
   row-gap: 8px;
-  gap: 10px;
-  padding: 10px 18px;
+  gap: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 20px;
 }
 
 .ttl {

@@ -50,7 +50,7 @@ export default function Desk() {
     <div className={styles.hub}>
       <nav className={styles.tabBar} role="tablist" aria-label="The Desk sections">
         <div className={styles.brandRow}>
-          <span className={styles.brandTag}>THE DESK</span>
+          <span className={styles.brandTag}>The Desk</span>
         </div>
         {SECTIONS.map((s) => (
           <button

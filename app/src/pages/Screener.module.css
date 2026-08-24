@@ -1,6 +1,6 @@
 /* Scanner Hub — Screener.module.css */
 
-.container {
+.container { --page-pad-top: 20px; --page-pad-x: 24px;
   padding: 20px 24px;
 }
 
@@ -64,9 +64,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 20px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .heading {

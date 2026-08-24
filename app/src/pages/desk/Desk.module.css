@@ -8,10 +8,12 @@
 .tabBar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 10px var(--space-xl);
+  gap: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--bg-surface);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -19,11 +21,14 @@
 }
 .brandRow { margin-right: var(--space-md); }
 .brandTag {
-  font-size: var(--text-xs);
-  letter-spacing: 3px;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  letter-spacing: 0.2px;
   font-weight: 700;
-  color: var(--ut-gold);
-  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--text-heading);
+  text-transform: none;
+  white-space: nowrap;
 }
 .tab {
   display: inline-flex;
