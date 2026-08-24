@@ -18,7 +18,7 @@
   padding: 10px 20px;
   margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
 }
 
 .title {

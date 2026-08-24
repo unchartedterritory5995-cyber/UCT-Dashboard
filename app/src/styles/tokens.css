@@ -34,6 +34,10 @@
   --bg-hover: #2a2d24;
   --border: #2e3127;
   --border-accent: #3a3d32;
+  /* Section-header divider — deliberately a translucent white line so it stays
+     clearly visible on EVERY dark theme (incl. OLED, where --border #1e1e1e
+     nearly vanishes on #000). Light theme overrides it to a dark line below. */
+  --header-line: rgba(255, 255, 255, 0.11);
   --text: #f0efea;
   --text-muted: #cfcac0;
   --text-bright: #f8f7f3;
@@ -328,6 +332,7 @@
   --bg-hover: rgba(0, 0, 0, 0.05);
   --border: #e3e5e7;
   --border-accent: #cbced1;
+  --header-line: rgba(0, 0, 0, 0.14);
 
   /* Inverted: near-black on the bright canvas, neutral (not blue) grays.
      --text-heading/-bright are the DARKEST so emphasis still reads as emphasis. */

@@ -12,7 +12,7 @@
   min-height: 60px;
   box-sizing: border-box;
   padding: 10px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
   background: var(--bg-surface);
   position: sticky;
   top: 0;
@@ -72,7 +72,7 @@
   flex-wrap: wrap;
   margin-bottom: var(--space-xl);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
 }
 .sectionHeadMain { display: flex; align-items: center; gap: var(--space-md); }
 .sectionIcon {
@@ -169,7 +169,7 @@
 .postColHead {
   display: flex; flex-direction: row; align-items: center; gap: var(--space-md);
   padding: 12px var(--space-md);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
   background: var(--bg-surface);
   text-decoration: none; position: sticky; top: 0; z-index: 1;
 }
@@ -271,7 +271,7 @@
 .profileLabel {
   font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 1px;
   color: var(--ut-gold); font-weight: 700; margin: 0;
-  border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  border-bottom: 1px solid var(--header-line); padding-bottom: 4px;
 }
 .profileBio { font-size: var(--text-base); color: var(--text); line-height: 1.6; margin: 0; }
 .profileList { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
