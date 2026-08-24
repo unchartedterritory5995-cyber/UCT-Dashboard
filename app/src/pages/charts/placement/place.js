@@ -228,6 +228,32 @@ function buildColumns(widgets, cols, rows) {
   })
 }
 
+// A column's members top→bottom.
+function colMembers(c) { return [...c.members].sort((a, b) => (a.y | 0) - (b.y | 0)) }
+
+// A stacked ghost occupies one of 2·M "half-slots" in a column of M members:
+// slot 2k = the TOP half of member k (ghost above it), slot 2k+1 = the BOTTOM half
+// (ghost below it). UP/DOWN walk this list, so a ghost cycles through every half of
+// every member of the column it's in (e.g. "upper half of theme tracker" → "bottom
+// half" → stop) and never jumps to another column.
+function slotCount(c) { return colMembers(c).length * 2 }
+
+// The half-slot whose visual center is nearest `y`. `dir` biases the pick so DOWN
+// enters at/below the cursor and UP at/above it (and each further press keeps moving
+// that way). Returns a slot index in [0, 2M-1].
+function slotNearestY(c, y, dir) {
+  const ms = colMembers(c)
+  const slots = []
+  ms.forEach((m, mi) => {
+    slots.push({ k: mi * 2, c: (m.y | 0) + (m.h | 0) / 4 })
+    slots.push({ k: mi * 2 + 1, c: (m.y | 0) + 3 * (m.h | 0) / 4 })
+  })
+  let pool = slots
+  if (dir === 'down') { const b = slots.filter(s => s.c >= y); if (b.length) pool = b }
+  else if (dir === 'up') { const a = slots.filter(s => s.c <= y); if (a.length) pool = a }
+  return pool.reduce((a, b) => (Math.abs(b.c - y) < Math.abs(a.c - y) ? b : a), pool[0]).k
+}
+
 // Infer the ghost's anchor from its place + the mutations that produced it. A
 // horizontal mutation (an existing widget shifted/resized in x) means the ghost is a
 // side column; otherwise it's stacked into the column it overlaps.
@@ -241,8 +267,7 @@ function deriveAnchor(place, columns, mutations) {
     })
     if (bestI >= 0) {
       const c = columns[bestI]
-      const mid = (c.yTop + c.yBottom) / 2
-      return { kind: 'stack', colKey: c.key, pos: (place.y + place.h / 2) <= mid ? 'top' : 'bottom' }
+      return { kind: 'stack', colKey: c.key, slot: slotNearestY(c, place.y + place.h / 2) }
     }
   }
   let gap = 0
@@ -250,26 +275,35 @@ function deriveAnchor(place, columns, mutations) {
   return { kind: 'col', gap }
 }
 
-// The chart column nearest a gap index (prefer the one immediately right, then left,
-// then the nearest chart anywhere). Null when the board has no chart.
-function nearestChartCol(columns, gap) {
-  const right = columns[gap], left = columns[gap - 1]
-  if (right && right.family === 'chart') return right
-  if (left && left.family === 'chart') return left
-  return columns.find(c => c.family === 'chart') || null
+// Columns ordered by distance from a gap (both immediate neighbors are distance 0).
+function colsByDistance(columns, gap) {
+  return columns
+    .map((c, i) => ({ c, d: i >= gap ? i - gap : gap - 1 - i }))
+    .sort((a, b) => a.d - b.d)
+    .map(x => x.c)
+}
+
+// The column a ghost at `gap` should stack into on UP/DOWN — the one it's next to. A
+// CHART ghost seeks the nearest CHART column (a chart never crams into a narrow rail);
+// a PANEL ghost takes the nearest column of any kind (usually the rail beside it, or
+// the chart once it has stepped over the chart's own column).
+function nearestCol(columns, gap, ghostFamily) {
+  const ordered = colsByDistance(columns, gap)
+  if (ghostFamily === 'chart') return ordered.find(c => c.family === 'chart') || ordered[0] || null
+  return ordered[0] || null
 }
 
 // The ordered LEFT↔RIGHT sequence the ghost steps through: every column-gap (own
 // column), interleaved — for a PANEL ghost only — with a "merge into this rail" stop
 // after each panel column. A chart ghost never merges into a rail, so it just steps
 // gap→gap. LEFT/RIGHT walk this list by ±1, which makes every horizontal move
-// reversible by construction. (Vertical moves into a chart are handled separately.)
+// reversible by construction. (Vertical moves within a column are handled separately.)
 function hSequence(columns, ghostFamily) {
   const H = []
   for (let k = 0; k < columns.length; k++) {
     H.push({ kind: 'col', gap: k })
     if (ghostFamily === 'panel' && columns[k].family === 'panel') {
-      H.push({ kind: 'stack', colKey: columns[k].key, pos: 'top' })
+      H.push({ kind: 'stack', colKey: columns[k].key, slot: 0 })
     }
   }
   H.push({ kind: 'col', gap: columns.length })
@@ -285,31 +319,28 @@ function hStep(columns, ghostFamily, anchor, dir) {
 }
 
 // Anchor → next anchor for a direction. Returns null when the move isn't available.
-function nudgeAnchor(anchor, dir, columns, ghostFamily) {
+// `ghostCenterY` seeds where UP/DOWN drop the ghost when entering a column.
+function nudgeAnchor(anchor, dir, columns, ghostFamily, ghostCenterY) {
   if (anchor.kind === 'stack') {
     const idx = columns.findIndex(c => c.key === anchor.colKey)
     if (idx < 0) return null
-    const inChart = columns[idx].family === 'chart'
-    if (inChart) {
-      // Stacked over a chart: UP/DOWN reorder top↔bottom; LEFT/RIGHT pop to an
-      // own column beside the chart.
-      if (dir === 'up') return anchor.pos === 'bottom' ? { kind: 'stack', colKey: anchor.colKey, pos: 'top' } : null
-      if (dir === 'down') return anchor.pos === 'top' ? { kind: 'stack', colKey: anchor.colKey, pos: 'bottom' } : null
-      if (dir === 'left') return { kind: 'col', gap: idx }
-      if (dir === 'right') return { kind: 'col', gap: idx + 1 }
-      return null
+    // UP/DOWN walk the half-slots WITHIN this column — never jump to another column.
+    if (dir === 'up' || dir === 'down') {
+      const slot = (anchor.slot | 0) + (dir === 'down' ? 1 : -1)
+      if (slot < 0 || slot >= slotCount(columns[idx])) return null
+      return { kind: 'stack', colKey: anchor.colKey, slot }
     }
-    // Merged into a rail: LEFT/RIGHT walk the sequence; UP/DOWN jump to a chart.
-    if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
-    const ccm = nearestChartCol(columns, idx)
-    if (!ccm || ccm.key === anchor.colKey) return null
-    return { kind: 'stack', colKey: ccm.key, pos: dir === 'up' ? 'top' : 'bottom' }
+    // LEFT/RIGHT: a chart-stack pops out to an own column beside the chart; a
+    // panel-stack (rail merge) walks the horizontal sequence.
+    if (columns[idx].family === 'chart') return { kind: 'col', gap: dir === 'left' ? idx : idx + 1 }
+    return hStep(columns, ghostFamily, anchor, dir)
   }
-  // Own column at a gap: LEFT/RIGHT walk the sequence; UP/DOWN stack onto a chart.
+  // Own column at a gap: LEFT/RIGHT walk the sequence; UP/DOWN stack into the adjacent
+  // column (the rail beside it, or the chart once the ghost has stepped over it).
   if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
-  const cc = nearestChartCol(columns, anchor.gap)
-  if (!cc) return null
-  return { kind: 'stack', colKey: cc.key, pos: dir === 'up' ? 'top' : 'bottom' }
+  const target = nearestCol(columns, anchor.gap, ghostFamily)
+  if (!target) return null
+  return { kind: 'stack', colKey: target.key, slot: slotNearestY(target, ghostCenterY, dir) }
 }
 
 // Lay the ghost out as its own full-height column at `gap`. The widest chart column
@@ -359,15 +390,19 @@ function resolveOwnColumn(columns, gap, ghostType, cols, rows) {
   return { place: clampPlace(ghostPlace, d, cols, rows), mutations }
 }
 
-// Stack the ghost into column `colKey` at top/bottom by splitting the adjacent member.
-function resolveStack(columns, colKey, pos, ghostType, cols, rows) {
+// Stack the ghost into column `colKey` at half-slot `slot` by splitting the member at
+// that boundary: even slot = above member[slot/2] (member shifts down), odd slot =
+// below member[(slot-1)/2] (member stays, ghost takes its bottom half).
+function resolveStack(columns, colKey, slot, ghostType, cols, rows) {
   const d = defOf(ghostType)
   const c = columns.find(col => col.key === colKey)
   if (!c) return null
   if ((d.minW || 2) > c.w) return null                 // a chart won't cram into a narrow rail
-  const members = [...c.members].sort((a, b) => (a.y | 0) - (b.y | 0))
+  const members = colMembers(c)
   if (!members.length) return null
-  const target = pos === 'top' ? members[0] : members[members.length - 1]
+  const si = Math.max(0, Math.min(slot | 0, members.length * 2 - 1))
+  const target = members[Math.floor(si / 2)]
+  const above = si % 2 === 0
   const tMinH = defOf(target.type).minH || 3
   const dMinH = d.minH || 3
   let gh = Math.floor((target.h | 0) / 2)
@@ -375,7 +410,7 @@ function resolveStack(columns, colKey, pos, ghostType, cols, rows) {
   const shrunk = (target.h | 0) - gh
   if (gh < dMinH || shrunk < tMinH) return null
   let place, mut
-  if (pos === 'top') {
+  if (above) {
     place = { x: target.x, y: target.y, w: target.w, h: gh }
     mut = { id: target.id, y: (target.y | 0) + gh, h: shrunk }
   } else {
@@ -397,11 +432,12 @@ export function nudgePlan(widgets, cur, dir, cols = 24, rows = 20) {
   if (!columns.length) return null
 
   const anchor = cur.anchor || deriveAnchor(cur.place, columns, cur.mutations)
-  const next = nudgeAnchor(anchor, dir, columns, familyOf(cur.type))
+  const ghostCenterY = (cur.place.y | 0) + (cur.place.h | 0) / 2
+  const next = nudgeAnchor(anchor, dir, columns, familyOf(cur.type), ghostCenterY)
   if (!next) return null
 
   const resolved = next.kind === 'stack'
-    ? resolveStack(columns, next.colKey, next.pos, cur.type, cols, rows)
+    ? resolveStack(columns, next.colKey, next.slot, cur.type, cols, rows)
     : resolveOwnColumn(columns, next.gap, cur.type, cols, rows)
   if (!resolved) return null
 
