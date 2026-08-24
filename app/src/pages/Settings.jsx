@@ -15,6 +15,7 @@ import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
+import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
@@ -36,15 +37,11 @@ const TF_OPTIONS = [
   { value: 'W', label: 'Weekly' },
 ]
 
-const THEME_OPTIONS = [
-  { value: 'midnight', label: 'Midnight', desc: 'Deep dark green', swatch: '#0e0f0d' },
-  { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
-  { value: 'dim', label: 'Dim', desc: 'Softer for daytime', swatch: '#1a1d1a' },
-  // Light: the app-wide counterpart of the charts "TSDR — Sunset" look. Selecting it
-  // also flips every StockChart to the Sunset canvas (see StockChart's canvasTheme).
-  { value: 'light', label: 'Light', desc: 'TSDR Sunset white', swatch: '#e8eff5' },
-  { value: 'system', label: 'System', desc: 'Match your OS', swatch: null },
-]
+// App theme is chosen via <AppThemePicker> (components/AppThemePicker.jsx): the two
+// always-present base themes (OLED Black, default / Light) plus the "UCT App Themes"
+// catalog, whose values look like 'uct:slate'. The retired Midnight / Dim / System
+// options resolve to OLED at apply-time (see Layout.jsx). OLED is the new-user
+// default (hooks/usePreferences DEFAULTS.theme = 'oled').
 
 // ── Helpers ──
 function formatDate(dateStr) {
@@ -1561,7 +1558,7 @@ const SEARCH_INDEX = [
   { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
-  { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled dim system default chart timeframe appearance' },
+  { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
   { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
   { card: 'indicatorAlerts', section: 'preferences', title: 'Indicator Alerts',          keywords: 'indicator alert rsi macd chart alerts armed not firing needs attention manager list all symbols' },
   { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
@@ -2011,30 +2008,12 @@ export default function Settings() {
                 ))}
               </select>
             </div>
-            <div className={styles.prefRow}>
+            <div className={styles.prefRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
               <div className={styles.prefLabelGroup}>
                 <span className={styles.prefLabel}>App Theme</span>
-                <span className={styles.prefDesc}>Customize your visual experience</span>
+                <span className={styles.prefDesc}>Customize your visual experience — OLED Black and Light, or a UCT App Theme</span>
               </div>
-              <div className={styles.themeGrid}>
-                {THEME_OPTIONS.map(o => (
-                  <button
-                    key={o.value}
-                    className={`${styles.themeCard} ${prefs.theme === o.value ? styles.themeCardActive : ''}`}
-                    onClick={() => setPref('theme', o.value)}
-                  >
-                    <span className={styles.themeSwatch}>
-                      {o.swatch ? (
-                        <span className={styles.themeSwatchColor} style={{ background: o.swatch }} />
-                      ) : (
-                        <span className={styles.themeSwatchSystem}>⊘</span>
-                      )}
-                    </span>
-                    <span className={styles.themeCardLabel}>{o.label}</span>
-                    <span className={styles.themeCardDesc}>{o.desc}</span>
-                  </button>
-                ))}
-              </div>
+              <AppThemePicker value={prefs.theme} onChange={v => setPref('theme', v)} />
             </div>
           </div>
         </TileCard>

@@ -3,7 +3,7 @@
 
 .page { padding: 14px 24px; }
 .header { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
-.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; flex: none; }
+.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 4px; text-transform: uppercase; flex: none; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); flex: none; }
 
 /* "‹ Model Book" back button — returns from a section/library to the hub. */
@@ -13,15 +13,15 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #f0d479;
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--ut-gold);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 5px 11px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.backBtn:hover { color: #f7e296; border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+.backBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold-glow); background: var(--ut-gold-dim); }
 
 /* ── Model Book hub — animated intro/menu screen ─────────────────────────────
    Lands here on click; option cards cascade in and switch the in-page view. */
@@ -239,7 +239,7 @@
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-bright);
 }
 .comingSoonText { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); margin: 0; }
 
@@ -251,7 +251,7 @@
   font-size: 18px; line-height: 1; cursor: pointer; border-radius: 4px;
   border: 1px solid var(--border); background: transparent; color: var(--text-muted); transition: all 0.15s;
 }
-.yearArrow:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.yearArrow:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .yearTabs {
   display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
   flex: 1; min-width: 0; overflow-x: auto; scroll-behavior: smooth; padding: 2px 0;
@@ -264,17 +264,17 @@
   padding: 5px 14px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
   background: transparent; color: var(--text-muted); transition: all 0.15s;
 }
-.yearTab:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+.yearTab:hover { background: var(--bg-surface); color: var(--text-primary); }
 .yearTab:focus { outline: none; }
-.yearTab:focus-visible { outline: 2px solid rgba(201,168,76,0.6); outline-offset: 1px; }
-.yearTabActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.yearTab:focus-visible { outline: 2px solid var(--ut-gold-glow); outline-offset: 1px; }
+.yearTabActive { background: var(--ut-gold-glow); color: var(--ut-gold); border-color: var(--ut-gold-glow); }
 .emptyYears { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
 /* ── Year-recap hover popover ── */
 .recapPop {
   position: fixed; z-index: 60; pointer-events: none;
   background: var(--bg-elevated, #15171c); border: 1px solid var(--border);
-  border-top: 2px solid rgba(201,168,76,0.55);
+  border-top: 2px solid var(--ut-gold-glow);
   border-radius: 8px; padding: 12px 14px 13px;
   box-shadow: 0 14px 40px rgba(0,0,0,0.55);
   animation: recapIn 0.12s ease-out;
@@ -303,8 +303,8 @@
 .recapThemes { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
 .recapChip {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
-  color: var(--ut-gold); background: rgba(201,168,76,0.1);
-  border: 1px solid rgba(201,168,76,0.25); border-radius: 4px; padding: 2px 7px;
+  color: var(--ut-gold); background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow); border-radius: 4px; padding: 2px 7px;
 }
 .recapText { font-size: 12.5px; line-height: 1.6; color: var(--text-primary); margin: 0; opacity: 0.92; }
 
@@ -312,7 +312,7 @@
 .layout { display: flex; gap: 0; height: calc(100vh - 90px); }
 .listPanel { width: 340px; flex: none; display: flex; flex-direction: column; overflow-y: auto; padding-right: 12px; }
 .resizer { width: 7px; flex: none; cursor: col-resize; border-right: 1px solid var(--border); transition: background 0.1s; }
-.resizer:hover { background: rgba(201,168,76,0.25); }
+.resizer:hover { background: var(--ut-gold-glow); }
 .detailPanel { flex: 1; overflow-y: auto; padding: 0 20px; min-width: 0; }
 .empty { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); padding: 16px 8px; }
 
@@ -333,18 +333,18 @@
 .searchInput {
   width: 100%; box-sizing: border-box; padding: 6px 24px 6px 26px;
   font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);
-  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: 5px; outline: none; transition: border-color 0.1s, background 0.1s;
 }
 .searchInput::placeholder { color: var(--text-muted); }
-.searchInput:focus { border-color: rgba(201,168,76,0.5); background: rgba(255,255,255,0.06); }
+.searchInput:focus { border-color: var(--ut-gold-glow); background: var(--bg-elevated); }
 .searchInput::-webkit-search-cancel-button { display: none; }
 .searchClear {
   position: absolute; right: 16px; display: flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; padding: 0; font-size: 16px; line-height: 1;
   background: transparent; border: none; color: var(--text-muted); cursor: pointer; border-radius: 3px;
 }
-.searchClear:hover { color: var(--ut-gold); background: rgba(255,255,255,0.06); }
+.searchClear:hover { color: var(--ut-gold); background: var(--bg-elevated); }
 
 /* ── Sortable gallery header ── */
 .galleryHead {
@@ -363,10 +363,10 @@
 /* ── Stock gallery cards ── */
 .stockCard {
   padding: 10px 10px; cursor: pointer; border-left: 2px solid transparent;
-  border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s;
+  border-bottom: 1px solid var(--border); transition: background 0.1s;
 }
-.stockCard:hover { background: rgba(255,255,255,0.03); }
-.stockCardActive { background: rgba(201,168,76,0.08); border-left-color: var(--ut-gold); }
+.stockCard:hover { background: var(--bg-surface); }
+.stockCardActive { background: var(--ut-gold-dim); border-left-color: var(--ut-gold); }
 .stockCardTop { display: flex; align-items: center; gap: 8px; }
 .rank { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .rankLogo { flex: none; display: flex; align-items: center; }
@@ -376,8 +376,8 @@
 .cardStats { margin-left: auto; flex: none; display: flex; align-items: center; }
 .cardAdmin { display: flex; gap: 4px; margin-left: 8px; flex: none; }
 .cardAdminBtn { font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 2px 6px; border-radius: 3px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
-.cardAdminBtn:hover { color: var(--ut-gold); border-color: rgba(201,168,76,0.4); }
-.cardAdminDel:hover { color: #e74c3c; border-color: rgba(231,76,60,0.4); }
+.cardAdminBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold-glow); }
+.cardAdminDel:hover { color: var(--loss); border-color: var(--loss-border); }
 .yearGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
 .statMuted { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; }
 .stockCompany { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -393,18 +393,18 @@
 .headerTools { display: flex; align-items: center; gap: 8px; flex: none; }
 .annotateBtn {
   font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-  padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(201,168,76,0.3);
-  background: rgba(201,168,76,0.08); color: var(--ut-gold);
+  padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid var(--ut-gold-glow);
+  background: var(--ut-gold-dim); color: var(--ut-gold);
 }
-.annotateBtn:hover { background: rgba(201,168,76,0.15); }
-.annotateSave { font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(74,222,128,0.4); background: rgba(74,222,128,0.12); color: #4ade80; }
-.annotateSave:hover { background: rgba(74,222,128,0.2); }
+.annotateBtn:hover { background: var(--ut-gold-glow); }
+.annotateSave { font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid var(--gain-border); background: var(--gain-bg); color: var(--gain); }
+.annotateSave:hover { background: var(--gain-bg); }
 .annotateCancel { font-family: var(--font-mono); font-size: 11px; padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
 .annotateCancel:hover { color: var(--text-primary); }
 .tfToggle { display: flex; gap: 4px; flex: none; }
 .tfBtn { font-family: var(--font-mono); font-size: 12px; font-weight: 700; width: 26px; height: 24px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
 .tfBtn:hover { color: var(--text-primary); }
-.tfBtnActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.tfBtnActive { background: var(--ut-gold-glow); color: var(--ut-gold); border-color: var(--ut-gold-glow); }
 .detailTitleRow { display: flex; align-items: center; gap: 11px; }
 .detailName { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: baseline; gap: 10px; }
 .detailNameCo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text-muted); }
@@ -412,8 +412,8 @@
 .infoToggle:hover { color: var(--ut-gold); }
 
 /* ── Expandable info panel ── */
-.infoPanel { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.02); }
-.infoStats { display: flex; flex-wrap: wrap; gap: 28px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px; }
+.infoPanel { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); }
+.infoStats { display: flex; flex-wrap: wrap; gap: 28px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .infoStat { display: flex; flex-direction: column; gap: 1px; }
 .infoStatLabel { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
 .infoStatVal { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text-primary); }
@@ -446,7 +446,7 @@
 /* Stats column + earnings table, side by side at the top of the info panel */
 .statsRow {
   display: flex; gap: 20px; align-items: flex-start;
-  padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 12px; border-bottom: 1px solid var(--border);
 }
 /* Stretch to the earnings table's height and distribute the 3 stats evenly so
    the top & bottom of the stats column line up exactly with the table. */
@@ -463,7 +463,7 @@
 
 /* ── Setups (compact list in the right info panel) ── */
 /* Divider line that splits the panel: stats + story above, setups below. */
-.panelSetups { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+.panelSetups { border-top: 1px solid var(--border); padding-top: 12px; }
 .setupSectionHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .setupHeadTools { display: flex; align-items: center; gap: 8px; }
 .showAllToggle {
@@ -474,15 +474,15 @@
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 .showAllToggle:hover { color: var(--text-primary); }
-.showAllToggleOn { color: var(--ut-gold); border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.08); }
+.showAllToggleOn { color: var(--ut-gold); border-color: var(--ut-gold-glow); background: var(--ut-gold-dim); }
 .showAllTrack {
   position: relative; width: 22px; height: 12px; border-radius: 7px; flex: none;
-  background: rgba(255,255,255,0.12); transition: background 0.12s;
+  background: var(--bg-hover); transition: background 0.12s;
 }
-.showAllToggleOn .showAllTrack { background: rgba(201,168,76,0.45); }
+.showAllToggleOn .showAllTrack { background: var(--ut-gold-glow); }
 .showAllKnob {
   position: absolute; top: 1px; left: 1px; width: 10px; height: 10px; border-radius: 50%;
-  background: #d8d8d8; transition: transform 0.14s, background 0.12s;
+  background: var(--text-bright); transition: transform 0.14s, background 0.12s;
 }
 .showAllToggleOn .showAllKnob { transform: translateX(10px); background: var(--ut-gold); }
 /* Setups | Catalysts tabs */
@@ -495,14 +495,14 @@
   white-space: nowrap; flex: none;
 }
 .panelTab:hover { color: var(--text-primary); }
-.panelTabActive { color: var(--ut-gold); background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.3); }
+.panelTabActive { color: var(--ut-gold); background: var(--ut-gold-dim); border-color: var(--ut-gold-glow); }
 /* Catalyst rows — title + move% + date, with a description subline */
 .catRow {
   display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; border-radius: 5px;
   cursor: pointer; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s;
 }
-.catRow:hover { background: rgba(255,255,255,0.03); border-color: rgba(201,168,76,0.25); }
-.catRowOpen { background: rgba(201,168,76,0.06); border-color: rgba(201,168,76,0.3); }
+.catRow:hover { background: var(--bg-surface); border-color: var(--ut-gold-glow); }
+.catRowOpen { background: var(--ut-gold-dim); border-color: var(--ut-gold-glow); }
 .catRowTop { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
 .catChevron { flex: none; width: 9px; font-size: 9px; line-height: 1; color: var(--text-muted); }
 .catRowOpen .catChevron, .catRow:hover .catChevron { color: var(--ut-gold); }
@@ -514,7 +514,7 @@
 .catMoveDown { color: #f87171; }
 .catDate { flex: none; width: 104px; text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .catDesc { font-size: 11.5px; line-height: 1.5; color: var(--text-bright); margin: 0; }
-.catError { font-family: var(--font-mono); font-size: 11px; color: #f87171; margin: 4px 0 8px; }
+.catError { font-family: var(--font-mono); font-size: 11px; color: var(--loss); margin: 4px 0 8px; }
 /* Earnings table — per-quarter EPS + revenue vs estimate for the year */
 .earnTable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; margin-top: 2px; }
 .earnTh {
@@ -525,7 +525,7 @@
 .earnTh:first-child { text-align: left; }
 .earnTd {
   text-align: right; padding: 5px 6px; color: var(--text-primary);
-  border-bottom: 1px solid rgba(255,255,255,0.04); white-space: nowrap; font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .earnReported { text-align: left; color: var(--text-muted); }
 .earnUp { color: #1ae51a; }
@@ -537,8 +537,8 @@
   display: flex; flex-direction: column; gap: 4px; padding: 7px 8px; border-radius: 5px;
   border: 1px solid transparent; transition: background 0.1s, border-color 0.1s;
 }
-.setupRowC:hover { background: rgba(255,255,255,0.03); }
-.setupRowCActive { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
+.setupRowC:hover { background: var(--bg-surface); }
+.setupRowCActive { border-color: var(--ut-gold-glow); background: var(--ut-gold-dim); }
 .setupRowCTop { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
 .setupNameC { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
 /* Fixed-width left-aligned date column (matches .catDate) so every setup date lines up vertically. */
@@ -549,7 +549,7 @@
   transition: opacity 0.1s, color 0.1s;
 }
 .setupRowC:hover .setupDelC { opacity: 0.7; }
-.setupDelC:hover { color: #e74c3c; opacity: 1; }
+.setupDelC:hover { color: var(--loss); opacity: 1; }
 .setupEditC {
   flex: none; font-family: var(--font-mono); font-size: 12px; line-height: 1; padding: 0 2px;
   border: none; background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0;
@@ -575,18 +575,18 @@
 .setupDescGenBtn {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   padding: 4px 11px; border-radius: 4px; cursor: pointer;
-  background: rgba(201,168,76,0.10); color: var(--ut-gold); border: 1px solid rgba(201,168,76,0.35);
+  background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold-glow);
 }
-.setupDescGenBtn:hover:not(:disabled) { background: rgba(201,168,76,0.20); }
+.setupDescGenBtn:hover:not(:disabled) { background: var(--ut-gold-glow); }
 .setupDescGenBtn:disabled { opacity: 0.6; cursor: default; }
 .setupDescGen { font-size: 11px; line-height: 1.5; color: var(--ut-gold); opacity: 0.85; font-style: italic; margin: 0; }
-.setupDescErr { font-size: 11px; line-height: 1.45; color: #f87171; margin: 0; }
+.setupDescErr { font-size: 11px; line-height: 1.45; color: var(--loss); margin: 0; }
 .setupDescSave, .setupDescCancel {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   padding: 4px 11px; border-radius: 4px; cursor: pointer; border: 1px solid transparent;
 }
-.setupDescSave { background: rgba(201,168,76,0.14); color: var(--ut-gold); border-color: rgba(201,168,76,0.4); }
-.setupDescSave:hover { background: rgba(201,168,76,0.22); }
+.setupDescSave { background: var(--ut-gold-dim); color: var(--ut-gold); border-color: var(--ut-gold-glow); }
+.setupDescSave:hover { background: var(--ut-gold-glow); }
 .setupDescCancel { background: transparent; color: var(--text-muted); border-color: var(--border); }
 .setupDescCancel:hover { color: var(--text-primary); }
 .setupDescSave:disabled, .setupDescCancel:disabled { opacity: 0.5; cursor: default; }
@@ -600,12 +600,12 @@
 /* ── Admin forms ── */
 .addBtn {
   font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-  padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(201,168,76,0.3);
-  background: rgba(201,168,76,0.08); color: var(--ut-gold);
+  padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid var(--ut-gold-glow);
+  background: var(--ut-gold-dim); color: var(--ut-gold);
   white-space: nowrap; flex: none;
 }
-.addBtn:hover { background: rgba(201,168,76,0.15); }
-.adminForm { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; background: rgba(255,255,255,0.02); }
+.addBtn:hover { background: var(--ut-gold-glow); }
+.adminForm { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; background: var(--bg-surface); }
 .formRow { display: flex; flex-wrap: wrap; gap: 8px; }
 .dateField { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 130px; }
 .dateLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
@@ -631,8 +631,8 @@
 }
 .textarea:focus { border-color: var(--ut-gold); }
 .formActions { display: flex; gap: 8px; }
-.saveBtn { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(74,222,128,0.4); background: rgba(74,222,128,0.12); color: #4ade80; }
-.saveBtn:hover { background: rgba(74,222,128,0.2); }
+.saveBtn { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 4px; cursor: pointer; border: 1px solid var(--gain-border); background: var(--gain-bg); color: var(--gain); }
+.saveBtn:hover { background: var(--gain-bg); }
 .saveBtn:disabled { opacity: 0.5; cursor: default; }
 .cancelBtn { font-family: var(--font-mono); font-size: 12px; padding: 6px 14px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
 .cancelBtn:hover { color: var(--text-primary); }
@@ -679,14 +679,14 @@
   padding: 7px 10px;
   background: none;
   border: none;
-  color: #ff6b6b;
+  color: var(--loss);
   cursor: pointer;
   border-radius: 4px;
   font-size: 13px;
 }
 .stockCtxItem:hover,
 .stockCtxItem:active {
-  background: rgba(255,107,107,0.12);
+  background: var(--loss-bg);
 }
 /* Touch bottom-sheet: larger tap target. */
 @media (max-width: 1024px) {

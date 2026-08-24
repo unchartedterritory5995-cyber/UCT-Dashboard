@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- data-theme="oled" is the app-wide default (see hooks/usePreferences +
+     components/Layout.jsx). Setting it here means the FIRST paint before React
+     mounts is already OLED black, not the retired bare-:root palette. Layout
+     switches it to "light" only when the user's saved theme is Light. -->
+<html lang="en" data-theme="oled">
   <head>
     <meta charset="UTF-8" />
     <!-- interactive-widget=resizes-content: when the soft keyboard opens it shrinks

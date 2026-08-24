@@ -305,11 +305,11 @@
    one, retune the other (they are deliberately the same white / white-blue /
    darkened-gold identity, not two independent light themes).
 
-   Unlike the other themes here, this one MUST override the text tokens too.
-   midnight/oled/dim are all dark, so they only ever needed to move the
-   backgrounds and let the light text ride along; on a white canvas that same
-   text is invisible, so --text* inverts to near-black and the accents darken
-   (bright gold/green/red are unreadable on white).
+   Unlike the base dark theme, this one MUST override the text tokens too. OLED
+   (and the dark :root defaults) only ever needed to move the backgrounds and let
+   the light text ride along; on a white canvas that same text is invisible, so
+   --text* inverts to near-black and the accents darken (bright gold/green/red
+   are unreadable on white).
 
    KNOWN LIMIT: this only reaches CSS that uses the tokens. Roughly half the
    app's colors are hardcoded hex/rgba in .module.css files and will stay dark
@@ -386,16 +386,6 @@
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
   --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.16);
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-/* ── Dim theme ── */
-[data-theme="dim"] {
-  --bg: #1a1d1a;
-  --bg-surface: #22251f;
-  --bg-elevated: #2a2d27;
-  --bg-hover: #32352e;
-  --border: #383b33;
-  --border-accent: #44473d;
 }
 
 * {

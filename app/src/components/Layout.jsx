@@ -9,6 +9,7 @@ import { TickerHubProvider } from './mobile/TickerHubContext'
 import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
 import { initBarsPack } from '../lib/barsPackClient'
+import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars } from '../styles/appThemes'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -41,30 +42,27 @@ export default function Layout({ children }) {
   // inside the authed shell (never for anonymous landing-page visitors).
   useEffect(() => { initBarsPack() }, [])
 
-  // Apply theme to <html> element with system preference detection
+  // Apply the app theme to the <html> element.
+  //
+  // Two ALWAYS-PRESENT base themes: 'oled' (default) and 'light'. The legacy
+  // 'midnight' / 'dim' / 'system' options were removed 2026-08-23 — any account
+  // still holding one of those values resolves to OLED here (we never fall back
+  // to bare :root, so the retired Midnight-green palette can no longer render).
+  //
+  // A value like 'uct:slate' selects a UCT App Theme from the catalog: we set its
+  // BASE (oled/light) on data-theme so un-overridden tokens stay legible, then
+  // write the theme's tokens as inline custom properties on <html>. Any other
+  // value clears those inline props and uses the plain base theme.
   useEffect(() => {
-    const applyTheme = (theme) => {
-      if (theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        // System: use oled for dark preference, dim for light
-        document.documentElement.dataset.theme = prefersDark ? '' : 'dim'
-        if (prefersDark) delete document.documentElement.dataset.theme
-      } else if (theme && theme !== 'midnight') {
-        document.documentElement.dataset.theme = theme
-      } else {
-        delete document.documentElement.dataset.theme
-      }
+    const el = document.documentElement
+    const t = prefs.theme
+    if (isUctTheme(t)) {
+      const theme = APP_THEME_BY_ID[uctThemeId(t)]
+      if (theme) { applyAppTheme(el, theme); return }
+      // Unknown uct id (e.g. a retired theme): fall back to OLED, cleanly.
     }
-
-    applyTheme(prefs.theme)
-
-    // Listen for OS theme changes when set to "system"
-    if (prefs.theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      const handler = () => applyTheme('system')
-      mq.addEventListener('change', handler)
-      return () => mq.removeEventListener('change', handler)
-    }
+    clearAppThemeVars(el)
+    el.dataset.theme = t === 'light' ? 'light' : 'oled'
   }, [prefs.theme])
 
   // Smooth theme transitions

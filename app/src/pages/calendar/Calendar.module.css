@@ -45,8 +45,8 @@
 }
 
 .cardMine {
-  border-color: rgba(201, 168, 76, 0.55);
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.06), var(--cal-panel));
+  border-color: var(--ut-gold-glow);
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
 }
 
 .star {
@@ -114,7 +114,7 @@
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
-  background: rgba(60, 184, 104, 0.16);
+  background: var(--gain-bg);
   color: var(--cal-green);
 }
 
@@ -125,7 +125,7 @@
   font-size: 12px;
   padding: 3px 0;
   color: var(--cal-txt);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border);
 }
 
 .met:last-of-type { border-bottom: none; }
@@ -218,7 +218,7 @@
   padding: 5px 9px;
   background: transparent;
   border: 1px solid var(--cal-line);
-  border-left: 2px solid rgba(107, 163, 190, 0.5);
+  border-left: 2px solid var(--info-border);
   border-radius: 9px;
 }
 
@@ -301,7 +301,7 @@
   padding: 10px 18px;
   color: var(--cal-muted);
   font-size: 11px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
 }
 .dayFilteredLbl {
   font-weight: 800;
@@ -376,7 +376,7 @@
 }
 .etileMine {
   border-color: var(--cal-gold);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 0 2px var(--ut-gold-glow);
 }
 .etileStar {
   position: absolute;
@@ -468,8 +468,8 @@
 .mineN {
   font-size: 10px;
   color: var(--cal-gold);
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 20px;
   padding: 2px 9px;
   font-weight: 700;
@@ -536,12 +536,12 @@
    border-bottom-color is a no-op where the element has no border (week). */
 .bmoHd {
   color: var(--ut-gold);
-  border-bottom-color: rgba(201, 168, 76, 0.28);
+  border-bottom-color: var(--ut-gold-glow);
 }
 
 .amcHd {
   color: var(--cal-blue);
-  border-bottom-color: rgba(107, 163, 190, 0.28);
+  border-bottom-color: var(--info-border);
 }
 
 /* Week column timing sub-groups */
@@ -609,8 +609,8 @@
 }
 
 .wcolToday {
-  border-color: rgba(201, 168, 76, 0.5);
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), var(--cal-panel));
+  border-color: var(--ut-gold-glow);
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
 }
 
 .wd {
@@ -643,7 +643,7 @@
 }
 
 .wrow:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   transform: translateX(2px);
 }
 
@@ -756,8 +756,8 @@
 }
 
 .gcellToday {
-  border-color: rgba(201, 168, 76, 0.55);
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.08), var(--cal-panel));
+  border-color: var(--ut-gold-glow);
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
 }
 
 /* Filled gold "today" chip — instant where-am-I anchor in a dense month. */
@@ -850,7 +850,7 @@
 }
 
 .mrow:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
 }
 
 .mrow > span:first-child {
@@ -1035,7 +1035,7 @@
 }
 
 .drawerHd button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-elevated);
   color: var(--cal-txt);
 }
 
@@ -1098,7 +1098,12 @@
   user-select: none;
 }
 
-.viewOn {
+/* .view span.viewOn (not bare .viewOn): the base `.view span` rule sets
+   color:var(--cal-dim) at specificity (0,1,1), which would otherwise beat a bare
+   .viewOn (0,1,0) and leave the ACTIVE tab with dim text on the accent fill
+   (illegible). Matching .chipOn (the UCT20 chip), the active tab is an accent fill
+   with near-black text in every theme. */
+.view span.viewOn {
   background: var(--cal-gold);
   color: #1a1408;
   font-weight: 800;
@@ -1118,8 +1123,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 8px;
   padding: 6px 11px;
   font-size: 12px;
@@ -1226,7 +1231,7 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   color: var(--cal-blue);
-  background: rgba(107, 163, 190, 0.12);
+  background: var(--info-bg);
   border-radius: 4px;
   padding: 1px 5px;
 }
@@ -1324,8 +1329,8 @@
 .filterClear {
   width: 100%;
   margin-top: 4px;
-  background: rgba(231, 76, 60, 0.12);
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
   border-radius: 7px;
   color: var(--cal-red);
   font-size: 11px;
@@ -1336,7 +1341,7 @@
 }
 
 .filterClear:hover {
-  background: rgba(231, 76, 60, 0.22);
+  background: var(--loss-border);
 }
 
 /* ── Month navigation (header inline + MonthView internal) ──────────────── */
@@ -1350,7 +1355,7 @@
 
 /* Shared nav button style (used both in header + MonthView standalone) */
 .monthNavBtn {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-elevated);
   border: 1px solid var(--cal-line2);
   border-radius: 7px;
   color: var(--cal-dim);
@@ -1362,7 +1367,7 @@
 }
 
 .monthNavBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-hover);
   color: var(--cal-txt);
 }
 
@@ -1439,7 +1444,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--cal-txt);
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-hover);
   border: 1px solid var(--cal-line2);
   border-radius: 8px;
   padding: 5px 10px 5px 5px;
@@ -1454,20 +1459,20 @@
 
 /* IPO — subtle blue tint */
 .evtCardIpo {
-  border-color: rgba(107, 163, 190, 0.35);
-  background: linear-gradient(180deg, rgba(107, 163, 190, 0.05), var(--cal-panel));
+  border-color: var(--info-border);
+  background: linear-gradient(180deg, var(--info-bg), var(--cal-panel));
 }
 
 /* Dividend — subtle green tint */
 .evtCardDiv {
-  border-color: rgba(60, 184, 104, 0.3);
-  background: linear-gradient(180deg, rgba(60, 184, 104, 0.04), var(--cal-panel));
+  border-color: var(--gain-border);
+  background: linear-gradient(180deg, var(--gain-bg), var(--cal-panel));
 }
 
 /* Split — subtle gold tint */
 .evtCardSplit {
-  border-color: rgba(201, 168, 76, 0.3);
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), var(--cal-panel));
+  border-color: var(--ut-gold-glow);
+  background: linear-gradient(180deg, var(--ut-gold-dim), var(--cal-panel));
 }
 
 /* Type tag badge (top-right corner) */
@@ -1479,32 +1484,32 @@
   font-weight: 800;
   letter-spacing: 0.8px;
   color: var(--cal-dim);
-  background: rgba(255,255,255,0.07);
+  background: var(--bg-elevated);
   border-radius: 4px;
   padding: 2px 6px;
 }
 
 /* IPO status pills */
 .evtStatusPriced {
-  background: rgba(60, 184, 104, 0.15);
+  background: var(--gain-bg);
   color: var(--cal-green);
-  border-color: rgba(60, 184, 104, 0.25);
+  border-color: var(--gain-border);
 }
 
 .evtStatusExpected {
-  background: rgba(201, 168, 76, 0.12);
+  background: var(--ut-gold-dim);
   color: var(--cal-gold);
-  border-color: rgba(201, 168, 76, 0.25);
+  border-color: var(--ut-gold-glow);
 }
 
 .evtStatusFiled {
-  background: rgba(107, 163, 190, 0.12);
+  background: var(--info-bg);
   color: var(--cal-blue);
-  border-color: rgba(107, 163, 190, 0.25);
+  border-color: var(--info-border);
 }
 
 .evtStatusDefault {
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-elevated);
   color: var(--cal-dim);
   border-color: var(--cal-line2);
 }
@@ -1741,11 +1746,11 @@
   color: var(--cal-gold);
   text-decoration: none;
   padding: 4px 10px;
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 6px;
   transition: background 0.15s;
 }
-.hubLink:hover { background: rgba(201, 168, 76, 0.1); }
+.hubLink:hover { background: var(--ut-gold-dim); }
 
 .hubTitle {
   font-size: 18px;
@@ -1992,7 +1997,7 @@
 .capPill:hover { border-color: var(--cal-gold); color: var(--cal-txt); }
 .capPillOn {
   border-color: var(--cal-gold);
-  background: rgba(201, 168, 76, 0.10);
+  background: var(--ut-gold-dim);
   color: var(--cal-gold);
 }
 
@@ -2119,7 +2124,7 @@
 }
 
 .dayTab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   border-color: var(--cal-line);
 }
 
@@ -2148,7 +2153,7 @@
 
 .todayPill {
   background: none;
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 999px;
   color: var(--cal-gold);
   font-size: 11px;
@@ -2158,7 +2163,7 @@
   transition: background 0.1s;
 }
 
-.todayPill:hover { background: rgba(201, 168, 76, 0.12); }
+.todayPill:hover { background: var(--ut-gold-dim); }
 
 .wkBtnWrap {
   position: relative;
@@ -2216,7 +2221,7 @@
   transition: background 0.1s;
 }
 
-.wkPopItem:hover { background: rgba(255, 255, 255, 0.06); }
+.wkPopItem:hover { background: var(--bg-elevated); }
 
 .wkPopItemActive {
   color: var(--cal-gold);
@@ -2285,7 +2290,7 @@
   min-width: 0;
 }
 
-.searchRowHi { background: rgba(255, 255, 255, 0.07); }
+.searchRowHi { background: var(--bg-elevated); }
 
 .searchRowSym {
   font-size: 12px;
@@ -2348,8 +2353,8 @@
 }
 
 .retryBtn {
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 7px;
   color: var(--cal-gold);
   font-size: 12px;
@@ -2359,7 +2364,7 @@
   margin-left: 8px;
 }
 
-.retryBtn:hover { background: rgba(201, 168, 76, 0.2); }
+.retryBtn:hover { background: var(--ut-gold-glow); }
 
 .skeletonWrap {
   padding: 16px 18px;
@@ -2379,9 +2384,9 @@
 .skeletonRowShort {
   border-radius: 8px;
   background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.09) 50%,
-    rgba(255, 255, 255, 0.04) 75%);
+    var(--bg-surface) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-surface) 75%);
   background-size: 200% 100%;
   animation: calSkeleton 1.4s ease-in-out infinite;
 }
@@ -2537,7 +2542,7 @@
   transition: background 0.1s;
 }
 
-.compactRow:hover { background: rgba(255, 255, 255, 0.05); }
+.compactRow:hover { background: var(--bg-hover); }
 
 .compactSym {
   font-size: 13px;
@@ -2588,7 +2593,7 @@
 .mainEventWrap { margin-bottom: 8px; }
 
 .cardMainEvent {
-  border-top: 2px solid rgba(201, 168, 76, 0.35);
+  border-top: 2px solid var(--ut-gold-glow);
   border-radius: 14px;
   padding: 12px 15px;
   max-width: 560px;
@@ -2610,7 +2615,7 @@
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--cal-gold);
-  border: 1px solid rgba(201, 168, 76, 0.45);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 5px;
   padding: 0 6px;
 }
@@ -2645,7 +2650,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--cal-txt);
   padding: 3px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border);
 }
 
 .mainMetaRow {
@@ -2661,7 +2666,7 @@
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
-  background: rgba(231, 76, 60, 0.16);
+  background: var(--loss-bg);
   color: var(--cal-red);
 }
 
@@ -2687,7 +2692,7 @@
 }
 
 .beatDotUp   { background: var(--cal-gold); }
-.beatDotDown { background: rgba(231, 76, 60, 0.75); }
+.beatDotDown { background: var(--loss); }
 .beatDotNone { border: 1px solid var(--cal-line2); }
 
 .reactSpark { display: inline-block; }
@@ -2731,7 +2736,7 @@
   grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
   padding: 0 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--cal-line);
 }
 
@@ -2773,11 +2778,11 @@
   min-height: 36px;
   padding: 0 12px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
   transition: background 0.1s;
 }
 
-.dtRow:hover { background: rgba(255, 255, 255, 0.04); }
+.dtRow:hover { background: var(--bg-surface); }
 .dtRow:last-child { border-bottom: none; }
 
 /* Session color spine (WSE grammar): gold = pre-market, blue = after-close,
@@ -2939,7 +2944,7 @@
   font-size: 10px;
   font-weight: 700;
   color: var(--cal-gold);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 5px;
   padding: 1px 6px;
   white-space: nowrap;
@@ -2949,7 +2954,7 @@
   font-size: 10px;
   font-weight: 700;
   color: var(--cal-blue);
-  border: 1px solid rgba(107, 163, 190, 0.4);
+  border: 1px solid var(--info-border);
   border-radius: 5px;
   padding: 1px 6px;
 }
@@ -2989,7 +2994,7 @@
   margin: 0 18px 4px;
   border: 1px solid var(--cal-line);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.04), transparent);
+  background: linear-gradient(180deg, var(--ut-gold-dim), transparent);
 }
 .briefCluster { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .briefLbl {
@@ -3022,7 +3027,7 @@
   font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
   border-radius: 4px; padding: 1px 5px;
 }
-.briefBadge { color: var(--cal-dim); background: rgba(255, 255, 255, 0.06); }
+.briefBadge { color: var(--cal-dim); background: var(--bg-elevated); }
 .briefBadgeGold { color: #1a1408; background: var(--cal-gold); }
 .briefChip {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
@@ -3031,8 +3036,8 @@
   cursor: pointer; color: var(--cal-dim); transition: border-color 0.12s;
 }
 .briefChip:hover { border-color: var(--cal-line2); }
-.briefChipBeat { border-color: rgba(60, 184, 104, 0.4); }
-.briefChipMiss { border-color: rgba(231, 76, 60, 0.4); }
+.briefChipBeat { border-color: var(--gain-border); }
+.briefChipMiss { border-color: var(--loss-border); }
 .briefMacro {
   display: inline-flex; align-items: center; flex: 0 0 auto;
   font-size: 11px; color: var(--cal-dim); white-space: nowrap;
@@ -3055,8 +3060,8 @@
 /* ── Phase 3 — Print Tape (today's reported scoreboard) ──────────────────── */
 
 .printTape {
-  border: 1px solid rgba(201, 168, 76, 0.3); border-radius: 12px;
-  background: rgba(201, 168, 76, 0.04); padding: 12px 14px; margin-bottom: 14px;
+  border: 1px solid var(--ut-gold-glow); border-radius: 12px;
+  background: var(--ut-gold-dim); padding: 12px 14px; margin-bottom: 14px;
 }
 .printTapeHd {
   font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
@@ -3075,7 +3080,7 @@
   padding: 5px 6px; border-radius: 8px; cursor: pointer; min-width: 0;
   transition: background 0.1s;
 }
-.printRow:hover { background: rgba(255, 255, 255, 0.05); }
+.printRow:hover { background: var(--bg-hover); }
 .printSym { font-size: 13px; font-weight: 800; color: var(--cal-txt); flex: 0 0 auto; }
 .printBeat, .printMiss { font-size: 10px; font-weight: 800; letter-spacing: 0.3px; flex: 0 0 auto; }
 .printBeat { color: var(--cal-green); }
@@ -3119,7 +3124,7 @@
   font-weight: 700;
   letter-spacing: 0.3px;
   color: #1a1408;
-  background: rgba(201, 168, 76, 0.85);
+  background: var(--ut-gold);
   border-radius: 4px;
   padding: 1px 6px;
   margin-top: 3px;

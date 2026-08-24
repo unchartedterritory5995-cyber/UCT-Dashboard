@@ -45,7 +45,7 @@
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 800;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   letter-spacing: 4px;
   text-transform: uppercase;
 }
@@ -478,7 +478,7 @@
   font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--text-bright);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -1325,7 +1325,7 @@ tbody tr { cursor: pointer; }
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin: 0;

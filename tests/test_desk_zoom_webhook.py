@@ -141,6 +141,64 @@ def test_session_requeue_409_on_a_done_job(client, monkeypatch):
     assert q.count_status("done") == 1
 
 
+# ── /session-cancel ──────────────────────────────────────────────────────────────
+
+def test_session_cancel_401_without_bearer(client):
+    r = client.post("/api/desk/session-cancel", json={"meeting_uuid": "x"})
+    assert r.status_code == 401
+
+def test_session_cancel_stops_a_pending_take_from_ever_publishing(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    q.enqueue("Ubad", "SUNDAY SCANS", "2026-08-23T02:00:00Z", "http://dl", "tok")
+    r = client.post("/api/desk/session-cancel",
+                    json={"meeting_uuid": "Ubad", "reason": "bad take, re-recorded"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 200 and r.json()["cancelled"] is True
+    assert r.json()["job"]["status"] == "skipped"
+    # the ARTIFACT: the drain cannot claim it
+    assert q.claim_next() is None
+
+def test_session_cancel_leaves_a_second_pending_take_publishable(client, monkeypatch):
+    """The whole point: kill ONE take, not the queue. A blanket stop would also
+    lose the good re-record."""
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    q.enqueue("Ubad", "SUNDAY SCANS", "2026-08-23T02:00:00Z", "http://dl", "tok")
+    q.enqueue("Ugood", "SUNDAY SCANS", "2026-08-23T02:40:00Z", "http://dl2", "tok2")
+    r = client.post("/api/desk/session-cancel", json={"meeting_uuid": "Ubad"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 200
+    claimed = q.claim_next()
+    assert claimed is not None and claimed["meeting_uuid"] == "Ugood"
+    assert q.claim_next() is None
+
+def test_session_cancel_404_on_unknown_uuid(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    r = client.post("/api/desk/session-cancel", json={"meeting_uuid": "ghost"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 404
+
+def test_session_cancel_409_on_a_done_job_names_the_published_video(client, monkeypatch):
+    """Publishing is one-way — a cancel that implied it recalled a public video
+    would be a lie. Name the id so the operator knows what to remove by hand."""
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    q.enqueue("Udone", "SUNDAY SCANS", "s", "http://dl", "tok")
+    q.claim_next(); q.mark_done("Udone", "VIDPUB")
+    r = client.post("/api/desk/session-cancel", json={"meeting_uuid": "Udone"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 409
+    assert "VIDPUB" in r.json()["error"]
+    assert q.count_status("done") == 1
+
+def test_session_cancel_409_on_a_processing_job(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    q.enqueue("Uproc", "SUNDAY SCANS", "s", "http://dl", "tok")
+    q.claim_next()
+    r = client.post("/api/desk/session-cancel", json={"meeting_uuid": "Uproc"},
+                    headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 409
+    assert q.get_job("Uproc")["status"] == "processing"
+
+
 # ── /insights-status ─────────────────────────────────────────────────────────────
 
 def test_insights_status_401_without_bearer(client):

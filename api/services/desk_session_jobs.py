@@ -110,6 +110,32 @@ def requeue(meeting_uuid, topic=None):
                         (meeting_uuid,)).fetchone()
         return dict(row) if row else None
 
+def cancel(meeting_uuid, reason=""):
+    """Flip a not-yet-published ('pending'|'error') job to terminal 'skipped' so
+    the processor never publishes it — the owner re-recorded and only the later
+    take should go out. The mirror of requeue(), and status-guarded for the same
+    reason: 'processing' means an upload may already be in flight (skipping it
+    would not recall it, and mark_done would overwrite the status anyway), and
+    'done' is already public — publishing is one-way, so a cancel that claims to
+    have stopped a published video would be a lie. Returns the updated row, or
+    None if no cancellable job with that uuid exists.
+
+    Deliberately NOT mark_skipped(): that one is unguarded by design (the
+    processor calls it on a claimed row mid-drain). Cancelling is operator-
+    driven and races the drain, so it must refuse non-cancellable states."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "UPDATE desk_session_jobs SET status='skipped', error=?, updated_at=? "
+            "WHERE meeting_uuid=? AND status IN ('pending','error')",
+            (str(reason)[:500], now, meeting_uuid))
+        c.commit()
+        if cur.rowcount != 1:
+            return None
+        row = c.execute("SELECT * FROM desk_session_jobs WHERE meeting_uuid=?",
+                        (meeting_uuid,)).fetchone()
+        return dict(row) if row else None
+
 def mark_error(meeting_uuid, error):
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         row = c.execute("SELECT attempts FROM desk_session_jobs WHERE meeting_uuid=?",
