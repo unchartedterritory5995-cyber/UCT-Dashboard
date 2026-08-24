@@ -54,7 +54,7 @@
 .chapterTime {
   flex: none;
   min-width: 52px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -196,7 +196,7 @@
   background: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;

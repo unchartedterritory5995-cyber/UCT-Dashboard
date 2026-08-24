@@ -1471,7 +1471,7 @@
 /* SWEEP lifts offers across exchanges; BLOCK is negotiated. Sweeps read live,
    blocks read muted — the distinction is the point of the column. */
 .rundownWrap :global(.rd-order-type) {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.3px;

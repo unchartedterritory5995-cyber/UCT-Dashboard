@@ -70,7 +70,7 @@
   display: inline-block; padding: 3px 8px; border-radius: 5px;
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text-bright); font-size: var(--text-xs);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   letter-spacing: 0.04em; text-decoration: none;
   cursor: pointer; line-height: inherit;
 }
@@ -178,7 +178,7 @@
   display: inline-block; padding: 4px 9px; border-radius: 5px;
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text-bright); font-size: var(--text-xs); text-decoration: none;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.04em;
+  font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em;
   min-height: 0;
 }
 .body :global(.uctTickerChip:hover) { border-color: var(--ut-gold); color: var(--ut-gold); }
@@ -349,7 +349,7 @@
 .relatedMeta { font-size: var(--text-xs); color: var(--text-muted); }
 .relatedShared {
   font-size: var(--text-xs); color: var(--ut-gold);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.04em;
+  font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 @media (max-width: 640px) {

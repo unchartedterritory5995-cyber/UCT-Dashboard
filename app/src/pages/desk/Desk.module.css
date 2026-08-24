@@ -335,7 +335,7 @@
    what a trader scans an archive for. */
 .articleTickers { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
 .articleTicker {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 10px; letter-spacing: 0.04em; line-height: 1;
   padding: 3px 5px; border-radius: 4px;
   background: var(--bg-elevated); border: 1px solid var(--border);

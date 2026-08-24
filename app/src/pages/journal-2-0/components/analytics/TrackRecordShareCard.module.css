@@ -25,7 +25,7 @@
   background: var(--surface-2, #16161a);
   color: var(--accent);
   font-size: 12.5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono, monospace);
 }
 
 .actions {

@@ -117,7 +117,7 @@
 .cueTime {
   flex: none;
   min-width: 54px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
   color: var(--accent);
   font-variant-numeric: tabular-nums;

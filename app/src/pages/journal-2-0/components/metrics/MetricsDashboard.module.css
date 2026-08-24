@@ -184,7 +184,7 @@
   min-width: 0;
 }
 
-.kpiExpr { flex: 2 1 180px; font-family: 'IBM Plex Mono', monospace; }
+.kpiExpr { flex: 2 1 180px; font-family: var(--font-mono, monospace); }
 
 .addBtn {
   padding: 6px 14px;
