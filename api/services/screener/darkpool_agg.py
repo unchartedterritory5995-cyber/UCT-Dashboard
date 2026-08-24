@@ -177,9 +177,39 @@ def read_darkpool_fields(targets, closes=None, failures=None):
     finally:
         conn.close()
 
-    agg5 = {str(r["ticker"]).upper(): (r["notional_5d"], r["prints_5d"])
+    # 🔴 DUAL-CLASS NAMES ARE STORED UNDER THE DOT FORM AND ASKED FOR UNDER THE
+    # HYPHEN FORM, so the membership test below silently dropped every one of
+    # them. Measured 2026-08-23 against the real store: 7 of the 14 dual-class
+    # tickers in `cap_universe` carry data, all of it keyed `BRK.B`-style, and
+    # the hyphen form returns exactly ZERO prints for every one —
+    # **574 prints and $11.10B of block notional invisible to the screener**,
+    # with BRK-B alone accounting for $9.88B. The failure is silent and total:
+    # the column is not wrong for these names, it is absent, so they read as
+    # "no block activity" rather than "we did not look".
+    #
+    # ⭐ THE REVERSE MAP IS DERIVED FROM THE FORWARD ONE, NEVER TYPED. This is
+    # the same trap `massive.to_polygon_symbol` was written for (its docstring
+    # names BRK-B/BF-B explicitly), so that function stays the single authority
+    # on the mapping and we invert it only over the tickers actually in play.
+    # A hand-written dot->hyphen table here would be a second authority that
+    # drifts the day the upstream convention changes.
+    try:
+        from api.services.massive import to_polygon_symbol
+        _alias = {to_polygon_symbol(t): t for t in targets_u
+                  if to_polygon_symbol(t) != t}
+    except Exception as e:                                        # noqa: BLE001
+        # A dead import must not cost us the ordinary tickers too.
+        _note(failures, "darkpool_agg_alias", e)
+        _alias = {}
+
+    def _canon(raw):
+        """Store ticker -> the form the screener keys rows by."""
+        u = str(raw).upper()
+        return _alias.get(u, u)
+
+    agg5 = {_canon(r["ticker"]): (r["notional_5d"], r["prints_5d"])
             for r in rows5 if r["ticker"]}
-    agg1 = {str(r["ticker"]).upper(): (r["notional_1d"], r["prints_1d"])
+    agg1 = {_canon(r["ticker"]): (r["notional_1d"], r["prints_1d"])
             for r in rows1 if r["ticker"]}
 
     out = {}

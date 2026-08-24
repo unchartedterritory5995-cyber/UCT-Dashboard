@@ -43,13 +43,15 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
     () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(placedTheme)),
     [settingsOverride, prefs],
   )
-  // The picker's OWN CHROME (tab bar, count badges, search) always follows the APP THEME,
-  // NOT the widget's saved list-appearance override — otherwise applying a dark list
-  // template turned the nav bar + count badges black. `wlSettings` above still drives the
-  // ⚙ panel (which edits the widget's real list settings).
+  // The picker's OWN CHROME (root canvas, tab bar, count badges, search) follows the
+  // widget's saved appearance when it HAS one — so when a UCT theme is applied to "all
+  // widgets", this landing page matches the same canvas the picked list will show, and
+  // matches the neighbouring themed widgets. With no override it falls back to the app
+  // theme (white on light). Readability is safe: watchlistStyleVars/menuThemeVars
+  // contrast-match every chrome var (text/accent/divider/badge) to the chosen canvas.
   const chromeSettings = useMemo(
-    () => mergeWatchlistSettings(watchlistDefaultsForTheme(placedTheme)),
-    [prefs],
+    () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(placedTheme)),
+    [settingsOverride, prefs],
   )
   const wlStyle = useMemo(() => watchlistStyleVars(chromeSettings), [chromeSettings])
   const menuVars = useMemo(() => {

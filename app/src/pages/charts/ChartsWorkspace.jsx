@@ -309,6 +309,49 @@ function clampWidgetsToRows(widgets) {
   })
 }
 
+// Bounded drag-move resolve. The moved widget keeps the slot the user dropped it on
+// (clamped inside the grid); every OTHER widget it collides with relocates to the
+// nearest free vertical space in its own column band, ALWAYS within the fixed rows —
+// so a displaced widget can never be pushed off the bottom of the visible canvas.
+// Returns a NON-overlapping, in-bounds list, so RGL (preventCollision off) has nothing
+// left to shove. `rect` is the dropped {x,y,w,h}; `movedId` the dragged widget's id.
+function clampOne(w, cols, rows) {
+  const def = WIDGET_DEFAULTS[w.type] || {}
+  const minH = def.minH || 3, minW = def.minW || 2
+  const x = Math.max(0, Math.min(w.x | 0, cols - minW))
+  let cw = Math.max(minW, Math.min(w.w | 0, cols)); if (x + cw > cols) cw = cols - x
+  const y = Math.max(0, Math.min(w.y | 0, rows - minH))
+  let h = Math.max(minH, Math.min(w.h | 0, rows)); if (y + h > rows) h = rows - y
+  return { ...w, x, y, w: cw, h }
+}
+function resolveMoveWithinBounds(widgets, movedId, rect, cols = GRID_COLS, rows = FIXED_ROWS) {
+  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+  const moved0 = widgets.find(w => w.id === movedId)
+  if (!moved0) return widgets
+  const moved = clampOne({ ...moved0, x: rect.x, y: rect.y, w: rect.w, h: rect.h }, cols, rows)
+  const placed = [moved]
+  // Nearest free y (to the widget's own y) in its x-band that keeps it fully in bounds.
+  const freeY = (item) => {
+    const cands = []
+    for (let y = 0; y <= rows - item.h; y++) cands.push(y)
+    cands.sort((p, q) => Math.abs(p - item.y) - Math.abs(q - item.y) || p - q)
+    for (const y of cands) if (!placed.some(p => overlaps(p, { ...item, y }))) return y
+    return null
+  }
+  const rest = widgets.filter(w => w.id !== movedId).map(w => clampOne(w, cols, rows)).sort((a, b) => (a.y - b.y) || (a.x - b.x))
+  for (const w of rest) {
+    let item = w
+    if (placed.some(p => overlaps(p, item))) {
+      const y = freeY(item)
+      // No full-height free slot in-bounds → pin to the bottom (still visible), never off-canvas.
+      item = { ...item, y: y != null ? y : Math.max(0, rows - item.h) }
+    }
+    placed.push(item)
+  }
+  const byId = Object.fromEntries(placed.map(p => [p.id, p]))
+  return widgets.map(w => byId[w.id] || w)
+}
+
 // tallest / widest widget in a list — used to pick which one yields space when a
 // new widget can't find a free slot (make-room strategies below).
 const tallestOf = (arr) => (arr || []).reduce((a, b) => (!a || b.h > a.h ? b : a), null)
@@ -833,7 +876,31 @@ export default function ChartsWorkspace() {
   // Drag-move + programmatic changes. RGL never reports overlaps here (drag-move is
   // preventCollision-guarded, resize is our own overlay), so a straight merge +
   // bounds-clamp is all this needs.
+  // Pre-drag snapshot + a one-shot guard so RGL's own onLayoutChange (fired right
+  // after onDragStop with its pushed, possibly-off-screen positions) is ignored — our
+  // bounded resolve in handleDragStop is the authority for a drag-move.
+  const dragSnapshotRef = useRef(null)
+  const skipLayoutChangeRef = useRef(false)
+  const handleDragStart = useCallback(() => {
+    const ws = layoutRef.current?.widgets
+    dragSnapshotRef.current = Array.isArray(ws) ? ws.map(w => ({ ...w })) : null
+  }, [])
+  const handleDragStop = useCallback((_layout, _oldItem, newItem) => {
+    const snap = dragSnapshotRef.current
+    dragSnapshotRef.current = null
+    if (!newItem) return
+    const base = snap || layoutRef.current?.widgets || []
+    const resolved = resolveMoveWithinBounds(base, newItem.i, { x: newItem.x, y: newItem.y, w: newItem.w, h: newItem.h })
+    skipLayoutChangeRef.current = true
+    setLayout(prev => {
+      const next = { ...prev, widgets: resolved }
+      if (hydratedRef.current) scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   const handleLayoutChange = useCallback((newGridLayout) => {
+    if (skipLayoutChangeRef.current) { skipLayoutChangeRef.current = false; return }
     setLayout(prev => {
       const byId = Object.fromEntries(newGridLayout.map(l => [l.i, l]))
       const widgets = prev.widgets.map(w => {
@@ -1875,6 +1942,8 @@ export default function ChartsWorkspace() {
       maxRows={FIXED_ROWS}
       isBounded={true}
       onLayoutChange={h.onLayoutChange}
+      onDragStart={h.onDragStart}
+      onDragStop={h.onDragStop}
       draggableHandle=".charts-widget-drag-handle"
       /* The whole widget header is the drag handle now, so exempt every interactive
          control in it (color dot, +add, float/pop-out/close, tab chips) from starting
@@ -1947,6 +2016,8 @@ export default function ChartsWorkspace() {
 
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,
+    onDragStart: handleDragStart,
+    onDragStop: handleDragStop,
     onStartResize: startResize,
     onRemove: handleRemoveWidget,
     onColorChange: handleColorChange,

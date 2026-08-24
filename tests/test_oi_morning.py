@@ -17,9 +17,10 @@ def _seed_flow(path, rows):
 
 
 # (source,date,time,sym,type,vol,side,cp,strike,spot,prem,exp,color,dte,stocketf,mktcap,oi)
-def _row(sym, typ, cp, strike, exp, prem, vol, oi, dt="8/21/2026", tm="10:00:00"):
-    return ("stocks", dt, tm, sym, typ, str(vol), "A", cp, str(strike), "50",
-            str(prem), exp, "WHITE", "60", "STOCK", "5e9", str(oi))
+def _row(sym, typ, cp, strike, exp, prem, vol, oi, dt="8/21/2026", tm="10:00:00",
+         stocketf="STOCK", source="stocks"):
+    return (source, dt, tm, sym, typ, str(vol), "A", cp, str(strike), "50",
+            str(prem), exp, "WHITE", "60", stocketf, "5e9", str(oi))
 
 
 _FUT = "1/15/2027"      # future expiry (kept)
@@ -73,6 +74,30 @@ def test_brand_new_position_uses_zero_baseline(tmp_path, monkeypatch):
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert len(rows) == 1
     assert rows[0]["firstOI"] == 0 and rows[0]["delta"] == 27800 and rows[0]["state"] == "NEW"
+
+
+def test_etf_and_index_sources_excluded(tmp_path, monkeypatch):
+    """Default is single-names only: ETFs (StockEtf='ETF') and source='indexes' are
+    dropped so the raw-ΔOI board isn't swamped by huge-OI ETFs."""
+    db = tmp_path / "flow.db"
+    _seed_flow(str(db), [
+        _row("AAPL", "SWEEP", "CALL", 200, _FUT, 500000, 1000, 1000),                    # stock → kept
+        _row("SPY", "SWEEP", "CALL", 500, _FUT, 900000, 5000, 100, stocketf="ETF"),       # ETF flag → dropped
+        _row("QQQ", "SWEEP", "CALL", 500, _FUT, 900000, 5000, 100, source="indexes"),     # indexes → dropped
+    ])
+    monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
+    kA = oi_snapshots.make_key("AAPL", "C", 200, _FUT)
+    kS = oi_snapshots.make_key("SPY", "C", 500, _FUT)
+    kQ = oi_snapshots.make_key("QQQ", "C", 500, _FUT)
+    monkeypatch.setattr(oim, "_oi_deltas", lambda keys: {
+        kA: (1000, 20000, "2026-08-22"), kS: (100, 99999, "2026-08-22"), kQ: (100, 99999, "2026-08-22")})
+    rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)   # default sources=('stocks',)
+    assert [r["sym"] for r in rows] == ["AAPL"]
+
+    # opt back in to ETFs/indexes via sources
+    rows2, _ = oim.build_rows(days=1, top_n=10, min_delta=500, sources=("stocks", "indexes"))
+    assert "QQQ" in [r["sym"] for r in rows2]        # indexes now included
+    assert "SPY" not in [r["sym"] for r in rows2]    # StockEtf='ETF' still dropped by the safety net
 
 
 def test_no_snapshot_contract_is_dropped(tmp_path, monkeypatch):

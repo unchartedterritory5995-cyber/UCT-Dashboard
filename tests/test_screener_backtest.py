@@ -14,6 +14,8 @@ from an explicit list or an index arithmetic, never from ``now()`` or ``random``
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from api.services.screener import backtest as bt
@@ -75,6 +77,19 @@ def reader(mapping):
 
 def rising(n=80, base=10.0, step=1.0, start=0):
     return bars([base + step * i for i in range(n)], start=start)
+
+
+def holed(n=40, start=0):
+    """``n`` bars whose CLOSE is a hole — a data gap spanning the WHOLE window.
+
+    ⭐ ``o``/``h``/``l``/``v`` stay real prices, so this is a symbol the engine
+    could price a fill on and simply cannot ask the question of. That is the
+    shape that used to leave the calculation without a trace.
+    """
+    b = rising(n=n, start=start)
+    for bar in b:
+        bar["c"] = None
+    return b
 
 
 # --------------------------------------------------------------------------- #
@@ -281,13 +296,85 @@ def test_the_universe_arithmetic_closes_and_the_guard_can_fire():
 
 
 def test_every_requested_symbol_lands_in_exactly_one_bucket():
-    b = {"AAA": rising(), "GONE": None, "OLD": rising(n=20, start=300)}
-    r = bt.run_backtest(BAR_TREE, ["AAA", "GONE", "OLD"], day(0), day(79),
-                        bars_for=reader(b), min_signals=1)
+    """⛔ AND EVERY BUCKET IS OCCUPIED, or the identity is not being tested.
+
+    This fixture used to hold three symbols across three buckets, so the fourth
+    term — ``symbols_no_answer_in_window`` — was ``0`` in every case the suite
+    ran, and the identity closed whatever that term did. A sum with a term that
+    is always zero is a gate that cannot fail on that term: hard-coding the
+    bucket to ``0`` in the engine left the whole suite green. The fourth symbol
+    fixes that, so each of the four counts is load-bearing here.
+    """
+    b = {"AAA": rising(), "GONE": None, "OLD": rising(n=20, start=300),
+         "HOLED": holed(n=40)}
+    r = bt.run_backtest(BAR_TREE, ["AAA", "GONE", "OLD", "HOLED"],
+                        day(0), day(79), bars_for=reader(b), min_signals=1)
     c = r.coverage
     assert (c["symbols_tested"] + c["symbols_missing_bars"]
             + c["symbols_no_bars_in_window"] + c["symbols_no_answer_in_window"]
             == c["symbols_requested"])
+    assert (c["symbols_tested"], c["symbols_missing_bars"],
+            c["symbols_no_bars_in_window"], c["symbols_no_answer_in_window"]) \
+        == (1, 1, 1, 1)
+
+
+def test_a_symbol_whose_whole_window_is_unanswerable_keeps_its_bars_in_coverage():
+    """🔴 THE BARS OF AN EXCLUDED SYMBOL STAY IN THE CALCULATION (rule 3).
+
+    ``HOLED`` has forty in-window bars and the screen can answer none of them, so
+    it contributes no observation and is kept out of the horizon loop. Summing
+    the bar counts over that same shortened list dropped its forty bars out of
+    coverage entirely, and the receipt then said ``bars_not_computable: 0`` —
+    which does not merely omit a fact, it positively asserts *"no data holes"*
+    about a window that was one big hole.
+
+    ⚠️ ``_assert_closes("bars", …)`` cannot catch this and never could: both
+    sides of the identity lose the same symbol, so it closes. THIS is the gate.
+    """
+    b = {"GOOD": rising(n=40), "HOLED": holed(n=40)}
+    r = bt.run_backtest(ALWAYS, ["GOOD", "HOLED"], day(0), day(39),
+                        bars_for=reader(b), min_signals=1)
+    c = r.coverage
+    assert c["symbols_tested"] == 1
+    assert c["symbols_no_answer_in_window"] == 1
+    assert c["bars_in_window"] == 80          # ⭐ BOTH symbols' bars, not one's
+    assert c["bars_not_computable"] == 40     # ⭐ the forty holes, named
+    assert c["bars_answered"] == 40
+    assert (c["bars_warmup"] + c["bars_not_computable"] + c["bars_answered"]
+            == c["bars_in_window"])
+
+
+def test_control_two_clean_symbols_report_the_same_bars_and_no_holes():
+    """THE CONTROL for the test above. The bar total is the SAME 80 either way —
+    which is the point: excluding a symbol from the horizon loop must not change
+    what the window is reported to have contained. If the total moved here, the
+    80 above would be measuring the fixture rather than the fold-in.
+    """
+    b = {"GOOD": rising(n=40), "ALSO": rising(n=40)}
+    r = bt.run_backtest(ALWAYS, ["GOOD", "ALSO"], day(0), day(39),
+                        bars_for=reader(b), min_signals=1)
+    c = r.coverage
+    assert c["symbols_tested"] == 2
+    assert c["symbols_no_answer_in_window"] == 0
+    assert c["bars_in_window"] == 80
+    assert c["bars_not_computable"] == 0
+    assert c["bars_answered"] == 80
+
+
+def test_a_universe_that_is_all_hole_refuses_and_still_counts_every_bar():
+    """The refusal path keeps the same books. Nothing was testable, and the
+    coverage still says WHY in bars rather than leaving the member to guess
+    between "quiet market" and "we hold nothing here"."""
+    r = bt.run_backtest(ALWAYS, ["H1", "H2"], day(0), day(39),
+                        bars_for=reader({"H1": holed(n=40), "H2": holed(n=40)}),
+                        min_signals=1)
+    assert r.backtestable is False
+    assert r.refused == "no_bars_in_window"
+    c = r.coverage
+    assert c["symbols_no_answer_in_window"] == 2
+    assert c["bars_in_window"] == 80
+    assert c["bars_not_computable"] == 80
+    assert c["bars_answered"] == 0
 
 
 def test_a_bar_the_screen_cannot_answer_is_not_a_no():
@@ -429,6 +516,49 @@ def test_a_below_floor_horizon_withholds_the_rate_but_still_reports_n():
     assert ok.n == 3 and ok.win_rate == 100.0 and ok.avg_pct == pytest.approx(2.0)
 
 
+def test_the_whole_window_refusal_still_reports_n_for_every_horizon():
+    """🔴 RULE 5 REACHES INTO THE REFUSAL: *n is always reported; it is the RATE
+    that is withheld.*
+
+    This refusal fires AFTER every horizon has been computed, so the counts
+    already exist. The first draft returned a receipt with ``horizons=()`` and
+    restated one of them into a prose sentence — "the best horizon has 3
+    signal(s)" — which no consumer can parse, on the one path where the tuple
+    that owned that number was thrown away. Both halves of the defect are pinned
+    here: the counts ride on the refusal, and the prose restates none of them.
+    """
+    r = bt.run_backtest(BAR_TREE, ["AAA"], day(0), day(11),
+                        bars_for=reader({"AAA": rising(n=12)}),
+                        min_signals=30, horizons=(5, 10))
+    assert r.refused == "too_few_signals"
+    d = r.to_dict()
+    assert [h["horizon"] for h in d["horizons"]] == [5, 10]
+    for h in d["horizons"]:
+        assert h["below_floor"] is True
+        assert h["strategy"]["n"] < 30              # the COUNT survives
+        assert h["strategy"]["win_rate"] is None    # the RATE is withheld
+        assert h["baseline"]["win_rate"] is None
+    assert max(h["strategy"]["n"] for h in d["horizons"]) > 0
+
+    # ⛔ ONE WRITER OVER THE COUNT. The only number in the prose is the FLOOR —
+    # an input the caller handed us. A count copied out of `horizons` into this
+    # sentence would put a second authority on it, and this is how that gets
+    # caught rather than reviewed for.
+    assert set(re.findall(r"\d+", r.detail)) == {"30"}
+
+
+def test_control_a_refusal_that_never_computed_a_horizon_carries_none():
+    """THE CONTROL. ``scalar_no_history`` fires before a single bar is read, so
+    there is no per-horizon fact to report and the key is ABSENT — not ``[]``,
+    which would invite a consumer to render "0 horizons" beside a refusal that
+    never got that far. Without this, the assertion above would pass with
+    ``horizons`` bolted unconditionally onto every refusal."""
+    r = bt.run_backtest(SCALAR_TREE, ["AAA"], day(0), day(79),
+                        bars_for=reader({"AAA": rising()}))
+    assert r.refused == "scalar_no_history"
+    assert "horizons" not in r.to_dict()
+
+
 def test_a_mixed_run_keeps_the_short_horizon_and_withholds_the_long_one():
     """Forward room shrinks with the horizon, so one window can clear the floor
     at 5 bars and miss it at 40. The horizons are judged separately."""
@@ -546,6 +676,68 @@ def test_intraday_bars_are_refused_rather_than_guessed_at():
     assert bt.bar_date(intraday[0]) is None
     # CONTROL: a daily bar resolves.
     assert bt.bar_date({"t": "2024-03-04"}) == "2024-03-04"
+
+
+def test_out_of_order_and_duplicate_bars_are_refused_not_quietly_rescored():
+    """🔴 THE MALFORMATION THAT PRODUCED A CONFIDENT WRONG CURVE INSTEAD OF A GAP.
+
+    Five other input malformations already refused by name; this one — the only
+    one that CHANGES THE NUMBER rather than emptying it — did not. Measured on
+    the same sixty rising bars through ``close > 0`` at h=5, before the guard:
+
+        sorted                -> win_rate 100.0, worst  +7.8%
+        rotated b[30:]+b[:30] -> win_rate  90.7, worst -84.6%
+        duplicated b + b      -> bars_answered 120, n 114 over 60 dates
+
+    Both coverage identities closed in all three, because every count was honest
+    about the rows it was handed. The rows were the lie, and this repo has a
+    newest-bar-wins invariant and a reconciliation worker precisely because
+    misordered and duplicated bar rows have happened.
+    """
+    b = rising(n=60)
+    rotated = b[30:] + b[:30]
+
+    r = bt.run_backtest(ALWAYS, ["AAA"], day(0), day(59),
+                        bars_for=reader({"AAA": rotated}),
+                        min_signals=1, horizons=(5,))
+    assert r.backtestable is False
+    assert r.refused == "unordered_bars"
+    assert "the tape goes back" in r.detail
+
+    # the reviewer's double-counting tape: the whole series appended to itself
+    twice = bt.run_backtest(ALWAYS, ["AAA"], day(0), day(59),
+                            bars_for=reader({"AAA": b + b}),
+                            min_signals=1, horizons=(5,))
+    assert twice.refused == "unordered_bars"
+
+    # and an ADJACENT duplicate, which is the same refusal with a different,
+    # named cause — the two remedies differ (dedupe vs. sort), so the detail
+    # says which one arrived.
+    doubled = [bar for bar in b for _ in (0, 1)]
+    dup = bt.run_backtest(ALWAYS, ["AAA"], day(0), day(59),
+                          bars_for=reader({"AAA": doubled}),
+                          min_signals=1, horizons=(5,))
+    assert dup.refused == "unordered_bars"
+    assert "the same date twice" in dup.detail
+    assert "the tape goes back" in r.detail and "the same date twice" not in r.detail
+
+    # ⭐ THE REFUSAL IS LOAD-BEARING, NOT TIDINESS. The forward legs are read
+    # POSITIONALLY, so the same rows in the rotated order price a different
+    # trade — here one of the opposite sign, across the seam.
+    assert bt._forward_return(rotated, 25, 5) < 0 < bt._forward_return(b, 25, 5)
+
+
+def test_control_the_same_bars_in_order_are_backtested_normally():
+    """THE CONTROL for the test above. If a sorted tape also refused, the guard
+    would be refusing everything and the assertions above would say nothing about
+    ordering."""
+    b = rising(n=60)
+    ok = bt.run_backtest(ALWAYS, ["AAA"], day(0), day(59),
+                         bars_for=reader({"AAA": b}), min_signals=1, horizons=(5,))
+    assert ok.backtestable is True, ok.detail
+    assert ok.horizons[0].strategy.win_rate == 100.0
+    # ⛔ pairwise disjoint: ordering is not smuggled in under the intraday name.
+    assert bt.REFUSALS["unordered_bars"] != bt.REFUSALS["non_daily_bars"]
 
 
 def test_an_empty_universe_and_a_backwards_window_refuse_distinctly():

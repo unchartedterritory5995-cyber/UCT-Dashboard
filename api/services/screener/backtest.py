@@ -65,6 +65,20 @@ has a test with a control in ``tests/test_screener_backtest.py``.
    such — never dropped silently into the denominator or out of it. A NULL is
    never a zero.
 
+   ⛔ AND THE BAR-GRAIN SUMS ARE DERIVED FROM **EVERY** SYMBOL THAT PRODUCED A
+   TALLY, NOT ONLY THE TESTED ONES (``tallies``, not ``scans``). A symbol whose
+   whole window is unanswerable — a data hole spanning the window, or nothing but
+   warmup — is excluded from the horizon loop because it has no observation to
+   contribute, and summing the bar counts over that same shortened list dropped
+   its bars out of the calculation entirely. Forty unanswerable bars then
+   reported as ``bars_not_computable: 0``, which does not merely omit a fact: it
+   positively asserts *"no data holes"* about a window that was one big hole.
+   ⚠️ ``_assert_closes("bars", …)`` CANNOT catch that — both sides of the
+   identity lose the same symbol, so it closes. A closed identity proves the
+   parts agree with the total it was handed, never that the total is everything;
+   the guard against exclusion is
+   ``test_a_symbol_whose_whole_window_is_unanswerable_keeps_its_bars_in_coverage``.
+
 4. THE UNIVERSE IS TODAY'S MEMBERSHIP, AND THAT IS ITSELF SURVIVORSHIP BIAS. We
    hold no historical constituent lists, so this tests today's names against
    yesterday's prices. ⛔ It is stated IN THE PAYLOAD, because a caveat in a
@@ -77,6 +91,14 @@ has a test with a control in ``tests/test_screener_backtest.py``.
    member can see rather than an assumption. ``n`` is always reported; it is the
    RATE that is withheld, because the count is a fact and the rate is the thing
    that misleads.
+
+   ⛔ AND "ALWAYS" INCLUDES THE WHOLE-WINDOW REFUSAL. That refusal fires *after*
+   every horizon has been computed, so the per-horizon counts already exist; the
+   first draft threw them away and restated one of them into a prose sentence
+   ("the best horizon has 3 signal(s)"), which no consumer can parse and which
+   put a second authority on a number the ``horizons`` tuple already owned. The
+   computed results now ride on the refusal — rates withheld by ``below_floor``,
+   which is what a refusal at this grain MEANS.
 
 ───────────────────────────────────────────────────────────────────────────────
 ⚠️ WHAT THIS ANSWERS, AND THE WORDING IS LOAD-BEARING. It answers *"did names
@@ -136,6 +158,8 @@ REFUSALS: Mapping[str, str] = {
         "this screen is not a true/false condition, so it has no signal to test",
     "non_daily_bars":
         "this engine backtests daily bars; these bars are not daily",
+    "unordered_bars":
+        "these bars are not in strictly increasing date order",
     "no_bars_in_window":
         "no symbol in this universe has bars in this window",
     "too_few_signals":
@@ -266,6 +290,18 @@ class Receipt:
         else:
             out.update({"refused": self.refused, "names": list(self.names),
                         "detail": self.detail})
+            # ⛔ RULE 5 REACHES INTO THE REFUSAL. A refusal that fired AFTER the
+            # horizons were computed carries them, so the member still gets the
+            # per-horizon `n` — the count is a fact, and it is the only number
+            # that says whether to widen the window or change the screen. Rates
+            # are already `None` (that is what `below_floor` means), so nothing
+            # withheld leaks out through this door.
+            # ⚠️ The key is ABSENT, never `[]`, when nothing was computed: a
+            # zero-length list would invite a consumer to render "0 horizons"
+            # beside a refusal that never reached a bar, which is a different
+            # fact from "every horizon came up short".
+            if self.horizons:
+                out["horizons"] = [h.to_dict() for h in self.horizons]
         return out
 
 
@@ -471,6 +507,25 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
     axis over. ``max_lookback`` was measured to be a SAFE bound (never earlier
     than the first computable bar) for offsets, rolling windows, composed windows
     and EMA seeds alike, so it is derived from the tree rather than guessed.
+
+    🔴 THE DATES MUST STRICTLY INCREASE, AND THAT IS A REFUSAL RATHER THAN A
+    TIDY-UP. Every other malformation this module knows about is refused by name;
+    misordered or duplicated rows were the one that produced a CONFIDENT WRONG
+    NUMBER instead — measured on 60 rising bars through ``close > 0`` at h=5:
+
+        sorted            -> win_rate 100.0, worst  +7.8%
+        rotated b[30:]+b[:30] -> win_rate  90.7, worst -84.6%
+        duplicated b+b    -> bars_answered 120, n 114 over 60 evaluated dates
+
+    Both coverage identities CLOSE in all three, because every count is honest
+    about the rows it was handed — the rows are the lie. ``_forward_return`` reads
+    ``bars[i+1]`` and ``bars[i+1+h]`` positionally, so position must mean time;
+    a duplicated tape double-counts every observation, and a rotated one measures
+    a forward return across the seam. ⛔ SORTING HERE WOULD BE THE WRONG FIX: this
+    module is handed bars, it does not own them, and quietly repairing a reader's
+    output would hide the defect from the rail (``bars_reconciliation``) whose job
+    it is. The check runs over ALL bars, not just in-window ones, because the
+    forward legs reach past ``to``.
     """
     col = interpret(tree, list(bars))
     # ⭐ ASKED AT THE LEAF, BECAUSE THE TOP OF THE TREE CANNOT ANSWER IT — see
@@ -479,6 +534,7 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
     blocked = _unanswerable_bars(bars, fields, warmup)
     scan = _SymbolScan()
     dates: List[str] = []
+    prev: Optional[str] = None
     for i, bar in enumerate(bars):
         d = bar_date(bar)
         if d is None:
@@ -486,6 +542,18 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
                 "non_daily_bars",
                 f"— bar {i} carries t={bar.get('t')!r}; a daily bar's t is "
                 f"YYYY-MM-DD. Intraday backtests are out of scope.")
+        if prev is not None and d <= prev:
+            raise BacktestRefusal(
+                "unordered_bars",
+                f"— bar {i} is {d}, and bar {i - 1} is {prev}: "
+                + ("the same date twice." if d == prev else "the tape goes back.")
+                + " Forward returns are read POSITIONALLY (bars[i+1], "
+                  "bars[i+1+horizon]), so a duplicated row double-counts an "
+                  "observation and an out-of-order row measures across the seam. "
+                  "Both produce a confident, wrong curve rather than a gap, so "
+                  "this is refused rather than sorted: these bars are not ours "
+                  "to repair.")
+        prev = d
         if d < frm or d > to:
             continue
         scan.in_window += 1
@@ -576,14 +644,20 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     horizons = tuple(horizons)
 
     def refuse(reason: str, detail: str = "", names: Sequence[str] = (),
-               *, warmup: int = 0, coverage: Optional[Dict[str, int]] = None
-               ) -> Receipt:
+               *, warmup: int = 0, coverage: Optional[Dict[str, int]] = None,
+               results: Sequence[HorizonResult] = ()) -> Receipt:
+        """⛔ ``results`` IS HOW RULE 5's "n IS ALWAYS REPORTED" SURVIVES A
+        REFUSAL. A refusal that fires before any bar is read has none and passes
+        none; the whole-window ``too_few_signals`` refusal fires *after* every
+        horizon is computed and passes what it computed, rather than restating
+        one count into a prose sentence no consumer can parse."""
         return Receipt(
             backtestable=False, universe=universe,
             method=_method_block(warmup=warmup, min_signals=min_signals,
                                  horizons=horizons),
             coverage=coverage or {}, window={"from": frm, "to": to},
             bars_source=bars_source, refused=reason, names=tuple(names),
+            horizons=tuple(results),
             detail=(f"{REFUSALS[reason]} {detail}".strip()))
 
     # ── the request itself ────────────────────────────────────────────────── #
@@ -623,6 +697,15 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     method["bar_fields_read"] = list(fields)
 
     # ── walk the universe ─────────────────────────────────────────────────── #
+    # ⛔⛔ TWO LISTS, AND THE SPLIT IS THE WHOLE POINT (rule 3). `tallies` holds
+    # EVERY symbol that produced a scan and is the ONE source of the bar-grain
+    # counts; `scans` holds only the symbols with an observation to contribute
+    # and drives the horizon loop. Summing the bar counts over `scans` — as the
+    # first draft did — silently deleted the bars of any symbol whose whole
+    # window was unanswerable, and reported `bars_not_computable: 0` for a window
+    # that was nothing but holes. Deriving both from one list that nobody filters
+    # is what makes that unrepeatable, rather than a comment asking for care.
+    tallies: List[_SymbolScan] = []
     scans: List[Tuple[str, Sequence[Mapping[str, Any]], _SymbolScan]] = []
     missing_bars = 0        # the reader had nothing for this symbol -> NOT TESTED
     no_window_bars = 0      # bars, but none inside the window -> NOT TESTED
@@ -636,6 +719,7 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
             bars = list(bars)
             scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=warmup,
                                 fields=fields)
+            tallies.append(scan)
             if scan.in_window == 0:
                 no_window_bars += 1
                 continue
@@ -652,7 +736,6 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                     "no_window_bars": no_window_bars,
                     "unanswered_only": unanswered_only})
 
-    in_window = sum(s.in_window for _, _, s in scans)
     coverage: Dict[str, int] = {
         "symbols_requested": len(symbols),
         "symbols_tested": tested,
@@ -662,10 +745,13 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
         "symbols_missing_bars": missing_bars,
         "symbols_no_bars_in_window": no_window_bars,
         "symbols_no_answer_in_window": unanswered_only,
-        "bars_in_window": in_window,
-        "bars_warmup": sum(s.warmup for _, _, s in scans),
-        "bars_not_computable": sum(s.not_computable for _, _, s in scans),
-        "bars_answered": sum(s.answered for _, _, s in scans),
+        # ⛔ OVER `tallies`, NEVER OVER `scans` — see the walk above. A symbol
+        # kept out of the horizon loop still had bars, and they are still part of
+        # what this window looked like.
+        "bars_in_window": sum(s.in_window for s in tallies),
+        "bars_warmup": sum(s.warmup for s in tallies),
+        "bars_not_computable": sum(s.not_computable for s in tallies),
+        "bars_answered": sum(s.answered for s in tallies),
     }
     _assert_closes("bars", coverage["bars_in_window"],
                    {"warmup": coverage["bars_warmup"],
@@ -721,13 +807,19 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
 
     # ── rule 5, at the whole-window grain ─────────────────────────────────── #
     if all(r.below_floor for r in results):
-        best = max((r.strategy.n for r in results), default=0)
+        # ⛔ THE COMPUTED RESULTS RIDE ALONG; NO COUNT IS RESTATED HERE. This
+        # sentence once read "the best horizon has {n} signal(s)" — a number the
+        # `horizons` tuple already owned, copied into prose that no consumer can
+        # parse, on the one path where the tuple was then thrown away. The floor
+        # IS echoed because it is an INPUT the caller handed us, not a fact
+        # derived from the data.
         return refuse(
             "too_few_signals",
-            f"— the best horizon has {best} signal(s) and the floor is "
-            f"{min_signals}. A win rate over that many observations is noise "
-            f"wearing a percentage sign. Widen the window or loosen the screen.",
-            warmup=warmup, coverage=coverage)
+            f"— no horizon reached the floor of {min_signals} signal(s); the "
+            f"per-horizon counts are in `horizons`. A win rate over that many "
+            f"observations is noise wearing a percentage sign. Widen the window "
+            f"or loosen the screen.",
+            warmup=warmup, coverage=coverage, results=results)
 
     return Receipt(
         backtestable=True, universe=universe, method=method, coverage=coverage,

@@ -51,15 +51,15 @@ import logging
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services import ast_interpret
+from api.services import ast_interpret, bars_fetch, bars_sqlite
 from api.services.screener import saved_screens as scr_saved
-from api.services.screener import scan_evaluator, snapshot_builder
+from api.services.screener import snapshot_builder
 from api.services.screener import query as scr_query
 from api.services.signature import ledger
 
@@ -142,6 +142,13 @@ def max_cells() -> int:
     return n if n > 0 else DEFAULT_MAX_CELLS
 
 
+#: ⛔ THE PER-SYMBOL BAR CEILING, DECLARED HERE BECAUSE THIS SURFACE OWNS IT.
+#: The obvious move was `scan_evaluator._MAX_BARS`, and a standing rail refuses a
+#: router to import that module at all (see `_bars_reader`). It matches the chart
+#: lane's own depth (`/api/bars?bars=5000`, `warm_universe(bars=5000)`) — ~20 years
+#: of daily sessions, which is more history than `bars.db` holds for most names.
+MAX_BARS_PER_SYMBOL = 5000
+
 #: Calendar slack when turning a bar count into a date span: five sessions a week,
 #: plus a week for holidays. Deliberately generous in ONE direction — reading a few
 #: bars too many costs a row scan, reading too few silently shortens the member's
@@ -150,11 +157,29 @@ _SLACK_BARS = 10
 _SLACK_DAYS = 7
 
 
+def padded_end(to: int, max_horizon: int) -> int:
+    """The far end of the READ, as a ``YYYYMMDD`` key: the window's end pushed
+    forward by the longest horizon.
+
+    ⛔ THE READ IS BOUNDED AT BOTH ENDS, AND THIS IS THE FAR ONE.
+    ``bars_sqlite.get_bars_before`` takes it, so a 2020 window reads 2020 bars
+    instead of the newest N (which would be 2026 bars, and the engine would
+    truthfully report that no symbol had bars in the window).
+
+    ⭐ PADDED, BECAUSE A SIGNAL ON THE LAST DAY STILL HAS A FORWARD RETURN and
+    that return is what the member asked for — not lookahead. Cutting the read at
+    ``to`` would silently turn every late signal into ``no_forward_room``.
+    """
+    to_d = datetime.date(to // 10_000, (to // 100) % 100, to % 100)
+    end = to_d + datetime.timedelta(days=(max(0, max_horizon) * 7) // 5 + _SLACK_DAYS)
+    return end.year * 10_000 + end.month * 100 + end.day
+
+
 def bars_wanted(frm: int, to: int, warmup: int, max_horizon: int) -> int:
     """How many bars per symbol this window actually needs.
 
     ⛔ THE SWEEP IS SIZED BY THE REQUEST, NOT BY THE STORE'S CEILING. Reading
-    ``scan_evaluator._MAX_BARS`` for every symbol regardless of window is what
+    ``MAX_BARS_PER_SYMBOL`` for every symbol regardless of window is what
     turns "backtest my 40-name screen over 2024" into a 200,000-bar read; the cap
     still applies as the ceiling, but it is no longer the default.
 
@@ -178,7 +203,7 @@ def bars_wanted(frm: int, to: int, warmup: int, max_horizon: int) -> int:
     span_days = ((to_d + forward) - frm_d).days + 1
     span_bars = max(0, span_days) * 5 // 7 + _SLACK_BARS
     want = span_bars + max(0, warmup) + _SLACK_BARS
-    return max(1, min(want, scan_evaluator._MAX_BARS))
+    return max(1, min(want, MAX_BARS_PER_SYMBOL))
 
 
 #: ⛔ ONE WORKER. Two concurrent whole-universe sweeps would double this single
@@ -217,7 +242,14 @@ class BacktestRequest(BaseModel):
     ast: dict | None = None
     source: str | None = None
     universe: Any = "current"
-    from_: Any = Field(default=None, alias="from")
+    # ⚠️ `Annotated[...]` IS THE DOCUMENTED FORM, and it is NOT a fix for the
+    # `UnsupportedFieldAttributeWarning` this raises — MEASURED: pydantic 2.12 emits
+    # it from FastAPI's OpenAPI schema pass for BOTH spellings, typed or `Any`. The
+    # ALIAS ITSELF WORKS, which is a behavioural claim and therefore has a test
+    # (`test_the_wire_name_is_from_and_the_python_name_also_binds`) rather than a
+    # comment. Saying "Annotated silences it" here would have been a comment that
+    # is simply false, beside code that disproves it.
+    from_: Annotated[Any, Field(alias="from")] = None
     to: Any = None
     #: ⛔ NO DEFAULT LIST HERE. ``(5, 10, 20)`` is the ENGINE's
     #: ``backtest.DEFAULT_HORIZONS``, and a second copy in this model would drift
@@ -331,24 +363,35 @@ def _tf(raw: Any) -> str:
 # the universe — CURRENT membership, and the payload has to say so
 # --------------------------------------------------------------------------- #
 
-#: 🔴 RENDERED BESIDE THE RESULT, NOT BURIED IN A DOC (spec §3 rule 4). We hold no
-#: historical constituent lists, so every universe this surface can build is
-#: today's names. That is a real caveat and the member has to see it to weigh the
-#: number.
-SURVIVORSHIP_NOTE = (
-    "This tests today's names against yesterday's prices. We hold no historical "
-    "constituent lists, so a company that was delisted, acquired or renamed "
-    "before today is not in this universe — and one that only listed recently is, "
-    "for the dates before it existed. Read the win rate against the baseline, "
-    "which carries the same bias.")
+#: ⛔⛔ THE SURVIVORSHIP CAVEAT IS **NOT** WRITTEN HERE, AND THAT IS THE POINT.
+#: Spec §3 rule 4 says it must be stated in the payload and rendered beside the
+#: result — and it IS: ``Receipt.universe`` is a REQUIRED field on the engine's
+#: dataclass carrying ``membership``, ``symbols_requested``, ``survivorship_bias``
+#: and the sentence itself, so a receipt cannot be built without it.
+#:
+#: A second, kinder wording of the same caveat lived here for one draft. It read
+#: like diligence and it was the defect: two sentences at two addresses, one of
+#: which a later edit softens while the other still says the hard thing. DERIVE,
+#: NEVER RESTATE — so what this route contributes below is only what the engine
+#: cannot know: which door built the list, and whether the screen matched more
+#: names than one page holds.
+#:
+#: Rail: ``test_the_route_writes_no_SECOND_survivorship_caveat``.
 
 
 def _universe_for(spec: Any, user_id: Any) -> tuple[list[str], dict]:
-    """``(symbols, disclosure)`` — the symbol list, and how it was built.
+    """``(symbols, provenance)`` — the symbol list, and WHICH DOOR BUILT IT.
 
-    ⚠️ EVERY COUNT HERE IS ABOUT WHAT THIS ROUTE HANDED OVER, never about what the
-    engine could test. Those are different facts and they belong to different
-    writers; ``_envelope`` enforces that they cannot collide.
+    ⚠️ PROVENANCE ONLY. "how many symbols", "which membership" and the
+    survivorship caveat are all the RECEIPT's (see the block above), so none of
+    them appears here. What is left is the half the engine genuinely cannot know:
+    ``kind`` (the whole universe or a saved screen), the screen's id and name, how
+    many rows the screen actually matched, and whether that exceeded what one page
+    could hand over.
+
+    ⛔ ``truncated`` IS THE HONEST-NONE HALF. A universe silently cut to its first
+    page returns fewer signals and reads as a screen that rarely fires — the
+    absence has to be visible, not inferred from a smaller number.
     """
     if spec is None or (isinstance(spec, str) and spec.strip().lower() in ("", "current")):
         syms = [str(s).strip().upper() for s in (snapshot_builder._load_universe() or [])
@@ -362,11 +405,8 @@ def _universe_for(spec: Any, user_id: Any) -> tuple[list[str], dict]:
                 detail="the screener universe is empty on this box — nothing to backtest")
         return syms[:MAX_SYMBOLS], {
             "kind": "current",
-            "membership": "current",
-            "symbols_handed": len(syms[:MAX_SYMBOLS]),
-            "matched_total": len(syms),
+            "matched": len(syms),
             "truncated": len(syms) > MAX_SYMBOLS,
-            "survivorship_note": SURVIVORSHIP_NOTE,
         }
 
     try:
@@ -401,87 +441,70 @@ def _universe_for(spec: Any, user_id: Any) -> tuple[list[str], dict]:
         "kind": "saved-screen",
         "screen_id": sid,
         "screen_name": screen.get("name"),
-        "membership": "current",
-        "symbols_handed": len(syms[:MAX_SYMBOLS]),
-        "matched_total": total,
-        "truncated": bool(isinstance(total, int) and total > len(syms)),
-        "survivorship_note": SURVIVORSHIP_NOTE,
+        "matched": total,
+        "truncated": bool(isinstance(total, int) and total > len(syms[:MAX_SYMBOLS])),
     }
 
 
 # --------------------------------------------------------------------------- #
-# the bars — the EXISTING local reader, handed to the engine
+# the bars — bars_sqlite + the serve-time formatter, bounded at BOTH ends
 # --------------------------------------------------------------------------- #
 
-def _bars_reader(tf: str):
-    """``read_bars(sym, want) -> [{'t','o','h','l','c','v'}, …]``.
+def _bars_reader(tf: str, to_key: int):
+    """``read_bars(sym, want) -> [{'t': 'YYYY-MM-DD', 'o','h','l','c','v'}, …]``.
 
-    ⛔ ``scan_evaluator._read_bars`` AND ``scan_evaluator._MAX_BARS``, NOT COPIES.
-    They are the lane's ONE local bars reader (``bars_sqlite``, no network, the
-    whole affordability argument for a sequential sweep) and its ONE cap. A second
-    reader here would be a second answer to "where do a screener sweep's bars come
-    from", which is the defect this repo pays for most often. The delegation is
-    pinned by ``test_the_reader_handed_to_the_engine_IS_the_lanes_own``.
+    ⛔⛔ ``bars_sqlite`` DIRECTLY, AND **NOT** ``scan_evaluator._read_bars``. That
+    was the first draft and a STANDING RAIL refused it:
+    ``tests/test_scan_evaluator_off_request_path.py::test_the_evaluator_module_is
+    _not_imported_by_any_ROUTER_at_all`` — *"api/routers/ is the request path; the
+    sweep has no business in its namespace even unused."* The rail caught it, the
+    rail was right, and it was NOT weakened to fit this file. ``bars_sqlite`` is
+    what the spec names as the reader anyway, and this is the same pairing
+    ``api/services/barspack.py`` calls *"the SAME read"*.
+
+    ⭐ ``_fmt_sqlite_bars`` IS LOAD-BEARING, TWICE OVER.
+      * It is the ONE serve-time chokepoint that turns the store's ``YYYYMMDD``
+        int into the ``"YYYY-MM-DD"`` string every daily consumer reads — and
+        ``backtest.bar_date`` is the single owner of "what date is this bar" and
+        answers to nothing else. Handed raw rows, the engine refuses
+        ``non_daily_bars`` for the WHOLE universe: a correct refusal about
+        something the member never asked for.
+      * It also drops null / non-positive-price bars and runs
+        ``bars_sanitize.sanitize_daily_bars`` — recycled-ticker pre-listing
+        history, provider split-adjustment gaps, lone bad-print wicks.
+        Backtesting unsanitised rows is how a split artefact becomes a 300%
+        "signal", and a backtest is the one surface where nobody eyeballs the
+        candle before believing the number.
+
+    ⭐ ``get_bars_before``, NOT ``get_bars``. ``get_bars`` returns the NEWEST
+    ``want`` rows, so a 2020 window sized to 2020's length would come back full of
+    2026 bars and the engine would truthfully report that no symbol had bars in
+    the window. The far end is the window's end PADDED BY THE LONGEST HORIZON
+    (``padded_end``) — a signal on the last day resolves after the window, and
+    that forward return is what was asked for, not lookahead.
     """
     def read_bars(sym: str, want: int) -> list:
-        n = max(1, min(int(want), scan_evaluator._MAX_BARS))
+        n = max(1, min(int(want), MAX_BARS_PER_SYMBOL))
         try:
-            rows = scan_evaluator._read_bars(sym, tf, n)
+            rows = bars_sqlite.get_bars_before(sym, tf, n, to_key) or []
         except Exception as exc:                                  # noqa: BLE001
             # ⛔ ONE SYMBOL'S READ FAILING IS "NOT TESTED", NOT A DEAD REQUEST.
-            # `bars_sqlite.get_bars` RAISES when the store has no `ohlcv` table —
-            # a fresh pod before the prewarm, a restored volume, a sandbox — so an
-            # unguarded read turned the ENTIRE backtest surface into a 500 that
-            # said nothing about bars. Returning empty hands the engine the state
-            # it already models: the symbol lands in `coverage.symbols_missing_bars`
-            # and the member is told how many names could not be tested.
+            # `bars_sqlite` RAISES when the store has no `ohlcv` table — a fresh
+            # pod before the prewarm, a restored volume, a sandbox — so an
+            # unguarded read turns the ENTIRE backtest surface into a 500 that
+            # says nothing about bars. Returning empty hands the engine the state
+            # it already models: the symbol lands in
+            # `coverage.symbols_missing_bars` and the member is told how many
+            # names could not be tested.
             #
             # ⭐ THIS IS HONEST-NONE, NOT A SWALLOWED ERROR. The absence is
-            # COUNTED and reported in the receipt rather than being dropped
-            # silently into or out of the denominator — which is the whole reason
-            # coverage travels with the result.
+            # COUNTED and reported in the receipt rather than dropped silently
+            # into or out of the denominator — which is the whole reason coverage
+            # travels with the result.
             log.warning("[screen-backtest] bars read failed for %s/%s: %s", sym, tf, exc)
             return []
-        return [_dated(b) for b in rows]
+        return bars_fetch._fmt_sqlite_bars(rows, tf, sym)
     return read_bars
-
-
-def _dated(bar: dict) -> dict:
-    """One bar with its ``t`` in the engine's ``YYYY-MM-DD`` spelling.
-
-    ⛔⛔ THE THIRD FACE OF ONE MISMATCH, AND THE REASON IT HAD TO BE FIXED HERE.
-    The screener lane keys a daily bar by the ``YYYYMMDD`` int ``bars_sqlite``
-    stores (``20061005``); the engine's ``backtest.bar_date`` is the ONE owner of
-    "what date is this bar" and answers only to ``YYYY-MM-DD`` text. Handed the
-    lane's bars unchanged, the engine correctly refused ``non_daily_bars`` on
-    *every* screen — the feature's whole happy path — with a message about
-    intraday retention that had nothing to do with what went wrong.
-
-    ⛔ THE FIX IS NOT TO WIDEN ``bar_date`` AND NOT TO CHANGE ``_read_bars``.
-    Widening the engine would give a bar two legal spellings and cost it the
-    single-owner property that makes the window test trustworthy; changing the
-    lane's reader would reach into the nightly sweep, which is the one caller
-    that must not move. Translation belongs at the seam, next to ``_iso``.
-
-    ⚠️ ONLY AN 8-DIGIT DATE IS TRANSLATED. An intraday ``t`` is an epoch of a
-    different width and passes through untouched, so the engine's
-    ``non_daily_bars`` refusal still fires for the case it was written for
-    instead of being papered over here.
-    """
-    t = bar.get("t")
-    if isinstance(t, bool):
-        return bar
-    if isinstance(t, int) or (isinstance(t, str) and t.isdigit()):
-        n = int(t)
-        if MIN_SESSION <= n <= MAX_SESSION:
-            try:
-                datetime.date(n // 10_000, (n // 100) % 100, n % 100)
-            except ValueError:
-                return bar
-            out = dict(bar)
-            out["t"] = _iso(n)
-            return out
-    return bar
 
 
 #: What this route hands the engine, as the engine's ``bars_source`` LABEL.
@@ -491,12 +514,14 @@ def _dated(bar: dict) -> dict:
 #: description of the same fact beside it (`_envelope` would refuse, and it is
 #: right to — this is the collision it exists to catch).
 _BARS_STORE = "bars.db"
-_BARS_READER = "api.services.screener.scan_evaluator._read_bars"
+_BARS_READER = "bars_sqlite.get_bars_before -> bars_fetch._fmt_sqlite_bars"
 
 
-def _bars_source_label(tf: str = "D", want: int | None = None) -> str:
-    n = scan_evaluator._MAX_BARS if want is None else want
-    return f"{_BARS_STORE} via {_BARS_READER} (tf={tf}, bars={n})"
+def _bars_source_label(tf: str = "D", want: int | None = None,
+                       to_key: int | None = None) -> str:
+    n = MAX_BARS_PER_SYMBOL if want is None else want
+    end = "" if to_key is None else f", to={to_key}"
+    return f"{_BARS_STORE} via {_BARS_READER} (tf={tf}, bars={n}{end})"
 
 
 # --------------------------------------------------------------------------- #
@@ -524,7 +549,7 @@ def _iso(session: int) -> str:
 
 
 def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
-                horizons: list[int], read_bars, want: int,
+                horizons: list[int], read_bars, want: int, to_key: int,
                 tf: str = "D") -> dict:
     """The ONLY call into ``api/services/screener/backtest.py``.
 
@@ -544,7 +569,7 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
     one — it asks for a symbol's bars, full stop. So the SIZE of the read is the
     caller's decision, and it comes from ``bars_wanted``: the window, plus the
     tree's own declared warmup, plus forward room for the longest horizon, capped
-    by the lane's ``scan_evaluator._MAX_BARS``. Passing the cap itself for every
+    by ``MAX_BARS_PER_SYMBOL``. Passing the cap itself for every
     request — which is what this did first — reads twenty years of history to
     answer a question about one, and the engine holds all of it at once.
     """
@@ -553,7 +578,7 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
         tree, symbols, _iso(start), _iso(end),
         bars_for=lambda sym: read_bars(sym, want),
         horizons=horizons,
-        bars_source=_bars_source_label(tf, want))
+        bars_source=_bars_source_label(tf, want, to_key))
     # ⛔ `.to_dict()` AND NOT `dataclasses.asdict`. The receipt decides which keys
     # a refusal carries and which an answer carries (`forward_returns`/`baseline`
     # only when `backtestable`), and `asdict` would flatten that decision into
@@ -706,6 +731,7 @@ def run_screen_backtest(body: BacktestRequest,
 
     symbols, universe = _universe_for(body.universe, user.get("id"))
     want = bars_wanted(start, end, warmup, max(horizons))
+    to_key = padded_end(end, max(horizons))
 
     # ⛔⛔ THE SWEEP IS BOUNDED BEFORE IT IS QUEUED, NOT AFTER IT OOMs. Backgrounding
     # moves the work off the request thread; it does not make it free. The engine
@@ -727,22 +753,31 @@ def run_screen_backtest(body: BacktestRequest,
     # ⛔ `universe_request`, NOT `universe`, AND NO `bars_source` AT ALL.
     # The engine's receipt already writes both: `Receipt.universe` is a REQUIRED
     # field carrying the survivorship statement, and `Receipt.bars_source` is the
-    # label this route feeds it. What `_universe_for` returns is a DIFFERENT fact
-    # — how this route BUILT the symbol list (saved-screen id, matched_total,
-    # truncated) — so it gets a key of its own. Reusing the engine's names made
-    # `_envelope` raise `EnvelopeCollision`, which was that guard working exactly
-    # as designed: two writers had reached for one value.
+    # label this route hands IN. What `_universe_for` returns is a DIFFERENT fact
+    # — which door built the symbol list, and whether the screen matched more names
+    # than one page holds — so it gets a key of its own. Reusing the engine's names
+    # made `_envelope` raise `EnvelopeCollision`, which was that guard working
+    # exactly as designed: two writers had reached for one value.
+
     extras = {
         "job": job,
         "status": "ready",
-        "request": {"tf": tf, "from": start, "to": end, "horizons": horizons},
+        # ⛔ `tf` AND NOTHING ELSE ABOUT THE REQUEST. The window is the receipt's
+        # (`window`, in the YYYY-MM-DD spelling the engine actually compared bars
+        # against) and the horizons are the receipt's (`method.horizons`). Echoing
+        # either back here would be a second spelling of one value — the exact
+        # drift `_envelope` refuses one level up. `tf` appears nowhere in the
+        # receipt, because the engine is handed bars and never asks what timeframe
+        # they are, so this route is its only writer.
+        "tf": tf,
         "universe_request": universe,
     }
 
     def _run() -> dict:
         receipt = _run_engine(tree, symbols, start=start, end=end,
-                              horizons=horizons, read_bars=_bars_reader(tf),
-                              want=want, tf=tf)
+                              horizons=horizons,
+                              read_bars=_bars_reader(tf, to_key),
+                              want=want, to_key=to_key, tf=tf)
         return _envelope(receipt, extras)
 
     if background:
