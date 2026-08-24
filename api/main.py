@@ -5957,6 +5957,29 @@ app.include_router(scans_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
+# ── SCREEN BACKTESTING (`/api/screener/backtest*`) — a NEW router file so
+# `screener.py` stays untouched: it is hot, heavily railed and carries a
+# route-count oracle that a feature edit must not perturb. Paid, not admin (it
+# spends local bars, not provider budget), and the whole-universe sweep is
+# bounded OFF the request path behind `?background=1` + a polled receipt.
+# ⛔ MOUNTED WITH NO ROUTER-LEVEL DEPENDENCY, exactly like `screener.py` — the
+# per-handler gate is the only gate.
+#
+# 🔴 DARK BY DEFAULT, AND THE FLAG GATES THE MOUNT ITSELF. `SCREEN_BACKTEST_ENABLED`
+# is unset in production today, so these routes are not in the table at all: a
+# surface that cannot be reached cannot leak a receipt, spend a request thread on
+# a universe sweep, or answer a member with a half-built feature. Rollback is the
+# env var — no code change. ⚠️ Railway applies a variable change on redeploy, so
+# "flip it off" is `railway variables --set` (which auto-redeploys), not a live toggle.
+#
+# ⛔ THE MOUNT, NOT JUST THE BEHAVIOUR. Mounting always and refusing inside each
+# handler would leave `/api/screener/backtest` answering 404-vs-402 differently
+# depending on a flag, which is the shape that makes "is this shipped?" unanswerable
+# from the route table. `tests/test_screener_backtest_mounted.py` walks the REAL
+# app with the flag on and fails if the door stops resolving.
+from api.routers import screener_backtest as screener_backtest_router
+if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
+    app.include_router(screener_backtest_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a

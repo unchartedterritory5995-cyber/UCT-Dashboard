@@ -48,7 +48,17 @@ def _detection(**overrides):
     return base
 
 
-def _stat(pattern_id, expectancy_r, tf="D", regime_bucket="unknown"):
+def _stat(pattern_id, expectancy_r, tf="D", regime_bucket="unknown",
+          n_resolved=10):
+    """Seed one `pattern_stats` row.
+
+    ⚠️ `n_resolved` is a PARAMETER because the default (10) is not the common
+    production shape. `recompute_stats()` writes the row the moment a pattern
+    is first SEEN, carrying `n_resolved = 0` and a synthetic `expectancy_R` of
+    `0.0` — measured 2026-08-23, that is 46 of 79 regime-blind rows. This
+    fixture hardcoded 10, so every expectancy test ran against the rarer half
+    of reality and the 0.0-for-never-measured defect stayed invisible.
+    """
     from api.services.pattern_engine.pattern_db import get_connection
     conn = get_connection()
     try:
@@ -57,8 +67,8 @@ def _stat(pattern_id, expectancy_r, tf="D", regime_bucket="unknown"):
                  (pattern_id, tf, regime_bucket, n_total, n_resolved,
                   n_entry_hit, n_target_hit, n_stop_hit, avg_mfe_pct,
                   avg_mae_pct, median_bars, hit_rate, expectancy_R, last_updated)
-               VALUES (?, ?, ?, 10, 10, 10, 6, 4, 5.0, 3.0, 8, 0.6, ?, ?)""",
-            (pattern_id, tf, regime_bucket, expectancy_r, _NOW),
+               VALUES (?, ?, ?, 10, ?, 10, 6, 4, 5.0, 3.0, 8, 0.6, ?, ?)""",
+            (pattern_id, tf, regime_bucket, n_resolved, expectancy_r, _NOW),
         )
         conn.commit()
     finally:
@@ -208,6 +218,79 @@ def test_expectancy_present_when_stats_row_exists_absent_otherwise(monkeypatch, 
     out = pj.read_pattern_fields(["HASSTAT", "NOSTAT"])
     assert out["HASSTAT"]["pattern_expectancy_r"] == 0.42
     assert "pattern_expectancy_r" not in out["NOSTAT"]  # never a fabricated 0.0
+
+
+def test_a_stats_row_with_NOTHING_RESOLVED_yields_no_expectancy(
+        monkeypatch, tmp_path):
+    """🔴 THE DEFECT THIS TEST EXISTS FOR — shipped, live, and green.
+
+    `recompute_stats()` writes a `pattern_stats` row as soon as a pattern is
+    first SEEN, carrying `n_resolved = 0` and a synthetic `expectancy_R` of
+    `0.0`. The join guarded on `expectancy_R IS NOT NULL`, which that row
+    passes — so **`0.0` shipped to members as a measurement** for every pattern
+    that has never had one outcome resolve. A trader reads `0.0` as *"this
+    setup breaks even"*; the truth was *"nobody has ever measured this"*.
+
+    Measured on the real store 2026-08-23: **46 of 79** regime-blind rows are
+    this shape, including `cup_handle`, `ascending_triangle`, `bear_flag` and
+    `avwap_reclaim` — the structural setups a member is most likely to screen
+    for. It is this repo's own honest-None rule running backwards.
+
+    ⭐ The sibling assertion is the control: an identical row that HAS resolved
+    outcomes still reports, so the fix withholds the unmeasured value rather
+    than disabling the field.
+    """
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(
+        id="d1", sym="UNRESOLVED", pattern_id="cup_handle",
+        start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW,
+    ))
+    memory.store_detection(_detection(
+        id="d2", sym="RESOLVED", pattern_id="bull_flag",
+        start_t=3, end_t=4, detected_at=_NOW, last_seen_at=_NOW,
+    ))
+    # The production shape: the row EXISTS, expectancy_R is NOT NULL, and
+    # nothing has ever resolved.
+    _stat("cup_handle", 0.0, n_resolved=0)
+    _stat("bull_flag", 0.42, n_resolved=10)
+
+    out = pj.read_pattern_fields(["UNRESOLVED", "RESOLVED"])
+    assert "pattern_expectancy_r" not in out["UNRESOLVED"], (
+        "a pattern with n_resolved=0 published "
+        f"{out['UNRESOLVED'].get('pattern_expectancy_r')!r} — 0.0 reads as "
+        "'breaks even', not as 'never measured'"
+    )
+    assert out["RESOLVED"]["pattern_expectancy_r"] == 0.42, (
+        "the control failed: the fix withheld a genuinely measured expectancy, "
+        "which means it disabled the field rather than gating it"
+    )
+
+
+def test_a_measured_expectancy_of_exactly_zero_is_still_reported(
+        monkeypatch, tmp_path):
+    """⚠️ The gate is `n_resolved`, NOT the value. A pattern that resolved 40
+    times and genuinely averaged 0.0R has *measured* breakeven — a real fact a
+    member should see. Gating on `expectancy_R != 0` instead would silence it
+    and would look identical in every other test.
+    """
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(
+        id="d1", sym="FLAT", pattern_id="cup_handle",
+        start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW,
+    ))
+    _stat("cup_handle", 0.0, n_resolved=40)
+
+    out = pj.read_pattern_fields(["FLAT"])
+    assert out["FLAT"]["pattern_expectancy_r"] == 0.0, (
+        "a MEASURED breakeven was withheld — the gate keyed off the value "
+        "instead of off whether anything resolved"
+    )
 
 
 def test_more_than_ten_active_ids_capped_at_ten(monkeypatch, tmp_path):

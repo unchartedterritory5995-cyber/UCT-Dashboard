@@ -45,8 +45,21 @@ is the honest, regime-blind read of what has actually been measured.
 **`expectancy_R` itself is SYNTHETIC, not measured R.** `memory.py:376-379`
 computes it as `hit_rate * 2.0 - (1 - hit_rate) * 1.0` — a fixed
 2R-win/1R-loss assumption applied to the pattern's historical hit rate, not
-an average of realized R from `mfe_pct`/`mae_pct`. Absent (never `0.0`) when
-no `(pattern_id, 'D', 'unknown')` row exists yet.
+an average of realized R from `mfe_pct`/`mae_pct`.
+
+🔴 **AND IT IS ABSENT WHEN NOTHING HAS RESOLVED — which is most of the time.**
+This paragraph used to say the field was *"absent (never `0.0`) when no
+`(pattern_id, 'D', 'unknown')` row exists yet"*. True as written, and the
+protection never engaged: `recompute_stats()` writes the row as soon as a
+pattern is SEEN, carrying `n_resolved = 0` and `expectancy_R = 0.0`. So the
+`is not None` guard passed and a synthetic breakeven shipped to members as if
+it were a measurement — measured 2026-08-23, **46 of 79 regime-blind stats
+rows**, covering `cup_handle`, `ascending_triangle`, `bear_flag`,
+`avwap_reclaim` and every other structural setup that has never resolved.
+`0.0` and *"we have never measured this"* are different facts, and publishing
+the first for the second is this repo's honest-None rule running backwards on
+a member-facing column. **`n_resolved` is the gate, not `expectancy_R IS NOT
+NULL`** — a row with nothing resolved contributes no key at all.
 
 **Direction encoding — this reader owns it (ruling D4).** The store keeps
 `direction` as TEXT (`bullish|bearish|neutral`); declaring that raw string
@@ -226,13 +239,21 @@ def read_pattern_fields(targets, failures=None) -> dict:
         try:
             placeholders2 = ",".join("?" * len(pattern_ids))
             sql2 = f"""
-                SELECT pattern_id, expectancy_R FROM pattern_stats
+                SELECT pattern_id, n_resolved, expectancy_R FROM pattern_stats
                 WHERE tf = 'D' AND regime_bucket = 'unknown'
                   AND pattern_id IN ({placeholders2})
             """
             with contextlib.closing(pattern_db.get_connection()) as conn:
                 exp_rows = conn.execute(sql2, pattern_ids).fetchall()
             for er in exp_rows:
+                # ⛔ `n_resolved` is the gate. The row exists from the moment a
+                # pattern is first SEEN, carrying n_resolved=0 and a synthetic
+                # expectancy_R of 0.0 — so an `is not None` check publishes
+                # "breakeven" for a pattern that has never had one outcome
+                # resolve. Absent, not zero: the caller renders a missing key
+                # as "not computable" and a 0.0 as a measurement.
+                if not er["n_resolved"]:
+                    continue
                 if er["expectancy_R"] is not None:
                     expectancy_by_pattern[er["pattern_id"]] = er["expectancy_R"]
         except Exception as e:
