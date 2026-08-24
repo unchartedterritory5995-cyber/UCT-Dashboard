@@ -117,7 +117,7 @@ describe('nudgePlan — column-model directional move', () => {
     type: 'breadth',
     place: { x: 18, y: 15, w: 6, h: 5 },
     mutations: [{ id: 'cal', h: 5 }],
-    anchor: { kind: 'stack', colKey: 't1', pos: 'bottom' },
+    anchor: { kind: 'stack', colKey: 't1', slot: 3 },
   }
 
   test('(b) LEFT from the rail → own column BETWEEN chart and rail (not far left)', () => {
@@ -139,7 +139,7 @@ describe('nudgePlan — column-model directional move', () => {
     const { place, mutations, anchor } = nudgePlan(BOARD, midGhost, 'right', COLS, ROWS)
     expect(place).toMatchObject({ x: 18, y: 0, w: 6, h: 5 })   // top slice of the rail
     expect(mutations).toEqual([{ id: 't1', y: 5, h: 5 }])
-    expect(anchor).toMatchObject({ kind: 'stack', colKey: 't1', pos: 'top' })
+    expect(anchor).toMatchObject({ kind: 'stack', colKey: 't1', slot: 0 })
   })
 
   test('(b) LEFT again from the middle column → far left, chart shifts right', () => {
@@ -149,19 +149,29 @@ describe('nudgePlan — column-model directional move', () => {
     expect(anchor).toEqual({ kind: 'col', gap: 0 })
   })
 
-  test('(b) UP / DOWN from the middle column stack above / below the chart', () => {
-    const up = nudgePlan(BOARD, midGhost, 'up', COLS, ROWS)
-    expect(up.place).toMatchObject({ x: 0, y: 0, w: 18, h: 10 })   // top half of the chart
-    expect(up.mutations).toEqual([{ id: 'c1', y: 10, h: 10 }])
-    const down = nudgePlan(BOARD, midGhost, 'down', COLS, ROWS)
-    expect(down.place).toMatchObject({ x: 0, y: 10, w: 18, h: 10 })
-    expect(down.mutations).toEqual([{ id: 'c1', h: 10 }])
+  // ── Image 26: a panel stacked in the rail walks the RAIL's slots on UP/DOWN,
+  //    never jumping to the chart (that only happens once it's over the chart). ──
+  test('a rail-stacked panel walks the rail vertically on UP/DOWN (stays in the rail)', () => {
+    // Ghost split into the bottom member (calendar) of the rail — its bottom half.
+    const railStack = {
+      type: 'profile',
+      place: { x: 18, y: 15, w: 6, h: 5 },
+      mutations: [{ id: 'cal', h: 5 }],
+      anchor: { kind: 'stack', colKey: 't1', slot: 3 },  // cal, below
+    }
+    const up = nudgePlan(BOARD, railStack, 'up', COLS, ROWS)
+    expect(up).not.toBeNull()
+    expect(up.place.x).toBe(18)                    // still in the rail, NOT the chart at x:0
+    expect(up.anchor).toEqual({ kind: 'stack', colKey: 't1', slot: 2 })
+    // DOWN is at the bottom of the rail already → no further down.
+    expect(nudgePlan(BOARD, railStack, 'down', COLS, ROWS)).toBeNull()
+    // LEFT pops it out to an own column beside the rail.
+    expect(nudgePlan(BOARD, railStack, 'left', COLS, ROWS)).not.toBeNull()
   })
 
-  // ── Scenario (a): a panel placed beside a solo chart (side split) ──────────
-  test('(a) beside a chart, UP / DOWN move above / below it (derived from mutations)', () => {
+  // ── Scenario (a): a panel beside a SOLO chart → UP/DOWN target the chart ────
+  test('(a) beside a solo chart, UP / DOWN move above / below it', () => {
     const solo = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
-    // planPlacement side-split: ghost is the left half, chart shifted right.
     const sideGhost = { type: 'breadth', place: { x: 0, y: 0, w: 12, h: 20 }, mutations: [{ id: 'c1', x: 12, w: 12 }] }
     const up = nudgePlan(solo, sideGhost, 'up', COLS, ROWS)
     expect(up.place).toMatchObject({ x: 0, y: 0, w: 24, h: 10 })
@@ -176,7 +186,7 @@ describe('nudgePlan — column-model directional move', () => {
     type: 'chart',
     place: { x: 0, y: 10, w: 18, h: 10 },
     mutations: [{ id: 'c1', h: 10 }],
-    anchor: { kind: 'stack', colKey: 'c1', pos: 'bottom' },
+    anchor: { kind: 'stack', colKey: 'c1', slot: 1 },  // below the chart
   }
 
   test('(c) UP moves the new chart ABOVE the other chart', () => {
@@ -196,26 +206,18 @@ describe('nudgePlan — column-model directional move', () => {
     expect(step2.place.x).toBeGreaterThan(place.x)
   })
 
+  test('(c) a far-right new chart stacks onto the OTHER chart on UP/DOWN (not the rail)', () => {
+    // Chart ghost as its own far-right column; UP/DOWN must reach the chart, not the rail.
+    const farChart = { type: 'chart', place: { x: 18, y: 0, w: 6, h: 20 }, mutations: [{ id: 'c1', w: 12 }], anchor: { kind: 'col', gap: 2 } }
+    const up = nudgePlan(BOARD, farChart, 'up', COLS, ROWS)
+    expect(up).not.toBeNull()
+    expect(up.place.x).toBe(0)                     // over the chart column, not the rail at x:18
+    expect(up.mutations[0].id).toBe('c1')
+  })
+
   test('RIGHT past the last column is unavailable (arrow hidden)', () => {
     const farRight = { type: 'breadth', place: { x: 18, y: 0, w: 6, h: 20 }, mutations: [], anchor: { kind: 'col', gap: 2 } }
     expect(nudgePlan(BOARD, farRight, 'right', COLS, ROWS)).toBeNull()
-  })
-
-  // ── A panel stacked in a rail (image 24): UP/DOWN must be available too ──────
-  test('a panel stacked in the right rail still offers UP and DOWN (onto the chart)', () => {
-    const railStack = {
-      type: 'profile',
-      place: { x: 18, y: 10, w: 6, h: 5 },
-      mutations: [{ id: 't1', h: 5 }],
-      anchor: { kind: 'stack', colKey: 't1', pos: 'bottom' },
-    }
-    const up = nudgePlan(BOARD, railStack, 'up', COLS, ROWS)
-    const down = nudgePlan(BOARD, railStack, 'down', COLS, ROWS)
-    expect(up).not.toBeNull()
-    expect(down).not.toBeNull()
-    expect(up.place).toMatchObject({ x: 0, y: 0, w: 18, h: 10 })     // top of the chart
-    expect(down.place).toMatchObject({ x: 0, y: 10, w: 18, h: 10 })  // bottom of the chart
-    expect(nudgePlan(BOARD, railStack, 'left', COLS, ROWS)).not.toBeNull()
   })
 
   // ── An own column at the far right (image 25): LEFT must revert the move ─────
