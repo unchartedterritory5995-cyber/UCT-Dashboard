@@ -29,15 +29,24 @@ Env (flow-worker):
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import sqlite3
+import urllib.parse
+import urllib.request
 from datetime import date
 
 from api.alpha_gold_eod import _fmt_prem, _post_discord_image
 from api import oi_snapshots
 
 log = logging.getLogger("oi_morning")
+
+# Massive REST for per-contract daily VOLUME (CARRY% = ΔOI / volume). stdlib urllib
+# because httpx is MIA in the flow-worker container (this card runs there).
+_MASSIVE_BASE = os.environ.get("MASSIVE_REST_BASE", "https://api.massive.com")
+_MASSIVE_KEY = os.environ.get("MASSIVE_API_KEY", "")
+_UA_HDR = {"User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)"}
 
 _ASSETS = os.path.join(os.path.dirname(__file__), "services", "desk_assets")
 
@@ -139,6 +148,41 @@ def _fmt_date(iso_or_mdy) -> str:
 def _flow_db_path() -> str:
     from api.live_massive_router import DB_PATH
     return DB_PATH
+
+
+def _mdy_to_iso(mdy) -> str:
+    try:
+        m, d, y = [int(x) for x in str(mdy).split("/")[:3]]
+        return f"{(y if y > 99 else y + 2000):04d}-{m:02d}-{d:02d}"
+    except (ValueError, TypeError):
+        return ""
+
+
+def _occ(sym: str, cp: str, strike, exp_mdy: str) -> str:
+    """OCC option symbol: O:{TICKER}{YYMMDD}{C/P}{strike*1000:08d}."""
+    m, d, y = [int(x) for x in str(exp_mdy).split("/")[:3]]
+    y = y if y > 99 else y + 2000
+    c = "C" if str(cp).upper().startswith("C") else "P"
+    return f"O:{str(sym).upper().strip()}{y % 100:02d}{m:02d}{d:02d}{c}{int(round(float(strike) * 1000)):08d}"
+
+
+def _contract_day_volume(sym: str, cp: str, strike, exp: str, on_iso: str) -> int:
+    """Total market VOLUME for the option contract on `on_iso` (YYYY-MM-DD) via the
+    Massive daily aggregate. Returns 0 when unknown (no key / no bar / error).
+    Fetched only for the displayed top-N, so the call count is bounded."""
+    if not _MASSIVE_KEY or not on_iso:
+        return 0
+    try:
+        occ = _occ(sym, cp, strike, exp)
+        url = (f"{_MASSIVE_BASE}/v2/aggs/ticker/{urllib.parse.quote(occ)}"
+               f"/range/1/day/{on_iso}/{on_iso}?adjusted=true&apiKey={urllib.parse.quote(_MASSIVE_KEY)}")
+        req = urllib.request.Request(url, headers=_UA_HDR)
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.load(r)
+        res = data.get("results") or []
+        return int(res[-1].get("v") or 0) if res else 0
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _ty(t) -> str | None:
@@ -298,19 +342,29 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                               else "BUILDING" if last_oi > first_oi else "")})
 
     out.sort(key=lambda x: x["delta"], reverse=True)
-    return out[:top_n], window
+    out = out[:top_n]
+
+    # Total flow-day VOLUME (Massive daily agg) for the displayed top-N only →
+    # CARRY% = ΔOI / volume ("how much of the day's volume stuck as open interest").
+    # Bounded to top_n external calls; carry is None when volume is unavailable.
+    flow_iso = _mdy_to_iso(window[-1]) if window else ""
+    for e in out:
+        vt = _contract_day_volume(e["sym"], e["cp"], e["K"], e["E"], flow_iso)
+        e["volTotal"] = vt
+        e["carry"] = round(e["delta"] / vt * 100) if vt > 0 else None
+    return out, window
 
 
 # ── render ───────────────────────────────────────────────────────────────
 _W = 1240
 # (key, header, x, align)
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 130, "l"),
-    ("strike", "STRIKE", 232, "r"), ("exp", "EXP", 272, "l"),
-    ("dte", "DTE", 412, "r"), ("prem", "PREM", 544, "r"),
-    ("vol", "VOL", 706, "r"), ("first", "FIRST OI", 846, "r"),
-    ("last", "LAST OI", 966, "r"), ("delta", "Δ OI", 1082, "r"),
-    ("state", "STATE", 1100, "l"),
+    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 128, "l"),
+    ("strike", "STRIKE", 226, "r"), ("exp", "EXP", 266, "l"),
+    ("dte", "DTE", 400, "r"), ("prem", "PREM", 516, "r"),
+    ("vol", "VOLUME", 660, "r"), ("delta", "Δ OI", 790, "r"),
+    ("carry", "CARRY %", 912, "r"), ("last", "LAST OI", 1028, "r"),
+    ("state", "STATE", 1050, "l"),
 ]
 
 
@@ -394,16 +448,22 @@ def render_card(rows: list, window: list) -> bytes:
                 txt(x, y, f'{e["dte"]}d' if e.get("dte") is not None else "—", f_row, _DIM, "r")
             elif key == "prem":
                 txt(x, y, _fmt_prem_k(e["prem"]), f_rowb, _TXT, "r")
-            elif key == "flow":
-                txt(x, y, e["flow"], f_row, _DIM)
             elif key == "vol":
-                txt(x, y, f'{e["vol"]:,}', f_row, _DIM, "r")
-            elif key == "first":
-                txt(x, y, _fmt_oi(e["firstOI"]), f_row, _DIM, "r")
-            elif key == "last":
-                txt(x, y, _fmt_oi(e["lastOI"]), f_row, _TXT, "r")
+                vt = e.get("volTotal") or 0
+                txt(x, y, f"{vt:,}" if vt else "—", f_row, _DIM, "r")
             elif key == "delta":
                 txt(x, y, _fmt_delta(e["delta"]), f_rowb, _UP, "r")
+            elif key == "carry":
+                c = e.get("carry")
+                if c is None:
+                    txt(x, y, "—", f_row, _DIM, "r")
+                else:
+                    # ≥100% = the whole day's volume (or more) stuck as OI — the
+                    # strongest "traded and held it" signal.
+                    ccol = _UP if c >= 100 else _TXT if c >= 50 else _DIM
+                    txt(x, y, f"{c}%", f_rowb, ccol, "r")
+            elif key == "last":
+                txt(x, y, _fmt_oi(e["lastOI"]), f_row, _TXT, "r")
             elif key == "state":
                 st = e.get("state") or ""
                 if st:

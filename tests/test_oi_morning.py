@@ -53,6 +53,7 @@ def test_build_rows_ranks_by_delta_oi(tmp_path, monkeypatch):
         kM: (100, 99999, "2026-08-22"),
         kE: (100, 99999, "2026-08-22"),
     })
+    monkeypatch.setattr(oim, "_contract_day_volume", lambda *a: 20000)  # no real HTTP
 
     rows, window = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert [r["sym"] for r in rows] == ["AAA", "BBB"]   # CCC<500; MLX pure-ML; EXP expired
@@ -61,7 +62,21 @@ def test_build_rows_ranks_by_delta_oi(tmp_path, monkeypatch):
     aaa = rows[0]
     assert aaa["delta"] == 10000 and aaa["firstOI"] == 1000 and aaa["lastOI"] == 11000
     assert aaa["flow"] == "S+B" and aaa["state"] == "BUILDING"
+    # CARRY% = ΔOI / total volume: 10000/20000 = 50%
+    assert aaa["volTotal"] == 20000 and aaa["carry"] == 50
     assert rows[1]["flow"] == "SWP" and rows[1]["cp"] == "P" and rows[1]["delta"] == 2800
+    assert rows[1]["carry"] == 14   # round(2800/20000*100)
+
+
+def test_carry_none_when_volume_unavailable(tmp_path, monkeypatch):
+    db = tmp_path / "flow.db"
+    _seed_flow(str(db), [_row("AAA", "SWEEP", "CALL", 100, _FUT, 500000, 1000, 1000)])
+    monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
+    kA = oi_snapshots.make_key("AAA", "C", 100, _FUT)
+    monkeypatch.setattr(oim, "_oi_deltas", lambda keys: {kA: (1000, 11000, "2026-08-22")})
+    monkeypatch.setattr(oim, "_contract_day_volume", lambda *a: 0)   # unknown volume
+    rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
+    assert rows[0]["volTotal"] == 0 and rows[0]["carry"] is None
 
 
 def test_brand_new_position_uses_zero_baseline(tmp_path, monkeypatch):
@@ -71,6 +86,7 @@ def test_brand_new_position_uses_zero_baseline(tmp_path, monkeypatch):
     monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
     kN = oi_snapshots.make_key("NEWP", "C", 60, _FUT)
     monkeypatch.setattr(oim, "_oi_deltas", lambda keys: {kN: (0, 27800, "2026-08-22")})
+    monkeypatch.setattr(oim, "_contract_day_volume", lambda *a: 30000)
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert len(rows) == 1
     assert rows[0]["firstOI"] == 0 and rows[0]["delta"] == 27800 and rows[0]["state"] == "NEW"
@@ -91,6 +107,7 @@ def test_etf_and_index_sources_excluded(tmp_path, monkeypatch):
     kQ = oi_snapshots.make_key("QQQ", "C", 500, _FUT)
     monkeypatch.setattr(oim, "_oi_deltas", lambda keys: {
         kA: (1000, 20000, "2026-08-22"), kS: (100, 99999, "2026-08-22"), kQ: (100, 99999, "2026-08-22")})
+    monkeypatch.setattr(oim, "_contract_day_volume", lambda *a: 50000)
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)   # default sources=('stocks',)
     assert [r["sym"] for r in rows] == ["AAPL"]
 
@@ -116,6 +133,7 @@ def test_render_returns_png(tmp_path, monkeypatch):
     monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
     kA = oi_snapshots.make_key("AAA", "C", 100, _FUT)
     monkeypatch.setattr(oim, "_oi_deltas", lambda keys: {kA: (1000, 11000, "2026-08-22")})
+    monkeypatch.setattr(oim, "_contract_day_volume", lambda *a: 40000)
     rows, window = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert oim.render_card(rows, window)[:8] == b"\x89PNG\r\n\x1a\n"
     assert oim.render_card([], ["8/21/2026"])[:8] == b"\x89PNG\r\n\x1a\n"   # empty renders too

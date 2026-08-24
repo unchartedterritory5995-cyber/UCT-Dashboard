@@ -513,9 +513,9 @@ def _start_flow_schedulers():
                               id="oi_morning_push", max_instances=1,
                               coalesce=True, replace_existing=True)
                 n += 1
-                log.info("[startup] Morning OI cron registered (08:00 ET weekdays) [single-name v3]")
+                log.info("[startup] Morning OI cron registered (08:00 ET weekdays) [single-name v4]")
             else:
-                log.info("[startup] Morning OI push disabled (set OI_MORNING_ENABLED=1) [single-name v3]")
+                log.info("[startup] Morning OI push disabled (set OI_MORNING_ENABLED=1) [single-name v4]")
         except Exception as e:  # noqa: BLE001
             log.warning("Morning OI scheduling failed: %s", e)
 
