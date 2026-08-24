@@ -296,3 +296,31 @@ def test_consensus_names_still_outrank_a_no_consensus_one(fake_calendar, meta_sa
     ranked = w._rank(1, reported=False, tracked=set())
     idx = {r["sym"]: i for i, r in enumerate(ranked)}
     assert idx["A"] < idx["B"] and idx["NOCAP"] < idx["B"]
+
+
+@pytest.mark.parametrize("industry, is_fund", [
+    # The fund industries that actually occur on the board (2026-08-24 census).
+    ("Closed-End Fund", True),
+    ("Asset Management", True),
+    ("Real Estate Fund", True),
+    ("Municipal Bond Fund", True),
+    # ⛔ A REIT reports real earnings. These MUST stay companies — "Trust" and
+    # "Income" used to be in the pattern, which would have swept them up.
+    ("Residential REITs", False),
+    ("Diversified REITs", False),
+    ("Diversified Real Estate", False),
+    ("REIT - Mortgage Trust", False),
+    ("Insurance - Diversified Income", False),
+    # Ordinary operating industries seen among the 23 real companies.
+    ("Auto Manufacturers", False),
+    ("Marine Shipping", False),
+    ("Wealth Management", False),
+    ("Credit Services", False),
+    ("", False),                      # unknown is not a fund
+])
+def test_the_fund_detector_keeps_reits_and_operating_companies(monkeypatch, industry, is_fund):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": industry, "sector": ""})
+    assert w._looks_like_a_fund("X") is is_fund, industry

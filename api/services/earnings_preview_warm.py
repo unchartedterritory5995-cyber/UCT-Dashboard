@@ -68,7 +68,17 @@ _CAL_TO_ENGINE = {
 # Measured 2026-08-24: of the 70 board names with no consensus in our feed, 47
 # were funds and 23 were real operating companies (XPEV, Woodside, EHang,
 # Citi Trends). Skipping ALL of them to avoid an "N/A preview" cost the 23.
-_FUND_INDUSTRY = _re.compile(r"fund|closed.?end|asset manage|trust|income|etf|municipal", _re.I)
+# ⛔ DELIBERATELY NARROW. `trust` and `income` were in this pattern and are now
+# out: a REIT is a real company that reports real earnings, and "…Trust" /
+# "…Income" appear in plenty of REIT and operating-company industry strings.
+# Being wrong in that direction re-creates the exact harm this rule exists to
+# fix. Checked against the live board (2026-08-24): the fund industries that
+# actually occur are `Closed-End Fund` (28), `Asset Management` (18) and
+# `Real Estate Fund` (1) — the narrow pattern classifies all 70 no-consensus
+# names IDENTICALLY to the broad one, so the width bought nothing and risked
+# the REITs (`Residential REITs`, `Diversified REITs`, `Diversified Real
+# Estate` are all on that board, and all must stay companies).
+_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|asset manage|municipal|\betfs?\b", _re.I)
 
 
 def _looks_like_a_fund(sym: str) -> bool:
