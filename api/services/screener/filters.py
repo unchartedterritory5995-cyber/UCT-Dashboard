@@ -144,12 +144,31 @@ FILTERS = dict([
     # (`enrich.ratings_fields` -> `fundamentals_bulk`). The filter keys, columns
     # and units are untouched: the member-facing contract is identical, only
     # the writer behind the column changed.
+    # ⛔ Bounded below at zero for the same reason as `peg` below — a NEGATIVE
+    # forward P/E means analysts expect a LOSS, and a bare `pe_fwd <= 20`
+    # returns exactly those companies first. This sibling was not in the audit
+    # sample; the derived rail
+    # `test_a_cheap_valuation_preset_cannot_admit_a_negative_ratio` found it the
+    # moment the rule existed, which is the argument for deriving the rule from
+    # the labels instead of listing the keys that were reported.
     _range("pe_fwd", "Forward P/E", "fundamental", "pe_fwd",
-           [{"label": "Any"}, {"label": "Under 20", "op": "lte", "max": 20},
-            {"label": "Under 35", "op": "lte", "max": 35}]),
+           [{"label": "Any"},
+            {"label": "Under 20", "op": "between", "min": 0, "max": 20},
+            {"label": "Under 35", "op": "between", "min": 0, "max": 35}]),
+    # 🔴 THE PRESETS ARE BOUNDED BELOW AT ZERO, AND THAT IS LOAD-BEARING.
+    # PEG is P/E divided by growth, so a loss-making company (negative P/E) with
+    # shrinking growth (negative denominator) produces a small POSITIVE PEG, and
+    # a bare `peg <= 1` hands the member the most distressed names in the
+    # universe under a label that says "cheap growth". Measured 2026-08-23 on a
+    # 17-name sample: LCID returned at PEG 0.019 — the lowest in the sample —
+    # on a P/E of -0.40 and a -264% net margin; ABVX at 0.346 on a P/E of
+    # -21.08; and on an ascending PEG sort BABA at -0.482 SORTS FIRST. Four of
+    # seventeen should never have been returned.
+    # ⛔ Do not "simplify" these back to `lte`. The floor is the fix.
     _range("peg", "PEG", "fundamental", "peg",
-           [{"label": "Any"}, {"label": "Under 1", "op": "lte", "max": 1},
-            {"label": "Under 2", "op": "lte", "max": 2}]),
+           [{"label": "Any"},
+            {"label": "Under 1", "op": "between", "min": 0, "max": 1},
+            {"label": "Under 2", "op": "between", "min": 0, "max": 2}]),
     _range("eps_growth", "EPS Growth", "fundamental", "eps_growth",
            [{"label": "Any"}, {"label": "Positive", "op": "gte", "min": 0},
             {"label": "Over 25%", "op": "gte", "min": 25},
