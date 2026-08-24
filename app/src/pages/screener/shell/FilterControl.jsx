@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import ColumnDesc from './ColumnDesc'
 import FilterBand from './FilterBand'
 import styles from './ScannerShell.module.css'
@@ -48,6 +48,23 @@ export default function FilterControl({ filter, value, onChange, basis = null })
   if (filter.allow_custom && !options.includes('Custom…')) options.push('Custom…')
   const onKey = e => { if (e.key === 'Enter') commit() }
 
+  // ⛔ THE MEASUREMENT MUST BE ASSOCIATED WITH THE CONTROL, NOT JUST NEAR IT.
+  // A member moving select-to-select through the rail is in a screen reader's
+  // FORMS mode — the natural way to work a filter panel — where nothing but the
+  // control's own name, value and DESCRIPTION is spoken. Without this the
+  // measured band and the refusal sentence below are both silent at exactly the
+  // moment they matter: while a threshold is being chosen. Same idiom as
+  // `ColumnDesc`'s `aria-describedby`, deliberately, rather than a second one.
+  //
+  // ⭐ The id is `useId`-scoped like ColumnDesc's panel id, not `fb_${key}`:
+  // below 1024px `.railSlot` is `display:none` but still IN THE DOM while
+  // `FiltersSheet` re-hosts a second copy of the whole rail, so a key-derived
+  // id would be duplicated and the association would resolve to whichever copy
+  // came first — quite possibly the hidden one.
+  const uid = useId()
+  const bandId = `fb${uid}${filter.key}`
+  const speaks = FilterBand.speaks(filter.distribution, basis)
+
   return (
     <div className={styles.filterRow}>
       {/* The honesty text belongs HERE as much as on the results header: the
@@ -68,6 +85,7 @@ export default function FilterControl({ filter, value, onChange, basis = null })
         <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
       </span>
       <select id={`fc_${filter.key}`} aria-label={filter.label}
+        aria-describedby={speaks ? bandId : undefined}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}
         value={currentLabel(filter, value, customOpen)}
         onChange={e => onSelect(e.target.value)}>
@@ -80,7 +98,8 @@ export default function FilterControl({ filter, value, onChange, basis = null })
           opened to answer. It sits BELOW the select on purpose: the numbers are
           context for the value you are about to type, not a value to pick, and
           nothing about them may look like an option in the list. */}
-      <FilterBand band={filter.distribution} basis={basis} unit={filter.unit} />
+      <FilterBand band={filter.distribution} basis={basis} unit={filter.unit}
+        id={bandId} />
       {customOpen && (
         <div className={styles.customRange}>
           <input type="number" placeholder="min" aria-label={`${filter.label} min`}

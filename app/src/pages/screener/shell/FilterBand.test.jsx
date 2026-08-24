@@ -133,6 +133,67 @@ describe('FilterRail — the wire, not the component', () => {
     expect(hits[0]).toHaveTextContent('not a threshold this firm recommends')
   })
 
+  // ⛔ NEAR IS NOT ASSOCIATED. DOM order serves a browse-mode reader; a member
+  // moving select-to-select through the rail is in FORMS mode, where only the
+  // control's name, value and DESCRIPTION are spoken — so an unassociated band
+  // is silent at the one moment it exists for, while a threshold is chosen.
+  const describedText = el => {
+    const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
+    return ids.map(id => document.querySelectorAll(`#${CSS.escape(id)}`))
+      .map(nodes => {
+        // A describedby pointing at nothing — or at two things — resolves to
+        // silence or to the wrong copy, and both look exactly like success.
+        expect(nodes).toHaveLength(1)
+        return nodes[0].textContent
+      }).join(' ')
+  }
+
+  it('the select is DESCRIBED BY its measured band, not merely followed by it', () => {
+    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+    const text = describedText(screen.getByLabelText('Price'))
+    expect(text).toContain('Typical range')
+    expect(text).toContain('32.75')          // the p50 a member is about to type against
+    expect(text).toContain('3,714 of 3,714') // and the coverage that produced it
+  })
+
+  it('a REFUSAL is what the select points at when there is no range', () => {
+    // The refusal sentence is the fact a member most needs before setting a
+    // threshold on that column — "we hold nothing here" is not a blank.
+    const refused = {
+      ...META,
+      filters: META.filters.map(f => f.key === 'price'
+        ? { ...f, distribution: { non_null: 0, usable: 0, universe: 3714, refused: 'no_data' } }
+        : f),
+    }
+    render(<FilterRail meta={refused} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+    expect(describedText(screen.getByLabelText('Price'))).toMatch(/nothing in tonight/i)
+  })
+
+  it('a control with no band names no description — same probe, both populations', () => {
+    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+    // CONTROL first: absence is only evidence if the probe can see a presence.
+    expect(screen.getByLabelText('Price')).toHaveAttribute('aria-describedby')
+    expect(screen.getByLabelText('Sector')).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('two rails on the page keep two separate associations', () => {
+    // ⭐ THE REASON THE ID IS `useId`-SCOPED. Below 1024px `.railSlot` is
+    // `display:none` but still IN THE DOM while FiltersSheet re-hosts the whole
+    // rail, so a `fb_${key}` id would exist twice and the association would
+    // resolve to whichever came first — quite possibly the hidden copy.
+    render(<>
+      <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />
+      <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+        variant="sheet" />
+    </>)
+    const selects = screen.getAllByLabelText('Price')
+    expect(selects).toHaveLength(2)
+    const ids = selects.map(s => s.getAttribute('aria-describedby'))
+    expect(new Set(ids).size).toBe(2)
+    // `describedText` itself asserts each id resolves to exactly one element.
+    for (const s of selects) expect(describedText(s)).toContain('32.75')
+  })
+
   it('shows no disclaimer and no band when the snapshot could not be read', () => {
     // `meta()` ships `distribution_basis: null` exactly when `distributions()`
     // failed — and then no filter carries a `distribution` either.

@@ -35,6 +35,23 @@ import styles from './FilterBand.module.css'
  * exactly when the snapshot could not be read — in which case no band exists
  * either — so requiring both is not defensive coding, it is the rule that five
  * unlabelled numbers never reach a member's screen.
+ *
+ * ⛔ AND IT IS ASSOCIATED WITH THE CONTROL IT QUALIFIES, not merely printed
+ * near it. DOM order is enough for a browse-mode reader, and no help at all to
+ * the member working the rail select-to-select in FORMS mode — which is the
+ * natural way to work a filter panel and exactly when the measurement matters,
+ * because that is the moment a threshold gets typed. So `FilterControl` gives
+ * this component an `id` and points the `<select>`'s `aria-describedby` at it,
+ * the same association `ColumnDesc` already makes for the honesty text; the
+ * refusal sentence is reached the same way, because "we hold nothing here" is
+ * the fact a member most needs before setting a threshold on that column.
+ *
+ * ⭐ `FilterBand.speaks` IS THE ONE AUTHORITY ON "DOES THIS PUT WORDS ON
+ * SCREEN". This component's early return asks it, and `FilterControl` asks it
+ * to decide whether the select may name this id at all. A second copy of it
+ * would be an `aria-describedby` pointing at an element that does not exist —
+ * which a browser resolves to silence, and silence is indistinguishable from
+ * the association working.
  */
 
 // Compact enough for a 264px rail, and never lossy about magnitude: the exact
@@ -85,27 +102,42 @@ const REASONS = {
   column_absent: () => 'This snapshot does not hold this column yet.',
 }
 
-export default function FilterBand({ band, basis, unit }) {
-  if (!band || !basis) return null
+// Whether this component renders anything at all. Read the header's ⭐ block
+// before duplicating the condition anywhere.
+//
+// ⚠️ Hung off the component rather than exported beside it, and that is not
+// stylistic: `react-refresh/only-export-components` fires on a component file
+// with a second export, and Fast Refresh then re-mounts the whole rail on every
+// edit to this file (`builderInputs.js` carries the same note). A separate
+// module is the other honest answer; a five-line predicate whose ONLY meaning
+// is "what FilterBand does" does not earn one, and splitting it is how the two
+// copies start.
+const bandSpeaks = (band, basis) => {
+  if (!band || !basis) return false
+  if (band.refused) return true
+  return (basis.percentiles || []).length > 0
+}
+
+export default function FilterBand({ band, basis, unit, id }) {
+  if (!bandSpeaks(band, basis)) return null
 
   if (band.refused) {
     const say = REASONS[band.refused]
     return (
-      <p className={styles.refused} data-band={band.refused}>
+      <p id={id} className={styles.refused} data-band={band.refused}>
         {say ? say(band, unit, basis) : `No range measured (${band.refused}).`}
       </p>
     )
   }
 
   const points = (basis.percentiles || []).map(p => [p, band[`p${p}`]])
-  if (!points.length) return null
   // The emphasised point is the MIDDLE of whatever set the server published —
   // never the literal 50. A typed 50 here would be a second authority over
   // `PERCENTILES` and would quietly stop matching the day it grows deciles.
   const midPct = points[Math.floor(points.length / 2)][0]
 
   return (
-    <div className={styles.band} data-band="measured">
+    <div id={id} className={styles.band} data-band="measured">
       <div className={styles.head}>
         <span className={styles.label}>{basis.label}</span>
         {unit && <span className={styles.unit}>{unit}</span>}
@@ -131,3 +163,5 @@ export default function FilterBand({ band, basis, unit }) {
     </div>
   )
 }
+
+FilterBand.speaks = bandSpeaks
