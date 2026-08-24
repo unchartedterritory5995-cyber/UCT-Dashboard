@@ -108,7 +108,7 @@
 }
 .insertBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.25); }
 .insertBtn:disabled { opacity: 0.45; cursor: default; }
-.insertedMsg { color: #4ade80; font-size: 11px; }
+.insertedMsg { color: var(--gain); font-size: 11px; }
 
 /* Phone: the fixed right panel would cover the prose column — dock it as a
    bottom sheet instead, same content. */

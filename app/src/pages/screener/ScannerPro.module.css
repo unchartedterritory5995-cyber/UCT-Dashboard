@@ -35,7 +35,7 @@
 .customRange { display: flex; gap: 4px; margin-top: 4px; }
 .customRange input { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 5px; padding: 5px 6px; color: var(--text); width: 100%; font-size: 12px; }
 
-.scanError { background: rgba(160, 25, 25, 0.18); border: 1px solid rgba(248, 113, 113, 0.45); border-radius: var(--radius-sm, 6px); color: #fca5a5; font-size: 12px; padding: 8px 12px; flex-shrink: 0; }
+.scanError { background: rgba(160, 25, 25, 0.18); border: 1px solid rgba(248, 113, 113, 0.45); border-radius: var(--radius-sm, 6px); color: var(--loss); font-size: 12px; padding: 8px 12px; flex-shrink: 0; }
 
 /* ── Results ── */
 .resultsWrap { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); overflow: auto; flex: 1; min-height: 0; }

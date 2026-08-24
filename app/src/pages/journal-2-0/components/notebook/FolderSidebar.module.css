@@ -226,7 +226,7 @@
   cursor: pointer;
   border-radius: 3px;
 }
-.iconBtn:hover { color: #ef4444; }
+.iconBtn:hover { color: var(--loss); }
 .iconBtnAdd:hover { color: var(--accent); }
 .addForm { display: flex; padding: 0 6px; }
 

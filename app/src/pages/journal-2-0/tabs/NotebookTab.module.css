@@ -201,7 +201,7 @@
   padding: 12px 16px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  color: var(--loss);
   border-radius: 6px;
   margin-bottom: 14px;
 }

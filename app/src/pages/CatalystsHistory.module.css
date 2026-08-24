@@ -147,8 +147,8 @@
 .loss { color: var(--loss); }
 
 .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
-.tagCatalyst { background: rgba(56, 132, 255, 0.12); color: #60a5fa; }
-.tagEarnings { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+.tagCatalyst { background: rgba(56, 132, 255, 0.12); color: var(--info); }
+.tagEarnings { background: rgba(74, 222, 128, 0.12); color: var(--gain); }
 .tagGapper   { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
 .tagNews     { background: rgba(180, 180, 180, 0.12); color: var(--text-bright); }
 .tagDefault  { background: rgba(255,255,255,0.06); color: var(--text-muted); }

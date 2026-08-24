@@ -105,8 +105,8 @@
 
 .repl { color: var(--text-muted, #8a8a8a); font-size: 12px; }
 
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 .warn { color: var(--accent); }
 
 .disclaimer {
@@ -117,5 +117,5 @@
   padding-top: 10px;
 }
 
-.err { color: #ef4444; font-size: 13px; }
+.err { color: var(--loss); font-size: 13px; }
 .hint { color: var(--text-muted, #8a8a8a); font-size: 13px; }

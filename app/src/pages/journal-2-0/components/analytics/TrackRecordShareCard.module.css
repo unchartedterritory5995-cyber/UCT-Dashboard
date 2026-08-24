@@ -72,4 +72,4 @@
   cursor: pointer;
 }
 
-.dangerBtn:hover { border-color: #ef4444; color: #ef4444; }
+.dangerBtn:hover { border-color: #ef4444; color: var(--loss); }

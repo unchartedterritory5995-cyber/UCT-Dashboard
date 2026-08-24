@@ -75,7 +75,7 @@
   margin-bottom: 18px;
 }
 .error {
-  color: #f87171;
+  color: var(--loss);
   border-color: rgba(248, 113, 113, 0.3);
   background: rgba(248, 113, 113, 0.06);
 }

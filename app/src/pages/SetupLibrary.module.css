@@ -65,7 +65,7 @@
 .regimeTags { display: flex; gap: 6px; margin-top: 4px; }
 .regimeTag {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-  padding: 2px 8px; border-radius: 3px; background: rgba(74,222,128,0.15); color: #4ade80;
+  padding: 2px 8px; border-radius: 3px; background: rgba(74,222,128,0.15); color: var(--gain);
   border: 1px solid rgba(74,222,128,0.25);
 }
 
@@ -77,7 +77,7 @@
 }
 .ruleRow { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 4px; }
 .ruleKey { font-weight: 600; color: var(--text-primary); margin-right: 4px; }
-.mistakeRow { font-size: 12px; line-height: 1.5; color: #fca5a5; margin-bottom: 2px; }
+.mistakeRow { font-size: 12px; line-height: 1.5; color: var(--loss); margin-bottom: 2px; }
 
 /* ── Performance table ── */
 .perfTable { font-family: var(--font-mono); font-size: 11px; }

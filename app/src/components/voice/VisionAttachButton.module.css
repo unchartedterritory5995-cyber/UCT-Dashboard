@@ -74,7 +74,7 @@
 
 .error { padding: 4px 0; }
 .errorTitle {
-  color: #ef4444;
+  color: var(--loss);
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -126,7 +126,7 @@
 .rec {
   font-size: 12px;
   font-weight: 600;
-  color: #4ade80;
+  color: var(--gain);
   text-transform: uppercase;
   letter-spacing: 1px;
 }

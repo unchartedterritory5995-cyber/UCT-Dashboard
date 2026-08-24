@@ -394,7 +394,7 @@
   color: var(--text-muted);
   border-radius: var(--radius-xl);
 }
-.overlayError { color: #f87171; }
+.overlayError { color: var(--loss); }
 
 /* ── Resize handles ──────────────────────────────────────────────── */
 .resizeHandleRight {

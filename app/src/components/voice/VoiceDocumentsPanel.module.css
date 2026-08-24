@@ -44,7 +44,7 @@
   padding: 8px 12px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+  color: var(--loss);
   border-radius: 4px;
   font-size: 12px;
   margin-bottom: 12px;
@@ -53,7 +53,7 @@
   padding: 8px 12px;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
-  color: #86efac;
+  color: var(--gain);
   border-radius: 4px;
   font-size: 12px;
   margin-bottom: 12px;
@@ -90,7 +90,7 @@
   padding: 0;
 }
 .pickerBtn:hover {
-  color: #f3d77e;
+  color: var(--accent);
 }
 
 .pasteWrap {
@@ -131,7 +131,7 @@
   align-self: flex-start;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
-  color: #86efac;
+  color: var(--gain);
   border-radius: 4px;
   padding: 4px 12px;
   font-size: 12px;
@@ -195,7 +195,7 @@
 .deleteBtn {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.30);
-  color: #fca5a5;
+  color: var(--loss);
   border-radius: 3px;
   padding: 2px 8px;
   font-size: 10px;

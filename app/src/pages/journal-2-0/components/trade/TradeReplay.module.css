@@ -78,8 +78,8 @@
 }
 
 .pnl { font-size: 17px; font-weight: 800; }
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 
 .controls {
   display: flex;
@@ -118,7 +118,7 @@
   min-width: 120px;
 }
 
-.err { color: #ef4444; font-size: 13px; margin: 0; }
+.err { color: var(--loss); font-size: 13px; margin: 0; }
 .hint { color: var(--text-muted, #8a8a8a); font-size: 13px; margin: 0; }
 
 @media (max-width: 640px) {

@@ -15,7 +15,7 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #f0d479;
+  color: var(--accent);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -23,7 +23,7 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.backBtn:hover { color: #f7e296; border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+.backBtn:hover { color: var(--accent); border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
 
 /* ── Mini-hub ──────────────────────────────────────────────────────────────── */
 
@@ -176,7 +176,7 @@
 .formErr {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: #f87171;
+  color: var(--loss);
 }
 
 /* ── Section screen ───────────────────────────────────────────────────────── */
@@ -250,7 +250,7 @@
   padding: 5px 11px;
   cursor: pointer;
 }
-.dangerBtn:hover { color: #f87171; border-color: rgba(248, 113, 113, 0.6); background: rgba(248, 113, 113, 0.08); }
+.dangerBtn:hover { color: var(--loss); border-color: rgba(248, 113, 113, 0.6); background: rgba(248, 113, 113, 0.08); }
 
 .entryGrid {
   display: grid;
@@ -281,7 +281,7 @@
   font-family: var(--font-display);
   font-size: 14.5px;
   font-weight: 700;
-  color: #f0d479;
+  color: var(--accent);
 }
 .entrySnippet {
   font-family: var(--font-sans);
@@ -326,9 +326,9 @@
 }
 .tplRow:hover { border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.06); }
 .tplRow:disabled { opacity: 0.6; cursor: default; }
-.tplLabel { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: #f0d479; }
+.tplLabel { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--accent); }
 .tplDesc { font-family: var(--font-sans); font-size: 12px; color: rgba(214, 213, 207, 0.75); }
-.pickerErr { font-family: var(--font-sans); font-size: 12px; color: #f87171; margin: 4px 0 8px; }
+.pickerErr { font-family: var(--font-sans); font-size: 12px; color: var(--loss); margin: 4px 0 8px; }
 
 /* ── Entry page ───────────────────────────────────────────────────────────── */
 
@@ -374,7 +374,7 @@
   white-space: nowrap;
   font-family: var(--font-sans);
   font-size: 12px;
-  color: #f0d479;
+  color: var(--accent);
   text-decoration: none;
   background: rgba(201, 168, 76, 0.08);
   border: 1px solid rgba(201, 168, 76, 0.3);
@@ -401,7 +401,7 @@
   padding: 4px 12px;
   cursor: pointer;
 }
-.noteLinkBtn:hover { color: #f0d479; border-color: rgba(201, 168, 76, 0.5); }
+.noteLinkBtn:hover { color: var(--accent); border-color: rgba(201, 168, 76, 0.5); }
 
 /* Phone pane-switch (Write-up ⇄ Charts) — the years-library idiom. */
 .paneSwitch { display: flex; gap: 6px; margin-bottom: 12px; }
@@ -418,7 +418,7 @@
   cursor: pointer;
   min-height: var(--tap-min, 44px);
 }
-.paneBtnActive { color: #f0d479; border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+.paneBtnActive { color: var(--accent); border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
 
 /* Desktop: write-up left, charted examples right (echoes the firm's Setup
    Library detail split). Tablet & phone stack. */
@@ -440,9 +440,9 @@
   line-height: 1.7;
   color: var(--text, #e8e6e0);
 }
-.editorCol :global(.ProseMirror h1) { font-size: 24px; margin: 24px 0 12px; line-height: 1.2; color: #f0d479; }
-.editorCol :global(.ProseMirror h2) { font-size: 19px; margin: 20px 0 10px; line-height: 1.25; color: #f0d479; }
-.editorCol :global(.ProseMirror h3) { font-size: 16px; margin: 16px 0 8px; color: #f0d479; }
+.editorCol :global(.ProseMirror h1) { font-size: 24px; margin: 24px 0 12px; line-height: 1.2; color: var(--accent); }
+.editorCol :global(.ProseMirror h2) { font-size: 19px; margin: 20px 0 10px; line-height: 1.25; color: var(--accent); }
+.editorCol :global(.ProseMirror h3) { font-size: 16px; margin: 16px 0 8px; color: var(--accent); }
 .editorCol :global(.ProseMirror p) { margin: 10px 0; }
 .editorCol :global(.ProseMirror a) { color: var(--accent); text-decoration: underline; }
 .editorCol :global(.ProseMirror blockquote) {
@@ -530,7 +530,7 @@
   width: 16px;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #f0d479;
+  color: var(--accent);
 }
 .noteRowTitle {
   flex: 1;

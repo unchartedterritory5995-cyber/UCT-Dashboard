@@ -29,8 +29,8 @@
   letter-spacing: 0.6px;
 }
 
-.up   { color: #4ade80; font-variant-numeric: tabular-nums; }
-.down { color: #f87171; font-variant-numeric: tabular-nums; }
+.up   { color: var(--gain); font-variant-numeric: tabular-nums; }
+.down { color: var(--loss); font-variant-numeric: tabular-nums; }
 
 .pending {
   color: var(--color-text-muted, #8a8a8a);
@@ -60,7 +60,7 @@
 .covOk {
   padding: 6px 14px;
   font-size: 12px;
-  color: #4ade80;
+  color: var(--gain);
   opacity: 0.75;
   border-bottom: 1px solid var(--color-border, #222);
 }

@@ -430,7 +430,7 @@
   opacity: 0.55;
 }
 .wtabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
-.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: #4ade80; background: rgba(74, 222, 128, 0.14); }
+.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: var(--gain); background: rgba(74, 222, 128, 0.14); }
 .wtabAdd {
   flex: 0 0 auto;
   background: transparent;

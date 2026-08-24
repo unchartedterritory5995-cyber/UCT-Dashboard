@@ -11,15 +11,15 @@
 
 :root {
   --ut-green: #2d8c4e;
-  --ut-green-bright: #3cb868;
+  --ut-green-bright: #34d17c;
   --ut-green-dim: #2d8c4e18;
   --ut-green-glow: #2d8c4e40;
   --ut-red: #c0392b;
-  --ut-red-bright: #e74c3c;
+  --ut-red-bright: #f24b42;
   --ut-red-dim: #c0392b18;
-  --ut-gold: #c9a84c;
-  --ut-gold-dim: #c9a84c15;
-  --ut-gold-glow: #c9a84c35;
+  --ut-gold: #dcbb5e;
+  --ut-gold-dim: #dcbb5e15;
+  --ut-gold-glow: #dcbb5e35;
   /* Semantic accent = the brand gold. Aliased (not hardcoded) so every
      `var(--accent)` follows the per-theme --ut-gold: bright #c9a84c on dark,
      the darker #7a5c16 on the light theme (legible on light chrome like the
@@ -37,18 +37,18 @@
   --text-muted: #cfcac0;
   --text-bright: #f8f7f3;
   --text-heading: #ffffff;
-  --gain: #3cb868;
-  --gain-bg: #3cb86815;
-  --gain-border: #3cb86835;
-  --loss: #e74c3c;
-  --loss-bg: #e74c3c15;
-  --loss-border: #e74c3c35;
-  --warn: #c9a84c;
-  --warn-bg: #c9a84c15;
-  --warn-border: #c9a84c35;
-  --info: #6ba3be;
-  --info-bg: #6ba3be12;
-  --info-border: #6ba3be30;
+  --gain: #34d17c;
+  --gain-bg: #34d17c15;
+  --gain-border: #34d17c35;
+  --loss: #f24b42;
+  --loss-bg: #f24b4215;
+  --loss-border: #f24b4235;
+  --warn: #dcbb5e;
+  --warn-bg: #dcbb5e15;
+  --warn-border: #dcbb5e35;
+  --info: #5ea8f7;
+  --info-bg: #5ea8f712;
+  --info-border: #5ea8f730;
 
   /* ── Chart indicator tokens (--ind-*) ─────────────────────────────────────
      DOM CHROME ONLY — legend chips, dialogs, the Style tab. The CANVAS gets
@@ -107,8 +107,8 @@
   --menu-text: #ededed;
   --menu-text-dim: #8a8a8f;
   --menu-text-faint: #6b6b6b;
-  --menu-accent: #c9a84c;
-  --menu-accent-bg: rgba(201, 168, 76, 0.12);
+  --menu-accent: #dcbb5e;
+  --menu-accent-bg: rgba(220, 187, 94, 0.12);
   --menu-hover: rgba(255, 255, 255, 0.055);
   --menu-shadow: rgba(0, 0, 0, 0.7);
 

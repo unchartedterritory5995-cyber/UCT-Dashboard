@@ -232,7 +232,7 @@
   font-weight: 600;
 }
 .legendDown {
-  color: #f87171;
+  color: var(--loss);
   font-weight: 600;
 }
 

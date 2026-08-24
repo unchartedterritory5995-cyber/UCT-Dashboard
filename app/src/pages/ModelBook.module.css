@@ -92,7 +92,7 @@
   font-weight: 800;
   letter-spacing: 8px;
   text-transform: uppercase;
-  color: #f0d479;
+  color: var(--accent);
   margin: 0 0 8px;
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.5), 0 2px 28px rgba(240, 212, 121, 0.3);
 }
@@ -145,7 +145,7 @@
   font-size: 16.5px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: #f0d479;
+  color: var(--accent);
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.45);
 }
 .hubCardBlurb {
@@ -165,7 +165,7 @@
 }
 /* Live card (Throughout the Years): gold accent. */
 .hubCardLive { border-color: rgba(201, 168, 76, 0.35); }
-.hubCardLive .hubCardCta { color: #f0d479; }
+.hubCardLive .hubCardCta { color: var(--accent); }
 .hubCardLive:hover {
   border-color: var(--ut-gold);
   background: rgba(30, 25, 12, 0.72);
@@ -206,7 +206,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #f0d479;
+  color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4);
   border-radius: 999px;
   padding: 3px 11px;
@@ -383,7 +383,7 @@
 .stockCompany { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 /* Gains/up-moves use the exact Model Book candle green (#1ae51a) so the
    percentages on screen match the chart candles. */
-.gain { color: #1ae51a; }
+.gain { color: var(--gain); }
 .loss { color: var(--loss, #e74c3c); }
 
 /* ── Detail ── */
@@ -417,7 +417,7 @@
 .infoStat { display: flex; flex-direction: column; gap: 1px; }
 .infoStatLabel { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
 .infoStatVal { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text-primary); }
-.infoStatGreen { color: #1ae51a; }
+.infoStatGreen { color: var(--gain); }
 .infoNarrative { position: relative; }
 .infoDesc { font-size: 13.5px; line-height: 1.55; color: var(--text-primary); font-weight: 600; margin: 0 0 8px; }
 .infoStory { font-size: 13px; line-height: 1.7; color: var(--text-secondary); margin: 0; white-space: pre-wrap; }
@@ -426,7 +426,7 @@
 .infoEditLink:hover { color: var(--ut-gold); }
 .infoEditLink:disabled { opacity: 0.6; cursor: default; }
 .infoNarrActions { display: flex; align-items: center; gap: 12px; }
-.detailGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: #1ae51a; }
+.detailGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--gain); }
 .detailCompany { font-size: 12px; color: var(--text-muted); }
 .detailThesis { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 14px; }
 
@@ -510,8 +510,8 @@
 .catTitle { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.32; color: var(--text-primary); overflow-wrap: anywhere; }
 /* Fixed-width right-aligned columns so move% and date line up vertically. */
 .catMove { flex: none; width: 46px; text-align: right; font-family: var(--font-mono); font-size: 11px; font-weight: 700; white-space: nowrap; }
-.catMoveUp { color: #1ae51a; }
-.catMoveDown { color: #f87171; }
+.catMoveUp { color: var(--gain); }
+.catMoveDown { color: var(--loss); }
 .catDate { flex: none; width: 104px; text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .catDesc { font-size: 11.5px; line-height: 1.5; color: var(--text-bright); margin: 0; }
 .catError { font-family: var(--font-mono); font-size: 11px; color: var(--loss); margin: 4px 0 8px; }
@@ -528,8 +528,8 @@
   border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .earnReported { text-align: left; color: var(--text-muted); }
-.earnUp { color: #1ae51a; }
-.earnDown { color: #f87171; }
+.earnUp { color: var(--gain); }
+.earnDown { color: var(--loss); }
 .sectionLabel { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ut-gold); opacity: 0.8; }
 .noSetups { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 .setupListC { display: flex; flex-direction: column; gap: 3px; }

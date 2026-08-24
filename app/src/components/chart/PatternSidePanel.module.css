@@ -102,8 +102,8 @@
   border-radius: 12px;
   text-transform: uppercase;
 }
-.dirBullish { background: rgba(60, 184, 104, 0.18); color: #4ade80; }
-.dirBearish { background: rgba(231, 76, 60, 0.18); color: #f87171; }
+.dirBullish { background: rgba(60, 184, 104, 0.18); color: var(--gain); }
+.dirBearish { background: rgba(231, 76, 60, 0.18); color: var(--loss); }
 .dirNeutral { background: rgba(201, 168, 76, 0.18); color: var(--accent); }
 
 .confidenceWrap {
@@ -173,8 +173,8 @@
   color: var(--text-bright);
   font-variant-numeric: tabular-nums;
 }
-.summaryValueGreen { color: #4ade80; }
-.summaryValueRed { color: #f87171; }
+.summaryValueGreen { color: var(--gain); }
+.summaryValueRed { color: var(--loss); }
 .summaryValueGold { color: var(--accent); }
 
 /* ── Body (scrollable) ── */
@@ -441,5 +441,5 @@
   text-align: center;
   color: var(--text-muted);
 }
-.submitMsgSuccess { color: #4ade80; }
-.submitMsgError { color: #f87171; }
+.submitMsgSuccess { color: var(--gain); }
+.submitMsgError { color: var(--loss); }

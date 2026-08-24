@@ -165,7 +165,7 @@
   border-radius: 3px; padding: 0 5px; flex-shrink: 0;
 }
 .erBadgeSoon {
-  color: #fca5a5; background: rgba(160, 25, 25, 0.30);
+  color: var(--loss); background: rgba(160, 25, 25, 0.30);
   border-color: rgba(252, 165, 165, 0.4);
 }
 
@@ -187,7 +187,7 @@
 }
 .rsHigh { color: var(--text-bright); background: var(--ut-green, #22c55e); border: 1px solid var(--ut-green-bright, #4ade80); }
 .rsMid  { color: var(--text-bright); background: rgba(201, 168, 76, 0.4);  border: 1px solid rgba(201, 168, 76, 0.55); }
-.rsLow  { color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
+.rsLow  { color: var(--loss); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }

@@ -29,7 +29,7 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #f0d479;
+  color: var(--accent);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -37,7 +37,7 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.backBtn:hover { color: #f7e296; border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+.backBtn:hover { color: var(--accent); border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
 
 /* ── Hero masthead (left glyph panel + right text, not centered) ── */
 .hero {
@@ -68,7 +68,7 @@
   font-weight: 800;
   letter-spacing: 8px;
   text-transform: uppercase;
-  color: #f0d479;
+  color: var(--accent);
   margin: 0 0 10px;
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.5), 0 2px 26px rgba(240, 212, 121, 0.28);
 }
@@ -155,8 +155,8 @@
   background: currentColor;
   box-shadow: 0 0 9px currentColor;
 }
-.phase_exhaustion   { color: #f08484; }
-.phase_turn         { color: #f0d479; }
+.phase_exhaustion   { color: var(--loss); }
+.phase_turn         { color: var(--accent); }
 .phase_confirmation { color: #6fdc94; }
 .flowSteps { display: flex; flex-direction: column; gap: 13px; }
 .flowStep { display: flex; gap: 12px; align-items: flex-start; }
@@ -180,7 +180,7 @@
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.3px;
-  color: #f0d479;
+  color: var(--accent);
   margin-bottom: 2px;
 }
 .flowBlurb {
@@ -210,7 +210,7 @@
   font-size: 19px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #f0d479;
+  color: var(--accent);
 }
 .execBlurb {
   font-family: var(--font-sans);
@@ -232,7 +232,7 @@
   font-family: var(--font-display);
   font-size: 14.5px;
   font-weight: 800;
-  color: #f0d479;
+  color: var(--accent);
 }
 .vehicleTickers { display: flex; gap: 5px; flex-wrap: wrap; }
 .vehicleTicker {
@@ -280,7 +280,7 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.pill:hover { color: #f0d479; border-color: rgba(201, 168, 76, 0.4); }
+.pill:hover { color: var(--accent); border-color: rgba(201, 168, 76, 0.4); }
 .pillActive {
   color: #0d0d10;
   background: linear-gradient(180deg, #f0d479, #c9a84c);
@@ -371,7 +371,7 @@
   position: relative;
   z-index: 1;
   font-size: 10px;
-  color: #f0d479;
+  color: var(--accent);
   background: rgba(14, 15, 19, 0.85);
 }
 
@@ -381,7 +381,7 @@
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-weight: 700;
-  color: #f08484;
+  color: var(--loss);
 }
 .depthTrack {
   position: relative;
@@ -416,7 +416,7 @@
   font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.3px;
-  color: #f0d479;
+  color: var(--accent);
 }
 .entryType {
   font-family: var(--font-mono);
@@ -465,7 +465,7 @@
   color: rgba(220, 218, 212, 0.4);
   transition: color 0.15s, transform 0.15s;
 }
-.entry:hover .entryCta { color: #f0d479; transform: translateX(3px); }
+.entry:hover .entryCta { color: var(--accent); transform: translateX(3px); }
 
 /* ── Detail / study view ── */
 .detail {
@@ -501,7 +501,7 @@
   font-size: 30px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #f0d479;
+  color: var(--accent);
   margin: 0 0 9px;
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 22px rgba(240, 212, 121, 0.2);
 }
@@ -522,7 +522,7 @@
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #f0d479;
+  color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.12);
   border-radius: 4px;
@@ -552,8 +552,8 @@
     rgba(14, 15, 19, 0.6);
   padding: 12px 14px;
 }
-.statVal { font-family: var(--font-display); font-size: 17px; font-weight: 800; color: #f0d479; }
-.stat:first-child .statVal { color: #f08484; }
+.statVal { font-family: var(--font-display); font-size: 17px; font-weight: 800; color: var(--accent); }
+.stat:first-child .statVal { color: var(--loss); }
 .statLabel {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -674,7 +674,7 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: #f0d479;
+  color: var(--accent);
 }
 
 /* ── Responsive ── */

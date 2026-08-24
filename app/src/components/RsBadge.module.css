@@ -24,7 +24,7 @@
 
 /* RS is higher = stronger. Leadership reads green→gold; laggards read red. */
 .lead {
-  color: #6ee7a8;
+  color: var(--gain);
   background: rgba(74, 222, 128, 0.15);
   border-color: rgba(74, 222, 128, 0.42);
 }

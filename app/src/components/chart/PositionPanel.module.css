@@ -117,11 +117,11 @@
 }
 
 .long {
-  color: #4ade80;
+  color: var(--gain);
 }
 
 .short {
-  color: #f87171;
+  color: var(--loss);
 }
 
 .invalid {
@@ -129,11 +129,11 @@
 }
 
 .riskValue {
-  color: #f87171;
+  color: var(--loss);
 }
 
 .rewardValue {
-  color: #4ade80;
+  color: var(--gain);
 }
 
 .clearBtn {

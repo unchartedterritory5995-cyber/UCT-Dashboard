@@ -38,8 +38,8 @@
   min-width: 16px;
   text-align: center;
 }
-.up { font-size: 10px; color: #4ade80; }
-.dn { font-size: 10px; color: #f87171; }
+.up { font-size: 10px; color: var(--gain); }
+.dn { font-size: 10px; color: var(--loss); }
 
 /* Phone — chips wrap into a tall block; scroll them as a single strip and
    give each a comfortable tap height. */

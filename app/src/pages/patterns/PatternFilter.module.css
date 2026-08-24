@@ -149,7 +149,7 @@
 .dir_bearish.typeChipActive {
   background: rgba(239, 68, 68, 0.18);
   border-color: #ef4444;
-  color: #ef4444;
+  color: var(--loss);
 }
 
 /* ── Mobile: collapsed filter bar (button → FiltersSheet) ── */

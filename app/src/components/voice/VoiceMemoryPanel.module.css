@@ -7,7 +7,7 @@
 .title { color: var(--accent); font-size: 15px; font-weight: 600; margin: 0; }
 .subtitle { font-size: 12px; opacity: 0.75; margin: 0 0 6px 0; }
 .subhead { color: var(--accent); font-size: 13px; font-weight: 600; margin: 18px 0 6px 0; opacity: 0.85; }
-.error { color: #f87171; font-size: 12px; }
+.error { color: var(--loss); font-size: 12px; }
 
 .addRow { display: flex; gap: 8px; align-items: stretch; }
 .input {
@@ -39,7 +39,7 @@
 }
 .factText { flex: 1; font-size: 13px; }
 .deleteBtn {
-  background: transparent; border: none; color: #f87171; cursor: pointer;
+  background: transparent; border: none; color: var(--loss); cursor: pointer;
   font-size: 16px; padding: 2px 6px; opacity: 0.6;
 }
 .deleteBtn:hover { opacity: 1; }

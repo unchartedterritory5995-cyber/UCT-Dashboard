@@ -175,7 +175,7 @@
 }
 .btn.danger:not(:disabled):hover {
   background: rgba(239, 68, 68, 0.25);
-  color: #ef4444;
+  color: var(--loss);
 }
 
 /* ── Separator ── */
@@ -454,7 +454,7 @@
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 4px;
-  color: #f87171;
+  color: var(--loss);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -544,7 +544,7 @@
   background: transparent;
   border: 1px solid rgba(96, 165, 250, 0.3);
   border-radius: 4px;
-  color: #93c5fd;
+  color: var(--info);
   font-size: 14px;
   padding: 2px 8px;
   cursor: pointer;
@@ -556,7 +556,7 @@
 .replayDate {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #93c5fd;
+  color: var(--info);
   margin: 0 8px;
 }
 .replaySlider {
@@ -602,13 +602,13 @@
   padding: 1px 6px;
   cursor: pointer;
 }
-.replaySpeedActive { border-color: #60a5fa; color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+.replaySpeedActive { border-color: #60a5fa; color: var(--info); background: rgba(96, 165, 250, 0.1); }
 .replayExit {
   margin-left: auto;
   background: transparent;
   border: 1px solid rgba(248, 113, 113, 0.4);
   border-radius: 4px;
-  color: #f87171;
+  color: var(--loss);
   font-size: 11px;
   padding: 2px 8px;
   cursor: pointer;

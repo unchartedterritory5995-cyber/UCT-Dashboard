@@ -49,7 +49,7 @@
   font-weight: 600;
 }
 .chapterRowActive .chapterTime {
-  color: #e6cf86;
+  color: var(--accent);
 }
 .chapterTime {
   flex: none;

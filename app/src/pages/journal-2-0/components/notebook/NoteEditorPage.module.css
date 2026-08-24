@@ -77,7 +77,7 @@
 .deleteBtn {
   background: transparent;
   border: 1px solid #ef444450;
-  color: #ef4444;
+  color: var(--loss);
   padding: 5px 10px;
   border-radius: 6px;
   cursor: pointer;

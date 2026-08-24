@@ -37,7 +37,7 @@
   padding: 8px 12px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+  color: var(--loss);
   border-radius: 4px;
   font-size: 12px;
   margin-bottom: 12px;
@@ -247,7 +247,7 @@
   display: inline-block;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.35);
-  color: #86efac;
+  color: var(--gain);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 11px;

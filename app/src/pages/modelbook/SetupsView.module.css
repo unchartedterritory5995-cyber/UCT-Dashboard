@@ -403,8 +403,8 @@
   border: 1px solid var(--border-accent);
   background: var(--bg-surface);
 }
-.dirChip.long  { color: #1ae51a; border: 1px solid rgba(26, 229, 26, 0.4);   background: rgba(26, 229, 26, 0.1); }
-.dirChip.short { color: #f08484; border: 1px solid rgba(224, 82, 82, 0.4);   background: rgba(224, 82, 82, 0.1); }
+.dirChip.long  { color: var(--gain); border: 1px solid rgba(26, 229, 26, 0.4);   background: rgba(26, 229, 26, 0.1); }
+.dirChip.short { color: var(--loss); border: 1px solid rgba(224, 82, 82, 0.4);   background: rgba(224, 82, 82, 0.1); }
 .dirChip.both  { color: var(--ut-gold); border: 1px solid var(--ut-gold-glow);  background: var(--ut-gold-dim); }
 
 /* ── Stage: the selected setup's study view (right pane) ─────────────────────────
@@ -818,9 +818,9 @@
   background: var(--ut-gold);
   border-radius: 1px;
 }
-.pbAccent_entry { color: #1ae51a; }
+.pbAccent_entry { color: var(--gain); }
 .pbAccent_entry .pbDiamond { background: #1ae51a; box-shadow: 0 0 8px rgba(26, 229, 26, 0.5); }
-.pbAccent_stop { color: #f08484; }
+.pbAccent_stop { color: var(--loss); }
 .pbAccent_stop .pbDiamond { background: #e05252; box-shadow: 0 0 8px rgba(224, 82, 82, 0.5); }
 .pbAccent_exit { color: var(--ut-gold); }
 .pbAccent_exit .pbDiamond { background: #e6c965; box-shadow: 0 0 8px rgba(230, 201, 101, 0.5); }
@@ -849,7 +849,7 @@
   font-weight: 700;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: #f08484;
+  color: var(--loss);
   margin-bottom: 7px;
 }
 .pbMistakesList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -1066,7 +1066,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: #1ae51a;   /* exact vivid green of the chart candles (MB_UP) */
+  color: var(--gain);   /* exact vivid green of the chart candles (MB_UP) */
   white-space: nowrap;
 }
 .exAdvance {

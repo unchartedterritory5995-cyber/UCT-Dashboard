@@ -33,7 +33,7 @@
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: #f0d479;
+  color: var(--accent);
 }
 .exCo {
   font-family: var(--font-sans);
@@ -59,7 +59,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: #f0d479;
+  color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.1);
   border-radius: 4px;
@@ -70,7 +70,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: #1ae51a;
+  color: var(--gain);
   white-space: nowrap;
 }
 .exTools { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
@@ -88,7 +88,7 @@
   color: rgba(232, 230, 224, 0.85);
   transition: color 0.15s, border-color 0.15s;
 }
-.exTool:hover { color: #f0d479; border-color: rgba(201, 168, 76, 0.5); }
+.exTool:hover { color: var(--accent); border-color: rgba(201, 168, 76, 0.5); }
 /* Setup ⇄ Result segmented flip (before / after the setup day) */
 .exViewSwitch {
   display: inline-flex;
@@ -108,11 +108,11 @@
   transition: color 0.15s, background 0.15s;
 }
 .exViewBtn + .exViewBtn { border-left: 1px solid var(--border); }
-.exViewBtn:hover { color: #f0d479; }
+.exViewBtn:hover { color: var(--accent); }
 .exViewBtnActive,
 .exViewBtnActive:hover {
   background: rgba(201, 168, 76, 0.18);
-  color: #f0d479;
+  color: var(--accent);
 }
 .exToolSave { color: #0d0d10; background: linear-gradient(180deg, #6fdc94, #3cb868); border-color: #3cb868; font-weight: 700; }
 .exToolDanger:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.5); }
@@ -231,7 +231,7 @@
   cursor: pointer;
 }
 .tickerRow:hover { background: rgba(201, 168, 76, 0.1); }
-.tickerSym { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: #f0d479; }
+.tickerSym { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--accent); }
 .tickerName {
   font-family: var(--font-sans);
   font-size: 11.5px;

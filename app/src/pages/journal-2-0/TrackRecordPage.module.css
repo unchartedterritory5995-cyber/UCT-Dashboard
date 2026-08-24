@@ -104,8 +104,8 @@
 
 .sym { font-weight: 700; color: var(--accent); }
 .right { text-align: right; }
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 
 .foot {
   margin-top: auto;

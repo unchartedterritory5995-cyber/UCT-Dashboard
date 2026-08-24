@@ -58,7 +58,7 @@
   letter-spacing: 0.5px;
 }
 .tag {
-  color: #93c5fd;
+  color: var(--info);
   background: rgba(147, 197, 253, 0.08);
   padding: 1px 6px;
   border-radius: 4px;

@@ -92,7 +92,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: #e6cf86;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 .topTitle {
@@ -171,7 +171,7 @@
   padding: 0 7px;
   border: 1px solid rgba(201, 168, 76, 0.5);
   background: transparent;
-  color: #e6cf86;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -206,7 +206,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.13em;
-  color: #e6cf86;
+  color: var(--accent);
 }
 @media (max-width: 640px) {
   .watermark {
@@ -238,7 +238,7 @@
 .pipLabel {
   font-size: 13px;
   font-weight: 600;
-  color: #e6cf86;
+  color: var(--accent);
 }
 .nextCard {
   position: absolute;

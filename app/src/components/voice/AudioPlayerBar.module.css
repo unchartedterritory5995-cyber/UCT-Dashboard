@@ -41,7 +41,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.errorTag { color: #f87171; }
+.errorTag { color: var(--loss); }
 .loadingTag { color: var(--text); font-style: italic; }
 
 .seek {

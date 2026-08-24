@@ -149,7 +149,7 @@
 .alertDel {
   background: none;
   border: none;
-  color: #f87171;
+  color: var(--loss);
   font-size: 12px;
   cursor: pointer;
   opacity: 0.5;
