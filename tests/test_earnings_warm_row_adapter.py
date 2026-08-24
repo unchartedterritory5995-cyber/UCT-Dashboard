@@ -298,10 +298,28 @@ def test_consensus_names_still_outrank_a_no_consensus_one(fake_calendar, meta_sa
     assert idx["A"] < idx["B"] and idx["NOCAP"] < idx["B"]
 
 
+@pytest.mark.parametrize("industry, name, is_fund", [
+    # `Asset Management` does NOT settle it — it is the industry of closed-end
+    # funds AND of real asset managers. The NAME breaks the tie: a fund
+    # announces itself there, a company does not.
+    ("Asset Management", "Royce Micro-Cap Trust, Inc.", True),
+    ("Asset Management", "PIMCO Income Strategy Fund II", True),
+    ("Asset Management", "Nuveen Global High Income Fund", True),
+    ("Asset Management", "Noah Holdings Limited", False),
+    ("Asset Management", "BlackRock, Inc.", False),
+    ("Asset Management", "", False),          # unknown name → company
+])
+def test_an_ambiguous_industry_is_settled_by_the_name(monkeypatch, industry, name, is_fund):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": industry, "sector": "", "name": name})
+    assert w._looks_like_a_fund("X") is is_fund, (industry, name)
+
+
 @pytest.mark.parametrize("industry, is_fund", [
     # The fund industries that actually occur on the board (2026-08-24 census).
     ("Closed-End Fund", True),
-    ("Asset Management", True),
     ("Real Estate Fund", True),
     ("Municipal Bond Fund", True),
     # ⛔ A REIT reports real earnings. These MUST stay companies — "Trust" and
@@ -321,6 +339,7 @@ def test_consensus_names_still_outrank_a_no_consensus_one(fake_calendar, meta_sa
 def test_the_fund_detector_keeps_reits_and_operating_companies(monkeypatch, industry, is_fund):
     from api.services import earnings_preview_warm as w
     from api.services import ticker_meta
+    # No name at all → an ambiguous industry must fall to "company".
     monkeypatch.setattr(ticker_meta, "_base_meta",
-                        lambda sym: {"industry": industry, "sector": ""})
+                        lambda sym: {"industry": industry, "sector": "", "name": ""})
     assert w._looks_like_a_fund("X") is is_fund, industry

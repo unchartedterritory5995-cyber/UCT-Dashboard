@@ -78,7 +78,22 @@ _CAL_TO_ENGINE = {
 # names IDENTICALLY to the broad one, so the width bought nothing and risked
 # the REITs (`Residential REITs`, `Diversified REITs`, `Diversified Real
 # Estate` are all on that board, and all must stay companies).
-_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|asset manage|municipal|\betfs?\b", _re.I)
+# An industry that settles it on its own. ⛔ DELIBERATELY NARROW: `trust`
+# and `income` are NOT here — a REIT is a real company that reports real
+# earnings, and being wrong in that direction re-creates the exact harm this
+# rule exists to fix. Verified against the live board: `Residential REITs`,
+# `Diversified REITs` and `Diversified Real Estate` all stay companies.
+_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|municipal|\betfs?\b", _re.I)
+
+# …and one that does NOT settle it. `Asset Management` is the industry of
+# closed-end funds AND of real asset managers — BlackRock and Noah Holdings
+# carry it exactly like Royce Micro-Cap Trust does. Measured on the live
+# board (2026-08-24): 48 of the 70 no-consensus names matched on industry
+# alone, and one of them, `Noah Holdings Limited`, is an operating company
+# that was being denied a brief for it. So the NAME breaks the tie — a fund
+# announces itself there ("…Fund", "…Trust", "…Income"), a company does not.
+_FUND_SOFT_INDUSTRY = _re.compile(r"asset manage", _re.I)
+_FUND_NAME = _re.compile(r"\bfunds?\b|\btrust\b|\bincome\b|\bportfolio\b|\bmuni", _re.I)
 
 
 def _looks_like_a_fund(sym: str) -> bool:
@@ -95,7 +110,20 @@ def _looks_like_a_fund(sym: str) -> bool:
         m = ticker_meta._base_meta(sym) or {}
     except Exception:
         return False
-    return bool(_FUND_INDUSTRY.search(f"{m.get('industry') or ''} {m.get('sector') or ''}"))
+    text = f"{m.get('industry') or ''} {m.get('sector') or ''}"
+    if _FUND_INDUSTRY.search(text):
+        return True
+    # Ambiguous industry → the NAME decides, and an unknown name decides
+    # "company" (the same direction as an unknown industry). Known cost of
+    # that choice, measured: two closed-end funds whose names read like
+    # operating companies (`FS Credit Opportunities Corp.`, `Tri-Continental
+    # Corporation`) each buy one cheap preview nobody reads. Known benefit:
+    # `Noah Holdings Limited` stops being a 30-40s cold click. The asymmetry
+    # is the whole argument — a wasted preview costs ~$0.02 once, a cold click
+    # costs a reader half a minute every time.
+    if _FUND_SOFT_INDUSTRY.search(text):
+        return bool(_FUND_NAME.search(m.get("name") or ""))
+    return False
 
 
 def _first(e: dict, *keys):
