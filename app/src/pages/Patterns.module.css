@@ -1,21 +1,33 @@
 /* ── Patterns page ──────────────────────────────────────────────────── */
 
-.page {
+.page { --page-pad-top: 20px; --page-pad-x: 24px;
   padding: 20px 24px 40px;
   color: var(--text-bright);
   background: #0e0f0d;
   min-height: calc(100vh - 60px);
 }
 
-.header { margin-bottom: 16px; }
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 20px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
+}
 .title {
-  font-family: var(--font-display, 'Instrument Serif', serif);
-  font-size: 28px;
+  font-family: var(--font-heading);
+  font-size: 19px;
   font-weight: 700;
-  color: var(--text-bright);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin: 0 0 4px;
+  color: var(--text-heading);
+  letter-spacing: 0.2px;
+  text-transform: none;
+  margin: 0;
+  white-space: nowrap;
 }
 .subtitle {
   color: var(--text);

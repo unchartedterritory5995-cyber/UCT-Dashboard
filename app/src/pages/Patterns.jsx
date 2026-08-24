@@ -40,7 +40,7 @@ export default function Patterns() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}><UIcon name="patterns" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Pattern Scanner</h1>
+        <h1 className={styles.title}><UIcon name="patterns" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Pattern Scanner</h1>
         <div className={styles.subtitle}>
           {count != null ? `${count} active pattern${count === 1 ? '' : 's'}` : 'Loading...'}
           {' · '}

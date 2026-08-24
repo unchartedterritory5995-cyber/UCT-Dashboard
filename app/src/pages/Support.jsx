@@ -894,7 +894,7 @@ export default function Support() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>Support</h1>
+          <h1 className={styles.heading}><UIcon name="chat" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Support</h1>
           <div className={styles.headerRight}>
             <StatusPill />
             <button className="btn btn-primary btn-sm" onClick={() => setSearchParams({ view: 'new' })}>
@@ -1012,7 +1012,7 @@ export default function Support() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>Support</h1>
+          <h1 className={styles.heading}><UIcon name="chat" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Support</h1>
         </div>
         <div className={styles.formWrap}>
           <button className={styles.backLink} onClick={goBack}>
@@ -1104,7 +1104,7 @@ export default function Support() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>Support</h1>
+        <h1 className={styles.heading}><UIcon name="chat" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Support</h1>
       </div>
       <button className={styles.backLink} onClick={goBack}>
         &#8592; Back to tickets

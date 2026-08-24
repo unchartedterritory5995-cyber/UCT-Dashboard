@@ -157,7 +157,43 @@ export default function JournalLayout() {
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>Trade Journal</h1>
+        <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
+        <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
+          {PRIMARY_NAV.map((item) => {
+            const locked = item.paidOnly && !isPaid
+            if (locked) {
+              return (
+                <button
+                  key={item.to}
+                  type="button"
+                  disabled
+                  className={`${styles.navItem} ${styles.navItemLocked}`}
+                  data-locked="true"
+                  title="Compass — upgrade to unlock AI coaching"
+                >
+                  <UIcon name={item.icon} size={16} />
+                  {item.label}
+                  <span className={styles.lockBadge} aria-hidden="true">
+                    <UIcon name="lock" size={13} />
+                  </span>
+                </button>
+              )
+            }
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+                }
+              >
+                <UIcon name={item.icon} size={16} />
+                {item.label}
+              </NavLink>
+            )
+          })}
+        </nav>
         <div className={styles.headerRight}>
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
               surface (A5). Owns its own add-position / add-trade modals. */}
@@ -247,44 +283,6 @@ export default function JournalLayout() {
           (null for free/paid/admin). A single slim chip, not a new control band. */}
       <TrialBanner />
 
-      <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
-        {PRIMARY_NAV.map((item) => {
-          const locked = item.paidOnly && !isPaid
-          if (locked) {
-            // Teaser, not a link — shown (never hidden) but non-navigating
-            // until upgraded. A disabled button keeps it in the a11y tree.
-            return (
-              <button
-                key={item.to}
-                type="button"
-                disabled
-                className={`${styles.navItem} ${styles.navItemLocked}`}
-                data-locked="true"
-                title="Compass — upgrade to unlock AI coaching"
-              >
-                <UIcon name={item.icon} size={16} />
-                {item.label}
-                <span className={styles.lockBadge} aria-hidden="true">
-                  <UIcon name="lock" size={13} />
-                </span>
-              </button>
-            )
-          }
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <UIcon name={item.icon} size={16} />
-              {item.label}
-            </NavLink>
-          )
-        })}
-      </nav>
 
       {/* Phone section nav (Task B5): a top segmented scroller of the same 5
           surfaces, shown ONLY on phone (the desktop rail above hides via CSS).
