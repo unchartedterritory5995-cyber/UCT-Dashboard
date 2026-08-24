@@ -54,10 +54,10 @@
 .fgrid th { color: var(--text-muted); font-size: 9px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .fgrid tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 .fperiod { color: var(--text-bright); font-weight: 700; }
-.heatPos2 { background: rgba(60, 184, 104, 0.30); color: #c8f4d8; font-weight: 700; border-radius: 4px; }
+.heatPos2 { background: rgba(60, 184, 104, 0.30); color: var(--text-bright); font-weight: 700; border-radius: 4px; }
 .heatPos1 { background: rgba(60, 184, 104, 0.12); color: var(--gain); border-radius: 4px; }
 .heatNeg1 { background: rgba(231, 76, 60, 0.12); color: var(--loss); border-radius: 4px; }
-.heatNeg2 { background: rgba(231, 76, 60, 0.30); color: #f6cdc8; font-weight: 700; border-radius: 4px; }
+.heatNeg2 { background: rgba(231, 76, 60, 0.30); color: var(--text-bright); font-weight: 700; border-radius: 4px; }
 .fnote { color: var(--text-muted); font-size: 12px; padding: 8px 2px; }
 
 /* rating-change list (Estimates tab) */

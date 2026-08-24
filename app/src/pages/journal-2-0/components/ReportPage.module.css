@@ -11,7 +11,7 @@
 .loading {
   padding: 60px;
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .noPrint {
@@ -73,7 +73,7 @@
   flex-wrap: wrap;
   gap: 16px;
   font-size: 12px;
-  color: #444;
+  color: var(--text-muted);
 }
 
 .section {
@@ -108,7 +108,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -149,7 +149,7 @@
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.4px;
-  color: #444;
+  color: var(--text-muted);
 }
 
 .right {
@@ -160,7 +160,7 @@
 .empty {
   padding: 40px;
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -169,7 +169,7 @@
   padding-top: 20px;
   border-top: 1px solid #ddd;
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   text-align: center;
 }
 

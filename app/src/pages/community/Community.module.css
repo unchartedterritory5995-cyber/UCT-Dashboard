@@ -341,7 +341,7 @@
   border-radius: 50%; overflow: hidden; flex-shrink: 0; user-select: none;
 }
 .floorAvatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.floorAvatarInitial { color: #fff; font-weight: 700; line-height: 1; }
+.floorAvatarInitial { color: var(--text-bright); font-weight: 700; line-height: 1; }
 .floorAvatarMentor {
   background: linear-gradient(135deg, #8a6d2a, #c9a84c);
   color: #14150f;
@@ -529,7 +529,7 @@
 .newDivider { position: relative; margin: 10px 0 4px; height: 1px; background: var(--ut-red); }
 .newDivider span {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  background: var(--ut-red); color: #fff; border-radius: 4px;
+  background: var(--ut-red); color: var(--text-bright); border-radius: 4px;
   font-size: 9px; font-weight: 800; letter-spacing: 1px; padding: 1px 6px;
 }
 

@@ -54,8 +54,8 @@
 .badgeDOWNGRADE{ color: #e74c3c; background: rgba(231,76,60,0.12);   border: 1px solid rgba(231,76,60,0.3);  }
 .badgeBIO      { color: #1abc9c; background: rgba(26,188,156,0.12);  border: 1px solid rgba(26,188,156,0.3); }
 .badgeIPO      { color: #3498db; background: rgba(52,152,219,0.12);  border: 1px solid rgba(52,152,219,0.3); }
-.badgeMACRO    { color: #7f8c8d; background: rgba(127,140,141,0.10); border: 1px solid rgba(127,140,141,0.25);}
-.badgeGENERAL  { color: #555e6b; background: rgba(85,94,107,0.10);   border: 1px solid rgba(85,94,107,0.2);  }
+.badgeMACRO    { color: var(--text-muted); background: rgba(127,140,141,0.10); border: 1px solid rgba(127,140,141,0.25);}
+.badgeGENERAL  { color: var(--text-muted); background: rgba(85,94,107,0.10);   border: 1px solid rgba(85,94,107,0.2);  }
 
 /* Ticker chip */
 .ticker {

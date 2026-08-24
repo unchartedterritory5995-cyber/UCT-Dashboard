@@ -506,7 +506,7 @@
   transition: border-color 180ms ease, background-color 180ms ease;
 }
 
-.input::placeholder { color: #6a6656; }
+.input::placeholder { color: var(--text-muted); }
 
 .input:hover { border-color: var(--border-accent, #3a3d32); }
 
@@ -669,7 +669,7 @@
   gap: 10px 20px;
   padding: 14px clamp(20px, 5vw, 56px) clamp(14px, 2.2vw, 22px);
   font-size: 11px;
-  color: #6a6656;
+  color: var(--text-muted);
   opacity: 0;
   animation: fadeIn 800ms ease-out 1100ms forwards;
 }
@@ -680,7 +680,7 @@
 }
 
 .footLinks a {
-  color: #6a6656;
+  color: var(--text-muted);
   text-decoration: none;
   transition: color 180ms ease;
 }

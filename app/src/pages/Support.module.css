@@ -745,7 +745,7 @@
   width: 20px; height: 20px;
   background: rgba(0,0,0,0.7);
   border: 1px solid rgba(255,255,255,0.14);
-  color: #eee;
+  color: var(--text-bright);
   border-radius: 50%;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -756,7 +756,7 @@
   position: absolute;
   bottom: 0; left: 0; right: 0;
   background: linear-gradient(to top, rgba(0,0,0,0.85) 60%, transparent);
-  color: #fff;
+  color: var(--text-bright);
   font-size: 9.5px;
   padding: 5px 5px 3px;
   white-space: nowrap;
@@ -818,7 +818,7 @@
   width: 36px; height: 36px;
   background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.2);
-  color: #eee;
+  color: var(--text-bright);
   border-radius: 50%;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;

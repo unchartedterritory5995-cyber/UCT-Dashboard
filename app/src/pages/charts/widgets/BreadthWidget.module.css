@@ -251,7 +251,7 @@
   transition: opacity 0.1s, background 0.1s;
 }
 .hmTile:hover .hmTileX { opacity: 0.85; }
-.hmTileX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
+.hmTileX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: var(--text-bright); }
 
 /* ── Footer (last-updated + refresh) — mirrors the Scanner widget's footer ── */
 .footer {

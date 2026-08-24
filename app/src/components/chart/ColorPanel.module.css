@@ -75,7 +75,7 @@
   border-radius: 50%;
   border: 1px solid #2b2b2d;
   background: #1a1a1b;
-  color: #cfcabb;
+  color: var(--text-bright);
   font-size: 10px;
   line-height: 1;
   cursor: pointer;
@@ -85,7 +85,7 @@
   z-index: 2;
 }
 .savedItem:hover .del { display: inline-flex; }
-.del:hover { background: #7d1620; border-color: #a5242f; color: #fff; }
+.del:hover { background: #7d1620; border-color: #a5242f; color: var(--text-bright); }
 
 .footer {
   display: flex;
@@ -99,7 +99,7 @@
   background: var(--menu-input-bg, #161618);
   border: 1px solid var(--menu-border, #2b2b2d);
   border-radius: 6px;
-  color: #dcdcdc;
+  color: var(--text-bright);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11.5px;
   padding: 5px 6px;
@@ -118,8 +118,8 @@
   background: var(--menu-hover, #1c1c1e);
   transition: background 120ms, border-color 120ms, color 120ms;
 }
-.custBtn { color: #808080; margin-left: auto; }
-.custBtn:hover { color: #d4d4d4; border-color: #2e2e30; }
+.custBtn { color: var(--text-muted); margin-left: auto; }
+.custBtn:hover { color: var(--text-bright); border-color: #2e2e30; }
 .custOn { color: var(--menu-accent, #e7cf8f); border-color: var(--menu-accent, #c9a84c); background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12)); }
 .saveBtn { color: var(--menu-accent, #c9a84c); }
 .saveBtn:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12)); border-color: var(--menu-accent, #c9a84c); }

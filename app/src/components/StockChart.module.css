@@ -216,15 +216,15 @@
   transform: translateY(-26px);
 }
 .legendTime {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 600;
 }
 .legendLabel {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 500;
 }
 .legendVal {
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
 }
 .legendUp {
@@ -288,7 +288,7 @@
 .vlHead {
   grid-column: 1 / -1;
   text-align: center;
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
   white-space: nowrap;
   padding-bottom: 1px;
@@ -302,12 +302,12 @@
 }
 .vlFull {
   grid-column: 1 / -1;
-  color: #a8a290;
+  color: var(--text);
   font-weight: 600;
   white-space: nowrap;
 }
 .vlLabel {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -322,7 +322,7 @@
 }
 .vlVal {
   text-align: right;
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -441,7 +441,7 @@
   transition: opacity 0.1s, background 0.1s, color 0.1s;
 }
 .compareRow:hover .compareX { opacity: 0.75; }
-.compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
+.compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: var(--text-bright); }
 
 /* Grouped comparisons (theme/sector/industry) — one collapsible legend row. */
 .compareGroupChevron {
@@ -525,7 +525,7 @@
   right: 8px;
   z-index: 100;
   background: rgba(217, 119, 6, 0.9);
-  color: #fff;
+  color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
@@ -547,7 +547,7 @@
   right: 8px;
   z-index: 100;
   background: rgba(22, 163, 74, 0.9);
-  color: #fff;
+  color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
@@ -573,7 +573,7 @@
   right: 150px;
   z-index: 100;
   background: rgba(217, 119, 6, 0.85);
-  color: #fff;
+  color: var(--text-bright);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;

@@ -363,7 +363,7 @@
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: rgba(232, 230, 224, 0.92);
+  color: var(--text-bright);
   background: rgba(14, 15, 19, 0.85);
   padding: 0 3px;
 }

@@ -110,7 +110,7 @@
 .deleteArmed {
   opacity: 1;
   background: var(--loss, #e74c3c);
-  color: #fff;
+  color: var(--text-bright);
   outline: 2px solid var(--loss-border, #e74c3c35);
 }
 

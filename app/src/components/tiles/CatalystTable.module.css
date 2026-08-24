@@ -446,7 +446,7 @@
 .tagCatalyst { background: rgba(56, 132, 255, 0.12); color: #60a5fa; }
 .tagEarnings { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
 .tagGapper   { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
-.tagNews     { background: rgba(180, 180, 180, 0.12); color: #cbd5e1; }
+.tagNews     { background: rgba(180, 180, 180, 0.12); color: var(--text-bright); }
 .tagDefault  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
 /* Quiet "new today" dot beside the ticker (replaces the per-row NEW badge). */
@@ -641,7 +641,7 @@
 }
 .leadGradeA { color: #4ade80; }
 .leadGradeB { color: #fbbf24; }
-.leadGradeC { color: #9ca3af; }
+.leadGradeC { color: var(--text); }
 
 /* 👍 / 👎 feedback buttons — trains the engine on what's lame */
 .feedbackWrap {
@@ -708,7 +708,7 @@
   transition: opacity 0.12s;
 }
 .thesisToggle:hover .thesisChevron { opacity: 1; }
-.thesisToggle:hover .thesisText { color: #fff; }
+.thesisToggle:hover .thesisText { color: var(--text-bright); }
 .thesisActions {
   display: flex;
   align-items: center;

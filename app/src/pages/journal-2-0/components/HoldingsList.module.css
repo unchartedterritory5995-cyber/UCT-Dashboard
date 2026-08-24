@@ -145,7 +145,7 @@ li:last-child > .row {
 
 .pillDown {
   background: var(--loss, #ef4444);
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .pillFlat {

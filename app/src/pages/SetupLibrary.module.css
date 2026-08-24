@@ -95,7 +95,7 @@
 
 /* ── Grade pills ── */
 .gradePill { font-family: var(--font-mono); font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 3px; }
-.gA { color: #fff; background: var(--ut-green); }
+.gA { color: var(--text-bright); background: var(--ut-green); }
 .gB { color: var(--ut-cream); background: rgba(201,168,76,0.4); }
 .gC { color: var(--text-muted); background: rgba(255,255,255,0.08); }
 

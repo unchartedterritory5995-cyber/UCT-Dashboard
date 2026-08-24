@@ -351,7 +351,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-bright);
 }
 .nextPlay svg { width: 40px; height: 40px; filter: drop-shadow(0 0 6px rgba(0,0,0,0.6)); }
 .nextTitle {
@@ -509,7 +509,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-bright);
   opacity: 0;
   transition: opacity 0.15s ease;
   background: rgba(0,0,0,0.25);

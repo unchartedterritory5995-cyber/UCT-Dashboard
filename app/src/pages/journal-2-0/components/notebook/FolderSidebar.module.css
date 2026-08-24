@@ -159,7 +159,7 @@
   border: 1px solid #c9a84c;
   border-radius: 6px;
   padding: 5px 8px;
-  color: #e8eaed;
+  color: var(--text-bright);
   font-size: 13px;
 }
 .folderItem { display: flex; flex-direction: column; }

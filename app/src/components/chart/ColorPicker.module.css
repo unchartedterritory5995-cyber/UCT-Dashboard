@@ -9,7 +9,7 @@
 
 .label {
   font-size: 11px;
-  color: #a8a290;
+  color: var(--text);
   white-space: nowrap;
 }
 
@@ -83,7 +83,7 @@
   background: rgba(30, 32, 26, 0.9);
   border: 1px solid #2e3127;
   border-radius: 3px;
-  color: #e2dfd6;
+  color: var(--text-bright);
   font-family: var(--font-sans);
   font-size: 10px;
   padding: 0 6px;

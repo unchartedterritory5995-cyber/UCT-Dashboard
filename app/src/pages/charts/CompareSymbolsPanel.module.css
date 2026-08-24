@@ -240,7 +240,7 @@
   color: var(--text-muted, #8c8674);
   cursor: pointer;
 }
-.rm:hover { background: rgba(200, 40, 40, 0.85); color: #fff; }
+.rm:hover { background: rgba(200, 40, 40, 0.85); color: var(--text-bright); }
 
 /* Per-symbol price-scale toggle (Same % scale / New price scale) */
 .scaleSeg {

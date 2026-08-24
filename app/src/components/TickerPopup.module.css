@@ -423,11 +423,11 @@
   flex-shrink: 0;
 }
 .insiderBuy {
-  color: #fff;
+  color: var(--text-bright);
   background: var(--ut-green);
 }
 .insiderSell {
-  color: #fff;
+  color: var(--text-bright);
   background: var(--ut-red, #ef4444);
 }
 .insiderShares {

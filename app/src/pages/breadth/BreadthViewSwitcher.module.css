@@ -1,9 +1,9 @@
 .switcher { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 9px;
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
-.btn { padding: 5px 14px; border: none; background: transparent; color: #94a3b8;
+.btn { padding: 5px 14px; border: none; background: transparent; color: var(--text);
   font: 700 11px 'Instrument Sans', sans-serif; letter-spacing: .4px; border-radius: 6px;
   cursor: pointer; transition: background .15s, color .15s; }
-.btn:hover { color: #e2e8f0; }
+.btn:hover { color: var(--text-bright); }
 .btnActive { background: rgba(201,168,76,0.18); color: #c9a84c; }
 
 /* Phone — 8 view buttons wrap to 2-3 bulky rows. Convert to a single

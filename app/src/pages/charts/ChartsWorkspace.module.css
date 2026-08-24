@@ -837,14 +837,14 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #706b5e;
+  color: var(--text-muted);
 }
 .clockCountdown {
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
-  color: #5f5b50;
+  color: var(--text-muted);
 }
 
 /* Session tone → dot color + soft glow. Text stays muted to blend with the row. */
@@ -869,7 +869,7 @@
   z-index: 8;
   background: rgba(10, 11, 9, 0.94);
   border: 1px solid rgba(201, 168, 76, 0.5);
-  color: #e0dac8;
+  color: var(--text-bright);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;

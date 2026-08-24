@@ -12,7 +12,7 @@
   z-index: 100;
   font-size: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  color: #c8c4b0;
+  color: var(--text-bright);
 }
 
 .header {
@@ -24,7 +24,7 @@
 
 .title {
   font-weight: 600;
-  color: #e8e4d0;
+  color: var(--text-bright);
   font-size: 12px;
   letter-spacing: 0.5px;
 }
@@ -32,7 +32,7 @@
 .close {
   background: transparent;
   border: none;
-  color: #706b5e;
+  color: var(--text-muted);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -40,7 +40,7 @@
 }
 
 .close:hover {
-  color: #e8e4d0;
+  color: var(--text-bright);
 }
 
 .priceGroup,
@@ -63,7 +63,7 @@
 .configGroup input {
   flex: 1;
   background: #2a2d1e;
-  color: #e8e4d0;
+  color: var(--text-bright);
   border: 1px solid #3a3d2e;
   padding: 4px 8px;
   border-radius: 3px;
@@ -87,7 +87,7 @@
 .configGroup label > span:first-child {
   width: 70px;
   font-size: 11px;
-  color: #706b5e;
+  color: var(--text-muted);
 }
 
 .calcGroup {
@@ -103,7 +103,7 @@
 }
 
 .calcLabel {
-  color: #706b5e;
+  color: var(--text-muted);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -112,7 +112,7 @@
 .calcValue {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: #e8e4d0;
+  color: var(--text-bright);
   font-size: 12px;
 }
 
@@ -125,7 +125,7 @@
 }
 
 .invalid {
-  color: #706b5e;
+  color: var(--text-muted);
 }
 
 .riskValue {
@@ -144,13 +144,13 @@
   background: transparent;
   border: 1px solid #3a3d2e;
   border-radius: 3px;
-  color: #706b5e;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: 2px;
 }
 
 .clearBtn:hover {
-  color: #e8e4d0;
+  color: var(--text-bright);
   border-color: #706b5e;
 }

@@ -190,7 +190,7 @@
   padding: 8px;
   border-radius: var(--radius-sm);
   text-align: center;
-  color: #fff;
+  color: var(--text-bright);
   font-size: 11px;
   min-height: 50px;
   display: flex;

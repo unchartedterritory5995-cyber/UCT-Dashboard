@@ -2,7 +2,7 @@
 
 .page {
   padding: 20px 24px 40px;
-  color: #d6d0c2;
+  color: var(--text-bright);
   background: #0e0f0d;
   min-height: calc(100vh - 60px);
 }
@@ -18,7 +18,7 @@
   margin: 0 0 4px;
 }
 .subtitle {
-  color: #a8a290;
+  color: var(--text);
   font-size: 13px;
   letter-spacing: 0.3px;
 }
@@ -33,13 +33,13 @@
   border: 1px solid #2a2723;
   border-radius: 8px;
   text-align: center;
-  color: #a8a290;
+  color: var(--text);
   font-size: 14px;
 }
 .error { border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
 .emptyHint {
   font-size: 12px;
-  color: #706b5e;
+  color: var(--text-muted);
   margin-top: 8px;
 }
 

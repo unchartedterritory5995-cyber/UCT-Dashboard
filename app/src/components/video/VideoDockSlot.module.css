@@ -65,7 +65,7 @@
   box-shadow: inset 2px 0 0 #c9a84c;
 }
 .chapterRowActive .chapterTitle {
-  color: #f3efe2;
+  color: var(--text-bright);
   font-weight: 600;
 }
 .chapterRowActive .chapterTime {
@@ -249,7 +249,7 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #cfe6d8;
+  color: var(--text-bright);
   padding: 4px 11px;
   border-radius: 999px;
   border: 1px solid rgba(96, 178, 140, 0.42);

@@ -408,7 +408,7 @@
   padding: 1px 6px; border-radius: 4px;
 }
 .etileBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
-.etileMiss { color: #fff; background: var(--cal-red, #ef4444); }
+.etileMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
 
 /* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
 .macroOnly { margin-bottom: 8px; }
@@ -2915,7 +2915,7 @@
   border-radius: 4px;
 }
 .wBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
-.wMiss { color: #fff; background: var(--cal-red, #ef4444); }
+.wMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
 
 .wMore {
   width: 100%;

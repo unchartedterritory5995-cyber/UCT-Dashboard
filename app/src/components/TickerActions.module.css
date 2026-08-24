@@ -48,7 +48,7 @@
 .tagLabel {
   font-family: var(--font-sans);
   font-size: 9px;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-muted);
   text-transform: uppercase;
   display: block;
   margin-bottom: 6px;
@@ -93,7 +93,7 @@
 .noLists {
   font-family: var(--font-sans);
   font-size: 10px;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-muted);
   padding: 4px 8px;
 }
 
@@ -142,7 +142,7 @@
   align-items: center;
   font-family: var(--font-sans);
   font-size: 10px;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-muted);
   padding: 3px 0;
 }
 

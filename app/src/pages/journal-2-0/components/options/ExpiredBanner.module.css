@@ -46,7 +46,7 @@
 
 .markAllBtn {
   background: var(--loss);
-  color: #fff;
+  color: var(--text-bright);
   border: none;
   padding: 6px 14px;
   border-radius: 6px;

@@ -129,7 +129,7 @@
 }
 .mark {
   background: rgba(201, 168, 76, 0.32);
-  color: #fff;
+  color: var(--text-bright);
   border-radius: 3px;
   padding: 0 1px;
 }

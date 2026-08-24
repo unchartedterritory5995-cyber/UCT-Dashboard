@@ -38,9 +38,9 @@
 .kickerSignal  { color: #c9a84c; }
 .kickerNotable { color: #fbbf24; }
 
-.chipLabel { color: #e2e8f0; font-weight: 700; }
-.chipValue { color: #fff; font-weight: 800; }
-.chipReason { color: #64748b; font-size: 10px; }
+.chipLabel { color: var(--text-bright); font-weight: 700; }
+.chipValue { color: var(--text-bright); font-weight: 800; }
+.chipReason { color: var(--text-muted); font-size: 10px; }
 
 /* ── Provisional intraday reading ────────────────────────────────────────────
    The date cursor is how a reader knows WHICH day the tiles describe. When the
