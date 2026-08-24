@@ -80,8 +80,20 @@ _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
 # string … char 4431") — the prompt asks for a 5-8 sentence note PLUS five
 # 60-90-word bullets, which lands right on the cap. Output tokens are billed
 # as used, so the headroom costs nothing on a normal reply.
-_EARNINGS_AI_MAX_TOKENS         = 2800     # post-earnings: rich narrative + 5 substantive bullets
-_EARNINGS_PREVIEW_AI_MAX_TOKENS = 1100     # pre-earnings: ~120-word note + 3 one-line bullets (was 2800 for the pre-2026-08-23 long form)
+_EARNINGS_AI_MAX_TOKENS         = 2800     # post-earnings: ~120-word standalone recap + 3 one-line
+# bullets. LEFT at 2800 through the 2026-08-23 shape change on purpose: headroom
+# is what keeps an over-long reply arriving WHOLE instead of salvaged. See the
+# preview ceiling below for what lowering it actually bought.
+_EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: ~120-word note + 3 one-line bullets.
+# NOT sized to the intended output (~350 tokens) — sized so a NON-COMPLIANT
+# reply still COMPLETES. Cut from 2800 to 1100 with the 2026-08-23 shape change
+# and VEEV came back 213 words with ONE bullet: the model overshot the word
+# ceiling, ran out of budget mid-bullets-array, and `_salvage_json_fields` (which
+# exists precisely to rescue 'TRUNCATION at max_tokens mid-string') kept the
+# preview and dropped the rest. That failure is SILENT and it PERSISTS to disk.
+# ~8% of a 12-name sample. Length is enforced by the prompt and the [:3] cap,
+# never by starving the response — a tight ceiling does not shorten output, it
+# only decides whether an over-long reply arrives whole or broken.
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 # `enrich_earnings_response` (earnings_enrichment.py) ALWAYS returns a dict

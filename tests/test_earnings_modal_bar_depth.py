@@ -193,3 +193,38 @@ class TestReportDateReadsAsProse:
         assert _human_report_date(None) == ""
         assert _human_report_date("garbage") == "garbage"
         assert _human_report_date("2026-13-99") == "2026-13-99"
+
+
+class TestTokenCeilingLeavesRoomForANonCompliantReply:
+    """A tight max_tokens does not shorten output — it decides whether an
+    over-long reply arrives WHOLE or BROKEN.
+
+    Cutting the preview ceiling 2800 -> 1100 alongside the shape change looked
+    like a matching cost saving. It wasn't: VEEV came back with a 213-word
+    preview (the model overshot the 120-word instruction), exhausted the budget
+    mid-bullets-array, and `_salvage_json_fields` — which exists to rescue
+    "TRUNCATION at max_tokens mid-string" — kept the preview and dropped two of
+    three bullets. The result then PERSISTED to disk in that broken shape, and
+    nothing anywhere reported it. ~8% of a 12-name live sample.
+
+    The shape is enforced by the prompt and the [:3] cap. The ceiling only has
+    to be generous enough that a verbose reply still closes its JSON.
+    """
+
+    def test_the_preview_ceiling_has_real_headroom_over_the_intended_output(self):
+        from api.services import engine
+        # ~120 words + 3x25 words is roughly 350 tokens with JSON scaffolding.
+        # Demand several times that, so a 2x-overshooting reply still completes.
+        assert engine._EARNINGS_PREVIEW_AI_MAX_TOKENS >= 1500, (
+            "too tight — an over-long reply will be silently salvaged into a "
+            "broken shape and persisted (the VEEV case)"
+        )
+
+    def test_the_analysis_ceiling_was_not_narrowed_with_the_shape_change(self):
+        from api.services import engine
+        assert engine._EARNINGS_AI_MAX_TOKENS >= 1500
+
+    def test_the_salvage_path_still_exists_to_be_protected_from(self):
+        """If this ever goes away the headroom argument above changes."""
+        from api.services import engine
+        assert callable(engine._salvage_json_fields)
