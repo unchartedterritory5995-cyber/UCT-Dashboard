@@ -372,6 +372,28 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
         if not filters.is_valid_op(key, op):
             raise ValueError(f"bad op {op} for {key}")
         col = overlay.col_expr(name)
+        if op in filters.COL_OPS:
+            # 🔴 FIELD-TO-FIELD (benchmark metric 423). The right-hand side is a
+            # FILTER KEY, resolved through the registry exactly like the left —
+            # never a column name off the request. `_distinct_options` states the
+            # rule: the registry is the only thing that may name a column.
+            other_key = f.get("other")
+            other_name = filters.column_for(other_key)
+            if not other_name or other_key not in filters.comparable_keys():
+                raise ValueError(
+                    f"bad comparison field {other_key!r} for {key}")
+            # ⛔ BOTH SIDES THROUGH `col_expr`. A comparison that read the raw
+            # column on one side and the overlaid value on the other would be the
+            # second-authority defect this whole module exists to prevent — the
+            # member would see two numbers and a filter silently disagreeing with
+            # both.
+            clauses.append(
+                f"{col} {filters.COL_OPS[op]} {overlay.col_expr(other_name)}")
+            # ⚠️ NO PARAMS, and no NULL guard: SQL comparison against NULL is
+            # NULL, so a row missing either side simply does not match. That is
+            # the honest answer — "we cannot compare what we do not hold" — and
+            # it is the same contract every other operator here already has.
+            continue
         if op == "gte":
             clauses.append(f"{col} >= ?"); params.append(f["min"])
         elif op == "lte":

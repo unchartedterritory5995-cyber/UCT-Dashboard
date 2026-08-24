@@ -564,11 +564,24 @@ FILTERS = dict([
 # "pays a dividend", `<= 0` returns negative-equity names under "debt-free", and
 # `<= 1` returns a beta of exactly 1.00 under "less volatile than the market".
 # An inclusive operator here would make each label state something untrue.
+#: 🔴 THE `_col` OPS COMPARE ONE COLUMN TO ANOTHER — benchmark metric 423,
+#: held by Barchart, Stockopedia, ChartMill, Stock Rover and TradingView, and the
+#: cheapest real capability in the study: the formula lane could already compare
+#: any expression to any expression, so the rail was the only thing missing.
+#: They make margin trend (`gross_margin > op_margin`), profitability sanity
+#: (`roe > roa`) and momentum acceleration (`chg_pct_1w > chg_pct_1m`)
+#: expressible WITHOUT writing a formula.
 _VALID_OPS = {
-    "range": {"gte", "lte", "between", "gt", "lt", "eq"},
+    "range": {"gte", "lte", "between", "gt", "lt", "eq",
+              "gt_col", "gte_col", "lt_col", "lte_col"},
     "enum": {"eq", "in", "contains"},
     "bool": {"eq"},
 }
+
+#: `op` -> SQL comparison, for the field-to-field branch. Kept as a table so the
+#: operator set has ONE definition that `_VALID_OPS` above and `query.build_where`
+#: both read, rather than a second list of strings in the query module.
+COL_OPS = {"gt_col": ">", "gte_col": ">=", "lt_col": "<", "lte_col": "<="}
 
 VIEWS = {
     "overview": {"label": "Overview", "columns": [
@@ -663,6 +676,22 @@ CATEGORIES = [
 def column_for(key):
     f = FILTERS.get(key)
     return f["column"] if f else None
+
+
+def comparable_keys():
+    """Filter keys whose column may sit on the RIGHT of a `_col` comparison.
+
+    ⛔ RANGE FILTERS ONLY. Comparing a number against a sector name or a boolean
+    is not a screen, it is a type error that SQLite would answer rather than
+    refuse — SQLite compares across storage classes by rank, so
+    `pe_ttm > sector` returns a confident, meaningless row set.
+
+    ⭐ THE CLIENT SENDS A FILTER KEY, NEVER A COLUMN NAME. `_distinct_options`
+    states the rule this follows: the registry is the only thing that may name a
+    column. A right-hand side taken as a raw column string would be the one
+    place in this module where client text reaches SQL.
+    """
+    return sorted(k for k, f in FILTERS.items() if f.get("type") == "range")
 
 
 def is_valid_op(key, op):
@@ -868,4 +897,15 @@ def meta(user_id=None) -> dict:
             # The floors, the wording and the vintage the bands were measured
             # on — stated ONCE, beside them, so no surface has to guess at any
             # of the three. `None` when the snapshot could not be read.
-            "distribution_basis": dist.get("basis")}
+            "distribution_basis": dist.get("basis"),
+            # ⭐ THE RIGHT-HAND SIDES A `_col` COMPARISON MAY NAME, shipped as
+            # KEYS + LABELS so the control renders a real picker instead of the
+            # surface inventing its own list of what is comparable. Sent ONCE
+            # for the whole payload rather than repeated per filter — any range
+            # filter may sit on either side, so a per-filter copy would be 109
+            # identical lists.
+            "comparable_fields": [
+                {"key": k, "label": FILTERS[k]["label"],
+                 "category": FILTERS[k]["category"]}
+                for k in comparable_keys()],
+            "column_ops": dict(COL_OPS)}
