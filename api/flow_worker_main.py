@@ -496,6 +496,29 @@ def _start_flow_schedulers():
                 log.info("[startup] Weekly Flow push disabled (set WEEKLY_FLOW_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Weekly Flow scheduling failed: %s", e)
+
+        try:
+            # Morning OI Update → Discord. Weekdays 08:00 ET (after the 05:30 OI
+            # snapshot cron lands): the biggest OVERNIGHT OI builds on flow-confirmed
+            # contracts (server-side twin of the OI Check tab). Dark until armed.
+            # Runs HERE (flow.db + oi_snapshots.db). ⚠ Same watch-path caveat as the
+            # other flow cards: oi_morning.py rides this file's builds until it's added
+            # to the worker watch paths.
+            if os.getenv("OI_MORNING_ENABLED", "0") == "1":
+                from apscheduler.triggers.cron import CronTrigger as _OIMCron
+                from api import oi_morning as _oim
+                sched.add_job(_oim.run_oi_morning,
+                              trigger=_OIMCron(day_of_week="mon-fri", hour=8, minute=0,
+                                               timezone=ZoneInfo("America/New_York")),
+                              id="oi_morning_push", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Morning OI cron registered (08:00 ET weekdays)")
+            else:
+                log.info("[startup] Morning OI push disabled (set OI_MORNING_ENABLED=1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Morning OI scheduling failed: %s", e)
+
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "
