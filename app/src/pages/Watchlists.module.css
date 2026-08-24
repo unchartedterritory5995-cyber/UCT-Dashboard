@@ -119,18 +119,18 @@
      line on a dark one — so the thumb is subtle + transparent on any canvas instead of
      the fixed OS-dark bar. Same --widget-* → --wl-* fallback chain the cells use. */
   scrollbar-width: thin;
-  scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14))) transparent;
+  scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))) transparent;
 }
 .listBody::-webkit-scrollbar { width: 10px; height: 10px; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
-  background: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14)));
+  background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
   border-radius: 5px;
   border: 2px solid transparent;   /* inset the thumb a touch so it doesn't kiss the edge */
   background-clip: padding-box;
 }
 .listBody::-webkit-scrollbar-thumb:hover {
-  background: var(--widget-text, var(--wl-text, rgba(255, 255, 255, 0.3)));
+  background: var(--widget-text, var(--wl-text, var(--text-bright)));
   background-clip: padding-box;
 }
 
@@ -165,7 +165,7 @@
   align-items: center;
   justify-content: center;   /* label centered in its column (vertically + horizontally) */
   padding: 0 7px;
-  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));   /* gridline on every column's right */
+  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, var(--border)));   /* gridline on every column's right */
   /* Labels match the ticker symbol EXACTLY (font, size, weight, color). */
   font-family: var(--font-sans);
   font-size: calc(11px * var(--wl-font-scale, 1));
@@ -200,7 +200,7 @@
   cursor: col-resize;
   z-index: 5;
 }
-.gridDivider:hover { background: rgba(255, 255, 255, 0.10); }   /* subtle + neutral, no gold */
+.gridDivider:hover { background: var(--bg-hover); }   /* subtle + neutral, no gold */
 
 /* Column right-click menu (hide/show columns) */
 .colMenu {
@@ -242,7 +242,7 @@
   font-family: var(--font-sans);
   font-size: calc(10px * var(--wl-font-scale, 1));
   color: var(--wl-text, var(--text-muted));
-  border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
+  border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, var(--border)));
   background: var(--wl-bg-solid, var(--wl-bg, var(--bg)));
   white-space: nowrap;
   overflow: hidden;
@@ -289,7 +289,7 @@
   align-items: center;   /* cells sit at content height so the vertical gridlines stay short (cut off, per preference) */
   padding: 5px 8px;
   cursor: pointer;
-  border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));  /* horizontal gridline */
+  border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, var(--border)));  /* horizontal gridline */
   transition: background 0.1s;
   position: relative;
   box-sizing: border-box;
@@ -329,7 +329,7 @@
   background: transparent;
   border: none;   /* no flag|sym vertical gridline on data rows (header keeps it) */
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.22);
+  color: var(--text-muted);
   padding: 0;
 }
 .flagStar:hover { color: var(--ut-gold); }
@@ -381,7 +381,7 @@
 }
 
 .listRowSelected {
-  background: rgba(201, 168, 76, 0.08) !important;
+  background: var(--ut-gold-dim) !important;
   /* Gold bar drawn as an INSET SHADOW, not a border — box-shadow doesn't take up
      layout space, so selecting a row keeps the gold tint + bar but the logo/ticker
      never shift left/right (the old border-left + padding-left nudged them). */
@@ -538,8 +538,8 @@
 .flagBtn:hover { opacity: 1; background: var(--bg-hover); }
 .flagBtnActive {
   color: var(--ut-gold);
-  border-color: rgba(212, 170, 80, 0.4);
-  background: rgba(212, 170, 80, 0.1);
+  border-color: var(--ut-gold-glow);
+  background: var(--ut-gold-dim);
   opacity: 1;
 }
 
@@ -555,8 +555,8 @@
 }
 .flagToastAdded {
   color: var(--ut-gold);
-  background: rgba(212,170,80,0.12);
-  border: 1px solid rgba(212,170,80,0.3);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
 }
 .flagToastRemoved {
   color: var(--text-muted);
@@ -592,11 +592,11 @@
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
-.chartPeriodBtn:hover { color: var(--text-bright); background: rgba(255,255,255,0.06); }
+.chartPeriodBtn:hover { color: var(--text-bright); background: var(--bg-elevated); }
 .chartPeriodBtnActive {
   color: var(--ut-gold);
-  background: rgba(201,168,76,0.12);
-  border-color: rgba(201,168,76,0.3);
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold-glow);
 }
 
 /* ── Chart empty state ── */
@@ -655,7 +655,7 @@
   flex-shrink: 0;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.pickBackBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.08); }
+.pickBackBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); background: var(--ut-gold-dim); }
 .pickTitle {
   position: absolute;
   left: 0;
@@ -715,14 +715,14 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 3px 10px;
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 3px;
   color: var(--ut-gold);
   cursor: pointer;
   transition: background 0.15s;
 }
-.newListBtn:hover { background: rgba(201, 168, 76, 0.22); }
+.newListBtn:hover { background: var(--ut-gold-glow); }
 
 /* ── Loading ── */
 .loading {
@@ -736,7 +736,7 @@
 
 /* ── Watchlist group (accordion) ── */
 .wlGroup {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border);
 }
 
 .wlHeader {
@@ -777,12 +777,12 @@
 
 .ctxMenu {
   position: fixed;
-  background: #1e1e22;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 6px;
   padding: 4px 0;
   min-width: 180px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-popover);
   z-index: 10000;
 }
 
@@ -800,7 +800,7 @@
 }
 
 .ctxItem:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--bg-hover);
 }
 
 .headerActions {
@@ -814,8 +814,8 @@
 
 .colToggleBtn {
   background: none;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.5);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
   padding: 2px 6px;
@@ -829,8 +829,8 @@
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: #1e1e22;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 6px;
   padding: 6px 10px;
   z-index: 100;
@@ -853,15 +853,15 @@
   gap: 4px;
   margin-bottom: 6px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .presetBtn {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 3px;
   padding: 2px 6px;
   cursor: pointer;
@@ -889,7 +889,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 14px 4px 42px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .colH {
@@ -897,7 +897,7 @@
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-muted);
   cursor: pointer;
   min-width: 42px;
   text-align: right;
@@ -910,8 +910,8 @@
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ut-cream, #e8e0d0);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
   border-radius: 3px;
   padding: 2px 6px;
   width: 60px;
@@ -924,9 +924,9 @@
 .resetSortBtn {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-muted);
   background: none;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   border-radius: 3px;
   padding: 1px 5px;
   cursor: pointer;
@@ -952,12 +952,12 @@
    anchored at the click point (fixed positioning, same coords as the menu). */
 .alertPopover {
   position: fixed;
-  background: #1e1e22;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 8px;
   padding: 12px 14px;
   min-width: 220px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-popover);
   z-index: 10000;
 }
 
@@ -980,8 +980,8 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 6px;
   outline: none;
@@ -991,8 +991,8 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 8px;
   width: 80px;
@@ -1017,7 +1017,7 @@
 
 .alertList {
   margin-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--border);
   padding-top: 6px;
 }
 
@@ -1027,14 +1027,14 @@
   align-items: center;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-muted);
   padding: 3px 0;
 }
 
 .alertDeleteBtn {
   background: none;
   border: none;
-  color: #f87171;
+  color: var(--loss);
   font-size: 12px;
   cursor: pointer;
   opacity: 0.5;
@@ -1052,14 +1052,14 @@
 }
 
 .ctxTagSection {
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--border);
   padding: 6px 14px 4px;
 }
 
 .ctxTagLabel {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-muted);
   text-transform: uppercase;
   display: block;
   margin-bottom: 6px;
@@ -1082,13 +1082,13 @@
 .tagSwatch:hover { transform: scale(1.2); }
 
 .tagSwatchActive {
-  border-color: #fff;
+  border-color: var(--text-bright);
   box-shadow: 0 0 4px rgba(255,255,255,0.3);
 }
 
 .dragHandle {
   font-size: 11px;
-  color: rgba(255,255,255,0.15);
+  color: var(--text-muted);
   cursor: grab;
   padding-right: 4px;
   user-select: none;
@@ -1118,8 +1118,8 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 6px 8px;
   resize: vertical;
@@ -1135,7 +1135,7 @@
 .noteReadonly {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(255,255,255,0.45);
+  color: var(--text-muted);
   font-style: italic;
   line-height: 1.5;
 }
@@ -1143,7 +1143,7 @@
 .starBtn {
   background: none;
   border: none;
-  color: rgba(255,255,255,0.25);
+  color: var(--text-muted);
   font-size: 13px;
   cursor: pointer;
   padding: 0 4px 0 0;
@@ -1159,11 +1159,11 @@
 }
 
 .ctxItemDanger {
-  color: #f87171;
+  color: var(--loss);
 }
 
 .ctxItemDanger:hover {
-  background: rgba(248,113,113,0.12);
+  background: var(--loss-bg);
 }
 
 /* Context menu rendered inside a touch bottom-sheet — big tap targets. */
@@ -1177,7 +1177,7 @@
   align-items: center;
   font-size: 15px;
   padding: 10px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
 }
 .ctxSheetBody .ctxTagSection {
   padding: 12px 4px 4px;
@@ -1199,7 +1199,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--ut-cream);
-  background: rgba(255,255,255,0.08);
+  background: var(--bg-hover);
   border: 1px solid var(--ut-gold, #c9a84c);
   border-radius: 3px;
   padding: 2px 6px;
@@ -1225,8 +1225,8 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   color: var(--ut-gold);
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.25);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 3px;
   padding: 1px 5px;
   flex-shrink: 0;
@@ -1234,7 +1234,7 @@
 
 .flaggedHint {
   font-size: calc(8px * var(--wl-font-scale, 1));
-  color: #706b5e;
+  color: var(--text-muted);
   opacity: 0.6;
   margin-left: auto;
   font-family: var(--font-mono);
@@ -1273,11 +1273,11 @@
   transition: opacity 0.15s, background 0.15s;
 }
 /* Hover = a soft canvas-matched grey (like a widget tab), not the dark --bg-hover box. */
-.wlActionBtn:hover { opacity: 1; background: var(--wl-row-hover, var(--widget-row-hover, rgba(255, 255, 255, 0.08))); }
+.wlActionBtn:hover { opacity: 1; background: var(--wl-row-hover, var(--widget-row-hover, var(--bg-hover))); }
 .wlActionBtnActive {
   color: var(--ut-gold);
   opacity: 1;
-  border-color: rgba(201, 168, 76, 0.25);
+  border-color: var(--ut-gold-glow);
 }
 
 .wlDeleteBtn:hover { color: var(--loss); }
@@ -1285,7 +1285,7 @@
 /* ── Expanded items ── */
 .wlItems {
   background: rgba(0, 0, 0, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--border);
 }
 
 .wlRow {
@@ -1342,7 +1342,7 @@
   flex-shrink: 0;
   font-size: 10px;
   line-height: 1;
-  color: #ff3b47;
+  color: var(--loss);
   white-space: nowrap;
 }
 
@@ -1363,16 +1363,16 @@
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 4px;
-  background: rgba(201, 168, 76, 0.1);
+  background: var(--ut-gold-dim);
   color: var(--ut-gold);
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.noListsBtn:hover { background: rgba(201, 168, 76, 0.2); }
+.noListsBtn:hover { background: var(--ut-gold-glow); }
 
 @media (max-width: 1024px) {
   .inlineAddClose { min-width: 32px; min-height: 32px; }
@@ -1436,7 +1436,7 @@
   outline: none;
   transition: border-color 0.15s;
 }
-.input:focus { border-color: rgba(201, 168, 76, 0.5); }
+.input:focus { border-color: var(--ut-gold-glow); }
 .input::placeholder { color: var(--text-muted); opacity: 0.4; }
 
 .checkRow {
@@ -1478,14 +1478,14 @@
   font-size: 11px;
   font-weight: 700;
   padding: 7px 18px;
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 4px;
   color: var(--ut-gold);
   cursor: pointer;
   transition: background 0.15s;
 }
-.submitBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.25); }
+.submitBtn:hover:not(:disabled) { background: var(--ut-gold-glow); }
 .submitBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Responsive ── */
@@ -1539,7 +1539,7 @@
   font-size: 13px; line-height: 1;
   cursor: pointer; padding: 0;
 }
-.addColBtn:hover { color: var(--ut-gold); border-color: rgba(201, 168, 76, 0.5); }
+.addColBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold-glow); }
 .addColMenu {
   position: fixed;
   z-index: 4200;
@@ -1561,4 +1561,4 @@
   color: var(--text); font-family: inherit; font-size: 11.5px;
   padding: 6px 8px; border-radius: 4px; cursor: pointer;
 }
-.addColItem:hover { background: rgba(201, 168, 76, 0.14); color: var(--ut-gold); }
+.addColItem:hover { background: var(--ut-gold-dim); color: var(--ut-gold); }
