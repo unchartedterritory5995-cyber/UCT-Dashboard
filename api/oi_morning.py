@@ -22,6 +22,9 @@ Env (flow-worker):
   OI_MORNING_MIN_DELTA     min ΔOI (contracts) to qualify (default 500)
   OI_MORNING_MIN_PREMIUM   min aggregate premium to qualify (default 0 = off)
   OI_MORNING_DAYS          flow window in trading days (default 1 = last session)
+  OI_MORNING_SOURCES       comma flow sources (default "stocks" = single names only;
+                           ETFs carry huge OI and swamp the board — "stocks,indexes"
+                           to include ETFs/indexes)
 """
 from __future__ import annotations
 
@@ -182,15 +185,21 @@ def _oi_deltas(keys) -> dict:
 
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
 def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
-               min_premium: float = 0.0):
+               min_premium: float = 0.0, sources: tuple = ("stocks",)):
     """Return (rows, window). Aggregate the last N sessions' flow per contract,
-    join the latest OI snapshot, rank by ΔOI = latest snapshot − flow-time OI."""
+    join the latest OI snapshot, rank by ΔOI = latest snapshot − flow-time OI.
+
+    `sources` selects the flow source: ('stocks',) = single names only (DEFAULT —
+    ETFs carry huge OI and swamp a raw ΔOI ranking, so the board reads all-ETF);
+    pass ('stocks','indexes') to include ETFs/indexes."""
+    sources = tuple(sources) or ("stocks",)
     conn = sqlite3.connect(_flow_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
     try:
+        src_ph = ",".join("?" * len(sources))
         drows = conn.execute(
-            "SELECT DISTINCT CreatedDate FROM flow WHERE source IN ('stocks','indexes')"
-        ).fetchall()
+            f"SELECT DISTINCT CreatedDate FROM flow WHERE source IN ({src_ph})",
+            list(sources)).fetchall()
         dated = sorted((r[0] for r in drows if r[0]),
                        key=lambda s: _parse_mdy(s) or date.min)
         window = dated[-days:] if days > 0 else dated
@@ -199,10 +208,10 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
         qs = ",".join("?" * len(window))
         frows = conn.execute(f"""
             SELECT Symbol, CallPut, Strike, ExpirationDate, Type, Volume, Premium, OI,
-                   Dte, Spot
+                   Dte, Spot, StockEtf
               FROM flow
-             WHERE source IN ('stocks','indexes') AND CreatedDate IN ({qs})
-        """, list(window)).fetchall()
+             WHERE source IN ({src_ph}) AND CreatedDate IN ({qs})
+        """, [*sources, *window]).fetchall()
     finally:
         conn.close()
 
@@ -215,6 +224,10 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
         strike = _pfloat(r["Strike"])
         exp = r["ExpirationDate"] or ""
         if not sym or not cp or strike <= 0 or not exp:
+            continue
+        # Safety net for any ETF/index routed into a 'stocks' pull — keep the board
+        # single-name (the 'source' filter is the primary cut; this catches strays).
+        if (r["StockEtf"] or "").upper().strip() in ("ETF", "INDEX", "ETF/FUND", "FUND"):
             continue
         key = oi_snapshots.make_key(sym, cp, strike, exp)
         e = agg.get(key)
@@ -416,8 +429,10 @@ def run_oi_morning(*, force: bool = False, post: bool = True,
         top_n = top_n if top_n is not None else int(os.getenv("OI_MORNING_TOP_N", "20"))
         min_delta = int(os.getenv("OI_MORNING_MIN_DELTA", "500"))
         min_prem = float(os.getenv("OI_MORNING_MIN_PREMIUM", "0"))
+        sources = tuple(s.strip() for s in
+                        os.getenv("OI_MORNING_SOURCES", "stocks").split(",") if s.strip()) or ("stocks",)
         rows, window = build_rows(days=days, top_n=top_n, min_delta=min_delta,
-                                  min_premium=min_prem)
+                                  min_premium=min_prem, sources=sources)
         png = render_card(rows, window)
         res = {"ok": True, "rows": len(rows)}
         if not post:
