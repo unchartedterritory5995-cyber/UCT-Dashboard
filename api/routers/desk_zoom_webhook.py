@@ -188,6 +188,48 @@ async def session_requeue(request: Request):
                                       ("meeting_uuid", "topic", "start_time", "status")}}
 
 
+@router.post("/session-cancel")
+async def session_cancel(request: Request):
+    """Stop a recording that has NOT published yet — the owner re-recorded and
+    only the later take should go out. Flips a pending/error job to terminal
+    'skipped'. The mirror of /session-requeue, and the reason it must exist:
+    publishing is ONE-WAY (our YouTube token has upload scope only, so
+    videos.update/delete both 403), and every show now uploads PUBLIC, so a bad
+    take that reaches the processor cannot be recalled by us at all. Body:
+    {"meeting_uuid": "...", "reason": "..."} — reason optional.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    from fastapi.responses import JSONResponse
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    import json as _json
+    try:
+        body = _json.loads((await request.body()).decode("utf-8") or "{}")
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    uuid = (body.get("meeting_uuid") or "").strip()
+    if not uuid:
+        return JSONResponse({"error": "meeting_uuid required"}, status_code=400)
+    reason = (body.get("reason") or "cancelled by operator").strip()
+    current = desk_session_jobs.get_job(uuid)
+    if current is None:
+        return JSONResponse({"error": "no job with that meeting_uuid"}, status_code=404)
+    row = desk_session_jobs.cancel(uuid, reason)
+    if row is None:
+        status = current.get("status")
+        # A 'done' job is already public and we cannot delete it — say so with the
+        # id rather than a bare status, so the operator knows what to go fix by hand.
+        extra = (f" — already published as youtube_id {current.get('youtube_id')!r}, "
+                 f"which only YouTube Studio can remove") if status == "done" else ""
+        return JSONResponse(
+            {"error": f"job status is {status!r} — only pending/error jobs can be "
+                      f"cancelled{extra}"}, status_code=409)
+    return {"cancelled": True, "job": {k: row.get(k) for k in
+                                       ("meeting_uuid", "topic", "start_time",
+                                        "status", "error")}}
+
+
 @router.get("/session-audit")
 def session_audit(request: Request):
     """Did everything land? Re-reads the ARTIFACTS for every published session
