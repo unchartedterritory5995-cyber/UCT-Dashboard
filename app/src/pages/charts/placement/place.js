@@ -197,75 +197,197 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
   return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
 }
 
-// ── Ghost-mode directional nudge ─────────────────────────────────────────────
-// While the placement ghost is open, arrows let the user move the proposed widget
-// around the board before committing. Each nudge returns a fresh { place, mutations }
-// (or null when the move isn't possible → that arrow is hidden).
+// ── Ghost-mode directional nudge (column-model state machine) ─────────────────
+// While the placement ghost is open, arrows move the proposed widget around the
+// board before committing. The board is modeled as ordered left→right COLUMNS
+// (the same x-band clustering as inferRegions). The ghost has an ANCHOR describing
+// where it currently sits:
+//   { kind:'col',  gap }           — the ghost is its OWN full-height column,
+//                                     inserted at gap index (0 = far left … N = far
+//                                     right); the chart column flexes to make room.
+//   { kind:'stack', colKey, pos }  — the ghost is stacked INTO a column (pos 'top'
+//                                     or 'bottom'); one member of that column splits.
+// Arrows step through anchors (nudgeAnchor); each anchor resolves to a concrete
+// { place, mutations }. nudgePlan returns { place, mutations, anchor } (or null when
+// the move isn't possible → that arrow is hidden). The anchor is threaded back onto
+// pendingAdd so the next nudge continues from the current state, not geometry.
 
-function applyMutations(orig, muts) {
-  const byId = Object.fromEntries((muts || []).map(m => [m.id, m]))
-  return (orig || []).map(w => (byId[w.id] ? { ...w, ...byId[w.id] } : { ...w }))
-}
-
-// Complete geometry diff of `proposed` vs `orig` → the mutation list for widgets
-// whose x/y/w/h changed (the ghost itself is not a widget and isn't included).
-function diffMutations(orig, proposed) {
-  const pById = Object.fromEntries(proposed.map(w => [w.id, w]))
-  const out = []
-  for (const o of orig || []) {
-    const p = pById[o.id]
-    if (!p) continue
-    const patch = {}
-    for (const k of ['x', 'y', 'w', 'h']) if ((p[k] | 0) !== (o[k] | 0)) patch[k] = p[k]
-    if (Object.keys(patch).length) out.push({ id: o.id, ...patch })
-  }
-  return out
-}
-
-// dir ∈ 'up' | 'down' | 'left' | 'right'. `cur` = the current { place, mutations }.
-// up/down swap the ghost with the flush neighbor in its column band; left/right carve
-// a fresh full-height rail at that edge of the widest chart (recomputed from original,
-// discarding prior displacement). Returns { place, mutations } or null.
-export function nudgePlan(widgets, cur, dir) {
-  const orig = (widgets || []).filter(w => w && Number.isFinite(w.x) && Number.isFinite(w.y))
-  const g = cur?.place
-  if (!g) return null
-
-  if (dir === 'up' || dir === 'down') {
-    const proposed = applyMutations(orig, cur.mutations)
-    const band = proposed.filter(w => overlapRatio(w, g) >= 0.5)
-    if (dir === 'down') {
-      const below = band.find(w => (w.y | 0) === g.y + g.h)
-      if (!below) return null
-      below.y = g.y                                   // neighbor rises into the ghost's slot
-      const place = { ...g, y: g.y + below.h }        // ghost drops below it
-      return { place, mutations: diffMutations(orig, proposed) }
+// Ordered left→right columns from the ORIGINAL widgets. `key` = a stable id for
+// anchor addressing (the leftmost-then-topmost member's id).
+function buildColumns(widgets, cols, rows) {
+  const regions = inferRegions(widgets, cols, rows)
+  return regions.map(r => {
+    const members = [...r.members].sort((a, b) => (a.y | 0) - (b.y | 0))
+    const keyMember = [...r.members].sort(
+      (a, b) => (a.x | 0) - (b.x | 0) || (a.y | 0) - (b.y | 0)
+    )[0]
+    return {
+      key: keyMember?.id, x: r.x, w: r.w, members,
+      family: r.dominantFamily, yTop: r.yTop, yBottom: r.yBottom,
     }
-    const above = band.filter(w => (w.y | 0) + (w.h | 0) === g.y).sort((a, b) => b.y - a.y)[0]
-    if (!above) return null
-    const place = { ...g, y: above.y }                // ghost rises to the neighbor's slot
-    above.y = above.y + g.h                           // neighbor drops below the ghost
-    return { place, mutations: diffMutations(orig, proposed) }
-  }
+  })
+}
 
-  // left / right — carve a full-height rail at that edge of the widest chart.
-  const charts = orig.filter(w => familyOf(w.type) === 'chart')
-  const target = widest(charts.length ? charts : orig)
-  if (!target) return null
-  const targetMinW = defOf(target.type).minW || 2
-  const railW = Math.max(1, Math.min(g.w, target.w - targetMinW))
-  if (target.w - railW < targetMinW) return null
-  const proposed = orig.map(w => ({ ...w }))
-  const t = proposed.find(w => w.id === target.id)
-  let place
-  if (dir === 'left') {
-    place = { x: t.x, y: t.y, w: railW, h: t.h }
-    t.x = t.x + railW; t.w = t.w - railW
-  } else {
-    t.w = t.w - railW
-    place = { x: t.x + t.w, y: t.y, w: railW, h: t.h }
+// Infer the ghost's anchor from its place + the mutations that produced it. A
+// horizontal mutation (an existing widget shifted/resized in x) means the ghost is a
+// side column; otherwise it's stacked into the column it overlaps.
+function deriveAnchor(place, columns, mutations) {
+  const horiz = (mutations || []).some(m => m.x != null || m.w != null)
+  if (!horiz) {
+    let bestI = -1, bestOv = 0
+    columns.forEach((c, i) => {
+      const ov = overlapRatio({ x: c.x, w: c.w }, { x: place.x, w: place.w })
+      if (ov >= 0.5 && ov > bestOv) { bestOv = ov; bestI = i }
+    })
+    if (bestI >= 0) {
+      const c = columns[bestI]
+      const mid = (c.yTop + c.yBottom) / 2
+      return { kind: 'stack', colKey: c.key, pos: (place.y + place.h / 2) <= mid ? 'top' : 'bottom' }
+    }
   }
-  // Don't offer a move that lands the ghost where it already sits.
-  if (place.x === g.x && place.y === g.y && place.w === g.w && place.h === g.h) return null
-  return { place, mutations: diffMutations(orig, proposed) }
+  let gap = 0
+  for (const c of columns) if (c.x + c.w <= place.x + 1) gap++
+  return { kind: 'col', gap }
+}
+
+// The chart column adjacent to a gap (prefer the one immediately right, then left,
+// then the nearest chart anywhere). Null when the board has no chart.
+function nearestChartCol(columns, gap) {
+  const right = columns[gap], left = columns[gap - 1]
+  if (right && right.family === 'chart') return right
+  if (left && left.family === 'chart') return left
+  return columns.find(c => c.family === 'chart') || null
+}
+
+// Anchor → next anchor for a direction. Returns null when the move isn't available.
+function nudgeAnchor(anchor, dir, columns, ghostFamily) {
+  if (anchor.kind === 'stack') {
+    const idx = columns.findIndex(c => c.key === anchor.colKey)
+    if (idx < 0) return null
+    if (dir === 'up') return anchor.pos === 'bottom' ? { kind: 'stack', colKey: anchor.colKey, pos: 'top' } : null
+    if (dir === 'down') return anchor.pos === 'top' ? { kind: 'stack', colKey: anchor.colKey, pos: 'bottom' } : null
+    if (dir === 'left') return { kind: 'col', gap: idx }        // pop out just left of the column
+    if (dir === 'right') return { kind: 'col', gap: idx + 1 }   // pop out just right of the column
+    return null
+  }
+  // own-column at gap g
+  const g = anchor.gap
+  if (dir === 'left') {
+    const left = columns[g - 1]
+    if (left && ghostFamily === 'panel' && left.family === 'panel')
+      return { kind: 'stack', colKey: left.key, pos: 'top' }    // merge into a rail on the left
+    return g > 0 ? { kind: 'col', gap: g - 1 } : null
+  }
+  if (dir === 'right') {
+    const right = columns[g]
+    if (right && ghostFamily === 'panel' && right.family === 'panel')
+      return { kind: 'stack', colKey: right.key, pos: 'top' }   // merge into a rail on the right
+    return g < columns.length ? { kind: 'col', gap: g + 1 } : null
+  }
+  if (dir === 'up' || dir === 'down') {
+    const cc = nearestChartCol(columns, g)
+    if (!cc) return null
+    return { kind: 'stack', colKey: cc.key, pos: dir === 'up' ? 'top' : 'bottom' }
+  }
+  return null
+}
+
+// Lay the ghost out as its own full-height column at `gap`. The widest chart column
+// (the flex column) gives up `gw` width; columns re-tile left→right with no gaps, so
+// the chart shrinks/shifts while rails keep their width. Returns { place, mutations }.
+function resolveOwnColumn(columns, gap, ghostType, cols, rows) {
+  const d = defOf(ghostType)
+  const isChart = familyOf(ghostType) === 'chart'
+  const chartCols = columns.filter(c => c.family === 'chart')
+  const pool = chartCols.length ? chartCols : columns
+  const flex = pool.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
+  if (!flex) return null
+  const flexMinW = Math.min(...flex.members.map(m => defOf(m.type).minW || 2))
+
+  let gw
+  if (isChart) gw = Math.max(d.minW || 2, Math.floor(flex.w / 2))
+  else {
+    const rail = columns.find(c => c.family === 'panel' && c.key !== flex.key)
+    gw = rail ? rail.w : (d.minW || 2)
+  }
+  gw = Math.min(gw, flex.w - flexMinW)
+  if (gw < 1 || flex.w - gw < flexMinW) return null
+
+  const slots = columns.map(c => ({ col: c, w: c.key === flex.key ? c.w - gw : c.w }))
+  slots.splice(gap, 0, { ghost: true, w: gw })
+
+  let x = Math.max(0, columns.length ? Math.min(...columns.map(c => c.x)) : 0)
+  let ghostPlace = null
+  const mutations = []
+  for (const s of slots) {
+    if (s.ghost) { ghostPlace = { x, y: 0, w: s.w, h: rows }; x += s.w; continue }
+    const c = s.col
+    const dx = x - c.x
+    const dw = s.w - c.w
+    for (const m of c.members) {
+      const mMinW = defOf(m.type).minW || 2
+      const nx = (m.x | 0) + dx
+      const nw = Math.max(mMinW, Math.min((m.w | 0) + dw, s.w))
+      const patch = { id: m.id }
+      if (nx !== (m.x | 0)) patch.x = nx
+      if (nw !== (m.w | 0)) patch.w = nw
+      if (patch.x != null || patch.w != null) mutations.push(patch)
+    }
+    x += s.w
+  }
+  if (!ghostPlace) return null
+  return { place: clampPlace(ghostPlace, d, cols, rows), mutations }
+}
+
+// Stack the ghost into column `colKey` at top/bottom by splitting the adjacent member.
+function resolveStack(columns, colKey, pos, ghostType, cols, rows) {
+  const d = defOf(ghostType)
+  const c = columns.find(col => col.key === colKey)
+  if (!c) return null
+  if ((d.minW || 2) > c.w) return null                 // a chart won't cram into a narrow rail
+  const members = [...c.members].sort((a, b) => (a.y | 0) - (b.y | 0))
+  if (!members.length) return null
+  const target = pos === 'top' ? members[0] : members[members.length - 1]
+  const tMinH = defOf(target.type).minH || 3
+  const dMinH = d.minH || 3
+  let gh = Math.floor((target.h | 0) / 2)
+  gh = Math.max(dMinH, Math.min(gh, (target.h | 0) - tMinH))
+  const shrunk = (target.h | 0) - gh
+  if (gh < dMinH || shrunk < tMinH) return null
+  let place, mut
+  if (pos === 'top') {
+    place = { x: target.x, y: target.y, w: target.w, h: gh }
+    mut = { id: target.id, y: (target.y | 0) + gh, h: shrunk }
+  } else {
+    place = { x: target.x, y: (target.y | 0) + shrunk, w: target.w, h: gh }
+    mut = { id: target.id, h: shrunk }
+  }
+  return { place: clampPlace(place, d, cols, rows), mutations: [mut] }
+}
+
+// dir ∈ 'up' | 'down' | 'left' | 'right'. `cur` = the current pendingAdd
+// { type, place, mutations, anchor? }. Returns { place, mutations, anchor } for the
+// moved ghost, or null when the move isn't possible (→ that arrow is hidden).
+export function nudgePlan(widgets, cur, dir, cols = 24, rows = 20) {
+  const orig = (widgets || []).filter(
+    w => w && Number.isFinite(w.x) && Number.isFinite(w.y) && Number.isFinite(w.w) && Number.isFinite(w.h)
+  )
+  if (!cur?.place || !cur.type) return null
+  const columns = buildColumns(orig, cols, rows)
+  if (!columns.length) return null
+
+  const anchor = cur.anchor || deriveAnchor(cur.place, columns, cur.mutations)
+  const next = nudgeAnchor(anchor, dir, columns, familyOf(cur.type))
+  if (!next) return null
+
+  const resolved = next.kind === 'stack'
+    ? resolveStack(columns, next.colKey, next.pos, cur.type, cols, rows)
+    : resolveOwnColumn(columns, next.gap, cur.type, cols, rows)
+  if (!resolved) return null
+
+  // Don't offer a move that lands the ghost exactly where it already sits.
+  const g = cur.place
+  const p = resolved.place
+  if (p.x === g.x && p.y === g.y && p.w === g.w && p.h === g.h) return null
+  return { place: p, mutations: resolved.mutations, anchor: next }
 }

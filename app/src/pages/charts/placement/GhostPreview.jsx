@@ -105,14 +105,15 @@ export default function GhostPreview({
       ))}
 
       {/* The proposed slot for the new widget — ONLY this area blurs the layout behind
-          it; lighter fill + glow so it stands out. */}
+          it; lighter fill + glow so it stands out. Clicking the shaded area CANCELS
+          (only the Place button / Enter commits); the arrows sit above and stopPropagation. */}
       {ghost && (
         <div
-          onClick={onConfirm}
+          onClick={onCancel}
           style={{
             position: 'absolute', left: ghost.left, top: ghost.top, width: ghost.width, height: ghost.height,
             border: `2px solid ${LIGHT}`, borderRadius: 6, boxSizing: 'border-box',
-            background: `${LIGHT}3d`, pointerEvents: 'auto', cursor: 'pointer',
+            background: `${LIGHT}3d`, pointerEvents: 'auto', cursor: 'default',
             backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
             boxShadow: `0 0 0 1px ${LIGHT}55, 0 6px 28px rgba(201,168,76,0.28)`,
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',

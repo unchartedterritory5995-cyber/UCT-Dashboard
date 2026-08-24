@@ -1318,7 +1318,7 @@ export default function ChartsWorkspace() {
     setPendingAdd(cur => {
       if (!cur) return cur
       const next = nudgePlan(layoutRef.current?.widgets || [], cur, dir, COLS.lg, FIXED_ROWS)
-      return next ? { ...cur, place: next.place, mutations: next.mutations } : cur
+      return next ? { ...cur, place: next.place, mutations: next.mutations, anchor: next.anchor } : cur
     })
   }, [])
 
