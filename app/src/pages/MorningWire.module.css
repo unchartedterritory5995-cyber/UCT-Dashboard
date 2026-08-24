@@ -11,6 +11,9 @@
   container-type: inline-size;
   container-name: mw;
   width: 100%;
+  /* Full-bleed PageHeader sits flush at the top (no page padding to escape). */
+  --page-pad-top: 0px;
+  --page-pad-x: 0px;
 }
 
 .page {

@@ -15,6 +15,7 @@ import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon from '../components/ui/UIcon'
+import PageHeader from '../components/PageHeader'
 import styles from './MorningWire.module.css'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
@@ -279,6 +280,7 @@ export default function MorningWire() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.pageWrap}>
+    <PageHeader icon="wire" title="Morning Wire" />
     <div className={styles.page}>
 
       {/* ── Intro stack: header · index strip · quote ────────────── */}
