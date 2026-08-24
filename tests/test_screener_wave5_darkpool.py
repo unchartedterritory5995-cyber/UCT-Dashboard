@@ -229,3 +229,52 @@ def test_in_5d_window_but_not_newest_session_omits_the_1d_keys(dp_db):
     # MSFT prints on the newest session: all three present.
     assert out["MSFT"]["dp_notional_1d"] == 12_000_000.0
     assert out["MSFT"]["dp_prints_1d"] == 1
+
+
+# ── Dual-class: the store keys by DOT, the screener asks by HYPHEN ──────────
+#
+# 🔴 THE DEFECT. Block prints for class shares are stored `BRK.B`-style, while
+# `cap_universe` — and therefore `targets` — uses `BRK-B`. The membership test
+# never matched, so every dual-class name was dropped SILENTLY and completely:
+# not a wrong number, an absent one, which a member reads as "no block
+# activity" rather than "we did not look". Measured against the real store on
+# 2026-08-23: 7 of the 14 dual-class tickers in cap_universe carry data, the
+# hyphen form returns exactly ZERO prints for every one, and the loss is
+# **574 prints / $11.10B of notional**, with BRK-B alone at $9.88B.
+#
+# ⚠️ The options side is NOT the same bug and is deliberately not "fixed": the
+# opt-flow artifact contains no dual-class ticker in EITHER convention (907
+# tickers, zero dotted, zero hyphenated), so its absence is genuine upstream
+# absence. A tolerant lookup there would be a repair aimed at a phantom.
+
+def test_a_dual_class_ticker_is_found_though_the_store_keys_it_with_a_dot(dp_db):
+    _insert([
+        ("2026-08-21", "2026-08-21 15:30:00", "BRK.B", 1000, 500.0, 500000.0, "block"),
+        ("2026-08-21", "2026-08-21 15:31:00", "AAPL",  1000, 200.0, 200000.0, "block"),
+    ])
+    out = darkpool_agg.read_darkpool_fields(["BRK-B", "AAPL"])
+
+    assert "BRK-B" in out, (
+        "the dual-class name was dropped — the store's 'BRK.B' never matched "
+        f"the requested 'BRK-B'. got keys: {sorted(out)}")
+    assert out["BRK-B"]["dp_notional_1d"] == 500000.0
+    assert out["BRK-B"]["dp_prints_1d"] == 1
+    # ⭐ Keyed by the form the CALLER asked for. The snapshot row is keyed by
+    # the hyphen form, so emitting 'BRK.B' would land the values on a ticker
+    # that does not exist in the universe — invisible in a different way.
+    assert "BRK.B" not in out, (
+        "emitted under the store's key instead of the caller's; the snapshot "
+        "would never join it")
+    # Control: an ordinary ticker is unaffected by the aliasing.
+    assert out["AAPL"]["dp_notional_1d"] == 200000.0
+
+
+def test_the_alias_never_invents_a_ticker_nobody_asked_for(dp_db):
+    """The reverse map is built only over the requested targets, so a dotted
+    row whose hyphen form was NOT requested stays out of the result."""
+    _insert([
+        ("2026-08-21", "2026-08-21 15:30:00", "BF.B", 100, 50.0, 5000.0, "block"),
+    ])
+    out = darkpool_agg.read_darkpool_fields(["AAPL"])
+    assert out == {} or ("BF-B" not in out and "BF.B" not in out), (
+        f"a ticker outside `targets` leaked into the result: {sorted(out)}")
