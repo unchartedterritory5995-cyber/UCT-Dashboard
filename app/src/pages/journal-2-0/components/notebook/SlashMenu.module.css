@@ -27,7 +27,7 @@
   font: inherit;
 }
 .item:hover, .itemActive {
-  background: rgba(201, 168, 76, 0.15);
+  background: rgba(220, 187, 94, 0.15);
 }
 .itemTitle {
   font-size: 13px;

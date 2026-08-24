@@ -58,7 +58,7 @@
   color: var(--color-text, #f5f0e0);
 }
 .dayBtnActive {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   color: var(--accent);
 }
 
@@ -97,7 +97,7 @@
   padding: 18px 20px;
 }
 .statHighlight {
-  background: rgba(201, 168, 76, 0.06);
+  background: rgba(220, 187, 94, 0.06);
   border-color: var(--accent);
 }
 .statLbl {
@@ -199,7 +199,7 @@
 }
 .barFill {
   height: 100%;
-  background: linear-gradient(90deg, rgba(201, 168, 76, 0.6), #c9a84c);
+  background: linear-gradient(90deg, rgba(220, 187, 94, 0.6), #dcbb5e);
   border-radius: var(--radius-md);
   transition: width 0.4s ease-out;
 }

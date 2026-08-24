@@ -44,9 +44,9 @@
 }
 
 .sourceWire {
-  background: rgba(201, 168, 76, 0.12);
+  background: rgba(220, 187, 94, 0.12);
   color: var(--ut-gold);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  border: 1px solid rgba(220, 187, 94, 0.3);
 }
 
 .sourceLive {
@@ -190,7 +190,7 @@
 .filterChip:hover { color: var(--ut-gold); border-color: var(--accent); }
 
 .filterChipActive {
-  background: rgba(201,168,76,0.12);
+  background: rgba(220, 187, 94,0.12);
   color: var(--ut-gold);
   border-color: var(--accent);
 }

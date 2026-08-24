@@ -192,7 +192,7 @@
   font-size: 11px;
   cursor: pointer;
 }
-.toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolBtn:hover { border-color: var(--ut-gold, #dcbb5e); }
 /* The "Charts ↗" control is an <a> (middle-click opens a tab) — strip the
    link underline so it reads as one of the buttons beside it. */
 a.toolBtn { text-decoration: none; line-height: 1.5; }
@@ -200,9 +200,9 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
    declarations at equal specificity — the Done button's gold was dead CSS
    (panel finding). */
 .toolBtnActive {
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 .toolSelect {
   padding: 2px 4px;
@@ -214,9 +214,9 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-size: 11px;
   cursor: pointer;
 }
-.toolSelect:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolSelect:hover { border-color: var(--ut-gold, #dcbb5e); }
 .toolbarMsg {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   padding-right: 4px;
@@ -265,7 +265,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--bg);
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   pointer-events: none;
 }
 

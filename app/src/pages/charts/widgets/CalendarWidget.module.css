@@ -33,7 +33,7 @@
   border: none;
   border-radius: 5px;
   background: transparent;
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   cursor: pointer;
   font-size: 0.95em;
   line-height: 1;
@@ -55,7 +55,7 @@
   color: var(--cal-chrome, var(--text-muted, #8b8674));
 }
 .todayPill {
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   font-weight: 800;
 }
 .gearBtn {
@@ -74,7 +74,7 @@
   border-radius: 5px;
 }
 .gearBtn:hover, .gearBtnActive {
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   background: var(--cal-row-hover, rgba(255, 255, 255, 0.06));
 }
 .todayBtn {
@@ -93,7 +93,7 @@
   border-radius: 5px;
   cursor: pointer;
 }
-.todayBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
+.todayBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
 
 /* Body */
 .list { flex: 1; min-height: 0; overflow-y: auto; }
@@ -116,11 +116,11 @@
   font-weight: 800;
   letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
 }
-.sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); display: inline-flex; }
+.sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); display: inline-flex; }
 .sectionHead.pre .headIcon { color: #e0a53c; }
 .sectionHead.post .headIcon { color: #6f8dbf; }
 /* Clickable title (→ sort by market cap) + clickable EPS/REV column labels
@@ -133,8 +133,8 @@
 .titleCount { margin-left: 3px; font-weight: 600; opacity: 0.6; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .count { font-variant-numeric: tabular-nums; opacity: 0.75; }
 .colBtn { background: none; border: none; padding: 0; margin: 0; font-family: inherit; cursor: pointer; }
-.sectionHead .colBtn:hover, .headTitle:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
-.sectionHead .colActive { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.sectionHead .colBtn:hover, .headTitle:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
+.sectionHead .colActive { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
 .sortCaret { font-size: 0.72em; margin-left: 2px; font-weight: 700; }
 /* Impact star filter on the Economic Events header (1★ all · 2★ med+high · 3★ high). */
 .stars { margin-left: auto; display: inline-flex; align-items: center; gap: 1px; }
@@ -143,8 +143,8 @@
   display: inline-flex; cursor: pointer;
   color: var(--cal-chrome, var(--text-muted, #8b8674));
 }
-.starBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
-.starOn { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.starBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
+.starOn { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
 .econEmpty {
   padding: 10px 12px;
   font-size: 0.78em;
@@ -160,7 +160,7 @@
   padding: 6px 10px 6px 12px;
   border-left: 2px solid transparent;
 }
-.econRow.key { border-left-color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); background: var(--cal-tint, rgba(255, 255, 255, 0.03)); }
+.econRow.key { border-left-color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); background: var(--cal-tint, rgba(255, 255, 255, 0.03)); }
 .econTime {
   font-family: var(--font-mono, monospace);
   font-size: 0.74em;
@@ -181,8 +181,8 @@
   letter-spacing: 0.4px;
   padding: 0 4px;
   border-radius: var(--radius-sm);
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
-  border: 1px solid color-mix(in srgb, var(--cal-gold-strong, #c9a84c) 45%, transparent);
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
+  border: 1px solid color-mix(in srgb, var(--cal-gold-strong, #dcbb5e) 45%, transparent);
   vertical-align: 1px;
 }
 .econStats {
@@ -238,7 +238,7 @@
   font-weight: 700;
   font-size: 0.85em;
   letter-spacing: 0.3px;
-  color: var(--cal-symbol, var(--cal-accent, var(--cal-gold-strong, var(--ut-gold, #c9a84c))));
+  color: var(--cal-symbol, var(--cal-accent, var(--cal-gold-strong, var(--ut-gold, #dcbb5e))));
   flex: 0 0 auto;
 }
 /* Company name in parens — dims + ellipsizes, and hides entirely when the widget
@@ -309,7 +309,7 @@
   text-transform: uppercase;
   cursor: pointer;
 }
-.tbdToggle:hover { color: var(--cal-gold-strong, var(--ut-gold, #c9a84c)); }
+.tbdToggle:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
 .tbdToggle .chev { margin-left: auto; transition: transform 140ms ease; }
 .tbdToggle.open .chev { transform: rotate(90deg); }
 
@@ -345,7 +345,7 @@
   padding: 7px 10px;
   background: transparent;
   border: none;
-  color: var(--cal-gold-strong, var(--ut-gold, #c9a84c));
+  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   font-family: inherit;
   font-size: 0.72em;
   font-weight: 700;

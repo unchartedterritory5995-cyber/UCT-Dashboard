@@ -350,7 +350,7 @@
   cursor: pointer;
 }
 
-.dayCardBtn:hover { border-color: #c9a84c; color: var(--accent); }
+.dayCardBtn:hover { border-color: #dcbb5e; color: var(--accent); }
 .dayCardBtn:disabled { opacity: 0.5; cursor: default; }
 
 .dayCardErr {

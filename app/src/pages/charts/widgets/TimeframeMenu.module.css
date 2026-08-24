@@ -41,14 +41,14 @@
 }
 .row:hover { background: var(--menu-hover, #16161a); }
 .rowActive { background: var(--menu-accent-bg, #1c1a12); }
-.rowActive .rowLabel { color: var(--menu-accent, #c9a84c); font-weight: 700; }
+.rowActive .rowLabel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
 
 .star {
   background: transparent; border: none; cursor: pointer;
   color: var(--menu-text-faint, #5a5a60); font-size: 13px; line-height: 1; padding: 4px 2px; width: 20px;
 }
-.star[aria-pressed='true'] { color: var(--menu-accent, #c9a84c); }
-.star:hover { color: var(--menu-accent, #c9a84c); }
+.star[aria-pressed='true'] { color: var(--menu-accent, #dcbb5e); }
+.star:hover { color: var(--menu-accent, #dcbb5e); }
 
 .rowLabel {
   flex: 1; text-align: left; background: transparent; border: none; cursor: pointer;
@@ -79,7 +79,7 @@
   border-radius: var(--radius-md); padding: 5px 6px; font-size: 12px;
 }
 .addBtn {
-  background: var(--menu-accent, #c9a84c); color: var(--menu-bg, #0c0c0e); border: none; border-radius: var(--radius-md);
+  background: var(--menu-accent, #dcbb5e); color: var(--menu-bg, #0c0c0e); border: none; border-radius: var(--radius-md);
   padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 .addBtn:disabled { background: var(--menu-hover, #2b2822); color: var(--menu-text-faint, #6c6c70); cursor: default; }

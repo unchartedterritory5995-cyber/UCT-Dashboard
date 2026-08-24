@@ -289,7 +289,7 @@
   min-width: 190px;
   padding: 8px 10px 7px;
   background: #22251e;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   opacity: 0;

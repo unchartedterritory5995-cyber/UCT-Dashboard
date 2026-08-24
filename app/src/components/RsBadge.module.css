@@ -34,8 +34,8 @@
   border-color: rgba(140, 190, 90, 0.34);
 }
 .neutral {
-  color: var(--gold-ink, #c9a84c);
-  background: rgba(201, 168, 76, 0.12);
+  color: var(--gold-ink, #dcbb5e);
+  background: rgba(220, 187, 94, 0.12);
   border-color: var(--accent);
 }
 .lag {

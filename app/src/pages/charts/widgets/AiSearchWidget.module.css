@@ -40,7 +40,7 @@
   transition: opacity 0.15s ease, color 0.12s ease, background 0.12s ease;
 }
 .root:hover .gearBtn { opacity: 0.85; }
-.gearBtn:hover { opacity: 1; color: var(--accent, #c9a84c); background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+.gearBtn:hover { opacity: 1; color: var(--accent, #dcbb5e); background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
 
 /* ── Ask row (pinned at the bottom, chat-style) ── */
 .searchRow {
@@ -51,7 +51,7 @@
   border-top: 1px solid var(--border, #1f2937);
   flex-shrink: 0;
 }
-.spark { display: inline-flex; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
+.spark { display: inline-flex; color: var(--ut-gold, #dcbb5e); flex-shrink: 0; }
 .input {
   flex: 1;
   min-width: 0;
@@ -80,9 +80,9 @@
 .clearBtn:hover { color: var(--text, #e5e7eb); }
 .askBtn {
   flex-shrink: 0;
-  background: rgba(201, 168, 76, 0.16);
-  border: 1px solid rgba(201, 168, 76, 0.5);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.16);
+  border: 1px solid rgba(220, 187, 94, 0.5);
+  color: var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-md);
   padding: 5px 14px;
   font-size: 12px;
@@ -92,7 +92,7 @@
   min-width: 46px;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.askBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.26); color: #f0d888; }
+.askBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.26); color: #f0d888; }
 .askBtn:disabled { opacity: 0.5; cursor: default; }
 /* Stop — replaces Ask while a search is in flight (cancel a long reasoning pass). */
 .stopBtn {
@@ -150,7 +150,7 @@
   font-family: inherit;
   transition: border-color 0.12s ease, color 0.12s ease;
 }
-.example:hover { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.example:hover { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 
 /* ── Answer ── */
 .answer { display: flex; flex-direction: column; }
@@ -162,12 +162,12 @@
 .exchange + .exchange { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border, #1f2937); }
 .qLabel {
   display: flex; align-items: baseline; gap: 8px;
-  font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
+  font-size: 12px; font-weight: 600; color: var(--ut-gold, #dcbb5e);
   margin-bottom: 10px;
 }
 .asked {
   display: flex; align-items: baseline; gap: 8px;
-  font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
+  font-size: 12px; font-weight: 600; color: var(--ut-gold, #dcbb5e);
   margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border, #1f2937);
   /* Pin the question while a long answer scrolls under it (offsets cancel the
      body's 12px top padding). */
@@ -184,7 +184,7 @@
   padding: 2px 8px; cursor: pointer; font-family: inherit;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.copyBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+.copyBtn:hover { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
 
 /* Per-answer action row: Copy · Save · Share to Floor */
 .answerActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
@@ -197,7 +197,7 @@
   padding: 3px 9px; cursor: pointer; font-family: inherit;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.actionBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+.actionBtn:hover { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
 
 /* Saved answers (empty-state recall list) */
 .savedWrap { margin-top: 16px; width: 100%; max-width: 460px; }
@@ -214,7 +214,7 @@
   font-size: 11.5px; cursor: pointer; font-family: inherit;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.savedItem:hover { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.savedItem:hover { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 .savedDel {
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; font-size: 11px; padding: 2px 4px; flex-shrink: 0;
@@ -223,13 +223,13 @@
 /* [n] citation markers inside the answer — superscript links to the source. */
 .cite {
   font-size: 9.5px; font-weight: 700; vertical-align: super; line-height: 1;
-  color: var(--ut-gold, #c9a84c); text-decoration: none; margin: 0 1px;
+  color: var(--ut-gold, #dcbb5e); text-decoration: none; margin: 0 1px;
 }
 .cite:hover { text-decoration: underline; }
 /* Daily-limit notice — informational gold, not an error red. */
 .limit {
-  color: var(--ut-gold, #c9a84c); font-size: 12.5px;
-  background: rgba(201, 168, 76, 0.08); border: 1px solid rgba(201, 168, 76, 0.3);
+  color: var(--ut-gold, #dcbb5e); font-size: 12.5px;
+  background: rgba(220, 187, 94, 0.08); border: 1px solid rgba(220, 187, 94, 0.3);
   border-radius: var(--radius-md); padding: 8px 10px; margin-bottom: 10px;
 }
 .disclaimer {
@@ -244,14 +244,14 @@
   margin: 10px 0 4px;
 }
 .bullet { display: flex; gap: 8px; margin: 0 0 6px; align-items: baseline; }
-.dot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; line-height: 1.4; }
+.dot { color: var(--ut-gold, #dcbb5e); flex-shrink: 0; line-height: 1.4; }
 .gap { height: 6px; }
 
 /* ── Follow-up questions ── */
 .followups { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border, #1f2937); }
 .followLabel {
   display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px;
-  color: var(--ut-gold, #c9a84c); margin-bottom: 7px;
+  color: var(--ut-gold, #dcbb5e); margin-bottom: 7px;
 }
 .followList { display: flex; flex-direction: column; gap: 6px; }
 .follow {
@@ -263,8 +263,8 @@
   font-size: 12px; line-height: 1.4; cursor: pointer; font-family: inherit;
   transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
-.follow:hover { border-color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.06); color: var(--ut-gold, #c9a84c); }
-.followArrow { color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
+.follow:hover { border-color: var(--ut-gold, #dcbb5e); background: rgba(220, 187, 94, 0.06); color: var(--ut-gold, #dcbb5e); }
+.followArrow { color: var(--ut-gold, #dcbb5e); flex-shrink: 0; }
 
 .citations { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #1f2937); }
 .citLabel {
@@ -279,19 +279,19 @@
   color: var(--text-muted, #9ca3af); text-decoration: none; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cit:hover { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.cit:hover { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 .citNum {
   display: inline-flex; align-items: center; justify-content: center;
   width: 15px; height: 15px; border-radius: 3px;
-  background: rgba(201, 168, 76, 0.16); color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.16); color: var(--ut-gold, #dcbb5e);
   font-size: 9px; font-weight: 700; flex-shrink: 0;
 }
 
 /* ── Spinner ── */
 .spinner {
   width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid rgba(201, 168, 76, 0.3);
-  border-top-color: var(--ut-gold, #c9a84c);
+  border: 2px solid rgba(220, 187, 94, 0.3);
+  border-top-color: var(--ut-gold, #dcbb5e);
   animation: aiSpin 0.7s linear infinite;
   display: inline-block; flex-shrink: 0;
 }
@@ -301,13 +301,13 @@
 .ticker {
   display: inline; padding: 0 1px; margin: 0;
   background: transparent; border: none; font: inherit;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 700;
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.1s ease, color 0.1s ease;
 }
-.ticker:hover { background: rgba(201, 168, 76, 0.16); color: #e3c877; text-decoration: underline; }
+.ticker:hover { background: rgba(220, 187, 94, 0.16); color: #e3c877; text-decoration: underline; }
 
 /* ── Sunrise (light) chart theme ──
    .root pins vivid --gain/--loss locally, which outranks the workspace-level

@@ -35,14 +35,14 @@
 }
 .card:hover:not(:disabled) {
   border-color: var(--accent);
-  background: rgba(201, 168, 76, 0.06);
+  background: rgba(220, 187, 94, 0.06);
 }
 .card:disabled {
   opacity: 0.6;
   cursor: default;
 }
 .card:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 .cardWhen {

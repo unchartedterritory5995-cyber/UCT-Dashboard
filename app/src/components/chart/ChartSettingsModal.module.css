@@ -77,7 +77,7 @@
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.resetBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.resetBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 .resetBtnConfirm {
   color: var(--menu-accent, #f0b23a);
   border-color: var(--menu-accent, rgba(240, 178, 58, 0.6));
@@ -121,7 +121,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.tplBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.tplBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 .tplMenu {
   position: absolute;
   top: calc(100% + 5px);
@@ -163,7 +163,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tplApply:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10)); color: var(--menu-accent, #c9a84c); }
+.tplApply:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10)); color: var(--menu-accent, #dcbb5e); }
 .tplDelete {
   background: transparent;
   border: none;
@@ -179,7 +179,7 @@
 .tplSaveRow { display: inline-flex; align-items: center; gap: 6px; }
 .tplInput {
   background: var(--menu-bg-top, #131315);
-  border: 1px solid var(--menu-accent, #c9a84c);
+  border: 1px solid var(--menu-accent, #dcbb5e);
   border-radius: 5px;
   color: var(--menu-text, #ededed);
   font-family: inherit;
@@ -199,8 +199,8 @@
   border-radius: 5px;
   cursor: pointer;
 }
-.tplSaveBtn { color: var(--menu-accent, #c9a84c); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
-.tplSaveBtn:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12)); }
+.tplSaveBtn { color: var(--menu-accent, #dcbb5e); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+.tplSaveBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
 .tplCancelBtn:hover { color: var(--menu-text, #ededed); }
 
 .tabs {
@@ -231,7 +231,7 @@
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent, #dcbb5e);
   border-radius: 2px 2px 0 0;
 }
 
@@ -304,8 +304,8 @@
 .segBtnActive,
 .segBtnActive:hover {
   color: var(--menu-accent, #e7cf8f);
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
 }
 .toggle {
   position: relative;
@@ -330,7 +330,7 @@
   background: var(--menu-text-dim, #9a9a9a);
   transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
 }
-.toggleOn { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.22)); border-color: var(--menu-accent, #c9a84c); }
+.toggleOn { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.22)); border-color: var(--menu-accent, #dcbb5e); }
 .toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
@@ -362,7 +362,7 @@
   transition: border-color 120ms;
 }
 .sizeSelect:hover { border-color: var(--menu-border, #3a3a3c); }
-.sizeSelect:focus { outline: none; border-color: var(--menu-accent, #c9a84c); }
+.sizeSelect:focus { outline: none; border-color: var(--menu-accent, #dcbb5e); }
 
 /* Selectable field chips (watermark lines). */
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
@@ -382,8 +382,8 @@
 .chipOn,
 .chipOn:hover {
   color: var(--menu-accent, #e7cf8f);
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: var(--menu-accent, #dcbb5e);
 }
 
 .sectionLabel {
@@ -446,8 +446,8 @@
 /* Active card — gold accent, matching the site's premium accent. */
 .typeCardActive,
 .typeCardActive:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
   color: var(--menu-accent, #e7cf8f);
   transform: none;
 }
@@ -494,8 +494,8 @@
 
 .modeCardActive,
 .modeCardActive:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
   transform: none;
 }
 .modeCardActive .modeName { color: var(--menu-accent, #e7cf8f); }
@@ -538,7 +538,7 @@
 .cSwatchActive,
 .cSwatchActive:hover {
   border-color: transparent;
-  box-shadow: 0 0 0 2px var(--menu-bg, #0e0e10), 0 0 0 3px var(--menu-accent, #c9a84c);
+  box-shadow: 0 0 0 2px var(--menu-bg, #0e0e10), 0 0 0 3px var(--menu-accent, #dcbb5e);
 }
 
 /* Header "Show" rows: color swatch(es) + the show toggle, right-aligned. Day change
@@ -627,7 +627,7 @@
   font-size: 11px;
   cursor: pointer;
 }
-.addFieldBtn:hover { border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); color: var(--menu-accent, #f0b23a); }
+.addFieldBtn:hover { border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); color: var(--menu-accent, #f0b23a); }
 .fieldMenu {
   position: absolute;
   z-index: 10;
@@ -683,4 +683,4 @@
   cursor: pointer;
 }
 .fieldItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
-.fieldCheck { width: 12px; display: flex; color: var(--menu-accent, #c9a84c); flex-shrink: 0; }
+.fieldCheck { width: 12px; display: flex; color: var(--menu-accent, #dcbb5e); flex-shrink: 0; }

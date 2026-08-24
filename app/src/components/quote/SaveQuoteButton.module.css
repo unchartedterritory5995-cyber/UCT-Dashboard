@@ -4,10 +4,10 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-mono);
   font-size: 9.5px;
   font-weight: 600;
@@ -22,7 +22,7 @@
 .btn:hover, .btn:focus-visible {
   opacity: 1;
   border-color: var(--accent);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
   outline: none;
 }
 .btn:disabled { cursor: default; opacity: 0.5; }

@@ -37,9 +37,9 @@
 .primaryBtn {
   align-self: flex-start;
   padding: 8px 18px;
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-lg);
-  background: rgba(201, 168, 76, 0.1);
+  background: rgba(220, 187, 94, 0.1);
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
@@ -59,7 +59,7 @@
   align-items: center;
 }
 
-.btn:hover { border-color: #c9a84c; color: var(--accent); }
+.btn:hover { border-color: #dcbb5e; color: var(--accent); }
 .btn:disabled, .primaryBtn:disabled, .dangerBtn:disabled { opacity: 0.5; cursor: default; }
 
 .dangerBtn {

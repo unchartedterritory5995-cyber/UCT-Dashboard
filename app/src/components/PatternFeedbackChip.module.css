@@ -29,7 +29,7 @@
 .upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(60,184,104,.16)); }
 .downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(231,76,60,.16)); }
 .link {
-  background: transparent; border: none; color: var(--ut-gold, #c9a84c);
+  background: transparent; border: none; color: var(--ut-gold, #dcbb5e);
   cursor: pointer; font-size: 11px; padding: 1px 3px; text-decoration: none;
 }
 .link:hover { text-decoration: underline; }

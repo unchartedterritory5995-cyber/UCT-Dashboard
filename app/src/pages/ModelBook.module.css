@@ -49,7 +49,7 @@
   inset: -20% -10%;
   pointer-events: none;
   background:
-    radial-gradient(40% 50% at 28% 30%, rgba(201, 168, 76, 0.16), transparent 70%),
+    radial-gradient(40% 50% at 28% 30%, rgba(220, 187, 94, 0.16), transparent 70%),
     radial-gradient(42% 52% at 76% 72%, rgba(60, 184, 104, 0.12), transparent 70%);
   filter: blur(6px);
   animation: hubGlowPulse 9s ease-in-out infinite alternate;
@@ -80,7 +80,7 @@
   display: block;
   width: 72px;
   height: auto;
-  filter: drop-shadow(0 5px 16px rgba(201, 168, 76, 0.38));
+  filter: drop-shadow(0 5px 16px rgba(220, 187, 94, 0.38));
 }
 @keyframes hubFloat {
   0%, 100% { transform: translateY(0); }
@@ -169,7 +169,7 @@
 .hubCardLive:hover {
   border-color: var(--ut-gold);
   background: rgba(30, 25, 12, 0.72);
-  box-shadow: 0 10px 30px rgba(201, 168, 76, 0.14);
+  box-shadow: 0 10px 30px rgba(220, 187, 94, 0.14);
 }
 /* Coming-soon cards: slightly muted content, cooler neutral hover. */
 .hubCardSoon .hubCardLabel { opacity: 0.92; }
@@ -197,7 +197,7 @@
 .hubCardYours:hover {
   border-color: #f0d479;
   background: linear-gradient(90deg, rgba(48, 38, 15, 0.8), rgba(22, 20, 12, 0.68) 60%);
-  box-shadow: 0 10px 30px rgba(201, 168, 76, 0.18);
+  box-shadow: 0 10px 30px rgba(220, 187, 94, 0.18);
 }
 /* Live count badge — appears once the user has playbook content. */
 .hubCardCount {
@@ -207,10 +207,10 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--accent);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   border-radius: var(--radius-pill);
   padding: 3px 11px;
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 @media (max-width: 640px) {
   .hubCardYours { flex-direction: column; align-items: flex-start; gap: 7px; }

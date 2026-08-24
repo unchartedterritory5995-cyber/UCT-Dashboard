@@ -19,7 +19,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   padding: 6px 14px 8px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   letter-spacing: 1px;
@@ -120,14 +120,14 @@
 }
 
 .alertInput { width: 70px; }
-.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #c9a84c); }
+.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #dcbb5e); }
 
 .alertSet {
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: var(--bg);
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   border: none;
   border-radius: var(--radius-sm);
   padding: 5px 8px;
@@ -192,7 +192,7 @@
 }
 .newListInput:focus { outline: none; border-color: var(--accent); }
 .newListBtn {
-  border: 1px solid rgba(201,168,76,0.35); background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(220, 187, 94,0.35); background: rgba(220, 187, 94,0.12);
   color: var(--accent); border-radius: 5px; padding: 4px 9px; cursor: pointer;
   font-size: 12px; font-family: inherit;
 }

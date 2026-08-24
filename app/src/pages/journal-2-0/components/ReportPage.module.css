@@ -36,7 +36,7 @@
 }
 
 .printBtn {
-  background: #c9a84c;
+  background: #dcbb5e;
   color: var(--bg);
 }
 
@@ -126,7 +126,7 @@
   margin: 16px 0 0;
   padding: 12px;
   background: #fef9e7;
-  border-left: 3px solid #c9a84c;
+  border-left: 3px solid #dcbb5e;
   font-size: 13px;
 }
 

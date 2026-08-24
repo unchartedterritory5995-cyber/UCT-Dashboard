@@ -67,9 +67,9 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .cellIconBtn:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   border-color: var(--border, #2e3127);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Container-owned wrapper: the grid item. Carries the active-cell class so
@@ -104,11 +104,11 @@
    :focus-within (not :focus-visible) — focus lands on the inner chart wrapper
    or the open search input, never on the cell root itself. */
 .cellActive > .cell {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 .cell:focus-within {
-  border-color: var(--ut-gold, #c9a84c);
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.35);
+  border-color: var(--ut-gold, #dcbb5e);
+  box-shadow: 0 0 0 1px rgba(220, 187, 94, 0.35);
 }
 
 /* Per-cell chart Style select — a compact grid extra in the top header row
@@ -163,7 +163,7 @@
   font-size: 13px;
   cursor: pointer;
 }
-.cellEmpty:hover { color: var(--ut-gold, #c9a84c); }
+.cellEmpty:hover { color: var(--ut-gold, #dcbb5e); }
 .cellEmptyPlus {
   font-size: 26px;
   line-height: 1;
@@ -175,7 +175,7 @@
   align-items: center;
   justify-content: center;
 }
-.cellEmpty:hover .cellEmptyPlus { border-color: var(--ut-gold, #c9a84c); }
+.cellEmpty:hover .cellEmptyPlus { border-color: var(--ut-gold, #dcbb5e); }
 
 /* Skeleton slot: queued cells awaiting their mount-queue turn. */
 .cellSkeleton {
@@ -210,8 +210,8 @@
   font-family: inherit;
   transition: color 120ms, border-color 120ms;
 }
-.presetBtn:hover { color: var(--text-bright, #e5e9f0); border-color: var(--ut-gold, #c9a84c); }
-.presetBtnActive { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+.presetBtn:hover { color: var(--text-bright, #e5e9f0); border-color: var(--ut-gold, #dcbb5e); }
+.presetBtnActive { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
 .presetLabel { font-size: 9px; line-height: 1; white-space: nowrap; }
 
 /* Custom N×M form row inside the Multi Charts dropdown. */
@@ -269,7 +269,7 @@
   background: var(--bg-elevated, #12171f); border: 1px solid var(--border, #2a3340);
   border-radius: var(--radius-md); padding: 6px 12px; font-size: 12px; color: var(--text-bright, #e5e9f0);
 }
-.undoToast button { color: var(--ut-gold, #c9a84c); background: none; border: none; cursor: pointer; font-weight: 600; }
+.undoToast button { color: var(--ut-gold, #dcbb5e); background: none; border: none; cursor: pointer; font-weight: 600; }
 
 /* Phone (≤640px): grid mode renders as a vertically stacked list. */
 @media (max-width: 640px) {

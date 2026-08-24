@@ -148,7 +148,7 @@
 }
 
 .viewBtnActive {
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   color: var(--bg);
 }
 

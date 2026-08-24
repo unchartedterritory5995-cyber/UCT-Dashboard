@@ -48,10 +48,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.chip:hover { border-color: #c9a84c; color: var(--text-bright); }
+.chip:hover { border-color: #dcbb5e; color: var(--text-bright); }
 .chipActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
   color: var(--accent);
 }
 
@@ -66,11 +66,11 @@
   min-width: 110px;
   outline: none;
 }
-.select:focus { border-color: #c9a84c; }
+.select:focus { border-color: #dcbb5e; }
 
 .slider {
   width: 220px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
 }
 
 .resetBtn {
@@ -86,7 +86,7 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.resetBtn:hover { border-color: #c9a84c; color: var(--accent); }
+.resetBtn:hover { border-color: #dcbb5e; color: var(--accent); }
 
 .toggleField {
   display: inline-flex;
@@ -103,14 +103,14 @@
   user-select: none;
   transition: all 0.15s;
 }
-.toggleField:hover { border-color: #c9a84c; color: var(--text-bright); }
+.toggleField:hover { border-color: #dcbb5e; color: var(--text-bright); }
 .toggleField input[type="checkbox"] {
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   margin: 0;
 }
 .toggleActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
   color: var(--accent);
 }
 
@@ -134,10 +134,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.typeChip:hover { border-color: #c9a84c; }
+.typeChip:hover { border-color: #dcbb5e; }
 .typeChipActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
   color: var(--accent);
 }
 
@@ -175,7 +175,7 @@
 .mobileFiltersBtnActive {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 .mobileSummary {
   font-size: 12px;

@@ -39,7 +39,7 @@
   will-change: transform;
 }
 .mini {
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
 }
 .frame {
   position: absolute;
@@ -163,13 +163,13 @@
   background: rgba(255, 255, 255, 0.14);
 }
 .cbtnOn {
-  background: rgba(201, 168, 76, 0.28);
+  background: rgba(220, 187, 94, 0.28);
 }
 .speedBtn {
   min-width: 34px;
   height: 30px;
   padding: 0 7px;
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   background: transparent;
   color: var(--accent);
   font-size: 12px;
@@ -179,7 +179,7 @@
   cursor: pointer;
 }
 .speedBtn:hover {
-  background: rgba(201, 168, 76, 0.2);
+  background: rgba(220, 187, 94, 0.2);
 }
 
 /* UCT broadcast watermark (docked) — TV-style corner bug, never blocks clicks. */
@@ -266,7 +266,7 @@
 }
 .nextPlayBtn,
 .nextCancelBtn {
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   background: transparent;
   color: var(--text-bright);
   border-radius: var(--radius-lg);
@@ -275,7 +275,7 @@
   cursor: pointer;
 }
 .nextPlayBtn {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
 }
 
 @media (max-width: 640px) {
@@ -290,7 +290,7 @@
   height: 46px;
   object-fit: contain;
   margin-bottom: 8px;
-  filter: drop-shadow(0 0 10px rgba(201, 168, 76, 0.45));
+  filter: drop-shadow(0 0 10px rgba(220, 187, 94, 0.45));
 }
 .endBrand {
   font-size: 12px;
@@ -319,7 +319,7 @@
   transform: translateX(-50%) scaleY(0.6);
   transform-origin: bottom center;
   background: rgba(8, 9, 8, 0.95);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   border-radius: var(--radius-lg);
   padding: 10px 6px;
   opacity: 0;
@@ -339,7 +339,7 @@
   direction: rtl;
   width: 6px;
   height: 84px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   cursor: pointer;
   margin: 0;
 }

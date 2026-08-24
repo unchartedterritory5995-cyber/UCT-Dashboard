@@ -65,7 +65,7 @@
   font-weight: 600;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   text-align: center;
   margin-bottom: 10px;
 }
@@ -145,7 +145,7 @@
   font-weight: 600;
   letter-spacing: 3.5px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 .quoteText {
   font-family: var(--font-sans);
@@ -164,7 +164,7 @@
 .quoteAuthor {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   letter-spacing: 0.5px;
 }
 @media (max-width: 640px) {
@@ -259,8 +259,8 @@
 
 /* ── Agenda card (TODAY'S FOCUS block) ───────────────────────── */
 .rundownWrap :global(.rd-agenda) {
-  background: rgba(201, 168, 76, 0.09) !important;
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  background: rgba(220, 187, 94, 0.09) !important;
+  border: 1px solid rgba(220, 187, 94, 0.3);
   border-left: 3px solid #d4b45c;
   border-radius: var(--radius-sm);
   padding: 12px 16px;
@@ -273,7 +273,7 @@
   font-family: var(--font-mono);
   letter-spacing: 2px;
   color: var(--accent);
-  text-shadow: 0 0 12px rgba(201, 168, 76, 0.35);
+  text-shadow: 0 0 12px rgba(220, 187, 94, 0.35);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -364,7 +364,7 @@
 /* Override the generic hr rule — subsection hrs use gold, not border */
 .rundownWrap :global(.rd-subsection-header) :global(hr) {
   border: none !important;
-  border-top: 1px solid #c9a84c !important;
+  border-top: 1px solid #dcbb5e !important;
   opacity: 0.55 !important;
   margin: 0 0 10px !important;
 }
@@ -379,7 +379,7 @@
   letter-spacing: 4px !important;
   text-transform: uppercase !important;
   color: var(--accent) !important;
-  text-shadow: 0 0 16px rgba(201, 168, 76, 0.4) !important;
+  text-shadow: 0 0 16px rgba(220, 187, 94, 0.4) !important;
   padding: 0 4px;
 }
 
@@ -396,7 +396,7 @@
 .rundownWrap :global(.rd-seg) {
   margin: 22px 0;
   padding-left: 14px;
-  border-left: 2px solid rgba(201, 168, 76, 0.55);
+  border-left: 2px solid rgba(220, 187, 94, 0.55);
 }
 .rundownWrap :global(.rd-seg-label) {
   display: block;
@@ -405,7 +405,7 @@
   font-weight: 600;
   letter-spacing: 2px;
   color: var(--accent);
-  text-shadow: 0 0 12px rgba(201, 168, 76, 0.35);
+  text-shadow: 0 0 12px rgba(220, 187, 94, 0.35);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -416,7 +416,7 @@
 /* ── Notable Options Flow board (rundown fragment; from wire.options_flow) ── */
 .rundownWrap :global(.rd-flowboard) {
   margin: 24px 0 8px;
-  border: 1px solid rgba(201, 168, 76, 0.28);
+  border: 1px solid rgba(220, 187, 94, 0.28);
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: rgba(255, 255, 255, 0.015);
@@ -432,8 +432,8 @@
   text-transform: uppercase;
   color: var(--accent);
   padding: 11px 16px;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.22);
-  background: rgba(201, 168, 76, 0.06);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.22);
+  background: rgba(220, 187, 94, 0.06);
 }
 .rundownWrap :global(.rd-flowboard-sub) {
   font-weight: 500;
@@ -540,7 +540,7 @@
   font-size: 8px;
   font-weight: 700;
   color: var(--accent);
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   border-radius: 3px;
   padding: 0 3px;
   margin-left: 3px;
@@ -573,10 +573,10 @@
 /* ── THE GAME PLAN cockpit (top of wire) ─────────────────────── */
 .rundownWrap :global(.rd-gameplan) {
   margin: 4px 0 18px;
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background: rgba(201, 168, 76, 0.04);
+  background: rgba(220, 187, 94, 0.04);
 }
 .rundownWrap :global(.rd-gp-head) {
   font-family: var(--font-mono);
@@ -586,8 +586,8 @@
   text-transform: uppercase;
   color: var(--accent);
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.08);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.3);
+  background: rgba(220, 187, 94, 0.08);
 }
 .rundownWrap :global(.rd-gp-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-gp-grid) { display: grid; grid-template-columns: 104px 1fr; }
@@ -609,8 +609,8 @@
 .rundownWrap :global(.rd-gp-play) {
   margin: 10px 16px 14px;
   padding: 11px 14px;
-  background: rgba(201, 168, 76, 0.09);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  background: rgba(220, 187, 94, 0.09);
+  border: 1px solid rgba(220, 187, 94, 0.3);
   border-radius: 9px;
   font-size: 14px;
   line-height: 1.55;
@@ -667,7 +667,7 @@
 .rundownWrap :global(.rd-disc-red) { background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.3); }
 .rundownWrap :global(.rd-disc-tag) {
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
-  color: var(--bg); background: #c9a84c; border-radius: var(--radius-sm); padding: 2px 6px;
+  color: var(--bg); background: #dcbb5e; border-radius: var(--radius-sm); padding: 2px 6px;
 }
 .rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: var(--text-heading); }
 .rundownWrap :global(.rd-disc-line) { color: var(--text-bright); }
@@ -681,10 +681,10 @@
 /* ── TRADE IDEA OF THE DAY (hero card) ───────────────────────── */
 .rundownWrap :global(.rd-tradeidea) {
   margin: 20px 0;
-  border: 1px solid rgba(201, 168, 76, 0.45);
+  border: 1px solid rgba(220, 187, 94, 0.45);
   border-radius: var(--radius-xl);
   padding: 4px 0 14px;
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.02));
+  background: linear-gradient(180deg, rgba(220, 187, 94, 0.07), rgba(220, 187, 94, 0.02));
 }
 .rundownWrap :global(.rd-ti-head) {
   font-family: var(--font-mono); font-size: 12px; font-weight: 800; letter-spacing: 2px;
@@ -777,7 +777,7 @@
 .rundownWrap :global(.rd-pick-hr) {
   flex: 1;
   border: none !important;
-  border-top: 1px solid #c9a84c !important;
+  border-top: 1px solid #dcbb5e !important;
   opacity: 0.4 !important;
   margin: 0 !important;
 }
@@ -1189,7 +1189,7 @@
 .aeBadgeUp   { background: var(--gain-bg);              color: var(--gain);  border: 1px solid var(--gain-border); }
 .aeBadgeDown { background: var(--loss-bg);              color: var(--loss);  border: 1px solid var(--loss-border); }
 .aeBadgeInit { background: rgba(80,130,210,0.12);       color: var(--info);      border: 1px solid rgba(80,130,210,0.3); }
-.aeBadgePtUp { background: rgba(201,168,76,0.12);       color: var(--accent);      border: 1px solid rgba(201,168,76,0.3); }
+.aeBadgePtUp { background: rgba(220, 187, 94,0.12);       color: var(--accent);      border: 1px solid rgba(220, 187, 94,0.3); }
 .aeBadgePtDn { background: rgba(200,60,60,0.12);        color: var(--loss);  border: 1px solid var(--loss-border); }
 .aeBadgeMuted{ background: rgba(255,255,255,0.05);      color: var(--text-muted); border: 1px solid var(--border); }
 
@@ -1363,7 +1363,7 @@
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--accent);
-  text-shadow: 0 0 12px rgba(201, 168, 76, 0.35);
+  text-shadow: 0 0 12px rgba(220, 187, 94, 0.35);
   padding: 12px 14px 8px 18px;
   border-bottom: 1px solid var(--border);
 }
@@ -1423,7 +1423,7 @@
 :global(.rd-fb button:hover) { opacity: 0.8; }
 :global(.rd-fb button.rd-fb-on) { opacity: 1; }
 /* ✎ note button: gold-tinted, brighter once a note exists */
-:global(.rd-fb button.rd-fb-note) { color: var(--color-gold, #c9a84c); font-size: 13px; }
+:global(.rd-fb button.rd-fb-note) { color: var(--color-gold, #dcbb5e); font-size: 13px; }
 :global(.rd-fb button.rd-fb-note-has) { opacity: 1; }
 
 /* Overall-brief feedback bar (appended after the monologue) */
@@ -1451,11 +1451,11 @@
   border-radius: var(--radius-lg); padding: 8px 10px; color: var(--color-text, #e6e8eb);
   font: inherit; font-size: 13px; line-height: 1.5;
 }
-:global(.rd-note-input:focus) { outline: none; border-color: var(--color-gold, #c9a84c); }
+:global(.rd-note-input:focus) { outline: none; border-color: var(--color-gold, #dcbb5e); }
 :global(.rd-note-actions) { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 :global(.rd-note-status) { font-size: 11px; color: var(--color-text-muted, #8a8f98); }
 :global(.rd-note-save) {
-  background: var(--color-gold, #c9a84c); color: var(--bg); border: none;
+  background: var(--color-gold, #dcbb5e); color: var(--bg); border: none;
   border-radius: var(--radius-md); padding: 6px 14px; font-size: 12px; font-weight: 600;
   cursor: pointer; min-height: 32px;
 }

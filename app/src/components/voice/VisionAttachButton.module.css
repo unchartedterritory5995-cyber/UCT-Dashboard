@@ -11,7 +11,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   background: rgba(0, 0, 0, 0.4);
   color: var(--accent);
   display: inline-flex;
@@ -25,10 +25,10 @@
 .btn:hover {
   opacity: 1;
   transform: scale(1.08);
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 .btn:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 
@@ -41,7 +41,7 @@
   overflow-y: auto;
   background: rgba(15, 15, 18, 0.96);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  border: 1px solid rgba(220, 187, 94, 0.3);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 9000;
@@ -65,8 +65,8 @@
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(201, 168, 76, 0.25);
-  border-top-color: #c9a84c;
+  border: 2px solid rgba(220, 187, 94, 0.25);
+  border-top-color: #dcbb5e;
   border-radius: 50%;
   animation: spin 800ms linear infinite;
 }

@@ -30,14 +30,14 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  background: rgba(201, 168, 76, 0.06);
-  border-left: 3px solid var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.06);
+  border-left: 3px solid var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-sm);
 }
 
 .focusLabel {
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   letter-spacing: 1px;
   text-transform: uppercase;
   font-weight: 700;
@@ -95,7 +95,7 @@
 }
 
 .feedItemSym {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 700;
   margin-right: 6px;
 }
@@ -140,7 +140,7 @@
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-sm);
@@ -154,8 +154,8 @@
 
 .talkBtnActive {
   background: transparent;
-  color: var(--ut-gold, #c9a84c);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold, #dcbb5e);
 }
 
 .compassTabLink {
@@ -166,5 +166,5 @@
 }
 
 .compassTabLink:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }

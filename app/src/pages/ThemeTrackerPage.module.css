@@ -73,7 +73,7 @@
 
 .periodTabActive {
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
   border-color: var(--accent);
 }
 
@@ -102,7 +102,7 @@
 .settingsBtnActive {
   opacity: 1;
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -407,28 +407,28 @@
   margin-right: 7px;
   flex-shrink: 0;
 }
-.flagStar:hover { color: var(--ut-gold, #c9a84c); }
-.flagStarActive { color: var(--ut-gold, #c9a84c); }
+.flagStar:hover { color: var(--ut-gold, #dcbb5e); }
+.flagStarActive { color: var(--ut-gold, #dcbb5e); }
 
 .stockRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));
 }
 
 /* "… Index" row = the theme's equal-weight thematic-ETF chart. */
-.indexRow { border-bottom: 1px solid rgba(201, 168, 76, 0.15); }
+.indexRow { border-bottom: 1px solid rgba(220, 187, 94, 0.15); }
 .indexRow .sym { color: var(--tt-accent, var(--ut-gold)); }
 .indexRow :global(svg) { color: var(--tt-accent, var(--ut-gold)); }
 .indexBadge {
   margin-left: 6px; font-size: calc(8.5px * var(--tt-font-scale, 1)); font-weight: 700; letter-spacing: 0.5px;
   padding: 1px 5px; border-radius: 3px;
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.18)); color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18)); color: var(--tt-accent, var(--ut-gold));
 }
 
 .stockRow.selected {
   /* EXACTLY the Watchlist widget's selected-row look (.listRowSelected): the same
      fixed gold tint + gold bar on every canvas — owner spotted the accent-bg
      variant reading slightly darker side-by-side. Keep these two in sync. */
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
   border-left: 2px solid var(--ut-gold);
   padding-left: 10px;   /* 12px − 2px border keeps the bullet aligned */
 }
@@ -591,7 +591,7 @@
 
 .chartPeriodBtnActive {
   color: var(--ut-gold);
-  background: rgba(201, 168, 76, 0.12);
+  background: rgba(220, 187, 94, 0.12);
   border-color: var(--accent);
 }
 

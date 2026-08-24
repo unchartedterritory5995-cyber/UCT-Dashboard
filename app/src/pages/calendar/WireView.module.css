@@ -41,11 +41,11 @@
 
 /* Significance = WEIGHT, never position. */
 .loud {
-  background: rgba(201, 168, 76, 0.10);
+  background: rgba(220, 187, 94, 0.10);
   font-size: 14px;
-  border-left: 2px solid rgba(201, 168, 76, 0.55);
+  border-left: 2px solid rgba(220, 187, 94, 0.55);
 }
-.mid   { background: rgba(201, 168, 76, 0.04); }
+.mid   { background: rgba(220, 187, 94, 0.04); }
 .quiet { opacity: 0.72; }
 
 .empty {

@@ -73,7 +73,7 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.optActive { background: var(--wl-accent-bg, rgba(201, 168, 76, 0.14)); }
+.optActive { background: var(--wl-accent-bg, rgba(220, 187, 94, 0.14)); }
 
 .optSym {
   font-family: var(--font-mono);

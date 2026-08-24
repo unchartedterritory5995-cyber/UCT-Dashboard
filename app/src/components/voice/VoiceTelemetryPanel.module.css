@@ -18,8 +18,8 @@
   font-weight: 600;
 }
 .refresh {
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   color: var(--accent);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
@@ -158,8 +158,8 @@
 }
 .correctionItem {
   padding: 8px 10px;
-  background: rgba(201, 168, 76, 0.06);
-  border: 1px solid rgba(201, 168, 76, 0.2);
+  background: rgba(220, 187, 94, 0.06);
+  border: 1px solid rgba(220, 187, 94, 0.2);
   border-radius: var(--radius-sm);
 }
 .correctionText {

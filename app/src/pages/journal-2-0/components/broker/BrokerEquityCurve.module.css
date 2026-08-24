@@ -56,8 +56,8 @@
   cursor: pointer;
 }
 
-.pill:hover { color: var(--accent); border-color: #c9a84c; }
-.pillOn { color: var(--accent); border-color: #c9a84c; background: rgba(201, 168, 76, 0.08); }
+.pill:hover { color: var(--accent); border-color: #dcbb5e; }
+.pillOn { color: var(--accent); border-color: #dcbb5e; background: rgba(220, 187, 94, 0.08); }
 
 .footnote {
   margin: 0;

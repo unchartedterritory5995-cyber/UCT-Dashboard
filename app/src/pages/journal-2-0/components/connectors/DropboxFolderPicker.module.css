@@ -9,7 +9,7 @@
   padding: 4px 4px;
   font: inherit;
   font-size: 13px;
-  color: var(--color-accent, #c9a84c);
+  color: var(--color-accent, #dcbb5e);
   cursor: pointer;
 }
 .crumbBtn:hover:not(:disabled) { text-decoration: underline; }
@@ -87,7 +87,7 @@
 .footerRow { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--color-border, #333); }
 
 .primaryBtn {
-  background: var(--color-accent, #c9a84c);
+  background: var(--color-accent, #dcbb5e);
   color: var(--bg);
   border-color: transparent;
   min-height: var(--tap-min, 44px);

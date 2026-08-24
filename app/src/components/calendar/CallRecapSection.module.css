@@ -7,7 +7,7 @@
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
-  border-left: 2px solid rgba(201, 168, 76, 0.5);
+  border-left: 2px solid rgba(220, 187, 94, 0.5);
   border-radius: var(--radius-sm, 6px);
 }
 
@@ -50,7 +50,7 @@
 }
 
 .listenBtnActive {
-  background: rgba(201, 168, 76, 0.15);
+  background: rgba(220, 187, 94, 0.15);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -95,7 +95,7 @@
 
 /* Keyword highlight */
 .kw {
-  background: rgba(201, 168, 76, 0.35);
+  background: rgba(220, 187, 94, 0.35);
   color: var(--text, #e8ebf0);
   border-radius: 2px;
   padding: 0 1px;

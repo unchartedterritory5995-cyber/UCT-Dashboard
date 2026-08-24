@@ -98,12 +98,12 @@
 }
 
 .itemPrimary {
-  color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #dcbb5e);
   font-weight: 600;
 }
 
 .itemPrimary:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 .itemDanger {
@@ -119,7 +119,7 @@
   display: inline-block;
   width: 12px;
   flex: 0 0 12px;
-  color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #dcbb5e);
   font-weight: 700;
   text-align: center;
 }

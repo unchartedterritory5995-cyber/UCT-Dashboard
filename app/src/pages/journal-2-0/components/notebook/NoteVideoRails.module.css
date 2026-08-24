@@ -41,8 +41,8 @@
   background: rgba(255, 255, 255, 0.05);
 }
 .chapterRowActive {
-  background: rgba(201, 168, 76, 0.14);
-  box-shadow: inset 2px 0 0 #c9a84c;
+  background: rgba(220, 187, 94, 0.14);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .chapterRowActive .chapterTitle {
   color: var(--text-bright);
@@ -92,7 +92,7 @@
   display: block;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   line-height: 0;
 }
 .poster {
@@ -123,7 +123,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c9a84c;
+  background: #dcbb5e;
 }
 
 /* ── Tickers covered ── */
@@ -155,8 +155,8 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--accent);
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.28);
+  background: rgba(220, 187, 94, 0.12);
+  border: 1px solid rgba(220, 187, 94, 0.28);
   border-radius: var(--radius-pill);
   padding: 0 7px;
   line-height: 16px;
@@ -179,16 +179,16 @@
   gap: 6px;
   padding: 4px 9px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  background: rgba(220, 187, 94, 0.08);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .tickerChip:hover {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   border-color: var(--accent);
 }
 .tickerChipActive {
-  background: rgba(201, 168, 76, 0.28);
+  background: rgba(220, 187, 94, 0.28);
   border-color: var(--accent);
 }
 .tickerSym {
@@ -251,7 +251,7 @@
 .tickerSym:focus-visible,
 .tickerTime:focus-visible,
 .posterLink:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }

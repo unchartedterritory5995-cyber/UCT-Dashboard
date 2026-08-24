@@ -93,7 +93,7 @@
   transition: border-color 0.12s;
 }
 .input:focus {
-  border-color: var(--menu-accent, rgba(201, 168, 76, 0.55));
+  border-color: var(--menu-accent, rgba(220, 187, 94, 0.55));
 }
 .input::placeholder {
   color: var(--menu-text-faint, #6b6b6b);
@@ -140,7 +140,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #dcbb5e);
   min-width: 56px;
 }
 .itemName {
@@ -155,7 +155,7 @@
   white-space: nowrap;
 }
 .itemActive {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
 }
 .itemActive .itemSym {
   color: var(--menu-accent, #e4c870);

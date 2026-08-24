@@ -178,7 +178,7 @@
   padding: 0 16px;
   border: none;
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
   color: var(--bg);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -220,8 +220,8 @@
   height: 1px;
   background: linear-gradient(
     to right,
-    rgba(201, 168, 76, 0.32),
-    rgba(201, 168, 76, 0.07) 55%,
+    rgba(220, 187, 94, 0.32),
+    rgba(220, 187, 94, 0.07) 55%,
     transparent
   );
 }

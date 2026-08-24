@@ -38,7 +38,7 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #c9a84c);      /* gold accent, matching the app */
+  color: var(--menu-accent, #dcbb5e);      /* gold accent, matching the app */
 }
 .quarter {
   font-size: 11px;

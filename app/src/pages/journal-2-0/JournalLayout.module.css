@@ -103,10 +103,10 @@
   align-items: center;
   gap: 7px;
   padding: 7px 14px;
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
   border-radius: var(--radius-pill);
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -115,8 +115,8 @@
 }
 
 .logTradeBtn:hover {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.2));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.2));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .logTradeBtn span {
@@ -348,8 +348,8 @@
   gap: 7px;
   min-height: var(--tap-min);
   padding: 0 18px;
-  background: var(--ut-gold, #c9a84c);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-pill);
   color: var(--bg); /* dark ink on gold — high-contrast, prominent */
   font-family: inherit;
@@ -359,7 +359,7 @@
   cursor: pointer;
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(201, 168, 76, 0.35);
+    0 0 0 1px rgba(220, 187, 94, 0.35);
 }
 
 .logFabBtn span {

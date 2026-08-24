@@ -31,7 +31,7 @@
 .sym {
   margin-left: 6px;
   font-family: var(--font-mono);
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-size: 12px;
 }
 .close {
@@ -82,11 +82,11 @@
 .select:focus,
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .addBtn {
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border: none;
   padding: 6px 14px;
@@ -180,7 +180,7 @@
 }
 .toggle:hover {
   color: var(--text-heading, #f0f0f0);
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 .toggle.on {
   color: #22c55e;
@@ -293,6 +293,6 @@
   cursor: pointer;
 }
 .scopeRow input {
-  accent-color: var(--ut-gold, #c9a84c);
+  accent-color: var(--ut-gold, #dcbb5e);
   cursor: pointer;
 }

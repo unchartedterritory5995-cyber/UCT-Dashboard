@@ -17,8 +17,8 @@
   font-weight: 600;
 }
 .refresh {
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   color: var(--accent);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
@@ -33,7 +33,7 @@
   line-height: 1.5;
 }
 .subtitle code {
-  background: rgba(201, 168, 76, 0.1);
+  background: rgba(220, 187, 94, 0.1);
   padding: 1px 4px;
   border-radius: 3px;
   color: var(--accent);
@@ -60,7 +60,7 @@
 }
 
 .dropzone {
-  border: 2px dashed rgba(201, 168, 76, 0.4);
+  border: 2px dashed rgba(220, 187, 94, 0.4);
   border-radius: var(--radius-md);
   padding: 28px;
   text-align: center;
@@ -69,8 +69,8 @@
   margin-bottom: 12px;
 }
 .dropzoneActive {
-  border-color: #c9a84c;
-  background: rgba(201, 168, 76, 0.10);
+  border-color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.10);
 }
 .busy {
   opacity: 0.6;
@@ -125,7 +125,7 @@
 }
 .input:focus, .textarea:focus {
   outline: none;
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 .submitBtn {
   align-self: flex-start;

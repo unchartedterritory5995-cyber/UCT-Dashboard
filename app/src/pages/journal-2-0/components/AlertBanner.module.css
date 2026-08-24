@@ -30,8 +30,8 @@
 
 .info {
   padding: 8px 12px;
-  background: rgba(201, 168, 76, 0.08);
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: rgba(220, 187, 94, 0.08);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   color: var(--text-bright);
 }
 
@@ -52,7 +52,7 @@
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-md);

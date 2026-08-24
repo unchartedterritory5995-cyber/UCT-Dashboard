@@ -36,8 +36,8 @@
   gap: 6px;
 }
 .scanBtn {
-  background: rgba(201, 168, 76, 0.18);
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  background: rgba(220, 187, 94, 0.18);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   color: var(--accent);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
@@ -46,7 +46,7 @@
 }
 .scanBtn:disabled, .refresh:disabled { opacity: 0.4; cursor: default; }
 .scanBtn:hover:not(:disabled) {
-  background: rgba(201, 168, 76, 0.30);
+  background: rgba(220, 187, 94, 0.30);
 }
 .refresh {
   background: rgba(255, 255, 255, 0.04);
@@ -91,7 +91,7 @@
   cursor: pointer;
 }
 .filterActive {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -150,7 +150,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--accent);
-  background: rgba(201, 168, 76, 0.10);
+  background: rgba(220, 187, 94, 0.10);
   padding: 1px 6px;
   border-radius: 3px;
 }

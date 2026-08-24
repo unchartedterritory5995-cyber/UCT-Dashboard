@@ -6,7 +6,7 @@
 }
 
 .rootDrag {
-  outline: 2px dashed var(--ut-gold, #c9a84c);
+  outline: 2px dashed var(--ut-gold, #dcbb5e);
   outline-offset: 3px;
 }
 
@@ -32,8 +32,8 @@
 }
 
 .emptyZone:hover {
-  border-color: var(--ut-gold, #c9a84c);
-  background: var(--ut-gold-dim, #c9a84c15);
+  border-color: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold-dim, #dcbb5e15);
 }
 
 .emptyIcon { opacity: 0.9; margin-bottom: 2px; }
@@ -128,8 +128,8 @@
 }
 
 .addTile:hover {
-  border-color: var(--ut-gold, #c9a84c);
-  background: var(--ut-gold-dim, #c9a84c15);
+  border-color: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold-dim, #dcbb5e15);
 }
 
 /* ── Status / error ─────────────────────────────────────────────────── */
@@ -182,7 +182,7 @@
 }
 
 .lightboxClose:hover {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 @media (max-width: 640px) {

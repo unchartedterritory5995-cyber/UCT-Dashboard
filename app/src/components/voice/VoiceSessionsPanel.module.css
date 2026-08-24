@@ -17,8 +17,8 @@
   font-weight: 600;
 }
 .refresh {
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   color: var(--accent);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
@@ -82,7 +82,7 @@
 }
 .row:hover { background: rgba(255, 255, 255, 0.06); }
 .rowActive {
-  background: rgba(201, 168, 76, 0.12);
+  background: rgba(220, 187, 94, 0.12);
   border-color: var(--accent);
 }
 
@@ -169,7 +169,7 @@
   font-size: 12px;
 }
 .turn_user { background: rgba(74, 222, 128, 0.06); }
-.turn_assistant { background: rgba(201, 168, 76, 0.06); }
+.turn_assistant { background: rgba(220, 187, 94, 0.06); }
 .turn_tool { background: rgba(255, 255, 255, 0.03); }
 .turnRole {
   font-size: 10px;

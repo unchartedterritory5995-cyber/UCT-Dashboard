@@ -77,8 +77,8 @@
 .segLongActive:hover:not(:disabled),
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
-  color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 .caretBtn {
@@ -86,7 +86,7 @@
   font-size: 8px;      /* the ▾ glyph renders large for its em box */
   line-height: 14px;   /* keep the caret cell the same height as the segs */
 }
-.caretBtn:hover { color: var(--widget-accent, var(--accent, #c9a84c)); }
+.caretBtn:hover { color: var(--widget-accent, var(--accent, #dcbb5e)); }
 
 /* Sunrise light theme: the vivid dark-theme green/red vanish on a bright
    header — swap to the theme's dark candle palette (the same values the
@@ -166,7 +166,7 @@
   text-transform: uppercase;
   padding: 5px 6px 1px;
 }
-.groupStock { color: var(--menu-accent, #c9a84c); opacity: 0.75; }
+.groupStock { color: var(--menu-accent, #dcbb5e); opacity: 0.75; }
 .groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
 .groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
 
@@ -241,7 +241,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #dcbb5e);
   white-space: nowrap;
 }
 .rowBestPad { flex-shrink: 0; width: 68px; }
@@ -256,6 +256,6 @@
   background: transparent;
 }
 .rowDotOn {
-  background: var(--menu-accent, #c9a84c);
-  box-shadow: 0 0 4px rgba(201, 168, 76, 0.6);
+  background: var(--menu-accent, #dcbb5e);
+  box-shadow: 0 0 4px rgba(220, 187, 94, 0.6);
 }

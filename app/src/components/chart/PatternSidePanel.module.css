@@ -104,7 +104,7 @@
 }
 .dirBullish { background: rgba(60, 184, 104, 0.18); color: var(--gain); }
 .dirBearish { background: rgba(231, 76, 60, 0.18); color: var(--loss); }
-.dirNeutral { background: rgba(201, 168, 76, 0.18); color: var(--accent); }
+.dirNeutral { background: rgba(220, 187, 94, 0.18); color: var(--accent); }
 
 .confidenceWrap {
   flex: 1;
@@ -128,7 +128,7 @@
 }
 .confidenceBarFill {
   height: 100%;
-  background: linear-gradient(90deg, #c9a84c, #f4d77a);
+  background: linear-gradient(90deg, #dcbb5e, #f4d77a);
   transition: width 0.3s ease-out;
 }
 .confidenceValue {
@@ -313,7 +313,7 @@
 }
 .qualityFill {
   height: 100%;
-  background: linear-gradient(90deg, #4ade80, #c9a84c);
+  background: linear-gradient(90deg, #4ade80, #dcbb5e);
   border-radius: 3px;
   transition: width 0.25s ease-out;
 }
@@ -387,8 +387,8 @@
   line-height: 1;
 }
 .feedbackActive {
-  border-color: #c9a84c;
-  background: rgba(201, 168, 76, 0.18);
+  border-color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.18);
   color: var(--accent);
 }
 
@@ -419,7 +419,7 @@
   padding: 9px;
   border: none;
   border-radius: 5px;
-  background: linear-gradient(180deg, #c9a84c 0%, #b08e3a 100%);
+  background: linear-gradient(180deg, #dcbb5e 0%, #b08e3a 100%);
   color: var(--bg);
   font-family: inherit;
   font-size: 11px;

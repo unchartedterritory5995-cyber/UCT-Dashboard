@@ -7,7 +7,7 @@
   gap: 8px;
   padding: 4px 8px;
   font-size: 11px;
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -24,7 +24,7 @@
   border: none; padding: 0; cursor: pointer;
   flex-shrink: 0;
 }
-.colorDotA { background: #c9a84c; }
+.colorDotA { background: #dcbb5e; }
 .colorDotB { background: #60a5fa; }
 .colorDotC { background: #4ade80; }
 .colorDotD { background: #c084fc; }
@@ -55,7 +55,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;
 }
-.popOutBtn:hover { color: var(--ut-gold, #c9a84c); }
+.popOutBtn:hover { color: var(--ut-gold, #dcbb5e); }
 
 /* Fills a popped-out window: the grid inside is viewport-locked the same way the
    main board is, so it needs a definite height to divide into rows rather than
@@ -82,7 +82,7 @@
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   z-index: 9000; display: flex; align-items: center; gap: 10px;
   background: var(--bg-elevated, #0f141b);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   color: var(--text, #e5e7eb);
   border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
@@ -235,9 +235,9 @@
 .chartTab:hover { color: var(--widget-text-strong, var(--text, #e5e7eb)); }
 
 .chartTabActive {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(201, 168, 76, 0.10);
+  background: rgba(220, 187, 94, 0.10);
 }
 
 .chartTabLabel {
@@ -248,7 +248,7 @@
 /* Inline rename input, sized to sit exactly where the label was. */
 .chartTabRename {
   background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--accent, #c9a84c);
+  border: 1px solid var(--accent, #dcbb5e);
   border-radius: 3px;
   color: var(--text, #e5e7eb);
   font: inherit;
@@ -301,9 +301,9 @@
   flex-shrink: 0;
 }
 .chartTabAdd:hover {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* The small color-group dot on an extra tab — mirrors the widget color dot so
@@ -373,7 +373,7 @@
   line-height: 1;
   border-radius: 3px;
 }
-.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #c9a84c); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #dcbb5e); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
 .wtabScroll:disabled { opacity: 0.28; cursor: default; }
 .wtabChip {
   display: inline-flex;
@@ -402,7 +402,7 @@
   letter-spacing: 0.2px;
   color: var(--widget-text-strong, var(--text, #e5e7eb));
   background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   border-radius: 3px;
   padding: 0 3px;
   outline: none;
@@ -413,7 +413,7 @@
 }
 .wtabChipActive {
   color: var(--widget-text-strong, var(--text, #e5e7eb));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
+  background: var(--widget-accent-bg, rgba(220, 187, 94, 0.16));
   border-color: var(--widget-divider-strong, rgba(255, 255, 255, 0.14));
   font-weight: 600;
 }
@@ -442,7 +442,7 @@
   line-height: 1;
   font-weight: 600;
 }
-.wtabAdd:hover { color: var(--ut-gold, #c9a84c); }
+.wtabAdd:hover { color: var(--ut-gold, #dcbb5e); }
 /* Portaled to document.body + positioned `fixed` (inline top/left) so it escapes
    the widget's overflow:hidden and never clips on a short widget. */
 .wtabAddMenu {
@@ -498,9 +498,9 @@
 .tfBtn:hover { color: var(--text, #e5e7eb); border-color: var(--border, #1f2937); }
 
 .tfBtnActive {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 .chartFill {
@@ -607,9 +607,9 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .chartSettingsBtn:hover {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--border, #2e3127);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Breadth-only Line/Candles quick-toggle — a visible labeled pill in the TF bar. */
@@ -637,9 +637,9 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .breadthLineBtn:hover {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 /* No distinct "active" (line-on) styling by design: the button's LABEL already
    flips to CANDLES when line mode is on, so both states share the one look above
@@ -667,9 +667,9 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .viewHoldingsBtn:hover {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
@@ -751,8 +751,8 @@
    picked timeframe. Unselected stays the muted --widget-text above. */
 .sessionBtnActive,
 .sessionBtnActive:hover {
-  color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next
@@ -778,7 +778,7 @@
   padding: 5px 10px;
   border-radius: 7px;
   background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
-  border: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
+  border: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   color: var(--widget-text-strong, #d8d2c2);
   font-size: 11px;
@@ -796,8 +796,8 @@
   width: 7px;
   height: 7px;
   background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
-  border-left: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
-  border-top: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
+  border-left: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
+  border-top: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
   transform: rotate(45deg);
 }
 @keyframes clockPopIn {
@@ -868,7 +868,7 @@
   transform: translateX(-50%);
   z-index: 8;
   background: rgba(10, 11, 9, 0.94);
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   color: var(--text-bright);
   font-size: 12px;
   font-weight: 600;
@@ -1145,7 +1145,7 @@
   border: none; padding: 8px 14px; text-align: left;
   font-size: 11px; cursor: pointer; font-family: inherit;
 }
-.addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #c9a84c); }
+.addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #dcbb5e); }
 
 /* ── Open/Save layout menus ── */
 .menuSection {
@@ -1179,7 +1179,7 @@
   border-radius: 3px; color: var(--text, #e5e7eb); padding: 6px 8px;
   font-size: 11px; font-family: inherit; outline: none;
 }
-.menuInput:focus { border-color: var(--accent, #c9a84c); }
+.menuInput:focus { border-color: var(--accent, #dcbb5e); }
 .menuCheck {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-muted, #9ca3af); cursor: pointer;
@@ -1251,9 +1251,9 @@
    discoverable; while a drag is active EVERY seam shows it so the whole
    split-pane grid is visible as you drag. */
 .seamV:hover,
-.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
 .seamH:hover,
-.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
 
 /* Widget body becomes the container-query root for its embedded child page —
    container queries inside Watchlists / ThemeTrackerPage / Screener
@@ -1278,7 +1278,7 @@
   position: absolute;
   inset: 0;
   z-index: 10;
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   opacity: 0.15;
   border-radius: var(--radius-sm);
   pointer-events: none;
@@ -1337,7 +1337,7 @@
   content: '';
   position: absolute;
   width: 6px; height: 6px;
-  border: 0 solid rgba(201, 168, 76, 0.55);
+  border: 0 solid rgba(220, 187, 94, 0.55);
   transition: border-color 0.12s ease;
 }
 :global(.react-grid-item):hover .rzCorner::after { border-color: var(--accent); }
@@ -1352,7 +1352,7 @@
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   opacity: 0.15;
   border-radius: var(--radius-sm);
   pointer-events: none;
@@ -1500,12 +1500,12 @@
   font-size: 13px; cursor: pointer; font-family: inherit;
   transition: background 0.1s ease, color 0.1s ease;
 }
-.chartCtxItem:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.1)); color: var(--menu-accent, var(--ut-gold, #c9a84c)); }
-.chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #c9a84c)); flex-shrink: 0; }
+.chartCtxItem:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.1)); color: var(--menu-accent, var(--ut-gold, #dcbb5e)); }
+.chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); flex-shrink: 0; }
 .chartCtxAi {
   margin-top: 4px; padding-top: 11px;
   border-top: 1px solid var(--menu-divider, var(--border, #232b36));
-  color: var(--menu-accent, var(--ut-gold, #c9a84c)); font-weight: 600;
+  color: var(--menu-accent, var(--ut-gold, #dcbb5e)); font-weight: 600;
 }
 
 /* ── Transient AI popup (shown only when no AI Search widget is in the layout) ── */
@@ -1514,7 +1514,7 @@
   width: 380px; height: 440px;
   max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
   background: var(--bg, #0b0f14);
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
   overflow: hidden;

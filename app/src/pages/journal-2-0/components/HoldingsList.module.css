@@ -44,7 +44,7 @@
   border-radius: 50%;
   border: 1px solid var(--border, #2a2a2e);
   background: var(--surface-2, #17171a);
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   cursor: pointer;
 }
 

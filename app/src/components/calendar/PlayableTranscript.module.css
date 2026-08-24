@@ -64,8 +64,8 @@
   color: var(--color-text-muted, #8a8f98);
 }
 .followOn {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .hint {
@@ -91,7 +91,7 @@
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .title {
@@ -110,7 +110,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted, #8a8f98);
 }
-.turnJump:hover { color: var(--ut-gold, #c9a84c); }
+.turnJump:hover { color: var(--ut-gold, #dcbb5e); }
 
 .text {
   margin: 0;
@@ -120,15 +120,15 @@
 }
 
 .word { cursor: pointer; }
-.word:hover { background: rgba(201, 168, 76, .16); }
+.word:hover { background: rgba(220, 187, 94, .16); }
 
 /* The spoken word. Reads at a glance while scrolling past. */
 .wordActive {
   cursor: pointer;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border-radius: 2px;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, .35);
+  box-shadow: 0 0 0 2px rgba(220, 187, 94, .35);
 }
 
 @media (max-width: 640px) {

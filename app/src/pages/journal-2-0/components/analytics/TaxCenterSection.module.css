@@ -37,7 +37,7 @@
   cursor: pointer;
 }
 
-.csvBtn:hover:not(:disabled) { border-color: #c9a84c; color: var(--accent); }
+.csvBtn:hover:not(:disabled) { border-color: #dcbb5e; color: var(--accent); }
 .csvBtn:disabled { opacity: 0.5; cursor: default; }
 
 .totalsRow {

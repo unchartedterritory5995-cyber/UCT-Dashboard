@@ -35,7 +35,7 @@
    hashed classes stay untouched. */
 .hero > :first-child {
   border-color: var(--accent);
-  box-shadow: 0 0 22px rgba(201, 168, 76, 0.07);
+  box-shadow: 0 0 22px rgba(220, 187, 94, 0.07);
 }
 
 .rail {

@@ -101,7 +101,7 @@
   opacity: 0.8;
 }
 .chipBtn:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
-.chipBtn:focus-visible { outline: 1px solid rgba(201, 168, 76, 0.9); outline-offset: 1px; }
+.chipBtn:focus-visible { outline: 1px solid rgba(220, 187, 94, 0.9); outline-offset: 1px; }
 
 /* ⛔ THE GAP IS A SAFETY MARGIN, NOT SPACING. This strip is laid out AFTER the
    chip's text node, so every button's absolute x is a function of the width of a

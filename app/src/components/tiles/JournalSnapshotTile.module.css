@@ -6,8 +6,8 @@
 .tileFit {
   height: auto !important;
   background:
-    radial-gradient(115% 42% at 50% 0%, rgba(201, 168, 76, 0.15), transparent 62%),
-    linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.04)),
+    radial-gradient(115% 42% at 50% 0%, rgba(220, 187, 94, 0.15), transparent 62%),
+    linear-gradient(180deg, rgba(220, 187, 94, 0.07), rgba(220, 187, 94, 0.04)),
     var(--bg-surface) !important;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .bodyLink:focus-visible {
-  outline: 2px solid var(--ut-gold, #c9a84c);
+  outline: 2px solid var(--ut-gold, #dcbb5e);
   outline-offset: 2px;
 }
 
@@ -51,7 +51,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 2px 4px 13px;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.20);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.20);
 }
 
 .heroValue {
@@ -61,7 +61,7 @@
   color: var(--text-bright);
   letter-spacing: -0.6px;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 14px rgba(201, 168, 76, 0.12);
+  text-shadow: 0 1px 14px rgba(220, 187, 94, 0.12);
 }
 
 .liveBadge {
@@ -131,7 +131,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 7px 4px;
-  border-top: 1px solid rgba(201, 168, 76, 0.12);
+  border-top: 1px solid rgba(220, 187, 94, 0.12);
 }
 
 .row:first-child {
@@ -231,7 +231,7 @@
   justify-content: space-between;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(201, 168, 76, 0.16);
+  border-top: 1px solid rgba(220, 187, 94, 0.16);
 }
 
 .more {
@@ -247,7 +247,7 @@
 }
 
 .bodyLink:hover .openJournal {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── States ───────────────────────────────────────────────────────────── */
@@ -263,7 +263,7 @@
   align-items: flex-start;
   gap: 7px;
   padding: 18px 16px;
-  background: rgba(201, 168, 76, 0.04);
+  background: rgba(220, 187, 94, 0.04);
   border: 1px dashed var(--border);
   border-radius: var(--radius-md);
 }
@@ -304,7 +304,7 @@
   font-weight: 700;
   text-decoration: none;
   color: var(--bg);
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   border-radius: 5px;
   transition: opacity 120ms ease;
 }
@@ -321,7 +321,7 @@
 }
 
 .emptySecondary:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── Connect CTA (not-yet-connected sell point) ───────────────────────── */
@@ -333,9 +333,9 @@
   gap: 8px;
   padding: 22px 18px;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(201, 168, 76, 0.10), transparent 70%),
+    radial-gradient(120% 90% at 50% 0%, rgba(220, 187, 94, 0.10), transparent 70%),
     rgba(255, 255, 255, 0.015);
-  border: 1px solid rgba(201, 168, 76, 0.28);
+  border: 1px solid rgba(220, 187, 94, 0.28);
   border-radius: 10px;
 }
 
@@ -362,7 +362,7 @@
   position: absolute;
   inset: -14px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(201, 168, 76, 0.30), rgba(201, 168, 76, 0) 68%);
+  background: radial-gradient(circle, rgba(220, 187, 94, 0.30), rgba(220, 187, 94, 0) 68%);
   z-index: 0;
 }
 
@@ -380,7 +380,7 @@
   font-weight: 800;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .ctaTitle {
@@ -456,15 +456,15 @@
   font-weight: 800;
   text-decoration: none;
   color: var(--bg);
-  background: linear-gradient(180deg, #e6c976 0%, #c9a84c 100%);
+  background: linear-gradient(180deg, #e6c976 0%, #dcbb5e 100%);
   border-radius: var(--radius-lg);
-  box-shadow: 0 6px 18px rgba(201, 168, 76, 0.26);
+  box-shadow: 0 6px 18px rgba(220, 187, 94, 0.26);
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }
 
 .ctaButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 9px 24px rgba(201, 168, 76, 0.38);
+  box-shadow: 0 9px 24px rgba(220, 187, 94, 0.38);
   filter: brightness(1.04);
 }
 
@@ -491,14 +491,14 @@
 }
 
 .ctaInline:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .ctaTagline {
   margin-top: 12px;
   padding-top: 11px;
   width: 80%;
-  border-top: 1px solid rgba(201, 168, 76, 0.18);
+  border-top: 1px solid rgba(220, 187, 94, 0.18);
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-size: 12px;

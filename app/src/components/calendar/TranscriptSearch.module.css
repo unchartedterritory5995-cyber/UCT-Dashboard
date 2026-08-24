@@ -24,7 +24,7 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .input::placeholder { color: var(--text-muted, #8b8678); }
@@ -49,7 +49,7 @@
   cursor: pointer;
 }
 
-.navBtn:hover:not(:disabled) { border-color: var(--ut-gold, #c9a84c); }
+.navBtn:hover:not(:disabled) { border-color: var(--ut-gold, #dcbb5e); }
 .navBtn:disabled { opacity: 0.35; cursor: default; }
 
 .filterToggle {
@@ -66,9 +66,9 @@
 /* The stepped-to hit. Every match is marked; exactly one is the cursor, so it
    must be separable at a glance from the others. */
 .kwActive {
-  background: var(--ut-gold, #c9a84c) !important;
+  background: var(--ut-gold, #dcbb5e) !important;
   color: var(--bg) !important;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.35);
+  box-shadow: 0 0 0 2px rgba(220, 187, 94, 0.35);
   border-radius: 2px;
 }
 
@@ -86,12 +86,12 @@
 }
 
 @keyframes sourceFlash {
-  0%, 25% { background: rgba(201, 168, 76, 0.22); }
+  0%, 25% { background: rgba(220, 187, 94, 0.22); }
   100%    { background: transparent; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold, #c9a84c); }
+  :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold, #dcbb5e); }
 }
 
 .quarterSelect {
@@ -105,17 +105,17 @@
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-.quarterSelect:focus { outline: none; border-color: var(--ut-gold, #c9a84c); }
+.quarterSelect:focus { outline: none; border-color: var(--ut-gold, #dcbb5e); }
 
 .jumpChip {
   min-height: var(--tap-min, 44px);
   padding: 0 10px;
   font-size: 11px;
-  color: var(--ut-gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
+  border: 1px solid rgba(220, 187, 94, 0.3);
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
 }
-.jumpChip:hover { background: rgba(201, 168, 76, 0.16); }
+.jumpChip:hover { background: rgba(220, 187, 94, 0.16); }

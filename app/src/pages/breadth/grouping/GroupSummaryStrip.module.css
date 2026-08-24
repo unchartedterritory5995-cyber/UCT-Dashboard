@@ -4,8 +4,8 @@
   flex-wrap: wrap;
   gap: 6px;
   padding: 6px 10px;
-  border-bottom: 1px solid rgba(201,168,76,0.18);
-  background: rgba(201,168,76,0.04);
+  border-bottom: 1px solid rgba(220, 187, 94,0.18);
+  background: rgba(220, 187, 94,0.04);
 }
 .lead {
   font-family: var(--font-mono);
@@ -20,19 +20,19 @@
   align-items: center;
   gap: 6px;
   padding: 2px 8px;
-  border: 1px solid rgba(201,168,76,0.22);
+  border: 1px solid rgba(220, 187, 94,0.22);
   border-radius: 10px;
-  background: rgba(201,168,76,0.06);
+  background: rgba(220, 187, 94,0.06);
   cursor: pointer;
   font-family: var(--font-mono);
   transition: background 0.15s;
 }
-.chip:hover { background: rgba(201,168,76,0.14); }
+.chip:hover { background: rgba(220, 187, 94,0.14); }
 .name { font-size: 11px; color: var(--text, #e0e0e0); }
 .count {
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
-  background: rgba(201,168,76,0.14);
+  color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94,0.14);
   border-radius: var(--radius-lg);
   padding: 0 5px;
   min-width: 16px;

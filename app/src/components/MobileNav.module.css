@@ -11,7 +11,7 @@
   padding: 0 6px;
   font-size: 10px;
   font-weight: 700;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border-radius: 9px;
   letter-spacing: 0.5px;
@@ -212,7 +212,7 @@
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1.5px solid rgba(201,168,76,0.3);
+  border: 1.5px solid rgba(220, 187, 94,0.3);
   display: flex;
   align-items: center;
   justify-content: center;

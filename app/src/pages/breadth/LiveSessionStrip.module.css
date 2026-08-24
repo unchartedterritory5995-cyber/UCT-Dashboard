@@ -9,10 +9,10 @@
   flex-wrap: wrap;
   margin: 0 0 10px;
   padding: 8px 14px;
-  border: 1px solid rgba(201, 168, 76, 0.28);
-  border-left: 2px solid var(--ut-gold, #c9a84c);
+  border: 1px solid rgba(220, 187, 94, 0.28);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-md);
-  background: rgba(201, 168, 76, 0.055);
+  background: rgba(220, 187, 94, 0.055);
 }
 
 .stamp {
@@ -21,7 +21,7 @@
   gap: 7px;
   font: 600 12px 'Instrument Sans', sans-serif;
   letter-spacing: 0.4px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -30,7 +30,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   animation: stripBeat 2.4s ease-out infinite;
   flex: none;
 }
@@ -74,9 +74,9 @@
 }
 
 @keyframes stripBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
 }
 
 /* On a phone the strip would push the table off the first screen, so it drops

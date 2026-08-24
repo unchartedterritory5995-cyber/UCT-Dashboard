@@ -47,7 +47,7 @@
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 .sbHeaderBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
-.sbHeaderBtnActive { color: var(--accent); background: rgba(201, 168, 76, 0.14); }
+.sbHeaderBtnActive { color: var(--accent); background: rgba(220, 187, 94, 0.14); }
 
 /* ── Search view (replaces the tree when Search mode is active) ────────────── */
 .searchView { display: flex; flex-direction: column; gap: 8px; }
@@ -69,7 +69,7 @@
   color: var(--color-text-primary, #e8eaed);
   font-size: 13px;
 }
-.searchInput:focus { outline: none; border-color: #c9a84c; }
+.searchInput:focus { outline: none; border-color: #dcbb5e; }
 .searchClear {
   position: absolute;
   right: 6px;
@@ -140,7 +140,7 @@
   text-align: left;
 }
 .row:hover { background: var(--color-surface-hover, #1c2028); }
-.rowActive { background: rgba(201, 168, 76, 0.15); color: var(--accent); }
+.rowActive { background: rgba(220, 187, 94, 0.15); color: var(--accent); }
 .count { font-size: 11px; color: var(--color-text-muted, #98a0aa); }
 .addBtn {
   margin-top: 4px;
@@ -152,11 +152,11 @@
   cursor: pointer;
   font-size: 12px;
 }
-.addBtn:hover { border-color: #c9a84c; color: var(--accent); }
+.addBtn:hover { border-color: #dcbb5e; color: var(--accent); }
 .editInput {
   width: 100%;
   background: var(--color-surface, #14171c);
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-md);
   padding: 5px 8px;
   color: var(--text-bright);

@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.35);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.35);
   padding-bottom: 12px;
 }
 
@@ -113,7 +113,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  border-top: 1px solid rgba(201, 168, 76, 0.35);
+  border-top: 1px solid rgba(220, 187, 94, 0.35);
   padding-top: 18px;
   text-align: center;
 }
@@ -125,13 +125,13 @@
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-pill);
   padding: 8px 18px;
   margin-top: 6px;
 }
 
-.cta:hover { background: rgba(201, 168, 76, 0.1); }
+.cta:hover { background: rgba(220, 187, 94, 0.1); }
 
 .missing {
   margin: auto;

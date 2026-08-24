@@ -57,7 +57,7 @@
 }
 .pillOn {
   color: var(--bw-accent, var(--ut-gold));
-  background: var(--bw-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--bw-accent-bg, rgba(220, 187, 94, 0.12));
   border-color: var(--accent);
 }
 .asOf {
@@ -95,7 +95,7 @@
 .gearBtnActive {
   opacity: 1;
   color: var(--bw-accent, var(--ut-gold));
-  background: var(--bw-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--bw-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 .hint {
@@ -230,7 +230,7 @@
   transition: color 0.1s, background 0.1s, opacity 0.1s;
 }
 .iconBtn:hover { opacity: 1; color: var(--bw-accent, var(--ut-gold)); background: var(--bw-hover, rgba(255, 255, 255, 0.06)); }
-.iconBtnActive { opacity: 1; color: var(--bw-accent, var(--ut-gold)); background: var(--bw-accent-bg, rgba(201, 168, 76, 0.12)); }
+.iconBtnActive { opacity: 1; color: var(--bw-accent, var(--ut-gold)); background: var(--bw-accent-bg, rgba(220, 187, 94, 0.12)); }
 
 /* ── Per-tile remove ✕ (appears on tile hover, top-right) ── */
 .hmTileX {

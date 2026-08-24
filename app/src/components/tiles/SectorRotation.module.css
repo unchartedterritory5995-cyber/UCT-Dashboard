@@ -12,9 +12,9 @@
 }
 .per:hover { color: var(--text); }
 .perActive {
-  color: var(--ut-gold, #c9a84c);
-  border-color: color-mix(in srgb, var(--ut-gold, #c9a84c) 45%, transparent);
-  background: rgba(201, 168, 76, 0.1);
+  color: var(--ut-gold, #dcbb5e);
+  border-color: color-mix(in srgb, var(--ut-gold, #dcbb5e) 45%, transparent);
+  background: rgba(220, 187, 94, 0.1);
 }
 
 .list { display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }

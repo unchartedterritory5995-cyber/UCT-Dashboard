@@ -14,8 +14,8 @@
 }
 .card:hover {
   transform: translateY(-2px);
-  border-color: #c9a84c;
-  box-shadow: 0 6px 20px rgba(201, 168, 76, 0.18);
+  border-color: #dcbb5e;
+  box-shadow: 0 6px 20px rgba(220, 187, 94, 0.18);
 }
 .body {
   flex: 1;

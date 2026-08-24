@@ -27,9 +27,9 @@
 }
 
 .trigger:hover {
-  color: var(--ut-gold, #c9a84c);
-  border-color: var(--ut-gold, #c9a84c);
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.1));
+  color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.1));
 }
 
 .trigger:focus-visible {
@@ -88,7 +88,7 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .evidence {
@@ -132,14 +132,14 @@
 }
 
 .save {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.14));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.14));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .save:hover:not(:disabled) {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.22));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.22));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .save:disabled {

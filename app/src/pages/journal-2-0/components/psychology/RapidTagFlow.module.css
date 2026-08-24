@@ -35,7 +35,7 @@
 
 .progressFill {
   height: 100%;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-pill);
   transition: width 0.25s ease;
 }
@@ -169,14 +169,14 @@
 }
 
 .primaryBtn {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .primaryBtn:hover:not(:disabled) {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.2));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.2));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .secondaryBtn:disabled,

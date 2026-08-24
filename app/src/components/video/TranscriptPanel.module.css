@@ -6,8 +6,8 @@
   align-items: center;
   gap: 8px;
   padding: 7px 13px;
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  background: rgba(220, 187, 94, 0.08);
   color: var(--accent);
   border-radius: var(--radius-pill);
   cursor: pointer;
@@ -16,10 +16,10 @@
   font-weight: 600;
 }
 .toggle:hover {
-  background: rgba(201, 168, 76, 0.16);
+  background: rgba(220, 187, 94, 0.16);
 }
 .toggle:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 .chevron {
@@ -51,7 +51,7 @@
   color: var(--text-secondary, #a8a290);
 }
 .search:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 1px;
 }
 .count {
@@ -71,8 +71,8 @@
   gap: 6px;
 }
 .txBtn {
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  background: rgba(220, 187, 94, 0.06);
   color: var(--accent);
   font: inherit;
   font-size: 11px;
@@ -81,8 +81,8 @@
   border-radius: var(--radius-pill);
   cursor: pointer;
 }
-.txBtn:hover { background: rgba(201, 168, 76, 0.16); }
-.txBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
+.txBtn:hover { background: rgba(220, 187, 94, 0.16); }
+.txBtn:focus-visible { outline: 2px solid #dcbb5e; outline-offset: 2px; }
 .list {
   max-height: 320px;
   overflow-y: auto;
@@ -107,11 +107,11 @@
   background: rgba(255, 255, 255, 0.05);
 }
 .cueActive {
-  background: rgba(201, 168, 76, 0.12);
-  box-shadow: inset 2px 0 0 #c9a84c;
+  background: rgba(220, 187, 94, 0.12);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .cue:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: -1px;
 }
 .cueTime {
@@ -128,7 +128,7 @@
   color: var(--text-primary, #f3efe2);
 }
 .mark {
-  background: rgba(201, 168, 76, 0.32);
+  background: rgba(220, 187, 94, 0.32);
   color: var(--text-bright);
   border-radius: 3px;
   padding: 0 1px;

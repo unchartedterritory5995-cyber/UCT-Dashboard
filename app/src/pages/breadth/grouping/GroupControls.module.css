@@ -6,7 +6,7 @@
 }
 .toggle {
   display: inline-flex;
-  border: 1px solid rgba(201,168,76,0.4);
+  border: 1px solid rgba(220, 187, 94,0.4);
   border-radius: var(--radius-sm, 4px);
   overflow: hidden;
 }
@@ -21,11 +21,11 @@
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
-.btn + .btn { border-left: 1px solid rgba(201,168,76,0.3); }
+.btn + .btn { border-left: 1px solid rgba(220, 187, 94,0.3); }
 .btn:hover { color: var(--text, #e0e0e0); }
 .active {
-  background: rgba(201,168,76,0.16);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94,0.16);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* Phone — segmented toggle buttons get a ≥44px tap height. */

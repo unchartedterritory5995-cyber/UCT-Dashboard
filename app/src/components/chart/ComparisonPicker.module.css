@@ -52,7 +52,7 @@
   cursor: not-allowed;
 }
 .addBtn {
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border: none;
   padding: 6px 14px;

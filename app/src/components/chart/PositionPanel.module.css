@@ -75,7 +75,7 @@
 .priceGroup input:focus,
 .configGroup input:focus {
   outline: none;
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 
 .priceLabel {

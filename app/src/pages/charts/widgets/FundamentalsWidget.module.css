@@ -125,7 +125,7 @@
 .gearBtnActive {
   opacity: 1;
   color: var(--fw-accent, var(--ut-gold));
-  background: var(--fw-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--fw-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 /* ── Annual table ───────────────────────────────────────────── */

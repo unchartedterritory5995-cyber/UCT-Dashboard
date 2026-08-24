@@ -51,8 +51,8 @@
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .btn:disabled {

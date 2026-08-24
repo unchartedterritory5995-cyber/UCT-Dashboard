@@ -2344,8 +2344,8 @@
 }
 
 @keyframes calCardPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); border-color: var(--cal-line); }
-  50%      { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.35); border-color: var(--cal-gold); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); border-color: var(--cal-line); }
+  50%      { box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.35); border-color: var(--cal-gold); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2494,10 +2494,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cntH1 { background: rgba(201, 168, 76, 0.10); }
-.cntH2 { background: rgba(201, 168, 76, 0.22); }
-.cntH3 { background: rgba(201, 168, 76, 0.38); color: var(--bg); }
-.cntH4 { background: rgba(201, 168, 76, 0.60); color: var(--bg); }
+.cntH1 { background: rgba(220, 187, 94, 0.10); }
+.cntH2 { background: rgba(220, 187, 94, 0.22); }
+.cntH3 { background: rgba(220, 187, 94, 0.38); color: var(--bg); }
+.cntH4 { background: rgba(220, 187, 94, 0.60); color: var(--bg); }
 
 /* ── Flagship 1c: zero-data compact cluster ("Also reporting") ───────────── */
 
@@ -2787,7 +2787,7 @@
 
 /* Session color spine (WSE grammar): gold = pre-market, blue = after-close,
    muted = TBD. A starred "mine" row upgrades its spine to the brighter gold. */
-.dtRowBmo { box-shadow: inset 3px 0 0 rgba(201, 168, 76, 0.55); }
+.dtRowBmo { box-shadow: inset 3px 0 0 rgba(220, 187, 94, 0.55); }
 .dtRowAmc { box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.55); }
 .dtRowTbd { box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.12); }
 .dtRowMine { box-shadow: inset 3px 0 0 var(--cal-gold); }
@@ -3108,8 +3108,8 @@
   animation: calReporting 1.3s ease-in-out infinite;
 }
 @keyframes calReporting {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
-  50%      { box-shadow: 0 0 0 4px rgba(201, 168, 76, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(220, 187, 94, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .reportingChip { animation: none; }

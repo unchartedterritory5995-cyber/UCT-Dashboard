@@ -22,7 +22,7 @@
 }
 .rangeDot {
   position: absolute; top: -2px; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--ut-gold, #c9a84c); transform: translateX(-50%);
+  background: var(--ut-gold, #dcbb5e); transform: translateX(-50%);
 }
 .rangeCap { font-size: 10.5px; color: var(--color-text-muted, #8a8f98); }
 

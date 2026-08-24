@@ -37,7 +37,7 @@
 }
 .sym {
   font-weight: 600;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   min-width: 56px;
 }
 .note {

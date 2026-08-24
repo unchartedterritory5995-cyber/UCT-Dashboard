@@ -6,9 +6,9 @@
 .report {
   padding: 26px 24px 22px;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(201, 168, 76, 0.09), transparent 60%),
+    radial-gradient(120% 90% at 50% 0%, rgba(220, 187, 94, 0.09), transparent 60%),
     var(--bg-surface);
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.4));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
   border-radius: var(--radius-2xl);
   color: var(--text-bright);
 }
@@ -33,8 +33,8 @@
   height: 44px;
   margin-bottom: 6px;
   border-radius: 50%;
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.4));
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
 }
 
 .eyebrow {
@@ -100,7 +100,7 @@
   font-size: 22px;
   font-weight: 700;
   line-height: 1.15;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-variant-numeric: tabular-nums;
   word-break: break-word;
 }
@@ -183,14 +183,14 @@
 }
 
 .ctaPrimary {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.14));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.14));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .ctaPrimary:hover {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.22));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.22));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .ctaGhost {
@@ -200,7 +200,7 @@
 }
 
 .ctaGhost:hover {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
   color: var(--text-bright);
 }
 

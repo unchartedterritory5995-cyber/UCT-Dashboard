@@ -17,12 +17,12 @@
   min-width: 0;
 }
 .card:hover {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
   transform: translateY(-1px);
-  box-shadow: 0 4px 18px rgba(201, 168, 76, 0.08);
+  box-shadow: 0 4px 18px rgba(220, 187, 94, 0.08);
 }
 .card:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 1px;
 }
 
@@ -135,9 +135,9 @@
   font-weight: 700;
   letter-spacing: 0.6px;
   padding: 2px 6px;
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-sm);
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   color: var(--accent);
   flex-shrink: 0;
   font-family: var(--font-mono);

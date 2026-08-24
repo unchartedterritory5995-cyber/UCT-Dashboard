@@ -65,7 +65,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-gold, #c9a84c);
+  color: var(--color-gold, #dcbb5e);
   font-size: inherit;
   font-family: inherit;
   cursor: pointer;
@@ -251,7 +251,7 @@
   transition: color 0.15s;
 }
 .colLabelClickable:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 .colLabelCollapsed {
   width: 18px;
@@ -395,7 +395,7 @@
 }
 .scoreGreen { color: var(--ut-green-bright, #4ade80); }
 .scoreRed   { color: var(--loss, #f87171); }
-.scoreAmber { color: var(--ut-gold, #c9a84c); }
+.scoreAmber { color: var(--ut-gold, #dcbb5e); }
 .scoreBar {
   width: 100px;
   height: 6px;
@@ -427,7 +427,7 @@
 /* Row phase — left border color indicates market regime for that day */
 .phaseGreen  { border-left: 3px solid rgba(74, 222, 128, 0.5); }
 .phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }
-.phaseAmber  { border-left: 3px solid rgba(201, 168, 76, 0.3); }
+.phaseAmber  { border-left: 3px solid rgba(220, 187, 94, 0.3); }
 
 /* ── Drillable cells ─────────────────────────────────────────────────────── */
 .drillable {
@@ -438,8 +438,8 @@
   text-underline-offset: 2px;
 }
 .drillable:hover {
-  text-decoration-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  text-decoration-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── Drill modal ─────────────────────────────────────────────────────────── */
@@ -517,21 +517,21 @@
   font-family: var(--font-mono);
   font-size: 11px;
   background: transparent;
-  border: 1px solid rgba(201,168,76,0.4);
-  color: var(--ut-gold, #c9a84c);
+  border: 1px solid rgba(220, 187, 94,0.4);
+  color: var(--ut-gold, #dcbb5e);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
-.copyBtn:hover { background: rgba(201,168,76,0.12); }
-.copyBtn:active { background: rgba(201,168,76,0.2); }
+.copyBtn:hover { background: rgba(220, 187, 94,0.12); }
+.copyBtn:active { background: rgba(220, 187, 94,0.2); }
 
 /* ── Drill view toggle (List | Grouped) ── */
 .drillViewToggle {
   display: inline-flex;
-  border: 1px solid rgba(201,168,76,0.4);
+  border: 1px solid rgba(220, 187, 94,0.4);
   border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
@@ -547,20 +547,20 @@
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
-.drillViewBtn + .drillViewBtn { border-left: 1px solid rgba(201,168,76,0.3); }
+.drillViewBtn + .drillViewBtn { border-left: 1px solid rgba(220, 187, 94,0.3); }
 .drillViewBtn:hover { color: var(--text, #e0e0e0); }
 .drillViewBtnActive {
-  background: rgba(201,168,76,0.16);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94,0.16);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── Industry group header rows (Grouped view) ── */
 .drillGroupRow { cursor: pointer; }
-.drillGroupRow:hover .drillGroupCell { background: rgba(201,168,76,0.10); }
+.drillGroupRow:hover .drillGroupCell { background: rgba(220, 187, 94,0.10); }
 .drillGroupCell {
-  background: rgba(201,168,76,0.06);
-  border-top: 1px solid rgba(201,168,76,0.22);
-  border-bottom: 1px solid rgba(201,168,76,0.22);
+  background: rgba(220, 187, 94,0.06);
+  border-top: 1px solid rgba(220, 187, 94,0.22);
+  border-bottom: 1px solid rgba(220, 187, 94,0.22);
   padding: 5px 10px;
   position: sticky;
   top: 0;
@@ -569,7 +569,7 @@
 .drillGroupCaret {
   display: inline-block;
   width: 12px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-size: 10px;
 }
 .drillGroupName {
@@ -586,8 +586,8 @@
   padding: 0 6px;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
-  background: rgba(201,168,76,0.14);
+  color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94,0.14);
   border-radius: var(--radius-lg);
   text-align: center;
 }
@@ -639,7 +639,7 @@
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   letter-spacing: 1px;
 }
 .drillChartName {
@@ -679,7 +679,7 @@
 }
 .drillChartTabActive {
   color: var(--accent);
-  background: rgba(201,168,76,0.12);
+  background: rgba(220, 187, 94,0.12);
   border-color: var(--accent);
 }
 .drillChartFrame {
@@ -708,8 +708,8 @@
 }
 /* Selected row — gold ring, overrides heat map */
 .drillRowSelected {
-  background: rgba(201, 168, 76, 0.15) !important;
-  outline: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(220, 187, 94, 0.15) !important;
+  outline: 1px solid rgba(220, 187, 94, 0.4);
   outline-offset: -1px;
   cursor: pointer;
 }
@@ -806,7 +806,7 @@ tbody tr { cursor: pointer; }
 .drillTdVolHigh {
   padding: 4px 0 4px 10px;
   text-align: right;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -1022,9 +1022,9 @@ tbody tr { cursor: pointer; }
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--ut-gold, #c9a84c);
-  background: rgba(201,168,76,0.12);
-  border: 1px solid rgba(201,168,76,0.3);
+  color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94,0.12);
+  border: 1px solid rgba(220, 187, 94,0.3);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
 }
@@ -1081,9 +1081,9 @@ tbody tr { cursor: pointer; }
 .hmScorePhase {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.25);
+  color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94, 0.1);
+  border: 1px solid rgba(220, 187, 94, 0.25);
   border-radius: var(--radius-sm);
   padding: 2px 8px;
   letter-spacing: 0.5px;
@@ -1097,7 +1097,7 @@ tbody tr { cursor: pointer; }
   z-index: 9999;
   pointer-events: none;
   background: rgba(10, 10, 10, 0.96);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   display: flex;
@@ -1114,7 +1114,7 @@ tbody tr { cursor: pointer; }
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 .hmTipValue {
   font-family: var(--font-mono);
@@ -1341,7 +1341,7 @@ tbody tr { cursor: pointer; }
   font-family: var(--font-sans);
   font-size: 13px;
   color: var(--text-secondary, #b0b0b0);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
   border-left: 3px solid var(--ut-gold);
   padding: 10px 14px;
   margin-bottom: 18px;
@@ -1388,7 +1388,7 @@ tbody tr { cursor: pointer; }
   font-size: 12px;
   font-weight: 600;
   color: var(--ut-gold);
-  background: rgba(201, 168, 76, 0.12);
+  background: rgba(220, 187, 94, 0.12);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
 }
@@ -1525,7 +1525,7 @@ tbody tr { cursor: pointer; }
 }
 .drillFlagBtn:hover { opacity: 1; background: var(--bg-hover, rgba(255,255,255,0.05)); }
 .drillFlagBtnActive {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   border-color: rgba(212, 170, 80, 0.4);
   background: rgba(212, 170, 80, 0.1);
   opacity: 1;
@@ -1539,7 +1539,7 @@ tbody tr { cursor: pointer; }
   border-radius: var(--radius-sm);
   animation: flagFade 1.5s ease-in-out forwards;
 }
-.flagToastAdded { color: var(--ut-gold, #c9a84c); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
+.flagToastAdded { color: var(--ut-gold, #dcbb5e); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
 .flagToastRemoved { color: var(--text-muted, #777); background: var(--bg-elevated, #1a1a1a); border: 1px solid var(--border, rgba(255,255,255,0.08)); }
 @keyframes flagFade {
   0%   { opacity: 0; transform: translateY(-3px); }
@@ -1561,16 +1561,16 @@ tbody tr { cursor: pointer; }
    row rendered every cell neutral while the row below it was fully coloured.
    Liveness is carried by the date cell and a hairline instead. */
 .liveRow td {
-  border-top: 1px solid rgba(201, 168, 76, 0.30);
+  border-top: 1px solid rgba(220, 187, 94, 0.30);
   border-bottom-color: var(--accent);
 }
 .liveRow .dateCell {
-  background: rgba(201, 168, 76, 0.09);
-  box-shadow: inset 2px 0 0 var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.09);
+  box-shadow: inset 2px 0 0 var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 .table tbody tr.liveRow:hover .dateCell {
-  background: rgba(201, 168, 76, 0.14);
+  background: rgba(220, 187, 94, 0.14);
 }
 
 .liveStamp {
@@ -1586,16 +1586,16 @@ tbody tr { cursor: pointer; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #c9a84c);
-  box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.55);
+  background: var(--ut-gold, #dcbb5e);
+  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
   animation: liveBeat 2.4s ease-out infinite;
   flex: none;
 }
 
 @keyframes liveBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
 }
 
 /* A value carried from last night is NOT a live reading. Same treatment as a

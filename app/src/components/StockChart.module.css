@@ -498,9 +498,9 @@
   top: 8px;
   left: 12px;
   z-index: 100;
-  background: rgba(201, 168, 76, 0.18);
-  border: 1px solid var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.18);
+  border: 1px solid var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
   font-size: 11px;
   font-weight: 600;
@@ -508,13 +508,13 @@
   border-radius: var(--radius-sm);
   letter-spacing: 1.5px;
   pointer-events: none;
-  box-shadow: 0 0 8px rgba(201, 168, 76, 0.25);
+  box-shadow: 0 0 8px rgba(220, 187, 94, 0.25);
   animation: replay-pulse 2.5s ease-in-out infinite;
 }
 
 @keyframes replay-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(201, 168, 76, 0.25); }
-  50% { box-shadow: 0 0 14px rgba(201, 168, 76, 0.55); }
+  0%, 100% { box-shadow: 0 0 8px rgba(220, 187, 94, 0.25); }
+  50% { box-shadow: 0 0 14px rgba(220, 187, 94, 0.55); }
 }
 
 /* Stale-feed indicator (P2-7): pulses amber when SSE backend reports the
@@ -650,8 +650,8 @@
 .scaleToggleActive,
 .scaleToggleActive:hover {
   opacity: 1;
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.2));
-  color: var(--accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.2));
+  color: var(--accent, #dcbb5e);
 }
 
 :global([data-charts-theme='sunrise']) .scaleToggle {

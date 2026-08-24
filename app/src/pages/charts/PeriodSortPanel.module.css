@@ -36,8 +36,8 @@
 }
 .header:active { cursor: grabbing; }
 /* Clickable colour-code dot — cycles the group (A/B/C/D/N) like the standard widget. */
-.colorDot { width: 11px; height: 11px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
-.colorDot:hover { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.25); }
+.colorDot { width: 11px; height: 11px; border-radius: 50%; background: #dcbb5e; flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
+.colorDot:hover { box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.25); }
 /* Six-dot drag grip (pure CSS, no icon dependency). */
 .grip {
   width: 8px;
@@ -75,7 +75,7 @@
   border-radius: var(--radius-sm);
   padding: 0;
 }
-.iconBtn:hover { color: var(--ut-gold, #c9a84c); }
+.iconBtn:hover { color: var(--ut-gold, #dcbb5e); }
 .close { color: var(--text-muted, #8c8674); }
 .close:hover { color: var(--text-bright, #e0dac8); }
 
@@ -95,8 +95,8 @@
   bottom: 3px;
   width: 6px;
   height: 6px;
-  border-right: 2px solid rgba(201, 168, 76, 0.55);
-  border-bottom: 2px solid rgba(201, 168, 76, 0.55);
+  border-right: 2px solid rgba(220, 187, 94, 0.55);
+  border-bottom: 2px solid rgba(220, 187, 94, 0.55);
 }
 .corner:hover::after { border-right-color: var(--accent); border-bottom-color: var(--accent); }
 .cornerSE { right: 0; bottom: 0; cursor: se-resize; }
@@ -188,7 +188,7 @@
 .sortBtn {
   border: none;
   background: transparent;
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   font: inherit;
   font-size: 10.5px;
   text-transform: uppercase;
@@ -264,7 +264,7 @@
 .cfgRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .cfgLabel { color: var(--text-bright, #e0dac8); font-weight: 500; }
 .cfgReplay { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-bright, #e0dac8); font-weight: 500; }
-.cfgReplay input { accent-color: var(--accent, #c9a84c); width: 15px; height: 15px; cursor: pointer; }
+.cfgReplay input { accent-color: var(--accent, #dcbb5e); width: 15px; height: 15px; cursor: pointer; }
 .cfgReplayHint { color: var(--text-muted, #8c8674); font-weight: 400; font-size: 11px; }
 .cfgDate {
   background: var(--bg-surface, #1a1c17);
@@ -275,7 +275,7 @@
   padding: 5px 8px;
   /* Native picker follows the theme + uses the brand gold for the selected day. */
   color-scheme: dark;
-  accent-color: var(--accent, #c9a84c);
+  accent-color: var(--accent, #dcbb5e);
 }
 :global([data-theme='light']) .cfgDate { color-scheme: light; }
 .cfgSelect {

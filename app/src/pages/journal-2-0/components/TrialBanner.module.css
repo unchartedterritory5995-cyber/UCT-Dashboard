@@ -6,8 +6,8 @@
   margin: 0 0 12px;
   padding: 8px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(201, 168, 76, 0.28);
-  background: rgba(201, 168, 76, 0.07);
+  border: 1px solid rgba(220, 187, 94, 0.28);
+  background: rgba(220, 187, 94, 0.07);
   color: var(--color-text, #e4e6ea);
   font-size: 13px;
   line-height: 1.3;
@@ -16,7 +16,7 @@
 }
 .banner:hover {
   border-color: var(--accent);
-  background: rgba(201, 168, 76, 0.11);
+  background: rgba(220, 187, 94, 0.11);
 }
 .mark {
   display: inline-flex;

@@ -40,7 +40,7 @@
   font-size: calc(10px * var(--wl-font-scale, 1));
   font-weight: 700;
   color: var(--wl-accent, var(--ut-gold));
-  background: var(--wl-accent-bg, rgba(201, 168, 76, 0.14));
+  background: var(--wl-accent-bg, rgba(220, 187, 94, 0.14));
   border-radius: 10px;
   padding: 1px 7px;
   min-width: 16px;

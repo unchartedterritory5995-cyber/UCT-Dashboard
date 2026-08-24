@@ -27,7 +27,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .horizon {
@@ -60,7 +60,7 @@
 .quote {
   margin: 0;
   padding: 4px 0 4px 10px;
-  border-left: 2px solid var(--ut-gold, #c9a84c);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--text, #e8e6df);
@@ -78,7 +78,7 @@
   margin-left: 8px;
   padding: 0;
   font-size: 10.5px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   background: none;
   border: none;
   cursor: pointer;

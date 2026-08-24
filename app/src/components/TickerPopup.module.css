@@ -72,7 +72,7 @@
 .switchWrap { position: relative; }
 .switchInput {
   width: 148px;
-  border: 1px solid #c9a84c55;
+  border: 1px solid #dcbb5e55;
   border-radius: var(--radius-md);
   padding: 6px 11px;
   font-family: var(--font-sans);
@@ -85,7 +85,7 @@
   transition: border-color 0.15s;
 }
 .switchInput::placeholder { color: var(--text-muted); }
-.switchInput:focus { border-color: #c9a84c; }
+.switchInput:focus { border-color: #dcbb5e; }
 /* Predictive matches, dropped inline beneath the input (no portal). */
 .switchMenu {
   position: absolute;
@@ -280,7 +280,7 @@
 }
 .modalModeBtn:hover { color: var(--text-bright); }
 .modalModeBtnActive {
-  background: #c9a84c;
+  background: #dcbb5e;
   color: var(--bg) !important;
 }
 

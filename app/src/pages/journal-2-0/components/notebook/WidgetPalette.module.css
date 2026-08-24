@@ -54,7 +54,7 @@
   padding: 8px 10px;
   cursor: pointer;
 }
-.typeBtn:hover { border-color: #c9a84c; }
+.typeBtn:hover { border-color: #dcbb5e; }
 .typeLabel { color: var(--color-text-primary, #e8eaed); font-size: 13px; font-weight: 600; }
 .typeHint { color: var(--color-text-muted, #98a0aa); font-size: 11px; line-height: 1.35; }
 .footNote {
@@ -78,7 +78,7 @@
   padding: 7px 9px;
   font-size: 13px;
 }
-.symInput:focus, .dayInput:focus { outline: none; border-color: #c9a84c; }
+.symInput:focus, .dayInput:focus { outline: none; border-color: #dcbb5e; }
 .tfRow { display: flex; flex-wrap: wrap; gap: 4px; }
 .tfPill {
   background: var(--color-bg, #0b0d12);
@@ -89,16 +89,16 @@
   font-size: 12px;
   cursor: pointer;
 }
-.tfPill:hover { border-color: #c9a84c; }
+.tfPill:hover { border-color: #dcbb5e; }
 .tfPillActive {
-  background: rgba(201, 168, 76, 0.15);
-  border-color: #c9a84c;
+  background: rgba(220, 187, 94, 0.15);
+  border-color: #dcbb5e;
   color: var(--accent);
 }
 .insertBtn {
   margin-top: 6px;
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid #c9a84c;
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid #dcbb5e;
   color: var(--accent);
   border-radius: 7px;
   padding: 8px 10px;
@@ -106,7 +106,7 @@
   font-weight: 600;
   cursor: pointer;
 }
-.insertBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.25); }
+.insertBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.25); }
 .insertBtn:disabled { opacity: 0.45; cursor: default; }
 .insertedMsg { color: var(--gain); font-size: 11px; }
 

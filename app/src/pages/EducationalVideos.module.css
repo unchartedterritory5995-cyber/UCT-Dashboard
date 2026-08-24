@@ -86,7 +86,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-lg);
@@ -144,11 +144,11 @@
   min-height: var(--tap-min);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
-.catChip:hover { color: var(--text-bright); border-color: var(--ut-gold, #c9a84c); }
+.catChip:hover { color: var(--text-bright); border-color: var(--ut-gold, #dcbb5e); }
 .catChipActive {
   background: linear-gradient(135deg, var(--ut-gold-dim), var(--ut-gold-dim));
   color: var(--text-bright);
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
   box-shadow: 0 0 12px var(--ut-gold-glow);
 }
 .catCount {
@@ -363,7 +363,7 @@
 }
 .nextActions { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); flex-wrap: wrap; justify-content: center; }
 .nextPlayBtn {
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-lg);
@@ -404,7 +404,7 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .pathCard:hover {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
   box-shadow: 0 0 16px var(--ut-gold-glow);
 }
 .pathName {
@@ -462,7 +462,7 @@
 .progressFill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+  background: linear-gradient(90deg, #e6cf86, #dcbb5e);
 }
 
 /* ── "Up next" rail ── */
@@ -596,7 +596,7 @@
   min-height: var(--tap-min);
 }
 .saveBtn {
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-lg);

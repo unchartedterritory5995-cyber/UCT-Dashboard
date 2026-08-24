@@ -94,7 +94,7 @@
   grid-column: 1 / -1;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
-  color: var(--gold, #c9a84c);
+  color: var(--gold, #dcbb5e);
   overflow-wrap: anywhere;
 }
 
@@ -183,9 +183,9 @@
   font-size: 13px;
   color: var(--text-bright);
   background: transparent;
-  border: 1px solid var(--gold, #c9a84c);
+  border: 1px solid var(--gold, #dcbb5e);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-.useBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.12); }
+.useBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.12); }
 .useBtn:disabled { opacity: 0.45; cursor: not-allowed; }

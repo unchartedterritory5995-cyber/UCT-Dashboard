@@ -20,7 +20,7 @@
   justify-content: space-between;
   padding: 9px 11px;
   border-bottom: 1px solid var(--menu-divider, var(--border, #2a3340));
-  background: linear-gradient(180deg, var(--menu-accent-bg, rgba(201, 168, 76, 0.08)), transparent);
+  background: linear-gradient(180deg, var(--menu-accent-bg, rgba(220, 187, 94, 0.08)), transparent);
 }
 .title {
   display: inline-flex;
@@ -29,7 +29,7 @@
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  color: var(--menu-accent, var(--ut-gold, #dcbb5e));
   text-transform: uppercase;
 }
 .headRight { display: inline-flex; align-items: center; gap: 6px; }
@@ -46,7 +46,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.resetBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.resetBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 
 /* Color swatch — opens the shared ColorPanel (same as Chart Settings). */
 .swatch {
@@ -60,7 +60,7 @@
   transition: border-color 0.12s, transform 0.1s;
 }
 .swatch:hover { border-color: var(--menu-border, rgba(255, 255, 255, 0.4)); transform: scale(1.08); }
-.swatchActive { border-color: var(--menu-accent, var(--ut-gold, #c9a84c)); box-shadow: 0 0 0 2px var(--menu-accent-bg, rgba(201, 168, 76, 0.25)); }
+.swatchActive { border-color: var(--menu-accent, var(--ut-gold, #dcbb5e)); box-shadow: 0 0 0 2px var(--menu-accent-bg, rgba(220, 187, 94, 0.25)); }
 
 .close {
   background: none;
@@ -130,8 +130,8 @@
 .segBtn + .segBtn { border-left: 1px solid var(--menu-divider, var(--border, #2a3340)); }
 .segBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); }
 .segBtnOn {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
-  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.16));
+  color: var(--menu-accent, var(--ut-gold, #dcbb5e));
   font-weight: 600;
 }
 
@@ -154,8 +154,8 @@
   padding: 4px 24px 4px 10px;
   cursor: pointer;
 }
-.sizeSelect:hover { border-color: var(--menu-accent, var(--ut-gold, #c9a84c)); }
-.sizeSelect:focus-visible { outline: 1px solid var(--menu-accent, var(--ut-gold, #c9a84c)); outline-offset: 1px; }
+.sizeSelect:hover { border-color: var(--menu-accent, var(--ut-gold, #dcbb5e)); }
+.sizeSelect:focus-visible { outline: 1px solid var(--menu-accent, var(--ut-gold, #dcbb5e)); outline-offset: 1px; }
 /* The popup list is OS-rendered — force readable colors so it doesn't inherit
    a transparent/near-black background on Windows. */
 .sizeSelect option { background: var(--menu-input-bg, var(--bg-elevated, #16181c)); color: var(--menu-text, var(--text-bright, #e0dac8)); }
@@ -214,7 +214,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.tplBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.tplBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 .tplMenu {
   position: absolute;
   top: calc(100% + 5px);
@@ -258,8 +258,8 @@
   text-overflow: ellipsis;
 }
 .tplApply:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  color: var(--menu-accent, var(--ut-gold, #c9a84c));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  color: var(--menu-accent, var(--ut-gold, #dcbb5e));
 }
 .tplDel {
   display: inline-flex;
@@ -285,7 +285,7 @@
   min-width: 0;
   width: 130px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
-  border: 1px solid var(--menu-accent, var(--ut-gold, #c9a84c));
+  border: 1px solid var(--menu-accent, var(--ut-gold, #dcbb5e));
   border-radius: 5px;
   color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
@@ -307,7 +307,7 @@
   color: var(--menu-text-dim, var(--text-muted, #8b8674));
   cursor: pointer;
 }
-.tplSaveBtn { color: var(--menu-accent, var(--ut-gold, #c9a84c)); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
-.tplSaveBtn:hover:not(:disabled) { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12)); }
+.tplSaveBtn { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+.tplSaveBtn:hover:not(:disabled) { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
 .tplSaveBtn:disabled { opacity: 0.45; cursor: default; }
 .tplCancelBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); }

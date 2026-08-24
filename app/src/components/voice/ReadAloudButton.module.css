@@ -2,8 +2,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(201, 168, 76, 0.08);
-  border: 1px solid rgba(201, 168, 76, 0.25);
+  background: rgba(220, 187, 94, 0.08);
+  border: 1px solid rgba(220, 187, 94, 0.25);
   color: var(--accent);
   border-radius: var(--radius-pill);
   cursor: pointer;
@@ -11,17 +11,17 @@
   transition: background 120ms ease, border-color 120ms ease;
 }
 .btn:hover {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   border-color: var(--accent);
 }
 .btn:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 1px;
 }
 .sm { padding: 4px 10px; font-size: 11px; }
 .md { padding: 6px 14px; font-size: 13px; }
 .playing {
-  background: rgba(201, 168, 76, 0.25);
+  background: rgba(220, 187, 94, 0.25);
   border-color: var(--accent);
 }
 .icon { display: inline-block; min-width: 14px; text-align: center; }

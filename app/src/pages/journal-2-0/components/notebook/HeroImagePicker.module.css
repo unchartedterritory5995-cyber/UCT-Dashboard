@@ -10,17 +10,17 @@
   font-size: 14px;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
-.empty:hover { border-color: #c9a84c; color: var(--accent); }
+.empty:hover { border-color: #dcbb5e; color: var(--accent); }
 .empty:focus {
   outline: none;
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
   color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
+  box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.18);
 }
 .empty.dragOver {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
   border-style: solid;
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
   color: var(--accent);
 }
 .filled {
@@ -32,10 +32,10 @@
   transition: box-shadow 120ms ease;
 }
 .filled:focus {
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.5);
 }
 .filled.dragOver {
-  box-shadow: 0 0 0 3px #c9a84c;
+  box-shadow: 0 0 0 3px #dcbb5e;
 }
 .filled img {
   width: 100%;

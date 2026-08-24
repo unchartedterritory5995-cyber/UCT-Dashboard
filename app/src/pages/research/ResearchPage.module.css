@@ -148,7 +148,7 @@
   border: 1px solid rgba(255,255,255,.14); background: transparent;
   color: var(--color-text-muted, #8a8f98);
 }
-.basisOn { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.basisOn { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 
 /* ── Desk coverage: which Sunday Scans issues discussed this name ── */
 .deskCovHead {

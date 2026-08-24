@@ -62,9 +62,9 @@
 }
 .quickBtn:hover { color: var(--ut-cream); border-color: var(--ut-cream); }
 .quickBtnActive {
-  background: rgba(201, 168, 76, 0.12);
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.12);
+  border-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .tile {

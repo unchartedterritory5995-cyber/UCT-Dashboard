@@ -107,7 +107,7 @@
 }
 
 .refreshBtn {
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   color: var(--bg);
   border: none;
   padding: 6px 14px;
@@ -287,7 +287,7 @@
 .reviewBadge {
   display: inline-block;
   font-size: 11px;
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   margin-top: 4px;
@@ -324,7 +324,7 @@
 
 .noteInput:focus {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .actions {

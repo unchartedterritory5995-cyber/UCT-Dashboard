@@ -24,7 +24,7 @@
   color: var(--accent);
 }
 .toggle[aria-expanded="true"] {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
   color: var(--accent);
   opacity: 1;
 }
@@ -36,7 +36,7 @@
   width: 320px;
   background: rgba(15, 15, 18, 0.96);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  border: 1px solid rgba(220, 187, 94, 0.3);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 9000;
@@ -82,7 +82,7 @@
   transform: translateX(2px);
 }
 .agentRow:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 

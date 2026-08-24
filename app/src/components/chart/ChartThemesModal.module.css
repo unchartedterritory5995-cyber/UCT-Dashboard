@@ -106,8 +106,8 @@
 .pill:hover { color: var(--menu-text, #ededed); border-color: var(--menu-border-strong, #3a3a3e); }
 .pillOn,
 .pillOn:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
   color: var(--menu-accent, #e7cf8f);
 }
 .search {
@@ -124,7 +124,7 @@
   outline: none;
   transition: border-color 120ms;
 }
-.search:focus { border-color: var(--menu-accent, #c9a84c); }
+.search:focus { border-color: var(--menu-accent, #dcbb5e); }
 .search::placeholder { color: var(--menu-text-faint, #6b6b6b); }
 
 /* ── Grid of theme tiles ── */
@@ -149,11 +149,11 @@
   text-align: left;
   transition: border-color 120ms, background 120ms;
 }
-.tile:hover { border-color: var(--menu-accent, #c9a84c); }
+.tile:hover { border-color: var(--menu-accent, #dcbb5e); }
 .tileApplied,
 .tileApplied:hover {
-  border-color: var(--menu-accent, #c9a84c);
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
 }
 .tileHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tileName {
@@ -224,7 +224,7 @@
 .scopeBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .scopeOn,
 .scopeOn:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
   color: var(--menu-accent, #e7cf8f);
 }
 .footHint {

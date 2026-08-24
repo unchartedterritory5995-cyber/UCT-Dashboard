@@ -13,7 +13,7 @@
   padding: 10px 14px;
   background: rgba(15, 17, 14, 0.96);
   color: var(--text-bright);
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: 14px;
   font: 13px/1.4 var(--font-sans);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
@@ -79,7 +79,7 @@
 .fbInput {
   width: 100%;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
   color: var(--text-bright);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
@@ -87,7 +87,7 @@
   outline: none;
 }
 .fbInput:focus {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 
 .fbInputLabel {

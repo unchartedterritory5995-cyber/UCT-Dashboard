@@ -16,8 +16,8 @@
   padding: 8px 12px;
   margin: 0 4px 6px;
   border-radius: 9px;
-  background: rgba(201, 168, 76, 0.06);
-  border: 1px solid rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.06);
+  border: 1px solid rgba(220, 187, 94, 0.18);
 }
 
 .chip {
@@ -53,11 +53,11 @@
   gap: 6px;
   font: 600 12px 'Instrument Sans', sans-serif;
   letter-spacing: 0.3px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   padding: 2px 8px;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-pill);
-  background: rgba(201, 168, 76, 0.09);
+  background: rgba(220, 187, 94, 0.09);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -66,15 +66,15 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   animation: viewLiveBeat 2.4s ease-out infinite;
   flex: none;
 }
 
 @keyframes viewLiveBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

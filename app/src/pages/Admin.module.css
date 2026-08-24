@@ -235,7 +235,7 @@
 .act_green  { background: rgba(74,222,128,0.15); color: var(--gain); }
 .act_blue   { background: rgba(96,165,250,0.15); color: var(--info); }
 .act_amber  { background: rgba(251,191,36,0.15); color: var(--warn); }
-.act_gold   { background: rgba(201,168,76,0.15); color: var(--ut-gold); }
+.act_gold   { background: rgba(220, 187, 94,0.15); color: var(--ut-gold); }
 .act_red    { background: rgba(248,113,113,0.15); color: var(--loss); }
 
 /* Refresh button (small) */
@@ -296,7 +296,7 @@
 .pill:hover { background: rgba(255,255,255,0.1); }
 .pillActive {
   composes: pill;
-  background: rgba(201,168,76,0.2);
+  background: rgba(220, 187, 94,0.2);
   border-color: var(--accent);
   color: var(--ut-gold);
 }
@@ -391,7 +391,7 @@
 }
 .badgePro { background: rgba(60,184,104,0.15); color: var(--gain); }
 .badgeFree { background: rgba(255,255,255,0.06); color: var(--text-muted); }
-.badgeComped { background: rgba(201,168,76,0.15); color: var(--ut-gold); }
+.badgeComped { background: rgba(220, 187, 94,0.15); color: var(--ut-gold); }
 
 /* Status text */
 .statusActive { color: var(--gain); }
@@ -400,16 +400,16 @@
 
 /* Action buttons */
 .compBtn {
-  background: rgba(201,168,76,0.12);
+  background: rgba(220, 187, 94,0.12);
   color: var(--ut-gold);
-  border: 1px solid rgba(201,168,76,0.25);
+  border: 1px solid rgba(220, 187, 94,0.25);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: 11px;
   cursor: pointer;
   transition: background 0.15s;
 }
-.compBtn:hover { background: rgba(201,168,76,0.25); }
+.compBtn:hover { background: rgba(220, 187, 94,0.25); }
 .compBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .revokeBtn {
@@ -471,7 +471,7 @@
 }
 
 .adminTag {
-  background: rgba(201,168,76,0.2);
+  background: rgba(220, 187, 94,0.2);
   color: var(--ut-gold);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
@@ -530,9 +530,9 @@
   gap: 6px;
 }
 .sendBtn {
-  background: rgba(201,168,76,0.2);
+  background: rgba(220, 187, 94,0.2);
   color: var(--ut-gold);
-  border: 1px solid rgba(201,168,76,0.4);
+  border: 1px solid rgba(220, 187, 94,0.4);
   padding: 8px 20px;
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -540,7 +540,7 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.sendBtn:hover { background: rgba(201,168,76,0.35); }
+.sendBtn:hover { background: rgba(220, 187, 94,0.35); }
 .sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .successMsg {
   color: var(--gain);
@@ -893,9 +893,9 @@
 .noteInput::placeholder { color: var(--text-muted); }
 .noteInput:focus { outline: none; border-color: var(--accent); }
 .noteBtn {
-  background: rgba(201,168,76,0.15);
+  background: rgba(220, 187, 94,0.15);
   color: var(--ut-gold);
-  border: 1px solid rgba(201,168,76,0.3);
+  border: 1px solid rgba(220, 187, 94,0.3);
   padding: 6px 14px;
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -903,7 +903,7 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.noteBtn:hover { background: rgba(201,168,76,0.28); }
+.noteBtn:hover { background: rgba(220, 187, 94,0.28); }
 .noteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Audit Log ── */
@@ -927,7 +927,7 @@
 .auditToggle:hover { background: rgba(255,255,255,0.1); color: var(--text); }
 .auditToggleActive {
   composes: auditToggle;
-  background: rgba(201,168,76,0.15);
+  background: rgba(220, 187, 94,0.15);
   border-color: var(--accent);
   color: var(--ut-gold);
 }
@@ -1178,7 +1178,7 @@
   vertical-align: middle;
 }
 .checkbox:checked {
-  background: rgba(201,168,76,0.3);
+  background: rgba(220, 187, 94,0.3);
   border-color: var(--ut-gold);
 }
 .checkbox:checked::after {
@@ -1218,7 +1218,7 @@
   opacity: 0.6;
 }
 .tagRemove:hover { opacity: 1; }
-.tagVip { background: rgba(201,168,76,0.2); color: var(--accent); }
+.tagVip { background: rgba(220, 187, 94,0.2); color: var(--accent); }
 .tagBeta { background: rgba(96,165,250,0.15); color: var(--info); }
 .tagRisk { background: rgba(239,68,68,0.15); color: var(--loss); }
 .tagWhale { background: rgba(74,222,128,0.15); color: var(--gain); }
@@ -1336,19 +1336,19 @@
 }
 .ticketFilterPill:hover { border-color: var(--accent); color: var(--text-bright); }
 .ticketFilterActive {
-  background: rgba(201,168,76,0.12);
+  background: rgba(220, 187, 94,0.12);
   border-color: var(--accent);
   color: var(--accent);
 }
 
 .ticketRow { cursor: pointer; transition: background 0.1s; }
-.ticketRow:hover { background: rgba(201,168,76,0.04); }
+.ticketRow:hover { background: rgba(220, 187, 94,0.04); }
 .ticketAdminDot {
   display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c9a84c;
+  background: #dcbb5e;
   margin-left: 6px;
   vertical-align: middle;
 }
@@ -1439,7 +1439,7 @@
 }
 .ticketMsgUser {
   background: rgba(255,255,255,0.04);
-  border-left: 3px solid #c9a84c;
+  border-left: 3px solid #dcbb5e;
 }
 .ticketMsgAdmin {
   background: rgba(74,222,128,0.04);
@@ -1487,9 +1487,9 @@
 }
 .ticketDrawerReplyInput:focus { border-color: var(--accent); }
 .ticketDrawerReplyBtn {
-  background: rgba(201,168,76,0.15);
+  background: rgba(220, 187, 94,0.15);
   color: var(--accent);
-  border: 1px solid rgba(201,168,76,0.3);
+  border: 1px solid rgba(220, 187, 94,0.3);
   border-radius: var(--radius-md);
   padding: 8px 14px;
   font-size: 12px;
@@ -1498,7 +1498,7 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.ticketDrawerReplyBtn:hover { background: rgba(201,168,76,0.25); }
+.ticketDrawerReplyBtn:hover { background: rgba(220, 187, 94,0.25); }
 .ticketDrawerReplyBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Hide on mobile helper ── */

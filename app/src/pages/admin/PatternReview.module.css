@@ -25,7 +25,7 @@
 .rowSym { font-weight: 700; color: var(--text-bright, #e0dac8); }
 .rowSetup { color: var(--text-muted, #706b5e); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rowConf { text-align: right; color: var(--text-muted, #706b5e); }
-.fbDot { color: var(--ut-gold, #c9a84c); text-align: center; }
+.fbDot { color: var(--ut-gold, #dcbb5e); text-align: center; }
 
 .badgeYes, .badgeNo {
   font-size: 10px; padding: 2px 6px; border-radius: var(--radius-pill); white-space: nowrap;
@@ -61,7 +61,7 @@
 .actions button:disabled { opacity: .5; cursor: default; }
 .up { border-color: var(--gain, #3cb868) !important; }
 .down { border-color: var(--loss, #e74c3c) !important; }
-.draw, .save { border-color: var(--ut-gold, #c9a84c) !important; color: var(--ut-gold, #c9a84c) !important; }
+.draw, .save { border-color: var(--ut-gold, #dcbb5e) !important; color: var(--ut-gold, #dcbb5e) !important; }
 .err { color: var(--loss, #e74c3c); font-size: 12px; align-self: center; }
 
 .note {

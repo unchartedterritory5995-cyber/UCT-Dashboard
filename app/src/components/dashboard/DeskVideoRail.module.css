@@ -81,7 +81,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--bg);
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
   border-radius: var(--radius-pill);
   padding: 2px 7px;
 }
@@ -96,7 +96,7 @@
 .progressFill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+  background: linear-gradient(90deg, #e6cf86, #dcbb5e);
 }
 .cardTitle {
   margin-top: 6px;

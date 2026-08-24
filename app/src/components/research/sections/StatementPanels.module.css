@@ -17,7 +17,7 @@
   border: 1px solid rgba(255, 255, 255, .14); background: transparent;
   color: var(--text-muted, #8a8f98);
 }
-.on { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.on { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 
 /* Small multiples: three across on desktop, one on phone. auto-fit rather than
    a fixed count so the modal and the page both get a sensible layout without
@@ -59,8 +59,8 @@
   border: 0; border-radius: var(--radius-sm); background: transparent;
   color: var(--text-muted, #8a8f98); cursor: pointer; opacity: .55;
 }
-.clickable:hover .expand, .expand:focus-visible { opacity: 1; color: var(--ut-gold, #c9a84c); }
-.expand:focus-visible { outline: 1px solid var(--ut-gold, #c9a84c); outline-offset: 1px; }
+.clickable:hover .expand, .expand:focus-visible { opacity: 1; color: var(--ut-gold, #dcbb5e); }
+.expand:focus-visible { outline: 1px solid var(--ut-gold, #dcbb5e); outline-offset: 1px; }
 
 /* TOUCH: the icon becomes a full tap target. The negative margins keep the
    title row from growing by the whole difference. */
@@ -79,7 +79,7 @@
   font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
   color: var(--text-muted, #8a8f98); cursor: pointer;
 }
-.yoy input { accent-color: var(--ut-gold, #c9a84c); cursor: pointer; }
+.yoy input { accent-color: var(--ut-gold, #dcbb5e); cursor: pointer; }
 
 /* ── Pop-out (the Sheet owns the header, close button and tap targets) ──── */
 
@@ -88,5 +88,5 @@
 .expandedSym {
   margin-left: 10px;
   font-size: 12px; font-weight: 600; letter-spacing: .04em;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }

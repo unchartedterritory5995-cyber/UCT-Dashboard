@@ -239,7 +239,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   animation: tileLiveBeat 2.4s ease-out infinite;
   flex: none;
 }
@@ -253,7 +253,7 @@
 
 .liveValue {
   font-size: 15px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 700;
 }
 
@@ -265,9 +265,9 @@
 }
 
 @keyframes tileLiveBeat {
-  0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -90,9 +90,9 @@
 
 .playBtn {
   padding: 6px 14px;
-  border: 1px solid #c9a84c;
+  border: 1px solid #dcbb5e;
   border-radius: var(--radius-lg);
-  background: rgba(201, 168, 76, 0.1);
+  background: rgba(220, 187, 94, 0.1);
   color: var(--accent);
   font-size: 13px;
   font-weight: 600;
@@ -110,11 +110,11 @@
   cursor: pointer;
 }
 
-.speedOn { color: var(--accent); border-color: #c9a84c; }
+.speedOn { color: var(--accent); border-color: #dcbb5e; }
 
 .scrub {
   flex: 1 1 160px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   min-width: 120px;
 }
 

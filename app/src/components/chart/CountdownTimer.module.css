@@ -11,7 +11,7 @@
 .value {
   font-size: 13px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   letter-spacing: 0.5px;
 }
 .label {
