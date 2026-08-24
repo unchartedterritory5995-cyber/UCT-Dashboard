@@ -60,8 +60,9 @@
 .empty {
   text-align: center;
   padding: 24px 12px;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
   line-height: 1.7;
 }
 .emptyLink {
