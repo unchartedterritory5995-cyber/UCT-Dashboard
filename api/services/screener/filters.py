@@ -763,7 +763,13 @@ def meta(user_id=None) -> dict:
     ⚠️ Only `type == "range"` controls get one, and only over a column the live
     table declares INTEGER/REAL. `ipo_date` and `next_earnings_date` are range
     controls over TEXT columns — a "typical range" of an earnings date is not a
-    thing — and they are excluded by that gate rather than by name.
+    thing — and they are excluded by that gate rather than by name. Those two
+    are the ONLY range controls that carry no `distribution` key at all:
+    everything else gets one, and a column this pod's table has not been ALTERed
+    to hold yet arrives REFUSED as `column_absent` rather than dropping out of
+    the payload, where "not migrated" and "not applicable" look identical.
+    Measured on this box: 109 range controls, 107 carrying an entry, 40 of those
+    emitting numbers.
     """
     from api.services.screener import distribution  # noqa: PLC0415 — lazy, as above
 

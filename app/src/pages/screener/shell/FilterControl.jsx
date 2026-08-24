@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import ColumnDesc from './ColumnDesc'
+import FilterBand from './FilterBand'
 import styles from './ScannerShell.module.css'
 
 const currentLabel = (filter, value, customOpen) => {
@@ -10,7 +11,7 @@ const currentLabel = (filter, value, customOpen) => {
   return match ? match.label : 'Custom…'
 }
 
-export default function FilterControl({ filter, value, onChange }) {
+export default function FilterControl({ filter, value, onChange, basis = null }) {
   const [customOpen, setCustomOpen] = useState(false)
   const [minV, setMinV] = useState(value?.min ?? '')
   const [maxV, setMaxV] = useState(value?.max ?? '')
@@ -72,6 +73,14 @@ export default function FilterControl({ filter, value, onChange }) {
         onChange={e => onSelect(e.target.value)}>
         {options.map(o => <option key={o}>{o}</option>)}
       </select>
+      {/* ⭐ THE MEASUREMENT, ON SCREEN, WHERE THE THRESHOLD IS SET. `meta()` has
+          shipped p5/p25/p50/p75/p95 per range control since the bands lane, and
+          for one commit nothing rendered them — the payload existed and the
+          member still saw a blank box, which is the very finding that lane was
+          opened to answer. It sits BELOW the select on purpose: the numbers are
+          context for the value you are about to type, not a value to pick, and
+          nothing about them may look like an option in the list. */}
+      <FilterBand band={filter.distribution} basis={basis} unit={filter.unit} />
       {customOpen && (
         <div className={styles.customRange}>
           <input type="number" placeholder="min" aria-label={`${filter.label} min`}

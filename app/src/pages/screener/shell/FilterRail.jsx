@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import FilterControl from './FilterControl'
+import bandStyles from './FilterBand.module.css'
 import styles from './ScannerShell.module.css'
 
 const openKey = k => `uct.screener.rail.${k}`
@@ -26,6 +27,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
 
   if (!meta) return null
 
+  const basisNote = meta.distribution_basis?.note || null
   const toggle = key => setOpen(prev => {
     const next = { ...prev, [key]: !prev[key] }
     try { localStorage.setItem(openKey(key), next[key] ? '1' : '0') } catch { /* private mode */ }
@@ -45,6 +47,15 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           <button type="button" className={styles.railClear} onClick={onClear}>Clear {activeTotal}</button>
         )}
       </div>
+      {/* ⛔ THE BASIS RIDES ONCE, AND IT IS THE SERVER'S SENTENCE VERBATIM.
+          `distribution.py::BASIS_NOTE` is the ONE member-facing string that
+          says what the bands under each control are and — the load-bearing
+          half — what they are NOT ("not a threshold this firm recommends").
+          Restating it here in nicer words would put a second authority on the
+          only disclaimer in the feature; stamping it under all 107 range
+          controls would be that same defect 107 times. It renders only when
+          `meta()` actually shipped a basis, which is exactly when bands exist. */}
+      {basisNote && <p className={bandStyles.basis}>{basisNote}</p>}
       {(meta.categories || []).map(cat => {
         const list = byCat.get(cat.key) || []
         if (needle && !list.length) return null
@@ -61,6 +72,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
             {isOpen && list.map(f => (
               <FilterControl key={f.key} filter={f}
                 value={activeFilters[f.key] || null}
+                basis={meta.distribution_basis || null}
                 onChange={v => onChange(f.key, v)} />
             ))}
           </section>

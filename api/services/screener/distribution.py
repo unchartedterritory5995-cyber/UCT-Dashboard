@@ -30,12 +30,34 @@ So this module measures the data and fills NO editorial gap:
 
 ⭐ WHY THE COVERAGE IS NOT OPTIONAL. A percentile over a column that is 95%
 NULL is a lie the shape of a fact: it describes whoever answered, presented as
-if it described the universe. So every entry carries `non_null` and `universe`
-whether a band was emitted or not, and a band is REFUSED below two stated
-floors — see `MIN_NON_NULL` and `MIN_COVERAGE`. A refusal says which floor it
-hit; it never silently omits the column, because "we hold nothing here" is a
-fact a member is entitled to (the `CoverageLine` idiom: a gap in what we hold
-is not a quiet market).
+if it described the universe. So every entry carries `non_null`, `usable` and
+`universe` whether a band was emitted or not, and a band is REFUSED below two
+stated floors — see `MIN_NON_NULL` and `MIN_COVERAGE`. A refusal says which
+floor it hit; it never silently omits the column, because "we hold nothing
+here" is a fact a member is entitled to (the `CoverageLine` idiom: a gap in
+what we hold is not a quiet market). That promise is why `REFUSED_COLUMN_ABSENT`
+exists: a registry column this pod's table has not been ALTERed to hold yet
+SAYS SO, rather than dropping out of the payload where "not applicable" and
+"not migrated" look identical.
+
+⭐ TWO COUNTS, BECAUSE THEY ARE TWO FACTS. `non_null` is how many rows carry a
+value; `usable` is how many of those are numbers a percentile may be taken over.
+They are equal on all 130 columns of this box's snapshot today — and `accdis`
+has already been the column where they diverge (letter grades in a REAL-declared
+column). Reporting the second under the first's name would put a wrong coverage
+number in the one payload whose entire purpose is that the coverage never lies.
+The floors divide `usable`, because that is the population the percentiles
+would describe.
+
+⛔ A NUMBER OVER A CATEGORY IS NOT A RANGE, AND NEITHER IS A CONSTANT. The
+0/1 flag guard alone was one value short of the real defect: `pattern_engine_dir`
+is a reader-ENCODED direction (+1/0/-1, `filters.py`'s own comment says so) and
+sailed straight through it to emit `p5=-1 … p95=1` — a percentile over a
+category, which is exactly what a band must never be. `pattern_engine_conf` is
+worse: 2,889 rows, five distinct values, ≥95% of them 100.0, so all five points
+print 100.0 and the member reads a zero-width "typical range". Both are refused
+by name now (`REFUSED_FEW_LEVELS`, `REFUSED_NO_SPREAD`) and both are derived
+from the observed values, never from a list of column names.
 
 ⭐ WHY IT IS CACHED THE WAY IT IS. Measured on a 3,714-row snapshot (this box,
 2026-08-23): the one-pass compute over 102 numeric columns costs ~55 ms, and the
@@ -48,6 +70,7 @@ night's universe over tonight's rows. The TTL is a backstop, not the mechanism.
 """
 import math
 import sqlite3
+import threading
 from contextlib import closing
 
 from api.services.cache import TTLCache
@@ -77,6 +100,19 @@ MIN_NON_NULL = 100
 #: 55 are refused (50 of those hold no data at all) and the rest fall between.
 MIN_COVERAGE = 0.50
 
+#: 🔴 FLOOR THREE — the column must hold at least as many DISTINCT values as the
+#: band prints points. Derived from `PERCENTILES`, not typed: a column with four
+#: distinct values cannot fill five slots, so at least two of the printed points
+#: are the same number and the band advertises a precision the data does not
+#: have. It is the general form of the 0/1 rule below it, and it is what catches
+#: an ENCODED CATEGORY: `pattern_engine_dir` holds exactly {-1, 0, +1} — a label
+#: set, not a magnitude — and a "typical range of -1 to 1" over it is a
+#: percentile over a category. Measured on this box's snapshot it refuses that
+#: one column and leaves the genuine small-integer COUNTS alone
+#: (`consecutive_up` 9 levels, `inside_bar_run` 10) — those have an ordering a
+#: member screens on, and "95% of names run ≤ 3 up days" is a real fact.
+MIN_DISTINCT = len(PERCENTILES)
+
 #: Backstop only — the fingerprint below is what actually keeps a band fresh.
 #: Six hours over a snapshot that rebuilds nightly means a band is never quoted
 #: from a vintage the fingerprint has already retired.
@@ -91,11 +127,20 @@ _CACHE = TTLCache(max_size=4)
 
 #: The refusal reasons, named so a surface can say WHICH floor it hit rather
 #: than rendering an unexplained blank.
+#: ⛔ EVERY ONE OF THESE MUST BE ANSWERED IN WORDS BY THE SURFACE. A reason a
+#: member's screen renders as a blank is the same defect as no reason at all —
+#: `tests/test_screener_distribution.py::
+#: test_every_refusal_reason_is_answered_in_words_by_the_filter_rail` reads this
+#: module's constants and greps the renderer for each, so a new reason cannot
+#: ship a blank box.
 REFUSED_NO_DATA = "no_data"                    # not one non-null value
 REFUSED_NOT_NUMERIC = "not_numeric"            # values present, none numeric
 REFUSED_BINARY = "binary"                      # only 0/1 observed — a flag
+REFUSED_FEW_LEVELS = "too_few_levels"          # an encoded category, not a scale
+REFUSED_NO_SPREAD = "no_spread"                # p5 == p95 — a constant, not a range
 REFUSED_MIN_NON_NULL = "below_min_non_null"
 REFUSED_COVERAGE = "below_coverage_floor"
+REFUSED_COLUMN_ABSENT = "column_absent"        # this table has no such column yet
 
 #: ⛔ THE ONE MEMBER-FACING SENTENCE, so a surface renders it instead of
 #: inventing a caption. Every word is load-bearing: it names what was measured,
@@ -114,28 +159,41 @@ BASIS_NOTE = (
 _NOT_A_MEASUREMENT = {"built_at"}
 
 
-def _numeric_columns(conn) -> list:
-    """Numeric columns the LIVE table actually has, in `COLUMNS` order.
+def _column_split(conn):
+    """`(numeric, absent)` — what this table holds, read off the ARTIFACT.
 
     ⛔ READ OFF THE ARTIFACT (`PRAGMA table_info`), never off a typed list and
     never off `snapshot_db._TEXT`/`_INT`. A pod whose `screener_rows` predates a
     wave is missing columns until `init_db()` ALTERs them in — measured on this
-    box, seven of the registry's range columns were absent from the table
-    entirely. Asking the schema is the only way to be right on both boxes.
+    box, nine registry columns (five of them range controls) were absent from
+    the table entirely. Asking the schema is the only way to be right on both
+    boxes.
 
-    Intersected with `snapshot_db.COLUMNS` so a stray column left by an old
-    migration cannot leak into a member-facing payload.
+    ⭐ AND THE ABSENT ONES COME BACK NAMED. Dropping them silently made "this
+    pod has not been migrated" indistinguishable from "no band applies here",
+    which is the exact ambiguity `no_data` exists to remove one layer down. They
+    are returned separately and refused as `column_absent`.
+
+    Both lists walk `COLUMNS` (not the PRAGMA), which is the intersection: a
+    stray column left by an old migration is never asked for, and a column the
+    registry does not know about can never leak into a member-facing payload.
     """
     from api.services.screener import snapshot_db
 
     declared = {}
     for row in conn.execute("PRAGMA table_info(screener_rows)"):
         declared[row[1]] = (row[2] or "").upper()
-    # Walking `COLUMNS` (not the PRAGMA) is the intersection: a column the
-    # registry does not know about is never asked for.
-    return [c for c in snapshot_db.COLUMNS
-            if c not in _NOT_A_MEASUREMENT
-            and declared.get(c) in ("INTEGER", "REAL")]
+    numeric, absent = [], []
+    for c in snapshot_db.COLUMNS:
+        if c in _NOT_A_MEASUREMENT:
+            continue
+        if c not in declared:
+            absent.append(c)
+        elif declared[c] in ("INTEGER", "REAL"):
+            numeric.append(c)
+        # else: present and declared TEXT — `ipo_date` and friends. Excluded by
+        # the type gate, deliberately and permanently; not an absence.
+    return numeric, absent
 
 
 def _usable(value):
@@ -168,12 +226,26 @@ def _nearest_rank(sorted_values, pct):
     return sorted_values[min(max(idx, 0), n - 1)]
 
 
+def _absent_band(universe):
+    """"This table does not hold that column." A fact, stated, not an omission.
+
+    `non_null`/`usable` are 0 because a column that does not exist holds no
+    values — the coverage keys stay present so every entry in the payload has
+    the same shape and no consumer has to branch on which kind it got.
+    """
+    return {"non_null": 0, "usable": 0, "universe": universe,
+            "refused": REFUSED_COLUMN_ABSENT}
+
+
 def _band(values, universe):
-    """One column's entry. Coverage ALWAYS; percentiles only when both floors
-    clear. Never both a `refused` key and a percentile key."""
+    """One column's entry. Coverage ALWAYS; percentiles only when every floor
+    clears. Never both a `refused` key and a percentile key."""
     seen_non_null, usable = values
     n = len(usable)
-    base = {"non_null": n, "universe": universe}
+    # `non_null` is what its name says; `usable` is what the percentiles would
+    # be taken over. Equal on every column of today's snapshot, and NOT equal
+    # the day a REAL-declared column holds letter grades again.
+    base = {"non_null": seen_non_null, "usable": n, "universe": universe}
 
     if n == 0:
         base["refused"] = (REFUSED_NOT_NUMERIC if seen_non_null
@@ -185,17 +257,36 @@ def _band(values, universe):
     if universe <= 0 or (n / universe) < MIN_COVERAGE:
         base["refused"] = REFUSED_COVERAGE
         return base
-    # A flag stored 0/1 has no distribution worth printing. Derived from the
-    # VALUES, not from a list of flag columns — a typed list would be a second
-    # authority over which columns are flags and would go stale on the next one.
+    # ⛔ THE THREE "NOTHING WORTH PRINTING" GATES, ALL DERIVED FROM THE VALUES —
+    # never from a list of column names, which would be a second authority over
+    # which columns are flags/categories and would go stale on the next one.
     distinct = set(usable)
     if distinct <= {0, 1}:
+        # A Yes/No flag. Kept as its own reason rather than folded into the
+        # level floor below: "this is a flag" tells a member more than "too few
+        # levels", and it is the more specific of the two true statements.
         base["refused"] = REFUSED_BINARY
+        return base
+    if len(distinct) < MIN_DISTINCT:
+        # Fewer levels than the band has points — an encoded category, or a
+        # near-constant. Either way the five printed numbers would repeat.
+        base["refused"] = REFUSED_FEW_LEVELS
         return base
 
     usable.sort()
-    for pct in PERCENTILES:
-        base[f"p{pct}"] = _nearest_rank(usable, pct)
+    points = {f"p{pct}": _nearest_rank(usable, pct) for pct in PERCENTILES}
+    if points[f"p{PERCENTILES[0]}"] == points[f"p{PERCENTILES[-1]}"]:
+        # Both tails on the same value: 90% of the column sits on one number and
+        # the "range" has zero width. `pattern_engine_conf` is this — a 0-100
+        # confidence saturated at 100 — and the honest thing to show is the
+        # value everything sits on, not five copies of it under the word
+        # "typical". ⛔ `saturated_at` is deliberately not `p*`-named: the
+        # refused-XOR-percentiles invariant is what stops a refusal from being
+        # read as an answer.
+        base["refused"] = REFUSED_NO_SPREAD
+        base["saturated_at"] = points[f"p{PERCENTILES[0]}"]
+        return base
+    base.update(points)
     return base
 
 
@@ -209,7 +300,7 @@ def compute(conn) -> dict:
     """
     from api.services.screener import snapshot_db
 
-    columns = _numeric_columns(conn)
+    columns, absent = _column_split(conn)
     universe = conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0]
     provenance = snapshot_db.describe_rows(conn)
 
@@ -242,8 +333,9 @@ def compute(conn) -> dict:
             # a band is entitled to know the firm is not recommending it.
             "descriptive_only": True,
         },
-        "columns": {c: _band((seen[i], buckets[i]), universe)
-                    for i, c in enumerate(columns)},
+        "columns": {**{c: _band((seen[i], buckets[i]), universe)
+                       for i, c in enumerate(columns)},
+                    **{c: _absent_band(universe) for c in absent}},
     }
 
 
@@ -260,6 +352,16 @@ def _fingerprint(conn, path) -> str:
     return f"v1|{path}|{row[0]}|{row[1]}|{row[2]}"
 
 
+#: ⭐ ONE COMPUTES, THE REST WAIT — `live_prices`' Semaphore-plus-re-check idiom,
+#: in its threading form because `meta()` reaches here synchronously off the
+#: shared anyio pool. The cache is per-PROCESS, so every deploy empties it, and
+#: without this each concurrent first-loader ran the whole 483k-cell scan
+#: (measured 116 ms, GIL-bound) instead of one running it while the others took
+#: the result. The fingerprint is read BEFORE the lock, so a warm cache — which
+#: is every call but the first of a vintage — never touches it.
+_COMPUTE_LOCK = threading.Lock()
+
+
 def distributions() -> dict:
     """The cached `{"basis", "columns"}` blob. NEVER raises.
 
@@ -273,12 +375,19 @@ def distributions() -> dict:
         path = snapshot_db.get_db_path()
         with closing(snapshot_db.connect()) as conn:
             key = _fingerprint(conn, path)
+        hit = _CACHE.get(key)
+        if hit is not None:
+            return hit
+        with _COMPUTE_LOCK:
+            # The re-check is the whole point: the thread that waited here for
+            # the winner to finish must take its answer, not run the scan again.
             hit = _CACHE.get(key)
             if hit is not None:
                 return hit
-            out = compute(conn)
-        _CACHE.set(key, out, CACHE_TTL_SECONDS)
-        return out
+            with closing(snapshot_db.connect()) as conn:
+                out = compute(conn)
+            _CACHE.set(key, out, CACHE_TTL_SECONDS)
+            return out
     except (sqlite3.Error, OSError, ValueError, TypeError, KeyError):
         return {"basis": None, "columns": {}}
 

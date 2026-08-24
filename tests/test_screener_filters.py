@@ -908,13 +908,49 @@ def test_a_measured_band_is_NOT_an_editorial_preset(tmp_path, monkeypatch):
 
 def test_only_RANGE_controls_carry_a_band(tmp_path, monkeypatch):
     """An enum's answer is its option list and a bool's is Yes/No; neither has a
-    percentile. A band on one would be a number over a category."""
+    percentile. A band on one would be a number over a category.
+
+    ⚠️ THIS RAIL WAS ONE VALUE SHORT OF ITS OWN DOCSTRING. `pattern_engine_dir`
+    is typed `range` in the registry and holds a reader-ENCODED direction
+    ({-1, 0, +1}), so it passed here while emitting exactly the percentile-over-
+    a-category this test forbids. The value-derived gate that closes it lives in
+    `distribution.MIN_DISTINCT`; the rail on it is
+    `test_screener_distribution.py::test_an_ENCODED_CATEGORY_is_refused…`.
+    A control that is `range` by TYPE is a necessary condition for a band, never
+    a sufficient one.
+    """
     _snapshot(tmp_path, monkeypatch, _band_rows())
     seen_types = set()
     for f in filters.meta()["filters"]:
         if "distribution" in f:
             seen_types.add(f["type"])
     assert seen_types == {"range"}, seen_types
+
+
+def test_a_range_control_over_a_column_THIS_TABLE_LACKS_says_so(
+        tmp_path, monkeypatch):
+    """⛔ THE HONEST-ABSENCE CONTRACT, END TO END. Nine registry columns are
+    missing from this box's `screener_rows` (five of them range controls), and
+    a control whose column is absent used to arrive with no `distribution` key
+    — indistinguishable, to the panel, from `ipo_date`, which is excluded on
+    purpose and forever. Now the first says `column_absent` and only the
+    deliberate TEXT exclusions stay silent.
+    """
+    db = _snapshot(tmp_path, monkeypatch, _band_rows())
+    conn = db.connect()
+    try:
+        conn.execute("ALTER TABLE screener_rows DROP COLUMN rsi14")
+        conn.commit()
+    finally:
+        conn.close()
+    from api.services.screener import distribution
+    distribution.invalidate()
+
+    by_key = {f["key"]: f for f in filters.meta()["filters"]}
+    assert by_key["rsi14"]["distribution"]["refused"] == "column_absent"
+    assert "distribution" in by_key["price"], "the whole sweep collapsed"
+    # The TEXT range controls stay out — a different fact, deliberately.
+    assert "distribution" not in by_key["ipo_date"]
 
 
 # ───────── Wave 6 — per-pattern engine flags (the formula lane's unlock) ────

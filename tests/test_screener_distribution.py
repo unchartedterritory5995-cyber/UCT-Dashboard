@@ -75,20 +75,33 @@ def test_the_five_percentiles_are_the_observed_values_at_the_nearest_rank(
 
 def test_a_percentile_is_a_value_some_symbol_ACTUALLY_HAS(tmp_path, monkeypatch):
     """🔴 NO INTERPOLATION, and this fixture is the reason it matters. Half the
-    universe at $1 and half at $1000: an interpolating percentile prints
-    $500.50 for the median, a price no symbol in the set trades at, under a
-    label that says "typical". Nearest-rank can only ever return a value that
-    is in the column."""
-    _db(tmp_path, monkeypatch,
-        _rows(400, price=[1.0] * 200 + [1000.0] * 200))
+    universe clustered just above $1 and half just above $1000: an interpolating
+    median prints ~$500, a price no symbol in the set trades at, under a label
+    that says "typical". Nearest-rank can only ever return a value that is in
+    the column.
+
+    ⚠️ The fixture is bimodal with TEN levels rather than two on purpose — two
+    would now be refused as `too_few_levels`, correctly (a two-valued column is
+    a category), and this test would then pass for the wrong reason without
+    exercising the arithmetic it exists for.
+    """
+    low = [1.0, 1.1, 1.2, 1.3, 1.4]
+    high = [1000.0, 1000.1, 1000.2, 1000.3, 1000.4]
+    values = [low[i % 5] for i in range(200)] + [high[i % 5] for i in range(200)]
+    _db(tmp_path, monkeypatch, _rows(400, price=values))
+    held = set(values)
 
     band = distribution.distributions()["columns"]["price"]
-    assert band["p50"] == 1.0
-    assert band["p75"] == 1000.0
+    assert band["p50"] in low, (
+        f"p50 = {band['p50']} — the 200th of 400 sorted values is in the low "
+        f"cluster; anything between the clusters is interpolation")
+    assert band["p75"] in high
+    assert not (low[-1] < band["p50"] < high[0]), (
+        "the median landed in the gap between the two clusters, which no symbol "
+        "occupies — that is an interpolated percentile wearing the word 'typical'")
     for pct in distribution.PERCENTILES:
-        assert band[f"p{pct}"] in (1.0, 1000.0), (
-            f"p{pct} = {band[f'p{pct}']} is not a value any row holds — that is "
-            f"an interpolated percentile wearing the word 'typical'")
+        assert band[f"p{pct}"] in held, (
+            f"p{pct} = {band[f'p{pct}']} is not a value any row holds")
 
 
 # ─────────────── the coverage floors, each refusing BY NAME ─────────────────
@@ -152,8 +165,36 @@ def test_letter_grades_in_a_numeric_column_are_NOT_a_percentile(
 
     band = distribution.distributions()["columns"]["pe_ttm"]
     assert band["refused"] == distribution.REFUSED_NOT_NUMERIC
-    assert band["non_null"] == 0, "a letter grade is not a value a band may use"
+    assert band["usable"] == 0, "a letter grade is not a value a band may use"
+    assert band["non_null"] == 400, (
+        "the column HOLDS 400 values — reporting 0 under a key named `non_null` "
+        "would put a wrong coverage number in the one payload whose whole "
+        "purpose is that the coverage never lies")
     assert not [k for k in band if k.startswith("p")]
+
+
+def test_the_two_counts_are_two_facts_and_neither_stands_in_for_the_other(
+        tmp_path, monkeypatch):
+    """⭐ `non_null` = rows that carry a value. `usable` = rows carrying a value
+    a percentile may be taken over. Equal on all 130 columns of this box's
+    snapshot today — and `accdis` has already been the column where they
+    diverge, so the day one is reported under the other's name is a day the
+    coverage line lies about how much of the universe answered.
+
+    The floors divide `usable`, because that is the population the percentiles
+    would describe: 300 numbers among 400 answers is a 300-row distribution.
+    """
+    numbers = [float(i) for i in range(300)]
+    _db(tmp_path, monkeypatch,
+        _rows(400, pe_ttm=numbers + ["A"] * 100))
+
+    band = distribution.distributions()["columns"]["pe_ttm"]
+    assert band["non_null"] == 400
+    assert band["usable"] == 300
+    # 300/400 = 75% clears MIN_COVERAGE, so a band is emitted — and it describes
+    # the 300, which is what `usable` says and `non_null` would not.
+    assert "refused" not in band
+    assert band["p50"] in numbers
 
 
 def test_a_zero_one_flag_gets_no_band(tmp_path, monkeypatch):
@@ -166,6 +207,110 @@ def test_a_zero_one_flag_gets_no_band(tmp_path, monkeypatch):
     band = distribution.distributions()["columns"]["consecutive_up"]
     assert band["refused"] == distribution.REFUSED_BINARY
     assert band["non_null"] == 400
+
+
+# ───── the two the binary gate missed by one value, measured on the real
+#       snapshot before they were written ────────────────────────────────────
+#
+# 🔴 BOTH OF THESE SHIPPED A "TYPICAL RANGE" ON THIS BOX. `distinct <= {0, 1}`
+# was the only "nothing worth printing" gate, and it is one value short of an
+# encoded category and blind to a saturated constant. They are in the pattern
+# family — one of the few the benchmark ranks us FIRST in — so the two most
+# visible bands in that view were the two wrong ones.
+
+def test_an_ENCODED_CATEGORY_is_refused_even_though_it_is_stored_as_numbers(
+        tmp_path, monkeypatch):
+    """🔴 MEASURED, NOT IMAGINED: `pattern_engine_dir` on this box's 3,714-row
+    snapshot holds exactly {-1, 0, +1} on 2,889 rows and emitted
+    `p5=-1 p25=-1 p50=0 p75=1 p95=1`. `filters.py`'s own comment beside the
+    control calls it "Reader-encoded direction (ruling D4)" — a LABEL set. A
+    percentile over labels is a number over a category, which
+    `test_only_RANGE_controls_carry_a_band` says in as many words must never
+    happen; it passed only because the registry types the control `range`.
+
+    ⭐ The floor is DERIVED (`MIN_DISTINCT = len(PERCENTILES)`), not typed: a
+    column that cannot fill the five slots it prints is advertising a precision
+    it does not have.
+    """
+    direction = [(-1, 0, 1)[i % 3] for i in range(400)]
+    _db(tmp_path, monkeypatch, _rows(400, pattern_engine_dir=direction))
+
+    band = distribution.distributions()["columns"]["pattern_engine_dir"]
+    assert band["refused"] == distribution.REFUSED_FEW_LEVELS
+    assert band["non_null"] == 400 and band["usable"] == 400, (
+        "this fixture must clear both coverage floors or it proves nothing "
+        "about the level floor")
+    assert not [k for k in band if k.startswith("p")]
+
+
+def test_a_genuine_small_integer_COUNT_keeps_its_band(tmp_path, monkeypatch):
+    """⭐ THE CONTROL ON THE TEST ABOVE. `consecutive_down` holds 9 distinct
+    values on the real snapshot and `inside_bar_run` 10 — small integers, but a
+    COUNT with an ordering a member screens on, where "95% of names run 4 down
+    days or fewer" is a real fact. A level floor that swallowed those would have
+    bought the category fix by deleting six honest bands.
+    """
+    runs = [i % 9 for i in range(400)]
+    _db(tmp_path, monkeypatch, _rows(400, consecutive_down=runs))
+
+    band = distribution.distributions()["columns"]["consecutive_down"]
+    assert "refused" not in band, band
+    assert (band["p5"], band["p95"]) == (0, 8)
+
+
+def test_a_SATURATED_column_is_refused_and_says_what_it_is_saturated_AT(
+        tmp_path, monkeypatch):
+    """🔴 ALSO MEASURED: `pattern_engine_conf` holds five distinct values on
+    2,889 rows with ≥95% of them at 100.0, so all five points printed 100.0 and
+    a member read a zero-width "typical range" — the word doing exactly the
+    opposite of its job.
+
+    ⭐ AND THE REFUSAL CARRIES THE FACT. A 0-100 confidence score pinned at 100
+    is a data defect nobody had surfaced; the first pass of this feature over
+    the real snapshot found it. `saturated_at` is how the surface can say so.
+    It is deliberately not `p*`-named — the refused-XOR-percentiles invariant is
+    what stops a refusal being read as an answer.
+    """
+    conf = [90.0, 96.8, 98.4, 99.2] + [100.0] * 396
+    _db(tmp_path, monkeypatch, _rows(400, pattern_engine_conf=conf))
+
+    band = distribution.distributions()["columns"]["pattern_engine_conf"]
+    assert band["refused"] == distribution.REFUSED_NO_SPREAD
+    assert band["saturated_at"] == 100.0
+    assert len(set(conf)) >= distribution.MIN_DISTINCT, (
+        "this fixture no longer isolates the zero-width gate — it now trips the "
+        "level floor first and the test would pass for the wrong reason")
+    assert not [k for k in band if k.startswith("p")]
+
+
+def test_a_column_this_pod_has_not_been_MIGRATED_to_hold_says_so(
+        tmp_path, monkeypatch):
+    """⛔ SILENCE IS THE ONE THING THIS MODULE PROMISES NOT TO DO. Nine registry
+    columns are absent from this box's `screener_rows` (five of them range
+    controls), and they used to drop out of the payload entirely — making "not
+    yet migrated" indistinguishable from "no band applies", which is the exact
+    ambiguity `no_data` exists one layer down to remove. `init_db()` ALTERs them
+    in at startup so production should never be in this state; a pod that IS
+    now says so.
+    """
+    db = _db(tmp_path, monkeypatch, _rows(400, price=[float(i) for i in range(400)]))
+    conn = db.connect()
+    try:
+        conn.execute("ALTER TABLE screener_rows DROP COLUMN rsi14")
+        conn.commit()
+    finally:
+        conn.close()
+    distribution.invalidate()
+
+    cols = distribution.distributions()["columns"]
+    assert cols["rsi14"]["refused"] == distribution.REFUSED_COLUMN_ABSENT
+    assert cols["rsi14"]["universe"] == 400
+    assert "price" in cols and "refused" not in cols["price"], (
+        "the whole sweep collapsed — this test proves nothing about one column")
+
+    # ...and a TEXT column that IS present is a different fact: excluded by the
+    # declared-type gate, permanently and on purpose. It must NOT read as absent.
+    assert "ipo_date" not in cols
 
 
 # ────────────────── coverage travels with EVERY entry ───────────────────────
@@ -186,9 +331,10 @@ def test_every_entry_carries_its_coverage_whether_it_emitted_a_band_or_not(
     assert emitted, "no band was emitted at all — every assertion below is vacuous"
     for name, band in cols.items():
         assert isinstance(band["non_null"], int), name
+        assert isinstance(band["usable"], int), name
         assert isinstance(band["universe"], int), name
         assert band["universe"] == 400, name
-        assert 0 <= band["non_null"] <= band["universe"], name
+        assert 0 <= band["usable"] <= band["non_null"] <= band["universe"], name
         assert ("refused" in band) != any(k.startswith("p") for k in band), (
             f"{name} is both refused and answered, or neither: {band}")
 
@@ -336,6 +482,105 @@ def test_two_snapshots_that_agree_on_shape_do_not_share_a_cached_band(
     assert (a, b) == (200.0, 600.0), (
         "the second snapshot was served the first one's band — the cache key "
         "does not separate two files")
+
+
+def test_a_cold_herd_computes_ONCE_while_the_rest_wait(tmp_path, monkeypatch):
+    """⭐ THE POST-DEPLOY SHAPE, and the repo already has the idiom for it.
+
+    The cache is per-PROCESS, so every web deploy empties it. Without a valve,
+    every concurrent first-loader ran the whole 483k-cell scan (measured 116 ms,
+    GIL-bound, on the ONE shared anyio threadpool) instead of one running it
+    while the others took the result — `live_prices`'s Semaphore-plus-re-check
+    exists for exactly this and costs a few lines.
+
+    The barrier sits in `_fingerprint`, which runs OUTSIDE the lock: it proves
+    the threads genuinely arrived together (a sequential run would deadlock on
+    the barrier and time out), so a green result here cannot mean "the harness
+    never made them race".
+    """
+    import threading
+
+    _db(tmp_path, monkeypatch, _rows(400, price=[float(i + 1) for i in range(400)]))
+
+    n = 6
+    at_the_gate = threading.Barrier(n, timeout=10)
+    computes = []
+    real_compute = distribution.compute
+    real_fingerprint = distribution._fingerprint
+
+    def counted(conn):
+        computes.append(1)
+        return real_compute(conn)
+
+    def synced(conn, path):
+        key = real_fingerprint(conn, path)
+        at_the_gate.wait()          # raises BrokenBarrierError on timeout
+        return key
+
+    monkeypatch.setattr(distribution, "compute", counted)
+    monkeypatch.setattr(distribution, "_fingerprint", synced)
+
+    results, errors = [], []
+
+    def go():
+        try:
+            results.append(distribution.distributions())
+        except BaseException as exc:      # noqa: BLE001 — the harness's own faults
+            errors.append(exc)
+
+    threads = [threading.Thread(target=go) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+
+    assert not errors, f"the harness itself failed: {errors}"
+    assert len(results) == n, "not every thread returned — the valve deadlocked"
+    assert len(computes) == 1, (
+        f"{len(computes)} of {n} concurrent first-loaders each ran the full "
+        f"scan; the post-acquire re-check is what makes it one")
+    assert all(r == results[0] for r in results), (
+        "the waiters got something other than the winner's answer")
+    assert results[0]["columns"]["price"]["p50"] == 200.0
+
+
+def test_every_refusal_reason_is_answered_in_words_by_the_filter_rail():
+    """⛔ A REASON THE UI DROPS IS A BLANK BOX, WHICH IS THE WHOLE FINDING.
+
+    This module's contract is that "we hold nothing here" is a fact a member is
+    entitled to. That promise is only kept if the surface can say it — and the
+    lane before this one shipped a correct, well-railed payload that NO surface
+    read at all. So the reasons are derived off this module (never retyped) and
+    checked against the renderer that has to answer them.
+
+    ⭐ Derived, with a control: `_probe_reason_absent` proves the probe can see
+    a reason the renderer does NOT carry, so a green result cannot mean the
+    search matched everything.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    renderer = root / "app/src/pages/screener/shell/FilterBand.jsx"
+    assert renderer.exists(), f"the renderer moved: {renderer}"
+    src = renderer.read_text(encoding="utf-8")
+
+    reasons = {name: getattr(distribution, name) for name in dir(distribution)
+               if name.startswith("REFUSED_")}
+    assert len(reasons) >= 8, f"the probe found only {reasons} — derive is broken"
+
+    def answered(value):
+        # The map is keyed on the bare constant, e.g. `no_data: () => …`.
+        return re.search(rf"^\s*{re.escape(value)}:", src, re.M) is not None
+
+    missing = sorted(v for v in reasons.values() if not answered(v))
+    assert not missing, (
+        f"{missing} refuse a band with no sentence in FilterBand.jsx — a member "
+        f"reading that control sees the blank box this whole lane exists to fix")
+
+    assert not answered("_probe_reason_absent"), (
+        "the probe matches a reason the renderer does not carry — it would pass "
+        "for any input and proves nothing")
 
 
 # ─────────────────── what is deliberately NOT measured ──────────────────────
