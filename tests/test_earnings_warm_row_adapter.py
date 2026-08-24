@@ -69,9 +69,17 @@ def test_rank_finds_pending_reporters_in_calendar_spelling(fake_calendar):
     pending = w._rank(1, reported=False, tracked=set())
     syms = [r["sym"] for r in pending]
     # A has consensus + cap; NOCAP has consensus and an UNKNOWN cap (kept — an
-    # unknown cap is not a small cap); B has no consensus; C already reported;
-    # TINY is under the $300M floor and nobody tracks it.
-    assert syms == ["A", "NOCAP"]
+    # unknown cap is not a small cap); B has no consensus; C already reported.
+    #
+    # TINY is under the $300M floor. It used to be DROPPED here; since
+    # 2026-08-23 it is DEMOTED instead — owner call, "every reporter you can
+    # see": a sub-floor name still has a tile on the calendar board, and a tile
+    # that opens to a 30s spinner is the complaint the change answers. `top_n`
+    # bounds the spend now; the floor only decides who is warmed LAST.
+    # Ordering + the restorable hard-drop are pinned in
+    # tests/test_earnings_warm_priority_order.py.
+    assert syms == ["A", "NOCAP", "TINY"]
+    assert pending[-1]["sym"] == "TINY", "a sub-floor name must rank LAST, not vanish"
     assert pending[0]["verdict"] == "Pending" and pending[0]["eps_estimate"] == 1.0
     assert pending[0]["date"] == "2026-08-24" and pending[0]["session"] == "BMO"
 

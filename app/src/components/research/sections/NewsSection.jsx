@@ -9,9 +9,9 @@
 // never mistaken for independent reporting.
 import useSWR from 'swr'
 import { SkeletonBlock } from '../../Skeleton'
+import { EmptyState } from '../../research-kit'
+import { FETCH_FAILED, sectionFetcher } from './sectionFetch'
 import styles from './NewsSection.module.css'
-
-const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
 /** "2026-08-09 18:00:00" → "2h ago" / "Aug 9". Never throws on junk. */
 export function whenLabel(iso, now = Date.now()) {
@@ -32,13 +32,23 @@ export function whenLabel(iso, now = Date.now()) {
 }
 
 export default function NewsSection({ sym }) {
-  const { data } = useSWR(sym ? `/api/research/news/${sym}?limit=25` : null, fetcher,
-                          { revalidateOnFocus: false })
+  const { data, error, isLoading, mutate } = useSWR(
+    sym ? `/api/research/news/${encodeURIComponent(sym)}?limit=25` : null, sectionFetcher,
+    { revalidateOnFocus: false },
+  )
   if (!sym) return null
+
+  // A FAILED request is not an empty feed. Checked FIRST and before the
+  // skeleton, because `data` is undefined in both cases and the old code read
+  // that ambiguity as "no news" — a factual claim about the company made out
+  // of a network error (see sectionFetch.js).
+  if (error) {
+    return <EmptyState {...FETCH_FAILED} onRetry={() => mutate()} />
+  }
 
   const items = data?.items || []
   if (!items.length) {
-    if (data === undefined) {
+    if (isLoading || data === undefined) {
       return (
         <ul className={styles.list} aria-hidden="true">
           {[0, 1, 2, 3, 4].map(i => (

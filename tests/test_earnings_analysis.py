@@ -13,6 +13,22 @@ from unittest.mock import patch, MagicMock
 from api.services import engine
 from api.services.cache import cache
 
+# The AI cache keys are versioned, and the version has now drifted twice. DERIVE
+# it from its owner (`earnings_ai_store._SHAPE`, which also names the on-disk
+# payload) instead of retyping "v2"/"v3" in a dozen assertions — a test that
+# hardcodes the value it is checking goes red on every legitimate bump and
+# teaches the next reader to edit the number rather than the behaviour.
+def _pkey(sym: str) -> str:
+    from api.services import earnings_ai_store as _s
+    return f"earnings_preview_{_s._SHAPE}_{sym}"
+
+
+def _akey(sym: str) -> str:
+    from api.services import earnings_ai_store as _s
+    return f"earnings_analysis_{_s._SHAPE}_{sym}"
+
+
+
 
 @pytest.fixture(autouse=True)
 def _isolate_earnings_ai_store(tmp_path, monkeypatch):
@@ -62,7 +78,7 @@ def _make_finnhub_mock(items=None):
 
 class TestYoYEpsGrowth:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_v2_TEST")
+        cache.invalidate(_akey("TEST"))
 
     def _run(self, quarters, row=None):
         av_data = _mock_av_response(quarters)
@@ -106,7 +122,7 @@ class TestYoYEpsGrowth:
 
 class TestBeatStreak:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_v2_TEST")
+        cache.invalidate(_akey("TEST"))
 
     def _run(self, quarters):
         with patch.object(engine, "_fetch_quarterly_history", return_value=quarters), \
@@ -145,7 +161,7 @@ class TestBeatStreak:
 
 class TestGracefulDegradation:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_v2_TEST")
+        cache.invalidate(_akey("TEST"))
 
     def test_av_failure_returns_none_fields(self):
         """Empty quarterly history → degrade gracefully with None EPS/streak fields."""
@@ -209,8 +225,8 @@ class TestCacheBehaviour:
         """Cache hit must return immediately without any I/O."""
         cached_data = {"sym": "CACHED", "analysis": "cached", "yoy_eps_growth": None,
                        "beat_streak": None, "news": []}
-        # _generate_earnings_analysis uses cache key f"earnings_analysis_v2_{sym}"
-        cache.set("earnings_analysis_v2_CACHED", cached_data, ttl=300)
+        # _generate_earnings_analysis uses cache key f"earnings_analysis_{_SHAPE}_{sym}"
+        cache.set(_akey("CACHED"), cached_data, ttl=300)
         with patch.object(engine, "_fetch_quarterly_history") as mock_fetch, \
              patch.object(engine, "_with_retry") as mock_retry:
             result = engine._generate_earnings_analysis("CACHED", None)
@@ -242,7 +258,7 @@ class TestGenerateEarningsPreview:
     }
 
     def setup_method(self):
-        cache.invalidate("earnings_preview_v2_PL")
+        cache.invalidate(_pkey("PL"))
 
     def _run(self, av_quarters=None, fh_news=None, ai_response=None, row=None):
         if av_quarters is None:
@@ -322,10 +338,10 @@ class TestGenerateEarningsPreview:
         assert len(result["beat_history"]) == 4
 
     def test_preview_uses_separate_cache_key(self):
-        """Cache must be written to earnings_preview_v2_SYM, not earnings_analysis_v2_SYM."""
+        """Cache must be written to the PREVIEW key, not the ANALYSIS key."""
         self._run()
-        assert cache.get("earnings_preview_v2_PL") is not None
-        assert cache.get("earnings_analysis_v2_PL") is None
+        assert cache.get(_pkey("PL")) is not None
+        assert cache.get(_akey("PL")) is None
 
 
 # ── Enrichment completeness gate (data-dependability C17) ────────────────────
@@ -367,7 +383,7 @@ class TestEnrichmentCompletenessGateAnalysis:
     QUARTERS = _make_quarters([(1.60, 1.50), (1.50, 1.40), (1.40, 1.30), (1.35, 1.25), (1.30, 1.20)])
 
     def setup_method(self):
-        cache.invalidate("earnings_analysis_v2_ENR")
+        cache.invalidate(_akey("ENR"))
 
     def _run(self, enrichment):
         with patch.object(engine, "_fetch_quarterly_history", return_value=self.QUARTERS), \
@@ -384,7 +400,7 @@ class TestEnrichmentCompletenessGateAnalysis:
                       "beat_surprises": None, "implied_move": None, "key_quotes": None}
         result = self._run(enrichment)
         assert result["analysis"] is not None
-        assert _ttl_remaining("earnings_analysis_v2_ENR") > 40_000  # ~12h (43,200s)
+        assert _ttl_remaining(_akey("ENR")) > 40_000  # ~12h (43,200s)
         from api.services import earnings_ai_store
         assert earnings_ai_store.get("analysis", "ENR") is not None
 
@@ -393,7 +409,7 @@ class TestEnrichmentCompletenessGateAnalysis:
         enrichment = {"pre_earnings": None, "hist_moves": {"avg_abs_move": 4.2}, "revisions": None}
         result = self._run(enrichment)
         assert result["analysis"] is not None  # the AI leg itself still succeeded
-        assert _ttl_remaining("earnings_analysis_v2_ENR") <= 400  # ~5 min (300s)
+        assert _ttl_remaining(_akey("ENR")) <= 400  # ~5 min (300s)
         from api.services import earnings_ai_store
         assert earnings_ai_store.get("analysis", "ENR") is None
 
@@ -401,7 +417,7 @@ class TestEnrichmentCompletenessGateAnalysis:
         """Empty dict (the outer try/except caught a raise) -> short TTL, NOT persisted."""
         result = self._run({})
         assert result["analysis"] is not None
-        assert _ttl_remaining("earnings_analysis_v2_ENR") <= 400
+        assert _ttl_remaining(_akey("ENR")) <= 400
         from api.services import earnings_ai_store
         assert earnings_ai_store.get("analysis", "ENR") is None
 
@@ -413,7 +429,7 @@ class TestEnrichmentCompletenessGatePreview:
         (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)])
 
     def setup_method(self):
-        cache.invalidate("earnings_preview_v2_ENR2")
+        cache.invalidate(_pkey("ENR2"))
 
     def _run(self, enrichment):
         with patch.object(engine, "_fetch_quarterly_history", return_value=self.QUARTERS), \
@@ -429,7 +445,7 @@ class TestEnrichmentCompletenessGatePreview:
                       "beat_surprises": None, "implied_move": None, "key_quotes": None}
         result = self._run(enrichment)
         assert len(result["preview_text"]) > 0
-        assert _ttl_remaining("earnings_preview_v2_ENR2") > 40_000
+        assert _ttl_remaining(_pkey("ENR2")) > 40_000
         from api.services import earnings_ai_store
         assert earnings_ai_store.get("preview", "ENR2") is not None
 
@@ -437,6 +453,6 @@ class TestEnrichmentCompletenessGatePreview:
         enrichment = {"pre_earnings": None}  # only 1/6 legs — deadline-shed
         result = self._run(enrichment)
         assert len(result["preview_text"]) > 0
-        assert _ttl_remaining("earnings_preview_v2_ENR2") <= 400
+        assert _ttl_remaining(_pkey("ENR2")) <= 400
         from api.services import earnings_ai_store
         assert earnings_ai_store.get("preview", "ENR2") is None

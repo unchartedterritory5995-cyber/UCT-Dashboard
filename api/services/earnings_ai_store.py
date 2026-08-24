@@ -33,8 +33,27 @@ def _safe(sym: str) -> str:
     return os.path.basename((sym or "").upper().strip())
 
 
+# SHAPE version of the persisted payload — bumped whenever the generator's
+# prompt changes what the text LOOKS like, not merely what it says.
+#
+# This layer is the reason a prompt change can ship and change nothing. The
+# in-memory cache key in engine.py is versioned (`earnings_preview_v3_{sym}`),
+# but that only survives until the next redeploy; THIS file is the copy that
+# persists on /data and is served "instantly to every user, forever, at zero
+# token cost" — which is exactly what a warm name gets. Bumping only the memory
+# key would have left every already-warmed reporter serving the OLD long-form
+# preview from disk for its full 3-day (preview) / 7-day (analysis) life, so
+# the names people actually open — the warm ones — would have been the last to
+# see the change, and a spot-check on a cold ticker would have looked correct.
+#
+# v3 (2026-08-23): preview cut to ~120 words + 3 one-line bullets; analysis
+# rewritten as a standalone result summary. Old v2 files are simply never read
+# again and age out on their existing TTL — no migration, no delete pass.
+_SHAPE = os.environ.get("EARNINGS_AI_SHAPE", "v3")
+
+
 def _path(kind: str, sym: str) -> str:
-    return os.path.join(_DIR, f"{kind}_{_safe(sym)}.json")
+    return os.path.join(_DIR, f"{kind}_{_SHAPE}_{_safe(sym)}.json")
 
 
 def get(kind: str, sym: str):

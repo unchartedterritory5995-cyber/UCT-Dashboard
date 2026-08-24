@@ -20,16 +20,14 @@ import { SkeletonBlock } from '../../Skeleton'
 import {
   fmtAge, fmtEarnDate, fmtPct, fmtShares, fmtVol, pctText, websiteDomain,
 } from '../../../utils/profileFormat'
-import { GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
+import { FETCH_FAILED, GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
 import styles from './ProfileSection.module.css'
-
-const jsonFetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
 export default function ProfileSection({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   // Poll fast only while the profile is being written, then stop.
   const [polling, setPolling] = useState(false)
-  const { data: brief } = useMobileSWR(
+  const { data: brief, error: briefError, mutate: refetchBrief } = useMobileSWR(
     s ? `/api/stock-brief/${encodeURIComponent(s)}` : null, paidFetcher,
     { refreshInterval: polling ? GENERATING_POLL_MS : 0, dedupingInterval: 1500, revalidateOnFocus: false },
   )
@@ -39,7 +37,7 @@ export default function ProfileSection({ sym }) {
   // Sympathy stocks — the same group-peers engine Multi-Chart uses; cached
   // hard on the backend (~6h), so once per symbol is plenty.
   const { data: peersData } = useSWR(
-    s ? `/api/groups/peers?sym=${encodeURIComponent(s)}&n=10` : null, jsonFetcher,
+    s ? `/api/groups/peers?sym=${encodeURIComponent(s)}&n=10` : null, paidFetcher,
     { dedupingInterval: 3600000, revalidateOnFocus: false },
   )
   const peers = useMemo(() => (Array.isArray(peersData?.peers) ? peersData.peers : [])
@@ -67,6 +65,9 @@ export default function ProfileSection({ sym }) {
   }, [fund])
 
   if (!s) return null
+  // The description AND the "so far" stat block both ride this one payload, so
+  // a swallowed failure blanked them together — the reported 2026-08-23 symptom.
+  if (briefError) return <EmptyState {...FETCH_FAILED} onRetry={() => refetchBrief()} />
   if (brief?.paywalled) {
     return (
       <EmptyState

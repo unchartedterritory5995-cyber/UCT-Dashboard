@@ -451,6 +451,45 @@ def _is_deep_request(bars: int) -> bool:
     return bars >= _DEEP_REQUEST_THRESHOLD
 
 
+# ~252 sessions in a 365-day year — the conversion from "calendar days back to
+# my floor date" to "daily bars I must ask for". Sized here, ONCE, because two
+# callers need the same answer and a restated constant is how the two drift.
+_SESSIONS_PER_CALENDAR_DAY = 252 / 365
+# Holidays, a stale last bar over a long weekend, and the fact that a fetch
+# returns the most recent N — a floor date must land comfortably INSIDE the
+# window, not on its edge.
+_DEPTH_MARGIN_BARS = 20
+
+
+def daily_bars_needed_since(lo_iso: str, *, today=None) -> int:
+    """Daily-bar count that reaches back to `lo_iso`, always UNDER the deep
+    threshold.
+
+    A caller that wants "this year's bars" was asking for 5000 — ~20 years — to
+    keep ~160 of them. 5000 is above `_DEEP_REQUEST_THRESHOLD`, so it took the
+    synchronous full-history backfill path: measured 4-31s per symbol against
+    production (and one HTTP 502), versus 0.4-1.0s for the same symbols under
+    the threshold. Callers that only need a recent window must size the ask to
+    the window.
+
+    Clamped below the threshold on purpose: a far-past floor is answered with
+    the deepest NON-deep window rather than silently re-entering that path. A
+    caller that genuinely wants full history should say so by passing a large
+    count to `_get_bars_inner` directly.
+    """
+    from datetime import date as _date
+    today = today or _date.today()
+    try:
+        y, m, d = (int(p) for p in str(lo_iso)[:10].split("-"))
+        lo = _date(y, m, d)
+    except Exception:
+        # Unparseable floor → a full calendar year, the common intent.
+        lo = _date(today.year, 1, 1)
+    elapsed = max((today - lo).days, 0)
+    need = int(elapsed * _SESSIONS_PER_CALENDAR_DAY) + _DEPTH_MARGIN_BARS
+    return max(30, min(need, _DEEP_REQUEST_THRESHOLD - 1))
+
+
 def _mark_history_complete(ticker: str, tf: str) -> None:
     """Record that a full-history (deep) fetch has populated SQLite for this
     (ticker, tf). Without this, a deep backfill whose requested count exceeds

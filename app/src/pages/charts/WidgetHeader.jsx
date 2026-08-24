@@ -272,17 +272,22 @@ export default function WidgetHeader({
   }
 
   return (
-    <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`} style={style}>
-      {/* Grid mode: the grip is RGL's drag handle. Floating: it drives the panel drag. */}
-      <span
-        className={`${styles.dragGrip} charts-widget-drag-handle`}
-        aria-hidden="true"
-        onPointerDown={floating ? onHeaderDragStart : undefined}
-        style={floating ? { cursor: 'grab' } : undefined}
-      >⋮⋮</span>
+    // The ENTIRE header is the drag handle — grab anywhere in the top border to move
+    // the widget (grid mode via RGL's `charts-widget-drag-handle`; floating mode via
+    // onHeaderDragStart). The old ⋮⋮ grip dots are gone; the color dot sits top-left
+    // where they were. Interactive controls carry `charts-no-drag` (+ RGL's
+    // draggableCancel exempts every <button>) so a click on them acts, never drags.
+    <div
+      className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}${!floating ? ' charts-widget-drag-handle' : ''}`}
+      style={{ ...(style || {}), cursor: 'grab' }}
+      onPointerDown={floating ? (e) => {
+        if (e.target.closest('button, input, textarea, a, select, [role="tab"]')) return
+        onHeaderDragStart?.(e)
+      } : undefined}
+    >
       <button
         type="button"
-        className={`${styles.colorDot} ${styles[`colorDot${color}`]}`}
+        className={`${styles.colorDot} ${styles[`colorDot${color}`]} charts-no-drag`}
         onClick={() => onColorChange(nextColor(color))}
         aria-label={isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
         title={isNone
