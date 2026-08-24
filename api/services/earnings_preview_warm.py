@@ -286,6 +286,25 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
 # 180 of them at once is a fan-out the web pod cannot absorb. So the warm calls
 # their synchronous generators on THIS pool, paced by its worker count.
 
+def _companion_weeks() -> int:
+    """How many weeks ahead the COMPANIONS walk — further than the briefs.
+
+    `EARNINGS_WARM_WEEKS` (2) is the right horizon for a PREVIEW: three weeks
+    out a report date is still a provider's guess, and the skip-if-stable hash
+    keys on that date, so every shift re-bills the generation. A Profile and a
+    Catalyst history have no such problem — "what does this company do" and
+    "what moved it this year" do not change when the date does, and they are
+    generate-once + disk-persisted, so warming them early is paid once and
+    never again.
+
+    That asymmetry is the whole reason this is a separate knob rather than a
+    bigger `EARNINGS_WARM_WEEKS`: a reader who opens the month view, or steps
+    out to the week after next, gets the company pages instantly, and only the
+    print preview is written on demand."""
+    return max(int(os.environ.get("EARNINGS_WARM_COMPANION_WEEKS", "4") or 4),
+               int(os.environ.get("EARNINGS_WARM_WEEKS", "2") or 2))
+
+
 def _companion_top_n() -> int:
     """Companion budget. Sized ABOVE the preview budget on purpose: the board
     is bigger than the brief-eligible set (the whole point of walking it), and
@@ -385,7 +404,10 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # filter drops. One loop, so a name's brief and its two companions still
         # go into the pool together.
         brief_rows = {r["sym"]: r for r in chosen}
-        board = _rank(weeks, reported=None, tracked=tracked) if want_companions else chosen
+        # The companions walk a LONGER horizon than the briefs (see
+        # `_companion_weeks`), so the board is built on its own week count.
+        board = (_rank(_companion_weeks(), reported=None, tracked=tracked)
+                 if want_companions else chosen)
         board = board[:max(top_n, _companion_top_n())]
 
         submitted = fresh = companions = 0

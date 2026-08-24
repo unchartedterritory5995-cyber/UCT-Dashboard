@@ -343,3 +343,48 @@ def test_the_fund_detector_keeps_reits_and_operating_companies(monkeypatch, indu
     monkeypatch.setattr(ticker_meta, "_base_meta",
                         lambda sym: {"industry": industry, "sector": "", "name": ""})
     assert w._looks_like_a_fund("X") is is_fund, industry
+
+
+# ── the companions walk a longer horizon than the briefs ────────────────────
+
+def test_companions_look_further_ahead_than_the_briefs(monkeypatch, fake_calendar):
+    """A Profile is generate-once and date-independent, so it is warmed weeks
+    before the print. A PREVIEW is not: three weeks out the report date is a
+    provider's guess, and skip-if-stable keys on that date, so every shift
+    re-bills it. The two horizons are therefore separate knobs."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setenv("EARNINGS_WARM_WEEKS", "2")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANION_WEEKS", "5")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    seen = []
+    real_rank = w._rank
+    monkeypatch.setattr(w, "_rank",
+                        lambda weeks, **kw: seen.append((weeks, kw.get("reported"))) or real_rank(weeks, **kw))
+    w._run("preview", lambda *a, **k: None, reported=False)
+    briefs = [wk for wk, rep in seen if rep is False]
+    board = [wk for wk, rep in seen if rep is None]
+    assert briefs == [2], f"the brief horizon must stay EARNINGS_WARM_WEEKS, got {briefs}"
+    assert board == [5], f"the companion horizon must be its own knob, got {board}"
+
+
+def test_the_companion_horizon_can_never_be_shorter_than_the_brief_one(monkeypatch):
+    """A companion window inside the brief window would leave names with a
+    preview and no company page — the exact inversion of the point."""
+    from api.services import earnings_preview_warm as w
+    monkeypatch.setenv("EARNINGS_WARM_WEEKS", "6")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANION_WEEKS", "1")
+    assert w._companion_weeks() == 6
+
+
+def test_the_companion_horizon_defaults_ahead_of_the_brief_one(monkeypatch):
+    from api.services import earnings_preview_warm as w
+    monkeypatch.delenv("EARNINGS_WARM_COMPANION_WEEKS", raising=False)
+    monkeypatch.delenv("EARNINGS_WARM_WEEKS", raising=False)
+    assert w._companion_weeks() == 4
