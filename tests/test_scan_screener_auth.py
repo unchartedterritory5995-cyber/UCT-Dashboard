@@ -83,7 +83,13 @@ ROOT = Path(__file__).resolve().parents[1]
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 14  # +1 2026-08-23: POST /api/screener/finviz-refresh
+EXPECTED_SCREENER_ROUTES = 15  # +1 2026-08-23: POST /api/screener/finviz-refresh
+#                              # +1 2026-08-24: POST /api/screener/count — the
+#   pre-run match count (benchmark metric 450). ⛔ It is PAID like /scan and
+#   takes the SAME ScanSpec, which is the reason it belongs behind the same
+#   gate rather than reading as a harmless read: the spec can carry a `list`
+#   filter naming the caller's own watchlists, so an ungated count route
+#   would leak the row COUNTS of another member's list one probe at a time.
 # (admin) — the missing upstream half of POST /api/screener/refresh. A header
 # correction could not reach members until the next 02:45 ET pull; this makes
 # 'wait for tonight' a two-call operation. Deliberate, and admin-classed below.
@@ -123,6 +129,9 @@ QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701, "group": "sector"}
 #: happy path".
 BODY_SAMPLES = {
     ("POST", "/api/screener/scan"): {"filters": [], "view": "overview"},
+    # Same ScanSpec as /scan, deliberately — the count previews THAT spec,
+    # so a body shape of its own would be a second grammar for one request.
+    ("POST", "/api/screener/count"): {"filters": [], "view": "overview"},
     ("POST", "/api/screener/saved-screens"): {"name": "n", "spec": {"filters": []}},
     ("PUT", "/api/screener/saved-screens/{sid}"): {"name": "n2"},
 }
@@ -298,6 +307,8 @@ def stub_services(monkeypatch):
     # silently swallowed it (**_) would let the route stop passing it and this
     # file would stay green.
     monkeypatch.setattr(scr_query, "run_scan",
+                        lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
+    monkeypatch.setattr(scr_query, "preview_count",
                         lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)

@@ -126,6 +126,21 @@ def screener_meta(user=Depends(require_paid)):
     return scr_filters.meta(user_id=user["id"])
 
 
+@router.post("/api/screener/count")
+def screener_count(spec: ScanSpec, user=Depends(require_paid)):
+    """How many rows this spec would return — benchmark metric 450.
+
+    ⛔ Same gate as `/scan` and the same `user_id` source: the spec may carry a
+    `list` filter naming the member's own watchlists, so a count route reading
+    the id off the body would leak exactly what the scan route refuses to.
+    """
+    try:
+        return scr_query.preview_count(spec.model_dump(),
+                                       user_id=(user or {}).get("id"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/api/screener/scan")
 def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
     try:
