@@ -53,6 +53,12 @@ _locks = {"preview": threading.Lock(), "analysis": threading.Lock()}
 # unknown cap is not a small cap.
 _MIN_MC_B = float(os.environ.get("EARNINGS_WARM_MIN_MC_B", "0.3") or 0.3)
 
+# Below this share of the visible board being answerable from artifacts, the
+# pass says so at WARNING. Not 100: a name that joined the board minutes ago is
+# legitimately still being written, and a floor that cries on every normal pass
+# is a floor people mute.
+_COVERAGE_FLOOR_PCT = int(os.environ.get("EARNINGS_WARM_COVERAGE_FLOOR_PCT", "80") or 80)
+
 # Calendar spelling → engine spelling. Read in this order so a row that already
 # carries the engine key (a test, or a future calendar change) still works.
 _CAL_TO_ENGINE = {
@@ -78,7 +84,22 @@ _CAL_TO_ENGINE = {
 # names IDENTICALLY to the broad one, so the width bought nothing and risked
 # the REITs (`Residential REITs`, `Diversified REITs`, `Diversified Real
 # Estate` are all on that board, and all must stay companies).
-_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|asset manage|municipal|\betfs?\b", _re.I)
+# An industry that settles it on its own. ⛔ DELIBERATELY NARROW: `trust`
+# and `income` are NOT here — a REIT is a real company that reports real
+# earnings, and being wrong in that direction re-creates the exact harm this
+# rule exists to fix. Verified against the live board: `Residential REITs`,
+# `Diversified REITs` and `Diversified Real Estate` all stay companies.
+_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|municipal|\betfs?\b", _re.I)
+
+# …and one that does NOT settle it. `Asset Management` is the industry of
+# closed-end funds AND of real asset managers — BlackRock and Noah Holdings
+# carry it exactly like Royce Micro-Cap Trust does. Measured on the live
+# board (2026-08-24): 48 of the 70 no-consensus names matched on industry
+# alone, and one of them, `Noah Holdings Limited`, is an operating company
+# that was being denied a brief for it. So the NAME breaks the tie — a fund
+# announces itself there ("…Fund", "…Trust", "…Income"), a company does not.
+_FUND_SOFT_INDUSTRY = _re.compile(r"asset manage", _re.I)
+_FUND_NAME = _re.compile(r"\bfunds?\b|\btrust\b|\bincome\b|\bportfolio\b|\bmuni", _re.I)
 
 
 def _looks_like_a_fund(sym: str) -> bool:
@@ -95,7 +116,20 @@ def _looks_like_a_fund(sym: str) -> bool:
         m = ticker_meta._base_meta(sym) or {}
     except Exception:
         return False
-    return bool(_FUND_INDUSTRY.search(f"{m.get('industry') or ''} {m.get('sector') or ''}"))
+    text = f"{m.get('industry') or ''} {m.get('sector') or ''}"
+    if _FUND_INDUSTRY.search(text):
+        return True
+    # Ambiguous industry → the NAME decides, and an unknown name decides
+    # "company" (the same direction as an unknown industry). Known cost of
+    # that choice, measured: two closed-end funds whose names read like
+    # operating companies (`FS Credit Opportunities Corp.`, `Tri-Continental
+    # Corporation`) each buy one cheap preview nobody reads. Known benefit:
+    # `Noah Holdings Limited` stops being a 30-40s cold click. The asymmetry
+    # is the whole argument — a wasted preview costs ~$0.02 once, a cold click
+    # costs a reader half a minute every time.
+    if _FUND_SOFT_INDUSTRY.search(text):
+        return bool(_FUND_NAME.search(m.get("name") or ""))
+    return False
 
 
 def _first(e: dict, *keys):
@@ -258,6 +292,25 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
 # 180 of them at once is a fan-out the web pod cannot absorb. So the warm calls
 # their synchronous generators on THIS pool, paced by its worker count.
 
+def _companion_weeks() -> int:
+    """How many weeks ahead the COMPANIONS walk — further than the briefs.
+
+    `EARNINGS_WARM_WEEKS` (2) is the right horizon for a PREVIEW: three weeks
+    out a report date is still a provider's guess, and the skip-if-stable hash
+    keys on that date, so every shift re-bills the generation. A Profile and a
+    Catalyst history have no such problem — "what does this company do" and
+    "what moved it this year" do not change when the date does, and they are
+    generate-once + disk-persisted, so warming them early is paid once and
+    never again.
+
+    That asymmetry is the whole reason this is a separate knob rather than a
+    bigger `EARNINGS_WARM_WEEKS`: a reader who opens the month view, or steps
+    out to the week after next, gets the company pages instantly, and only the
+    print preview is written on demand."""
+    return max(int(os.environ.get("EARNINGS_WARM_COMPANION_WEEKS", "4") or 4),
+               int(os.environ.get("EARNINGS_WARM_WEEKS", "2") or 2))
+
+
 def _companion_top_n() -> int:
     """Companion budget. Sized ABOVE the preview budget on purpose: the board
     is bigger than the brief-eligible set (the whole point of walking it), and
@@ -301,6 +354,34 @@ def _needs_companion(sym: str) -> bool:
         except Exception as e:
             _logger.debug("[earn-warm] companion check failed %s: %s", sym, e)
     return False
+
+
+def is_covered(sym: str) -> bool:
+    """Would clicking this name RIGHT NOW answer instantly, from artifacts?
+
+    ⛔ Read the artifacts, never the pass's own bookkeeping. `submitted=80` in
+    a log line is a statement of intent; this is a statement of fact. Both warm
+    passes spent months reporting healthy numbers while writing nothing to
+    disk, and the gap between those two sentences is the only thing that would
+    have shown it (`lesson_a_warm_pass_that_persists_nothing_reads_as_healthy`).
+
+    "Instant" is deliberately generous about the catalysts: a name that was
+    ATTEMPTED and genuinely has nothing to report (a bond fund) answers
+    immediately with an empty feed, and that is a covered click, not a hole."""
+    try:
+        if not (earnings_ai_store.is_fresh("preview", sym)
+                or earnings_ai_store.is_fresh("analysis", sym)):
+            return False
+        from api.services.stock_brief import service as sb, store as sb_store
+        if not sb_store.has_content(sym, sb._period(sb._year())):
+            return False
+        from api.services.news_catalysts import service as nc
+        # `needs_catalysts` False = either rows exist, or we looked and there
+        # was nothing — both answer the click without a spinner.
+        return not nc.needs_catalysts(sym)
+    except Exception as exc:
+        _logger.debug("[earn-warm] coverage check failed for %s: %s", sym, exc)
+        return False
 
 
 def _safe_companions(sym: str) -> None:
@@ -357,7 +438,10 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # filter drops. One loop, so a name's brief and its two companions still
         # go into the pool together.
         brief_rows = {r["sym"]: r for r in chosen}
-        board = _rank(weeks, reported=None, tracked=tracked) if want_companions else chosen
+        # The companions walk a LONGER horizon than the briefs (see
+        # `_companion_weeks`), so the board is built on its own week count.
+        board = (_rank(_companion_weeks(), reported=None, tracked=tracked)
+                 if want_companions else chosen)
         board = board[:max(top_n, _companion_top_n())]
 
         submitted = fresh = companions = 0
@@ -377,15 +461,33 @@ def _run(kind: str, generator, reported: bool) -> dict:
                 _POOL.submit(_safe_companions, sym)
                 companions += 1
 
+        # COVERED is measured from the artifacts, not from what this pass just
+        # queued — see `is_covered`. It is the number that makes a silently
+        # broken warm impossible to mistake for a healthy one.
+        covered = sum(1 for r in board if is_covered(r["sym"]))
+        if board and covered * 100 < len(board) * _COVERAGE_FLOOR_PCT:
+            _logger.warning(
+                "[earn-warm:%s] COVERAGE %d/%d (%d%%) is below the %d%% floor — "
+                "names a reader can see are opening cold. Check the artifacts "
+                "(/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), "
+                "not this pass's submitted count.",
+                kind, covered, len(board), covered * 100 // max(len(board), 1),
+                _COVERAGE_FLOOR_PCT)
+        if dropped:
+            # Louder than the census line, because this is the one number that
+            # means "a name a reader can see was deliberately left cold".
+            _logger.warning("[earn-warm:%s] BUDGET TRUNCATED the board: %d of %d "
+                            "candidates not warmed (EARNINGS_WARM_TOPN=%d)",
+                            kind, dropped, len(ranked), top_n)
         # `dropped_by_topn` is logged so a bounded warm never reads as "covered
         # everything" — a silently truncated list is how a cold click hides.
         _logger.info("[earn-warm:%s] candidates=%d tracked=%d submitted=%d recent=%d "
-                     "board=%d companions=%d dropped_by_topn=%d",
+                     "board=%d covered=%d companions=%d dropped_by_topn=%d",
                      kind, len(ranked), sum(1 for r in ranked if r.get("_is_tracked")),
-                     submitted, fresh, len(board), companions, dropped)
+                     submitted, fresh, len(board), covered, companions, dropped)
         return {"kind": kind, "candidates": len(ranked), "submitted": submitted,
-                "recent": fresh, "board": len(board), "companions": companions,
-                "dropped_by_topn": dropped}
+                "recent": fresh, "board": len(board), "covered": covered,
+                "companions": companions, "dropped_by_topn": dropped}
     except Exception as e:
         _logger.warning("[earn-warm:%s] pass failed: %s", kind, e)
         return {"error": str(e)}
