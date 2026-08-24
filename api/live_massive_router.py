@@ -5123,6 +5123,30 @@ def standing_flow_trigger(
                     headers={"X-Standing-Names": str(res.get("names", 0))})
 
 
+@router.post("/oi-morning")
+def oi_morning_trigger(
+    post: int = Query(0, description="1 = post to Discord; 0 = return the rendered PNG preview"),
+    days: int = Query(None, description="flow window in trading days (default env OI_MORNING_DAYS / 1)"),
+    top_n: int = Query(None, description="rows on the card (default env OI_MORNING_TOP_N / 20)"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manual trigger for the Morning OI Update card — the biggest overnight OI
+    builds on flow-confirmed contracts (ΔOI = latest snapshot − flow-time OI).
+    ?post=0 (default) returns the PNG preview; ?post=1 posts to the flow channel.
+    Bypasses OI_MORNING_ENABLED. Runs on the flow-worker (flow.db + oi_snapshots.db)."""
+    from api import oi_morning as oim
+    kw = dict(days=days, top_n=top_n)
+    if post:
+        return oim.run_oi_morning(force=True, post=True, **kw)
+    res = oim.run_oi_morning(force=True, post=False, **kw)
+    png = res.get("png")
+    if not png:
+        return res
+    from fastapi import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"X-OI-Rows": str(res.get("rows", 0))})
+
+
 @router.get("/flow-board")
 def flow_board(
     days: int = Query(60, description="rolling window in trading days"),
