@@ -51,7 +51,7 @@
 .refresh {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
@@ -60,7 +60,7 @@
 
 .subtitle {
   margin: 0 0 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -83,7 +83,7 @@
 .filterBtn {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text);
   border-radius: 4px;
   padding: 3px 10px;
   font-size: 11px;
@@ -100,7 +100,7 @@
   padding: 24px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .list {
@@ -156,23 +156,23 @@
 }
 .rowImportance {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .rowDate {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   margin-left: auto;
 }
 .rowHeadline {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
   margin-bottom: 4px;
   line-height: 1.4;
 }
 .rowText {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
   line-height: 1.4;
 }
 .rowFooter {
@@ -186,10 +186,10 @@
   letter-spacing: 1px;
 }
 .statusDelivered {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 .statusDismissed {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -201,7 +201,7 @@
 .dismissBtn {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
   border-radius: 3px;
   padding: 4px 10px;
   font-size: 11px;

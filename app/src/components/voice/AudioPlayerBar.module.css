@@ -13,7 +13,7 @@
   padding: 8px 16px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   font: 13px/1.2 var(--font-sans);
-  color: #e8e6df;
+  color: var(--text-bright);
   max-width: min(760px, calc(100vw - 24px));
 }
 
@@ -42,7 +42,7 @@
   white-space: nowrap;
 }
 .errorTag { color: #f87171; }
-.loadingTag { color: #b8b4a8; font-style: italic; }
+.loadingTag { color: var(--text); font-style: italic; }
 
 .seek {
   flex: 1 1 160px;
@@ -57,7 +57,7 @@
 .time {
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: #b8b4a8;
+  color: var(--text);
   min-width: 34px;
   text-align: center;
 }

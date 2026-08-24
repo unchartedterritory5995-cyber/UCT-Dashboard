@@ -28,7 +28,7 @@
 .refresh:disabled { opacity: 0.4; cursor: default; }
 .subtitle {
   margin: 0 0 16px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -78,7 +78,7 @@
 }
 .dropzoneText {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text);
 }
 .pickerBtn {
   background: transparent;
@@ -99,10 +99,10 @@
 }
 .pasteSummary {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   cursor: pointer;
 }
-.pasteSummary:hover { color: rgba(255, 255, 255, 0.8); }
+.pasteSummary:hover { color: var(--text-bright); }
 .pasteFields {
   display: flex;
   flex-direction: column;
@@ -112,7 +112,7 @@
 .input, .textarea {
   background: rgba(0, 0, 0, 0.30);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  color: #fff;
+  color: var(--text-bright);
   border-radius: 4px;
   padding: 6px 10px;
   font-size: 12px;
@@ -151,14 +151,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
 }
 
 .empty {
   padding: 14px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .table {
@@ -173,7 +173,7 @@
 }
 .table th {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 11px;
   text-transform: uppercase;
 }
@@ -181,16 +181,16 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  color: #fff;
+  color: var(--text-bright);
 }
 .docId {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .docDate {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .deleteBtn {
   background: rgba(239, 68, 68, 0.08);

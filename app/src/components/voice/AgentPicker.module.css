@@ -9,7 +9,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.4);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
   font-size: 18px;
   line-height: 24px;
   cursor: pointer;
@@ -50,7 +50,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   padding: 4px 8px 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 2px;
@@ -60,7 +60,7 @@
   padding: 14px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .agentRow {
@@ -75,7 +75,7 @@
   cursor: pointer;
   text-align: left;
   transition: background 120ms, transform 120ms;
-  color: #fff;
+  color: var(--text-bright);
 }
 .agentRow:hover {
   background: rgba(255, 255, 255, 0.06);
@@ -105,11 +105,11 @@
 .name {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   line-height: 1.35;
 }
