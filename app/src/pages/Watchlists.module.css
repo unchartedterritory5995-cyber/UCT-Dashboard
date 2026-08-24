@@ -79,7 +79,7 @@
   font-size: calc(12px * var(--wl-font-scale, 1));
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   text-transform: uppercase;
 }
 
@@ -965,7 +965,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--text-bright);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -1404,7 +1404,7 @@
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   text-transform: uppercase;
   margin-bottom: 18px;
 }

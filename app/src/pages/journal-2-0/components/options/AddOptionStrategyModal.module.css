@@ -412,7 +412,7 @@
 .hintTitle {
   font-size: 10px;
   font-weight: 700;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;

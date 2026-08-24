@@ -73,7 +73,7 @@
   font-family: var(--font-sans);
   font-size: 22px;
   font-weight: 800;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin: 0;
@@ -180,7 +180,7 @@
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
 .columnCount {

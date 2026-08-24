@@ -19,7 +19,7 @@
 }
 .title {
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--text-bright);
   font-size: 12px;
   letter-spacing: 0.02em;
 }

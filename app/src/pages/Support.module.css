@@ -339,7 +339,7 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   margin-bottom: 6px;
 }
 .suggestDismiss {
@@ -483,7 +483,7 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   margin-bottom: 6px;
 }
 .faqItem { border-bottom: 1px solid var(--border); }

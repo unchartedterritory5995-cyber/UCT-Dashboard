@@ -18,7 +18,7 @@
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 2px;
-  color: var(--ut-gold);
+  color: var(--text-bright);
 }
 .sectionSub {
   font-family: var(--font-sans);
@@ -251,7 +251,7 @@
 .bookTitle {
   font-family: var(--font-sans);
   font-size: 9px; font-weight: 700; letter-spacing: 2px;
-  color: var(--ut-gold); text-transform: uppercase;
+  color: var(--text-bright); text-transform: uppercase;
 }
 .bookBadge {
   font-family: var(--font-sans);

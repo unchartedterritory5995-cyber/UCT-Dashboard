@@ -59,7 +59,7 @@
 .groupTitle {
   margin: 0 0 4px 0;
   font-size: 11px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--text-bright);
   text-transform: uppercase;
   letter-spacing: 1px;
 }

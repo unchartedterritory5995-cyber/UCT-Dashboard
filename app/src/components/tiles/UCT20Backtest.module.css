@@ -154,7 +154,7 @@
 .abTitle {
   font-family: var(--font-sans);
   font-size: 9px; font-weight: 700; letter-spacing: 2px;
-  color: var(--ut-gold); text-transform: uppercase;
+  color: var(--text-bright); text-transform: uppercase;
 }
 .abMeta {
   font-family: var(--font-sans);

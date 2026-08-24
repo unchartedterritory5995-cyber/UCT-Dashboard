@@ -363,7 +363,7 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   margin: 0 0 5px;
 }
 .legalText { font-size: 11.5px; color: var(--text-muted); line-height: 1.65; margin: 0; }

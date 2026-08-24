@@ -1116,7 +1116,7 @@
   flex-shrink: 0;
 }
 
-.workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+.workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-bright); }
 
 .toolbarBtn {
   background: var(--bg-elevated, #1f2937); color: var(--accent, #c9a84c);
