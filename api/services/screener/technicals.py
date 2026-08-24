@@ -20,22 +20,61 @@ def _ema(vals, n):
 
 
 def _rsi(closes, n=14):
-    """The screener's 14-period RSI, or ``None`` when it is not computable.
+    """Wilder's 14-period RSI, or ``None`` when it is not computable.
 
-    ⛔ THE ZERO-MOVEMENT DECISION IS NOT MADE HERE. It is
-    ``indicator_compute.rsi_from_wilder_averages``'s, and it is the reason SIM,
-    TMTS, CWEN-A, DRDB and OBA no longer read ``rsi14 = 100.0`` beside
-    ``chg_pct_1d = 0.00``. Read that function before changing this one.
+    🔴 THIS COLUMN USED TO BE **CUTLER'S** RSI PUBLISHED UNDER THE NAME
+    "the nightly 14-period RSI". It summed the last 14 gains/losses, divided by
+    14, and handed those SIMPLE averages to
+    ``indicator_compute.rsi_from_wilder_averages`` — a function that only
+    decides the ``0/0`` case and does no smoothing at all. Cutler's RSI is a
+    real published definition, but it is not the one the phrase "14-period RSI"
+    names anywhere a member has seen it, and — decisively — it is not the one
+    THIS PLATFORM draws on the chart a member opens from the screener row:
+    ``indicator_compute.compute_rsi_raw`` (and its ``indicators.js`` mirror) is
+    textbook Wilder. One label, one product, two numbers.
+
+    Measured 2026-08-23 over the 2,748 fresh rows, screener value vs Wilder on
+    the identical closes: **median 6.16 RSI points apart**, 74% differ by more
+    than 3, 25% by more than 10, worst 47.61 — and **525 rows sit on the wrong
+    side of the 70/30 lines**, which are the entire point of the column
+    (UTZ 32.43 vs 79.03, MKTX 45.30 vs 81.91, CLBK 84.02 vs 43.17, TSLA and
+    SMCI both crossing 70 the wrong way).
+
+    ⭐ WILDER WAS CHOSEN OVER DOCUMENTING CUTLER. Both were open: a `desc`
+    saying "simple-average RSI" would have made the column honest. It would
+    also have left the screener disagreeing with our own chart by six points on
+    a standard indicator, and left every member-typed `rsi14 <= 30` meaning
+    something no other tool means. The cost of this direction is that a saved
+    scan written against the old values now selects a different set — that is
+    the price of the correction, and it is paid once.
+
+    ⛔ THE MATHS IS ``indicator_compute.compute_rsi_raw``'S, never a second
+    Wilder RSI written here — the same chokepoint rule ``_atr_pct`` states, for
+    the same reason: a private copy IS the defect, in a new place. That
+    function is also where the ``0/0`` decision lives (SIM/TMTS/CWEN-A/DRDB/OBA
+    no longer read 100.0 beside ``chg_pct_1d = 0.00``), and
+    ``tests/test_single_authority_rails.py`` fails BY NAME on a second copy.
+
+    ⚠️ IT IS SEEDED-AND-SMOOTHED OVER THE BARS IT IS GIVEN, exactly as
+    ``_atr_pct`` is, and for RSI that dependence is measurably gone by the time
+    the series is this long: over 277 sampled tickers the 400-bar value and the
+    full-stored-history value agree to **3.1e-11 at worst** (200 bars: 9.2e-05;
+    100 bars: 0.40, which is why a short window is not equivalent).
+    ``snapshot_builder`` hands every ticker the same 400 daily bars, so the
+    column is the canonical Wilder number and is comparable across the universe
+    by construction.
+
+    ⭐ THIS ALSO RETIRES THE FROZEN-ETF 100. **KBON** — a bond ETF whose last 14
+    diffs are all zero-or-positive — published ``rsi14 = 100.00``, the top of
+    the scale, because Cutler's window saw no loss at all. Wilder's long memory
+    reaches the movement before it and reads **52.39**. The ``0/0`` guard was
+    only ever half the protection; this is the other half, and it needed no
+    special case.
     """
     from api.services import indicator_compute
     if len(closes) < n + 1:
         return None
-    gains = losses = 0.0
-    for i in range(len(closes) - n, len(closes)):
-        d = closes[i] - closes[i - 1]
-        gains += max(d, 0)
-        losses += max(-d, 0)
-    return indicator_compute.rsi_from_wilder_averages(gains / n, losses / n)
+    return indicator_compute.compute_rsi_raw(closes, n)[-1]
 
 
 def _atr_pct(bars, n=14):
@@ -281,12 +320,63 @@ def compute_technicals(bars: list[dict]) -> dict:
     # ATR% is Wilder's TRUE range — NOT a second name for ADR. See `_atr_pct`.
     atr_pct = _atr_pct(bars)
     out["atr_pct"] = round(atr_pct, 2) if atr_pct is not None else None
-    # Volume ratio: today vs prior 30-day average
-    vols = [b.get("v") or 0 for b in bars]
-    if len(vols) >= 2:
-        prior = vols[-31:-1]
-        avg = sum(prior) / len(prior) if prior else 0
-        out["vol_ratio"] = round(vols[-1] / avg, 2) if avg else None
+    # Relative volume: the NEWEST stored session's volume ÷ the mean volume of
+    # the 30 sessions BEFORE it.
+    #
+    # ⛔ AN ABSENT VOLUME IS NOT A ZERO. This read `[b.get("v") or 0 for b in
+    # bars]`, which collapsed `None` — and any other falsy value — into a hard
+    # `0` on BOTH sides of the division. As a numerator that publishes a
+    # confident `0.00×` for "we hold no volume for this session", which is the
+    # exact shape the house rule bans: invisible, and it both sorts and filters.
+    # Inside the denominator it is worse and quieter — a missing session counted
+    # as zero drags the 30-day mean DOWN and inflates every ratio measured
+    # against it, on a row that looks entirely healthy. There are no NULL daily
+    # volumes in the store today (measured 2026-08-23, 0 of ~14M `D` rows), so
+    # this is the guard rather than the repair — but `usable_bars` deliberately
+    # does not require `v`, so the path is reachable the day a provider drops one.
+    #
+    # ⭐ A STORED `0` IS KEPT, DELIBERATELY. It is a MEASURED zero-volume
+    # session, not an absence, and the audit's reading of it as fabricated did
+    # not survive re-measurement: on 2026-08-23 every one of the 56 rows
+    # publishing `vol_ratio = 0.0` off a zero-volume newest bar was corroborated
+    # share-for-share by yfinance (AVB, EQR, KBON, SORN, ZKP … all `0` in both
+    # stores). `0.00×` also behaves correctly under every threshold this column
+    # ships — it fails `>= 1.5`, passes `<= 0.5`, and sorts first ascending,
+    # which is what "maximally quiet" should do. Blanking those rows would be a
+    # repair aimed at a phantom.
+    #
+    # ⛔ THIS 30-BAR WINDOW IS NOT `avg_volume_30d`'S, and the difference is
+    # deliberate. That column is the mean of the last 30 bars INCLUDING today —
+    # a liquidity measure. This denominator EXCLUDES today, because a baseline
+    # containing the very session being compared against it drags the ratio
+    # toward 1 and blunts exactly the spike the column exists to find. Two
+    # different windows, one of them each right for its own question.
+    #
+    # 🔴 KNOWN, AND NOT FIXABLE HERE: THE NUMERATOR CAN BE A PARTIAL SESSION.
+    # `bars.db` does not replace the newest daily bar's volume with the official
+    # consolidated figure before the nightly build reads it. Measured 2026-08-23
+    # on 95 random fresh tickers against yfinance: the prior session matches to
+    # the SHARE on every name, while the newest session is short by a **median
+    # 10.3%**, 36% of names by more than 20%, worst −69.9% — putting **12.6% of
+    # the sample on the wrong side of `vol_ratio >= 1.0`** (JPM publishes 0.77
+    # against a true 1.12). ⛔ DO NOT "FIX" IT IN THIS MODULE. The value in
+    # question is a session's volume, `bars.db` owns it, and half a dozen other
+    # consumers (`avg_volume_30d`, `dollar_vol_30d`, `vol_updown_ratio`,
+    # `vol_nweek_low`, setup scoring, the pattern engine) read the same field —
+    # healing it here would make this module a second authority over one value
+    # and leave every one of them silently wrong. The fix belongs at the bars
+    # boundary; it is filed as a requirement in the accuracy report.
+    def _volume(bar):
+        v = bar.get("v")
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        return v if (v == v and v >= 0) else None
+
+    today_v = _volume(bars[-1])
+    prior_v = [v for v in (_volume(b) for b in bars[-31:-1]) if v is not None]
+    if today_v is not None and prior_v:
+        avg = sum(prior_v) / len(prior_v)
+        out["vol_ratio"] = round(today_v / avg, 2) if avg else None
     # 52-week high/low distance + new-high flag (today's high vs window)
     yr = bars[-252:] if len(bars) >= 252 else bars
     hi = max(b["h"] for b in yr)
