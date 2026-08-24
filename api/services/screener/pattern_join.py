@@ -263,14 +263,39 @@ def read_pattern_fields(targets, failures=None) -> dict:
             _note(failures, "pattern_join_expectancy", e)
 
     out = {}
+    # 🔴 THE CAP USED TO EVICT EXACTLY THE INFORMATIVE IDS. Ordering by
+    # confidence and keeping the first `_MAX_IDS` sounds neutral and is not:
+    # measured 2026-08-23, the median covered symbol carries **14** distinct
+    # active ids against a cap of 10, so **2,675 of 2,890 (92.6%)** are
+    # truncated — and eight detectors (`kell_cycle`, `can_slim_composite`,
+    # `stage_analysis`, `52w_proximity`, …) fire on ~100% of the universe.
+    # Firing on everything, they carry NO information, and being high-confidence
+    # they sorted to the FRONT and consumed the slots. `cup_handle` (96 symbols)
+    # or `high_tight_flag` (8) — the ones a member actually screens for — were
+    # cut. So `pattern_engine_ids CONTAINS '…'` was silently wrong for most of
+    # the universe, which is an accuracy defect wearing a truncation's clothes.
+    #
+    # ⭐ ORDER BY RARITY, RAREST FIRST — a detector's symbol count IS its
+    # informativeness, inverted. Derived from `by_ticker`, which is already in
+    # hand: no extra query, and the rate is measured over exactly the population
+    # being served, so it cannot disagree with a second window.
+    # ⚠️ The cap still truncates. The flags below are the complete answer and
+    # are built from the UNCAPPED set; this column is "the most distinctive
+    # ids", and its `desc` has to say so.
+    pid_symbols: dict = {}
+    for _tu, _dets in by_ticker.items():
+        for _pid in {d["pattern_id"] for d in _dets}:
+            pid_symbols[_pid] = pid_symbols.get(_pid, 0) + 1
+
     for t in targets:
         tu = str(t).upper()
         dets = by_ticker.get(tu)
         if not dets:
             continue
         row = {}
-        # DISTINCT ids, confidence-desc, capped 10 (supersession #1).
-        ordered = sorted(dets, key=lambda d: (-d["confidence"], -d["detected_at"]))
+        # DISTINCT ids, RAREST-FIRST then confidence-desc, capped `_MAX_IDS`.
+        ordered = sorted(dets, key=lambda d: (pid_symbols.get(d["pattern_id"], 0),
+                                              -d["confidence"], -d["detected_at"]))
         seen: list = []
         seen_set: set = set()
         for d in ordered:

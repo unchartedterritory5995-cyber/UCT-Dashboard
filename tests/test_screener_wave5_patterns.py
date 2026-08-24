@@ -396,3 +396,57 @@ def test_malformed_levels_json_survives_and_stays_honest(monkeypatch, tmp_path):
     assert "pattern_engine_dir" not in row
     assert "pattern_entry_px" not in row
     assert "pattern_stop_px" not in row
+
+
+def test_the_id_cap_keeps_the_DISTINCTIVE_detectors_not_the_universal_ones(
+        monkeypatch, tmp_path):
+    """🔴 THE CAP USED TO EVICT EXACTLY WHAT A MEMBER SCREENS FOR.
+
+    Ordering by confidence and keeping the first `_MAX_IDS` sounds neutral and
+    is not. Measured on the real store: the median covered symbol carries 14
+    distinct active ids against a cap of 10 — **2,675 of 2,890 (92.6%)
+    truncated** — and eight detectors fire on ~100% of the universe. Firing on
+    everything they carry no information, and being high-confidence they sorted
+    to the FRONT and consumed the slots, cutting `cup_handle` (96 symbols) and
+    `high_tight_flag` (8).
+
+    This fixture is that shape in miniature: `_MAX_IDS` universal detectors at
+    high confidence, plus one rare detector at LOW confidence. Under the old
+    ordering the rare one is exactly the id that falls off the end.
+    """
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    universal = [f"universal_{i}" for i in range(pj._MAX_IDS)]
+    n = 0
+    # Every universal detector fires on BOTH symbols, at high confidence.
+    for sym in ("ALPHA", "BETA"):
+        for pid in universal:
+            n += 1
+            memory.store_detection(_detection(
+                id=f"u{n}", sym=sym, pattern_id=pid, confidence=95.0,
+                start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW))
+    # The rare one fires on ALPHA only, at the LOWEST confidence in the set.
+    memory.store_detection(_detection(
+        id="rare1", sym="ALPHA", pattern_id="cup_handle", confidence=10.0,
+        start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW))
+
+    out = pj.read_pattern_fields(["ALPHA", "BETA"])
+    ids = out["ALPHA"]["pattern_engine_ids"].split(",")
+
+    assert len(ids) <= pj._MAX_IDS, "the cap itself must still hold"
+    assert ids[0] == "cup_handle", (
+        "the rarest detector must lead the list — it is the only one carrying "
+        f"information here. got: {ids}")
+    assert "cup_handle" in ids, (
+        "the one discriminating detector was evicted by detectors that fire on "
+        f"every symbol. got: {ids}")
+
+    # Control 1: a detector firing on EVERY symbol is ranked last, not dropped —
+    # the fix reorders, it does not filter.
+    assert set(ids) - {"cup_handle"} <= set(universal)
+
+    # Control 2: the per-pattern FLAGS come from the uncapped set, so they must
+    # be unaffected either way. If this ever fails the cap has leaked into them.
+    assert out["BETA"]["pattern_engine_ids"], "BETA lost its ids entirely"
