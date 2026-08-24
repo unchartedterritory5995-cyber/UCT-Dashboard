@@ -234,9 +234,14 @@ def test_no_bulk_filled_column_gains_an_invented_threshold():
 def _snapshot(tmp_path, monkeypatch, rows):
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
     import api.services.screener.snapshot_db as db
+    from api.services.screener import distribution
     importlib.reload(db)
     db.init_db()
     db.upsert_rows(rows)
+    # `meta()` now reads measured bands off the snapshot. The cache key carries
+    # the DB path so a previous test's vintage cannot answer for this one, but a
+    # rail that leans on that is measuring the cache instead of the filters.
+    distribution.invalidate()
     importlib.reload(filters)
     return db
 
@@ -811,6 +816,105 @@ def test_every_view_is_LABELLED_and_leads_with_the_ticker():
         assert v["columns"][0] == "ticker", (
             f"{vkey} must lead with ticker; leads with {v['columns'][0]}")
         assert len(v["columns"]) == len(set(v["columns"])), f"{vkey} repeats a column"
+
+
+# ───────── LANE BANDS — a measurement beside the blank box ──────────────────
+#
+# 🔴 THE FINDING. A 594-metric benchmark scored this screener LAST in the
+# honesty family — the one family we believed we led. Not because the machinery
+# is weak, but because it is INTERNAL: 81 of 147 controls ship as a blank box
+# under `_open_range`'s rule, and Zacks ships the same bare box PLUS a
+# published, universe-cited range on all 136 of its criteria. Honest text
+# nobody can read loses to weaker text on screen.
+#
+# ⭐ A MEASURED PERCENTILE IS NOT AN EDITORIAL CLAIM. It is a fact about our own
+# rows, in the same family as the DISTINCT sector list `_distinct_options`
+# already reads off the artifact. So the band ships and the opinion still does
+# not — which is what the rest of this section asserts.
+
+def _band_rows(n=400):
+    return [{"ticker": f"B{i:04d}", "price": float(i + 1),
+             "rsi14": float(i % 100) if i < 120 else None,
+             "snapshot_date": "2026-08-23", "built_at": 7}
+            for i in range(n)]
+
+
+def test_meta_carries_a_MEASURED_band_beside_a_range_control(
+        tmp_path, monkeypatch):
+    """⭐ THE PRODUCT HALF: the number reaches the panel, beside the control it
+    describes, with the coverage that produced it."""
+    _snapshot(tmp_path, monkeypatch, _band_rows())
+    by_key = {f["key"]: f for f in filters.meta()["filters"]}
+
+    band = by_key["price"]["distribution"]
+    assert (band["p5"], band["p50"], band["p95"]) == (20.0, 200.0, 380.0)
+    assert band["non_null"] == 400 and band["universe"] == 400
+
+    # ...and a thinly-covered column says so instead of quoting 120 names as
+    # though they were the universe.
+    thin = by_key["rsi14"]["distribution"]
+    assert thin["refused"] == "below_coverage_floor"
+    assert (thin["non_null"], thin["universe"]) == (120, 400)
+
+
+def test_the_basis_rides_ONCE_beside_the_filters_not_on_every_control(
+        tmp_path, monkeypatch):
+    """The floors, the wording and the vintage are one set of facts. Stamping
+    them onto 102 controls is the second-authority defect in miniature."""
+    _snapshot(tmp_path, monkeypatch, _band_rows())
+    meta = filters.meta()
+
+    basis = meta["distribution_basis"]
+    assert basis["descriptive_only"] is True
+    assert basis["coverage_floor"] and basis["min_non_null"]
+    assert basis["snapshot_date"] == "2026-08-23"
+    for f in meta["filters"]:
+        assert "note" not in f.get("distribution", {})
+        assert "coverage_floor" not in f.get("distribution", {})
+
+
+def test_a_measured_band_is_NOT_an_editorial_preset(tmp_path, monkeypatch):
+    """⛔⛔ THE WHOLE POINT, AND THE THING THE NEXT READER WILL GET WRONG.
+
+    `presets_deferred` means "no editorial threshold has been decided", and that
+    is STILL true — measuring our own data decides nothing on the firm's behalf.
+    So every preset-free control stays preset-free with a band attached, and the
+    band carries none of the five keys a preset carries, so no panel can render
+    it as one.
+    """
+    _snapshot(tmp_path, monkeypatch, _band_rows())
+    by_key = {f["key"]: f for f in filters.meta()["filters"]}
+
+    deferred = {k: f for k, f in filters.FILTERS.items()
+                if f.get("presets_deferred")}
+    assert len(deferred) >= 10, "the preset-free set is empty — vacuous"
+    banded = 0
+    for key, spec in deferred.items():
+        assert spec["presets_deferred"] is True, key
+        served = by_key[key]
+        allowed = ["Any", *spec.get("factual_presets", ())]
+        assert [p["label"] for p in served["presets"]] == allowed, (
+            f"{key} grew a preset when the band landed — a measurement is not "
+            f"a threshold and must never be promoted into one")
+        band = served.get("distribution")
+        if band is None:
+            continue
+        banded += 1
+        assert {"label", "op", "min", "max", "value"} & set(band) == set(), (
+            f"{key}'s band is preset-shaped: {sorted(band)}")
+    assert banded, (
+        "no preset-free control received a band — this rail proved nothing")
+
+
+def test_only_RANGE_controls_carry_a_band(tmp_path, monkeypatch):
+    """An enum's answer is its option list and a bool's is Yes/No; neither has a
+    percentile. A band on one would be a number over a category."""
+    _snapshot(tmp_path, monkeypatch, _band_rows())
+    seen_types = set()
+    for f in filters.meta()["filters"]:
+        if "distribution" in f:
+            seen_types.add(f["type"])
+    assert seen_types == {"range"}, seen_types
 
 
 # ───────── Wave 6 — per-pattern engine flags (the formula lane's unlock) ────
