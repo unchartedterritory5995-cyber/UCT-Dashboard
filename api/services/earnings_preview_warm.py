@@ -53,6 +53,12 @@ _locks = {"preview": threading.Lock(), "analysis": threading.Lock()}
 # unknown cap is not a small cap.
 _MIN_MC_B = float(os.environ.get("EARNINGS_WARM_MIN_MC_B", "0.3") or 0.3)
 
+# Below this share of the visible board being answerable from artifacts, the
+# pass says so at WARNING. Not 100: a name that joined the board minutes ago is
+# legitimately still being written, and a floor that cries on every normal pass
+# is a floor people mute.
+_COVERAGE_FLOOR_PCT = int(os.environ.get("EARNINGS_WARM_COVERAGE_FLOOR_PCT", "80") or 80)
+
 # Calendar spelling → engine spelling. Read in this order so a row that already
 # carries the engine key (a test, or a future calendar change) still works.
 _CAL_TO_ENGINE = {
@@ -350,6 +356,34 @@ def _needs_companion(sym: str) -> bool:
     return False
 
 
+def is_covered(sym: str) -> bool:
+    """Would clicking this name RIGHT NOW answer instantly, from artifacts?
+
+    ⛔ Read the artifacts, never the pass's own bookkeeping. `submitted=80` in
+    a log line is a statement of intent; this is a statement of fact. Both warm
+    passes spent months reporting healthy numbers while writing nothing to
+    disk, and the gap between those two sentences is the only thing that would
+    have shown it (`lesson_a_warm_pass_that_persists_nothing_reads_as_healthy`).
+
+    "Instant" is deliberately generous about the catalysts: a name that was
+    ATTEMPTED and genuinely has nothing to report (a bond fund) answers
+    immediately with an empty feed, and that is a covered click, not a hole."""
+    try:
+        if not (earnings_ai_store.is_fresh("preview", sym)
+                or earnings_ai_store.is_fresh("analysis", sym)):
+            return False
+        from api.services.stock_brief import service as sb, store as sb_store
+        if not sb_store.has_content(sym, sb._period(sb._year())):
+            return False
+        from api.services.news_catalysts import service as nc
+        # `needs_catalysts` False = either rows exist, or we looked and there
+        # was nothing — both answer the click without a spinner.
+        return not nc.needs_catalysts(sym)
+    except Exception as exc:
+        _logger.debug("[earn-warm] coverage check failed for %s: %s", sym, exc)
+        return False
+
+
 def _safe_companions(sym: str) -> None:
     """Profile (stock_brief) then Catalysts (news_catalysts) for one name."""
     from api.services.stock_brief import service as sb
@@ -427,15 +461,33 @@ def _run(kind: str, generator, reported: bool) -> dict:
                 _POOL.submit(_safe_companions, sym)
                 companions += 1
 
+        # COVERED is measured from the artifacts, not from what this pass just
+        # queued — see `is_covered`. It is the number that makes a silently
+        # broken warm impossible to mistake for a healthy one.
+        covered = sum(1 for r in board if is_covered(r["sym"]))
+        if board and covered * 100 < len(board) * _COVERAGE_FLOOR_PCT:
+            _logger.warning(
+                "[earn-warm:%s] COVERAGE %d/%d (%d%%) is below the %d%% floor — "
+                "names a reader can see are opening cold. Check the artifacts "
+                "(/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), "
+                "not this pass's submitted count.",
+                kind, covered, len(board), covered * 100 // max(len(board), 1),
+                _COVERAGE_FLOOR_PCT)
+        if dropped:
+            # Louder than the census line, because this is the one number that
+            # means "a name a reader can see was deliberately left cold".
+            _logger.warning("[earn-warm:%s] BUDGET TRUNCATED the board: %d of %d "
+                            "candidates not warmed (EARNINGS_WARM_TOPN=%d)",
+                            kind, dropped, len(ranked), top_n)
         # `dropped_by_topn` is logged so a bounded warm never reads as "covered
         # everything" — a silently truncated list is how a cold click hides.
         _logger.info("[earn-warm:%s] candidates=%d tracked=%d submitted=%d recent=%d "
-                     "board=%d companions=%d dropped_by_topn=%d",
+                     "board=%d covered=%d companions=%d dropped_by_topn=%d",
                      kind, len(ranked), sum(1 for r in ranked if r.get("_is_tracked")),
-                     submitted, fresh, len(board), companions, dropped)
+                     submitted, fresh, len(board), covered, companions, dropped)
         return {"kind": kind, "candidates": len(ranked), "submitted": submitted,
-                "recent": fresh, "board": len(board), "companions": companions,
-                "dropped_by_topn": dropped}
+                "recent": fresh, "board": len(board), "covered": covered,
+                "companions": companions, "dropped_by_topn": dropped}
     except Exception as e:
         _logger.warning("[earn-warm:%s] pass failed: %s", kind, e)
         return {"error": str(e)}
