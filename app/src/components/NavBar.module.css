@@ -104,8 +104,12 @@
 .locked:hover { opacity: 0.85; color: var(--text-bright); background: var(--bg-hover); }
 .lock { margin-left: auto; display: inline-flex; flex: none; opacity: 0.9; }
 .active {
-  color: var(--ut-green-bright) !important;
-  background: var(--ut-green-dim);
+  /* Pinned to the warm brand gold (NOT var(--ut-gold), which per-theme accents
+     remap — e.g. a teal app-theme). The nav is always dark chrome, so a fixed
+     gold reads correctly on every theme and is the brand's "you are here". */
+  color: #dcbb5e !important;
+  background: rgba(220, 187, 94, 0.13);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .mainItems {
   display: flex;
