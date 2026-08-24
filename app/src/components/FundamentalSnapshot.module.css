@@ -29,7 +29,7 @@
   font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   padding: 2px 7px; border-radius: var(--radius-md); white-space: nowrap;
 }
-.basisPct { background: rgba(60, 184, 104, 0.16); color: var(--gain); border: 1px solid rgba(60, 184, 104, 0.3); }
+.basisPct { background: rgba(52, 209, 124, 0.16); color: var(--gain); border: 1px solid rgba(52, 209, 124, 0.3); }
 .basisAbs { background: rgba(255, 255, 255, 0.05); color: var(--text-muted, #8a8f98); border: 1px solid rgba(255, 255, 255, 0.1); }
 
 /* Sector RS line */

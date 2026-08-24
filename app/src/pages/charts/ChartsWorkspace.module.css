@@ -954,8 +954,8 @@
   --info: #6ba3be;
   --info-bg: #6ba3be12;
   --info-border: #6ba3be30;
-  --tick-up-bg: rgba(60, 184, 104, 0.26);
-  --tick-down-bg: rgba(231, 76, 60, 0.24);
+  --tick-up-bg: rgba(52, 209, 124, 0.26);
+  --tick-down-bg: rgba(242, 75, 66, 0.24);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
@@ -1081,7 +1081,7 @@
    catch the rgb() forms of the vivid greens/reds any remaining inline-styled widget
    value uses, and pull them to the dark candle palette. */
 :global([data-charts-theme='sunrise']) [style*="rgb(26, 229, 26)"],
-:global([data-charts-theme='sunrise']) [style*="rgb(60, 184, 104)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(52, 209, 124)"],
 :global([data-charts-theme='sunrise']) [style*="rgb(74, 222, 128)"],
 :global([data-charts-theme='sunrise']) [style*="rgb(34, 197, 94)"] {
   color: #0a5c22 !important;

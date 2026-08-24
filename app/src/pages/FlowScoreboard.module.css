@@ -211,10 +211,10 @@
 }
 .gradeChipMuted { color: var(--text-muted); font-size: 11px; }
 .gradeAPlus { background: rgba(220, 187, 94, 0.18); color: var(--ut-gold); border: 1px solid var(--ut-gold-glow, #dcbb5e35); }
-.gradeA     { background: rgba(60, 184, 104, 0.14); color: var(--gain); }
+.gradeA     { background: rgba(52, 209, 124, 0.14); color: var(--gain); }
 .gradeB     { background: rgba(107, 163, 190, 0.14); color: var(--info); }
 .gradeC     { background: rgba(180, 180, 180, 0.12); color: var(--text-bright); }
-.gradeD     { background: rgba(231, 76, 60, 0.12); color: var(--loss); }
+.gradeD     { background: rgba(242, 75, 66, 0.12); color: var(--loss); }
 
 /* ── Recent standouts card grid ────────────────────────────────────────── */
 

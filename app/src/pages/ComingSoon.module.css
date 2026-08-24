@@ -516,7 +516,7 @@
   background: rgba(220, 187, 94, 0.05);
 }
 
-.input[aria-invalid='true'] { border-color: rgba(231, 76, 60, 0.7); }
+.input[aria-invalid='true'] { border-color: rgba(242, 75, 66, 0.7); }
 
 .submit {
   flex: none;

@@ -50,7 +50,7 @@
   pointer-events: none;
   background:
     radial-gradient(40% 50% at 28% 30%, rgba(220, 187, 94, 0.16), transparent 70%),
-    radial-gradient(42% 52% at 76% 72%, rgba(60, 184, 104, 0.12), transparent 70%);
+    radial-gradient(42% 52% at 76% 72%, rgba(52, 209, 124, 0.12), transparent 70%);
   filter: blur(6px);
   animation: hubGlowPulse 9s ease-in-out infinite alternate;
 }

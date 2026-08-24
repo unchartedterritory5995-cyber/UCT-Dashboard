@@ -389,7 +389,7 @@
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
-.badgePro { background: rgba(60,184,104,0.15); color: var(--gain); }
+.badgePro { background: rgba(52, 209, 124,0.15); color: var(--gain); }
 .badgeFree { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 .badgeComped { background: rgba(220, 187, 94,0.15); color: var(--ut-gold); }
 

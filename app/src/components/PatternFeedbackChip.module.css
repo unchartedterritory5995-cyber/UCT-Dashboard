@@ -26,8 +26,8 @@
   border-radius: var(--radius-md); box-shadow: 0 6px 18px rgba(0,0,0,.45); white-space: nowrap;
 }
 .btn:hover { background: var(--bg-hover, #2a2d24); }
-.upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(60,184,104,.16)); }
-.downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(231,76,60,.16)); }
+.upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(52, 209, 124,.16)); }
+.downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(242, 75, 66,.16)); }
 .link {
   background: transparent; border: none; color: var(--ut-gold, #dcbb5e);
   cursor: pointer; font-size: 11px; padding: 1px 3px; text-decoration: none;

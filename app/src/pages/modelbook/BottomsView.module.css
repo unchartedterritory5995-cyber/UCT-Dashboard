@@ -17,7 +17,7 @@
   background:
     radial-gradient(44% 34% at 50% 0%, rgba(220, 187, 94, 0.07), transparent 70%),
     radial-gradient(38% 40% at 12% 78%, rgba(224, 82, 82, 0.05), transparent 70%),
-    radial-gradient(40% 44% at 90% 88%, rgba(60, 184, 104, 0.05), transparent 70%);
+    radial-gradient(40% 44% at 90% 88%, rgba(52, 209, 124, 0.05), transparent 70%);
   z-index: 0;
 }
 
@@ -241,8 +241,8 @@
   font-weight: 700;
   letter-spacing: 0.4px;
   color: rgba(78, 203, 125, 0.95);
-  border: 1px solid rgba(60, 184, 104, 0.35);
-  background: rgba(60, 184, 104, 0.08);
+  border: 1px solid rgba(52, 209, 124, 0.35);
+  background: rgba(52, 209, 124, 0.08);
   border-radius: var(--radius-sm);
   padding: 1.5px 6px;
 }

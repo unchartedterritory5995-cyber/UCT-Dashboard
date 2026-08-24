@@ -148,12 +148,12 @@
 }
 
 .pipW {
-  background: rgba(60, 184, 104, 0.18);
+  background: rgba(52, 209, 124, 0.18);
   color: var(--gain);
 }
 
 .pipL {
-  background: rgba(231, 76, 60, 0.18);
+  background: rgba(242, 75, 66, 0.18);
   color: var(--loss);
 }
 

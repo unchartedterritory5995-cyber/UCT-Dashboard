@@ -51,7 +51,7 @@
 .badgeEARN     { color: #d4af37; background: rgba(212,175,55,0.12);  border: 1px solid rgba(212,175,55,0.3); }
 .badgeMA       { color: #9b59b6; background: rgba(155,89,182,0.12);  border: 1px solid rgba(155,89,182,0.3); }
 .badgeUPGRADE  { color: var(--gain); background: rgba(39,174,96,0.12);   border: 1px solid rgba(39,174,96,0.3);  }
-.badgeDOWNGRADE{ color: var(--loss); background: rgba(231,76,60,0.12);   border: 1px solid rgba(231,76,60,0.3);  }
+.badgeDOWNGRADE{ color: var(--loss); background: rgba(242, 75, 66,0.12);   border: 1px solid rgba(242, 75, 66,0.3);  }
 .badgeBIO      { color: #1abc9c; background: rgba(26,188,156,0.12);  border: 1px solid rgba(26,188,156,0.3); }
 .badgeIPO      { color: #3498db; background: rgba(52,152,219,0.12);  border: 1px solid rgba(52,152,219,0.3); }
 .badgeMACRO    { color: var(--text-muted); background: rgba(127,140,141,0.10); border: 1px solid rgba(127,140,141,0.25);}

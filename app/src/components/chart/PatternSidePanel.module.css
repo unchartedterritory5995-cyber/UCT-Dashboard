@@ -102,8 +102,8 @@
   border-radius: var(--radius-xl);
   text-transform: uppercase;
 }
-.dirBullish { background: rgba(60, 184, 104, 0.18); color: var(--gain); }
-.dirBearish { background: rgba(231, 76, 60, 0.18); color: var(--loss); }
+.dirBullish { background: rgba(52, 209, 124, 0.18); color: var(--gain); }
+.dirBearish { background: rgba(242, 75, 66, 0.18); color: var(--loss); }
 .dirNeutral { background: rgba(220, 187, 94, 0.18); color: var(--accent); }
 
 .confidenceWrap {
