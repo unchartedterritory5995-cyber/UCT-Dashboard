@@ -152,3 +152,44 @@ class TestPersistedShapeIsVersioned:
             "the in-memory cache key and the on-disk shape version disagree — "
             "one of the two layers will keep serving the previous prompt's output"
         )
+
+
+class TestPreviewShapeIsEnforcedInCode:
+    """The prompt asks for exactly 3 bullets; the CODE is what guarantees it.
+
+    The pre-2026-08-23 prompt mandated five 60-90 word bullets and the slice
+    allowed five, so prompt and code agreed on the long form. Cutting only the
+    prompt would leave a non-compliant response free to drift straight back.
+    """
+
+    def test_bullets_are_capped_at_three(self):
+        import inspect
+        from api.services import engine
+        for fn in (engine._generate_earnings_preview, engine._generate_earnings_analysis):
+            src = inspect.getsource(fn)
+            # Match the BULLETS expression specifically — a bare '[:5]' check
+            # would go red on any unrelated five-slice someone adds later, which
+            # is how a guard stops being trusted.
+            assert 'parsed.get("bullets", [])[:3]' in src, (
+                f"{fn.__name__} does not cap bullets at the 3 the shape specifies"
+            )
+            assert 'parsed.get("bullets", [])[:5]' not in src, (
+                f"{fn.__name__} still admits the pre-2026-08-23 five-bullet form"
+            )
+
+
+class TestReportDateReadsAsProse:
+    """The prompt received a raw ISO date and the model echoed it verbatim."""
+
+    def test_iso_becomes_a_spoken_date(self):
+        from api.services.engine import _human_report_date
+        assert _human_report_date("2026-08-26") == "Wednesday, Aug 26"
+        # No zero padding — "Jan 05" is not how anyone says it.
+        assert _human_report_date("2026-01-05") == "Monday, Jan 5"
+
+    def test_unparseable_input_degrades_to_itself_and_never_raises(self):
+        from api.services.engine import _human_report_date
+        assert _human_report_date("") == ""
+        assert _human_report_date(None) == ""
+        assert _human_report_date("garbage") == "garbage"
+        assert _human_report_date("2026-13-99") == "2026-13-99"
