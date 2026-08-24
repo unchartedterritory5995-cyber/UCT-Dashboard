@@ -3,14 +3,22 @@ import pytest
 from api.services.screener import query
 
 
+# ⚠️ THE IDENTIFIERS ARE QUOTED, and that is the ONE textual change the live
+# overlay's read path made to this clause (2026-08-23). Every column in every
+# clause now goes through `_Overlay.col_expr` — the single expression builder
+# that SELECT, WHERE and ORDER BY share, so a filter can never read the nightly
+# value of a column the screen is displaying live — and its off-mode rendering
+# is the quoted identifier the SELECT list and the ORDER BY already used. The
+# emitted SQL is otherwise unchanged and the bound parameters are identical;
+# `tests/test_screener_live_read_path.py` pins the whole statement.
 def test_build_where_range_and_enum():
     sql, params = query.build_where([
         {"key": "rsi14", "op": "between", "min": 40, "max": 60},
         {"key": "sector", "op": "eq", "value": "Technology"},
         {"key": "above_50sma", "op": "eq", "value": 1},
     ])
-    assert "rsi14 >= ?" in sql and "rsi14 <= ?" in sql
-    assert "sector = ?" in sql
+    assert '"rsi14" >= ?' in sql and '"rsi14" <= ?' in sql
+    assert '"sector" = ?' in sql
     assert params == [40, 60, "Technology", 1]
 
 
@@ -26,7 +34,7 @@ def test_build_where_rejects_bad_op():
 
 def test_contains_uses_like():
     sql, params = query.build_where([{"key": "pattern", "op": "contains", "value": "vcp"}])
-    assert "patterns LIKE ?" in sql
+    assert '"patterns" LIKE ?' in sql
     assert params == ["%vcp%"]
 
 

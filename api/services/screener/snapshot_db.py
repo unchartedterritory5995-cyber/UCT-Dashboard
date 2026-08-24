@@ -443,7 +443,9 @@ def count_rows() -> int:
 # permanently mixed table by construction, and `MAX` then reports the last
 # partial build as though it were the whole snapshot. That is a property of the
 # builder, not an accident of this box.
-def describe_rows(conn, where: str = "", params=()) -> dict:
+def describe_rows(conn, where: str = "", params=(),
+                  from_sql: str = "screener_rows",
+                  date_expr: str = "snapshot_date") -> dict:
     """Describe the `snapshot_date` provenance of the rows `where` selects.
 
     `conn` is the CALLER'S connection so the description and the result set are
@@ -453,10 +455,22 @@ def describe_rows(conn, where: str = "", params=()) -> dict:
 
     ONE `GROUP BY` supplies every field, so `rows` here IS the caller's total by
     construction rather than a second count of the same thing.
+
+    ⛔ `from_sql` AND `date_expr` ARE PASSED IN, NEVER REBUILT HERE, and that is
+    the whole reason they exist. Once the live overlay is serving,
+    `query.run_scan`'s where clause can reference the OVERLAY's alias
+    (`COALESCE(l."chg_pct_1d", …) >= ?`), so this statement has to run against
+    the SAME `FROM …LEFT JOIN…` the rows came out of -- against `screener_rows`
+    alone it would not merely disagree, it would raise `no such column: l.…`.
+    Composing a second join here instead of taking the caller's would be a
+    second authority over which rows are being described, and `total` and the
+    rows it labels are coupled BY DESIGN (`query.run_scan`'s own comment).
+    Defaults reproduce the pre-overlay statement byte for byte for every other
+    caller (`distribution`, `status`).
     """
     hist = conn.execute(
-        f"SELECT snapshot_date d, COUNT(*) n FROM screener_rows{where} "
-        f"GROUP BY snapshot_date", list(params)).fetchall()
+        f"SELECT {date_expr} d, COUNT(*) n FROM {from_sql}{where} "
+        f"GROUP BY {date_expr}", list(params)).fetchall()
     dated = sorted(((r["d"], r["n"]) for r in hist if r["d"] is not None),
                    key=lambda pair: str(pair[0]))
     undated = sum(r["n"] for r in hist if r["d"] is None)

@@ -3,10 +3,12 @@
 All column names come from the registry (never from the client). Every value is
 bound as a parameter, so the API surface is injection-safe.
 
-This module also owns the READ PATH's live-tier disclosure (`live_tier_state`
-and the `snapshot.live` block below). See the block comment above
-`live_tier_state` for why the surface reads the tier's own facts rather than
-recomputing any of its gates.
+This module also owns the READ PATH's live-tier overlay (`_Overlay.col_expr`,
+the LEFT JOIN, `build_scan_sql`) and its disclosure (`live_tier_state` and the
+`snapshot.live` block below). See the block comment above `_Overlay` for why
+ONE expression builder serves SELECT, WHERE and ORDER BY alike, and the one
+above `live_tier_state` for why the surface reads the tier's own facts rather
+than recomputing any of its gates.
 """
 import datetime as _dt
 from zoneinfo import ZoneInfo
@@ -17,6 +19,201 @@ _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
 _MAX_PAGE = 500
 _SCAN_KEY = "scan"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# THE OVERLAY, AND WHY ONE FUNCTION TURNS A COLUMN NAME INTO SQL
+#
+# The live tier recomputes a named subset of the snapshot's columns intraday
+# into the side table `screener_live`. This is the half that reaches a member:
+# a LEFT JOIN whose ON clause is the tier's OWN serve predicate, and ONE
+# expression builder — `_Overlay.col_expr` — used by the SELECT list, the WHERE
+# clause and the ORDER BY alike.
+#
+# ⛔⛔ THAT SINGLE BUILDER IS THE WHOLE POINT. A column that FILTERS on the
+# nightly value while DISPLAYING the live one is this repo's signature defect in
+# its purest form: the screen shows `chg_pct_1d = 6.4` and the member's
+# `chg_pct_1d >= 3` filter drops the row, so the name never appears and the
+# market looks quiet. Three code paths composing three expressions is exactly
+# how that happens, and it is invisible to every test that checks one path.
+# `tests/test_screener_live_read_path.py` pins all three against a marker so a
+# call site that composes its own SQL goes RED BY POSITION.
+#
+# ⛔ AND THE OFF PATH IS THE PRE-OVERLAY STATEMENT. Rollback is
+# `SCREENER_LIVE_TIER_ENABLED` unset — no deploy, no migration — so "off" must
+# mean the SQL that shipped before this landed: no join, no COALESCE,
+# `screener_live` never named (not even by the description), `SELECT *`
+# preserved. That is mechanical — `build_scan_sql`'s output is compared to a
+# FROZEN LITERAL of what `run_scan` emitted at `d3260685c`, never prose.
+#
+# ⚠️ ONE TEXTUAL DIFFERENCE, NAMED HERE SO NOBODY HAS TO REDISCOVER IT. One
+# builder means one rendering, and the rendering that leaves the SELECT list and
+# the ORDER BY byte-identical is the QUOTED identifier those two already used —
+# so `build_where`'s `chg_pct_1d >= ?` became `"chg_pct_1d" >= ?`. Same
+# identifier, same bound parameters, same rows, same plan. The alternative
+# (bare) would have moved the bytes in two clauses instead of one and dropped
+# quoting the base table has always had.
+#
+# ⛔ THE ROSTER IS THE WRITER'S. `live_tier.LIVE_COLUMNS` is the one declaration
+# of which columns the overlay owns; retyping those 22 names here would be a
+# second authority that drifts the day a 23rd lands. It is intersected with
+# `snapshot_db.COLUMNS` for one reason only — a name that is not a real snapshot
+# column would make EVERY scan raise, and a disclosure must never be able to
+# take the screen down. (R15, the tier's own rail, is what fails BY NAME on such
+# a typo; this intersection just refuses to be the thing that 500s.)
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: The rows table is NOT aliased, deliberately. `scan_store.join_clause` emits
+#: `h.ticker = screener_rows.ticker` — a fragment this module binds verbatim and
+#: does not own — and SQLite hides the table name behind an alias, so
+#: `FROM screener_rows r` would break every `{key:"scan"}` filter the moment the
+#: overlay armed. The overlay gets the alias; the base table keeps its name.
+_ROWS = "screener_rows"
+_LIVE = "l"
+
+
+class _Overlay:
+    """Whether the live overlay participates in THIS statement — and the ONLY
+    place a column name becomes SQL.
+
+    An instance is built once per `run_scan` and threaded through every clause,
+    so SELECT, WHERE and ORDER BY cannot disagree about which table a column's
+    value comes from. `OFF` is the flag-off / tier-absent / tier-unreadable
+    case and renders the pre-overlay SQL exactly.
+    """
+    __slots__ = ("on", "columns", "table", "predicate", "join_params", "reason")
+
+    def __init__(self, on=False, columns=frozenset(), table=None,
+                 predicate=None, join_params=(), reason=None):
+        self.on = bool(on)
+        self.columns = frozenset(columns)
+        self.table = table
+        self.predicate = predicate
+        self.join_params = list(join_params)
+        #: Why the overlay is not participating — reported, never silent, so an
+        #: operator can tell "switched off" from "the tier could not answer".
+        self.reason = reason
+
+    # ── the one expression builder ───────────────────────────────────────────
+    def col_expr(self, col: str) -> str:
+        """The SQL that yields the SERVED value of `col`.
+
+        ⛔ Every clause asks this and nothing else. `COALESCE(overlay, nightly)`
+        for a column the tier owns, the nightly column for everything else, and
+        the bare quoted identifier when the overlay is off (which is what the
+        statement said before any of this existed).
+        """
+        if not self.on:
+            return f'"{col}"'
+        if col in self.columns:
+            return f'COALESCE({_LIVE}."{col}", {_ROWS}."{col}")'
+        return f'{_ROWS}."{col}"'
+
+    def select_item(self, col: str) -> str:
+        """`col_expr` in SELECT position. The alias is what keeps the response
+        key the column's own name once the expression is a COALESCE; with the
+        overlay off there is no expression to name, and the item is byte-for-byte
+        what the pre-overlay SELECT list emitted."""
+        expr = self.col_expr(col)
+        return f'{expr} AS "{col}"' if self.on else expr
+
+    def from_sql(self) -> str:
+        """The FROM clause — handed to `describe_rows` too, never rebuilt there.
+
+        The ON clause is the TIER's `serve_predicate_sql`, not a predicate
+        composed here: *serve the overlay only where it describes a session
+        strictly newer than the row's own anchor session*, plus the in-session
+        age cutoff. Both halves are the writer's to define — a reader that
+        re-derived them would disagree with the writer on precisely the days
+        that matter (a dead sweeper, an overnight roll, a mixed snapshot).
+        """
+        if not self.on:
+            return _ROWS
+        return (f'{_ROWS} LEFT JOIN {self.table} {_LIVE} '
+                f'ON {_LIVE}.ticker = {_ROWS}.ticker AND {self.predicate}')
+
+    def extra_select(self) -> list:
+        """The per-row provenance the disclosure reads: `live_row` (the 0/1 the
+        Seal and the per-row dot key off), and the two facts that date it.
+
+        ⭐ `live_asof` is stamped on the overlay ROW, so the newest one on a page
+        is literally when the values on screen were derived — which is why
+        `live_screen_state` prefers it over any cycle clock.
+        """
+        if not self.on:
+            return []
+        return [
+            f'CASE WHEN {_LIVE}.ticker IS NOT NULL THEN 1 ELSE 0 END AS "live_row"',
+            f'{_LIVE}.live_asof AS "live_asof"',
+            f'{_LIVE}.anchor_bars_asof AS "anchor_bars_asof"',
+        ]
+
+
+#: The flag-off statement, and the fallback for every way the tier can fail to
+#: answer. ⛔ Shared and never mutated (`_Overlay` has no setters).
+OFF = _Overlay(reason="the live overlay is not participating in this statement")
+
+
+def _table_exists(conn, name: str) -> bool:
+    """Derived from `sqlite_master`, never assumed.
+
+    A pod that arms `SCREENER_LIVE_TIER_ENABLED` against a `screener.db` built
+    before the overlay table existed would otherwise raise `no such table` on
+    EVERY member scan — a flag flip taking the whole screener down. One cheap
+    read, and only when the flag is on.
+    """
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
+            (name,)).fetchone()
+    except Exception:  # noqa: BLE001 — an unreadable catalog reads as "no overlay"
+        return False
+    return row is not None
+
+
+def _overlay(conn) -> _Overlay:
+    """Decide ONCE, for this statement, whether the overlay is served.
+
+    ⛔ EVERY GATE IS THE TIER'S OWN, READ OFF THE TIER: `enabled()` (per call,
+    so a rollback lands on the next request with no deploy), `LIVE_COLUMNS`,
+    `LIVE_TABLE`, `serve_predicate_sql()` and `min_serve_asof()`. Nothing here
+    recomputes a session, a cutoff or a date comparison — the writer owns those
+    and a second copy would disagree with it exactly when it mattered.
+
+    ⛔ AND IT NEVER GUESSES TOWARD "LIVE". Anything unanswerable — the module
+    absent, half-written, raising, naming no overlayable column, producing no
+    predicate, or a database with no overlay table — returns `OFF`, which is
+    the honest direction: nightly values, served correctly, and the disclosure
+    beside them says so.
+    """
+    mod = _live_tier_module()
+    if mod is None:
+        return _Overlay(reason="the live tier is not installed on this pod")
+    try:
+        if not mod.enabled():
+            return _Overlay(reason="the live overlay is switched off")
+        table = str(mod.LIVE_TABLE)
+        known = set(snapshot_db.COLUMNS)
+        columns = frozenset(
+            str(c) for c in (mod.LIVE_COLUMNS or ()) if str(c) in known)
+        if not columns:
+            return _Overlay(reason="the live tier declares no overlayable column")
+        if not _table_exists(conn, table):
+            return _Overlay(reason=f"{table} does not exist in this database")
+        min_asof = mod.min_serve_asof()
+        if min_asof is None:
+            predicate = mod.serve_predicate_sql(live_alias=_LIVE, rows_alias=_ROWS)
+            join_params = []
+        else:
+            predicate = mod.serve_predicate_sql(
+                live_alias=_LIVE, rows_alias=_ROWS, min_asof_param="?")
+            join_params = [float(min_asof)]
+        if not isinstance(predicate, str) or not predicate.strip():
+            return _Overlay(reason="the live tier produced no serve predicate")
+    except Exception as e:  # noqa: BLE001 — an overlay must not take the screen down
+        return _Overlay(reason=f"the live tier could not be read: {type(e).__name__}: {e}")
+    return _Overlay(on=True, columns=columns, table=table,
+                    predicate=predicate, join_params=join_params)
 
 
 def _scan_clauses(f, clauses, params, scan_joins):
@@ -62,18 +259,42 @@ def _scan_clauses(f, clauses, params, scan_joins):
             scan_joins.append({"def_hash": h, "as_of": latest, "applied": True})
 
 
-def build_where(filter_specs, scan_joins=None):
+def build_where(filter_specs, scan_joins=None, overlay=None):
+    """The WHERE clause — over the SERVED value of every column.
+
+    ⛔ `overlay.col_expr(col)` IS THE ONLY WAY A COLUMN NAME BECOMES SQL HERE,
+    and it is the same call the SELECT list and the ORDER BY make. A filter
+    reading `screener_rows.chg_pct_1d` while the screen displays
+    `COALESCE(l.chg_pct_1d, …)` is the second-authority defect this whole
+    design exists to prevent: the member sees a number their own filter is
+    silently disagreeing with, and the row they were looking for never arrives.
+
+    ⚠️ THE `{key:"scan"}` BRANCH IS DELIBERATELY NOT OVERLAID, and it is not an
+    oversight. It binds a whole `EXISTS (…)` fragment from `scan_store` rather
+    than naming a column, and what that fragment reads is the NIGHTLY 05:00
+    sweep's own receipt — overlaying it would turn a nightly answer into an
+    intraday one, the same refusal `scan_evaluator` itself carries (spec §10).
+    (⛔ And the fragment stays the store's: this module restates none of its
+    SQL — `test_the_fragment_is_the_stores_never_restated` scans this file's
+    SOURCE, so even naming that table in a comment goes red.)
+
+    `overlay` defaults to `OFF`, which renders the quoted identifier alone — so
+    every caller that predates the overlay (and every test of the clause in
+    isolation) gets the pre-overlay statement.
+    """
+    overlay = overlay or OFF
     clauses, params = [], []
     for f in filter_specs or []:
         key, op = f.get("key"), f.get("op")
         if key == _SCAN_KEY:
             _scan_clauses(f, clauses, params, scan_joins)
             continue
-        col = filters.column_for(key)
-        if not col:
+        name = filters.column_for(key)
+        if not name:
             raise ValueError(f"unknown filter key: {key}")
         if not filters.is_valid_op(key, op):
             raise ValueError(f"bad op {op} for {key}")
+        col = overlay.col_expr(name)
         if op == "gte":
             clauses.append(f"{col} >= ?"); params.append(f["min"])
         elif op == "lte":
@@ -349,8 +570,35 @@ def live_tier_state() -> dict:
         enabled_error = None
     except Exception as e:  # noqa: BLE001 — missing/raising flag reads as OFF
         enabled, enabled_error = False, f"{type(e).__name__}: {e}"
+    # ⛔⛔ THE CLAIM IS WHAT THE SWEEP MEASURED, NOT WHAT THE TIER ASPIRES TO.
+    #
+    # `LIVE_COLUMNS` is the set the tier intends to recompute;
+    # `live_columns_effective()` is the set it MEASURED ITSELF RECOMPUTING on the
+    # last cycle that wrote rows. They differ today: four of the twenty-two
+    # (`chg_from_open_pct`, `gap_pct`, `new_52w_high`, `new_ath`) need feed
+    # fields `massive.get_full_market_snapshot` does not yet emit (spec §3.2
+    # unlanded), so those columns carry their NIGHTLY value forward — and
+    # naming one "live as of 10:42" while it holds the prior session's number is
+    # an honest value under a dishonest label. A member filtering `gap_pct > 3`
+    # during RTH would read yesterday's gappers as today's.
+    #
+    # ⚠️ THIS ONLY STARTED MATTERING WHEN THE OVERLAY BECAME REACHABLE. Until
+    # the join below landed no row ever carried `live_row`, so this list was
+    # never rendered as a live claim; the moment values reach the screen the
+    # roster IS the disclosure. `live_tier`'s own module docstring states the
+    # contract ("the provenance surface must read the second one") and nothing
+    # was reading it — the same built-tested-green-and-unreachable shape, one
+    # level up.
+    #
+    # ⛔ The SQL still overlays ALL of `LIVE_COLUMNS` (see `_overlay`), and that
+    # is correct, not a contradiction: an overlay row carries the nightly value
+    # verbatim for a column it could not recompute, so COALESCE returns the same
+    # number either way. What changes is only what the screen CLAIMS is live.
+    # A tier without the accessor falls back to the declared list.
     try:
-        columns = [str(c) for c in (getattr(mod, "LIVE_COLUMNS", None) or [])]
+        effective = getattr(mod, "live_columns_effective", None)
+        declared = getattr(mod, "LIVE_COLUMNS", None) or []
+        columns = [str(c) for c in (effective() if callable(effective) else declared)]
     except Exception:  # noqa: BLE001
         columns = []
     receipt, source, candidates = _live_receipt(mod)
@@ -543,10 +791,27 @@ def live_screen_state(rows, tier=None) -> dict:
     }
 
 
-def run_scan(spec):
+def build_scan_sql(spec, overlay=None) -> dict:
+    """The EXACT statement `run_scan` executes, plus what describes its rows.
+
+    Split out of `run_scan` for ONE reason: the rollback guarantee has to be
+    mechanical. `tests/test_screener_live_read_path.py` reads the string this
+    returns with the flag off and compares it to a frozen literal of the
+    pre-overlay statement — a claim in prose that "nothing changes when the
+    flag is off" is exactly the kind nobody can falsify.
+
+    ⛔ `run_scan` CALLS THIS. If it composed its own SQL beside it, the rail
+    would be pinning a string the member never runs; the connection spy in that
+    same file is what pins the wire.
+
+    Returns the sql/params, the WHERE and FROM/date expressions
+    `snapshot_db.describe_rows` must reuse (never rebuild — see its docstring),
+    and the response scaffolding.
+    """
+    overlay = overlay or OFF
     spec = spec or {}
     scan_joins = []
-    where, params = build_where(spec.get("filters"), scan_joins)
+    where, where_params = build_where(spec.get("filters"), scan_joins, overlay)
     view_key = spec.get("view") or "overview"
     view = filters.VIEWS.get(view_key, filters.VIEWS["overview"])
     sort = spec.get("sort") or {}
@@ -573,19 +838,62 @@ def run_scan(spec):
             if c not in seen:
                 seen.add(c)
                 select_cols.append(c)
-        select_sql = ", ".join(f'"{c}"' for c in select_cols)
         out_columns = select_cols
+    elif overlay.on:
+        # ⚠️ `SELECT *` CANNOT SURVIVE THE JOIN. With a second table in the FROM
+        # it returns BOTH tables' columns, and `sqlite3.Row` keeps only the last
+        # of two same-named ones — so `price` would silently become the overlay's
+        # copy for every row INCLUDING the ones the serve predicate refused. The
+        # list becomes explicit and every item goes through `col_expr`, which is
+        # the only expression that respects the predicate.
+        select_cols = list(snapshot_db.COLUMNS)
+        out_columns = view["columns"]
     else:
-        select_sql = "*"
+        select_cols = None          # `SELECT *`, exactly as before the overlay
         out_columns = view["columns"]
 
+    if select_cols is None:
+        select_sql = "*"
+    else:
+        select_sql = ", ".join(
+            [overlay.select_item(c) for c in select_cols] + overlay.extra_select())
+
+    sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
+           f"ORDER BY {overlay.col_expr(sort_key)} {sort_dir} NULLS LAST "
+           f"LIMIT ? OFFSET ?")
+    # The join's own parameter (the in-session freshness cutoff) binds BEFORE
+    # the where clause's, because the ON clause is earlier in the statement.
+    describe_params = [*overlay.join_params, *where_params]
+    return {
+        "sql": sql,
+        "params": [*describe_params, page_size, offset],
+        "where": where,
+        "describe_params": describe_params,
+        "from_sql": overlay.from_sql(),
+        # ⭐ THE SAME HELPER dates the description. `snapshot_date` is not a live
+        # column today, so this renders the nightly one — but if it ever became
+        # one, the label would follow the value it labels with no edit here.
+        "date_expr": overlay.col_expr("snapshot_date"),
+        "scan_joins": scan_joins,
+        "view": view_key,
+        "view_columns": out_columns,
+        "page": page,
+        "page_size": page_size,
+        "overlay": overlay,
+    }
+
+
+def run_scan(spec):
+    spec = spec or {}
     with snapshot_db.connect() as conn:
-        rows = conn.execute(
-            f"SELECT {select_sql} FROM screener_rows{where} "
-            f'ORDER BY "{sort_key}" {sort_dir} NULLS LAST '
-            f"LIMIT ? OFFSET ?", [*params, page_size, offset]).fetchall()
-        # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`
-        # and the SAME params that selected them select the description.
+        # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
+        # through the SELECT, the WHERE, the ORDER BY and the description, so
+        # they cannot disagree about which values are being served.
+        plan = build_scan_sql(spec, _overlay(conn))
+        rows = conn.execute(plan["sql"], plan["params"]).fetchall()
+        # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
+        # the SAME params AND THE SAME `FROM` that selected them select the
+        # description.
         #
         # This used to be `SELECT MAX(snapshot_date) FROM screener_rows` --
         # unfiltered, and the MAX. On the live snapshot that printed
@@ -595,11 +903,19 @@ def run_scan(spec):
         # the short version is that a rank statistic has no threshold to get
         # wrong, and one number cannot honestly describe three dates.
         #
+        # ⛔ THE FROM CLAUSE IS HANDED OVER, NEVER REBUILT. Once the overlay is
+        # serving, the where clause can name `l.` — described against
+        # `screener_rows` alone this statement would not disagree, it would
+        # RAISE, and a second join composed there would be a second authority
+        # over which rows `total` counts.
+        #
         # ⛔ THE RESULT SET IS NOT TOUCHED. Filtering the rows down to the
         # representative date would silently drop symbols -- a fixed label at
         # the price of a missing-data bug -- and a screen that quietly returns
         # fewer names looks like a quiet market.
-        snap = snapshot_db.describe_rows(conn, where, params)
+        snap = snapshot_db.describe_rows(
+            conn, plan["where"], plan["describe_params"],
+            from_sql=plan["from_sql"], date_expr=plan["date_expr"])
     out_rows = [dict(r) for r in rows]
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
@@ -616,6 +932,7 @@ def run_scan(spec):
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.
     return {"total": snap["rows"], "rows": out_rows,
-            "view": view_key, "view_columns": out_columns,
+            "view": plan["view"], "view_columns": plan["view_columns"],
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,
-            "page": page, "page_size": page_size, "scan_joins": scan_joins}
+            "page": plan["page"], "page_size": plan["page_size"],
+            "scan_joins": plan["scan_joins"]}
