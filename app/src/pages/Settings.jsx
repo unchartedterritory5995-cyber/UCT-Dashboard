@@ -15,6 +15,7 @@ import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
+import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
@@ -36,16 +37,11 @@ const TF_OPTIONS = [
   { value: 'W', label: 'Weekly' },
 ]
 
-// The two ALWAYS-PRESENT base app themes. OLED Black is the default for every
-// current and new user (hooks/usePreferences DEFAULTS.theme = 'oled'). The old
-// Midnight / Dim / System options were removed 2026-08-23; any account still
-// holding one of those values resolves to OLED at apply-time (see Layout.jsx).
-// The "UCT App Themes" gallery (10-20 custom skins) is a SEPARATE picker; each of
-// its themes stores a value like 'uct:slate' and never touches these two.
-const THEME_OPTIONS = [
-  { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
-  { value: 'light', label: 'Light', desc: 'Clean white', swatch: '#e8eff5' },
-]
+// App theme is chosen via <AppThemePicker> (components/AppThemePicker.jsx): the two
+// always-present base themes (OLED Black, default / Light) plus the "UCT App Themes"
+// catalog, whose values look like 'uct:slate'. The retired Midnight / Dim / System
+// options resolve to OLED at apply-time (see Layout.jsx). OLED is the new-user
+// default (hooks/usePreferences DEFAULTS.theme = 'oled').
 
 // ── Helpers ──
 function formatDate(dateStr) {
@@ -2012,30 +2008,12 @@ export default function Settings() {
                 ))}
               </select>
             </div>
-            <div className={styles.prefRow}>
+            <div className={styles.prefRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
               <div className={styles.prefLabelGroup}>
                 <span className={styles.prefLabel}>App Theme</span>
-                <span className={styles.prefDesc}>Customize your visual experience</span>
+                <span className={styles.prefDesc}>Customize your visual experience — OLED Black and Light, or a UCT App Theme</span>
               </div>
-              <div className={styles.themeGrid}>
-                {THEME_OPTIONS.map(o => (
-                  <button
-                    key={o.value}
-                    className={`${styles.themeCard} ${prefs.theme === o.value ? styles.themeCardActive : ''}`}
-                    onClick={() => setPref('theme', o.value)}
-                  >
-                    <span className={styles.themeSwatch}>
-                      {o.swatch ? (
-                        <span className={styles.themeSwatchColor} style={{ background: o.swatch }} />
-                      ) : (
-                        <span className={styles.themeSwatchSystem}>⊘</span>
-                      )}
-                    </span>
-                    <span className={styles.themeCardLabel}>{o.label}</span>
-                    <span className={styles.themeCardDesc}>{o.desc}</span>
-                  </button>
-                ))}
-              </div>
+              <AppThemePicker value={prefs.theme} onChange={v => setPref('theme', v)} />
             </div>
           </div>
         </TileCard>

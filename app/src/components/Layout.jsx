@@ -9,6 +9,7 @@ import { TickerHubProvider } from './mobile/TickerHubContext'
 import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
 import { initBarsPack } from '../lib/barsPackClient'
+import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars } from '../styles/appThemes'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -47,16 +48,21 @@ export default function Layout({ children }) {
   // 'midnight' / 'dim' / 'system' options were removed 2026-08-23 — any account
   // still holding one of those values resolves to OLED here (we never fall back
   // to bare :root, so the retired Midnight-green palette can no longer render).
-  // 'light' is the only value that sets data-theme="light". Everything else —
-  // including the future 'uct:<id>' custom-theme values, which are applied by a
-  // separate effect — falls through to OLED as the safe base until that lands.
+  //
+  // A value like 'uct:slate' selects a UCT App Theme from the catalog: we set its
+  // BASE (oled/light) on data-theme so un-overridden tokens stay legible, then
+  // write the theme's tokens as inline custom properties on <html>. Any other
+  // value clears those inline props and uses the plain base theme.
   useEffect(() => {
+    const el = document.documentElement
     const t = prefs.theme
-    if (t === 'light') {
-      document.documentElement.dataset.theme = 'light'
-    } else {
-      document.documentElement.dataset.theme = 'oled'
+    if (isUctTheme(t)) {
+      const theme = APP_THEME_BY_ID[uctThemeId(t)]
+      if (theme) { applyAppTheme(el, theme); return }
+      // Unknown uct id (e.g. a retired theme): fall back to OLED, cleanly.
     }
+    clearAppThemeVars(el)
+    el.dataset.theme = t === 'light' ? 'light' : 'oled'
   }, [prefs.theme])
 
   // Smooth theme transitions
