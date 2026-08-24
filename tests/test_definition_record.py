@@ -253,15 +253,30 @@ def _declared_default_ledger_path() -> str:
 
 
 def _artifact_state(path: str):
-    """(size, mtime, table names) or None — the FILE, not a setting about it."""
+    """(size, mtime, content hash) or None — the FILE, not a setting about it.
+
+    🔴 THIS READ USED TO BE A `sqlite3.connect`, AND THAT MADE THE TEST ITS OWN
+    VIOLATION. It opened the unisolated ledger to list its tables — so a test
+    whose entire claim is "the record NEVER TOUCHES the real ledger file" was
+    the one thing in the run that touched it. On a box where `C:\data` exists
+    the repo-root tripwire refused the connect and failed this test by name,
+    which is the guard being right and the probe being wrong.
+
+    ⛔ AND A `mode=ro` URI WOULD NOT HAVE FIXED IT. `sqlite3.connect` is hooked
+    unconditionally, deliberately: a connect can create the file and can write a
+    journal beside it, so the guard does not try to reason about intent. Reads
+    through `open()` are allowed and recorded — which is why the content hash
+    below is legal where a database handle is not.
+
+    ⭐ THE HASH IS STRICTLY STRONGER THAN THE TABLE LIST IT REPLACES. A schema
+    change moves the bytes, and so does an append that happened to land on the
+    same size and mtime — the one case (size, mtime, tables) could miss.
+    """
     p = pathlib.Path(path)
     if not p.exists():
         return None
     st = p.stat()
-    with sqlite3.connect(str(p)) as c:
-        names = sorted(r[0] for r in c.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"))
-    return (st.st_size, st.st_mtime, names)
+    return (st.st_size, st.st_mtime, hashlib.sha256(p.read_bytes()).hexdigest())
 
 
 def test_the_record_NEVER_TOUCHES_the_real_ledger_file_and_the_ARTIFACT_says_so(store):
