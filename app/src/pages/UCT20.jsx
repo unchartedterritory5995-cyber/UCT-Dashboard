@@ -1,6 +1,7 @@
 // app/src/pages/UCT20.jsx
 import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
+import PageHeader from '../components/PageHeader'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
@@ -473,8 +474,7 @@ export default function UCT20() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.heading}><UIcon name="star" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />UCT 20</h1>
+      <PageHeader icon="star" title="UCT 20">
         <ReadAloudButton
           trackId="uct20-all-picks"
           label="UCT 20 picks"
@@ -498,7 +498,7 @@ export default function UCT20() {
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built
         </button>
-      </div>
+      </PageHeader>
       <MethodologySheet open={showMethodology} onClose={() => setShowMethodology(false)} />
       {leadershipStatus === 'held' && stocks.length > 0 && (
         <div className={styles.staleBanner}>

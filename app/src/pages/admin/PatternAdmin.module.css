@@ -20,10 +20,10 @@
 }
 
 .heading {
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--text-heading);
-  letter-spacing: 1px;
+  letter-spacing: 0.2px;
   margin: 0;
 }
 

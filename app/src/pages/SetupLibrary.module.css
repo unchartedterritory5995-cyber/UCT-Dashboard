@@ -1,6 +1,6 @@
 .page { padding: 20px 24px; }
 .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 4px; text-transform: uppercase; }
+.heading { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; text-transform: none; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
 /* ── Layout ── */

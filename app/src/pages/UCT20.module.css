@@ -48,7 +48,7 @@
   outline-offset: -1px;
   border-radius: var(--radius-sm);
 }
-.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 4px; text-transform: uppercase; }
+.heading { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; text-transform: none; }
 
 /* ── Table (shared grid across header + rows) ─────────────────────────────── */
 .table {

@@ -1,6 +1,6 @@
 .page { padding: 24px 28px 40px; max-width: 1200px; }
 .header { margin-bottom: 20px; }
-.heading { font-size: 20px; font-weight: 700; color: var(--text-heading); letter-spacing: 1px; }
+.heading { font-size: 19px; font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; }
 
 /* ── Section Headers ── */
 .sectionHeader {
