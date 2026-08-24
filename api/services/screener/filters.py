@@ -702,6 +702,43 @@ def _distinct_options(column):
         return [{"label": "Any"}]
 
 
+def _my_lists_entry(user_id):
+    """The per-user LIST universe control, or None.
+
+    Benchmark Tier-1 loss #3 — seven of twelve rivals let a member screen a
+    watchlist and we let them screen none. Shaped exactly like
+    ``_my_scans_entry`` beside it, because it IS the same shape: a per-user
+    enum whose presets are `{op: "in", value: <selector>}` and whose resolution
+    happens server-side in `query.build_where`.
+
+    ⭐ THE ABSENCE CONTRACT IS THE SAME ONE: no lists means NO CATEGORY, never
+    an empty shell. A control offering nothing reads as a broken feature; an
+    absent control reads as a feature you have not set up yet, which is the
+    truth.
+
+    ⛔ `list_universe.available` swallows its own errors and returns `[]`, so an
+    unreadable auth database costs this ONE category and never the whole meta
+    payload — the guard `_my_scans_entry` states for the coverage store.
+    """
+    from api.services.screener import list_universe
+    options = list_universe.available(user_id)
+    if not options:
+        return None
+    return {
+        "key": "list", "label": "My Lists", "category": "my_lists",
+        "type": "enum", "allow_custom": False, "unit": None,
+        "presets": [{"label": "Any"}] + [
+            {"label": o["label"], "op": "in", "value": o["value"]}
+            for o in options],
+        "desc": "Screen only the symbols on one of your own lists — a "
+                "watchlist, your flagged names, or a colour tag. "
+                "“Unflagged” is the complement: everything you have "
+                "NOT flagged, so you stop re-reviewing names you already "
+                "triaged. Two list filters intersect; several selections "
+                "inside one filter combine into a single universe.",
+    }
+
+
 def _my_scans_entry(user_id):
     """The per-user category content, or None (absence is honest: no
     scannable definitions == no category, never an empty shell).
@@ -821,6 +858,10 @@ def meta(user_id=None) -> dict:
         if entry is not None:
             out_filters.append(entry)
             categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
+        lists = _my_lists_entry(user_id)
+        if lists is not None:
+            out_filters.append(lists)
+            categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     return {"filters": out_filters,
             "views": [{"key": k, **v} for k, v in VIEWS.items()],
             "categories": categories,

@@ -292,7 +292,13 @@ def stub_services(monkeypatch):
     monkeypatch.setattr(scr_router, "get_candidates", lambda: {"candidates": {}})
     monkeypatch.setattr(breadth_monitor, "get_universe_stocks", lambda date_str=None: dict(sentinel))
     monkeypatch.setattr(scr_filters, "meta", lambda user_id=None: dict(sentinel))
-    monkeypatch.setattr(scr_query, "run_scan", lambda spec: dict(sentinel))
+    # ⛔ THE STUB TAKES `user_id` because the ROUTE PASSES IT — the `list`
+    # filter resolves a member's own watchlists, and the id must come from the
+    # authenticated dependency rather than the request body. A stub that
+    # silently swallowed it (**_) would let the route stop passing it and this
+    # file would stay green.
+    monkeypatch.setattr(scr_query, "run_scan",
+                        lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)
 

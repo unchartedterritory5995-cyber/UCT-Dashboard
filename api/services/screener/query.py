@@ -19,6 +19,7 @@ _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
 _MAX_PAGE = 500
 _SCAN_KEY = "scan"
+_LIST_KEY = "list"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -259,7 +260,76 @@ def _scan_clauses(f, clauses, params, scan_joins):
             scan_joins.append({"def_hash": h, "as_of": latest, "applied": True})
 
 
-def build_where(filter_specs, scan_joins=None, overlay=None):
+def _list_clauses(f, clauses, params, list_joins, user_id):
+    """The my_lists universe: a member's own watchlist / flag / colour as a
+    `ticker IN (…)` pre-filter.
+
+    ⛔ SEVERAL SELECTORS IN ONE FILTER **UNION**, and that is the opposite of
+    the `scan` branch one screen up, so it is written down rather than left to
+    be discovered. A scan is a CRITERION — two of them mean "both must hold",
+    and each adds its own clause. A list is a UNIVERSE — picking "gold tag" and
+    "blue tag" means "either", the way Finviz's six colour groups are
+    "combinable as one universe". Intersecting two universes is still
+    available: use two `list` filters, which AND like everything else here.
+
+    ⛔ A COMPLEMENT CANNOT BE UNIONED. `unflagged` emits `NOT IN`, and mixing
+    that into an OR with an `IN` produces a set almost nobody means and that
+    reads as plausible on screen. It refuses instead.
+    """
+    from . import list_universe
+    if f.get("op") != "in":
+        raise ValueError(f"bad op {f.get('op')} for list")
+    raw = f.get("value")
+    sels = raw if isinstance(raw, list) else [raw]
+    sels = [x for x in sels if isinstance(x, str) and x.strip()]
+    if not sels or (isinstance(raw, list) and len(sels) != len(raw)):
+        raise ValueError("list filter requires selector value(s)")
+    seen = set()
+    sels = [x for x in sels if not (x in seen or seen.add(x))]
+
+    union, receipts, complement = [], [], None
+    for sel in sels:
+        try:
+            syms, rc = list_universe.resolve(sel, user_id)
+        except list_universe.ListRefusal as e:
+            # ⛔ REFUSES, never returns everything. K1 from the scan branch: the
+            # generic in-branch's empty-values no-op would widen the screen from
+            # "my six names" to the whole universe, silently.
+            raise ValueError(str(e)) from None
+        if rc["complement"]:
+            if len(sels) > 1:
+                raise ValueError(
+                    "the unflagged complement cannot be combined with another "
+                    "list in one filter — use a second list filter")
+            complement = rc
+        union.extend(syms)
+        receipts.append(rc)
+
+    seen = set()
+    union = [s for s in union if not (s in seen or seen.add(s))]
+    if list_joins is not None:
+        list_joins.extend(receipts)
+
+    if complement is not None:
+        if not union:
+            # Nothing is flagged, so "everything else" is everything. A no-op
+            # here is CORRECT, and it is disclosed in the receipt.
+            return
+        placeholders = ",".join("?" for _ in union)
+        clauses.append(f"UPPER(ticker) NOT IN ({placeholders})")
+        params.extend(union)
+        return
+    if not union:
+        # An empty list is a real, empty universe — NOT an absent filter.
+        clauses.append("1=0")
+        return
+    placeholders = ",".join("?" for _ in union)
+    clauses.append(f"UPPER(ticker) IN ({placeholders})")
+    params.extend(union)
+
+
+def build_where(filter_specs, scan_joins=None, overlay=None, *,
+                list_joins=None, user_id=None):
     """The WHERE clause — over the SERVED value of every column.
 
     ⛔ `overlay.col_expr(col)` IS THE ONLY WAY A COLUMN NAME BECOMES SQL HERE,
@@ -288,6 +358,13 @@ def build_where(filter_specs, scan_joins=None, overlay=None):
         key, op = f.get("key"), f.get("op")
         if key == _SCAN_KEY:
             _scan_clauses(f, clauses, params, scan_joins)
+            continue
+        if key == _LIST_KEY:
+            # ⛔ `user_id` is the CALLER'S, threaded from the authenticated
+            # session — never read off the client-supplied spec. A spec that
+            # could name its own user_id would let any member screen any other
+            # member's watchlist.
+            _list_clauses(f, clauses, params, list_joins, user_id)
             continue
         name = filters.column_for(key)
         if not name:
@@ -791,7 +868,7 @@ def live_screen_state(rows, tier=None) -> dict:
     }
 
 
-def build_scan_sql(spec, overlay=None) -> dict:
+def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
     """The EXACT statement `run_scan` executes, plus what describes its rows.
 
     Split out of `run_scan` for ONE reason: the rollback guarantee has to be
@@ -811,7 +888,13 @@ def build_scan_sql(spec, overlay=None) -> dict:
     overlay = overlay or OFF
     spec = spec or {}
     scan_joins = []
-    where, where_params = build_where(spec.get("filters"), scan_joins, overlay)
+    list_joins = []
+    # ⛔ `user_id` IS A PARAMETER, NOT A SPEC FIELD. The spec is client-supplied
+    # JSON; a `list` filter resolved against a user_id read out of it would let
+    # any member screen any other member's watchlist. It arrives from the route's
+    # authenticated dependency and nowhere else.
+    where, where_params = build_where(spec.get("filters"), scan_joins, overlay,
+                                      list_joins=list_joins, user_id=user_id)
     view_key = spec.get("view") or "overview"
     view = filters.VIEWS.get(view_key, filters.VIEWS["overview"])
     sort = spec.get("sort") or {}
@@ -875,6 +958,7 @@ def build_scan_sql(spec, overlay=None) -> dict:
         # one, the label would follow the value it labels with no edit here.
         "date_expr": overlay.col_expr("snapshot_date"),
         "scan_joins": scan_joins,
+        "list_joins": list_joins,
         "view": view_key,
         "view_columns": out_columns,
         "page": page,
@@ -883,13 +967,13 @@ def build_scan_sql(spec, overlay=None) -> dict:
     }
 
 
-def run_scan(spec):
+def run_scan(spec, user_id=None):
     spec = spec or {}
     with snapshot_db.connect() as conn:
         # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
         # through the SELECT, the WHERE, the ORDER BY and the description, so
         # they cannot disagree about which values are being served.
-        plan = build_scan_sql(spec, _overlay(conn))
+        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id)
         rows = conn.execute(plan["sql"], plan["params"]).fetchall()
         # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
         # the SAME params AND THE SAME `FROM` that selected them select the
@@ -935,4 +1019,5 @@ def run_scan(spec):
             "view": plan["view"], "view_columns": plan["view_columns"],
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,
             "page": plan["page"], "page_size": plan["page_size"],
-            "scan_joins": plan["scan_joins"]}
+            "scan_joins": plan["scan_joins"],
+            "list_joins": plan["list_joins"]}

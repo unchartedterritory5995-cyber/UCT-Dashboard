@@ -129,7 +129,12 @@ def screener_meta(user=Depends(require_paid)):
 @router.post("/api/screener/scan")
 def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
     try:
-        return scr_query.run_scan(spec.model_dump())
+        # ⛔ THE USER ID COMES FROM THE DEPENDENCY, NOT THE BODY. `{key:"list"}`
+        # resolves a member's own watchlists, flags and colour tags; reading the
+        # id off the client-supplied spec would let any member screen any other
+        # member's lists.
+        return scr_query.run_scan(spec.model_dump(),
+                                  user_id=(user or {}).get("id"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
