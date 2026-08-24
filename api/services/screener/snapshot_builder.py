@@ -193,6 +193,87 @@ def price_is_stale(bars_asof, today_ymd=None) -> bool:
     return age is None or age > stale_price_sessions()
 
 
+def identity_row_cap() -> int:
+    """How many rows one PROOF identity may blank in a single build.
+
+    ⭐ THE CAP IS THE WHOLE SAFETY ARGUMENT. A free identity firing on a
+    handful of rows is what it was built for: those rows contradict themselves
+    and their columns are withheld. The SAME identity firing on two thousand
+    rows is not two thousand bad rows — it is a changed upstream, a renamed
+    provider field, a units drift — and blanking a column across the universe
+    is a far worse answer to that than saying so loudly. Past the cap the
+    identity stops withholding for the rest of the build and is marked
+    ``systemic`` in the receipt, where the morning ritual reads it.
+
+    200 is chosen off the measured distribution, the same way
+    ``stale_price_sessions`` is: the worst proof identity on the 2026-08-24
+    snapshot fired on **81** rows before the `single_candle` repair and on
+    **0** after it, against a universe of 3,714. 200 sits above the observed
+    per-row population and an order of magnitude below anything systemic.
+    """
+    try:
+        return int(os.environ.get("SCREENER_IDENTITY_MAX_ROWS") or 200)
+    except (TypeError, ValueError):
+        return 200
+
+
+def _refuse_contradictions(row, state):
+    """Blank the columns of every PROOF identity this row contradicts.
+
+    ⭐ THE POLICY IS HERE, THE ARITHMETIC IS BORROWED — the same split
+    ``price_age_sessions`` states. ``identities.proof_violations`` decides what
+    a violation IS (and its ``verdict`` is the single evaluator the audit
+    receipt also runs through, so the nightly and the report can never disagree
+    about a row); this function decides what the BUILD does about one.
+
+    ⛔ ADVISORY IDENTITIES NEVER REACH HERE. ``roe``/``roa`` have a measured
+    population of legitimate exceptions — they do not share a balance-sheet
+    vintage — so refusing on one would blank correct values. Advisories are for
+    the receipt; proofs are for the gate.
+
+    ⛔ ALL OF THE IDENTITY'S COLUMNS ARE WITHHELD, not one. A violation of
+    ``gross_margin >= op_margin`` proves that at least one of the two is wrong
+    and says nothing about WHICH, so publishing either would be picking a
+    winner by coin-toss and calling it data.
+
+    ⚠️ A row is still WRITTEN. This withholds columns, never the row — the
+    reason the ``_step`` guard above exists at all: a dropped row is not an
+    absence, it is last month's row staying live.
+    """
+    if state is None:
+        return
+    try:
+        from . import identities as _identities
+        fired = _identities.proof_violations(row)
+    except Exception as e:  # noqa: BLE001
+        # The rail failing must never cost the build. Counted by name, like
+        # every other degradation in this file.
+        state.setdefault("_rail_errors", {})
+        k = type(e).__name__
+        state["_rail_errors"][k] = state["_rail_errors"].get(k, 0) + 1
+        log.warning("[screener] identity rail raised for %s; the row is written "
+                    "unrefused", row.get("ticker"), exc_info=True)
+        return
+    if not fired:
+        return
+    cap = state.setdefault("_cap", identity_row_cap())
+    for ident in fired:
+        c = state.setdefault(ident.name, {"rows": 0, "withheld": 0,
+                                          "systemic": False,
+                                          "columns": list(ident.columns)})
+        c["rows"] += 1
+        if c["rows"] > cap:
+            if not c["systemic"]:
+                c["systemic"] = True
+                log.error("[screener] identity %s fired on more than %d rows — "
+                          "NOT withholding further; this is an upstream change, "
+                          "not %d bad rows", ident.name, cap, c["rows"])
+            continue
+        for col in ident.columns:
+            row[col] = None
+        c["withheld"] += 1
+
+
 def rs_fields(rs_row) -> dict:
     """``rs_ranking`` entry -> snapshot columns. ``{}`` when there is no entry.
 
@@ -230,7 +311,7 @@ def rs_fields(rs_row) -> dict:
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
-              market_row=None, failures=None) -> dict:
+              market_row=None, failures=None, identity_state=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -450,6 +531,9 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             pass
     row["snapshot_date"] = datetime.date.today().isoformat()
     row["built_at"] = int(time.time())
+    # LAST, on the finished row: the free identities are relationships BETWEEN
+    # columns, so they can only be read once every writer above has had its say.
+    _refuse_contradictions(row, identity_state)
     return row
 
 
@@ -858,7 +942,7 @@ def run_build(max_tickers=None) -> dict:
         log.warning("[screener] build REFUSED — another build already in flight")
         return {"skipped_reason": "a build is already in flight", "built": 0,
                 "skipped": 0, "errors": 0, "populated": {}, "empty_columns": [],
-                "sources": {}}
+                "sources": {}, "identity_refusals": {}}
     try:
         return _run_build_locked(max_tickers)
     finally:
@@ -876,6 +960,7 @@ def _run_build_locked(max_tickers=None) -> dict:
     # counted the day it lands, with nothing to remember to add here.
     populated = {c: 0 for c in snapshot_db.COLUMNS}
     sources: dict = {}
+    identity_state: dict = {}
     rs_map = _read_rs_map()
     spy_closes = _read_spy_closes()
     if not spy_closes:
@@ -987,7 +1072,7 @@ def _run_build_locked(max_tickers=None) -> dict:
                             _read_fundamentals(t, mc_price, failures=sources),
                             rs_row, bulk_row, spy_closes=spy_closes,
                             context_row=context_row, market_row=market_row,
-                            failures=sources)
+                            failures=sources, identity_state=identity_state)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -1012,6 +1097,11 @@ def _run_build_locked(max_tickers=None) -> dict:
         # NAMED, never a count alone: "RuntimeError x3708 from massive_market_cap"
         # is a credential problem; "HTTPError x9" is a flaky provider.
         log.warning("[screener] reader failures: %s", sources)
+    if identity_state:
+        # ⭐ NAMED AND SPLIT, never a total: "3 rows withheld on
+        # candle_parts_close_to_one" is a normal night; the same identity marked
+        # `systemic` is an upstream change and the loudest line in the receipt.
+        log.warning("[screener] identity refusals: %s", identity_state)
     return {"built": built, "skipped": skipped, "errors": errors,
             "populated": populated, "empty_columns": empty_columns,
-            "sources": sources}
+            "sources": sources, "identity_refusals": identity_state}

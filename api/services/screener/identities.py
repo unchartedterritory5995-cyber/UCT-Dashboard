@@ -739,6 +739,7 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "denominator gives the larger ratio. ⭐ This is what caught GBLI at "
         "0.019% ROE against its own 1.99% ROA — wrong by 248x",
         _TOL_PCT_POINT_HAIR,
+        severity="advisory",
         gate=lambda r: r["roa"] > 0 and r["roe"] > 0,
         gate_why="the inequality REVERSES for a loss-maker (a negative net "
                  "income over the smaller denominator is MORE negative) and "
@@ -746,6 +747,29 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
                  "Both are ordinary, so both are excluded from the population "
                  "rather than counted as violations — this gate is the "
                  "difference between a rail and a false-positive generator."))
+    # 🔴 DOWNGRADED TO ADVISORY 2026-08-24, and the reason is a
+    # measurement this module did not have when it was written.
+    #
+    # The proof above assumes both ratios stand on the SAME balance sheet. They
+    # do not. `fundamentals_bulk` recomputed them from as-reported quarterly
+    # statements and matched five names to five significant figures:
+    #
+    #     roe = TTM net income ÷ the AVERAGE of the last four quarters' equity
+    #     roa = TTM net income ÷ ENDING total assets
+    #
+    # With a positive net income, `roe >= roa` then reduces to
+    # `average equity <= ending assets` — NOT to `equity <= assets`, which is
+    # the accounting identity the argument rests on. A company whose assets
+    # shrank sharply over the year can have ending assets below its own
+    # four-quarter average equity and read `roe < roa` LEGITIMATELY.
+    #
+    # ⛔ SO IT IS NOT PROOF, AND IT MUST NOT REFUSE A ROW. It stays because it
+    # is still a good detector — it is what caught GBLI at 0.019% against its
+    # own 1.99% ROA, wrong by 248x — but a detector is a place to look, and
+    # this module reserves "proof" for a violation that cannot be anything but
+    # a bug. ⚠️ It cannot be exercised on this box: both columns read 0 of
+    # 3,714 non-null without `FMP_API_KEY`, so its live violation rate is
+    # UNKNOWN, not zero.
     out.append(Identity(
         name="insider_plus_institutional_within_100",
         family="fundamentals",
@@ -959,6 +983,76 @@ class _Tally:
     null_by_column: dict = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class Verdict:
+    """One identity's reading of one row.
+
+    ``state`` is exactly one of:
+      ``absent`` / ``null`` / ``nonfinite`` — NOT CHECKABLE. Never a pass and
+          never a violation; ``column`` names the one that stopped the read.
+      ``gate``      — the identity's own gate excluded this row.
+      ``error``     — the predicate could not run. A defect, not a pass.
+      ``satisfied`` / ``violated``.
+    """
+    state: str
+    column: str | None = None
+    excess: float | None = None
+    tol: float | None = None
+    over: float | None = None
+    error: str | None = None
+
+
+def verdict(ident: Identity, row: Mapping[str, Any]) -> Verdict:
+    """Evaluate ONE identity against ONE row.
+
+    ⛔ **THE ONE EVALUATOR.** ``run()`` tallies this into the receipt and the
+    nightly build refuses on it. A second copy would let the receipt and the
+    refusal disagree about the same row — which is this repo's most repeated
+    defect wearing a new hat, and it would be especially cruel here, in the
+    module whose whole job is catching two authorities over one value.
+    """
+    for col in ident.columns:
+        st, _v = _cell(row, col)
+        if st in ("absent", "null", "nonfinite"):
+            return Verdict(st, column=col)
+    if ident.gate is not None:
+        try:
+            passes = bool(ident.gate(row))
+        except Exception:  # noqa: BLE001 — a gate that raises excludes the row
+            passes = False
+        if not passes:
+            return Verdict("gate")
+    try:
+        exc = float(ident.excess(row))
+        tol = ident.tol.for_row(row)
+    except Exception as e:  # noqa: BLE001
+        return Verdict("error", error=f"{type(e).__name__}: {e}")
+    over = exc - tol
+    return Verdict("violated" if over > 0 else "satisfied",
+                   excess=exc, tol=tol, over=over)
+
+
+def proof_violations(row: Mapping[str, Any],
+                     identities: Sequence[Identity] | None = None
+                     ) -> list[Identity]:
+    """The PROOF identities this row contradicts — the nightly's refusal list.
+
+    ⭐ ADVISORY IDENTITIES ARE DELIBERATELY EXCLUDED. An advisory has a
+    known population of legitimate exceptions (``roe``/``roa`` do not share a
+    balance-sheet vintage; insider and institutional ownership genuinely
+    overlap), so refusing on one would blank correct values. Advisories are for
+    the receipt, where a human reads them; proofs are for the gate.
+
+    An ``error`` state counts as a violation for the same reason ``run()``
+    counts it: a predicate that cannot run has not shown the row to be sound,
+    and withholding is the direction that cannot publish a wrong number.
+    """
+    ids = tuple(identities) if identities is not None else IDENTITIES
+    return [i for i in ids
+            if i.severity == "proof"
+            and verdict(i, row).state in ("violated", "error")]
+
+
 def run(rows: Iterable[Mapping[str, Any]], *, worst_n: int = 5,
         identities: Sequence[Identity] | None = None,
         meta: Mapping[str, Any] | None = None) -> dict:
@@ -990,54 +1084,37 @@ def run(rows: Iterable[Mapping[str, Any]], *, worst_n: int = 5,
                 counts[v] = counts.get(v, 0) + 1
         for ident in ids:
             t = tallies[ident.name]
-            state = "ok"
-            offender = None
-            for col in ident.columns:
-                st, _v = _cell(row, col)
-                if st == "absent":
-                    t.missing_columns.add(col)
-                if st in ("absent", "null"):
-                    state, offender = "null", col
-                    break
-                if st == "nonfinite":
-                    state, offender = "nonfinite", col
-                    break
-            if state == "null":
+            v = verdict(ident, row)          # ⛔ one evaluator; see `verdict`
+            if v.state == "absent":
+                t.missing_columns.add(v.column)
+            if v.state in ("absent", "null"):
                 t.skipped_null += 1
-                t.null_by_column[offender] = t.null_by_column.get(offender, 0) + 1
+                t.null_by_column[v.column] = t.null_by_column.get(v.column, 0) + 1
                 continue
-            if state == "nonfinite":
+            if v.state == "nonfinite":
                 t.skipped_nonfinite += 1
-                t.null_by_column[offender] = t.null_by_column.get(offender, 0) + 1
+                t.null_by_column[v.column] = t.null_by_column.get(v.column, 0) + 1
                 continue
-            if ident.gate is not None:
-                try:
-                    passes = bool(ident.gate(row))
-                except Exception:
-                    passes = False
-                if not passes:
-                    t.skipped_gate += 1
-                    continue
+            if v.state == "gate":
+                t.skipped_gate += 1
+                continue
             t.checkable += 1
-            try:
-                exc = float(ident.excess(row))
-                tol = ident.tol.for_row(row)
-            except Exception as e:  # a predicate that cannot run is a defect,
+            if v.state == "error":  # a predicate that cannot run is a defect,
                 t.errors += 1       # not a pass — surface it, never swallow it.
                 t.violated += 1
                 t.worst.append({
-                    "ticker": _label(row, idx), "error": f"{type(e).__name__}: {e}",
+                    "ticker": _label(row, idx), "error": v.error,
                     "over_tolerance": _INF,
                     "values": {c: row.get(c) for c in ident.columns},
                 })
                 continue
-            over = exc - tol
-            if over > 0:
+            if v.state == "violated":
                 t.violated += 1
-                t.max_over = max(t.max_over, over)
+                t.max_over = max(t.max_over, v.over)
                 t.worst.append({
                     "ticker": _label(row, idx),
-                    "excess": exc, "tolerance": tol, "over_tolerance": over,
+                    "excess": v.excess, "tolerance": v.tol,
+                    "over_tolerance": v.over,
                     "values": {c: row.get(c) for c in ident.columns},
                 })
             else:
