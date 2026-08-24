@@ -1,13 +1,24 @@
-/* The single canonical section header. One height, one title treatment, one
-   left inset — every page identical by construction (see PageHeader.jsx). */
+/* The single canonical section header — a full-width bar with a divider line,
+   identical on every page (the "Charts header" look the owner picked). It sits
+   flush to the top-left of the content area, so every section's title starts at
+   the same left inset, the same distance from the top, and vertically aligned
+   with the sidebar compass logo.
+
+   Full-bleed: the bar escapes its page's padding via negative margins keyed to
+   --page-pad-top / --page-pad-x (defaults match the common `.page` padding of
+   20px / 24px). A page with different padding sets those two vars on the element
+   that wraps this header. */
 .header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 52px;
-  padding: 8px 4px;
-  margin-bottom: 14px;
+  gap: 14px;
   flex-wrap: wrap;
+  min-height: 62px;
+  box-sizing: border-box;
+  padding: 10px 24px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .title {
@@ -38,6 +49,11 @@
 .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 @media (max-width: 640px) {
-  .header { gap: 10px; min-height: 44px; margin-bottom: 12px; }
+  .header {
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 16px;
+    margin: calc(-1 * var(--page-pad-top-m, 16px)) calc(-1 * var(--page-pad-x-m, 16px)) 12px;
+  }
   .title { font-size: 17px; }
 }
