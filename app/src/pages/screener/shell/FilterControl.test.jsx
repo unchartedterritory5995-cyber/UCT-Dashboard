@@ -140,9 +140,54 @@ describe('FilterControl — column description surface', () => {
     // <body>, it lands on <body>. Asserting through it would be asserting
     // userEvent's internals. This dispatches the key and asserts exactly the
     // half this component owns; that the browser's default Tab then continues
-    // from the trigger to the select is verified in Chromium (surface report).
+    // from the trigger to the select is verified in Chromium.
     await user.click(btn)
-    fireEvent.keyDown(screen.getByRole('note'), { key: 'Tab' })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Close description' }), { key: 'Tab' })
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
+  // ⛔ THE FIRST TAB IS THE DISMISS'S. The branch above used to fire on ANY Tab
+  // while focus was inside the panel, so it closed before `Close description`
+  // could ever be focused: an affordance advertised generally that no keyboard
+  // user could ever reach. jsdom has no default Tab action, so what is asserted
+  // here is the half the component owns — it must NOT dismiss on that first Tab,
+  // leaving the browser free to move focus to the dismiss, which is the panel's
+  // only focusable and next in document order. Where the browser actually lands
+  // is measured in Chromium.
+  it('Tab from the panel leaves the dismiss reachable; the Tab AFTER it leaves', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+    await user.click(btn)
+    const panel = screen.getByRole('note')
+    expect(panel).toBe(document.activeElement) // focus starts on the panel itself
+
+    fireEvent.keyDown(panel, { key: 'Tab' })
+    expect(screen.queryByRole('note')).not.toBeNull() // still open — the dismiss is next
+    const dismiss = screen.getByRole('button', { name: 'Close description' })
+    // ⭐ THE PANEL HOLDS EXACTLY ONE FOCUSABLE, which is what makes "leave the
+    // first Tab to the browser" equivalent to "land on the dismiss". Derived
+    // from the DOM, not assumed: a second control added here would change where
+    // that Tab goes and this fails rather than quietly misdescribing it.
+    expect([...panel.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')])
+      .toEqual([dismiss])
+
+    fireEvent.keyDown(dismiss, { key: 'Tab' })
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('Shift+Tab leaves from anywhere in the panel — and never traps focus', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+    // Backwards from the panel would otherwise walk into the END of <body>,
+    // which is nowhere near the control the member is reading about.
+    await user.click(btn)
+    fireEvent.keyDown(screen.getByRole('note'), { key: 'Tab', shiftKey: true })
     expect(screen.queryByRole('note')).toBeNull()
     expect(document.activeElement).toBe(btn)
   })

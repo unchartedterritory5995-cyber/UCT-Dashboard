@@ -75,6 +75,19 @@ import styles from './ColumnDesc.module.css'
  * alone — announcing the trigger's name is not announcing the text), a labelled
  * dismiss, and Escape returning focus to the trigger. Do not turn it back into
  * a hover-only tooltip, and do not drop the focus move for `aria-controls`.
+ *
+ * ⛔ THE DISMISS IS A REAL TAB STOP, AND THAT COST A LINE OF CODE TO BE TRUE.
+ * The Tab branch used to fire on ANY Tab while focus was inside the panel —
+ * including the first one, from the panel itself — so it closed and restored
+ * before `Close description` could ever be focused. It stayed reachable by
+ * pointer and by a screen reader's virtual cursor (neither dispatches a Tab
+ * keydown), so the claim above was not false, but it was advertised generally
+ * and only half true. Now the panel holds exactly one focusable and it is next
+ * in document order, so the FIRST Tab is left to the browser and lands on the
+ * dismiss; the Tab AFTER it hands focus back to the trigger and the browser's
+ * own default continues to the control the panel describes. ⛔ FOCUS IS NEVER
+ * TRAPPED — two Tabs always leave, and Shift+Tab leaves from anywhere in the
+ * panel rather than walking backwards into the end of <body>.
  */
 
 const PANEL_W = 320
@@ -122,6 +135,7 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
   const [open, setOpen] = useState(null) // null = closed; otherwise the placement
   const btnRef = useRef(null)
   const panelRef = useRef(null)
+  const dismissRef = useRef(null)
   const panelId = `coldesc${useId()}${colKey}`
 
   useEffect(() => {
@@ -167,7 +181,15 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
       // Tab out of a panel portaled to the end of <body> would land in browser
       // chrome, not on the next control on screen. Hand focus back to the
       // trigger first; the browser's own default Tab then runs from there.
-      if (e.key === 'Tab' && panelRef.current?.contains(e.target)) dismiss(true)
+      //
+      // ⛔ BUT NOT ON THE FIRST TAB. The dismiss is the panel's only focusable
+      // and it comes next in document order, so leaving that Tab to the browser
+      // is what makes `Close description` reachable by keyboard at all — see
+      // the ⛔ block at the top of this file. Only the Tab FROM the dismiss (and
+      // any Shift+Tab, which would otherwise walk backwards into the end of
+      // <body>) hands focus back. Two Tabs always leave: this never traps.
+      if (e.key === 'Tab' && panelRef.current?.contains(e.target)
+          && (e.shiftKey || e.target === dismissRef.current)) dismiss(true)
     }
     // A fixed panel does not ride a scrolling header or rail — close instead of
     // letting it drift away from the control it describes. ⛔ IMPLICIT: the
@@ -207,7 +229,7 @@ export default function ColumnDesc({ colKey, name, tapTarget = false }) {
           className={styles.panel} style={{ ...PANEL, ...open }}>
           <div style={PANEL_HEAD}>
             <div style={PANEL_TITLE}>{name}</div>
-            <button type="button" className={styles.dismiss}
+            <button ref={dismissRef} type="button" className={styles.dismiss}
               aria-label="Close description"
               onClick={() => { setOpen(null); btnRef.current?.focus() }}>×</button>
           </div>
