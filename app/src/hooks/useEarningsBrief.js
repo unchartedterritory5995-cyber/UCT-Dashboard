@@ -62,8 +62,13 @@ export default function useEarningsBrief(sym, { cachedOnly = false } = {}) {
   // input so an explicit caller override still works.
   const firstSym = useRef(s)
   const wantCached = (cachedOnly || s !== firstSym.current) && !escalated
+  // `force=1` on the ESCALATED key only: an auto-open declines to buy an
+  // earnings preview for a closed-end fund (the backend applies the warm's own
+  // rule), and pressing "Generate brief" overrides that. Without the flag the
+  // button would post to the same URL that just declined, and do nothing.
+  const bg = escalated ? '?background=1&force=1' : '?background=1'
   const key = s
-    ? `/api/earnings-analysis/${encodeURIComponent(s)}${wantCached ? '?cached_only=1' : '?background=1'}`
+    ? `/api/earnings-analysis/${encodeURIComponent(s)}${wantCached ? '?cached_only=1' : bg}`
     : null
 
   const [polling, setPolling] = useState(false)

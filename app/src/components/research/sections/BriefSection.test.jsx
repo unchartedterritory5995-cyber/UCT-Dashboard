@@ -290,3 +290,28 @@ describe('BriefSection — a brief still being written', () => {
     expect(urls.length).toBeGreaterThanOrEqual(2)       // the poll is what landed it
   }, 10000)
 })
+
+describe('BriefSection — the Generate button overrides an auto-open decline', () => {
+  it('an auto-open sends background=1 WITHOUT force; Generate adds force=1', async () => {
+    const urls = []
+    global.fetch = vi.fn((url) => {
+      urls.push(url)
+      return Promise.resolve({
+        ok: true,
+        // A fund: the backend declines to auto-generate, so no content + cached:false
+        json: async () => ({ sym: 'QQQX', cached: false, preview_text: '', preview_bullets: [], news: [] }),
+      })
+    })
+    render(
+      <BriefSection sym="QQQX" row={{ sym: 'QQQX', verdict: 'pending' }} reportDate="2026-08-27"
+                    lifecycle="PRE" stepping={false} expectedMove={null} />,
+    )
+    // Instant empty state with the affordance — never a spinner.
+    const btn = await screen.findByRole('button', { name: /generate brief/i })
+    expect(urls[0]).toContain('background=1')
+    expect(urls[0]).not.toContain('force=1')
+
+    fireEvent.click(btn)
+    await waitFor(() => expect(urls.some(u => u.includes('force=1'))).toBe(true))
+  })
+})

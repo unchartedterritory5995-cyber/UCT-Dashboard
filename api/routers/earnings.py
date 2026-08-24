@@ -324,6 +324,26 @@ def _is_pending(row) -> bool:
     )
 
 
+def _is_unpreviewable_fund(sym: str, row) -> bool:
+    """A name with no consensus that looks like a fund — the WARM's own rule,
+    imported rather than restated.
+
+    ⛔ BOTH halves matter. `_looks_like_a_fund` alone would deny a brief to
+    BlackRock, which shares its industry with the funds it runs; the consensus
+    check is what separates a real asset manager (the street publishes an
+    estimate) from a closed-end fund (nobody does). This mirrors
+    `earnings_preview_warm._rank` exactly, because the click path and the warm
+    disagreeing about who deserves a preview is how a name ends up permanently
+    cold on one path and permanently re-billed on the other."""
+    try:
+        from api.services.earnings_preview_warm import has_consensus, _looks_like_a_fund
+        if has_consensus(row or {}):
+            return False
+        return _looks_like_a_fund(sym)
+    except Exception:
+        return False        # unknown → generate, the same direction as the warm
+
+
 def _kick_generation(sym: str, row, pending: bool) -> bool:
     """Run the generator on the click pool unless one is already in flight for
     this name. Returns whether a NEW job was started."""
@@ -349,7 +369,7 @@ def _kick_generation(sym: str, row, pending: bool) -> bool:
 @router.get("/api/earnings-analysis/{sym}")
 @limiter.limit("60/minute")
 def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
-                      background: bool = False):
+                      background: bool = False, force: bool = False):
     sym = sym.upper()
 
     # §4.3.3 / §7: arrow-key stepping across a 40-name day must never auto-fire
@@ -373,6 +393,18 @@ def earnings_analysis(request: Request, sym: str, cached_only: bool = False,
 
     # The modal's path: answer NOW, generate on the pool, let the client poll.
     if background:
+        # A closed-end fund reports on the calendar and has no earnings story:
+        # no segments, no guidance, no consensus anyone publishes. The WARM has
+        # skipped these deliberately since 2026-08-24; the click path did not
+        # know, so opening one bought a ~30s generation of a preview nobody
+        # wants — the last surface on this modal that was not instant.
+        #
+        # ⛔ `force` is what keeps this from being a refusal: pressing
+        # "Generate brief" sends it and still generates. Only the AUTOMATIC
+        # spend goes away, and the reader keeps the choice. Returning the empty
+        # shape (`cached: false`) is what makes the section render that button.
+        if not force and _is_unpreviewable_fund(sym, row):
+            return _empty_analysis(sym)
         _kick_generation(sym, row, pending)
         return _empty_analysis(sym, generating=True)
 
