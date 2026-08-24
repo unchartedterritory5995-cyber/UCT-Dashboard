@@ -88,7 +88,12 @@ times.
 ⛔ AND NO SANITY BOUND. `beta` genuinely ranges (-43.73, 10.00) over this
 universe and a P/E of 5,000 is a real barely-profitable company. A clamp here
 would be a threshold with nothing to tune it against; only non-finite values
-are refused.
+are refused. ⭐ STILL TRUE AFTER 2026-08-23. The three refusals the accuracy
+audit added are not clamps — each is one row contradicting itself (a long-term
+ratio against its own total-debt reading, a P/B against its own book value, a
+gross margin against its own revenue), and each is stated with the measurement
+that shows what it costs. The two audit-proposed rails that WERE plausibility
+bounds in disguise were measured and rejected; see the last section.
 
 ──────────────────────────────────────────────────────────────────────────────
 ⚠️ UNITS — THE OTHER SILENT-WRONG-NUMBER TRAP
@@ -170,6 +175,130 @@ zero-hit and create a MIC→name mapping to own. None of that applies here:
 profile-bulk is a call this module already makes, and its `exchange` field is
 ALREADY the plain name — measured over our universe: NYSE 1,926 · NASDAQ 1,711
 · AMEX 95 · CBOE 5 · PNK 1. No mapping, no extra request, one authority.
+
+──────────────────────────────────────────────────────────────────────────────
+⭐ WHAT THE DENOMINATORS ACTUALLY ARE — MEASURED 2026-08-23, NOT ASSUMED
+──────────────────────────────────────────────────────────────────────────────
+`roe` and `roa` do NOT stand on the same balance-sheet vintage, and until this
+was measured nobody could have known, because it is written in no FMP
+documentation this repo has ever cited. Recomputed from as-reported quarterly
+statements and matched against the value this module stores:
+
+    roe = TTM net income ÷ the AVERAGE of the last four quarters' equity
+    roa = TTM net income ÷ ENDING total assets
+
+    ticker   stored roe   NI ÷ avg equity      stored roa   NI ÷ ending assets
+    NVDA       111.6575          111.657          61.5141           61.514
+    RDDT        29.0241           29.024          23.9535           23.954
+    ARM         13.0008           13.001           9.3248            9.325
+    PLD          7.9006            7.901           4.1661            4.166
+    VALU        20.3973           20.397          14.2381           14.238
+
+Five names to five significant figures, so this is settled. Two consequences,
+and the second is the one that bites:
+
+  1. THE AVERAGE-EQUITY DENOMINATOR IS DEFENSIBLE AND UNPUBLISHED. It is the
+     standard textbook ROE and it is why a fast-growing company reads high
+     against an ending-equity computation — NVDA 111.66 here vs 81.65 on ending
+     equity, a THIRTY POINT difference on the most-screened name in the market.
+     ⛔ DO NOT "fix" this to ending equity: it is correct, and changing it
+     would move `roe` for every growing company on the board. The gap is a
+     DOCUMENTATION defect — the number needs a member-facing `desc`, which
+     lives in `app/src/pages/screener/columnDefs.js` and not in this file.
+     (Corroboration from inside the payload itself: `key-metrics-ttm-bulk` also
+     ships `averageInventoryTTM` / `averageReceivablesTTM` /
+     `averagePayablesTTM`, so averaged balance-sheet inputs are this provider's
+     house style, not a surprise.)
+  2. `roe >= roa` IS THEREFORE NOT A FREE IDENTITY HERE. It holds when both
+     stand on the same vintage. These do not, so a fund whose equity is
+     essentially its assets and whose assets shrank over the year reads
+     roe < roa legitimately. That is measured, and it is why the audit's
+     proposed rail is not shipped. See below.
+
+──────────────────────────────────────────────────────────────────────────────
+🔬 WHAT THE 2026-08-23 ACCURACY AUDIT ASKED FOR AND DID NOT GET
+──────────────────────────────────────────────────────────────────────────────
+The audit named four columns. Two were repaired above; two were re-measured
+over the whole 3,681-name universe and the proposed repair was REFUSED, because
+every candidate detector blanked more correct values than wrong ones. Recorded
+here rather than in the report alone, because the next reader will otherwise
+"fix" them, and the counts are the whole argument.
+
+⛔ `roe` — GBLI's 0.019% IS WRONG (reported TTM net income $34.306M ÷ equity
+$710.905M = 4.83%; yfinance 4.879%; FMP's own netIncomePerShare ÷
+bookValuePerShare 4.80%). It is not repaired here, because:
+  * the class is THREE rows in 3,674 — GBLI, GNK, TSLX, each publishing ~1/250
+    of its own payload's ending-equity ROE;
+  * `roe >= roa` (both positive) fires on 23 rows. Adjudicated one by one
+    against `netIncomePerShareTTM / bookValuePerShareTTM`: 3 are the real break,
+    5 are rows whose ROA is the broken half (NVST publishes roa 1,697,307% and
+    SR 3,891,136% — see the requirement below), and 15 are legitimate, being
+    closed-end funds and shrunken balance sheets caught by the mixed vintage in
+    (2) above. Refusing on it blanks five correct values for every wrong one;
+  * cross-checking `roe` against that same-row oracle needs an order-of-
+    magnitude band, and there is no cliff to put one on: |log10(roe/oracle)|
+    ≥ 3 catches 3 rows, ≥ 2 catches 12, ≥ 1 catches 22, and the rows it picks up
+    between 1 and 2 (BCAR, RHLD, SORN, OPAL) are companies whose equity crossed
+    through zero mid-year, so their average equity is genuinely tiny and their
+    huge ROE is genuinely what the definition produces.
+  ⇒ REQUIREMENT, not a patch: this is the detect-heal-alert shape
+    `api/services/fundamentals_monitor.py` already runs for the earnings table.
+    A monitor may ALERT on a row whose `roe` and its own ending-equity ROE
+    differ by 100×; a nightly build may not silently blank it.
+
+⛔ `gross_margin` — PLD's 29.05 against a reported 74.31 IS WRONG, and it is
+below PLD's own `op_margin` of 38.43, which no non-negative operating expense
+allows. It is not repaired here, because `gross_margin >= op_margin` is not
+airtight against this provider either: it fires on 199 of 3,452 rows (5.76%),
+and the violation runs continuously from LMT at −0.09pp (two line items rounded
+off one another) through PLD at −9.4pp to FVR at −74pp, with no gap to cut at.
+129 of the 199 have an `op_margin` ABOVE 100% — closed-end funds and commodity
+trusts where the broken half is the operating margin, not the gross one — so
+refusing the gross side alone would blank 129 good values to remove 70 bad, and
+refusing both would take PLD's `op_margin`, which is exact.
+  ⇒ Same requirement: alert, don't blank. What IS shipped is the sub-case with
+    no escape — a gross margin above 100% (28 rows), where revenue and gross
+    profit contradict each other outright.
+
+⛔ `gross_margin` for entities with no gross-profit line (JPM 62.60, GBLI 25.77,
+BRK-B 23.52 — yfinance returns 0.0 for JPM precisely because a bank has no cost
+of revenue) is an OWNER DECISION and is deliberately left as-is. The number has
+a definition (revenue minus what FMP books as cost of revenue, which for a bank
+is interest expense) and it is stable across banks. Blanking it would need a
+`sector` signal, and `sector` is a column this module deliberately does NOT own
+(`ticker_meta` does) — reaching for it here would put this column's
+correctness downstream of another source's coverage, which is the coupling the
+ownership section above exists to prevent. The cost of leaving it: a
+`gross_margin > 40%` screen mixes manufacturers with financials computed on a
+different basis. The cost of blanking it: every financial silently disappears
+from any screen touching the column.
+
+⛔ `pb` for LCID (1.14 published against a reported stockholders' equity of
+MINUS $1.058B at 2026-06-30, confirmed against the quarterly statements and
+yfinance's independent −2.685/share) IS WRONG and IS NOT DETECTABLE FROM THIS
+PAYLOAD. FMP's whole balance sheet for LCID is stale in one direction and
+perfectly self-consistent: `bookValuePerShareTTM` 4.837,
+`shareholdersEquityPerShareTTM` 4.837, `tangibleBookValuePerShareTTM` 4.837,
+`debtToEquityRatioTTM` 1.819, `financialLeverageRatioTTM` 4.165,
+`tangibleAssetValueTTM` +$1.848B — every equity view positive and agreeing, and
+`pb × bookValuePerShareTTM` reproduces the quoted price to the cent. There is
+no in-row witness, so catching it requires a SECOND SOURCE for book value, and
+that is a per-symbol call × 3,700 plus a second authority over one value.
+  ⇒ REQUIREMENT for the controller: an as-reported equity oracle, in a
+    monitor, not in this pass.
+  ⚠️ Also recorded, not fixed: 191 rows publish a NEGATIVE `pb`, and a classic
+    "cheap on assets" filter (`pb <= 1`) returns every one of them. That is the
+    same shape as the `peg` finding and it is an owner decision about the whole
+    valuation family, not a change to make in one column on one lane's say-so.
+
+⛔ SMCI AND BABA ARE A PROVIDER WINDOW, NOT A DEFECT HERE — do not patch per
+ticker. SMCI's whole row reads ~1.5× high on every profitability figure and low
+on every value figure, BABA ~0.70×. Checked from inside the payload:
+`netProfitMarginTTM` equals `netIncomePerShareTTM / revenuePerShareTTM` to
+1.0000 on all 17 audited names INCLUDING both of them, so FMP is internally
+consistent and its TTM window simply covers different quarters than the filed
+statements. Nothing in this module can see that, and nothing in this module
+should try.
 """
 from __future__ import annotations
 
@@ -202,15 +331,55 @@ _MAX_PARTS = 32
 class _Spec(NamedTuple):
     """One column's contract with the provider.
 
-    `field`        the FMP column it is read from
-    `scale`        1.0 for a plain ratio, 100.0 for a fraction stored as percent
-    `zero_ok_when` the OTHER fields that must ALSO read exactly 0 before a 0 is
-                   written. Empty means a literal 0 is FMP's undefined sentinel
-                   and the column stays NULL. See the module note.
+    `field`         the FMP column it is read from
+    `scale`         1.0 for a plain ratio, 100.0 for a fraction stored as percent
+    `zero_ok_when`  the OTHER fields that must ALSO read exactly 0 before a 0 is
+                    written. Empty means a literal 0 is FMP's undefined sentinel
+                    and the column stays NULL. See the module note.
+
+    The three below were added 2026-08-23 by the accuracy audit. Each is a
+    DEFINITIONAL impossibility, never a plausibility clamp — see "⛔ AND NO
+    SANITY BOUND" above, which still stands and is why the audit's two *other*
+    proposed rails were measured and rejected (see "WHAT THE AUDIT ASKED FOR
+    AND DID NOT GET").
+
+    `zero_ok_if_resolves`
+                    sibling `_Spec`s whose own `value_for` must return non-None
+                    before a literal 0 is written. This is the corroboration
+                    shape for a numerator that has NO field of its own in the
+                    payload: instead of witnessing "the numerator is zero", it
+                    witnesses "the reading this ratio stands on is trustworthy".
+                    `lt_debt_to_capital` is the only user and the only column
+                    that needs it.
+    `same_sign_as`  a field this value's SIGN must match. Only `pb` uses it:
+                    `priceToBookRatioTTM = price / bookValuePerShareTTM` and a
+                    traded price is positive, so a positive P/B beside a
+                    negative book value is not a disagreement about basis — it
+                    is two halves of one division that cannot both be right.
+    `impossible_above`
+                    a ceiling in STORED units that the definition itself
+                    implies. Only `gross_margin` uses it: gross profit is
+                    revenue minus cost of revenue and cost of revenue is not
+                    negative, so a gross margin above 100% is revenue and
+                    gross profit disagreeing, not a very profitable company.
+                    ⭐ Strictly above — a company with no cost of revenue
+                    genuinely reads exactly 100.0 and there are 100+ of them.
     """
     field: str
     scale: float
     zero_ok_when: tuple
+    zero_ok_if_resolves: tuple = ()
+    same_sign_as: str = ""
+    impossible_above: float | None = None
+
+
+#: Hoisted out of `RATIO_SPECS` so `lt_debt_to_capital` can name it as the
+#: reading it stands on. ⛔ ONE WRITER: the debt-zero rule is stated here once
+#: and DERIVED there, not restated as a second copy of the same three fields —
+#: which is exactly how `lt_debt_to_capital` acquired the WRONG corroborators
+#: in the first place.
+_DEBT_TO_EQUITY = _Spec("debtToEquityRatioTTM", 1.0,
+                        ("debtToAssetsRatioTTM", "debtToCapitalRatioTTM"))
 
 
 # ⭐ DICT LITERALS KEYED BY SNAPSHOT COLUMN. That shape is load-bearing twice
@@ -226,8 +395,21 @@ RATIO_SPECS = {
     "dividend_yield": _Spec("dividendYieldTTM", 100.0, ("dividendPerShareTTM",)),
     "pe_ttm":         _Spec("priceToEarningsRatioTTM", 1.0, ()),
     "ps":             _Spec("priceToSalesRatioTTM", 1.0, ()),
-    "pb":             _Spec("priceToBookRatioTTM", 1.0, ()),
-    "gross_margin":   _Spec("grossProfitMarginTTM", 100.0, ()),
+    # ⛔ `same_sign_as` IS NOT A NEGATIVE-BOOK GUARD — read the pb section of
+    # "WHAT THE AUDIT ASKED FOR AND DID NOT GET" before assuming it is. It
+    # catches only the 2 rows (MAX, XWIN, measured 2026-08-23) where FMP's own
+    # P/B and its own book value per share have OPPOSITE signs. The other 166
+    # negative-book rows already publish a negative P/B and are untouched, and
+    # LCID — the case the audit named — is invisible to it, because FMP's whole
+    # balance sheet for LCID is stale-but-self-consistent and POSITIVE.
+    "pb":             _Spec("priceToBookRatioTTM", 1.0, (),
+                            same_sign_as="bookValuePerShareTTM"),
+    # 28 rows publish a gross margin above 100% (AUR 7,040 · KTF 519 · TYG 486
+    # · PHYS 476 · CEF 278 — measured over the 3,681-name universe 2026-08-23),
+    # which requires a negative cost of revenue. ⭐ This does NOT touch PLD, the
+    # case the audit named; see the gross_margin section below.
+    "gross_margin":   _Spec("grossProfitMarginTTM", 100.0, (),
+                            impossible_above=100.0),
     "net_margin":     _Spec("netProfitMarginTTM", 100.0, ()),
     # ⭐ ONE OF THE THREE FREE SCALARS (see the ownership note above). 228 zeros
     # measured, and ALL 228 read `revenuePerShareTTM == 0` — a dead REVENUE
@@ -242,8 +424,7 @@ RATIO_SPECS = {
     "peg":            _Spec("priceToEarningsGrowthRatioTTM", 1.0, ()),
     # 238 of 240 zeros are corroborated by two further debt quotients reading
     # zero — a genuinely debt-free balance sheet, not a missing denominator.
-    "debt_to_equity": _Spec("debtToEquityRatioTTM", 1.0,
-                            ("debtToAssetsRatioTTM", "debtToCapitalRatioTTM")),
+    "debt_to_equity": _DEBT_TO_EQUITY,
     # No corroborator exists in this payload for current LIABILITIES, and all
     # 163 zeros are banks/insurers/BDCs. A literal 0 is refused.
     "current_ratio":  _Spec("currentRatioTTM", 1.0, ()),
@@ -262,11 +443,37 @@ RATIO_SPECS = {
     # `payoutRatioTTM`, which does not exist in the live bulk CSV.
     "payout_ratio":       _Spec("dividendPayoutRatioTTM", 100.0,
                                 ("dividendPerShareTTM",)),
-    # Debt-free is witnessed by the independent debt quotients, exactly as
-    # debt_to_equity's own rule.
-    "lt_debt_to_capital": _Spec("longTermDebtToCapitalRatioTTM", 1.0,
-                                ("debtToEquityRatioTTM",
-                                 "debtToAssetsRatioTTM")),
+    # 🔴 FIXED 2026-08-23 — THE CORROBORATOR WAS MEASURING THE WRONG DEBT.
+    # This read `zero_ok_when=("debtToEquityRatioTTM", "debtToAssetsRatioTTM")`,
+    # which demanded that TOTAL debt be zero before a LONG-TERM debt ratio of
+    # zero could be written. Those are not views of one number: a company can
+    # have no long-term debt and still carry a revolver or a lease. So the true
+    # answer was refused for exactly the companies the column exists to find.
+    #
+    # ⭐ WHAT REPLACES IT, AND WHY IT IS THE SAME PRINCIPLE. There is no
+    # long-term-debt field anywhere in this payload to witness the numerator
+    # with — `longTermDebtToCapitalRatioTTM` is the ONLY one of the 62 fields
+    # with a long-term-debt numerator (field census, 2026-08-23). But long-term
+    # debt cannot exceed total debt, so:
+    #   * total debt is a corroborated ZERO  ⇒ long-term debt is zero too;
+    #   * total debt is non-zero             ⇒ the capital denominator is alive,
+    #                                          so a ratio of 0 means a numerator
+    #                                          of 0.
+    # Both branches are "`debt_to_equity` resolved for this row", which is why
+    # the gate is the sibling spec rather than a second list of debt fields.
+    #
+    # Measured over the 3,681-name universe, 2026-08-23: 830 rows (22.5% of the
+    # column) read a raw 0 and were ALL refused; every one of them now carries a
+    # real 0 — 190 via a corroborated zero D/E (debt-free outright) and 640 via
+    # a non-zero D/E (no long-term debt, some total debt). ⚠️ AND THE GATE
+    # REFUSES NONE OF THEM: `debtToEquityRatioTTM` resolves on all 3,681 rows
+    # today, so on this snapshot the new rule is indistinguishable from "always
+    # write the zero". It is kept because the principle is what makes the write
+    # honest, and `test_the_lt_debt_gate_can_still_refuse` holds a row where it
+    # fires. ⛔ The change is strictly additive — it only ever runs on a value
+    # of 0, which previously always became NULL, so no non-zero value can move.
+    "lt_debt_to_capital": _Spec("longTermDebtToCapitalRatioTTM", 1.0, (),
+                                zero_ok_if_resolves=(_DEBT_TO_EQUITY,)),
 }
 
 #: /stable/key-metrics-ttm-bulk -> roa and roe. Neither denominator (total
@@ -338,20 +545,39 @@ def _num(value):
 def value_for(spec: _Spec, raw_row: dict):
     """One column's value from one provider row, or None. **PURE.**
 
-    ⭐ THE ZERO RULE LIVES HERE AND NOWHERE ELSE, so there is one place to read
-    it and one place to mutate when proving the gauntlet can go red.
+    ⭐ EVERY REFUSAL LIVES HERE AND NOWHERE ELSE, so there is one place to read
+    them and one place to mutate when proving the gauntlet can go red.
+
+    Two kinds, and they are not the same kind:
+      * the ZERO rule — is this 0 a value or the provider's "undefined"?
+      * the CONTRADICTION rules — this value and another field of the SAME row
+        cannot both be right, so neither is published. `same_sign_as` and
+        `impossible_above`; both definitional, neither a plausibility bound.
     """
     val = _num(raw_row.get(spec.field))
     if val is None:
         return None
     if val == 0:
         # An uncorroborated zero is the provider saying "undefined", not "zero".
-        if not spec.zero_ok_when:
+        if not spec.zero_ok_when and not spec.zero_ok_if_resolves:
             return None
         for other in spec.zero_ok_when:
             if _num(raw_row.get(other)) != 0:
                 return None
-    return val * spec.scale
+        for sibling in spec.zero_ok_if_resolves:
+            # ⛔ Recursion is one level deep BY CONSTRUCTION: the only spec ever
+            # named here is `_DEBT_TO_EQUITY`, whose own tuple is empty. Do not
+            # make two specs name each other.
+            if value_for(sibling, raw_row) is None:
+                return None
+    elif spec.same_sign_as:
+        other = _num(raw_row.get(spec.same_sign_as))
+        if other is not None and other != 0 and (other > 0) != (val > 0):
+            return None
+    out = val * spec.scale
+    if spec.impossible_above is not None and out > spec.impossible_above:
+        return None
+    return out
 
 
 def _row_from(specs: dict, raw_row: dict) -> dict:

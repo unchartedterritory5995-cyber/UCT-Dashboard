@@ -29,13 +29,67 @@ def test_quick_ratio_zero_is_refused_like_current_ratio():
                         {"quickRatioTTM": "0"}) is None
 
 
-def test_lt_debt_zero_needs_both_debt_witnesses():
+# ── lt_debt_to_capital: the zero gate ────────────────────────────────────────
+#
+# 🔴 REWRITTEN 2026-08-24. This test used to be
+# `test_lt_debt_zero_needs_both_debt_witnesses` and asserted the OLD contract:
+# a raw 0 published only when `debtToEquityRatioTTM` AND `debtToAssetsRatioTTM`
+# were both literal zeros. That rule was the accuracy audit's defect #14 — it
+# refused **830 of 3,681 rows (22.5% of the column)**, so a "no long-term debt"
+# screen excluded the companies that have none.
+#
+# The contract is now "the reading this ratio stands on is trustworthy":
+# `debt_to_equity` must RESOLVE as its own spec. Long-term debt cannot exceed
+# total debt, so either total debt is a corroborated zero (⇒ long-term debt is
+# zero too) or it is non-zero (⇒ the capital denominator is alive, so a ratio of
+# 0 means a numerator of 0). Both branches are "D/E resolved".
+#
+# ⛔ The gate only ever runs on a value of 0, which previously always became
+# NULL, so the change cannot move a non-zero value — `test_a_real_ratio_is_not
+# _touched_by_the_zero_gate` is that control.
+
+
+def test_lt_debt_zero_publishes_for_a_debt_free_company():
+    """The 190-row branch: a corroborated zero D/E — debt-free outright."""
     spec = fb.RATIO_SPECS["lt_debt_to_capital"]
     row = {spec.field: "0", "debtToEquityRatioTTM": "0",
-           "debtToAssetsRatioTTM": "0"}
+           "debtToAssetsRatioTTM": "0", "debtToCapitalRatioTTM": "0"}
     assert fb.value_for(spec, row) == 0.0
-    row["debtToAssetsRatioTTM"] = "0.4"
+
+
+def test_lt_debt_zero_publishes_when_the_company_has_debt_but_none_long_term():
+    """The 640-row branch, and the one the old contract got wrong: a live,
+    non-zero D/E is itself the proof that the capital denominator is alive."""
+    spec = fb.RATIO_SPECS["lt_debt_to_capital"]
+    row = {spec.field: "0", "debtToEquityRatioTTM": "1.4"}
+    assert fb.value_for(spec, row) == 0.0
+
+
+def test_the_lt_debt_gate_can_still_refuse():
+    """⭐ THE CONTROL `fundamentals_bulk` CITES BY NAME. Without a row that
+    makes it fire, the gate is a rule nothing can fail — and on the 2026-08-23
+    snapshot `debtToEquityRatioTTM` resolves on all 3,681 rows, so the live data
+    cannot supply one. An UNCORROBORATED zero D/E leaves the reading untrusted,
+    and the lt-debt zero standing on it is refused."""
+    spec = fb.RATIO_SPECS["lt_debt_to_capital"]
+    row = {spec.field: "0", "debtToEquityRatioTTM": "0",
+           "debtToAssetsRatioTTM": "0.4", "debtToCapitalRatioTTM": "0"}
     assert fb.value_for(spec, row) is None
+
+
+def test_the_lt_debt_gate_refuses_a_zero_it_cannot_corroborate_at_all():
+    """A witness that is ABSENT is not a witness that agrees."""
+    spec = fb.RATIO_SPECS["lt_debt_to_capital"]
+    row = {spec.field: "0", "debtToEquityRatioTTM": "0",
+           "debtToAssetsRatioTTM": "0"}          # debtToCapitalRatioTTM missing
+    assert fb.value_for(spec, row) is None
+    assert fb.value_for(spec, {spec.field: "0"}) is None, "no D/E at all"
+
+
+def test_a_real_ratio_is_not_touched_by_the_zero_gate():
+    """⛔ The strictly-additive claim: the gate runs only on 0."""
+    spec = fb.RATIO_SPECS["lt_debt_to_capital"]
+    assert fb.value_for(spec, {spec.field: "0.35"}) == 0.35
 
 
 def test_ipo_age_derivation():
