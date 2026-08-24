@@ -37,6 +37,7 @@ Gated by EARNINGS_WARM_ENABLED (default on). Never raises.
 """
 import logging
 import os
+import re as _re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -60,6 +61,31 @@ _CAL_TO_ENGINE = {
     "rev_actual":   ("rev_act", "rev_actual"),
     "rev_estimate": ("rev_est", "rev_estimate"),
 }
+
+
+# A closed-end fund "reports" on the earnings board, but there is no earnings
+# story to preview — no segments, no guidance, no consensus anyone publishes.
+# Measured 2026-08-24: of the 70 board names with no consensus in our feed, 47
+# were funds and 23 were real operating companies (XPEV, Woodside, EHang,
+# Citi Trends). Skipping ALL of them to avoid an "N/A preview" cost the 23.
+_FUND_INDUSTRY = _re.compile(r"fund|closed.?end|asset manage|trust|income|etf|municipal", _re.I)
+
+
+def _looks_like_a_fund(sym: str) -> bool:
+    """Industry/sector says fund-like. `_base_meta` rather than
+    `get_ticker_meta` on purpose: this needs only the 24h-cached sector and
+    industry, not the live taxonomy theme lookup that rides the public front.
+
+    ⚠️ UNKNOWN IS NOT A FUND. A name we hold no meta for is treated as a real
+    company and gets its brief — the same direction as "an unknown cap is not
+    a small cap" above. The cost of being wrong that way is one cheap preview;
+    the cost of the other way is a reader waiting 30-40s on a real company."""
+    try:
+        from api.services import ticker_meta
+        m = ticker_meta._base_meta(sym) or {}
+    except Exception:
+        return False
+    return bool(_FUND_INDUSTRY.search(f"{m.get('industry') or ''} {m.get('sector') or ''}"))
 
 
 def _first(e: dict, *keys):
@@ -161,19 +187,30 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
                     if not sym:
                         continue
                     actual = has_actual(e)
+                    no_consensus = False
                     if reported is not None:
                         if reported and not actual:
                             continue
                         if not reported:
                             if actual:             # already reported → analysis path
                                 continue
-                            # PENDING preview: require a consensus so we never warm
-                            # an "N/A" preview (skip-if-stable regenerates once it
-                            # appears). ⛔ This rule is the PREVIEW's, and it stays
-                            # the preview's — `reported is None` (companions) never
-                            # reaches it, deliberately.
+                            # PENDING preview without a consensus. The rule used to
+                            # be "skip", to avoid warming an "N/A" preview. That is
+                            # right for a FUND and wrong for a company: XPEV,
+                            # Woodside and EHang all sit here because our feed has
+                            # no consensus for them, while the generator still has
+                            # four quarters of actuals, the implied move, revisions
+                            # and the news tape to write from — and skip-if-stable
+                            # rewrites it the moment a consensus appears (XPEV,
+                            # measured, did exactly that). So: funds still skip;
+                            # real companies are WARMED, ranked behind every
+                            # consensus name so the budget serves those first.
+                            # ⛔ This rule is the PREVIEW's — `reported is None`
+                            # (companions) never reaches it, deliberately.
                             if not has_consensus(e):
-                                continue
+                                if _looks_like_a_fund(sym):
+                                    continue
+                                no_consensus = True
                     mc = e.get("mc_b")
                     if mc is None:
                         mc = (metrics.get(sym) or {}).get("mc_b")
@@ -192,12 +229,14 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
                     row["mc_b"] = mc
                     row["_is_tracked"] = is_tracked
                     row["_below_floor"] = below_floor
+                    row["_no_consensus"] = no_consensus
                     cur = best.get(sym)
                     if cur is None or (mc or -1) > (cur.get("mc_b") or -1):
                         best[sym] = row
     return sorted(
         best.values(),
         key=lambda r: (r.get("_is_tracked", False), not r.get("_below_floor", False),
+                       not r.get("_no_consensus", False),
                        r.get("mc_b") is not None, r.get("mc_b") or 0),
         reverse=True,
     )
