@@ -60,6 +60,13 @@ def init_db():
             ticker TEXT NOT NULL,
             volume REAL,
             price REAL,
+            -- pct_avg30 is a RATIO (volume / avg30day), NOT a percent, despite
+            -- the name it inherits from the vendor's CSV header. Verified on
+            -- every populated row: pct_avg30 == volume/avg30day exactly, and
+            -- the vendor's own `message` restates it as ratio*100 ("334.49%
+            -- AvgVol"). Read it through _pct_avg_vol(), which is the ONE place
+            -- that converts to the percent every consumer of `pctAvgVol`
+            -- expects. Never scale it again downstream.
             pct_avg30 REAL,
             notional REAL,
             message TEXT,
@@ -93,7 +100,7 @@ def init_db():
             ticker TEXT NOT NULL,
             volume REAL,
             price REAL,
-            pct_avg30 REAL,
+            pct_avg30 REAL,   -- a RATIO, same convention as darkpool_trades above
             notional REAL,
             message TEXT,
             type TEXT,
@@ -465,6 +472,49 @@ def _float(val):
         return None
 
 
+# ── pct_avg30 → pctAvgVol: the ONE place the unit is converted ─────────
+#
+# The stored column is the vendor's raw CSV field `Pct_of_Avg30Day`, and
+# despite that name it holds a RATIO, not a percent. Measured 2026-08-23
+# against C:\data\darkpool.db (1,377 populated rows, the only ones there
+# are):
+#
+#   * pct_avg30 == volume / avg30day EXACTLY — 0 violations at 1e-9
+#     relative on 1,377 of 1,377 rows.
+#   * The vendor restates the same figure in its free-text `message` as
+#     "334.49% AvgVol", i.e. ratio * 100, on the same 1,377 rows.
+#
+# Every consumer of the published key reads a PERCENT: darkpool_router's
+# response docstring writes `"pctAvgVol": 350`; StockChart's zone tooltip
+# renders `Math.round(pctAvgVol)%`; the DarkPool table header is
+# "% AvgVol"; and darkpool_aggregator publishes the SAME key parsed out
+# of `message`, already a percent. Publishing the ratio made a block that
+# traded at 334% of its 30-day average render as "3%" — negligible
+# instead of a 3.3x volume event.
+#
+# ⛔ The conversion lives here and nowhere else. Do not scale pctAvgVol
+# again downstream: _print_row is the only shaper, and every other
+# producer (zones, windows, drilldowns) carries its output forward
+# unchanged. A second multiply is a second authority over one value.
+_PCT_AVG30_RATIO_TO_PERCENT = 100.0
+
+
+def _pct_avg_vol(raw):
+    """Publish `pct_avg30` as a PERCENT of 30-day average volume, or None.
+
+    ⛔ Returns None — never 0 — when the vendor did not supply the figure.
+    A `0` here reads as "this print was nothing special", sorts to the
+    bottom of any ranking, and passes any `> 0` filter as False, so it is
+    indistinguishable from a real answer of "no unusual volume". It is
+    absent on 162,425 of 163,803 priced prints (99.16%), so the fabricated
+    zero was not an edge case — it was the column.
+    """
+    ratio = _float(raw)
+    if ratio is None:
+        return None
+    return ratio * _PCT_AVG30_RATIO_TO_PERCENT
+
+
 def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30, order: str = "date") -> list:
     """Return top dark pool prints for a single ticker over the last ``days``.
 
@@ -476,8 +526,8 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30, order: str =
         (e.g. SMH) a recency cap is used up by the last few days and hides large
         historical zones at other price levels; ranking by notional surfaces them.
 
-    Each row dict contains the fields the frontend needs to render print bars:
-    date (M/D), price, notional, pctAvgVol, volume, type.
+    Each row dict is shaped by ``_print_row`` — see it for the field list and
+    for ``pctAvgVol``'s unit (a percent) and its honest ``None``.
     """
     if not ticker:
         return []
@@ -545,45 +595,24 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30, order: str =
     finally:
         conn.close()
 
-    out = []
-    for row in rows:
-        date_str = row[0]
-        # Convert M/D/YYYY to short M/D for compact display
-        date_short = date_str
-        try:
-            parts = date_str.split("/")
-            if len(parts) >= 2:
-                date_short = f"{int(parts[0])}/{int(parts[1])}"
-        except (ValueError, IndexError):
-            pass
-        # Full date for tooltip
-        date_long = date_str
-        try:
-            sortable = parse_date_to_sortable(date_str)
-            y, m, d = sortable.split("-")
-            months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-            date_long = f"{months[int(m)-1]} {int(d)}, {y}"
-        except (ValueError, IndexError):
-            pass
-
-        out.append({
-            "date": date_short,
-            "dateLong": date_long,
-            "dateRaw": date_str,
-            "price": _float(row[2]),
-            "notional": _float(row[3]),
-            "pctAvgVol": _float(row[4]) or 0,
-            "volume": _float(row[5]),
-            "type": row[6] or "",
-        })
-    return out
+    # ONE row shaper for every print this module publishes. This function used
+    # to carry a byte-identical hand-written copy of _print_row's body, and the
+    # two drifted the moment a value's definition moved — the `pctAvgVol` unit
+    # fix had to be applied twice to be applied at all. Delegate; never re-copy.
+    return [_print_row(r) for r in rows]
 
 
 def _print_row(row) -> dict:
     """Shape one darkpool_trades row into the print dict callers expect.
 
-    Mirrors the row shape get_ticker_prints returns (date short M/D, dateLong,
-    dateRaw, price, notional, pctAvgVol, volume, type).
+    THE one shaper — ``get_ticker_prints``, ``get_ticker_prints_window`` and
+    ``get_ticker_zones`` all route through it, so a value's definition has a
+    single owner. Row order is the shared SELECT list:
+    ``date, timestamp, price, notional, pct_avg30, volume, type, message``.
+
+    Emits: date (short M/D), dateLong, dateRaw, price, notional, pctAvgVol
+    (a PERCENT via ``_pct_avg_vol``, or **None** when the vendor gave us
+    nothing), volume, type.
     """
     date_str = row[0]
     # Convert M/D/YYYY to short M/D for compact display
@@ -609,7 +638,7 @@ def _print_row(row) -> dict:
         "dateRaw": date_str,
         "price": _float(row[2]),
         "notional": _float(row[3]),
-        "pctAvgVol": _float(row[4]) or 0,
+        "pctAvgVol": _pct_avg_vol(row[4]),
         "volume": _float(row[5]),
         "type": row[6] or "",
     }
@@ -769,7 +798,11 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02,
             "dateRaw": newest.get("dateRaw"),
             "dateStart": oldest.get("dateLong") or oldest.get("dateRaw"),
             "dateEnd": newest.get("dateLong") or newest.get("dateRaw"),
-            "pctAvgVol": newest.get("pctAvgVol") or 0,
+            # Carried forward from _print_row unchanged — already a percent, and
+            # already None when unknown. ⛔ No `or 0` here: this re-fabricated
+            # the zero that _pct_avg_vol exists to refuse, on the chart-zone
+            # payload, one layer after it had been correctly omitted.
+            "pctAvgVol": newest.get("pctAvgVol"),
             "type": newest.get("type"),
         })
     return out
