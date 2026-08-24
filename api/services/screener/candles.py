@@ -16,14 +16,69 @@ def _atr(bars, n=14):
     return sum(window) / len(window) if window else 0.0
 
 
+#: The honest answer when the newest bar has no shape to describe. ``dict()``
+#: it at every return — a shared mutable would let one caller's edit reach the
+#: next.
+_NO_SHAPE = {"candle_type": "none", "body_pct": None, "upper_wick_pct": None,
+             "lower_wick_pct": None, "close_position": None,
+             "wide_bar": False, "narrow_bar": False}
+
+
 def single_candle(bars: list[dict]) -> dict:
+    """Classify the newest bar's shape, or refuse when it has none.
+
+    🔴 THE DEFECT THIS REFUSAL EXISTS FOR — caught by
+    ``screener.identities`` on the 2026-08-24 snapshot, by three separate
+    identities firing on the same rows (``candle_parts_close_to_one``, 81 of
+    3,714; ``fraction_band__body_pct``; ``fraction_band__lower_wick_pct``).
+
+    The guard used to be ``rng = max(h - l, 1e-9)``. On a bar that never moved
+    (``o == h == l == c``) that does not prevent the division, it *completes*
+    it: every part comes out ``0``, the three fractions sum to ``0`` instead of
+    ``1``, ``close_position`` reads ``0.0`` — "closed at the low of its range" —
+    and ``body_pct < 0.1`` then labels the bar a **doji**. Measured on the
+    2026-08-24 build: **78 rows** carried a zero-range newest bar, **55 of them
+    with zero volume**, and every one published ``candle_type = "doji"`` and
+    ``close_position = 0.0``. ``candle_type`` is a member-facing enum filter
+    (``filters.py``, "Candle Type → Doji") and ``close_position`` a member-facing
+    range filter, so a member screening for indecision candles was handed 78
+    names that mostly had not traded at all, each with a confident bearish
+    close-position beside it.
+
+    ⭐ A ZERO-RANGE BAR IS NOT A DOJI. A doji is a *contest* — buyers and
+    sellers ranged over the session and finished where they started. A bar with
+    no range had no contest to describe. The parts are ``0/0``: not small, not
+    zero, **not computable**, and the house rule for that is an honest absence,
+    because a ``0`` here is invisible, it sorts, and it filters.
+
+    ⛔ ``wide_bar``/``narrow_bar`` SURVIVE THE ZERO-RANGE CASE, deliberately.
+    They are not shape fractions; they compare a MEASURED range against ATR, and
+    ``0 < 0.5 * atr`` is a true statement about a bar that really was the
+    narrowest possible. Refusing what is not computable is this module's job;
+    deleting a true measurement is not. (⚠️ Whether a *zero-volume* session
+    should count as a narrow bar at all is a separate question about no-trade
+    sessions — it needs its own measurement and it is not decided here.)
+
+    ⚠️ THE SELF-CONTRADICTING BAR IS A GUARD, NOT A REPAIR: **0 of 3,712**
+    tickers with a last daily bar have an open or close outside their own
+    high/low today. It is here because ``EWCZ`` and ``MCW`` prove the shape is
+    reachable — both publish ``candle_type = "marubozu"`` (maximum conviction)
+    off ``body_pct`` near ``5.8e9``, from rows built when they still had bars.
+    A bar that contradicts itself cannot be trusted for the ATR comparison
+    either, so that case refuses everything.
+    """
     if not bars:
-        return {"candle_type": "none", "body_pct": None, "upper_wick_pct": None,
-                "lower_wick_pct": None, "close_position": None,
-                "wide_bar": False, "narrow_bar": False}
+        return dict(_NO_SHAPE)
     b = bars[-1]
     o, h, l, c = b["o"], b["h"], b["l"], b["c"]
-    rng = max(h - l, 1e-9)
+    rng = h - l
+    if min(o, c) < l or max(o, c) > h:
+        return dict(_NO_SHAPE)
+    atr = _atr(bars)
+    wide = rng > 1.5 * atr if atr else False
+    narrow = rng < 0.5 * atr if atr else False
+    if not (rng > 0):
+        return {**_NO_SHAPE, "wide_bar": wide, "narrow_bar": narrow}
     body = abs(c - o)
     upper = h - max(o, c)
     lower = min(o, c) - l
@@ -31,9 +86,6 @@ def single_candle(bars: list[dict]) -> dict:
     upper_pct = upper / rng
     lower_pct = lower / rng
     close_pos = (c - l) / rng
-    atr = _atr(bars)
-    wide = rng > 1.5 * atr if atr else False
-    narrow = rng < 0.5 * atr if atr else False
 
     # Order matters: one-sided-wick shapes win over the generic doji test so a
     # small-bodied hammer isn't mislabeled a doji.
