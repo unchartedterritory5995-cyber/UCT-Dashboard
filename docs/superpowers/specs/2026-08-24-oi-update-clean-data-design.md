@@ -47,6 +47,29 @@ single day's volume.
    `snap_date` is effectively the **capture** date, not the trading day the OI is
    *for*. Any ΔOI must be anchored to the trading day, and volume matched to it.
 
+## 2b. Ground truth (UnusualWhales "Contract OI", Friday 8/21 — validation oracle)
+
+UW's pre-open board is the clean target. For **PFE $27P 9/18**: Prev Vol **25,058**,
+ΔOI **+21,231** → carry **85%**. Our card matched the **volume** (25,043 ✓) but our
+ΔOI was **+45.7K** (stale) → carry 182% ✗. UW's carry is sane everywhere (ASST 91%,
+XOM 91%, CG 96%, GOOGL 65%, SOFI 25%) because its ΔOI is a **clean single-day**
+Thu-close→Fri-close change, always ≤ that day's volume.
+
+Two consequences confirmed:
+- **Volume source is correct** (Massive daily agg = UW Prev Vol).
+- **Both our carry% AND our ΔOI *ranking* are wrong** — UW's clean top list (PFE,
+  ASST, XOM, GOOGL, CG, SHEL, PDD…) barely overlaps ours (PFE, PR, MDT, AMZN…),
+  because the stale baseline inflates ΔOI and reorders the board.
+
+**Sharpened root cause:** `_oi_deltas` diffs the two most-recent *global* snapshot
+dates; a contract absent from the prior batch falls back to the stale tape OI. The fix
+must read each contract's **own prior-*trading*-day** OI (daily coverage), not a global
+second-latest date.
+
+**Acceptance test:** the rebuilt card must reproduce UW's numbers within tolerance —
+e.g. PFE $27P 9/18 → ΔOI ≈ +21K, carry ≈ 85% (not +45.7K / 182%). Keep this UW board
+as the validation set.
+
 ## 3. Goal / non-goals
 
 **Goal:** a per-contract **daily** series of `(oi, volume)` keyed to the **trading

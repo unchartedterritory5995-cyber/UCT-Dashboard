@@ -122,3 +122,102 @@ def test_run_submits_stale_names_and_reports_what_topn_dropped(monkeypatch):
     assert out["submitted"] == 1 and out["recent"] == 1      # A fresh, B submitted
     assert out["dropped_by_topn"] == 1                        # C, beyond TOPN — said out loud
     assert submitted[0][1] == "B"
+
+
+# ── 2026-08-24: companions cover the BOARD, not the brief-eligible subset ────
+# Measured on prod that day: 61 of 252 names on the board had no Profile and 68
+# had no Catalysts — every one of them a name the preview's consensus filter had
+# dropped. Whether we can price tonight's print is not a fact about whether we
+# can say what the company does.
+
+def test_board_mode_returns_every_name_consensus_or_not(fake_calendar):
+    from api.services import earnings_preview_warm as w
+    board = {r["sym"] for r in w._rank(1, reported=None, tracked=set())}
+    # A: pending w/ consensus · B: pending, NO consensus · C: already reported
+    # NOCAP: consensus, unknown cap · TINY: below the house floor
+    assert board == {"A", "B", "C", "NOCAP", "TINY"}
+
+
+def test_board_mode_is_a_superset_of_both_budgets(fake_calendar):
+    from api.services import earnings_preview_warm as w
+    board = {r["sym"] for r in w._rank(1, reported=None, tracked=set())}
+    previews = {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+    analyses = {r["sym"] for r in w._rank(1, reported=True, tracked=set())}
+    assert previews < board and analyses < board
+    # and the two budgets keep their own rules — board mode must not leak into them
+    assert "B" not in previews          # no consensus
+    assert "C" not in previews          # already reported
+    assert analyses == {"C"}
+
+
+def test_companions_are_submitted_for_a_name_the_preview_filter_drops(monkeypatch, fake_calendar):
+    """The regression this whole change exists for: 'B' has no consensus, so it
+    gets no brief — but it MUST still get a Profile and Catalysts."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: True)
+    briefs, comps = [], []
+
+    class _Pool:
+        def submit(self, fn, *a, **k):
+            (comps if fn is w._safe_companions else briefs).append(a[0] if fn is w._safe_companions else a[1])
+    monkeypatch.setattr(w, "_POOL", _Pool())
+
+    out = w._run("preview", lambda *a, **k: None, reported=False)
+    assert "B" not in briefs, "a no-consensus name must not get a preview"
+    assert "B" in comps, "but it MUST get its Profile + Catalysts"
+    assert "C" in comps, "a name that already reported still has a company page"
+    assert set(comps) == {"A", "B", "C", "NOCAP", "TINY"}
+    assert out["board"] == 5 and out["companions"] == 5
+
+
+def test_companions_off_leaves_the_brief_budget_exactly_as_it_was(monkeypatch, fake_calendar):
+    """Kill-switch control: EARNINGS_WARM_COMPANIONS=0 must not widen the walk."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "0")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    seen = []
+
+    class _Pool:
+        def submit(self, fn, *a, **k): seen.append(a[1])
+    monkeypatch.setattr(w, "_POOL", _Pool())
+
+    out = w._run("preview", lambda *a, **k: None, reported=False)
+    # The preview budget, unchanged: pending + consensus. TINY is under the
+    # house $300M floor and is DEMOTED, not dropped (owner 2026-08-23, "every
+    # reporter you can see") — so it is in the set, and it is ranked LAST.
+    assert set(seen) == {"A", "NOCAP", "TINY"}
+    assert seen[-1] == "TINY"
+    assert "B" not in seen and "C" not in seen
+    assert out["companions"] == 0
+
+
+def test_a_brief_still_rides_its_own_row_not_a_board_row(monkeypatch, fake_calendar):
+    """The row handed to the generator must be the BRIEF row (engine spelling,
+    verdict derived) — walking the board must not swap in a different object."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    rows = []
+
+    class _Pool:
+        def submit(self, fn, *a, **k): rows.append(a[2])
+    monkeypatch.setattr(w, "_POOL", _Pool())
+
+    w._run("preview", lambda *a, **k: None, reported=False)
+    assert rows and all(r.get("verdict") == "Pending" for r in rows)
+    assert all("eps_estimate" in r for r in rows)
