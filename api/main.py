@@ -1186,9 +1186,19 @@ def start_screener_snapshot_warm():
                       f"(rows={rows} >= warm_min={warm_min})")
                 return
             stats = snapshot_builder.run_build(max_tickers=cap)
-            print(f"[startup] screener self-warm: rows_before={rows} cap={cap} "
-                  f"built={stats.get('built')} skipped={stats.get('skipped')} "
-                  f"errors={stats.get('errors')}")
+            # A REFUSED build returns all-zero counters, which read exactly like
+            # a build that ran and found nothing to do. That ambiguity is what
+            # let three concurrent builds starve each other for five hours while
+            # every log line looked healthy, so the reason is printed FIRST and
+            # the counters are not printed at all when there was no build.
+            refused = stats.get("skipped_reason")
+            if refused:
+                print(f"[startup] screener self-warm REFUSED: {refused} "
+                      f"(rows_before={rows} cap={cap}; no build ran)")
+            else:
+                print(f"[startup] screener self-warm: rows_before={rows} cap={cap} "
+                      f"built={stats.get('built')} skipped={stats.get('skipped')} "
+                      f"errors={stats.get('errors')}")
         except Exception as e:
             # Counted as a failure of the whole warm, and NAMED — never `pass`.
             print(f"[startup] screener self-warm FAILED: {type(e).__name__}: {e}")
@@ -1212,7 +1222,18 @@ def register_screener_jobs(scheduler):
 
     def _run():
         try:
-            snapshot_builder.run_build()
+            stats = snapshot_builder.run_build()
+            # The nightly used to discard its own return value, so a build the
+            # in-flight guard REFUSED left no trace anywhere — the one outcome
+            # most worth seeing, since a refused nightly means the snapshot did
+            # not advance that day.
+            refused = stats.get("skipped_reason")
+            if refused:
+                print(f"[scheduler] screener snapshot build REFUSED: {refused}")
+            else:
+                print(f"[scheduler] screener snapshot build: "
+                      f"built={stats.get('built')} skipped={stats.get('skipped')} "
+                      f"errors={stats.get('errors')}")
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
