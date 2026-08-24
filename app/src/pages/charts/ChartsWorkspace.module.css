@@ -1119,7 +1119,9 @@
 .workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-bright); }
 
 .toolbarBtn {
-  background: var(--bg-elevated, #1f2937); color: var(--accent, #c9a84c);
+  /* Muted grey label (like Calendar's sub-option chips), NOT the theme accent —
+     brightens to --text on hover. Accent stays for active states/icons. */
+  background: var(--bg-elevated, #1f2937); color: var(--text-muted, #8c8674);
   border: none; padding: 6px 12px; border-radius: 3px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
   font-weight: 600;   /* was inherited-normal — too faint at 10px, esp. in light mode */

@@ -1098,7 +1098,12 @@
   user-select: none;
 }
 
-.viewOn {
+/* .view span.viewOn (not bare .viewOn): the base `.view span` rule sets
+   color:var(--cal-dim) at specificity (0,1,1), which would otherwise beat a bare
+   .viewOn (0,1,0) and leave the ACTIVE tab with dim text on the accent fill
+   (illegible). Matching .chipOn (the UCT20 chip), the active tab is an accent fill
+   with near-black text in every theme. */
+.view span.viewOn {
   background: var(--cal-gold);
   color: #1a1408;
   font-weight: 800;
