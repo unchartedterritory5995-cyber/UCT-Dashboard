@@ -1063,8 +1063,7 @@
 
 /* Header (defined here so all header classes resolve for CalendarHeader in Task 13) */
 .header {
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--header-line);
+  background: transparent;
   padding: 0;
 }
 
@@ -1077,6 +1076,8 @@
   min-height: 60px;
   box-sizing: border-box;
   padding: 10px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
 }
 
 .ttl {

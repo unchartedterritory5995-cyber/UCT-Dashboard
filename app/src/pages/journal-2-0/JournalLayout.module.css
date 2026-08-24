@@ -3,7 +3,7 @@
    primary nav + <Outlet/>. Header pieces (AccountSelector / Generate Report /
    Settings gear / ? shortcuts) carry over from JournalTwoRoot. */
 
-.root {
+.root { --page-pad-top: 20px; --page-pad-x: 24px;
   padding: 20px 24px 40px;
   color: var(--text-bright);
   font-family: var(--font-sans);
@@ -14,7 +14,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 10px 20px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
 }
 
 .headerRight {
@@ -192,7 +197,7 @@
 .nav {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
   margin-bottom: 20px;
 }
 
