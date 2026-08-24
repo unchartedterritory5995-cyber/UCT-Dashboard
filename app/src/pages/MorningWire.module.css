@@ -439,7 +439,7 @@
   font-weight: 500;
   letter-spacing: 0.6px;
   text-transform: none;
-  color: #7f8ea3;
+  color: var(--text-muted);
   margin-left: 8px;
 }
 /* Notable ORDERS — aligned grid: Stock · Strike · Exp · DTE · Vol/OI · Side · Premium
@@ -487,7 +487,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: #6b7480;
+  color: var(--text-muted);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .rundownWrap :global(.rd-flowboard-headrow) :global(.rd-col-r) { text-align: right; }
@@ -518,7 +518,7 @@
 .rundownWrap :global(.rd-sent-bear) :global(.rd-order-stripe) { background: #e5534b; }
 .rundownWrap :global(.rd-sent-bull) :global(.rd-order-bar) { background: linear-gradient(90deg, #3fb950, transparent); }
 .rundownWrap :global(.rd-sent-bear) :global(.rd-order-bar) { background: linear-gradient(90deg, #e5534b, transparent); }
-.rundownWrap :global(.rd-order-sym) { font-family: var(--font-mono); font-weight: 700; color: #e8e8e8; }
+.rundownWrap :global(.rd-order-sym) { font-family: var(--font-mono); font-weight: 700; color: var(--text-heading); }
 .rundownWrap :global(.rd-order-contract) {
   font-family: var(--font-mono);
   font-weight: 800;
@@ -527,15 +527,15 @@
 }
 .rundownWrap :global(.rd-order-call) :global(.rd-order-contract) { color: #3fb950; }
 .rundownWrap :global(.rd-order-put) :global(.rd-order-contract) { color: #e5534b; }
-.rundownWrap :global(.rd-order-exp) { font-size: 12.5px; color: #8b96a3; }
+.rundownWrap :global(.rd-order-exp) { font-size: 12.5px; color: var(--text-muted); }
 .rundownWrap :global(.rd-order-dte) { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
 .rundownWrap :global(.rd-urg-hot)  { color: #e8a34d; }
-.rundownWrap :global(.rd-urg-near) { color: #9aa7b4; }
-.rundownWrap :global(.rd-urg-mid)  { color: #8b96a3; }
-.rundownWrap :global(.rd-urg-leap) { color: #6b7480; }
+.rundownWrap :global(.rd-urg-near) { color: var(--text); }
+.rundownWrap :global(.rd-urg-mid)  { color: var(--text-muted); }
+.rundownWrap :global(.rd-urg-leap) { color: var(--text-muted); }
 .rundownWrap :global(.rd-order-tag) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #c9a84c; }
-.rundownWrap :global(.rd-order-bought) { font-family: var(--font-mono); font-size: 11px; color: #8b96a3; }
-.rundownWrap :global(.rd-order-prem) { text-align: right; font-weight: 700; font-size: 14px; color: #e8e8e8; }
+.rundownWrap :global(.rd-order-bought) { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.rundownWrap :global(.rd-order-prem) { text-align: right; font-weight: 700; font-size: 14px; color: var(--text-heading); }
 .rundownWrap :global(.rd-flowboard-er) {
   font-size: 8px;
   font-weight: 700;
@@ -589,14 +589,14 @@
   border-bottom: 1px solid rgba(201, 168, 76, 0.3);
   background: rgba(201, 168, 76, 0.08);
 }
-.rundownWrap :global(.rd-gp-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-gp-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-gp-grid) { display: grid; grid-template-columns: 104px 1fr; }
 .rundownWrap :global(.rd-gp-k) {
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: #6b7480;
+  color: var(--text-muted);
   padding: 10px 16px;
   align-self: center;
 }
@@ -624,7 +624,7 @@
   text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02);
 }
-.rundownWrap :global(.rd-levels-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-levels-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-levels-row) {
   display: grid; grid-template-columns: 56px 66px 100px 66px 1fr 150px; gap: 10px;
   align-items: baseline; padding: 10px 16px; font-family: var(--font-mono); font-size: 13px;
@@ -632,17 +632,17 @@
 }
 .rundownWrap :global(.rd-levels-row):last-child { border-bottom: none; }
 .rundownWrap :global(.rd-levels-hr) {
-  font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7480; font-weight: 700;
+  font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;
 }
-.rundownWrap :global(.rd-lv-sym) { font-weight: 800; color: #f3f3f3; }
-.rundownWrap :global(.rd-lv-px) { font-weight: 700; color: #e8e8e8; }
+.rundownWrap :global(.rd-lv-sym) { font-weight: 800; color: var(--text-heading); }
+.rundownWrap :global(.rd-lv-px) { font-weight: 700; color: var(--text-heading); }
 .rundownWrap :global(.rd-lv-sup) { color: #3fb950; }
 .rundownWrap :global(.rd-lv-piv) { color: #d4b45c; font-weight: 700; }
 .rundownWrap :global(.rd-lv-res) { color: #e5534b; }
 .rundownWrap :global(.rd-lv-read) { font-family: var(--font-sans); font-size: 12px; }
 .rundownWrap :global(.rd-lv-bull) :global(.rd-lv-read) { color: #3fb950; }
 .rundownWrap :global(.rd-lv-bear) :global(.rd-lv-read) { color: #e5534b; }
-.rundownWrap :global(.rd-lv-chop) :global(.rd-lv-read) { color: #9aa7b4; }
+.rundownWrap :global(.rd-lv-chop) :global(.rd-lv-read) { color: var(--text); }
 
 /* ── WHAT'S IN FAVOR (rotation) ──────────────────────────────── */
 .rundownWrap :global(.rd-rotation) { margin: 18px 0; }
@@ -650,12 +650,12 @@
   font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
   text-transform: uppercase; color: #d4b45c; margin-bottom: 10px;
 }
-.rundownWrap :global(.rd-rotation-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-rotation-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-rotation-chips) { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .rundownWrap :global(.rd-rot-chip) { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; padding: 4px 11px; border-radius: 7px; }
 .rundownWrap :global(.rd-rot-in) { color: #3fb950; background: rgba(63, 185, 80, 0.12); border: 1px solid rgba(63, 185, 80, 0.3); }
 .rundownWrap :global(.rd-rot-out) { color: #e5534b; background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.28); }
-.rundownWrap :global(.rd-rotation-note) { color: #9aa7b4; font-size: 13px; }
+.rundownWrap :global(.rd-rotation-note) { color: var(--text); font-size: 13px; }
 
 /* ── DISCIPLINE / RISK CHECK ─────────────────────────────────── */
 .rundownWrap :global(.rd-discipline) {
@@ -669,8 +669,8 @@
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
   color: #0a0a0a; background: #c9a84c; border-radius: 4px; padding: 2px 6px;
 }
-.rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: #e8e8e8; }
-.rundownWrap :global(.rd-disc-line) { color: #cfcfcf; }
+.rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: var(--text-heading); }
+.rundownWrap :global(.rd-disc-line) { color: var(--text-bright); }
 @media (max-width: 640px) {
   .rundownWrap :global(.rd-levels-row) { grid-template-columns: 46px 58px 1fr 58px; gap: 8px; }
   .rundownWrap :global(.rd-lv-res), .rundownWrap :global(.rd-levels-hr) span:nth-child(5) { display: none; }
@@ -691,13 +691,13 @@
   text-transform: uppercase; color: #d4b45c; padding: 12px 16px 8px;
 }
 .rundownWrap :global(.rd-ti-name) { padding: 0 16px 8px; font-size: 15px; }
-.rundownWrap :global(.rd-ti-sym) { font-family: var(--font-mono); font-weight: 800; font-size: 19px; color: #f3f3f3; }
-.rundownWrap :global(.rd-ti-co) { color: #9aa7b4; font-size: 13.5px; }
+.rundownWrap :global(.rd-ti-sym) { font-family: var(--font-mono); font-weight: 800; font-size: 19px; color: var(--text-heading); }
+.rundownWrap :global(.rd-ti-co) { color: var(--text); font-size: 13.5px; }
 .rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #3fb950; background: rgba(63,185,80,0.14); padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
-.rundownWrap :global(.rd-ti-levels) { padding: 0 16px 10px; font-family: var(--font-mono); font-size: 13.5px; color: #cfcfcf; line-height: 1.9; }
-.rundownWrap :global(.rd-ti-lbl) { color: #6b7480; font-size: 11px; }
-.rundownWrap :global(.rd-ti-val) { color: #e8e8e8; font-weight: 700; }
-.rundownWrap :global(.rd-ti-thesis) { padding: 0 16px; font-size: 13.5px; line-height: 1.6; color: #d6d6d6; }
+.rundownWrap :global(.rd-ti-levels) { padding: 0 16px 10px; font-family: var(--font-mono); font-size: 13.5px; color: var(--text-bright); line-height: 1.9; }
+.rundownWrap :global(.rd-ti-lbl) { color: var(--text-muted); font-size: 11px; }
+.rundownWrap :global(.rd-ti-val) { color: var(--text-heading); font-weight: 700; }
+.rundownWrap :global(.rd-ti-thesis) { padding: 0 16px; font-size: 13.5px; line-height: 1.6; color: var(--text-bright); }
 
 /* ── RS LEADERS / FRESH BREAKOUTS ────────────────────────────── */
 .rundownWrap :global(.rd-rs) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
@@ -706,15 +706,15 @@
   text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
 }
-.rundownWrap :global(.rd-rs-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-rs-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-rs-row) { display: flex; align-items: baseline; gap: 12px; padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .rundownWrap :global(.rd-rs-row):last-child { border-bottom: none; }
-.rundownWrap :global(.rd-rs-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: #f3f3f3; }
-.rundownWrap :global(.rd-rs-setup) { font-size: 12.5px; color: #9aa7b4; flex: 1; }
+.rundownWrap :global(.rd-rs-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: var(--text-heading); }
+.rundownWrap :global(.rd-rs-setup) { font-size: 12.5px; color: var(--text); flex: 1; }
 .rundownWrap :global(.rd-rs-chg) { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
 .rundownWrap :global(.rd-rs-up) { color: #3fb950; }
 .rundownWrap :global(.rd-rs-dn) { color: #e5534b; }
-.rundownWrap :global(.rd-rs-empty) { padding: 12px 16px; font-size: 13px; color: #9aa7b4; font-style: italic; }
+.rundownWrap :global(.rd-rs-empty) { padding: 12px 16px; font-size: 13px; color: var(--text); font-style: italic; }
 
 /* ── TODAY'S RISK CALENDAR ───────────────────────────────────── */
 .rundownWrap :global(.rd-cal) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
@@ -723,18 +723,18 @@
   text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
 }
-.rundownWrap :global(.rd-cal-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-cal-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-cal-row) { display: flex; align-items: baseline; gap: 12px; padding: 7px 16px; font-size: 13.5px; }
 .rundownWrap :global(.rd-cal-key) { background: rgba(201, 120, 40, 0.08); }
 .rundownWrap :global(.rd-cal-key) :global(.rd-cal-ev) { color: #f0d9a8; font-weight: 600; }
 .rundownWrap :global(.rd-cal-time) { font-family: var(--font-mono); font-weight: 700; color: #c9a84c; min-width: 52px; }
-.rundownWrap :global(.rd-cal-ev) { color: #d6d6d6; }
-.rundownWrap :global(.rd-cal-est) { color: #8b96a3; font-size: 12px; }
+.rundownWrap :global(.rd-cal-ev) { color: var(--text-bright); }
+.rundownWrap :global(.rd-cal-est) { color: var(--text-muted); font-size: 12px; }
 .rundownWrap :global(.rd-cal-fed) :global(.rd-cal-ev) { color: #9ab8e0; }
-.rundownWrap :global(.rd-cal-earn) { padding: 8px 16px; font-size: 13px; color: #9aa7b4; border-top: 1px solid rgba(255,255,255,0.04); }
-.rundownWrap :global(.rd-cal-elbl) { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7480; margin-right: 6px; }
-.rundownWrap :global(.rd-cal-tk) { font-family: var(--font-mono); color: #cfcfcf; }
-.rundownWrap :global(.rd-cal-more) { color: #6b7480; font-size: 12px; }
+.rundownWrap :global(.rd-cal-earn) { padding: 8px 16px; font-size: 13px; color: var(--text); border-top: 1px solid rgba(255,255,255,0.04); }
+.rundownWrap :global(.rd-cal-elbl) { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-right: 6px; }
+.rundownWrap :global(.rd-cal-tk) { font-family: var(--font-mono); color: var(--text-bright); }
+.rundownWrap :global(.rd-cal-more) { color: var(--text-muted); font-size: 12px; }
 
 /* ── KEY LEVELS TO WATCH ─────────────────────────────────────── */
 .rundownWrap :global(.rd-watch) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
@@ -743,14 +743,14 @@
   text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
 }
-.rundownWrap :global(.rd-watch-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-watch-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .rundownWrap :global(.rd-watch-row) { display: flex; align-items: baseline; gap: 12px; padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13.5px; }
 .rundownWrap :global(.rd-watch-row):last-child { border-bottom: none; }
-.rundownWrap :global(.rd-watch-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: #f3f3f3; }
+.rundownWrap :global(.rd-watch-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: var(--text-heading); }
 .rundownWrap :global(.rd-watch-trig) { font-family: var(--font-mono); font-weight: 700; color: #d4b45c; min-width: 72px; }
-.rundownWrap :global(.rd-watch-dist) { flex: 1; color: #9aa7b4; font-size: 12.5px; }
+.rundownWrap :global(.rd-watch-dist) { flex: 1; color: var(--text); font-size: 12.5px; }
 .rundownWrap :global(.rd-watch-live) :global(.rd-watch-dist) { color: #3fb950; font-weight: 600; }
-.rundownWrap :global(.rd-watch-setup) { font-size: 12px; color: #8b96a3; }
+.rundownWrap :global(.rd-watch-setup) { font-size: 12px; color: var(--text-muted); }
 
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
@@ -1475,18 +1475,18 @@
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: #6b7480;
+  color: var(--text-muted);
 }
 .rundownWrap :global(.rd-flowboard-row.rd-sent-bull .rd-order-type),
-.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-type) { color: #6b7480; }
+.rundownWrap :global(.rd-flowboard-row.rd-sent-bear .rd-order-type) { color: var(--text-muted); }
 
 /* Vol/OI carries the confirmation read in its colour. Gold = volume cleared open
    interest, so it cannot be a closing trade. Dim amber = volume UNDER open
    interest, which cannot be told apart from someone closing — the ambiguity the
    old board rendered as an empty cell. */
 .rundownWrap :global(.rd-order-tag.rd-oi-new) { color: #c9a84c; }
-.rundownWrap :global(.rd-order-tag.rd-oi-likely) { color: #9aa7b4; }
-.rundownWrap :global(.rd-order-tag.rd-oi-grew) { color: #9aa7b4; }
+.rundownWrap :global(.rd-order-tag.rd-oi-likely) { color: var(--text); }
+.rundownWrap :global(.rd-order-tag.rd-oi-grew) { color: var(--text); }
 .rundownWrap :global(.rd-order-tag.rd-oi-unconfirmed) { color: #8a6a3a; }
 .rundownWrap :global(.rd-order-tag.rd-oi-closing) { color: #e5534b; }
 
