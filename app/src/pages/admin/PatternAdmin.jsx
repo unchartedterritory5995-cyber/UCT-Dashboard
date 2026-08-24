@@ -133,7 +133,7 @@ export default function PatternAdmin() {
           Showing {filtered.length} of {data?.count ?? 0}
         </div>
         <button
-          className={styles.refreshBtn}
+          className="btn btn-secondary btn-sm"
           onClick={() => mutate()}
           disabled={isLoading}
         >

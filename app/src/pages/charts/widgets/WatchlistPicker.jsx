@@ -321,7 +321,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 </div>
               </form>
             ) : (
-              <button type="button" className={styles.newBtn} onClick={() => setCreating(true)}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
                 <UIcon name="plus" size={14} gold={false} />
                 <span>New watchlist</span>
               </button>

@@ -172,7 +172,7 @@ export default function ColumnsPicker({
         <span className={styles.popoverTitle}>Columns</span>
         <button
           type="button"
-          className={styles.resetBtn}
+          className="btn btn-ghost btn-sm"
           onClick={onReset}
         >
           Reset

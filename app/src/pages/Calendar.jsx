@@ -751,7 +751,7 @@ export default function Calendar() {
         {headerEl}
         <div className={styles.error}>
           Couldn&apos;t load that week.{' '}
-          <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       </div>
     )

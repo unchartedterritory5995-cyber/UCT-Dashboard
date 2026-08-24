@@ -324,7 +324,7 @@ function RevengePanel({ revenge, dismissed, onDismiss }) {
               </div>
               <button
                 type="button"
-                className={styles.dismissBtn}
+                className="btn btn-ghost btn-sm"
                 onClick={() => onDismiss(f.pairKey)}
                 aria-label={`Dismiss the revenge flag on ${f.symbol} — not revenge`}
               >

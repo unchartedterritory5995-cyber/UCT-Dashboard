@@ -80,7 +80,7 @@ export default function TeamSection() {
             <button className="btn btn-ghost" onClick={refreshFromX} disabled={syncing}>
               {syncing ? 'Refreshing…' : 'Refresh avatars from X'}
             </button>
-            <button className={styles.goldBtn} onClick={() => setEditing({})}>
+            <button className="btn btn-primary" onClick={() => setEditing({})}>
               <PlusIcon /> Add member
             </button>
           </div>
@@ -99,7 +99,7 @@ export default function TeamSection() {
               : 'Meet the team — coming soon.'}
           </div>
           {isAdmin && (
-            <button className={styles.goldBtn} onClick={() => setEditing({})}>
+            <button className="btn btn-primary" onClick={() => setEditing({})}>
               <PlusIcon /> Add the first member
             </button>
           )}

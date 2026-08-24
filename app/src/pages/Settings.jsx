@@ -762,7 +762,7 @@ function ChartSettingsSection({ prefs, setPref }) {
 
         {/* ── Reset ── */}
         <div className={styles.chartSubsection} style={{ borderTop: '1px solid #2e3127', paddingTop: 12 }}>
-          <button className={styles.btnDanger} onClick={resetToDefaults} style={{ fontSize: 11 }}>
+          <button className="btn btn-danger" onClick={resetToDefaults} style={{ fontSize: 11 }}>
             Reset All Chart Settings
           </button>
         </div>
@@ -1085,7 +1085,7 @@ function TwoFactorPanel() {
             <button className={styles.btnMuted} onClick={() => { setShowRegen(true); setCode(''); setError('') }}>
               New backup codes
             </button>
-            <button className={styles.btnDanger} onClick={() => { setShowDisable(true); setError('') }}>
+            <button className="btn btn-danger" onClick={() => { setShowDisable(true); setError('') }}>
               Turn off 2FA
             </button>
           </div>
@@ -1142,7 +1142,7 @@ function TwoFactorPanel() {
             />
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.pwActions}>
-              <button type="submit" className={styles.btnDanger} disabled={busy}>{busy ? 'Working…' : 'Turn off'}</button>
+              <button type="submit" className="btn btn-danger" disabled={busy}>{busy ? 'Working…' : 'Turn off'}</button>
               <button type="button" className={styles.btnMuted} onClick={() => { setShowDisable(false); setError('') }}>Cancel</button>
             </div>
           </form>
@@ -1233,7 +1233,7 @@ function DangerZonePanel() {
         broker connections. Subscriptions are cancelled. This can't be undone.
       </p>
       {!expanded ? (
-        <button className={styles.btnDanger} onClick={() => setExpanded(true)}>
+        <button className="btn btn-danger" onClick={() => setExpanded(true)}>
           Delete my account
         </button>
       ) : (
@@ -1271,7 +1271,7 @@ function DangerZonePanel() {
           <div className={styles.pwActions}>
             <button
               type="submit"
-              className={styles.btnDanger}
+              className="btn btn-danger"
               disabled={submitting || confirmation.trim().toLowerCase() !== 'delete my account' || !password}
             >
               {submitting ? 'Submitting...' : 'Submit deletion request'}
@@ -2246,7 +2246,7 @@ export default function Settings() {
   const sessionCard = (
         <TileCard icon="unlock" title="Session">
           <div className={styles.section}>
-            <button className={styles.btnDanger} onClick={handleLogout}>
+            <button className="btn btn-danger" onClick={handleLogout}>
               Log Out
             </button>
           </div>

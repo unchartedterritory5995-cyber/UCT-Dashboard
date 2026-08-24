@@ -41,7 +41,7 @@ export default function ExpiredBanner({ strategies, onMarkAll, onDismiss }) {
         {onDismiss && (
           <button
             type="button"
-            className={styles.dismissBtn}
+            className="btn btn-ghost btn-sm"
             onClick={onDismiss}
             aria-label="Dismiss"
             title="Hide for this session"

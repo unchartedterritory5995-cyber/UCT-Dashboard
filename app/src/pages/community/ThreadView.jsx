@@ -80,9 +80,9 @@ function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport
               {post.mentor_highlight ? 'Unhighlight' : 'Highlight'}
             </button>
           )}
-          <button className={styles.reportBtn} onClick={() => onReport({ post_id: post.id })}>Report</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onReport({ post_id: post.id })}>Report</button>
           {(isMentor || post.author_id === meId) && (
-            <button className={styles.reportBtn} onClick={() => onDelete(post.id)}>Remove</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => onDelete(post.id)}>Remove</button>
           )}
         </div>
       )}
@@ -215,7 +215,7 @@ export default function ThreadView({ threadId }) {
               )}
             </>
           )}
-          <button className={styles.reportBtn} onClick={() => reportItem({ thread_id: thread.id })}>
+          <button className="btn btn-secondary btn-sm" onClick={() => reportItem({ thread_id: thread.id })}>
             Report
           </button>
         </div>

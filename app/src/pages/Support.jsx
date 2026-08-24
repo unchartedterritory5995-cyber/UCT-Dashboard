@@ -897,7 +897,7 @@ export default function Support() {
           <h1 className={styles.heading}>Support</h1>
           <div className={styles.headerRight}>
             <StatusPill />
-            <button className={styles.newBtn} onClick={() => setSearchParams({ view: 'new' })}>
+            <button className="btn btn-primary btn-sm" onClick={() => setSearchParams({ view: 'new' })}>
               New Ticket
             </button>
           </div>

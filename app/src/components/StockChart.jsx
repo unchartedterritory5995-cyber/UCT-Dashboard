@@ -13311,7 +13311,7 @@ export default function StockChart({
       {showFatalError && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>Failed to load chart for {sym}</span>
-          <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}
       {!loading && !showFatalError && selectedRangeEmpty && (

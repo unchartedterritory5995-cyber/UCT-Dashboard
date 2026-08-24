@@ -186,7 +186,7 @@ export default function AccountSelector({ onNewAccount }) {
           <div className={styles.sep} />
           <button
             type="button"
-            className={styles.newBtn}
+            className="btn btn-primary btn-sm"
             onClick={() => { setOpen(false); onNewAccount?.() }}
           >
             + New Account
