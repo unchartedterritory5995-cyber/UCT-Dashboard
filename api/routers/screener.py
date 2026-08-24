@@ -126,6 +126,41 @@ def screener_meta(user=Depends(require_paid)):
     return scr_filters.meta(user_id=user["id"])
 
 
+class ScreenAlertSub(BaseModel):
+    def_hash: str
+    def_id: str = ""
+    name: str = "Untitled screen"
+    mode: str = "both"
+
+
+@router.get("/api/screener/alerts")
+def screener_alerts_list(user=Depends(require_paid)):
+    from api.services.screener import screen_alerts
+    return {"subscriptions": screen_alerts.list_subs((user or {}).get("id"))}
+
+
+@router.post("/api/screener/alerts")
+def screener_alerts_subscribe(body: ScreenAlertSub, user=Depends(require_paid)):
+    """Be told when a name enters or leaves this screen.
+
+    ⚠️ The diff is NIGHTLY by construction — the sweep runs once, off a 03:00
+    snapshot. The copy the member receives says "overnight" for that reason.
+    """
+    from api.services.screener import screen_alerts
+    try:
+        return screen_alerts.subscribe((user or {}).get("id"), body.def_hash,
+                                       body.def_id, body.name, body.mode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/api/screener/alerts/{def_hash}")
+def screener_alerts_unsubscribe(def_hash: str, user=Depends(require_paid)):
+    from api.services.screener import screen_alerts
+    return {"removed": screen_alerts.unsubscribe((user or {}).get("id"),
+                                                 def_hash)}
+
+
 @router.post("/api/screener/count")
 def screener_count(spec: ScanSpec, user=Depends(require_paid)):
     """How many rows this spec would return — benchmark metric 450.

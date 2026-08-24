@@ -449,6 +449,30 @@ def latest_coverage_for(def_hashes: Iterable[Any], tf: Any) -> dict:
 # the join, and the horizon
 # --------------------------------------------------------------------------- #
 
+def recent_covered_as_ofs(def_hash: str, tf: Any, limit: int = 2) -> list:
+    """The most recent SWEPT sessions for this definition, newest first.
+
+    ⛔ scan_coverage ONLY, never scan_hits — the same rule
+    `latest_coverage_for` states, and it matters more here than anywhere else
+    in this module. A swept session that matched NOTHING writes a coverage row
+    and zero hits rows, so a hits-derived "previous session" would skip it and
+    diff tonight against some older, busier night. Every name that has been in
+    the screen the whole time would then be reported as newly ENTERED, and the
+    member would be alerted to a move that never happened.
+
+    Fewer than `limit` entries is a real answer: a definition swept once has no
+    previous session, and there is nothing to compare.
+    """
+    _ensure()
+    key = _normalise_tf(tf)
+    with snapshot_db.connect() as conn:
+        rows = conn.execute(
+            "SELECT as_of FROM scan_coverage WHERE def_hash=? AND tf=? "
+            "ORDER BY as_of DESC LIMIT ?",
+            (str(def_hash or "").strip(), key, int(limit))).fetchall()
+    return [int(r[0]) for r in rows]
+
+
 def join_clause(def_hash: str, tf: Any, as_of: Any) -> tuple:
     """``(sql_fragment, params)`` selecting the ``screener_rows`` this scan hit.
 
