@@ -80,8 +80,6 @@ log = logging.getLogger(__name__)
 
 # ── contract (mirrors api/services/screener/opt_flow.py, the web-side reader) ──
 R2_KEY = "screener/opt_flow_agg.json"
-_ARTIFACT_ENV = "FLOW_OPT_AGG_ARTIFACT"
-_DEFAULT_ARTIFACT = "/data/flow_opt_agg.json"
 
 _WINDOW_DAYS = 5
 
@@ -102,7 +100,22 @@ def _artifact_path() -> str:
     """Local mirror path — env/monkeypatch seam first, the real flow-worker
     volume path only as the production default. Read at call time, same
     reasoning as `_db_path`."""
-    return os.environ.get(_ARTIFACT_ENV) or _DEFAULT_ARTIFACT
+    # ⛔ THE LITERAL LIVES HERE, BESIDE THE ENV READ, and that is not
+    # cosmetic. The repo-root conftest DERIVES its shared-root env pins by
+    # AST, pairing a `/data/...` literal with an env read in the same
+    # function. Held as a module-level `_DEFAULT_ARTIFACT` two lines under
+    # `_ARTIFACT_ENV`, the two could not be paired, so this path was
+    # classified UNPINNABLE — reachable by no override — and the test suite
+    # would have written it into the owner's live `C:\data`.
+    # `test_the_literals_no_env_var_can_move_are_named_not_forgotten` went
+    # RED on it (the unpinnable set grew 8 -> 9), which is the rail working.
+    # ⛔ THE TWO-ARG DEFAULT FORM IS LOAD-BEARING, not style: the deriver
+    # pins either by reading `os.environ.get(VAR, DEFAULT)`'s second
+    # argument, or by a one-to-one pairing that requires the var name to
+    # contain PATH/DIR/_DB/FILE/ROOT/MOUNT. `FLOW_OPT_AGG_ARTIFACT` matches
+    # none of those tokens, so `get(VAR) or LITERAL` is invisible to BOTH.
+    return os.environ.get("FLOW_OPT_AGG_ARTIFACT",
+                          "/data/flow_opt_agg.json")
 
 
 # ── date-window resolution (K1) ─────────────────────────────────────────────
