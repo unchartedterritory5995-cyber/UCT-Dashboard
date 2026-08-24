@@ -59,33 +59,76 @@ function largestMember(region, family = null) {
 const tallest = arr => (arr || []).reduce((a, b) => (!a || b.h > a.h ? b : a), null)
 const widest = arr => (arr || []).reduce((a, b) => (!a || b.w > a.w ? b : a), null)
 
-// 50/50 vertical split: `target` keeps the top half, the newcomer takes the bottom
-// half at the target's full width. Returns { place, mutations } or null if either
-// half would fall below its min height.
-function splitVertical(d, target) {
+// Vertical split: `target` keeps the top, the newcomer takes the bottom at the
+// target's full width. `newHArg` sets the newcomer's height (clamped so neither half
+// drops below its min); omitted → a 50/50 split. Returns { place, mutations } or null.
+function splitVertical(d, target, newHArg) {
   if (!target) return null
   const targetMinH = defOf(target.type).minH || 3
-  const newH = Math.floor(target.h / 2)
+  const dMinH = d.minH || 3
+  let newH = newHArg != null ? newHArg : Math.floor(target.h / 2)
+  newH = Math.max(dMinH, Math.min(newH, target.h - targetMinH))
   const shrunkH = target.h - newH
-  if (newH < (d.minH || 3) || shrunkH < targetMinH) return null
+  if (newH < dMinH || shrunkH < targetMinH) return null
   return {
     place: { x: target.x, y: target.y + shrunkH, w: target.w, h: newH },
     mutations: [{ id: target.id, h: shrunkH }],
   }
 }
 
-// 50/50 horizontal split: newcomer takes the LEFT half at the target's full height,
-// target shrinks to the right. Used to carve a rail when no matching region exists.
-function splitHorizontal(d, target) {
+// The chart region with the most chart area (a widget that docks below "the chart"
+// targets this one). Null when the board has no chart.
+function chartRegionOf(regions) {
+  const charts = regions.filter(r => r.dominantFamily === 'chart')
+  if (!charts.length) return null
+  const area = r => r.members.reduce((s, m) => s + (m.w | 0) * (m.h | 0), 0)
+  return [...charts].sort((a, b) => area(b) - area(a))[0]
+}
+
+// The bottom-most chart in a region (what a below-chart dock sits under).
+function bottomChart(region) {
+  const charts = region.members.filter(m => familyOf(m.type) === 'chart')
+  return (charts.length ? charts : region.members)
+    .reduce((a, b) => (!a || (b.y + b.h) > (a.y + a.h) ? b : a), null)
+}
+
+// Horizontal split: newcomer takes the LEFT slice at the target's full height, target
+// shrinks to the right. `newWArg` sets the newcomer's width (a rail carved beside a
+// chart adopts the existing rail's width); omitted → a 50/50 split. When a rail width
+// is requested it may go below the newcomer's own minW (the rail width is authoritative,
+// matching the panel rail-match rule); the target must still keep its minW.
+function splitHorizontal(d, target, newWArg) {
   if (!target) return null
   const targetMinW = defOf(target.type).minW || 2
-  const newW = Math.floor(target.w / 2)
+  const floorW = newWArg != null ? 1 : (d.minW || 2)
+  let newW = newWArg != null ? newWArg : Math.floor(target.w / 2)
+  newW = Math.max(floorW, Math.min(newW, target.w - targetMinW))
   const shrunkW = target.w - newW
-  if (newW < (d.minW || 2) || shrunkW < targetMinW) return null
+  if (newW < floorW || shrunkW < targetMinW) return null
   return {
     place: { x: target.x, y: target.y, w: newW, h: target.h },
     mutations: [{ id: target.id, x: target.x + newW, w: shrunkW }],
   }
+}
+
+// Final fallback: reserve a full-width strip across the BOTTOM, shrinking every widget
+// that crosses into it so the newcomer sits below on-screen (never off the bottom).
+// Returns { place, mutations } or null when a widget already occupies the strip or
+// can't shrink enough — the true last resort then places bare.
+function bottomStripWithMutations(widgets, d, cols, rows) {
+  const stripH = Math.max(d.minH || 3, Math.min(d.h, Math.floor(rows / 2)))
+  const cutY = rows - stripH
+  const mutations = []
+  for (const w of widgets || []) {
+    const wy = w.y | 0, wh = w.h | 0
+    if (wy >= cutY) return null
+    if (wy + wh > cutY) {
+      const nh = cutY - wy
+      if (nh < (defOf(w.type).minH || 3)) return null
+      mutations.push({ id: w.id, h: nh })
+    }
+  }
+  return { place: { x: 0, y: cutY, w: cols, h: stripH }, mutations }
 }
 
 export function planPlacement(widgets, type, cols = 24, rows = 20) {
@@ -93,6 +136,22 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
   const family = familyOf(type)
   const minGapH = d.minH || 3
   const regions = inferRegions(widgets, cols, rows)
+
+  // 1. Dock-below-chart widgets (e.g. Fundamentals) ALWAYS sit under a chart when one
+  // exists — a short strip at the chart's width, filling the bottom gap or splitting a
+  // strip off the bottom of the chart. Falls through to normal panel logic if no chart.
+  const dock = WIDGET_REGISTRY[type]?.placement?.dock
+  if (dock === 'below-chart') {
+    const cr = chartRegionOf(regions)
+    if (cr) {
+      const gap = tallestGap(cr.gaps)
+      if (gap && gap.h >= minGapH) {
+        return { place: clampPlace({ x: cr.x, y: gap.y, w: cr.w, h: gap.h }, d, cols, rows), mutations: [] }
+      }
+      const split = splitVertical(d, bottomChart(cr), d.h)
+      if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
+    }
+  }
 
   const affinity = pickAffinityRegion(regions, family, minGapH)
 
@@ -112,47 +171,243 @@ export function planPlacement(widgets, type, cols = 24, rows = 20) {
 
   // 4. Resize an existing widget to make room.
   if (family === 'chart') {
+    // Split the chart region's dominant chart 50/50 (stack a second chart).
     const target = affinity ? largestMember(affinity, 'chart') : tallest(widgets)
     const split = splitVertical(d, target)
     if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
-  } else if (affinity) {
-    // Panel with a matching rail but no gap → stack into the rail (split its widget).
-    const split = splitVertical(d, largestMember(affinity))
-    if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
   } else {
-    // Panel with no rail → carve one beside the widest widget.
-    const split = splitHorizontal(d, widest(widgets))
+    // Panel: first try to stack into a matching rail (split one of its widgets). When
+    // the rail is FULL (splitVertical can't halve any member without going below its
+    // min), carve a NEW rail beside the widest chart at the existing rail's width — the
+    // "the right side is full, put it on the left" case — instead of overflowing.
+    const railW = affinity ? affinity.w : undefined
+    let split = affinity ? splitVertical(d, largestMember(affinity)) : null
+    if (!split) {
+      const charts = widgets.filter(w => familyOf(w.type) === 'chart')
+      const target = widest(charts.length ? charts : widgets)
+      split = splitHorizontal(d, target, railW)
+    }
     if (split) return { place: clampPlace(split.place, d, cols, rows), mutations: split.mutations }
   }
 
-  // 5. Last resort — full-width slot the caller bottom-packs (mirrors old behavior).
+  // 5. Last resort — reserve a bottom strip, shrinking crossers so the newcomer stays
+  // on-screen (a bare overlapping placement would let RGL shove it off the bottom).
+  const strip = bottomStripWithMutations(widgets, d, cols, rows)
+  if (strip) return { place: clampPlace(strip.place, d, cols, rows), mutations: strip.mutations }
   return { place: { x: 0, y: Math.max(0, rows - d.h), w: Math.min(cols, d.w), h: d.h }, mutations: [] }
 }
 
-// Close reflow — the symmetric inverse of add. When a widget is removed, the
-// widget vertically adjacent to it WITHIN THE SAME COLUMN BAND reclaims the freed
-// space (the theme tracker grows to fill the rail when the breadth panel below it
-// closes; a split chart's sibling grows back to full height). Returns the new
-// widgets array (removed widget gone, neighbor grown) — or just the removed-widget
-// filtered list when nothing sits flush against the vacated slot.
-export function reflowOnClose(widgets, removedId) {
-  const removed = (widgets || []).find(w => w.id === removedId)
-  const rest = (widgets || []).filter(w => w.id !== removedId)
-  if (!removed) return rest
-  // Same column band: members whose x-span substantially overlaps the removed one.
-  const band = rest.filter(w => overlapRatio(w, removed) >= 0.5)
-  if (!band.length) return rest
-  const rTop = removed.y, rBot = removed.y + removed.h
-  // Prefer the widget directly ABOVE (grows downward); else the one directly BELOW
-  // (grows upward). "Directly" = its edge is flush against the vacated slot.
-  const above = band.filter(w => w.y + w.h <= rTop).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0]
-  const below = band.filter(w => w.y >= rBot).sort((a, b) => a.y - b.y)[0]
-  let grown = null
-  if (above && above.y + above.h === rTop) {
-    grown = { id: above.id, patch: { h: above.h + removed.h } }
-  } else if (below && below.y === rBot) {
-    grown = { id: below.id, patch: { y: below.y - removed.h, h: below.h + removed.h } }
+// ── Ghost-mode directional nudge (column-model state machine) ─────────────────
+// While the placement ghost is open, arrows move the proposed widget around the
+// board before committing. The board is modeled as ordered left→right COLUMNS
+// (the same x-band clustering as inferRegions). The ghost has an ANCHOR describing
+// where it currently sits:
+//   { kind:'col',  gap }           — the ghost is its OWN full-height column,
+//                                     inserted at gap index (0 = far left … N = far
+//                                     right); the chart column flexes to make room.
+//   { kind:'stack', colKey, pos }  — the ghost is stacked INTO a column (pos 'top'
+//                                     or 'bottom'); one member of that column splits.
+// Arrows step through anchors (nudgeAnchor); each anchor resolves to a concrete
+// { place, mutations }. nudgePlan returns { place, mutations, anchor } (or null when
+// the move isn't possible → that arrow is hidden). The anchor is threaded back onto
+// pendingAdd so the next nudge continues from the current state, not geometry.
+
+// Ordered left→right columns from the ORIGINAL widgets. `key` = a stable id for
+// anchor addressing (the leftmost-then-topmost member's id).
+function buildColumns(widgets, cols, rows) {
+  const regions = inferRegions(widgets, cols, rows)
+  return regions.map(r => {
+    const members = [...r.members].sort((a, b) => (a.y | 0) - (b.y | 0))
+    const keyMember = [...r.members].sort(
+      (a, b) => (a.x | 0) - (b.x | 0) || (a.y | 0) - (b.y | 0)
+    )[0]
+    return {
+      key: keyMember?.id, x: r.x, w: r.w, members,
+      family: r.dominantFamily, yTop: r.yTop, yBottom: r.yBottom,
+    }
+  })
+}
+
+// Infer the ghost's anchor from its place + the mutations that produced it. A
+// horizontal mutation (an existing widget shifted/resized in x) means the ghost is a
+// side column; otherwise it's stacked into the column it overlaps.
+function deriveAnchor(place, columns, mutations) {
+  const horiz = (mutations || []).some(m => m.x != null || m.w != null)
+  if (!horiz) {
+    let bestI = -1, bestOv = 0
+    columns.forEach((c, i) => {
+      const ov = overlapRatio({ x: c.x, w: c.w }, { x: place.x, w: place.w })
+      if (ov >= 0.5 && ov > bestOv) { bestOv = ov; bestI = i }
+    })
+    if (bestI >= 0) {
+      const c = columns[bestI]
+      const mid = (c.yTop + c.yBottom) / 2
+      return { kind: 'stack', colKey: c.key, pos: (place.y + place.h / 2) <= mid ? 'top' : 'bottom' }
+    }
   }
-  if (!grown) return rest
-  return rest.map(w => (w.id === grown.id ? { ...w, ...grown.patch } : w))
+  let gap = 0
+  for (const c of columns) if (c.x + c.w <= place.x + 1) gap++
+  return { kind: 'col', gap }
+}
+
+// The chart column nearest a gap index (prefer the one immediately right, then left,
+// then the nearest chart anywhere). Null when the board has no chart.
+function nearestChartCol(columns, gap) {
+  const right = columns[gap], left = columns[gap - 1]
+  if (right && right.family === 'chart') return right
+  if (left && left.family === 'chart') return left
+  return columns.find(c => c.family === 'chart') || null
+}
+
+// The ordered LEFT↔RIGHT sequence the ghost steps through: every column-gap (own
+// column), interleaved — for a PANEL ghost only — with a "merge into this rail" stop
+// after each panel column. A chart ghost never merges into a rail, so it just steps
+// gap→gap. LEFT/RIGHT walk this list by ±1, which makes every horizontal move
+// reversible by construction. (Vertical moves into a chart are handled separately.)
+function hSequence(columns, ghostFamily) {
+  const H = []
+  for (let k = 0; k < columns.length; k++) {
+    H.push({ kind: 'col', gap: k })
+    if (ghostFamily === 'panel' && columns[k].family === 'panel') {
+      H.push({ kind: 'stack', colKey: columns[k].key, pos: 'top' })
+    }
+  }
+  H.push({ kind: 'col', gap: columns.length })
+  return H
+}
+
+function hStep(columns, ghostFamily, anchor, dir) {
+  const H = hSequence(columns, ghostFamily)
+  const i = H.findIndex(e => e.kind === anchor.kind && (e.kind === 'col' ? e.gap === anchor.gap : e.colKey === anchor.colKey))
+  if (i < 0) return null
+  const j = dir === 'left' ? i - 1 : i + 1
+  return (j < 0 || j >= H.length) ? null : H[j]
+}
+
+// Anchor → next anchor for a direction. Returns null when the move isn't available.
+function nudgeAnchor(anchor, dir, columns, ghostFamily) {
+  if (anchor.kind === 'stack') {
+    const idx = columns.findIndex(c => c.key === anchor.colKey)
+    if (idx < 0) return null
+    const inChart = columns[idx].family === 'chart'
+    if (inChart) {
+      // Stacked over a chart: UP/DOWN reorder top↔bottom; LEFT/RIGHT pop to an
+      // own column beside the chart.
+      if (dir === 'up') return anchor.pos === 'bottom' ? { kind: 'stack', colKey: anchor.colKey, pos: 'top' } : null
+      if (dir === 'down') return anchor.pos === 'top' ? { kind: 'stack', colKey: anchor.colKey, pos: 'bottom' } : null
+      if (dir === 'left') return { kind: 'col', gap: idx }
+      if (dir === 'right') return { kind: 'col', gap: idx + 1 }
+      return null
+    }
+    // Merged into a rail: LEFT/RIGHT walk the sequence; UP/DOWN jump to a chart.
+    if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
+    const ccm = nearestChartCol(columns, idx)
+    if (!ccm || ccm.key === anchor.colKey) return null
+    return { kind: 'stack', colKey: ccm.key, pos: dir === 'up' ? 'top' : 'bottom' }
+  }
+  // Own column at a gap: LEFT/RIGHT walk the sequence; UP/DOWN stack onto a chart.
+  if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
+  const cc = nearestChartCol(columns, anchor.gap)
+  if (!cc) return null
+  return { kind: 'stack', colKey: cc.key, pos: dir === 'up' ? 'top' : 'bottom' }
+}
+
+// Lay the ghost out as its own full-height column at `gap`. The widest chart column
+// (the flex column) gives up `gw` width; columns re-tile left→right with no gaps, so
+// the chart shrinks/shifts while rails keep their width. Returns { place, mutations }.
+function resolveOwnColumn(columns, gap, ghostType, cols, rows) {
+  const d = defOf(ghostType)
+  const isChart = familyOf(ghostType) === 'chart'
+  const chartCols = columns.filter(c => c.family === 'chart')
+  const pool = chartCols.length ? chartCols : columns
+  const flex = pool.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
+  if (!flex) return null
+  const flexMinW = Math.min(...flex.members.map(m => defOf(m.type).minW || 2))
+
+  let gw
+  if (isChart) gw = Math.max(d.minW || 2, Math.floor(flex.w / 2))
+  else {
+    const rail = columns.find(c => c.family === 'panel' && c.key !== flex.key)
+    gw = rail ? rail.w : (d.minW || 2)
+  }
+  gw = Math.min(gw, flex.w - flexMinW)
+  if (gw < 1 || flex.w - gw < flexMinW) return null
+
+  const slots = columns.map(c => ({ col: c, w: c.key === flex.key ? c.w - gw : c.w }))
+  slots.splice(gap, 0, { ghost: true, w: gw })
+
+  let x = Math.max(0, columns.length ? Math.min(...columns.map(c => c.x)) : 0)
+  let ghostPlace = null
+  const mutations = []
+  for (const s of slots) {
+    if (s.ghost) { ghostPlace = { x, y: 0, w: s.w, h: rows }; x += s.w; continue }
+    const c = s.col
+    const dx = x - c.x
+    const dw = s.w - c.w
+    for (const m of c.members) {
+      const mMinW = defOf(m.type).minW || 2
+      const nx = (m.x | 0) + dx
+      const nw = Math.max(mMinW, Math.min((m.w | 0) + dw, s.w))
+      const patch = { id: m.id }
+      if (nx !== (m.x | 0)) patch.x = nx
+      if (nw !== (m.w | 0)) patch.w = nw
+      if (patch.x != null || patch.w != null) mutations.push(patch)
+    }
+    x += s.w
+  }
+  if (!ghostPlace) return null
+  return { place: clampPlace(ghostPlace, d, cols, rows), mutations }
+}
+
+// Stack the ghost into column `colKey` at top/bottom by splitting the adjacent member.
+function resolveStack(columns, colKey, pos, ghostType, cols, rows) {
+  const d = defOf(ghostType)
+  const c = columns.find(col => col.key === colKey)
+  if (!c) return null
+  if ((d.minW || 2) > c.w) return null                 // a chart won't cram into a narrow rail
+  const members = [...c.members].sort((a, b) => (a.y | 0) - (b.y | 0))
+  if (!members.length) return null
+  const target = pos === 'top' ? members[0] : members[members.length - 1]
+  const tMinH = defOf(target.type).minH || 3
+  const dMinH = d.minH || 3
+  let gh = Math.floor((target.h | 0) / 2)
+  gh = Math.max(dMinH, Math.min(gh, (target.h | 0) - tMinH))
+  const shrunk = (target.h | 0) - gh
+  if (gh < dMinH || shrunk < tMinH) return null
+  let place, mut
+  if (pos === 'top') {
+    place = { x: target.x, y: target.y, w: target.w, h: gh }
+    mut = { id: target.id, y: (target.y | 0) + gh, h: shrunk }
+  } else {
+    place = { x: target.x, y: (target.y | 0) + shrunk, w: target.w, h: gh }
+    mut = { id: target.id, h: shrunk }
+  }
+  return { place: clampPlace(place, d, cols, rows), mutations: [mut] }
+}
+
+// dir ∈ 'up' | 'down' | 'left' | 'right'. `cur` = the current pendingAdd
+// { type, place, mutations, anchor? }. Returns { place, mutations, anchor } for the
+// moved ghost, or null when the move isn't possible (→ that arrow is hidden).
+export function nudgePlan(widgets, cur, dir, cols = 24, rows = 20) {
+  const orig = (widgets || []).filter(
+    w => w && Number.isFinite(w.x) && Number.isFinite(w.y) && Number.isFinite(w.w) && Number.isFinite(w.h)
+  )
+  if (!cur?.place || !cur.type) return null
+  const columns = buildColumns(orig, cols, rows)
+  if (!columns.length) return null
+
+  const anchor = cur.anchor || deriveAnchor(cur.place, columns, cur.mutations)
+  const next = nudgeAnchor(anchor, dir, columns, familyOf(cur.type))
+  if (!next) return null
+
+  const resolved = next.kind === 'stack'
+    ? resolveStack(columns, next.colKey, next.pos, cur.type, cols, rows)
+    : resolveOwnColumn(columns, next.gap, cur.type, cols, rows)
+  if (!resolved) return null
+
+  // Don't offer a move that lands the ghost exactly where it already sits.
+  const g = cur.place
+  const p = resolved.place
+  if (p.x === g.x && p.y === g.y && p.w === g.w && p.h === g.h) return null
+  return { place: p, mutations: resolved.mutations, anchor: next }
 }

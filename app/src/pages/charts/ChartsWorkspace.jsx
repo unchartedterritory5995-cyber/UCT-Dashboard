@@ -19,7 +19,7 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
-import { planPlacement, reflowOnClose } from './placement/place'
+import { planPlacement, nudgePlan } from './placement/place'
 import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
@@ -513,13 +513,9 @@ export default function ChartsWorkspace() {
   const gridGap = merged ? 0 : MARGIN_Y
   const toggleMerged = useCallback(() => setPref('charts_merged', JSON.stringify(!merged)), [merged, setPref])
 
-  // Smart-placement suggest-then-confirm (Phase 2). When on (default), a newly ADDED
-  // widget shows a ghost preview at its planned slot before committing; the user
-  // confirms (Place/Enter/click) or cancels (Esc). "skip next time" persists the
-  // pref off for instant placement thereafter.
-  const smartPlaceConfirm = parsePref(prefs?.smart_place_confirm, true) === true
-  const smartConfirmRef = useRef(smartPlaceConfirm)
-  smartConfirmRef.current = smartPlaceConfirm
+  // Smart-placement suggest-then-confirm. The ghost preview shows ONLY when placing a
+  // widget requires resizing/moving an existing one (plan.mutations non-empty); when it
+  // fits in empty space it's placed immediately with no confirm step.
   // The pending add awaiting confirmation: { type, seedOpts, newId, place, mutations }.
   const [pendingAdd, setPendingAdd] = useState(null)
   const pendingAddRef = useRef(null)
@@ -1000,16 +996,11 @@ export default function ChartsWorkspace() {
     window.addEventListener('pointerup', onUp)
   }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
 
-  const handleRemoveWidget = useCallback((id, { reflow = true } = {}) => {
+  const handleRemoveWidget = useCallback((id) => {
     setLayout(prev => {
-      // Close reflow (Phase 3): the widget adjacent to the closed one in the same
-      // column band grows to reclaim the freed space (symmetric inverse of add).
-      // Skipped for floating/popped removals — their grid slot is a reserved parking
-      // spot, not a real neighbor, so reflowing off it would grow the wrong widget.
-      const widgets = (SMART_PLACEMENT && reflow)
-        ? reflowOnClose(prev.widgets, id)
-        : prev.widgets.filter(w => w.id !== id)
-      const next = { ...prev, widgets }
+      // Delete removes ONLY the closed widget — no reflow. Every other widget keeps
+      // its exact position/size (owner decision); the freed space is simply left blank.
+      const next = { ...prev, widgets: prev.widgets.filter(w => w.id !== id) }
       scheduleSave(next)
       return next
     })
@@ -1194,16 +1185,19 @@ export default function ChartsWorkspace() {
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
     const newId = `w-${type}-${Date.now()}`
-    // Smart-placement suggest-then-confirm: compute where the widget WOULD land and
-    // show a ghost preview instead of committing. commitPendingAdd finishes the add
-    // when the user confirms. (Float-on-create and the instant/legacy paths below are
-    // unaffected.) `instant` bypasses the ghost for programmatic prerequisite adds
-    // (e.g. Compare/Replay auto-opening a chart) where the user didn't ask to add one.
-    if (!float && !instant && SMART_PLACEMENT && smartConfirmRef.current) {
+    // Smart-placement: the ghost preview appears ONLY when placing the widget requires
+    // resizing/moving an existing one (plan.mutations non-empty). When it fits in empty
+    // space, fall through and place it immediately — no confirm step. (Float-on-create
+    // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
+    // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
+    if (!float && !instant && SMART_PLACEMENT) {
       const base = layoutRef.current?.widgets || []
       const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
-      setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
-      return
+      if (plan.mutations && plan.mutations.length > 0) {
+        setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
+        return
+      }
+      // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
@@ -1318,11 +1312,15 @@ export default function ChartsWorkspace() {
     setPendingAdd(null)
   }, [groupSyms, scheduleSave])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
-  // "skip next time" — persist the confirm pref off, then place immediately.
-  const skipConfirmAndPlace = useCallback(() => {
-    setPref('smart_place_confirm', JSON.stringify(false))
-    commitPendingAdd()
-  }, [setPref, commitPendingAdd])
+  // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
+  // its place + the widgets it displaces) before the user commits with Place.
+  const handleNudge = useCallback((dir) => {
+    setPendingAdd(cur => {
+      if (!cur) return cur
+      const next = nudgePlan(layoutRef.current?.widgets || [], cur, dir, COLS.lg, FIXED_ROWS)
+      return next ? { ...cur, place: next.place, mutations: next.mutations, anchor: next.anchor } : cur
+    })
+  }, [])
 
   // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
   // chart widget is open, auto-open one first (it registers its API on mount and
@@ -1649,7 +1647,7 @@ export default function ChartsWorkspace() {
   // Closing a widget from inside its own window should delete it, not dock it.
   const handleRemovePoppedWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => prev.filter(x => x !== id))
-    handleRemoveWidget(id, { reflow: false })
+    handleRemoveWidget(id)
   }, [handleRemoveWidget])
 
   // ── In-canvas float: pop a widget onto another widget, dock it back, move it
@@ -1669,7 +1667,7 @@ export default function ChartsWorkspace() {
   const handleRemoveFloatWidget = useCallback((id) => {
     setFloatingWidgetIds(prev => prev.filter(x => x !== id))
     clearFloatSpawn(id)
-    handleRemoveWidget(id, { reflow: false })
+    handleRemoveWidget(id)
   }, [handleRemoveWidget, clearFloatSpawn])
   const handleFloatWidgetToTab = useCallback((floatId, targetId) => {
     if (floatId === targetId) return
@@ -2111,10 +2109,17 @@ export default function ChartsWorkspace() {
               rowHeight={rowHeight}
               gap={gridGap}
               cols={GRID_COLS}
+              light={prefs?.theme === 'light'}
               label={HEADER_LABELS[pendingAdd.type] || 'Widget'}
               onConfirm={commitPendingAdd}
               onCancel={cancelPendingAdd}
-              onSkipConfirm={skipConfirmAndPlace}
+              onNudge={handleNudge}
+              arrows={{
+                up: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'up', COLS.lg, FIXED_ROWS),
+                down: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'down', COLS.lg, FIXED_ROWS),
+                left: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'left', COLS.lg, FIXED_ROWS),
+                right: !!nudgePlan(layoutRef.current?.widgets || [], pendingAdd, 'right', COLS.lg, FIXED_ROWS),
+              }}
             />
           )}
           {/* Merged mode: draggable seams between adjacent widgets (TC2000-style
