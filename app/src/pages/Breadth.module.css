@@ -1,6 +1,6 @@
 /* Breadth Monitor — spreadsheet-style table */
 
-.page { padding: 20px 24px; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.page { padding: 20px 24px; --page-pad-top: 20px; --page-pad-x: 24px; display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
 .header {
   display: flex;
@@ -10,7 +10,7 @@
   flex-shrink: 0;
 }
 
-.pageCot { padding: 0; }
+.pageCot { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
 .cotTabHeader { padding: 20px 24px 0; margin-bottom: 0; }
 
 .tabs {
