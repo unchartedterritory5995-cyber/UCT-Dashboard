@@ -780,3 +780,69 @@ def test_the_bare_control_share_is_MEASURED_not_typed():
     # above passes for the wrong reason.
     assert pattern.search("_open_range ships 81 of our 147 controls bare"), (
         "the scanner cannot detect the defect it guards")
+
+
+# ───────── a "cheap" preset must never return a loss-maker ──────────────────
+#
+# 🔴 THE DEFECT. PEG is P/E over growth. A loss-making company has a NEGATIVE
+# P/E, and a shrinking one a negative denominator — two negatives make a small,
+# attractive POSITIVE. The shipped `Under 1` preset was a bare `peg <= 1`, so
+# one click returned the most distressed names in the universe labelled as cheap
+# growth. Measured on a 17-name sample: LCID at PEG 0.019 (P/E -0.40, net margin
+# -264%) was the LOWEST value in the sample, and on an ascending sort BABA at
+# -0.482 sorted first. Found by verifying VALUES, not behaviour — no behavioural
+# test could fail on it, because the SQL was doing exactly what it said.
+
+def test_a_cheap_valuation_preset_cannot_admit_a_negative_ratio():
+    """Every preset whose label promises cheapness must be bounded below.
+
+    ⭐ The rule is derived from the labels, not from a list of keys I typed —
+    a `Under N` preset added to another ratio tomorrow is covered the day it
+    lands.
+    """
+    import re
+    from api.services.screener.filters import FILTERS
+
+    # Ratios where a negative value means "loses money", not "cheap".
+    SIGNED_RATIOS = {"peg", "pe_ttm", "pe_fwd", "p_fcf", "p_ocf", "ps", "pb"}
+    offenders = []
+    for key, spec in FILTERS.items():
+        if key not in SIGNED_RATIOS:
+            continue
+        for p in (spec.get("presets") or []):
+            label = str(p.get("label", ""))
+            if not re.match(r"^(under|below|less than)\b", label, re.I):
+                continue
+            lo = p.get("min")
+            if lo is None or lo < 0:
+                offenders.append(
+                    f"{key}: preset {label!r} has no lower bound "
+                    f"(op={p.get('op')!r} min={lo!r} max={p.get('max')!r}) — "
+                    f"a negative {key} would match and sort first"
+                )
+    assert not offenders, (
+        "a preset promising cheapness admits negative ratios:\n  "
+        + "\n  ".join(offenders)
+    )
+
+    # Control: the scanner must be able to SEE the defect it guards, or it
+    # passes for the wrong reason once every preset happens to be compliant.
+    bad = {"label": "Under 1", "op": "lte", "max": 1}
+    assert re.match(r"^(under|below|less than)\b", bad["label"], re.I) \
+        and bad.get("min") is None, \
+        "the detector no longer recognises the exact shape that shipped"
+
+
+def test_the_peg_preset_bounds_are_the_ones_the_sql_will_use():
+    """The floor has to survive into the emitted predicate, not just sit in the
+    preset dict. A bound the query builder ignores is decoration."""
+    from api.services.screener.filters import FILTERS
+
+    presets = {p.get("label"): p for p in FILTERS["peg"]["presets"]}
+    for label in ("Under 1", "Under 2"):
+        p = presets[label]
+        assert p["op"] == "between", (
+            f"{label} is {p['op']!r}; only a two-sided op carries the floor")
+        assert p["min"] == 0, f"{label} lost its lower bound: {p}"
+    assert presets["Under 1"]["max"] == 1
+    assert presets["Under 2"]["max"] == 2
