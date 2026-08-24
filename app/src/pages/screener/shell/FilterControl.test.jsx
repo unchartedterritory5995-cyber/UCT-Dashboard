@@ -89,6 +89,64 @@ describe('FilterControl — column description surface', () => {
     expect(screen.queryByRole('note')).toBeNull()
   })
 
+  it('Escape closes the description and never reaches the sheet hosting the rail', async () => {
+    const user = userEvent.setup()
+    // Below 1024px the rail is display:none and FiltersSheet re-hosts it, so
+    // this IS the shipping arrangement on touch. `Sheet.jsx` registers Escape
+    // on `document` in CAPTURE when it opens — before the panel exists — and
+    // two listeners on one node fire in registration order, so a
+    // stopImmediatePropagation from the panel would arrive second and too
+    // late. Dismissing a tooltip must not dump the member out of the sheet.
+    const hostEscape = vi.fn()
+    document.addEventListener('keydown', hostEscape, true)
+    try {
+      render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+      const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+      // CONTROL: with nothing open the host DOES hear Escape. Without this the
+      // assertion below could pass because the probe never fires at all.
+      await user.keyboard('{Escape}')
+      expect(hostEscape).toHaveBeenCalledTimes(1)
+
+      await user.click(btn)
+      expect(screen.getByRole('note')).toBeTruthy()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('note')).toBeNull()
+      expect(hostEscape).toHaveBeenCalledTimes(1) // still 1 — the sheet never heard it
+      expect(document.activeElement).toBe(btn)
+    } finally {
+      document.removeEventListener('keydown', hostEscape, true)
+    }
+  })
+
+  it('the panel carries a labelled dismiss, and Tab leaves by the on-screen order', async () => {
+    const user = userEvent.setup()
+    render(<FilterControl filter={DP} value={null} onChange={() => {}} />)
+    const btn = screen.getByRole('button', { name: 'What Dark Pool Block Notional (1d) means' })
+
+    await user.click(btn)
+    // A touch screen reader has no Escape key; the dismiss is how it closes.
+    await user.click(screen.getByRole('button', { name: 'Close description' }))
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+
+    // Tab out of a panel portaled to the END of <body> would otherwise strand
+    // focus there. The panel closes and focus is handed back to the trigger,
+    // so it is never left on a node that has just been removed.
+    //
+    // ⚠️ RAW keyDown, not `user.tab()`, and the difference is the point. jsdom
+    // has no default action for Tab, so userEvent supplies its own focus move
+    // AFTER the handlers run — from the panel, which is the last thing in
+    // <body>, it lands on <body>. Asserting through it would be asserting
+    // userEvent's internals. This dispatches the key and asserts exactly the
+    // half this component owns; that the browser's default Tab then continues
+    // from the trigger to the select is verified in Chromium (surface report).
+    await user.click(btn)
+    fireEvent.keyDown(screen.getByRole('note'), { key: 'Tab' })
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
   it('a filter whose column has no desc grows NO affordance — same probe, both populations', () => {
     // CONTROL: absence is only evidence if the query can see a present one.
     const { unmount } = render(<FilterControl filter={RS} value={null} onChange={() => {}} />)

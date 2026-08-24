@@ -97,6 +97,27 @@ describe('VirtualResults — column description surface', () => {
     expect(document.activeElement).toBe(btn)
   })
 
+  it('opening announces the CONTENT, not just the trigger: focus lands in the panel', async () => {
+    // `aria-controls` alone is not reachability. The panel is portaled to the
+    // END of <body>; NVDA and VoiceOver do not follow aria-controls, so a blind
+    // member who activated the trigger would hear "expanded" and nothing else.
+    const user = userEvent.setup()
+    render(<VirtualResults {...withCols(['ticker', 'price', DESCRIBED])} />)
+
+    const btn = screen.getByRole('button', { name: 'What DP $ 1d means' })
+    expect(btn).not.toHaveAttribute('aria-describedby') // control: closed = no association
+
+    await user.click(btn)
+    const panel = screen.getByRole('note')
+    expect(document.activeElement).toBe(panel)
+    expect(btn).toHaveAttribute('aria-describedby', panel.id)
+    // The panel deliberately has NO accessible name of its own, so what a
+    // screen reader reads on landing is the honesty text itself.
+    expect(panel).not.toHaveAttribute('aria-label')
+    expect(panel).not.toHaveAttribute('aria-labelledby')
+    expect(panel).toHaveTextContent(COLUMN_DEFS[DESCRIBED].desc)
+  })
+
   it('the described column reserves the trigger its own width, so the label is not squeezed', () => {
     render(<VirtualResults {...withCols(['price', DESCRIBED])} />)
     // 92px is the plain numeric track; the described one is wider by exactly

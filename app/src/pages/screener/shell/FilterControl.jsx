@@ -56,9 +56,15 @@ export default function FilterControl({ filter, value, onChange }) {
           snapshot column of the same name for every filter but one (`pattern`,
           whose column is `patterns` and which carries no `desc`). `ColumnDesc`
           renders nothing when the column has none, so most rows are unchanged. */}
+      {/* `tapTarget` is set HERE and nowhere else. Below 1024px this rail is
+          `display:none` and its whole content is re-hosted inside FiltersSheet,
+          so the rail IS the touch surface for filters — and the row has slack
+          beside the label, which the 112px results-header track does not. The
+          span is `align-items:center`, so a 44px trigger raises the span (and
+          the row with it) instead of overflowing anything. */}
       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <label className={styles.filterLabel} htmlFor={`fc_${filter.key}`}>{filter.label}</label>
-        <ColumnDesc colKey={filter.key} name={filter.label} />
+        <ColumnDesc colKey={filter.key} name={filter.label} tapTarget />
       </span>
       <select id={`fc_${filter.key}`} aria-label={filter.label}
         className={`${styles.filterSelect} ${value ? styles.filterSelectActive : ''}`}

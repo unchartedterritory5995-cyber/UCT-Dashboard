@@ -82,7 +82,21 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
               parked at a cell's right edge sits closer to the NEXT column's
               label than to its own and reads as that one's. Leading it is
               unambiguous, and it keeps `.hbtn` full-width so the whole
-              remaining cell stays the sort target. */}
+              remaining cell stays the sort target.
+
+              ⚠️ MEASURED 2026-08-23, and it decides how much of this a member
+              ever meets: NO described column reaches this grid on first paint.
+              `specUrl.DEFAULT_VIEW` is `overview`, whose nine columns (ticker,
+              company, sector, market_cap, price, chg_pct_1d, vol_ratio,
+              rs_rank, patterns) carry no `desc` at all. Of the 18 described
+              columns, 8 appear only in the `patterns` view, 7 only in `flow`,
+              and 3 (eps_past_5y_growth, eps_next_5y_growth,
+              sales_past_5y_growth) in NO shipped view — reachable here only by
+              hand-picking them in the column picker. Derived by joining
+              `descFor` over `COLUMN_DEFS` against `filters.py::VIEWS`; re-run
+              that join rather than trusting these numbers. Until a described
+              column lands in the default view, the filter rail (all groups
+              default-open) is the only first-paint honesty surface. */}
           {columns.map(c => (
             <div role="columnheader" aria-sort={ariaSort(c)} key={c}
               title={COLUMN_DEFS[c]?.desc || undefined}
