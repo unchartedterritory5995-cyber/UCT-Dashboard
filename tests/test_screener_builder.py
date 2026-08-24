@@ -257,3 +257,300 @@ def test_run_build_stops_naming_a_column_once_it_is_filled(tmp_path, monkeypatch
     assert "rs_rank" not in stats["empty_columns"]
     assert stats["populated"]["rs_return"] == 2
     assert "rs_ranking" not in stats["sources"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# FIX ROUND 2 — accuracy audit 2026-08-23, defect #4: FRESHNESS
+#
+# Two columns in one row disagreed about what day it is. Measured on
+# `C:\data\screener.db`, `snapshot_date='2026-08-23'`:
+#   * 805 of 3,707 rows (21.7%) carry bars older than 2026-08-01;
+#   * ages behind 2026-08-23 — 2,749 at 0 sessions, 137 at 1, 5 at 2-9,
+#     11 at 10-20, 812 at 21+ (a healthy row, then a cliff);
+#   * ACA/APGE/CRNX/NUVL are absent from `cap_universe.json` and still serve
+#     rows stamped 2026-07-10 — CRNX at price 35.87 against an 8/21 close of
+#     84.69 (+136%);
+#   * HCICU raises `ZeroDivisionError` out of `setup_score.compute` every
+#     night, so its whole row is discarded and the served one is 30 sessions
+#     stale.
+# ══════════════════════════════════════════════════════════════════════════
+
+import datetime
+
+
+def _weekday_ymds(n, end=None):
+    """`n` consecutive weekday `YYYYMMDD` ints ending on `end` (default TODAY).
+
+    ⛔ DERIVED FROM THE CLOCK. Staleness is measured against today, so a
+    fixture pinned to a literal date passes this week and goes red on its own
+    next month — `_weekday_only_test_time_bombs`.
+    """
+    out, d = [], (end or datetime.date.today())
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(int(d.strftime("%Y%m%d")))
+        d -= datetime.timedelta(days=1)
+    return list(reversed(out))
+
+
+def _bars(n=40, end=None, close=100.0):
+    return [{"t": ymd, "o": close, "h": close + 0.5, "l": close - 0.5,
+             "c": close, "v": 1000} for ymd in _weekday_ymds(n, end)]
+
+
+# ───────────────────── the age measurement + the policy ─────────────────────
+
+def test_price_age_is_borrowed_from_the_live_tier_never_recomputed(monkeypatch):
+    """⛔ ONE AUTHORITY FOR "HOW OLD IS THIS ANCHOR".
+
+    `live_tier.anchor_age_sessions` already counts weekday sessions in
+    `(bars_asof, ymd]` and is what the live overlay's own staleness gate reads.
+    This asserts the builder CALLS it rather than carrying a private copy — a
+    second implementation would be the exact defect this whole audit found
+    everywhere else. The stub returns a value no real calendar produces, so a
+    private copy could not accidentally agree with it.
+    """
+    from api.services.screener import snapshot_builder as b, live_tier
+    seen = {}
+
+    def _fake(bars_asof, ymd):
+        seen["args"] = (bars_asof, ymd)
+        return 999
+
+    monkeypatch.setattr(live_tier, "anchor_age_sessions", _fake)
+    assert b.price_age_sessions("20260618", today_ymd=20260823) == 999
+    assert seen["args"] == ("20260618", 20260823)
+
+
+def test_price_is_stale_reads_the_real_calendar_at_the_shipped_threshold():
+    """The measurement, unstubbed, on the audit's own dates."""
+    from api.services.screener import snapshot_builder as b
+    # RDDT's row: a 2026-06-18 bar served on 2026-08-23 — 46 weekdays in
+    # (6/18, 8/23], counted independently, not copied out of the function.
+    assert b.price_age_sessions("20260618", today_ymd=20260823) == 46
+    assert b.price_is_stale("20260618", today_ymd=20260823) is True
+    # Friday's close served on Sunday's build is the HEALTHY case and must not
+    # trip the gate — 0 sessions, the shape 2,749 of 3,707 rows are in.
+    assert b.price_age_sessions("20260821", today_ymd=20260823) == 0
+    assert b.price_is_stale("20260821", today_ymd=20260823) is False
+    # A row that will not say what day its price is from cannot be shown to be
+    # fresh, so unknown reads as STALE — the direction that withholds.
+    assert b.price_is_stale(None, today_ymd=20260823) is True
+    assert b.price_is_stale("not-a-date", today_ymd=20260823) is True
+
+
+def test_the_staleness_threshold_is_this_module_s_own_knob(monkeypatch):
+    """⛔ NOT `live_tier.max_anchor_age_sessions()`. That answers "may we hang a
+    live tick on this level"; this answers "may we divide last night's analyst
+    target by this price". Moving one must not move the other.
+    """
+    from api.services.screener import snapshot_builder as b, live_tier
+    assert b.stale_price_sessions() == 10
+    monkeypatch.setenv("SCREENER_STALE_PRICE_SESSIONS", "2")
+    assert b.stale_price_sessions() == 2
+    # ...and the live tier's own gate is untouched by that env var.
+    assert live_tier.max_anchor_age_sessions() == 5
+    # A junk value falls back to the documented default rather than raising
+    # inside a nightly build.
+    monkeypatch.setenv("SCREENER_STALE_PRICE_SESSIONS", "soon")
+    assert b.stale_price_sessions() == 10
+
+
+# ─────────────── a raising bar consumer costs its columns, not the row ───────
+
+def test_a_raising_bar_consumer_costs_its_columns_never_the_row(monkeypatch):
+    """🔴 THE HCICU DEFECT. `setup_score.compute` divides by the mean volume of
+    the window's down days and raises `ZeroDivisionError` when every one of
+    them is zero-volume. `build_row` did not wrap it, so the exception escaped
+    to `run_build`'s per-ticker `except`, the row was DISCARDED, and the
+    previously-upserted row was never touched — which is not an absence, it is
+    last month's row staying live. Reproduced from `bars.db`: HCICU's served
+    row is `snapshot_date=2026-08-10, bars_asof=20260709` while bars.db holds
+    it through 20260820.
+    """
+    from api.services.screener import snapshot_builder as b, setup_score
+
+    def _boom(bars, pole_pct=None):
+        raise ZeroDivisionError("division by zero")
+
+    monkeypatch.setattr(setup_score, "compute", _boom)
+    bars = _bars()
+    failures = {}
+    row = b.build_row("HCICU", bars, None, None, failures=failures)
+
+    # The row exists, is re-dated, and every OTHER consumer's columns landed.
+    assert row["ticker"] == "HCICU"
+    assert row["bars_asof"] == str(bars[-1]["t"])
+    assert row["price"] == 100.0
+    assert row["candle_type"] is not None
+    # The failed consumer's columns are honestly NULL...
+    assert row["candle_score"] is None
+    assert row["ema_touch_count"] is None
+    # ...and the reason is COUNTED BY NAME in the same census every reader in
+    # this file reports into, never swallowed.
+    assert failures["bars_setup_score"] == {"ZeroDivisionError": 1}
+
+
+def test_the_control_the_same_row_with_setup_score_working():
+    """The control for the rail above. Without it, a `build_row` that had
+    simply stopped calling `setup_score` would pass forever."""
+    from api.services.screener import snapshot_builder as b
+    failures = {}
+    row = b.build_row("HCICU", _bars(), None, None, failures=failures)
+    assert row["candle_score"] is not None
+    assert row["ema_touch_count"] is not None
+    assert "bars_setup_score" not in failures
+
+
+def test_a_raising_consumer_still_advances_the_rows_date(monkeypatch):
+    """`bars_asof` is stamped OUTSIDE every guard. Even with EVERY bar consumer
+    dead, the row still says which session its bars came from — a row that
+    cannot date itself is the one shape no downstream label can rescue."""
+    from api.services.screener import (snapshot_builder as b, technicals,
+                                       candles, setup_score, patterns)
+
+    def _boom(*a, **k):
+        raise RuntimeError("dead")
+
+    for mod, fn in ((technicals, "compute_technicals"),
+                    (technicals, "ath_fields"), (candles, "single_candle"),
+                    (candles, "multi_candle"), (setup_score, "compute"),
+                    (patterns, "detect_patterns")):
+        monkeypatch.setattr(mod, fn, _boom)
+    bars = _bars()
+    failures = {}
+    row = b.build_row("AAA", bars, None, None, failures=failures)
+    assert row["bars_asof"] == str(bars[-1]["t"])
+    assert row["price"] is None            # honest-None, never a fabricated 0
+    assert len(failures) == 6              # each one named, not one aggregate
+
+
+# ───────────── the target set includes the rows we already serve ─────────────
+
+def test_stalest_queues_a_row_the_universe_no_longer_lists(tmp_path, monkeypatch):
+    """🔴 CRNX +136%. `_stalest` iterated `cap_universe.json` alone, so a ticker
+    dropped from the universe kept its row FOREVER — still selected by every
+    scan, still sorting, still filtering, never revisited. Four such rows are
+    live on this box (ACA, APGE, CRNX, NUVL, all stamped 2026-07-10).
+    """
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    import api.services.screener.snapshot_db as sdb
+    import api.services.screener.snapshot_builder as b
+    importlib.reload(sdb)
+    importlib.reload(b)
+    sdb.init_db()
+    sdb.upsert_rows([{"ticker": "CRNX", "price": 35.87, "built_at": 1},
+                     {"ticker": "AAA", "price": 10.0, "built_at": 99}])
+
+    out = b._stalest(["AAA", "BBB"], 10)
+    assert "CRNX" in out, "a row we already serve is a rebuild target"
+    # ...and it is ordered ahead of the fresher built row, because it is the
+    # stalest thing in the table.
+    assert out.index("CRNX") < out.index("AAA")
+    # Never-built symbols still come first overall.
+    assert out[0] == "BBB"
+
+
+def test_stalest_does_not_turn_a_missing_universe_into_a_whole_rebuild(tmp_path, monkeypatch):
+    """The control. `_load_universe` returns `[]` when the file is missing or
+    unreadable, and "no universe" must keep meaning "build nothing" — the union
+    turning that into "rebuild every row we hold" would make a missing config
+    file silently launch a whole-universe run."""
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s2.db"))
+    import api.services.screener.snapshot_db as sdb
+    import api.services.screener.snapshot_builder as b
+    importlib.reload(sdb)
+    importlib.reload(b)
+    sdb.init_db()
+    sdb.upsert_rows([{"ticker": "CRNX", "price": 35.87, "built_at": 1}])
+    assert b._stalest([], 10) == []
+
+
+# ───────────── market_cap keeps ONE meaning on a stale row ─────────────
+
+def _stub_run_build_readers(monkeypatch, b, tickers, bars, got):
+    """Stub every reader `run_build` calls, recording the price that reaches
+    `_read_fundamentals` (the argument `massive.get_market_cap` uses for its
+    shares x price fallback)."""
+    from api.services.screener import (context_joins as cj, finviz_universe,
+                                       earnings_dates, earnings_context,
+                                       analyst_pass, insider_capture,
+                                       pattern_join, darkpool_agg, opt_flow)
+    import api.services.bars_sqlite as bs
+    tuples = [(x["t"], x["o"], x["h"], x["l"], x["c"], x["v"]) for x in bars]
+    monkeypatch.setattr(b, "_load_universe", lambda: list(tickers))
+    monkeypatch.setattr(bs, "get_bars", lambda t, tf, n: tuples)
+    monkeypatch.setattr(b, "_read_rs_map", lambda: {})
+    monkeypatch.setattr(b, "_read_bulk_fundamentals",
+                        lambda t, failures=None: {})
+    monkeypatch.setattr(b, "_read_ratings", lambda t, failures=None: {})
+    monkeypatch.setattr(b, "_read_spy_closes", lambda: [])
+
+    def _funda(t, price=None, failures=None):
+        got["price"] = price
+        return {}
+
+    monkeypatch.setattr(b, "_read_fundamentals", _funda)
+    for fn in ("read_breadth_flags", "read_uct20", "read_index_flags",
+               "read_etf_flags"):
+        monkeypatch.setattr(cj, fn, lambda targets, failures=None: {})
+    for mod, fn in ((finviz_universe, "read_finviz_fields"),
+                    (earnings_dates, "read_earnings_dates"),
+                    (earnings_context, "read_last_report_move"),
+                    (earnings_context, "read_implied_context"),
+                    (analyst_pass, "read_analyst_fields"),
+                    (insider_capture, "read_insider_fields"),
+                    (pattern_join, "read_pattern_fields"),
+                    (darkpool_agg, "read_darkpool_fields"),
+                    (opt_flow, "read_opt_flow_fields")):
+        monkeypatch.setattr(mod, fn, lambda targets, failures=None, **kw: {})
+
+
+def test_the_market_cap_price_is_the_row_s_own_price(tmp_path, monkeypatch):
+    """`anchor_asof` must agree with what `build_row` stamps, or the two would
+    be two answers to "what day is this row's price from". This pins that the
+    price handed to `massive.get_market_cap` on a FRESH row is the row's own
+    `price`, and that the row's `bars_asof` is the one `anchor_asof` predicted.
+    """
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s3.db"))
+    import api.services.screener.snapshot_db as sdb
+    import api.services.screener.snapshot_builder as b
+    importlib.reload(sdb)
+    importlib.reload(b)
+    bars = _bars(60)
+    got = {}
+
+    _stub_run_build_readers(monkeypatch, b, ["AAA"], bars, got)
+    b.run_build(max_tickers=1)
+    row = sdb.get_row("AAA")
+    assert b.anchor_asof(bars) == row["bars_asof"]
+    assert got["price"] == row["price"] == 100.0
+
+
+def test_market_cap_is_handed_no_price_when_the_row_is_stale(tmp_path, monkeypatch):
+    """🔴 ONE NAME, ONE MEANING. `massive.get_market_cap` prefers the provider's
+    CURRENT `market_cap` field and falls back to `shares x the price WE hand
+    it`. On a stale row those two paths publish different quantities under one
+    column name — one dated today, one dated a June bar — and nothing on the
+    row tells them apart. Handing it no price collapses that to a single
+    meaning: the provider's current figure, or honestly absent.
+
+    ⭐ THE CONTROL IS THE TEST ABOVE: identical wiring, a FRESH last bar, and
+    the price IS handed over. The bar date is the only difference.
+    """
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s4.db"))
+    import api.services.screener.snapshot_db as sdb
+    import api.services.screener.snapshot_builder as b
+    importlib.reload(sdb)
+    importlib.reload(b)
+    old = datetime.date.today() - datetime.timedelta(days=120)
+    bars = _bars(60, end=old)
+    got = {}
+
+    _stub_run_build_readers(monkeypatch, b, ["AAA"], bars, got)
+    b.run_build(max_tickers=1)
+    row = sdb.get_row("AAA")
+    assert got["price"] is None
+    # The row itself is untouched: price and date still published.
+    assert row["price"] == 100.0
+    assert row["bars_asof"] == str(bars[-1]["t"])

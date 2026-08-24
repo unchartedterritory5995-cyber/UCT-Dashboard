@@ -66,6 +66,133 @@ from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
 log = logging.getLogger(__name__)
 
 
+# ── the row's price date, and how old is too old ──────────────────────────────
+#
+# 🔴 THE DEFECT THIS SECTION EXISTS FOR (accuracy audit 2026-08-23, #4).
+# `price` is the last daily close we hold, stamped beside `bars_asof`, and
+# NOTHING gated on that stamp. Measured on `C:\data\screener.db`,
+# `snapshot_date='2026-08-23'`: **805 of 3,707 rows (21.7%) carry bars older
+# than 2026-08-01**, RDDT publishes $174.96 off a 2026-06-18 bar, BABA $112.33
+# off 2026-07-10. Ages in weekday sessions behind 2026-08-23, all 3,714 rows:
+# 2,749 at 0 · 137 at 1 · 5 at 2-9 · 11 at 10-20 · **812 at 21+**. A healthy row
+# is 0-1 sessions behind and then there is a cliff.
+#
+# ⭐ WHAT IS AND IS NOT WITHHELD, AND WHY — this is a definition choice, so it
+# is written down rather than left in the diff:
+#
+#   * A stale row's BAR-DERIVED family (price, the MAs, RSI, the 52-week and
+#     20-day extremes, `dollar_vol_30d`) is KEPT. Every one of those is measured
+#     at the SAME `bars_asof`, so the family is internally consistent — it is
+#     *stale*, not *wrong*, and for the 961-of-965 stale rows that have no newer
+#     bar anywhere in `bars.db` (delisted/halted) the last close is the only
+#     honest number that will ever exist. Withholding it would delete the record
+#     rather than date it. What those rows are owed is a LABEL, and the label
+#     already exists per row: `bars_asof`. Publishing it to a member is a read-
+#     path job (see this module's report) — deleting the value here would put
+#     the label permanently out of reach.
+#   * A stale row's CROSS-CLOCK derivations are WITHHELD. `pt_upside_pct` and
+#     `pattern_entry_dist_pct`/`pattern_stop_dist_pct` are the only three
+#     columns this builder computes by dividing a CURRENT-clock number (last
+#     night's analyst target; a detection from the last 7 days) by the row's
+#     `price`. Those are not stale, they are *arithmetic between two different
+#     dates* — a confident percentage that describes no session that ever
+#     happened. An honest absence beats it, and the coverage line already knows
+#     how to say "not computable".
+#   * WHAT IT COSTS THE OTHER SIDE: a name halted for three weeks that resumes
+#     trading loses its analyst-upside and pattern-distance columns until the
+#     next build catches its bars up. Measured cost on the current snapshot at
+#     the shipped threshold: **0 rows** (`pt_upside_pct` is 0/3,714 non-null on
+#     this box — no `FMP_API_KEY`; `pattern_entry_dist_pct` is 2,889/3,714
+#     non-null and exactly **2** of those rows are more than 5 sessions stale,
+#     0 more than 10). The gate cannot fire on a healthy row: the nearest
+#     populated age bucket below it holds 5 rows.
+
+
+def stale_price_sessions() -> int:
+    """Completed sessions after which this builder stops dividing a
+    current-clock number by the row's ``price``.
+
+    ⛔ THIS IS DELIBERATELY NOT ``live_tier.max_anchor_age_sessions()`` (5),
+    and the two must not be merged. That one answers *"may we hang a LIVE TICK
+    on this level"* — an intraday question about whether a level still describes
+    the tape. This one answers *"may we divide last night's analyst target by
+    this price"* — a nightly question about two clocks in one row. They will
+    usually sit close together and are allowed to move apart; wiring the live
+    sweeper's tuning knob to what the nightly build publishes is the
+    second-authority-over-one-value defect in a new place.
+
+    10 is chosen off the measured distribution above: it sits inside the gap
+    between the healthy population (2,886 of 3,714 rows at ≤1 session) and the
+    coverage-hole population (812 rows at 21+), so any value in 5..20 separates
+    them and none of them can misfire on a normal weekend or holiday.
+    """
+    try:
+        return int(os.environ.get("SCREENER_STALE_PRICE_SESSIONS") or 10)
+    except (TypeError, ValueError):
+        return 10
+
+
+def _asof_of(usable_bars_list):
+    """``bars_asof`` for an ALREADY-SANITIZED bar list — the ONE expression
+    that turns bars into the row's price date, so nothing computes a second
+    answer to *"what day is this row's price from?"*"""
+    if not usable_bars_list:
+        return None
+    t = usable_bars_list[-1].get("t")
+    return str(t) if t is not None else None
+
+
+def anchor_asof(bars):
+    """The ``bars_asof`` a row built from these RAW bars will carry.
+
+    For the one caller that has to know a row's price date BEFORE ``build_row``
+    runs (``_run_build_locked``, deciding whether to hand a stale close to
+    ``massive.get_market_cap``'s shares×price fallback). It reruns the same pure
+    filter ``build_row`` applies — ``usable_bars(bars[-400:])`` — and funnels
+    through the same ``_asof_of``, so the two cannot disagree.
+    ``test_the_market_cap_price_is_the_row_s_own_price`` is the rail on that.
+    """
+    return _asof_of(technicals.usable_bars((bars or [])[-400:]))
+
+
+def price_age_sessions(bars_asof, today_ymd=None):
+    """Completed sessions between the row's price date and today, or ``None``.
+
+    ⛔ THE MEASUREMENT HAS ONE AUTHORITY and it is not here:
+    ``live_tier.anchor_age_sessions`` already counts weekday sessions in
+    ``(bars_asof, ymd]`` and is the number the live overlay's own staleness gate
+    reads. A private copy in this file would be two answers to *"how old is this
+    anchor"*, which is exactly what the audit that produced this code found
+    everywhere else. Only the POLICY (``stale_price_sessions``) is this
+    module's; the arithmetic is borrowed whole.
+    """
+    if today_ymd is None:
+        today_ymd = int(datetime.date.today().strftime("%Y%m%d"))
+    try:
+        from . import live_tier  # lazy: same package, keeps import order flat
+        return live_tier.anchor_age_sessions(bars_asof, today_ymd)
+    except Exception:  # noqa: BLE001
+        # An unreadable age reads as STALE below, which withholds rather than
+        # publishes — the safe direction, and the same convention
+        # `anchor_age_sessions` documents for its own `None`.
+        log.warning("[screener] could not age bars_asof=%r; treating the price "
+                    "as stale for cross-clock derivations", bars_asof,
+                    exc_info=True)
+        return None
+
+
+def price_is_stale(bars_asof, today_ymd=None) -> bool:
+    """True when the row's price is too old to divide a current-clock number by.
+
+    ``None`` (absent or unparseable ``bars_asof``) reads as STALE — a row that
+    will not say what day its price is from cannot be shown to be fresh, and
+    the failure direction of guessing wrong here is a published percentage
+    between two different dates.
+    """
+    age = price_age_sessions(bars_asof, today_ymd)
+    return age is None or age > stale_price_sessions()
+
+
 def rs_fields(rs_row) -> dict:
     """``rs_ranking`` entry -> snapshot columns. ``{}`` when there is no entry.
 
@@ -103,7 +230,7 @@ def rs_fields(rs_row) -> dict:
 
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
-              market_row=None) -> dict:
+              market_row=None, failures=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -142,6 +269,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     (breadth/uct20/index/etf) — classification flags, disjoint from every other
     source by construction (each reader owns its own columns; see the module
     docstring). Merged BEFORE ``rs_fields``, which stays last/authoritative.
+
+    ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
+    every ``_read_*`` in this file already reports into; ``run_build`` passes
+    its ``sources`` census so a bar consumer that raises is COUNTED BY NAME
+    rather than costing the row (see the ``_step`` comment below).
     """
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
@@ -174,13 +306,59 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # Task 9 adds more consumers of both names.
     bars_full = technicals.usable_bars(bars)
     bars = technicals.usable_bars(bars[-400:])
+
+    # 🔴 A CONSUMER THAT RAISES MUST COST ITS COLUMNS, NEVER THE ROW — because
+    # a lost row is NOT an absence, it is LAST MONTH'S ROW STAYING LIVE.
+    # `run_build`'s per-ticker `except` increments an anonymous `errors` and
+    # moves on; the previously-upserted row is never touched, so the member
+    # keeps being served a complete, confident, months-old row while its
+    # neighbours are stamped today. Measured 2026-08-23: HCICU raises
+    # `ZeroDivisionError` out of `setup_score.compute` (line 99 — 8 consecutive
+    # zero-volume down days make `sum(down_vols)/len(down_vols)` zero), so its
+    # whole row is discarded every night and the served row is
+    # `snapshot_date=2026-08-10, bars_asof=20260709` — 30 sessions stale — while
+    # `bars.db` holds bars through 20260820.
+    #
+    # ⭐ This is the same seam-guard idiom as `_read_market_source` below, moved
+    # one level in: a raise degrades to `{}`, is COUNTED under its own label in
+    # the same `sources` census, and the row is still written — with the failed
+    # consumer's columns honestly NULL and, crucially, with `bars_asof` ADVANCED.
+    # Fixing whichever consumer raised is the other lane's job and does not make
+    # this guard redundant: the next zero-volume window will land on a different
+    # name next week, and freezing a row is the failure mode that hides.
+    def _note_step(label, exc):
+        if failures is not None:
+            failures.setdefault(label, {})
+            k = type(exc).__name__
+            failures[label][k] = failures[label].get(k, 0) + 1
+        log.warning("[screener] %s raised for %s; its columns are NULL this "
+                    "build (the row is still written, and re-dated)",
+                    label, row["ticker"], exc_info=True)
+
+    def _step(label, fn):
+        try:
+            return fn() or {}
+        except Exception as e:                                 # noqa: BLE001
+            _note_step(label, e)
+            return {}
+
     if bars:
-        row.update(technicals.compute_technicals(bars))
-        row.update(technicals.ath_fields(bars_full))
-        row.update(candles.single_candle(bars))
-        row.update(candles.multi_candle(bars))
-        row.update(setup_score.compute(bars, pole_pct=row.get("pole_pct")))
-        keys, conf = patterns.detect_patterns(bars)
+        row.update(_step("bars_technicals",
+                         lambda: technicals.compute_technicals(bars)))
+        row.update(_step("bars_ath_fields",
+                         lambda: technicals.ath_fields(bars_full)))
+        row.update(_step("bars_single_candle",
+                         lambda: candles.single_candle(bars)))
+        row.update(_step("bars_multi_candle",
+                         lambda: candles.multi_candle(bars)))
+        row.update(_step("bars_setup_score",
+                         lambda: setup_score.compute(
+                             bars, pole_pct=row.get("pole_pct"))))
+        try:
+            keys, conf = patterns.detect_patterns(bars)
+        except Exception as e:                                 # noqa: BLE001
+            _note_step("bars_detect_patterns", e)
+            keys = conf = None
         row["patterns"] = keys or None
         row["pattern_conf_max"] = conf or None
         if row.get("avg_volume_30d") is None:
@@ -188,13 +366,29 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             if vols:
                 row["avg_volume_30d"] = sum(vols) / len(vols)
         if spy_closes:
-            closes = [b["c"] for b in bars]
-            row["rs_line_trend"] = technicals.rs_line_trend(closes, spy_closes)
-        last_t = bars[-1].get("t")
-        row["bars_asof"] = str(last_t) if last_t is not None else None
+            try:
+                closes = [b["c"] for b in bars]
+                row["rs_line_trend"] = technicals.rs_line_trend(closes, spy_closes)
+            except Exception as e:                             # noqa: BLE001
+                _note_step("bars_rs_line_trend", e)
+        # ⛔ STAMPED OUTSIDE EVERY GUARD, ON PURPOSE. Whatever failed above, the
+        # row still says which session its bars came from — a row that cannot
+        # date itself is the one shape no downstream label can rescue.
+        row["bars_asof"] = _asof_of(bars)
+
+    # How old this row's price is, decided ONCE and read by every cross-clock
+    # derivation below. See the module-level block above for what this does and
+    # does not withhold, and why.
+    _stale_price = price_is_stale(row.get("bars_asof"))
     # Pure derivation — its factors are already columns; this is the ONE
     # writer for dollar_vol_30d (spec: this number exists nowhere else in the
     # platform).
+    #
+    # ⛔ NOT GATED ON STALENESS, deliberately: BOTH factors are `bars_asof`
+    # quantities, so on a stale row this is a correct dollar volume for a past
+    # session — one clock, not two. It is stale, and the row's `bars_asof` says
+    # so. (Its published as-of over-claiming `snapshot_date` is real and is the
+    # technicals lane's finding; the fix for a wrong LABEL is the label.)
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
     # Pure derivation, single writer: analyst price-target upside vs today's
@@ -209,21 +403,33 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # `analyst_pass`'s own not-computable sentinel; see that module's
     # `_fetch_pt_target`) mislabeled as a number. A non-positive price is
     # equally not-computable — the ratio is undefined, not merely large.
+    #
+    # 🔴 FIX ROUND 2 (accuracy audit 2026-08-23, #4): AND THE TWO FACTORS MUST
+    # SHARE A CLOCK. `pt_target` is last night's analyst consensus; `price` can
+    # be a bar from June. `1 - 174.96/240` is not "the target implies 27%
+    # upside", it is a percentage between two dates, and it is INVISIBLE — it
+    # sorts, it filters, and it looks exactly like the fresh row beside it. On a
+    # stale price this column is not computable, so it is absent.
     pt_target = row.get("pt_target")
     price = row.get("price")
     if (pt_target is not None and price is not None
-            and pt_target > 0 and price > 0):
+            and pt_target > 0 and price > 0 and not _stale_price):
         row["pt_upside_pct"] = round((pt_target / price - 1) * 100, 2)
     # Pure derivations, single writers: distance to the best active pattern
     # detection's entry/stop (pattern_join supplies the raw levels as CARRIER
     # keys that are deliberately not columns; K5 — either may be absent).
-    # Distances are vs THIS row's price; both factors must be positive.
+    # Distances are vs THIS row's price; both factors must be positive AND
+    # share a clock — `pattern_join` serves detections from the last 7 days, so
+    # on a stale price these are the same cross-clock fiction as
+    # `pt_upside_pct` above, and absent for the same reason.
     _pe = (market_row or {}).get("pattern_entry_px")
     _ps = (market_row or {}).get("pattern_stop_px")
     price = row.get("price")
-    if _pe is not None and price is not None and _pe > 0 and price > 0:
+    if (_pe is not None and price is not None and _pe > 0 and price > 0
+            and not _stale_price):
         row["pattern_entry_dist_pct"] = round((_pe / price - 1) * 100, 2)
-    if _ps is not None and price is not None and _ps > 0 and price > 0:
+    if (_ps is not None and price is not None and _ps > 0 and price > 0
+            and not _stale_price):
         row["pattern_stop_dist_pct"] = round((_ps / price - 1) * 100, 2)
     # Pure derivation, single writer: age from the profile-bulk listing date.
     if row.get("ipo_date"):
@@ -528,13 +734,51 @@ def _load_universe():
 
 
 def _stalest(tickers, limit):
-    """Order tickers by stalest built_at (never-built first), capped to limit."""
+    """Order tickers by stalest built_at (never-built first), capped to limit.
+
+    🔴 THE TARGET SET IS THE UNIVERSE **UNION THE ROWS WE ALREADY SERVE** —
+    accuracy audit 2026-08-23, #4. This used to iterate `cap_universe.json`
+    alone, so a ticker dropped from the universe kept its last row FOREVER: the
+    row is still selected by every scan, still sorts, still filters, and nothing
+    ever revisits it. Measured on `C:\\data\\screener.db`: **ACA, APGE, CRNX and
+    NUVL** are absent from `cap_universe.json` and still carry rows stamped
+    `snapshot_date = 2026-07-10, bars_asof = 20260618` — and `bars.db` holds
+    bars for three of them through **20260821**:
+
+        CRNX  row price 35.87   vs 8/21 close  84.69   (+136.1%)
+        APGE  row price 90.38   vs 8/21 close 134.75   ( +49.1%)
+        ACA   row price 135.84  vs 8/21 close 144.90   (  +6.7%)
+
+    That is the single largest freshness error in the audit, and its cause is
+    this function's target set, not a provider. A row that exists is a rebuild
+    target whether or not the universe still lists it; the rebuild is what makes
+    it honest, and a delisted name with no bars simply lands in `skipped` as it
+    always has.
+
+    ⛔ THE UNION IS SKIPPED WHEN THE UNIVERSE IS EMPTY. `_load_universe` returns
+    `[]` when the file is missing or unreadable, and "no universe" must keep
+    meaning "build nothing" — turning it into "rebuild every row we hold" would
+    make a missing config file silently launch a whole-universe run.
+
+    ⚠️ THIS DOES NOT PRUNE, deliberately. A ticker with **0 bars** (EWCZ, MCW —
+    rows from 2026-08-09, `bars_asof` 20260515/20260608) is `skipped` by the
+    build and its row still persists; only a DELETE reaches those, and deleting
+    member-visible rows is an owner decision, recorded in this lane's report.
+    """
     try:
         with snapshot_db.connect() as conn:
             built = {r["ticker"]: r["built_at"] for r in
                      conn.execute("SELECT ticker, built_at FROM screener_rows")}
     except Exception:
         built = {}
+    tickers = list(tickers or [])
+    if tickers:
+        have = {t.upper() for t in tickers}
+        orphans = sorted(t for t in built if t and t.upper() not in have)
+        if orphans:
+            log.info("[screener] %d row(s) outside the universe queued for "
+                     "rebuild: %s", len(orphans), ", ".join(orphans[:20]))
+            tickers += orphans
     ordered = sorted(
         tickers,
         key=lambda t: (built.get(t.upper()) is not None, built.get(t.upper()) or 0))
@@ -698,6 +942,20 @@ def _run_build_locked(max_tickers=None) -> dict:
                 skipped += 1
                 continue
             price = bars[-1].get("c")
+            # 🔴 ONE NAME, ONE MEANING (accuracy audit 2026-08-23, #4).
+            # `massive.get_market_cap` prefers the provider's own `market_cap`
+            # field (a CURRENT figure) and falls back to
+            # `shares_outstanding × the price WE hand it`. On a stale row those
+            # two paths publish different quantities under one column name —
+            # one dated today, one dated a June bar — and nothing on the row
+            # tells them apart. Handing it no price on a stale row collapses
+            # that to a single meaning: `market_cap` is the provider's current
+            # figure, or it is honestly absent. The cost, stated: a stale row
+            # whose provider has no `market_cap` field loses the column.
+            # ⚠️ UNMEASURABLE ON THIS BOX — `market_cap` is 0/3,714 non-null
+            # locally (no `MASSIVE_API_KEY`), so this is reasoned from
+            # `massive.get_market_cap`'s source, not from an observed value.
+            mc_price = None if price_is_stale(anchor_asof(bars)) else price
             rs_row = rs_map.get(t.upper())
             if not rs_row:
                 # Counted like any other provider miss: an empty `rs_ranking`
@@ -726,9 +984,10 @@ def _run_build_locked(max_tickers=None) -> dict:
                           **optflow_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
-                            _read_fundamentals(t, price, failures=sources),
+                            _read_fundamentals(t, mc_price, failures=sources),
                             rs_row, bulk_row, spy_closes=spy_closes,
-                            context_row=context_row, market_row=market_row)
+                            context_row=context_row, market_row=market_row,
+                            failures=sources)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1

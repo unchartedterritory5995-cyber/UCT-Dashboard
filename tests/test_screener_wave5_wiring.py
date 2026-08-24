@@ -15,7 +15,30 @@ Mirrors `test_screener_wave2_wiring.py`'s shape exactly (same two rails):
     column for them at all — `snapshot_db.get_row`'s `SELECT *` structurally
     cannot return them, which is the strongest form of "never persisted").
 """
+import datetime
 import time
+
+
+def _weekday_ymds(n, end=None):
+    """`n` consecutive weekday `YYYYMMDD` ints ending on `end` (default TODAY),
+    oldest first.
+
+    ⛔ DERIVED FROM THE CLOCK, NEVER A LITERAL — same reason as the twin in
+    `test_screener_wave2_wiring.py`: the pattern distances are now gated on the
+    row's price age (accuracy audit 2026-08-23 #4), so a fixture pinned to a
+    hardcoded date would go red on its own in a month.
+    """
+    out, d = [], (end or datetime.date.today())
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(int(d.strftime("%Y%m%d")))
+        d -= datetime.timedelta(days=1)
+    return list(reversed(out))
+
+
+def _bars(n=40, end=None, close=100.0):
+    return [{"t": ymd, "o": close, "h": close + 0.5, "l": close - 0.5,
+             "c": close, "v": 1000} for ymd in _weekday_ymds(n, end)]
 
 
 # ───────────────────────── build_row: the derivation block ──────────────────
@@ -24,12 +47,40 @@ def test_build_row_derives_pattern_dist_pct_entry_above_stop_below():
     """K5 shape: entry ABOVE price -> positive distance; stop BELOW price ->
     negative distance. Bars give price=100.0 (last close)."""
     from api.services.screener import snapshot_builder
-    bars = [{"o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000}] * 40
     row = snapshot_builder.build_row(
-        "T", bars, None, None,
+        "T", _bars(), None, None,
         market_row={"pattern_entry_px": 110.0, "pattern_stop_px": 95.0})
     assert row["pattern_entry_dist_pct"] == 10.0   # (110/100 - 1) * 100
     assert row["pattern_stop_dist_pct"] == -5.0    # (95/100 - 1) * 100
+
+
+def test_pattern_dist_pct_is_withheld_when_the_price_is_stale():
+    """🔴 ACCURACY AUDIT 2026-08-23 #4 — the same two-clock defect as
+    `pt_upside_pct`, in the family beside it.
+
+    `pattern_join` serves detections from the LAST SEVEN DAYS. Dividing one of
+    those levels by a price from a June bar is not a distance to an entry, it
+    is arithmetic between two dates — and on the current snapshot 805 of 3,707
+    rows carry bars older than 2026-08-01. Not computable ⇒ absent.
+
+    ⭐ THE CONTROL IS THE TEST ABOVE: identical carriers, identical price, a
+    FRESH last bar, and both distances publish. The bar date is the only
+    difference, so this cannot pass because the derivation was simply deleted.
+    """
+    from api.services.screener import snapshot_builder
+    old = datetime.date.today() - datetime.timedelta(days=120)
+    bars = _bars(end=old)
+    row = snapshot_builder.build_row(
+        "T", bars, None, None,
+        market_row={"pattern_entry_px": 110.0, "pattern_stop_px": 95.0,
+                    "pattern_engine_conf": 80.0})
+    assert row["pattern_entry_dist_pct"] is None
+    assert row["pattern_stop_dist_pct"] is None
+    # The row, its price, its date and the pattern engine's own (non-derived)
+    # columns are all still served — only the cross-clock ratios are withheld.
+    assert row["price"] == 100.0
+    assert row["bars_asof"] == str(bars[-1]["t"])
+    assert row["pattern_engine_conf"] == 80.0
 
 
 def test_build_row_pattern_dist_pct_null_when_carriers_absent():
@@ -145,7 +196,9 @@ def test_run_build_reads_all_three_wave5_readers_once_per_build_not_per_ticker(
     from api.services.screener import snapshot_builder as sb, snapshot_db
     from api.services.screener import pattern_join, darkpool_agg, opt_flow
 
-    bars = [(20250101 + i, 100.0, 100.5, 99.5, 100.0, 1000) for i in range(60)]
+    bars = [(ymd, 100.0, 100.5, 99.5, 100.0, 1000)
+            for ymd in _weekday_ymds(60)]   # real, fresh dates: the
+    # pattern distances are gated on the row's price age (audit #4)
     _stub_all_but_wave5(monkeypatch, sb, ["AAA", "BBB"], bars)
     monkeypatch.setattr(sb, "_read_prev_closes", lambda: {"AAA": 105.0})
 
@@ -215,7 +268,9 @@ def test_a_raising_darkpool_reader_degrades_and_is_reported(monkeypatch, tmp_pat
     from api.services.screener import snapshot_builder as sb, snapshot_db
     from api.services.screener import pattern_join, darkpool_agg, opt_flow
 
-    bars = [(20250101 + i, 100.0, 100.5, 99.5, 100.0, 1000) for i in range(60)]
+    bars = [(ymd, 100.0, 100.5, 99.5, 100.0, 1000)
+            for ymd in _weekday_ymds(60)]   # real, fresh dates: the
+    # pattern distances are gated on the row's price age (audit #4)
     _stub_all_but_wave5(monkeypatch, sb, ["AAA"], bars)
     monkeypatch.setattr(sb, "_read_prev_closes", lambda: {})
     monkeypatch.setattr(pattern_join, "read_pattern_fields",
@@ -241,7 +296,9 @@ def test_a_raising_pattern_join_reader_degrades_and_is_reported(monkeypatch, tmp
     from api.services.screener import snapshot_builder as sb, snapshot_db
     from api.services.screener import pattern_join, darkpool_agg, opt_flow
 
-    bars = [(20250101 + i, 100.0, 100.5, 99.5, 100.0, 1000) for i in range(60)]
+    bars = [(ymd, 100.0, 100.5, 99.5, 100.0, 1000)
+            for ymd in _weekday_ymds(60)]   # real, fresh dates: the
+    # pattern distances are gated on the row's price age (audit #4)
     _stub_all_but_wave5(monkeypatch, sb, ["AAA"], bars)
     monkeypatch.setattr(sb, "_read_prev_closes", lambda: {})
     monkeypatch.setattr(darkpool_agg, "read_darkpool_fields",
@@ -269,7 +326,9 @@ def test_prev_closes_is_one_query_never_per_ticker(monkeypatch, tmp_path):
     from api.services.screener import snapshot_builder as sb, snapshot_db
     from api.services.screener import pattern_join, darkpool_agg, opt_flow
 
-    bars = [(20250101 + i, 100.0, 100.5, 99.5, 100.0, 1000) for i in range(60)]
+    bars = [(ymd, 100.0, 100.5, 99.5, 100.0, 1000)
+            for ymd in _weekday_ymds(60)]   # real, fresh dates: the
+    # pattern distances are gated on the row's price age (audit #4)
     _stub_all_but_wave5(monkeypatch, sb, ["AAA", "BBB"], bars)
     monkeypatch.setattr(pattern_join, "read_pattern_fields",
                         lambda targets, failures=None: {})

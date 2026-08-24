@@ -14,19 +14,96 @@ Fix round 1 (2026-08-22 review) adds three more:
   * a valid-JSON-but-not-object finviz artifact degrades cleanly (Important 2);
   * `pt_target=0.0` (analyst_pass's own not-computable sentinel) stays
     honest-None rather than computing a confident `-100.0` (Important 3).
+
+Fix round 2 (accuracy audit 2026-08-23, #4) adds the clock to that last one:
+`pt_upside_pct` divides last night's analyst target by the row's `price`, so
+the two factors must share a clock as well as both be positive. The fixtures
+below therefore carry REAL, FRESH bar dates — see `_weekday_ymds`.
 """
+import datetime
+
+
+def _weekday_ymds(n, end=None):
+    """`n` consecutive weekday `YYYYMMDD` ints ending on `end` (default TODAY),
+    oldest first.
+
+    ⛔ DERIVED FROM THE CLOCK, NEVER A LITERAL. `build_row` now ages a row's
+    price against today (`snapshot_builder.price_is_stale`), so a fixture
+    pinned to a hardcoded date would pass this week and go red on its own in a
+    month — the `_weekday_only_test_time_bombs` shape. Anchoring the newest bar
+    to today keeps the age at 0 forever; the staleness rails below pass an
+    explicit `end` in the past because staleness is what they are testing.
+    """
+    out, d = [], (end or datetime.date.today())
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(int(d.strftime("%Y%m%d")))
+        d -= datetime.timedelta(days=1)
+    return list(reversed(out))
+
+
+def _bars(n=40, end=None, close=100.0):
+    return [{"t": ymd, "o": close, "h": close + 0.5, "l": close - 0.5,
+             "c": close, "v": 1000} for ymd in _weekday_ymds(n, end)]
 
 
 def test_build_row_merges_market_row_and_derives_pt_upside():
     from api.services.screener import snapshot_builder
-    bars = [{"o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000}] * 40
     row = snapshot_builder.build_row(
-        "T", bars, None, None,
+        "T", _bars(), None, None,
         market_row={"short_float_pct": 22.4, "pt_target": 125.0,
                     "next_earnings_date": "2026-09-03"})
     assert row["short_float_pct"] == 22.4
     assert row["pt_upside_pct"] == 25.0          # 125 vs price 100
     assert row["days_to_earnings"] is not None   # T4's derivation fires
+
+
+def test_pt_upside_pct_is_withheld_when_the_price_is_stale():
+    """🔴 ACCURACY AUDIT 2026-08-23 #4 — two clocks in one row.
+
+    `pt_target` is last night's analyst consensus. `price` can be a bar from
+    June: measured on `C:\\data\\screener.db`, 805 of 3,707 rows sit on bars
+    older than 2026-08-01, RDDT publishes $174.96 off a 2026-06-18 bar. A ratio
+    between those two dates describes no session that ever happened, and it is
+    invisible — it sorts, it filters, and it renders identically to the fresh
+    row beside it. Not computable ⇒ absent.
+
+    ⭐ THE CONTROL IS THE TEST ABOVE, and it is why this one cannot pass for
+    the wrong reason: identical inputs but a FRESH last bar publish 25.0. The
+    only difference between them is the bar date.
+    """
+    from api.services.screener import snapshot_builder
+    old = datetime.date.today() - datetime.timedelta(days=120)
+    bars = _bars(end=old)
+    row = snapshot_builder.build_row(
+        "T", bars, None, None,
+        market_row={"short_float_pct": 22.4, "pt_target": 125.0})
+    assert row["pt_upside_pct"] is None
+    # ...and the row is still SERVED, with its price and its date intact. The
+    # withheld thing is the cross-clock ratio, never the row and never the
+    # bar-derived family, which is internally consistent at `bars_asof`.
+    # ⛔ The expected as-of is READ OFF THE FIXTURE, not restated from `old` —
+    # `_weekday_ymds` skips weekends, so a hand-typed date disagrees with the
+    # bars whenever `old` lands on one.
+    assert row["price"] == 100.0
+    assert row["bars_asof"] == str(bars[-1]["t"])
+    assert row["short_float_pct"] == 22.4
+
+
+def test_a_row_that_cannot_date_its_price_withholds_the_cross_clock_ratio():
+    """Bars with no `t` at all ⇒ `bars_asof` is NULL ⇒ the age is unknown.
+
+    Unknown reads as STALE, deliberately: a row that will not say what day its
+    price is from cannot be shown to be fresh, and the failure direction of
+    guessing wrong is a published percentage between two different dates.
+    """
+    from api.services.screener import snapshot_builder
+    bars = [{"o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000}
+            for _ in range(40)]
+    row = snapshot_builder.build_row("T", bars, None, None,
+                                     market_row={"pt_target": 125.0})
+    assert row["bars_asof"] is None
+    assert row["pt_upside_pct"] is None
 
 
 def test_run_build_passes_market_row_through(monkeypatch, tmp_path):
@@ -35,7 +112,12 @@ def test_run_build_passes_market_row_through(monkeypatch, tmp_path):
     from api.services.screener import (finviz_universe, earnings_dates,
                                        earnings_context, analyst_pass,
                                        insider_capture, context_joins as cj)
-    bars = [(20250101 + i, 100.0, 100.5, 99.5, 100.0, 1000) for i in range(60)]
+    # ⭐ REAL, FRESH bar dates (see `_weekday_ymds`): `pt_upside_pct` is now
+    # gated on the row's price age, so a synthetic `20250101+i` — which is not
+    # even a valid calendar date past January — would read as STALE and the
+    # assertion below would be measuring the gate, not the wiring.
+    bars = [(ymd, 100.0, 100.5, 99.5, 100.0, 1000)
+            for ymd in _weekday_ymds(60)]
     # ⚠️ FIX ROUND 1 (2026-08-22 review, Minor 5): TWO tickers, both actually
     # built (max_tickers=2). With a single-ticker universe, `calls["finviz"]
     # == 1` cannot distinguish "once per build" from "once per ticker" — the
