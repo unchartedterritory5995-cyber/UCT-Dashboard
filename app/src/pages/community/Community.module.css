@@ -1,5 +1,5 @@
 /* app/src/pages/community/Community.module.css */
-.floorRoot { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.floorRoot { --page-pad-top: 0px; --page-pad-x: 0px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .page { display: flex; flex: 1; min-height: 0; overflow: hidden; background: var(--bg); }
 
 /* The Tape — global 'what's alive now' strip (single slim band, not per-feature chrome) */
