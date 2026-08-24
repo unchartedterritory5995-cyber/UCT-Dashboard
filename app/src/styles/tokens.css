@@ -18,6 +18,7 @@
   --ut-red-bright: #f24b42;
   --ut-red-dim: #c0392b18;
   --ut-gold: #dcbb5e;
+  --ut-gold-bright: #e9cd77;   /* hover/active lift for gold buttons */
   --ut-gold-dim: #dcbb5e15;
   --ut-gold-glow: #dcbb5e35;
   /* Semantic accent = the brand gold. Aliased (not hardcoded) so every

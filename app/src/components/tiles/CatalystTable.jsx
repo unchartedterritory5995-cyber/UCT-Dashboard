@@ -648,14 +648,14 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
             </ReadAloudButton>
           )}
           {!datePicker && (
-            <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
+            <a href="/catalysts/history" className="btn btn-secondary btn-sm" title="Browse past trading days">
               history →
             </a>
           )}
           {isAdmin && isLive && (
             <button
               type="button"
-              className={styles.refreshBtn}
+              className="btn btn-secondary btn-sm"
               onClick={forceRefresh}
               disabled={refreshing || isValidating}
             >
@@ -692,7 +692,7 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
           >›</button>
           {isLive
             ? <span className={styles.dateLiveTag} title="Showing today's live feed">● Live</span>
-            : <button type="button" className={styles.dateLiveBtn} onClick={() => setSelectedDate(null)} title="Back to today's live feed">Live</button>}
+            : <button type="button" className="btn btn-outline btn-sm" onClick={() => setSelectedDate(null)} title="Back to today's live feed">Live</button>}
         </div>
       )}
 
