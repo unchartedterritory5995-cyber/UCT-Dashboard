@@ -24,10 +24,10 @@ export default function ConnectConsentPanel({ providerLabel, checked, onCheck, o
         I authorize UCT Intelligence to access my {providerLabel} account to import my notes.
       </label>
       <div className={styles.row}>
-        <button type="button" className={styles.primaryBtn} disabled={!checked || busy} onClick={onConfirm}>
+        <button type="button" className="btn btn-primary" disabled={!checked || busy} onClick={onConfirm}>
           {busy ? 'Opening…' : 'Continue'}
         </button>
-        <button type="button" className={styles.ghostBtn} disabled={busy} onClick={onCancel}>
+        <button type="button" className="btn btn-ghost" disabled={busy} onClick={onCancel}>
           Cancel
         </button>
       </div>

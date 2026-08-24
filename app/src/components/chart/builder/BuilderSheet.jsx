@@ -944,7 +944,7 @@ export default function BuilderSheet({
 
           {result?.error && (
             <div className={styles.diagRow}>
-              <button type="button" className={styles.ghostBtn} onClick={copyDiagnostic}>
+              <button type="button" className="btn btn-ghost" onClick={copyDiagnostic}>
                 <UIcon name="copy" size={14} />{copied ? 'Copied' : 'Copy diagnostic'}
               </button>
             </div>
@@ -1014,12 +1014,12 @@ export default function BuilderSheet({
               <span>Discard this formula?</span>
               <button
                 type="button"
-                className={styles.ghostBtn}
+                className="btn btn-ghost"
                 onClick={() => setConfirmDiscard(false)}
               >Keep editing</button>
               <button
                 type="button"
-                className={styles.ghostBtn}
+                className="btn btn-ghost"
                 data-testid="discard-yes"
                 onClick={() => { setConfirmDiscard(false); onClose?.() }}
               >Discard</button>
@@ -1030,16 +1030,16 @@ export default function BuilderSheet({
             {editing && (
               <button
                 type="button"
-                className={styles.ghostBtn}
+                className="btn btn-ghost"
                 onClick={cancelEdit}
               >New formula</button>
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
-            <button type="button" className={styles.ghostBtn} onClick={requestClose}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={requestClose}>Cancel</button>
             <button
               type="button"
-              className={styles.saveBtn}
+              className="btn btn-primary"
               onClick={save}
               disabled={!canSave}
             >{saving ? 'Saving…' : (editing ? 'Save changes' : 'Save')}</button>
@@ -1056,7 +1056,7 @@ export default function BuilderSheet({
                     <span className={styles.listSource}>{row.definition?.compute?.source}</span>
                     <button
                       type="button"
-                      className={styles.ghostBtn}
+                      className="btn btn-ghost"
                       aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
                       onClick={() => openForEdit(row)}
                     ><UIcon name="edit" size={14} /></button>
@@ -1065,12 +1065,12 @@ export default function BuilderSheet({
                         <span className={styles.deleteAsk}>Delete?</span>
                         <button
                           type="button"
-                          className={styles.ghostBtn}
+                          className="btn btn-ghost"
                           onClick={() => setPendingDelete(null)}
                         >Keep</button>
                         <button
                           type="button"
-                          className={styles.ghostBtn}
+                          className="btn btn-ghost"
                           aria-label={`Confirm delete ${row.definition?.meta?.name || row.def_id}`}
                           onClick={() => remove(row.def_id)}
                         >Delete</button>
@@ -1078,7 +1078,7 @@ export default function BuilderSheet({
                     ) : (
                       <button
                         type="button"
-                        className={styles.ghostBtn}
+                        className="btn btn-ghost"
                         aria-label={`Delete ${row.definition?.meta?.name || row.def_id}`}
                         onClick={() => setPendingDelete(row.def_id)}
                       ><UIcon name="trash" size={14} /></button>

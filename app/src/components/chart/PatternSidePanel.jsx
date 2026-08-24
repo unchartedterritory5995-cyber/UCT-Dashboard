@@ -370,7 +370,7 @@ export default function PatternSidePanel({ detection, onClose }) {
           />
           <button
             type="button"
-            className={styles.submitBtn}
+            className="btn btn-primary"
             onClick={submitFeedback}
             disabled={!rating || submitting}
           >

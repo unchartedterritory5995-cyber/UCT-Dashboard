@@ -679,7 +679,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTagsChange(e.target.value)}
             style={{ width: 200 }}
           />
-          <button type="button" className={styles.deleteBtn} onClick={onDelete}>
+          <button type="button" className="btn btn-danger" onClick={onDelete}>
             Delete
           </button>
         </div>

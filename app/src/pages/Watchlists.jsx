@@ -2418,8 +2418,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 <label htmlFor="wl-public" className={styles.checkLabel}>Share with community</label>
               </div>
               <div className={styles.modalActions}>
-                <button type="button" className={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>
-                <button type="submit" className={styles.submitBtn} disabled={saving}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Creating…' : 'Create'}
                 </button>
               </div>
@@ -2450,9 +2450,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               </div>
             )}
             <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelBtn} onClick={() => setImportListId(null)}>Cancel</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setImportListId(null)}>Cancel</button>
               <button
-                className={styles.submitBtn}
+                className="btn btn-primary"
                 disabled={!parseImportText(importText).length}
                 onClick={handleImport}
               >Import</button>

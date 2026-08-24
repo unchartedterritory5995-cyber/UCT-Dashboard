@@ -194,7 +194,7 @@ export default function ArticlesSection() {
           </div>
         </div>
         {isAdmin && (
-          <button className={styles.ghostBtn} onClick={() => setManaging(true)}>
+          <button className="btn btn-ghost" onClick={() => setManaging(true)}>
             Manage publications
           </button>
         )}

@@ -95,7 +95,7 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
       {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
 
       <div className={styles.sourceActions}>
-        <button type="button" className={styles.ghostBtn} disabled={syncing} onClick={handleSync}>
+        <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
           {syncing ? 'Syncing…' : 'Sync now'}
         </button>
         <label className={styles.toggle} title="Pause background sync">

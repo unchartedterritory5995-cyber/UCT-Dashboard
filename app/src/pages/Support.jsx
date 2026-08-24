@@ -1088,7 +1088,7 @@ export default function Support() {
               </label>
             </div>
             <button
-              className={styles.submitBtn}
+              className="btn btn-primary"
               type="submit"
               disabled={submitting || !subject.trim() || !message.trim()}
             >

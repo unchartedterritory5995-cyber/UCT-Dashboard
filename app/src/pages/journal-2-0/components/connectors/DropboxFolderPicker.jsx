@@ -205,7 +205,7 @@ export default function DropboxFolderPicker({
         <div className={styles.footerRow}>
           <button
             type="button"
-            className={styles.primaryBtn}
+            className="btn btn-primary"
             disabled={busy || rootPickUnsupported}
             onClick={() => pick(null)}
           >

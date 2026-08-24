@@ -179,8 +179,8 @@ export default function CustomizePanel({
           />
           {error && <div className={styles.errorMsg}>{error}</div>}
           <div className={styles.inlineRow}>
-            <button className={styles.ghostBtn} onClick={closeInline}>Cancel</button>
-            <button className={styles.primaryBtn} onClick={submitSaveAs}>Save</button>
+            <button className="btn btn-ghost" onClick={closeInline}>Cancel</button>
+            <button className="btn btn-primary" onClick={submitSaveAs}>Save</button>
           </div>
         </div>
       )}
@@ -198,8 +198,8 @@ export default function CustomizePanel({
           />
           {error && <div className={styles.errorMsg}>{error}</div>}
           <div className={styles.inlineRow}>
-            <button className={styles.ghostBtn} onClick={closeInline}>Cancel</button>
-            <button className={styles.primaryBtn} onClick={submitRename}>Rename</button>
+            <button className="btn btn-ghost" onClick={closeInline}>Cancel</button>
+            <button className="btn btn-primary" onClick={submitRename}>Rename</button>
           </div>
         </div>
       )}
@@ -208,8 +208,8 @@ export default function CustomizePanel({
         <div className={styles.inlineForm}>
           <p className={styles.confirmText}>Delete preset "{activePreset}"?</p>
           <div className={styles.inlineRow}>
-            <button className={styles.ghostBtn} onClick={closeInline}>Cancel</button>
-            <button className={styles.primaryBtn} onClick={submitDelete}>Delete</button>
+            <button className="btn btn-ghost" onClick={closeInline}>Cancel</button>
+            <button className="btn btn-primary" onClick={submitDelete}>Delete</button>
           </div>
         </div>
       )}
@@ -230,8 +230,8 @@ export default function CustomizePanel({
           />
           {error && <div className={styles.errorMsg}>{error}</div>}
           <div className={styles.inlineRow}>
-            <button className={styles.ghostBtn} onClick={closeInline}>Cancel</button>
-            <button className={styles.primaryBtn} onClick={submitSaveFromDefault}>Save</button>
+            <button className="btn btn-ghost" onClick={closeInline}>Cancel</button>
+            <button className="btn btn-primary" onClick={submitSaveFromDefault}>Save</button>
           </div>
         </div>
       )}

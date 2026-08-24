@@ -122,7 +122,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
 
   return (
     <div className={styles.saveMenuWrap} ref={wrapRef}>
-      <button type="button" className={styles.saveBtn} onClick={() => setOpen(o => !o)}>
+      <button type="button" className="btn btn-primary" onClick={() => setOpen(o => !o)}>
         Screens ▾
       </button>
       {open && (
@@ -184,7 +184,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                             aria-label={`Share link for ${s.name}`}
                             value={sharedScreenUrl(s.share_token)}
                             onFocus={e => e.target.select()} />
-                          <button type="button" className={styles.saveBtn}
+                          <button type="button" className="btn btn-primary"
                             onClick={() => copyLink(sharedScreenUrl(s.share_token))}>
                             <UIcon name={copied ? 'check' : 'copy'} size={12} />{' '}
                             {copied ? 'Copied' : 'Copy'}
@@ -212,7 +212,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                           no positions — and running it needs their own plan. You can
                           unpublish at any time.
                         </p>
-                        <button type="button" className={styles.saveBtn}
+                        <button type="button" className="btn btn-primary"
                           onClick={() => setPublic(s.id, true)}>
                           <UIcon name="link" size={12} /> Publish a share link
                         </button>
@@ -276,7 +276,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
             <input className={styles.saveMenuInput} placeholder="Name this screen…"
               value={newName} onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && saveCurrent()} />
-            <button type="button" className={styles.saveBtn} onClick={saveCurrent}>Save current</button>
+            <button type="button" className="btn btn-primary" onClick={saveCurrent}>Save current</button>
           </div>
         </div>
       )}

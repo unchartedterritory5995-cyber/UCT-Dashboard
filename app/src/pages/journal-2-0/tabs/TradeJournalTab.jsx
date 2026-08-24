@@ -363,7 +363,7 @@ export default function TradeJournalTab({ settings }) {
           <div className={styles.pagerBtns}>
             <button
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={!canPrev}
             >
@@ -371,7 +371,7 @@ export default function TradeJournalTab({ settings }) {
             </button>
             <button
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setPage((p) => p + 1)}
               disabled={!canNext}
             >
@@ -388,7 +388,7 @@ export default function TradeJournalTab({ settings }) {
             <button
               ref={pickerBtnRef}
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setPickerOpen((x) => !x)}
               aria-haspopup="dialog"
               aria-expanded={pickerOpen}
@@ -409,7 +409,7 @@ export default function TradeJournalTab({ settings }) {
           {showShares && (
             <button
               type="button"
-              className={styles.dangerBtn}
+              className="btn btn-danger"
               onClick={() => setDeleteAllOpen(true)}
               disabled={trades.length === 0}
               title={trades.length === 0 ? 'No trades to delete' : 'Delete all trades'}
@@ -420,7 +420,7 @@ export default function TradeJournalTab({ settings }) {
           {showShares && (
             <button
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setImportOpen(true)}
             >
               <UIcon name="plus" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Import CSV
@@ -429,7 +429,7 @@ export default function TradeJournalTab({ settings }) {
           {showShares && (
             <button
               type="button"
-              className={styles.primaryBtn}
+              className="btn btn-primary"
               onClick={() => setAddOpen(true)}
             >
               + Add Trade
@@ -455,7 +455,7 @@ export default function TradeJournalTab({ settings }) {
               </p>
               <button
                 type="button"
-                className={styles.ghostBtn}
+                className="btn btn-ghost"
                 onClick={clearScope}
               >
                 <UIcon name="x" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />

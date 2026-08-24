@@ -1058,7 +1058,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
                   {actionLoading === 'reset_password' ? '...' : 'Reset Password'}
                 </button>
                 <button
-                  className={styles.deleteBtn}
+                  className="btn btn-danger"
                   onClick={() => handleAction('delete')}
                   disabled={actionLoading === 'delete'}
                 >
@@ -1885,7 +1885,7 @@ export default function Admin() {
                           </button>
                         )}
                         <button
-                          className={styles.deleteBtn}
+                          className="btn btn-danger"
                           onClick={() => handleDelete(u.id, u.email)}
                           title="Delete user"
                         >

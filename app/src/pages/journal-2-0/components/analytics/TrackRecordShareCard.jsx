@@ -60,7 +60,7 @@ export default function TrackRecordShareCard() {
 
       {!data?.enabled ? (
         <button
-          type="button" className={styles.primaryBtn} disabled={busy}
+          type="button" className="btn btn-primary" disabled={busy}
           onClick={() => call('POST')}
         >
           Create my public link
@@ -83,7 +83,7 @@ export default function TrackRecordShareCard() {
               onClick={() => call('POST')}>
               Rotate link
             </button>
-            <button type="button" className={styles.dangerBtn} disabled={busy}
+            <button type="button" className="btn btn-danger" disabled={busy}
               onClick={() => call('DELETE')}>
               Revoke
             </button>

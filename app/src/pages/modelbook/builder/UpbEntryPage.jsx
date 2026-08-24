@@ -104,8 +104,8 @@ function NoteLinkPicker({ open, onClose, entryId, currentIds, onSaved }) {
       footer={(
         <div className={styles.pickerFooter}>
           <span className={styles.capNote}>{selected.size}/{MAX_NOTE_LINKS} linked</span>
-          <button className={styles.ghostBtn} type="button" onClick={onClose}>Cancel</button>
-          <button className={styles.primaryBtn} type="button" onClick={save} disabled={saving}>
+          <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" type="button" onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save links'}
           </button>
         </div>
@@ -283,7 +283,7 @@ export default function UpbEntryPage({ entryId, onBack }) {
             <div className={styles.chartsHead}>
               <h3 className={styles.chartsTitle}>Charted examples</h3>
               <button
-                className={styles.primaryBtn}
+                className="btn btn-primary"
                 onClick={() => setAddingChart(a => !a)}
                 disabled={!addingChart && charts.length >= MAX_CHARTS_PER_ENTRY}
                 title={charts.length >= MAX_CHARTS_PER_ENTRY ? `Limit of ${MAX_CHARTS_PER_ENTRY} charts per entry` : undefined}

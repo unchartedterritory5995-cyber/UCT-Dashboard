@@ -343,7 +343,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 </button>
                 <button
                   type="button"
-                  className={styles.deleteBtn}
+                  className="btn btn-danger"
                   title={`Delete ${wl.name}`}
                   aria-label={`Delete ${wl.name}`}
                   disabled={deletingId === wl.id}

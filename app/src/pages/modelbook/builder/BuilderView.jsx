@@ -164,7 +164,7 @@ function MiniHub({ overview, mutateOverview, onExit, onOpenSection }) {
             {err && <span className={styles.formErr}>{err}</span>}
             <span className={styles.newActions}>
               <button
-                className={styles.primaryBtn}
+                className="btn btn-primary"
                 type="button"
                 disabled={!newTitle.trim() || busy}
                 onClick={() => createSection(newTitle.trim())}
@@ -172,7 +172,7 @@ function MiniHub({ overview, mutateOverview, onExit, onOpenSection }) {
                 {busy ? 'Creating…' : 'Create'}
               </button>
               <button
-                className={styles.ghostBtn}
+                className="btn btn-ghost"
                 type="button"
                 onClick={() => { setCreating(false); setNewTitle(''); setErr(null) }}
               >Cancel</button>
@@ -284,8 +284,8 @@ function SectionScreen({ section, sectionId, onBack, onOpenEntry, mutateOverview
             {section?.title || 'Section'}
           </button>
         )}
-        <button className={styles.primaryBtn} onClick={() => setPickerOpen(true)}>+ New entry</button>
-        <button className={styles.dangerBtn} onClick={delSection}>Delete section</button>
+        <button className="btn btn-primary" onClick={() => setPickerOpen(true)}>+ New entry</button>
+        <button className="btn btn-danger" onClick={delSection}>Delete section</button>
       </div>
 
       <div className={styles.secBlurbRow}>

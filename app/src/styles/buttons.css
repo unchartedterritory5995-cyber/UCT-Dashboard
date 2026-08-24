@@ -41,6 +41,8 @@
               opacity var(--duration-fast) var(--ease-out);
 }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Touch: keep every button a comfortable tap target on phones. */
+@media (max-width: 640px) { .btn { min-height: var(--tap-min); } }
 
 /* ── Sizes ── */
 .btn-sm { font-size: var(--text-sm); padding: 6px 12px; gap: 5px; }

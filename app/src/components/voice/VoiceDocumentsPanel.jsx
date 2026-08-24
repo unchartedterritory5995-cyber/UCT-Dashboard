@@ -188,7 +188,7 @@ export default function VoiceDocumentsPanel() {
           />
           <button
             type="button"
-            className={styles.submitBtn}
+            className="btn btn-primary"
             onClick={uploadText}
             disabled={uploading || !pasteText.trim() || !pasteTitle.trim()}
           >
@@ -232,7 +232,7 @@ export default function VoiceDocumentsPanel() {
                 <td>
                   <button
                     type="button"
-                    className={styles.deleteBtn}
+                    className="btn btn-danger"
                     onClick={() => deleteDoc(d.id)}
                     aria-label={`Delete document ${d.title}`}
                   >

@@ -417,7 +417,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
             <button
               ref={pickerBtnRef}
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setPickerOpen((x) => !x)}
               aria-haspopup="dialog"
               aria-expanded={pickerOpen}
@@ -439,7 +439,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           {showShares && (
             <button
               type="button"
-              className={styles.primaryBtn}
+              className="btn btn-primary"
               onClick={() => setAddOpen(true)}
             >
               + Add Position
@@ -448,7 +448,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           {showOptions && (
             <button
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={() => setOptionsAddOpen(true)}
             >
               + Option Strategy

@@ -1183,7 +1183,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
         <div className={styles.footer}>
           <button
             type="button"
-            className={styles.ghostBtn}
+            className="btn btn-ghost"
             onClick={onClose}
             disabled={saving}
           >
@@ -1191,7 +1191,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
           </button>
           <button
             type="button"
-            className={styles.primaryBtn}
+            className="btn btn-primary"
             onClick={handleSave}
             disabled={saving || isAllAccounts}
             title={isAllAccounts ? 'Select a single account to save settings' : ''}

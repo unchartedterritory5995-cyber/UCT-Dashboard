@@ -519,7 +519,7 @@ function GroupEditor({ group, path, negated = false, onNegate = null, onChange, 
       <div className={styles.pickerJoinRow}>
         <button
           type="button"
-          className={styles.ghostBtn}
+          className="btn btn-ghost"
           onClick={() => onChange({ ...group, children: [...group.children, defaultRow()] })}
         ><UIcon name="plus" size={14} />{path.length ? `Add condition to group ${where}` : 'Add condition'}</button>
         {/* ⛔ RENDERED ONLY WHEN THE MANIFEST HAS ONE. A control offering an
@@ -528,7 +528,7 @@ function GroupEditor({ group, path, negated = false, onNegate = null, onChange, 
         {FLAG_OPTIONS.length > 0 && (
           <button
             type="button"
-            className={styles.ghostBtn}
+            className="btn btn-ghost"
             onClick={() => onChange({ ...group, children: [...group.children, defaultFlag()] })}
           >
             <UIcon name="plus" size={14} />
@@ -537,7 +537,7 @@ function GroupEditor({ group, path, negated = false, onNegate = null, onChange, 
         )}
         <button
           type="button"
-          className={styles.ghostBtn}
+          className="btn btn-ghost"
           onClick={() => onChange({
             ...group,
             // ⛔ THE OTHER JOIN, ALWAYS. A nested group carrying its parent's
@@ -617,7 +617,7 @@ export default function CriteriaPicker({ ast, onSourceChange, onUnrepresentable 
       {group ? (
         <GroupEditor group={group} path={[]} onChange={emit} onRemove={null} />
       ) : (
-        <button type="button" className={styles.ghostBtn} onClick={start}>
+        <button type="button" className="btn btn-ghost" onClick={start}>
           <UIcon name="plus" size={14} />Add condition
         </button>
       )}

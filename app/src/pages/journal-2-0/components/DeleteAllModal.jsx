@@ -82,12 +82,12 @@ export default function DeleteAllModal({ tradeCount, onConfirm, onClose }) {
         </div>
 
         <div className={styles.footer}>
-          <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={deleting}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={deleting}>
             Cancel
           </button>
           <button
             type="button"
-            className={styles.dangerBtn}
+            className="btn btn-danger"
             onClick={handleConfirm}
             disabled={!canConfirm}
           >

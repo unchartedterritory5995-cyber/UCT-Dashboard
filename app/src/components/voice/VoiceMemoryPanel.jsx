@@ -69,7 +69,7 @@ export default function VoiceMemoryPanel() {
             <span className={styles.factText}>{f.text}</span>
             <button
               type="button"
-              className={styles.deleteBtn}
+              className="btn btn-danger"
               onClick={() => deleteFact(f.id)}
               aria-label="Delete fact"
               title="Delete"
