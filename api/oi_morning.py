@@ -106,6 +106,19 @@ def _fmt_delta(n) -> str:
     return ("+" if n >= 0 else "−") + _fmt_oi(abs(n))
 
 
+def _fmt_prem_k(v) -> str:
+    """Premium: $X.XXB / $X.XXM for ≥ $1M, else $NNNK (sub-million shown in K, not
+    a fractional M like '$0.52M')."""
+    v = float(v or 0)
+    if v >= 1e9:
+        return f"${v/1e9:.2f}B"
+    if v >= 1e6:
+        return f"${v/1e6:.2f}M"
+    if v >= 1e3:
+        return f"${v/1e3:.0f}K"
+    return f"${v:.0f}"
+
+
 def _fmt_date(iso_or_mdy) -> str:
     """ISO (YYYY-MM-DD) or M/D/YYYY → 'Mon D, YYYY'."""
     s = str(iso_or_mdy or "")
@@ -292,12 +305,12 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
 _W = 1240
 # (key, header, x, align)
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 118, "l"),
-    ("strike", "STRIKE", 210, "r"), ("exp", "EXP", 250, "l"),
-    ("dte", "DTE", 392, "r"), ("prem", "PREM", 500, "r"),
-    ("flow", "FLOW", 566, "l"), ("vol", "VOL", 712, "r"),
-    ("first", "FIRST OI", 838, "r"), ("last", "LAST OI", 958, "r"),
-    ("delta", "Δ OI", 1076, "r"), ("state", "STATE", 1096, "l"),
+    ("ticker", "TICKER", 36, "l"), ("cp", "C/P", 130, "l"),
+    ("strike", "STRIKE", 232, "r"), ("exp", "EXP", 272, "l"),
+    ("dte", "DTE", 412, "r"), ("prem", "PREM", 544, "r"),
+    ("vol", "VOL", 706, "r"), ("first", "FIRST OI", 846, "r"),
+    ("last", "LAST OI", 966, "r"), ("delta", "Δ OI", 1082, "r"),
+    ("state", "STATE", 1100, "l"),
 ]
 
 
@@ -343,14 +356,14 @@ def render_card(rows: list, window: list) -> bytes:
         pass
     tx = 94
     tx += txt(tx, 18, "UCT Intelligence", f_title, _GOLD) + 12
-    txt(tx, 18, "· Overnight OI", f_title, _GOLD_DIM)
+    txt(tx, 18, "· OI Update", f_title, _GOLD_DIM)
     # subtitle: which session's flow + when OI was measured
     _sess = ""
     if window:
         a, b = window[0], window[-1]
         _sess = _fmt_date(a) if a == b else f"{_fmt_date(a)} – {_fmt_date(b)}"
     _asof = rows[0].get("snapDate") if rows else None
-    _sub = f"flow {_sess}" + (f"   ·   OI as of {_fmt_date(_asof)}" if _asof else "") + "   ·   biggest OI builds on flow contracts"
+    _sub = f"flow {_sess}" + (f"   ·   OI as of {_fmt_date(_asof)}" if _asof else "") + "   ·   heavy volume that carried into open interest"
     txt(94, 60, _sub, f_date, _DIM)
 
     # column headers
@@ -380,7 +393,7 @@ def render_card(rows: list, window: list) -> bytes:
             elif key == "dte":
                 txt(x, y, f'{e["dte"]}d' if e.get("dte") is not None else "—", f_row, _DIM, "r")
             elif key == "prem":
-                txt(x, y, _fmt_prem(e["prem"]), f_rowb, _TXT, "r")
+                txt(x, y, _fmt_prem_k(e["prem"]), f_rowb, _TXT, "r")
             elif key == "flow":
                 txt(x, y, e["flow"], f_row, _DIM)
             elif key == "vol":
@@ -398,7 +411,7 @@ def render_card(rows: list, window: list) -> bytes:
         y += ROWH
 
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
-    txt(36, H - 32, f"UCT Intelligence  ·  {len(rows)} contracts  ·  overnight OI growth on flow-confirmed contracts",
+    txt(36, H - 32, f"UCT Intelligence  ·  {len(rows)} contracts  ·  heavy-volume flow that carried into open interest the next day",
         f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
