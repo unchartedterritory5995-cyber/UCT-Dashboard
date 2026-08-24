@@ -2109,6 +2109,7 @@ export default function ChartsWorkspace() {
               rowHeight={rowHeight}
               gap={gridGap}
               cols={GRID_COLS}
+              light={prefs?.theme === 'light'}
               label={HEADER_LABELS[pendingAdd.type] || 'Widget'}
               onConfirm={commitPendingAdd}
               onCancel={cancelPendingAdd}

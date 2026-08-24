@@ -250,7 +250,7 @@ function deriveAnchor(place, columns, mutations) {
   return { kind: 'col', gap }
 }
 
-// The chart column adjacent to a gap (prefer the one immediately right, then left,
+// The chart column nearest a gap index (prefer the one immediately right, then left,
 // then the nearest chart anywhere). Null when the board has no chart.
 function nearestChartCol(columns, gap) {
   const right = columns[gap], left = columns[gap - 1]
@@ -259,37 +259,57 @@ function nearestChartCol(columns, gap) {
   return columns.find(c => c.family === 'chart') || null
 }
 
+// The ordered LEFT↔RIGHT sequence the ghost steps through: every column-gap (own
+// column), interleaved — for a PANEL ghost only — with a "merge into this rail" stop
+// after each panel column. A chart ghost never merges into a rail, so it just steps
+// gap→gap. LEFT/RIGHT walk this list by ±1, which makes every horizontal move
+// reversible by construction. (Vertical moves into a chart are handled separately.)
+function hSequence(columns, ghostFamily) {
+  const H = []
+  for (let k = 0; k < columns.length; k++) {
+    H.push({ kind: 'col', gap: k })
+    if (ghostFamily === 'panel' && columns[k].family === 'panel') {
+      H.push({ kind: 'stack', colKey: columns[k].key, pos: 'top' })
+    }
+  }
+  H.push({ kind: 'col', gap: columns.length })
+  return H
+}
+
+function hStep(columns, ghostFamily, anchor, dir) {
+  const H = hSequence(columns, ghostFamily)
+  const i = H.findIndex(e => e.kind === anchor.kind && (e.kind === 'col' ? e.gap === anchor.gap : e.colKey === anchor.colKey))
+  if (i < 0) return null
+  const j = dir === 'left' ? i - 1 : i + 1
+  return (j < 0 || j >= H.length) ? null : H[j]
+}
+
 // Anchor → next anchor for a direction. Returns null when the move isn't available.
 function nudgeAnchor(anchor, dir, columns, ghostFamily) {
   if (anchor.kind === 'stack') {
     const idx = columns.findIndex(c => c.key === anchor.colKey)
     if (idx < 0) return null
-    if (dir === 'up') return anchor.pos === 'bottom' ? { kind: 'stack', colKey: anchor.colKey, pos: 'top' } : null
-    if (dir === 'down') return anchor.pos === 'top' ? { kind: 'stack', colKey: anchor.colKey, pos: 'bottom' } : null
-    if (dir === 'left') return { kind: 'col', gap: idx }        // pop out just left of the column
-    if (dir === 'right') return { kind: 'col', gap: idx + 1 }   // pop out just right of the column
-    return null
+    const inChart = columns[idx].family === 'chart'
+    if (inChart) {
+      // Stacked over a chart: UP/DOWN reorder top↔bottom; LEFT/RIGHT pop to an
+      // own column beside the chart.
+      if (dir === 'up') return anchor.pos === 'bottom' ? { kind: 'stack', colKey: anchor.colKey, pos: 'top' } : null
+      if (dir === 'down') return anchor.pos === 'top' ? { kind: 'stack', colKey: anchor.colKey, pos: 'bottom' } : null
+      if (dir === 'left') return { kind: 'col', gap: idx }
+      if (dir === 'right') return { kind: 'col', gap: idx + 1 }
+      return null
+    }
+    // Merged into a rail: LEFT/RIGHT walk the sequence; UP/DOWN jump to a chart.
+    if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
+    const ccm = nearestChartCol(columns, idx)
+    if (!ccm || ccm.key === anchor.colKey) return null
+    return { kind: 'stack', colKey: ccm.key, pos: dir === 'up' ? 'top' : 'bottom' }
   }
-  // own-column at gap g
-  const g = anchor.gap
-  if (dir === 'left') {
-    const left = columns[g - 1]
-    if (left && ghostFamily === 'panel' && left.family === 'panel')
-      return { kind: 'stack', colKey: left.key, pos: 'top' }    // merge into a rail on the left
-    return g > 0 ? { kind: 'col', gap: g - 1 } : null
-  }
-  if (dir === 'right') {
-    const right = columns[g]
-    if (right && ghostFamily === 'panel' && right.family === 'panel')
-      return { kind: 'stack', colKey: right.key, pos: 'top' }   // merge into a rail on the right
-    return g < columns.length ? { kind: 'col', gap: g + 1 } : null
-  }
-  if (dir === 'up' || dir === 'down') {
-    const cc = nearestChartCol(columns, g)
-    if (!cc) return null
-    return { kind: 'stack', colKey: cc.key, pos: dir === 'up' ? 'top' : 'bottom' }
-  }
-  return null
+  // Own column at a gap: LEFT/RIGHT walk the sequence; UP/DOWN stack onto a chart.
+  if (dir === 'left' || dir === 'right') return hStep(columns, ghostFamily, anchor, dir)
+  const cc = nearestChartCol(columns, anchor.gap)
+  if (!cc) return null
+  return { kind: 'stack', colKey: cc.key, pos: dir === 'up' ? 'top' : 'bottom' }
 }
 
 // Lay the ghost out as its own full-height column at `gap`. The widest chart column

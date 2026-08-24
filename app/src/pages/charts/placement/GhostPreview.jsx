@@ -35,7 +35,7 @@ function toPx(cell, m, rowHeight) {
 
 export default function GhostPreview({
   bodyRef, widgets, plan, rowHeight, gap, cols, label,
-  onConfirm, onCancel, onNudge, arrows,
+  onConfirm, onCancel, onNudge, arrows, light,
 }) {
   // Re-render on window resize so the measured geometry stays current while the
   // preview is open. The grid element is always mounted by the time a ghost shows,
@@ -61,8 +61,11 @@ export default function GhostPreview({
 
   if (!plan) return null
 
-  const GOLD = '#c9a84c'
-  const LIGHT = '#e6d29a'   // lighter gold so the ghost boxes stand out over the blur
+  // Gold on dark themes; on the light theme gold washes out on white, so use a
+  // readable slate grey for the ghost fill/outlines/arrows instead.
+  const GOLD = light ? '#4b5563' : '#c9a84c'
+  const LIGHT = light ? '#64748b' : '#e6d29a'   // ghost box fill/border + arrows
+  const GLOW = light ? 'rgba(71,85,105,0.30)' : 'rgba(201,168,76,0.28)'
   // metrics can be unmeasurable (e.g. a zero-size jsdom grid); the confirm bar still
   // renders so the action is always reachable — only the on-grid rects are skipped.
   const ghost = metrics ? toPx(plan.place, metrics, rowHeight) : null
@@ -115,7 +118,7 @@ export default function GhostPreview({
             border: `2px solid ${LIGHT}`, borderRadius: 6, boxSizing: 'border-box',
             background: `${LIGHT}3d`, pointerEvents: 'auto', cursor: 'default',
             backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
-            boxShadow: `0 0 0 1px ${LIGHT}55, 0 6px 28px rgba(201,168,76,0.28)`,
+            boxShadow: `0 0 0 1px ${LIGHT}55, 0 6px 28px ${GLOW}`,
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
           }}
         >
@@ -171,7 +174,7 @@ export default function GhostPreview({
           type="button"
           onClick={onConfirm}
           style={{
-            background: GOLD, color: '#1a1a1a', border: 'none', borderRadius: 5,
+            background: GOLD, color: light ? '#fff' : '#1a1a1a', border: 'none', borderRadius: 5,
             padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
           }}
         >Place</button>

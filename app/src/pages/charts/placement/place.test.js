@@ -200,6 +200,34 @@ describe('nudgePlan — column-model directional move', () => {
     const farRight = { type: 'breadth', place: { x: 18, y: 0, w: 6, h: 20 }, mutations: [], anchor: { kind: 'col', gap: 2 } }
     expect(nudgePlan(BOARD, farRight, 'right', COLS, ROWS)).toBeNull()
   })
+
+  // ── A panel stacked in a rail (image 24): UP/DOWN must be available too ──────
+  test('a panel stacked in the right rail still offers UP and DOWN (onto the chart)', () => {
+    const railStack = {
+      type: 'profile',
+      place: { x: 18, y: 10, w: 6, h: 5 },
+      mutations: [{ id: 't1', h: 5 }],
+      anchor: { kind: 'stack', colKey: 't1', pos: 'bottom' },
+    }
+    const up = nudgePlan(BOARD, railStack, 'up', COLS, ROWS)
+    const down = nudgePlan(BOARD, railStack, 'down', COLS, ROWS)
+    expect(up).not.toBeNull()
+    expect(down).not.toBeNull()
+    expect(up.place).toMatchObject({ x: 0, y: 0, w: 18, h: 10 })     // top of the chart
+    expect(down.place).toMatchObject({ x: 0, y: 10, w: 18, h: 10 })  // bottom of the chart
+    expect(nudgePlan(BOARD, railStack, 'left', COLS, ROWS)).not.toBeNull()
+  })
+
+  // ── An own column at the far right (image 25): LEFT must revert the move ─────
+  test('a far-right own column can still go LEFT (move is reversible)', () => {
+    const farRight = { type: 'profile', place: { x: 18, y: 0, w: 6, h: 20 }, mutations: [{ id: 'c1', w: 12 }], anchor: { kind: 'col', gap: 2 } }
+    const back = nudgePlan(BOARD, farRight, 'left', COLS, ROWS)
+    expect(back).not.toBeNull()
+    // RIGHT from wherever LEFT landed returns to the far-right own column — reversible.
+    const fwd = nudgePlan(BOARD, { ...farRight, place: back.place, mutations: back.mutations, anchor: back.anchor }, 'right', COLS, ROWS)
+    expect(fwd).not.toBeNull()
+    expect(fwd.anchor).toEqual({ kind: 'col', gap: 2 })
+  })
 })
 
 describe('planPlacement — grid bounds', () => {
