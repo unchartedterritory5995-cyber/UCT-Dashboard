@@ -116,7 +116,7 @@
   box-shadow: 0 0 22px var(--ut-gold-glow); margin-bottom: var(--space-lg);
 }
 .emptyTitle { font-size: 16px; color: var(--text-bright); font-weight: 600; margin-bottom: var(--space-sm); }
-.emptyText { color: var(--text-muted); font-size: var(--text-base); line-height: 1.6; margin-bottom: var(--space-lg); }
+.emptyText { color: var(--text); font-weight: 500; font-size: var(--text-base); line-height: 1.6; margin-bottom: var(--space-lg); }
 
 /* ── Articles ── */
 .cardGrid {

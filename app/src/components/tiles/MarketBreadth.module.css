@@ -160,7 +160,7 @@
   opacity: 0.5;
 }
 
-.loading { color: var(--text-muted); font-size: 12px; }
+.loading { color: var(--text); font-weight: 500; font-size: 12px; }
 
 .scoreNote {
   font-family: var(--font-mono);

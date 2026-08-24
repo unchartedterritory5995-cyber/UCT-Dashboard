@@ -55,7 +55,7 @@
 .heatG1 { background: var(--gain-bg); }
 .heatR { background: var(--loss-bg); color: var(--loss); }
 
-.empty { padding: 40px; text-align: center; color: var(--text-muted); }
+.empty { padding: 40px; text-align: center; color: var(--text); font-weight: 500; }
 
 /* ── Save bar ── */
 .saveBar { display: flex; gap: 8px; align-items: center; }

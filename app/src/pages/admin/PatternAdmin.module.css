@@ -139,7 +139,7 @@
   border-radius: var(--radius-md, 6px);
   padding: 32px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 13px;
 }
 

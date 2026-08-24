@@ -939,7 +939,7 @@
 
 .noData {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-style: italic;
 }
 

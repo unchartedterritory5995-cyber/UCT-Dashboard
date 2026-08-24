@@ -11,7 +11,7 @@
 .loading {
   padding: 60px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
 }
 
 .noPrint {
@@ -160,7 +160,7 @@
 .empty {
   padding: 40px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-style: italic;
 }
 

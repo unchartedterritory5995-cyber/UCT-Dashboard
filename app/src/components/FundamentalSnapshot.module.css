@@ -113,7 +113,7 @@
 }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 
-.empty { padding: 28px 8px; text-align: center; color: var(--text-muted, #8a8f98); font-size: 13px; }
+.empty { padding: 28px 8px; text-align: center; color: var(--text); font-weight: 500; font-size: 13px; }
 
 /* Phone: single-column data grid */
 @media (max-width: 640px) {

@@ -117,7 +117,7 @@
 .green { color: var(--gain); }
 .red { color: var(--loss); }
 .loading {
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 12px;
   padding: 8px 0;
 }

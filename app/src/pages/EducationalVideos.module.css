@@ -552,7 +552,7 @@
   margin-bottom: var(--space-sm);
 }
 .emptyText {
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: var(--text-base);
   line-height: 1.6;
   margin-bottom: var(--space-lg);

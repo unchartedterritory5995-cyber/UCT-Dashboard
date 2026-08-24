@@ -9,7 +9,7 @@
   padding: 6px 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--text-muted, #888);
+  color: var(--text); font-weight: 500;
 }
 
 .summary {

@@ -86,7 +86,7 @@
 }
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
-.loading { color: var(--text-muted); font-size: 12px; }
+.loading { color: var(--text); font-weight: 500; font-size: 12px; }
 
 /* Expandable row */
 .themeBlock { border-bottom: 1px solid var(--border); }

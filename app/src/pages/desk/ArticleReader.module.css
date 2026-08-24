@@ -241,7 +241,7 @@
   margin-bottom: var(--space-lg);
 }
 .emptyTitle { font-size: 16px; color: var(--text-bright); font-weight: 600; margin-bottom: var(--space-sm); }
-.emptyText { color: var(--text-muted); font-size: var(--text-base); line-height: 1.6; max-width: 460px; margin: 0 auto; }
+.emptyText { color: var(--text); font-weight: 500; font-size: var(--text-base); line-height: 1.6; max-width: 460px; margin: 0 auto; }
 
 .skeletonTitle {
   height: 38px; width: min(560px, 90%); border-radius: 8px;

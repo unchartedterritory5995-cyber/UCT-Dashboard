@@ -174,7 +174,7 @@
 .emptyState {
   text-align: center;
   padding: 48px 20px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 14px;
 }
 .emptyIcon { margin-bottom: 10px; opacity: 0.55; }
@@ -893,7 +893,7 @@
 
 .loading {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   padding: 32px;
   font-size: 13px;
 }

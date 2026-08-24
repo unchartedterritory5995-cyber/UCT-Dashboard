@@ -200,7 +200,7 @@
 
 .loading {
   padding: 32px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   text-align: center;
   font-size: 13px;
   font-family: var(--font-sans);

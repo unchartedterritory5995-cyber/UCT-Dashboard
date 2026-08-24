@@ -103,7 +103,7 @@
 .empty {
   padding: 28px 8px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   line-height: 1.6;
 }
 .emptySub { color: var(--ut-cream); }

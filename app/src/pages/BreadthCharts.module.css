@@ -215,7 +215,7 @@
 }
 
 .placeholder {
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-family: var(--font-sans);
   font-size: 13px;
   padding: 40px 20px;

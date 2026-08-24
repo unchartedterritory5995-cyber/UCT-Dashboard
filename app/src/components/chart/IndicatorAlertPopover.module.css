@@ -117,7 +117,7 @@
   overflow-y: auto;
 }
 .empty {
-  color: var(--text-muted, #888);
+  color: var(--text); font-weight: 500;
   font-size: 12px;
   text-align: center;
   padding: 12px 0;

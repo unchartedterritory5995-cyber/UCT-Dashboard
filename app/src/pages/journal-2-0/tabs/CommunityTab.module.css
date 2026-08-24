@@ -109,7 +109,7 @@
 .loading {
   padding: 48px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 13px;
 }
 
@@ -120,7 +120,7 @@
   border-radius: 12px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
 }
 
 .empty p {

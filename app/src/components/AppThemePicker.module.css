@@ -48,7 +48,7 @@
 .themeName { font-size: 12px; font-weight: 600; color: var(--text-bright); }
 .themeTag { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .cardOn .themeTag { color: var(--ut-gold); }
-.empty { grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; }
+.empty { grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text); font-weight: 500; font-size: 12px; }
 .check { position: absolute; top: 6px; right: 8px; color: var(--ut-gold); font-size: 12px; font-weight: 700; }
 
 /* ── Preview mock (painted from each theme's own colors, inline) ── */

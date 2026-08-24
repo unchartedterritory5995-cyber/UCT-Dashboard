@@ -58,7 +58,7 @@
 .empty {
   font-family: var(--font-sans);
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   padding: 24px 0;
 }
 .emptyAction {

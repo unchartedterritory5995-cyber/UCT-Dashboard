@@ -296,4 +296,4 @@
 }
 .btn:hover { border-color: var(--border-accent); }
 .btnPrimary { border-color: var(--border-accent); }
-.empty { padding: 14px 2px; color: var(--text-muted); font-size: 13px; }
+.empty { padding: 14px 2px; color: var(--text); font-weight: 500; font-size: 13px; }

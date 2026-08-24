@@ -106,7 +106,7 @@
   border: 1px dashed var(--border);
   border-radius: 10px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
 }
 
 .emptyHint {

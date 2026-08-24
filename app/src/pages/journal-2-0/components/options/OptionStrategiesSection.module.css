@@ -101,7 +101,7 @@
 .empty {
   padding: 24px 12px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 13px;
 }
 

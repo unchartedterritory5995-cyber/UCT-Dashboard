@@ -27,7 +27,7 @@
 .empty {
   padding: var(--space-2xl);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: var(--text-md);
 }
 

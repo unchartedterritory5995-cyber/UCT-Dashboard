@@ -469,7 +469,7 @@
 .emptyText {
   font-family: var(--font-mono);
   font-size: calc(12px * var(--wl-font-scale, 1));
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   margin-bottom: 8px;
 }
 
