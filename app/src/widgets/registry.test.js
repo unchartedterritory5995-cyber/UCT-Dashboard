@@ -75,7 +75,7 @@ describe('widget registry — metadata pins', () => {
       watchlist:    { w: 6,  h: 10, minW: 2, minH: 4 },
       themes:       { w: 6,  h: 10, minW: 2, minH: 4 },
       scanner:      { w: 8,  h: 10, minW: 2, minH: 4 },
-      fundamentals: { w: 8,  h: 6,  minW: 6, minH: 2 },
+      fundamentals: { w: 8,  h: 4,  minW: 6, minH: 2 },
       breadth:      { w: 8,  h: 10, minW: 4, minH: 4 },
       aisearch:     { w: 7,  h: 10, minW: 3, minH: 3 },
       news:         { w: 6,  h: 10, minW: 2, minH: 4 },

@@ -241,7 +241,9 @@ export const WIDGET_REGISTRY = deepFreeze({
   },
   fundamentals: {
     labels: { header: 'Fundamentals', menu: 'Fundamentals', tab: 'Fundamentals' },
-    defaults: { w: 8, h: 6, minW: 6, minH: 2 },
+    // h:4 — a short strip: the fundamentals content is a tab bar + one row of
+    // quarter cards, so a taller default just adds empty space under the chart.
+    defaults: { w: 8, h: 4, minW: 6, minH: 2 },
     // dock:'below-chart' — the fundamentals strip always docks under a chart when one
     // exists (a short full-width strip beneath it), not into the sidebar rail.
     placement: { family: 'panel', fill: 'wide', dock: 'below-chart' },
