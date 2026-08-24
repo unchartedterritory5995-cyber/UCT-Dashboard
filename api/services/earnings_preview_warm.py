@@ -236,11 +236,12 @@ def _needs_profile(sym: str) -> bool:
 
 
 def _needs_catalysts(sym: str) -> bool:
-    from api.services.news_catalysts import service as nc, store as nc_store
-    if not nc._enabled():
-        return False
-    nc_store._init_db()
-    return nc_store.needs_generation(sym, nc.HIST_PERIOD, nc._RETRY_AFTER)
+    # ⛔ ONE authority on this policy — `nc.needs_catalysts` — never a second
+    # copy of its retry knobs here. The warm and the click path disagreeing
+    # about what is already covered is precisely how a name ends up warmed
+    # forever or never.
+    from api.services.news_catalysts import service as nc
+    return nc.needs_catalysts(sym)
 
 
 def _needs_companion(sym: str) -> bool:
