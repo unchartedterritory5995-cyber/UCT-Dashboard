@@ -95,7 +95,6 @@ export default function NavBar() {
                 key={item.to}
                 to="/subscribe"
                 className={`${styles.item} ${styles.locked}`}
-                title={`${item.label} — unlock with Pro`}
                 aria-label={`${item.label} — unlock with Pro`}
               >
                 <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
@@ -111,7 +110,6 @@ export default function NavBar() {
               className={({ isActive }) =>
                 [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
               }
-              title={item.label}
               aria-label={item.label}
             >
               <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>

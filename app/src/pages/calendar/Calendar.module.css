@@ -1075,9 +1075,10 @@
   gap: 14px;
   min-height: 60px;
   box-sizing: border-box;
-  padding: 10px 20px;
+  padding: 12px 20px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
 }
 
 .ttl {

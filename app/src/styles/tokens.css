@@ -42,6 +42,9 @@
      clearly visible on EVERY dark theme (incl. OLED, where --border #1e1e1e
      nearly vanishes on #000). Light theme overrides it to a dark line below. */
   --header-line: rgba(255, 255, 255, 0.11);
+  /* Soft drop under a section-header bar so it reads as a floating toolbar over
+     the content (paired with --header-line). Downward-only via the -10px spread. */
+  --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
   --text: #f0efea;
   --text-muted: #cfcac0;
   --text-bright: #f8f7f3;
@@ -337,6 +340,7 @@
   --border: #e3e5e7;
   --border-accent: #cbced1;
   --header-line: rgba(0, 0, 0, 0.14);
+  --header-shadow: 0 8px 18px -12px rgba(0, 0, 0, 0.22);
 
   /* Inverted: near-black on the bright canvas, neutral (not blue) grays.
      --text-heading/-bright are the DARKEST so emphasis still reads as emphasis. */
