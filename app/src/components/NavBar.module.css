@@ -28,11 +28,12 @@
 .brand {
   display: flex;
   align-items: center;
-  /* Center the logo + name block in the column. Without this the expanded nav's
-     align-items:flex-start pins it to the left edge (logo jammed against the
-     screen with dead space to the right); align-self:center overrides that for
-     the brand only, so it sits centered in both the 60px and 200px widths. */
-  align-self: center;
+  /* Left-align the brand so the compass logo sits OVER the nav-icon column in
+     both the 60px and 200px widths (was align-self:center, which floated the
+     logo to the middle of the expanded rail — visibly right of the icons below).
+     padding-left centers the 46px logo on the ~27px nav-icon center. */
+  align-self: stretch;
+  padding-left: 5px;
   margin-bottom: 24px;
   text-decoration: none;
   cursor: pointer;
