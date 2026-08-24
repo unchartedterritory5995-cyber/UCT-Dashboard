@@ -26,7 +26,7 @@
   border: 1px solid transparent;
   transition: filter 0.15s ease, opacity 0.15s ease;
 }
-.primaryBtn { background: var(--color-accent, #c9a84c); color: #1a1a1a; }
+.primaryBtn { background: var(--color-accent, #c9a84c); color: var(--bg); }
 .primaryBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .ghostBtn {
   background: transparent;

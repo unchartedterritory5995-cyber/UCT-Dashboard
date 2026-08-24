@@ -547,7 +547,7 @@
   cursor: pointer;
 }
 .noteSave {
-  color: #14140f;
+  color: var(--bg);
   background: var(--ut-gold, #c9a84c);
   border: 1px solid var(--ut-gold, #c9a84c);
 }

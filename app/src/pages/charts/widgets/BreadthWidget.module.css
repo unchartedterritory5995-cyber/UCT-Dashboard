@@ -345,7 +345,7 @@
   justify-content: center;
   border: 1px solid var(--menu-border, #3a3a3e);
   border-radius: 3px;
-  color: #0e0f0d;
+  color: var(--bg);
 }
 .addMenuCheckOn { background: var(--menu-accent, var(--ut-gold)); border-color: var(--menu-accent, var(--ut-gold)); }
 .addMenuLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -133,7 +133,7 @@
 }
 .newBtn {
   background: #c9a84c;
-  color: #14171c;
+  color: var(--bg);
   border: none;
   padding: 7px 14px;
   border-radius: 6px;

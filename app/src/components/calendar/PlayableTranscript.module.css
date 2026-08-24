@@ -126,7 +126,7 @@
 .wordActive {
   cursor: pointer;
   background: var(--ut-gold, #c9a84c);
-  color: #12131a;
+  color: var(--bg);
   border-radius: 2px;
   box-shadow: 0 0 0 2px rgba(201, 168, 76, .35);
 }

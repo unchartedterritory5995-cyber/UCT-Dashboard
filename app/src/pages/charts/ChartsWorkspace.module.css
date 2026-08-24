@@ -1168,7 +1168,7 @@
   border: 1px solid var(--border, #1f2937); border-radius: 3px; cursor: pointer;
   font-size: 10px; font-family: inherit; padding: 2px 7px; line-height: 1.3;
 }
-.delConfirmYes { background: var(--danger, #f87171); border-color: var(--danger, #f87171); color: #0b0f14; font-weight: 600; }
+.delConfirmYes { background: var(--danger, #f87171); border-color: var(--danger, #f87171); color: var(--bg); font-weight: 600; }
 .delConfirmYes:hover { filter: brightness(1.08); }
 .delConfirmNo { background: transparent; color: var(--text, #e5e7eb); }
 .delConfirmNo:hover { background: var(--bg-hover, #1f2937); }

@@ -69,7 +69,7 @@
 .chipActive,
 .chipActive:hover {
   background: var(--ut-gold);
-  color: #0e0f0d;
+  color: var(--bg);
 }
 /* Overflow paddles — small circles floating over the faded edge. Touch keeps
    plain swipe (paddles hidden), mirroring the shelf arrows. */
@@ -179,7 +179,7 @@
   border: none;
   border-radius: 999px;
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #17150c;
+  color: var(--bg);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: 700;

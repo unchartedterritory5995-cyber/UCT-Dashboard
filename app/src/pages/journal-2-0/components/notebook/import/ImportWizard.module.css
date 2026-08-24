@@ -20,7 +20,7 @@
   align-items: center;
   gap: 8px;
   background: #c9a84c;
-  color: #14171c;
+  color: var(--bg);
   border: none;
   padding: 9px 16px;
   border-radius: var(--radius-md, 6px);

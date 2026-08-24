@@ -91,7 +91,7 @@
 .goldBtn, .saveBtn {
   display: inline-flex; align-items: center; gap: 6px;
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #0e0f0d; border: none; border-radius: 8px;
+  color: var(--bg); border: none; border-radius: 8px;
   padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
   font-weight: 700; cursor: pointer; min-height: var(--tap-min);
   box-shadow: 0 0 14px var(--ut-gold-glow);

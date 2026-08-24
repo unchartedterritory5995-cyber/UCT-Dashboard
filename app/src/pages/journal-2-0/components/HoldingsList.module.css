@@ -140,7 +140,7 @@ li:last-child > .row {
 
 .pillUp {
   background: var(--gain, #22c55e);
-  color: #04140a;
+  color: var(--bg);
 }
 
 .pillDown {

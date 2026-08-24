@@ -18,7 +18,7 @@
   white-space: nowrap;
 }
 .chip:hover { border-color: var(--ut-gold, #c9a84c); }
-.chipOpen { background: var(--ut-gold, #c9a84c); color: #0c0c0c; }
+.chipOpen { background: var(--ut-gold, #c9a84c); color: var(--bg); }
 
 .pop {
   position: absolute;

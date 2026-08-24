@@ -77,7 +77,7 @@
 }
 
 .statValue { font-size: 19px; font-weight: 700; }
-.mutedNeg { color: #ef8a8a; }
+.mutedNeg { color: var(--loss); }
 
 .sectionTitle {
   margin: 0 0 10px;

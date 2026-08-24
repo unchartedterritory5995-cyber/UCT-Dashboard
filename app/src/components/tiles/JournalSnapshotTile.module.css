@@ -303,7 +303,7 @@
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
-  color: #000;
+  color: var(--bg);
   background: var(--ut-gold, #c9a84c);
   border-radius: 5px;
   transition: opacity 120ms ease;
@@ -455,7 +455,7 @@
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
-  color: #1a1306;
+  color: var(--bg);
   background: linear-gradient(180deg, #e6c976 0%, #c9a84c 100%);
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(201, 168, 76, 0.26);

@@ -379,7 +379,7 @@
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btnPro {
-  background: linear-gradient(135deg, var(--ut-gold), #a08030); color: #111; border: none;
+  background: linear-gradient(135deg, var(--ut-gold), #a08030); color: var(--bg); border: none;
   padding: 12px 24px; border-radius: var(--radius-md); font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
   width: 100%;
 }

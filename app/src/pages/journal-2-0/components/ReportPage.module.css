@@ -3,7 +3,7 @@
   margin: 0 auto;
   padding: 40px 48px 60px;
   font-family: 'Instrument Sans', -apple-system, sans-serif;
-  color: #1a1a1a;
+  color: var(--bg);
   background: #fff;
   min-height: 100vh;
 }
@@ -37,7 +37,7 @@
 
 .printBtn {
   background: #c9a84c;
-  color: #1a1a1a;
+  color: var(--bg);
 }
 
 .printBtn:hover {
@@ -46,7 +46,7 @@
 
 .closeBtn {
   background: #e5e5e5;
-  color: #1a1a1a;
+  color: var(--bg);
 }
 
 .closeBtn:hover {
@@ -63,7 +63,7 @@
   margin: 0 0 8px;
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--bg);
   font-family: var(--font-sans);
   letter-spacing: 0.5px;
 }
@@ -85,7 +85,7 @@
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--bg);
   border-bottom: 1px solid #ccc;
   padding-bottom: 6px;
   letter-spacing: 0.3px;
@@ -115,7 +115,7 @@
 .statValue {
   font-size: 18px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--bg);
   font-family: var(--font-mono);
 }
 

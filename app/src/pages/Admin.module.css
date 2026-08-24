@@ -1565,7 +1565,7 @@
 .todoAddBtn {
   background: var(--ut-gold);
   border: none;
-  color: #1a1c17;
+  color: var(--bg);
   padding: 8px 16px;
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -1601,7 +1601,7 @@
   border: 1.5px solid rgba(255,255,255,0.25);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #1a1c17;
+  color: var(--bg);
   font-size: 12px;
   line-height: 1;
   display: flex;

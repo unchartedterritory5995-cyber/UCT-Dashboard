@@ -132,7 +132,7 @@
 .navSignup {
   font-size: 14px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 10px 18px;
   border-radius: 8px;
@@ -224,7 +224,7 @@
   align-items: center;
   font-size: 15.5px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 15px 28px;
   border-radius: 10px;
@@ -1370,7 +1370,7 @@
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 16px 28px;
   border-radius: 10px;
@@ -1568,7 +1568,7 @@
 .closeCountdown strong { color: var(--gold-bright); font-weight: 700; }
 .close .ctaGold {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #241b07;
+  color: var(--bg);
 }
 
 /* ── Footer (stays dark, continuous with the close) ──────────────────────── */
@@ -1744,7 +1744,7 @@
     align-items: center;
     gap: 12px;
     background: var(--gold);
-    color: #241b07;
+    color: var(--bg);
     text-decoration: none;
     border-radius: 12px;
     padding: 13px 18px;

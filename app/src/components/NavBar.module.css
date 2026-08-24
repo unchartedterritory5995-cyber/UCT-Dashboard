@@ -175,7 +175,7 @@
   font-size: 9px;
   font-weight: 700;
   background: var(--ut-gold, #c9a84c);
-  color: #000;
+  color: var(--bg);
   border-radius: 8px;
   letter-spacing: 0.5px;
   line-height: 1;

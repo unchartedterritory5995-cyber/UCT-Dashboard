@@ -1005,7 +1005,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  color: #0e0f0d;
+  color: var(--bg);
   background: var(--ut-gold, #c9a84c);
   border: none;
   border-radius: 4px;

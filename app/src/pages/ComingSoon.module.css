@@ -525,7 +525,7 @@
   border: 1px solid var(--ut-gold, #c9a84c);
   border-radius: 2px;
   background: var(--ut-gold, #c9a84c);
-  color: #14150f;
+  color: var(--bg);
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;

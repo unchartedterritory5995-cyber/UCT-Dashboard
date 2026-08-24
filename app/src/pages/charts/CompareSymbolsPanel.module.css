@@ -304,7 +304,7 @@
   border: 1px solid var(--border, #2e3127);
   border-radius: 4px;
   font-size: 11px;
-  color: #1a1408;
+  color: var(--bg);
   background: transparent;
 }
 .hideBaseOn .hideBaseBox { background: var(--accent, #c9a84c); border-color: var(--accent, #c9a84c); }

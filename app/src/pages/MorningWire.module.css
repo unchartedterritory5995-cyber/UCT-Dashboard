@@ -667,7 +667,7 @@
 .rundownWrap :global(.rd-disc-red) { background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.3); }
 .rundownWrap :global(.rd-disc-tag) {
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
-  color: #0a0a0a; background: #c9a84c; border-radius: 4px; padding: 2px 6px;
+  color: var(--bg); background: #c9a84c; border-radius: 4px; padding: 2px 6px;
 }
 .rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: var(--text-heading); }
 .rundownWrap :global(.rd-disc-line) { color: var(--text-bright); }
@@ -1455,7 +1455,7 @@
 :global(.rd-note-actions) { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 :global(.rd-note-status) { font-size: 11px; color: var(--color-text-muted, #8a8f98); }
 :global(.rd-note-save) {
-  background: var(--color-gold, #c9a84c); color: #14110a; border: none;
+  background: var(--color-gold, #c9a84c); color: var(--bg); border: none;
   border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600;
   cursor: pointer; min-height: 32px;
 }

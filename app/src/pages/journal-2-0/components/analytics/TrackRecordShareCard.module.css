@@ -67,7 +67,7 @@
   border: 1px solid rgba(239, 68, 68, 0.5);
   border-radius: 8px;
   background: transparent;
-  color: #ef8a8a;
+  color: var(--loss);
   font-size: 12.5px;
   cursor: pointer;
 }

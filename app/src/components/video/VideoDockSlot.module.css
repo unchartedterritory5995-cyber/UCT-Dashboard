@@ -168,7 +168,7 @@
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
-  color: #0e0f0d;
+  color: var(--bg);
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
   border-radius: 999px;
   padding: 6px 12px;
@@ -628,7 +628,7 @@
 .noteSaveBtn {
   border: none;
   background: linear-gradient(180deg, #e6cf86, #c9a84c);
-  color: #0e0f0d;
+  color: var(--bg);
   font-weight: 700;
   font-size: 12px;
   padding: 5px 14px;

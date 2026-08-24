@@ -149,7 +149,7 @@
 
 .viewBtnActive {
   background: var(--accent, #c9a84c);
-  color: #151310;
+  color: var(--bg);
 }
 
 @media (max-width: 640px) {

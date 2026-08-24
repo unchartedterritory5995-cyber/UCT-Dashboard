@@ -38,9 +38,9 @@
 .tab:hover { color: var(--ut-gold); }
 .tabActive {
   background: var(--ut-gold);
-  color: #000;
+  color: var(--bg);
 }
-.tabActive:hover { color: #000; }
+.tabActive:hover { color: var(--bg); }
 .heading {
   font-family: var(--font-display);
   font-size: 22px;
@@ -336,7 +336,7 @@
 .daysPillActive {
   background: var(--ut-gold);
   border-color: var(--ut-gold);
-  color: #000;
+  color: var(--bg);
   font-weight: 700;
 }
 

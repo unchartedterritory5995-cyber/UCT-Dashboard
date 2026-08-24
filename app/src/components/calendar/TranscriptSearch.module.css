@@ -67,7 +67,7 @@
    must be separable at a glance from the others. */
 .kwActive {
   background: var(--ut-gold, #c9a84c) !important;
-  color: #14120c !important;
+  color: var(--bg) !important;
   box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.35);
   border-radius: 2px;
 }

@@ -114,8 +114,8 @@
   background: rgba(201, 168, 76, 0.18);
   color: var(--accent);
 }
-.exToolSave { color: #0d0d10; background: linear-gradient(180deg, #6fdc94, #3cb868); border-color: #3cb868; font-weight: 700; }
-.exToolDanger:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.5); }
+.exToolSave { color: var(--bg); background: linear-gradient(180deg, #6fdc94, #3cb868); border-color: #3cb868; font-weight: 700; }
+.exToolDanger:hover { color: var(--loss); border-color: rgba(255, 107, 107, 0.5); }
 /* Chart carries its own height in the kit (ordinary scrolling column). */
 .exChart { height: 440px; flex: none; min-height: 0; }
 .exNotes {
@@ -179,13 +179,13 @@
 .exFormError {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #ff6b6b;
+  color: var(--loss);
 }
 .exSaveBtn {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
-  color: #0d0d10;
+  color: var(--bg);
   background: linear-gradient(180deg, #f0d479, #c9a84c);
   border: 1px solid #c9a84c;
   border-radius: 6px;

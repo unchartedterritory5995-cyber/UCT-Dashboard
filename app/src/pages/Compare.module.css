@@ -93,7 +93,7 @@
 .navLogin:hover { color: var(--ink); }
 .navSignup {
   background: var(--gold);
-  color: #241b07;
+  color: var(--bg);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -171,7 +171,7 @@
 }
 .ctaGold {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #241b07;
+  color: var(--bg);
   padding: 14px 24px;
   border-radius: 6px;
   font-size: 14px;
@@ -395,7 +395,7 @@
 .shotBadge {
   flex: 0 0 auto;
   background: #f87171;
-  color: #2a0a0a;
+  color: var(--bg);
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 12px;

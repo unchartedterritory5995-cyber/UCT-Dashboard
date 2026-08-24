@@ -391,7 +391,7 @@
 }
 
 .badgeRemount {
-  color: #4a9eff;
+  color: var(--info);
   background: rgba(74, 158, 255, 0.12);
   border: 1px solid rgba(74, 158, 255, 0.3);
 }
@@ -480,7 +480,7 @@
 }
 
 .alertPattern {
-  color: #4a9eff;
+  color: var(--info);
   background: rgba(74, 158, 255, 0.1);
   border: 1px solid rgba(74, 158, 255, 0.25);
 }

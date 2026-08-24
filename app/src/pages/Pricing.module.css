@@ -99,7 +99,7 @@
 .navLogin:hover { color: var(--ink); }
 .navSignup {
   background: var(--gold);
-  color: #241b07;
+  color: var(--bg);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -194,7 +194,7 @@
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--gold);
-  color: #241b07;
+  color: var(--bg);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -307,7 +307,7 @@
   display: inline-block;
   text-align: center;
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #241b07;
+  color: var(--bg);
   padding: 13px 22px;
   border: none;
   border-radius: 9px;

@@ -407,7 +407,7 @@
   font-size: 8.5px; font-weight: 800; letter-spacing: 0.4px;
   padding: 1px 6px; border-radius: 4px;
 }
-.etileBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
+.etileBeat { color: var(--bg); background: var(--cal-green, #4ade80); }
 .etileMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
 
 /* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
@@ -766,13 +766,13 @@
   display: inline-flex;
   align-items: center;
   background: var(--cal-gold);
-  color: #161616;
+  color: var(--bg);
   padding: 1px 9px;
   border-radius: 999px;
 }
 
 .gcellToday .macroStar {
-  color: #161616;
+  color: var(--bg);
 }
 
 .gcellOff {
@@ -1105,7 +1105,7 @@
    with near-black text in every theme. */
 .view span.viewOn {
   background: var(--cal-gold);
-  color: #1a1408;
+  color: var(--bg);
   font-weight: 800;
 }
 
@@ -1186,7 +1186,7 @@
 
 .chipOn {
   background: var(--cal-gold);
-  color: #1a1408;
+  color: var(--bg);
   border-color: var(--cal-gold);
   font-weight: 800;
 }
@@ -1522,7 +1522,7 @@
 }
 .chipEvtDiv:is(.chipOn) {
   background: var(--cal-green);
-  color: #051408;
+  color: var(--bg);
   border-color: var(--cal-green);
 }
 
@@ -2059,7 +2059,7 @@
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 800;
-  color: #1a1408;
+  color: var(--bg);
   background: var(--cal-gold);
   border-radius: 999px;
   padding: 3px 6px 3px 11px;
@@ -2073,7 +2073,7 @@
   border-radius: 50%;
   width: 16px;
   height: 16px;
-  color: #1a1408;
+  color: var(--bg);
   cursor: pointer;
   padding: 0;
 }
@@ -2496,8 +2496,8 @@
 
 .cntH1 { background: rgba(201, 168, 76, 0.10); }
 .cntH2 { background: rgba(201, 168, 76, 0.22); }
-.cntH3 { background: rgba(201, 168, 76, 0.38); color: #1a1408; }
-.cntH4 { background: rgba(201, 168, 76, 0.60); color: #1a1408; }
+.cntH3 { background: rgba(201, 168, 76, 0.38); color: var(--bg); }
+.cntH4 { background: rgba(201, 168, 76, 0.60); color: var(--bg); }
 
 /* ── Flagship 1c: zero-data compact cluster ("Also reporting") ───────────── */
 
@@ -2914,7 +2914,7 @@
   padding: 1px 6px;
   border-radius: 4px;
 }
-.wBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
+.wBeat { color: var(--bg); background: var(--cal-green, #4ade80); }
 .wMiss { color: var(--text-bright); background: var(--cal-red, #ef4444); }
 
 .wMore {
@@ -3028,7 +3028,7 @@
   border-radius: 4px; padding: 1px 5px;
 }
 .briefBadge { color: var(--cal-dim); background: var(--bg-elevated); }
-.briefBadgeGold { color: #1a1408; background: var(--cal-gold); }
+.briefBadgeGold { color: var(--bg); background: var(--cal-gold); }
 .briefChip {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
   background: var(--cal-panel); border: 1px solid var(--cal-line2);
@@ -3101,7 +3101,7 @@
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: #1a1408;
+  color: var(--bg);
   background: var(--cal-gold);
   border-radius: 5px;
   padding: 2px 7px;
@@ -3123,7 +3123,7 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: #1a1408;
+  color: var(--bg);
   background: var(--ut-gold);
   border-radius: 4px;
   padding: 1px 6px;

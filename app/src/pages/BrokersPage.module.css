@@ -87,7 +87,7 @@
 .navLogin:hover { color: var(--ink); }
 .navSignup {
   background: var(--gold);
-  color: #241b07;
+  color: var(--bg);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -276,7 +276,7 @@
 }
 .ctaGold {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #241b07;
+  color: var(--bg);
   padding: 12px 26px;
   border-radius: 8px;
   font-size: 15px;

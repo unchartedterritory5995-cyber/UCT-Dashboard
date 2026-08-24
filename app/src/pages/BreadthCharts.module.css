@@ -61,7 +61,7 @@
   padding: 0 4px;
   border-radius: var(--radius-lg);
   background: var(--ut-gold);
-  color: #000;
+  color: var(--bg);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;

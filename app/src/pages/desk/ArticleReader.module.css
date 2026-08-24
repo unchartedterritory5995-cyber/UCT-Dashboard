@@ -204,7 +204,7 @@
   color: var(--ut-gold);
 }
 .body :global(a.uctArticleCta:hover) {
-  background: var(--ut-gold); color: #100d06; box-shadow: 0 0 22px var(--ut-gold-glow);
+  background: var(--ut-gold); color: var(--bg); box-shadow: 0 0 22px var(--ut-gold-glow);
 }
 .body :global(p.uctArticleCta) { text-align: center; margin: 1.4em 0; }
 
@@ -438,7 +438,7 @@
   /* Ink-friendly: the app is a dark theme; the page is paper. */
   :global(body.uct-print-article) [data-print-root],
   :global(body.uct-print-article) [data-print-root] * {
-    color: #16181d !important;
+    color: var(--bg) !important;
     background: transparent !important;
     box-shadow: none !important;
     text-shadow: none !important;
@@ -483,7 +483,7 @@
     margin-top: 12px; padding: 10px 0;
     border-top: 1px solid #d8d2c2; border-bottom: 1px solid #d8d2c2;
     font-size: 11px; line-height: 1.7; letter-spacing: 0.02em;
-    color: #3a3d45 !important;
+    color: var(--bg) !important;
   }
   :global(body.uct-print-article) .printRosterLabel {
     font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;

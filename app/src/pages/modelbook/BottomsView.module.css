@@ -282,12 +282,12 @@
 }
 .pill:hover { color: var(--accent); border-color: var(--accent); }
 .pillActive {
-  color: #0d0d10;
+  color: var(--bg);
   background: linear-gradient(180deg, #f0d479, #c9a84c);
   border-color: #c9a84c;
   font-weight: 700;
 }
-.pillActive:hover { color: #0d0d10; }
+.pillActive:hover { color: var(--bg); }
 .pillCount { opacity: 0.7; margin-left: 2px; }
 
 /* the timeline ledger */

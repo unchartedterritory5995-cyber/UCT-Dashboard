@@ -105,7 +105,7 @@
 .paywallSub { font-size: 13px; line-height: 1.6; color: var(--text); margin: 10px 0 14px; }
 .paywallList { list-style: none; padding: 0; margin: 0 0 18px; text-align: left; display: inline-block; }
 .paywallList li { font-size: 12.5px; color: var(--text-bright); padding: 4px 0; }
-.paywallCta { background: var(--ut-gold); color: #1a1c17; border: none; border-radius: 9px; padding: 10px 18px; font-size: 14px; font-weight: 800; cursor: pointer; }
+.paywallCta { background: var(--ut-gold); color: var(--bg); border: none; border-radius: 9px; padding: 10px 18px; font-size: 14px; font-weight: 800; cursor: pointer; }
 .paywallCta:hover { filter: brightness(1.08); }
 
 @media (max-width: 640px) {

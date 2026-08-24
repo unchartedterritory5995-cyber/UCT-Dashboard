@@ -394,7 +394,7 @@
 .createBtn {
   background: var(--ut-gold, #c9a84c);
   border: 1px solid var(--ut-gold, #c9a84c);
-  color: #14100a;
+  color: var(--bg);
 }
 .createBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .createBtn:disabled { opacity: 0.5; cursor: default; }

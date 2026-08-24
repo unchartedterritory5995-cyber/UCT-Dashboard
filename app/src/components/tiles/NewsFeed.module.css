@@ -21,7 +21,7 @@
   padding-right: 14px;
 }
 /* Sentiment borders */
-.sentimentBullish { border-left-color: #27ae60; }
+.sentimentBullish { border-left-color: var(--gain); }
 .sentimentBearish  { border-left-color: #e74c3c; }
 
 .headline {
@@ -50,7 +50,7 @@
 }
 .badgeEARN     { color: #d4af37; background: rgba(212,175,55,0.12);  border: 1px solid rgba(212,175,55,0.3); }
 .badgeMA       { color: #9b59b6; background: rgba(155,89,182,0.12);  border: 1px solid rgba(155,89,182,0.3); }
-.badgeUPGRADE  { color: #27ae60; background: rgba(39,174,96,0.12);   border: 1px solid rgba(39,174,96,0.3);  }
+.badgeUPGRADE  { color: var(--gain); background: rgba(39,174,96,0.12);   border: 1px solid rgba(39,174,96,0.3);  }
 .badgeDOWNGRADE{ color: var(--loss); background: rgba(231,76,60,0.12);   border: 1px solid rgba(231,76,60,0.3);  }
 .badgeBIO      { color: #1abc9c; background: rgba(26,188,156,0.12);  border: 1px solid rgba(26,188,156,0.3); }
 .badgeIPO      { color: #3498db; background: rgba(52,152,219,0.12);  border: 1px solid rgba(52,152,219,0.3); }
@@ -73,7 +73,7 @@
 .ticker:hover { background: rgba(212,175,55,0.22); }
 
 /* Inline price change */
-.chgPos { font-family: var(--font-mono); font-size: 9px; color: #27ae60; }
+.chgPos { font-family: var(--font-mono); font-size: 9px; color: var(--gain); }
 .chgNeg { font-family: var(--font-mono); font-size: 9px; color: var(--loss); }
 .chgFlat{ font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
 

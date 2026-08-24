@@ -201,7 +201,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
    (panel finding). */
 .toolBtnActive {
   background: var(--ut-gold, #c9a84c);
-  color: #0c0c0c;
+  color: var(--bg);
   border-color: var(--ut-gold, #c9a84c);
 }
 .toolSelect {
@@ -264,7 +264,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #0c0c0c;
+  color: var(--bg);
   background: var(--ut-gold, #c9a84c);
   pointer-events: none;
 }

@@ -237,7 +237,7 @@
   cursor: pointer;
 }
 
-.stopSave { background: var(--accent, #c9a84c); color: #151310; }
+.stopSave { background: var(--accent, #c9a84c); color: var(--bg); }
 .stopCancel { background: transparent; color: var(--text-muted, #8a8a8a); }
 
 /* ── Chart ──────────────────────────────────────────────────────────── */
@@ -269,7 +269,7 @@
 
 .tfBtnActive {
   background: var(--accent, #c9a84c);
-  color: #151310;
+  color: var(--bg);
 }
 
 .chartWrap { height: 420px; }

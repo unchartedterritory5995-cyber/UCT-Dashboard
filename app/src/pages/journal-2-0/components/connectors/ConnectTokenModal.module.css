@@ -63,7 +63,7 @@
   min-height: var(--tap-min, 44px);
   border: 1px solid transparent;
 }
-.primaryBtn { background: var(--color-accent, #c9a84c); color: #1a1a1a; }
+.primaryBtn { background: var(--color-accent, #c9a84c); color: var(--bg); }
 .primaryBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .primaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .ghostBtn {

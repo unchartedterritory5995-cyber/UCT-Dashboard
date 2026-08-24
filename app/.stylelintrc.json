@@ -1,13 +1,18 @@
 {
-  "//": "UI consistency guardrail. Flags raw hex/rgb(a) used for text `color:` so it must come from a token (var(--text*)/var(--menu-text*)). PHASE 0: severity is 'warning' (report mode) so it inventories drift without breaking the build. PHASE 2 flips this to an error and wires `npm run lint:css` into pre-push. tokens.css is the ONE place raw colors are allowed; OptionsFlow/intro are out of scope (partner-owned / documented decoration exception).",
+  "//": "UI-consistency drift guard. `color:` must be a token — var(--text*/--gain/--loss/--accent/--warn/--info/--bg/--menu-text*…). ALLOWED exceptions: near-black ink (#0…/#1…, legit dark text on bright/accent surfaces), CSS keywords, and 8-digit-alpha near-black. Anything else (a raw bright grey or accent hex/rgba) is drift and gets flagged. Run `npm run lint:css`. Severity is 'warning' for now — the remaining flags are deliberate light-theme-scoped overrides (in [data-theme=light]/[data-charts-theme=sunrise] blocks) that stylelint can't scope around yet; tightening to 'error' is a follow-up once those are handled. tokens.css + OptionsFlow/DarkPool + intro are out of scope.",
   "rules": {
-    "declaration-property-value-disallowed-list": [
+    "declaration-property-value-allowed-list": [
       {
-        "/^color$/": ["/#[0-9a-fA-F]{3,8}\\b/", "/\\brgba?\\(/"]
+        "/^color$/": [
+          "/^var\\(--/",
+          "/^#[01][0-9a-fA-F]{5}([0-9a-fA-F]{2})?$/",
+          "/^#[01]{3}$/",
+          "/^(transparent|inherit|currentColor|unset|initial|none)$/"
+        ]
       },
       {
         "severity": "warning",
-        "message": "Use a text token — var(--text) / --text-muted / --text-bright / --text-heading (or --menu-text*) — instead of a raw color for `color:`. See docs/superpowers/2026-08-24-color-inventory.md."
+        "message": "Use a token for `color:` (var(--text*/--gain/--loss/--accent/--warn/--info…)); only near-black ink (#0…/#1…) may be raw. See docs/superpowers/2026-08-24-color-inventory.md."
       }
     ]
   },
