@@ -747,9 +747,11 @@ def meta(user_id=None) -> dict:
     """The whole panel payload.
 
     ⭐ `distribution` RIDES BESIDE EACH RANGE CONTROL, AND IS NOT A PRESET.
-    81 of these controls ship with no presets and must keep doing so (E-8: a
+    Most of these controls ship with no presets and must keep doing so (E-8: a
     threshold nobody at the firm publishes must not ship wearing the firm's
-    name). What a bare box could never tell a member is *what the data looks
+    name) — the share is measured off `FILTERS`, never typed here; see
+    `distribution.py`'s module docstring for the one-line recipe and its rail.
+    What a bare box could never tell a member is *what the data looks
     like*, and that is a measurement, not an opinion — so each range control
     carries the universe's p5/p25/p50/p75/p95 for its column, WITH the coverage
     that produced them, refused outright below a stated floor.

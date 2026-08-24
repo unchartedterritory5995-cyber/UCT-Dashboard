@@ -4,10 +4,18 @@ with the coverage that produced them travelling beside every number.
 ⛔⛔ THESE ARE DESCRIPTIVE. THEY ARE NEVER A RECOMMENDATION, AND THE NEXT READER
 WILL ASSUME OTHERWISE, SO READ THIS PARAGRAPH BEFORE TOUCHING ANYTHING BELOW.
 
-`filters._open_range` ships 81 of our 147 controls with no presets at all, on a
-rule that is right and stays right: *a threshold nobody at the firm publishes
-must not ship wearing the firm's name.* A preset is an EDITORIAL CLAIM — "P/E:
-Cheap (under 15)" asserts that this firm considers 15 cheap.
+`filters._open_range` ships a large share of our controls with no presets at
+all, on a rule that is right and stays right: *a threshold nobody at the firm
+publishes must not ship wearing the firm's name.* A preset is an EDITORIAL
+CLAIM — "P/E: Cheap (under 15)" asserts that this firm considers 15 cheap.
+
+⛔ The share is deliberately not written here. `FILTERS` owns it, it moves every
+time a control is added or a threshold is grounded, and this docstring had the
+same number typed into it in three separate files. Take it:
+
+    sum(1 for v in FILTERS.values() if v.get("presets_deferred")), len(FILTERS)
+
+`test_the_bare_control_share_is_MEASURED_not_typed` runs exactly that recipe.
 
 A measured percentile asserts nothing of the kind. `p50(price) = 24.71` is a
 fact about the rows we hold tonight, in the same family as the DISTINCT sector

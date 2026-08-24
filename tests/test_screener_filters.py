@@ -822,7 +822,7 @@ def test_every_view_is_LABELLED_and_leads_with_the_ticker():
 #
 # 🔴 THE FINDING. A 594-metric benchmark scored this screener LAST in the
 # honesty family — the one family we believed we led. Not because the machinery
-# is weak, but because it is INTERNAL: 81 of 147 controls ship as a blank box
+# is weak, but because it is INTERNAL: most controls ship as a blank box
 # under `_open_range`'s rule, and Zacks ships the same bare box PLUS a
 # published, universe-cited range on all 136 of its criteria. Honest text
 # nobody can read loses to weaker text on screen.

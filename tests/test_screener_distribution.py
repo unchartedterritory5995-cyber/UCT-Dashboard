@@ -2,7 +2,7 @@
 
 🔴 THE DEFECT THIS FILE GREW FOR. A 594-metric benchmark scored this screener
 LAST in the honesty family, and the reason was not weak honesty machinery — it
-was that ours is INTERNAL. 81 of 147 controls ship as a blank box on a rule that
+was that ours is INTERNAL. Most of our controls ship as a blank box on a rule that
 is correct (`filters._open_range`: a threshold nobody at the firm publishes must
 not ship wearing the firm's name), while Zacks ships the same bare box PLUS a
 published, universe-cited range on all 136 of its criteria. A measured
@@ -732,3 +732,51 @@ def test_an_unreadable_snapshot_costs_the_BANDS_and_nothing_else(
     assert meta["distribution_basis"] is None
     assert meta["filters"], "meta() lost its filters over a missing snapshot"
     assert all("distribution" not in f for f in meta["filters"])
+
+
+# ───────── the bare-control share is MEASURED, never typed ──────────────────
+#
+# 🔴 THE DEFECT. "81 of 147 controls ship with no presets" was hand-typed into
+# THREE files at once — `distribution.py`'s module docstring, `filters.meta()`'s
+# docstring, and this file's own header — describing a quantity `FILTERS` owns
+# and that moves every time a control is added or a threshold is grounded. Three
+# copies of one number read as corroboration, which is exactly why nobody
+# rechecked it. Same shape as the coverage census above, a different quantity.
+
+def test_the_bare_control_share_is_MEASURED_not_typed():
+    """The recipe the docstrings point at must actually run, and no source file
+    may restate its answer."""
+    import re
+    from pathlib import Path
+    from api.services.screener.filters import FILTERS
+
+    bare = sum(1 for v in FILTERS.values() if v.get("presets_deferred"))
+    total = len(FILTERS)
+    assert total > 0, "FILTERS is empty — the recipe measures nothing"
+    assert 0 < bare < total, (
+        f"measured {bare} of {total}; a share of 0 or all means "
+        "`presets_deferred` stopped meaning what these docstrings say"
+    )
+
+    # A hand-typed "<N> of <M>" in either PRODUCTION module is the defect
+    # returning. Scanned as TEXT on purpose: the target is prose in docstrings
+    # and comments, which no AST walk would reach. Scoped to the two modules
+    # that own this quantity — test files legitimately carry fixture numbers
+    # ("120 of 400 symbols answered") and quote the defect they guard against,
+    # so including them here would make the rail fire on its own evidence.
+    pattern = re.compile(r"\b\d{2,4}\s+of\s+(?:our\s+|these\s+)?\d{2,4}\b")
+    root = Path(__file__).resolve().parents[1] / "api" / "services" / "screener"
+    offenders = []
+    for p in (root / "distribution.py", root / "filters.py"):
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if pattern.search(line):
+                offenders.append(f"{p.name}:{i}: {line.strip()[:110]}")
+    assert not offenders, (
+        "a count of a quantity FILTERS owns was typed into the module beside "
+        "it — derive it instead:\n  " + "\n  ".join(offenders)
+    )
+
+    # Control: the scanner must be able to SEE such a line, or the assertion
+    # above passes for the wrong reason.
+    assert pattern.search("_open_range ships 81 of our 147 controls bare"), (
+        "the scanner cannot detect the defect it guards")
