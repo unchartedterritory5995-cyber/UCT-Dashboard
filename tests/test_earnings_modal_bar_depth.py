@@ -211,18 +211,19 @@ class TestTokenCeilingLeavesRoomForANonCompliantReply:
     to be generous enough that a verbose reply still closes its JSON.
     """
 
-    def test_the_preview_ceiling_has_real_headroom_over_the_intended_output(self):
-        from api.services import engine
-        # ~120 words + 3x25 words is roughly 350 tokens with JSON scaffolding.
-        # Demand several times that, so a 2x-overshooting reply still completes.
-        assert engine._EARNINGS_PREVIEW_AI_MAX_TOKENS >= 1500, (
-            "too tight — an over-long reply will be silently salvaged into a "
-            "broken shape and persisted (the VEEV case)"
-        )
+    def test_neither_ceiling_was_narrowed_with_the_shape_change(self):
+        """max_tokens is a CEILING, not a spend commitment.
 
-    def test_the_analysis_ceiling_was_not_narrowed_with_the_shape_change(self):
+        Output is billed per token GENERATED, so a concise reply costs the same
+        under 2800 as under 1100 — lowering it buys nothing on the replies that
+        comply, and converts the ones that don't from long into BROKEN. Measured
+        live: at 1100 VEEV came back 213 words with one bullet; at 1800 BILI came
+        back with a single 57-word bullet and PD with none. Both ceilings stay at
+        the value that predates the shape change.
+        """
         from api.services import engine
-        assert engine._EARNINGS_AI_MAX_TOKENS >= 1500
+        assert engine._EARNINGS_PREVIEW_AI_MAX_TOKENS >= 2800
+        assert engine._EARNINGS_AI_MAX_TOKENS >= 2800
 
     def test_the_salvage_path_still_exists_to_be_protected_from(self):
         """If this ever goes away the headroom argument above changes."""
