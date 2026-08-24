@@ -1,0 +1,43 @@
+/* The single canonical section header. One height, one title treatment, one
+   left inset — every page identical by construction (see PageHeader.jsx). */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  padding: 8px 4px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.2px;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+.icon { flex: none; }
+.titleText { display: inline-block; }
+
+/* Section controls (tabs, buttons, dropdowns) flow after the title. */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+@media (max-width: 640px) {
+  .header { gap: 10px; min-height: 44px; margin-bottom: 12px; }
+  .title { font-size: 17px; }
+}
