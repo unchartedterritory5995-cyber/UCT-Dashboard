@@ -44,7 +44,10 @@ function dark(id, name, p) {
       '--bg-hover': p.hover, '--border': p.border, '--border-accent': p.borderAccent,
       '--text': p.text, '--text-muted': p.muted, '--text-bright': p.bright,
       '--text-heading': p.heading,
-      ...accentVars(p.accent, 0.12, 0.30),
+      // OWNER DECISION (2026-08-24): the app accent is PINNED to the warm brand
+      // gold on every theme (themes vary bg/text tones only). Was p.accent — the
+      // per-theme accent. Restore per-theme accents by swapping '#dcbb5e' → p.accent.
+      ...accentVars('#dcbb5e', 0.12, 0.30),
     },
   }
 }
@@ -59,7 +62,8 @@ function light(id, name, p) {
       '--bg': p.bg, '--bg-surface': p.surface, '--bg-elevated': p.elevated,
       '--bg-hover': p.hover, '--border': p.border, '--border-accent': p.borderAccent,
       ...(p.text ? { '--text': p.text, '--text-muted': p.muted, '--text-bright': p.bright, '--text-heading': p.heading } : {}),
-      ...accentVars(p.accent, 0.10, 0.24),
+      // Pinned gold (darkened for legibility on light bg) — see the dark() note.
+      ...accentVars('#7a5c16', 0.10, 0.24),
     },
   }
 }
