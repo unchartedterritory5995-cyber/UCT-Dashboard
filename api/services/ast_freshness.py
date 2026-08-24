@@ -113,6 +113,39 @@ def scalars_in(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Set[str]:
     return found
 
 
+def series_in(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Set[str]:
+    """The TABLE-DECLARED BAR SERIES this tree names — ``scalars_in``'s sibling.
+
+    ⭐ THE SAME WALKER ANSWERING THE OTHER HALF OF THE SAME QUESTION. A scalar
+    and a bar series both ride the ``series`` NODE (``closedTable.json::
+    _scalars_node``); which one a name is, is decided by the manifest section it
+    appears in, and that is exactly the partition ``scalars_in`` already reads.
+    Writing a second walk somewhere else to ask "which bar fields does this tree
+    touch" would be a second grammar over one tree — the thing
+    ``ast_interpret``'s header refuses in its first paragraph.
+
+    ⭐ ITS CONSUMER IS ``screener/backtest.py``, AND THE REASON IS MEASURED. A
+    hole in the bars is invisible at the top of a condition tree: with
+    ``bars[5]['c'] = None``,
+
+        interpret(close, bars)          -> [..., None, ...]   the honest hole
+        interpret(close > 0, bars)      -> [...,  0.0, ...]   a confident False
+
+    because ``_cmp`` answers 0 against NaN — the same rule, one axis over, that
+    ``unresolved_scalars`` exists for. So a backtest cannot ask the top of the
+    tree whether a bar was answerable; it has to ask which bar fields the tree
+    READS and check those. This returns the names; the caller maps them to bar
+    fields through the manifest.
+    """
+    series, _scalars, _inputs = _sections(opts)
+    found: Set[str] = set()
+    for node in _walk(tree):
+        if (isinstance(node, dict) and node.get("type") == "series"
+                and isinstance(node.get("name"), str) and node["name"] in series):
+            found.add(node["name"])
+    return found
+
+
 def _declaration_is_readable(decl: Any) -> bool:
     """Can this reader resolve the scalar's own freshness declaration?
 
