@@ -481,6 +481,31 @@ RATIO_SPECS = {
     # of 0, which previously always became NULL, so no non-zero value can move.
     "lt_debt_to_capital": _Spec("longTermDebtToCapitalRatioTTM", 1.0, (),
                                 zero_ok_if_resolves=(_DEBT_TO_EQUITY,)),
+    # ── WAVE 7: already in this payload, never read ──
+    # ⚠️ EVERY SCALE BELOW WAS MEASURED, NOT ASSUMED, against four known
+    # companies before shipping — the `pct_avg30` 100x defect came from
+    # exactly this step being skipped. AAPL enterprise value reads
+    # 4.64e12 (dollars, scale 1); AAPL `ebitMarginTTM` reads 0.3327, i.e. a
+    # FRACTION that becomes 33.27% at scale 100; NVDA `ebitdaMarginTTM`
+    # 0.7612 -> 76.12%; AAPL revenue-per-share 31.77 and EPS 8.7752 are
+    # already dollars.
+    # ⛔ Uncorroborated zeros are refused by `value_for`'s existing rule and
+    # that is CORRECT here: AAPL reads `interestCoverageRatioTTM = 0`, which
+    # is the provider's undefined (no interest expense to cover), not a
+    # company that cannot cover its interest — the most dangerous possible
+    # reading of a 0 in this column.
+    "enterprise_value":      _Spec("enterpriseValueTTM", 1.0, ()),
+    "revenue_ps":            _Spec("revenuePerShareTTM", 1.0, ()),
+    "eps_ttm":               _Spec("netIncomePerShareTTM", 1.0, ()),
+    "book_value_ps":         _Spec("bookValuePerShareTTM", 1.0, ()),
+    "fcf_ps":                _Spec("freeCashFlowPerShareTTM", 1.0, ()),
+    "cash_ps":               _Spec("cashPerShareTTM", 1.0, ()),
+    "ebitda_margin":         _Spec("ebitdaMarginTTM", 100.0, ()),
+    "ebit_margin":           _Spec("ebitMarginTTM", 100.0, ()),
+    "tax_rate":              _Spec("effectiveTaxRateTTM", 100.0, ()),
+    "interest_coverage":     _Spec("interestCoverageRatioTTM", 1.0, ()),
+    "cash_ratio":            _Spec("cashRatioTTM", 1.0, ()),
+    "asset_turnover":        _Spec("assetTurnoverTTM", 1.0, ()),
 }
 
 #: /stable/key-metrics-ttm-bulk -> roa and roe. Neither denominator (total
@@ -512,6 +537,31 @@ KEY_METRIC_SPECS = {
     # applies verbatim here too — no corroborator in this payload, zeros
     # refused.
     "roic": _Spec("returnOnInvestedCapitalTTM", 100.0, ()),
+    # ── WAVE 7 ── same payload, same measured-scale rule as RATIO_SPECS.
+    # AAPL `earningsYieldTTM` 0.0280 -> 2.80%; `returnOnCapitalEmployedTTM`
+    # 0.6620 -> 66.2%; `evToEBITDATTM` 27.57 is already a multiple;
+    # `workingCapitalTTM` 4.92e8 is already dollars; AAPL's
+    # `cashConversionCycleTTM` is -35.3 DAYS, which is the famous negative
+    # cycle and the reason this column may not be clamped at zero.
+    # ⚠️ `rnd_to_revenue` IS THE ONE DEBATABLE REFUSAL. FMP writes 0.0 both
+    # for "reports no R&D line" (Coca-Cola, JPMorgan) and for "we could not
+    # compute it", and nothing in the payload separates them — so the
+    # module's standing rule applies and the zero is refused. The cost,
+    # measured: the column populates on 32.6% of the universe instead of
+    # 100%. That is the honest number, and the coverage line says so.
+    "ev_sales":              _Spec("evToSalesTTM", 1.0, ()),
+    "ev_ebitda":             _Spec("evToEBITDATTM", 1.0, ()),
+    "ev_fcf":                _Spec("evToFreeCashFlowTTM", 1.0, ()),
+    "net_debt_to_ebitda":    _Spec("netDebtToEBITDATTM", 1.0, ()),
+    "earnings_yield":        _Spec("earningsYieldTTM", 100.0, ()),
+    "fcf_yield":             _Spec("freeCashFlowYieldTTM", 100.0, ()),
+    "income_quality":        _Spec("incomeQualityTTM", 1.0, ()),
+    "roce":                  _Spec("returnOnCapitalEmployedTTM", 100.0, ()),
+    "working_capital":       _Spec("workingCapitalTTM", 1.0, ()),
+    "capex_to_revenue":      _Spec("capexToRevenueTTM", 100.0, ()),
+    "rnd_to_revenue":        _Spec("researchAndDevelopementToRevenueTTM", 100.0, ()),
+    "sbc_to_revenue":        _Spec("stockBasedCompensationToRevenueTTM", 100.0, ()),
+    "cash_conversion_cycle": _Spec("cashConversionCycleTTM", 1.0, ()),
 }
 
 #: /stable/profile-bulk -> beta. `exchange` is TEXT and handled beside these.

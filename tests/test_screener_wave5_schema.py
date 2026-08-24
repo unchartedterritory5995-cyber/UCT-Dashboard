@@ -32,7 +32,7 @@ def test_wave5_columns_are_declared(monkeypatch, tmp_path):
     assert len(WAVE5) == 13  # the reference table's own count, pinned
     # Width tripwire. Moved 158 -> 160 by the Wave-6 per-pattern engine flags
     # (`pattern_engine_vcp`, `pattern_engine_flat_base`).
-    assert len(snapshot_db.COLUMNS) == 160
+    assert len(snapshot_db.COLUMNS) == 185
 
 
 def test_wave5_type_set_membership(monkeypatch, tmp_path):
@@ -63,7 +63,7 @@ def test_init_db_creates_every_declared_column(monkeypatch, tmp_path):
     with snapshot_db.connect() as c:
         have = {r[1] for r in c.execute("PRAGMA table_info(screener_rows)")}
     assert set(snapshot_db.COLUMNS) <= have
-    assert len(snapshot_db.COLUMNS) == 160
+    assert len(snapshot_db.COLUMNS) == 185
 
 
 def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):

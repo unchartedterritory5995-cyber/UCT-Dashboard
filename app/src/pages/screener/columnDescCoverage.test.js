@@ -26,6 +26,13 @@ const MUST_DOCUMENT = [
   'debt_to_equity', 'current_ratio', 'quick_ratio', 'lt_debt_to_capital',
   // growth — percentage change off a negative base
   'eps_growth', 'rev_growth',
+  // Wave 7 — every one of these is a ratio whose sign or denominator surprises
+  'enterprise_value', 'ev_sales', 'ev_ebitda', 'ev_fcf', 'earnings_yield',
+  'fcf_yield', 'eps_ttm', 'revenue_ps', 'fcf_ps', 'book_value_ps', 'cash_ps',
+  'working_capital', 'ebitda_margin', 'ebit_margin', 'roce', 'income_quality',
+  'tax_rate', 'interest_coverage', 'net_debt_to_ebitda', 'cash_ratio',
+  'asset_turnover', 'capex_to_revenue', 'rnd_to_revenue', 'sbc_to_revenue',
+  'cash_conversion_cycle',
   // technicals a member will compare against another tool and find different
   'rsi14', 'adr_pct', 'atr_pct', 'vol_ratio',
   // bar shape — all three refuse on a bar with no range
@@ -49,9 +56,10 @@ describe('member-facing column descriptions', () => {
   it('holds the coverage ratchet', () => {
     // ⛔ This number may only ever go UP. If a change drops it, the change
     // deleted a member-facing explanation — restore it rather than lowering
-    // the floor. 32 at the start of 2026-08-24, 55 after the accuracy wave.
+    // the floor. 32 at the start of 2026-08-24, 55 after the accuracy wave,
+    // 80 after Wave 7 shipped 25 fundamental fields WITH their text.
     const documented = Object.keys(COLUMN_DEFS).filter(k => descFor(k)).length
-    expect(documented).toBeGreaterThanOrEqual(55)
+    expect(documented).toBeGreaterThanOrEqual(80)
   })
 
   it('states the two definitions that disagree, on BOTH columns', () => {

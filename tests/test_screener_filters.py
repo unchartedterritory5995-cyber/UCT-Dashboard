@@ -127,6 +127,21 @@ FACTUAL_PRESETS = {
     "debt_to_equity": ("Debt-free", "zero debt IS debt-free; 238 corroborated"),
     "beta":           ("Less volatile than the market",
                        "the market is 1.0 by construction"),
+    # ── reviewed 2026-08-24, Wave 7 ──
+    # Each is a DEFINITION: there is no second number a reasonable trader could
+    # pick, which is the whole test E-8 states for this exemption.
+    "net_debt_to_ebitda": ("Net cash (below 0)",
+                           "net debt below zero IS net cash — the company holds "
+                           "more cash than borrowings, and the boundary is zero "
+                           "or the phrase is false"),
+    "working_capital":    ("Positive working capital",
+                           "current assets exceeding current liabilities IS "
+                           "positive working capital; the sign is the claim"),
+    "rnd_to_revenue":     ("Reports R&D",
+                           "a non-zero R&D line IS reporting R&D. ⚠️ Narrower "
+                           "than it sounds and deliberately so: an uncorroborated "
+                           "0 is REFUSED upstream, so this returns the ~33% that "
+                           "publish a figure, never a claim about the rest"),
 }
 
 

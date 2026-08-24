@@ -160,7 +160,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     grows.
     """
     columns = set(COLUMNS)
-    assert len(columns) == len(COLUMNS) == 160, (
+    assert len(columns) == len(COLUMNS) == 185, (
         f"snapshot_db declares {len(COLUMNS)} columns ({len(columns)} distinct); "
         "the partition below is a claim about that exact list")
     declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
@@ -182,7 +182,18 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # the refused side to the granted side. ⛔ `COLUMNS` DID NOT MOVE and must
     # not: a promotion re-decides a column the schema already had, so the total
     # above stays 160 and only the split changes.
-    assert (len(declared), len(excluded)) == (108, 52)
+    # (108, 52) -> (108, 77) on 2026-08-24: Wave 7 added 25 fundamental columns
+    # that were already inside the three bulk FMP payloads this snapshot pulls.
+    # ⛔ ALL 25 LAND EXCLUDED, and that is R8 working rather than an oversight —
+    # no production build has written them yet, and a column no build has filled
+    # would make every expression over it silently NULL, which reads to a member
+    # as a screen that found nothing rather than a vocabulary that holds nothing.
+    # ⭐ THE DECLARED SIDE DID NOT MOVE, and the column TOTAL did (160 -> 185),
+    # which is the opposite of the vcp/flat_base promotion recorded above: that
+    # one re-decided columns the schema already had, so its total held and only
+    # the split moved. Adding columns moves the total; promoting them moves the
+    # split. Never both in one commit.
+    assert (len(declared), len(excluded)) == (108, 77)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
