@@ -238,7 +238,7 @@ export const COLUMN_DEFS = {
   // NULL here means "no active detection / no qualifying print / not in the
   // aggregate", three facts a fabricated 0 would silently overwrite.
   pattern_engine_ids: { label: 'Engine Pat', fmt: v => v ? v.split(',')[0] : '—',
-    desc: 'Active pattern-engine detections (daily timeframe, 7-day window) from the 85-detector engine — a different instrument from the always-on patterns heuristic column, though five pattern names exist in both vocabularies. Shows the first of up to 10 comma-joined detector ids.' },
+    desc: 'Active pattern-engine detections (daily timeframe, 7-day window) from the 85-detector engine — a different instrument from the always-on patterns heuristic column, though five pattern names exist in both vocabularies. ⚠️ Capped at 10 ids and ordered MOST DISTINCTIVE FIRST, because the median symbol carries about 14: a detector that fires on nearly every stock tells you nothing and is ranked last. The cap still truncates, so this column is "the most distinctive detections", not the complete set — the per-pattern flag columns are the complete answer.' },
   pattern_engine_conf: { label: 'Eng Conf', fmt: num(0),
     desc: 'Confidence of the best active pattern-engine detection on a 0-100 scale — NOT the 0-1 scale of Pattern Confidence (pattern_conf_max) beside the cheap patterns column; the two engines share five pattern names but are different instruments. Blank = no active detection.' },
   pattern_engine_dir: { label: 'Eng Dir',
