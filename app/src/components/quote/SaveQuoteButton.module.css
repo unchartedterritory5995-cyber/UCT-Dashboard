@@ -21,7 +21,7 @@
 }
 .btn:hover, .btn:focus-visible {
   opacity: 1;
-  border-color: rgba(201, 168, 76, 0.7);
+  border-color: var(--accent);
   background: rgba(201, 168, 76, 0.08);
   outline: none;
 }

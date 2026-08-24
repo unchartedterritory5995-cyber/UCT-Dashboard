@@ -41,7 +41,7 @@
 .tile[data-needs-folder="true"] {
   border-color: rgba(224, 161, 26, 0.5);
   background: rgba(224, 161, 26, 0.1);
-  color: #e0a11a;
+  color: var(--warn);
   font-weight: 700;
 }
 

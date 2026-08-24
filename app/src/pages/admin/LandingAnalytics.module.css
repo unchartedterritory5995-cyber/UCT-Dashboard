@@ -98,7 +98,7 @@
 }
 .statHighlight {
   background: rgba(201, 168, 76, 0.06);
-  border-color: rgba(201, 168, 76, 0.3);
+  border-color: var(--accent);
 }
 .statLbl {
   font-size: 11px;
@@ -123,7 +123,7 @@
 }
 .funnelArrow {
   align-self: center;
-  color: rgba(201, 168, 76, 0.4);
+  color: var(--accent);
   font-size: 18px;
 }
 

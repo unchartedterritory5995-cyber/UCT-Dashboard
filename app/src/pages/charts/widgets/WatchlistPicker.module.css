@@ -329,7 +329,7 @@
 }
 .newBtn:hover {
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.18), rgba(201, 168, 76, 0.06));
-  border-color: rgba(201, 168, 76, 0.7);
+  border-color: var(--accent);
 }
 
 .createForm {

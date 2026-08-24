@@ -36,7 +36,7 @@
   text-transform: uppercase;
 }
 .kickerSignal  { color: var(--accent); }
-.kickerNotable { color: #fbbf24; }
+.kickerNotable { color: var(--warn); }
 
 .chipLabel { color: var(--text-bright); font-weight: 700; }
 .chipValue { color: var(--text-bright); font-weight: 800; }

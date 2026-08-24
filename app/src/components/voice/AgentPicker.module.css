@@ -20,7 +20,7 @@
 .toggle:hover {
   opacity: 1;
   transform: scale(1.08);
-  border-color: rgba(201, 168, 76, 0.6);
+  border-color: var(--accent);
   color: var(--accent);
 }
 .toggle[aria-expanded="true"] {

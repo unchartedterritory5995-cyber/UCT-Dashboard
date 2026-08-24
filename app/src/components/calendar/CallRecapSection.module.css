@@ -51,7 +51,7 @@
 
 .listenBtnActive {
   background: rgba(201, 168, 76, 0.15);
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -78,7 +78,7 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: rgba(201, 168, 76, 0.6);
+  border-color: var(--accent);
 }
 
 .clearBtn {

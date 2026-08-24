@@ -14,7 +14,7 @@
   flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(201, 168, 76, 0.25);
   color: var(--text-bright); border-radius: 6px; padding: 6px 10px; font-size: 13px;
 }
-.input:focus { outline: none; border-color: rgba(201, 168, 76, 0.6); }
+.input:focus { outline: none; border-color: var(--accent); }
 .select {
   background: rgba(255,255,255,0.05); color: var(--text-bright);
   border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 6px;

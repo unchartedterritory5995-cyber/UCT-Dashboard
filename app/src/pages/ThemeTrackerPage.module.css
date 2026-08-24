@@ -74,7 +74,7 @@
 .periodTabActive {
   color: var(--tt-accent, var(--ut-gold));
   background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
-  border-color: rgba(201, 168, 76, 0.3);
+  border-color: var(--accent);
 }
 
 /* ⚙ Theme Tracker settings gear (right end of the search row — riding the period
@@ -137,7 +137,7 @@
 }
 
 .searchInput:focus {
-  border-color: rgba(201, 168, 76, 0.4);
+  border-color: var(--accent);
 }
 
 .searchClear {
@@ -592,7 +592,7 @@
 .chartPeriodBtnActive {
   color: var(--ut-gold);
   background: rgba(201, 168, 76, 0.12);
-  border-color: rgba(201, 168, 76, 0.3);
+  border-color: var(--accent);
 }
 
 .newsLabel {

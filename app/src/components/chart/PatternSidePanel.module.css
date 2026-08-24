@@ -409,7 +409,7 @@
 }
 .noteInput:focus {
   outline: none;
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   background: rgba(14, 15, 13, 0.9);
 }
 

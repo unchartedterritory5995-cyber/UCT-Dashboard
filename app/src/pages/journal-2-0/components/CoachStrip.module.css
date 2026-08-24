@@ -101,7 +101,7 @@
 }
 
 .warning {
-  border-left-color: rgba(201, 168, 76, 0.85);
+  border-left-color: var(--accent);
   background: rgba(201, 168, 76, 0.06);
 }
 

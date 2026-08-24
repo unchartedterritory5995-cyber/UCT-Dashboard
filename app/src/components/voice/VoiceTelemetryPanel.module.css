@@ -219,7 +219,7 @@
 .patternHeader {
   font-size: 12px;
   font-weight: 600;
-  color: #fbbf24;
+  color: var(--warn);
   margin-bottom: 8px;
   letter-spacing: 0.2px;
 }
@@ -240,7 +240,7 @@
 }
 .patternName {
   font-family: var(--font-mono);
-  color: #fbbf24;
+  color: var(--warn);
 }
 .patternRate {
   color: var(--loss);

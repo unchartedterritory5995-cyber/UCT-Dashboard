@@ -480,7 +480,7 @@
   padding-bottom: 2px;
   transition: color 0.15s, border-color 0.15s;
 }
-.switchLine:hover { color: var(--gold); border-color: rgba(201, 168, 76, 0.7); }
+.switchLine:hover { color: var(--gold); border-color: var(--accent); }
 
 /* ── Footer (stays dark, continuous with the close) ── */
 .foot {

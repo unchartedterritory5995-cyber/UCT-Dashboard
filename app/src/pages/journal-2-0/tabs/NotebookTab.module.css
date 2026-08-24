@@ -178,7 +178,7 @@
 .importBtnEmphasized {
   background: rgba(201, 168, 76, 0.08);
   color: var(--accent);
-  border-color: rgba(201, 168, 76, 0.4);
+  border-color: var(--accent);
 }
 .importBtnEmphasized:hover { background: rgba(201, 168, 76, 0.16); border-color: #c9a84c; }
 .grid {

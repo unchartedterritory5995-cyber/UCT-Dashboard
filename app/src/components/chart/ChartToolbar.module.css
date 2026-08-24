@@ -338,7 +338,7 @@
 }
 .presetActive {
   background: rgba(201, 168, 76, 0.15);
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   color: var(--accent);
 }
 .presetDot {
@@ -368,7 +368,7 @@
 .sPill:hover { background: rgba(255, 255, 255, 0.06); color: var(--text-bright); }
 .sPillActive {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -431,7 +431,7 @@
   font-family: var(--font-sans);
   cursor: pointer;
 }
-.sMiniSelect:focus { outline: none; border-color: rgba(201, 168, 76, 0.5); }
+.sMiniSelect:focus { outline: none; border-color: var(--accent); }
 
 .sPeriodInput {
   width: 40px;
@@ -444,7 +444,7 @@
   font-family: var(--font-sans);
   text-align: center;
 }
-.sPeriodInput:focus { outline: none; border-color: rgba(201, 168, 76, 0.5); }
+.sPeriodInput:focus { outline: none; border-color: var(--accent); }
 
 .sResetBtn {
   width: 100%;

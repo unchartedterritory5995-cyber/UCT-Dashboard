@@ -104,14 +104,14 @@
   cursor: pointer;
   border: 1px solid rgba(224, 161, 26, 0.5);
   background: rgba(224, 161, 26, 0.12);
-  color: #e0a11a;
+  color: var(--warn);
   min-height: 32px;
 }
 .chooseFolderBtn:hover { background: rgba(224, 161, 26, 0.2); }
 
 .needsFolderHint {
   font-size: 12px;
-  color: #e0a11a;
+  color: var(--warn);
   margin: 0;
 }
 
@@ -147,7 +147,7 @@
 .counts { display: flex; gap: 16px; }
 .stat { display: flex; flex-direction: column; gap: 1px; }
 .statValue { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.statWarn { color: #e0a11a; }
+.statWarn { color: var(--warn); }
 .statLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; opacity: 0.6; }
 
 .sourceErr {

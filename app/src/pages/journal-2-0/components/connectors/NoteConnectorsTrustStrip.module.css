@@ -19,4 +19,4 @@
 }
 .line:hover { color: var(--color-text, #e8e8ea); text-decoration: underline; }
 
-.conflict { color: #e0a11a; font-weight: 600; }
+.conflict { color: var(--warn); font-weight: 600; }

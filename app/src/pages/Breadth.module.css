@@ -680,7 +680,7 @@
 .drillChartTabActive {
   color: var(--accent);
   background: rgba(201,168,76,0.12);
-  border-color: rgba(201,168,76,0.3);
+  border-color: var(--accent);
 }
 .drillChartFrame {
   flex: 1;
@@ -1366,7 +1366,7 @@ tbody tr { cursor: pointer; }
   transition: border-color 0.15s;
 }
 .analogueCard:hover {
-  border-color: rgba(201, 168, 76, 0.35);
+  border-color: var(--accent);
 }
 
 .analogueCardHeader {
@@ -1562,7 +1562,7 @@ tbody tr { cursor: pointer; }
    Liveness is carried by the date cell and a hairline instead. */
 .liveRow td {
   border-top: 1px solid rgba(201, 168, 76, 0.30);
-  border-bottom-color: rgba(201, 168, 76, 0.22);
+  border-bottom-color: var(--accent);
 }
 .liveRow .dateCell {
   background: rgba(201, 168, 76, 0.09);

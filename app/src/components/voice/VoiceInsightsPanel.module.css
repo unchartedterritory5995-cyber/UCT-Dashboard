@@ -69,7 +69,7 @@
   padding: 8px 12px;
   background: rgba(180, 130, 20, 0.12);
   border: 1px solid rgba(180, 130, 20, 0.45);
-  color: #fbbf24;
+  color: var(--warn);
   border-radius: 4px;
   font-size: 12px;
   margin-bottom: 12px;
@@ -92,7 +92,7 @@
 }
 .filterActive {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.6);
+  border-color: var(--accent);
   color: var(--accent);
 }
 

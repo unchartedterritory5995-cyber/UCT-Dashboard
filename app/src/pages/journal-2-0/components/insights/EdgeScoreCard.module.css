@@ -72,7 +72,7 @@
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.8);
+  color: var(--accent);
 }
 
 .title {
@@ -112,7 +112,7 @@
 
 .copyBtn:hover {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.6);
+  border-color: var(--accent);
   color: #f0dca0;
 }
 
@@ -162,7 +162,7 @@
 }
 
 .formulaEq {
-  color: rgba(201, 168, 76, 0.85);
+  color: var(--accent);
   font-weight: 800;
 }
 
@@ -204,7 +204,7 @@
   font-size: 11px;
   font-style: italic;
   letter-spacing: 0.2px;
-  color: rgba(201, 168, 76, 0.55);
+  color: var(--accent);
 }
 
 .copyFail {

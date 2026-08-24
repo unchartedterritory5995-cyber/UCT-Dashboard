@@ -98,7 +98,7 @@
   border-right: 2px solid rgba(201, 168, 76, 0.55);
   border-bottom: 2px solid rgba(201, 168, 76, 0.55);
 }
-.corner:hover::after { border-right-color: rgba(201, 168, 76, 0.95); border-bottom-color: rgba(201, 168, 76, 0.95); }
+.corner:hover::after { border-right-color: var(--accent); border-bottom-color: var(--accent); }
 .cornerSE { right: 0; bottom: 0; cursor: se-resize; }
 .cornerSW { left: 0; bottom: 0; cursor: sw-resize; transform: rotate(90deg); }
 .cornerNW { left: 0; top: 0; cursor: nw-resize; transform: rotate(180deg); }

@@ -392,12 +392,12 @@
 }
 .tickerChip:hover {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.8);
+  border-color: var(--accent);
 }
 /* Ticker chip whose moment is playing now (follow-along). */
 .tickerChipActive {
   background: rgba(201, 168, 76, 0.28);
-  border-color: rgba(201, 168, 76, 0.95);
+  border-color: var(--accent);
 }
 /* Two click targets inside the chip: symbol → chart, time → seek video. */
 .tickerSym {

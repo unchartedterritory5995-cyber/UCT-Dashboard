@@ -34,7 +34,7 @@
 /* Gold-edge emphasis on the hero tile — element selector so TileCard's
    hashed classes stay untouched. */
 .hero > :first-child {
-  border-color: rgba(201, 168, 76, 0.45);
+  border-color: var(--accent);
   box-shadow: 0 0 22px rgba(201, 168, 76, 0.07);
 }
 
@@ -74,7 +74,7 @@
 @media (hover: hover) {
   .desktopOnly :is(.rowC, .rowD) > *:hover > :first-child {
     transform: translateY(-1px);
-    border-color: rgba(201, 168, 76, 0.35);
+    border-color: var(--accent);
   }
 }
 

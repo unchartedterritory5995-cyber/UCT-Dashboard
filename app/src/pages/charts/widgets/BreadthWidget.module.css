@@ -58,7 +58,7 @@
 .pillOn {
   color: var(--bw-accent, var(--ut-gold));
   background: var(--bw-accent-bg, rgba(201, 168, 76, 0.12));
-  border-color: rgba(201, 168, 76, 0.3);
+  border-color: var(--accent);
 }
 .asOf {
   display: inline-flex;
@@ -162,7 +162,7 @@
 }
 .hmTile:hover {
   transform: translateY(-1px);
-  border-color: rgba(201, 168, 76, 0.45);
+  border-color: var(--accent);
 }
 .hmTileLabel {
   font-size: 9px;

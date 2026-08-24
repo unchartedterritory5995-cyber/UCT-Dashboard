@@ -185,11 +185,11 @@
 }
 .tickerChip:hover {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.8);
+  border-color: var(--accent);
 }
 .tickerChipActive {
   background: rgba(201, 168, 76, 0.28);
-  border-color: rgba(201, 168, 76, 0.95);
+  border-color: var(--accent);
 }
 .tickerSym {
   border: none;

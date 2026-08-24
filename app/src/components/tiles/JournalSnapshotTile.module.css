@@ -89,7 +89,7 @@
   font-size: 10px;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.72);
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -503,5 +503,5 @@
   font-style: italic;
   font-size: 12px;
   letter-spacing: 0.2px;
-  color: rgba(201, 168, 76, 0.78);
+  color: var(--accent);
 }

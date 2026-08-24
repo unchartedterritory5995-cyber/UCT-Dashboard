@@ -23,7 +23,7 @@
   background: transparent; color: var(--text-muted); transition: all 0.15s;
 }
 .familyTab:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
-.familyTabActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.familyTabActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: var(--accent); }
 
 /* ── Template list ── */
 .templateList { flex: 1; overflow-y: auto; }

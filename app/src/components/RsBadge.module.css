@@ -36,7 +36,7 @@
 .neutral {
   color: var(--gold-ink, #c9a84c);
   background: rgba(201, 168, 76, 0.12);
-  border-color: rgba(201, 168, 76, 0.34);
+  border-color: var(--accent);
 }
 .lag {
   color: #f0938c;

@@ -190,7 +190,7 @@
   border-radius: 5px; padding: 4px 7px; color: inherit;
   font-size: 12px; font-family: inherit;
 }
-.newListInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.newListInput:focus { outline: none; border-color: var(--accent); }
 .newListBtn {
   border: 1px solid rgba(201,168,76,0.35); background: rgba(201,168,76,0.12);
   color: var(--accent); border-radius: 5px; padding: 4px 9px; cursor: pointer;

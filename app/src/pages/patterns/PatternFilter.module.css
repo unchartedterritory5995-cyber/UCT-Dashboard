@@ -174,7 +174,7 @@
 }
 .mobileFiltersBtnActive {
   color: var(--accent);
-  border-color: rgba(201, 168, 76, 0.45);
+  border-color: var(--accent);
   background: rgba(201, 168, 76, 0.08);
 }
 .mobileSummary {

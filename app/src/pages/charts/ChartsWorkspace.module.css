@@ -270,13 +270,13 @@
   cursor: pointer;
   line-height: 1;
 }
-.chartTabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
+.chartTabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
 
 /* Armed state — first click on × asks for a confirming second click. */
 .chartTabCloseConfirm,
 .chartTabCloseConfirm:hover {
   opacity: 1;
-  color: #ff6b74;
+  color: var(--loss);
   background: rgba(255, 107, 116, 0.22);
   box-shadow: 0 0 0 1px rgba(255, 107, 116, 0.55);
   font-size: 10px;
@@ -429,7 +429,7 @@
   line-height: 1;
   opacity: 0.55;
 }
-.wtabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
+.wtabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
 .wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: var(--gain); background: rgba(74, 222, 128, 0.14); }
 .wtabAdd {
   flex: 0 0 auto;
@@ -1313,12 +1313,12 @@
    Default RGL ::after uses rgba(0,0,0,0.4) borders — invisible on #0f141b.
    We override all 4 corners with a gold accent that fades on hover. */
 :global(.react-grid-item) > :global(.react-resizable-handle)::after {
-  border-color: rgba(201, 168, 76, 0.55) !important;
+  border-color: var(--accent) !important;
   width: 6px !important;
   height: 6px !important;
 }
 :global(.react-grid-item):hover > :global(.react-resizable-handle)::after {
-  border-color: rgba(201, 168, 76, 0.95) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Slight enlargement of the hit area for easier grab from any corner */
@@ -1340,7 +1340,7 @@
   border: 0 solid rgba(201, 168, 76, 0.55);
   transition: border-color 0.12s ease;
 }
-:global(.react-grid-item):hover .rzCorner::after { border-color: rgba(201, 168, 76, 0.95); }
+:global(.react-grid-item):hover .rzCorner::after { border-color: var(--accent); }
 .rz_nw::after { top: 3px;    left: 3px;    border-top-width: 2px;    border-left-width: 2px; }
 .rz_ne::after { top: 3px;    right: 3px;   border-top-width: 2px;    border-right-width: 2px; }
 .rz_sw::after { bottom: 3px; left: 3px;    border-bottom-width: 2px; border-left-width: 2px; }

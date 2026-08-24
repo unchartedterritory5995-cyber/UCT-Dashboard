@@ -32,7 +32,7 @@
   color: var(--text-muted);
 }
 .ctxItem { white-space: nowrap; }
-.ctxAmber { color: #fbbf24; }
+.ctxAmber { color: var(--warn); }
 
 /* ── Sortable headers ─────────────────────────────────────────────────────── */
 .sortHead { cursor: pointer; user-select: none; }
@@ -160,7 +160,7 @@
 .erBadge {
   font-family: var(--font-mono);
   font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-  color: #fbbf24; background: rgba(180, 130, 20, 0.22);
+  color: var(--warn); background: rgba(180, 130, 20, 0.22);
   border: 1px solid rgba(251, 191, 36, 0.35);
   border-radius: 3px; padding: 0 5px; flex-shrink: 0;
 }

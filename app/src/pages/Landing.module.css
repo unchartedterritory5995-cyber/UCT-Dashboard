@@ -774,7 +774,7 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   letter-spacing: 0.06em;
-  color: rgba(242, 233, 216, 0.75);
+  color: var(--text);
   text-align: center;
 }
 

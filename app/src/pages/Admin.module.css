@@ -38,7 +38,7 @@
   transition: border-color 0.15s;
 }
 .statCardClickable:hover {
-  border-color: rgba(201,168,76,0.4);
+  border-color: var(--accent);
 }
 .statNumber {
   font-family: var(--font-mono);
@@ -234,7 +234,7 @@
 .act_muted  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 .act_green  { background: rgba(74,222,128,0.15); color: var(--gain); }
 .act_blue   { background: rgba(96,165,250,0.15); color: var(--info); }
-.act_amber  { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.act_amber  { background: rgba(251,191,36,0.15); color: var(--warn); }
 .act_gold   { background: rgba(201,168,76,0.15); color: var(--ut-gold); }
 .act_red    { background: rgba(248,113,113,0.15); color: var(--loss); }
 
@@ -280,7 +280,7 @@
   max-width: 320px;
 }
 .searchInput::placeholder { color: var(--text-muted); }
-.searchInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.searchInput:focus { outline: none; border-color: var(--accent); }
 
 .filterPills { display: flex; gap: 6px; }
 .pill {
@@ -297,7 +297,7 @@
 .pillActive {
   composes: pill;
   background: rgba(201,168,76,0.2);
-  border-color: rgba(201,168,76,0.4);
+  border-color: var(--accent);
   color: var(--ut-gold);
 }
 
@@ -504,7 +504,7 @@
   font-family: inherit;
 }
 .announcementInput::placeholder { color: var(--text-muted); }
-.announcementInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.announcementInput:focus { outline: none; border-color: var(--accent); }
 .announcementTextarea {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
@@ -517,7 +517,7 @@
   min-height: 80px;
 }
 .announcementTextarea::placeholder { color: var(--text-muted); }
-.announcementTextarea:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.announcementTextarea:focus { outline: none; border-color: var(--accent); }
 .announcementControls {
   display: flex;
   align-items: center;
@@ -891,7 +891,7 @@
   font-family: var(--font-mono);
 }
 .noteInput::placeholder { color: var(--text-muted); }
-.noteInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.noteInput:focus { outline: none; border-color: var(--accent); }
 .noteBtn {
   background: rgba(201,168,76,0.15);
   color: var(--ut-gold);
@@ -928,7 +928,7 @@
 .auditToggleActive {
   composes: auditToggle;
   background: rgba(201,168,76,0.15);
-  border-color: rgba(201,168,76,0.3);
+  border-color: var(--accent);
   color: var(--ut-gold);
 }
 .auditDetails {
@@ -1223,7 +1223,7 @@
 .tagRisk { background: rgba(239,68,68,0.15); color: var(--loss); }
 .tagWhale { background: rgba(74,222,128,0.15); color: var(--gain); }
 .tagInfluencer { background: rgba(168,85,247,0.15); color: #a855f7; }
-.tagPriority { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.tagPriority { background: rgba(251,191,36,0.15); color: var(--warn); }
 
 /* ── Feedback List ── */
 .feedbackList {
@@ -1309,7 +1309,7 @@
   line-height: 1.2;
 }
 .ticketStatOpen .ticketStatMiniVal { color: var(--gain); }
-.ticketStatProgress .ticketStatMiniVal { color: #fbbf24; }
+.ticketStatProgress .ticketStatMiniVal { color: var(--warn); }
 .ticketStatResolved .ticketStatMiniVal { color: var(--text-muted); }
 .ticketStatMiniLabel {
   font-size: 10px;
@@ -1334,10 +1334,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.ticketFilterPill:hover { border-color: rgba(201,168,76,0.3); color: var(--text-bright); }
+.ticketFilterPill:hover { border-color: var(--accent); color: var(--text-bright); }
 .ticketFilterActive {
   background: rgba(201,168,76,0.12);
-  border-color: rgba(201,168,76,0.35);
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -1376,7 +1376,7 @@
   white-space: nowrap;
 }
 .tStatus_open { background: rgba(74,222,128,0.12); color: var(--gain); }
-.tStatus_in_progress { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.tStatus_in_progress { background: rgba(251,191,36,0.12); color: var(--warn); }
 .tStatus_resolved { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
 /* ── Ticket Drawer ── */
@@ -1485,7 +1485,7 @@
   transition: border-color 0.15s;
   box-sizing: border-box;
 }
-.ticketDrawerReplyInput:focus { border-color: rgba(201,168,76,0.4); }
+.ticketDrawerReplyInput:focus { border-color: var(--accent); }
 .ticketDrawerReplyBtn {
   background: rgba(201,168,76,0.15);
   color: var(--accent);

@@ -17,7 +17,7 @@
   color: var(--color-text, #e8e8ea);
   min-height: var(--tap-min, 44px);
 }
-.textInput:focus { outline: none; border-color: rgba(201, 168, 76, 0.6); }
+.textInput:focus { outline: none; border-color: var(--accent); }
 
 .helpText { font-size: 12px; line-height: 1.5; opacity: 0.75; margin: 0; }
 .warnText {
@@ -28,7 +28,7 @@
   border-radius: 8px;
   background: rgba(224, 161, 26, 0.1);
   border: 1px solid rgba(224, 161, 26, 0.3);
-  color: #e0a11a;
+  color: var(--warn);
 }
 
 .consentCheck {

@@ -291,7 +291,7 @@
   padding: 0 5px;
   border-radius: 9px;
   background: rgba(224, 161, 26, 0.18);
-  color: #e0a11a;
+  color: var(--warn);
   font-size: 11px;
   font-weight: 700;
 }

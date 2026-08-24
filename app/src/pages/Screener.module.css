@@ -109,7 +109,7 @@
 .pageTab:hover { color: var(--text-bright); border-color: var(--border-accent); }
 .pageTabActive {
   color: var(--ut-gold);
-  border-color: rgba(201,168,76,0.4);
+  border-color: var(--accent);
   background: rgba(201,168,76,0.08);
 }
 
@@ -692,7 +692,7 @@
 .scanHealthWarn {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: #fbbf24;
+  color: var(--warn);
   background: rgba(180, 130, 20, 0.14);
   border: 1px solid rgba(251, 191, 36, 0.35);
   border-radius: 6px;
@@ -804,7 +804,7 @@
   color: inherit;
 }
 .cotTileLink:hover .column {
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   background: var(--bg-hover);
 }
 

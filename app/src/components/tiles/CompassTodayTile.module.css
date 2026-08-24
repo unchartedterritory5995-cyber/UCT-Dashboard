@@ -11,12 +11,12 @@
   border: 1px solid rgba(251, 191, 36, 0.4);
   border-radius: 6px;
   font-size: 12px;
-  color: #fbbf24;
+  color: var(--warn);
   font-weight: 600;
 }
 
 .interventionLink {
-  color: #fbbf24;
+  color: var(--warn);
   text-decoration: underline;
   font-weight: 700;
 }

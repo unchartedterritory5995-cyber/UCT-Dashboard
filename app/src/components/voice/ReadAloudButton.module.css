@@ -12,7 +12,7 @@
 }
 .btn:hover {
   background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
 }
 .btn:focus-visible {
   outline: 2px solid #c9a84c;
@@ -22,7 +22,7 @@
 .md { padding: 6px 14px; font-size: 13px; }
 .playing {
   background: rgba(201, 168, 76, 0.25);
-  border-color: rgba(201, 168, 76, 0.7);
+  border-color: var(--accent);
 }
 .icon { display: inline-block; min-width: 14px; text-align: center; }
 .text { letter-spacing: 0.5px; }
