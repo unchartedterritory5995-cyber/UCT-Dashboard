@@ -41,6 +41,20 @@ def test_engine_row_still_reads_engine_spelling():
     assert row["date"] == "2026-08-25" and row["session"] == "BMO"
 
 
+@pytest.fixture(autouse=True)
+def _meta_offline(monkeypatch):
+    """No test in this module may reach the real ticker_meta provider.
+
+    Default: "B" — the fixture's no-consensus name — is a FUND, because every
+    test that predates the fund-aware rule (2026-08-24) asserts B is dropped,
+    and under that rule "dropped" is exactly what being a fund means.
+    `meta_says` overrides it per-test."""
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": "Closed-End Fund" if sym == "B" else "Software",
+                                     "sector": ""})
+
+
 @pytest.fixture
 def fake_calendar(monkeypatch):
     from api.routers import calendar as cal
@@ -69,7 +83,9 @@ def test_rank_finds_pending_reporters_in_calendar_spelling(fake_calendar):
     pending = w._rank(1, reported=False, tracked=set())
     syms = [r["sym"] for r in pending]
     # A has consensus + cap; NOCAP has consensus and an UNKNOWN cap (kept — an
-    # unknown cap is not a small cap); B has no consensus; C already reported.
+    # unknown cap is not a small cap); B has no consensus AND is a fund, so it
+    # is dropped — a real COMPANY with no consensus is now kept (see the
+    # fund-aware tests below); C already reported.
     #
     # TINY is under the $300M floor. It used to be DROPPED here; since
     # 2026-08-23 it is DEMOTED instead — owner call, "every reporter you can
@@ -145,7 +161,7 @@ def test_board_mode_is_a_superset_of_both_budgets(fake_calendar):
     analyses = {r["sym"] for r in w._rank(1, reported=True, tracked=set())}
     assert previews < board and analyses < board
     # and the two budgets keep their own rules — board mode must not leak into them
-    assert "B" not in previews          # no consensus
+    assert "B" not in previews          # no consensus AND a fund
     assert "C" not in previews          # already reported
     assert analyses == {"C"}
 
@@ -169,7 +185,7 @@ def test_companions_are_submitted_for_a_name_the_preview_filter_drops(monkeypatc
     monkeypatch.setattr(w, "_POOL", _Pool())
 
     out = w._run("preview", lambda *a, **k: None, reported=False)
-    assert "B" not in briefs, "a no-consensus name must not get a preview"
+    assert "B" not in briefs, "a fund must not get an earnings preview"
     assert "B" in comps, "but it MUST get its Profile + Catalysts"
     assert "C" in comps, "a name that already reported still has a company page"
     assert set(comps) == {"A", "B", "C", "NOCAP", "TINY"}
@@ -221,3 +237,90 @@ def test_a_brief_still_rides_its_own_row_not_a_board_row(monkeypatch, fake_calen
     w._run("preview", lambda *a, **k: None, reported=False)
     assert rows and all(r.get("verdict") == "Pending" for r in rows)
     assert all("eps_estimate" in r for r in rows)
+
+
+# ── 2026-08-24: a fund has no earnings story; a company without a consensus
+# still does. Measured that day: 70 board names had no consensus in our feed —
+# 47 funds, and 23 REAL operating companies (XPEV, Woodside, EHang, Citi
+# Trends) that were being skipped with them.
+
+@pytest.fixture
+def meta_says(monkeypatch, _meta_offline):
+    """Point the fund-detector at a fixture industry map."""
+    from api.services import ticker_meta
+
+    def _apply(mapping):
+        monkeypatch.setattr(ticker_meta, "_base_meta",
+                            lambda sym: {"industry": mapping.get(sym, ""), "sector": ""})
+    return _apply
+
+
+def test_a_fund_without_a_consensus_is_still_skipped(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Closed-End Fund - Debt"})
+    assert "B" not in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_a_real_company_without_a_consensus_is_now_warmed(fake_calendar, meta_says):
+    """THE REGRESSION: 'B' has no consensus but is an operating company."""
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Auto Manufacturers"})
+    ranked = w._rank(1, reported=False, tracked=set())
+    syms = [r["sym"] for r in ranked]
+    assert "B" in syms, "a real company with no consensus must still get a brief"
+    # …but behind every name that HAS one. (Not necessarily last: TINY is under
+    # the house floor, and below-floor demotes harder than no-consensus — a
+    # sub-$300M name is a weaker click than a real company we simply hold no
+    # estimate for.)
+    assert syms.index("B") > syms.index("A") and syms.index("B") > syms.index("NOCAP")
+    assert next(r for r in ranked if r["sym"] == "B")["_no_consensus"] is True
+
+
+def test_an_unknown_industry_is_treated_as_a_company_not_a_fund(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({})                      # nothing known about B
+    assert "B" in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_a_meta_lookup_that_raises_never_drops_the_name(fake_calendar, monkeypatch):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: (_ for _ in ()).throw(RuntimeError("provider down")))
+    assert "B" in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_consensus_names_still_outrank_a_no_consensus_one(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Auto Manufacturers"})
+    ranked = w._rank(1, reported=False, tracked=set())
+    idx = {r["sym"]: i for i, r in enumerate(ranked)}
+    assert idx["A"] < idx["B"] and idx["NOCAP"] < idx["B"]
+
+
+@pytest.mark.parametrize("industry, is_fund", [
+    # The fund industries that actually occur on the board (2026-08-24 census).
+    ("Closed-End Fund", True),
+    ("Asset Management", True),
+    ("Real Estate Fund", True),
+    ("Municipal Bond Fund", True),
+    # ⛔ A REIT reports real earnings. These MUST stay companies — "Trust" and
+    # "Income" used to be in the pattern, which would have swept them up.
+    ("Residential REITs", False),
+    ("Diversified REITs", False),
+    ("Diversified Real Estate", False),
+    ("REIT - Mortgage Trust", False),
+    ("Insurance - Diversified Income", False),
+    # Ordinary operating industries seen among the 23 real companies.
+    ("Auto Manufacturers", False),
+    ("Marine Shipping", False),
+    ("Wealth Management", False),
+    ("Credit Services", False),
+    ("", False),                      # unknown is not a fund
+])
+def test_the_fund_detector_keeps_reits_and_operating_companies(monkeypatch, industry, is_fund):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": industry, "sector": ""})
+    assert w._looks_like_a_fund("X") is is_fund, industry
