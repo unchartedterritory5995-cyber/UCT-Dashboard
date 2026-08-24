@@ -21,7 +21,7 @@
   color: var(--color-danger, #f87171);
   background: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
   display: flex;
   align-items: center;
@@ -48,7 +48,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .row:hover { background: rgba(255, 255, 255, 0.04); }
 

@@ -7,7 +7,7 @@
   font-weight: 700;
   line-height: 1;
   padding: 4px 8px 4px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

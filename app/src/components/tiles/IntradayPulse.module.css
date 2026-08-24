@@ -6,7 +6,7 @@
   padding: 6px 14px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: 10px;
   color: var(--text);

@@ -45,14 +45,14 @@
   padding: 4px 6px 4px 4px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .thumb {
   display: inline-block;
   width: 64px;
   height: 64px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -72,7 +72,7 @@
   color: var(--text-bright);
   font-size: 12px;
   max-width: 280px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .linkChip:hover {
@@ -94,7 +94,7 @@
   height: 22px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 14px;
   line-height: 1;
@@ -118,7 +118,7 @@
   padding: 8px 10px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -137,7 +137,7 @@
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -168,7 +168,7 @@
   border: 1px solid var(--loss-border);
   color: var(--loss);
   font-size: 11px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 @media (max-width: 640px) {

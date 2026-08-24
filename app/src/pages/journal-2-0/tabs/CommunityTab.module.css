@@ -10,7 +10,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--ut-gold);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .introTitle {
@@ -40,7 +40,7 @@
   padding: 8px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
@@ -70,7 +70,7 @@
   display: flex;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 3px;
   gap: 2px;
 }
@@ -84,7 +84,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .sortPill:hover {
@@ -117,7 +117,7 @@
   padding: 48px;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   text-align: center;
   font-size: 13px;
   color: var(--text); font-weight: 500;
@@ -145,7 +145,7 @@
   padding: 10px 12px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--loss);
   font-size: 13px;
 }

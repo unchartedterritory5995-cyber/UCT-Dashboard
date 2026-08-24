@@ -11,7 +11,7 @@
 .tapePresence { display: inline-flex; align-items: center; gap: 6px; color: var(--text-heading); font-weight: 600; }
 .tapeHot { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--text); opacity: 0.85; }
 .tapeChip {
-  background: var(--ut-gold-dim); color: var(--ut-gold); border: none; border-radius: 4px;
+  background: var(--ut-gold-dim); color: var(--ut-gold); border: none; border-radius: var(--radius-sm);
   font-weight: 700; font-size: 11.5px; padding: 1px 6px; cursor: pointer;
 }
 
@@ -28,7 +28,7 @@
 }
 .railItem {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 9px 10px; border: none; border-radius: 6px; background: none;
+  padding: 9px 10px; border: none; border-radius: var(--radius-md); background: none;
   color: var(--text); font-size: 13px; cursor: pointer; text-align: left;
   min-height: var(--tap-min);
 }
@@ -45,7 +45,7 @@
 .threadRow {
   display: block; width: 100%; text-align: left; cursor: pointer;
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 12px 14px;
+  border-radius: var(--radius-lg); padding: 12px 14px;
 }
 .threadRow:hover { border-color: var(--ut-gold-glow); background: var(--bg-elevated); }
 .threadTitleRow { display: flex; align-items: center; gap: 8px; }
@@ -54,11 +54,11 @@
 .answeredTick {
   color: var(--ut-green); font-size: 10px; letter-spacing: 0.6px;
   text-transform: uppercase; border: 1px solid var(--ut-green);
-  border-radius: 4px; padding: 1px 6px;
+  border-radius: var(--radius-sm); padding: 1px 6px;
 }
 .meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; color: var(--text); font-size: 11.5px; }
 .mentorBadge { color: var(--ut-gold); font-weight: 600; }
-.tickerChip { color: var(--ut-gold); background: var(--ut-gold-dim); border-radius: 4px; padding: 0 5px; font-size: 11px; }
+.tickerChip { color: var(--ut-gold); background: var(--ut-gold-dim); border-radius: var(--radius-sm); padding: 0 5px; font-size: 11px; }
 
 .empty { color: var(--text); padding: 40px; text-align: center; }
 .comingSoon {
@@ -86,7 +86,7 @@
 }
 .opTitle { display: flex; align-items: center; gap: 8px; color: var(--text-heading); font-size: 18px; margin: 0 0 10px; }
 .postsList { display: flex; flex-direction: column; gap: 10px; }
-.post { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.post { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 12px; }
 .postMentor { border-left: 2px solid var(--ut-gold); }
 .postHighlight { background: rgba(201, 168, 76, 0.06); border-color: var(--ut-gold-glow); }
 .highlightTag { color: var(--ut-gold); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
@@ -96,15 +96,15 @@
 .authorName { color: var(--text-heading); font-size: 12.5px; }
 .mentorChip {
   margin-left: 6px; color: var(--ut-gold); border: 1px solid var(--ut-gold);
-  border-radius: 4px; padding: 0 4px; font-size: 9px; letter-spacing: 0.8px;
+  border-radius: var(--radius-sm); padding: 0 4px; font-size: 9px; letter-spacing: 0.8px;
 }
 .postBody { color: var(--text); font-size: 13.5px; line-height: 1.6; }
-.postBody img { max-width: 100%; border-radius: 6px; }
+.postBody img { max-width: 100%; border-radius: var(--radius-md); }
 .deletedBody { color: var(--text); font-style: italic; opacity: 0.6; font-size: 12.5px; }
 .postActions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .reactBtn, .replyBtn {
   display: inline-flex; align-items: center; gap: 4px;
-  background: none; border: 1px solid var(--border); border-radius: 6px;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-md);
   color: var(--text); font-size: 11.5px; padding: 3px 8px; cursor: pointer;
   min-height: 28px;
 }
@@ -113,7 +113,7 @@
 .lockedNote { color: var(--text); font-size: 12px; margin-top: 14px; font-style: italic; }
 
 /* ── Composer (Task 12) ────────────────────────────────────────────────── */
-.composer { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; }
+.composer { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .composerEditor { min-height: 90px; padding: 10px 12px; font-size: 13.5px; color: var(--text); }
 .composerEditor :global(.ProseMirror) { outline: none; min-height: 70px; }
 .composerFoot {
@@ -123,19 +123,19 @@
 .composerHint { color: var(--text); font-size: 10.5px; opacity: 0.7; margin-right: auto; }
 .composerError { color: var(--ut-red); font-size: 11.5px; }
 .composerSubmit {
-  background: var(--ut-gold); color: var(--bg); border: none; border-radius: 6px;
+  background: var(--ut-gold); color: var(--bg); border: none; border-radius: var(--radius-md);
   font-weight: 700; font-size: 12.5px; padding: 6px 14px; cursor: pointer;
   min-height: 32px;
 }
 .composerSubmit:disabled { opacity: 0.5; cursor: default; }
 .newThreadBtn {
   background: none; border: 1px solid var(--ut-gold); color: var(--ut-gold);
-  border-radius: 6px; padding: 6px 14px; font-size: 12.5px; cursor: pointer;
+  border-radius: var(--radius-md); padding: 6px 14px; font-size: 12.5px; cursor: pointer;
   margin-bottom: 12px; min-height: 32px;
 }
 .newThreadCard { margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; }
 .titleInput {
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   color: var(--text-heading); font-size: 14px; padding: 10px 12px; outline: none;
 }
 .titleInput:focus { border-color: var(--ut-gold-glow); }
@@ -154,12 +154,12 @@
 }
 .ackCard {
   max-width: 480px; background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow);
-  border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;
+  border-radius: var(--radius-xl); padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;
 }
 .ackText { color: var(--text); font-size: 12.5px; line-height: 1.65; margin: 0; }
 .modBtn {
   background: none; border: 1px solid var(--ut-gold-glow); color: var(--ut-gold);
-  border-radius: 6px; font-size: 11px; padding: 3px 8px; cursor: pointer; min-height: 28px;
+  border-radius: var(--radius-md); font-size: 11px; padding: 3px 8px; cursor: pointer; min-height: 28px;
 }
 .reportBtn {
   background: none; border: none; color: var(--text); opacity: 0.55;
@@ -170,7 +170,7 @@
 .previewPill {
   margin-left: auto; text-transform: none; letter-spacing: 0.4px;
   font-size: 9.5px; font-weight: 700; color: var(--bg); background: var(--ut-gold);
-  border-radius: 6px; padding: 1px 6px;
+  border-radius: var(--radius-md); padding: 1px 6px;
 }
 
 /* Touch: every interactive control meets the 44px tap-min (mobile constraint). */
@@ -215,7 +215,7 @@
 .searchBox { padding: 8px; border-bottom: 1px solid var(--border); }
 .searchInput {
   width: 100%; background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-heading); font-size: 12.5px; padding: 7px 10px; outline: none;
+  border-radius: var(--radius-md); color: var(--text-heading); font-size: 12.5px; padding: 7px 10px; outline: none;
 }
 .searchInput:focus { border-color: var(--ut-gold-glow); }
 
@@ -235,7 +235,7 @@
 }
 .ideaFoot { display: flex; align-items: center; gap: 10px; padding: 0 10px 10px; }
 .imInBtn {
-  background: none; border: 1px solid var(--border); border-radius: 12px;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-xl);
   color: var(--text); font-size: 11.5px; font-weight: 600; padding: 3px 12px; cursor: pointer;
 }
 .imInBtn:hover { border-color: var(--ut-gold-glow); }
@@ -251,7 +251,7 @@
 .badgeGreen, .badgeHot {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-  border-radius: 4px; padding: 1px 5px;
+  border-radius: var(--radius-sm); padding: 1px 5px;
 }
 .badgeGreen { color: var(--ut-green); border: 1px solid var(--ut-green); }
 .badgeHot { color: var(--ut-gold); border: 1px solid var(--ut-gold); }
@@ -259,7 +259,7 @@
 /* Load-earlier history button */
 .loadEarlier {
   align-self: center; margin: 6px auto 10px; background: none; border: 1px solid var(--border);
-  border-radius: 12px; color: var(--text); font-size: 11.5px; padding: 3px 14px; cursor: pointer;
+  border-radius: var(--radius-xl); color: var(--text); font-size: 11.5px; padding: 3px 14px; cursor: pointer;
 }
 .loadEarlier:hover { border-color: var(--ut-gold-glow); color: var(--ut-gold); }
 
@@ -311,7 +311,7 @@
 /* Message — Discord anatomy: avatar gutter + content column */
 .msg {
   position: relative; display: grid; grid-template-columns: 40px 1fr;
-  column-gap: 12px; padding: 2px 44px 2px 12px; border-radius: 6px;
+  column-gap: 12px; padding: 2px 44px 2px 12px; border-radius: var(--radius-md);
 }
 .msg:not(.msgGrouped) { margin-top: 12px; }
 .msg:hover { background: var(--bg-hover); }
@@ -329,7 +329,7 @@
 .msgAuthor { color: var(--text-heading); font-size: 13.5px; font-weight: 600; }
 .msgAuthor:hover { text-decoration: underline; cursor: default; }
 .mentorTag {
-  align-self: center; background: var(--ut-gold); color: var(--bg); border-radius: 4px;
+  align-self: center; background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-sm);
   font-size: 8.5px; font-weight: 800; letter-spacing: 0.6px; padding: 1px 5px;
 }
 .msgTime { color: var(--text); opacity: 0.5; font-size: 10.5px; }
@@ -349,7 +349,7 @@
 .msgFailed { color: var(--ut-red); font-size: 10.5px; }
 .msgBody { color: var(--text); font-size: 13.5px; line-height: 1.55; word-break: break-word; }
 .msgBody :global(.ProseMirror), .msgBody p { margin: 0; }
-.msgBody img { max-width: 320px; max-height: 240px; border-radius: 6px; margin-top: 4px; }
+.msgBody img { max-width: 320px; max-height: 240px; border-radius: var(--radius-md); margin-top: 4px; }
 .msgDeleted { color: var(--text); opacity: 0.5; font-style: italic; font-size: 12.5px; }
 .quoteStub {
   color: var(--text); opacity: 0.7; font-size: 11.5px; border-left: 2px solid var(--ut-gold-glow);
@@ -357,7 +357,7 @@
 }
 .msgActions {
   position: absolute; top: 2px; right: 6px; display: none; gap: 2px;
-  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 2px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2px;
 }
 .msg:hover .msgActions { display: flex; }
 
@@ -391,7 +391,7 @@
 }
 .cardMuted { color: var(--text); opacity: 0.6; font-size: 11px; }
 .cardTickerBtn {
-  background: var(--ut-gold-dim); color: var(--ut-gold); border: none; border-radius: 4px;
+  background: var(--ut-gold-dim); color: var(--ut-gold); border: none; border-radius: var(--radius-sm);
   font-weight: 700; font-size: 12px; padding: 1px 6px; cursor: pointer;
 }
 .cardShot {
@@ -404,7 +404,7 @@
 .cardStats { display: flex; gap: 16px; padding: 10px; flex-wrap: wrap; }
 .cardStats > div { display: flex; flex-direction: column; gap: 1px; }
 .cardStats b { color: var(--text-heading); font-size: 13px; }
-.cardResult { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: 4px; padding: 1px 6px; }
+.cardResult { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; border-radius: var(--radius-sm); padding: 1px 6px; }
 .cardWin { color: var(--ut-green); }
 .cardLoss { color: var(--ut-red); }
 .cardGrade { margin-left: auto; color: var(--ut-gold); font-weight: 700; font-size: 12px; }
@@ -421,7 +421,7 @@
 .pollOpts { display: flex; flex-direction: column; gap: 5px; padding: 0 10px 6px; }
 .pollOpt {
   position: relative; display: flex; align-items: center; overflow: hidden;
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md);
   color: var(--text); font-size: 12.5px; padding: 7px 10px; cursor: pointer; text-align: left;
 }
 .pollOpt:hover { border-color: var(--ut-gold-glow); }
@@ -443,13 +443,13 @@
 }
 .gradCard {
   width: min(420px, 92vw); background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow);
-  border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 4px;
+  border-radius: var(--radius-xl); padding: 20px 22px; display: flex; flex-direction: column; gap: 4px;
 }
 .gradTitle { display: flex; align-items: center; gap: 8px; color: var(--text-heading); font-size: 16px; font-weight: 600; }
 .gradHint { color: var(--text); opacity: 0.8; font-size: 12.5px; line-height: 1.5; margin: 2px 0 10px; }
 .gradLabel { color: var(--text); opacity: 0.7; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; }
 .gradSelect, .gradInput {
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   color: var(--text-heading); font-size: 13.5px; padding: 9px 11px; outline: none; margin-top: 4px;
 }
 .gradSelect:focus, .gradInput:focus { border-color: var(--ut-gold-glow); }
@@ -460,7 +460,7 @@
 .chatHeadRight { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .inboxWrap { position: relative; }
 .bellBtn {
-  position: relative; background: none; border: 1px solid var(--border); border-radius: 8px;
+  position: relative; background: none; border: 1px solid var(--border); border-radius: var(--radius-lg);
   color: var(--text); padding: 4px 8px; cursor: pointer; min-height: 30px; display: inline-flex;
 }
 .bellBtn:hover { border-color: var(--ut-gold-glow); }
@@ -513,7 +513,7 @@
 /* Mini profile card */
 .profileCard {
   position: fixed; width: 260px; z-index: var(--z-popover, 1000);
-  background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow); border-radius: 12px;
+  background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow); border-radius: var(--radius-xl);
   box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 14px; display: flex; flex-direction: column; gap: 10px;
 }
 .profileHead { display: flex; align-items: center; gap: 12px; }
@@ -529,7 +529,7 @@
 .newDivider { position: relative; margin: 10px 0 4px; height: 1px; background: var(--ut-red); }
 .newDivider span {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  background: var(--ut-red); color: var(--text-bright); border-radius: 4px;
+  background: var(--ut-red); color: var(--text-bright); border-radius: var(--radius-sm);
   font-size: 9px; font-weight: 800; letter-spacing: 1px; padding: 1px 6px;
 }
 

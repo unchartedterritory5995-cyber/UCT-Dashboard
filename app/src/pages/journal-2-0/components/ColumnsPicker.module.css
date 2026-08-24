@@ -37,7 +37,7 @@
   font-size: 11px;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .resetBtn:hover {
   color: var(--text-bright);
@@ -58,7 +58,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   color: var(--text-bright);
 }
@@ -74,7 +74,7 @@
   cursor: grab;
   font-size: 13px;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .handle:hover {
@@ -127,7 +127,7 @@
   font-family: inherit;
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   line-height: 1.2;
 }

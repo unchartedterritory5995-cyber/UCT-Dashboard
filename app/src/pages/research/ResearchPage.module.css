@@ -16,7 +16,7 @@
 
 /* rating badges */
 .ratings { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
-.rb { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; text-align: center; min-width: 64px; }
+.rb { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 5px 9px; text-align: center; min-width: 64px; }
 .rbHero { background: linear-gradient(135deg, var(--ut-gold-glow), var(--ut-gold-dim)); border-color: var(--ut-gold); }
 .rbLbl { font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
 .rbVal { font-size: 16px; font-weight: 800; color: var(--text-bright); }
@@ -54,10 +54,10 @@
 .fgrid th { color: var(--text-muted); font-size: 9px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .fgrid tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 .fperiod { color: var(--text-bright); font-weight: 700; }
-.heatPos2 { background: rgba(60, 184, 104, 0.30); color: var(--text-bright); font-weight: 700; border-radius: 4px; }
-.heatPos1 { background: rgba(60, 184, 104, 0.12); color: var(--gain); border-radius: 4px; }
-.heatNeg1 { background: rgba(231, 76, 60, 0.12); color: var(--loss); border-radius: 4px; }
-.heatNeg2 { background: rgba(231, 76, 60, 0.30); color: var(--text-bright); font-weight: 700; border-radius: 4px; }
+.heatPos2 { background: rgba(60, 184, 104, 0.30); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
+.heatPos1 { background: rgba(60, 184, 104, 0.12); color: var(--gain); border-radius: var(--radius-sm); }
+.heatNeg1 { background: rgba(231, 76, 60, 0.12); color: var(--loss); border-radius: var(--radius-sm); }
+.heatNeg2 { background: rgba(231, 76, 60, 0.30); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
 .fnote { color: var(--text-muted); font-size: 12px; padding: 8px 2px; }
 
 /* rating-change list (Estimates tab) */
@@ -100,7 +100,7 @@
 
 /* paywall */
 .paywall { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: 24px; }
-.paywallGlass { max-width: 520px; text-align: center; background: var(--bg-surface); border: 1px solid var(--ut-gold); border-radius: 16px; padding: 28px 26px; box-shadow: var(--shadow-lg); }
+.paywallGlass { max-width: 520px; text-align: center; background: var(--bg-surface); border: 1px solid var(--ut-gold); border-radius: var(--radius-2xl); padding: 28px 26px; box-shadow: var(--shadow-lg); }
 .paywallTitle { font-size: 22px; font-weight: 800; color: var(--text-bright); }
 .paywallSub { font-size: 13px; line-height: 1.6; color: var(--text); margin: 10px 0 14px; }
 .paywallList { list-style: none; padding: 0; margin: 0 0 18px; text-align: left; display: inline-block; }
@@ -143,7 +143,7 @@
 }
 .basisToggle { display: flex; gap: 4px; }
 .basisOn, .basisOff, .basisBtn {
-  min-height: 26px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+  min-height: 26px; padding: 3px 10px; border-radius: var(--radius-sm); cursor: pointer;
   font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
   border: 1px solid rgba(255,255,255,.14); background: transparent;
   color: var(--color-text-muted, #8a8f98);
@@ -163,7 +163,7 @@
 .deskCovList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .deskCovRow {
   display: flex; align-items: baseline; gap: var(--space-md);
-  padding: 8px 6px; border-radius: 6px; text-decoration: none;
+  padding: 8px 6px; border-radius: var(--radius-md); text-decoration: none;
   color: var(--text); min-height: var(--tap-min);
 }
 .deskCovRow:hover { background: var(--bg-elevated); }

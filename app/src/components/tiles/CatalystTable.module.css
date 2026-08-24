@@ -1,7 +1,7 @@
 .tile {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 16px 20px;
   margin-bottom: 16px;
   width: 100%;
@@ -41,14 +41,14 @@
   text-decoration: none;
   border: 1px solid var(--border);
   padding: 3px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .historyLink:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
 .refreshBtn {
   background: none;
   border: 1px solid var(--border);
   color: var(--text-bright);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 10px;
   font-size: 11px;
   cursor: pointer;
@@ -188,7 +188,7 @@
   margin-top: 6px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
   min-width: 260px;
   max-width: 360px;
@@ -223,7 +223,7 @@
   color: var(--ut-cream);
   text-decoration: none;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   word-break: break-all;
   white-space: normal;
@@ -254,7 +254,7 @@
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 1px 9px 2px;
   font-size: 15px;
   line-height: 1.2;
@@ -266,7 +266,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--ut-cream);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 8px;
   font-size: 12px;
   font-family: var(--font-sans);
@@ -286,7 +286,7 @@
   background: rgba(201, 168, 76, 0.12);
   border: 1px solid rgba(201, 168, 76, 0.35);
   color: var(--ut-gold, #c9a84c);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 600;
@@ -301,7 +301,7 @@
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
@@ -313,7 +313,7 @@
   padding: 10px 12px;
   background: rgba(255,255,255,0.02);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
 }
 .explainInputRow { display: flex; gap: 8px; margin-bottom: 8px; }
@@ -322,7 +322,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--ut-cream);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 12px;
   text-transform: uppercase;
@@ -331,7 +331,7 @@
   background: var(--ut-gold, #c9a84c);
   border: none;
   color: var(--bg-surface);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 14px;
   cursor: pointer;
   font-weight: 600;
@@ -350,7 +350,7 @@
 .explainPre {
   background: rgba(0,0,0,0.2);
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   overflow-x: auto;
   margin: 4px 0 0;
@@ -369,7 +369,7 @@
   padding: 10px 12px;
   background: rgba(201, 168, 76, 0.06);
   border-left: 3px solid var(--ut-gold, #c9a84c);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -483,7 +483,7 @@
   display: inline-block;
   margin-right: 6px;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -521,7 +521,7 @@
   width: 100%;
   resize: vertical;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 11.5px;
   line-height: 1.45;
   font-family: inherit;
@@ -540,7 +540,7 @@
 }
 .noteSave, .noteCancel {
   padding: 3px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -559,7 +559,7 @@
 .noteSaved {
   margin-top: 6px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   line-height: 1.45;
   font-style: italic;
@@ -575,7 +575,7 @@
   white-space: nowrap;
   margin-right: 6px;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -604,7 +604,7 @@
   white-space: nowrap;
   margin-right: 6px;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -622,7 +622,7 @@
   white-space: nowrap;
   margin-right: 7px;
   padding: 1.5px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.4px;
@@ -658,7 +658,7 @@
   font-size: 12px;
   line-height: 1;
   padding: 1px 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   opacity: 0.35;
   transition: opacity 0.12s, transform 0.12s;
 }

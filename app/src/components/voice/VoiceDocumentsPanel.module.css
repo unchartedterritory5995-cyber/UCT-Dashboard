@@ -2,7 +2,7 @@
   padding: 20px;
   background: var(--color-surface, rgba(255, 255, 255, 0.02));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 16px;
 }
 .header {
@@ -20,7 +20,7 @@
   background: rgba(201, 168, 76, 0.15);
   border: 1px solid rgba(201, 168, 76, 0.4);
   color: var(--accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -45,7 +45,7 @@
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: var(--loss);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 12px;
 }
@@ -54,14 +54,14 @@
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
   color: var(--gain);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 12px;
 }
 
 .dropzone {
   border: 2px dashed rgba(201, 168, 76, 0.4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 28px;
   text-align: center;
   background: rgba(0, 0, 0, 0.20);
@@ -113,7 +113,7 @@
   background: rgba(0, 0, 0, 0.30);
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--text-bright);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 6px 10px;
   font-size: 12px;
   font-family: inherit;
@@ -132,7 +132,7 @@
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
   color: var(--gain);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;

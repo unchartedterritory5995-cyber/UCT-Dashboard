@@ -53,7 +53,7 @@
   color: var(--text-muted, #888);
   background: var(--bg-surface, #161616);
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -65,7 +65,7 @@
   padding: 6px 8px;
   background: var(--bg-surface, #161616);
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* A disabled alert is dimmed, exactly as it is in the popover, so "OFF" is

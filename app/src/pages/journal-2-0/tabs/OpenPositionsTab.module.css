@@ -30,7 +30,7 @@
   padding: 6px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .statLabel {
@@ -75,7 +75,7 @@
   background: var(--bg-hover);
   color: var(--text-bright);
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 14px;
   font-family: var(--font-sans);
   font-size: 13px;
@@ -91,7 +91,7 @@
 .primaryBtn {
   background: var(--ut-gold);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 16px;
   color: var(--bg);
   font-family: var(--font-sans);
@@ -109,7 +109,7 @@
   padding: 10px 12px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--loss);
   font-size: 13px;
 }
@@ -132,7 +132,7 @@
 .viewToggle {
   display: inline-flex;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 

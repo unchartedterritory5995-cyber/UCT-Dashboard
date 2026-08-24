@@ -6,7 +6,7 @@
   width: 280px;
   background: var(--bg-elevated, #1f1f1f);
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   z-index: 1000;
@@ -44,7 +44,7 @@
   color: var(--text, #e5e5e5);
   border: 1px solid var(--border, #2a2a2a);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
 }
 .input:disabled {
@@ -56,7 +56,7 @@
   color: var(--bg);
   border: none;
   padding: 6px 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
   font-size: 12px;
@@ -102,7 +102,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-surface, #161616);
 }
 .colorPicker {

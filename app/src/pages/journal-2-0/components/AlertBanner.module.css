@@ -9,7 +9,7 @@
 .alertSm,
 .info {
   margin: 0 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -42,7 +42,7 @@
   background: transparent;
   border: 1px solid var(--loss, #ef4444);
   color: var(--loss, #ef4444);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   cursor: pointer;
 }
@@ -55,6 +55,6 @@
   background: var(--ut-gold, #c9a84c);
   color: var(--bg);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }

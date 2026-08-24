@@ -21,7 +21,7 @@
   padding: 4px 8px;
   min-height: 32px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--text-muted);
   font-family: var(--font-sans);
@@ -75,7 +75,7 @@
   min-height: 36px;
   padding: 0 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
   color: var(--bg);
   font-family: var(--font-sans);
@@ -279,7 +279,7 @@
   min-height: 28px;
   padding: 2px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--text-muted);
   font-family: var(--font-sans);
@@ -300,7 +300,7 @@
   min-height: 28px;
   padding: 2px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: none;
   color: var(--text-muted);
   font-family: var(--font-sans);
@@ -358,7 +358,7 @@
   min-height: 36px;
   padding: 0 16px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--text-muted);
   font-family: var(--font-sans);
@@ -454,7 +454,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   color: var(--text-muted);
   cursor: pointer;
@@ -508,7 +508,7 @@
   min-height: 36px;
   padding: 6px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   text-align: left;
   cursor: pointer;
@@ -586,7 +586,7 @@
   align-self: center;
   padding: 2px 8px;
   border: 1px dashed var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--text-xs);
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -628,7 +628,7 @@
   min-height: 36px;
   padding: 6px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   text-align: left;
   cursor: pointer;
@@ -708,7 +708,7 @@
   margin: 6px 0;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .handout > summary {
   padding: 9px 0;
@@ -738,7 +738,7 @@
   margin: 2px 0 10px 34px;
   padding: 0 12px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .scriptWrap[open] { border-style: solid; border-color: var(--ut-gold-glow); }
 .scriptSummary {
@@ -753,7 +753,7 @@
 }
 .scriptSummary:hover { color: var(--text-bright); }
 .scriptSummary:focus-visible { outline: 2px solid var(--ut-gold); }
-.scriptCh { margin: 0 0 12px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; }
+.scriptCh { margin: 0 0 12px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-md); }
 .scriptHead { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; }
 .scriptN { font-size: 11px; color: var(--ut-gold); font-variant-numeric: tabular-nums; }
 .scriptHead b { color: var(--ut-gold); font-size: 13px; }
@@ -765,7 +765,7 @@
   margin-right: 6px;
   padding: 1px 6px;
   border: 1px solid var(--ut-gold);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 9.5px;
   letter-spacing: 0.9px;
   color: var(--ut-gold);

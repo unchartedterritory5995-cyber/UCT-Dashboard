@@ -82,12 +82,12 @@
 
 /* Today / Since-issue lens for the covered chips */
 .lensToggle {
-  display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px;
+  display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-md);
   background: var(--bg-elevated); border: 1px solid var(--border);
   flex-shrink: 0;
 }
 .lensBtn, .lensActive {
-  padding: 2px 8px; border: none; border-radius: 4px; cursor: pointer;
+  padding: 2px 8px; border: none; border-radius: var(--radius-sm); cursor: pointer;
   font-size: var(--text-xs); background: transparent; color: var(--text-muted);
 }
 .lensActive { background: var(--bg-surface); color: var(--ut-gold); }
@@ -106,7 +106,7 @@
 .tocList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .tocLink {
   display: block; width: 100%; text-align: left; background: none; border: 0;
-  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  padding: 6px 8px; border-radius: var(--radius-md); cursor: pointer;
   color: var(--text-muted); font-size: var(--text-sm); line-height: 1.35;
   font-family: inherit;
 }
@@ -191,7 +191,7 @@
 /* The block currently being read aloud (useReadAloudFollow). */
 .body :global(.rd-reading) {
   background: var(--ut-gold-dim);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: background 0.4s ease;
 }
 
@@ -199,7 +199,7 @@
 .body :global(a.uctArticleCta) {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: var(--tap-min); padding: 10px 22px; margin: 0.4em 0;
-  border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;
+  border-radius: var(--radius-lg); text-decoration: none; font-weight: 600; font-size: 15px;
   background: var(--ut-gold-dim); border: 1px solid var(--ut-gold);
   color: var(--ut-gold);
 }
@@ -220,7 +220,7 @@
 .body :global(th) { color: var(--text-bright); background: var(--bg-elevated); }
 
 .body :global(pre) {
-  overflow-x: auto; padding: var(--space-md); border-radius: 8px;
+  overflow-x: auto; padding: var(--space-md); border-radius: var(--radius-lg);
   background: var(--bg-elevated); border: 1px solid var(--border);
 }
 
@@ -244,11 +244,11 @@
 .emptyText { color: var(--text); font-weight: 500; font-size: var(--text-base); line-height: 1.6; max-width: 460px; margin: 0 auto; }
 
 .skeletonTitle {
-  height: 38px; width: min(560px, 90%); border-radius: 8px;
+  height: 38px; width: min(560px, 90%); border-radius: var(--radius-lg);
   background: var(--bg-elevated); margin-bottom: var(--space-lg);
 }
 .skeletonLine {
-  height: 15px; width: min(720px, 100%); border-radius: 6px;
+  height: 15px; width: min(720px, 100%); border-radius: var(--radius-md);
   background: var(--bg-elevated); margin-bottom: var(--space-md);
 }
 
@@ -259,7 +259,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: var(--space-lg); cursor: zoom-out;
 }
-.lightboxImg { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.lightboxImg { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md); }
 .lightboxClose {
   position: absolute; top: 12px; right: 16px;
   background: none; border: 0; color: var(--text-bright); font-size: 34px; line-height: 1;
@@ -274,7 +274,7 @@
     padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border);
   }
   .tocList { flex-direction: row; flex-wrap: wrap; gap: 6px; }
-  .tocLink { width: auto; border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; }
+  .tocLink { width: auto; border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 6px 12px; }
 }
 
 @media (max-width: 640px) {
@@ -305,7 +305,7 @@
   max-width: 760px; margin-top: var(--space-2xl);
   padding: var(--space-md) var(--space-lg);
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; text-decoration: none; color: var(--text);
+  border-radius: var(--radius-xl); text-decoration: none; color: var(--text);
   min-height: var(--tap-min);
 }
 .sessionCard:hover { border-color: var(--ut-gold); }
@@ -386,7 +386,7 @@
 .resumed {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md);
   max-width: 760px; margin-bottom: var(--space-lg);
-  padding: 8px var(--space-md); border-radius: 8px;
+  padding: 8px var(--space-md); border-radius: var(--radius-lg);
   background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow);
   font-size: var(--text-sm); color: var(--text);
 }
@@ -405,7 +405,7 @@
 }
 .actionBtn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-md);
   background: transparent; color: var(--text-muted); cursor: pointer;
   font-size: var(--text-xs); font-family: inherit; line-height: 1.4;
 }

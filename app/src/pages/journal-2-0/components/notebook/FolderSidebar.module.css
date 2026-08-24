@@ -41,7 +41,7 @@
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--color-text-muted, #98a0aa);
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
@@ -82,7 +82,7 @@
   border: none;
   color: var(--color-text-muted, #98a0aa);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
   line-height: 1;
 }
@@ -105,7 +105,7 @@
   border: none;
   background: transparent;
   color: var(--color-text-primary, #e8eaed);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .searchResultRow:hover { background: var(--color-surface-hover, #1c2028); }
@@ -135,7 +135,7 @@
   background: transparent;
   color: var(--color-text-primary, #e8eaed);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   text-align: left;
 }
@@ -148,7 +148,7 @@
   border: 1px dashed var(--color-border, #2d343f);
   color: var(--color-text-muted, #98a0aa);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
 }
@@ -157,7 +157,7 @@
   width: 100%;
   background: var(--color-surface, #14171c);
   border: 1px solid #c9a84c;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 8px;
   color: var(--text-bright);
   font-size: 13px;
@@ -208,7 +208,7 @@
   background: transparent;
   color: var(--color-text-muted, #98a0aa);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12.5px;
   text-align: left;
 }

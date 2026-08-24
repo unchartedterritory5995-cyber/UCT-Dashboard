@@ -9,7 +9,7 @@
   margin-bottom: 10px;
   background: color-mix(in srgb, var(--accent, #c9a84c) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent, #c9a84c) 40%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .label {
@@ -38,7 +38,7 @@
   color: var(--text, #e8e6e1);
   background: var(--surface-2, #17171a);
   border: 1px solid var(--accent, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -55,7 +55,7 @@
   color: var(--text-muted, #8a8a8a);
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   flex-shrink: 0;
 }

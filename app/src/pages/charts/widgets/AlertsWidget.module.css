@@ -42,7 +42,7 @@
   font-weight: 700;
   line-height: 1;
   padding: 2px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--menu-accent-bg, rgba(201, 168, 76, 0.16));
   color: var(--alerts-accent, var(--ut-gold, #c9a84c));
 }
@@ -82,7 +82,7 @@
   min-width: 0;
   background: var(--alerts-track, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--alerts-accent, var(--alerts-chrome-strong, var(--ut-gold, #c9a84c)));
   font-family: var(--font-mono, monospace);
   font-weight: 700;
@@ -94,7 +94,7 @@
 }
 .tickerInput::placeholder { color: var(--alerts-chrome, var(--text-muted, #8b8674)); font-weight: 500; letter-spacing: 0; }
 .tickerInput:focus { border-color: var(--alerts-accent, var(--ut-gold, #c9a84c)); }
-.dirToggle { display: inline-flex; border-radius: 6px; overflow: hidden; flex: 0 0 auto; }
+.dirToggle { display: inline-flex; border-radius: var(--radius-md); overflow: hidden; flex: 0 0 auto; }
 .dirBtn {
   background: var(--alerts-track, rgba(255, 255, 255, 0.06));
   border: none;
@@ -114,7 +114,7 @@
   max-width: 7em;
   background: var(--alerts-track, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--alerts-divider, var(--divider, rgba(255, 255, 255, 0.1)));
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--alerts-text, var(--text-bright, #e0dac8));
   font-family: var(--font-mono, monospace);
   font-size: 0.85em;
@@ -135,7 +135,7 @@
   font-size: 0.8em;
   font-weight: 800;
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .addBtn:hover { background: color-mix(in srgb, var(--alerts-gold-strong, #a8842a) 15%, transparent); }

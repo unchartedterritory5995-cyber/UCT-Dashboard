@@ -11,7 +11,7 @@
   padding: 8px 14px;
   border: 1px solid rgba(201, 168, 76, 0.28);
   border-left: 2px solid var(--ut-gold, #c9a84c);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(201, 168, 76, 0.055);
 }
 

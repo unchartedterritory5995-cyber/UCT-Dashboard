@@ -42,7 +42,7 @@
   padding: 8px 12px;
   background: var(--bg);
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   font-size: 12px;
   text-align: left;
@@ -77,7 +77,7 @@
   padding: 12px 14px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .cardHead {
@@ -139,7 +139,7 @@
   padding: 2px 6px;
   background: var(--bg-elevated);
   border: 1px solid var(--ut-gold);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 11px;

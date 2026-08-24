@@ -13,7 +13,7 @@
      `--border: #1e1e1e` even on a white canvas) — a thin dark line, NOT the ambient
      light-grey border. 1px / 4px radius, no drop shadow. */
   border: 1px solid #1e1e1e;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   z-index: 4000;
   overflow: hidden;
   color: var(--text, #b6b09d);
@@ -72,7 +72,7 @@
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0;
 }
 .iconBtn:hover { color: var(--ut-gold, #c9a84c); }
@@ -116,7 +116,7 @@
   padding: 4px;
   background: var(--bg-elevated, #22251e);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6);
 }
 .tabMenuHead { padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #8c8674); }
@@ -130,7 +130,7 @@
   color: var(--text-bright, #e0dac8);
   font: inherit;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .tabMenuItem:hover { background: var(--bg-hover, #2a2d24); }
@@ -246,7 +246,7 @@
   max-width: 92vw;
   background: var(--bg-elevated, #22251e);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
   color: var(--text, #b6b09d);
   font: 12px 'Instrument Sans', system-ui, sans-serif;
@@ -269,7 +269,7 @@
 .cfgDate {
   background: var(--bg-surface, #1a1c17);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright, #e0dac8);
   font: inherit;
   padding: 5px 8px;
@@ -281,7 +281,7 @@
 .cfgSelect {
   background: var(--bg-surface, #1a1c17);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright, #e0dac8);
   font: inherit;
   padding: 5px 8px;

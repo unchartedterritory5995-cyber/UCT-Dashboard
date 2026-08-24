@@ -15,7 +15,7 @@
 .addSelect {
   padding: 6px 10px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1, #101013);
   color: var(--text, #e8e6e1);
   font-size: 13px;
@@ -39,7 +39,7 @@
 
 .card {
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1, #101013);
   padding: 14px 16px;
   display: flex;
@@ -73,7 +73,7 @@
   font-size: 13px;
   cursor: pointer;
   padding: 2px 5px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .iconBtn:hover { color: var(--accent); background: rgba(201, 168, 76, 0.08); }
@@ -177,7 +177,7 @@
   flex: 1 1 90px;
   padding: 6px 10px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2, #16161a);
   color: var(--text, #e8e6e1);
   font-size: 12.5px;
@@ -189,7 +189,7 @@
 .addBtn {
   padding: 6px 14px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1, #101013);
   color: var(--text, #e8e6e1);
   font-size: 12.5px;
@@ -212,7 +212,7 @@
   padding: 2px 6px;
   font-size: 11px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-2, #16161a);
   color: var(--text-muted, #8a8a8a);
   cursor: pointer;

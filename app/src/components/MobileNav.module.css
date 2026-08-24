@@ -93,7 +93,7 @@
   border: none;
   cursor: pointer;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   -webkit-tap-highlight-color: transparent;
 }
 .hamburger:active {

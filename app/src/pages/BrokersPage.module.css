@@ -40,7 +40,7 @@
 .page :focus-visible {
   outline: 2px solid var(--gold-deep);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Nav ── */
@@ -89,7 +89,7 @@
   background: var(--gold);
   color: var(--bg);
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -108,7 +108,7 @@
   text-transform: uppercase;
   margin-bottom: 18px;
   padding: 5px 12px 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--gold-deep);
   border: 1px solid rgba(143, 113, 32, 0.3);
   background: rgba(201, 168, 76, 0.1);
@@ -237,7 +237,7 @@
 }
 .chip {
   padding: 8px 15px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--card);
   font-size: 13px;
@@ -278,7 +278,7 @@
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   color: var(--bg);
   padding: 12px 26px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 15px;
   font-weight: 700;
   text-decoration: none;
@@ -288,7 +288,7 @@
 .ctaGold:hover { filter: brightness(1.04); transform: translateY(-1px); }
 .ctaGhost {
   padding: 12px 26px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   color: var(--ink);
   font-size: 15px;

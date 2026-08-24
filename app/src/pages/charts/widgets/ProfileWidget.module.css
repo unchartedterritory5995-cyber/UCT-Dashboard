@@ -242,7 +242,7 @@
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   color: var(--prof-chrome-strong, var(--prof-text, #e0dac8));
   background: var(--prof-row-hover, rgba(255, 255, 255, 0.06));

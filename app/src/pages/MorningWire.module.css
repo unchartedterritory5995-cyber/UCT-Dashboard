@@ -417,7 +417,7 @@
 .rundownWrap :global(.rd-flowboard) {
   margin: 24px 0 8px;
   border: 1px solid rgba(201, 168, 76, 0.28);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: rgba(255, 255, 255, 0.015);
   /* the board sizes its own columns off its own width — see the @container below */
@@ -574,7 +574,7 @@
 .rundownWrap :global(.rd-gameplan) {
   margin: 4px 0 18px;
   border: 1px solid rgba(201, 168, 76, 0.4);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: rgba(201, 168, 76, 0.04);
 }
@@ -601,7 +601,7 @@
   align-self: center;
 }
 .rundownWrap :global(.rd-gp-v) { padding: 10px 16px; font-size: 14.5px; line-height: 1.5; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-.rundownWrap :global(.rd-gp-exp) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; padding: 1px 8px; border-radius: 999px; }
+.rundownWrap :global(.rd-gp-exp) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; padding: 1px 8px; border-radius: var(--radius-pill); }
 .rundownWrap :global(.rd-gp-green) { color: var(--gain); background: rgba(63, 185, 80, 0.15); }
 .rundownWrap :global(.rd-gp-amber) { color: var(--warn); background: rgba(201, 120, 40, 0.18); }
 .rundownWrap :global(.rd-gp-red) { color: var(--loss); background: rgba(229, 83, 75, 0.16); }
@@ -618,7 +618,7 @@
 .rundownWrap :global(.rd-gp-play) b { color: var(--warn); }
 
 /* ── KEY INDEX LEVELS ────────────────────────────────────────── */
-.rundownWrap :global(.rd-levels) { margin: 18px 0; border: 1px solid var(--rd-line, rgba(255,255,255,0.1)); border-radius: 12px; overflow: hidden; border-color: rgba(255,255,255,0.1); }
+.rundownWrap :global(.rd-levels) { margin: 18px 0; border: 1px solid var(--rd-line, rgba(255,255,255,0.1)); border-radius: var(--radius-xl); overflow: hidden; border-color: rgba(255,255,255,0.1); }
 .rundownWrap :global(.rd-levels-head) {
   font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
   text-transform: uppercase; color: var(--accent); padding: 11px 16px;
@@ -667,7 +667,7 @@
 .rundownWrap :global(.rd-disc-red) { background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.3); }
 .rundownWrap :global(.rd-disc-tag) {
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
-  color: var(--bg); background: #c9a84c; border-radius: 4px; padding: 2px 6px;
+  color: var(--bg); background: #c9a84c; border-radius: var(--radius-sm); padding: 2px 6px;
 }
 .rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: var(--text-heading); }
 .rundownWrap :global(.rd-disc-line) { color: var(--text-bright); }
@@ -682,7 +682,7 @@
 .rundownWrap :global(.rd-tradeidea) {
   margin: 20px 0;
   border: 1px solid rgba(201, 168, 76, 0.45);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 4px 0 14px;
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.02));
 }
@@ -693,14 +693,14 @@
 .rundownWrap :global(.rd-ti-name) { padding: 0 16px 8px; font-size: 15px; }
 .rundownWrap :global(.rd-ti-sym) { font-family: var(--font-mono); font-weight: 800; font-size: 19px; color: var(--text-heading); }
 .rundownWrap :global(.rd-ti-co) { color: var(--text); font-size: 13.5px; }
-.rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--gain); background: rgba(63,185,80,0.14); padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
+.rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--gain); background: rgba(63,185,80,0.14); padding: 1px 7px; border-radius: var(--radius-pill); margin-left: 4px; }
 .rundownWrap :global(.rd-ti-levels) { padding: 0 16px 10px; font-family: var(--font-mono); font-size: 13.5px; color: var(--text-bright); line-height: 1.9; }
 .rundownWrap :global(.rd-ti-lbl) { color: var(--text-muted); font-size: 11px; }
 .rundownWrap :global(.rd-ti-val) { color: var(--text-heading); font-weight: 700; }
 .rundownWrap :global(.rd-ti-thesis) { padding: 0 16px; font-size: 13.5px; line-height: 1.6; color: var(--text-bright); }
 
 /* ── RS LEADERS / FRESH BREAKOUTS ────────────────────────────── */
-.rundownWrap :global(.rd-rs) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-rs) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-xl); overflow: hidden; }
 .rundownWrap :global(.rd-rs-head) {
   font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
   text-transform: uppercase; color: var(--accent); padding: 11px 16px;
@@ -717,7 +717,7 @@
 .rundownWrap :global(.rd-rs-empty) { padding: 12px 16px; font-size: 13px; color: var(--text); font-style: italic; }
 
 /* ── TODAY'S RISK CALENDAR ───────────────────────────────────── */
-.rundownWrap :global(.rd-cal) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-cal) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-xl); overflow: hidden; }
 .rundownWrap :global(.rd-cal-head) {
   font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
   text-transform: uppercase; color: var(--accent); padding: 11px 16px;
@@ -737,7 +737,7 @@
 .rundownWrap :global(.rd-cal-more) { color: var(--text-muted); font-size: 12px; }
 
 /* ── KEY LEVELS TO WATCH ─────────────────────────────────────── */
-.rundownWrap :global(.rd-watch) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-watch) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-xl); overflow: hidden; }
 .rundownWrap :global(.rd-watch-head) {
   font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
   text-transform: uppercase; color: var(--accent); padding: 11px 16px;
@@ -1341,7 +1341,7 @@
 .tapeBlock {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
 }
@@ -1448,7 +1448,7 @@
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px;
   background: var(--color-bg-elev, rgba(255,255,255,0.04));
   border: 1px solid var(--color-border, rgba(255,255,255,0.12));
-  border-radius: 8px; padding: 8px 10px; color: var(--color-text, #e6e8eb);
+  border-radius: var(--radius-lg); padding: 8px 10px; color: var(--color-text, #e6e8eb);
   font: inherit; font-size: 13px; line-height: 1.5;
 }
 :global(.rd-note-input:focus) { outline: none; border-color: var(--color-gold, #c9a84c); }
@@ -1456,7 +1456,7 @@
 :global(.rd-note-status) { font-size: 11px; color: var(--color-text-muted, #8a8f98); }
 :global(.rd-note-save) {
   background: var(--color-gold, #c9a84c); color: var(--bg); border: none;
-  border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+  border-radius: var(--radius-md); padding: 6px 14px; font-size: 12px; font-weight: 600;
   cursor: pointer; min-height: 32px;
 }
 :global(.rd-note-save:hover) { filter: brightness(1.08); }

@@ -235,7 +235,7 @@
   text-align: center;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .emptyGlyph {

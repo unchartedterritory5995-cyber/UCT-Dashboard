@@ -20,7 +20,7 @@
 .column :global(.ProseMirror h3) { font-size: 20px; margin: 20px 0 10px; }
 .column :global(.ProseMirror p) { margin: 12px 0; }
 .column :global(.ProseMirror a) { color: var(--accent); text-decoration: underline; }
-.column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: 6px; }
+.column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: var(--radius-md); }
 
 .hero {
   display: block;

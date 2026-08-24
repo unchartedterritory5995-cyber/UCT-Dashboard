@@ -81,7 +81,7 @@
   height: 32px;
   background: var(--menu-input-bg, #161618);
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--menu-text, #ededed);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -126,7 +126,7 @@
   color: var(--menu-text-dim, #8a8a8f);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.1s;
 }

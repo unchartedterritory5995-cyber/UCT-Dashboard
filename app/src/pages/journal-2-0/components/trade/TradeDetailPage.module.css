@@ -48,7 +48,7 @@
   line-height: 1;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 
@@ -119,7 +119,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -137,7 +137,7 @@
   gap: 14px 20px;
   padding: 16px 18px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1, #101013);
 }
 
@@ -206,7 +206,7 @@
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -222,7 +222,7 @@
   padding: 4px 8px;
   font-size: 13px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--surface-2, #17171a);
   color: var(--text, #e8e6e1);
 }
@@ -233,7 +233,7 @@
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -243,7 +243,7 @@
 /* ── Chart ──────────────────────────────────────────────────────────── */
 .chartCard {
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--surface-1, #101013);
 }
@@ -263,7 +263,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -337,7 +337,7 @@
   padding: 7px 10px;
   font-size: 13px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2, #17171a);
   color: var(--text, #e8e6e1);
   cursor: pointer;
@@ -349,7 +349,7 @@
   font-size: 13.5px;
   line-height: 1.6;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2, #17171a);
   color: var(--text, #e8e6e1);
   resize: vertical;
@@ -359,7 +359,7 @@
 /* ── Executions ─────────────────────────────────────────────────────── */
 .execDetails {
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1, #101013);
   padding: 4px 14px;
 }
@@ -413,7 +413,7 @@
   background: rgba(201, 168, 76, 0.1);
   color: var(--accent, #c9a84c);
   border: 1px solid rgba(201, 168, 76, 0.5);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   margin-top: 8px;
 }
@@ -439,7 +439,7 @@
   padding: 6px 12px;
   font-size: 12.5px;
   border: 1px solid #c9a84c;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(201, 168, 76, 0.08);
   color: var(--accent);
   cursor: pointer;

@@ -1,7 +1,7 @@
 .filterBar {
   background: #15161a;
   border: 1px solid #2a2723;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -40,7 +40,7 @@
 .chip {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   padding: 5px 12px;
   font-size: 12px;
@@ -58,7 +58,7 @@
 .select {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   padding: 6px 10px;
   font-size: 12px;
@@ -78,7 +78,7 @@
   background: transparent;
   border: 1px solid #2f2c27;
   color: var(--text);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 14px;
   font-size: 12px;
   letter-spacing: 0.5px;
@@ -98,7 +98,7 @@
   cursor: pointer;
   padding: 6px 10px;
   border: 1px solid #2f2c27;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0e0f0d;
   user-select: none;
   transition: all 0.15s;
@@ -127,7 +127,7 @@
 .typeChip {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   padding: 4px 10px;
   font-size: 11px;
@@ -166,7 +166,7 @@
   background: #15161a;
   color: var(--text-bright);
   border: 1px solid #2a2723;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 16px;
   min-height: var(--tap-min, 44px);
   cursor: pointer;

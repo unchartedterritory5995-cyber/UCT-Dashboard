@@ -27,7 +27,7 @@
   font: inherit;
   font-size: calc(11px * var(--wl-font-scale, 1));
   padding: 2px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .back:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
 .title {
@@ -138,7 +138,7 @@
   padding: 2px;
   display: flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .scanRefresh:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
 .scanRefreshSpin { animation: scanSpin 0.7s linear infinite; }

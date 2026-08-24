@@ -11,7 +11,7 @@
   color: var(--color-danger, #f87171);
   background: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
 }
 
@@ -22,7 +22,7 @@
   font-size: 13px;
   font-weight: 600;
   padding: 9px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   min-height: var(--tap-min, 44px);
   border: 1px solid transparent;
@@ -53,7 +53,7 @@
   margin: 0;
   padding: 8px 10px;
   border: 1px solid var(--color-border, #333);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -83,7 +83,7 @@
   opacity: 0.6;
   padding: 3px 10px;
   border: 1px solid var(--color-border, #333);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .connectedBadge {
@@ -100,7 +100,7 @@
   font-size: 12.5px;
   font-weight: 700;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   border: 1px solid rgba(224, 161, 26, 0.5);
   background: rgba(224, 161, 26, 0.12);

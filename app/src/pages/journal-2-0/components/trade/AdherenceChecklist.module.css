@@ -57,7 +57,7 @@
   padding: 8px 10px;
   background: var(--surface-2, #17171a);
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .itemChecked {

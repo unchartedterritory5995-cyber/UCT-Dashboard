@@ -40,7 +40,7 @@
   padding: 0;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   color: var(--text-muted);
 }
@@ -66,7 +66,7 @@
   padding: 7px 14px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
@@ -105,7 +105,7 @@
   padding: 7px 14px;
   background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
   border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ut-gold, #c9a84c);
   font-family: inherit;
   font-size: 13px;
@@ -182,7 +182,7 @@
   padding: 10px 12px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--loss);
   font-size: 12px;
 }
@@ -258,7 +258,7 @@
   padding: 48px;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   color: var(--text-muted);
   text-align: center;
   font-size: 14px;
@@ -288,7 +288,7 @@
   margin-bottom: 16px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .segBtn {
@@ -297,7 +297,7 @@
   padding: 6px 16px;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   font-family: inherit;
   font-size: 13px;
@@ -350,7 +350,7 @@
   padding: 0 18px;
   background: var(--ut-gold, #c9a84c);
   border: 1px solid var(--ut-gold, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--bg); /* dark ink on gold — high-contrast, prominent */
   font-family: inherit;
   font-size: 14px;

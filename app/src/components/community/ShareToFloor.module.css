@@ -2,7 +2,7 @@
 .btn, .btnCompact {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: 1px solid var(--ut-gold-glow, rgba(201,168,76,0.4));
-  color: var(--ut-gold, #c9a84c); border-radius: 6px; cursor: pointer;
+  color: var(--ut-gold, #c9a84c); border-radius: var(--radius-md); cursor: pointer;
   font-size: 12px; font-weight: 600; padding: 5px 10px; min-height: 30px;
 }
 /* Icon-only (chart header): no box/border — a clean icon button like the gear beside it. */
@@ -17,7 +17,7 @@
 .popHead b { color: var(--ut-gold, #c9a84c); }
 .note {
   width: 100%; resize: vertical; background: var(--bg-surface, #14150f);
-  border: 1px solid var(--border, #2a2b24); border-radius: 6px; color: var(--text, #cfd0c4);
+  border: 1px solid var(--border, #2a2b24); border-radius: var(--radius-md); color: var(--text, #cfd0c4);
   font-size: 12.5px; padding: 8px; outline: none; font-family: inherit;
 }
 .note:focus { border-color: var(--ut-gold-glow, rgba(201,168,76,0.4)); }
@@ -25,7 +25,7 @@
 .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .cancel { background: none; border: none; color: var(--text, #cfd0c4); cursor: pointer; font-size: 12px; }
 .send {
-  background: var(--ut-gold, #c9a84c); color: var(--bg); border: none; border-radius: 6px;
+  background: var(--ut-gold, #c9a84c); color: var(--bg); border: none; border-radius: var(--radius-md);
   font-weight: 700; font-size: 12px; padding: 6px 14px; cursor: pointer;
 }
 .send:disabled { opacity: 0.6; cursor: default; }

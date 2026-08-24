@@ -77,8 +77,8 @@
   flex-direction: column;
   gap: 8px;
 }
-.skelRow { height: 30px; border-radius: 8px; }
-.skelLine { height: 13px; border-radius: 6px; }
+.skelRow { height: 30px; border-radius: var(--radius-lg); }
+.skelLine { height: 13px; border-radius: var(--radius-md); }
 .skelLine:nth-child(3n) { width: 72%; }
 .skelRow,
 .skelLine {
@@ -106,7 +106,7 @@
 .posterLink:focus-visible {
   outline: 2px solid #c9a84c;
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 @media (prefers-reduced-motion: reduce) {
   .skelRow,
@@ -123,7 +123,7 @@
   margin: 0 0 18px;
   padding: 10px 12px;
   border: 1px solid rgba(201, 168, 76, 0.35);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: rgba(201, 168, 76, 0.08);
   cursor: pointer;
   text-align: left;
@@ -135,7 +135,7 @@
   flex: 0 0 auto;
   width: 88px;
   aspect-ratio: 16 / 9;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .restoreThumb {
@@ -170,7 +170,7 @@
   font-weight: 600;
   color: var(--bg);
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 12px;
 }
 @media (max-width: 640px) {
@@ -182,7 +182,7 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 .meta {
   margin-top: 10px;
@@ -202,7 +202,7 @@
   border: 1px solid rgba(201, 168, 76, 0.35);
   background: rgba(201, 168, 76, 0.08);
   color: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -251,7 +251,7 @@
   letter-spacing: 0.01em;
   color: var(--text-bright);
   padding: 4px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(96, 178, 140, 0.42);
   background: rgba(96, 178, 140, 0.12);
   cursor: pointer;
@@ -313,7 +313,7 @@
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -364,7 +364,7 @@
   color: var(--accent);
   background: rgba(201, 168, 76, 0.12);
   border: 1px solid rgba(201, 168, 76, 0.28);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 7px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
@@ -385,7 +385,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.08);
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -431,7 +431,7 @@
   font-size: 10px;
   font-weight: 700;
   padding: 1px 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   letter-spacing: 0.02em;
 }
 .tickerRetPos { color: var(--gain); background: rgba(74, 222, 128, 0.12); }
@@ -513,7 +513,7 @@
   text-align: left;
   padding: 6px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: transparent;
   cursor: pointer;
   transition: background 0.12s ease;
@@ -563,7 +563,7 @@
   display: block;
   width: 220px;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .upNextThumb {
@@ -594,7 +594,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
@@ -618,7 +618,7 @@
   resize: vertical;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary, #f3efe2);
   font: inherit;
   font-size: 13px;
@@ -632,7 +632,7 @@
   font-weight: 700;
   font-size: 12px;
   padding: 5px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 .noteCancelBtn {
@@ -641,7 +641,7 @@
   color: var(--text-secondary, #a8a290);
   font-size: 12px;
   padding: 5px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 .noteList { list-style: none; margin: 0; padding: 0; }
@@ -692,7 +692,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
 }
 .notebookBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.18); }
@@ -713,7 +713,7 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: background 0.12s ease;
 }

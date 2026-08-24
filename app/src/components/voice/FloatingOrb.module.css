@@ -204,7 +204,7 @@
 .trainBtn {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(0, 0, 0, 0.4);
   color: var(--accent);
@@ -234,7 +234,7 @@
   font-weight: 700;
   letter-spacing: 1px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   pointer-events: none;
 }
@@ -260,7 +260,7 @@
   font-weight: 700;
   letter-spacing: 1px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;

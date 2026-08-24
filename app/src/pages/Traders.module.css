@@ -2,6 +2,6 @@
 .heading { font-family: var(--font-sans); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .tickers { display: flex; flex-wrap: wrap; gap: 8px; }
-.ticker { font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--ut-cream); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; text-decoration: none; transition: border-color 0.15s, color 0.15s; }
+.ticker { font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--ut-cream); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px 10px; text-decoration: none; transition: border-color 0.15s, color 0.15s; }
 .ticker:hover { color: var(--ut-green-bright); border-color: var(--ut-green); }
 .loading { color: var(--text); font-weight: 500; font-size: 13px; padding: 20px 0; }

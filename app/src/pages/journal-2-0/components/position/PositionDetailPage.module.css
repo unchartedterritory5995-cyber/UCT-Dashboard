@@ -79,7 +79,7 @@
 /* ── Chart ──────────────────────────────────────────────────────────── */
 .chartCard {
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--surface-1, #101013);
 }
@@ -99,7 +99,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -167,7 +167,7 @@
   font-weight: 600;
   color: var(--text-muted, #8a8a8a);
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 3px 10px;
 }
 
@@ -286,7 +286,7 @@
 .ratingBar {
   display: flex;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
   background: var(--surface-2, #17171a);
 }
@@ -335,7 +335,7 @@
   letter-spacing: 0.4px;
   color: var(--accent, #c9a84c);
   border: 1px solid var(--accent, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 3px 10px;
 }
 
@@ -405,7 +405,7 @@
   letter-spacing: 0.6px;
   color: var(--accent, #c9a84c);
   border: 1px solid var(--accent, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 8px;
 }
 

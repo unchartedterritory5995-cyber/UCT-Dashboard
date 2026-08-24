@@ -147,14 +147,14 @@
   max-width: 320px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .coverageFill {
   height: 100%;
   background: var(--ut-gold);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: width 240ms ease;
 }
 

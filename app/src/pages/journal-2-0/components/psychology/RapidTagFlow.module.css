@@ -29,14 +29,14 @@
   height: 6px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
   background: var(--ut-gold, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: width 0.25s ease;
 }
 
@@ -149,7 +149,7 @@
   justify-content: center;
   min-height: var(--tap-min, 44px);
   padding: 8px 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;

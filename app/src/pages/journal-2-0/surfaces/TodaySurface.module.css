@@ -16,7 +16,7 @@
   padding: 7px 12px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -27,7 +27,7 @@
   padding: 18px 20px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   color: var(--text-bright);
 }
 
@@ -123,7 +123,7 @@
   justify-content: center;
   min-height: var(--tap-min);
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -181,7 +181,7 @@
   padding: 16px 16px 18px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .pathIcon {
@@ -217,7 +217,7 @@
   min-height: var(--tap-min);
   margin-top: 6px;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -344,7 +344,7 @@
   padding: 3px 10px;
   background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
   border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.4));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 600;
   color: var(--ut-gold, #c9a84c);

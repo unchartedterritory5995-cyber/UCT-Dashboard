@@ -84,7 +84,7 @@
   background: var(--bg-elevated, #0f141b);
   border: 1px solid var(--ut-gold, #c9a84c);
   color: var(--text, #e5e7eb);
-  border-radius: 4px; padding: 8px 12px; font-size: 12px;
+  border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 .popoutNotice button {
@@ -99,7 +99,7 @@
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -145,7 +145,7 @@
 .widgetBody ::-webkit-scrollbar-track, .widgetBody::-webkit-scrollbar-track { background: transparent; }
 .widgetBody ::-webkit-scrollbar-thumb, .widgetBody::-webkit-scrollbar-thumb {
   background: rgba(140, 140, 140, 0.38);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -291,7 +291,7 @@
   margin-top: 3px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--widget-text, #8b8778);
   font-size: 14px;
@@ -380,7 +380,7 @@
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   /* Natural case (the header itself is uppercased) so a watchlist name like
      "AI Leaders" reads normally instead of shouting. */
@@ -631,7 +631,7 @@
   text-transform: uppercase;
   background: transparent;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--widget-text, var(--text-muted, #6b7280));
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
@@ -661,7 +661,7 @@
   text-transform: uppercase;
   background: transparent;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--widget-text, var(--text-muted, #6b7280));
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
@@ -727,7 +727,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .sessionBtn {
@@ -873,7 +873,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
@@ -1136,7 +1136,7 @@
 .addMenu {
   position: absolute; top: 100%; left: 0; margin-top: 4px;
   background: var(--bg-elevated, #0d1218); border: 1px solid var(--border, #1f2937);
-  border-radius: 4px; display: flex; flex-direction: column;
+  border-radius: var(--radius-sm); display: flex; flex-direction: column;
   z-index: 100; min-width: 140px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
@@ -1280,7 +1280,7 @@
   z-index: 10;
   background: var(--accent, #c9a84c);
   opacity: 0.15;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
 }
 
@@ -1354,7 +1354,7 @@
   z-index: 5;
   background: var(--accent, #c9a84c);
   opacity: 0.15;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
 }
 
@@ -1400,7 +1400,7 @@
   padding: 0 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   font-size: 13px;
   font-family: var(--font-sans);
@@ -1424,7 +1424,7 @@
   min-height: 40px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   font-size: 18px;
   line-height: 1;
@@ -1496,7 +1496,7 @@
   width: 100%; text-align: left;
   background: transparent; border: none;
   color: var(--menu-text, var(--text, #e5e7eb));
-  padding: 9px 11px; border-radius: 6px;
+  padding: 9px 11px; border-radius: var(--radius-md);
   font-size: 13px; cursor: pointer; font-family: inherit;
   transition: background 0.1s ease, color 0.1s ease;
 }
@@ -1515,7 +1515,7 @@
   max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
   background: var(--bg, #0b0f14);
   border: 1px solid rgba(201, 168, 76, 0.35);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
   overflow: hidden;
   display: flex; flex-direction: column;

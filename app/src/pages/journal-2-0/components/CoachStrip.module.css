@@ -18,7 +18,7 @@
   padding: 9px 12px 9px 13px;
   border: 1px solid var(--border);
   border-left-width: 3px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   font-size: 13px;
   color: var(--text-bright);
@@ -67,7 +67,7 @@
 .openBtn {
   padding: 5px 12px;
   border: 1px solid var(--border-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-bright);
   font-size: 12px;
@@ -82,7 +82,7 @@
 .actionBtn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   font-size: 11px;

@@ -41,7 +41,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--ut-cream);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 10px;
   font-family: var(--font-sans);
   font-size: 13px;
@@ -54,7 +54,7 @@
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
@@ -70,7 +70,7 @@
 .tile {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 16px 20px;
   position: relative;
 }

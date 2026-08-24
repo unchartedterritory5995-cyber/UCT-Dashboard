@@ -102,7 +102,7 @@
   min-width: 200px;
   background: var(--color-surface, #14171c);
   border: 1px solid var(--color-border, #232932);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 7px 12px;
   color: var(--color-text-primary, #e8eaed);
   font-size: 13px;
@@ -112,7 +112,7 @@
   background: var(--color-surface, #14171c);
   border: 1px solid var(--color-border, #232932);
   color: var(--color-text-primary, #e8eaed);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   font-size: 12px;
 }
@@ -121,7 +121,7 @@
   border: 1px solid var(--color-border, #232932);
   color: var(--color-text-muted, #98a0aa);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
 }
@@ -136,7 +136,7 @@
   color: var(--bg);
   border: none;
   padding: 7px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -147,7 +147,7 @@
   color: var(--accent);
   border: 1px solid rgba(201, 168, 76, 0.4);
   padding: 7px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -161,7 +161,7 @@
   color: var(--color-text-primary, #e8eaed);
   border: 1px solid var(--color-border, #232932);
   padding: 7px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -202,7 +202,7 @@
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--loss);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 14px;
 }
 

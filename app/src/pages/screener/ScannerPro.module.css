@@ -26,7 +26,7 @@
 .catTabs { display: flex; gap: 4px; padding: 8px 10px 0; background: var(--bg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .catTab { padding: 6px 12px; border-radius: 6px 6px 0 0; background: var(--bg-surface); border: 1px solid var(--border); border-bottom: none; color: var(--text-muted); cursor: pointer; font-size: 12px; min-height: 32px; }
 .catTabOn { background: var(--bg-elevated); color: var(--ut-gold); border-color: var(--ut-gold); }
-.catBadge { background: var(--ut-gold); color: var(--bg); border-radius: 8px; padding: 0 5px; font-size: 9px; margin-left: 6px; font-weight: 700; }
+.catBadge { background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-lg); padding: 0 5px; font-size: 9px; margin-left: 6px; font-weight: 700; }
 .filterGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 11px 10px; }
 .filterCell { display: flex; flex-direction: column; gap: 3px; }
 .filterLabel { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); }
@@ -74,7 +74,7 @@
 
 /* ── Filter chips ── */
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 11.5px; color: var(--text-bright); }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--radius-pill); padding: 3px 6px 3px 10px; font-size: 11.5px; color: var(--text-bright); }
 .chipX { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
 .chipX:hover { color: var(--loss); }
 .chipClear { background: none; border: none; color: var(--ut-gold); cursor: pointer; font-size: 11.5px; text-decoration: underline; }
@@ -91,7 +91,7 @@
 .saveMenuSection { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .saveMenuHdr { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 2px 8px; }
 .saveMenuEmpty { color: var(--text-muted); font-size: 11.5px; padding: 4px 8px; }
-.saveMenuItem { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 4px; border-radius: 4px; }
+.saveMenuItem { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 4px; border-radius: var(--radius-sm); }
 .saveMenuItem:hover { background: var(--bg-hover); }
 .saveMenuName { flex: 1; text-align: left; background: none; border: none; color: var(--text-bright); font-size: 12.5px; cursor: pointer; padding: 4px 4px; }
 .saveMenuName:hover { color: var(--ut-gold); }

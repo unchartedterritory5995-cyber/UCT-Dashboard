@@ -58,7 +58,7 @@
 
 .thumb {
   position: relative;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border, #2e3127);
   background: var(--bg-surface, #1a1c17);
@@ -90,7 +90,7 @@
   width: 26px;
   height: 26px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(14, 15, 13, 0.72);
   color: var(--text-bright, #e0dac8);
   cursor: pointer;
@@ -120,7 +120,7 @@
   justify-content: center;
   aspect-ratio: 16 / 9;
   border: 1px dashed var(--border, #2e3127);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface, #1a1c17);
   color: var(--text-muted, #706b5e);
   cursor: pointer;
@@ -161,7 +161,7 @@
   max-width: 92vw;
   max-height: 88vh;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
 }
 
@@ -175,7 +175,7 @@
   width: 40px;
   height: 40px;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(26, 28, 23, 0.9);
   color: var(--text-bright, #e0dac8);
   cursor: pointer;

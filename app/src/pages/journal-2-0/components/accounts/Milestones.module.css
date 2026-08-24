@@ -57,7 +57,7 @@
   padding: 8px 12px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   min-width: 84px;
   opacity: 0.5;
   transition: opacity 200ms;

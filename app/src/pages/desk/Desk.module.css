@@ -72,7 +72,7 @@
 .sectionHeadMain { display: flex; align-items: center; gap: var(--space-md); }
 .sectionIcon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 46px; height: 46px; border-radius: 12px;
+  width: 46px; height: 46px; border-radius: var(--radius-xl);
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 16px var(--ut-gold-glow);
@@ -91,7 +91,7 @@
 .goldBtn, .saveBtn {
   display: inline-flex; align-items: center; gap: 6px;
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: var(--bg); border: none; border-radius: 8px;
+  color: var(--bg); border: none; border-radius: var(--radius-lg);
   padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
   font-weight: 700; cursor: pointer; min-height: var(--tap-min);
   box-shadow: 0 0 14px var(--ut-gold-glow);
@@ -100,7 +100,7 @@
 .goldBtn:disabled, .saveBtn:disabled { opacity: 0.6; cursor: default; }
 .ghostBtn {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  border-radius: 8px; padding: 8px 13px; font-family: var(--font-sans);
+  border-radius: var(--radius-lg); padding: 8px 13px; font-family: var(--font-sans);
   font-size: var(--text-base); cursor: pointer; min-height: var(--tap-min);
 }
 .ghostBtn:hover { color: var(--text-bright); border-color: var(--border-accent); }
@@ -111,7 +111,7 @@
 .empty { text-align: center; padding: var(--space-3xl) var(--space-lg); max-width: 460px; margin: 0 auto; }
 .emptyIcon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 64px; height: 64px; border-radius: 16px;
+  width: 64px; height: 64px; border-radius: var(--radius-2xl);
   background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 22px var(--ut-gold-glow); margin-bottom: var(--space-lg);
 }
@@ -126,7 +126,7 @@
 }
 .articleCard {
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+  border-radius: var(--radius-xl); overflow: hidden; display: flex; flex-direction: column;
   text-decoration: none; transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .articleCard:hover { border-color: var(--border-accent); transform: translateY(-2px); }
@@ -188,7 +188,7 @@
 
 .postCard {
   display: block; background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: var(--space-lg); text-decoration: none;
+  border-radius: var(--radius-xl); padding: var(--space-lg); text-decoration: none;
   transition: border-color 0.15s ease;
 }
 .postCard:hover { border-color: var(--border-accent); }
@@ -214,7 +214,7 @@
 }
 .teamCard {
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: var(--space-lg); text-align: center;
+  border-radius: var(--radius-xl); padding: var(--space-lg); text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   cursor: pointer; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -286,7 +286,7 @@
 .field { display: flex; flex-direction: column; gap: 5px; }
 .label { font-size: var(--text-sm); color: var(--text); font-weight: 600; }
 .input, .textarea {
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 9px 12px; color: var(--text-bright); font-family: var(--font-sans); font-size: var(--text-base);
 }
 .input:focus, .textarea:focus { outline: none; border-color: var(--ut-gold-glow); }
@@ -295,7 +295,7 @@
 .formActions { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-sm); }
 .cancelBtn {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  border-radius: 8px; padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
+  border-radius: var(--radius-lg); padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
   cursor: pointer; min-height: var(--tap-min);
 }
 .cancelBtn:disabled { opacity: 0.6; cursor: default; }
@@ -337,7 +337,7 @@
 .articleTicker {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 10px; letter-spacing: 0.04em; line-height: 1;
-  padding: 3px 5px; border-radius: 4px;
+  padding: 3px 5px; border-radius: var(--radius-sm);
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text-bright);
 }

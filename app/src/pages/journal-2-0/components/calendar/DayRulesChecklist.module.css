@@ -53,7 +53,7 @@
   padding: 8px 10px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .itemChecked {
@@ -91,7 +91,7 @@
   height: 22px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 14px;
   line-height: 1;
@@ -115,7 +115,7 @@
   padding: 8px 10px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -134,7 +134,7 @@
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -150,7 +150,7 @@
   border: 1px solid var(--loss-border);
   color: var(--loss);
   font-size: 11px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* Phone: 16px input (no iOS zoom) + 44px tap targets. */

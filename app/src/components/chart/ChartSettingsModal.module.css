@@ -25,7 +25,7 @@
      canvases leave it unset and fall back to the opaque --menu-bg. */
   background: var(--menu-surface, var(--menu-bg, #0e0e10));
   border: 1px solid var(--menu-border, #242426);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
@@ -73,7 +73,7 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
@@ -92,7 +92,7 @@
   line-height: 1;
   cursor: pointer;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: color 120ms, background 120ms;
 }
 .close:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
@@ -248,7 +248,7 @@
 .body::-webkit-scrollbar-track { background: transparent; }
 .body::-webkit-scrollbar-thumb {
   background: var(--menu-border, #3a3a3f);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -312,7 +312,7 @@
   width: 38px;
   height: 21px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--menu-border, #2e2e30);
   background: var(--menu-input-bg, #161618);
   cursor: pointer;
@@ -368,7 +368,7 @@
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .chip {
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--menu-border, #2b2b2d);
   background: var(--menu-input-bg, #161618);
   font-family: inherit;
@@ -528,7 +528,7 @@
 .cSwatch {
   width: 30px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--menu-border, #2b2b2d);
   cursor: pointer;
   padding: 0;
@@ -585,7 +585,7 @@
   width: 66px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
   border: 1px solid var(--menu-border, var(--border, #2e3127));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
@@ -595,7 +595,7 @@
   min-width: 96px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
   border: 1px solid var(--menu-border, var(--border, #2e3127));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
@@ -621,7 +621,7 @@
   padding: 4px 10px;
   background: var(--menu-input-bg, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--menu-text, #ededed);
   font: inherit;
   font-size: 11px;
@@ -638,7 +638,7 @@
   max-width: 84vw;
   background: var(--menu-bg, #141416);
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 30px var(--menu-shadow, rgba(0, 0, 0, 0.6));
   overflow: hidden;
 }
@@ -666,7 +666,7 @@
 }
 .fieldList::-webkit-scrollbar { width: 10px; }
 .fieldList::-webkit-scrollbar-track { background: transparent; }
-.fieldList::-webkit-scrollbar-thumb { background: var(--menu-border, #3a3a3f); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+.fieldList::-webkit-scrollbar-thumb { background: var(--menu-border, #3a3a3f); border-radius: var(--radius-md); border: 2px solid transparent; background-clip: padding-box; }
 .fieldItem {
   display: flex;
   align-items: center;
@@ -675,7 +675,7 @@
   padding: 7px 8px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--menu-text, #ededed);
   font: inherit;
   font-size: 12px;

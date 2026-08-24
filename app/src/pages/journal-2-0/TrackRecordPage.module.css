@@ -61,7 +61,7 @@
 
 .stat {
   border: 1px solid #2a2a2e;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: #101013;
   padding: 12px 14px;
   display: flex;
@@ -126,7 +126,7 @@
   font-size: 14px;
   text-decoration: none;
   border: 1px solid #c9a84c;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 8px 18px;
   margin-top: 6px;
 }

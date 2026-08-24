@@ -8,7 +8,7 @@
 .dropzone {
   border: 2px dashed var(--border);
   background: var(--bg-surface);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 40px 24px;
   cursor: pointer;
   transition: border-color 120ms, background 120ms;
@@ -100,7 +100,7 @@
   padding: 10px 14px;
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
@@ -115,7 +115,7 @@
   padding: 10px 14px;
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--warn);
   font-size: 12px;
   display: flex;
@@ -125,7 +125,7 @@
 
 .previewTableWrap {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: auto;
   max-height: 280px;
   background: var(--bg-surface);
@@ -171,7 +171,7 @@
 .badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -184,7 +184,7 @@
 .errorsDetails {
   background: var(--bg-surface);
   border: 1px solid var(--loss-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 14px;
 }
 

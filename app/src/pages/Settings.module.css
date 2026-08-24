@@ -37,7 +37,7 @@
   padding: 1px 6px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-bright);
 }
 
@@ -59,7 +59,7 @@
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12.5px;
   color: var(--text-bright);
 }
@@ -76,7 +76,7 @@
   padding: 2px 7px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-bright);
 }
 .shortcutKeyGroup { display: inline-flex; align-items: center; gap: 4px; }
@@ -152,7 +152,7 @@
   border: none;
   color: var(--text-bright);
   padding: 9px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
 }
@@ -312,7 +312,7 @@
 
 .daysTag {
   font-size: 10px; color: var(--text-muted); background: var(--bg-elevated);
-  padding: 1px 8px; border-radius: 8px; margin-left: 4px;
+  padding: 1px 8px; border-radius: var(--radius-lg); margin-left: 4px;
 }
 
 /* Verified badges */
@@ -455,7 +455,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--gain-border);
   color: var(--gain);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12.5px;
   box-shadow: var(--shadow-lg);
   z-index: 90;
@@ -594,7 +594,7 @@
   padding: 5px 12px;
   font-size: 11px;
   font-family: var(--font-mono);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text);
@@ -643,7 +643,7 @@
   border: 1px solid var(--border);
   color: var(--text-bright);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-family: var(--font-mono);
   cursor: pointer;
@@ -655,7 +655,7 @@
   border: 1px solid var(--border);
   color: var(--text-bright);
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-family: var(--font-mono);
   text-align: center;
@@ -728,7 +728,7 @@
   flex: 1 1 auto;
   height: 8px;
   background: var(--bg-hover);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .voiceMeterFill {
@@ -765,7 +765,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   display: inline-block;
   word-break: break-all;
 }
@@ -781,7 +781,7 @@
   letter-spacing: 0.5px;
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   text-align: center;
   user-select: all;

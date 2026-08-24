@@ -55,7 +55,7 @@
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .close:hover { color: var(--menu-text, #d4d4d6); background: var(--menu-hover, #1a1a1d); }
 

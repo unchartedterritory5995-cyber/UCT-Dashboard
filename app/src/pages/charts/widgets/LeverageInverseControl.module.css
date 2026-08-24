@@ -16,7 +16,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   /* Directional tint tokens — the app's chart up/down family (#1ae51a /
      #ff3b47, same values ChartWidget + ChartDayGain use). Overridden for
@@ -180,7 +180,7 @@
   padding: 3px 6px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: left;
   font-family: inherit;

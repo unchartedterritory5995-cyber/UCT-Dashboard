@@ -5,7 +5,7 @@
   background: rgba(201, 168, 76, 0.08);
   border: 1px solid rgba(201, 168, 76, 0.25);
   color: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font: 12px/1.2 var(--font-sans);
   transition: background 120ms ease, border-color 120ms ease;

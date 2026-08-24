@@ -10,7 +10,7 @@
   padding: 6px 12px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -76,7 +76,7 @@
   font-size: 12px;
   text-align: left;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .item:hover {
@@ -129,7 +129,7 @@
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: center;
 }

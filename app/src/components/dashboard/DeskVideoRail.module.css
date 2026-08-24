@@ -2,7 +2,7 @@
   width: 100%;
   background: var(--bg-surface, #14160f);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 12px 14px;
 }
 .head {
@@ -51,7 +51,7 @@
   display: block;
   width: 190px;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: #000;
 }
@@ -82,7 +82,7 @@
   text-transform: uppercase;
   color: var(--bg);
   background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 7px;
 }
 .progressBar {

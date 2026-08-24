@@ -4,7 +4,7 @@
 .menu {
   background: var(--color-surface, #14171c);
   border: 1px solid var(--color-border, #232932);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 4px;
   min-width: 240px;
   max-height: 320px;
@@ -18,7 +18,7 @@
   background: transparent;
   border: none;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--color-text-primary, #e8eaed);
   display: flex;

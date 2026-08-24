@@ -16,7 +16,7 @@
 .swatch {
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1.5px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
   padding: 0;
@@ -41,7 +41,7 @@
   z-index: 8650;
   background: #1a1c17;
   border: 1px solid #2e3127;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
   padding: 8px;
   width: 160px;

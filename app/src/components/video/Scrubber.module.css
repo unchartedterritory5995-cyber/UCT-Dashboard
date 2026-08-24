@@ -13,13 +13,13 @@
   left: 0;
   right: 0;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.25);
 }
 .fill {
   position: relative;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(90deg, #e6cf86, #c9a84c);
   min-width: 2px;
 }

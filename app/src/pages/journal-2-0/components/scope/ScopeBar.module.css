@@ -48,7 +48,7 @@
   padding: 6px 9px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -132,7 +132,7 @@
   padding: 3px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .sideBtn {
@@ -143,7 +143,7 @@
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .sideBtn:hover {
@@ -170,7 +170,7 @@
   padding: 6px 9px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -202,7 +202,7 @@
   padding: 8px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5);
 }
 
@@ -217,7 +217,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
 }
@@ -255,7 +255,7 @@
   padding: 5px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border-accent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--ut-gold);
   font-family: inherit;
   font-size: 12px;
@@ -285,7 +285,7 @@
   padding: 5px 9px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -324,7 +324,7 @@
   padding: 10px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -436,7 +436,7 @@
   min-height: 44px;
   background: var(--bg-hover);
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--ut-gold);
   font-family: var(--font-sans);
   font-size: 15px;

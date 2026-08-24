@@ -53,7 +53,7 @@
 .fbBtn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 6px;
   font-size: 12px;
   line-height: 18px;
@@ -81,7 +81,7 @@
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(201, 168, 76, 0.4);
   color: var(--text-bright);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 12px;
   outline: none;

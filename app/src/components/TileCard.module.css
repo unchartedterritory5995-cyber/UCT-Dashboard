@@ -1,7 +1,7 @@
 .tile {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
   height: 100%;
@@ -45,7 +45,7 @@
   font-weight: 600;
   padding: 2px 8px;
   letter-spacing: 1px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--gain-bg);
   color: var(--gain);
   border: 1px solid var(--gain-border);

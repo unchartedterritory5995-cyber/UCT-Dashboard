@@ -15,7 +15,7 @@
   display: inline-flex;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 3px;
   gap: 2px;
 }
@@ -30,7 +30,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-transform: uppercase;
 }
 
@@ -58,7 +58,7 @@
   height: 28px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-size: 16px;
   cursor: pointer;
@@ -103,7 +103,7 @@
   padding: 10px 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .statLabel {

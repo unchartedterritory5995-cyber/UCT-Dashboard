@@ -4,7 +4,7 @@
   gap: 6px;
   background: rgba(0,0,0,0.6);
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border, #2a2a2a);
   font-family: var(--font-mono);
 }

@@ -9,14 +9,14 @@
 .list {
   display: flex; flex-direction: column; gap: 4px;
   max-height: 78vh; overflow-y: auto;
-  border: 1px solid var(--border, #2e3127); border-radius: 8px; padding: 6px;
+  border: 1px solid var(--border, #2e3127); border-radius: var(--radius-lg); padding: 6px;
   background: var(--bg-surface, #1a1c17);
 }
 .empty { color: var(--text); font-weight: 500; font-size: 12px; padding: 16px; }
 
 .row {
   display: grid; grid-template-columns: 54px 1fr auto 28px 16px; gap: 6px; align-items: center;
-  padding: 8px 10px; min-height: 44px; border-radius: 6px; border: 1px solid transparent;
+  padding: 8px 10px; min-height: 44px; border-radius: var(--radius-md); border: 1px solid transparent;
   background: transparent; color: var(--text, #a8a290); cursor: pointer; text-align: left;
   font-size: 12px;
 }
@@ -28,13 +28,13 @@
 .fbDot { color: var(--ut-gold, #c9a84c); text-align: center; }
 
 .badgeYes, .badgeNo {
-  font-size: 10px; padding: 2px 6px; border-radius: 999px; white-space: nowrap;
+  font-size: 10px; padding: 2px 6px; border-radius: var(--radius-pill); white-space: nowrap;
 }
 .badgeYes { background: var(--gain-bg, rgba(60,184,104,.16)); color: var(--gain, #3cb868); }
 .badgeNo { background: var(--loss-bg, rgba(231,76,60,.16)); color: var(--loss, #e74c3c); }
 
 .detail {
-  border: 1px solid var(--border, #2e3127); border-radius: 8px; padding: 14px;
+  border: 1px solid var(--border, #2e3127); border-radius: var(--radius-lg); padding: 14px;
   background: var(--bg-surface, #1a1c17);
 }
 .detailHead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -48,13 +48,13 @@
 .ckFail { color: var(--loss, #e74c3c); }
 
 .chartWrap {
-  height: 460px; border: 1px solid var(--border, #2e3127); border-radius: 6px;
+  height: 460px; border: 1px solid var(--border, #2e3127); border-radius: var(--radius-md);
   overflow: hidden; background: var(--bg, #0e0f0d);
 }
 
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .actions button {
-  min-height: 38px; padding: 0 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  min-height: 38px; padding: 0 14px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer;
   border: 1px solid var(--border-accent, #3a3d32); background: var(--bg-elevated, #22251e);
   color: var(--text-bright, #e0dac8);
 }
@@ -67,7 +67,7 @@
 .note {
   width: 100%; min-height: 60px; resize: vertical; box-sizing: border-box;
   background: var(--bg, #0e0f0d); color: var(--text-bright, #e0dac8);
-  border: 1px solid var(--border, #2e3127); border-radius: 6px; padding: 8px; font-size: 13px;
+  border: 1px solid var(--border, #2e3127); border-radius: var(--radius-md); padding: 8px; font-size: 13px;
 }
 
 .exHead { margin: 16px 0 6px; font-size: 12px; color: var(--text-heading, #f0ead8); font-weight: 600; }
@@ -75,7 +75,7 @@
 .exEmpty { font-size: 12px; color: var(--text-muted, #706b5e); }
 .exItem {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--bg-elevated, #22251e);
+  font-size: 12px; padding: 6px 8px; border-radius: var(--radius-md); background: var(--bg-elevated, #22251e);
 }
 .exDel {
   background: transparent; border: none; color: var(--loss, #e74c3c); cursor: pointer; font-size: 12px;

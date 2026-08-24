@@ -18,7 +18,7 @@
   color: var(--accent);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 11px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -70,7 +70,7 @@
   text-align: left;
   gap: 7px;
   padding: 18px 18px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--accBorder, var(--border));
   background: rgba(12, 13, 17, 0.6);
   cursor: pointer;
@@ -141,7 +141,7 @@
   color: var(--text, #e8e6e0);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 7px 10px;
   outline: none;
 }
@@ -154,7 +154,7 @@
   color: var(--bg);
   background: linear-gradient(180deg, #f0d479, #c9a84c);
   border: 1px solid #c9a84c;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 13px;
   cursor: pointer;
   white-space: nowrap;
@@ -168,7 +168,7 @@
   color: var(--text-bright);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 12px;
   cursor: pointer;
 }
@@ -205,7 +205,7 @@
   color: var(--text-bright);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(201, 168, 76, 0.5);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 2px 8px;
   outline: none;
   min-width: 240px;
@@ -232,7 +232,7 @@
   color: var(--text, #e8e6e0);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 10px;
   outline: none;
 }
@@ -246,7 +246,7 @@
   color: rgba(248, 113, 113, 0.85);
   background: transparent;
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 11px;
   cursor: pointer;
 }
@@ -378,7 +378,7 @@
   text-decoration: none;
   background: rgba(201, 168, 76, 0.08);
   border: 1px solid rgba(201, 168, 76, 0.3);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 12px;
 }
 .noteChip:hover { border-color: var(--accent); background: rgba(201, 168, 76, 0.14); }
@@ -397,7 +397,7 @@
   color: var(--text-bright);
   background: transparent;
   border: 1px dashed var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 12px;
   cursor: pointer;
 }
@@ -413,7 +413,7 @@
   color: var(--text);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 12px;
   cursor: pointer;
   min-height: var(--tap-min, 44px);
@@ -462,7 +462,7 @@
 .editorCol :global(.ProseMirror pre) {
   background: rgba(255, 255, 255, 0.04);
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -502,7 +502,7 @@
   color: var(--text, #e8e6e0);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   outline: none;
   margin-bottom: 10px;
@@ -517,7 +517,7 @@
   text-align: left;
   padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   min-height: var(--tap-min, 44px);

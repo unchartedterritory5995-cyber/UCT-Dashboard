@@ -80,7 +80,7 @@
   margin-left: 4px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0 4px;
   color: var(--bw-text-dim, var(--text-muted));
   cursor: pointer;
@@ -119,7 +119,7 @@
 .viewArea::-webkit-scrollbar-track { background: transparent; }
 .viewArea::-webkit-scrollbar-thumb {
   background: var(--bw-divider, rgba(255, 255, 255, 0.14));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Heatmap view — grouped 8-tier tile grid ── */
@@ -155,7 +155,7 @@
   /* Hairline follows the canvas side: near-white on dark (default), flipped to
      a dark line via --bw-tile-border on a light canvas. */
   border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.06));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
   transition: transform 0.08s ease, border-color 0.12s ease;
@@ -223,7 +223,7 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--bw-text-dim, var(--text-muted));
   cursor: pointer;
   opacity: 0.8;
@@ -279,7 +279,7 @@
   padding: 2px;
   display: flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .footerRefresh:hover { color: var(--bw-accent, var(--ut-gold)); background: var(--bw-hover, rgba(255, 255, 255, 0.06)); }
 .footerRefreshSpin { animation: bwSpin 0.7s linear infinite; }
@@ -296,7 +296,7 @@
   flex-direction: column;
   background: var(--menu-bg, #0c0c0e);
   border: 1px solid var(--menu-border, #26262a);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.55));
   color: var(--menu-text, #e6e6e8);
   overflow: hidden;

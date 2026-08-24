@@ -31,7 +31,7 @@
   padding: 28px 20px;
   background: #15161a;
   border: 1px solid #2a2723;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   text-align: center;
   color: var(--text);
   font-size: 14px;

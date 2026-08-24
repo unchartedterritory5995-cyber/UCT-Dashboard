@@ -210,7 +210,7 @@
   padding: 6px;
   background: #1a1c17;
   border: 1px solid #2e3127;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   z-index: 10;
   width: 72px;
@@ -268,7 +268,7 @@
   overflow-y: auto;
   background: #1a1c17;
   border: 1px solid #2e3127;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
   padding: 8px 10px;
   scrollbar-width: thin;
@@ -285,7 +285,7 @@
 .menuScroll::-webkit-scrollbar-track { background: transparent; }
 .menuScroll::-webkit-scrollbar-thumb {
   background: var(--menu-border, #232932);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -453,7 +453,7 @@
   font-family: var(--font-sans);
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--loss);
   cursor: pointer;
   transition: background 0.15s;
@@ -479,7 +479,7 @@
 .compareInput {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: #fb923c;
   font-size: 11px;
   padding: 2px 6px;
@@ -543,7 +543,7 @@
 .replayBtn {
   background: transparent;
   border: 1px solid rgba(96, 165, 250, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--info);
   font-size: 14px;
   padding: 2px 8px;
@@ -566,7 +566,7 @@
   -webkit-appearance: none;
   appearance: none;
   background: rgba(96, 165, 250, 0.18);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   outline: none;
   cursor: pointer;
   margin: 0 6px;
@@ -607,7 +607,7 @@
   margin-left: auto;
   background: transparent;
   border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--loss);
   font-size: 11px;
   padding: 2px 8px;
@@ -629,7 +629,7 @@
   font-size: 9px;
   font-weight: 700;
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   line-height: 1;
   pointer-events: none;
 }
@@ -664,7 +664,7 @@
   color: var(--chart-panel-text, #d4d0c4);
   background: var(--chart-panel-row-bg, rgba(46, 49, 39, 0.35));
   border: 1px solid var(--chart-panel-border, rgba(46, 49, 39, 0.9));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .sLauncher:hover {

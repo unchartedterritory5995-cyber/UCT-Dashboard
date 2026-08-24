@@ -15,7 +15,7 @@
   display: block;
   text-decoration: none;
   color: inherit;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: transform 120ms ease;
 }
 
@@ -265,7 +265,7 @@
   padding: 18px 16px;
   background: rgba(201, 168, 76, 0.04);
   border: 1px dashed var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .emptyIcon {
@@ -457,7 +457,7 @@
   text-decoration: none;
   color: var(--bg);
   background: linear-gradient(180deg, #e6c976 0%, #c9a84c 100%);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 6px 18px rgba(201, 168, 76, 0.26);
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }

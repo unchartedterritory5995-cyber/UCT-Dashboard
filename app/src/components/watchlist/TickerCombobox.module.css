@@ -11,7 +11,7 @@
   padding: 0 7px;
   background: var(--wl-bg-solid, var(--bg));
   border: 1px solid var(--wl-divider, var(--border));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: border-color 0.15s ease;
 }
 .wrap:focus-within {

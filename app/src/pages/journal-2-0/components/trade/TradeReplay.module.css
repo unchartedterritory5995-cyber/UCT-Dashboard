@@ -51,7 +51,7 @@
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .close:hover { color: var(--accent); }
@@ -91,7 +91,7 @@
 .playBtn {
   padding: 6px 14px;
   border: 1px solid #c9a84c;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(201, 168, 76, 0.1);
   color: var(--accent);
   font-size: 13px;
@@ -103,7 +103,7 @@
 .speedBtn {
   padding: 5px 10px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted, #8a8a8a);
   font-size: 12px;

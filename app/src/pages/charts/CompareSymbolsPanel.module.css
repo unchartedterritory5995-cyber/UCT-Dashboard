@@ -6,7 +6,7 @@
   max-width: 92vw;
   background: var(--bg-elevated, #22251e);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
   color: var(--text, #b6b09d);
   font: 12px 'Instrument Sans', system-ui, sans-serif;
@@ -246,7 +246,7 @@
 .scaleSeg {
   display: flex;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .scaleBtn {
@@ -302,7 +302,7 @@
   width: 16px;
   height: 16px;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   color: var(--bg);
   background: transparent;

@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 8500;
   background: #000;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
   /* NOTE: top/left are deliberately NOT transitioned here. While docked, the
@@ -157,7 +157,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .cbtn:hover {
   background: rgba(255, 255, 255, 0.14);
@@ -175,7 +175,7 @@
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .speedBtn:hover {
@@ -192,7 +192,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px 3px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(8, 9, 8, 0.42);
   opacity: 0.66;
   pointer-events: none;
@@ -269,7 +269,7 @@
   border: 1px solid rgba(201, 168, 76, 0.5);
   background: transparent;
   color: var(--text-bright);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
@@ -280,7 +280,7 @@
 
 @media (max-width: 640px) {
   .host {
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -320,7 +320,7 @@
   transform-origin: bottom center;
   background: rgba(8, 9, 8, 0.95);
   border: 1px solid rgba(201, 168, 76, 0.4);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 6px;
   opacity: 0;
   pointer-events: none;
