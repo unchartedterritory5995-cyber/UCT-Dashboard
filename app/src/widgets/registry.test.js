@@ -30,11 +30,11 @@ import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow',
-  'periodsort',
+  'periodsort', 'nhnl',
 ]
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 13 workspace widget types, in menu order', () => {
+  it('registers exactly the 14 workspace widget types, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -44,7 +44,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
-      periodsort: 'Period Sort',
+      periodsort: 'Period Sort', nhnl: 'New Highs / Lows',
     })
   })
 
@@ -54,7 +54,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News & Catalysts', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
-      periodsort: 'Period Sort',
+      periodsort: 'Period Sort', nhnl: 'New Highs / Lows',
     })
   })
 
@@ -64,7 +64,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
-      periodsort: 'Period Sort',
+      periodsort: 'Period Sort', nhnl: 'NH / NL',
     })
   })
 
@@ -84,6 +84,7 @@ describe('widget registry — metadata pins', () => {
       calendar:     { w: 6,  h: 10, minW: 2, minH: 4 },
       optionsflow:  { w: 8,  h: 12, minW: 4, minH: 5 },
       periodsort:   { w: 6,  h: 12, minW: 3, minH: 5 },
+      nhnl:         { w: 8,  h: 12, minW: 3, minH: 5 },
     })
   })
 
@@ -102,7 +103,7 @@ describe('widget registry — metadata pins', () => {
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
-      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow',
+      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl',
     ])
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
@@ -178,6 +179,7 @@ const CAPTURE_FIXTURES = {
   calendar: { date: '2026-08-06', econStars: 3, selectedSym: 'AMD', tbdOpen: false, sections: { bmo: { sortBy: 'mcap', sortDir: 'desc', showAll: false }, amc: { sortBy: 'im', sortDir: 'desc', showAll: true } }, settings: { bg: '#101010' } },
   optionsflow: { lead: 'tape', scope: 'symbol', symbol: 'NVDA', filters: { minPrem: 1000000, cp: 'C', type: 'all', dir: 'all' }, settings: { bg: '#101010' } },
   periodsort: { start: 20260706, end: 20260805, group: 'theme', settings: { bg: '#101010' }, colCfg: { order: ['flag', 'sym', 'periodchg'], sort: { key: 'periodchg', dir: 'desc' } } },
+  nhnl: { minPrice: 5, minCount: 3, settings: { bg: '#101010' } },
 }
 
 describe('widget registry — params layer', () => {

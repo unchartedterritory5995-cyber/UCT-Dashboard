@@ -1,0 +1,216 @@
+/* New Highs / New Lows widget — UCT skin (dark card, dim count bars, gold accents).
+   Chrome tokens (--widget-*) are published by WidgetHost so the panel theme-follows;
+   each falls back to the global token. */
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--widget-canvas, var(--bg));
+  color: var(--widget-text, var(--text));
+  font-size: var(--text-sm);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--widget-divider, var(--border));
+  flex: 0 0 auto;
+}
+.spacer { flex: 1 1 auto; }
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.liveOn { color: var(--ut-green-bright); }
+.liveOn .dot {
+  background: var(--ut-green-bright);
+  box-shadow: 0 0 6px var(--ut-green-glow);
+  animation: nhnlPulse 2s ease-in-out infinite;
+}
+@keyframes nhnlPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .liveOn .dot { animation: none; } }
+
+.asof {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.filterLbl {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.filterInput {
+  width: 40px;
+  padding: 2px 4px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--widget-text, var(--text));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+.filterInput:focus { border-color: var(--accent); }
+
+/* ── Twin panels ─────────────────────────────────────────────────────────── */
+.panels {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+.side {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.side:first-child { border-right: 1px solid var(--widget-divider, var(--border)); }
+
+.sideHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--widget-canvas, var(--bg));
+  border-bottom: 1px solid var(--widget-divider, var(--border));
+}
+.sideTitle {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.up .sideTitle { color: var(--ut-green-bright); }
+.down .sideTitle { color: var(--ut-red-bright); }
+.sideCount {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.rows {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Row ─────────────────────────────────────────────────────────────────── */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr) auto auto 30px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.04));
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.35;
+}
+.row:hover { background: var(--widget-row-hover, var(--bg-hover)); }
+
+/* Count histogram — dim tint anchored to the # side, sits behind the text. */
+.bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  right: 0;
+  z-index: 0;
+  border-radius: 3px 0 0 3px;
+  pointer-events: none;
+}
+.up .bar { background: rgba(45, 140, 78, 0.24); }
+.down .bar { background: rgba(192, 57, 43, 0.24); }
+
+.row > .arrow,
+.row > .sym,
+.row > .price,
+.row > .time,
+.row > .count { position: relative; z-index: 1; }
+
+.arrow { font-size: 8px; }
+.up .arrow { color: var(--ut-green-bright); }
+.down .arrow { color: var(--ut-red-bright); }
+
+.sym {
+  font-weight: 700;
+  color: var(--widget-text-strong, var(--text-bright));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.price {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.time {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.count {
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.up .count { color: var(--ut-green-bright); }
+.down .count { color: var(--ut-red-bright); }
+
+/* ── Empty / closed ──────────────────────────────────────────────────────── */
+.empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  text-align: center;
+}
+.emptyTitle {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.emptySub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  opacity: 0.8;
+  max-width: 260px;
+}
+
+/* Narrow widget: drop the time column so sym/price/# stay readable. */
+@container (max-width: 360px) {
+  .row { grid-template-columns: 11px minmax(0, 1fr) auto 28px; }
+  .time { display: none; }
+}
