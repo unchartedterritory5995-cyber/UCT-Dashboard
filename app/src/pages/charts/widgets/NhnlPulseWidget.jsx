@@ -17,8 +17,6 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
-import NhnlDropdown from './NhnlDropdown'
-import { useNhnlSessions, sessionQuery, isHistorical } from './useNhnlSessions'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
@@ -121,21 +119,16 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  // Session: Live, or review a past archived session (static — no polling).
-  const [sessionSel, setSessionSel] = useState('live')
-  const sessionOpts = useNhnlSessions()
-  const hist = isHistorical(sessionSel)
-  const seriesUrl = hist ? `/api/nhnl/series?${sessionQuery(sessionSel).slice(1)}` : '/api/nhnl/series'
-  const { data } = useMobileSWR(seriesUrl, fetcher, {
-    refreshInterval: hist ? 0 : 2000,
+  const { data } = useMobileSWR('/api/nhnl/series', fetcher, {
+    refreshInterval: 2000,       // pull new points as fast as the accumulator produces them
     dedupingInterval: 1500,
-    marketHoursOnly: !hist,
+    marketHoursOnly: true,
     revalidateOnFocus: false,
   })
 
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
-  const stamp = data?.historical ? 'REVIEW' : (WINDOW_LABEL[window] || '')
+  const stamp = WINDOW_LABEL[window] || ''
   const series = data?.series || []
   const option = useMemo(() => makeOption(series, green, red), [series, green, red])
 
@@ -185,14 +178,6 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtClock(data.asof)} ET</span>}
         <span className={chrome.spacer} />
-        <NhnlDropdown
-          value={sessionSel}
-          options={sessionOpts}
-          onChange={setSessionSel}
-          title="Session"
-          minWidth={80}
-          maxWidth={128}
-        />
         <button
           ref={gearRef}
           type="button"

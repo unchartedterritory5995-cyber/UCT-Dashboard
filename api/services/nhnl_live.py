@@ -111,97 +111,6 @@ def _series_window_secs() -> float:
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
 
-# ── Session archive (review a past session's data) ────────────────────────────
-# Counters reset per window (pre/rth/post), so once post-market starts the regular
-# session's data is gone from the live view. On each rollover we snapshot the ENDING
-# session (its final leaderboard + Pulse series) to disk keyed by <date>_<window>, so
-# a user can pull up e.g. "Today — Regular" during post-market. `_pending_archive` is
-# set (under _lock) by _tick_once when it detects a rollover, and written by the tick
-# loop OFF the lock — so unit tests that drive _tick_once never touch disk.
-_WINDOWS = ("pre", "rth", "post")
-_ARCHIVE_KEEP = 15
-_pending_archive: dict | None = None
-
-
-def _archive_dir() -> str:
-    p = os.environ.get("NHNL_ARCHIVE_DIR")
-    if p:
-        return p
-    return os.path.join(os.environ.get("DATA_DIR", "/data"), "nhnl_archive")
-
-
-def _write_archive(snap: dict) -> None:
-    try:
-        d = _archive_dir()
-        os.makedirs(d, exist_ok=True)
-        path = os.path.join(d, f"{snap['date']}_{snap['window']}.json")
-        out = {**snap, "archived_at": _now_et().isoformat()}
-        tmp = path + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(out, f)
-        os.replace(tmp, path)
-        _prune_archive(d)
-    except Exception:
-        _log.exception("[nhnl] session archive write failed")
-
-
-def _prune_archive(d: str) -> None:
-    try:
-        files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".json")]
-        files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-        for p in files[_ARCHIVE_KEEP:]:
-            try:
-                os.remove(p)
-            except OSError:
-                pass
-    except Exception:
-        pass
-
-
-def _load_archive(date: str, window: str) -> dict | None:
-    try:
-        with open(os.path.join(_archive_dir(), f"{date}_{window}.json")) as f:
-            return json.load(f)
-    except (FileNotFoundError, ValueError, OSError):
-        return None
-    except Exception:
-        _log.exception("[nhnl] archive load failed")
-        return None
-
-
-def _capture_archive() -> dict | None:
-    """Snapshot the current session for archiving. Caller holds _lock."""
-    if _state["session_key"] and _state["window"] in _WINDOWS and (_state["syms"] or _state["series"]):
-        return {
-            "date": _state["date"], "window": _state["window"],
-            "session_key": _state["session_key"], "asof": _state["asof"],
-            "ticks": _state["ticks"], "syms": _state["syms"],   # old dict; _reset reassigns
-            "series": list(_state["series"]),
-        }
-    return None
-
-
-def list_sessions() -> dict:
-    """Available archived sessions, newest first — for the widgets' session picker."""
-    out = []
-    label = {"pre": "Pre-Market", "rth": "Regular", "post": "Post-Market"}
-    try:
-        d = _archive_dir()
-        for fn in os.listdir(d):
-            if not fn.endswith(".json"):
-                continue
-            stem = fn[:-5]
-            date, _, window = stem.rpartition("_")
-            if window not in _WINDOWS or not date:
-                continue
-            out.append({"date": date, "window": window, "label": label.get(window, window)})
-    except (FileNotFoundError, OSError):
-        pass
-    except Exception:
-        _log.exception("[nhnl] list_sessions failed")
-    out.sort(key=lambda s: (s["date"], _WINDOWS.index(s["window"])), reverse=True)
-    return {"sessions": out}
-
 # ── Print-exact counting (bounded live trade tape) ────────────────────────────
 # The poll above counts "intervals in which a new HOD occurred" — a name ratcheting
 # its high many times inside one 3s tick shows +1. When NHNL_PRINT_EXACT=1 we ALSO
@@ -575,15 +484,9 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
       - closed → just stamp asof; nothing accumulates.
     Counters reset whenever the (date, window) session rolls over.
     """
-    global _pending_archive
     now_iso = now.isoformat()
     if window == "closed":
         with _lock:
-            if _pending_archive is None:      # archive the ending session (e.g. post-market)
-                snap = _capture_archive()
-                if snap:
-                    _pending_archive = snap
-                    _state["session_key"] = None   # consumed — don't re-archive next tick
             _state["window"] = "closed"
             _state["asof"] = now_iso
         return
@@ -595,10 +498,6 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
     px_on = _print_exact()    # print-exact owns counting for its subscribed set
     with _lock:
         if _state["session_key"] != session_key:
-            if _pending_archive is None:      # archive the ending session before we reset
-                snap = _capture_archive()
-                if snap:
-                    _pending_archive = snap
             _reset(session_key, window, today)
         syms = _state["syms"]
         events = _state["events"]
@@ -663,8 +562,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
 
 
 def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
-             group: str = None, value: str = None, session: str = "auto",
-             date: str = None) -> dict:
+             group: str = None, value: str = None, session: str = "auto") -> dict:
     """Ranked New-Highs / New-Lows leaderboards for the endpoint.
 
     ONE row per symbol (deduped), ranked by running count DESCENDING then recency.
@@ -681,27 +579,17 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
     Scope is a pure filter over the already-running accumulator — every sector /
     industry / theme is always being scanned; this just changes what you look at.
     """
-    _rows_of = lambda src: [(s, st.get("nh", 0), st.get("nl", 0), st.get("last"),
-                             st.get("hi_ts"), st.get("lo_ts"), st.get("prev"))
-                            for s, st in src.items()
-                            if st.get("nh", 0) > 0 or st.get("nl", 0) > 0]
-    if date and session in _WINDOWS:
-        # Review a past session from the archive (static — no lock, no live poll).
-        arch = _load_archive(date, session) or {}
-        sym_rows = _rows_of(arch.get("syms") or {})
-        asof = arch.get("asof")
-        session_date = arch.get("date") or date
-        ticks = arch.get("ticks", 0)
-        window = session
-        historical = True
-    else:
-        window = "rth" if _demo() else _active_window(_now_et())
-        with _lock:
-            asof = _state["asof"]
-            session_date = _state["date"]
-            ticks = _state["ticks"]
-            sym_rows = _rows_of(_state["syms"])
-        historical = False
+    window = "rth" if _demo() else _active_window(_now_et())
+    with _lock:
+        asof = _state["asof"]
+        session_date = _state["date"]
+        ticks = _state["ticks"]
+        # (sym, nh, nl, last, hi_ts, lo_ts) for every active symbol (stocks + the
+        # tracked sector ETFs).
+        sym_rows = [(s, st.get("nh", 0), st.get("nl", 0), st.get("last"),
+                     st.get("hi_ts"), st.get("lo_ts"), st.get("prev"))
+                    for s, st in _state["syms"].items()
+                    if st.get("nh", 0) > 0 or st.get("nl", 0) > 0]
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
@@ -806,8 +694,7 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
         "date": session_date,
         "asof": asof,
         "ticks": ticks,
-        "historical": historical,     # True = a reviewed past session from the archive
-        "active": historical or (window != "closed" and _running and (enabled() or _demo())),
+        "active": window != "closed" and _running and (enabled() or _demo()),
         "highs_total": highs_total,   # count of rows in the CURRENT view (stocks / sectors / industries / themes)
         "lows_total": lows_total,
         "group": dim,                 # echo the active scope dim (or null)
@@ -851,37 +738,24 @@ def _sample_series(now: datetime) -> None:
         _state["series"].append({"t": now.isoformat(), "hi": round(eh, 2), "lo": round(el, 2)})
 
 
-def get_series(session: str = None, date: str = None) -> dict:
+def get_series() -> dict:
     """The H/L Pulse payload: the two-line time series + session distinct-name totals
-    (for the bull/bear ratio bar). With date+session, serves a past session's archive."""
-    if date and session in _WINDOWS:
-        arch = _load_archive(date, session) or {}
-        src = arch.get("syms") or {}
-        series = arch.get("series") or []
-        hi_names = sum(1 for s in src.values() if s.get("nh", 0) > 0)
-        lo_names = sum(1 for s in src.values() if s.get("nl", 0) > 0)
-        asof = arch.get("asof")
-        session_date = arch.get("date") or date
-        window = session
-        historical = True
-    else:
-        window = "rth" if _demo() else _active_window(_now_et())
-        with _lock:
-            series = list(_state["series"])
-            hi_names = sum(1 for s in _state["syms"].values() if s.get("nh", 0) > 0)
-            lo_names = sum(1 for s in _state["syms"].values() if s.get("nl", 0) > 0)
-            asof = _state["asof"]
-            session_date = _state["date"]
-        historical = False
+    (for the bull/bear ratio bar). Read-only; safe on the request path."""
+    window = "rth" if _demo() else _active_window(_now_et())
+    with _lock:
+        series = list(_state["series"])
+        hi_names = sum(1 for s in _state["syms"].values() if s.get("nh", 0) > 0)
+        lo_names = sum(1 for s in _state["syms"].values() if s.get("nl", 0) > 0)
+        asof = _state["asof"]
+        session_date = _state["date"]
     return {
         "window": window,
         "asof": asof,
         "date": session_date,
-        "historical": historical,
-        "active": historical or (window != "closed" and _running and (enabled() or _demo())),
+        "active": window != "closed" and _running and (enabled() or _demo()),
         "sample_secs": _SAMPLE_SECS,
         "series": series,            # [{t, hi, lo}] oldest-first
-        "highs_total": hi_names,     # distinct names at a new high / low
+        "highs_total": hi_names,     # distinct names at a new high / low today
         "lows_total": lo_names,
     }
 
@@ -1149,11 +1023,7 @@ def _tick() -> None:
         _manage_print_set()
     except Exception:
         _log.exception("[nhnl] print-set management failed")
-    global _last_persist, _last_sample, _pending_archive
-    if _pending_archive is not None:          # a session just rolled over → archive it
-        snap = _pending_archive
-        _pending_archive = None
-        _write_archive(snap)
+    global _last_persist, _last_sample
     if window != "closed" and (_time.time() - _last_sample) >= _SAMPLE_SECS:
         try:
             _sample_series(now)

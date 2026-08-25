@@ -33,38 +33,27 @@ def nhnl_live(
     min_count: int = Query(1, ge=1),
     group: str | None = Query(None, pattern="^(sector|industry|theme)$"),
     value: str | None = Query(None, max_length=120),
-    session: str | None = Query(None, pattern="^(pre|rth|post)$"),
-    date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
 ):
     """Ranked New-Highs / New-Lows leaderboards (busiest name per side first).
 
     `min_count` raises the bar to only persistent movers; `min_price` hides cheap
-    stock. `group` (sector | industry | theme) scopes the view. `date`+`session`
-    (e.g. 2026-08-25 + rth) review a past archived session instead of the live feed.
+    stock. `group` (sector | industry | theme) scopes the view: with no `value` it
+    ranks the whole universe and returns `categories` for the dropdown; with a
+    `value` it restricts to that one category.
     """
     from api.services import nhnl_live
     return JSONResponse(content=nhnl_live.get_live(
         limit=limit, min_price=min_price, min_count=min_count,
-        group=group, value=(value or None), session=(session or "auto"), date=date))
+        group=group, value=(value or None)))
 
 
 @router.get("/api/nhnl/series")
-def nhnl_series(
-    _user: dict = Depends(require_paid),
-    session: str | None = Query(None, pattern="^(pre|rth|post)$"),
-    date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
-):
-    """Intraday New-High vs New-Low activity time series (the "H/L Pulse" chart).
-    `date`+`session` review a past archived session instead of the live feed."""
+def nhnl_series(_user: dict = Depends(require_paid)):
+    """Intraday New-High vs New-Low activity time series (the "H/L Pulse" chart):
+    two lines sampled through the session, plus the session's distinct-name totals
+    for the bull/bear ratio bar."""
     from api.services import nhnl_live
-    return JSONResponse(content=nhnl_live.get_series(session=session, date=date))
-
-
-@router.get("/api/nhnl/sessions")
-def nhnl_sessions(_user: dict = Depends(require_paid)):
-    """Archived past sessions available to review (newest first)."""
-    from api.services import nhnl_live
-    return JSONResponse(content=nhnl_live.list_sessions())
+    return JSONResponse(content=nhnl_live.get_series())
 
 
 @router.get("/api/nhnl/status")
