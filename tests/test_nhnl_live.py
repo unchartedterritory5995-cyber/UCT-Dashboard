@@ -29,6 +29,11 @@ def _fresh_state(monkeypatch):
     monkeypatch.setattr(nhnl_live, "_theme_holdings", lambda: {})
     with nhnl_live._lock:
         nhnl_live._state["themes"] = {}
+    # Print-exact globals — reset so one test's tape state can't leak into the next.
+    nhnl_live._print_syms = set()
+    nhnl_live._print_counts.clear()
+    nhnl_live._print_listener_on = False
+    nhnl_live._print_events_total = 0
     yield
     nhnl_live._prov_to_app = None
 
@@ -187,6 +192,55 @@ def test_theme_overview_breadth_counts_multi_theme_membership(monkeypatch):
     # Drilling a theme filters by FULL membership.
     out2 = nhnl_live.get_live(group="theme", value="Cloud")
     assert {e["sym"] for e in out2["highs"]} == {"BBB"}
+
+
+# ── Print-exact counting (bounded live trade tape) ──────────────────────────────
+
+def test_print_exact_counts_every_ratchet_and_poll_does_not_double(monkeypatch):
+    import api.services.bar_stream as bs
+    monkeypatch.setattr(nhnl_live, "_print_exact", lambda: True)
+    added = []
+    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars": added.append((set(syms), owner)))
+    monkeypatch.setattr(bs, "unsubscribe_symbols", lambda syms, owner="bars": None)
+    monkeypatch.setattr(bs, "add_trade_listener", lambda fn: None)
+
+    # 1) poll sees AAA's FIRST new high (nh 0→1).
+    _tick(_snap(AAA=(100.0, 98.0, 99.0)), minute=0)     # seed
+    _tick(_snap(AAA=(101.0, 98.0, 101.0)), minute=1)    # nh=1 via poll
+    # 2) manage → subscribes AAA to the T. tap, seeded from the poll mark.
+    nhnl_live._manage_print_set()
+    assert any("AAA" in s and o == "nhnl" for s, o in added)
+    assert "AAA" in nhnl_live._print_syms
+    assert nhnl_live._print_counts["AAA"]["nh"] == 1
+
+    # 3) three prints each ratchet the HOD → every one counts (the poll would show +1).
+    for px in (101.5, 102.0, 102.5):
+        nhnl_live._on_trade_print("AAA", {"p": px, "s": 100, "t": 1})
+    nhnl_live._manage_print_set()   # fold print counts into served state
+    aaa = next(e for e in nhnl_live.get_live()["highs"] if e["sym"] == "AAA")
+    assert aaa["count"] == 4        # 1 (poll) + 3 (prints)
+
+    # 4) the poll no longer double-counts a print-owned name.
+    _tick(_snap(AAA=(103.0, 98.0, 103.0)), minute=2)    # tick_once: AAA skipped
+    nhnl_live._manage_print_set()
+    aaa2 = next(e for e in nhnl_live.get_live()["highs"] if e["sym"] == "AAA")
+    assert aaa2["count"] == 4       # unchanged by the poll
+
+
+def test_print_exact_disabled_clears_subscriptions(monkeypatch):
+    import api.services.bar_stream as bs
+    dropped = []
+    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars": None)
+    monkeypatch.setattr(bs, "unsubscribe_symbols", lambda syms, owner="bars": dropped.append((set(syms), owner)))
+    monkeypatch.setattr(bs, "add_trade_listener", lambda fn: None)
+    # pretend a name is print-subscribed, then the flag flips off.
+    nhnl_live._print_syms = {"AAA"}
+    nhnl_live._print_counts["AAA"] = {"app": "AAA", "hod": 1.0, "lod": 1.0,
+                                      "nh": 3, "nl": 0, "last": 1.0, "hi_ms": None, "lo_ms": None}
+    monkeypatch.setattr(nhnl_live, "_print_exact", lambda: False)
+    nhnl_live._manage_print_set()
+    assert nhnl_live._print_syms == set() and not nhnl_live._print_counts
+    assert any("AAA" in s and o == "nhnl" for s, o in dropped)
 
 
 # ── Tradability gate ────────────────────────────────────────────────────────────

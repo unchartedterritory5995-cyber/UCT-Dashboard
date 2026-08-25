@@ -454,6 +454,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
     is_rth = window == "rth"
     prov_map = _universe_map()
     etf = _etf_set()          # stocks-only — computed outside the lock (cached ~24h)
+    px_on = _print_exact()    # print-exact owns counting for its subscribed set
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
@@ -464,6 +465,11 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             # ETFs/ETNs/funds excluded from the stock universe — EXCEPT the SPDR
             # sector ETFs, which the Sector-scope overview shows directly.
             if app in etf and app not in _SECTOR_ETF_TICKERS:
+                continue
+            # Print-exact owns this name's HOD/LOD counting via the live trade tape;
+            # the merge in _manage_print_set is authoritative, so the poll must not
+            # also increment it (double-count). Its st was seeded before it joined.
+            if px_on and prov in _print_syms:
                 continue
             row = snapshot.get(prov)
             if not row:
@@ -667,7 +673,163 @@ def status() -> dict:
             "asof": _state["asof"],
             "last_error": _state["last_error"],
             "tick_seconds": _tick_seconds(),
+            "print_exact": _print_exact(),      # bounded live-trade-tape counting
+            "print_syms": len(_print_syms),     # names currently print-counted
+            "print_events": _print_events_total,  # total qualifying prints counted
         }
+
+
+# ── Print-exact machinery ─────────────────────────────────────────────────────
+def _ms_to_iso(ms) -> str | None:
+    try:
+        return (datetime.fromtimestamp(ms / 1000.0, _ET) if _ET
+                else datetime.utcfromtimestamp(ms / 1000.0)).isoformat()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
+def _classify_hl(conditions) -> bool:
+    """True if a print may set a new high/low (same SIP filter the charts use).
+    Missing/unknown conditions or a disabled filter => eligible."""
+    global _tc
+    if _tc is None:
+        try:
+            from api.services import trade_conditions as tc
+            _tc = tc
+        except Exception:
+            _tc = False
+    if not _tc:
+        return True
+    try:
+        return _tc.classify(conditions)[0]
+    except Exception:
+        return True
+
+
+def _on_trade_print(sym: str, trade: dict) -> None:
+    """Runs on the bars-WS thread for every T. print of a print-counted symbol.
+    MINIMAL by design — dict lookup + condition gate + compare under a DEDICATED
+    lock (never the main _lock, so get_live / the poll never contend with the tape)."""
+    global _print_events_total
+    if sym not in _print_counts:            # cheap pre-check before the price parse
+        return
+    p = trade.get("p")
+    if not isinstance(p, (int, float)) or p <= 0:
+        return
+    if not _classify_hl(trade.get("c")):    # odd-lot / out-of-sequence ghosts don't count
+        return
+    ms = trade.get("t")
+    with _print_lock:
+        st = _print_counts.get(sym)
+        if st is None:
+            return
+        if p > st["hod"] * (1 + _EPS):
+            st["nh"] += 1; st["hod"] = p; st["hi_ms"] = ms
+        elif p < st["lod"] * (1 - _EPS):
+            st["nl"] += 1; st["lod"] = p; st["lo_ms"] = ms
+        st["last"] = p
+        _print_events_total += 1
+
+
+def _ensure_print_listener() -> None:
+    global _print_listener_on
+    if _print_listener_on:
+        return
+    try:
+        from api.services import bar_stream
+        bar_stream.add_trade_listener(_on_trade_print)
+        _print_listener_on = True
+        _log.info("[nhnl] print-exact trade listener registered")
+    except Exception:
+        _log.exception("[nhnl] could not register trade listener")
+
+
+def _clear_print_state() -> None:
+    """Drop all print subscriptions + counts (feature off / session rollover / closed)."""
+    global _print_syms
+    try:
+        from api.services import bar_stream
+        with _print_lock:
+            drop = set(_print_syms)
+            _print_counts.clear()
+            _print_syms = set()
+        if drop:
+            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+    except Exception:
+        _log.exception("[nhnl] clear print state failed")
+
+
+def _manage_print_set() -> None:
+    """Each tick: fold live print counts into the served state, then re-pick the
+    BOUNDED active set (names already ratcheting, busiest first) and adjust the T.
+    subscriptions. Runs after _tick_once, off the _lock hot path for the tape."""
+    global _print_syms
+    if not _print_exact():
+        if _print_listener_on or _print_syms:
+            _clear_print_state()
+        return
+    with _lock:
+        win = _state["window"]
+    if win == "closed":
+        if _print_syms:
+            _clear_print_state()
+        return
+    _ensure_print_listener()
+    prov_map = _universe_map()                       # {prov: app}
+    app_to_prov = {app: prov for prov, app in prov_map.items()}
+    add: set = set()
+    drop: set = set()
+    with _lock:
+        syms = _state["syms"]
+        # 1) fold the live print counts back into the served per-symbol state.
+        with _print_lock:
+            for prov, pc in _print_counts.items():
+                st = syms.get(pc["app"])
+                if st is None:
+                    continue
+                st["nh"] = pc["nh"]; st["nl"] = pc["nl"]
+                st["hod"] = pc["hod"]; st["lod"] = pc["lod"]
+                if pc["last"] is not None:
+                    st["last"] = pc["last"]
+                if pc["hi_ms"]:
+                    st["hi_ts"] = _ms_to_iso(pc["hi_ms"]) or st.get("hi_ts")
+                if pc["lo_ms"]:
+                    st["lo_ts"] = _ms_to_iso(pc["lo_ms"]) or st.get("lo_ts")
+        # 2) active set = names already at a new high/low, busiest first, capped.
+        ranked = sorted(
+            ((max(st.get("nh", 0), st.get("nl", 0)), app)
+             for app, st in syms.items()
+             if st.get("nh", 0) > 0 or st.get("nl", 0) > 0),
+            key=lambda r: r[0], reverse=True,
+        )
+        want = {app_to_prov[a] for _, a in ranked[:_print_max()] if a in app_to_prov}
+        # 3) seed newcomers from their current poll marks; drop the fallen-off.
+        with _print_lock:
+            add = want - _print_syms
+            drop = _print_syms - want
+            for prov in list(add):             # copy: we discard from `add` below
+                app = prov_map.get(prov)
+                st = syms.get(app) if app else None
+                if st is None:
+                    add.discard(prov)          # nothing to seed → don't subscribe
+                    continue
+                _print_counts[prov] = {
+                    "app": app, "hod": st.get("hod", 0.0), "lod": st.get("lod", 0.0),
+                    "nh": st.get("nh", 0), "nl": st.get("nl", 0),
+                    "last": st.get("last"), "hi_ms": None, "lo_ms": None,
+                }
+            for prov in drop:
+                _print_counts.pop(prov, None)
+            _print_syms = (_print_syms - drop) | add
+    # 4) adjust the WS subscriptions OUTSIDE the locks (thread-safe, quick queue ops).
+    try:
+        from api.services import bar_stream
+        if add:
+            bar_stream.subscribe_symbols(add, owner="nhnl")
+        if drop:
+            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+    except Exception:
+        _log.exception("[nhnl] print-set subscription update failed")
 
 
 def _tick() -> None:
@@ -678,15 +840,19 @@ def _tick() -> None:
     window = _active_window(now)
     if window == "closed":
         _tick_once({}, "closed", today, now)  # stamps asof, no fetch
-        return
-    snap = massive._get_client().get_full_market_snapshot_hl()
-    if not snap:
-        with _lock:
-            _state["last_error"] = "empty snapshot"
-        return
-    _tick_once(snap, window, today, now)
-    with _lock:
-        _state["last_error"] = None
+    else:
+        snap = massive._get_client().get_full_market_snapshot_hl()
+        if not snap:
+            with _lock:
+                _state["last_error"] = "empty snapshot"
+        else:
+            _tick_once(snap, window, today, now)
+            with _lock:
+                _state["last_error"] = None
+    try:
+        _manage_print_set()
+    except Exception:
+        _log.exception("[nhnl] print-set management failed")
 
 
 def _run_forever() -> None:
@@ -724,3 +890,5 @@ def stop() -> None:
     """Signal the loop to exit (used by lifespan shutdown / tests)."""
     global _running
     _running = False
+    if _print_listener_on or _print_syms:
+        _clear_print_state()
