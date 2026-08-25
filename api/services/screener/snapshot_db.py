@@ -85,6 +85,8 @@ COLUMNS = [
     # FILTER reads `candle_matches` — screening the rendered head would
     # silently drop every hammer that was also an engulfing.
     "candle_label", "candle_matches", "candle_trend",
+    # what the bar DID — gaps, structural failures, reversals, volume
+    "bar_character", "bar_character_label",
     # multi candle
     "inside_bar_run", "tight_consolidation", "pullback_depth_pct",
     "higher_lows_run", "nr7", "consecutive_up", "consecutive_down",
@@ -131,6 +133,7 @@ COLUMNS = [
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
+         "bar_character", "bar_character_label",
          "patterns", "snapshot_date", "bars_asof",
          # Wave 1. `accdis` joins _TEXT here too: it has always held letter
          # grades in a REAL-declared column (latent since v1; SQLite dynamic

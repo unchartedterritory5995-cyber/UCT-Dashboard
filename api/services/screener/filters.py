@@ -19,7 +19,7 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
-from . import candle_catalog
+from . import bar_character, candle_catalog
 
 
 def _range(key, label, category, column, presets, unit=None):
@@ -370,6 +370,12 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Top third (>0.66)", "op": "gte", "min": 0.66},
             {"label": "Bottom third (<0.33)", "op": "lte", "max": 0.33}]),
+    # ⭐ 53 options DERIVED from the cascade in `bar_character`. This is a
+    # different question from Candle Type — that one asks what SHAPE the bar is,
+    # this asks what it DID: gapped and held, failed at the 20-day high, churned
+    # on heavy volume. Candle geometry cannot see any of those.
+    _enum("bar_character", "Bar Character", "single_candle", "bar_character",
+          bar_character.enum_options()),
     # ── multi candle ──
     _bool("tight_consolidation", "Tight Consolidation", "multi_candle", "tight_consolidation"),
     _bool("nr7", "NR7 (narrowest of 7)", "multi_candle", "nr7"),

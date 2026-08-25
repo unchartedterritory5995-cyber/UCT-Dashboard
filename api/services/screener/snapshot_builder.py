@@ -59,7 +59,7 @@ import os
 import threading
 import time
 
-from . import (snapshot_db, candles, technicals, patterns, enrich, setup_score,
+from . import (snapshot_db, candles, bar_character, technicals, patterns, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow)
 
@@ -445,6 +445,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
                          lambda: candles.single_candle(bars)))
         row.update(_step("bars_multi_candle",
                          lambda: candles.multi_candle(bars)))
+        row.update(_step("bars_character",
+                         lambda: bar_character.classify(bars)))
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))

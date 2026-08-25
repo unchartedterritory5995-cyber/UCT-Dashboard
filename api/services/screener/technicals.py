@@ -77,6 +77,49 @@ def _rsi(closes, n=14):
     return indicator_compute.compute_rsi_raw(closes, n)[-1]
 
 
+def _volume(bar):
+    """A bar's volume, or ``None`` when it is not a usable number.
+
+    ``bool`` is checked FIRST because it is a subclass of ``int`` — ``True``
+    would otherwise pass as a volume of 1.
+    """
+    v = bar.get("v")
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return v if (v == v and v >= 0) else None
+
+
+def volume_ratio(bars, n=30):
+    """Today's volume over the mean of the PRIOR ``n`` sessions — or ``None``.
+
+    ⭐ THE ONE AUTHORITY FOR RELATIVE VOLUME. `bar_character` names bars off
+    this exact number (Heavy / Huge / Climactic / Dried-Up, and the whole VSA
+    tier), and the `vol_ratio` column filters on it. A second implementation in
+    the character module would be the `atr_pct`/`adr_pct` defect in a new place:
+    two differently-computed values wearing one name.
+
+    ⛔ THE DENOMINATOR EXCLUDES TODAY (`bars[-n-1:-1]`). Averaging today in
+    drags the mean toward the spike it is meant to measure — a genuine 10x day
+    reads about 5.6x.
+
+    ⚠️ THE WINDOW STAYS 30, not StockCharts' 50. `vol_ratio` is a member-facing
+    filter and two saved screens key off it (`>= 3`, `>= 1.5`); widening the
+    window moves every stored threshold's meaning and silently re-selects them.
+    The VSA multiples below are ratios and read the same either way.
+
+    Returns ``None`` — never ``0`` — when volume is missing or history is short:
+    a 0 here would mean "no volume" and it sorts and filters.
+    """
+    if not bars:
+        return None
+    today_v = _volume(bars[-1])
+    prior_v = [v for v in (_volume(b) for b in bars[-n - 1:-1]) if v is not None]
+    if today_v is None or not prior_v:
+        return None
+    avg = sum(prior_v) / len(prior_v)
+    return round(today_v / avg, 2) if avg else None
+
+
 def _atr_pct(bars, n=14):
     """Wilder's ATR(``n``) as a percentage of the latest close — or ``None``.
 
@@ -523,17 +566,10 @@ def compute_technicals(bars: list[dict]) -> dict:
     # healing it here would make this module a second authority over one value
     # and leave every one of them silently wrong. The fix belongs at the bars
     # boundary; it is filed as a requirement in the accuracy report.
-    def _volume(bar):
-        v = bar.get("v")
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
-            return None
-        return v if (v == v and v >= 0) else None
-
-    today_v = _volume(bars[-1])
-    prior_v = [v for v in (_volume(b) for b in bars[-31:-1]) if v is not None]
-    if today_v is not None and prior_v:
-        avg = sum(prior_v) / len(prior_v)
-        out["vol_ratio"] = round(today_v / avg, 2) if avg else None
+    # ⭐ THE ARITHMETIC NOW LIVES IN `volume_ratio` (module level, above) so
+    # `bar_character` can name a bar off the SAME number this column filters on.
+    # Everything documented in this block still describes that value.
+    out["vol_ratio"] = volume_ratio(bars)
     # 52-week high/low distance + new-high flag (today's high vs window)
     yr = bars[-252:] if len(bars) >= 252 else bars
     hi = max(b["h"] for b in yr)
