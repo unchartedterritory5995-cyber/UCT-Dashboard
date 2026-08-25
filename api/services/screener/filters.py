@@ -388,6 +388,18 @@ FILTERS = dict([
     # evidence the pattern worked; measured 2026-08-24 it tracks the market's own
     # opening-gap base rate (51.1% up) almost exactly and adds nothing — see
     # `candles._confirmation`. The fact is still worth filtering on.
+    # ⭐ THE SAME 66-PATTERN VOCABULARY, ON THE WEEKLY BAR. A weekly hammer is a
+    # far larger statement than a daily one — it took five sessions to make.
+    _enum("candle_weekly", "Weekly Candle", "single_candle", "candle_weekly",
+          [{"label": "Any"}] + [
+              {"label": p.label, "op": "eq", "value": p.key}
+              for p in sorted(candle_catalog.ALL_PATTERNS,
+                              key=lambda q: (q.axis != "relation", q.rank))]),
+    _enum("candle_monthly", "Monthly Candle", "single_candle", "candle_monthly",
+          [{"label": "Any"}] + [
+              {"label": p.label, "op": "eq", "value": p.key}
+              for p in sorted(candle_catalog.ALL_PATTERNS,
+                              key=lambda q: (q.axis != "relation", q.rank))]),
     _enum("candle_recent_status", "Next Open After Pattern", "single_candle",
           "candle_recent_status",
           [{"label": "Any"},
@@ -750,10 +762,15 @@ VIEWS = {
         "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
         "hvc_52w"]},
     "candles": {"label": "Candles", "columns": [
-        "ticker", "company", "candle_type", "close_position", "body_pct",
-        "upper_wick_pct", "lower_wick_pct", "tight_consolidation", "nr7",
-        "inside_bar_run", "higher_lows_run", "pullback_depth_pct",
-        "consecutive_up", "consecutive_down"]},
+        # ⭐ THE FOUR NEW BAR-NAMING COLUMNS LIVE HERE OR THEY LIVE NOWHERE.
+        # Each shipped with its own filter, and a filter category with no view
+        # behind it is a half-shipped family — the exact gap the comment above
+        # this block was written for, three waves earlier. `candle_type` was the
+        # only one of the five visible anywhere.
+        "ticker", "company", "candle_type", "candle_trend", "bar_character",
+        "candle_recent", "candle_recent_bars_ago", "candle_weekly", "candle_monthly",
+        "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
+        "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
 }
 
 CATEGORIES = [

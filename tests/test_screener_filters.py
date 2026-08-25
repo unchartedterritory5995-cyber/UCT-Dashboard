@@ -1052,3 +1052,39 @@ def test_pattern_engine_flags_run_end_to_end_with_NULL_as_neither(tmp_path, monk
         both = set(tickers({"filters": [{"key": key, "op": "eq", "value": 1}]})) | \
                set(tickers({"filters": [{"key": key, "op": "eq", "value": 0}]}))
         assert "DARK" not in both, key
+
+
+def test_no_filter_family_is_entirely_invisible():
+    """⛔ A FILTER CATEGORY WITH NO VIEW BEHIND IT IS A HALF-SHIPPED FAMILY.
+
+    🔴 This has happened twice. On 2026-08-23 three whole families — the pattern
+    engine, dark-pool/options positioning, and ownership/short — shipped with
+    filters and NOT ONE column visible in ANY of the eight views; a member could
+    screen on dark-pool notional and then have no way to SEE it. The comment in
+    `filters.VIEWS` records that fix and notes "nothing rails this". It happened
+    again on 2026-08-24: `bar_character`, `candle_recent`, `candle_weekly` and
+    `candle_trend` each shipped with a filter, and the `candles` view showed only
+    `candle_type`.
+
+    ⭐ The assertion is at FAMILY level on purpose. A per-filter rule would be
+    wrong — a filter's query column is not always its display column (Candle Type
+    queries `candle_matches` and displays `candle_type`) — and 86 individual
+    filters have no view today, most of them fundamentals. What must never happen
+    is an entire family being unreachable.
+    """
+    shown = set()
+    for view in filters.VIEWS.values():
+        shown |= set(view["columns"])
+
+    by_family = {}
+    for key, f in filters.FILTERS.items():
+        by_family.setdefault(f["category"], set()).add(f.get("column") or key)
+
+    invisible = sorted(fam for fam, cols in by_family.items() if not (cols & shown))
+    assert not invisible, f"filter families with nothing visible in any view: {invisible}"
+
+    # ⛔ NON-VACUITY CONTROL: the check must be able to FAIL. A family whose
+    # columns appear in no view has to be caught, or this passes for the wrong
+    # reason and rails nothing.
+    probe = {"ghost": {"col_that_no_view_shows"}}
+    assert [fam for fam, cols in probe.items() if not (cols & shown)] == ["ghost"]

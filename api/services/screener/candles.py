@@ -24,7 +24,11 @@ collect every relation -> rank -> render. Nothing is discarded during
 classification, so ``candle_matches`` holds the COMPLETE set and filters query
 that rather than the rendered head.
 """
+import datetime as _datetime
+
 from . import candle_catalog as cat
+
+_DAY = _datetime.timedelta(days=1)
 
 
 def _atr(bars, n=14):
@@ -424,3 +428,104 @@ def _confirmation(bars, age, pattern):
             return "opened-against"
     return "opened-flat"         # the market declined to vote either way
 
+
+
+def _iso_date(ymd) -> str | None:
+    """``20260821`` -> ``"2026-08-21"``. The screener's bars key by YYYYMMDD int
+    (``bars_sqlite.get_bars``); the shared resampler keys by ISO string."""
+    try:
+        n = int(ymd)
+    except (TypeError, ValueError):
+        return None
+    y, m, d = n // 10000, (n // 100) % 100, n % 100
+    if not (1 <= m <= 12 and 1 <= d <= 31):
+        return None
+    return f"{y:04d}-{m:02d}-{d:02d}"
+
+
+def weekly_candle(bars: list[dict]) -> dict:
+    """The newest WEEKLY bar's structure, resampled from the daily series.
+
+    ⭐ WHY THIS IS FREE. 2,948 of the screener's 3,707 tickers have NO weekly
+    bars in `bars.db` — but every single one of them has DAILY bars (median
+    4,626, roughly eighteen years), and the repo already ships a weekly
+    resampler. So the whole timeframe comes from data the builder has already
+    loaded: no backfill, no provider fetch, and nothing added to the bars
+    pipeline, whose prewarmer fanout has an outage precedent.
+
+    ⛔ IT RESAMPLES THROUGH `bars_fetch._resample_weekly_iso` RATHER THAN
+    ROLLING ITS OWN. That function owns the stable-Friday-key rationale (an
+    in-progress week keeps ONE key as Mon..Fri bars land, so the candle is
+    replaced rather than duplicated), and a private copy here would be a second
+    authority on what a weekly bar IS.
+
+    ⚠️ THE NEWEST WEEK IS USUALLY IN PROGRESS, AND THE LABEL SAYS SO. A weekly
+    hammer that is only three days old is not a weekly hammer yet. The week is
+    reported complete only when its last daily bar is a FRIDAY; a holiday-
+    shortened week therefore reads as still forming, which understates
+    completeness rather than overstating it — the safe direction for a label a
+    member may act on.
+    """
+    return _timeframe_candle(bars, "weekly")
+
+
+def monthly_candle(bars: list[dict]) -> dict:
+    """The newest MONTHLY bar's structure, resampled from the same daily series.
+
+    ⭐ FREE FOR THE SAME REASON WEEKLY WAS: the daily bars are already loaded and
+    `bars_fetch._resample_monthly_iso` already exists. A monthly hammer or
+    engulfing is a bigger statement again than a weekly one — it took a whole
+    month of trading to print — and it costs one more resample of a list the
+    builder is holding anyway.
+    """
+    return _timeframe_candle(bars, "monthly")
+
+
+#: Each higher timeframe: the shared resampler that owns its bucketing, and the
+#: test for whether the newest bucket is CLOSED.
+#: ⛔ "Complete" is decided by the calendar, and both tests err toward FORMING —
+#: a holiday-shortened week reads as still building rather than finished, which
+#: understates completeness. That is the safe direction for a label a member may
+#: trade on.
+_HIGHER_TF = {
+    "weekly": ("_resample_weekly_iso", lambda d: d.isoweekday() == 5),
+    "monthly": ("_resample_monthly_iso",
+                lambda d: (d.replace(day=28) + _DAY * 4).replace(day=1) - _DAY == d),
+}
+
+
+def _timeframe_candle(bars: list[dict], tf: str) -> dict:
+    """Classify the newest bar of a HIGHER timeframe, resampled from daily.
+
+    ⛔ ONE IMPLEMENTATION FOR EVERY HIGHER TIMEFRAME. Weekly and monthly differ
+    ONLY in which shared resampler they call and how "the bucket is closed" is
+    tested; everything else — the ISO adaptation, the thin-history refusal, the
+    forming suffix — is identical. Two copies of this would be two authorities
+    on what a resampled candle IS, and they would drift.
+    """
+    ck, lk = f"candle_{tf}", f"candle_{tf}_label"
+    out = {ck: None, lk: None}
+    if not bars:
+        return out
+    from api.services import bars_fetch
+    fn_name, is_closed = _HIGHER_TF[tf]
+    iso = []
+    for b in bars:
+        t = _iso_date(b.get("t"))
+        if t:
+            iso.append({**b, "t": t})
+    if len(iso) < 2:
+        return out
+    higher = getattr(bars_fetch, fn_name)(iso)
+    if len(higher) < 2:
+        return out
+    got = single_candle(higher)
+    if got["candle_type"] in (None, "none"):
+        return out
+    import datetime as _dt
+    try:
+        forming = not is_closed(_dt.date.fromisoformat(iso[-1]["t"]))
+    except (ValueError, TypeError):                       # pragma: no cover
+        forming = True
+    return {ck: got["candle_type"],
+            lk: got["candle_label"] + (" (forming)" if forming else "")}
