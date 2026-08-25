@@ -36,32 +36,47 @@ function fmtClock(v) {
 function makeOption(series) {
   const highs = series.map(p => [new Date(p.t).getTime(), p.hi])
   const lows = series.map(p => [new Date(p.t).getTime(), p.lo])
-  const axisText = { color: '#8a8a90', fontSize: 9.5, fontFamily: CHART_FONT_FAMILY }
+  const axisText = { color: '#a9a9b2', fontSize: 10, fontFamily: CHART_FONT_FAMILY }
+  const lastIdx = series.length - 1
+  // Reserve a little whitespace to the right of the live point so its glowing dot
+  // sits just inside the border instead of being clipped at the edge.
+  const times = highs.map(p => p[0])
+  const lastT = times.length ? times[times.length - 1] : undefined
+  const span = times.length ? (lastT - times[0]) : 0
+  const xMax = lastT ? lastT + Math.max(span * 0.04, 25000) : undefined
+  // A line series with a single glowing "live tick" dot at its most recent point.
+  const liveLine = (name, data, color, glow, z) => ({
+    name, type: 'line', data, smooth: true, z,
+    showSymbol: true, symbol: 'circle',
+    symbolSize: (_v, p) => (p.dataIndex === lastIdx ? 7 : 0),
+    lineStyle: { color, width: 2 },
+    itemStyle: { color, borderColor: '#0c0c0f', borderWidth: 1.5, shadowBlur: 16, shadowColor: glow },
+  })
   return {
-    // Glide on update: each ~5s data change eases in over ~4.5s (linear) instead of
-    // snapping, so the lines drift smoothly rather than jumping.
+    // Glide on update: each new point eases in over ~1.5s (linear) instead of
+    // snapping — smooth, but short enough that it stays close to real time.
     animation: true,
-    animationDuration: 600,
-    animationDurationUpdate: 4500,
+    animationDuration: 500,
+    animationDurationUpdate: 1500,
     animationEasing: 'cubicOut',
     animationEasingUpdate: 'linear',
-    grid: { left: 6, right: 12, top: 24, bottom: 22, containLabel: true },
+    grid: { left: 6, right: 18, top: 24, bottom: 22, containLabel: true },
     legend: {
       data: ['New Highs', 'New Lows'],
       right: 6, top: 2, itemWidth: 16, itemHeight: 8, itemGap: 14,
-      textStyle: { color: '#b7b7bd', fontSize: 10, fontFamily: CHART_FONT_FAMILY },
+      textStyle: { color: '#ededf2', fontSize: 11, fontWeight: 600, fontFamily: CHART_FONT_FAMILY },
     },
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(18,18,22,0.96)',
       borderColor: 'rgba(255,255,255,0.12)',
-      textStyle: { color: '#e9e9ee', fontSize: 11, fontFamily: CHART_FONT_FAMILY },
-      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.22)' } },
+      textStyle: { color: '#f2f2f5', fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
+      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.28)' } },
       valueFormatter: (v) => Math.round(v),
     },
     xAxis: {
-      type: 'time',
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.14)' } },
+      type: 'time', max: xMax,
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.18)' } },
       axisTick: { show: false },
       axisLabel: { ...axisText, hideOverlap: true, formatter: fmtClock },
       splitLine: { show: false },
@@ -69,15 +84,13 @@ function makeOption(series) {
     yAxis: {
       type: 'value', min: 0,
       name: 'names at new H/L', nameGap: 8, nameLocation: 'end',
-      nameTextStyle: { ...axisText, align: 'left' },
+      nameTextStyle: { color: '#c7c7cf', fontSize: 10, fontFamily: CHART_FONT_FAMILY, align: 'left' },
       axisLabel: axisText,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
     },
     series: [
-      { name: 'New Highs', type: 'line', data: highs, showSymbol: false, smooth: true,
-        lineStyle: { color: GREEN, width: 2 }, itemStyle: { color: GREEN }, z: 3 },
-      { name: 'New Lows', type: 'line', data: lows, showSymbol: false, smooth: true,
-        lineStyle: { color: RED, width: 2 }, itemStyle: { color: RED }, z: 2 },
+      liveLine('New Highs', highs, GREEN, 'rgba(52,209,124,0.95)', 3),
+      liveLine('New Lows', lows, RED, 'rgba(242,75,66,0.95)', 2),
     ],
   }
 }

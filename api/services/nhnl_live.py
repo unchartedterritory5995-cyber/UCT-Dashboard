@@ -89,7 +89,9 @@ _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 # stored series.
 _SAMPLE_SECS = 5.0                   # append a point every ~5s so the line moves in small,
                                      # frequent steps the client can glide between
-_DEFAULT_SERIES_WINDOW_SECS = 90.0   # "active" = made a new high/low within this window
+_DEFAULT_SERIES_WINDOW_SECS = 60.0   # "active" = made a new high/low within this window
+                                     # (~1 min: responsive, but still spans the snapshot's
+                                     # per-minute batch so it stays smooth)
 _SERIES_METRIC = "window_v2"
 _last_sample = 0.0
 
