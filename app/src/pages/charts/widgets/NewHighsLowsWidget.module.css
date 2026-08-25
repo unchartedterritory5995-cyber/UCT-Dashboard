@@ -205,7 +205,24 @@
 .up .bar { background: rgba(45, 140, 78, 0.24); }
 .down .bar { background: rgba(192, 57, 43, 0.24); }
 
-.row > .arrow, .row > .sym, .row > .price, .row > .time, .row > .count { position: relative; z-index: 1; }
+/* Hot-now cue: a soft tone-tinted wash that fades across the whole row when a fresh
+   new high/low prints (the overlay is keyed by count → remounts only on increment).
+   No motion, no text change — just a gentle fade that says "this one just ticked". */
+.flash {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: 3px;
+  opacity: 0; animation: nhRowFlash 0.9s ease-out;
+}
+.up .flash { background: var(--nh-up, var(--ut-green-bright)); }
+.down .flash { background: var(--nh-down, var(--ut-red-bright)); }
+@keyframes nhRowFlash {
+  0%   { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+}
+
+.row > .arrow, .row > .sym, .row > .pct, .row > .count { position: relative; z-index: 1; }
 
 .arrow { font-size: 8px; }
 .up .arrow { color: var(--nh-up, var(--ut-green-bright)); }
@@ -238,7 +255,6 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  animation: nhFlash 0.65s ease-out;   /* flash when the count ticks up (span keyed by count) */
 }
 .pct[data-sign="up"] { color: var(--nh-up, var(--ut-green-bright)); }
 .pct[data-sign="down"] { color: var(--nh-down, var(--ut-red-bright)); }
@@ -248,22 +264,9 @@
   font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  animation: nhFlash 0.65s ease-out;
 }
 .up .count { color: var(--nh-up, var(--ut-green-bright)); }
 .down .count { color: var(--nh-down, var(--ut-red-bright)); }
-
-/* "Hot now": the %chg + count flash BRIGHT and BOLD the moment a fresh new high/low
-   prints — no motion — so actively-printing names visibly flash while names that ran
-   earlier sit still. */
-@keyframes nhFlash {
-  0%   { filter: brightness(2.2); font-weight: 800; }
-  70%  { filter: brightness(1.6); font-weight: 800; }
-  100% { filter: brightness(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pct, .count { animation: none; }
-}
 
 /* ── Empty / closed ──────────────────────────────────────────────────────── */
 .empty {

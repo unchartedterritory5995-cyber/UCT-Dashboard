@@ -105,15 +105,17 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
                 style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
                 aria-hidden="true"
               />
+              {/* Hot-now cue: a soft tone-tinted wash that fades across the row when a
+                  fresh new high/low prints. Keyed by count so it re-mounts (and plays)
+                  only on a real increment; the text stays calm. */}
+              <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
               <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
               <span className={styles.sym}>{e.sym}</span>
-              {/* Stock rows: ticker · %chg · count. Group rows: name · count.
-                  %chg + count are keyed by count so they remount — and flash — only
-                  when a fresh new high/low prints (the count ticks up). */}
+              {/* Stock rows: ticker · %chg · count. Group rows: name · count. */}
               {!groupView && (
-                <span key={`p${e.count}`} className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
+                <span className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
               )}
-              <span key={`c${e.count}`} className={styles.count}>{e.count}</span>
+              <span className={styles.count}>{e.count}</span>
             </button>
           )
         })}
