@@ -88,6 +88,60 @@ def enabled() -> bool:
     return os.environ.get("NHNL_SCANNER_ENABLED", "0") == "1"
 
 
+def _demo() -> bool:
+    """Local-only fixture mode (NHNL_DEMO=1): seed the accumulator with example
+    events and report a 'regular' session, so the widget can be reviewed off-market
+    without live data. Off by default; has no effect in production."""
+    return os.environ.get("NHNL_DEMO", "0") == "1"
+
+
+# Representative fixture (newest-first per side) — mirrors the reference window:
+# some names stack as their running count climbs (RL 105→103, NOW 378→376, KMB
+# 193→190, MNST 168→163), which is the whole point of the count column.
+_DEMO_HIGHS = [
+    ("CRWD", 391.62, 222), ("RL", 356.01, 105), ("RL", 356.00, 104), ("RL", 355.98, 103),
+    ("NOW", 113.98, 378), ("NOW", 113.97, 377), ("NOW", 113.96, 376), ("PANW", 155.92, 239),
+    ("PANW", 155.90, 238), ("SHOP", 120.43, 228), ("WDAY", 141.50, 173), ("ZETA", 18.11, 149),
+    ("ZETA", 18.11, 148), ("ZETA", 18.10, 147), ("TTD", 24.96, 132), ("SNPS", 428.26, 131),
+    ("DOCU", 46.96, 112), ("DOCU", 46.95, 111), ("MSFT", 403.44, 110), ("GTLB", 26.91, 110),
+    ("DBX", 25.79, 86), ("DPZ", 406.88, 80), ("WCLD", 28.17, 77), ("NCNO", 16.78, 46),
+]
+_DEMO_LOWS = [
+    ("KMB", 104.54, 193), ("KMB", 104.55, 192), ("KMB", 104.55, 191), ("KMB", 104.57, 190),
+    ("MNST", 78.34, 168), ("MNST", 78.36, 167), ("MNST", 78.37, 166), ("MNST", 78.38, 165),
+    ("MNST", 78.39, 164), ("MNST", 78.40, 163), ("RTX", 206.57, 108), ("BTU", 35.62, 100),
+    ("MDLZ", 58.79, 95), ("KVUE", 18.16, 95), ("MDLZ", 58.79, 94), ("KVUE", 18.17, 94),
+    ("MVO", 2.10, 89), ("MKC", 67.80, 88), ("MVO", 2.10, 88), ("MKC", 67.81, 87),
+    ("IRDM", 23.58, 47), ("IRDM", 23.60, 46),
+]
+
+
+def _seed_demo() -> None:
+    """Populate _state with the fixture (dev only). Appending each side in
+    reverse-display order makes get_live's newest-first walk restore the intended
+    order per panel."""
+    ts = "2026-08-25T12:20:00-04:00"
+    with _lock:
+        _reset("2026-08-25")
+        events = _state["events"]
+        syms = _state["syms"]
+        for sym, price, cnt in reversed(_DEMO_LOWS):
+            events.append({"sym": sym, "price": price, "count": cnt, "ts": ts, "dir": "low"})
+            syms[sym] = {"hod": price, "lod": price, "nh": 0, "nl": cnt, "last": price}
+        for sym, price, cnt in reversed(_DEMO_HIGHS):
+            events.append({"sym": sym, "price": price, "count": cnt, "ts": ts, "dir": "high"})
+            syms[sym] = {"hod": price, "lod": price, "nh": cnt, "nl": 0, "last": price}
+        # Pad with extra distinct names (no events) so the panel headers show a
+        # realistic universe-wide count, not just the ~2 dozen names in the list.
+        for i in range(120):
+            syms[f"HDMY{i}"] = {"hod": 10, "lod": 9, "nh": 1, "nl": 0, "last": 10}
+        for i in range(76):
+            syms[f"LDMY{i}"] = {"hod": 10, "lod": 9, "nh": 0, "nl": 1, "last": 9}
+        _state["asof"] = ts
+        _state["ticks"] = 1
+    _log.info("[nhnl] DEMO fixture seeded (%d highs, %d lows)", len(_DEMO_HIGHS), len(_DEMO_LOWS))
+
+
 def _universe_map() -> dict:
     """{provider_ticker: app_ticker} for the cap universe, built once.
 
@@ -221,12 +275,18 @@ def get_live(limit: int = 100, min_price: float = 0.0,
     Cheap: a copy of the ring buffer + a filtered walk.
     """
     from api.services import massive
-    cur_session = massive._detect_session()
+    cur_session = "regular" if _demo() else massive._detect_session()
     with _lock:
         evs = list(_state["events"])
         asof = _state["asof"]
         session_date = _state["session_date"]
         ticks = _state["ticks"]
+        # Universe-wide breadth: how many DISTINCT symbols have made at least one
+        # new high (or low) today across the whole cap universe — not just the
+        # rows in the event list below. This is what the panel headers show.
+        syms = _state["syms"]
+        highs_total = sum(1 for st in syms.values() if st.get("nh", 0) > 0)
+        lows_total = sum(1 for st in syms.values() if st.get("nl", 0) > 0)
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
@@ -254,7 +314,9 @@ def get_live(limit: int = 100, min_price: float = 0.0,
         "date": session_date,
         "asof": asof,
         "ticks": ticks,
-        "active": _running and enabled(),
+        "active": _running and (enabled() or _demo()),
+        "highs_total": highs_total,   # universe-wide distinct-symbol counts
+        "lows_total": lows_total,
         "highs": highs,
         "lows": lows,
     }
@@ -312,6 +374,10 @@ def start() -> None:
     Called from the web-pod lifespan (mirrors fundamentals_monitor.start()).
     """
     global _running, _thread
+    if _demo():
+        _seed_demo()          # dev fixture: no fetch thread, static example events
+        _running = True
+        return
     if not enabled():
         return
     if _running:

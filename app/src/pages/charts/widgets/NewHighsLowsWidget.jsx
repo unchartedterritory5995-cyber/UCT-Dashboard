@@ -3,20 +3,23 @@
  *
  * A live twin-panel scanner (New Highs left, New Lows right) inspired by Trade
  * Ideas' new-HOD/LOD stream, but rebuilt in the UCT skin: dark card, dim-tinted
- * count histograms, gold accents, our greens/reds — NOT a visual clone.
+ * count histograms, gold accents, our greens/reds — NOT a visual clone. Its header,
+ * rows and typography deliberately mirror the Watchlist widget (same 32px header,
+ * same row metrics, same --font-sans symbol) so the two line up side by side.
  *
  * Each side is a rolling event log (newest on top): every time a cap-universe name
  * prints a fresh high-of-day (or low-of-day), a row lands with the symbol's RUNNING
- * COUNT of how many times it's done so today. A high count = relentless one-
- * directional momentum, so the same symbol stacks as its count climbs. The count
- * bar behind each row scales to the busiest name on that side.
+ * COUNT of how many times it's done so today. The panel header shows the
+ * UNIVERSE-WIDE count of distinct names at a new high / low today (highs_total /
+ * lows_total), not just the rows in view. The count bar behind each row scales to
+ * the busiest name on that side.
  *
  * Data: GET /api/nhnl/live (the nhnl_live accumulator; RTH only for now — pre/post
  * is Phase 3). Polls ~3s during market hours. Clicking a row routes the ticker into
- * this widget's color group so a paired chart follows (same seam as the other
- * panel widgets). Filters (min price / min count) persist per-widget through opts.
+ * this widget's color group so a paired chart follows. Filters (min price / min
+ * count) are debounced local state (snappy typing) that persists through opts.
  */
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from './NewHighsLowsWidget.module.css'
@@ -41,16 +44,11 @@ function fmtPrice(p) {
                    : n.toFixed(2)
 }
 
-const SESSION_LABEL = {
-  regular: 'LIVE',
-  pre_market: 'PRE-MARKET',
-  post_market: 'CLOSED',
-}
+const SESSION_LABEL = { regular: 'LIVE', pre_market: 'PRE-MARKET', post_market: 'CLOSED' }
 
-// One side (highs OR lows) — a scrollable event log with a count histogram.
-function Side({ title, tone, events, onPick }) {
-  // Scale the count bars to the busiest name on THIS side, so a quiet side isn't
-  // all full bars and a wild side still fits.
+// One side (highs OR lows) — a scrollable event log with a count histogram. `total`
+// is the universe-wide distinct-symbol count for the panel header.
+function Side({ title, tone, events, total, onPick }) {
   const maxCount = useMemo(
     () => events.reduce((m, e) => Math.max(m, e.count || 0), 0) || 1,
     [events],
@@ -59,7 +57,7 @@ function Side({ title, tone, events, onPick }) {
     <div className={`${styles.side} ${styles[tone]}`}>
       <div className={styles.sideHead}>
         <span className={styles.sideTitle}>{title}</span>
-        <span className={styles.sideCount}>{events.length}</span>
+        <span className={styles.sideCount}>{total}</span>
       </div>
       <div className={styles.rows} role="list">
         {events.map((e, i) => (
@@ -88,6 +86,49 @@ function Side({ title, tone, events, onPick }) {
   )
 }
 
+// Debounced filter box: types instantly into local state, commits to opts after a
+// pause (and on blur / Enter). Keeps the fetch key + layout-save off the keystroke
+// path, which is what made the old controlled-through-opts inputs feel glitchy.
+function FilterBox({ label, ariaLabel, value, placeholder, min, onCommit }) {
+  const [text, setText] = useState(value == null ? '' : String(value))
+  const timer = useRef(null)
+  const inputRef = useRef(null)
+  // Re-sync if opts change from elsewhere, but never fight the user mid-type.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setText(value == null ? '' : String(value))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+  const schedule = (raw) => {
+    setText(raw)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => commit(raw), 350)
+  }
+  const commit = (raw) => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    const n = raw === '' ? min : Number(raw)
+    onCommit(Number.isFinite(n) ? Math.max(min, n) : min)
+  }
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  return (
+    <label className={styles.filter}>
+      <span className={styles.filterLbl}>{label}</span>
+      <input
+        ref={inputRef}
+        type="number" min={min} step="1" inputMode="decimal"
+        className={styles.filterInput}
+        value={text}
+        placeholder={placeholder}
+        onChange={(e) => schedule(e.target.value)}
+        onBlur={() => commit(text)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur() } }}
+        aria-label={ariaLabel}
+      />
+    </label>
+  )
+}
+
 export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
   const minPrice = Number(opts?.minPrice) || 0
@@ -97,7 +138,8 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
 
-  const patch = useCallback((next) => onOptsChange?.({ ...opts, ...next }), [opts, onOptsChange])
+  const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
+  const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
   const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}`
   const { data } = useMobileSWR(url, fetcher, {
@@ -109,6 +151,8 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
 
   const highs = data?.highs || []
   const lows = data?.lows || []
+  const highsTotal = data?.highs_total ?? highs.length
+  const lowsTotal = data?.lows_total ?? lows.length
   const session = data?.session || 'regular'
   const isRegular = session === 'regular'
   const stamp = SESSION_LABEL[session] || ''
@@ -121,28 +165,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={styles.spacer} />
-        <label className={styles.filter}>
-          <span className={styles.filterLbl}>$≥</span>
-          <input
-            type="number" min="0" step="1" inputMode="decimal"
-            className={styles.filterInput}
-            value={opts?.minPrice ?? ''}
-            placeholder="0"
-            onChange={(e) => patch({ minPrice: e.target.value === '' ? 0 : Number(e.target.value) })}
-            aria-label="Minimum price"
-          />
-        </label>
-        <label className={styles.filter}>
-          <span className={styles.filterLbl}>#≥</span>
-          <input
-            type="number" min="1" step="1" inputMode="numeric"
-            className={styles.filterInput}
-            value={opts?.minCount ?? ''}
-            placeholder="1"
-            onChange={(e) => patch({ minCount: e.target.value === '' ? 1 : Number(e.target.value) })}
-            aria-label="Minimum count"
-          />
-        </label>
+        <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
+          placeholder="0" min={0} onCommit={commitPrice} />
+        <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
+          placeholder="1" min={1} onCommit={commitCount} />
       </div>
 
       {!isRegular ? (
@@ -154,8 +180,8 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </div>
       ) : (
         <div className={styles.panels}>
-          <Side title="NEW HIGHS" tone="up" events={highs} onPick={onPick} />
-          <Side title="NEW LOWS" tone="down" events={lows} onPick={onPick} />
+          <Side title="NEW HIGHS" tone="up" events={highs} total={highsTotal} onPick={onPick} />
+          <Side title="NEW LOWS" tone="down" events={lows} total={lowsTotal} onPick={onPick} />
         </div>
       )}
     </div>

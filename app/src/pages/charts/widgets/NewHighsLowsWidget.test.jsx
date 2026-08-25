@@ -14,6 +14,8 @@ const TS = '2026-08-25T13:26:04-04:00'
 const LIVE = {
   session: 'regular',
   asof: TS,
+  highs_total: 143,   // universe-wide distinct-symbol counts (panel headers)
+  lows_total: 88,
   highs: [
     { sym: 'RL', price: 356.01, count: 105, ts: TS, dir: 'high' },
     { sym: 'KGS', price: 57.81, count: 40, ts: TS, dir: 'high' },
@@ -40,6 +42,14 @@ describe('NewHighsLowsWidget', () => {
     expect(screen.getByText('168')).toBeInTheDocument()   // MNST's running new-low count
   })
 
+  it('panel headers show the universe-wide totals, not the visible-row counts', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    // 143 / 88 come from highs_total/lows_total even though only 2 / 1 rows show.
+    expect(screen.getByText('143')).toBeInTheDocument()
+    expect(screen.getByText('88')).toBeInTheDocument()
+  })
+
   it('clicking a row routes the symbol into the widget color group', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
@@ -47,11 +57,13 @@ describe('NewHighsLowsWidget', () => {
     expect(setGroupSym).toHaveBeenCalledWith('A', 'RL')
   })
 
-  it('editing a filter persists through onOptsChange', () => {
+  it('editing a filter persists through onOptsChange (committed on blur)', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
     render(<NewHighsLowsWidget color="A" opts={{ minCount: 1 }} onOptsChange={onOptsChange} />)
-    fireEvent.change(screen.getByLabelText('Minimum price'), { target: { value: '5' } })
+    const input = screen.getByLabelText('Minimum price')
+    fireEvent.change(input, { target: { value: '5' } })
+    fireEvent.blur(input)   // debounced: commits on blur (or after a pause)
     expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minPrice: 5, minCount: 1 }))
   })
 
