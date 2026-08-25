@@ -27,7 +27,7 @@ def _uri():
 
 
 def _worker(args):
-    tickers, since, min_price = args
+    tickers, since, min_price, entry = args
     from api.services.screener import (candle_backtest as bt, candles,
                                        bar_character, candle_catalog)
     conn = sqlite3.connect(_uri(), uri=True)
@@ -50,7 +50,7 @@ def _worker(args):
                     bar["skip"] = True
         a, b = bt.scan_ticker(bars, candles.single_candle,
                               bar_character.classify,
-                              candle_catalog.decode_matches)
+                              candle_catalog.decode_matches, entry=entry)
         bt.merge(lab, a)
         bt.merge(uni, b)
     conn.close()
@@ -63,6 +63,9 @@ def main():
     ap.add_argument("--tickers", type=int, default=0, help="0 = all")
     ap.add_argument("--since", type=int, default=0, help="YYYYMMDD lower bound")
     ap.add_argument("--min-dates", type=int, default=30)
+    ap.add_argument("--entry", choices=("close", "open"), default="close",
+                    help="'open' measures from the NEXT open - the bid-ask "
+                         "bounce control, and the only entry a member could take")
     ap.add_argument("--min-price", type=float, default=0.0,
                     help="skip bars closing below this — sub-$5 names have "
                          "structurally wider wicks and can carry a wick finding "
@@ -85,7 +88,7 @@ def main():
     t0 = time.perf_counter()
     done = 0
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
-        for l2, u2 in ex.map(_worker, [(c, a.since, a.min_price) for c in chunks]):
+        for l2, u2 in ex.map(_worker, [(c, a.since, a.min_price, a.entry) for c in chunks]):
             bt.merge(lab, l2)
             bt.merge(uni, u2)
             done += 1
