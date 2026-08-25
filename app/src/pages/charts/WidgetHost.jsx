@@ -13,6 +13,7 @@ import OptionsFlowWidget from './widgets/OptionsFlowWidget'
 import PeriodSortWidget from './widgets/PeriodSortWidget'
 import NewHighsLowsWidget from './widgets/NewHighsLowsWidget'
 import NhnlPulseWidget from './widgets/NhnlPulseWidget'
+import VolumeScanWidget from './widgets/VolumeScanWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
@@ -56,6 +57,7 @@ export const WORKSPACE_WIDGETS = {
   periodsort: { component: PeriodSortWidget, props: standardProps },
   nhnl: { component: NewHighsLowsWidget, props: standardProps },
   nhnlPulse: { component: NhnlPulseWidget, props: standardProps },
+  volumescan: { component: VolumeScanWidget, props: standardProps },
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {

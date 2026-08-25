@@ -32,11 +32,11 @@ import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow',
-  'periodsort', 'nhnl', 'nhnlPulse',
+  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan',
 ]
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 15 workspace widget types, in menu order', () => {
+  it('registers exactly the 16 workspace widget types, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -47,6 +47,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
+      volumescan: 'Volume Surge',
     })
   })
 
@@ -57,6 +58,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News & Catalysts', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
+      volumescan: 'Volume Surge',
     })
   })
 
@@ -67,6 +69,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
+      volumescan: 'Volume',
     })
   })
 
@@ -88,6 +91,7 @@ describe('widget registry — metadata pins', () => {
       periodsort:   { w: 6,  h: 12, minW: 3, minH: 5 },
       nhnl:         { w: 8,  h: 12, minW: 3, minH: 5 },
       nhnlPulse:    { w: 6,  h: 8,  minW: 3, minH: 4 },
+      volumescan:   { w: 6,  h: 12, minW: 3, minH: 5 },
     })
   })
 
@@ -106,7 +110,7 @@ describe('widget registry — metadata pins', () => {
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
-      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse',
+      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan',
     ])
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
@@ -196,6 +200,7 @@ const CAPTURE_FIXTURES = {
   periodsort: { start: 20260706, end: 20260805, group: 'theme', settings: { bg: '#101010' }, colCfg: { order: ['flag', 'sym', 'periodchg'], sort: { key: 'periodchg', dir: 'desc' } } },
   nhnl: { minPrice: 5, minCount: 3, settings: { bg: '#101010' } },
   nhnlPulse: { settings: { bg: '#101010' } },
+  volumescan: { minRvol: 3, minMove: 0.5, settings: { bg: '#101010' } },
 }
 
 describe('widget registry — params layer', () => {

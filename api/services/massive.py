@@ -7,6 +7,7 @@ No dependency on the local uct-intelligence package — works on Railway.
 """
 import os
 import time
+import threading
 import concurrent.futures as _cf
 from typing import Any
 
@@ -441,6 +442,11 @@ class _MassiveRestClient:
                 "day_c":      round(float(day.get("c") or 0.0), 4),      # RTH close (for ext-price staleness check)
                 "min_c":      round(float(minute.get("c") or 0.0), 4),   # current minute close (ext-hours aware)
                 "last_trade_p": round(float(last.get("p") or 0.0), 4),   # raw lastTrade.p (ext-hours print)
+                # min.av = accumulated volume for the CURRENT day — grows continuously
+                # across pre/RTH/post (unlike day.v, which is RTH-only), so a rate off
+                # it works in every session. min.v = the last minute's volume.
+                "min_av":     int(minute.get("av") or 0),
+                "min_v":      int(minute.get("v") or 0),
             }
         return out
 
@@ -454,6 +460,42 @@ def _get_client() -> _MassiveRestClient:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Massive client: {e}")
     return _client
+
+
+# ── Shared whole-market snapshot cache ────────────────────────────────────────
+# The `_hl` whole-market snapshot is a big single REST pull (~all US tickers).
+# BOTH live accumulators that ride it (nhnl_live's new-high/low counter AND
+# volume_live's relative-volume scanner) poll every ~2-3s on the ONE web pod, so
+# fetching it twice would double the bandwidth/parse cost. This memoizes the last
+# pull for a short TTL under a lock (collapse the thundering pair into one fetch);
+# `hl_snapshot_fetched_at()` exposes the real fetch time so a rate consumer can
+# stamp its samples with WHEN the volume was measured, not when it read the cache.
+_hl_snap_cache: dict = {"ts": 0.0, "data": {}}
+_hl_snap_lock = threading.Lock()
+
+
+def get_full_market_snapshot_hl_cached(ttl: float = 2.0) -> dict:
+    """`get_full_market_snapshot_hl` memoized for `ttl` seconds (shared by the two
+    live scanners). Returns the last good snapshot on a fetch error."""
+    c = _hl_snap_cache
+    if c["data"] and (time.time() - c["ts"]) < ttl:
+        return c["data"]
+    with _hl_snap_lock:
+        if c["data"] and (time.time() - c["ts"]) < ttl:
+            return c["data"]
+        try:
+            data = _get_client().get_full_market_snapshot_hl()
+        except Exception:
+            return c["data"]
+        if data:
+            c["data"] = data
+            c["ts"] = time.time()
+        return data or c["data"]
+
+
+def hl_snapshot_fetched_at() -> float:
+    """Epoch of the last cached `_hl` snapshot fetch (0.0 if never fetched)."""
+    return _hl_snap_cache["ts"]
 
 
 def _fmt_price(val) -> str:

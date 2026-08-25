@@ -1011,7 +1011,7 @@ def _tick() -> None:
     if window == "closed":
         _tick_once({}, "closed", today, now)  # stamps asof, no fetch
     else:
-        snap = massive._get_client().get_full_market_snapshot_hl()
+        snap = massive.get_full_market_snapshot_hl_cached()  # shared with volume_live
         if not snap:
             with _lock:
                 _state["last_error"] = "empty snapshot"

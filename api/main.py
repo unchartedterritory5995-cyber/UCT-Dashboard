@@ -2539,6 +2539,16 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] nhnl_live start failed")
 
+    # Relative-volume "Volume Surge" scanner — shares the whole-market snapshot with
+    # nhnl_live (no extra REST). No-ops unless VOLUME_SCANNER_ENABLED=1.
+    try:
+        from api.services import volume_live
+        volume_live.start()
+        if volume_live.enabled():
+            logging.getLogger(__name__).info("[startup] volume_live accumulator started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] volume_live start failed")
+
     # Provider-coverage monitor (Task 22/23, 2026-08-05 data-dependability
     # migration) — generalizes fundamentals_monitor's detect->self-heal->alert
     # pattern to per-FIELD fill rate across research/earnings surfaces (the
@@ -5788,6 +5798,13 @@ async def lifespan(app: FastAPI):
             _nhnl_stop()
     except Exception:
         pass
+    try:
+        from api.services import volume_live
+        _vol_stop = getattr(volume_live, "stop", None)
+        if _vol_stop:
+            _vol_stop()
+    except Exception:
+        pass
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
@@ -6006,6 +6023,8 @@ app.include_router(scans_router.router)
 # started in the lifespan below (dark behind NHNL_SCANNER_ENABLED).
 from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
+from api.routers import volume_scan as volume_scan_router
+app.include_router(volume_scan_router.router)
 # ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
 # SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
 # filter branch; the freshness objection is answered by disclosure (each joined

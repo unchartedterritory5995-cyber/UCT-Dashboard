@@ -1,0 +1,78 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+
+// The widget's only data source + its color-group seam are mocked so the test
+// drives render/interaction without a live poll or a WorkspaceProvider.
+const swr = vi.fn()
+vi.mock('../../../hooks/useMobileSWR', () => ({ default: (...a) => swr(...a) }))
+const setGroupSym = vi.fn()
+vi.mock('../WorkspaceContext', () => ({ useWorkspace: () => ({ setGroupSym }) }))
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (_v, d) => d }))
+
+import VolumeScanWidget from './VolumeScanWidget'
+
+const TS = '2026-08-25T13:26:04-04:00'
+const LIVE = {
+  window: 'rth',
+  asof: TS,
+  total: 2,
+  rows: [
+    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, move: 5.2, dir: 'up', score: 28.5, tier: 4 },
+    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, move: -3.1, dir: 'down', score: 11.1, tier: 2 },
+  ],
+}
+
+beforeEach(() => {
+  swr.mockReset()
+  setGroupSym.mockReset()
+})
+
+describe('VolumeScanWidget', () => {
+  it('renders surging symbols with their relative-volume headline', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText('RELATIVE VOLUME')).toBeInTheDocument()
+    expect(screen.getByText('SMCI')).toBeInTheDocument()
+    expect(screen.getByText('11.4×')).toBeInTheDocument()   // RVOL headline
+    expect(screen.getByText('PLUG')).toBeInTheDocument()
+    expect(screen.getByText('4.3×')).toBeInTheDocument()
+  })
+
+  it('clicking a row routes the symbol into the widget color group', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    fireEvent.click(screen.getByTitle(/^SMCI —/))
+    expect(setGroupSym).toHaveBeenCalledWith('A', 'SMCI')
+  })
+
+  it('editing the RVOL filter persists through onOptsChange (committed on blur)', () => {
+    swr.mockReturnValue({ data: LIVE })
+    const onOptsChange = vi.fn()
+    render(<VolumeScanWidget color="A" opts={{ minMove: 0.25 }} onOptsChange={onOptsChange} />)
+    const input = screen.getByLabelText('Minimum relative volume')
+    fireEvent.change(input, { target: { value: '5' } })
+    fireEvent.blur(input)
+    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minRvol: 5, minMove: 0.25 }))
+  })
+
+  it('the live poll URL carries the persisted filters', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<VolumeScanWidget color="A" opts={{ minRvol: 3, minMove: 0.5 }} onOptsChange={() => {}} />)
+    expect(swr.mock.calls[0][0]).toContain('min_rvol=3')
+    expect(swr.mock.calls[0][0]).toContain('min_move=0.5')
+  })
+
+  it('shows the panel during post-market (not just RTH)', () => {
+    swr.mockReturnValue({ data: { ...LIVE, window: 'post' } })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText('POST-MARKET')).toBeInTheDocument()
+    expect(screen.getByText('SMCI')).toBeInTheDocument()
+  })
+
+  it('shows a market-closed notice only when the window is closed', () => {
+    swr.mockReturnValue({ data: { window: 'closed', rows: [] } })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText(/Market closed/i)).toBeInTheDocument()
+    expect(screen.queryByText('RELATIVE VOLUME')).not.toBeInTheDocument()
+  })
+})

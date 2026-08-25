@@ -418,6 +418,7 @@ const _WIDGET_THEME_MAP = {
   news:         { text: ['textColor', 'headerColor'], updown: true },
   nhnl:         { text: ['textColor'],              updown: true },
   nhnlPulse:    { text: ['textColor'],              updown: true },
+  volumescan:   { text: ['textColor'],              updown: true },
   aisearch:     { text: ['textColor'] },
 }
 
@@ -429,7 +430,7 @@ export const WIDGET_GLOBAL_PREF_KEYS = {
   breadth: 'breadth_widget_settings',
   aisearch: 'aisearch_settings',
 }
-const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'nhnl', 'nhnlPulse'])
+const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'nhnl', 'nhnlPulse', 'volumescan'])
 const _hex6 = (c) => /^#[0-9a-f]{6}$/i.test(c || '')
 
 export function mapThemeToWidgetSettings(base, theme, type) {

@@ -456,6 +456,23 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // a live intraday series at a past instant is not replayable
     liveCapable: false,
   },
+  volumescan: {
+    // "Volume Surge": live relative-volume leaderboard (sustained volume spike +
+    // real price move). A single tall ranked list — wants height, medium width.
+    labels: { header: 'Volume Surge', menu: 'Volume Surge', tab: 'Volume' },
+    defaults: { w: 6, h: 12, minW: 3, minH: 5 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'minRvol', type: 'number', default: 2 },
+      { key: 'minMove', type: 'number', default: 0.25 },
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: () => '[volume surge]',
+    reconstructable: false,                     // a live surge leaderboard at a past instant is not replayable
+    liveCapable: false,
+  },
 })
 
 // Registry ids in declaration order — this order IS the menu order.
@@ -478,7 +495,7 @@ export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].th
 export const WIDGET_CATEGORIES = [
   { key: 'charts',   label: 'Charts',                 items: ['chart'] },
   { key: 'lists',    label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner'] },
-  { key: 'breadth',  label: 'Breadth & Momentum',     items: ['breadth', 'nhnl', 'nhnlPulse'] },
+  { key: 'breadth',  label: 'Breadth & Momentum',     items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
   { key: 'research', label: 'Research',                items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar'] },
   { key: 'flow',     label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
