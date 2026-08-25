@@ -6,9 +6,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  /* Small gap only — the table's top hairline butts up under the toolbar so the
-     grid meets the header instead of floating below a dark band. */
-  margin-bottom: 4px;
+  margin-bottom: 14px;
   flex-shrink: 0;
 }
 
@@ -94,9 +92,11 @@
   flex: 1;
   min-height: 0;
   border: none;
-  border-top: 1px solid var(--header-line, var(--border));
   border-radius: 0;
-  margin: 0 calc(-1 * var(--page-pad-x, 24px)) calc(-1 * var(--page-pad-top, 20px));
+  /* Pull up 16px to cancel the shared PageHeader's bottom margin so the grid
+     butts directly under the header's own border-bottom — one clean seam, no
+     dark band, no double line. Sides/bottom escape the page padding (full-bleed). */
+  margin: -16px calc(-1 * var(--page-pad-x, 24px)) calc(-1 * var(--page-pad-top, 20px));
 }
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
