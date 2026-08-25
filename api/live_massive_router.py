@@ -5175,6 +5175,28 @@ def oi_history_debug(
     }
 
 
+@router.post("/oi-massive-capture")
+def oi_massive_capture_trigger(_auth: dict = Depends(require_flow_admin)):
+    """Manually run the Massive/OCC-accurate OI capture into the isolated
+    oi_massive_snapshots table (bypasses OI_MASSIVE_ENABLED). One chain snapshot per
+    flow-universe symbol; runs on the flow-worker. Use to seed the first day so ΔOI
+    has a baseline. Returns a summary."""
+    from api import oi_massive_snapshots as oms
+    return oms.capture_job(force=True)
+
+
+@router.get("/oi-massive-history")
+def oi_massive_history(
+    sym: str = Query(...), cp: str = Query(...), strike: float = Query(...),
+    exp: str = Query(...), _auth: dict = Depends(require_flow_admin),
+):
+    """Read-only: a contract's Massive/OCC OI series + coverage (to validate vs UW)."""
+    from api import oi_massive_snapshots as oms
+    key = oms.make_key(sym, cp, strike, exp)
+    return {"contract_key": key, "history": oms.get_history(key),
+            "coverage": oms.coverage(10)}
+
+
 @router.get("/flow-board")
 def flow_board(
     days: int = Query(60, description="rolling window in trading days"),

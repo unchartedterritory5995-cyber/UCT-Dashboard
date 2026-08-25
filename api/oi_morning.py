@@ -210,48 +210,14 @@ def _ty(t) -> str | None:
 
 
 def _oi_deltas(keys):
-    """Return (deltas, d_last, d_prior).
-
-    deltas = {contract_key: (prior_oi, last_oi)} using the TWO most recent global
-    snapshot dates in contract_oi_snapshots (d_last, d_prior, both ISO). prior_oi =
-    the day-before OI (the overnight baseline); 0 when the contract has no earlier
-    snapshot (a brand-new position). A contract absent from the latest snapshot is
-    omitted. One bounded batch query over both dates. d_last/d_prior are also the
-    window CARRY% divides volume over."""
-    keys = list(dict.fromkeys(k for k in keys if k))
-    if not keys:
-        return {}, None, None
-    conn = sqlite3.connect(oi_snapshots.OI_DB_PATH, timeout=10)
-    try:
-        dates = [r[0] for r in conn.execute(
-            "SELECT DISTINCT snap_date FROM contract_oi_snapshots "
-            "ORDER BY snap_date DESC LIMIT 2").fetchall()]
-        if not dates:
-            return {}, None, None
-        d_last = dates[0]
-        d_prior = dates[1] if len(dates) > 1 else None
-        want = [d for d in (d_last, d_prior) if d]
-        dph = ",".join("?" * len(want))
-        by_ck: dict = {}
-        for i in range(0, len(keys), 400):
-            chunk = keys[i:i + 400]
-            kph = ",".join("?" * len(chunk))
-            for ck, sd, oi in conn.execute(
-                f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
-                f"WHERE contract_key IN ({kph}) AND snap_date IN ({dph})",
-                (*chunk, *want),
-            ):
-                by_ck.setdefault(ck, {})[sd] = oi
-    finally:
-        conn.close()
-    out = {}
-    for ck, m in by_ck.items():
-        last = m.get(d_last)
-        if last is None:
-            continue
-        prior = m.get(d_prior, 0) if d_prior else 0
-        out[ck] = (prior or 0, last)
-    return out, d_last, d_prior
+    """Return (deltas, d_last, d_prior) from the **Massive/OCC-accurate** isolated
+    table (api/oi_massive_snapshots), NOT the shared Schwab-sourced
+    contract_oi_snapshots — the latter lags OCC ~a day (verified 2026-08-24: our
+    Schwab snap 53,028 vs Massive 74,259 = UW's current, for PFE 27P 9/18; UW ΔOI =
+    74,259−53,028 = +21,231 exact). deltas = {contract_key: (prior_oi, last_oi)} over
+    the two most recent Massive snap_dates. Empty until the capture job has ≥1 day."""
+    from api import oi_massive_snapshots as _oms
+    return _oms.get_deltas(keys)
 
 
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
@@ -332,9 +298,9 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
         snap_date = d_last
         if not last_oi:
             continue
-        # First OI = the prior-day snapshot (the real overnight baseline); fall back
-        # to the flow-time OI, else 0 (a brand-new position built from scratch).
-        first_oi = prior_oi if prior_oi > 0 else e["flowOI"]
+        # First OI = prior-day Massive OI (OCC-accurate). 0 = no prior snapshot yet
+        # (brand-new position, or the table has only one day) → State NEW, carry N/A.
+        first_oi = prior_oi
         delta = last_oi - first_oi
         if delta < min_delta:
             continue
@@ -366,7 +332,8 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     for e in out:
         vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], d_prior, d_last)
         e["volTotal"] = vt
-        e["carry"] = round(e["delta"] / vt * 100) if vt > 0 else None
+        # carry only meaningful with a real prior-day baseline (not NEW) + known volume
+        e["carry"] = round(e["delta"] / vt * 100) if (vt > 0 and e["firstOI"] > 0) else None
     return out, window
 
 
