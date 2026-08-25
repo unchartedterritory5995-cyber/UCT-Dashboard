@@ -468,6 +468,37 @@ export const MOBILE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].men
 export const JOURNAL_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
+// ── Add-menu categories ──────────────────────────────────────────────────────
+// The "Add Widget" menu is grouped by category so it stays scannable as the widget
+// count grows (a flat list of 15+ is a wall of text). Membership lives HERE, in one
+// ordered place, rather than a field on every entry — a new widget is slotted by
+// adding its id to a category (registry.test pins that every menu widget lands in
+// exactly one, so nothing silently falls out of the menu). Category order + the id
+// order within each are the menu order.
+export const WIDGET_CATEGORIES = [
+  { key: 'charts',   label: 'Charts',                 items: ['chart'] },
+  { key: 'lists',    label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner'] },
+  { key: 'breadth',  label: 'Breadth & Momentum',     items: ['breadth', 'nhnl', 'nhnlPulse'] },
+  { key: 'research', label: 'Research',                items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar'] },
+  { key: 'flow',     label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
+]
+
+const _MENU_TYPE_SETS = {
+  workspace: WORKSPACE_MENU_TYPES,
+  tab: TAB_MENU_TYPES,
+  mobile: MOBILE_MENU_TYPES,
+  journal: JOURNAL_MENU_TYPES,
+}
+
+/** The add-menu widgets grouped into categories, filtered to one menu surface.
+ *  Returns [{key, label, items:[id]}] with empty categories dropped. */
+export function menuGroups(menu = 'workspace') {
+  const allowed = new Set(_MENU_TYPE_SETS[menu] || WORKSPACE_MENU_TYPES)
+  return WIDGET_CATEGORIES
+    .map(c => ({ key: c.key, label: c.label, items: c.items.filter(id => allowed.has(id)) }))
+    .filter(c => c.items.length > 0)
+}
+
 /** Full id→label map for one label kind ('header' | 'menu' | 'tab').
  *  Falls back to the header label so a kind never returns undefined. */
 export function labelMap(kind) {

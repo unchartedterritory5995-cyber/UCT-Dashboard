@@ -1155,6 +1155,21 @@
 }
 .addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #dcbb5e); }
 
+/* Grouped Add-Widget menu: category sections, scrollable as the list grows. */
+.addMenuScroll {
+  display: flex; flex-direction: column;
+  max-height: min(62vh, 460px); overflow-y: auto;
+  scrollbar-width: thin;
+}
+.addMenuGroup { display: flex; flex-direction: column; }
+.addMenuGroup + .addMenuGroup {
+  border-top: 1px solid var(--border, #1f2937); margin-top: 2px; padding-top: 2px;
+}
+.addMenuGroupLabel {
+  padding: 7px 14px 3px; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1px; font-weight: 600; color: var(--text-muted, #6b7280);
+}
+
 /* ── Open/Save layout menus ── */
 .menuSection {
   padding: 6px 14px 2px; font-size: 9px; text-transform: uppercase;

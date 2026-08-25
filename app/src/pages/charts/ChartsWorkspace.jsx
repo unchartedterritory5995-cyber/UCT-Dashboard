@@ -36,7 +36,7 @@ import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
+import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -243,6 +243,7 @@ function splitToSide(widgets, defaults, candidate) {
 // menu; it stays registered so docked instances render).
 const WIDGET_TYPES = WORKSPACE_MENU_TYPES
 const WIDGET_LABELS = labelMap('menu')
+const WIDGET_MENU_GROUPS = menuGroups('workspace')   // add-menu, grouped by category
 const HEADER_LABELS = labelMap('header')   // shown on the smart-placement ghost
 
 function parseLayout(raw) {
@@ -2078,14 +2079,21 @@ export default function ChartsWorkspace() {
                 {widgetsSub === 'add' ? (<>
                   <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub(null)}>‹ Back</button>
                   <div className={styles.menuDivider} />
-                  {WIDGET_TYPES.map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={styles.addMenuItem}
-                      onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
-                    >{WIDGET_LABELS[t]}</button>
-                  ))}
+                  <div className={styles.addMenuScroll}>
+                    {WIDGET_MENU_GROUPS.map(group => (
+                      <div key={group.key} className={styles.addMenuGroup}>
+                        <div className={styles.addMenuGroupLabel}>{group.label}</div>
+                        {group.items.map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            className={styles.addMenuItem}
+                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
+                          >{WIDGET_LABELS[t]}</button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </>) : (<>
                   <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub('add')}>＋ Add Widget ▸</button>
                   <button

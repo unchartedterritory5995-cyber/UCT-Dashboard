@@ -19,6 +19,8 @@ import {
   MOBILE_MENU_TYPES,
   JOURNAL_MENU_TYPES,
   THEME_FOLLOW_TYPES,
+  WIDGET_CATEGORIES,
+  menuGroups,
   labelMap,
   normalizeParams,
   validateParams,
@@ -119,6 +121,18 @@ describe('widget registry — metadata pins', () => {
 
   it('every type except chart follows the app theme when uncustomized', () => {
     expect([...THEME_FOLLOW_TYPES].sort()).toEqual(IDS.filter(id => id !== 'chart').sort())
+  })
+
+  it('every add-menu widget lands in exactly one category (no strays, no dupes)', () => {
+    const catItems = WIDGET_CATEGORIES.flatMap(c => c.items)
+    expect(new Set(catItems).size, 'a widget is listed in two categories').toBe(catItems.length)
+    // The categorized set IS the workspace add-menu set — a new widget without a
+    // category would vanish from the grouped menu; this catches that.
+    expect([...new Set(catItems)].sort()).toEqual([...WORKSPACE_MENU_TYPES].sort())
+    // menuGroups filters to a surface + drops empty groups, preserving coverage.
+    const flat = menuGroups('workspace').flatMap(g => g.items)
+    expect(new Set(flat)).toEqual(new Set(WORKSPACE_MENU_TYPES))
+    expect(menuGroups('workspace').every(g => g.items.length > 0)).toBe(true)
   })
 })
 
