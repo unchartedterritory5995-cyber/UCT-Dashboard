@@ -426,3 +426,46 @@ Intelligence. E2E passed in `#dev-chat`: SPY daily, NVDA daily, NVDA 15 min,
   single short line so the image is the artifact.
 - Public-key-unset = 503 (dark), not "accept unsigned": the endpoint must never
   process an unverified interaction.
+
+
+## v5 — Lockdown: only the two UCT servers (2026-08-25 evening, URGENT)
+
+A member reported the app could be added to any server. Measured with the bot
+token (`GET /applications/@me`): `bot_public = true`, and
+`integration_types_config` carried BOTH `"0"` (GUILD_INSTALL) and `"1"`
+(USER_INSTALL) — so any Discord user could install the app to their own
+account and run `/chart` in any server or DM. The three global commands had
+inherited `integration_types [0, 1]` at registration. The bot user itself was
+in exactly one guild (Uncharted Territory); guild installs made with only the
+`applications.commands` scope (the dev server's) do NOT appear in
+`/users/@me/guilds`, so foreign installs cannot be enumerated — hence a
+backend allowlist, not just portal settings.
+
+Four layers, all applied:
+
+1. **App settings (API, `PATCH /applications/@me`)** — `integration_types_config`
+   reduced to `{"0": ...}`; `install_params` and `custom_install_url` nulled
+   (Install Link = None). Done for the live UCT Intelligence app via the API,
+   for the UCT Charts app via the portal (its token is MFA-gated).
+2. **Public Bot OFF (portal, both apps)** — the only lever that stops a stranger
+   with the client id from adding the app; `bot_public` is not settable via the
+   API. ⚠️ The portal refuses to flip it while the Installation tab still has a
+   default install link ("Private application cannot have a default
+   authorization link") — set Install Link to None FIRST.
+3. **Commands registered guild-only** — `GUILD_ONLY = {"integration_types": [0],
+   "contexts": [0]}` stamped on every command in `build_commands()` and
+   re-registered with `register --global`; verified `integration_types=[0]
+   contexts=[0]` on all three. Discord no longer offers the commands in DMs.
+4. **Backend guild allowlist** (`discord_interactions.guild_allowed`) — the
+   endpoint refuses, before any handler runs, an interaction whose `guild_id`
+   is not in the allowlist, a DM/private channel (`context != 0`), or a
+   user-install authorization (`authorizing_integration_owners` has `"1"`).
+   Reply is an ephemeral "This app only works inside the Uncharted Territory
+   and UCT Intelligence servers." PING still answers. Default allowlist =
+   `882293203485720596` (Uncharted Territory) + `1524909611054792786`
+   (UCT Intelligence); `DISCORD_CHART_ALLOWED_GUILDS` (comma-separated)
+   overrides, blank = the default (never allow-all).
+
+Tests: `test_guild_allowed_is_the_two_uct_servers_by_default_and_env_overrides`,
+`test_endpoint_refuses_foreign_guild_dm_and_user_install_and_schedules_nothing`,
+and the `build_commands` test pins `GUILD_ONLY` on every command.
