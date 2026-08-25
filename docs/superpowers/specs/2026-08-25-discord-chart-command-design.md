@@ -289,6 +289,44 @@ data, no migrations, no other surface changes.
 
 Post-deploy E2E as listed above; the produced PNG is opened and looked at.
 
+## v2 (2026-08-25 evening): the HOUSE image, at 2× resolution, with a stats strip
+
+Owner feedback after the first E2E: the mplfinance chart looked nothing like
+the charts used everywhere else (Sunday Scans, Substack). Those are
+**screenshots of the dashboard's own `/r/chart` page** (`app/src/pages/
+ChartRender.jsx`: the real StockChart widget, branded header/footer, watermark,
+MAs, last-price tag, `$ Vol / Avg 50D`), taken by Playwright from the owner's
+PC (`morning-wire/substack/chartwidget.py`, house geometry 1296×670). So v2
+produces exactly that image, server-side:
+
+- **`services/chart_renderer/`** — a new Railway service (`chart-renderer`,
+  Dockerfile on `mcr.microsoft.com/playwright/python`), `POST /render {url,
+  selector, width, height, scale, settle_ms}` → PNG. Secret-gated
+  (`X-Render-Secret` = `CHART_RENDERER_SECRET`), https-only, host-allowlisted
+  (`RENDER_ALLOWED_HOSTS`), one shared Chromium, 2 concurrent renders, binds
+  `::` because Railway's private network is IPv6-only. Health at `/health`.
+  Deployed with `railway up <abs path to services/chart_renderer> --path-as-root
+  -s chart-renderer -d` from the linked dir. Tests: `tests/test_chart_renderer_service.py`.
+- **`api/services/discord_chart_house.py`** — builds the `/r/chart` URL
+  (`sym, tf, w=1296, h=670(+28), token=CHART_RENDER_TOKEN, stats=<b64url JSON>`)
+  and POSTs it to `CHART_RENDERER_URL` at `HOUSE_SCALE=2` → **2592×1396**.
+  Returns None on anything wrong; `run_chart_job(house_fn=…)` then falls back
+  to the mplfinance renderer (itself now 1920×1080 with the same stats), so a
+  renderer outage never fails a reply.
+- **`?stats=`** on `ChartRender.jsx` — a 28 px strip under the header: O/H/L/C,
+  Day %, Gap %, 52w High (distance) / Low, Vol, Avg50, RVOL (gold ≥1.5×),
+  $Vol, ADR%. The numbers are computed ONCE, server-side, by
+  `discord_chart_render.compute_stats` from daily bars (a second daily fetch
+  for weekly/intraday charts); the page only lays them out. Without the param
+  the page is byte-for-byte unchanged, which keeps Sunday Scans / Substack out
+  of the blast radius. Test: `app/src/pages/ChartRender.stats.test.jsx`.
+- Env on `web`: `CHART_RENDERER_URL=http://chart-renderer.railway.internal:8080`,
+  `CHART_RENDERER_SECRET`, `CHART_RENDER_BASE_URL=https://uctintelligence.com`
+  (+ the existing `CHART_RENDER_TOKEN`). Kill the house path without a deploy:
+  unset `CHART_RENDERER_URL` (mplfinance fallback takes over).
+- Measured from inside Railway: health OK, `/render` of the house page →
+  2592×1340 PNG, ~198 KB, 4.7 s.
+
 ## Rollout note (2026-08-25, what is actually live)
 
 `/chart` went live on the **existing "UCT Intelligence" application**
