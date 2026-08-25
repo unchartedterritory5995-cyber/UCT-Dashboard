@@ -107,7 +107,7 @@ describe('ChartSettingsModal — Markers tab', () => {
     const beat = screen.getByTitle('Beat color')
     fireEvent.click(beat)
     const picker = screen.getByRole('dialog', { name: /Beat color/i })
-    const hex = within(picker).getByDisplayValue('1ae51a')
+    const hex = within(picker).getByDisplayValue('2faf68')
     fireEvent.change(hex, { target: { value: '00ff00' } })
     fireEvent.keyDown(hex, { key: 'Enter' })
     expect(lastCall(onChange).markers.earningsBeat.toLowerCase()).toContain('00ff00')

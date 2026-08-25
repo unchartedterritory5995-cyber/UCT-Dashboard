@@ -108,7 +108,7 @@ export const IND_TOKENS = Object.freeze({
     premium: GOLD,        // --ut-gold
     ink: '#706b5e',       // == PRESETS.classic.settings.textColor
     inkMuted: '#605b50',
-    surface: '#0e0f0d',   // == PRESETS.classic.settings.background
+    surface: '#17181a',   // == PRESETS.classic.settings.background
   }),
   oled: Object.freeze({
     bull: '#00c853',      // preset candle up

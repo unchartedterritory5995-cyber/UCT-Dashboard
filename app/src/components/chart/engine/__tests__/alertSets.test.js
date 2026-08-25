@@ -276,8 +276,14 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // as `markers.earnings` / `crosshair.magnet` / `watermark.sizeScale`) that ride
   // along in every merged blob. INVESTIGATED, not regenerated: the only deltas vs
   // the prior literal are those added default keys.
+  // 2026-08-24: re-pinned for the graphite default palette retune. INVESTIGATED:
+  // the chartDefaults change is purely color VALUE edits on existing keys —
+  // candle up/down (+border/wick/oneColor) and volume up/down → the app --gain/
+  // --loss (#2faf68/#df4646), background #0e0f0d → graphite #17181a, earnings
+  // beat/miss + ipo markers to the same. ZERO keys added or removed, so the tree
+  // structure is byte-identical; the digest shifts only by those recoloured values.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'bb1a0452470e301389ce72e359de1b4b643040eb1ef28494101acc41c4c605aa'
+    '541eae7614661a415b21c1e1e18f4cb4ef56397d7d8e941b971d22adc8b75502'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

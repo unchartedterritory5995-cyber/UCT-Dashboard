@@ -43,8 +43,11 @@ export const THEME_FAMILIES = [
 export const CHART_THEMES = [
   // ── Dark ───────────────────────────────────────────────────────────────────
   { id: 'graphite', name: 'Graphite', family: 'dark',
-    bg: '#101012', up: '#26c281', down: '#e34a4a', grid: 'rgba(255,255,255,0.05)',
-    text: '#8a8f99', ma: ['#5aa9ff', '#f78fb5', '#ffb454', '#b07cff', 'rgba(160,160,160,0.5)'], watermark: '#5c616b' },
+    // Matched to the app's graphite: canvas = --bg #17181a, candles = the app's
+    // --gain/--loss, sma50 = the brand gold accent. So a chart on Graphite reads
+    // as the same surface as the rest of the app.
+    bg: '#17181a', up: '#2faf68', down: '#df4646', grid: 'rgba(255,255,255,0.05)',
+    text: '#9a968c', ma: ['#5ea8f7', '#f78fb5', '#dcbb5e', '#b07cff', 'rgba(160,160,160,0.5)'], watermark: '#4a4b4e' },
   { id: 'midnight', name: 'Midnight', family: 'dark',
     bg: '#0b1220', up: '#3ddc97', down: '#ff5c7a', grid: 'rgba(120,150,220,0.07)',
     text: '#7f8bb0', ma: ['#5b8def', '#e879f9', '#f59e0b', '#22d3ee', 'rgba(148,163,184,0.5)'], watermark: '#495073' },
