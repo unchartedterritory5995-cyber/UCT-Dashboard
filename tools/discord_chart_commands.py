@@ -72,6 +72,9 @@ def _load_env(path: str | None) -> None:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--env-file", default=None)
+    ap.add_argument("--token-var", default="DISCORD_CHART_BOT_TOKEN",
+                    help="env var holding the bot token (e.g. DISCORD_BOT_TOKEN when reusing another app's .env)")
+    ap.add_argument("--app-id", default=None, help="override DISCORD_CHART_APP_ID")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show")
     reg = sub.add_parser("register")
@@ -85,12 +88,12 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     _load_env(args.env_file)
-    token = os.environ.get("DISCORD_CHART_BOT_TOKEN", "").strip()
+    token = os.environ.get(args.token_var, "").strip()
     if not token:
-        print("DISCORD_CHART_BOT_TOKEN is not set", file=sys.stderr)
+        print(f"{args.token_var} is not set", file=sys.stderr)
         return 2
     client = make_client(token)
-    app_id = os.environ.get("DISCORD_CHART_APP_ID", "").strip() or str(show(client)["id"])
+    app_id = (args.app_id or os.environ.get("DISCORD_CHART_APP_ID", "")).strip() or str(show(client)["id"])
 
     if args.cmd == "show":
         info = show(client)

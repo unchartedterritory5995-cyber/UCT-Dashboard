@@ -538,3 +538,15 @@ def test_run_chart_job_requests_bars_to_request_for_intraday():
                   bars_fn=lambda tk, tf, n: asked.append(n) or daily_bars(20),
                   render_fn=lambda *a: PNG_MAGIC, edit_fn=edits)
     assert asked == [bars_to_request("5")]
+
+
+def test_tool_main_reads_token_from_a_custom_var_in_the_env_file(tmp_path, capsys):
+    import importlib
+    tool = importlib.import_module("tools.discord_chart_commands")
+    env = tmp_path / "other.env"
+    env.write_text("SOME_OTHER_TOKEN=abc.def.ghi\n", encoding="utf-8")
+    rc = tool.main(["--env-file", str(env), "--token-var", "SOME_OTHER_TOKEN", "--app-id", "999", "invite"])
+    assert rc == 0
+    assert capsys.readouterr().out.strip() == tool.invite_url("999")
+    rc = tool.main(["--env-file", str(env), "--token-var", "MISSING_TOKEN", "--app-id", "999", "invite"])
+    assert rc == 2
