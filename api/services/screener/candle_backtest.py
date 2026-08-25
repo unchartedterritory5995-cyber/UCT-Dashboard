@@ -140,7 +140,7 @@ def labels_for(bars, i, single_candle, classify_character, decode_matches):
 
 
 def scan_ticker(bars, single_candle, classify_character, decode_matches,
-                entry="close"):
+                entry="open"):
     """Accumulate per-(label, date) return sums for one ticker.
 
     Returns ``(labelled, universe)`` where each maps a key to

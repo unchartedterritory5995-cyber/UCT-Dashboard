@@ -267,3 +267,30 @@ def test_entry_at_the_next_open_excludes_the_labelled_close():
     assert abs(rc[0][2] / rc[0][0]) > 1e-9
     assert abs(ro[0][2] / ro[0][0]) < 1e-9, \
         "open-entry return still depends on the labelled close"
+
+
+def test_the_trustworthy_entry_convention_is_the_default():
+    """⛔ THE BROKEN CONVENTION MUST NOT BE THE DEFAULT. `close` entry is known
+    contaminated — bid-ask bounce alone produced a wick "finding" that flipped
+    sign on 3 of 8 shapes once the entry moved. Leaving it as the default would
+    let the next person re-derive the wrong answer without doing anything wrong.
+    """
+    import inspect
+    assert inspect.signature(bt.scan_ticker).parameters["entry"].default == "open"
+
+
+def test_the_two_entry_conventions_actually_differ():
+    """⛔ NON-VACUITY. If both produced identical numbers the default would not
+    matter and the control would be measuring nothing."""
+    IDX = bt.WINDOW // 4 + 2
+    n = IDX + max(bt.HORIZONS) + 4
+    bars = [_bar(100, 101, 99, 100, t=20260000 + i) for i in range(n)]
+    bars[IDX] = _bar(100, 101, 99, 100.9, t=bars[IDX]["t"])
+    a, _ = bt.scan_ticker(bars, lambda w: {"candle_matches": ",x,"},
+                          lambda w: None, lambda s: ["x"], entry="close")
+    b, _ = bt.scan_ticker(bars, lambda w: {"candle_matches": ",x,"},
+                          lambda w: None, lambda s: ["x"], entry="open")
+    t = bars[IDX]["t"]
+    ra = [v[2] / v[0] for k, v in a.items() if k[1][0] == t][0]
+    rb = [v[2] / v[0] for k, v in b.items() if k[1][0] == t][0]
+    assert abs(ra - rb) > 1e-9, "the entry convention changed nothing"
