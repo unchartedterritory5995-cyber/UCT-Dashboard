@@ -371,6 +371,31 @@ produces exactly that image, server-side:
   `GET /guilds/{id}/channels`; the TRADERS one-way feed channels keep their
   deny on purpose.
 
+## v4 (2026-08-25 night): per-user chart settings + `/c`
+
+Member feedback from `#main-chat` within the first hour: "charts without MAs
+or volume" and "a shorter command". Both, plus the owner's ask for
+per-member customisation, land as:
+
+- **`/chartsettings show | set | reset`** (ephemeral replies) stores each
+  Discord user's defaults by user id (`member.user.id`) in
+  `/data/discord_chart_prefs.db` (`api/services/discord_chart_prefs.py`; env
+  `DISCORD_CHART_PREFS_DB_PATH`). Keys: `tf` (default timeframe), `mas`
+  (`house` = the dashboard's EMA 9/20 + SMA 50/200, `10-20-50` = SMA
+  10/20/50, `off`), `volume`, `ext` (pre/post-market on intraday), `stats`
+  (the strip). A bad value writes nothing.
+- **`/c`** is `/chart` under a two-keystroke name (same options).
+- **How prefs reach the image:** `render_options(prefs)` → a partial
+  chart-settings override sent as `?indicators=` (the page merges it on top
+  of the owner blob; `overlays` must be five COMPLETE slot objects because the
+  page's override merge replaces arrays wholesale; `volume` is a section key
+  so `{"visible": false}` merges) plus the `ext` / `stats` URL switches. The
+  mplfinance fallback honours `show_mas` / `show_volume`. The PNG cache key
+  becomes `SYMBOL:tf:<style signature>` so members with different styles
+  never share an image; the default timeframe is not part of the style.
+- Verified on the live page before deploy: MAs-off keeps the volume pane,
+  volume-off keeps the MAs, SMA 10/20/50 drops the 200-day line.
+
 ## Rollout note (2026-08-25, what is actually live)
 
 `/chart` went live on the **existing "UCT Intelligence" application**
