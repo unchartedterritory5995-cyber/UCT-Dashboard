@@ -2788,10 +2788,11 @@ deploys still cost a ~15-60s single-slot WS handoff — they are RARE and ship a
 ⚰️ This said *"manual `railway up --detach -s flow-worker`; NO GitHub trigger until
 deliberately reconnected"* — **the reconnection happened 2026-07-17**: flow-worker IS
 GitHub-triggered on NARROW watch paths set per-service in the Railway dashboard (the
-dashboard is the ONLY authority; the mirrors are the `api/flow_worker_main.py` header
-comment + `tools/git-hooks/pre-push`'s FLOW_WATCHED, both synced to the live dashboard
-list 2026-08-21). A push touching a watched file bounces the tape — that is exactly what
-the pre-push hook's dual-override (`UCT_FLOW_OVERRIDE`) exists to stop mid-session. Rollback = flip the env sets back
+dashboard is the ONLY authority; the one in-repo mirror is the `api/flow_worker_main.py`
+header comment, synced to the live dashboard list 2026-08-21). A push touching a watched
+file bounces the tape and THAT gap is permanent until the T+1 flat file — the market-hours
+freeze and its `UCT_FLOW_OVERRIDE` double-lock were REMOVED 2026-08-24 (owner decision), so
+nothing mechanical stops a mid-session flow-worker deploy. Rollback = flip the env sets back
 (web consumer on, proxy off; flow-worker consumer off) + redeploy flow-worker-then-web.
 Web's `/data/flow.db` is a FROZEN pre-cutover copy — retire after ~30d green. Massive OPRA
 does NOT replay — every feed gap is permanent until the T+1 flat file. Full design:
@@ -2809,10 +2810,12 @@ does NOT replay — every feed gap is permanent until the T+1 flat file. Full de
 - **`watchPatterns` are set per-service in the Railway dashboard ONLY — NEVER in railway.json**
   (the file is shared by web + worker; an api-only list there would stop web frontend deploys).
   Worker patterns: `/api/**` + build files.
-- **Shipping window (post-cutover):** web swaps no longer gap the tape, but the market-hours
-  push freeze (Mon-Fri 9:15a-4:20p ET, enforced by `.git/hooks/pre-push`) STAYS — web deploys
-  still blip /api/* ~1 min for members, and pushes also rebuild the bars worker. Anything that
-  deploys FLOW-WORKER (api flow-path changes via `railway up`) ships strictly after-hours.
+- **Shipping window: NO FREEZE (2026-08-24).** The market-hours push freeze (Mon-Fri
+  9:15a-4:20p ET) and BOTH its guards — the `pre-push` hook and the `Deploy window guard`
+  workflow — were removed by owner decision. Push whenever. The physics did not change and
+  is now unguarded: a web swap blips /api/* ~1 min for members and rebuilds the bars worker;
+  a push touching a flow-worker watched file bounces the OPRA tape, and that gap is
+  PERMANENT until the overnight T+1 flat file.
 - **`MASSIVE_WS_DRY_RUN=1` does NOT protect the prod connection slot** — any local run with the prod
   key kicks production off the feed (Massive allows ~1 conn/key). Local tests use a localhost mock WS.
 - Consumer shutdown contract (P1): `massive_ws_worker.stop()` (no args). The main.py hook uses

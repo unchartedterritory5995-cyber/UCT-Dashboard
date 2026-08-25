@@ -11,15 +11,16 @@ oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
 flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
-worker_main.py the dashboard never had and to miss four real entries). Keep
-tools/git-hooks/pre-push's FLOW_WATCHED list in sync. Until 2026-07-17 the patterns were effectively api/** — ANY web
+worker_main.py the dashboard never had and to miss four real entries). This header is
+now the ONLY in-repo mirror: tools/git-hooks/pre-push was deleted 2026-08-24 along with
+the deploy freeze. Until 2026-07-17 the patterns were effectively api/** — ANY web
 push bounced the OPRA consumer mid-session (8 deploys / ~13.9k lost prints on
 2026-07-16 alone); that is fixed at the source now. A push touching none of the
 watched files is SKIPPED ("No changes to watched files"); a change to any other
 flow module must touch a watched file (this note's edit history doubles as that
-trigger). Flow-worker-touching pushes ship strictly outside Mon-Fri 9:15-16:20 ET
-(pre-push hook enforces; UCT_FLOW_OVERRIDE=1 required on top of UCT_PUSH_OVERRIDE
-for a true mid-session flow emergency).
+trigger). The market-hours shipping freeze was REMOVED 2026-08-24 (owner decision) —
+nothing blocks a mid-session flow-worker deploy any more, so the cost is a judgement call
+at push time: a mid-session bounce gaps the OPRA tape permanently until the T+1 flat file.
 
 A THIRD Railway service — separate from `web` and the bars `worker` — that runs
 ONLY the Massive OPRA consumer + the flow read/upload routers, owning flow.db on
@@ -449,11 +450,11 @@ def _start_flow_schedulers():
             # and was NOT yet in the flow-worker's Railway watch paths at the
             # time this registration landed — a push touching ONLY that file
             # is SKIPPED ("No changes to watched files") and the worker keeps
-            # stale code. It is being added to tools/git-hooks/pre-push's
-            # FLOW_WATCHED list in this same commit; the Railway dashboard's
-            # own watch-path list (pod-only setting, this repo cannot verify
-            # or edit it) must be updated at ship time — same two-list sync
-            # this file's header already asks for.
+            # stale code. The Railway dashboard's own watch-path list (pod-only
+            # setting, this repo cannot verify or edit it) must be updated at ship
+            # time — the sync this file's header asks for. (It was also added to
+            # tools/git-hooks/pre-push's FLOW_WATCHED at the time; that hook was
+            # deleted 2026-08-24 with the deploy freeze.)
             if os.getenv("FLOW_OPT_AGG_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _OptAggCron
                 from api import flow_opt_aggregate as _foa

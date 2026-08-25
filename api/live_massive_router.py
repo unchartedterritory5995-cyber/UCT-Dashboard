@@ -5147,6 +5147,34 @@ def oi_morning_trigger(
                     headers={"X-OI-Rows": str(res.get("rows", 0))})
 
 
+@router.get("/oi-history")
+def oi_history_debug(
+    sym: str = Query(..., description="Ticker, e.g. PFE"),
+    cp: str = Query(..., description="C or P"),
+    strike: float = Query(..., description="Strike, e.g. 27"),
+    exp: str = Query(..., description="Expiry M/D/YYYY, e.g. 9/18/2026"),
+    days: int = Query(30, description="lookback window in days"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Read-only diagnostic: a contract's stored OI series from contract_oi_snapshots
+    (the flow-confirmed OI table the OI Update card uses) + recent snapshot-date
+    coverage. Lets us validate the card's ΔOI against UnusualWhales and measure how
+    sparse the daily OI snapshots are. Runs on the flow-worker (owns the OI DB)."""
+    from api import oi_snapshots as ois
+    key = ois.make_key(sym, cp, strike, exp)
+    hist = ois.get_history(key, days=days)
+    delta = None
+    if len(hist) >= 2:
+        delta = (hist[-1].get("oi") or 0) - (hist[-2].get("oi") or 0)
+    return {
+        "contract_key": key,
+        "snapshots": len(hist),
+        "history": hist,                     # [{date, oi, source}, oldest→newest]
+        "last_two_delta": delta,             # newest − prior snapshot (clean adjacent ΔOI)
+        "coverage": ois.get_status(days=10), # per-day snapshot counts (sparsity)
+    }
+
+
 @router.get("/flow-board")
 def flow_board(
     days: int = Query(60, description="rolling window in trading days"),

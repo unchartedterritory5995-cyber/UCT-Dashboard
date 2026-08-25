@@ -22,6 +22,40 @@ COLUMNS = [
     "lt_debt_to_capital", "ipo_date", "ipo_age_days", "country",
     "shares_outstanding", "float_shares", "float_pct", "short_float_pct",
     "short_ratio", "insider_own_pct",
+    # 🔴 WAVE 7 — the fields that were ALREADY INSIDE the three bulk
+    # FMP calls this snapshot already makes. The 2026-08-23 benchmark put us
+    # LAST of thirteen in family 1 (fundamental data fields) while these sat
+    # unread in payloads we were already paying for and parsing. No new
+    # provider, no new request, no new job — 25 columns for zero marginal
+    # data cost. Coverage measured over our own universe before shipping:
+    # every one of them is non-null on ≥99.9% of the 3,655 symbols FMP
+    # matches, and non-ZERO on 50-100% depending on whether the concept
+    # applies to the company (see `rnd_to_revenue`).
+    "enterprise_value",
+    "revenue_ps",
+    "eps_ttm",
+    "book_value_ps",
+    "fcf_ps",
+    "cash_ps",
+    "ebitda_margin",
+    "ebit_margin",
+    "tax_rate",
+    "interest_coverage",
+    "cash_ratio",
+    "asset_turnover",
+    "ev_sales",
+    "ev_ebitda",
+    "ev_fcf",
+    "net_debt_to_ebitda",
+    "earnings_yield",
+    "fcf_yield",
+    "income_quality",
+    "roce",
+    "working_capital",
+    "capex_to_revenue",
+    "rnd_to_revenue",
+    "sbc_to_revenue",
+    "cash_conversion_cycle",
     "analyst_consensus", "pt_target", "pt_upside_pct",
     "upgrades_30d", "downgrades_30d", "eps_next_y_growth",
     # ratings components (Wave 2)

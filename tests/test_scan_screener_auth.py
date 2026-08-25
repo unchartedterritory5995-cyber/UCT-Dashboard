@@ -83,7 +83,23 @@ ROOT = Path(__file__).resolve().parents[1]
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 14  # +1 2026-08-23: POST /api/screener/finviz-refresh
+EXPECTED_SCREENER_ROUTES = 19  # +1 2026-08-23: POST /api/screener/finviz-refresh
+#                              # +1 2026-08-24: POST /api/screener/count — the
+#   pre-run match count (benchmark metric 450). ⛔ It is PAID like /scan and
+#   takes the SAME ScanSpec, which is the reason it belongs behind the same
+#   gate rather than reading as a harmless read: the spec can carry a `list`
+#   filter naming the caller's own watchlists, so an ungated count route
+#   would leak the row COUNTS of another member's list one probe at a time.
+#                              # +3 2026-08-24: the screen-alert subscription
+#   trio (GET/POST/DELETE /api/screener/alerts). PAID because a subscription
+#   is a member's own row and the list route enumerates it -- an open GET
+#   would hand out which screens somebody watches.
+#                              # +1 2026-08-24: GET /api/screener/methodology --
+#   how the composite columns are computed (benchmark metric 552). PAID like
+#   its neighbours: rivals publish their method on the open web, but every other
+#   door on this router is gated and `PUBLIC_BY_DESIGN`'s size is asserted
+#   precisely so a second open route cannot join it quietly. Opening it is a
+#   deliberate marketing decision, not a side effect of documenting a column.
 # (admin) — the missing upstream half of POST /api/screener/refresh. A header
 # correction could not reach members until the next 02:45 ET pull; this makes
 # 'wait for tonight' a two-call operation. Deliberate, and admin-classed below.
@@ -111,7 +127,11 @@ PUBLIC_BY_DESIGN = {("GET", "/api/screener/shared/{share_token}")}
 #: Sample values for every path parameter the routers declare. Validated against
 #: the DECLARED params below, so a new one fails instead of 404-ing quietly.
 SHARE_TOKEN = "tok-public-sample"
-PATH_PARAM_SAMPLES = {"sid": "1", "share_token": SHARE_TOKEN}
+PATH_PARAM_SAMPLES = {"sid": "1", "share_token": SHARE_TOKEN,
+                      # An unsubscribe for a hash nobody subscribed is a
+                      # clean no-op (`removed: false`), which is what makes
+                      # it safe to probe on every plan in this file.
+                      "def_hash": "no_such_hash"}
 
 #: Sample values for every REQUIRED query parameter. Same self-policing rule.
 QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701, "group": "sector"}
@@ -123,6 +143,11 @@ QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701, "group": "sector"}
 #: happy path".
 BODY_SAMPLES = {
     ("POST", "/api/screener/scan"): {"filters": [], "view": "overview"},
+    # Same ScanSpec as /scan, deliberately — the count previews THAT spec,
+    # so a body shape of its own would be a second grammar for one request.
+    ("POST", "/api/screener/count"): {"filters": [], "view": "overview"},
+    ("POST", "/api/screener/alerts"): {"def_hash": "h", "def_id": "d",
+                                       "name": "S", "mode": "both"},
     ("POST", "/api/screener/saved-screens"): {"name": "n", "spec": {"filters": []}},
     ("PUT", "/api/screener/saved-screens/{sid}"): {"name": "n2"},
 }
@@ -298,6 +323,8 @@ def stub_services(monkeypatch):
     # silently swallowed it (**_) would let the route stop passing it and this
     # file would stay green.
     monkeypatch.setattr(scr_query, "run_scan",
+                        lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
+    monkeypatch.setattr(scr_query, "preview_count",
                         lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)

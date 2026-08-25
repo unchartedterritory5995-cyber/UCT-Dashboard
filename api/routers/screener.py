@@ -126,6 +126,74 @@ def screener_meta(user=Depends(require_paid)):
     return scr_filters.meta(user_id=user["id"])
 
 
+class ScreenAlertSub(BaseModel):
+    def_hash: str
+    def_id: str = ""
+    name: str = "Untitled screen"
+    mode: str = "both"
+
+
+@router.get("/api/screener/methodology")
+def screener_methodology(column: str = "", user=Depends(require_paid)):
+    """How the composite columns are computed — benchmark metric 552.
+
+    Zacks publishes a definition and a measured range on all 136 criteria;
+    Stock Rover ships a 182-page reference and a Metric Browser. We published
+    the scores and not the method, which is the family we finished LAST in.
+    """
+    from api.services.screener import methodology
+    if column:
+        found = methodology.for_column(column)
+        if found is None:
+            raise HTTPException(status_code=404,
+                                detail=f"no published method for {column!r}")
+        return found
+    return methodology.all_methods()
+
+
+@router.get("/api/screener/alerts")
+def screener_alerts_list(user=Depends(require_paid)):
+    from api.services.screener import screen_alerts
+    return {"subscriptions": screen_alerts.list_subs((user or {}).get("id"))}
+
+
+@router.post("/api/screener/alerts")
+def screener_alerts_subscribe(body: ScreenAlertSub, user=Depends(require_paid)):
+    """Be told when a name enters or leaves this screen.
+
+    ⚠️ The diff is NIGHTLY by construction — the sweep runs once, off a 03:00
+    snapshot. The copy the member receives says "overnight" for that reason.
+    """
+    from api.services.screener import screen_alerts
+    try:
+        return screen_alerts.subscribe((user or {}).get("id"), body.def_hash,
+                                       body.def_id, body.name, body.mode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/api/screener/alerts/{def_hash}")
+def screener_alerts_unsubscribe(def_hash: str, user=Depends(require_paid)):
+    from api.services.screener import screen_alerts
+    return {"removed": screen_alerts.unsubscribe((user or {}).get("id"),
+                                                 def_hash)}
+
+
+@router.post("/api/screener/count")
+def screener_count(spec: ScanSpec, user=Depends(require_paid)):
+    """How many rows this spec would return — benchmark metric 450.
+
+    ⛔ Same gate as `/scan` and the same `user_id` source: the spec may carry a
+    `list` filter naming the member's own watchlists, so a count route reading
+    the id off the body would leak exactly what the scan route refuses to.
+    """
+    try:
+        return scr_query.preview_count(spec.model_dump(),
+                                       user_id=(user or {}).get("id"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/api/screener/scan")
 def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
     try:

@@ -37,6 +37,7 @@ Gated by EARNINGS_WARM_ENABLED (default on). Never raises.
 """
 import logging
 import os
+import re as _re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -52,6 +53,12 @@ _locks = {"preview": threading.Lock(), "analysis": threading.Lock()}
 # unknown cap is not a small cap.
 _MIN_MC_B = float(os.environ.get("EARNINGS_WARM_MIN_MC_B", "0.3") or 0.3)
 
+# Below this share of the visible board being answerable from artifacts, the
+# pass says so at WARNING. Not 100: a name that joined the board minutes ago is
+# legitimately still being written, and a floor that cries on every normal pass
+# is a floor people mute.
+_COVERAGE_FLOOR_PCT = int(os.environ.get("EARNINGS_WARM_COVERAGE_FLOOR_PCT", "80") or 80)
+
 # Calendar spelling → engine spelling. Read in this order so a row that already
 # carries the engine key (a test, or a future calendar change) still works.
 _CAL_TO_ENGINE = {
@@ -60,6 +67,69 @@ _CAL_TO_ENGINE = {
     "rev_actual":   ("rev_act", "rev_actual"),
     "rev_estimate": ("rev_est", "rev_estimate"),
 }
+
+
+# A closed-end fund "reports" on the earnings board, but there is no earnings
+# story to preview — no segments, no guidance, no consensus anyone publishes.
+# Measured 2026-08-24: of the 70 board names with no consensus in our feed, 47
+# were funds and 23 were real operating companies (XPEV, Woodside, EHang,
+# Citi Trends). Skipping ALL of them to avoid an "N/A preview" cost the 23.
+# ⛔ DELIBERATELY NARROW. `trust` and `income` were in this pattern and are now
+# out: a REIT is a real company that reports real earnings, and "…Trust" /
+# "…Income" appear in plenty of REIT and operating-company industry strings.
+# Being wrong in that direction re-creates the exact harm this rule exists to
+# fix. Checked against the live board (2026-08-24): the fund industries that
+# actually occur are `Closed-End Fund` (28), `Asset Management` (18) and
+# `Real Estate Fund` (1) — the narrow pattern classifies all 70 no-consensus
+# names IDENTICALLY to the broad one, so the width bought nothing and risked
+# the REITs (`Residential REITs`, `Diversified REITs`, `Diversified Real
+# Estate` are all on that board, and all must stay companies).
+# An industry that settles it on its own. ⛔ DELIBERATELY NARROW: `trust`
+# and `income` are NOT here — a REIT is a real company that reports real
+# earnings, and being wrong in that direction re-creates the exact harm this
+# rule exists to fix. Verified against the live board: `Residential REITs`,
+# `Diversified REITs` and `Diversified Real Estate` all stay companies.
+_FUND_INDUSTRY = _re.compile(r"\bfunds?\b|closed.?end|municipal|\betfs?\b", _re.I)
+
+# …and one that does NOT settle it. `Asset Management` is the industry of
+# closed-end funds AND of real asset managers — BlackRock and Noah Holdings
+# carry it exactly like Royce Micro-Cap Trust does. Measured on the live
+# board (2026-08-24): 48 of the 70 no-consensus names matched on industry
+# alone, and one of them, `Noah Holdings Limited`, is an operating company
+# that was being denied a brief for it. So the NAME breaks the tie — a fund
+# announces itself there ("…Fund", "…Trust", "…Income"), a company does not.
+_FUND_SOFT_INDUSTRY = _re.compile(r"asset manage", _re.I)
+_FUND_NAME = _re.compile(r"\bfunds?\b|\btrust\b|\bincome\b|\bportfolio\b|\bmuni", _re.I)
+
+
+def _looks_like_a_fund(sym: str) -> bool:
+    """Industry/sector says fund-like. `_base_meta` rather than
+    `get_ticker_meta` on purpose: this needs only the 24h-cached sector and
+    industry, not the live taxonomy theme lookup that rides the public front.
+
+    ⚠️ UNKNOWN IS NOT A FUND. A name we hold no meta for is treated as a real
+    company and gets its brief — the same direction as "an unknown cap is not
+    a small cap" above. The cost of being wrong that way is one cheap preview;
+    the cost of the other way is a reader waiting 30-40s on a real company."""
+    try:
+        from api.services import ticker_meta
+        m = ticker_meta._base_meta(sym) or {}
+    except Exception:
+        return False
+    text = f"{m.get('industry') or ''} {m.get('sector') or ''}"
+    if _FUND_INDUSTRY.search(text):
+        return True
+    # Ambiguous industry → the NAME decides, and an unknown name decides
+    # "company" (the same direction as an unknown industry). Known cost of
+    # that choice, measured: two closed-end funds whose names read like
+    # operating companies (`FS Credit Opportunities Corp.`, `Tri-Continental
+    # Corporation`) each buy one cheap preview nobody reads. Known benefit:
+    # `Noah Holdings Limited` stops being a 30-40s cold click. The asymmetry
+    # is the whole argument — a wasted preview costs ~$0.02 once, a cold click
+    # costs a reader half a minute every time.
+    if _FUND_SOFT_INDUSTRY.search(text):
+        return bool(_FUND_NAME.search(m.get("name") or ""))
+    return False
 
 
 def _first(e: dict, *keys):
@@ -161,19 +231,30 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
                     if not sym:
                         continue
                     actual = has_actual(e)
+                    no_consensus = False
                     if reported is not None:
                         if reported and not actual:
                             continue
                         if not reported:
                             if actual:             # already reported → analysis path
                                 continue
-                            # PENDING preview: require a consensus so we never warm
-                            # an "N/A" preview (skip-if-stable regenerates once it
-                            # appears). ⛔ This rule is the PREVIEW's, and it stays
-                            # the preview's — `reported is None` (companions) never
-                            # reaches it, deliberately.
+                            # PENDING preview without a consensus. The rule used to
+                            # be "skip", to avoid warming an "N/A" preview. That is
+                            # right for a FUND and wrong for a company: XPEV,
+                            # Woodside and EHang all sit here because our feed has
+                            # no consensus for them, while the generator still has
+                            # four quarters of actuals, the implied move, revisions
+                            # and the news tape to write from — and skip-if-stable
+                            # rewrites it the moment a consensus appears (XPEV,
+                            # measured, did exactly that). So: funds still skip;
+                            # real companies are WARMED, ranked behind every
+                            # consensus name so the budget serves those first.
+                            # ⛔ This rule is the PREVIEW's — `reported is None`
+                            # (companions) never reaches it, deliberately.
                             if not has_consensus(e):
-                                continue
+                                if _looks_like_a_fund(sym):
+                                    continue
+                                no_consensus = True
                     mc = e.get("mc_b")
                     if mc is None:
                         mc = (metrics.get(sym) or {}).get("mc_b")
@@ -192,12 +273,14 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
                     row["mc_b"] = mc
                     row["_is_tracked"] = is_tracked
                     row["_below_floor"] = below_floor
+                    row["_no_consensus"] = no_consensus
                     cur = best.get(sym)
                     if cur is None or (mc or -1) > (cur.get("mc_b") or -1):
                         best[sym] = row
     return sorted(
         best.values(),
         key=lambda r: (r.get("_is_tracked", False), not r.get("_below_floor", False),
+                       not r.get("_no_consensus", False),
                        r.get("mc_b") is not None, r.get("mc_b") or 0),
         reverse=True,
     )
@@ -208,6 +291,25 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
 # spend), but each `_gen_async` spawns an UNBOUNDED thread per name — kicking
 # 180 of them at once is a fan-out the web pod cannot absorb. So the warm calls
 # their synchronous generators on THIS pool, paced by its worker count.
+
+def _companion_weeks() -> int:
+    """How many weeks ahead the COMPANIONS walk — further than the briefs.
+
+    `EARNINGS_WARM_WEEKS` (2) is the right horizon for a PREVIEW: three weeks
+    out a report date is still a provider's guess, and the skip-if-stable hash
+    keys on that date, so every shift re-bills the generation. A Profile and a
+    Catalyst history have no such problem — "what does this company do" and
+    "what moved it this year" do not change when the date does, and they are
+    generate-once + disk-persisted, so warming them early is paid once and
+    never again.
+
+    That asymmetry is the whole reason this is a separate knob rather than a
+    bigger `EARNINGS_WARM_WEEKS`: a reader who opens the month view, or steps
+    out to the week after next, gets the company pages instantly, and only the
+    print preview is written on demand."""
+    return max(int(os.environ.get("EARNINGS_WARM_COMPANION_WEEKS", "4") or 4),
+               int(os.environ.get("EARNINGS_WARM_WEEKS", "2") or 2))
+
 
 def _companion_top_n() -> int:
     """Companion budget. Sized ABOVE the preview budget on purpose: the board
@@ -236,11 +338,12 @@ def _needs_profile(sym: str) -> bool:
 
 
 def _needs_catalysts(sym: str) -> bool:
-    from api.services.news_catalysts import service as nc, store as nc_store
-    if not nc._enabled():
-        return False
-    nc_store._init_db()
-    return nc_store.needs_generation(sym, nc.HIST_PERIOD, nc._RETRY_AFTER)
+    # ⛔ ONE authority on this policy — `nc.needs_catalysts` — never a second
+    # copy of its retry knobs here. The warm and the click path disagreeing
+    # about what is already covered is precisely how a name ends up warmed
+    # forever or never.
+    from api.services.news_catalysts import service as nc
+    return nc.needs_catalysts(sym)
 
 
 def _needs_companion(sym: str) -> bool:
@@ -251,6 +354,42 @@ def _needs_companion(sym: str) -> bool:
         except Exception as e:
             _logger.debug("[earn-warm] companion check failed %s: %s", sym, e)
     return False
+
+
+def is_covered(sym: str, *, want_brief: bool = True) -> bool:
+    """Is everything we PROMISED for this name present, from artifacts?
+
+    ⛔ Read the artifacts, never the pass's own bookkeeping. `submitted=80` in
+    a log line is a statement of intent; this is a statement of fact. Both warm
+    passes spent months reporting healthy numbers while writing nothing to
+    disk, and the gap between those two sentences is the only thing that would
+    have shown it (`lesson_a_warm_pass_that_persists_nothing_reads_as_healthy`).
+
+    ⛔ `want_brief` IS THE PROMISE, and it is not always true. The board this
+    is measured over is the COMPANION horizon (4 weeks); briefs are warmed for
+    2, and never for a fund. Demanding a brief from every name on the board
+    made ~100 of them permanently uncoverable, so the floor below warned on
+    every pass forever — and an alarm that always cries is one people mute,
+    which is how a real outage would hide behind it. Measured 2026-08-24:
+    `board=307 covered=206 companions=0` — nothing was wrong, the metric was.
+
+    "Instant" is deliberately generous about the catalysts: a name that was
+    ATTEMPTED and genuinely has nothing to report (a bond fund) answers
+    immediately with an empty feed, and that is a covered click, not a hole."""
+    try:
+        if want_brief and not (earnings_ai_store.is_fresh("preview", sym)
+                               or earnings_ai_store.is_fresh("analysis", sym)):
+            return False
+        from api.services.stock_brief import service as sb, store as sb_store
+        if not sb_store.has_content(sym, sb._period(sb._year())):
+            return False
+        from api.services.news_catalysts import service as nc
+        # `needs_catalysts` False = either rows exist, or we looked and there
+        # was nothing — both answer the click without a spinner.
+        return not nc.needs_catalysts(sym)
+    except Exception as exc:
+        _logger.debug("[earn-warm] coverage check failed for %s: %s", sym, exc)
+        return False
 
 
 def _safe_companions(sym: str) -> None:
@@ -307,7 +446,10 @@ def _run(kind: str, generator, reported: bool) -> dict:
         # filter drops. One loop, so a name's brief and its two companions still
         # go into the pool together.
         brief_rows = {r["sym"]: r for r in chosen}
-        board = _rank(weeks, reported=None, tracked=tracked) if want_companions else chosen
+        # The companions walk a LONGER horizon than the briefs (see
+        # `_companion_weeks`), so the board is built on its own week count.
+        board = (_rank(_companion_weeks(), reported=None, tracked=tracked)
+                 if want_companions else chosen)
         board = board[:max(top_n, _companion_top_n())]
 
         submitted = fresh = companions = 0
@@ -327,15 +469,37 @@ def _run(kind: str, generator, reported: bool) -> dict:
                 _POOL.submit(_safe_companions, sym)
                 companions += 1
 
+        # COVERED is measured from the artifacts, not from what this pass just
+        # queued — see `is_covered`. It is the number that makes a silently
+        # broken warm impossible to mistake for a healthy one.
+        # A brief is promised only for the names THIS pass selected; every
+        # board name is promised its company pages. Measuring anything else
+        # invents a promise and then reports us failing it.
+        covered = sum(1 for r in board
+                      if is_covered(r["sym"], want_brief=r["sym"] in brief_rows))
+        if board and covered * 100 < len(board) * _COVERAGE_FLOOR_PCT:
+            _logger.warning(
+                "[earn-warm:%s] COVERAGE %d/%d (%d%%) is below the %d%% floor — "
+                "names a reader can see are opening cold. Check the artifacts "
+                "(/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), "
+                "not this pass's submitted count.",
+                kind, covered, len(board), covered * 100 // max(len(board), 1),
+                _COVERAGE_FLOOR_PCT)
+        if dropped:
+            # Louder than the census line, because this is the one number that
+            # means "a name a reader can see was deliberately left cold".
+            _logger.warning("[earn-warm:%s] BUDGET TRUNCATED the board: %d of %d "
+                            "candidates not warmed (EARNINGS_WARM_TOPN=%d)",
+                            kind, dropped, len(ranked), top_n)
         # `dropped_by_topn` is logged so a bounded warm never reads as "covered
         # everything" — a silently truncated list is how a cold click hides.
         _logger.info("[earn-warm:%s] candidates=%d tracked=%d submitted=%d recent=%d "
-                     "board=%d companions=%d dropped_by_topn=%d",
+                     "board=%d covered=%d companions=%d dropped_by_topn=%d",
                      kind, len(ranked), sum(1 for r in ranked if r.get("_is_tracked")),
-                     submitted, fresh, len(board), companions, dropped)
+                     submitted, fresh, len(board), covered, companions, dropped)
         return {"kind": kind, "candidates": len(ranked), "submitted": submitted,
-                "recent": fresh, "board": len(board), "companions": companions,
-                "dropped_by_topn": dropped}
+                "recent": fresh, "board": len(board), "covered": covered,
+                "companions": companions, "dropped_by_topn": dropped}
     except Exception as e:
         _logger.warning("[earn-warm:%s] pass failed: %s", kind, e)
         return {"error": str(e)}

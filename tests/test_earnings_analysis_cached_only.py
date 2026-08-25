@@ -171,3 +171,75 @@ def test_background_dedupes_an_in_flight_generation(monkeypatch):
         assert pool.ran == []
     finally:
         er._inflight.discard("DUP")
+
+
+# ── 2026-08-24: an auto-open never buys a fund's earnings preview ────────────
+# The warm skips closed-end funds deliberately; the click path did not know, so
+# opening one kicked a ~30s generation of a preview nobody wants.
+
+def _fund_row(sym="QQQX"):
+    return {"sym": sym, "verdict": "Pending", "reported_eps": None, "eps_estimate": None}
+
+
+def test_opening_a_fund_does_not_buy_a_preview(monkeypatch):
+    from api.routers import earnings as er
+    from api.services import earnings_ai_store, earnings_preview_warm as w
+    from api.services.cache import cache
+    cache.invalidate("earnings_analysis_v3_QQQX"); cache.invalidate("earnings_preview_v3_QQQX")
+    monkeypatch.setattr(earnings_ai_store, "get", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_looks_like_a_fund", lambda sym: True)
+    kicked = []
+    monkeypatch.setattr(er, "_kick_generation", lambda *a, **k: kicked.append(a[0]) or True)
+    with patch.object(er, "get_earnings", return_value={"amc": [_fund_row()]}):
+        body = _client().get("/api/earnings-analysis/QQQX?background=1").json()
+    assert kicked == [], "an auto-open must not generate a fund's earnings preview"
+    assert body["cached"] is False
+    assert "generating" not in body, "…and must not claim one is being written"
+
+
+def test_the_generate_button_still_generates_for_a_fund(monkeypatch):
+    """`force=1` keeps this a default, not a refusal — agency stays with the reader."""
+    from api.routers import earnings as er
+    from api.services import earnings_ai_store, earnings_preview_warm as w
+    from api.services.cache import cache
+    cache.invalidate("earnings_analysis_v3_QQQX"); cache.invalidate("earnings_preview_v3_QQQX")
+    monkeypatch.setattr(earnings_ai_store, "get", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_looks_like_a_fund", lambda sym: True)
+    kicked = []
+    monkeypatch.setattr(er, "_kick_generation", lambda *a, **k: kicked.append(a[0]) or True)
+    with patch.object(er, "get_earnings", return_value={"amc": [_fund_row()]}):
+        body = _client().get("/api/earnings-analysis/QQQX?background=1&force=1").json()
+    assert kicked == ["QQQX"] and body.get("generating") is True
+
+
+def test_a_real_company_is_unaffected(monkeypatch):
+    from api.routers import earnings as er
+    from api.services import earnings_ai_store, earnings_preview_warm as w
+    from api.services.cache import cache
+    cache.invalidate("earnings_analysis_v3_ACME"); cache.invalidate("earnings_preview_v3_ACME")
+    monkeypatch.setattr(earnings_ai_store, "get", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_looks_like_a_fund", lambda sym: False)
+    kicked = []
+    monkeypatch.setattr(er, "_kick_generation", lambda *a, **k: kicked.append(a[0]) or True)
+    row = {"sym": "ACME", "verdict": "Pending", "reported_eps": None, "eps_estimate": None}
+    with patch.object(er, "get_earnings", return_value={"amc": [row]}):
+        body = _client().get("/api/earnings-analysis/ACME?background=1").json()
+    assert kicked == ["ACME"] and body.get("generating") is True
+
+
+def test_an_asset_manager_WITH_a_consensus_still_gets_its_brief(monkeypatch):
+    """BlackRock shares an industry with the funds it runs. The consensus check
+    is what separates them — without it this would deny a real company."""
+    from api.routers import earnings as er
+    from api.services import earnings_ai_store, earnings_preview_warm as w
+    from api.services.cache import cache
+    cache.invalidate("earnings_analysis_v3_BLK"); cache.invalidate("earnings_preview_v3_BLK")
+    monkeypatch.setattr(earnings_ai_store, "get", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_looks_like_a_fund", lambda sym: True)   # industry says fund
+    kicked = []
+    monkeypatch.setattr(er, "_kick_generation", lambda *a, **k: kicked.append(a[0]) or True)
+    row = {"sym": "BLK", "verdict": "Pending", "reported_eps": None, "eps_estimate": 11.2}
+    with patch.object(er, "get_earnings", return_value={"amc": [row]}):
+        body = _client().get("/api/earnings-analysis/BLK?background=1").json()
+    assert kicked == ["BLK"], "a consensus means the street covers it — it is a company"
+    assert body.get("generating") is True

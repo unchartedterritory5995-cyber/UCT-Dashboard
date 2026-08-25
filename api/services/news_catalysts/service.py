@@ -40,6 +40,13 @@ _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
 # Env-overridable (comma-separated handles, with/without @).
 _DEFAULT_WIRE_ACCOUNTS = "deitaone,financialjuice,benzinga,wallstengine,firstsquawk,livesquawk"
 _RETRY_AFTER = int(os.environ.get("NEWS_CATALYSTS_RETRY_AFTER", "86400") or 86400)
+# A failed LOOK is not a finished look. When the web leg never answered (429 /
+# timeout / bad shape) the symbol is eligible again in minutes, not a day.
+_ERROR_RETRY_AFTER = int(os.environ.get("NEWS_CATALYSTS_ERROR_RETRY_AFTER", "1800") or 1800)
+# How long a fallback-only ("ai", pre-cutoff) set may stand before we try once
+# more to replace it with a web-grounded one. Bounded by _RETRY_AFTER on top,
+# so at worst one upgrade attempt per symbol per day.
+_UPGRADE_AFTER = int(os.environ.get("NEWS_CATALYSTS_UPGRADE_AFTER", str(6 * 3600)) or 6 * 3600)
 _DAILY_CAP = int(os.environ.get("NEWS_CATALYSTS_DAILY_CAP", "300") or 300)  # generations/day (per process)
 _MAX_HIST_ITEMS = 12          # a bit more coverage (was 8)
 _HIST_TOP_N = 20              # candidate big-move days fed to the LLM (was 12)
@@ -150,19 +157,35 @@ def _shorten(text, limit=240):
     return (cut[:sp] if sp > 0 else cut).rstrip(" ,;:-") + "…"
 
 
-def _web_catalysts(sym, company, bars, movers):
+def _web_catalysts(sym, company, bars, movers, *, outcome=None):
     """Perplexity → structured JSON of REAL, web-sourced 2026 catalysts.
 
     Perplexity IS web-grounded, so it directly knows the actual events + dates
     (NBIS's Meta/NVIDIA/Eigen deals; META's excess-compute cloud headline). We ask
     it for JSON directly — NOT via a second, pre-cutoff model that would over-omit.
     CRITICAL: date each event to when it ACTUALLY happened (do NOT anchor to the
-    stock's move-days — that mis-dates catalysts). Returns (items, None)."""
+    stock's move-days — that mis-dates catalysts). Returns (items, None).
+
+    `outcome` is an optional OUT-dict carrying WHY nothing came back —
+    `{"ok": False, "kind": "disabled"|"error"|"empty"}` — taken from the same
+    evaluation that produced the answer, never inferred by the caller from the
+    shape of a `None`. `"error"` means we never got a usable answer out of the
+    provider; `"empty"` means it answered and had nothing to report. Those two
+    deserve different retry windows, and collapsing them is what let a 429
+    masquerade as a finished look."""
+    def _out(ok, kind=None, reason=None):
+        if outcome is not None:
+            outcome.clear()
+            outcome.update({"ok": ok, "kind": kind, "reason": reason})
+
+    _out(False, "error", "not_started")
     if not _web_enabled():
+        _out(False, "disabled")
         return None, None
     try:
         from api.services import perplexity_search
-    except Exception:
+    except Exception as exc:
+        _out(False, "error", f"import failed: {exc}")
         return None, None
     label = f"{sym} ({company}) stock" if company else f"{sym} stock"
     query = (
@@ -197,6 +220,10 @@ def _web_catalysts(sym, company, bars, movers):
         return None, None
     answer = (res.get("answer") or "").strip()
     if res.get("error") or not answer:
+        # `web_search` returns transport failures IN-BAND (never raises), so a
+        # 429/timeout arrives here as `error` — the exact case that must not
+        # be remembered as "nothing to report".
+        _out(False, "error", str(res.get("error") or "empty answer"))
         return None, None
     s, e = answer.find("{"), answer.rfind("}")
     if s == -1 or e == -1:
@@ -901,7 +928,8 @@ def _generate_and_store(sym: str) -> None:
         # PRIMARY: Perplexity web search returns the REAL catalysts directly (it knows
         # the actual 2026 events). FALLBACK: from-memory generation when Perplexity is
         # unavailable (produces less — the model is pre-cutoff).
-        items, _cite = _web_catalysts(sym, None, bars, None)
+        web_oc: dict = {}
+        items, _cite = _web_catalysts(sym, None, bars, None, outcome=web_oc)
         if not items:
             gen = significant_catalysts.generate(
                 sym, None, bars, "2026 YTD", direction="both",
@@ -924,12 +952,22 @@ def _generate_and_store(sym: str) -> None:
             store.replace_catalysts(sym, HIST_PERIOD, items)
             cache.invalidate(f"news_hist_{sym}")
             store.log_cost(sym, _MODEL, _EST_COST_PER_GEN)
+            if web_oc.get("kind") == "error":
+                # Persisted, but from the pre-cutoff fallback because the web
+                # leg never answered. `source='ai'` marks it PROVISIONAL and
+                # `needs_generation` will come back for it — the reader gets a
+                # feed now instead of a spinner, and the real one later.
+                _logger.info("news_catalysts %s stored from FALLBACK (web %s)",
+                             sym, web_oc.get("reason"))
         else:
-            store.mark_attempt(sym, HIST_PERIOD)
+            # Nothing at all. Say WHY, so a 429 is not remembered for a day as
+            # "this company has no catalysts".
+            store.mark_attempt(sym, HIST_PERIOD,
+                               kind="error" if web_oc.get("kind") == "error" else None)
     except Exception as exc:
         _logger.warning("news_catalysts generation failed for %s: %s", sym, exc)
         try:
-            store.mark_attempt(sym, HIST_PERIOD)
+            store.mark_attempt(sym, HIST_PERIOD, kind="error")
         except Exception:
             pass
 
@@ -977,6 +1015,31 @@ def debug_web(sym: str) -> dict:
     }
 
 
+def _combined_has_rows(sym: str) -> bool:
+    """Is there already a catalyst set on disk for this symbol? Used to keep an
+    UPGRADE silent: rows are on screen, so the client must not be told
+    "generating" and swap a readable feed for a spinner."""
+    try:
+        return bool(store.get_catalysts(sym.upper(), HIST_PERIOD))
+    except Exception:
+        return False
+
+
+def needs_catalysts(sym: str) -> bool:
+    """THE gate — one authority on "does this symbol need a catalyst set?".
+
+    Both callers (the endpoint below and the calendar's warm pass) route
+    through this rather than each passing its own copy of the three retry
+    knobs to the store; a second copy of a policy is how the warm and the
+    click path come to disagree about what is already covered."""
+    if not _enabled():
+        return False
+    store._init_db()
+    return store.needs_generation(
+        sym.upper(), HIST_PERIOD, _RETRY_AFTER,
+        error_retry_after=_ERROR_RETRY_AFTER, upgrade_after=_UPGRADE_AFTER)
+
+
 def feed(sym: str) -> dict:
     """The endpoint payload: merged events now + a status telling the client whether
     historical catalysts are still generating."""
@@ -984,7 +1047,10 @@ def feed(sym: str) -> dict:
     if not sym:
         return {"symbol": sym, "status": "ready", "events": [], "generated_at": int(time.time())}
     status = "ready"
-    if _enabled() and store.needs_generation(sym, HIST_PERIOD, _RETRY_AFTER):
+    if needs_catalysts(sym):
         _gen_async(sym)
-        status = "generating"
+        # A PROVISIONAL set being upgraded already has rows on screen — telling
+        # the client "generating" would replace a readable feed with a spinner.
+        # Only an empty one is genuinely still being written.
+        status = "generating" if not _combined_has_rows(sym) else "ready"
     return {"symbol": sym, "status": status, "events": _combined(sym), "generated_at": int(time.time())}

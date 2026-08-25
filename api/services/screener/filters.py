@@ -241,6 +241,70 @@ FILTERS = dict([
     _open_range("roic", "ROIC", "fundamental", "roic", unit="%"),
     _open_range("lt_debt_to_capital", "LT Debt / Capital", "fundamental",
                 "lt_debt_to_capital"),
+    # 🔴 WAVE 7 — the fields already inside the bulk calls we make.
+    # Benchmark family 1 (fundamental data fields) is one of the four we
+    # finished LAST in, and these were sitting unread in payloads we were
+    # already parsing. All `_open_range`: E-8's grounding rule is
+    # unchanged, so the CONTROL ships and the firm's opinion does not.
+    # The three `factual` presets below are DEFINITIONS, not opinions —
+    # "net cash" IS net debt below zero, and there is no other number to
+    # pick.
+    _open_range("enterprise_value", "Enterprise Value", "fundamental",
+                "enterprise_value"),
+    _open_range("ev_sales", "EV / Sales", "fundamental",
+                "ev_sales"),
+    _open_range("ev_ebitda", "EV / EBITDA", "fundamental",
+                "ev_ebitda"),
+    _open_range("ev_fcf", "EV / FCF", "fundamental",
+                "ev_fcf"),
+    _open_range("earnings_yield", "Earnings Yield", "fundamental",
+                "earnings_yield", unit="%"),
+    _open_range("fcf_yield", "FCF Yield", "fundamental",
+                "fcf_yield", unit="%"),
+    _open_range("eps_ttm", "EPS (TTM)", "fundamental",
+                "eps_ttm"),
+    _open_range("revenue_ps", "Revenue / Share", "fundamental",
+                "revenue_ps"),
+    _open_range("fcf_ps", "FCF / Share", "fundamental",
+                "fcf_ps"),
+    _open_range("book_value_ps", "Book Value / Share", "fundamental",
+                "book_value_ps"),
+    _open_range("cash_ps", "Cash / Share", "fundamental",
+                "cash_ps"),
+    _open_range("working_capital", "Working Capital", "fundamental",
+                "working_capital", factual=[
+                    {'label': 'Positive working capital', 'op': 'gt', 'min': 0},
+                ]),
+    _open_range("ebitda_margin", "EBITDA Margin", "fundamental",
+                "ebitda_margin", unit="%"),
+    _open_range("ebit_margin", "EBIT Margin", "fundamental",
+                "ebit_margin", unit="%"),
+    _open_range("roce", "ROCE", "fundamental",
+                "roce", unit="%"),
+    _open_range("income_quality", "Income Quality", "fundamental",
+                "income_quality"),
+    _open_range("tax_rate", "Effective Tax Rate", "fundamental",
+                "tax_rate", unit="%"),
+    _open_range("interest_coverage", "Interest Coverage", "fundamental",
+                "interest_coverage"),
+    _open_range("net_debt_to_ebitda", "Net Debt / EBITDA", "fundamental",
+                "net_debt_to_ebitda", factual=[
+                    {'label': 'Net cash (below 0)', 'op': 'lt', 'max': 0},
+                ]),
+    _open_range("cash_ratio", "Cash Ratio", "fundamental",
+                "cash_ratio"),
+    _open_range("asset_turnover", "Asset Turnover", "fundamental",
+                "asset_turnover"),
+    _open_range("capex_to_revenue", "Capex / Revenue", "fundamental",
+                "capex_to_revenue", unit="%"),
+    _open_range("rnd_to_revenue", "R&D / Revenue", "fundamental",
+                "rnd_to_revenue", unit="%", factual=[
+                    {'label': 'Reports R&D', 'op': 'gt', 'min': 0},
+                ]),
+    _open_range("sbc_to_revenue", "SBC / Revenue", "fundamental",
+                "sbc_to_revenue", unit="%"),
+    _open_range("cash_conversion_cycle", "Cash Conversion Cycle", "fundamental",
+                "cash_conversion_cycle", unit="days"),
     # ISO dates compare correctly as TEXT in SQLite, so a custom range works
     # server-side today; the old panel's number inputs can't type one — the
     # usable control is ipo_age_days below, and Wave 3's typed controls make

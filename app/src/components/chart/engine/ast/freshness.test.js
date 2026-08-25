@@ -67,7 +67,17 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // ⛔ AND THE EXCLUDED HALF IS DECLARED TOO, each with a stated reason. A
     // granted list without a refused list is a list of what somebody remembered.
     const excluded = TABLE._scalars_excluded
-    expect(Object.keys(excluded).length).toBe(52)
+    // 52 -> 77 on 2026-08-24: Wave 7 added 25 fundamental columns that were
+    // already inside the bulk FMP payloads the snapshot pulls. All 25 land
+    // EXCLUDED under R8 — no production build has written them yet, and a
+    // column no build has filled makes every expression over it silently
+    // NULL. Promote them after a clean nightly fill.
+    // ⛔ THIS COUNT IS MIRRORED IN `tests/test_ast_scalars.py`, because
+    // ONE table is read by BOTH lanes. Moving one and not the other is how
+    // this went red: the Python side was updated with the columns and this
+    // one was not, so the JS lane failed on a table the Python lane had
+    // already accepted. Change them together or not at all.
+    expect(Object.keys(excluded).length).toBe(77)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

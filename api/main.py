@@ -1307,6 +1307,29 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True)
 
+    # -- Screen alerts: the set difference between last night's hits and
+    # tonight's, delivered on the channels the watchlist pipeline already owns.
+    # ⛔ IT RUNS AFTER THE SWEEP AND ONLY WHEN THE SWEEP RUNS. There is
+    # nothing to diff until the sweep has written tonight's hit set, and a diff
+    # job on a pod whose sweep is off would compare last night to the night
+    # before it -- alerting members to a change that is a day stale, every day.
+    # The 10-minute offset is the sweep's own headroom; `diff_for` refuses
+    # rather than guesses if it lands early (fewer than two covered sessions).
+    def _run_screen_alerts():
+        try:
+            from api.services.screener import screen_alerts
+            print(f"[scheduler] screen alerts: {screen_alerts.run_nightly()}")
+        except Exception as e:
+            print(f"[scheduler] screen alerts error: {e}")
+
+    if scan_evaluator.enabled() and             os.environ.get("SCREEN_ALERTS_ENABLED", "1") != "0":
+        scheduler.add_job(
+            _run_screen_alerts,
+            trigger=CronTrigger(hour=scan_evaluator.SWEEP_HOUR_ET,
+                                minute=scan_evaluator.SWEEP_MINUTE_ET + 10,
+                                timezone=_ET),
+            id="screener_screen_alerts", max_instances=1, replace_existing=True)
+
     # -- Wave 2 nightly source jobs: finviz universe, earnings dates, insider
     # capture, analyst pass. Each wraps its runner in try/except and logs the
     # RECEIPT dict on success -- Task 14's verification greps this line, and

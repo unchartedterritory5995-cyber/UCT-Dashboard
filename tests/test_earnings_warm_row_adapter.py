@@ -41,6 +41,20 @@ def test_engine_row_still_reads_engine_spelling():
     assert row["date"] == "2026-08-25" and row["session"] == "BMO"
 
 
+@pytest.fixture(autouse=True)
+def _meta_offline(monkeypatch):
+    """No test in this module may reach the real ticker_meta provider.
+
+    Default: "B" — the fixture's no-consensus name — is a FUND, because every
+    test that predates the fund-aware rule (2026-08-24) asserts B is dropped,
+    and under that rule "dropped" is exactly what being a fund means.
+    `meta_says` overrides it per-test."""
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": "Closed-End Fund" if sym == "B" else "Software",
+                                     "sector": ""})
+
+
 @pytest.fixture
 def fake_calendar(monkeypatch):
     from api.routers import calendar as cal
@@ -69,7 +83,9 @@ def test_rank_finds_pending_reporters_in_calendar_spelling(fake_calendar):
     pending = w._rank(1, reported=False, tracked=set())
     syms = [r["sym"] for r in pending]
     # A has consensus + cap; NOCAP has consensus and an UNKNOWN cap (kept — an
-    # unknown cap is not a small cap); B has no consensus; C already reported.
+    # unknown cap is not a small cap); B has no consensus AND is a fund, so it
+    # is dropped — a real COMPANY with no consensus is now kept (see the
+    # fund-aware tests below); C already reported.
     #
     # TINY is under the $300M floor. It used to be DROPPED here; since
     # 2026-08-23 it is DEMOTED instead — owner call, "every reporter you can
@@ -145,7 +161,7 @@ def test_board_mode_is_a_superset_of_both_budgets(fake_calendar):
     analyses = {r["sym"] for r in w._rank(1, reported=True, tracked=set())}
     assert previews < board and analyses < board
     # and the two budgets keep their own rules — board mode must not leak into them
-    assert "B" not in previews          # no consensus
+    assert "B" not in previews          # no consensus AND a fund
     assert "C" not in previews          # already reported
     assert analyses == {"C"}
 
@@ -169,7 +185,7 @@ def test_companions_are_submitted_for_a_name_the_preview_filter_drops(monkeypatc
     monkeypatch.setattr(w, "_POOL", _Pool())
 
     out = w._run("preview", lambda *a, **k: None, reported=False)
-    assert "B" not in briefs, "a no-consensus name must not get a preview"
+    assert "B" not in briefs, "a fund must not get an earnings preview"
     assert "B" in comps, "but it MUST get its Profile + Catalysts"
     assert "C" in comps, "a name that already reported still has a company page"
     assert set(comps) == {"A", "B", "C", "NOCAP", "TINY"}
@@ -221,3 +237,278 @@ def test_a_brief_still_rides_its_own_row_not_a_board_row(monkeypatch, fake_calen
     w._run("preview", lambda *a, **k: None, reported=False)
     assert rows and all(r.get("verdict") == "Pending" for r in rows)
     assert all("eps_estimate" in r for r in rows)
+
+
+# ── 2026-08-24: a fund has no earnings story; a company without a consensus
+# still does. Measured that day: 70 board names had no consensus in our feed —
+# 47 funds, and 23 REAL operating companies (XPEV, Woodside, EHang, Citi
+# Trends) that were being skipped with them.
+
+@pytest.fixture
+def meta_says(monkeypatch, _meta_offline):
+    """Point the fund-detector at a fixture industry map."""
+    from api.services import ticker_meta
+
+    def _apply(mapping):
+        monkeypatch.setattr(ticker_meta, "_base_meta",
+                            lambda sym: {"industry": mapping.get(sym, ""), "sector": ""})
+    return _apply
+
+
+def test_a_fund_without_a_consensus_is_still_skipped(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Closed-End Fund - Debt"})
+    assert "B" not in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_a_real_company_without_a_consensus_is_now_warmed(fake_calendar, meta_says):
+    """THE REGRESSION: 'B' has no consensus but is an operating company."""
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Auto Manufacturers"})
+    ranked = w._rank(1, reported=False, tracked=set())
+    syms = [r["sym"] for r in ranked]
+    assert "B" in syms, "a real company with no consensus must still get a brief"
+    # …but behind every name that HAS one. (Not necessarily last: TINY is under
+    # the house floor, and below-floor demotes harder than no-consensus — a
+    # sub-$300M name is a weaker click than a real company we simply hold no
+    # estimate for.)
+    assert syms.index("B") > syms.index("A") and syms.index("B") > syms.index("NOCAP")
+    assert next(r for r in ranked if r["sym"] == "B")["_no_consensus"] is True
+
+
+def test_an_unknown_industry_is_treated_as_a_company_not_a_fund(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({})                      # nothing known about B
+    assert "B" in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_a_meta_lookup_that_raises_never_drops_the_name(fake_calendar, monkeypatch):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: (_ for _ in ()).throw(RuntimeError("provider down")))
+    assert "B" in {r["sym"] for r in w._rank(1, reported=False, tracked=set())}
+
+
+def test_consensus_names_still_outrank_a_no_consensus_one(fake_calendar, meta_says):
+    from api.services import earnings_preview_warm as w
+    meta_says({"B": "Auto Manufacturers"})
+    ranked = w._rank(1, reported=False, tracked=set())
+    idx = {r["sym"]: i for i, r in enumerate(ranked)}
+    assert idx["A"] < idx["B"] and idx["NOCAP"] < idx["B"]
+
+
+@pytest.mark.parametrize("industry, name, is_fund", [
+    # `Asset Management` does NOT settle it — it is the industry of closed-end
+    # funds AND of real asset managers. The NAME breaks the tie: a fund
+    # announces itself there, a company does not.
+    ("Asset Management", "Royce Micro-Cap Trust, Inc.", True),
+    ("Asset Management", "PIMCO Income Strategy Fund II", True),
+    ("Asset Management", "Nuveen Global High Income Fund", True),
+    ("Asset Management", "Noah Holdings Limited", False),
+    ("Asset Management", "BlackRock, Inc.", False),
+    ("Asset Management", "", False),          # unknown name → company
+])
+def test_an_ambiguous_industry_is_settled_by_the_name(monkeypatch, industry, name, is_fund):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": industry, "sector": "", "name": name})
+    assert w._looks_like_a_fund("X") is is_fund, (industry, name)
+
+
+@pytest.mark.parametrize("industry, is_fund", [
+    # The fund industries that actually occur on the board (2026-08-24 census).
+    ("Closed-End Fund", True),
+    ("Real Estate Fund", True),
+    ("Municipal Bond Fund", True),
+    # ⛔ A REIT reports real earnings. These MUST stay companies — "Trust" and
+    # "Income" used to be in the pattern, which would have swept them up.
+    ("Residential REITs", False),
+    ("Diversified REITs", False),
+    ("Diversified Real Estate", False),
+    ("REIT - Mortgage Trust", False),
+    ("Insurance - Diversified Income", False),
+    # Ordinary operating industries seen among the 23 real companies.
+    ("Auto Manufacturers", False),
+    ("Marine Shipping", False),
+    ("Wealth Management", False),
+    ("Credit Services", False),
+    ("", False),                      # unknown is not a fund
+])
+def test_the_fund_detector_keeps_reits_and_operating_companies(monkeypatch, industry, is_fund):
+    from api.services import earnings_preview_warm as w
+    from api.services import ticker_meta
+    # No name at all → an ambiguous industry must fall to "company".
+    monkeypatch.setattr(ticker_meta, "_base_meta",
+                        lambda sym: {"industry": industry, "sector": "", "name": ""})
+    assert w._looks_like_a_fund("X") is is_fund, industry
+
+
+# ── the companions walk a longer horizon than the briefs ────────────────────
+
+def test_companions_look_further_ahead_than_the_briefs(monkeypatch, fake_calendar):
+    """A Profile is generate-once and date-independent, so it is warmed weeks
+    before the print. A PREVIEW is not: three weeks out the report date is a
+    provider's guess, and skip-if-stable keys on that date, so every shift
+    re-bills it. The two horizons are therefore separate knobs."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setenv("EARNINGS_WARM_WEEKS", "2")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANION_WEEKS", "5")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    seen = []
+    real_rank = w._rank
+    monkeypatch.setattr(w, "_rank",
+                        lambda weeks, **kw: seen.append((weeks, kw.get("reported"))) or real_rank(weeks, **kw))
+    w._run("preview", lambda *a, **k: None, reported=False)
+    briefs = [wk for wk, rep in seen if rep is False]
+    board = [wk for wk, rep in seen if rep is None]
+    assert briefs == [2], f"the brief horizon must stay EARNINGS_WARM_WEEKS, got {briefs}"
+    assert board == [5], f"the companion horizon must be its own knob, got {board}"
+
+
+def test_the_companion_horizon_can_never_be_shorter_than_the_brief_one(monkeypatch):
+    """A companion window inside the brief window would leave names with a
+    preview and no company page — the exact inversion of the point."""
+    from api.services import earnings_preview_warm as w
+    monkeypatch.setenv("EARNINGS_WARM_WEEKS", "6")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANION_WEEKS", "1")
+    assert w._companion_weeks() == 6
+
+
+def test_the_companion_horizon_defaults_ahead_of_the_brief_one(monkeypatch):
+    from api.services import earnings_preview_warm as w
+    monkeypatch.delenv("EARNINGS_WARM_COMPANION_WEEKS", raising=False)
+    monkeypatch.delenv("EARNINGS_WARM_WEEKS", raising=False)
+    assert w._companion_weeks() == 4
+
+
+# ── the census must report what EXISTS, not what the pass queued ────────────
+# Both warm passes ran broken for months while logging healthy numbers:
+# `submitted=80` is a statement of intent, and the artifact count was zero.
+
+def test_the_census_counts_coverage_from_artifacts_not_from_its_own_queue(monkeypatch, fake_calendar):
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    # THE ORIGINAL BUG'S SIGNATURE: plenty submitted, nothing on disk.
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: False)
+    out = w._run("preview", lambda *a, **k: None, reported=False)
+    assert out["submitted"] > 0, "the pass believes it is working…"
+    assert out["covered"] == 0, "…and the artifacts say otherwise"
+
+
+def test_a_broken_warm_says_so_at_warning(monkeypatch, fake_calendar, caplog):
+    import logging
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: False)
+    with caplog.at_level(logging.WARNING, logger="api.services.earnings_preview_warm"):
+        w._run("preview", lambda *a, **k: None, reported=False)
+    assert any("COVERAGE" in r.message for r in caplog.records), \
+        "a board opening cold must warn, not just log a healthy-looking count"
+
+
+def test_a_fully_covered_board_stays_silent(monkeypatch, fake_calendar, caplog):
+    """CONTROL: the floor must not cry on a healthy pass."""
+    import logging
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    monkeypatch.setattr(w, "is_covered", lambda sym, **kw: True)
+    with caplog.at_level(logging.WARNING, logger="api.services.earnings_preview_warm"):
+        out = w._run("preview", lambda *a, **k: None, reported=False)
+    assert out["covered"] == out["board"]
+    assert not any("COVERAGE" in r.message for r in caplog.records)
+
+
+def test_is_covered_requires_all_three_artifacts(monkeypatch):
+    """A name with a brief but no company page is NOT an instant click."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    from api.services.stock_brief import store as sb_store
+    from api.services.news_catalysts import service as nc
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: kind == "preview")
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    assert w.is_covered("X") is True
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: False)
+    assert w.is_covered("X") is False, "no Profile → not an instant click"
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: True)
+    assert w.is_covered("X") is False, "catalysts still to write → not instant"
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
+    assert w.is_covered("X") is False, "no brief → not an instant click"
+
+
+def test_coverage_does_not_demand_a_brief_the_pass_never_promised(monkeypatch, fake_calendar):
+    """THE GUARD'S OWN BUG, caught by watching it fire (2026-08-24).
+
+    The board is the COMPANION horizon (4 weeks); briefs are warmed for 2, and
+    never for a fund. Requiring a brief from every board name made ~100 of them
+    permanently uncoverable — `board=307 covered=206 companions=0` — so the
+    floor warned on every pass forever. An alarm that always cries is one
+    people mute, and then a real outage hides behind it."""
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    from api.services.stock_brief import store as sb_store
+    from api.services.news_catalysts import service as nc
+    monkeypatch.setenv("EARNINGS_WARM_ENABLED", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("EARNINGS_WARM_COMPANIONS", "1")
+    monkeypatch.setattr(w, "_tracked_union", lambda: set())
+    monkeypatch.setattr(w, "_needs_companion", lambda sym: False)
+    monkeypatch.setattr(w, "_POOL", type("P", (), {"submit": lambda *a, **k: None})())
+    # Company pages exist for EVERY name; a brief exists for NONE.
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
+    monkeypatch.setattr(earnings_ai_store, "age", lambda kind, sym: None)
+    out = w._run("preview", lambda *a, **k: None, reported=False)
+    # The brief-eligible names are genuinely missing their brief and must count
+    # as uncovered; the companion-only names must NOT be penalised for a brief
+    # nobody promised them.
+    assert 0 < out["covered"] < out["board"]
+    covered_syms = out["board"] - out["covered"]
+    assert covered_syms == out["candidates"], \
+        "exactly the brief-eligible names should be short a brief"
+
+
+def test_a_companion_only_name_is_covered_without_a_brief(monkeypatch):
+    from api.services import earnings_preview_warm as w
+    from api.services import earnings_ai_store
+    from api.services.stock_brief import store as sb_store
+    from api.services.news_catalysts import service as nc
+    monkeypatch.setattr(earnings_ai_store, "is_fresh", lambda kind, sym: False)
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: True)
+    monkeypatch.setattr(nc, "needs_catalysts", lambda sym: False)
+    assert w.is_covered("X", want_brief=False) is True
+    assert w.is_covered("X", want_brief=True) is False
+    # …and the company pages are still required either way.
+    monkeypatch.setattr(sb_store, "has_content", lambda sym, period: False)
+    assert w.is_covered("X", want_brief=False) is False

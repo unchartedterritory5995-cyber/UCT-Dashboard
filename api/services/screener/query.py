@@ -1023,6 +1023,45 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
     }
 
 
+def preview_count(spec, user_id=None):
+    """How many rows this spec WOULD return, without returning them.
+
+    Benchmark metric 450 — Zacks disables its Run button at zero, Trade Ideas
+    shows a per-filter histogram before you apply it, thinkorswim shows pre-scan
+    match counts. The member currently has to run a screen to discover it is
+    empty, which is the difference between tuning a threshold and guessing at it.
+
+    ⛔ IT PLANS THE REAL STATEMENT. The count comes from `build_scan_sql`'s own
+    `where` / `from_sql` / params, not from a second WHERE composed here — a
+    preview that could disagree with the screen it previews is worse than no
+    preview, because the member would tune against a number that never arrives.
+    That includes the rank's completeness exclusion: a ranked screen drops rows
+    missing a weighted criterion, so the preview must drop them too or it
+    promises names the run will not show.
+
+    ⚠️ NO PAGING, NO SORT, NO SELECT LIST — the plan is built and only its
+    predicate is used. `top_n` is reported beside the count rather than applied,
+    because a member tuning filters wants to know the screen matches 300 names
+    AND that they asked to see 50.
+    """
+    spec = spec or {}
+    with snapshot_db.connect() as conn:
+        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id)
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM {plan['from_sql']}{plan['where']}",
+            plan["describe_params"]).fetchone()[0]
+    rank = plan["rank"]
+    return {
+        "count": total,
+        # ⭐ THE ZERO IS THE WHOLE POINT, so it is named rather than inferred
+        # from `count == 0` by every surface that renders this.
+        "empty": total == 0,
+        "top_n": (rank or {}).get("top_n"),
+        "scan_joins": plan["scan_joins"],
+        "list_joins": plan["list_joins"],
+    }
+
+
 def run_scan(spec, user_id=None):
     spec = spec or {}
     with snapshot_db.connect() as conn:
