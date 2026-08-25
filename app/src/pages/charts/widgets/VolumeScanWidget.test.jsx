@@ -30,13 +30,14 @@ beforeEach(() => {
 })
 
 describe('VolumeScanWidget', () => {
-  it('shows every top-N name (lit + unlit), with the surging count in the header', () => {
+  it('shows every top-N name (lit + unlit) in two columns, with the surging count', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByText(/RELATIVE VOLUME/)).toBeInTheDocument()
-    expect(screen.getByText(/2 surging/)).toBeInTheDocument()   // lit count in header
+    expect(screen.getByText('SYMBOL')).toBeInTheDocument()
+    expect(screen.getByText(/VOL SURGE/)).toBeInTheDocument()
+    expect(screen.getByText(/· 2/)).toBeInTheDocument()         // lit count in header
     expect(screen.getByText('SMCI')).toBeInTheDocument()
-    expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL headline
+    expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
     expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })
@@ -77,6 +78,6 @@ describe('VolumeScanWidget', () => {
     swr.mockReturnValue({ data: { window: 'closed', rows: [] } })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
     expect(screen.getByText(/Market closed/i)).toBeInTheDocument()
-    expect(screen.queryByText('RELATIVE VOLUME')).not.toBeInTheDocument()
+    expect(screen.queryByText('SYMBOL')).not.toBeInTheDocument()
   })
 })

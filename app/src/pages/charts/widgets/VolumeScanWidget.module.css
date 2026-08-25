@@ -1,12 +1,13 @@
-/* Volume Surge scanner — a single ranked leaderboard in the UCT skin. Chrome
+/* Volume Surge scanner — TC2000-style filled colour blocks. Chrome
    (.wrap/.toolbar/.live/.asof/.gear/.rows/.sideHead/.empty) is REUSED from
-   NewHighsLowsWidget.module.css so the two widgets are pixel-identical; this file
-   is only the row grid + the relative-volume heat tiers. It rides the same
-   --nh-* / --widget-* / --wl-* token chain, so a chart theme themes both. */
+   NewHighsLowsWidget.module.css; this file is only the two-column row (Symbol ·
+   Vol Surge), the relative-volume tier fills, and the live-tick flash. It rides the
+   same --nh-* / --widget-* / --wl-* token chain, so a chart theme themes it too. */
 
-/* Sticky list header (extends .sideHead): a label + right-aligned column captions. */
+/* Sticky header: SYMBOL (left) · VOL SURGE (right) — the only two columns. */
 .head { justify-content: space-between; }
-.headTitle {
+.headSym,
+.headSurge {
   font-family: var(--font-sans);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -14,51 +15,36 @@
   color: var(--ut-gold);
   white-space: nowrap;
 }
-.headCount {
-  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
-.headCols {
-  display: grid;
-  grid-template-columns: 46px 54px 44px;
-  gap: 6px;
-  align-items: center;
-}
-.headCols span {
-  text-align: right;
-  font-family: var(--font-sans);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  color: var(--nh-text, var(--wl-text, var(--text-muted)));
-}
+.headSurge { text-align: right; }
+.headCount { color: var(--nh-sym, var(--wl-sym, var(--text-bright))); font-weight: 600; }
 
-/* Row: tier rail · SYMBOL · price · short-window move · RVOL× (headline). */
+/* Row: SYMBOL · VOL SURGE. Tight padding + a flexible symbol column so the widget
+   can be dragged very thin and the two values sit close together. */
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: 4px minmax(40px, 1fr) 46px 54px 44px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 5px 8px 5px 6px;
+  padding: 5px 9px;
   box-sizing: border-box;
   border: 0;
-  border-bottom: 1px solid var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border))));
+  border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, rgba(255, 255, 255, 0.06))));
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
   font: inherit;
-  line-height: 1.3;
+  line-height: 1.25;
+  overflow: hidden;
 }
-.row:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
+.row > .sym,
+.row > .surge { position: relative; z-index: 1; }
 
-/* Ticker — same white font as the NH/NL rows (family, weight, tracking, --nh-sym). */
 .sym {
   font-family: var(--font-sans);
-  font-size: calc(11px * var(--nh-font-scale, 1));
+  font-size: calc(11.5px * var(--nh-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright))));
@@ -66,57 +52,49 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.price {
-  text-align: right;
-  font-family: var(--font-sans);
-  font-size: calc(10.5px * var(--nh-font-scale, 1));
-  font-variant-numeric: tabular-nums;
-  color: var(--nh-text, var(--wl-text, var(--text-muted)));
-}
-.move {
-  text-align: right;
-  font-family: var(--font-sans);
-  font-size: calc(10.5px * var(--nh-font-scale, 1));
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.move.up { color: var(--nh-up, var(--ut-green-bright)); }
-.move.down { color: var(--nh-down, var(--ut-red-bright)); }
-.rvol {
+.surge {
   text-align: right;
   font-family: var(--font-sans);
   font-size: calc(11.5px * var(--nh-font-scale, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* ── Relative-volume heat tiers ──────────────────────────────────────────────
-   A gold→hot ramp keyed to how many × the name's own recent normal it's trading.
-   The tier rail (left edge) carries the colour; the RVOL number brightens with it,
-   and the hottest tier gets a soft glow so a genuine event pops off the list. */
-.rail { align-self: stretch; border-radius: 2px; background: transparent; }
-.t1 .rail { background: var(--nh-divider-strong, rgba(255, 255, 255, 0.14)); }
-.t2 .rail { background: rgba(201, 168, 76, 0.55); }
-.t3 .rail { background: var(--ut-gold, #c9a84c); }
-.t4 .rail {
-  background: #f0a53a;
-  box-shadow: 0 0 6px rgba(240, 165, 58, 0.6);
-}
-.t1 .rvol { color: var(--nh-sym, var(--wl-sym, var(--text-bright))); }
-.t2 .rvol { color: rgba(201, 168, 76, 0.9); }
-.t3 .rvol { color: var(--ut-gold, #c9a84c); }
-.t4 .rvol { color: #f7b24a; }
+/* ── Lit rows: the WHOLE row fills with its relative-volume tier colour, dark ink.
+   A TC2000-style intensity ramp: blue → teal → green → amber → hot-orange. ──────── */
+.lit .sym,
+.lit .surge { color: #0c0c0f; }
+.t1 { background: #4a9eef; }   /* Notable   (2–3×)  */
+.t2 { background: #2ec4b6; }   /* Elevated  (3–4×)  */
+.t3 { background: #58c94b; }   /* High      (4–6×)  */
+.t4 { background: #ffc21f; }   /* Very High (6–10×) */
+.t5 { background: #ff7a1a; }   /* Extreme   (10×+)  */
+.lit:hover { filter: brightness(1.07); }
 
-/* Unlit rows: every top-N name is shown ranked by RVOL, but names that don't meet
-   the criteria are dimmed to grey (no rail colour, muted text) so the coloured
-   signals pop and the greyed ones read as "elevated number, not actionable". */
-.unlit { opacity: 0.72; }
-.unlit .rail { background: transparent; }
-.unlit .sym { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 500; }
-.unlit .rvol { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 600; }
-.unlit .move { color: var(--nh-text, var(--wl-text, var(--text-muted))); }
-.unlit:hover { opacity: 1; }
+/* Unlit rows: dark, with a dimmed RVOL so the full ranking is still readable. */
+.unlit .sym { color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright)))); }
+.unlit .surge { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 600; opacity: 0.62; }
+.unlit:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
+
+/* ── Live-tick flash: a brief green/red wash on every price tick (fills the row
+   behind the text, fades out fast). On a coloured row it reads as a quick pulse. ── */
+.tick {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.tickUp { background: var(--nh-up, var(--ut-green-bright, #34d17c)); animation: volTick 0.5s ease-out; }
+.tickDown { background: var(--nh-down, var(--ut-red-bright, #f24b42)); animation: volTick 0.5s ease-out; }
+@keyframes volTick {
+  0% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tickUp, .tickDown { animation: none; }
+}
 
 .none {
   padding: 22px 16px;
@@ -126,9 +104,8 @@
   opacity: 0.8;
 }
 
-/* Responsive: shed the price column first as the widget narrows, then the caption. */
-@container (max-width: 340px) {
-  .row { grid-template-columns: 4px minmax(40px, 1fr) 54px 44px; }
-  .price, .hcPrice { display: none; }
-  .headCols { grid-template-columns: 54px 44px; }
+/* Very thin: shrink the symbol tracking + padding so the two columns stay close. */
+@container (max-width: 150px) {
+  .row { padding: 5px 6px; gap: 4px; }
+  .sym { letter-spacing: 0.3px; }
 }

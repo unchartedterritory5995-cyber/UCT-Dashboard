@@ -458,9 +458,10 @@ export const WIDGET_REGISTRY = deepFreeze({
   },
   volumescan: {
     // "Volume Surge": live relative-volume leaderboard (sustained volume spike +
-    // real price move). A single tall ranked list — wants height, medium width.
+    // real price move). A single tall ranked list — just two short columns (Symbol ·
+    // RVOL), so minW is 2 (like the Watchlist) — it can be dragged very thin.
     labels: { header: 'Volume Surge', menu: 'Volume Surge', tab: 'Volume' },
-    defaults: { w: 6, h: 12, minW: 3, minH: 5 },
+    defaults: { w: 6, h: 12, minW: 2, minH: 5 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,

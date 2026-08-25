@@ -91,7 +91,7 @@ describe('widget registry — metadata pins', () => {
       periodsort:   { w: 6,  h: 12, minW: 3, minH: 5 },
       nhnl:         { w: 8,  h: 12, minW: 3, minH: 5 },
       nhnlPulse:    { w: 6,  h: 8,  minW: 3, minH: 4 },
-      volumescan:   { w: 6,  h: 12, minW: 3, minH: 5 },
+      volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
     })
   })
 

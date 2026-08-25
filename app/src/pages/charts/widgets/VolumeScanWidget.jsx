@@ -51,13 +51,26 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
-// A single row. Every top-N name is shown, always ranked by RVOL; only names that
-// MEET the surge criteria (`lit`) are coloured — the rest are dimmed to grey, so the
-// ranking is always visible but the colour tells you what's an actual signal. RVOL
-// is the headline (colour-tiered), the move column is the short-window price change,
-// price is the tradable level. Clicking charts the ticker.
+// Live-tick flash: re-mounts a brief tinted overlay whenever a row's price changes,
+// so every price tick pulses the row (green up / red down) — the "it's live" cue.
+// Keyed by the price value so it only fires on a real change, never on first mount.
+function TickFlash({ price, dir }) {
+  const prev = useRef(price)
+  const [k, setK] = useState(0)
+  useEffect(() => {
+    if (prev.current != null && price != null && price !== prev.current) setK((x) => x + 1)
+    prev.current = price
+  }, [price])
+  if (k === 0) return null
+  return <span key={k} className={`${styles.tick} ${dir === 'up' ? styles.tickUp : styles.tickDown}`} aria-hidden="true" />
+}
+
+// Two columns only — Symbol · Vol Surge (the RVOL ×). Every top-N name is shown,
+// ranked by RVOL (lit first); a name that MEETS the criteria lights the WHOLE row
+// in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
+// each price tick the row flashes. Clicking charts the ticker.
 function Row({ e, onPick }) {
-  const cls = e.lit ? styles['t' + (e.tier || 1)] : styles.unlit
+  const cls = e.lit ? `${styles.lit} ${styles['t' + (e.tier || 1)]}` : styles.unlit
   return (
     <button
       type="button"
@@ -66,13 +79,9 @@ function Row({ e, onPick }) {
       onClick={() => onPick(e.sym)}
       title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`}
     >
-      <span className={styles.rail} aria-hidden="true" />
+      <TickFlash price={e.price} dir={e.dir} />
       <span className={styles.sym}>{e.sym}</span>
-      <span className={styles.price}>{fmtPrice(e.price)}</span>
-      <span className={`${styles.move} ${e.lit ? (e.dir === 'up' ? styles.up : styles.down) : ''}`}>
-        {e.dir === 'up' ? '▲' : '▼'}{fmtPct(e.move).replace('+', '')}
-      </span>
-      <span className={styles.rvol}>{e.rvol}×</span>
+      <span className={styles.surge}>{e.rvol}×</span>
     </button>
   )
 }
@@ -212,13 +221,9 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
       ) : (
         <div className={chrome.rows} role="list">
           <div className={`${chrome.sideHead} ${styles.head}`}>
-            <span className={styles.headTitle}>
-              RELATIVE VOLUME{total > 0 ? <span className={styles.headCount}> · {total} surging</span> : ''}
-            </span>
-            <span className={styles.headCols}>
-              <span className={styles.hcPrice}>PRICE</span>
-              <span className={styles.hcMove}>MOVE</span>
-              <span className={styles.hcRvol}>RVOL</span>
+            <span className={styles.headSym}>SYMBOL</span>
+            <span className={styles.headSurge}>
+              VOL SURGE{total > 0 ? <span className={styles.headCount}> · {total}</span> : ''}
             </span>
           </div>
           {rows.length === 0 ? (

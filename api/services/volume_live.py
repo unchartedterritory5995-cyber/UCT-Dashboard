@@ -435,14 +435,17 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
 
 
 def _tier(rvol: float) -> int:
-    """Colour tier by relative volume: 4 = hottest."""
+    """Colour tier by relative volume: 5 = hottest (Extreme) … 1 = Notable.
+    (TC2000-style filled blocks: blue → teal → green → amber → hot-orange.)"""
     if rvol >= 10:
-        return 4
+        return 5   # Extreme
     if rvol >= 6:
-        return 3
+        return 4   # Very High
     if rvol >= 4:
-        return 2
-    return 1
+        return 3   # High
+    if rvol >= 3:
+        return 2   # Elevated
+    return 1       # Notable (the lit floor, rvol >= min_rvol)
 
 
 def status() -> dict:
