@@ -454,6 +454,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         # used so the weekly series has real depth rather than 400 sessions.
         row.update(_step("bars_weekly_candle",
                          lambda: candles.weekly_candle(bars_full)))
+        row.update(_step("bars_monthly_candle",
+                         lambda: candles.monthly_candle(bars_full)))
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))

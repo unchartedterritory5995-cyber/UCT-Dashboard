@@ -93,6 +93,7 @@ COLUMNS = [
     "candle_recent_status",
     # the WEEKLY bar's structure, resampled from the daily series
     "candle_weekly", "candle_weekly_label",
+    "candle_monthly", "candle_monthly_label",
     # multi candle
     "inside_bar_run", "tight_consolidation", "pullback_depth_pct",
     "higher_lows_run", "nr7", "consecutive_up", "consecutive_down",
@@ -142,6 +143,7 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "bar_character", "bar_character_label",
          "candle_recent", "candle_recent_label", "candle_recent_status",
          "candle_weekly", "candle_weekly_label",
+         "candle_monthly", "candle_monthly_label",
          "patterns", "snapshot_date", "bars_asof",
          # Wave 1. `accdis` joins _TEXT here too: it has always held letter
          # grades in a REAL-declared column (latent since v1; SQLite dynamic

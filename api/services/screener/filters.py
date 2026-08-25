@@ -395,6 +395,11 @@ FILTERS = dict([
               {"label": p.label, "op": "eq", "value": p.key}
               for p in sorted(candle_catalog.ALL_PATTERNS,
                               key=lambda q: (q.axis != "relation", q.rank))]),
+    _enum("candle_monthly", "Monthly Candle", "single_candle", "candle_monthly",
+          [{"label": "Any"}] + [
+              {"label": p.label, "op": "eq", "value": p.key}
+              for p in sorted(candle_catalog.ALL_PATTERNS,
+                              key=lambda q: (q.axis != "relation", q.rank))]),
     _enum("candle_recent_status", "Next Open After Pattern", "single_candle",
           "candle_recent_status",
           [{"label": "Any"},
@@ -763,7 +768,7 @@ VIEWS = {
         # this block was written for, three waves earlier. `candle_type` was the
         # only one of the five visible anywhere.
         "ticker", "company", "candle_type", "candle_trend", "bar_character",
-        "candle_recent", "candle_recent_bars_ago", "candle_weekly",
+        "candle_recent", "candle_recent_bars_ago", "candle_weekly", "candle_monthly",
         "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
         "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
 }

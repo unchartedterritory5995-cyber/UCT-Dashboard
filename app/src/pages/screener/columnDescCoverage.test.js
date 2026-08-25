@@ -45,6 +45,7 @@ const MUST_DOCUMENT = [
   'candle_recent',
   // the same vocabulary on the weekly bar, resampled from daily
   'candle_weekly',
+  'candle_monthly',
 ]
 
 describe('member-facing column descriptions', () => {

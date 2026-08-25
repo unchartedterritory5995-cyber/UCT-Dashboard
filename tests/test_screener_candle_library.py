@@ -592,3 +592,54 @@ def test_weekly_is_absent_not_wrong_on_thin_history():
     assert candles.weekly_candle([])["candle_weekly"] is None
     one = [{"t": 20260821, "o": 10, "h": 11, "l": 9, "c": 10, "v": 1}]
     assert candles.weekly_candle(one)["candle_weekly"] is None
+
+
+# ── monthly: the same machinery, one bucket up ──────────────────────────────
+def test_monthly_uses_the_same_implementation_as_weekly():
+    """⛔ ONE IMPLEMENTATION FOR EVERY HIGHER TIMEFRAME. Weekly and monthly differ
+    only in which shared resampler they call and how "the bucket is closed" is
+    tested. Two copies would be two authorities on what a resampled candle IS."""
+    import inspect
+    for fn in (candles.weekly_candle, candles.monthly_candle):
+        assert "_timeframe_candle" in inspect.getsource(fn)
+    assert set(candles._HIGHER_TF) == {"weekly", "monthly"}
+
+
+def test_the_month_end_test_handles_leap_years():
+    import datetime as dt
+    closed = candles._HIGHER_TF["monthly"][1]
+    for iso, want in (("2026-08-31", True), ("2026-08-21", False),
+                      ("2026-02-28", True), ("2024-02-29", True),
+                      ("2024-02-28", False), ("2026-04-30", True)):
+        assert closed(dt.date.fromisoformat(iso)) is want, iso
+
+
+def test_an_unfinished_month_says_it_is_forming():
+    """⚠️ Measured on the live tape: ALL 3,699 named monthly bars read (forming),
+    because the data ends 2026-08-21 and August had not closed. That is the guard
+    working, not a bug."""
+    import datetime as dt
+    bars, p = [], 50.0
+    d = dt.date(2025, 1, 1)
+    while d < dt.date(2026, 8, 22):
+        if d.isoweekday() <= 5:
+            bars.append({"t": int(d.strftime("%Y%m%d")), "o": p, "h": p + 0.5,
+                         "l": p - 0.5, "c": p, "v": 1_000_000})
+        d += dt.timedelta(days=1)
+    out = candles.monthly_candle(bars)
+    assert out["candle_monthly"] in cat.BY_KEY
+    assert "(forming)" in out["candle_monthly_label"]
+
+
+def test_a_closed_month_does_not_say_forming():
+    """⛔ THE CONTROL — a suffix that never comes off is not a signal."""
+    import datetime as dt
+    bars, p = [], 50.0
+    d = dt.date(2025, 1, 1)
+    while d <= dt.date(2026, 7, 31):
+        if d.isoweekday() <= 5:
+            bars.append({"t": int(d.strftime("%Y%m%d")), "o": p, "h": p + 0.5,
+                         "l": p - 0.5, "c": p, "v": 1_000_000})
+        d += dt.timedelta(days=1)
+    out = candles.monthly_candle(bars)
+    assert "(forming)" not in out["candle_monthly_label"], out
