@@ -221,7 +221,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           aria-label="Group scope"
           title="Group by"
         >
-          <option value="all">All stocks</option>
+          <option value="all">UCT Universe</option>
           <option value="sector">Sector</option>
           <option value="industry">Industry</option>
           <option value="theme">Theme</option>
