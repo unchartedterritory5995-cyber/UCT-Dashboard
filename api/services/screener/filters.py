@@ -19,6 +19,9 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
+from . import bar_character, candle_catalog
+
+
 def _range(key, label, category, column, presets, unit=None):
     return key, {"label": label, "category": category, "type": "range",
                  "column": column, "presets": presets, "allow_custom": True,
@@ -346,21 +349,33 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%"),
     # ── single candle ──
-    _enum("candle_type", "Candle Type", "single_candle", "candle_type",
+    # ⛔ QUERIES `candle_matches`, NOT `candle_type`. A bar routinely satisfies
+    # several patterns; `candle_type` holds only the one that RENDERS. Screening
+    # the rendered head would silently drop every hammer that was also an
+    # engulfing — the same information loss as the old if/elif chain, moved one
+    # layer up. `candle_matches` holds the complete set, delimiter-wrapped so
+    # `contains` is an exact-token test.
+    # ⭐ The 62 options are DERIVED from `candle_catalog`; the seven that used to
+    # be typed here were a second authority and drifted the moment the library grew.
+    _enum("candle_type", "Candle Type", "single_candle", "candle_matches",
+          candle_catalog.enum_options()),
+    _enum("candle_trend", "Prior Trend", "single_candle", "candle_trend",
           [{"label": "Any"},
-           {"label": "Hammer", "op": "eq", "value": "hammer"},
-           {"label": "Doji", "op": "eq", "value": "doji"},
-           {"label": "Bullish Engulfing", "op": "eq", "value": "bullish-engulfing"},
-           {"label": "Bearish Engulfing", "op": "eq", "value": "bearish-engulfing"},
-           {"label": "Shooting Star", "op": "eq", "value": "shooting-star"},
-           {"label": "Marubozu", "op": "eq", "value": "marubozu"},
-           {"label": "Spinning Top", "op": "eq", "value": "spinning-top"}]),
+           {"label": "Uptrend", "op": "eq", "value": "up"},
+           {"label": "Downtrend", "op": "eq", "value": "down"},
+           {"label": "No clear trend", "op": "eq", "value": "neutral"}]),
     _bool("wide_bar", "Wide Bar (>1.5 ATR)", "single_candle", "wide_bar"),
     _bool("narrow_bar", "Narrow Bar (<0.5 ATR)", "single_candle", "narrow_bar"),
     _range("close_position", "Close Position in Range", "single_candle", "close_position",
            [{"label": "Any"},
             {"label": "Top third (>0.66)", "op": "gte", "min": 0.66},
             {"label": "Bottom third (<0.33)", "op": "lte", "max": 0.33}]),
+    # ⭐ 53 options DERIVED from the cascade in `bar_character`. This is a
+    # different question from Candle Type — that one asks what SHAPE the bar is,
+    # this asks what it DID: gapped and held, failed at the 20-day high, churned
+    # on heavy volume. Candle geometry cannot see any of those.
+    _enum("bar_character", "Bar Character", "single_candle", "bar_character",
+          bar_character.enum_options()),
     # ── multi candle ──
     _bool("tight_consolidation", "Tight Consolidation", "multi_candle", "tight_consolidation"),
     _bool("nr7", "NR7 (narrowest of 7)", "multi_candle", "nr7"),

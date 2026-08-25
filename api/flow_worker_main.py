@@ -520,6 +520,27 @@ def _start_flow_schedulers():
         except Exception as e:  # noqa: BLE001
             log.warning("Morning OI scheduling failed: %s", e)
 
+        try:
+            # Massive/OCC-accurate daily OI capture for the OI Update card — ISOLATED
+            # (own table oi_massive_snapshots; shared oi_snapshots untouched). 07:00 ET
+            # weekdays, before the 08:00 card, after OCC updates overnight. Dark until
+            # OI_MASSIVE_ENABLED=1. Fixes the Schwab-lags-OCC data bug (verified 8/24).
+            if os.getenv("OI_MASSIVE_ENABLED", "0") == "1":
+                from apscheduler.triggers.cron import CronTrigger as _OIMassCron
+                from api import oi_massive_snapshots as _oms
+                _oms.init_db()
+                sched.add_job(_oms.capture_job,
+                              trigger=_OIMassCron(day_of_week="mon-fri", hour=7, minute=0,
+                                                  timezone=ZoneInfo("America/New_York")),
+                              id="oi_massive_capture", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Massive-OI capture cron registered (07:00 ET weekdays)")
+            else:
+                log.info("[startup] Massive-OI capture disabled (set OI_MASSIVE_ENABLED=1)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Massive-OI capture scheduling failed: %s", e)
+
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "

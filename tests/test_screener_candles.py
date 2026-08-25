@@ -5,21 +5,29 @@ def _bar(o, h, l, c, v=1_000_000):
     return {"o": o, "h": h, "l": l, "c": c, "v": v}
 
 
-def test_hammer_detected():
+def test_umbrella_geometry_without_a_trend_is_not_called_a_hammer():
+    """⛔ HAMMER AND HANGING MAN ARE ONE GEOMETRY. With only 20 bars of flat
+    context there is no prior trend, and a directional name here would carry the
+    WRONG SIGN roughly half the time — worse than no name. The honest answer is
+    the shape."""
     bars = [_bar(10, 10.2, 9.9, 10.0) for _ in range(20)]
-    # long lower wick, small body near top
     bars.append(_bar(10.0, 10.1, 9.0, 9.95))
     out = candles.single_candle(bars)
-    assert out["candle_type"] == "hammer"
+    assert out["candle_type"] == "umbrella"
+    assert out["candle_trend"] == "unknown"
     assert out["lower_wick_pct"] > out["body_pct"]
     assert 0.0 <= out["close_position"] <= 1.0
 
 
 def test_doji_detected():
+    """A tiny body with SUBSTANTIAL WICKS BOTH WAYS is the long-legged doji
+    (rickshaw man), not the bare doji — the old library had no sub-type and
+    collapsed the two."""
     bars = [_bar(10, 10.2, 9.8, 10.0) for _ in range(20)]
     bars.append(_bar(10.0, 10.5, 9.5, 10.01))  # tiny body, balanced range
     out = candles.single_candle(bars)
-    assert out["candle_type"] == "doji"
+    assert out["candle_type"] == "long-legged-doji"
+    assert out["body_pct"] <= 0.10
 
 
 def test_inside_bar_run_and_nr7():
