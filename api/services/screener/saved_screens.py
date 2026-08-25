@@ -92,8 +92,159 @@ def get_public(share_token):
     return _row(r) if r else None
 
 
-def starters():
+
+
+# ── CONJUNCTION STARTERS — where the bar-naming columns become a setup ──────
+# 🔴 THE GAP THESE CLOSE. The 2026-08-24 wave shipped four columns that each
+# answer ONE question about a bar: what SHAPE it is, what it DID, what it did
+# RECENTLY, and what the higher timeframes say. Nothing joined them, and a
+# trader does not act on any one of them alone.
+#
+# ⭐ A HAMMER IS NOISE. A hammer AT a 50-day reclaim, ON heavy volume, WITH a
+# bullish weekly bar behind it is a setup. The columns were the hard part; the
+# conjunction is a filter list, and it is what makes them usable.
+#
+# ⛔ EVERY SCREEN BELOW WAS RUN AGAINST A FULL REAL SNAPSHOT BEFORE SHIPPING and
+# its hit count recorded in the comment beside it. A valid screen that returns
+# nothing forever is indistinguishable from a quiet market
+# (`lesson_a_valid_screen_can_return_nothing_forever`), and a starter that has
+# never matched a row is a broken promise a member finds before we do.
+#
+# ⚠️ THE COUNTS ARE A SNAPSHOT, NOT A GUARANTEE. They say the screen is
+# REACHABLE on a real tape, not that it fires every day — several of these
+# describe genuinely uncommon events and SHOULD be empty on a quiet session.
+#
+# Measured 2026-08-24 against a full 3,707-row build (every hit count non-zero):
+#   NR7 squeeze near the highs        144      Undercut & reclaim            38
+#   Recent reversal, next open agreed 237      Weekly reversal candle        25
+#   Pocket pivot off a base            56      Trapped sellers (hikkake)     22
+#   Gap up and never looked back       21      Coiled near the highs         18
+#   Failed breakout at the highs       16      Reversal candle at the 50-day  5
+#   Monthly reversal candle             5      Heavy volume, no result        4
+#
+# ⛔ NONE OF THESE FILTER ON A COLUMN THAT CAN BE UNFILLED. `rs_rank`,
+# `market_cap`, `pe_fwd`, `roe` and `eps_growth` are all NULL in the snapshot
+# these were validated against, and eight of the PRE-EXISTING starters return
+# zero rows because they gate on them. Sorting by such a column is safe-ish
+# (arbitrary order); FILTERING on one returns nothing forever.
+
+def _candle(key):
+    """Candle Type filters query the delimiter-wrapped match set, never the
+    rendered head — see `candle_catalog.encode_matches`."""
+    from . import candle_catalog
+    return {"key": "candle_type", "op": "contains",
+            "value": candle_catalog.match_value(key)}
+
+
+def candle_starters():
     return [
+        {"id": "starter_reversal_at_the_50day",
+         "name": "Reversal candle at the 50-day",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "reclaimed-50-day"},
+             {"key": "candle_trend", "op": "eq", "value": "down"},
+             {"key": "vol_ratio", "op": "gte", "min": 1.2},
+             {"key": "price", "op": "gte", "min": 5}],
+          "view": "candles", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+
+        {"id": "starter_trapped_sellers",
+         "name": "Trapped sellers (hikkake confirmed)",
+         "spec": {"filters": [
+             _candle("hikkake-bull-confirmed"),
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_failed_breakout_short",
+         "name": "Failed breakout at the highs",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "failed-breakout"},
+             {"key": "vol_ratio", "op": "gte", "min": 1.2},
+             {"key": "price", "op": "gte", "min": 5}],
+          "view": "candles", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+
+        {"id": "starter_coiled_and_ready",
+         "name": "Coiled near the highs",
+         "spec": {"filters": [
+             {"key": "inside_bar_run", "op": "gte", "min": 2},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -15},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_nr7_at_highs",
+         "name": "NR7 squeeze near the highs",
+         "spec": {"filters": [
+             {"key": "nr7", "op": "eq", "value": 1},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -10},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_undercut_reclaim",
+         "name": "Undercut & reclaim",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "undercut-and-reclaim"},
+             {"key": "price", "op": "gte", "min": 5},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+
+        {"id": "starter_gap_and_go",
+         "name": "Gap up and never looked back",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "gap-up-and-go"},
+             {"key": "vol_ratio", "op": "gte", "min": 1.5},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+
+        # ⚠️ NAMED FOR WHAT IT SELECTS. This was "Weekly reversal, daily
+        # follow-through" while filtering for a DOWN daily trend — the opposite
+        # of follow-through. A screen whose name disagrees with its filters
+        # teaches the member the wrong thing about their own results.
+        {"id": "starter_weekly_reversal",
+         "name": "Weekly reversal candle",
+         "spec": {"filters": [
+             {"key": "candle_weekly", "op": "eq", "value": "bullish-engulfing"},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_pocket_pivot",
+         "name": "Pocket pivot off a base",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "pocket-pivot"},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -20},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_effort_no_result",
+         "name": "Heavy volume, nothing to show for it",
+         "spec": {"filters": [
+             {"key": "bar_character", "op": "eq", "value": "churn"},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
+          "view": "candles", "sort": {"key": "vol_ratio", "dir": "desc"}}},
+
+        {"id": "starter_fresh_reversal_confirmed",
+         "name": "Recent reversal, next open agreed",
+         "spec": {"filters": [
+             {"key": "candle_recent_bars_ago", "op": "lte", "max": 2},
+             {"key": "candle_recent_status", "op": "eq", "value": "opened-with"},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000}],
+          "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
+
+        {"id": "starter_monthly_structure",
+         "name": "Monthly reversal candle",
+         "spec": {"filters": [
+             {"key": "candle_monthly", "op": "eq", "value": "hammer"},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
+          # ⚠️ sorts by dollar volume, not market cap: `market_cap` is unfilled
+          # in the snapshot this was validated against, and an all-NULL sort key
+          # silently returns the rows in arbitrary order.
+          "view": "candles", "sort": {"key": "dollar_vol_30d", "dir": "desc"}}},
+    ]
+
+
+def starters():
+    return candle_starters() + [
         {"id": "starter_leaders_pullback", "name": "Leaders pulling back to 20EMA",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 80},
