@@ -93,11 +93,16 @@ export default function NhnlPulseWidget({ opts }) {
   const series = data?.series || []
   const option = useMemo(() => makeOption(series), [series])
 
-  const hi = data?.highs_total || 0
-  const lo = data?.lows_total || 0
-  const tot = hi + lo
-  const pctHi = tot ? Math.round((hi / tot) * 100) : 50
+  // Live readout: average the last ~4 points (~1 min) so the numbers don't jitter.
+  const recent = series.slice(-4)
+  const curHi = recent.length ? Math.round(recent.reduce((s, p) => s + (p.hi || 0), 0) / recent.length) : 0
+  const curLo = recent.length ? Math.round(recent.reduce((s, p) => s + (p.lo || 0), 0) / recent.length) : 0
+  const net = curHi - curLo
+  const tot = curHi + curLo
+  const pctHi = tot ? Math.round((curHi / tot) * 100) : 50
   const pctLo = 100 - pctHi
+  const peakHi = series.reduce((m, p) => Math.max(m, p.hi || 0), 0)
+  const peakLo = series.reduce((m, p) => Math.max(m, p.lo || 0), 0)
 
   // RGL resizes the container without a window resize event, so drive echarts' resize
   // off a ResizeObserver on the chart wrapper.
@@ -131,21 +136,34 @@ export default function NhnlPulseWidget({ opts }) {
           </div>
         </div>
       ) : (
-        <div className={styles.body}>
-          <div className={styles.ratioBar}
-            title={`${pctHi}% of names at a new high · ${pctLo}% at a new low today`}>
-            <div className={styles.ratioHigh} style={{ height: `${pctHi}%` }}>
-              <span className={styles.ratioTxt}>{pctHi}%</span>
-            </div>
-            <div className={styles.ratioLow} style={{ height: `${pctLo}%` }}>
-              <span className={styles.ratioTxt}>{pctLo}%</span>
-            </div>
+        <>
+          {/* Breadth readout: live count chips + a horizontal tilt meter (our take on
+              the ratio, not a vertical rail). */}
+          <div className={styles.statStrip}>
+            <span className={`${styles.stat} ${styles.statHigh}`}>
+              <i aria-hidden="true" />New Highs <b>{curHi}</b>
+            </span>
+            <span className={`${styles.stat} ${styles.statLow}`}>
+              <i aria-hidden="true" />New Lows <b>{curLo}</b>
+            </span>
+            <span className={`${styles.stat} ${net >= 0 ? styles.statHigh : styles.statLow}`}>
+              Net <b>{net >= 0 ? '+' : ''}{net}</b>
+            </span>
+            <span className={styles.spacer} />
+            <span className={styles.peak} title="Session peak — highs / lows">
+              peak {peakHi} / {peakLo}
+            </span>
+          </div>
+          <div className={styles.tiltBar} title={`${pctHi}% new highs · ${pctLo}% new lows (now)`}>
+            <div className={styles.tiltHigh} style={{ width: `${pctHi}%` }} />
+            <div className={styles.tiltLow} style={{ width: `${pctLo}%` }} />
+            <div className={styles.tiltCenter} aria-hidden="true" />
           </div>
           <div ref={wrapRef} className={styles.chartWrap}>
             <ReactECharts ref={chartRef} option={option} notMerge={false} lazyUpdate
               style={{ height: '100%', width: '100%' }} />
           </div>
-        </div>
+        </>
       )}
     </div>
   )
