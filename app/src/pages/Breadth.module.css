@@ -6,7 +6,9 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 14px;
+  /* Small gap only — the table's top hairline butts up under the toolbar so the
+     grid meets the header instead of floating below a dark band. */
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
@@ -154,7 +156,15 @@
 }
 
 /* ── Group header colors ─────────────────────────────────────────────────────── */
-.ghDate     { background: var(--bg-elevated); color: var(--text-muted); }
+/* Date column header spans both header rows (rowSpan 2). Bottom-align + brighten
+   so "Date" sits on the same baseline as the column labels (Health, UCT Exp…)
+   instead of floating in the middle of a tall empty box. */
+.ghDate {
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  vertical-align: bottom;
+  font-weight: 700;
+}
 .ghScore    { background: #141414; color: var(--accent); font-weight: 900; }
 .ghRegime   { background: #1a1f2e; color: #7b9fc7; }
 .ghPrimary  { background: #1f2012; color: #b8c94a; }
@@ -167,7 +177,9 @@
 /* ── Body cells ──────────────────────────────────────────────────────────────── */
 .td {
   padding: 6px 12px;
-  text-align: right;
+  /* Centered: each cell is a coloured heatmap tile, so the value reads best
+     sitting in the middle of its tile rather than hugging the right edge. */
+  text-align: center;
   color: var(--text);
   border-right: 1px solid rgba(255,255,255,0.03);
   border-bottom: 1px solid rgba(255,255,255,0.03);
