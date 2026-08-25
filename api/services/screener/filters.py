@@ -384,6 +384,17 @@ FILTERS = dict([
           [{"label": "Any"}] + [
               {"label": p.label, "op": "eq", "value": p.key}
               for p in sorted(candle_catalog.RELATIONS, key=lambda q: q.rank)]),
+    # ⛔ NAMED FOR WHAT HAPPENED, NOT FOR A VERDICT. "Confirmed" would read as
+    # evidence the pattern worked; measured 2026-08-24 it tracks the market's own
+    # opening-gap base rate (51.1% up) almost exactly and adds nothing — see
+    # `candles._confirmation`. The fact is still worth filtering on.
+    _enum("candle_recent_status", "Next Open After Pattern", "single_candle",
+          "candle_recent_status",
+          [{"label": "Any"},
+           {"label": "Went with the pattern", "op": "eq", "value": "opened-with"},
+           {"label": "Went against it", "op": "eq", "value": "opened-against"},
+           {"label": "Opened flat", "op": "eq", "value": "opened-flat"},
+           {"label": "Too soon to say", "op": "eq", "value": "provisional"}]),
     _range("candle_recent_bars_ago", "Pattern Age", "single_candle",
            "candle_recent_bars_ago",
            [{"label": "Any"},

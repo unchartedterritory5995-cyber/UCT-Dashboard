@@ -327,7 +327,8 @@ def test_a_pattern_that_completed_yesterday_is_still_reported():
     assert _rels(age), f"nothing at the reported age {age}"
     for nearer in range(age):
         assert not _rels(nearer), f"a nearer relation at {nearer} was skipped"
-    assert (rec["candle_recent_label"].endswith(f"({age}d ago)")
+    # the age marker is present; a "next open went ..." fragment may follow it
+    assert (f"({age}d ago)" in rec["candle_recent_label"]
             if age else "ago" not in rec["candle_recent_label"])
 
 
@@ -356,10 +357,78 @@ def test_the_lookback_never_reports_a_shape():
 
 
 def test_the_lookback_is_bounded_and_safe_on_short_history():
-    assert candles.recent_relation([]) == {
-        "candle_recent": None, "candle_recent_bars_ago": None,
-        "candle_recent_label": None}
+    # ⭐ every field absent, asserted by VALUE rather than by an exact dict —
+    # a literal here goes stale the moment the shape gains a field, which is
+    # exactly what happened when the T+1 status landed.
+    empty = candles.recent_relation([])
+    assert set(empty) >= {"candle_recent", "candle_recent_bars_ago",
+                          "candle_recent_label", "candle_recent_status"}
+    assert all(v is None for v in empty.values()), empty
     candles.recent_relation([_bar(10, 11, 9, 10)])            # must not raise
     rec = candles.recent_relation(_downtrend(), window=candles.RECENT_WINDOW)
     if rec["candle_recent_bars_ago"] is not None:
         assert 0 <= rec["candle_recent_bars_ago"] < candles.RECENT_WINDOW
+
+
+# ── T+1: what the next session's open did ───────────────────────────────────
+def test_todays_pattern_cannot_be_resolved_and_says_so():
+    """⛔ StockCharts: "without confirmation, these patterns would be considered
+    neutral". A pattern printed TODAY has no session after it, so the only
+    honest answer is `provisional` — never a verdict."""
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    rec = candles.recent_relation(bars)
+    assert rec["candle_recent_bars_ago"] == 0
+    assert rec["candle_recent_status"] == "provisional"
+
+
+def test_the_status_states_the_fact_and_never_a_verdict():
+    """🔴 MEASURED 2026-08-24: across 1,043 resolved patterns the bullish side
+    "confirmed" 59.9% and the bearish 36.4%, while the universe's own opening-gap
+    base rate over the same sessions was 51.1% up / 35.8% down — which predicts
+    59% and 41% BEFORE any pattern is considered. The patterns added nothing.
+
+    ⛔ So the vocabulary may never imply validation. `confirmed`/`failed` would
+    read to a member as evidence the pattern worked when it mostly means the
+    market gapped up that day."""
+    banned = {"confirmed", "failed", "valid", "invalid", "success", "worked"}
+
+    # ⭐ EXERCISE `_confirmation` DIRECTLY. Driving this through
+    # `recent_relation` is fragile: the session appended to create the "next
+    # open" can itself form a NEW pattern at age 0, and the lookback then
+    # correctly reports THAT one as provisional — which is right behaviour and
+    # the wrong thing to be testing here.
+    def _after(next_open_delta):
+        bars = _flat(60, price=50.0)
+        bars.append(_bar(49.5, 50.6, 49.4, 50.5))           # the pattern bar
+        o = 50.5 + next_open_delta
+        bars.append(_bar(o, o + 0.4, o - 0.4, o + 0.05))    # the next session
+        return candles._confirmation(bars, 1, cat.BY_KEY["bullish-engulfing"])
+
+    seen = {_after(+1.5), _after(-1.5), _after(0.0)}
+    # ⛔ NOT VACUOUS: all three outcomes must actually be produced, or this
+    # asserts nothing about a vocabulary that was never exercised.
+    assert seen == {"opened-with", "opened-against", "opened-flat"}, seen
+    assert not (seen & banned)
+
+
+def test_a_neutral_pattern_has_nothing_to_resolve():
+    """⚠️ Harami cross, tri-star and separating lines carry NO directional claim,
+    so they must return None rather than be forced into a pass/fail they never
+    asserted."""
+    for key in ("harami-cross", "tri-star", "separating-lines"):
+        assert cat.BY_KEY[key].bias == "neutral"
+        assert candles._confirmation([_bar(10, 11, 9, 10)] * 3, 1,
+                                     cat.BY_KEY[key]) is None
+
+
+def test_a_one_tick_open_is_not_the_market_going_your_way():
+    """⛔ An open one cent above the close is not the market opening in your
+    favour; it is the same price. Uses the same band the geometry does."""
+    bars = _flat(60, price=50.0)
+    bars.append(_bar(50, 50.6, 49.6, 50.5))
+    bars.append(_bar(50.51, 51.0, 50.4, 50.9))       # opens 1c above the close
+    st = candles._confirmation(bars, 1, cat.BY_KEY["bullish-engulfing"])
+    assert st == "opened-flat"

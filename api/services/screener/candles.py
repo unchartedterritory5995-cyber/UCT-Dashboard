@@ -329,7 +329,7 @@ def recent_relation(bars: list[dict], window: int = RECENT_WINDOW) -> dict:
     """
     from . import candle_catalog as cat
     out = {"candle_recent": None, "candle_recent_bars_ago": None,
-           "candle_recent_label": None}
+           "candle_recent_status": None, "candle_recent_label": None}
     if not bars:
         return out
     for age in range(max(1, window)):
@@ -341,8 +341,75 @@ def recent_relation(bars: list[dict], window: int = RECENT_WINDOW) -> dict:
                 if k in cat.RELATION_KEYS]
         if rels:
             best = min(rels, key=lambda p: (p.rank, p.key))
+            status = _confirmation(bars, age, best)
+            suffix = "" if age == 0 else f" ({age}d ago)"
+            if status in ("opened-with", "opened-against"):
+                suffix += " — next open went " + (
+                    "with it" if status == "opened-with" else "against it")
             return {"candle_recent": best.key,
                     "candle_recent_bars_ago": age,
-                    "candle_recent_label": best.label + (
-                        "" if age == 0 else f" ({age}d ago)")}
+                    "candle_recent_status": status,
+                    "candle_recent_label": best.label + suffix}
     return out
+
+
+def _confirmation(bars, age, pattern):
+    """Did the session AFTER the pattern open in the direction the pattern implies?
+
+    ⭐ THE OPENING GAP IS THE ONLY ONE OF THE THREE CLASSICAL CONFIRMATION
+    METHODS WITH MEASURED SUPPORT — Bulkowski put it at 82% against the next
+    bar's colour at 13% and its close at 5%. Colour and close are what most
+    retail material teaches, and both are close to worthless.
+
+    🔴 BUT WE MEASURED WHAT IT IS ACTUALLY WORTH HERE, AND IT IS NOT EDGE.
+    On 2026-08-24 across 1,043 resolved patterns: bullish "confirmed" 59.9%,
+    bearish 36.4%. The universe's own opening-gap base rate over those same
+    sessions was 51.1% up / 35.8% down — which predicts 59% and 41% BEFORE any
+    pattern is considered. The patterns added nothing, and the bearish side came
+    in slightly WORSE than chance.
+
+    ⛔ SO THE STATES ARE NAMED FOR WHAT HAPPENED, NOT FOR A VERDICT.
+    "Confirmed" would read to a member as evidence the pattern worked, when it
+    mostly means the market gapped up that day — which it does about half the
+    time. `opened-with` / `opened-against` assert only the fact, which is real
+    information about that stock and survives the base-rate problem intact. It
+    also keeps the column inside the standing rule that it describes and does not
+    forecast.
+
+    ⛔ AND IT IS WHY A SAME-DAY LABEL MAY NOT CLAIM A REVERSAL. StockCharts is
+    blunt about it — *"without confirmation, these patterns would be considered
+    neutral"* — so a pattern printed TODAY is `provisional` and nothing else. It
+    becomes answerable only once a session has opened after it, which is exactly
+    what the recency lookback already has in hand for anything older than today.
+
+    ⚠️ A NEUTRAL PATTERN HAS NOTHING TO CONFIRM. Harami cross, tri-star and
+    separating lines carry no directional claim, so they return ``None`` rather
+    than being forced into a pass/fail they never asserted.
+    """
+    if pattern.bias not in ("bullish", "bearish"):
+        return None
+    if age <= 0:
+        return "provisional"
+    end = len(bars) - age
+    if end < 1 or end >= len(bars):
+        return "provisional"
+    pat_close = bars[end - 1]["c"]
+    nxt_open = bars[end]["o"]
+    atr = _atr(bars[:end])
+    # ⛔ A GAP, NOT A TICK. An open one cent above the close is not the market
+    # opening in your favour; it is the same price. Same band the pattern
+    # geometry uses, so "meaningfully different" means one thing in this module.
+    tick = cat.tick_size(pat_close)
+    band = max(0.05 * atr, tick) if atr else tick
+    if pattern.bias == "bullish":
+        if nxt_open > pat_close + band:
+            return "opened-with"
+        if nxt_open < pat_close - band:
+            return "opened-against"
+    else:
+        if nxt_open < pat_close - band:
+            return "opened-with"
+        if nxt_open > pat_close + band:
+            return "opened-against"
+    return "opened-flat"         # the market declined to vote either way
+
