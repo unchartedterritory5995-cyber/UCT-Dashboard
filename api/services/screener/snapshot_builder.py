@@ -449,6 +449,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
                          lambda: bar_character.classify(bars)))
         row.update(_step("bars_recent_pattern",
                          lambda: candles.recent_relation(bars)))
+        # ⭐ The WEEKLY structure is resampled from these same daily bars — no
+        # provider fetch and nothing added to the bars pipeline. `bars_full` is
+        # used so the weekly series has real depth rather than 400 sessions.
+        row.update(_step("bars_weekly_candle",
+                         lambda: candles.weekly_candle(bars_full)))
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))

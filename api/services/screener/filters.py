@@ -388,6 +388,13 @@ FILTERS = dict([
     # evidence the pattern worked; measured 2026-08-24 it tracks the market's own
     # opening-gap base rate (51.1% up) almost exactly and adds nothing — see
     # `candles._confirmation`. The fact is still worth filtering on.
+    # ⭐ THE SAME 66-PATTERN VOCABULARY, ON THE WEEKLY BAR. A weekly hammer is a
+    # far larger statement than a daily one — it took five sessions to make.
+    _enum("candle_weekly", "Weekly Candle", "single_candle", "candle_weekly",
+          [{"label": "Any"}] + [
+              {"label": p.label, "op": "eq", "value": p.key}
+              for p in sorted(candle_catalog.ALL_PATTERNS,
+                              key=lambda q: (q.axis != "relation", q.rank))]),
     _enum("candle_recent_status", "Next Open After Pattern", "single_candle",
           "candle_recent_status",
           [{"label": "Any"},

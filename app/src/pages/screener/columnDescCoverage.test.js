@@ -43,6 +43,8 @@ const MUST_DOCUMENT = [
   'bar_character',
   // the pattern vocabulary, dated — 38.5% of rows carry one today cannot see
   'candle_recent',
+  // the same vocabulary on the weekly bar, resampled from daily
+  'candle_weekly',
 ]
 
 describe('member-facing column descriptions', () => {

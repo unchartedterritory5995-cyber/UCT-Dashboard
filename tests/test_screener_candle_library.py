@@ -524,3 +524,71 @@ def test_a_no_trade_session_breaks_the_inside_bar_run():
     # the same shape, but the newest session never traded
     dead = real[:-1] + [_bar(p, p, p, p, v=0)]
     assert candles.multi_candle(_flat(40, p) + dead)["inside_bar_run"] == 0
+
+
+# ── the weekly timeframe, resampled from daily ──────────────────────────────
+def _daily_series(weeks=60, start=50.0, step=0.0):
+    """Mon-Fri daily bars across `weeks` ISO weeks, dated as YYYYMMDD ints."""
+    import datetime as dt
+    out, p = [], start
+    d = dt.date(2025, 1, 6)                       # a Monday
+    for _ in range(weeks):
+        for wd in range(5):
+            day = d + dt.timedelta(days=wd)
+            out.append({"t": int(day.strftime("%Y%m%d")),
+                        "o": p, "h": p + 0.5, "l": p - 0.5, "c": p, "v": 1_000_000})
+            p += step
+        d += dt.timedelta(days=7)
+    return out
+
+
+def test_the_weekly_bar_is_derived_and_needs_no_stored_weekly_series():
+    """⭐ 2,948 of 3,707 tickers have NO weekly bars in bars.db — and every one
+    of them has daily bars (median 4,626). Resampling covers 99.5% of the
+    universe with no provider fetch and nothing added to the bars pipeline."""
+    out = candles.weekly_candle(_daily_series())
+    assert out["candle_weekly"] in cat.BY_KEY
+    assert out["candle_weekly_label"]
+
+
+def test_an_unfinished_week_says_it_is_forming():
+    """⚠️ A weekly hammer three days old is not a weekly hammer yet. Labelling a
+    partial week without saying so is the kind of quiet overstatement a member
+    would act on."""
+    full = _daily_series()
+    assert "(forming)" not in candles.weekly_candle(full)["candle_weekly_label"]
+    # drop Friday — the newest week is now mid-flight
+    partial = full[:-1]
+    assert "(forming)" in candles.weekly_candle(partial)["candle_weekly_label"]
+
+
+def test_a_holiday_shortened_week_errs_toward_forming():
+    """⭐ We cannot tell a Thursday-ending holiday week from a week still in
+    progress. Reading it as forming UNDERSTATES completeness, which is the safe
+    direction for a label a member may trade."""
+    out = candles.weekly_candle(_daily_series()[:-1])
+    assert "(forming)" in out["candle_weekly_label"]
+
+
+def test_the_resampler_is_the_shared_one_not_a_private_copy():
+    """⛔ `bars_fetch._resample_weekly_iso` owns the stable-Friday-key rationale:
+    an in-progress week keeps ONE key as Mon..Fri land, so the candle is replaced
+    rather than duplicated. A second weekly resampler in the screener would be a
+    second authority on what a weekly bar IS."""
+    import inspect
+    from api.services import bars_fetch
+    src = inspect.getsource(candles.weekly_candle)
+    assert "_resample_weekly_iso" in src
+    assert callable(bars_fetch._resample_weekly_iso)
+
+
+def test_the_date_adapter_refuses_junk_rather_than_guessing():
+    assert candles._iso_date(20260821) == "2026-08-21"
+    for junk in (None, "", "banana", 0, 20261332):
+        assert candles._iso_date(junk) is None, junk
+
+
+def test_weekly_is_absent_not_wrong_on_thin_history():
+    assert candles.weekly_candle([])["candle_weekly"] is None
+    one = [{"t": 20260821, "o": 10, "h": 11, "l": 9, "c": 10, "v": 1}]
+    assert candles.weekly_candle(one)["candle_weekly"] is None

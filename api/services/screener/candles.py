@@ -424,3 +424,67 @@ def _confirmation(bars, age, pattern):
             return "opened-against"
     return "opened-flat"         # the market declined to vote either way
 
+
+
+def _iso_date(ymd) -> str | None:
+    """``20260821`` -> ``"2026-08-21"``. The screener's bars key by YYYYMMDD int
+    (``bars_sqlite.get_bars``); the shared resampler keys by ISO string."""
+    try:
+        n = int(ymd)
+    except (TypeError, ValueError):
+        return None
+    y, m, d = n // 10000, (n // 100) % 100, n % 100
+    if not (1 <= m <= 12 and 1 <= d <= 31):
+        return None
+    return f"{y:04d}-{m:02d}-{d:02d}"
+
+
+def weekly_candle(bars: list[dict]) -> dict:
+    """The newest WEEKLY bar's structure, resampled from the daily series.
+
+    ⭐ WHY THIS IS FREE. 2,948 of the screener's 3,707 tickers have NO weekly
+    bars in `bars.db` — but every single one of them has DAILY bars (median
+    4,626, roughly eighteen years), and the repo already ships a weekly
+    resampler. So the whole timeframe comes from data the builder has already
+    loaded: no backfill, no provider fetch, and nothing added to the bars
+    pipeline, whose prewarmer fanout has an outage precedent.
+
+    ⛔ IT RESAMPLES THROUGH `bars_fetch._resample_weekly_iso` RATHER THAN
+    ROLLING ITS OWN. That function owns the stable-Friday-key rationale (an
+    in-progress week keeps ONE key as Mon..Fri bars land, so the candle is
+    replaced rather than duplicated), and a private copy here would be a second
+    authority on what a weekly bar IS.
+
+    ⚠️ THE NEWEST WEEK IS USUALLY IN PROGRESS, AND THE LABEL SAYS SO. A weekly
+    hammer that is only three days old is not a weekly hammer yet. The week is
+    reported complete only when its last daily bar is a FRIDAY; a holiday-
+    shortened week therefore reads as still forming, which understates
+    completeness rather than overstating it — the safe direction for a label a
+    member may act on.
+    """
+    out = {"candle_weekly": None, "candle_weekly_label": None}
+    if not bars:
+        return out
+    from api.services import bars_fetch
+    iso = []
+    for b in bars:
+        t = _iso_date(b.get("t"))
+        if t:
+            iso.append({**b, "t": t})
+    if len(iso) < 2:
+        return out
+    wk = bars_fetch._resample_weekly_iso(iso)
+    if len(wk) < 2:
+        return out
+    got = single_candle(wk)
+    if got["candle_type"] in (None, "none"):
+        return out
+    import datetime as _dt
+    try:
+        last = _dt.date.fromisoformat(iso[-1]["t"])
+        forming = last.isoweekday() != 5
+    except ValueError:                                    # pragma: no cover
+        forming = True
+    label = got["candle_label"]
+    return {"candle_weekly": got["candle_type"],
+            "candle_weekly_label": label + (" (forming)" if forming else "")}
