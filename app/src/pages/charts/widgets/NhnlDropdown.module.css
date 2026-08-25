@@ -1,0 +1,71 @@
+/* UCT-styled dropdown for the NH/NL toolbar. Trigger follows the widget chrome;
+   the portaled menu uses the app's --menu-* palette (like every other UCT menu). */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--nh-text-strong, var(--widget-text-strong, var(--wl-sym, var(--text-bright))));
+  background: var(--menu-input-bg, var(--bg-elevated));
+  border: 1px solid var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border))));
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.trigger:hover { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
+.triggerOpen { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
+.triggerLabel { overflow: hidden; text-overflow: ellipsis; }
+.caret { color: var(--ut-gold); font-size: 8px; flex-shrink: 0; line-height: 1; }
+
+/* Portaled popover — the UCT menu look. */
+.menu {
+  position: fixed;
+  z-index: 4200;
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 8px;
+  box-shadow: 0 12px 34px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  font-family: var(--font-sans);
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-divider, rgba(255, 255, 255, 0.14)) transparent;
+}
+.menu::-webkit-scrollbar { width: 9px; }
+.menu::-webkit-scrollbar-thumb { background: var(--menu-divider, rgba(255, 255, 255, 0.14)); border-radius: 5px; }
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--menu-text, #ededed);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.item:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); color: var(--menu-text, #f4f4f4); }
+.itemOn { color: var(--menu-accent, var(--ut-gold)); font-weight: 700; }
+.itemOn:hover { color: var(--menu-accent, var(--ut-gold)); }
+.itemLabel { overflow: hidden; text-overflow: ellipsis; }
+.itemCount {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--menu-text-dim, #8a8a8f);
+  flex-shrink: 0;
+}
+.itemOn .itemCount { color: var(--menu-accent, var(--ut-gold)); opacity: 0.8; }

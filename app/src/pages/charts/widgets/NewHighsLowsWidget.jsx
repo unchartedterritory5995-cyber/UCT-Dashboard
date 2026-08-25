@@ -26,8 +26,16 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
+import NhnlDropdown from './NhnlDropdown'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
+
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'UCT Universe' },
+  { value: 'sector', label: 'Sector' },
+  { value: 'industry', label: 'Industry' },
+  { value: 'theme', label: 'Theme' },
+]
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -65,27 +73,34 @@ function Side({ title, tone, events, total, onPick }) {
         <span className={styles.sideCount}>{total}</span>
       </div>
       <div className={styles.rows} role="list">
-        {events.map((e, i) => (
-          <button
-            type="button"
-            role="listitem"
-            key={`${e.sym}-${e.ts}-${i}`}
-            className={styles.row}
-            onClick={() => onPick(e.sym)}
-            title={`${e.sym} — new ${tone === 'up' ? 'high' : 'low'} #${e.count} at ${fmtTime(e.ts)}`}
-          >
-            <span
-              className={styles.bar}
-              style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
-              aria-hidden="true"
-            />
-            <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
-            <span className={styles.sym}>{e.sym}</span>
-            <span className={styles.price}>{fmtPrice(e.price)}</span>
-            <span className={styles.time}>{fmtTime(e.ts)}</span>
-            <span className={styles.count}>{e.count}</span>
-          </button>
-        ))}
+        {events.map((e, i) => {
+          // `pick` = the chartable symbol (a stock, or a sector's ETF). Group
+          // rows with no chartable proxy (industry breadth, theme index) come
+          // back with pick===null and stay inert. Old payloads (no pick) → sym.
+          const target = e.pick === null ? null : (e.pick ?? e.sym)
+          return (
+            <button
+              type="button"
+              role="listitem"
+              key={`${e.sym}-${e.ts}-${i}`}
+              className={`${styles.row}${target ? '' : ' ' + styles.rowInert}`}
+              onClick={target ? () => onPick(target) : undefined}
+              disabled={!target}
+              title={`${e.sym} — ${tone === 'up' ? 'new high' : 'new low'} #${e.count}${e.ts ? ` at ${fmtTime(e.ts)}` : ''}`}
+            >
+              <span
+                className={styles.bar}
+                style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
+                aria-hidden="true"
+              />
+              <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
+              <span className={styles.sym}>{e.sym}</span>
+              <span className={styles.price}>{fmtPrice(e.price)}</span>
+              <span className={styles.time}>{fmtTime(e.ts)}</span>
+              <span className={styles.count}>{e.count}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -146,6 +161,13 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
   const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
+  // Scope: view the whole universe, or filter by sector / industry / theme. Picking
+  // a dimension clears the category so a stale pick from another dim can't linger.
+  const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
+  const scopeValue = opts?.scopeValue || ''
+  const commitScope = useCallback((v) => onOptsChange?.({ ...opts, scope: v, scopeValue: '' }), [opts, onOptsChange])
+  const commitScopeValue = useCallback((v) => onOptsChange?.({ ...opts, scopeValue: v }), [opts, onOptsChange])
+
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
   const placedTheme = usePlacedTheme(opts?.placedTheme)
@@ -165,10 +187,13 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}`
+  const scopeQ = scope !== 'all'
+    ? `&group=${scope}${scopeValue ? `&value=${encodeURIComponent(scopeValue)}` : ''}`
+    : ''
+  const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}${scopeQ}`
   const { data } = useMobileSWR(url, fetcher, {
-    refreshInterval: 3000,       // feel live; server accumulates every few seconds
-    dedupingInterval: 2000,
+    refreshInterval: 2000,       // feel live; server accumulates every ~2s
+    dedupingInterval: 1200,
     marketHoursOnly: true,       // 10x-slow the poll when the market is closed
     revalidateOnFocus: false,
   })
@@ -177,6 +202,14 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lows = data?.lows || []
   const highsTotal = data?.highs_total ?? highs.length
   const lowsTotal = data?.lows_total ?? lows.length
+  // Category options for the scoped drill-down dropdown (busiest first), from the
+  // current payload; led by an "All <dim>s" entry that shows the group overview.
+  const valueOptions = useMemo(() => {
+    const cats = Object.entries(data?.categories || {}).sort((a, b) => b[1] - a[1])
+    const allLabel = scope === 'industry' ? 'All industries' : `All ${scope}s`
+    return [{ value: '', label: allLabel },
+            ...cats.map(([cat, cnt]) => ({ value: cat, label: cat, count: cnt }))]
+  }, [data?.categories, scope])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
@@ -200,6 +233,24 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={styles.spacer} />
+        <NhnlDropdown
+          value={scope}
+          options={SCOPE_OPTIONS}
+          onChange={commitScope}
+          title="Group by"
+          minWidth={96}
+          maxWidth={112}
+        />
+        {scope !== 'all' && (
+          <NhnlDropdown
+            value={scopeValue}
+            options={valueOptions}
+            onChange={commitScopeValue}
+            title={`Pick a ${scope}`}
+            minWidth={124}
+            maxWidth={180}
+          />
+        )}
         <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
           placeholder="0" min={0} onCommit={commitPrice} />
         <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
