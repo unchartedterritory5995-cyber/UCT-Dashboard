@@ -326,6 +326,15 @@ produces exactly that image, server-side:
   unset `CHART_RENDERER_URL` (mplfinance fallback takes over).
 - Measured from inside Railway: health OK, `/render` of the house page →
   2592×1340 PNG, ~198 KB, 4.7 s.
+- **Blank-frame guard (found on the first full-res check):** a canvas exists
+  the instant the widget mounts, so right after a deploy the 1.6 s settle
+  screenshotted a body with no candles. The client now waits on the page's own
+  `window.__chartReady` (pixels held still, ≥3.5 s), judges the PNG (chart
+  body grayscale std-dev ≥ 6; blank ≈ 2.4, drawn ≈ 25–34), retries once with a
+  5 s settle, and only then falls back to mplfinance. Same class of bug as the
+  Substack harness's `_chart_has_content` (the VLO-blank ship, 7/28).
+- **E2E v2 (2026-08-25 17:07 ET, `#dev-chat`):** `/chart NVDA` → the house
+  image with the stats strip, 2592×1396, ~6 s end to end.
 
 ## Rollout note (2026-08-25, what is actually live)
 
