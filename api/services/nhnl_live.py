@@ -76,6 +76,34 @@ _thread = None
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
 
+# ── Print-exact counting (bounded live trade tape) ────────────────────────────
+# The poll above counts "intervals in which a new HOD occurred" — a name ratcheting
+# its high many times inside one 3s tick shows +1. When NHNL_PRINT_EXACT=1 we ALSO
+# tap the already-open bars WebSocket's T. (per-trade) stream for a BOUNDED active
+# set (the names actually making new highs/lows) and count EVERY qualifying print,
+# so a relentless name shows its true ratchet count (matching Trade Ideas). It rides
+# the existing stocks connection (no 2nd Massive key), runs on the bars-WS thread
+# (never the request path), and is capped at _print_max() names to keep the shared
+# web event loop light. Prints are gated by the same SIP high/low eligibility the
+# charts use (trade_conditions) so odd-lot / out-of-sequence ghosts don't count.
+_print_lock = threading.Lock()
+_print_counts: dict = {}      # prov_sym -> {app, hod, lod, nh, nl, last, hi_ms, lo_ms}
+_print_syms: set = set()      # prov syms currently subscribed for print-counting
+_print_listener_on = False
+_print_events_total = 0
+_tc = None                    # cached trade_conditions module (lazy import)
+
+
+def _print_exact() -> bool:
+    return os.environ.get("NHNL_PRINT_EXACT", "0") == "1"
+
+
+def _print_max() -> int:
+    try:
+        return max(1, int(os.environ.get("NHNL_PRINT_MAX_SYMS", "300")))
+    except (TypeError, ValueError):
+        return 300
+
 
 def _now_et() -> datetime:
     return datetime.now(_ET) if _ET else datetime.utcnow()
@@ -310,6 +338,22 @@ def _theme_holdings() -> dict:
     return m
 
 
+def _theme_app_members() -> dict:
+    """{theme_name: set(app_syms)} — FULL membership (a stock is in many themes).
+
+    Theme breadth + theme drill count/filter by full membership, so both use this
+    rather than gmap's single "primary theme". Derived from the cached provider-form
+    holdings mapped back to app form; recompute is cheap (~112 themes × ~50 holds)."""
+    prov_map = _universe_map()             # {prov: app}
+    out: dict = {}
+    for name, provs in _theme_holdings().items():
+        members = {prov_map.get(p) for p in provs}
+        members.discard(None)
+        if members:
+            out[name] = members
+    return out
+
+
 def _group_map() -> dict:
     """{app_sym: {"sector", "industry", "theme"}} for the whole universe, cached ~1h.
 
@@ -410,7 +454,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
     is_rth = window == "rth"
     prov_map = _universe_map()
     etf = _etf_set()          # stocks-only — computed outside the lock (cached ~24h)
-    th_holds = _theme_holdings()   # {theme: [prov tickers]} for the theme-index pass
+    px_on = _print_exact()    # print-exact owns counting for its subscribed set
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
@@ -421,6 +465,11 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             # ETFs/ETNs/funds excluded from the stock universe — EXCEPT the SPDR
             # sector ETFs, which the Sector-scope overview shows directly.
             if app in etf and app not in _SECTOR_ETF_TICKERS:
+                continue
+            # Print-exact owns this name's HOD/LOD counting via the live trade tape;
+            # the merge in _manage_print_set is authoritative, so the poll must not
+            # also increment it (double-count). Its st was seeded before it joined.
+            if px_on and prov in _print_syms:
                 continue
             row = snapshot.get(prov)
             if not row:
@@ -466,37 +515,6 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
                 st["lod"] = ref_lo
             st["last"] = price
 
-        # ── Theme-index pass: compute each theme's live level (equal-weight mean of
-        # its holdings' % change vs prev close) and count when it makes a fresh
-        # high/low of the session. The $IDX composite is daily-only, so we track our
-        # own running high/low. Uses the SAME snapshot — no extra fetch. ──────────
-        if th_holds:
-            pct: dict = {}
-            for prov, row in snapshot.items():
-                prev = row.get("prev_close")
-                if not isinstance(prev, (int, float)) or prev <= 0:
-                    continue
-                cur = row.get("last_price") if is_rth else _ext_value(row)
-                if not isinstance(cur, (int, float)) or cur <= 0:
-                    continue
-                pct[prov] = (cur - prev) / prev
-            themes = _state["themes"]
-            for name, provs in th_holds.items():
-                vals = [pct[p] for p in provs if p in pct]
-                if not vals:
-                    continue
-                val = sum(vals) / len(vals)
-                ts = themes.get(name)
-                if ts is None:
-                    themes[name] = {"val": val, "hi": val, "lo": val,
-                                    "nh": 0, "nl": 0, "hi_ts": None, "lo_ts": None}
-                    continue
-                if val > ts["hi"] + _THEME_EPS:
-                    ts["nh"] += 1; ts["hi_ts"] = now_iso; ts["hi"] = val
-                if val < ts["lo"] - _THEME_EPS:
-                    ts["nl"] += 1; ts["lo_ts"] = now_iso; ts["lo"] = val
-                ts["val"] = val
-
         _state["asof"] = now_iso
         _state["ticks"] += 1
 
@@ -530,10 +548,6 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
                      st.get("hi_ts"), st.get("lo_ts"))
                     for s, st in _state["syms"].items()
                     if st.get("nh", 0) > 0 or st.get("nl", 0) > 0]
-        theme_rows = [(nm, ts.get("nh", 0), ts.get("nl", 0), ts.get("val"),
-                       ts.get("hi_ts"), ts.get("lo_ts"))
-                      for nm, ts in _state["themes"].items()
-                      if ts.get("nh", 0) > 0 or ts.get("nl", 0) > 0]
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
@@ -543,11 +557,18 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
     dim = group if group in GROUP_DIMS else None
     gmap = _group_map() if dim else {}
     etf = _etf_set()
+    # Full theme membership {theme: set(app_syms)} — a stock is in MANY themes, so
+    # theme breadth + theme drill use this, not the single "primary theme" in gmap.
+    theme_members = _theme_app_members() if dim == "theme" else {}
     _r2 = lambda v: round(float(v), 2) if isinstance(v, (int, float)) else None
     _srt = lambda full: sorted(full, key=lambda r: (r["count"], r["ts"] or ""), reverse=True)
 
-    def _cat(sym):
-        return (gmap.get(sym) or {}).get(dim) or "—"
+    def _in_cat(sym, cat):
+        # Which stocks belong to category `cat` of the active dim. Sector/industry
+        # are single-membership (gmap); theme is multi-membership (theme_members).
+        if dim == "theme":
+            return sym in theme_members.get(cat, ())
+        return ((gmap.get(sym) or {}).get(dim) or "—") == cat
 
     def rank_stocks(direction, cat=None):
         hi = direction == "high"
@@ -558,80 +579,65 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
                 continue
             if isinstance(last, (int, float)) and last < min_price:
                 continue
-            if cat is not None and _cat(sym) != cat:       # drill to one category
+            if cat is not None and not _in_cat(sym, cat):  # drill to one category
                 continue
             full.append({"sym": sym, "price": _r2(last), "count": cnt,
                          "ts": hts if hi else lts, "dir": direction, "pick": sym})
         return _srt(full)
 
-    def rank_sector_etfs(direction):
+    def rank_breadth(direction):
+        """Group OVERVIEW: rank each sector/industry/theme by how many of its member
+        STOCKS are making new highs (or lows) — breadth, always-active and covering
+        every group (an ETF's own HOD ratchets are too sparse to populate a panel)."""
         hi = direction == "high"
-        st = {s: (nh, nl, last, hts, lts) for s, nh, nl, last, hts, lts in sym_rows
-              if s in _SECTOR_ETF_TICKERS}
-        full = []
-        for sector, tk in _SECTOR_ETF.items():
-            r = st.get(tk)
-            if not r:
-                continue
-            nh, nl, last, hts, lts = r
-            cnt = nh if hi else nl
-            if cnt < min_count:
-                continue
-            full.append({"sym": sector, "price": _r2(last), "count": cnt,
-                         "ts": hts if hi else lts, "dir": direction, "pick": tk, "group": True})
-        return _srt(full)
-
-    def rank_industry_breadth(direction):
-        hi = direction == "high"
-        agg: dict = {}   # industry -> [count, latest_ts]
+        agg: dict = {}   # group name -> [distinct-stock count, latest_ts]
+        def _bump(name, ts):
+            a = agg.get(name)
+            if a is None:
+                agg[name] = [1, ts or ""]
+            else:
+                a[0] += 1
+                if (ts or "") > a[1]:
+                    a[1] = ts or ""
         for sym, nh, nl, last, hts, lts in sym_rows:
             cnt = nh if hi else nl
             if cnt < min_count or sym in etf:
                 continue
-            ind = (gmap.get(sym) or {}).get("industry") or "—"
             ts = hts if hi else lts
-            a = agg.get(ind)
-            if a is None:
-                agg[ind] = [1, ts]
+            if dim == "theme":
+                for name, members in theme_members.items():
+                    if sym in members:
+                        _bump(name, ts)
             else:
-                a[0] += 1
-                if (ts or "") > (a[1] or ""):
-                    a[1] = ts
-        full = [{"sym": ind, "price": None, "count": n, "ts": t, "dir": direction,
-                 "pick": None, "group": True} for ind, (n, t) in agg.items()]
+                _bump((gmap.get(sym) or {}).get(dim) or "—", ts)
+        # Sector rows carry their SPDR ETF as the chartable proxy; a click drills
+        # into the group's stocks, so `pick` is only a fallback.
+        full = [{"sym": name, "price": None, "count": n, "ts": (t or None),
+                 "dir": direction, "group": True,
+                 "pick": _SECTOR_ETF.get(name) if dim == "sector" else None}
+                for name, (n, t) in agg.items()]
         return _srt(full)
 
-    def rank_theme_index(direction):
-        hi = direction == "high"
-        full = []
-        for name, nh, nl, val, hts, lts in theme_rows:
-            cnt = nh if hi else nl
-            if cnt < min_count:
-                continue
-            lvl = round(100.0 * (1 + val), 2) if isinstance(val, (int, float)) else None
-            full.append({"sym": name, "price": lvl, "count": cnt,
-                         "ts": hts if hi else lts, "dir": direction, "pick": None, "group": True})
-        return _srt(full)
-
-    # Category counts for the drill-down dropdown (distinct stocks per dim value).
+    # Category counts for the drill-down dropdown (distinct stocks per group).
     categories = {}
     if dim:
         for sym, nh, nl, last, _h, _l in sym_rows:
             if sym in etf or (nh < min_count and nl < min_count):
                 continue
-            c = _cat(sym)
-            categories[c] = categories.get(c, 0) + 1
+            if dim == "theme":
+                for name, members in theme_members.items():
+                    if sym in members:
+                        categories[name] = categories.get(name, 0) + 1
+            else:
+                c = (gmap.get(sym) or {}).get(dim) or "—"
+                categories[c] = categories.get(c, 0) + 1
 
     if dim is None:
         hi_full, lo_full = rank_stocks("high"), rank_stocks("low")
     elif value:
         hi_full, lo_full = rank_stocks("high", value), rank_stocks("low", value)
-    elif dim == "sector":
-        hi_full, lo_full = rank_sector_etfs("high"), rank_sector_etfs("low")
-    elif dim == "industry":
-        hi_full, lo_full = rank_industry_breadth("high"), rank_industry_breadth("low")
-    else:  # theme
-        hi_full, lo_full = rank_theme_index("high"), rank_theme_index("low")
+    else:  # sector / industry / theme OVERVIEW → breadth of member stocks
+        hi_full, lo_full = rank_breadth("high"), rank_breadth("low")
 
     highs, lows = hi_full[:limit], lo_full[:limit]
     highs_total, lows_total = len(hi_full), len(lo_full)
@@ -667,7 +673,163 @@ def status() -> dict:
             "asof": _state["asof"],
             "last_error": _state["last_error"],
             "tick_seconds": _tick_seconds(),
+            "print_exact": _print_exact(),      # bounded live-trade-tape counting
+            "print_syms": len(_print_syms),     # names currently print-counted
+            "print_events": _print_events_total,  # total qualifying prints counted
         }
+
+
+# ── Print-exact machinery ─────────────────────────────────────────────────────
+def _ms_to_iso(ms) -> str | None:
+    try:
+        return (datetime.fromtimestamp(ms / 1000.0, _ET) if _ET
+                else datetime.utcfromtimestamp(ms / 1000.0)).isoformat()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
+def _classify_hl(conditions) -> bool:
+    """True if a print may set a new high/low (same SIP filter the charts use).
+    Missing/unknown conditions or a disabled filter => eligible."""
+    global _tc
+    if _tc is None:
+        try:
+            from api.services import trade_conditions as tc
+            _tc = tc
+        except Exception:
+            _tc = False
+    if not _tc:
+        return True
+    try:
+        return _tc.classify(conditions)[0]
+    except Exception:
+        return True
+
+
+def _on_trade_print(sym: str, trade: dict) -> None:
+    """Runs on the bars-WS thread for every T. print of a print-counted symbol.
+    MINIMAL by design — dict lookup + condition gate + compare under a DEDICATED
+    lock (never the main _lock, so get_live / the poll never contend with the tape)."""
+    global _print_events_total
+    if sym not in _print_counts:            # cheap pre-check before the price parse
+        return
+    p = trade.get("p")
+    if not isinstance(p, (int, float)) or p <= 0:
+        return
+    if not _classify_hl(trade.get("c")):    # odd-lot / out-of-sequence ghosts don't count
+        return
+    ms = trade.get("t")
+    with _print_lock:
+        st = _print_counts.get(sym)
+        if st is None:
+            return
+        if p > st["hod"] * (1 + _EPS):
+            st["nh"] += 1; st["hod"] = p; st["hi_ms"] = ms
+        elif p < st["lod"] * (1 - _EPS):
+            st["nl"] += 1; st["lod"] = p; st["lo_ms"] = ms
+        st["last"] = p
+        _print_events_total += 1
+
+
+def _ensure_print_listener() -> None:
+    global _print_listener_on
+    if _print_listener_on:
+        return
+    try:
+        from api.services import bar_stream
+        bar_stream.add_trade_listener(_on_trade_print)
+        _print_listener_on = True
+        _log.info("[nhnl] print-exact trade listener registered")
+    except Exception:
+        _log.exception("[nhnl] could not register trade listener")
+
+
+def _clear_print_state() -> None:
+    """Drop all print subscriptions + counts (feature off / session rollover / closed)."""
+    global _print_syms
+    try:
+        from api.services import bar_stream
+        with _print_lock:
+            drop = set(_print_syms)
+            _print_counts.clear()
+            _print_syms = set()
+        if drop:
+            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+    except Exception:
+        _log.exception("[nhnl] clear print state failed")
+
+
+def _manage_print_set() -> None:
+    """Each tick: fold live print counts into the served state, then re-pick the
+    BOUNDED active set (names already ratcheting, busiest first) and adjust the T.
+    subscriptions. Runs after _tick_once, off the _lock hot path for the tape."""
+    global _print_syms
+    if not _print_exact():
+        if _print_listener_on or _print_syms:
+            _clear_print_state()
+        return
+    with _lock:
+        win = _state["window"]
+    if win == "closed":
+        if _print_syms:
+            _clear_print_state()
+        return
+    _ensure_print_listener()
+    prov_map = _universe_map()                       # {prov: app}
+    app_to_prov = {app: prov for prov, app in prov_map.items()}
+    add: set = set()
+    drop: set = set()
+    with _lock:
+        syms = _state["syms"]
+        # 1) fold the live print counts back into the served per-symbol state.
+        with _print_lock:
+            for prov, pc in _print_counts.items():
+                st = syms.get(pc["app"])
+                if st is None:
+                    continue
+                st["nh"] = pc["nh"]; st["nl"] = pc["nl"]
+                st["hod"] = pc["hod"]; st["lod"] = pc["lod"]
+                if pc["last"] is not None:
+                    st["last"] = pc["last"]
+                if pc["hi_ms"]:
+                    st["hi_ts"] = _ms_to_iso(pc["hi_ms"]) or st.get("hi_ts")
+                if pc["lo_ms"]:
+                    st["lo_ts"] = _ms_to_iso(pc["lo_ms"]) or st.get("lo_ts")
+        # 2) active set = names already at a new high/low, busiest first, capped.
+        ranked = sorted(
+            ((max(st.get("nh", 0), st.get("nl", 0)), app)
+             for app, st in syms.items()
+             if st.get("nh", 0) > 0 or st.get("nl", 0) > 0),
+            key=lambda r: r[0], reverse=True,
+        )
+        want = {app_to_prov[a] for _, a in ranked[:_print_max()] if a in app_to_prov}
+        # 3) seed newcomers from their current poll marks; drop the fallen-off.
+        with _print_lock:
+            add = want - _print_syms
+            drop = _print_syms - want
+            for prov in list(add):             # copy: we discard from `add` below
+                app = prov_map.get(prov)
+                st = syms.get(app) if app else None
+                if st is None:
+                    add.discard(prov)          # nothing to seed → don't subscribe
+                    continue
+                _print_counts[prov] = {
+                    "app": app, "hod": st.get("hod", 0.0), "lod": st.get("lod", 0.0),
+                    "nh": st.get("nh", 0), "nl": st.get("nl", 0),
+                    "last": st.get("last"), "hi_ms": None, "lo_ms": None,
+                }
+            for prov in drop:
+                _print_counts.pop(prov, None)
+            _print_syms = (_print_syms - drop) | add
+    # 4) adjust the WS subscriptions OUTSIDE the locks (thread-safe, quick queue ops).
+    try:
+        from api.services import bar_stream
+        if add:
+            bar_stream.subscribe_symbols(add, owner="nhnl")
+        if drop:
+            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+    except Exception:
+        _log.exception("[nhnl] print-set subscription update failed")
 
 
 def _tick() -> None:
@@ -678,15 +840,19 @@ def _tick() -> None:
     window = _active_window(now)
     if window == "closed":
         _tick_once({}, "closed", today, now)  # stamps asof, no fetch
-        return
-    snap = massive._get_client().get_full_market_snapshot_hl()
-    if not snap:
-        with _lock:
-            _state["last_error"] = "empty snapshot"
-        return
-    _tick_once(snap, window, today, now)
-    with _lock:
-        _state["last_error"] = None
+    else:
+        snap = massive._get_client().get_full_market_snapshot_hl()
+        if not snap:
+            with _lock:
+                _state["last_error"] = "empty snapshot"
+        else:
+            _tick_once(snap, window, today, now)
+            with _lock:
+                _state["last_error"] = None
+    try:
+        _manage_print_set()
+    except Exception:
+        _log.exception("[nhnl] print-set management failed")
 
 
 def _run_forever() -> None:
@@ -724,3 +890,5 @@ def stop() -> None:
     """Signal the loop to exit (used by lifespan shutdown / tests)."""
     global _running
     _running = False
+    if _print_listener_on or _print_syms:
+        _clear_print_state()

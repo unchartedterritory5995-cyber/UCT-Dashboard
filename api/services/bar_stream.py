@@ -38,7 +38,17 @@ _API_KEY = os.environ.get("MASSIVE_API_KEY", "")
 _active: set[str] = set()              # symbols currently subscribed
 _pending_subscribe: set[str] = set()   # queued for next send (when ws live)
 _pending_unsubscribe: set[str] = set()
+# Owner refcount: a symbol is protocol-subscribed while ANY owner wants it, and
+# only unsubscribed when its last owner drops it. Lets independent consumers (the
+# chart bars feed, owner "bars"; the NH/NL print-exact tap, owner "nhnl") share the
+# one connection without one's unsubscribe cutting the other's feed.
+_sub_owners: dict[str, set[str]] = {}
 _state_lock = threading.Lock()
+
+# Extra per-trade listeners (beyond the primary on_bar). Only T. events fan out to
+# these; the list is empty (zero cost) unless a consumer registers one. Used by the
+# NH/NL scanner to count every print without a second WebSocket connection.
+_trade_listeners: list = []             # list[Callable[[str, dict], None]]
 
 _ws_loop: Optional[asyncio.AbstractEventLoop] = None
 _ws_connection = None
@@ -289,6 +299,14 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                                 on_bar(parsed["sym"], payload_dict, kind)
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
+                            # Fan T. prints to any extra listeners (NH/NL print tap).
+                            # Guard keeps this zero-cost when none are registered.
+                            if kind == "T" and _trade_listeners:
+                                for _lst in _trade_listeners:
+                                    try:
+                                        _lst(parsed["sym"], payload_dict)
+                                    except Exception:
+                                        pass
                 finally:
                     _running = False
                     drain_task.cancel()
@@ -338,26 +356,65 @@ async def _drain_pending_queue(ws) -> None:
                 return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
 
 
-def subscribe_symbols(symbols: Iterable[str]) -> None:
-    """Thread-safe: add symbols to the active set; flush happens via _drain_pending_queue."""
+def subscribe_symbols(symbols: Iterable[str], owner: str = "bars") -> None:
+    """Thread-safe: register `owner`'s interest in `symbols`; a symbol is queued for
+    a protocol subscribe only when it gains its FIRST owner. Flush happens via
+    _drain_pending_queue. `owner` defaults to "bars" so existing callers are unchanged."""
     syms = {s.upper() for s in symbols}
     if not syms:
         return
     with _state_lock:
-        new = syms - _active
-        _active.update(new)
-        _pending_subscribe.update(new)
-        _pending_unsubscribe.difference_update(new)
+        newly_active = set()
+        for s in syms:
+            owners = _sub_owners.get(s)
+            if owners is None:
+                _sub_owners[s] = {owner}
+                if s not in _active:
+                    newly_active.add(s)
+            else:
+                owners.add(owner)
+        if newly_active:
+            _active.update(newly_active)
+            _pending_subscribe.update(newly_active)
+            _pending_unsubscribe.difference_update(newly_active)
 
 
-def unsubscribe_symbols(symbols: Iterable[str]) -> None:
-    """Thread-safe: remove symbols from active set; flush happens via _drain_pending_queue."""
+def unsubscribe_symbols(symbols: Iterable[str], owner: str = "bars") -> None:
+    """Thread-safe: drop `owner`'s interest; a symbol is queued for a protocol
+    unsubscribe only when its LAST owner releases it. Flush via _drain_pending_queue."""
     syms = {s.upper() for s in symbols}
+    if not syms:
+        return
     with _state_lock:
-        gone = syms & _active
-        _active.difference_update(gone)
-        _pending_unsubscribe.update(gone)
-        _pending_subscribe.difference_update(gone)
+        now_gone = set()
+        for s in syms:
+            owners = _sub_owners.get(s)
+            if not owners:
+                continue
+            owners.discard(owner)
+            if not owners:
+                _sub_owners.pop(s, None)
+                if s in _active:
+                    now_gone.add(s)
+        if now_gone:
+            _active.difference_update(now_gone)
+            _pending_unsubscribe.update(now_gone)
+            _pending_subscribe.difference_update(now_gone)
+
+
+def add_trade_listener(fn) -> None:
+    """Register an extra per-trade callback fn(sym, trade_dict) for T. events.
+    Idempotent. The listener runs on the WS event-loop thread — keep it minimal and
+    exception-safe; a raise is swallowed so it can never break the bars path."""
+    if fn not in _trade_listeners:
+        _trade_listeners.append(fn)
+
+
+def remove_trade_listener(fn) -> None:
+    try:
+        _trade_listeners.remove(fn)
+    except ValueError:
+        pass
 
 
 def get_active_symbols() -> list[str]:

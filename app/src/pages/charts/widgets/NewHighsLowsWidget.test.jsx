@@ -111,6 +111,20 @@ describe('NewHighsLowsWidget', () => {
     expect(swr.mock.calls[0][0]).toContain('value=Technology')
   })
 
+  it('in a group overview, a row click drills into that group (no chart, no price)', () => {
+    swr.mockReturnValue({ data: {
+      ...LIVE, group: 'industry', value: null,
+      highs: [{ sym: 'Biotechnology', price: null, count: 32, ts: TS, dir: 'high', group: true }],
+      lows: [],
+    } })
+    const onOptsChange = vi.fn()
+    render(<NewHighsLowsWidget color="A" opts={{ scope: 'industry' }} onOptsChange={onOptsChange} />)
+    fireEvent.click(screen.getByText('Biotechnology'))
+    // clicking a group row drills (sets the 2nd dropdown value), never charts it
+    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scopeValue: 'Biotechnology' }))
+    expect(setGroupSym).not.toHaveBeenCalled()
+  })
+
   it('shows a market-closed notice only when the window is closed', () => {
     swr.mockReturnValue({ data: { window: 'closed', highs: [], lows: [] } })
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
