@@ -50,13 +50,6 @@ function fmtTime(iso) {
   } catch { return '' }
 }
 
-function fmtPrice(p) {
-  const n = Number(p)
-  if (!Number.isFinite(n)) return '—'
-  return n >= 1000 ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                   : n.toFixed(2)
-}
-
 // % change vs prior close — the magnitude of the day's move (a +12% leader reads
 // very differently from a +0.4% drift making the same raw new-high count).
 function fmtPct(p) {
@@ -114,14 +107,13 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
               />
               <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
               <span className={styles.sym}>{e.sym}</span>
-              {/* Stock rows: ticker · price · %chg · count. Group rows: name · count.
-                  Always render the pct cell (empty ok) so columns stay aligned. */}
-              {!groupView && <span className={styles.price}>{fmtPrice(e.price)}</span>}
+              {/* Stock rows: ticker · %chg · count. Group rows: name · count.
+                  %chg + count are keyed by count so they remount — and flash — only
+                  when a fresh new high/low prints (the count ticks up). */}
               {!groupView && (
-                <span className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
+                <span key={`p${e.count}`} className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
               )}
-              {/* keyed by count → remounts (and plays the pulse) only when it ticks up */}
-              <span key={e.count} className={styles.count}>{e.count}</span>
+              <span key={`c${e.count}`} className={styles.count}>{e.count}</span>
             </button>
           )
         })}
