@@ -44,7 +44,7 @@ function fmtPrice(p) {
                    : n.toFixed(2)
 }
 
-const SESSION_LABEL = { regular: 'LIVE', pre_market: 'PRE-MARKET', post_market: 'CLOSED' }
+const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
 // One side (highs OR lows) — a scrollable event log with a count histogram. `total`
 // is the universe-wide distinct-symbol count for the panel header.
@@ -153,14 +153,14 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lows = data?.lows || []
   const highsTotal = data?.highs_total ?? highs.length
   const lowsTotal = data?.lows_total ?? lows.length
-  const session = data?.session || 'regular'
-  const isRegular = session === 'regular'
-  const stamp = SESSION_LABEL[session] || ''
+  const window = data?.window || 'rth'
+  const isActive = window !== 'closed'
+  const stamp = WINDOW_LABEL[window] || ''
 
   return (
     <div className={styles.wrap}>
       <div className={styles.toolbar}>
-        <span className={`${styles.live} ${isRegular ? styles.liveOn : ''}`}>
+        <span className={`${styles.live} ${isActive ? styles.liveOn : ''}`}>
           <span className={styles.dot} aria-hidden="true" />{stamp}
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
@@ -171,11 +171,11 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           placeholder="1" min={1} onCommit={commitCount} />
       </div>
 
-      {!isRegular ? (
+      {!isActive ? (
         <div className={styles.empty}>
-          <div className={styles.emptyTitle}>Intraday scan runs during market hours</div>
+          <div className={styles.emptyTitle}>Market closed</div>
           <div className={styles.emptySub}>
-            New-high / new-low tracking is live 9:30–4:00 ET. Pre &amp; post-market coming soon.
+            New-high / new-low tracking runs 4:00 AM – 8:00 PM ET (pre-market, regular, and post-market).
           </div>
         </div>
       ) : (

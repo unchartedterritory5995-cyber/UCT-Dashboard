@@ -58,7 +58,9 @@ _EPS = 1e-6              # float-noise guard for the high-water-mark compare
 # ── Session state (guarded by _lock) ──────────────────────────────────────────
 _lock = threading.Lock()
 _state = {
-    "session_date": None,        # ET date string the counters belong to (RTH day)
+    "session_key": None,         # f"{date}:{window}" — counters reset when this rolls
+    "window": "closed",          # rth | pre | post | closed
+    "date": None,                # ET date string
     "syms": {},                  # app_sym -> {hod, lod, nh, nl, last}
     "events": deque(maxlen=_RING_MAX),  # {sym, price, count, ts, dir}; oldest-left
     "asof": None,
@@ -75,6 +77,48 @@ _prov_to_app: dict | None = None
 
 def _now_et() -> datetime:
     return datetime.now(_ET) if _ET else datetime.utcnow()
+
+
+def _active_window(now: datetime) -> str:
+    """Which trading window is live right now (ET): 'pre' 04:00–09:30,
+    'rth' 09:30–16:00, 'post' 16:00–20:00, else 'closed' (incl. weekends).
+
+    Each window is its own session with its own new-high/low counters — pre-market
+    highs, the regular-session HOD/LOD, and post-market highs are tracked separately
+    and reset at each window's open (the trader model: a pre-market high is not a
+    regular-session high)."""
+    if now.weekday() >= 5:
+        return "closed"
+    hm = now.hour * 100 + now.minute
+    if 400 <= hm < 930:
+        return "pre"
+    if 930 <= hm < 1600:
+        return "rth"
+    if 1600 <= hm < 2000:
+        return "post"
+    return "closed"
+
+
+def _ext_value(row: dict):
+    """Live extended-hours price for one snapshot row, mirroring
+    massive._ext_price_for: prefer a genuine lastTrade print (differs from the RTH
+    close), else the minute-aggregate close (min.c carries ext-hours prints), else
+    lastTrade. Returns None when nothing usable. RTH's day.h/day.l don't move after
+    hours, so pre/post new highs/lows are tracked from THIS value instead."""
+    def _pf(v):
+        try:
+            v = float(v)
+            return v if v > 0 else None
+        except (TypeError, ValueError):
+            return None
+    lt = _pf(row.get("last_trade_p"))
+    mc = _pf(row.get("min_c"))
+    dc = _pf(row.get("day_c"))
+    if lt is not None and (dc is None or lt != dc):
+        return lt
+    if mc is not None:
+        return mc
+    return lt
 
 
 def _tick_seconds() -> float:
@@ -122,7 +166,7 @@ def _seed_demo() -> None:
     order per panel."""
     ts = "2026-08-25T12:20:00-04:00"
     with _lock:
-        _reset("2026-08-25")
+        _reset("2026-08-25:rth", "rth", "2026-08-25")
         events = _state["events"]
         syms = _state["syms"]
         for sym, price, cnt in reversed(_DEMO_LOWS):
@@ -186,32 +230,41 @@ def _is_tradable(app_sym: str, row: dict) -> bool:
         return isinstance(price, (int, float)) and price > 1.0
 
 
-def _reset(session_date: str) -> None:
+def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
-    _state["session_date"] = session_date
+    _state["session_key"] = session_key
+    _state["window"] = window
+    _state["date"] = date
     _state["syms"] = {}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
-    _log.info("[nhnl] session reset for %s", session_date)
+    _log.info("[nhnl] session reset for %s", session_key)
 
 
-def _tick_once(snapshot: dict, session: str, today: str, now: datetime) -> None:
-    """Fold one snapshot into the session accumulator.
+def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
+    """Fold one snapshot into the current window's accumulator.
 
-    Pure w.r.t. its inputs (snapshot/session/today/now) so tests can drive it with
-    synthetic snapshot sequences. RTH only: a non-regular session just stamps
-    `asof` and returns (Phase 1 does not accumulate pre/post — that's Phase 3).
+    Pure w.r.t. its inputs (snapshot/window/today/now) so tests can drive it with
+    synthetic snapshot sequences. `window` is 'rth' | 'pre' | 'post' | 'closed'.
+      - rth   → new high/low OF DAY tracked from the official day.h / day.l.
+      - pre/post → the RTH day.h/l are frozen after hours, so the extended-session
+        high/low is tracked from the live ext price (_ext_value) instead.
+      - closed → just stamp asof; nothing accumulates.
+    Counters reset whenever the (date, window) session rolls over.
     """
     now_iso = now.isoformat()
-    if session != "regular":
+    if window == "closed":
         with _lock:
+            _state["window"] = "closed"
             _state["asof"] = now_iso
         return
 
+    session_key = f"{today}:{window}"
+    is_rth = window == "rth"
     prov_map = _universe_map()
     with _lock:
-        if _state["session_date"] != today:
-            _reset(today)
+        if _state["session_key"] != session_key:
+            _reset(session_key, window, today)
         syms = _state["syms"]
         events = _state["events"]
 
@@ -219,45 +272,42 @@ def _tick_once(snapshot: dict, session: str, today: str, now: datetime) -> None:
             row = snapshot.get(prov)
             if not row:
                 continue
-            dh = row.get("day_high")
-            dl = row.get("day_low")
             price = row.get("last_price")
-            if not isinstance(dh, (int, float)) or dh <= 0:
-                continue  # no valid session high yet (pre-open rows read 0)
+            if is_rth:
+                # Official running HOD / LOD (live during RTH).
+                ref_hi = row.get("day_high")
+                ref_lo = row.get("day_low")
+                if not isinstance(ref_hi, (int, float)) or ref_hi <= 0:
+                    continue
+            else:
+                # Extended session: track running high/low of the ext price itself
+                # (one sampled point per tick), since day.h/l are frozen after hours.
+                ext = _ext_value(row)
+                if ext is None:
+                    continue
+                ref_hi = ref_lo = ext
+                price = ext
 
             st = syms.get(app)
             if st is None:
-                # First sight today — SEED the marks, emit nothing. Counts are
-                # "new HODs since we began watching this session".
-                lod0 = dl if isinstance(dl, (int, float)) and dl > 0 else dh
-                syms[app] = {"hod": dh, "lod": lod0, "nh": 0, "nl": 0, "last": price}
+                lo0 = ref_lo if isinstance(ref_lo, (int, float)) and ref_lo > 0 else ref_hi
+                syms[app] = {"hod": ref_hi, "lod": lo0, "nh": 0, "nl": 0, "last": price}
                 continue
 
-            # New high-of-day?
-            if dh > st["hod"] * (1 + _EPS):
+            # New high (of day in RTH; of the ext session in pre/post)?
+            if ref_hi > st["hod"] * (1 + _EPS):
                 if _is_tradable(app, row):
                     st["nh"] += 1
-                    events.append({
-                        "sym": app,
-                        "price": round(float(price or dh), 2),
-                        "count": st["nh"],
-                        "ts": now_iso,
-                        "dir": "high",
-                    })
-                st["hod"] = dh  # advance the mark even if untradable, so we never
-                                # backfill a flood of highs if it later qualifies
-            # New low-of-day?
-            if isinstance(dl, (int, float)) and dl > 0 and dl < st["lod"] * (1 - _EPS):
+                    events.append({"sym": app, "price": round(float(price or ref_hi), 2),
+                                   "count": st["nh"], "ts": now_iso, "dir": "high"})
+                st["hod"] = ref_hi   # advance the mark even if untradable
+            # New low?
+            if isinstance(ref_lo, (int, float)) and ref_lo > 0 and ref_lo < st["lod"] * (1 - _EPS):
                 if _is_tradable(app, row):
                     st["nl"] += 1
-                    events.append({
-                        "sym": app,
-                        "price": round(float(price or dl), 2),
-                        "count": st["nl"],
-                        "ts": now_iso,
-                        "dir": "low",
-                    })
-                st["lod"] = dl
+                    events.append({"sym": app, "price": round(float(price or ref_lo), 2),
+                                   "count": st["nl"], "ts": now_iso, "dir": "low"})
+                st["lod"] = ref_lo
             st["last"] = price
 
         _state["asof"] = now_iso
@@ -274,12 +324,11 @@ def get_live(limit: int = 100, min_price: float = 0.0,
                   only persistent, one-directional names).
     Cheap: a copy of the ring buffer + a filtered walk.
     """
-    from api.services import massive
-    cur_session = "regular" if _demo() else massive._detect_session()
+    window = "rth" if _demo() else _active_window(_now_et())
     with _lock:
         evs = list(_state["events"])
         asof = _state["asof"]
-        session_date = _state["session_date"]
+        session_date = _state["date"]
         ticks = _state["ticks"]
         # Universe-wide breadth: how many DISTINCT symbols have made at least one
         # new high (or low) today across the whole cap universe — not just the
@@ -310,11 +359,11 @@ def get_live(limit: int = 100, min_price: float = 0.0,
             break
 
     return {
-        "session": cur_session,
+        "window": window,             # rth | pre | post | closed
         "date": session_date,
         "asof": asof,
         "ticks": ticks,
-        "active": _running and (enabled() or _demo()),
+        "active": window != "closed" and _running and (enabled() or _demo()),
         "highs_total": highs_total,   # universe-wide distinct-symbol counts
         "lows_total": lows_total,
         "highs": highs,
@@ -328,7 +377,9 @@ def status() -> dict:
         return {
             "enabled": enabled(),
             "running": _running,
-            "session_date": _state["session_date"],
+            "window": _state["window"],
+            "session_key": _state["session_key"],
+            "date": _state["date"],
             "tracked_symbols": len(_state["syms"]),
             "events_buffered": len(_state["events"]),
             "ticks": _state["ticks"],
@@ -339,20 +390,20 @@ def status() -> dict:
 
 
 def _tick() -> None:
-    """One scheduled cycle: fetch (only during RTH) and fold."""
+    """One scheduled cycle: fetch during any active window (pre/rth/post) and fold."""
     from api.services import massive
     now = _now_et()
     today = now.strftime("%Y-%m-%d")
-    session = massive._detect_session()
-    if session != "regular":
-        _tick_once({}, session, today, now)  # stamps asof, no fetch
+    window = _active_window(now)
+    if window == "closed":
+        _tick_once({}, "closed", today, now)  # stamps asof, no fetch
         return
     snap = massive._get_client().get_full_market_snapshot_hl()
     if not snap:
         with _lock:
             _state["last_error"] = "empty snapshot"
         return
-    _tick_once(snap, session, today, now)
+    _tick_once(snap, window, today, now)
     with _lock:
         _state["last_error"] = None
 

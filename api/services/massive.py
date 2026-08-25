@@ -408,7 +408,9 @@ class _MassiveRestClient:
                 "day_high":   round(float(day.get("h") or 0.0), 4),
                 "day_low":    round(float(day.get("l") or 0.0), 4),
                 "day_open":   round(float(day.get("o") or 0.0), 4),
-                "min_c":      round(float(minute.get("c") or 0.0), 4),
+                "day_c":      round(float(day.get("c") or 0.0), 4),      # RTH close (for ext-price staleness check)
+                "min_c":      round(float(minute.get("c") or 0.0), 4),   # current minute close (ext-hours aware)
+                "last_trade_p": round(float(last.get("p") or 0.0), 4),   # raw lastTrade.p (ext-hours print)
             }
         return out
 

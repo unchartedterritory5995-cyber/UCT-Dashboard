@@ -12,7 +12,7 @@ import NewHighsLowsWidget from './NewHighsLowsWidget'
 
 const TS = '2026-08-25T13:26:04-04:00'
 const LIVE = {
-  session: 'regular',
+  window: 'rth',
   asof: TS,
   highs_total: 143,   // universe-wide distinct-symbol counts (panel headers)
   lows_total: 88,
@@ -75,10 +75,18 @@ describe('NewHighsLowsWidget', () => {
     expect(swr.mock.calls[0][0]).toContain('min_count=3')
   })
 
-  it('shows a market-closed notice outside regular hours', () => {
-    swr.mockReturnValue({ data: { session: 'post_market', highs: [], lows: [] } })
+  it('shows the panels during post-market (not just RTH)', () => {
+    swr.mockReturnValue({ data: { ...LIVE, window: 'post' } })
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByText(/Intraday scan runs during market hours/i)).toBeInTheDocument()
+    expect(screen.getByText('POST-MARKET')).toBeInTheDocument()
+    expect(screen.getByText('NEW HIGHS')).toBeInTheDocument()
+    expect(screen.getByText('RL')).toBeInTheDocument()
+  })
+
+  it('shows a market-closed notice only when the window is closed', () => {
+    swr.mockReturnValue({ data: { window: 'closed', highs: [], lows: [] } })
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText(/Market closed/i)).toBeInTheDocument()
     expect(screen.queryByText('NEW HIGHS')).not.toBeInTheDocument()
   })
 })
