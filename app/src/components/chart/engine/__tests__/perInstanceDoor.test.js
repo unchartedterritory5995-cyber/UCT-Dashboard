@@ -277,6 +277,9 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // exactly those keys. INVESTIGATED, not regenerated: no per-definition door
     // changed behaviour.
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('c9481a7d844f90ed9280add758fd929edadf236b554b144d9cb8b6f834ba0d9d')
+      // 2026-08-24: re-pinned for the graphite default palette retune — color
+      // VALUE edits only (candles/volume/earnings → app --gain/--loss, canvas →
+      // graphite #17181a); zero keys added/removed, structure byte-identical.
+      .toBe('795af39d18eaebd2056a06ce210f3e109cd2d01f72198a66b405a5f4984a9f64')
   })
 })

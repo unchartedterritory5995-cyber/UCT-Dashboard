@@ -25,13 +25,13 @@ export const CHART_DEFAULTS = {
     // in StockChart) so charts look identical by default now that the workspace
     // sources candle colors from settings (userCandleColors). oneColor = the single
     // color used by the "One Color" coloring mode.
-    upColor: '#1ae51a',
-    downColor: '#c41f2d',
-    upBorder: '#1ae51a',
-    downBorder: '#c41f2d',
-    upWick: '#1ae51a',
-    downWick: '#c41f2d',
-    oneColor: '#1ae51a',
+    upColor: '#2faf68',
+    downColor: '#df4646',
+    upBorder: '#2faf68',
+    downBorder: '#df4646',
+    upWick: '#2faf68',
+    downWick: '#df4646',
+    oneColor: '#2faf68',
     // Bar thickness for the OHLC/HLC bar types ONLY. Lightweight Charts exposes a
     // single boolean here (`thinBars`) — true = 1px lines (the long-standing look,
     // and the library default), false = lines as wide as the bar slot. There is no
@@ -48,9 +48,9 @@ export const CHART_DEFAULTS = {
   // Canvas. background = the solid canvas color (defaults to the app --bg so the
   // workspace look is unchanged now that it reads this instead of a hardcoded value).
   // bgMode 'gradient' paints a top→bottom gradient across both panes (like Sunrise).
-  background: '#0e0f0d',
+  background: '#17181a',
   bgMode: 'solid',        // 'solid' | 'gradient'
-  bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
+  bgGradient: { top: '#16233b', bottom: '#17181a' },
   textColor: '#706b5e',
   textSize: 11,           // price/time scale font size (px)
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
@@ -112,11 +112,9 @@ export const CHART_DEFAULTS = {
 
   volume: {
     visible: true,
-    // Match StockChart's MB_UP / MB_DOWN — the workspace renders volume from these
-    // now, so the defaults must equal the previous hardcoded palette or the default
-    // look would shift for every user.
-    upColor: '#1ae51a',
-    downColor: '#c41f2d',
+    // Volume bars share the candle palette (the app's --gain/--loss).
+    upColor: '#2faf68',
+    downColor: '#df4646',
     hvcEnabled: true,
     separatePane: false,
     paneHeightPct: 22,   // height of the separate volume pane, % of chart (8–45)
@@ -185,7 +183,7 @@ export const CHART_DEFAULTS = {
   comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean, scaleMode?, group? }>
   compareHideBase: false, // "Group only" — hide base candles/MAs/volume, show only comparisons
   // Event markers. earningsBeat/earningsMiss default to the candle up/down colors
-  // (#1ae51a / #c41f2d) so the "E" badge matches the chart out of the box; both are
+  // (the app --gain / --loss) so the "E" badge matches the chart out of the box; both are
   // user-overridable (Markers tab) and also color the surprise rows in the popover.
   // `ipo` marks the very first trading day (IPO / first-listing) with a gold badge
   // on the first bar — but ONLY when that bar is actually the listing day, so its
@@ -193,7 +191,7 @@ export const CHART_DEFAULTS = {
   // history exists than is loaded." Default ON (at most one per chart, never noisy).
   markers: {
     earnings: false, splits: false, dividends: false, news: false, ipo: true,
-    earningsBeat: '#1ae51a', earningsMiss: '#c41f2d', ipoColor: '#c9a84c',
+    earningsBeat: '#2faf68', earningsMiss: '#df4646', ipoColor: '#dcbb5e',
   },
   // Previous-day High / Low / Close reference lines (TC2000-style), INTRADAY charts
   // only. Each line anchors at the candle that MADE that level (high candle / low
