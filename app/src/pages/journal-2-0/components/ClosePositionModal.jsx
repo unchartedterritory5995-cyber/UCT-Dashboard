@@ -200,8 +200,8 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
         </div>
 
         <div className={styles.footer}>
-          <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={saving}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Closing…' : 'Close Position'}
           </button>
         </div>

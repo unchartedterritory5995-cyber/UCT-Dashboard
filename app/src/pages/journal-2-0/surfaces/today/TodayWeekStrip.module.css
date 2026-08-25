@@ -6,7 +6,7 @@
   padding: 14px 16px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .head {
@@ -93,7 +93,7 @@
 .empty {
   margin-top: 6px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
 }
 
 .pos { color: var(--gain, #3cb868); }

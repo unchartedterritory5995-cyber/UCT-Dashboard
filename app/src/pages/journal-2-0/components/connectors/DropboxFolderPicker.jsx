@@ -177,7 +177,7 @@ export default function DropboxFolderPicker({
         {error && (
           <div className={styles.error} role="alert">
             <span>{error}</span>
-            <button type="button" className={styles.retryBtn} onClick={() => load(path)} disabled={loading}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => load(path)} disabled={loading}>
               Try again
             </button>
           </div>
@@ -205,7 +205,7 @@ export default function DropboxFolderPicker({
         <div className={styles.footerRow}>
           <button
             type="button"
-            className={styles.primaryBtn}
+            className="btn btn-primary"
             disabled={busy || rootPickUnsupported}
             onClick={() => pick(null)}
           >

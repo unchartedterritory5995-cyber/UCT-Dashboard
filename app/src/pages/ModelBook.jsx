@@ -362,8 +362,8 @@ function AddStockForm({ year, onAdded }) {
       <textarea className={styles.textarea} placeholder="Why it's a model stock (thesis)" value={form.thesis}
         onChange={e => setForm(f => ({ ...f, thesis: e.target.value }))} />
       <div className={styles.formActions}>
-        <button className={styles.saveBtn} type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Stock'}</button>
-        <button className={styles.cancelBtn} type="button" onClick={() => setOpen(false)}>Cancel</button>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Stock'}</button>
+        <button className="btn btn-ghost" type="button" onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </form>
   )
@@ -490,10 +490,10 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
       <textarea className={styles.textarea} placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
         onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
       <div className={styles.formActions}>
-        <button className={styles.saveBtn} type="submit" disabled={saving}>
+        <button className="btn btn-primary" type="submit" disabled={saving}>
           {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Save Setup')}
         </button>
-        <button className={styles.cancelBtn} type="button" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-ghost" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   )
@@ -667,10 +667,10 @@ function CatalystForm({ stockId, year, initial, onSaved, onCancel }) {
       <textarea className={styles.textarea} placeholder="What happened and why it moved the stock" value={form.description}
         onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
       <div className={styles.formActions}>
-        <button className={styles.saveBtn} type="submit" disabled={saving}>
+        <button className="btn btn-primary" type="submit" disabled={saving}>
           {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Save catalyst')}
         </button>
-        <button className={styles.cancelBtn} type="button" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-ghost" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   )
@@ -1445,8 +1445,8 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                     placeholder="Catalysts, drivers, the theme behind the move"
                     onChange={e => setStoryDraft(e.target.value)} />
                   <div className={styles.formActions}>
-                    <button className={styles.saveBtn} onClick={saveNarrative}>Save</button>
-                    <button className={styles.cancelBtn} onClick={() => setEditNarr(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={saveNarrative}>Save</button>
+                    <button className="btn btn-ghost" onClick={() => setEditNarr(false)}>Cancel</button>
                   </div>
                 </>
               ) : (

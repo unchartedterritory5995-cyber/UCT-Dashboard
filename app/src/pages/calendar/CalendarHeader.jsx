@@ -610,7 +610,7 @@ export default function CalendarHeader({
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
-        <span className={styles.ttl}><UIcon name="calendar" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Calendar</span>
+        <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Calendar</span>
         <span className={styles.view}>
           {VIEWS.map(([key, lbl, tip]) => (
             <span key={key} className={view === key ? styles.viewOn : ''}

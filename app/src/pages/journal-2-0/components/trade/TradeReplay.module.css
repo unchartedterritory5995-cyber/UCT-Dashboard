@@ -51,10 +51,10 @@
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
-.close:hover { color: #c9a84c; }
+.close:hover { color: var(--accent); }
 
 .chart {
   width: 100%;
@@ -78,8 +78,8 @@
 }
 
 .pnl { font-size: 17px; font-weight: 800; }
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 
 .controls {
   display: flex;
@@ -90,10 +90,10 @@
 
 .playBtn {
   padding: 6px 14px;
-  border: 1px solid #c9a84c;
-  border-radius: 8px;
-  background: rgba(201, 168, 76, 0.1);
-  color: #c9a84c;
+  border: 1px solid #dcbb5e;
+  border-radius: var(--radius-lg);
+  background: rgba(220, 187, 94, 0.1);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -103,22 +103,22 @@
 .speedBtn {
   padding: 5px 10px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted, #8a8a8a);
   font-size: 12px;
   cursor: pointer;
 }
 
-.speedOn { color: #c9a84c; border-color: #c9a84c; }
+.speedOn { color: var(--accent); border-color: #dcbb5e; }
 
 .scrub {
   flex: 1 1 160px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   min-width: 120px;
 }
 
-.err { color: #ef4444; font-size: 13px; margin: 0; }
+.err { color: var(--loss); font-size: 13px; margin: 0; }
 .hint { color: var(--text-muted, #8a8a8a); font-size: 13px; margin: 0; }
 
 @media (max-width: 640px) {

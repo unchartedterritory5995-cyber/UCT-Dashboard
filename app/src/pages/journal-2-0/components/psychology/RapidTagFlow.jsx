@@ -165,7 +165,7 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
       </div>
     )
     footer = (
-      <button type="button" className={styles.primaryBtn} onClick={onClose}>Close</button>
+      <button type="button" className="btn btn-primary" onClick={onClose}>Close</button>
     )
   } else if (trades === null) {
     body = (
@@ -184,7 +184,7 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
       </div>
     )
     footer = (
-      <button type="button" className={styles.primaryBtn} onClick={onClose}>Done</button>
+      <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
     )
   } else if (current) {
     const pnl = current.pnlDollarNet ?? current.pnlDollar
@@ -253,7 +253,7 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
       <div className={styles.footerRow}>
         <button
           type="button"
-          className={styles.secondaryBtn}
+          className="btn btn-secondary"
           onClick={advance}
           disabled={saving}
         >
@@ -261,7 +261,7 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
         </button>
         <button
           type="button"
-          className={styles.primaryBtn}
+          className="btn btn-primary"
           onClick={saveAndNext}
           disabled={saving}
         >

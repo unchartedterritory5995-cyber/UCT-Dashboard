@@ -110,7 +110,7 @@ export default function ConnectedAppsCard() {
             notes sync into the Notebook automatically — no export, no drag-and-drop.
           </p>
           <p className={styles.muted}>Note Connectors is a premium feature.</p>
-          <button className={styles.primaryBtn} onClick={() => startCheckout?.()}>
+          <button className="btn btn-primary" onClick={() => startCheckout?.()}>
             Upgrade to connect
           </button>
         </div>
@@ -227,7 +227,7 @@ export default function ConnectedAppsCard() {
                   ) : showingConsent ? null : (
                     <button
                       type="button"
-                      className={styles.primaryBtn}
+                      className="btn btn-primary"
                       disabled={busyProvider === p.key}
                       onClick={() => openConnect(p)}
                     >

@@ -1,0 +1,60 @@
+/* The single canonical section header — a full-width bar with a divider line,
+   identical on every page (the "Charts header" look the owner picked). It sits
+   flush to the top-left of the content area, so every section's title starts at
+   the same left inset, the same distance from the top, and vertically aligned
+   with the sidebar compass logo.
+
+   Full-bleed: the bar escapes its page's padding via negative margins keyed to
+   --page-pad-top / --page-pad-x (defaults match the common `.page` padding of
+   20px / 24px). A page with different padding sets those two vars on the element
+   that wraps this header. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 12px 20px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.2px;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+.icon { flex: none; }
+.titleText { display: inline-block; }
+
+/* Section controls (tabs, buttons, dropdowns) flow after the title. */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+@media (max-width: 640px) {
+  .header {
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 16px;
+    margin: calc(-1 * var(--page-pad-top-m, 16px)) calc(-1 * var(--page-pad-x-m, 16px)) 12px;
+  }
+  .title { font-size: 17px; }
+}

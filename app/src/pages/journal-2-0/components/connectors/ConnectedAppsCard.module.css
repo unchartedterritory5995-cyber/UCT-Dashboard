@@ -11,7 +11,7 @@
   color: var(--color-danger, #f87171);
   background: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
 }
 
@@ -22,13 +22,13 @@
   font-size: 13px;
   font-weight: 600;
   padding: 9px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   min-height: var(--tap-min, 44px);
   border: 1px solid transparent;
   transition: filter 0.15s ease, opacity 0.15s ease, background 0.15s ease;
 }
-.primaryBtn { background: var(--color-accent, #c9a84c); color: #1a1a1a; }
+.primaryBtn { background: var(--color-accent, #dcbb5e); color: var(--bg); }
 .primaryBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .ghostBtn {
   background: transparent;
@@ -53,7 +53,7 @@
   margin: 0;
   padding: 8px 10px;
   border: 1px solid var(--color-border, #333);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -83,7 +83,7 @@
   opacity: 0.6;
   padding: 3px 10px;
   border: 1px solid var(--color-border, #333);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .connectedBadge {
@@ -100,18 +100,18 @@
   font-size: 12.5px;
   font-weight: 700;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   border: 1px solid rgba(224, 161, 26, 0.5);
   background: rgba(224, 161, 26, 0.12);
-  color: #e0a11a;
+  color: var(--warn);
   min-height: 32px;
 }
 .chooseFolderBtn:hover { background: rgba(224, 161, 26, 0.2); }
 
 .needsFolderHint {
   font-size: 12px;
-  color: #e0a11a;
+  color: var(--warn);
   margin: 0;
 }
 
@@ -147,7 +147,7 @@
 .counts { display: flex; gap: 16px; }
 .stat { display: flex; flex-direction: column; gap: 1px; }
 .statValue { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.statWarn { color: #e0a11a; }
+.statWarn { color: var(--warn); }
 .statLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; opacity: 0.6; }
 
 .sourceErr {

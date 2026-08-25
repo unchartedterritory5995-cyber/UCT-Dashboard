@@ -8,10 +8,13 @@
 .tabBar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 10px var(--space-xl);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  gap: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
+  background: var(--bg-surface);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -19,11 +22,14 @@
 }
 .brandRow { margin-right: var(--space-md); }
 .brandTag {
-  font-size: var(--text-xs);
-  letter-spacing: 3px;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  letter-spacing: 0.2px;
   font-weight: 700;
-  color: var(--ut-gold);
-  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--text-heading);
+  text-transform: none;
+  white-space: nowrap;
 }
 .tab {
   display: inline-flex;
@@ -67,12 +73,12 @@
   flex-wrap: wrap;
   margin-bottom: var(--space-xl);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
 }
 .sectionHeadMain { display: flex; align-items: center; gap: var(--space-md); }
 .sectionIcon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 46px; height: 46px; border-radius: 12px;
+  width: 46px; height: 46px; border-radius: var(--radius-xl);
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 16px var(--ut-gold-glow);
@@ -90,8 +96,8 @@
 /* ── Buttons ── */
 .goldBtn, .saveBtn {
   display: inline-flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #0e0f0d; border: none; border-radius: 8px;
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
+  color: var(--bg); border: none; border-radius: var(--radius-lg);
   padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
   font-weight: 700; cursor: pointer; min-height: var(--tap-min);
   box-shadow: 0 0 14px var(--ut-gold-glow);
@@ -100,7 +106,7 @@
 .goldBtn:disabled, .saveBtn:disabled { opacity: 0.6; cursor: default; }
 .ghostBtn {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  border-radius: 8px; padding: 8px 13px; font-family: var(--font-sans);
+  border-radius: var(--radius-lg); padding: 8px 13px; font-family: var(--font-sans);
   font-size: var(--text-base); cursor: pointer; min-height: var(--tap-min);
 }
 .ghostBtn:hover { color: var(--text-bright); border-color: var(--border-accent); }
@@ -111,12 +117,12 @@
 .empty { text-align: center; padding: var(--space-3xl) var(--space-lg); max-width: 460px; margin: 0 auto; }
 .emptyIcon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 64px; height: 64px; border-radius: 16px;
+  width: 64px; height: 64px; border-radius: var(--radius-2xl);
   background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 22px var(--ut-gold-glow); margin-bottom: var(--space-lg);
 }
 .emptyTitle { font-size: 16px; color: var(--text-bright); font-weight: 600; margin-bottom: var(--space-sm); }
-.emptyText { color: var(--text-muted); font-size: var(--text-base); line-height: 1.6; margin-bottom: var(--space-lg); }
+.emptyText { color: var(--text); font-weight: 500; font-size: var(--text-base); line-height: 1.6; margin-bottom: var(--space-lg); }
 
 /* ── Articles ── */
 .cardGrid {
@@ -126,7 +132,7 @@
 }
 .articleCard {
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+  border-radius: var(--radius-xl); overflow: hidden; display: flex; flex-direction: column;
   text-decoration: none; transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .articleCard:hover { border-color: var(--border-accent); transform: translateY(-2px); }
@@ -164,7 +170,7 @@
 .postColHead {
   display: flex; flex-direction: row; align-items: center; gap: var(--space-md);
   padding: 12px var(--space-md);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
   background: var(--bg-surface);
   text-decoration: none; position: sticky; top: 0; z-index: 1;
 }
@@ -188,7 +194,7 @@
 
 .postCard {
   display: block; background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: var(--space-lg); text-decoration: none;
+  border-radius: var(--radius-xl); padding: var(--space-lg); text-decoration: none;
   transition: border-color 0.15s ease;
 }
 .postCard:hover { border-color: var(--border-accent); }
@@ -214,7 +220,7 @@
 }
 .teamCard {
   background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: var(--space-lg); text-align: center;
+  border-radius: var(--radius-xl); padding: var(--space-lg); text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   cursor: pointer; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -266,7 +272,7 @@
 .profileLabel {
   font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 1px;
   color: var(--ut-gold); font-weight: 700; margin: 0;
-  border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  border-bottom: 1px solid var(--header-line); padding-bottom: 4px;
 }
 .profileBio { font-size: var(--text-base); color: var(--text); line-height: 1.6; margin: 0; }
 .profileList { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
@@ -286,7 +292,7 @@
 .field { display: flex; flex-direction: column; gap: 5px; }
 .label { font-size: var(--text-sm); color: var(--text); font-weight: 600; }
 .input, .textarea {
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 9px 12px; color: var(--text-bright); font-family: var(--font-sans); font-size: var(--text-base);
 }
 .input:focus, .textarea:focus { outline: none; border-color: var(--ut-gold-glow); }
@@ -295,7 +301,7 @@
 .formActions { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-sm); }
 .cancelBtn {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  border-radius: 8px; padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
+  border-radius: var(--radius-lg); padding: 9px 14px; font-family: var(--font-sans); font-size: var(--text-base);
   cursor: pointer; min-height: var(--tap-min);
 }
 .cancelBtn:disabled { opacity: 0.6; cursor: default; }
@@ -335,9 +341,9 @@
    what a trader scans an archive for. */
 .articleTickers { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
 .articleTicker {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 10px; letter-spacing: 0.04em; line-height: 1;
-  padding: 3px 5px; border-radius: 4px;
+  padding: 3px 5px; border-radius: var(--radius-sm);
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text-bright);
 }

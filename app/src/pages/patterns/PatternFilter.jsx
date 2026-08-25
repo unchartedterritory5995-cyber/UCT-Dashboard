@@ -123,7 +123,7 @@ export default function PatternFilter({ filters, onChange }) {
           Leaders only
         </label>
 
-        <button type="button" className={styles.resetBtn} onClick={reset}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={reset}>
           Reset
         </button>
       </div>

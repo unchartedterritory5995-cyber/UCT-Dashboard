@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 8500;
   background: #000;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
   /* NOTE: top/left are deliberately NOT transitioned here. While docked, the
@@ -39,7 +39,7 @@
   will-change: transform;
 }
 .mini {
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid rgba(220, 187, 94, 0.4);
 }
 .frame {
   position: absolute;
@@ -55,7 +55,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #a8a290;
+  color: var(--text);
   font-size: 13px;
 }
 
@@ -92,13 +92,13 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: #e6cf86;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 .topTitle {
   flex: 1;
   min-width: 0;
-  color: #f3efe2;
+  color: var(--text-bright);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -143,7 +143,7 @@
 .time {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: #d8d2c0;
+  color: var(--text-bright);
   padding: 0 4px;
   white-space: nowrap;
 }
@@ -157,29 +157,29 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .cbtn:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 .cbtnOn {
-  background: rgba(201, 168, 76, 0.28);
+  background: rgba(220, 187, 94, 0.28);
 }
 .speedBtn {
   min-width: 34px;
   height: 30px;
   padding: 0 7px;
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   background: transparent;
-  color: #e6cf86;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .speedBtn:hover {
-  background: rgba(201, 168, 76, 0.2);
+  background: rgba(220, 187, 94, 0.2);
 }
 
 /* UCT broadcast watermark (docked) — TV-style corner bug, never blocks clicks. */
@@ -192,7 +192,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px 3px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(8, 9, 8, 0.42);
   opacity: 0.66;
   pointer-events: none;
@@ -206,7 +206,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.13em;
-  color: #e6cf86;
+  color: var(--accent);
 }
 @media (max-width: 640px) {
   .watermark {
@@ -225,7 +225,7 @@
   justify-content: center;
   gap: 10px;
   background: rgba(8, 9, 8, 0.94);
-  color: #f3efe2;
+  color: var(--text-bright);
   text-align: center;
   padding: 12px;
   z-index: 2;
@@ -238,7 +238,7 @@
 .pipLabel {
   font-size: 13px;
   font-weight: 600;
-  color: #e6cf86;
+  color: var(--accent);
 }
 .nextCard {
   position: absolute;
@@ -249,7 +249,7 @@
   justify-content: center;
   gap: 8px;
   background: rgba(8, 9, 8, 0.92);
-  color: #f3efe2;
+  color: var(--text-bright);
   text-align: center;
   padding: 12px;
 }
@@ -257,7 +257,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .nextTitle {
   font-size: 14px;
@@ -266,21 +266,21 @@
 }
 .nextPlayBtn,
 .nextCancelBtn {
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  border: 1px solid rgba(220, 187, 94, 0.5);
   background: transparent;
-  color: #f3efe2;
-  border-radius: 8px;
+  color: var(--text-bright);
+  border-radius: var(--radius-lg);
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
 }
 .nextPlayBtn {
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
 }
 
 @media (max-width: 640px) {
   .host {
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -290,19 +290,19 @@
   height: 46px;
   object-fit: contain;
   margin-bottom: 8px;
-  filter: drop-shadow(0 0 10px rgba(201, 168, 76, 0.45));
+  filter: drop-shadow(0 0 10px rgba(220, 187, 94, 0.45));
 }
 .endBrand {
   font-size: 12px;
   letter-spacing: 0.22em;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   margin-bottom: 10px;
 }
 .endTagline {
   font-style: italic;
   font-size: 13px;
-  color: #d8d2c2;
+  color: var(--text-bright);
   margin: 4px 0 12px;
 }
 
@@ -319,8 +319,8 @@
   transform: translateX(-50%) scaleY(0.6);
   transform-origin: bottom center;
   background: rgba(8, 9, 8, 0.95);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  border-radius: 8px;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  border-radius: var(--radius-lg);
   padding: 10px 6px;
   opacity: 0;
   pointer-events: none;
@@ -339,7 +339,7 @@
   direction: rtl;
   width: 6px;
   height: 84px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   cursor: pointer;
   margin: 0;
 }

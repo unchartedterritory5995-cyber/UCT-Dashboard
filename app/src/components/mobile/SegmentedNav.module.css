@@ -21,7 +21,7 @@
   white-space: nowrap;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-size: var(--text-md);

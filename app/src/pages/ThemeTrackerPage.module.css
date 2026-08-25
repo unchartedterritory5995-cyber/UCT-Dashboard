@@ -73,8 +73,8 @@
 
 .periodTabActive {
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
-  border-color: rgba(201, 168, 76, 0.3);
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: var(--accent);
 }
 
 /* ⚙ Theme Tracker settings gear (right end of the search row — riding the period
@@ -87,7 +87,7 @@
   margin-left: 6px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 3px 4px;
   color: var(--tt-text, var(--text-muted));
   cursor: pointer;
@@ -102,7 +102,7 @@
 .settingsBtnActive {
   opacity: 1;
   color: var(--tt-accent, var(--ut-gold));
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -137,7 +137,7 @@
 }
 
 .searchInput:focus {
-  border-color: rgba(201, 168, 76, 0.4);
+  border-color: var(--accent);
 }
 
 .searchClear {
@@ -251,7 +251,7 @@
 .tableBody::-webkit-scrollbar-track { background: transparent; }
 .tableBody::-webkit-scrollbar-thumb {
   background: var(--tt-divider-strong, rgba(255, 255, 255, 0.14));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Theme group row ────────────────────────────────────────────────────── */
@@ -335,13 +335,13 @@
 }
 
 .rotBadgeIn {
-  color: #4ade80;
+  color: var(--gain);
   background: rgba(74, 222, 128, 0.14);
   border: 1px solid rgba(74, 222, 128, 0.25);
 }
 
 .rotBadgeOut {
-  color: #f87171;
+  color: var(--loss);
   background: rgba(248, 113, 113, 0.14);
   border: 1px solid rgba(248, 113, 113, 0.25);
 }
@@ -402,33 +402,33 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.22);
+  color: var(--text-muted);
   padding: 0;
   margin-right: 7px;
   flex-shrink: 0;
 }
-.flagStar:hover { color: var(--ut-gold, #c9a84c); }
-.flagStarActive { color: var(--ut-gold, #c9a84c); }
+.flagStar:hover { color: var(--ut-gold, #dcbb5e); }
+.flagStarActive { color: var(--ut-gold, #dcbb5e); }
 
 .stockRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));
 }
 
 /* "… Index" row = the theme's equal-weight thematic-ETF chart. */
-.indexRow { border-bottom: 1px solid rgba(201, 168, 76, 0.15); }
+.indexRow { border-bottom: 1px solid rgba(220, 187, 94, 0.15); }
 .indexRow .sym { color: var(--tt-accent, var(--ut-gold)); }
 .indexRow :global(svg) { color: var(--tt-accent, var(--ut-gold)); }
 .indexBadge {
   margin-left: 6px; font-size: calc(8.5px * var(--tt-font-scale, 1)); font-weight: 700; letter-spacing: 0.5px;
   padding: 1px 5px; border-radius: 3px;
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.18)); color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18)); color: var(--tt-accent, var(--ut-gold));
 }
 
 .stockRow.selected {
   /* EXACTLY the Watchlist widget's selected-row look (.listRowSelected): the same
      fixed gold tint + gold bar on every canvas — owner spotted the accent-bg
      variant reading slightly darker side-by-side. Keep these two in sync. */
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
   border-left: 2px solid var(--ut-gold);
   padding-left: 10px;   /* 12px − 2px border keeps the bullet aligned */
 }
@@ -591,8 +591,8 @@
 
 .chartPeriodBtnActive {
   color: var(--ut-gold);
-  background: rgba(201, 168, 76, 0.12);
-  border-color: rgba(201, 168, 76, 0.3);
+  background: rgba(220, 187, 94, 0.12);
+  border-color: var(--accent);
 }
 
 .newsLabel {
@@ -630,7 +630,7 @@
   text-transform: uppercase;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   padding: 3px 10px;
   cursor: pointer;
@@ -651,7 +651,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   padding: 3px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   animation: flagFade 1.5s ease-in-out forwards;
 }
 .flagToastAdded { color: var(--ut-gold); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
@@ -711,7 +711,7 @@
   padding: 2px;
   display: flex;
   align-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .ttFooterRefresh:hover { color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.06)); }
 .ttFooterRefreshSpin { animation: ttFooterSpin 0.7s linear infinite; }

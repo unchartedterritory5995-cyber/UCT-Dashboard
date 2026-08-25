@@ -96,9 +96,9 @@
 .metricOff:hover { color: var(--text-primary); }
 
 .metricOn {
-  color: var(--gold, #c9a84c);
-  border-color: color-mix(in srgb, var(--gold, #c9a84c) 45%, transparent);
-  background: color-mix(in srgb, var(--gold, #c9a84c) 10%, transparent);
+  color: var(--gold, #dcbb5e);
+  border-color: color-mix(in srgb, var(--gold, #dcbb5e) 45%, transparent);
+  background: color-mix(in srgb, var(--gold, #dcbb5e) 10%, transparent);
 }
 
 /* The 44px tap floor is a TOUCH requirement; on a mouse it would make a

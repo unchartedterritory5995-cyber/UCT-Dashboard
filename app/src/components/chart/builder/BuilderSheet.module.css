@@ -48,7 +48,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   resize: vertical;
 }
 .field:focus { outline: none; border-color: var(--border-accent); }
@@ -65,7 +65,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .nameField:focus { outline: none; border-color: var(--border-accent); }
 .nameField::placeholder { color: var(--text-muted); }
@@ -83,7 +83,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--color-danger);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .errorDot {
@@ -119,7 +119,7 @@
   padding: 10px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* ⛔ NO `text-overflow: ellipsis`, NO `-webkit-line-clamp`, NO `max-height`.
@@ -182,7 +182,7 @@
   margin: 0 0 6px;
   padding: 8px 10px;
   border: 1px solid var(--color-warning);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
 }
 
@@ -240,7 +240,7 @@
   color: var(--text-bright);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .ghostBtn:hover { border-color: var(--border-accent); }
@@ -254,7 +254,7 @@
   color: var(--bg-base);
   background: var(--gold);
   border: 1px solid var(--gold);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 /* ⛔ `opacity` + `cursor`, NEVER `pointer-events: none`. The disabled ATTRIBUTE
@@ -270,7 +270,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--color-danger);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -289,7 +289,7 @@
   font-size: 13px;
   color: var(--text-bright);
   border: 1px solid var(--color-danger);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* ── saved formulas ───────────────────────────────────────────────────────── */
@@ -334,7 +334,7 @@
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .modeTab:hover { border-color: var(--border-accent); }
@@ -348,7 +348,7 @@
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 /* A nested group is the ONLY thing that carries the other join, so it is the
    only thing that has to read as a unit. */
@@ -391,7 +391,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 /* ⚰️ `flex: 1 1 0` WITH `min-width: 0` LET THIS SELECT CLIP ITS OWN LABEL.
    Measured in the live builder 2026-08-11: switching a condition's right side to
@@ -448,7 +448,7 @@
   color: var(--text-muted);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .pickerIconBtn:hover { border-color: var(--border-accent); color: var(--text-bright); }
@@ -461,7 +461,7 @@
   color: var(--text-bright);
   background: var(--bg-surface);
   border: 1px solid var(--color-warning);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow-wrap: anywhere;
 }
 
@@ -496,7 +496,7 @@
   padding: 6px 8px;
   background: var(--bg-base);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-bright);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 13px;
@@ -514,7 +514,7 @@
   min-height: var(--tap-min);
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -538,7 +538,7 @@
   padding: 6px 10px;
   background: none;
   border: 1px dashed var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
   font-size: 13px;

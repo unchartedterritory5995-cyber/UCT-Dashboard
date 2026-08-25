@@ -9,14 +9,14 @@
   padding: 8px 12px;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
-  color: #fbbf24;
+  color: var(--warn);
   font-weight: 600;
 }
 
 .interventionLink {
-  color: #fbbf24;
+  color: var(--warn);
   text-decoration: underline;
   font-weight: 700;
 }
@@ -30,14 +30,14 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  background: rgba(201, 168, 76, 0.06);
-  border-left: 3px solid var(--ut-gold, #c9a84c);
-  border-radius: 4px;
+  background: rgba(220, 187, 94, 0.06);
+  border-left: 3px solid var(--ut-gold, #dcbb5e);
+  border-radius: var(--radius-sm);
 }
 
 .focusLabel {
   font-size: 10px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   letter-spacing: 1px;
   text-transform: uppercase;
   font-weight: 700;
@@ -77,7 +77,7 @@
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .feedItemMain {
@@ -95,7 +95,7 @@
 }
 
 .feedItemSym {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 700;
   margin-right: 6px;
 }
@@ -140,10 +140,10 @@
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
-  background: var(--ut-gold, #c9a84c);
-  color: #000;
+  background: var(--ut-gold, #dcbb5e);
+  color: var(--bg);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: opacity 120ms ease;
 }
@@ -154,8 +154,8 @@
 
 .talkBtnActive {
   background: transparent;
-  color: var(--ut-gold, #c9a84c);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold, #dcbb5e);
 }
 
 .compassTabLink {
@@ -166,5 +166,5 @@
 }
 
 .compassTabLink:hover {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }

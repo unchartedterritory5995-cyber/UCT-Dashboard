@@ -62,7 +62,10 @@ export default function Layout({ children }) {
       // Unknown uct id (e.g. a retired theme): fall back to OLED, cleanly.
     }
     clearAppThemeVars(el)
-    el.dataset.theme = t === 'light' ? 'light' : 'oled'
+    // Default (no stored pref) = the neutral-graphite base in tokens.css :root
+    // (data-theme "dark" has no override block, so :root shows through). 'oled'
+    // and 'light' remain explicit choices.
+    el.dataset.theme = t === 'light' ? 'light' : t === 'oled' ? 'oled' : 'dark'
   }, [prefs.theme])
 
   // Smooth theme transitions

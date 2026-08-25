@@ -2,7 +2,7 @@
   padding: 20px;
   background: var(--color-surface, rgba(255, 255, 255, 0.02));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 16px;
 }
 .header {
@@ -17,10 +17,10 @@
   font-weight: 600;
 }
 .refresh {
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #c9a84c;
-  border-radius: 4px;
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -28,15 +28,15 @@
 .refresh:disabled { opacity: 0.4; cursor: default; }
 .subtitle {
   margin: 0 0 16px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
 .subtitle code {
-  background: rgba(201, 168, 76, 0.1);
+  background: rgba(220, 187, 94, 0.1);
   padding: 1px 4px;
   border-radius: 3px;
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 11px;
 }
 
@@ -44,8 +44,8 @@
   padding: 8px 12px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
-  border-radius: 4px;
+  color: var(--loss);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 12px;
 }
@@ -53,15 +53,15 @@
   padding: 8px 12px;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
-  color: #86efac;
-  border-radius: 4px;
+  color: var(--gain);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 12px;
 }
 
 .dropzone {
-  border: 2px dashed rgba(201, 168, 76, 0.4);
-  border-radius: 6px;
+  border: 2px dashed rgba(220, 187, 94, 0.4);
+  border-radius: var(--radius-md);
   padding: 28px;
   text-align: center;
   background: rgba(0, 0, 0, 0.20);
@@ -69,8 +69,8 @@
   margin-bottom: 12px;
 }
 .dropzoneActive {
-  border-color: #c9a84c;
-  background: rgba(201, 168, 76, 0.10);
+  border-color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.10);
 }
 .busy {
   opacity: 0.6;
@@ -78,19 +78,19 @@
 }
 .dropzoneText {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text);
 }
 .pickerBtn {
   background: transparent;
   border: none;
-  color: #c9a84c;
+  color: var(--accent);
   text-decoration: underline;
   font-size: 13px;
   cursor: pointer;
   padding: 0;
 }
 .pickerBtn:hover {
-  color: #f3d77e;
+  color: var(--accent);
 }
 
 .pasteWrap {
@@ -99,10 +99,10 @@
 }
 .pasteSummary {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   cursor: pointer;
 }
-.pasteSummary:hover { color: rgba(255, 255, 255, 0.8); }
+.pasteSummary:hover { color: var(--text-bright); }
 .pasteFields {
   display: flex;
   flex-direction: column;
@@ -112,8 +112,8 @@
 .input, .textarea {
   background: rgba(0, 0, 0, 0.30);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  color: #fff;
-  border-radius: 4px;
+  color: var(--text-bright);
+  border-radius: var(--radius-sm);
   padding: 6px 10px;
   font-size: 12px;
   font-family: inherit;
@@ -125,14 +125,14 @@
 }
 .input:focus, .textarea:focus {
   outline: none;
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 .submitBtn {
   align-self: flex-start;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.4);
-  color: #86efac;
-  border-radius: 4px;
+  color: var(--gain);
+  border-radius: var(--radius-sm);
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;
@@ -151,14 +151,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
 }
 
 .empty {
   padding: 14px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text); font-weight: 500;
 }
 
 .table {
@@ -173,7 +173,7 @@
 }
 .table th {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 11px;
   text-transform: uppercase;
 }
@@ -181,21 +181,21 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  color: #fff;
+  color: var(--text-bright);
 }
 .docId {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .docDate {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .deleteBtn {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.30);
-  color: #fca5a5;
+  color: var(--loss);
   border-radius: 3px;
   padding: 2px 8px;
   font-size: 10px;

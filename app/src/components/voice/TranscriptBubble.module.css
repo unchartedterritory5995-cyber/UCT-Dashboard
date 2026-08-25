@@ -12,21 +12,21 @@
   overflow-y: auto;
   padding: 10px 14px;
   background: rgba(15, 17, 14, 0.96);
-  color: #e8e6df;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  color: var(--text-bright);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: 14px;
   font: 13px/1.4 var(--font-sans);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   animation: rise 200ms ease-out;
 }
 .tag {
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   margin-right: 4px;
 }
 .you { margin-bottom: 6px; opacity: 0.9; }
 .assistant {}
-.listening, .thinking { color: #c9a84c; opacity: 0.85; font-style: italic; }
+.listening, .thinking { color: var(--accent); opacity: 0.85; font-style: italic; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
@@ -36,7 +36,7 @@
 .cursor {
   display: inline-block;
   margin-left: 2px;
-  color: #c9a84c;
+  color: var(--accent);
   animation: blink 1s steps(2, start) infinite;
 }
 @keyframes blink {
@@ -53,7 +53,7 @@
 .fbBtn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 6px;
   font-size: 12px;
   line-height: 18px;
@@ -69,7 +69,7 @@
   display: inline-block;
   margin-left: 8px;
   font-size: 11px;
-  color: #c9a84c;
+  color: var(--accent);
   opacity: 0.8;
 }
 .fbInputWrap {
@@ -79,15 +79,15 @@
 .fbInput {
   width: 100%;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #fff;
-  border-radius: 4px;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  color: var(--text-bright);
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 12px;
   outline: none;
 }
 .fbInput:focus {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
 }
 
 .fbInputLabel {

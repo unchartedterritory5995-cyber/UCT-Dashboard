@@ -21,11 +21,11 @@
   min-width: 0;
   padding: 7px 12px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2, #16161a);
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12.5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono, monospace);
 }
 
 .actions {
@@ -37,10 +37,10 @@
 .primaryBtn {
   align-self: flex-start;
   padding: 8px 18px;
-  border: 1px solid #c9a84c;
-  border-radius: 8px;
-  background: rgba(201, 168, 76, 0.1);
-  color: #c9a84c;
+  border: 1px solid #dcbb5e;
+  border-radius: var(--radius-lg);
+  background: rgba(220, 187, 94, 0.1);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -49,7 +49,7 @@
 .btn {
   padding: 6px 14px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1, #101013);
   color: var(--text, #e8e6e1);
   font-size: 12.5px;
@@ -59,17 +59,17 @@
   align-items: center;
 }
 
-.btn:hover { border-color: #c9a84c; color: #c9a84c; }
+.btn:hover { border-color: #dcbb5e; color: var(--accent); }
 .btn:disabled, .primaryBtn:disabled, .dangerBtn:disabled { opacity: 0.5; cursor: default; }
 
 .dangerBtn {
   padding: 6px 14px;
   border: 1px solid rgba(239, 68, 68, 0.5);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: transparent;
-  color: #ef8a8a;
+  color: var(--loss);
   font-size: 12.5px;
   cursor: pointer;
 }
 
-.dangerBtn:hover { border-color: #ef4444; color: #ef4444; }
+.dangerBtn:hover { border-color: #ef4444; color: var(--loss); }

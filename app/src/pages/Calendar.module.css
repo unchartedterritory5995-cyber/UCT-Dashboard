@@ -44,9 +44,9 @@
 }
 
 .sourceWire {
-  background: rgba(201, 168, 76, 0.12);
+  background: rgba(220, 187, 94, 0.12);
   color: var(--ut-gold);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  border: 1px solid rgba(220, 187, 94, 0.3);
 }
 
 .sourceLive {
@@ -126,9 +126,9 @@
 
 .dayTabActive {
   background: var(--ut-gold);
-  color: #0e0f0d;
+  color: var(--bg);
 }
-.dayTabActive:hover { color: #0e0f0d; }
+.dayTabActive:hover { color: var(--bg); }
 
 .todayDot {
   display: inline-block;
@@ -187,12 +187,12 @@
   transition: color 0.1s, background 0.1s, border-color 0.1s;
   white-space: nowrap;
 }
-.filterChip:hover { color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.filterChip:hover { color: var(--ut-gold); border-color: var(--accent); }
 
 .filterChipActive {
-  background: rgba(201,168,76,0.12);
+  background: rgba(220, 187, 94,0.12);
   color: var(--ut-gold);
-  border-color: rgba(201,168,76,0.35);
+  border-color: var(--accent);
 }
 
 .filterReset {

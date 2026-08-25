@@ -16,7 +16,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   /* Directional tint tokens — the app's chart up/down family (#1ae51a /
      #ff3b47, same values ChartWidget + ChartDayGain use). Overridden for
@@ -77,8 +77,8 @@
 .segLongActive:hover:not(:disabled),
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
-  color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 .caretBtn {
@@ -86,7 +86,7 @@
   font-size: 8px;      /* the ▾ glyph renders large for its em box */
   line-height: 14px;   /* keep the caret cell the same height as the segs */
 }
-.caretBtn:hover { color: var(--widget-accent, var(--accent, #c9a84c)); }
+.caretBtn:hover { color: var(--widget-accent, var(--accent, #dcbb5e)); }
 
 /* Sunrise light theme: the vivid dark-theme green/red vanish on a bright
    header — swap to the theme's dark candle palette (the same values the
@@ -166,7 +166,7 @@
   text-transform: uppercase;
   padding: 5px 6px 1px;
 }
-.groupStock { color: var(--menu-accent, #c9a84c); opacity: 0.75; }
+.groupStock { color: var(--menu-accent, #dcbb5e); opacity: 0.75; }
 .groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
 .groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
 
@@ -180,7 +180,7 @@
   padding: 3px 6px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -225,7 +225,7 @@
    set from the canvas), so the menu matches (e.g. blue up / pink down). */
 .rowFactorLong { color: var(--li-up, #6fbf82); }
 .rowFactorShort { color: var(--li-down, #d07a83); }
-.rowFactorStock { color: #c9a84c; }
+.rowFactorStock { color: var(--accent); }
 .rowVol {
   flex-shrink: 0;
   min-width: 58px;
@@ -241,7 +241,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #dcbb5e);
   white-space: nowrap;
 }
 .rowBestPad { flex-shrink: 0; width: 68px; }
@@ -256,6 +256,6 @@
   background: transparent;
 }
 .rowDotOn {
-  background: var(--menu-accent, #c9a84c);
-  box-shadow: 0 0 4px rgba(201, 168, 76, 0.6);
+  background: var(--menu-accent, #dcbb5e);
+  box-shadow: 0 0 4px rgba(220, 187, 94, 0.6);
 }

@@ -7,7 +7,7 @@
   gap: 7px;
   padding: 4px 6px 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-surface);
   font-size: 12px;
   color: var(--text-muted);
@@ -40,7 +40,7 @@
   flex: 0 0 auto;
   padding: 3px 10px;
   border: 1px solid var(--border-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-bright);
   font-family: inherit;
@@ -51,8 +51,8 @@
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .btn:disabled {

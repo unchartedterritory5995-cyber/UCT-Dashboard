@@ -9,7 +9,7 @@
 .muted { color: var(--text-muted); }
 .pos { color: var(--ut-green-bright); }
 .neg { color: var(--ut-red-bright); }
-.chip { font-size: var(--text-xs, 10px); padding: 1px 5px; border-radius: 8px; font-weight: 700; }
+.chip { font-size: var(--text-xs, 10px); padding: 1px 5px; border-radius: var(--radius-lg); font-weight: 700; }
 .chipUp { background: var(--gain-bg); color: var(--ut-green-bright); }
 .chipDown { background: var(--loss-bg); color: var(--ut-red-bright); }
 .chipFlat { color: var(--text-muted); }

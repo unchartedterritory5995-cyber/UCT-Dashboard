@@ -2,7 +2,7 @@
   padding: 20px;
   background: var(--color-surface, rgba(255, 255, 255, 0.02));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 16px;
 }
 .header {
@@ -17,10 +17,10 @@
   font-weight: 600;
 }
 .refresh {
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #c9a84c;
-  border-radius: 4px;
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -28,7 +28,7 @@
 .refresh:disabled { opacity: 0.4; cursor: default; }
 .subtitle {
   margin: 0 0 16px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -37,8 +37,8 @@
   padding: 8px 12px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
-  border-radius: 4px;
+  color: var(--loss);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 12px;
 }
@@ -67,23 +67,23 @@
   padding: 14px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text); font-weight: 500;
 }
 
 .row {
   text-align: left;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   cursor: pointer;
-  color: #fff;
+  color: var(--text-bright);
   transition: background 120ms, border-color 120ms;
 }
 .row:hover { background: rgba(255, 255, 255, 0.06); }
 .rowActive {
-  background: rgba(201, 168, 76, 0.12);
-  border-color: rgba(201, 168, 76, 0.5);
+  background: rgba(220, 187, 94, 0.12);
+  border-color: var(--accent);
 }
 
 .rowHeader {
@@ -96,19 +96,19 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
 }
 .rowDate {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 .rowMeta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
 }
 .tag {
   background: rgba(255, 255, 255, 0.08);
@@ -124,7 +124,7 @@
 .detail {
   background: rgba(0, 0, 0, 0.20);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 14px;
   max-height: 600px;
   overflow-y: auto;
@@ -152,7 +152,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
 }
 
 .timeline {
@@ -165,22 +165,22 @@
   grid-template-columns: 70px 1fr;
   gap: 8px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
 }
 .turn_user { background: rgba(74, 222, 128, 0.06); }
-.turn_assistant { background: rgba(201, 168, 76, 0.06); }
+.turn_assistant { background: rgba(220, 187, 94, 0.06); }
 .turn_tool { background: rgba(255, 255, 255, 0.03); }
 .turnRole {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   align-self: start;
   padding-top: 2px;
 }
 .turnText {
-  color: #fff;
+  color: var(--text-bright);
   font-size: 12px;
   line-height: 1.4;
   word-break: break-word;
@@ -198,17 +198,17 @@
 }
 .table th {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   font-size: 10px;
   text-transform: uppercase;
 }
 .toolName {
   font-family: var(--font-mono);
-  color: #c9a84c;
+  color: var(--accent);
 }
 .args {
   font-family: var(--font-mono);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
 }
 .args code {
   background: transparent;
@@ -228,7 +228,7 @@
 }
 .feedbackList li {
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -247,8 +247,8 @@
   display: inline-block;
   background: rgba(74, 222, 128, 0.10);
   border: 1px solid rgba(74, 222, 128, 0.35);
-  color: #86efac;
-  border-radius: 4px;
+  color: var(--gain);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 11px;
   text-decoration: none;

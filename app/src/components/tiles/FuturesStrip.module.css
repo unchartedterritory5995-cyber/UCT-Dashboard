@@ -68,7 +68,7 @@
 }
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
-.loading { color: var(--text-muted); font-size: 13px; padding: 20px; }
+.loading { color: var(--text); font-weight: 500; font-size: 13px; padding: 20px; }
 
 /* ─── Quote of the Day ─────────────────────────────────────────────────────── */
 .quotePanel {

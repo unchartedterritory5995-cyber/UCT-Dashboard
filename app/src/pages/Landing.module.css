@@ -17,7 +17,7 @@
   --body-t: #4c4535;
   --muted-t: #8a8069;
   /* brand accents */
-  --gold: #c9a84c;
+  --gold: #dcbb5e;
   --gold-deep: #8f7120;
   --gold-bright: #e8cc7a;
   --live: #157f3d;
@@ -25,7 +25,7 @@
   /* the dark product surface (artifacts only) */
   --panel: #14100a;
   --panel-2: #1c1710;
-  --panel-line: rgba(201, 168, 76, 0.2);
+  --panel-line: rgba(220, 187, 94, 0.2);
   --panel-cream: #f2e9d8;
   --panel-body: #b7ab94;
   --panel-muted: #7d735f;
@@ -62,7 +62,7 @@
   background: var(--ink);
   color: var(--paper);
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   text-decoration: none;
 }
@@ -132,10 +132,10 @@
 .navSignup {
   font-size: 14px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   text-decoration: none;
   white-space: nowrap;
   transition: background 0.18s ease;
@@ -172,7 +172,7 @@
   color: var(--muted-t);
   border: 1px solid var(--line);
   background: var(--card);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 7px 14px;
   margin-bottom: 30px;
 }
@@ -224,7 +224,7 @@
   align-items: center;
   font-size: 15.5px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 15px 28px;
   border-radius: 10px;
@@ -273,7 +273,7 @@
   text-decoration: none;
   border: 1px solid var(--line);
   background: var(--card);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 8px 15px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -313,13 +313,13 @@
 }
 .vigBadgeGo {
   flex: none;
-  background: rgba(201, 168, 76, 0.18);
+  background: rgba(220, 187, 94, 0.18);
   color: var(--gold-deep);
   font-weight: 700;
   font-size: 10.5px;
   letter-spacing: 0.12em;
   padding: 3px 9px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .mosaicCaption {
@@ -574,7 +574,7 @@
   color: var(--body-t);
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 13px;
   white-space: nowrap;
 }
@@ -590,7 +590,7 @@
   color: var(--body-t);
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 14px;
 }
 .briefCountdown strong {
@@ -605,8 +605,8 @@
   animation: pulseDot 2.4s ease-in-out infinite;
 }
 @keyframes pulseDot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.45); }
-  50% { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
 }
 
 .intelP2 {
@@ -653,7 +653,7 @@
   border: none;
   background: none;
   cursor: zoom-in;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
   border: 1px solid #241f18;
@@ -672,7 +672,7 @@
   height: 34px;
   padding: 0 14px;
   background: #1a150e;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.14);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.14);
 }
 .shotDots { display: inline-flex; gap: 6px; flex: none; }
 .shotDots i {
@@ -723,8 +723,8 @@
   font-weight: 500;
   color: var(--panel-cream);
   background: rgba(20, 16, 10, 0.7);
-  border: 1px solid rgba(201, 168, 76, 0.2);
-  border-radius: 6px;
+  border: 1px solid rgba(220, 187, 94, 0.2);
+  border-radius: var(--radius-md);
   padding: 4px 9px;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -766,7 +766,7 @@
 .lightbox img {
   max-width: 100%;
   max-height: 86vh;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
 }
@@ -774,7 +774,7 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   letter-spacing: 0.06em;
-  color: rgba(242, 233, 216, 0.75);
+  color: var(--text);
   text-align: center;
 }
 
@@ -783,7 +783,7 @@
 .vig {
   background: var(--panel);
   border: 1px solid #262019;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 16px 18px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -798,7 +798,7 @@
   gap: 9px;
   padding-bottom: 10px;
   margin-bottom: 12px;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.12);
 }
 .vigDot {
   flex: none;
@@ -836,8 +836,8 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.vigGreen { color: #4ade80; font-weight: 600; }
-.vigRed { color: #f87171; font-weight: 600; }
+.vigGreen { color: var(--gain); font-weight: 600; }
+.vigRed { color: var(--loss); font-weight: 600; }
 .vigGold { color: var(--gold-bright); font-weight: 600; }
 
 .vigRow {
@@ -865,12 +865,12 @@
   font-size: 11px;
   white-space: nowrap;
 }
-.vigRow em.vigGreen { color: #4ade80; }
+.vigRow em.vigGreen { color: var(--gain); }
 
 .vigMore {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(201, 168, 76, 0.12);
+  border-top: 1px solid rgba(220, 187, 94, 0.12);
   color: var(--panel-muted);
   font-size: 11px;
 }
@@ -878,14 +878,14 @@
 .vigMsgUser,
 .vigMsg {
   padding: 9px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 8px;
   font-size: 12px;
   line-height: 1.55;
 }
 .vigMsgUser {
-  background: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.14);
+  background: rgba(220, 187, 94, 0.1);
+  border: 1px solid rgba(220, 187, 94, 0.14);
   color: var(--panel-cream);
   margin-left: 36px;
 }
@@ -902,19 +902,19 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--panel-body);
   font-size: 11.5px;
 }
 .vigBadge {
   flex: none;
   background: rgba(248, 113, 113, 0.14);
-  color: #f87171;
+  color: var(--loss);
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.12em;
   padding: 3px 9px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .vigChat {
@@ -1022,7 +1022,7 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
@@ -1289,7 +1289,7 @@
   display: inline-flex;
   border: 1px solid var(--line);
   background: var(--paper);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px;
   margin-bottom: 28px;
 }
@@ -1304,7 +1304,7 @@
   font-size: 13px;
   font-weight: 600;
   padding: 8px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
@@ -1370,7 +1370,7 @@
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: #241b07;
+  color: var(--bg);
   background: var(--gold);
   padding: 16px 28px;
   border-radius: 10px;
@@ -1482,7 +1482,7 @@
   flex-wrap: wrap;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   padding: clamp(28px, 4vw, 44px) clamp(24px, 4vw, 48px);
   box-shadow: 0 1px 2px rgba(28, 22, 12, 0.04), 0 16px 40px rgba(28, 22, 12, 0.06);
 }
@@ -1521,7 +1521,7 @@
   padding: clamp(96px, 13vh, 170px) clamp(20px, 4vw, 48px);
   text-align: center;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(201, 168, 76, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(220, 187, 94, 0.08), transparent 70%),
     var(--panel);
 }
 .closeInner { max-width: 700px; margin: 0 auto; }
@@ -1568,14 +1568,14 @@
 .closeCountdown strong { color: var(--gold-bright); font-weight: 700; }
 .close .ctaGold {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #241b07;
+  color: var(--bg);
 }
 
 /* ── Footer (stays dark, continuous with the close) ──────────────────────── */
 
 .foot {
   background: var(--panel);
-  border-top: 1px solid rgba(201, 168, 76, 0.12);
+  border-top: 1px solid rgba(220, 187, 94, 0.12);
   padding: 56px clamp(20px, 4vw, 48px) 40px;
 }
 .foot > * { max-width: 1120px; margin-left: auto; margin-right: auto; }
@@ -1744,9 +1744,9 @@
     align-items: center;
     gap: 12px;
     background: var(--gold);
-    color: #241b07;
+    color: var(--bg);
     text-decoration: none;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     padding: 13px 18px;
     box-shadow: 0 10px 30px rgba(28, 22, 12, 0.28);
     transition: transform 0.3s ease, opacity 0.3s ease;

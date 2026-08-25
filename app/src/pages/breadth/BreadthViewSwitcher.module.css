@@ -1,10 +1,10 @@
 .switcher { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 9px;
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
-.btn { padding: 5px 14px; border: none; background: transparent; color: #94a3b8;
-  font: 700 11px 'Instrument Sans', sans-serif; letter-spacing: .4px; border-radius: 6px;
+.btn { padding: 5px 14px; border: none; background: transparent; color: var(--text);
+  font: 700 11px 'Instrument Sans', sans-serif; letter-spacing: .4px; border-radius: var(--radius-md);
   cursor: pointer; transition: background .15s, color .15s; }
-.btn:hover { color: #e2e8f0; }
-.btnActive { background: rgba(201,168,76,0.18); color: #c9a84c; }
+.btn:hover { color: var(--text-bright); }
+.btnActive { background: rgba(220, 187, 94,0.18); color: var(--accent); }
 
 /* Phone — 8 view buttons wrap to 2-3 bulky rows. Convert to a single
    horizontal scroll strip with ≥44px tap targets (mirrors the Breadth tab

@@ -177,7 +177,7 @@ function ActivityFeed({ items, loading, onRefresh }) {
     <div className={styles.activitySection}>
       <div className={styles.sectionHeader}>
         <span className={styles.sectionTitle}>Activity Feed</span>
-        <button className={styles.refreshBtn} onClick={onRefresh} disabled={loading}>
+        <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
@@ -398,7 +398,7 @@ function AdminTodoList() {
             </span>
           )}
         </span>
-        <button className={styles.refreshBtn} onClick={fetchTodos} disabled={loading}>
+        <button className="btn btn-secondary btn-sm" onClick={fetchTodos} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
@@ -1058,7 +1058,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
                   {actionLoading === 'reset_password' ? '...' : 'Reset Password'}
                 </button>
                 <button
-                  className={styles.deleteBtn}
+                  className="btn btn-danger"
                   onClick={() => handleAction('delete')}
                   disabled={actionLoading === 'delete'}
                 >
@@ -1885,7 +1885,7 @@ export default function Admin() {
                           </button>
                         )}
                         <button
-                          className={styles.deleteBtn}
+                          className="btn btn-danger"
                           onClick={() => handleDelete(u.id, u.email)}
                           title="Delete user"
                         >
@@ -1956,7 +1956,7 @@ export default function Admin() {
             <div className={styles.healthSyncRow}>
               <a
                 href="/admin/patterns"
-                className={styles.syncBtn}
+                className="btn btn-secondary btn-sm"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
               >
                 Open Verification Dashboard
@@ -1971,7 +1971,7 @@ export default function Admin() {
             <div className={styles.healthSyncRow}>
               <a
                 href="/admin/pattern-review"
-                className={styles.syncBtn}
+                className="btn btn-secondary btn-sm"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
               >
                 Open Pattern Review
@@ -1986,7 +1986,7 @@ export default function Admin() {
             <div className={styles.healthSyncRow}>
               <a
                 href="/admin/chart-health"
-                className={styles.syncBtn}
+                className="btn btn-secondary btn-sm"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
               >
                 Open Chart Health
@@ -2025,7 +2025,7 @@ export default function Admin() {
             <span className={styles.healthLabel}>Stripe Sync</span>
             <div className={styles.healthSyncRow}>
               <button
-                className={styles.syncBtn}
+                className="btn btn-secondary btn-sm"
                 onClick={handleSync}
                 disabled={syncing}
               >
@@ -2061,7 +2061,7 @@ export default function Admin() {
       <div className={styles.healthSection}>
         <div className={styles.sectionHeader}>
           <span className={styles.sectionTitle}>User Feedback</span>
-          <button className={styles.refreshBtn} onClick={fetchFeedback} disabled={feedbackLoading}>
+          <button className="btn btn-secondary btn-sm" onClick={fetchFeedback} disabled={feedbackLoading}>
             {feedbackLoading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
@@ -2092,7 +2092,7 @@ export default function Admin() {
       <div className={styles.healthSection}>
         <div className={styles.sectionHeader}>
           <span className={styles.sectionTitle}>Support Tickets</span>
-          <button className={styles.refreshBtn} onClick={() => { fetchTicketStats(); fetchAdminTickets() }} disabled={ticketsLoading}>
+          <button className="btn btn-secondary btn-sm" onClick={() => { fetchTicketStats(); fetchAdminTickets() }} disabled={ticketsLoading}>
             {ticketsLoading ? 'Loading...' : 'Refresh'}
           </button>
         </div>

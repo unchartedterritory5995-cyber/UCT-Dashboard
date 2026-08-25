@@ -29,7 +29,7 @@
   line-height: 1.45;
   color: var(--text-bright);
   background: var(--bg-surface);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .nodata { border: 1px solid var(--color-warning); }
 .broken { border: 1px solid var(--color-danger); }

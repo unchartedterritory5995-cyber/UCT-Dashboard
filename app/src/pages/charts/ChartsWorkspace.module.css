@@ -7,7 +7,7 @@
   gap: 8px;
   padding: 4px 8px;
   font-size: 11px;
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -24,7 +24,7 @@
   border: none; padding: 0; cursor: pointer;
   flex-shrink: 0;
 }
-.colorDotA { background: #c9a84c; }
+.colorDotA { background: #dcbb5e; }
 .colorDotB { background: #60a5fa; }
 .colorDotC { background: #4ade80; }
 .colorDotD { background: #c084fc; }
@@ -55,7 +55,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;
 }
-.popOutBtn:hover { color: var(--ut-gold, #c9a84c); }
+.popOutBtn:hover { color: var(--ut-gold, #dcbb5e); }
 
 /* Fills a popped-out window: the grid inside is viewport-locked the same way the
    main board is, so it needs a definite height to divide into rows rather than
@@ -82,9 +82,9 @@
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   z-index: 9000; display: flex; align-items: center; gap: 10px;
   background: var(--bg-elevated, #0f141b);
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   color: var(--text, #e5e7eb);
-  border-radius: 4px; padding: 8px 12px; font-size: 12px;
+  border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 .popoutNotice button {
@@ -99,7 +99,7 @@
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -145,7 +145,7 @@
 .widgetBody ::-webkit-scrollbar-track, .widgetBody::-webkit-scrollbar-track { background: transparent; }
 .widgetBody ::-webkit-scrollbar-thumb, .widgetBody::-webkit-scrollbar-thumb {
   background: rgba(140, 140, 140, 0.38);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -235,9 +235,9 @@
 .chartTab:hover { color: var(--widget-text-strong, var(--text, #e5e7eb)); }
 
 .chartTabActive {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(201, 168, 76, 0.10);
+  background: rgba(220, 187, 94, 0.10);
 }
 
 .chartTabLabel {
@@ -248,7 +248,7 @@
 /* Inline rename input, sized to sit exactly where the label was. */
 .chartTabRename {
   background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--accent, #c9a84c);
+  border: 1px solid var(--accent, #dcbb5e);
   border-radius: 3px;
   color: var(--text, #e5e7eb);
   font: inherit;
@@ -270,13 +270,13 @@
   cursor: pointer;
   line-height: 1;
 }
-.chartTabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
+.chartTabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
 
 /* Armed state — first click on × asks for a confirming second click. */
 .chartTabCloseConfirm,
 .chartTabCloseConfirm:hover {
   opacity: 1;
-  color: #ff6b74;
+  color: var(--loss);
   background: rgba(255, 107, 116, 0.22);
   box-shadow: 0 0 0 1px rgba(255, 107, 116, 0.55);
   font-size: 10px;
@@ -291,7 +291,7 @@
   margin-top: 3px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--widget-text, #8b8778);
   font-size: 14px;
@@ -301,9 +301,9 @@
   flex-shrink: 0;
 }
 .chartTabAdd:hover {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* The small color-group dot on an extra tab — mirrors the widget color dot so
@@ -373,14 +373,14 @@
   line-height: 1;
   border-radius: 3px;
 }
-.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #c9a84c); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #dcbb5e); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
 .wtabScroll:disabled { opacity: 0.28; cursor: default; }
 .wtabChip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   /* Natural case (the header itself is uppercased) so a watchlist name like
      "AI Leaders" reads normally instead of shouting. */
@@ -402,7 +402,7 @@
   letter-spacing: 0.2px;
   color: var(--widget-text-strong, var(--text, #e5e7eb));
   background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   border-radius: 3px;
   padding: 0 3px;
   outline: none;
@@ -413,7 +413,7 @@
 }
 .wtabChipActive {
   color: var(--widget-text-strong, var(--text, #e5e7eb));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
+  background: var(--widget-accent-bg, rgba(220, 187, 94, 0.16));
   border-color: var(--widget-divider-strong, rgba(255, 255, 255, 0.14));
   font-weight: 600;
 }
@@ -429,8 +429,8 @@
   line-height: 1;
   opacity: 0.55;
 }
-.wtabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
-.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: #4ade80; background: rgba(74, 222, 128, 0.14); }
+.wtabClose:hover { opacity: 1; color: var(--loss); background: rgba(255, 107, 116, 0.12); }
+.wtabCloseConfirm, .wtabCloseConfirm:hover { opacity: 1; color: var(--gain); background: rgba(74, 222, 128, 0.14); }
 .wtabAdd {
   flex: 0 0 auto;
   background: transparent;
@@ -442,7 +442,7 @@
   line-height: 1;
   font-weight: 600;
 }
-.wtabAdd:hover { color: var(--ut-gold, #c9a84c); }
+.wtabAdd:hover { color: var(--ut-gold, #dcbb5e); }
 /* Portaled to document.body + positioned `fixed` (inline top/left) so it escapes
    the widget's overflow:hidden and never clips on a short widget. */
 .wtabAddMenu {
@@ -498,9 +498,9 @@
 .tfBtn:hover { color: var(--text, #e5e7eb); border-color: var(--border, #1f2937); }
 
 .tfBtnActive {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 .chartFill {
@@ -607,9 +607,9 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .chartSettingsBtn:hover {
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   border-color: var(--border, #2e3127);
-  background: rgba(201, 168, 76, 0.08);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Breadth-only Line/Candles quick-toggle — a visible labeled pill in the TF bar. */
@@ -631,15 +631,15 @@
   text-transform: uppercase;
   background: transparent;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--widget-text, var(--text-muted, #6b7280));
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .breadthLineBtn:hover {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 /* No distinct "active" (line-on) styling by design: the button's LABEL already
    flips to CANDLES when line mode is on, so both states share the one look above
@@ -661,15 +661,15 @@
   text-transform: uppercase;
   background: transparent;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--widget-text, var(--text-muted, #6b7280));
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 .viewHoldingsBtn:hover {
-  color: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  border-color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
@@ -727,7 +727,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border, #1f2937);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .sessionBtn {
@@ -751,8 +751,8 @@
    picked timeframe. Unselected stays the muted --widget-text above. */
 .sessionBtnActive,
 .sessionBtnActive:hover {
-  color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent, #dcbb5e);
+  background: rgba(220, 187, 94, 0.08);
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next
@@ -778,7 +778,7 @@
   padding: 5px 10px;
   border-radius: 7px;
   background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
-  border: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
+  border: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   color: var(--widget-text-strong, #d8d2c2);
   font-size: 11px;
@@ -796,8 +796,8 @@
   width: 7px;
   height: 7px;
   background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
-  border-left: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
-  border-top: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
+  border-left: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
+  border-top: 1px solid var(--widget-popup-border, rgba(220, 187, 94, 0.3));
   transform: rotate(45deg);
 }
 @keyframes clockPopIn {
@@ -837,14 +837,14 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #706b5e;
+  color: var(--text-muted);
 }
 .clockCountdown {
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
-  color: #5f5b50;
+  color: var(--text-muted);
 }
 
 /* Session tone → dot color + soft glow. Text stays muted to blend with the row. */
@@ -868,12 +868,12 @@
   transform: translateX(-50%);
   z-index: 8;
   background: rgba(10, 11, 9, 0.94);
-  border: 1px solid rgba(201, 168, 76, 0.5);
-  color: #e0dac8;
+  border: 1px solid rgba(220, 187, 94, 0.5);
+  color: var(--text-bright);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
@@ -954,8 +954,8 @@
   --info: #6ba3be;
   --info-bg: #6ba3be12;
   --info-border: #6ba3be30;
-  --tick-up-bg: rgba(60, 184, 104, 0.26);
-  --tick-down-bg: rgba(231, 76, 60, 0.24);
+  --tick-up-bg: rgba(52, 209, 124, 0.26);
+  --tick-down-bg: rgba(242, 75, 66, 0.24);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
@@ -1081,7 +1081,7 @@
    catch the rgb() forms of the vivid greens/reds any remaining inline-styled widget
    value uses, and pull them to the dark candle palette. */
 :global([data-charts-theme='sunrise']) [style*="rgb(26, 229, 26)"],
-:global([data-charts-theme='sunrise']) [style*="rgb(60, 184, 104)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(52, 209, 124)"],
 :global([data-charts-theme='sunrise']) [style*="rgb(74, 222, 128)"],
 :global([data-charts-theme='sunrise']) [style*="rgb(34, 197, 94)"] {
   color: #0a5c22 !important;
@@ -1108,26 +1108,30 @@
      on the light theme (#e8eff5 vs #f2f6fa) but the same one-step gap exists in
      every theme. Keep these two in lockstep. */
   background: var(--bg-surface, #0d1218);
-  border-bottom: 1px solid var(--border, #1f2937);
-  padding: 8px 16px;
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
+  padding: 12px 20px;
+  min-height: 60px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-shrink: 0;
 }
 
-.workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-bright); }
+.workspaceTitle { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; color: var(--text-bright); }
 
 .toolbarBtn {
-  /* Grey label (NOT the theme accent) — brightens to --text-bright on hover.
-     Uses --text (body tone) rather than --text-muted so WIDGETS/LAYOUTS/TOOLS
-     read clearly while still sitting below the white "Charts" title. */
-  background: var(--bg-elevated, #1f2937); color: var(--text, #b6b09d);
-  border: none; padding: 6px 12px; border-radius: 3px;
+  /* Outlined rounded pill — matches the Calendar view/chip aesthetic (was a
+     filled sharp-cornered chip). Grey label brightens on hover; border lifts. */
+  background: transparent; color: var(--text, #b6b09d);
+  border: 1px solid var(--border-accent); padding: 6px 13px; border-radius: 8px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-  font-weight: 600;   /* was inherited-normal — too faint at 10px, esp. in light mode */
+  font-weight: 600;
   cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.toolbarBtn:hover { color: var(--text-bright); border-color: var(--ut-gold-glow); background: var(--bg-hover); }
 .toolbarBtn.ghost { background: transparent; color: var(--text, #b6b09d); }
 .toolbarBtn:hover { color: var(--text-bright, #e5e7eb); }
 
@@ -1136,7 +1140,7 @@
 .addMenu {
   position: absolute; top: 100%; left: 0; margin-top: 4px;
   background: var(--bg-elevated, #0d1218); border: 1px solid var(--border, #1f2937);
-  border-radius: 4px; display: flex; flex-direction: column;
+  border-radius: var(--radius-sm); display: flex; flex-direction: column;
   z-index: 100; min-width: 140px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
@@ -1145,7 +1149,7 @@
   border: none; padding: 8px 14px; text-align: left;
   font-size: 11px; cursor: pointer; font-family: inherit;
 }
-.addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #c9a84c); }
+.addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #dcbb5e); }
 
 /* ── Open/Save layout menus ── */
 .menuSection {
@@ -1168,7 +1172,7 @@
   border: 1px solid var(--border, #1f2937); border-radius: 3px; cursor: pointer;
   font-size: 10px; font-family: inherit; padding: 2px 7px; line-height: 1.3;
 }
-.delConfirmYes { background: var(--danger, #f87171); border-color: var(--danger, #f87171); color: #0b0f14; font-weight: 600; }
+.delConfirmYes { background: var(--danger, #f87171); border-color: var(--danger, #f87171); color: var(--bg); font-weight: 600; }
 .delConfirmYes:hover { filter: brightness(1.08); }
 .delConfirmNo { background: transparent; color: var(--text, #e5e7eb); }
 .delConfirmNo:hover { background: var(--bg-hover, #1f2937); }
@@ -1179,7 +1183,7 @@
   border-radius: 3px; color: var(--text, #e5e7eb); padding: 6px 8px;
   font-size: 11px; font-family: inherit; outline: none;
 }
-.menuInput:focus { border-color: var(--accent, #c9a84c); }
+.menuInput:focus { border-color: var(--accent, #dcbb5e); }
 .menuCheck {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-muted, #9ca3af); cursor: pointer;
@@ -1251,9 +1255,9 @@
    discoverable; while a drag is active EVERY seam shows it so the whole
    split-pane grid is visible as you drag. */
 .seamV:hover,
-.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
 .seamH:hover,
-.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(220, 187, 94,0.55) 3px, rgba(220, 187, 94,0.55) 5px, transparent 5px); }
 
 /* Widget body becomes the container-query root for its embedded child page —
    container queries inside Watchlists / ThemeTrackerPage / Screener
@@ -1278,9 +1282,9 @@
   position: absolute;
   inset: 0;
   z-index: 10;
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   opacity: 0.15;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
 }
 
@@ -1313,12 +1317,12 @@
    Default RGL ::after uses rgba(0,0,0,0.4) borders — invisible on #0f141b.
    We override all 4 corners with a gold accent that fades on hover. */
 :global(.react-grid-item) > :global(.react-resizable-handle)::after {
-  border-color: rgba(201, 168, 76, 0.55) !important;
+  border-color: var(--accent) !important;
   width: 6px !important;
   height: 6px !important;
 }
 :global(.react-grid-item):hover > :global(.react-resizable-handle)::after {
-  border-color: rgba(201, 168, 76, 0.95) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Slight enlargement of the hit area for easier grab from any corner */
@@ -1337,10 +1341,10 @@
   content: '';
   position: absolute;
   width: 6px; height: 6px;
-  border: 0 solid rgba(201, 168, 76, 0.55);
+  border: 0 solid rgba(220, 187, 94, 0.55);
   transition: border-color 0.12s ease;
 }
-:global(.react-grid-item):hover .rzCorner::after { border-color: rgba(201, 168, 76, 0.95); }
+:global(.react-grid-item):hover .rzCorner::after { border-color: var(--accent); }
 .rz_nw::after { top: 3px;    left: 3px;    border-top-width: 2px;    border-left-width: 2px; }
 .rz_ne::after { top: 3px;    right: 3px;   border-top-width: 2px;    border-right-width: 2px; }
 .rz_sw::after { bottom: 3px; left: 3px;    border-bottom-width: 2px; border-left-width: 2px; }
@@ -1352,9 +1356,9 @@
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   opacity: 0.15;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
 }
 
@@ -1400,7 +1404,7 @@
   padding: 0 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   font-size: 13px;
   font-family: var(--font-sans);
@@ -1424,7 +1428,7 @@
   min-height: 40px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-bright);
   font-size: 18px;
   line-height: 1;
@@ -1496,16 +1500,16 @@
   width: 100%; text-align: left;
   background: transparent; border: none;
   color: var(--menu-text, var(--text, #e5e7eb));
-  padding: 9px 11px; border-radius: 6px;
+  padding: 9px 11px; border-radius: var(--radius-md);
   font-size: 13px; cursor: pointer; font-family: inherit;
   transition: background 0.1s ease, color 0.1s ease;
 }
-.chartCtxItem:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.1)); color: var(--menu-accent, var(--ut-gold, #c9a84c)); }
-.chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #c9a84c)); flex-shrink: 0; }
+.chartCtxItem:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.1)); color: var(--menu-accent, var(--ut-gold, #dcbb5e)); }
+.chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); flex-shrink: 0; }
 .chartCtxAi {
   margin-top: 4px; padding-top: 11px;
   border-top: 1px solid var(--menu-divider, var(--border, #232b36));
-  color: var(--menu-accent, var(--ut-gold, #c9a84c)); font-weight: 600;
+  color: var(--menu-accent, var(--ut-gold, #dcbb5e)); font-weight: 600;
 }
 
 /* ── Transient AI popup (shown only when no AI Search widget is in the layout) ── */
@@ -1514,8 +1518,8 @@
   width: 380px; height: 440px;
   max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
   background: var(--bg, #0b0f14);
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  border-radius: 12px;
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
   overflow: hidden;
   display: flex; flex-direction: column;

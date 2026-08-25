@@ -1,7 +1,7 @@
 .filterBar {
   background: #15161a;
   border: 1px solid #2a2723;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -27,7 +27,7 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #a8a290;
+  color: var(--text);
 }
 
 .chipRow,
@@ -40,45 +40,45 @@
 .chip {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 999px;
-  color: #d6d0c2;
+  border-radius: var(--radius-pill);
+  color: var(--text-bright);
   padding: 5px 12px;
   font-size: 12px;
   letter-spacing: 0.4px;
   cursor: pointer;
   transition: all 0.15s;
 }
-.chip:hover { border-color: #c9a84c; color: #e8e3d4; }
+.chip:hover { border-color: #dcbb5e; color: var(--text-bright); }
 .chipActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
+  color: var(--accent);
 }
 
 .select {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 6px;
-  color: #e8e3d4;
+  border-radius: var(--radius-md);
+  color: var(--text-bright);
   padding: 6px 10px;
   font-size: 12px;
   font-family: var(--font-mono);
   min-width: 110px;
   outline: none;
 }
-.select:focus { border-color: #c9a84c; }
+.select:focus { border-color: #dcbb5e; }
 
 .slider {
   width: 220px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
 }
 
 .resetBtn {
   margin-left: auto;
   background: transparent;
   border: 1px solid #2f2c27;
-  color: #a8a290;
-  border-radius: 6px;
+  color: var(--text);
+  border-radius: var(--radius-md);
   padding: 6px 14px;
   font-size: 12px;
   letter-spacing: 0.5px;
@@ -86,7 +86,7 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.resetBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+.resetBtn:hover { border-color: #dcbb5e; color: var(--accent); }
 
 .toggleField {
   display: inline-flex;
@@ -94,24 +94,24 @@
   gap: 6px;
   font-size: 12px;
   letter-spacing: 0.4px;
-  color: #d6d0c2;
+  color: var(--text-bright);
   cursor: pointer;
   padding: 6px 10px;
   border: 1px solid #2f2c27;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0e0f0d;
   user-select: none;
   transition: all 0.15s;
 }
-.toggleField:hover { border-color: #c9a84c; color: #e8e3d4; }
+.toggleField:hover { border-color: #dcbb5e; color: var(--text-bright); }
 .toggleField input[type="checkbox"] {
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   margin: 0;
 }
 .toggleActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
+  color: var(--accent);
 }
 
 .typesGroup {
@@ -127,29 +127,29 @@
 .typeChip {
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 999px;
-  color: #d6d0c2;
+  border-radius: var(--radius-pill);
+  color: var(--text-bright);
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
 }
-.typeChip:hover { border-color: #c9a84c; }
+.typeChip:hover { border-color: #dcbb5e; }
 .typeChipActive {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: #c9a84c;
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.18);
+  border-color: #dcbb5e;
+  color: var(--accent);
 }
 
 .dir_bullish.typeChipActive {
   background: rgba(16, 185, 129, 0.18);
-  border-color: #10b981;
-  color: #10b981;
+  border-color: var(--gain);
+  color: var(--gain);
 }
 .dir_bearish.typeChipActive {
   background: rgba(239, 68, 68, 0.18);
   border-color: #ef4444;
-  color: #ef4444;
+  color: var(--loss);
 }
 
 /* ── Mobile: collapsed filter bar (button → FiltersSheet) ── */
@@ -164,22 +164,22 @@
   font-weight: 700;
   letter-spacing: 0.4px;
   background: #15161a;
-  color: #d8d2c2;
+  color: var(--text-bright);
   border: 1px solid #2a2723;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 16px;
   min-height: var(--tap-min, 44px);
   cursor: pointer;
   white-space: nowrap;
 }
 .mobileFiltersBtnActive {
-  color: #c9a84c;
-  border-color: rgba(201, 168, 76, 0.45);
-  background: rgba(201, 168, 76, 0.08);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(220, 187, 94, 0.08);
 }
 .mobileSummary {
   font-size: 12px;
-  color: #a8a290;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

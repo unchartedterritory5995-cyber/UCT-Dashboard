@@ -8,7 +8,7 @@
   position: fixed;
   background: #1e1e22;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 6px 0;
   min-width: 200px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
@@ -19,7 +19,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   padding: 6px 14px 8px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   letter-spacing: 1px;
@@ -48,7 +48,7 @@
 .tagLabel {
   font-family: var(--font-sans);
   font-size: 9px;
-  color: rgba(255,255,255,0.35);
+  color: var(--text-muted);
   text-transform: uppercase;
   display: block;
   margin-bottom: 6px;
@@ -93,7 +93,7 @@
 .noLists {
   font-family: var(--font-sans);
   font-size: 10px;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-muted);
   padding: 4px 8px;
 }
 
@@ -114,22 +114,22 @@
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 6px;
   outline: none;
 }
 
 .alertInput { width: 70px; }
-.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #c9a84c); }
+.alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #dcbb5e); }
 
 .alertSet {
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
-  color: #0e0f0d;
-  background: var(--ut-gold, #c9a84c);
+  color: var(--bg);
+  background: var(--ut-gold, #dcbb5e);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 5px 8px;
   cursor: pointer;
 }
@@ -142,14 +142,14 @@
   align-items: center;
   font-family: var(--font-sans);
   font-size: 10px;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-muted);
   padding: 3px 0;
 }
 
 .alertDel {
   background: none;
   border: none;
-  color: #f87171;
+  color: var(--loss);
   font-size: 12px;
   cursor: pointer;
   opacity: 0.5;
@@ -190,10 +190,10 @@
   border-radius: 5px; padding: 4px 7px; color: inherit;
   font-size: 12px; font-family: inherit;
 }
-.newListInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.newListInput:focus { outline: none; border-color: var(--accent); }
 .newListBtn {
-  border: 1px solid rgba(201,168,76,0.35); background: rgba(201,168,76,0.12);
-  color: #c9a84c; border-radius: 5px; padding: 4px 9px; cursor: pointer;
+  border: 1px solid rgba(220, 187, 94,0.35); background: rgba(220, 187, 94,0.12);
+  color: var(--accent); border-radius: 5px; padding: 4px 9px; cursor: pointer;
   font-size: 12px; font-family: inherit;
 }
 .newListBtn:disabled { opacity: 0.45; cursor: default; }

@@ -4,24 +4,24 @@
   gap: 12px;
   padding: 4px 0;
 }
-.title { color: #c9a84c; font-size: 15px; font-weight: 600; margin: 0; }
+.title { color: var(--accent); font-size: 15px; font-weight: 600; margin: 0; }
 .subtitle { font-size: 12px; opacity: 0.75; margin: 0 0 6px 0; }
-.subhead { color: #c9a84c; font-size: 13px; font-weight: 600; margin: 18px 0 6px 0; opacity: 0.85; }
-.error { color: #f87171; font-size: 12px; }
+.subhead { color: var(--accent); font-size: 13px; font-weight: 600; margin: 18px 0 6px 0; opacity: 0.85; }
+.error { color: var(--loss); font-size: 12px; }
 
 .addRow { display: flex; gap: 8px; align-items: stretch; }
 .input {
-  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(201, 168, 76, 0.25);
-  color: #e8e6df; border-radius: 6px; padding: 6px 10px; font-size: 13px;
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(220, 187, 94, 0.25);
+  color: var(--text-bright); border-radius: var(--radius-md); padding: 6px 10px; font-size: 13px;
 }
-.input:focus { outline: none; border-color: rgba(201, 168, 76, 0.6); }
+.input:focus { outline: none; border-color: var(--accent); }
 .select {
-  background: rgba(255,255,255,0.05); color: #e8e6df;
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 6px;
+  background: rgba(255,255,255,0.05); color: var(--text-bright);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md); padding: 6px;
 }
 .addBtn {
-  background: rgba(201, 168, 76, 0.18); color: #c9a84c;
-  border: 1px solid rgba(201, 168, 76, 0.4); border-radius: 6px;
+  background: rgba(220, 187, 94, 0.18); color: var(--accent);
+  border: 1px solid rgba(220, 187, 94, 0.4); border-radius: var(--radius-md);
   padding: 6px 14px; cursor: pointer; font-weight: 600;
 }
 .addBtn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -29,17 +29,17 @@
 .factsList { display: flex; flex-direction: column; gap: 4px; }
 .factRow {
   display: flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.03); border-radius: 6px;
+  background: rgba(255,255,255,0.03); border-radius: var(--radius-md);
   padding: 6px 10px;
 }
 .factCategory {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-  color: #c9a84c; background: rgba(201, 168, 76, 0.12);
-  border-radius: 4px; padding: 2px 6px; min-width: 80px; text-align: center;
+  color: var(--accent); background: rgba(220, 187, 94, 0.12);
+  border-radius: var(--radius-sm); padding: 2px 6px; min-width: 80px; text-align: center;
 }
 .factText { flex: 1; font-size: 13px; }
 .deleteBtn {
-  background: transparent; border: none; color: #f87171; cursor: pointer;
+  background: transparent; border: none; color: var(--loss); cursor: pointer;
   font-size: 16px; padding: 2px 6px; opacity: 0.6;
 }
 .deleteBtn:hover { opacity: 1; }
@@ -47,10 +47,10 @@
 .empty { font-size: 12px; opacity: 0.6; padding: 8px 0; }
 
 .summariesList { display: flex; flex-direction: column; gap: 6px; }
-.summaryRow { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px 12px; }
+.summaryRow { background: rgba(255,255,255,0.03); border-radius: var(--radius-md); padding: 8px 12px; }
 .summaryText { font-size: 12px; line-height: 1.5; }
 .summaryTopics { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .topic {
-  font-size: 10px; background: rgba(201, 168, 76, 0.1); color: #c9a84c;
-  padding: 1px 6px; border-radius: 4px;
+  font-size: 10px; background: rgba(220, 187, 94, 0.1); color: var(--accent);
+  padding: 1px 6px; border-radius: var(--radius-sm);
 }

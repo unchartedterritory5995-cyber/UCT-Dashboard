@@ -32,7 +32,7 @@
   text-align: left;
   padding: 6px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: transparent;
   cursor: pointer;
   transition: background 0.12s ease;
@@ -41,22 +41,22 @@
   background: rgba(255, 255, 255, 0.05);
 }
 .chapterRowActive {
-  background: rgba(201, 168, 76, 0.14);
-  box-shadow: inset 2px 0 0 #c9a84c;
+  background: rgba(220, 187, 94, 0.14);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .chapterRowActive .chapterTitle {
-  color: #f3efe2;
+  color: var(--text-bright);
   font-weight: 600;
 }
 .chapterRowActive .chapterTime {
-  color: #e6cf86;
+  color: var(--accent);
 }
 .chapterTime {
   flex: none;
   min-width: 52px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 .chapterTitle {
@@ -75,9 +75,9 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #cfe6d8;
+  color: var(--text-bright);
   padding: 4px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(96, 178, 140, 0.42);
   background: rgba(96, 178, 140, 0.12);
   cursor: pointer;
@@ -92,7 +92,7 @@
   display: block;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(220, 187, 94, 0.35);
   line-height: 0;
 }
 .poster {
@@ -123,7 +123,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c9a84c;
+  background: #dcbb5e;
 }
 
 /* ── Tickers covered ── */
@@ -154,10 +154,10 @@
 .tickersCount {
   font-size: 11px;
   font-weight: 700;
-  color: #c9a84c;
-  background: rgba(201, 168, 76, 0.12);
-  border: 1px solid rgba(201, 168, 76, 0.28);
-  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(220, 187, 94, 0.12);
+  border: 1px solid rgba(220, 187, 94, 0.28);
+  border-radius: var(--radius-pill);
   padding: 0 7px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
@@ -178,29 +178,29 @@
   align-items: center;
   gap: 6px;
   padding: 4px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  background: rgba(201, 168, 76, 0.08);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  background: rgba(220, 187, 94, 0.08);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .tickerChip:hover {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.8);
+  background: rgba(220, 187, 94, 0.18);
+  border-color: var(--accent);
 }
 .tickerChipActive {
-  background: rgba(201, 168, 76, 0.28);
-  border-color: rgba(201, 168, 76, 0.95);
+  background: rgba(220, 187, 94, 0.28);
+  border-color: var(--accent);
 }
 .tickerSym {
   border: none;
   background: none;
   padding: 0;
   cursor: pointer;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .tickerSym:hover {
   text-decoration: underline;
@@ -215,7 +215,7 @@
   font-variant-numeric: tabular-nums;
 }
 .tickerTime:hover {
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 /* ── Loading skeletons ── */
@@ -224,8 +224,8 @@
   flex-direction: column;
   gap: 8px;
 }
-.skelRow { height: 30px; border-radius: 8px; }
-.skelLine { height: 13px; border-radius: 6px; }
+.skelRow { height: 30px; border-radius: var(--radius-lg); }
+.skelLine { height: 13px; border-radius: var(--radius-md); }
 .skelLine:nth-child(3n) { width: 72%; }
 .skelRow,
 .skelLine {
@@ -251,7 +251,7 @@
 .tickerSym:focus-visible,
 .tickerTime:focus-visible,
 .posterLink:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }

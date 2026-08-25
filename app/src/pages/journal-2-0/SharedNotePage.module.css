@@ -19,8 +19,8 @@
 .column :global(.ProseMirror h2) { font-size: 24px; margin: 24px 0 12px; line-height: 1.25; }
 .column :global(.ProseMirror h3) { font-size: 20px; margin: 20px 0 10px; }
 .column :global(.ProseMirror p) { margin: 12px 0; }
-.column :global(.ProseMirror a) { color: #c9a84c; text-decoration: underline; }
-.column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: 6px; }
+.column :global(.ProseMirror a) { color: var(--accent); text-decoration: underline; }
+.column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: var(--radius-md); }
 
 .hero {
   display: block;
@@ -65,4 +65,4 @@
   font-size: 12px;
   color: var(--text-dim, #8a8a8a);
 }
-.brandName { color: var(--ut-gold, #c9a84c); font-weight: 600; }
+.brandName { color: var(--ut-gold, #dcbb5e); font-weight: 600; }

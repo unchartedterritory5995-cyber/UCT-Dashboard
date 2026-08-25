@@ -6,20 +6,20 @@
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .label {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 .channel { font-size: 10.5px; color: var(--color-text-muted, #8a8f98); }
 .add {
   align-self: flex-start; padding: 4px 10px; min-height: 28px;
-  border: 1px solid var(--ut-gold, #c9a84c); border-radius: 4px;
-  background: transparent; color: var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e); border-radius: var(--radius-sm);
+  background: transparent; color: var(--ut-gold, #dcbb5e);
   font-size: 12px; cursor: pointer;
 }
 .add:disabled { opacity: .5; cursor: default; }
 .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
 .chip {
   display: flex; align-items: center; gap: 6px;
-  padding: 3px 6px 3px 9px; border-radius: 12px;
+  padding: 3px 6px 3px 9px; border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, .06);
   font-size: 12px; color: var(--color-text, #d8dade);
 }

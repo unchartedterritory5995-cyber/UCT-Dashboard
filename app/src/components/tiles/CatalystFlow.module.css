@@ -73,7 +73,7 @@
 .pos    { color: var(--gain); }
 .neg    { color: var(--loss); }
 .muted  { color: var(--text-muted); }
-.loading { color: var(--text-muted); font-size: 12px; }
+.loading { color: var(--text); font-weight: 500; font-size: 12px; }
 
 .scrollBody {
   overflow-y: auto;

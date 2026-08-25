@@ -148,10 +148,10 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
         {errorDetail && <div className={styles.error} role="alert">{errorDetail}</div>}
 
         <div className={styles.row}>
-          <button type="submit" className={styles.primaryBtn} disabled={!canSubmit || busy}>
+          <button type="submit" className="btn btn-primary" disabled={!canSubmit || busy}>
             {busy ? 'Connecting…' : 'Connect'}
           </button>
-          <button type="button" className={styles.ghostBtn} disabled={busy} onClick={handleClose}>
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={handleClose}>
             Cancel
           </button>
         </div>

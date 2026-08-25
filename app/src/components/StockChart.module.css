@@ -22,7 +22,7 @@
   display: flex;
   gap: 1px;
   padding: 2px 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.72));
   border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.06));
   backdrop-filter: blur(2px);
@@ -72,7 +72,7 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: color 0.12s, background 0.12s, opacity 0.12s;
 }
 .rangeBtn:hover {
@@ -216,15 +216,15 @@
   transform: translateY(-26px);
 }
 .legendTime {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 600;
 }
 .legendLabel {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 500;
 }
 .legendVal {
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
 }
 .legendUp {
@@ -232,7 +232,7 @@
   font-weight: 600;
 }
 .legendDown {
-  color: #f87171;
+  color: var(--loss);
   font-weight: 600;
 }
 
@@ -288,7 +288,7 @@
 .vlHead {
   grid-column: 1 / -1;
   text-align: center;
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
   white-space: nowrap;
   padding-bottom: 1px;
@@ -302,12 +302,12 @@
 }
 .vlFull {
   grid-column: 1 / -1;
-  color: #a8a290;
+  color: var(--text);
   font-weight: 600;
   white-space: nowrap;
 }
 .vlLabel {
-  color: #a8a290;
+  color: var(--text);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -322,7 +322,7 @@
 }
 .vlVal {
   text-align: right;
-  color: #d4cfc0;
+  color: var(--text-bright);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -402,7 +402,7 @@
   max-width: 340px;
   background: var(--chart-panel-bg, rgba(26, 28, 23, 0.9));
   padding: 2px 8px 2px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   line-height: 1.3;
   /* Re-enable pointer events on the ROW (container is pointer-events:none) so
@@ -441,7 +441,7 @@
   transition: opacity 0.1s, background 0.1s, color 0.1s;
 }
 .compareRow:hover .compareX { opacity: 0.75; }
-.compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
+.compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: var(--text-bright); }
 
 /* Grouped comparisons (theme/sector/industry) — one collapsible legend row. */
 .compareGroupChevron {
@@ -498,23 +498,23 @@
   top: 8px;
   left: 12px;
   z-index: 100;
-  background: rgba(201, 168, 76, 0.18);
-  border: 1px solid var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  background: rgba(220, 187, 94, 0.18);
+  border: 1px solid var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 1.5px;
   pointer-events: none;
-  box-shadow: 0 0 8px rgba(201, 168, 76, 0.25);
+  box-shadow: 0 0 8px rgba(220, 187, 94, 0.25);
   animation: replay-pulse 2.5s ease-in-out infinite;
 }
 
 @keyframes replay-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(201, 168, 76, 0.25); }
-  50% { box-shadow: 0 0 14px rgba(201, 168, 76, 0.55); }
+  0%, 100% { box-shadow: 0 0 8px rgba(220, 187, 94, 0.25); }
+  50% { box-shadow: 0 0 14px rgba(220, 187, 94, 0.55); }
 }
 
 /* Stale-feed indicator (P2-7): pulses amber when SSE backend reports the
@@ -525,12 +525,12 @@
   right: 8px;
   z-index: 100;
   background: rgba(217, 119, 6, 0.9);
-  color: #fff;
+  color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 1px;
   animation: stale-pulse 2s ease-in-out infinite;
   pointer-events: none;
@@ -547,12 +547,12 @@
   right: 8px;
   z-index: 100;
   background: rgba(22, 163, 74, 0.9);
-  color: #fff;
+  color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 1px;
   animation: liveIndicatorPulse 2s ease-in-out infinite;
 }
@@ -573,11 +573,11 @@
   right: 150px;
   z-index: 100;
   background: rgba(217, 119, 6, 0.85);
-  color: #fff;
+  color: var(--text-bright);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 1px;
   animation: correction-fade 2s ease-in-out forwards;
   pointer-events: none;
@@ -650,8 +650,8 @@
 .scaleToggleActive,
 .scaleToggleActive:hover {
   opacity: 1;
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.2));
-  color: var(--accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.2));
+  color: var(--accent, #dcbb5e);
 }
 
 :global([data-charts-theme='sunrise']) .scaleToggle {

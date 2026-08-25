@@ -2,7 +2,7 @@
   width: 100%;
   background: var(--bg-surface, #14160f);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 12px 14px;
 }
 .head {
@@ -24,7 +24,7 @@
   margin-left: auto;
   border: none;
   background: transparent;
-  color: #c9a84c;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -51,7 +51,7 @@
   display: block;
   width: 190px;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: #000;
 }
@@ -80,9 +80,9 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #0e0f0d;
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  border-radius: 999px;
+  color: var(--bg);
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
+  border-radius: var(--radius-pill);
   padding: 2px 7px;
 }
 .progressBar {
@@ -96,7 +96,7 @@
 .progressFill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+  background: linear-gradient(90deg, #e6cf86, #dcbb5e);
 }
 .cardTitle {
   margin-top: 6px;

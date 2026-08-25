@@ -188,7 +188,7 @@ function CompassTodayBody({ todayFocus, noticed, mutate }) {
                   </div>
                   <button
                     type="button"
-                    className={styles.dismissBtn}
+                    className="btn btn-ghost btn-sm"
                     aria-label={`Dismiss: ${ins.headline}`}
                     disabled={dismissing.has(ins.id)}
                     onClick={() => handleDismiss(ins.id)}

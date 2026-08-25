@@ -26,7 +26,7 @@
   justify-content: center;
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 16px var(--ut-gold-glow);
@@ -69,7 +69,7 @@
 .search {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px 8px 30px;
   color: var(--text-bright);
   font-family: var(--font-sans);
@@ -86,10 +86,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #0e0f0d;
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
+  color: var(--bg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 14px;
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -134,7 +134,7 @@
   background: var(--bg-surface);
   color: var(--text-muted);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 7px 13px;
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -144,11 +144,11 @@
   min-height: var(--tap-min);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
-.catChip:hover { color: var(--text-bright); border-color: var(--ut-gold, #c9a84c); }
+.catChip:hover { color: var(--text-bright); border-color: var(--ut-gold, #dcbb5e); }
 .catChipActive {
   background: linear-gradient(135deg, var(--ut-gold-dim), var(--ut-gold-dim));
   color: var(--text-bright);
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
   box-shadow: 0 0 12px var(--ut-gold-glow);
 }
 .catCount {
@@ -178,7 +178,7 @@
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -226,7 +226,7 @@
   color: var(--text-bright);
   font-size: var(--text-xs);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .cardBody { padding: var(--space-md); flex: 1; }
 .cardTitle {
@@ -281,7 +281,7 @@
   aspect-ratio: 16 / 9;
   width: 100%;
   background: #000;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .playerFrame iframe {
@@ -338,7 +338,7 @@
   width: min(260px, 60%);
   aspect-ratio: 16 / 9;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0;
   cursor: pointer;
@@ -351,7 +351,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-bright);
 }
 .nextPlay svg { width: 40px; height: 40px; filter: drop-shadow(0 0 6px rgba(0,0,0,0.6)); }
 .nextTitle {
@@ -363,10 +363,10 @@
 }
 .nextActions { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); flex-wrap: wrap; justify-content: center; }
 .nextPlayBtn {
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #0e0f0d;
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
+  color: var(--bg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 16px;
   font-weight: 700;
   font-size: var(--text-base);
@@ -377,7 +377,7 @@
   background: transparent;
   color: var(--text-muted);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 16px;
   font-size: var(--text-base);
   cursor: pointer;
@@ -397,14 +397,14 @@
   gap: 6px;
   text-align: left;
   padding: var(--space-lg);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   cursor: pointer;
   background: linear-gradient(135deg, var(--ut-gold-dim), var(--ut-gold-dim));
   border: 1px solid var(--border);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .pathCard:hover {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
   box-shadow: 0 0 16px var(--ut-gold-glow);
 }
 .pathName {
@@ -444,7 +444,7 @@
   top: 6px;
   left: 6px;
   background: rgba(8, 9, 8, 0.82);
-  color: #6ee7a8;
+  color: var(--gain);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -462,7 +462,7 @@
 .progressFill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+  background: linear-gradient(90deg, #e6cf86, #dcbb5e);
 }
 
 /* ── "Up next" rail ── */
@@ -497,7 +497,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: #000;
   border: 1px solid var(--border);
@@ -509,7 +509,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-bright);
   opacity: 0;
   transition: opacity 0.15s ease;
   background: rgba(0,0,0,0.25);
@@ -539,7 +539,7 @@
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   box-shadow: 0 0 22px var(--ut-gold-glow);
@@ -552,7 +552,7 @@
   margin-bottom: var(--space-sm);
 }
 .emptyText {
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: var(--text-base);
   line-height: 1.6;
   margin-bottom: var(--space-lg);
@@ -569,7 +569,7 @@
 .input, .textarea {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 12px;
   color: var(--text-bright);
   font-family: var(--font-sans);
@@ -588,7 +588,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 14px;
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -596,10 +596,10 @@
   min-height: var(--tap-min);
 }
 .saveBtn {
-  background: linear-gradient(135deg, #e6cf86, #c9a84c);
-  color: #0e0f0d;
+  background: linear-gradient(135deg, #e6cf86, #dcbb5e);
+  color: var(--bg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 9px 16px;
   font-family: var(--font-sans);
   font-size: var(--text-base);

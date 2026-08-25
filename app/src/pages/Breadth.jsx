@@ -35,6 +35,7 @@ import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
 import GroupControls from './breadth/grouping/GroupControls'
 import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import UIcon from '../components/ui/UIcon'
+import PageHeader from '../components/PageHeader'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -993,10 +994,9 @@ export default function Breadth() {
   if (activeTab === 'overview') {
     return (
       <div className={styles.page}>
-        <div className={styles.header}>
-          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
+        <PageHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </div>
+        </PageHeader>
         <div className={styles.overviewBody}>
           <MarketBreadth />
         </div>
@@ -1007,10 +1007,9 @@ export default function Breadth() {
   if (activeTab === 'cot') {
     return (
       <div className={`${styles.page} ${styles.pageCot}`}>
-        <div className={`${styles.header} ${styles.cotTabHeader}`}>
-          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
+        <PageHeader icon="breadth" title="Breadth" className={styles.cotTabHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </div>
+        </PageHeader>
         <CotData />
       </div>
     )
@@ -1019,10 +1018,9 @@ export default function Breadth() {
   if (activeTab === 'charts') {
     return (
       <div className={styles.page}>
-        <div className={styles.header}>
-          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
+        <PageHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </div>
+        </PageHeader>
         <BreadthCharts />
       </div>
     )
@@ -1031,10 +1029,9 @@ export default function Breadth() {
   if (activeTab === 'analogues' && isAdmin) {
     return (
       <div className={styles.page}>
-        <div className={styles.header}>
-          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
+        <PageHeader icon="breadth" title="Breadth">
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        </div>
+        </PageHeader>
         <BreadthAnalogues />
       </div>
     )
@@ -1042,8 +1039,7 @@ export default function Breadth() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
+      <PageHeader icon="breadth" title="Breadth">
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
           {rows.length > 0
@@ -1100,7 +1096,7 @@ export default function Breadth() {
             </button>
           </>
         )}
-      </div>
+      </PageHeader>
 
       {error && (
         <div className={styles.errorBanner}>

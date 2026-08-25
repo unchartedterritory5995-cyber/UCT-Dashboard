@@ -49,7 +49,7 @@
   line-height: 1;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .xBtn:hover {
@@ -63,7 +63,7 @@
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
   color: var(--text-bright);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
 }
 
@@ -85,7 +85,7 @@
   background: transparent;
   border: 1px solid var(--border);
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   color: var(--text-muted);
   cursor: pointer;
@@ -196,7 +196,7 @@
   padding: 9px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
@@ -221,7 +221,7 @@
   align-items: center;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -322,7 +322,7 @@
   color: var(--ut-gold);
   border: 1px solid var(--ut-gold-dim);
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   cursor: pointer;
 }
@@ -368,7 +368,7 @@
   padding: 5px 6px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
@@ -392,7 +392,7 @@
 
 .removeLegBtn:hover:not(:disabled) {
   background: var(--loss-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .removeLegBtn:disabled {
@@ -406,7 +406,7 @@
   padding: 10px 12px;
   background: var(--ut-gold-dim);
   border: 1px solid var(--ut-gold-glow);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .hintTitle {
@@ -430,7 +430,7 @@
   padding: 10px 12px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--loss);
   font-size: 12px;
 }
@@ -458,7 +458,7 @@
   padding: 8px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .calcCell {
@@ -498,7 +498,7 @@
   padding: 9px 18px;
   background: transparent;
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
@@ -514,7 +514,7 @@
   padding: 9px 22px;
   background: var(--ut-gold);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--bg);
   font-family: inherit;
   font-size: 13px;

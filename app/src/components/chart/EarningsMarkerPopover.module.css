@@ -38,7 +38,7 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #c9a84c);      /* gold accent, matching the app */
+  color: var(--menu-accent, #dcbb5e);      /* gold accent, matching the app */
 }
 .quarter {
   font-size: 11px;
@@ -55,7 +55,7 @@
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .close:hover { color: var(--menu-text, #d4d4d6); background: var(--menu-hover, #1a1a1d); }
 

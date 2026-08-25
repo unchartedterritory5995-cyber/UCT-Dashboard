@@ -5,6 +5,7 @@ import { lazy, Suspense, useState, useEffect } from 'react'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import { useSearchParams } from 'react-router-dom'
 import { GraduationIcon, CourseIcon, ArticleIcon, PostIcon, TeamIcon } from '../education/icons'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Desk.module.css'
 
 const VideosSection = lazy(() => import('./VideosSection'))
@@ -50,7 +51,7 @@ export default function Desk() {
     <div className={styles.hub}>
       <nav className={styles.tabBar} role="tablist" aria-label="The Desk sections">
         <div className={styles.brandRow}>
-          <span className={styles.brandTag}>THE DESK</span>
+          <span className={styles.brandTag}><UIcon name="desk" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />The Desk</span>
         </div>
         {SECTIONS.map((s) => (
           <button

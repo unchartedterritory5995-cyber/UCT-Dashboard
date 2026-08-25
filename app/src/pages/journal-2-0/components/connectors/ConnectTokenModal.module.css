@@ -11,13 +11,13 @@
   font: inherit;
   font-size: 14px;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border, #333);
   background: rgba(255, 255, 255, 0.03);
   color: var(--color-text, #e8e8ea);
   min-height: var(--tap-min, 44px);
 }
-.textInput:focus { outline: none; border-color: rgba(201, 168, 76, 0.6); }
+.textInput:focus { outline: none; border-color: var(--accent); }
 
 .helpText { font-size: 12px; line-height: 1.5; opacity: 0.75; margin: 0; }
 .warnText {
@@ -25,10 +25,10 @@
   line-height: 1.5;
   margin: 0;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(224, 161, 26, 0.1);
   border: 1px solid rgba(224, 161, 26, 0.3);
-  color: #e0a11a;
+  color: var(--warn);
 }
 
 .consentCheck {
@@ -47,7 +47,7 @@
   color: var(--color-danger, #f87171);
   background: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
 }
 
@@ -58,12 +58,12 @@
   font-size: 13px;
   font-weight: 600;
   padding: 9px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   min-height: var(--tap-min, 44px);
   border: 1px solid transparent;
 }
-.primaryBtn { background: var(--color-accent, #c9a84c); color: #1a1a1a; }
+.primaryBtn { background: var(--color-accent, #dcbb5e); color: var(--bg); }
 .primaryBtn:hover:not(:disabled) { filter: brightness(1.08); }
 .primaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .ghostBtn {

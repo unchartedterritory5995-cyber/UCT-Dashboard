@@ -148,7 +148,7 @@ export default function ScannerShell({ embedded = false }) {
         {error && (
           <div className={styles.scanError} role="alert">
             Scan failed — {String(error.message || error)}.
-            <button type="button" className={styles.retryBtn} onClick={retry}>Retry</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={retry}>Retry</button>
           </div>
         )}
         {!result && isLoading ? (

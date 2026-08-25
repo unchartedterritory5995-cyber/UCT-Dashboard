@@ -16,7 +16,7 @@
   padding: 4px 10px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   font-family: inherit;
   font-size: 11px;
@@ -27,9 +27,9 @@
 }
 
 .trigger:hover {
-  color: var(--ut-gold, #c9a84c);
-  border-color: var(--ut-gold, #c9a84c);
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.1));
+  color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.1));
 }
 
 .trigger:focus-visible {
@@ -56,7 +56,7 @@
   padding: 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border-accent, var(--border));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
 }
 
@@ -79,7 +79,7 @@
   padding: 8px 10px;
   background: var(--bg, #0e0e10);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
@@ -88,7 +88,7 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .evidence {
@@ -112,7 +112,7 @@
   align-items: center;
   justify-content: center;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -132,14 +132,14 @@
 }
 
 .save {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.14));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.14));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .save:hover:not(:disabled) {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.22));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.22));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .save:disabled {

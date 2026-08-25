@@ -4,7 +4,7 @@
   position: relative;
   margin: 10px 0;
   border: 1px solid var(--border, #2a2a2a);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--panel, #101010);
 }
@@ -97,7 +97,7 @@
   left: 8px;
   z-index: 2;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 10px;
   letter-spacing: 0.03em;
@@ -192,7 +192,7 @@
   font-size: 11px;
   cursor: pointer;
 }
-.toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolBtn:hover { border-color: var(--ut-gold, #dcbb5e); }
 /* The "Charts ↗" control is an <a> (middle-click opens a tab) — strip the
    link underline so it reads as one of the buttons beside it. */
 a.toolBtn { text-decoration: none; line-height: 1.5; }
@@ -200,9 +200,9 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
    declarations at equal specificity — the Done button's gold was dead CSS
    (panel finding). */
 .toolBtnActive {
-  background: var(--ut-gold, #c9a84c);
-  color: #0c0c0c;
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
+  color: var(--bg);
+  border-color: var(--ut-gold, #dcbb5e);
 }
 .toolSelect {
   padding: 2px 4px;
@@ -214,9 +214,9 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-size: 11px;
   cursor: pointer;
 }
-.toolSelect:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolSelect:hover { border-color: var(--ut-gold, #dcbb5e); }
 .toolbarMsg {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   padding-right: 4px;
@@ -259,13 +259,13 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   top: 6px;
   right: 8px;
   padding: 1px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #0c0c0c;
-  background: var(--ut-gold, #c9a84c);
+  color: var(--bg);
+  background: var(--ut-gold, #dcbb5e);
   pointer-events: none;
 }
 

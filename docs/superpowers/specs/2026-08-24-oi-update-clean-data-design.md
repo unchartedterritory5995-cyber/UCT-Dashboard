@@ -70,6 +70,36 @@ second-latest date.
 e.g. PFE $27P 9/18 → ΔOI ≈ +21K, carry ≈ 85% (not +45.7K / 182%). Keep this UW board
 as the validation set.
 
+## 2c. ⭐ VERIFIED ROOT CAUSE (2026-08-24, via the `oi-history` diagnostic)
+
+The real problem is the **OI source**, not sparsity. Measured on PFE $27P 9/18:
+
+- Our `contract_oi_snapshots` are **clean and daily** — 21 straight trading sessions,
+  100k–137k contracts/day, no gaps (`coverage` from `get_status`). Sparsity is NOT
+  the issue; §5's "daily-coverage tracker" is **not needed**.
+- But the OI **values are wrong** — sourced from **Schwab `openInterest`, which lags
+  OCC by ~a day**. Our latest snapshot = **53,028**; **Massive** OI (Polygon/OCC-shaped,
+  `/v3/snapshot/options/PFE/O:PFE260918P00027000` → `open_interest`) = **74,259**,
+  matching UW's current OI (~74,309). Our 53,028 = Massive's **prior** day.
+- **UW Friday ΔOI = 74,259 − 53,028 = +21,231 — EXACT match.** carry = 21,231 / 25,058
+  (Prev Vol) = **85%**. So with Massive OI, both ΔOI *and* carry reconcile to UW.
+
+### Revised fix — OI source swap (Schwab → Massive), NOT a coverage tracker
+1. Capture OI from **Massive** (`/v3/snapshot/options/{under}/{occ}` → `open_interest`),
+   OCC-accurate + matches UW. Massive also returns volume, so it can be the single
+   source for OI **and** volume (still fetch completed-session volume via daily aggs).
+2. ΔOI(D) = MassiveOI(D) − MassiveOI(D−1) over adjacent daily snapshots (coverage
+   already daily). carry% = ΔOI(D) / volume(D).
+3. **De-risk the shared table:** capture Massive OI into a **parallel column/source
+   tag** (e.g. `source='massive'` rows, or an `oi_occ` column) so the OI card reads
+   the accurate value while existing consumers (B-side confirmation, weekly-flow,
+   OI Check) keep their current Schwab-sourced reads until Ravi signs off on a full
+   swap. A full swap likely *improves* all of them (Schwab OI is the lagging one).
+4. Acceptance: PFE $27P 9/18 → ΔOI ≈ +21,231, carry ≈ 85% (matches UW), not +45,662.
+
+**This supersedes §5's tracker framing** — the daily series already exists; we only
+need to populate it from the correct (Massive/OCC) source.
+
 ## 3. Goal / non-goals
 
 **Goal:** a per-contract **daily** series of `(oi, volume)` keyed to the **trading

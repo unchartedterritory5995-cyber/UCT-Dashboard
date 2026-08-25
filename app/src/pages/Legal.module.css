@@ -10,10 +10,10 @@
 
 .heading {
   font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--text-bright);
-  letter-spacing: 1px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: 0.2px;
   margin-bottom: 8px;
 }
 

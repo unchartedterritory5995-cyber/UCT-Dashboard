@@ -6,20 +6,20 @@
   align-items: center;
   gap: 8px;
   padding: 7px 13px;
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  background: rgba(201, 168, 76, 0.08);
-  color: #c9a84c;
-  border-radius: 999px;
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  background: rgba(220, 187, 94, 0.08);
+  color: var(--accent);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
 }
 .toggle:hover {
-  background: rgba(201, 168, 76, 0.16);
+  background: rgba(220, 187, 94, 0.16);
 }
 .toggle:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 .chevron {
@@ -32,7 +32,7 @@
 .panel {
   margin-top: 12px;
   border: 1px solid var(--border, #2a2a2f);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 12px;
   background: rgba(255, 255, 255, 0.02);
 }
@@ -41,7 +41,7 @@
   box-sizing: border-box;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary, #f3efe2);
   font: inherit;
   font-size: 13px;
@@ -51,7 +51,7 @@
   color: var(--text-secondary, #a8a290);
 }
 .search:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 1px;
 }
 .count {
@@ -71,18 +71,18 @@
   gap: 6px;
 }
 .txBtn {
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  background: rgba(201, 168, 76, 0.06);
-  color: #c9a84c;
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  background: rgba(220, 187, 94, 0.06);
+  color: var(--accent);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
-.txBtn:hover { background: rgba(201, 168, 76, 0.16); }
-.txBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
+.txBtn:hover { background: rgba(220, 187, 94, 0.16); }
+.txBtn:focus-visible { outline: 2px solid #dcbb5e; outline-offset: 2px; }
 .list {
   max-height: 320px;
   overflow-y: auto;
@@ -101,25 +101,25 @@
   background: transparent;
   cursor: pointer;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .cue:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 .cueActive {
-  background: rgba(201, 168, 76, 0.12);
-  box-shadow: inset 2px 0 0 #c9a84c;
+  background: rgba(220, 187, 94, 0.12);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .cue:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: -1px;
 }
 .cueTime {
   flex: none;
   min-width: 54px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
-  color: #c9a84c;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 .cueText {
@@ -128,8 +128,8 @@
   color: var(--text-primary, #f3efe2);
 }
 .mark {
-  background: rgba(201, 168, 76, 0.32);
-  color: #fff;
+  background: rgba(220, 187, 94, 0.32);
+  color: var(--text-bright);
   border-radius: 3px;
   padding: 0 1px;
 }

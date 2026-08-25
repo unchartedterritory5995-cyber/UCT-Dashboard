@@ -75,8 +75,8 @@
   gap: 12px;
 }
 .statBlock {
-  background: rgba(201, 168, 76, 0.05);
-  border: 1px solid var(--ut-gold-glow, #c9a84c35);
+  background: rgba(220, 187, 94, 0.05);
+  border: 1px solid var(--ut-gold-glow, #dcbb5e35);
   border-radius: 10px;
   padding: 14px 16px;
   display: flex;
@@ -103,7 +103,7 @@
 .empty {
   padding: 28px 8px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   line-height: 1.6;
 }
 .emptySub { color: var(--ut-cream); }
@@ -113,7 +113,7 @@
 .section {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 16px 20px;
   margin-bottom: 20px;
   position: relative;
@@ -210,11 +210,11 @@
   letter-spacing: 0.5px;
 }
 .gradeChipMuted { color: var(--text-muted); font-size: 11px; }
-.gradeAPlus { background: rgba(201, 168, 76, 0.18); color: var(--ut-gold); border: 1px solid var(--ut-gold-glow, #c9a84c35); }
-.gradeA     { background: rgba(60, 184, 104, 0.14); color: var(--gain); }
-.gradeB     { background: rgba(107, 163, 190, 0.14); color: #6ba3be; }
-.gradeC     { background: rgba(180, 180, 180, 0.12); color: #cbd5e1; }
-.gradeD     { background: rgba(231, 76, 60, 0.12); color: var(--loss); }
+.gradeAPlus { background: rgba(220, 187, 94, 0.18); color: var(--ut-gold); border: 1px solid var(--ut-gold-glow, #dcbb5e35); }
+.gradeA     { background: rgba(52, 209, 124, 0.14); color: var(--gain); }
+.gradeB     { background: rgba(107, 163, 190, 0.14); color: var(--info); }
+.gradeC     { background: rgba(180, 180, 180, 0.12); color: var(--text-bright); }
+.gradeD     { background: rgba(242, 75, 66, 0.12); color: var(--loss); }
 
 /* ── Recent standouts card grid ────────────────────────────────────────── */
 
@@ -235,7 +235,7 @@
 }
 @media (hover: hover) {
   .card:hover {
-    border-color: var(--ut-gold-glow, #c9a84c35);
+    border-color: var(--ut-gold-glow, #dcbb5e35);
     transform: translateY(-1px);
   }
 }
@@ -291,8 +291,8 @@
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--ut-gold);
-  background: var(--ut-gold-dim, #c9a84c15);
-  border: 1px solid var(--ut-gold-glow, #c9a84c35);
+  background: var(--ut-gold-dim, #dcbb5e15);
+  border: 1px solid var(--ut-gold-glow, #dcbb5e35);
 }
 
 /* ── Methodology footnote ──────────────────────────────────────────────── */

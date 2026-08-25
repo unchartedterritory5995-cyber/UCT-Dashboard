@@ -189,7 +189,7 @@ export default function VoiceInsightsPanel() {
                 {!isDismissed && (
                   <button
                     type="button"
-                    className={styles.dismissBtn}
+                    className="btn btn-ghost btn-sm"
                     onClick={() => dismiss(i.id)}
                     aria-label={`Dismiss insight ${i.headline}`}
                   >

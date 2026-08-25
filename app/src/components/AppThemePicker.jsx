@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { APP_THEMES, APP_THEME_FAMILIES, isUctTheme, uctThemeId, uctThemeValue } from '../styles/appThemes'
 import styles from './AppThemePicker.module.css'
 
-// The two always-present base themes (not in the catalog — plain data-theme values).
+// The always-present base themes (not in the catalog — plain data-theme values).
+// 'dark' is the default (neutral graphite, tokens.css :root); 'oled' is pure black.
 const BASICS = [
+  { value: 'dark', label: 'Graphite', desc: 'Default — soft neutral graphite', swatch: '#17181a' },
   { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
   { value: 'light', label: 'Light', desc: 'Clean white', swatch: '#e8eff5' },
 ]

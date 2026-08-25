@@ -29,4 +29,4 @@
   transition: opacity 0.15s ease, color 0.12s ease, background 0.12s ease;
 }
 .root:hover .gearBtn { opacity: 0.85; }
-.gearBtn:hover { opacity: 1; color: var(--accent, #c9a84c); background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+.gearBtn:hover { opacity: 1; color: var(--accent, #dcbb5e); background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }

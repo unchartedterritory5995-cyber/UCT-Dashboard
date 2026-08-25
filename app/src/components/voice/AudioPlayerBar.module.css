@@ -8,19 +8,19 @@
   align-items: center;
   gap: 12px;
   background: rgba(15, 17, 14, 0.95);
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  border-radius: 999px;
+  border: 1px solid rgba(220, 187, 94, 0.3);
+  border-radius: var(--radius-pill);
   padding: 8px 16px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   font: 13px/1.2 var(--font-sans);
-  color: #e8e6df;
+  color: var(--text-bright);
   max-width: min(760px, calc(100vw - 24px));
 }
 
 .iconBtn {
   background: transparent;
   border: none;
-  color: #c9a84c;
+  color: var(--accent);
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -30,7 +30,7 @@
   align-items: center;
   justify-content: center;
 }
-.iconBtn:hover { background: rgba(201, 168, 76, 0.12); }
+.iconBtn:hover { background: rgba(220, 187, 94, 0.12); }
 .iconBtn:disabled { opacity: 0.5; cursor: default; }
 
 .label {
@@ -41,15 +41,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.errorTag { color: #f87171; }
-.loadingTag { color: #b8b4a8; font-style: italic; }
+.errorTag { color: var(--loss); }
+.loadingTag { color: var(--text); font-style: italic; }
 
 .seek {
   flex: 1 1 160px;
   min-width: 90px;
   max-width: 300px;
   height: 4px;
-  accent-color: #c9a84c;
+  accent-color: #dcbb5e;
   cursor: pointer;
 }
 .seek:disabled { cursor: default; opacity: 0.5; }
@@ -57,7 +57,7 @@
 .time {
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: #b8b4a8;
+  color: var(--text);
   min-width: 34px;
   text-align: center;
 }
@@ -113,7 +113,7 @@
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 6px;
   font-size: 12px;
 }

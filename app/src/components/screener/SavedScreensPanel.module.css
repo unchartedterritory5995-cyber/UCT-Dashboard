@@ -38,7 +38,7 @@
   padding: 0 12px;
   background: transparent;
   border: 1px solid var(--border-accent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
@@ -70,7 +70,7 @@
   padding: 0 8px;
   background: transparent;
   border: 1px solid var(--border-accent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
@@ -87,7 +87,7 @@
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border-accent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 @media (max-width: 640px) {

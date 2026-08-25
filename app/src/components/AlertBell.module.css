@@ -31,7 +31,7 @@
   top: 2px; right: 0;
   min-width: 16px; height: 16px;
   background: var(--loss);
-  color: #fff;
+  color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 9px; font-weight: 700;
   border-radius: var(--radius-lg);
@@ -87,7 +87,7 @@
 .empty {
   padding: 24px 14px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 12px;
 }
 

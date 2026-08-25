@@ -1,6 +1,6 @@
 .card {
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--surface-1, #101013);
   padding: 14px 16px 8px;
   display: flex;
@@ -29,14 +29,14 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .change { font-size: 14px; font-weight: 700; }
-.pos { color: #3cb868; }
-.neg { color: #e74c3c; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
 
 .rangeNote {
   font-size: 11px;
@@ -50,14 +50,14 @@
   padding: 3px 10px;
   font-size: 11.5px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted, #8a8a8a);
   cursor: pointer;
 }
 
-.pill:hover { color: #c9a84c; border-color: #c9a84c; }
-.pillOn { color: #c9a84c; border-color: #c9a84c; background: rgba(201, 168, 76, 0.08); }
+.pill:hover { color: var(--accent); border-color: #dcbb5e; }
+.pillOn { color: var(--accent); border-color: #dcbb5e; background: rgba(220, 187, 94, 0.08); }
 
 .footnote {
   margin: 0;

@@ -10,11 +10,11 @@
   gap: 18px;
   padding: 22px 22px 16px;
   border-radius: 14px;
-  border: 1px solid rgba(201, 168, 76, 0.28);
+  border: 1px solid rgba(220, 187, 94, 0.28);
   /* Deep near-black base with a soft gold glow bleeding from the top-left —
      the premium, embossed brand feel. */
   background:
-    radial-gradient(120% 80% at 12% 0%, rgba(201, 168, 76, 0.12), transparent 55%),
+    radial-gradient(120% 80% at 12% 0%, rgba(220, 187, 94, 0.12), transparent 55%),
     linear-gradient(180deg, rgba(20, 21, 26, 0.9), rgba(12, 13, 17, 0.96));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
@@ -32,9 +32,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(201, 168, 76, 0.65) 20%,
+    rgba(220, 187, 94, 0.65) 20%,
     rgba(232, 209, 140, 0.85) 50%,
-    rgba(201, 168, 76, 0.65) 80%,
+    rgba(220, 187, 94, 0.65) 80%,
     transparent
   );
 }
@@ -55,8 +55,8 @@
   height: 34px;
   flex: 0 0 auto;
   border-radius: 10px;
-  border: 1px solid rgba(201, 168, 76, 0.34);
-  background: radial-gradient(80% 80% at 50% 20%, rgba(201, 168, 76, 0.18), transparent);
+  border: 1px solid rgba(220, 187, 94, 0.34);
+  background: radial-gradient(80% 80% at 50% 20%, rgba(220, 187, 94, 0.18), transparent);
 }
 
 .titleWrap {
@@ -72,7 +72,7 @@
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.8);
+  color: var(--accent);
 }
 
 .title {
@@ -100,8 +100,8 @@
   padding: 7px 12px;
   min-height: 34px;
   border-radius: 9px;
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  background: rgba(220, 187, 94, 0.1);
   color: #e6cd8a;
   font-family: inherit;
   font-size: 12px;
@@ -111,8 +111,8 @@
 }
 
 .copyBtn:hover {
-  background: rgba(201, 168, 76, 0.18);
-  border-color: rgba(201, 168, 76, 0.6);
+  background: rgba(220, 187, 94, 0.18);
+  border-color: var(--accent);
   color: #f0dca0;
 }
 
@@ -141,7 +141,7 @@
   line-height: 1;
   letter-spacing: -1px;
   color: #e8d18c;
-  text-shadow: 0 0 22px rgba(201, 168, 76, 0.28);
+  text-shadow: 0 0 22px rgba(220, 187, 94, 0.28);
 }
 
 .scoreDim {
@@ -162,7 +162,7 @@
 }
 
 .formulaEq {
-  color: rgba(201, 168, 76, 0.85);
+  color: var(--accent);
   font-weight: 800;
 }
 
@@ -204,7 +204,7 @@
   font-size: 11px;
   font-style: italic;
   letter-spacing: 0.2px;
-  color: rgba(201, 168, 76, 0.55);
+  color: var(--accent);
 }
 
 .copyFail {

@@ -256,7 +256,7 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
         {kw && (
           <button
             type="button"
-            className={styles.clearBtn}
+            className="btn btn-ghost btn-sm"
             onClick={() => setSearchQuery('')}
             aria-label="Clear search"
           >×</button>

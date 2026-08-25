@@ -72,8 +72,8 @@
 .switchWrap { position: relative; }
 .switchInput {
   width: 148px;
-  border: 1px solid #c9a84c55;
-  border-radius: 6px;
+  border: 1px solid #dcbb5e55;
+  border-radius: var(--radius-md);
   padding: 6px 11px;
   font-family: var(--font-sans);
   font-size: 12px;
@@ -85,7 +85,7 @@
   transition: border-color 0.15s;
 }
 .switchInput::placeholder { color: var(--text-muted); }
-.switchInput:focus { border-color: #c9a84c; }
+.switchInput:focus { border-color: #dcbb5e; }
 /* Predictive matches, dropped inline beneath the input (no portal). */
 .switchMenu {
   position: absolute;
@@ -96,7 +96,7 @@
   overflow-y: auto;
   background: #0e0e10;
   border: 1px solid #242426;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 4px;
   z-index: 1000;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
@@ -122,7 +122,7 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #c9a84c;
+  color: var(--accent);
   flex-shrink: 0;
 }
 .switchOptName {
@@ -208,7 +208,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   padding: 3px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   animation: flagFade 1.5s ease-in-out forwards;
 }
 .flagToastAdded {
@@ -280,8 +280,8 @@
 }
 .modalModeBtn:hover { color: var(--text-bright); }
 .modalModeBtnActive {
-  background: #c9a84c;
-  color: #0a0e12 !important;
+  background: #dcbb5e;
+  color: var(--bg) !important;
 }
 
 /* Chart area */
@@ -423,11 +423,11 @@
   flex-shrink: 0;
 }
 .insiderBuy {
-  color: #fff;
+  color: var(--text-bright);
   background: var(--ut-green);
 }
 .insiderSell {
-  color: #fff;
+  color: var(--text-bright);
   background: var(--ut-red, #ef4444);
 }
 .insiderShares {

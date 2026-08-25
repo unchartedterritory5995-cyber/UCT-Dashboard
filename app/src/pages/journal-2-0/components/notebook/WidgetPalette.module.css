@@ -40,7 +40,7 @@
   padding: 4px 6px;
   border-radius: 5px;
 }
-.headBtn:hover { color: #c9a84c; }
+.headBtn:hover { color: var(--accent); }
 .typeList { display: flex; flex-direction: column; gap: 6px; }
 .typeBtn {
   display: flex;
@@ -50,11 +50,11 @@
   text-align: left;
   background: var(--color-bg, #0b0d12);
   border: 1px solid var(--color-border, #232932);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
   cursor: pointer;
 }
-.typeBtn:hover { border-color: #c9a84c; }
+.typeBtn:hover { border-color: #dcbb5e; }
 .typeLabel { color: var(--color-text-primary, #e8eaed); font-size: 13px; font-weight: 600; }
 .typeHint { color: var(--color-text-muted, #98a0aa); font-size: 11px; line-height: 1.35; }
 .footNote {
@@ -74,41 +74,41 @@
   background: var(--color-bg, #0b0d12);
   border: 1px solid var(--color-border, #232932);
   color: var(--color-text-primary, #e8eaed);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 7px 9px;
   font-size: 13px;
 }
-.symInput:focus, .dayInput:focus { outline: none; border-color: #c9a84c; }
+.symInput:focus, .dayInput:focus { outline: none; border-color: #dcbb5e; }
 .tfRow { display: flex; flex-wrap: wrap; gap: 4px; }
 .tfPill {
   background: var(--color-bg, #0b0d12);
   border: 1px solid var(--color-border, #232932);
   color: var(--color-text-primary, #e8eaed);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
 }
-.tfPill:hover { border-color: #c9a84c; }
+.tfPill:hover { border-color: #dcbb5e; }
 .tfPillActive {
-  background: rgba(201, 168, 76, 0.15);
-  border-color: #c9a84c;
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.15);
+  border-color: #dcbb5e;
+  color: var(--accent);
 }
 .insertBtn {
   margin-top: 6px;
-  background: rgba(201, 168, 76, 0.15);
-  border: 1px solid #c9a84c;
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.15);
+  border: 1px solid #dcbb5e;
+  color: var(--accent);
   border-radius: 7px;
   padding: 8px 10px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
-.insertBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.25); }
+.insertBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.25); }
 .insertBtn:disabled { opacity: 0.45; cursor: default; }
-.insertedMsg { color: #4ade80; font-size: 11px; }
+.insertedMsg { color: var(--gain); font-size: 11px; }
 
 /* Phone: the fixed right panel would cover the prose column — dock it as a
    bottom sheet instead, same content. */
@@ -128,4 +128,4 @@
   }
   .tfPill, .typeBtn, .insertBtn { min-height: var(--tap-min, 44px); }
 }
-.blockMsg { color: #fbbf24; font-size: 11px; }
+.blockMsg { color: var(--warn); font-size: 11px; }

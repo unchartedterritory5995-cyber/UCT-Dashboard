@@ -13,14 +13,14 @@
   left: 0;
   right: 0;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.25);
 }
 .fill {
   position: relative;
   height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #e6cf86, #dcbb5e);
   min-width: 2px;
 }
 .thumb {
@@ -32,7 +32,7 @@
   border-radius: 50%;
   transform: translateY(-50%);
   background: #f3efe2;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.9);
+  box-shadow: 0 0 0 2px rgba(220, 187, 94, 0.9);
   opacity: 0;
   transition: opacity 0.15s ease;
 }

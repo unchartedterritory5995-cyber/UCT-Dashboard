@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 0 1px rgba(220, 187, 94, 0.5);
   pointer-events: none;
 }
 .badge img {

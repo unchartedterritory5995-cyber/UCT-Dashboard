@@ -150,7 +150,7 @@ class ImportWizardBoundary extends Component {
           <p className={styles.crashDetail}>
             {String(this.state.error?.message || this.state.error)}
           </p>
-          <button type="button" className={styles.secondaryBtn} onClick={this.props.onClose}>
+          <button type="button" className="btn btn-secondary" onClick={this.props.onClose}>
             Close
           </button>
         </div>
@@ -505,7 +505,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 <div className={styles.dropButtons}>
                   <button
                     type="button"
-                    className={styles.secondaryBtn}
+                    className="btn btn-secondary"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <UIcon name="document" size={16} gold={false} />
@@ -513,7 +513,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   </button>
                   <button
                     type="button"
-                    className={styles.secondaryBtn}
+                    className="btn btn-secondary"
                     onClick={() => dirInputRef.current?.click()}
                   >
                     <UIcon name="library" size={16} gold={false} />
@@ -653,12 +653,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
               )}
 
               <div className={styles.previewActions}>
-                <button type="button" className={styles.secondaryBtn} onClick={() => setStep('drop')}>
+                <button type="button" className="btn btn-secondary" onClick={() => setStep('drop')}>
                   Back
                 </button>
                 <button
                   type="button"
-                  className={styles.primaryBtn}
+                  className="btn btn-primary"
                   onClick={handleConfirm}
                   disabled={importTotal === 0}
                 >
@@ -715,7 +715,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   </ul>
                 </div>
               )}
-              <button type="button" className={styles.primaryBtn} onClick={onClose}>
+              <button type="button" className="btn btn-primary" onClick={onClose}>
                 Done
               </button>
             </div>
@@ -725,7 +725,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
             <div className={styles.errorWrap}>
               <UIcon name="warning" size={26} gold={false} className={styles.errorIcon} />
               <p>{error}</p>
-              <button type="button" className={styles.secondaryBtn} onClick={() => setStep('drop')}>
+              <button type="button" className="btn btn-secondary" onClick={() => setStep('drop')}>
                 Try again
               </button>
             </div>

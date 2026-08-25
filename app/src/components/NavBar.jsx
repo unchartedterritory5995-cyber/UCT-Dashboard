@@ -13,9 +13,9 @@ const fetcher = (url) =>
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
+  { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
-  { to: '/charts',       label: 'Charts',        icon: 'chart' },
   { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },
@@ -95,7 +95,6 @@ export default function NavBar() {
                 key={item.to}
                 to="/subscribe"
                 className={`${styles.item} ${styles.locked}`}
-                title={`${item.label} — unlock with Pro`}
                 aria-label={`${item.label} — unlock with Pro`}
               >
                 <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
@@ -111,7 +110,6 @@ export default function NavBar() {
               className={({ isActive }) =>
                 [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
               }
-              title={item.label}
               aria-label={item.label}
             >
               <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>

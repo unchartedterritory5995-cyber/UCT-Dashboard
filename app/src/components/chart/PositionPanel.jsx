@@ -110,7 +110,7 @@ export default function PositionPanel({
       </div>
 
       {onClear && (
-        <button className={styles.clearBtn} onClick={onClear}>Clear Prices</button>
+        <button className="btn btn-ghost btn-sm" onClick={onClear}>Clear Prices</button>
       )}
     </div>
   )

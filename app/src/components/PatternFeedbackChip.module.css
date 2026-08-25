@@ -13,7 +13,7 @@
 .compact { gap: 2px; flex-wrap: nowrap; position: relative; }
 .compact .btn { min-height: 20px; padding: 0 4px; }
 .btn {
-  background: transparent; border: 1px solid var(--border, #2e3127); border-radius: 6px;
+  background: transparent; border: 1px solid var(--border, #2e3127); border-radius: var(--radius-md);
   padding: 1px 5px; cursor: pointer; line-height: 1; min-height: 24px;
   /* Explicit size: emoji glyphs inheriting a resolved font-size have rendered
      ~4x at tablet widths (the T14 mobile-audit finding) — pin it. */
@@ -23,19 +23,19 @@
   position: absolute; top: calc(100% + 2px); left: 0; z-index: 30;
   display: flex; align-items: center; gap: 6px; padding: 4px 6px;
   background: var(--bg-surface, #16170f); border: 1px solid var(--border-accent, #4a4433);
-  border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.45); white-space: nowrap;
+  border-radius: var(--radius-md); box-shadow: 0 6px 18px rgba(0,0,0,.45); white-space: nowrap;
 }
 .btn:hover { background: var(--bg-hover, #2a2d24); }
-.upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(60,184,104,.16)); }
-.downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(231,76,60,.16)); }
+.upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(52, 209, 124,.16)); }
+.downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(242, 75, 66,.16)); }
 .link {
-  background: transparent; border: none; color: var(--ut-gold, #c9a84c);
+  background: transparent; border: none; color: var(--ut-gold, #dcbb5e);
   cursor: pointer; font-size: 11px; padding: 1px 3px; text-decoration: none;
 }
 .link:hover { text-decoration: underline; }
 .ok { color: var(--gain, #3cb868); }
 .note {
   background: var(--bg, #0e0f0d); color: var(--text-bright, #e0dac8);
-  border: 1px solid var(--border, #2e3127); border-radius: 6px;
+  border: 1px solid var(--border, #2e3127); border-radius: var(--radius-md);
   padding: 2px 6px; font-size: 11px; width: 140px; min-height: 24px;
 }

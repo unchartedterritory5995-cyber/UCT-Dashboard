@@ -7,9 +7,9 @@
   flex-wrap: wrap;
   padding: 8px 12px;
   margin-bottom: 10px;
-  background: color-mix(in srgb, var(--accent, #c9a84c) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #c9a84c) 40%, transparent);
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #dcbb5e) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #dcbb5e) 40%, transparent);
+  border-radius: var(--radius-lg);
 }
 
 .label {
@@ -17,7 +17,7 @@
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   white-space: nowrap;
 }
 
@@ -37,13 +37,13 @@
   font-weight: 600;
   color: var(--text, #e8e6e1);
   background: var(--surface-2, #17171a);
-  border: 1px solid var(--accent, #c9a84c);
-  border-radius: 999px;
+  border: 1px solid var(--accent, #dcbb5e);
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
 .chip:hover {
-  background: var(--accent, #c9a84c);
+  background: var(--accent, #dcbb5e);
   color: var(--bg, #000);
 }
 
@@ -55,7 +55,7 @@
   color: var(--text-muted, #8a8a8a);
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   flex-shrink: 0;
 }

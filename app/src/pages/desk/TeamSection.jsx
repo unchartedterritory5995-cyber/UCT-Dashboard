@@ -77,10 +77,10 @@ export default function TeamSection() {
         </div>
         {isAdmin && (
           <div className={styles.headActions}>
-            <button className={styles.ghostBtn} onClick={refreshFromX} disabled={syncing}>
+            <button className="btn btn-ghost" onClick={refreshFromX} disabled={syncing}>
               {syncing ? 'Refreshing…' : 'Refresh avatars from X'}
             </button>
-            <button className={styles.goldBtn} onClick={() => setEditing({})}>
+            <button className="btn btn-primary" onClick={() => setEditing({})}>
               <PlusIcon /> Add member
             </button>
           </div>
@@ -99,7 +99,7 @@ export default function TeamSection() {
               : 'Meet the team — coming soon.'}
           </div>
           {isAdmin && (
-            <button className={styles.goldBtn} onClick={() => setEditing({})}>
+            <button className="btn btn-primary" onClick={() => setEditing({})}>
               <PlusIcon /> Add the first member
             </button>
           )}
@@ -306,8 +306,8 @@ function MemberForm({ member, onClose, onSaved }) {
         </div>
         {err && <div className={styles.formErr}>{err}</div>}
         <div className={styles.formActions}>
-          <button className={styles.cancelBtn} onClick={onClose} disabled={busy}>Cancel</button>
-          <button className={styles.saveBtn} onClick={submit} disabled={busy || !form.name}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={busy || !form.name}>
             {busy ? 'Saving…' : isNew ? 'Add member' : 'Save changes'}
           </button>
         </div>

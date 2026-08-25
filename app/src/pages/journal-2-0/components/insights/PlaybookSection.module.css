@@ -45,7 +45,7 @@
   text-align: left;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   color: inherit;
   font-family: inherit;
   cursor: pointer;
@@ -140,7 +140,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 800;
   font-family: var(--font-mono);
@@ -148,13 +148,13 @@
 }
 
 .pipW {
-  background: rgba(60, 184, 104, 0.18);
-  color: #3cb868;
+  background: rgba(52, 209, 124, 0.18);
+  color: var(--gain);
 }
 
 .pipL {
-  background: rgba(231, 76, 60, 0.18);
-  color: #e74c3c;
+  background: rgba(242, 75, 66, 0.18);
+  color: var(--loss);
 }
 
 .pipB {
@@ -191,7 +191,7 @@
   text-align: center;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .noteGlyph {

@@ -382,7 +382,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
       )}
       {msg.failed && (
         <div className={styles.msgFailedRow}>
-          <button className={styles.retryBtn} onClick={() => chat.retryMessage(channel, msg.client_msg_id)}>
+          <button className="btn btn-secondary btn-sm" onClick={() => chat.retryMessage(channel, msg.client_msg_id)}>
             failed — tap to retry
           </button>
           <button className={styles.discardBtn} title="Discard"

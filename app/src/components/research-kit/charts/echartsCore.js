@@ -45,12 +45,12 @@ export { echarts }
 
 /** Token hexes mirrored for canvas. Keep in sync with app/src/styles/tokens.css. */
 export const CHART_INK = {
-  gain: '#3cb868',
-  loss: '#e74c3c',
-  gold: '#c9a84c',
-  text: '#b6b09d',
-  muted: '#8c8674',
-  bright: '#e0dac8',
+  gain: '#2faf68',
+  loss: '#df4646',
+  gold: '#dcbb5e',
+  text: '#f0efea',
+  muted: '#cfcac0',
+  bright: '#f8f7f3',
   /** ~8% warm white — Part C rule 5: 3-4 hairline gridlines, no spine, no box. */
   grid: 'rgba(224, 218, 200, 0.08)',
   /** Tooltip surface: --glass-chrome's dark value, so tip text is never on translucency. */

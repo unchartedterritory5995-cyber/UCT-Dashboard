@@ -25,7 +25,7 @@
      canvases leave it unset and fall back to the opaque --menu-bg. */
   background: var(--menu-surface, var(--menu-bg, #0e0e10));
   border: 1px solid var(--menu-border, #242426);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
@@ -73,11 +73,11 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.resetBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.resetBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 .resetBtnConfirm {
   color: var(--menu-accent, #f0b23a);
   border-color: var(--menu-accent, rgba(240, 178, 58, 0.6));
@@ -92,7 +92,7 @@
   line-height: 1;
   cursor: pointer;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: color 120ms, background 120ms;
 }
 .close:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
@@ -121,7 +121,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.tplBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
+.tplBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 .tplMenu {
   position: absolute;
   top: calc(100% + 5px);
@@ -163,7 +163,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tplApply:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10)); color: var(--menu-accent, #c9a84c); }
+.tplApply:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10)); color: var(--menu-accent, #dcbb5e); }
 .tplDelete {
   background: transparent;
   border: none;
@@ -175,11 +175,11 @@
   cursor: pointer;
   opacity: 0.6;
 }
-.tplDelete:hover { color: #ff6b74; background: rgba(255, 107, 116, 0.12); opacity: 1; }
+.tplDelete:hover { color: var(--loss); background: rgba(255, 107, 116, 0.12); opacity: 1; }
 .tplSaveRow { display: inline-flex; align-items: center; gap: 6px; }
 .tplInput {
   background: var(--menu-bg-top, #131315);
-  border: 1px solid var(--menu-accent, #c9a84c);
+  border: 1px solid var(--menu-accent, #dcbb5e);
   border-radius: 5px;
   color: var(--menu-text, #ededed);
   font-family: inherit;
@@ -199,8 +199,8 @@
   border-radius: 5px;
   cursor: pointer;
 }
-.tplSaveBtn { color: var(--menu-accent, #c9a84c); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
-.tplSaveBtn:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12)); }
+.tplSaveBtn { color: var(--menu-accent, #dcbb5e); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+.tplSaveBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
 .tplCancelBtn:hover { color: var(--menu-text, #ededed); }
 
 .tabs {
@@ -231,7 +231,7 @@
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent, #dcbb5e);
   border-radius: 2px 2px 0 0;
 }
 
@@ -248,7 +248,7 @@
 .body::-webkit-scrollbar-track { background: transparent; }
 .body::-webkit-scrollbar-thumb {
   background: var(--menu-border, #3a3a3f);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -304,15 +304,15 @@
 .segBtnActive,
 .segBtnActive:hover {
   color: var(--menu-accent, #e7cf8f);
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
 }
 .toggle {
   position: relative;
   width: 38px;
   height: 21px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--menu-border, #2e2e30);
   background: var(--menu-input-bg, #161618);
   cursor: pointer;
@@ -330,7 +330,7 @@
   background: var(--menu-text-dim, #9a9a9a);
   transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
 }
-.toggleOn { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.22)); border-color: var(--menu-accent, #c9a84c); }
+.toggleOn { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.22)); border-color: var(--menu-accent, #dcbb5e); }
 .toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
@@ -362,13 +362,13 @@
   transition: border-color 120ms;
 }
 .sizeSelect:hover { border-color: var(--menu-border, #3a3a3c); }
-.sizeSelect:focus { outline: none; border-color: var(--menu-accent, #c9a84c); }
+.sizeSelect:focus { outline: none; border-color: var(--menu-accent, #dcbb5e); }
 
 /* Selectable field chips (watermark lines). */
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .chip {
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--menu-border, #2b2b2d);
   background: var(--menu-input-bg, #161618);
   font-family: inherit;
@@ -382,8 +382,8 @@
 .chipOn,
 .chipOn:hover {
   color: var(--menu-accent, #e7cf8f);
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: var(--menu-accent, #dcbb5e);
 }
 
 .sectionLabel {
@@ -446,8 +446,8 @@
 /* Active card — gold accent, matching the site's premium accent. */
 .typeCardActive,
 .typeCardActive:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
   color: var(--menu-accent, #e7cf8f);
   transform: none;
 }
@@ -494,8 +494,8 @@
 
 .modeCardActive,
 .modeCardActive:hover {
-  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
-  border-color: var(--menu-accent, #c9a84c);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
   transform: none;
 }
 .modeCardActive .modeName { color: var(--menu-accent, #e7cf8f); }
@@ -528,7 +528,7 @@
 .cSwatch {
   width: 30px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--menu-border, #2b2b2d);
   cursor: pointer;
   padding: 0;
@@ -538,7 +538,7 @@
 .cSwatchActive,
 .cSwatchActive:hover {
   border-color: transparent;
-  box-shadow: 0 0 0 2px var(--menu-bg, #0e0e10), 0 0 0 3px var(--menu-accent, #c9a84c);
+  box-shadow: 0 0 0 2px var(--menu-bg, #0e0e10), 0 0 0 3px var(--menu-accent, #dcbb5e);
 }
 
 /* Header "Show" rows: color swatch(es) + the show toggle, right-aligned. Day change
@@ -585,7 +585,7 @@
   width: 66px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
   border: 1px solid var(--menu-border, var(--border, #2e3127));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
@@ -595,7 +595,7 @@
   min-width: 96px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
   border: 1px solid var(--menu-border, var(--border, #2e3127));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
@@ -621,13 +621,13 @@
   padding: 4px 10px;
   background: var(--menu-input-bg, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--menu-text, #ededed);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
 }
-.addFieldBtn:hover { border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); color: var(--menu-accent, #f0b23a); }
+.addFieldBtn:hover { border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); color: var(--menu-accent, #f0b23a); }
 .fieldMenu {
   position: absolute;
   z-index: 10;
@@ -638,7 +638,7 @@
   max-width: 84vw;
   background: var(--menu-bg, #141416);
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 30px var(--menu-shadow, rgba(0, 0, 0, 0.6));
   overflow: hidden;
 }
@@ -666,7 +666,7 @@
 }
 .fieldList::-webkit-scrollbar { width: 10px; }
 .fieldList::-webkit-scrollbar-track { background: transparent; }
-.fieldList::-webkit-scrollbar-thumb { background: var(--menu-border, #3a3a3f); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+.fieldList::-webkit-scrollbar-thumb { background: var(--menu-border, #3a3a3f); border-radius: var(--radius-md); border: 2px solid transparent; background-clip: padding-box; }
 .fieldItem {
   display: flex;
   align-items: center;
@@ -675,7 +675,7 @@
   padding: 7px 8px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--menu-text, #ededed);
   font: inherit;
   font-size: 12px;
@@ -683,4 +683,4 @@
   cursor: pointer;
 }
 .fieldItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
-.fieldCheck { width: 12px; display: flex; color: var(--menu-accent, #c9a84c); flex-shrink: 0; }
+.fieldCheck { width: 12px; display: flex; color: var(--menu-accent, #dcbb5e); flex-shrink: 0; }

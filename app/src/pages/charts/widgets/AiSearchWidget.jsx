@@ -740,7 +740,7 @@ export default function AiSearchWidget({
           onKeyDown={onKeyDown}
         />
         {query && !loading && (
-          <button className={styles.clearBtn} title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
+          <button className="btn btn-ghost btn-sm" title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
         )}
         {/* Dictate into the ask box (paid — Whisper; renders null for free users). */}
         <VoiceInputButton

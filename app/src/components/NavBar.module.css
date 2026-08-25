@@ -7,12 +7,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 0;
+  padding: 10px 0;
+  /* Flex child that pushes the content aside on expand (the layout adjusts so
+     nothing is covered). Kept smooth by isolating the heavy content's layout —
+     see `contain` on the page/table wrappers. */
   position: sticky;
   top: 0;
   height: 100vh;
   overflow: hidden;
-  transition: width 0.2s ease;
+  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
   z-index: 100;
 }
 .nav:hover {
@@ -28,11 +32,15 @@
 .brand {
   display: flex;
   align-items: center;
-  /* Center the logo + name block in the column. Without this the expanded nav's
-     align-items:flex-start pins it to the left edge (logo jammed against the
-     screen with dead space to the right); align-self:center overrides that for
-     the brand only, so it sits centered in both the 60px and 200px widths. */
-  align-self: center;
+  /* Left-align the brand so the compass logo sits OVER the nav-icon column in
+     both the 60px and 200px widths (was align-self:center, which floated the
+     logo to the middle of the expanded rail — visibly right of the icons below).
+     padding-left centers the 46px logo on the ~27px nav-icon center. */
+  align-self: stretch;
+  /* 7px = exact center of the 46px logo in the collapsed 60px rail
+     ((60-46)/2), so it lines up with the nav icons below; still reads aligned
+     when the rail expands. */
+  padding-left: 7px;
   margin-bottom: 24px;
   text-decoration: none;
   cursor: pointer;
@@ -76,9 +84,9 @@
 .brandNameSub {
   font-family: var(--font-sans);
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 3.5px;
-  color: var(--text-muted);
+  color: var(--text-bright);
   text-transform: uppercase;
 }
 .item {
@@ -87,10 +95,10 @@
   gap: 12px;
   width: 100%;
   padding: 10px 18px;
-  color: var(--text-muted);
+  color: var(--text);
   text-decoration: none;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
   overflow: hidden;
@@ -104,8 +112,12 @@
 .locked:hover { opacity: 0.85; color: var(--text-bright); background: var(--bg-hover); }
 .lock { margin-left: auto; display: inline-flex; flex: none; opacity: 0.9; }
 .active {
-  color: var(--ut-green-bright) !important;
-  background: var(--ut-green-dim);
+  /* Pinned to the warm brand gold (NOT var(--ut-gold), which per-theme accents
+     remap — e.g. a teal app-theme). The nav is always dark chrome, so a fixed
+     gold reads correctly on every theme and is the brand's "you are here". */
+  color: #dcbb5e !important;
+  background: rgba(220, 187, 94, 0.13);
+  box-shadow: inset 2px 0 0 #dcbb5e;
 }
 .mainItems {
   display: flex;
@@ -174,9 +186,9 @@
   padding: 0 5px;
   font-size: 9px;
   font-weight: 700;
-  background: var(--ut-gold, #c9a84c);
-  color: #000;
-  border-radius: 8px;
+  background: var(--ut-gold, #dcbb5e);
+  color: var(--bg);
+  border-radius: var(--radius-lg);
   letter-spacing: 0.5px;
   line-height: 1;
   flex-shrink: 0;

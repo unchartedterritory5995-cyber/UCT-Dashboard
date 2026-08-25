@@ -598,7 +598,7 @@ export default function ScopeBar({
       <ExportControls apiParams={apiParams} />
 
       {filtersActive && (
-        <button type="button" className={styles.clearBtn} onClick={clearScope}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={clearScope}>
           <UIcon name="x" size={13} className={styles.clearGlyph} />
           Clear
         </button>

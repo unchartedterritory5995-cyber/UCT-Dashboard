@@ -35,10 +35,10 @@
   z-index: 0;
   pointer-events: none;
   background-image:
-    repeating-linear-gradient(0deg,   rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px),
-    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px),
-    repeating-linear-gradient(0deg,   rgba(201, 168, 76, 0.021) 0 1px, transparent 1px 17px),
-    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.021) 0 1px, transparent 1px 17px);
+    repeating-linear-gradient(0deg,   rgba(220, 187, 94, 0.055) 0 1px, transparent 1px 68px),
+    repeating-linear-gradient(90deg,  rgba(220, 187, 94, 0.055) 0 1px, transparent 1px 68px),
+    repeating-linear-gradient(0deg,   rgba(220, 187, 94, 0.021) 0 1px, transparent 1px 17px),
+    repeating-linear-gradient(90deg,  rgba(220, 187, 94, 0.021) 0 1px, transparent 1px 17px);
   -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
   mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
   opacity: 0;
@@ -153,14 +153,14 @@
 .dot {
   width: 9px;
   height: 9px;
-  background: var(--ut-gold, #c9a84c);
-  box-shadow: 0 0 14px 2px rgba(201, 168, 76, 0.75);
+  background: var(--ut-gold, #dcbb5e);
+  box-shadow: 0 0 14px 2px rgba(220, 187, 94, 0.75);
 }
 
 .halo {
   width: 30px;
   height: 30px;
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   animation: breathe 3.4s ease-in-out 2100ms infinite;
 }
 
@@ -171,8 +171,8 @@
   left: 0;
   width: 26px;
   height: 34px;
-  border-left: 1px solid rgba(201, 168, 76, 0.45);
-  border-bottom: 1px solid rgba(201, 168, 76, 0.45);
+  border-left: 1px solid rgba(220, 187, 94, 0.45);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.45);
 }
 
 .hereLabel {
@@ -185,7 +185,7 @@
   font-weight: 600;
   letter-spacing: 2.6px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* Terminus: the opening bell. Label sits to the LEFT — the marker is close
@@ -196,9 +196,9 @@
   left: 0;
   width: 11px;
   height: 11px;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   transform: translate(-50%, -50%) rotate(45deg);
-  box-shadow: 0 0 16px 3px rgba(201, 168, 76, 0.6);
+  box-shadow: 0 0 16px 3px rgba(220, 187, 94, 0.6);
 }
 
 .endLead {
@@ -207,7 +207,7 @@
   right: 10px;
   width: 34px;
   height: 1px;
-  background: rgba(201, 168, 76, 0.45);
+  background: rgba(220, 187, 94, 0.45);
 }
 
 .endLabel {
@@ -227,7 +227,7 @@
   font-weight: 700;
   letter-spacing: 2.6px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .endSub {
@@ -235,7 +235,7 @@
   font-weight: 500;
   letter-spacing: 2.2px;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.5);
+  color: var(--accent);
 }
 
 /* ── Chrome ─────────────────────────────────────────────────────────────── */
@@ -283,7 +283,7 @@
 }
 
 .wordTop { color: var(--text-muted, #8c8674); }
-.wordBot { color: var(--ut-gold, #c9a84c); }
+.wordBot { color: var(--ut-gold, #dcbb5e); }
 
 .login {
   flex: none;
@@ -300,8 +300,8 @@
 }
 
 .login:hover {
-  border-color: rgba(201, 168, 76, 0.55);
-  background: rgba(201, 168, 76, 0.06);
+  border-color: var(--accent);
+  background: rgba(220, 187, 94, 0.06);
   color: var(--text-heading, #f0ead8);
 }
 
@@ -328,7 +328,7 @@
   font-weight: 600;
   letter-spacing: 5.2px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   opacity: 0;
   animation: riseIn 700ms ease-out 260ms forwards;
 }
@@ -359,14 +359,14 @@
 /* Second line indents to sit under the first line's optical centre and is
    tinted gold — the word that carries the promise. */
 .monumentLine:nth-child(2) {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   margin-left: 0.09em;
 }
 
 .tagline {
   margin: clamp(14px, 2.2vw, 22px) 0 0;
   padding-left: 15px;
-  border-left: 2px solid rgba(201, 168, 76, 0.55);
+  border-left: 2px solid rgba(220, 187, 94, 0.55);
   font-size: clamp(14px, 1.5vw, 17px);
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -409,8 +409,8 @@
 }
 
 .proof:hover {
-  color: var(--ut-gold, #c9a84c);
-  border-bottom-color: rgba(201, 168, 76, 0.45);
+  color: var(--ut-gold, #dcbb5e);
+  border-bottom-color: var(--accent);
 }
 
 .proofArrow {
@@ -460,7 +460,7 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(201, 168, 76, 0.4) 45%,
+    rgba(220, 187, 94, 0.4) 45%,
     transparent
   );
 }
@@ -472,7 +472,7 @@
   font-size: clamp(20px, 2.4vw, 30px);
   font-weight: 600;
   letter-spacing: -0.3px;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   opacity: 0;
   animation: riseIn 700ms ease-out 840ms forwards;
 }
@@ -506,26 +506,26 @@
   transition: border-color 180ms ease, background-color 180ms ease;
 }
 
-.input::placeholder { color: #6a6656; }
+.input::placeholder { color: var(--text-muted); }
 
 .input:hover { border-color: var(--border-accent, #3a3d32); }
 
 .input:focus-visible {
   outline: none;
-  border-color: var(--ut-gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.05);
+  border-color: var(--ut-gold, #dcbb5e);
+  background: rgba(220, 187, 94, 0.05);
 }
 
-.input[aria-invalid='true'] { border-color: rgba(231, 76, 60, 0.7); }
+.input[aria-invalid='true'] { border-color: rgba(242, 75, 66, 0.7); }
 
 .submit {
   flex: none;
   min-height: 46px;
   padding: 0 22px;
-  border: 1px solid var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #dcbb5e);
   border-radius: 2px;
-  background: var(--ut-gold, #c9a84c);
-  color: #14150f;
+  background: var(--ut-gold, #dcbb5e);
+  color: var(--bg);
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -538,7 +538,7 @@
 
 .submit:hover:not(:disabled) {
   background: #dcbc5c;
-  box-shadow: 0 0 22px rgba(201, 168, 76, 0.3);
+  box-shadow: 0 0 22px rgba(220, 187, 94, 0.3);
 }
 
 .submit:disabled { opacity: 0.55; cursor: default; }
@@ -560,9 +560,9 @@
   max-width: 480px;
   margin: clamp(26px, 3.4vw, 36px) 0 0;
   padding: 17px 20px;
-  border: 1px solid rgba(201, 168, 76, 0.34);
+  border: 1px solid rgba(220, 187, 94, 0.34);
   border-radius: 2px;
-  background: rgba(201, 168, 76, 0.055);
+  background: rgba(220, 187, 94, 0.055);
   animation: riseIn 500ms ease-out forwards;
 }
 
@@ -570,7 +570,7 @@
   flex: none;
   font-size: 15px;
   line-height: 1.35;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .doneTitle {
@@ -607,7 +607,7 @@
   font-weight: 700;
   letter-spacing: 3.2px;
   text-transform: uppercase;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 /* Same mark as the curve's terminus. */
@@ -615,9 +615,9 @@
   flex: none;
   width: 8px;
   height: 8px;
-  background: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold, #dcbb5e);
   transform: rotate(45deg);
-  box-shadow: 0 0 10px 1px rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 10px 1px rgba(220, 187, 94, 0.5);
 }
 
 .founderCopy {
@@ -647,14 +647,14 @@
   font-weight: 500;
   color: var(--text-bright, #e0dac8);
   text-decoration: none;
-  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  border-bottom: 1px solid rgba(220, 187, 94, 0.3);
   transition: color 180ms ease, border-color 180ms ease;
   overflow-wrap: anywhere;
 }
 
 .contactLink:hover {
-  color: var(--ut-gold, #c9a84c);
-  border-bottom-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
+  border-bottom-color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
@@ -669,7 +669,7 @@
   gap: 10px 20px;
   padding: 14px clamp(20px, 5vw, 56px) clamp(14px, 2.2vw, 22px);
   font-size: 11px;
-  color: #6a6656;
+  color: var(--text-muted);
   opacity: 0;
   animation: fadeIn 800ms ease-out 1100ms forwards;
 }
@@ -680,7 +680,7 @@
 }
 
 .footLinks a {
-  color: #6a6656;
+  color: var(--text-muted);
   text-decoration: none;
   transition: color 180ms ease;
 }
@@ -704,7 +704,7 @@
 }
 
 .page :focus-visible {
-  outline: 2px solid var(--ut-gold, #c9a84c);
+  outline: 2px solid var(--ut-gold, #dcbb5e);
   outline-offset: 3px;
 }
 
@@ -763,7 +763,7 @@
     width: 100%;
     min-height: var(--tap-min, 44px);
     border-bottom: none;
-    border-top: 1px solid rgba(201, 168, 76, 0.14);
+    border-top: 1px solid rgba(220, 187, 94, 0.14);
   }
 
   .contact:first-child .contactLink { border-top: none; }

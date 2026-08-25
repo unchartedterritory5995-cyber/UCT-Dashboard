@@ -149,12 +149,12 @@ export default function CsvColumnMapper({
       )}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.ghostBtn} onClick={onCancel}>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>
           Back
         </button>
         <button
           type="button"
-          className={styles.primaryBtn}
+          className="btn btn-primary"
           onClick={handleSubmit}
           disabled={missing.length > 0}
         >

@@ -243,7 +243,7 @@ export default function BrokerConnectionsCard() {
             into Journal 2.0 automatically — no manual entry.
           </p>
           <p className={styles.muted}>Brokerage Sync is a premium feature.</p>
-          <button className={styles.primaryBtn} onClick={() => startCheckout?.()}>
+          <button className="btn btn-primary" onClick={() => startCheckout?.()}>
             Upgrade to connect
           </button>
         </div>
@@ -278,7 +278,7 @@ export default function BrokerConnectionsCard() {
               Connect a brokerage (read-only) and every buy, sell, position, and
               balance flows into your journal automatically.
             </p>
-            <button className={styles.primaryBtn} disabled={busy}
+            <button className="btn btn-primary" disabled={busy}
                     onClick={() => setShowConsent(true)}>
               Connect a brokerage
             </button>
@@ -300,11 +300,11 @@ export default function BrokerConnectionsCard() {
               I authorize UCT Intelligence to access my brokerage data read-only via SnapTrade.
             </label>
             <div className={styles.row}>
-              <button className={styles.primaryBtn} disabled={!consentChecked || busy}
+              <button className="btn btn-primary" disabled={!consentChecked || busy}
                       onClick={startConnect}>
                 {busy ? 'Opening…' : 'Continue to broker login'}
               </button>
-              <button className={styles.ghostBtn} disabled={busy}
+              <button className="btn btn-ghost" disabled={busy}
                       onClick={() => { setShowConsent(false); setConsentChecked(false) }}>
                 Cancel
               </button>
@@ -373,7 +373,7 @@ export default function BrokerConnectionsCard() {
                   </span>
                 </div>
                 {a.status === 'broken' || a.status === 'disabled' ? (
-                  <button className={styles.primaryBtn} disabled={busy}
+                  <button className="btn btn-primary" disabled={busy}
                           onClick={() => setShowConsent(true)}
                           title="Re-authorize this brokerage">
                     Reconnect
@@ -394,20 +394,20 @@ export default function BrokerConnectionsCard() {
               </p>
             )}
             <div className={styles.row} style={{ marginTop: 12 }}>
-              <button className={styles.primaryBtn} disabled={busy} onClick={() => syncNow(true)}>
+              <button className="btn btn-primary" disabled={busy} onClick={() => syncNow(true)}>
                 {busy ? 'Syncing…' : 'Sync now'}
               </button>
-              <button className={styles.ghostBtn} disabled={busy} onClick={() => setShowConsent(true)}>
+              <button className="btn btn-ghost" disabled={busy} onClick={() => setShowConsent(true)}>
                 Connect another
               </button>
-              <button className={styles.dangerBtn} disabled={busy} onClick={disconnect}>
+              <button className="btn btn-danger" disabled={busy} onClick={disconnect}>
                 Disconnect
               </button>
             </div>
 
             {/* Possible-duplicate review (manual trade vs broker import). */}
             {status?.dupFlagsPending > 0 && dupFlags === null && (
-              <button className={styles.ghostBtn} style={{ marginTop: 12 }} onClick={loadDups}>
+              <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={loadDups}>
                 Review {status.dupFlagsPending} possible duplicate{status.dupFlagsPending === 1 ? '' : 's'}
               </button>
             )}
@@ -430,8 +430,8 @@ export default function BrokerConnectionsCard() {
                       </span>
                     </div>
                     <div className={styles.row}>
-                      <button className={styles.primaryBtn} onClick={() => resolveDup(f.id, 'merge')}>Merge</button>
-                      <button className={styles.ghostBtn} onClick={() => resolveDup(f.id, 'dismiss')}>Dismiss</button>
+                      <button className="btn btn-primary" onClick={() => resolveDup(f.id, 'merge')}>Merge</button>
+                      <button className="btn btn-ghost" onClick={() => resolveDup(f.id, 'dismiss')}>Dismiss</button>
                     </div>
                   </div>
                 ))}
@@ -449,10 +449,10 @@ export default function BrokerConnectionsCard() {
                   I authorize read-only access via SnapTrade.
                 </label>
                 <div className={styles.row}>
-                  <button className={styles.primaryBtn} disabled={!consentChecked || busy} onClick={startConnect}>
+                  <button className="btn btn-primary" disabled={!consentChecked || busy} onClick={startConnect}>
                     {busy ? 'Opening…' : 'Continue'}
                   </button>
-                  <button className={styles.ghostBtn} disabled={busy}
+                  <button className="btn btn-ghost" disabled={busy}
                           onClick={() => { setShowConsent(false); setConsentChecked(false) }}>
                     Cancel
                   </button>

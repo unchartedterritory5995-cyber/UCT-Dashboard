@@ -1,7 +1,7 @@
 .tile {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
   height: 100%;
@@ -117,14 +117,14 @@
 .green { color: var(--gain); }
 .red { color: var(--loss); }
 .loading {
-  color: var(--text-muted);
+  color: var(--text); font-weight: 500;
   font-size: 12px;
   padding: 8px 0;
 }
 
 /* === Twitter tape additions (spec 2026-05-25) === */
 
-.tape { color: var(--ut-gold, #c9a84c); }
+.tape { color: var(--ut-gold, #dcbb5e); }
 
 .tapeSection {
   margin-top: 18px;
@@ -182,7 +182,7 @@
   align-items: baseline;
 }
 .tweetHandle {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 600;
 }
 .tweetTime { opacity: 0.6; font-size: 10px; }
@@ -190,7 +190,7 @@
 .tweetText { grid-column: 1 / -1; opacity: 0.9; }
 
 .cashtag {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-weight: 600;
 }
 

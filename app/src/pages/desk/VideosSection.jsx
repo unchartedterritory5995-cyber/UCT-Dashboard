@@ -1285,10 +1285,10 @@ function VideoForm({ video, onClose, onSaved, knownCategories }) {
         </label>
         {err && <div className={styles.formErr}>{err}</div>}
         <div className={styles.formActions}>
-          <button className={styles.cancelBtn} onClick={onClose} disabled={busy}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className={styles.saveBtn} onClick={submit} disabled={busy}>
+          <button className="btn btn-primary" onClick={submit} disabled={busy}>
             {busy ? 'Saving…' : isNew ? 'Add video' : 'Save changes'}
           </button>
         </div>
@@ -1397,11 +1397,11 @@ export function NewPathSheet({ onClose, onCreated, nextSortOrder, lockKind }) {
         </label>
         {err && <div className={styles.formErr}>{err}</div>}
         <div className={styles.formActions}>
-          <button className={styles.cancelBtn} onClick={onClose} disabled={busy}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel
           </button>
           <button
-            className={styles.saveBtn}
+            className="btn btn-primary"
             onClick={submit}
             disabled={busy || !form.name.trim() || !slugOk}
           >

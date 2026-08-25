@@ -28,7 +28,7 @@
 .track {
   position: relative;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--glass-border-neutral);
 }
 
@@ -36,7 +36,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   opacity: 0.55;
 }
 

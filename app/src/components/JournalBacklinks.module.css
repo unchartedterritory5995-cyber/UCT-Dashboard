@@ -10,15 +10,15 @@
   border-radius: 5px;
   border: 1px solid rgba(212, 170, 80, 0.3);
   background: rgba(212, 170, 80, 0.12);
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
 }
-.chip:hover { border-color: var(--ut-gold, #c9a84c); }
-.chipOpen { background: var(--ut-gold, #c9a84c); color: #0c0c0c; }
+.chip:hover { border-color: var(--ut-gold, #dcbb5e); }
+.chipOpen { background: var(--ut-gold, #dcbb5e); color: var(--bg); }
 
 .pop {
   position: absolute;
@@ -28,7 +28,7 @@
   min-width: 230px;
   max-width: 340px;
   padding: 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border, #2a2a2a);
   background: var(--panel, #101010);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);

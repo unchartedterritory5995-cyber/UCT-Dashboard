@@ -21,7 +21,7 @@
   margin-left: 6px;
   padding: 5px 10px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1, #101013);
   color: var(--text, #e8e6e1);
   font-size: 13px;
@@ -31,13 +31,13 @@
   padding: 6px 14px;
   font-size: 12.5px;
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1, #101013);
   color: var(--text, #e8e6e1);
   cursor: pointer;
 }
 
-.csvBtn:hover:not(:disabled) { border-color: #c9a84c; color: #c9a84c; }
+.csvBtn:hover:not(:disabled) { border-color: #dcbb5e; color: var(--accent); }
 .csvBtn:disabled { opacity: 0.5; cursor: default; }
 
 .totalsRow {
@@ -79,7 +79,7 @@
 .washTitle {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .washTable {
@@ -105,9 +105,9 @@
 
 .repl { color: var(--text-muted, #8a8a8a); font-size: 12px; }
 
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
-.warn { color: #c9a84c; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.warn { color: var(--accent); }
 
 .disclaimer {
   font-size: 12px;
@@ -117,5 +117,5 @@
   padding-top: 10px;
 }
 
-.err { color: #ef4444; font-size: 13px; }
+.err { color: var(--loss); font-size: 13px; }
 .hint { color: var(--text-muted, #8a8a8a); font-size: 13px; }

@@ -1,4 +1,4 @@
-.loading { color: var(--text-muted); font-size: 12px; }
+.loading { color: var(--text); font-weight: 500; font-size: 12px; }
 
 .list {
   display: flex;
@@ -50,7 +50,7 @@
   color: var(--text-muted);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   text-transform: uppercase;
 }

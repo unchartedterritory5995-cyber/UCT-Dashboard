@@ -1,6 +1,6 @@
 /* Scanner Hub — Screener.module.css */
 
-.container {
+.container { --page-pad-top: 20px; --page-pad-x: 24px;
   padding: 20px 24px;
 }
 
@@ -53,10 +53,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px 10px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 12px 20px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
   flex-shrink: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
 }
 
 /* ── Header ── */
@@ -64,18 +69,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 12px 20px;
+  margin: calc(-1 * var(--page-pad-top, 20px)) calc(-1 * var(--page-pad-x, 24px)) 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
 }
 
 .heading {
   font-family: var(--font-sans);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text-bright);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: 0.2px;
+  text-transform: none;
   margin: 0;
 }
 
@@ -109,8 +120,8 @@
 .pageTab:hover { color: var(--text-bright); border-color: var(--border-accent); }
 .pageTabActive {
   color: var(--ut-gold);
-  border-color: rgba(201,168,76,0.4);
-  background: rgba(201,168,76,0.08);
+  border-color: var(--accent);
+  background: rgba(220, 187, 94,0.08);
 }
 
 .sectorPills {
@@ -137,7 +148,7 @@
   color: var(--ut-gold);
   background: rgba(212, 170, 80, 0.12);
   border: 1px solid rgba(212, 170, 80, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
   white-space: nowrap;
 }
@@ -161,7 +172,7 @@
 .column {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -170,7 +181,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   background: var(--bg-elevated);
 }
 
@@ -269,7 +281,8 @@
   /* Live Scan — its first ever phone CSS. PDH is the one column dropped;
      its value is already surfaced in the trigger feed when it fires. */
   .liveScanBody { flex-direction: column; }
-  .feedPanel { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .feedPanel { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow); }
   .watchHeader, .watchRow { grid-template-columns: 72px 72px 64px 1fr; }
   .watchHeader span:nth-child(4), .watchRow .watchPdh { display: none; }
   .trigFilter, .clearFeed { min-height: var(--tap-min, 44px); display: inline-flex; align-items: center; }
@@ -299,13 +312,15 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   white-space: nowrap;
 }
 
 .row td {
   padding: 9px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   vertical-align: middle;
   font-family: var(--font-sans);
   font-size: 12px;
@@ -379,7 +394,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   white-space: nowrap;
 }
@@ -391,7 +406,7 @@
 }
 
 .badgeRemount {
-  color: #4a9eff;
+  color: var(--info);
   background: rgba(74, 158, 255, 0.12);
   border: 1px solid rgba(74, 158, 255, 0.3);
 }
@@ -409,7 +424,7 @@
   gap: 10px;
   background: rgba(212, 170, 80, 0.06);
   border: 1px solid rgba(212, 170, 80, 0.18);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 12px;
   margin-bottom: 14px;
   flex-wrap: wrap;
@@ -455,7 +470,7 @@
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   white-space: nowrap;
 }
@@ -480,7 +495,7 @@
 }
 
 .alertPattern {
-  color: #4a9eff;
+  color: var(--info);
   background: rgba(74, 158, 255, 0.1);
   border: 1px solid rgba(74, 158, 255, 0.25);
 }
@@ -570,7 +585,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 12px;
   margin-bottom: 14px;
   flex-wrap: wrap;
@@ -674,7 +689,7 @@
   color: var(--text-muted);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   white-space: nowrap;
 }
@@ -692,10 +707,10 @@
 .scanHealthWarn {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: #fbbf24;
+  color: var(--warn);
   background: rgba(180, 130, 20, 0.14);
   border: 1px solid rgba(251, 191, 36, 0.35);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   margin-bottom: 10px;
 }
@@ -709,7 +724,8 @@
 
 .tickerItem {
   padding: 7px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 700;
@@ -726,7 +742,8 @@
 /* ── Candidate item (rich scanner row) ── */
 .candidateItem {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -804,7 +821,7 @@
   color: inherit;
 }
 .cotTileLink:hover .column {
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: var(--accent);
   background: var(--bg-hover);
 }
 
@@ -815,7 +832,7 @@
   transition: color 0.15s;
 }
 .cotTileLink:hover .cotArrow {
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .cotTileBody {
@@ -855,7 +872,8 @@
 
 .liveScanHeader {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 8px 20px; border-bottom: 1px solid var(--border);
+  padding: 8px 20px; border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
   background: var(--bg); flex-shrink: 0;
 }
 .streamDot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
@@ -866,13 +884,13 @@
 
 .triggerFilters { display: flex; gap: 6px; flex-wrap: wrap; }
 .trigFilter {
-  padding: 3px 10px; font-size: 11px; border-radius: 12px;
+  padding: 3px 10px; font-size: 11px; border-radius: var(--radius-xl);
   border: 1px solid var(--trig-color, #888); color: var(--trig-color, #888);
   background: transparent; cursor: pointer; transition: all 0.12s;
 }
 .trigFilter:hover { background: var(--bg-hover); }
 .trigFilterMuted { opacity: 0.3; text-decoration: line-through; }
-.clearFeed { margin-left: auto; font-size: 11px; padding: 3px 10px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
+.clearFeed { margin-left: auto; font-size: 11px; padding: 3px 10px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .clearFeed:hover { border-color: var(--border-accent); color: var(--text-bright); }
 
 .liveScanBody { display: flex; gap: 0; flex: 1; overflow: hidden; min-height: 0; }
@@ -886,7 +904,8 @@
 .feedEmpty { font-size: 12px; color: var(--text-muted); padding: 12px; text-align: center; opacity: 0.6; }
 .feedItem {
   display: flex; align-items: center; gap: 8px; padding: 6px 12px;
-  border-bottom: 1px solid var(--border); font-size: 12px;
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow); font-size: 12px;
   animation: slideIn 0.2s ease;
 }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
@@ -903,12 +922,14 @@
   display: grid; grid-template-columns: 80px 80px 80px 80px 1fr;
   gap: 0; padding: 6px 12px; background: var(--bg);
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
-  position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow);
 }
 .watchRow {
   display: grid; grid-template-columns: 80px 80px 80px 80px 1fr;
   gap: 0; padding: 7px 12px; align-items: center;
-  border-bottom: 1px solid var(--border); font-size: 12px;
+  border-bottom: 1px solid var(--header-line);
+  box-shadow: var(--header-shadow); font-size: 12px;
   transition: background 0.3s;
 }
 .watchRow:hover { background: var(--bg-hover); }

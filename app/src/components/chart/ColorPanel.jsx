@@ -231,7 +231,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
           onChange={(e) => setHexText(e.target.value)} onBlur={commitHex}
           onKeyDown={(e) => { if (e.key === 'Enter') commitHex() }} />
         <button type="button" className={`${styles.custBtn} ${customOpen ? styles.custOn : ''}`} onClick={() => setCustomOpen(o => !o)}>Custom</button>
-        <button type="button" className={styles.saveBtn} onClick={() => onSaveColor?.(curRgb)}>Save</button>
+        <button type="button" className="btn btn-primary" onClick={() => onSaveColor?.(curRgb)}>Save</button>
       </div>
 
       {customOpen && (

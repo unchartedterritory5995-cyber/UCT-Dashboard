@@ -74,7 +74,7 @@
   margin: 0;
   background: var(--fw-elev, var(--bg-elevated));
   border: 1px solid var(--fw-divider, var(--border));
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .toggleBtn {
   font-family: var(--font-sans);
@@ -85,7 +85,7 @@
   color: var(--fw-text-dim, var(--text-muted));
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 3px 10px;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
@@ -110,7 +110,7 @@
   margin-left: auto;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 3px 4px;
   color: var(--fw-text-dim, var(--text-muted));
   cursor: pointer;
@@ -125,7 +125,7 @@
 .gearBtnActive {
   opacity: 1;
   color: var(--fw-accent, var(--ut-gold));
-  background: var(--fw-accent-bg, rgba(201, 168, 76, 0.12));
+  background: var(--fw-accent-bg, rgba(220, 187, 94, 0.12));
 }
 
 /* ── Annual table ───────────────────────────────────────────── */

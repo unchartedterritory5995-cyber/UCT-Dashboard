@@ -6,10 +6,10 @@
 .toggle {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.4);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
   font-size: 18px;
   line-height: 24px;
   cursor: pointer;
@@ -20,12 +20,12 @@
 .toggle:hover {
   opacity: 1;
   transform: scale(1.08);
-  border-color: rgba(201, 168, 76, 0.6);
-  color: #c9a84c;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .toggle[aria-expanded="true"] {
-  border-color: #c9a84c;
-  color: #c9a84c;
+  border-color: #dcbb5e;
+  color: var(--accent);
   opacity: 1;
 }
 
@@ -36,8 +36,8 @@
   width: 320px;
   background: rgba(15, 15, 18, 0.96);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  border-radius: 8px;
+  border: 1px solid rgba(220, 187, 94, 0.3);
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 9000;
   padding: 8px;
@@ -50,7 +50,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   padding: 4px 8px 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 2px;
@@ -60,7 +60,7 @@
   padding: 14px;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text); font-weight: 500;
 }
 
 .agentRow {
@@ -71,18 +71,18 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-left: 3px solid #888;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
   transition: background 120ms, transform 120ms;
-  color: #fff;
+  color: var(--text-bright);
 }
 .agentRow:hover {
   background: rgba(255, 255, 255, 0.06);
   transform: translateX(2px);
 }
 .agentRow:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 
@@ -105,11 +105,11 @@
 .name {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   line-height: 1.35;
 }

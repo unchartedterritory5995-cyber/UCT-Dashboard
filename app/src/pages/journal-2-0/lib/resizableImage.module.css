@@ -10,7 +10,7 @@
   max-width: 100%;
   height: auto;
   margin: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .selected .img { outline: 2px solid #3a4048; }
 .wrap.resizing { user-select: none; }

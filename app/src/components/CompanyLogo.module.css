@@ -6,7 +6,7 @@
    it loads, so a cold/transient/just-deployed logo shows a clean letter tile (never
    an empty box) and upgrades in place. Clipped to the wrap's radius (round/tile). */
 .base { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center;
-        color: #cfd6e0; font-weight: 800; transition: opacity 140ms ease; }
+        color: var(--text-bright); font-weight: 800; transition: opacity 140ms ease; }
 
 /* The logo image, overlaid on the monogram; revealed (opacity) only once a REAL
    logo has loaded. */

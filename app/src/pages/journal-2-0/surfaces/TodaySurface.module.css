@@ -16,7 +16,7 @@
   padding: 7px 12px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -27,7 +27,7 @@
   padding: 18px 20px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   color: var(--text-bright);
 }
 
@@ -123,7 +123,7 @@
   justify-content: center;
   min-height: var(--tap-min);
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -144,14 +144,14 @@
 }
 
 .checkBtnPrimary {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .checkBtnPrimary:hover:not(:disabled) {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.2));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.2));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 .checkBtnPrimary:disabled {
@@ -181,7 +181,7 @@
   padding: 16px 16px 18px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .pathIcon {
@@ -192,8 +192,8 @@
   height: 40px;
   margin-bottom: 4px;
   border-radius: 10px;
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.35));
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.35));
 }
 
 .pathHead {
@@ -217,7 +217,7 @@
   min-height: var(--tap-min);
   margin-top: 6px;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -233,19 +233,19 @@
 }
 
 .pathBtn:hover {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .pathBtnPrimary {
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.14));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
-  color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.14));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.5));
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .pathBtnPrimary:hover {
-  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.22));
-  border-color: var(--ut-gold, #c9a84c);
+  background: var(--ut-gold-glow, rgba(220, 187, 94, 0.22));
+  border-color: var(--ut-gold, #dcbb5e);
 }
 
 /* ── premarket readiness ───────────────────────────────────────────────────── */
@@ -342,12 +342,12 @@
 
 .regimePill {
   padding: 3px 10px;
-  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
-  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.4));
-  border-radius: 999px;
+  background: var(--ut-gold-dim, rgba(220, 187, 94, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 600;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #dcbb5e);
 }
 
 .selectAcctNote {

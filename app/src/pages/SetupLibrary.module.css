@@ -1,6 +1,6 @@
 .page { padding: 20px 24px; }
 .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: 4px; text-transform: uppercase; }
+.heading { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text-heading); letter-spacing: 0.2px; text-transform: none; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
 /* ── Layout ── */
@@ -23,7 +23,7 @@
   background: transparent; color: var(--text-muted); transition: all 0.15s;
 }
 .familyTab:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
-.familyTabActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.familyTabActive { background: rgba(220, 187, 94,0.15); color: var(--ut-gold); border-color: var(--accent); }
 
 /* ── Template list ── */
 .templateList { flex: 1; overflow-y: auto; }
@@ -37,7 +37,7 @@
   transition: background 0.1s;
 }
 .templateRow:hover { background: rgba(255,255,255,0.03); }
-.templateRowActive { background: rgba(201,168,76,0.08); border-left-color: var(--ut-gold); }
+.templateRowActive { background: rgba(220, 187, 94,0.08); border-left-color: var(--ut-gold); }
 .templateMain { display: flex; flex-direction: column; gap: 2px; }
 .templateName { font-size: 13px; font-weight: 600; color: var(--text-primary); }
 .templateTrader { font-size: 11px; color: var(--text-muted); }
@@ -51,7 +51,7 @@
 }
 .perfFill { height: 100%; border-radius: 5px; transition: width 0.3s; }
 .perfLabel { position: absolute; top: -1px; right: 0; font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--text-primary); }
-.noData { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.noData { font-family: var(--font-mono); font-size: 10px; color: var(--text); font-weight: 500; }
 
 /* ── Detail panel ── */
 .detail { padding: 16px 0; }
@@ -65,7 +65,7 @@
 .regimeTags { display: flex; gap: 6px; margin-top: 4px; }
 .regimeTag {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-  padding: 2px 8px; border-radius: 3px; background: rgba(74,222,128,0.15); color: #4ade80;
+  padding: 2px 8px; border-radius: 3px; background: rgba(74,222,128,0.15); color: var(--gain);
   border: 1px solid rgba(74,222,128,0.25);
 }
 
@@ -77,7 +77,7 @@
 }
 .ruleRow { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 4px; }
 .ruleKey { font-weight: 600; color: var(--text-primary); margin-right: 4px; }
-.mistakeRow { font-size: 12px; line-height: 1.5; color: #fca5a5; margin-bottom: 2px; }
+.mistakeRow { font-size: 12px; line-height: 1.5; color: var(--loss); margin-bottom: 2px; }
 
 /* ── Performance table ── */
 .perfTable { font-family: var(--font-mono); font-size: 11px; }
@@ -85,18 +85,18 @@
 .perfRow { display: grid; grid-template-columns: 1fr 60px 50px 70px 60px; gap: 4px; color: var(--text-secondary); padding: 3px 0; }
 
 /* ── Modelbook hook ── */
-.modelBookHook { margin-top: 20px; padding: 16px; background: rgba(201,168,76,0.05); border: 1px dashed rgba(201,168,76,0.2); border-radius: var(--radius-md); }
+.modelBookHook { margin-top: 20px; padding: 16px; background: rgba(220, 187, 94,0.05); border: 1px dashed rgba(220, 187, 94,0.2); border-radius: var(--radius-md); }
 .comingSoon { font-size: 12px; color: var(--text-muted); font-style: italic; margin: 4px 0 0; }
 
 /* ── Empty states ── */
 .empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
 .emptyDetail { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
-.loading { padding: 20px; color: var(--text-muted); font-size: 13px; }
+.loading { padding: 20px; color: var(--text); font-weight: 500; font-size: 13px; }
 
 /* ── Grade pills ── */
 .gradePill { font-family: var(--font-mono); font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 3px; }
-.gA { color: #fff; background: var(--ut-green); }
-.gB { color: var(--ut-cream); background: rgba(201,168,76,0.4); }
+.gA { color: var(--text-bright); background: var(--ut-green); }
+.gB { color: var(--ut-cream); background: rgba(220, 187, 94,0.4); }
 .gC { color: var(--text-muted); background: rgba(255,255,255,0.08); }
 
 /* ── Phone: list ⇄ detail view-switch back button ── */

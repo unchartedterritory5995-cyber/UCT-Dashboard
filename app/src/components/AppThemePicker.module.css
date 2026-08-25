@@ -25,7 +25,7 @@
 .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px;
   flex-wrap: wrap; margin-bottom: 12px; }
 .pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.pill { padding: 5px 12px; font-size: 11.5px; border-radius: 999px;
+.pill { padding: 5px 12px; font-size: 11.5px; border-radius: var(--radius-pill);
   background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
   transition: all 0.15s; }
 .pill:hover { color: var(--text-bright); border-color: var(--border-accent); }
@@ -48,7 +48,7 @@
 .themeName { font-size: 12px; font-weight: 600; color: var(--text-bright); }
 .themeTag { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .cardOn .themeTag { color: var(--ut-gold); }
-.empty { grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; }
+.empty { grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text); font-weight: 500; font-size: 12px; }
 .check { position: absolute; top: 6px; right: 8px; color: var(--ut-gold); font-size: 12px; font-weight: 700; }
 
 /* ── Preview mock (painted from each theme's own colors, inline) ── */

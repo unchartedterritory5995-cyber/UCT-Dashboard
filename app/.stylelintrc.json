@@ -1,0 +1,25 @@
+{
+  "//": "UI-consistency drift guard. `color:` must be a token — var(--text*/--gain/--loss/--accent/--warn/--info/--bg/--menu-text*…). ALLOWED exceptions: near-black ink (#0…/#1…, legit dark text on bright/accent surfaces), CSS keywords, and 8-digit-alpha near-black. Anything else (a raw bright grey or accent hex/rgba) is drift and gets flagged. Run `npm run lint:css`. Severity is 'warning' for now — the remaining flags are deliberate light-theme-scoped overrides (in [data-theme=light]/[data-charts-theme=sunrise] blocks) that stylelint can't scope around yet; tightening to 'error' is a follow-up once those are handled. tokens.css + OptionsFlow/DarkPool + intro are out of scope.",
+  "rules": {
+    "declaration-property-value-allowed-list": [
+      {
+        "/^color$/": [
+          "/^var\\(--/",
+          "/^#[01][0-9a-fA-F]{5}([0-9a-fA-F]{2})?$/",
+          "/^#[01]{3}$/",
+          "/^(transparent|inherit|currentColor|unset|initial|none)$/"
+        ]
+      },
+      {
+        "severity": "warning",
+        "message": "Use a token for `color:` (var(--text*/--gain/--loss/--accent/--warn/--info…)); only near-black ink (#0…/#1…) may be raw. See docs/superpowers/2026-08-24-color-inventory.md."
+      }
+    ]
+  },
+  "ignoreFiles": [
+    "src/styles/tokens.css",
+    "src/**/OptionsFlow*.css",
+    "src/**/DarkPool*.css",
+    "src/components/intro/**"
+  ]
+}

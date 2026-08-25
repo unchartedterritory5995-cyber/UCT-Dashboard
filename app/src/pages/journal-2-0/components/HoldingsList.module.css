@@ -29,7 +29,7 @@
   background: var(--surface-2, #17171a);
   color: var(--text-muted, #8a8a8a);
   border: 1px solid var(--border, #2a2a2e);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   padding: 4px 10px;
   cursor: pointer;
@@ -44,7 +44,7 @@
   border-radius: 50%;
   border: 1px solid var(--border, #2a2a2e);
   background: var(--surface-2, #17171a);
-  color: var(--accent, #c9a84c);
+  color: var(--accent, #dcbb5e);
   cursor: pointer;
 }
 
@@ -82,7 +82,7 @@ li:last-child > .row {
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .rowLink:hover {
@@ -140,12 +140,12 @@ li:last-child > .row {
 
 .pillUp {
   background: var(--gain, #22c55e);
-  color: #04140a;
+  color: var(--bg);
 }
 
 .pillDown {
   background: var(--loss, #ef4444);
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .pillFlat {

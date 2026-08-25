@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
+import PageHeader from '../../components/PageHeader'
 import TickerPopup from '../../components/TickerPopup'
 import ThreadView from './ThreadView'
 import ChatView from './ChatView'
@@ -91,6 +92,7 @@ export default function CommunityPage() {
 
   return (
     <div className={styles.floorRoot}>
+      <PageHeader icon="community" title="Community" />
       {chatOn && tape && (tape.online > 0 || (tape.hot_tickers || []).length > 0) && (
         <div className={styles.tape}>
           <span className={styles.tapePresence}><span className={styles.presenceDot} /> {tape.online} on the floor</span>

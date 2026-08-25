@@ -158,7 +158,7 @@ export default function WatchlistSettingsPanel({
         <div className={styles.head}>
           <span className={styles.title}><UIcon name="gear" size={13} /> Watchlist Settings</span>
           <div className={styles.headRight}>
-            <button className={styles.resetBtn} onClick={onReset} title="Restore watchlist settings to defaults">↺ Reset</button>
+            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore watchlist settings to defaults">↺ Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
           </div>
         </div>

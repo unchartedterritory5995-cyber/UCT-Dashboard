@@ -7,7 +7,7 @@
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
-  border-left: 2px solid rgba(201, 168, 76, 0.5);
+  border-left: 2px solid rgba(220, 187, 94, 0.5);
   border-radius: var(--radius-sm, 6px);
 }
 
@@ -35,7 +35,7 @@
   font-size: 10px;
   font-weight: 700;
   padding: 3px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
@@ -50,9 +50,9 @@
 }
 
 .listenBtnActive {
-  background: rgba(201, 168, 76, 0.15);
-  border-color: rgba(201, 168, 76, 0.5);
-  color: #c9a84c;
+  background: rgba(220, 187, 94, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Keyword search */
@@ -67,7 +67,7 @@
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text, #e8ebf0);
   font-family: var(--font-mono, monospace);
   font-size: 11px;
@@ -78,7 +78,7 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: rgba(201, 168, 76, 0.6);
+  border-color: var(--accent);
 }
 
 .clearBtn {
@@ -95,7 +95,7 @@
 
 /* Keyword highlight */
 .kw {
-  background: rgba(201, 168, 76, 0.35);
+  background: rgba(220, 187, 94, 0.35);
   color: var(--text, #e8ebf0);
   border-radius: 2px;
   padding: 0 1px;
@@ -121,7 +121,7 @@
   border: 1px solid var(--gain-border, rgba(74,222,128,0.3));
   background: var(--gain-bg, rgba(74,222,128,0.08));
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: flex-start;
 }
 
@@ -134,7 +134,7 @@
   border: 1px solid var(--loss-border, rgba(248,113,113,0.3));
   background: var(--loss-bg, rgba(248,113,113,0.08));
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: flex-start;
 }
 
@@ -147,7 +147,7 @@
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.03);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: flex-start;
 }
 
@@ -169,7 +169,7 @@
   padding: 6px 8px;
   background: rgba(96, 165, 250, 0.06);
   border-left: 2px solid rgba(96, 165, 250, 0.4);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .guidanceText {
@@ -247,7 +247,7 @@
 .ratingDetail { color: var(--text-muted); }
 .ratingPt {
   font-size: 10px;
-  color: #c9a84c;
+  color: var(--accent);
   margin-left: auto;
 }
 
@@ -262,7 +262,7 @@
 .audioPlayer {
   width: 100%;
   height: 36px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   /* Dark theme overrides for webkit */
   filter: invert(0.85) hue-rotate(180deg);
 }
@@ -274,7 +274,7 @@
 }
 
 .audioFallback a {
-  color: #c9a84c;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -350,7 +350,7 @@
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: #c9a84c;
+  color: var(--accent);
 }
 
 .transcriptLoading,
@@ -408,7 +408,7 @@
 .guideUp, .guideDn, .guideFlat {
   font-family: var(--font-mono, monospace);
   font-size: 8px; font-weight: 700; letter-spacing: 1px;
-  padding: 1px 6px; border-radius: 4px; align-self: flex-start; margin-left: 6px;
+  padding: 1px 6px; border-radius: var(--radius-sm); align-self: flex-start; margin-left: 6px;
 }
 .guideUp { color: var(--gain, #4ade80); border: 1px solid rgba(74,222,128,0.3); background: rgba(74,222,128,0.08); }
 .guideDn { color: var(--loss, #f87171); border: 1px solid rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }

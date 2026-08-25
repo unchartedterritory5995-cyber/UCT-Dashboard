@@ -17,12 +17,12 @@
   min-width: 0;
 }
 .card:hover {
-  border-color: #c9a84c;
+  border-color: #dcbb5e;
   transform: translateY(-1px);
-  box-shadow: 0 4px 18px rgba(201, 168, 76, 0.08);
+  box-shadow: 0 4px 18px rgba(220, 187, 94, 0.08);
 }
 .card:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 1px;
 }
 
@@ -44,17 +44,17 @@
   font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
-  color: #c9a84c;
+  color: var(--accent);
   letter-spacing: 1.5px;
 }
 
 .tfBadge {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: #a8a290;
+  color: var(--text);
   background: #0e0f0d;
   border: 1px solid #2f2c27;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   letter-spacing: 0.5px;
 }
@@ -80,7 +80,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
-  color: #e8e3d4;
+  color: var(--text-bright);
 }
 
 .patternRow {
@@ -106,7 +106,7 @@
   letter-spacing: 1px;
   padding: 2px 6px;
   border: 1px solid;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -123,7 +123,7 @@
   letter-spacing: 0.6px;
   padding: 2px 6px;
   border: 1px solid;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.25);
   flex-shrink: 0;
   font-family: var(--font-mono);
@@ -135,10 +135,10 @@
   font-weight: 700;
   letter-spacing: 0.6px;
   padding: 2px 6px;
-  border: 1px solid #c9a84c;
-  border-radius: 4px;
-  background: rgba(201, 168, 76, 0.18);
-  color: #c9a84c;
+  border: 1px solid #dcbb5e;
+  border-radius: var(--radius-sm);
+  background: rgba(220, 187, 94, 0.18);
+  color: var(--accent);
   flex-shrink: 0;
   font-family: var(--font-mono);
   cursor: help;
@@ -147,7 +147,7 @@
 .headline {
   font-size: 12px;
   line-height: 1.45;
-  color: #a8a290;
+  color: var(--text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -175,12 +175,12 @@
   font-size: 9px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #706b5e;
+  color: var(--text-muted);
 }
 .levelBlock strong {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #e8e3d4;
+  color: var(--text-bright);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -196,13 +196,13 @@
 
 .status {
   text-transform: uppercase;
-  color: #c9a84c;
+  color: var(--accent);
   font-weight: 600;
   letter-spacing: 0.8px;
 }
 
 .timeAgo {
-  color: #706b5e;
+  color: var(--text-muted);
   font-family: var(--font-mono);
 }
 

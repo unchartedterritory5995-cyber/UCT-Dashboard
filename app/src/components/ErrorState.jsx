@@ -8,7 +8,7 @@ export default function ErrorState({ message = 'Something went wrong', onRetry, 
       <span className={styles.icon}><UIcon name="warning" size={24} /></span>
       <p className={styles.message}>{message}</p>
       {onRetry && (
-        <button className={styles.retryBtn} onClick={onRetry}>
+        <button className="btn btn-secondary btn-sm" onClick={onRetry}>
           Tap to retry
         </button>
       )}

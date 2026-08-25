@@ -360,7 +360,7 @@ export default function NotebookTab() {
             </button>
             <button
               type="button"
-              className={styles.newBtn}
+              className="btn btn-primary btn-sm"
               onClick={() => createNote()}
               disabled={creating}
             >

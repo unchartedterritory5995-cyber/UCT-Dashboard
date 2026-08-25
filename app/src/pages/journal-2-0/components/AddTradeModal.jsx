@@ -465,8 +465,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
             </>
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={
                 saving
                 || (overCap && !overrideArmed)
                 || (disciplineState?.locked && !disciplineOverrideArmed)

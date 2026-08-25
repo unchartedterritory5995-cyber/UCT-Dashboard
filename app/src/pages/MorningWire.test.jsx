@@ -16,7 +16,9 @@ import MorningWire from './MorningWire'
 
 test('renders morning wire heading', () => {
   renderWithProviders(<MorningWire />)
-  expect(screen.getByText(/morning wire/i)).toBeInTheDocument()
+  // The page now shows the standard PageHeader title AND the slim masthead
+  // nameplate, so "Morning Wire" appears more than once — assert at least one.
+  expect(screen.getAllByText(/morning wire/i).length).toBeGreaterThan(0)
 })
 
 test('renders rundown HTML content', () => {

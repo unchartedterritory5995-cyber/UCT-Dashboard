@@ -62,7 +62,7 @@
   padding: 20px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .edgeMain {
@@ -205,11 +205,11 @@
 }
 
 .pos {
-  color: #3cb868;
+  color: var(--gain);
 }
 
 .neg {
-  color: #e74c3c;
+  color: var(--loss);
 }
 
 .hint {
@@ -233,7 +233,7 @@
   text-align: center;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .comingSoonGlyph {

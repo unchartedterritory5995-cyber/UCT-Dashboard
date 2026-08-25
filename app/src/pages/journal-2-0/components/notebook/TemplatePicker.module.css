@@ -34,22 +34,22 @@
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .card:hover:not(:disabled) {
-  border-color: rgba(201, 168, 76, 0.65);
-  background: rgba(201, 168, 76, 0.06);
+  border-color: var(--accent);
+  background: rgba(220, 187, 94, 0.06);
 }
 .card:disabled {
   opacity: 0.6;
   cursor: default;
 }
 .card:focus-visible {
-  outline: 2px solid #c9a84c;
+  outline: 2px solid #dcbb5e;
   outline-offset: 2px;
 }
 .cardWhen {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c9a84c;
+  color: var(--accent);
 }
 .cardLabel {
   font-size: 13.5px;

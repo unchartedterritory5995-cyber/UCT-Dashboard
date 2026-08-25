@@ -194,7 +194,7 @@ export default function ArticlesSection() {
           </div>
         </div>
         {isAdmin && (
-          <button className={styles.ghostBtn} onClick={() => setManaging(true)}>
+          <button className="btn btn-ghost" onClick={() => setManaging(true)}>
             Manage publications
           </button>
         )}
@@ -216,7 +216,7 @@ export default function ArticlesSection() {
               : 'Our written research is being connected in. Check back shortly.'}
           </div>
           {isAdmin && (
-            <button className={styles.goldBtn} onClick={() => setManaging(true)}>
+            <button className="btn btn-primary" onClick={() => setManaging(true)}>
               <PlusIcon /> Add a publication
             </button>
           )}
@@ -288,7 +288,7 @@ function PublicationsManager({ onClose, onChanged }) {
         </div>
         {err && <div className={styles.formErr}>{err}</div>}
         <div className={styles.formActions}>
-          <button className={styles.goldBtn} onClick={add} disabled={busy || !name || !url}>
+          <button className="btn btn-primary" onClick={add} disabled={busy || !name || !url}>
             {busy ? 'Adding…' : 'Add publication'}
           </button>
         </div>

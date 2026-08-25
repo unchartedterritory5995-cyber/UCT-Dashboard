@@ -283,7 +283,7 @@ export default function CloseOptionStrategyModal({
           <div className={styles.actions}>
             <button
               type="button"
-              className={styles.ghostBtn}
+              className="btn btn-ghost"
               onClick={onClose}
               disabled={saving}
             >
@@ -291,7 +291,7 @@ export default function CloseOptionStrategyModal({
             </button>
             <button
               type="button"
-              className={styles.primaryBtn}
+              className="btn btn-primary"
               onClick={submit}
               disabled={saving || !preview}
             >
