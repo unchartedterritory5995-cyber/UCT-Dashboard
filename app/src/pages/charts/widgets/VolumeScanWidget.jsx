@@ -223,7 +223,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           <div className={`${chrome.sideHead} ${styles.head}`}>
             <span className={styles.headSym}>SYMBOL</span>
             <span className={styles.headSurge}>
-              VOL SURGE{total > 0 ? <span className={styles.headCount}> · {total}</span> : ''}
+              RVOL{total > 0 ? <span className={styles.headCount}> · {total}</span> : ''}
             </span>
           </div>
           {rows.length === 0 ? (

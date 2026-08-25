@@ -34,7 +34,8 @@ describe('VolumeScanWidget', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
     expect(screen.getByText('SYMBOL')).toBeInTheDocument()
-    expect(screen.getByText(/VOL SURGE/)).toBeInTheDocument()
+    expect(screen.queryByText('VOL SURGE')).not.toBeInTheDocument()   // renamed → RVOL
+    expect(screen.getAllByText(/RVOL/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/· 2/)).toBeInTheDocument()         // lit count in header
     expect(screen.getByText('SMCI')).toBeInTheDocument()
     expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block

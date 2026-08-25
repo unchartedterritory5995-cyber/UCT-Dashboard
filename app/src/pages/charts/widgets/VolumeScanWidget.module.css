@@ -4,8 +4,15 @@
    Vol Surge), the relative-volume tier fills, and the live-tick flash. It rides the
    same --nh-* / --widget-* / --wl-* token chain, so a chart theme themes it too. */
 
-/* Sticky header: SYMBOL (left) · VOL SURGE (right) — the only two columns. */
-.head { justify-content: space-between; }
+/* Sticky header: SYMBOL (left) · RVOL (right) — the only two columns. It MUST be
+   opaque or scrolling rows bleed through it (the NH/NL chrome makes the header
+   transparent on a custom canvas — good for a seamless gradient, but here the rows
+   scroll UNDER it, so force a solid fill). --nh-bg is the widget's own canvas
+   (opaque solid or gradient) when customised; otherwise the theme/default canvas. */
+.head {
+  justify-content: space-between;
+  background: var(--nh-bg, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated, #101216)))) !important;
+}
 .headSym,
 .headSurge {
   font-family: var(--font-sans);
