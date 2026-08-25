@@ -86,7 +86,8 @@ _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 # per-minute batching, and a rate (a delta) is small (single digits/sec) and never
 # spikes on restart the way a cumulative total would. Bump _SERIES_METRIC to drop
 # old-shaped stored series.
-_SAMPLE_SECS = 5.0                   # append a point every ~5s
+_SAMPLE_SECS = 2.0                   # sample every accumulator tick (~3s) — as fast as
+                                     # the counts actually change
 _DEFAULT_SERIES_WINDOW_SECS = 60.0   # rate is averaged over this trailing window
 _SERIES_METRIC = "rate_v3"
 _last_sample = 0.0

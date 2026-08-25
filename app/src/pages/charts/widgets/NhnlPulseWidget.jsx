@@ -44,22 +44,21 @@ function makeOption(series) {
   const lastT = times.length ? times[times.length - 1] : undefined
   const span = times.length ? (lastT - times[0]) : 0
   const xMax = lastT ? lastT + Math.max(span * 0.04, 25000) : undefined
-  // A line series with a single glowing "live tick" dot at its most recent point.
-  const liveLine = (name, data, color, glow, z) => ({
-    name, type: 'line', data, smooth: true, z,
+  // A line series with a single "live tick" dot welded to its most recent point.
+  const liveLine = (name, data, color, z) => ({
+    name, type: 'line', data, z,
+    smooth: 0.35, smoothMonotone: 'x',   // mild spline that still passes through the points
     showSymbol: true, symbol: 'circle',
-    symbolSize: (_v, p) => (p.dataIndex === lastIdx ? 7 : 0),
+    symbolSize: (_v, p) => (p.dataIndex === lastIdx ? 6 : 0),
     lineStyle: { color, width: 2 },
-    itemStyle: { color, borderColor: '#0c0c0f', borderWidth: 1.5, shadowBlur: 16, shadowColor: glow },
+    itemStyle: { color, borderColor: '#0c0c0f', borderWidth: 1.5 },   // no glow
   })
   return {
-    // Glide on update: each new point eases in over ~1.5s (linear) instead of
-    // snapping — smooth, but short enough that it stays close to real time.
+    // No update animation: the line + its live dot update together each tick (dot
+    // never lags the line, and there's no glide delay — as real-time as the feed).
     animation: true,
     animationDuration: 500,
-    animationDurationUpdate: 1500,
-    animationEasing: 'cubicOut',
-    animationEasingUpdate: 'linear',
+    animationDurationUpdate: 0,
     grid: { left: 6, right: 18, top: 24, bottom: 22, containLabel: true },
     legend: {
       data: ['New Highs', 'New Lows'],
@@ -89,8 +88,8 @@ function makeOption(series) {
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
     },
     series: [
-      liveLine('New Highs', highs, GREEN, 'rgba(52,209,124,0.95)', 3),
-      liveLine('New Lows', lows, RED, 'rgba(242,75,66,0.95)', 2),
+      liveLine('New Highs', highs, GREEN, 3),
+      liveLine('New Lows', lows, RED, 2),
     ],
   }
 }
@@ -100,8 +99,8 @@ export default function NhnlPulseWidget({ opts }) {
   const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
 
   const { data } = useMobileSWR('/api/nhnl/series', fetcher, {
-    refreshInterval: 3000,       // pull new ~5s points promptly; the chart glides between
-    dedupingInterval: 2000,
+    refreshInterval: 2000,       // pull new points as fast as the accumulator produces them
+    dedupingInterval: 1500,
     marketHoursOnly: true,
     revalidateOnFocus: false,
   })
