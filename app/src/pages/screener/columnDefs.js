@@ -122,8 +122,10 @@ export const COLUMN_DEFS = {
     desc: 'Average Daily Range as a percentage of price — the mean of each day’s high-to-low spread, a plain measure of how far a stock typically travels. ⚠️ This is NOT ATR: it ignores overnight gaps, where ATR (the column beside it) includes them, so a gappy stock reads calmer here than it trades.' },
   gap_pct: { label: 'Gap%', fmt: pct, heat: heatPos },
   dist_52w_high_pct: { label: '52WH', fmt: pct },
-  candle_type: { label: 'Candle', fmt: v => v && v !== 'none' ? v : '—',
-    desc: 'The shape of the most recent daily bar — hammer, doji, engulfing and so on. ⚠️ A bar that did not move at all has NO shape: its body and wicks are zero over a range of zero, which is undefined rather than small, so it is left blank instead of being called a doji. Roughly 80 names a night are in that state, most of them because they did not trade.' },
+  candle_type: { label: 'Candle', fmt: (v, row) => row?.candle_label || (v && v !== 'none' ? v : '—'),
+    desc: 'What the most recent daily bar actually is — 62 named structures, from Bullish Engulfing and Morning Star down to the plain Long White or Short Black that most sessions print. When a bar satisfies more than one, the strongest reading leads and the next is shown in parentheses with a +N for any beyond that; the FILTER searches every match, not just the one displayed, so screening for Hammer still finds a hammer that was also an engulfing. ⚠️ Hammer and Hanging Man are the same geometry — only the trend before them tells the two apart, so when there is no clear prior trend the column prints the neutral shape (Umbrella) rather than guess a direction. ⚠️ Blank means the bar had NO range to have a shape: body and wicks are zero over a range of zero, which is undefined rather than small. Roughly 80 names a night, most of them because they did not trade.' },
+  candle_trend: { label: 'Prior Trend', fmt: v => v && v !== 'unknown' ? v : '—',
+    desc: 'The trend the candle printed INTO, read from a 10-day EMA at the bar before the pattern begins — so a violent bar can never manufacture the trend that names it. This is what separates a Hammer from a Hanging Man and a Bullish Engulfing from a Last Engulfing Top. Blank when there is under 40 bars of history to read.' },
   patterns: { label: 'Pattern', fmt: v => v ? v.split(',')[0] : '—' },
   // exposed-existing (previously filterable-but-undisplayable or dark)
   beta: { label: 'Beta', fmt: num(2),

@@ -37,6 +37,8 @@ const MUST_DOCUMENT = [
   'rsi14', 'adr_pct', 'atr_pct', 'vol_ratio',
   // bar shape — all three refuse on a bar with no range
   'candle_type', 'body_pct', 'close_position',
+  // the trend gate is what makes hammer-vs-hanging-man decidable at all
+  'candle_trend',
 ]
 
 describe('member-facing column descriptions', () => {

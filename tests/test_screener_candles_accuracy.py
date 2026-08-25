@@ -53,7 +53,11 @@ def test_the_control_a_real_doji_still_classifies():
     """The guard must not reach a bar that has a range."""
     bars = _context() + [_bar(10.0, 10.5, 9.5, 10.01)]
     out = candles.single_candle(bars)
-    assert out["candle_type"] == "doji"
+    # The guard's contract is that a bar WITH a range still classifies — not
+    # that it lands on one particular spelling. This bar has ~50% wicks both
+    # ways, which is the long-legged sub-type.
+    assert out["candle_type"] in ("doji", "long-legged-doji",
+                                  "dragonfly-doji", "gravestone-doji")
     assert out["body_pct"] is not None
 
 
