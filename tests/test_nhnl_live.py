@@ -37,7 +37,7 @@ def _fresh_state(monkeypatch):
     # H/L Pulse time series.
     with nhnl_live._lock:
         nhnl_live._state["series"] = nhnl_live.deque(maxlen=nhnl_live._SERIES_MAX)
-    nhnl_live._series_last = {"hi": 0, "lo": 0}
+    nhnl_live._sample_marks = {}
     nhnl_live._last_sample = 0.0
     yield
     nhnl_live._prov_to_app = None
@@ -213,15 +213,35 @@ def test_rows_carry_pct_change_vs_prior_close():
 
 # ── H/L Pulse time series ───────────────────────────────────────────────────────
 
-def test_series_samples_new_high_event_deltas():
-    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed
-    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both +1 nh (Σnh=2)
-    nhnl_live._sample_series(_now(1))                                          # delta 2-0 = 2
-    _tick(_snap(AAA=(102.0, 98.0, 102.0)), minute=2)                          # AAA +1 (Σnh=3)
-    nhnl_live._sample_series(_now(2))                                          # delta 3-2 = 1
+def test_series_counts_distinct_names_per_window():
+    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed (nh=0)
+    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # AAA + BBB new high
+    nhnl_live._sample_series(_now(1))                                          # 2 names moved
+    _tick(_snap(AAA=(102.0, 98.0, 102.0)), minute=2)                          # only AAA new high
+    nhnl_live._sample_series(_now(2))                                          # 1 name moved
     out = nhnl_live.get_series()
     assert [p["hi"] for p in out["series"]] == [2, 1]
     assert out["highs_total"] == 2      # AAA, BBB distinct names for the ratio bar
+
+
+def test_series_first_sample_after_restart_is_not_a_spike(monkeypatch, tmp_path):
+    # A deploy restores the day's counts; the first sample must NOT report them all.
+    monkeypatch.setenv("NHNL_STATE_PATH", str(tmp_path / "s.json"))
+    now = nhnl_live._now_et()
+    key = f"{now.strftime('%Y-%m-%d')}:{nhnl_live._active_window(now)}"
+    with nhnl_live._lock:
+        nhnl_live._state["session_key"] = key
+        nhnl_live._state["date"] = now.strftime("%Y-%m-%d")
+        nhnl_live._state["window"] = nhnl_live._active_window(now)
+        nhnl_live._state["syms"] = {"AAA": {"hod": 5, "lod": 4, "nh": 40, "nl": 0,
+                                            "last": 5, "prev": 4, "hi_ts": None, "lo_ts": None}}
+    nhnl_live._persist_state()
+    with nhnl_live._lock:                       # simulate the deploy wipe
+        nhnl_live._state["syms"] = {}
+    nhnl_live._sample_marks = {}
+    nhnl_live._load_state()                      # seeds marks from the 40-count
+    nhnl_live._sample_series(now)
+    assert nhnl_live.get_series()["series"][-1]["hi"] == 0   # not 40
 
 
 # ── Persistence across deploys ──────────────────────────────────────────────────

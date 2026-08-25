@@ -62,7 +62,7 @@ function makeOption(series) {
     },
     yAxis: {
       type: 'value', min: 0,
-      name: 'per 15s', nameGap: 6, nameTextStyle: { ...axisText, align: 'left' },
+      name: 'names / 15s', nameGap: 6, nameTextStyle: { ...axisText, align: 'left' },
       axisLabel: axisText,
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
     },

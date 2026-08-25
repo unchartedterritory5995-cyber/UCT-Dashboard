@@ -78,13 +78,17 @@ _last_persist = 0.0       # epoch of the last state snapshot write
 _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 
 # ── Intraday time series (the "H/L Pulse" chart) ──────────────────────────────
-# Every ~15s we append the NUMBER of new-high and new-low events since the last
-# sample (the delta of Σnh / Σnl), giving two live lines of new-H/L activity through
-# the day. Bounded to one full session; persisted with the counts so it survives a
-# deploy. `_series_last` holds the cumulative totals at the previous sample.
+# Every ~15s we append how many DISTINCT NAMES made a new high / new low in that
+# window (a name that ratcheted its HOD five times counts once) — a bounded, steady
+# "breadth thrust" line like Trade Ideas' alert rate, NOT a sum of every ratchet
+# (which spikes to thousands at the open and dies midday). `_sample_marks` holds each
+# symbol's nh/nl at the previous sample so we can tell which names moved this window;
+# it's seeded from restored counts on boot so a deploy can never dump the whole day's
+# total as one giant first point. Bump _SERIES_METRIC to drop old-shaped stored series.
 _SAMPLE_SECS = 15.0
+_SERIES_METRIC = "names_v1"
 _last_sample = 0.0
-_series_last = {"hi": 0, "lo": 0}
+_sample_marks: dict = {}   # app_sym -> (nh, nl) at the previous sample
 
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
@@ -435,14 +439,14 @@ def _build_group_map(now: float) -> dict:
 
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
-    global _series_last
+    global _sample_marks
     _state["session_key"] = session_key
     _state["window"] = window
     _state["date"] = date
     _state["syms"] = {}
     _state["themes"] = {}
     _state["series"] = deque(maxlen=_SERIES_MAX)
-    _series_last = {"hi": 0, "lo": 0}
+    _sample_marks = {}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -681,23 +685,22 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
 
 
 def _sample_series(now: datetime) -> None:
-    """Append one H/L Pulse point: new-high / new-low events since the last sample."""
-    global _series_last
+    """Append one H/L Pulse point: how many DISTINCT NAMES made a new high / new low
+    in this window (nh/nl increased since the last sample). Bounded + steady."""
     with _lock:
-        cum_hi = 0
-        cum_lo = 0
-        for s in _state["syms"].values():
-            cum_hi += s.get("nh", 0)
-            cum_lo += s.get("nl", 0)
-        d_hi = cum_hi - _series_last["hi"]
-        d_lo = cum_lo - _series_last["lo"]
-        # A session reset (counters back to 0) would make the delta negative — clamp.
-        if d_hi < 0:
-            d_hi = 0
-        if d_lo < 0:
-            d_lo = 0
-        _series_last = {"hi": cum_hi, "lo": cum_lo}
-        _state["series"].append({"t": now.isoformat(), "hi": d_hi, "lo": d_lo})
+        marks = _sample_marks
+        hi_n = 0
+        lo_n = 0
+        for app, s in _state["syms"].items():
+            nh = s.get("nh", 0)
+            nl = s.get("nl", 0)
+            pnh, pnl = marks.get(app, (0, 0))
+            if nh > pnh:
+                hi_n += 1
+            if nl > pnl:
+                lo_n += 1
+            marks[app] = (nh, nl)
+        _state["series"].append({"t": now.isoformat(), "hi": hi_n, "lo": lo_n})
 
 
 def get_series() -> dict:
@@ -766,7 +769,7 @@ def _persist_state() -> None:
                 "ticks": _state["ticks"],
                 "syms": _state["syms"],   # the counts — only the nhnl thread writes these
                 "series": list(_state["series"]),
-                "series_last": _series_last,
+                "series_metric": _SERIES_METRIC,
             }
         # Safe to serialize outside the lock: _state["syms"] is mutated ONLY by this
         # (the nhnl) thread; request threads and the trade tape never touch it.
@@ -796,19 +799,20 @@ def _load_state() -> None:
     syms = snap.get("syms")
     if not isinstance(syms, dict):
         return
-    global _series_last
+    global _sample_marks
     with _lock:
         _state["session_key"] = snap.get("session_key")
         _state["date"] = snap.get("date")
         _state["window"] = snap.get("window")
         _state["ticks"] = snap.get("ticks", 0)
         _state["syms"] = syms
+        # Seed the per-sample marks from the restored counts so the FIRST sample after
+        # a deploy reports ~0 (no names "newly moved"), never the whole day as a spike.
+        _sample_marks = {app: (s.get("nh", 0), s.get("nl", 0)) for app, s in syms.items()}
+        # Only restore the stored series if it was built with the CURRENT metric shape.
         ser = snap.get("series")
-        if isinstance(ser, list):
+        if isinstance(ser, list) and snap.get("series_metric") == _SERIES_METRIC:
             _state["series"] = deque(ser, maxlen=_SERIES_MAX)
-        sl = snap.get("series_last")
-        if isinstance(sl, dict):
-            _series_last = {"hi": sl.get("hi", 0), "lo": sl.get("lo", 0)}
     _log.info("[nhnl] restored %d symbols for session %s", len(syms), cur_key)
 
 
