@@ -297,3 +297,52 @@ def multi_candle(bars: list[dict]) -> dict:
             break
     out["consecutive_up"], out["consecutive_down"] = up, down
     return out
+
+
+#: How far back the recency lookback reaches. FIVE SESSIONS, not more: a
+#: multi-bar reversal that completed a week ago has had a week of price action
+#: to invalidate it, and reporting it beside today's bar would imply a currency
+#: it no longer has.
+RECENT_WINDOW = 5
+
+
+def recent_relation(bars: list[dict], window: int = RECENT_WINDOW) -> dict:
+    """The most recent MULTI-BAR pattern within ``window`` sessions.
+
+    🔴 THE GAP THIS CLOSES. `single_candle` only ever looks at TODAY, and most
+    days most stocks print no multi-bar structure at all. Measured 2026-08-24
+    over 3,705 tickers: **796 (21.5%) had a multi-bar pattern today, and a
+    further 1,425 (38.5%) had one in the previous four sessions** that the
+    column could not see. Nearly twice as many rows carried a recent, still-live
+    structure as carried one today.
+
+    ⭐ AND A PATTERN THAT COMPLETED YESTERDAY IS OFTEN THE MORE ACTIONABLE ONE:
+    it has had a session of follow-through a trader can actually check, which is
+    exactly what the confirmation literature says a same-day label cannot claim.
+
+    ⛔ SHAPES ARE EXCLUDED ON PURPOSE. Every bar has a shape, so a shape-inclusive
+    lookback would return "Black Candle, 1 day ago" for the whole market and mean
+    nothing. Only the sparse multi-bar relations are worth dating.
+
+    Returns the age in sessions (0 = today) alongside the key, so a member can
+    tell a fresh signal from a stale one rather than being handed both as equals.
+    """
+    from . import candle_catalog as cat
+    out = {"candle_recent": None, "candle_recent_bars_ago": None,
+           "candle_recent_label": None}
+    if not bars:
+        return out
+    for age in range(max(1, window)):
+        end = len(bars) - age
+        if end < 2:
+            break
+        got = single_candle(bars[:end])
+        rels = [cat.BY_KEY[k] for k in cat.decode_matches(got.get("candle_matches") or "")
+                if k in cat.RELATION_KEYS]
+        if rels:
+            best = min(rels, key=lambda p: (p.rank, p.key))
+            return {"candle_recent": best.key,
+                    "candle_recent_bars_ago": age,
+                    "candle_recent_label": best.label + (
+                        "" if age == 0 else f" ({age}d ago)")}
+    return out

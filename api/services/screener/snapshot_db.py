@@ -87,6 +87,9 @@ COLUMNS = [
     "candle_label", "candle_matches", "candle_trend",
     # what the bar DID — gaps, structural failures, reversals, volume
     "bar_character", "bar_character_label",
+    # the most recent MULTI-BAR pattern within 5 sessions, and its age. 38.5% of
+    # rows carry one that today's bar alone cannot see.
+    "candle_recent", "candle_recent_bars_ago", "candle_recent_label",
     # multi candle
     "inside_bar_run", "tight_consolidation", "pullback_depth_pct",
     "higher_lows_run", "nr7", "consecutive_up", "consecutive_down",
@@ -134,6 +137,7 @@ COLUMNS = [
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
          "bar_character", "bar_character_label",
+         "candle_recent", "candle_recent_label",
          "patterns", "snapshot_date", "bars_asof",
          # Wave 1. `accdis` joins _TEXT here too: it has always held letter
          # grades in a REAL-declared column (latent since v1; SQLite dynamic
@@ -149,6 +153,7 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          # this table (ruling D4) -- see `_INT` below.
          "pattern_engine_ids"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
+        "candle_recent_bars_ago",
         "consecutive_up", "consecutive_down", "built_at",
         # bools stored as 0/1
         "above_50sma", "new_52w_high", "wide_bar", "narrow_bar",

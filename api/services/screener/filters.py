@@ -376,6 +376,19 @@ FILTERS = dict([
     # on heavy volume. Candle geometry cannot see any of those.
     _enum("bar_character", "Bar Character", "single_candle", "bar_character",
           bar_character.enum_options()),
+    # ⭐ THE SAME PATTERN VOCABULARY, DATED. `candle_type` answers "what is TODAY",
+    # which on most days for most names is nothing multi-bar at all. Measured
+    # 2026-08-24: 796 rows had a multi-bar pattern today and a further 1,425 had
+    # one in the previous four sessions — nearly twice as many, invisible.
+    _enum("candle_recent", "Recent Pattern (5d)", "single_candle", "candle_recent",
+          [{"label": "Any"}] + [
+              {"label": p.label, "op": "eq", "value": p.key}
+              for p in sorted(candle_catalog.RELATIONS, key=lambda q: q.rank)]),
+    _range("candle_recent_bars_ago", "Pattern Age", "single_candle",
+           "candle_recent_bars_ago",
+           [{"label": "Any"},
+            {"label": "Today", "op": "lte", "max": 0},
+            {"label": "Within 2 days", "op": "lte", "max": 2}]),
     # ── multi candle ──
     _bool("tight_consolidation", "Tight Consolidation", "multi_candle", "tight_consolidation"),
     _bool("nr7", "NR7 (narrowest of 7)", "multi_candle", "nr7"),

@@ -290,3 +290,76 @@ def test_the_reported_trend_is_the_one_the_pattern_was_judged_against():
     # Three of the four combinations name a trend-qualified shape; the fourth
     # resolves to a relation, whose own anchor is what gets reported.
     assert checked >= 3, f"only {checked} trend-qualified names were exercised"
+
+
+# ── the recency lookback ────────────────────────────────────────────────────
+def test_a_pattern_that_completed_yesterday_is_still_reported():
+    """🔴 THE GAP THIS CLOSES. `single_candle` only ever looks at TODAY. Measured
+    2026-08-24 over 3,705 tickers: 796 (21.5%) had a multi-bar pattern today and
+    a further **1,425 (38.5%) had one in the previous four sessions** that nothing
+    on the screen could see. With the lookback, coverage is 59.9%."""
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)                  # small black
+    # the engulfing completes here ...
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    assert "bullish-engulfing" in candles.single_candle(bars)["candle_matches"]
+    # ... and then two more sessions pass
+    q = bars[-1]["c"]
+    bars += [_bar(q + 0.10, q + 0.42, q - 0.07, q + 0.31),
+             _bar(q + 0.36, q + 0.55, q + 0.21, q + 0.28)]
+
+    # ⭐ ASSERT THE CONTRACT, NOT A HAND-GUESSED NUMBER. Those two follow-up
+    # sessions may themselves form some relation — the first draft of this test
+    # appended near-identical bars and accidentally built a tweezer, so the
+    # "expected" age of 2 was wrong for a reason that had nothing to do with the
+    # lookback. What must hold is that the reported age is the MOST RECENT bar
+    # carrying a relation, and that no nearer bar carries one.
+    rec = candles.recent_relation(bars)
+    age = rec["candle_recent_bars_ago"]
+    assert age is not None, "an engulfing completed inside the window"
+
+    def _rels(n):
+        r = candles.single_candle(bars[:len(bars) - n])
+        return [k for k in cat.decode_matches(r["candle_matches"] or "")
+                if k in cat.RELATION_KEYS]
+
+    assert _rels(age), f"nothing at the reported age {age}"
+    for nearer in range(age):
+        assert not _rels(nearer), f"a nearer relation at {nearer} was skipped"
+    assert (rec["candle_recent_label"].endswith(f"({age}d ago)")
+            if age else "ago" not in rec["candle_recent_label"])
+
+
+def test_todays_pattern_is_reported_at_age_zero_with_no_suffix():
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    rec = candles.recent_relation(bars)
+    assert rec["candle_recent_bars_ago"] == 0
+    assert "ago" not in rec["candle_recent_label"]
+
+
+def test_the_lookback_never_reports_a_shape():
+    """⛔ Every bar HAS a shape, so a shape-inclusive lookback would return
+    "Black Candle, 1 day ago" for the whole market and mean nothing. Only the
+    sparse multi-bar relations are worth dating."""
+    rng = random.Random(5)
+    for _ in range(300):
+        base = _flat(60, price=rng.uniform(5, 300))
+        px = base[-1]["c"]
+        bars = base + [_bar(px, px * 1.01, px * 0.99, px * 1.005)]
+        rec = candles.recent_relation(bars)
+        if rec["candle_recent"]:
+            assert rec["candle_recent"] in cat.RELATION_KEYS
+
+
+def test_the_lookback_is_bounded_and_safe_on_short_history():
+    assert candles.recent_relation([]) == {
+        "candle_recent": None, "candle_recent_bars_ago": None,
+        "candle_recent_label": None}
+    candles.recent_relation([_bar(10, 11, 9, 10)])            # must not raise
+    rec = candles.recent_relation(_downtrend(), window=candles.RECENT_WINDOW)
+    if rec["candle_recent_bars_ago"] is not None:
+        assert 0 <= rec["candle_recent_bars_ago"] < candles.RECENT_WINDOW

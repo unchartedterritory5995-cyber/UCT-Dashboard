@@ -41,6 +41,8 @@ const MUST_DOCUMENT = [
   'candle_trend',
   // what the bar DID — a different question from what shape it is
   'bar_character',
+  // the pattern vocabulary, dated — 38.5% of rows carry one today cannot see
+  'candle_recent',
 ]
 
 describe('member-facing column descriptions', () => {

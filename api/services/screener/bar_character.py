@@ -65,6 +65,12 @@ LOOKBACK_10 = 10
 
 @dataclass(frozen=True)
 class Character:
+    """⭐ `tier` IS A FAMILY LABEL, NOT A POSITION IN THE CASCADE. It says what
+    KIND of thing the head is (gap / structure / reversal / VSA / terminal) and
+    gates the suffixes for tier 0. Order is decided by information density, and
+    the two diverge where measurement said they should: the double compressions
+    carry tier 5 but sit inside tier 3, because left in place they were being
+    swallowed by whatever ordinary thing the bar also did."""
     key: str
     label: str
     tier: int
@@ -154,7 +160,21 @@ def features(bars: list[dict]) -> dict | None:
 
     last7 = [x["h"] - x["l"] for x in bars[-7:]]
     f["nr7"] = len(last7) == 7 and rng <= min(last7)
+    last4 = [x["h"] - x["l"] for x in bars[-4:]]
+    f["nr4"] = len(last4) == 4 and rng <= min(last4)
     f["inside"] = ph is not None and h < ph and l > pl
+
+    # ⭐ THE SEQUENCE COUNTS COME FROM `multi_candle`, NOT A PRIVATE COPY.
+    # It already owns `inside_bar_run`, `consecutive_up/down` and
+    # `higher_lows_run` — every one of them a member-facing filter. Recomputing
+    # them here would put a second authority on values a member can already
+    # screen by, and the two would drift the first time either definition moved.
+    from . import candles
+    m = candles.multi_candle(bars)
+    f["inside_run"] = m.get("inside_bar_run") or 0
+    f["run_up"] = m.get("consecutive_up") or 0
+    f["run_down"] = m.get("consecutive_down") or 0
+    f["higher_lows"] = m.get("higher_lows_run") or 0
 
     f["v1"] = technicals._volume(prev) if prev else None
     f["v2"] = technicals._volume(p2) if p2 else None
@@ -181,6 +201,26 @@ def close_fragment(f) -> str | None:
         if clv >= cut:
             return text
     return "closed on the low"
+
+
+def streak_fragment(f) -> str | None:
+    """A run of same-direction closes, or a staircase of higher lows.
+
+    🔴 THE SIGNAL THIS SURFACES WAS ALREADY BEING COMPUTED AND THROWN AWAY.
+    Measured 2026-08-24: 367 rows on 3+ consecutive up closes, 331 on 3+ down,
+    459 on 3+ higher lows — all filterable, none of them VISIBLE anywhere. A
+    filter family with no view is half shipped.
+
+    ⛔ ONLY WHEN NOTABLE. A one- or two-day run is the market's ordinary state;
+    printing it on every row would be noise wearing the costume of information.
+    """
+    if f.get("run_up", 0) >= 3:
+        return f"{f['run_up']} straight up days"
+    if f.get("run_down", 0) >= 3:
+        return f"{f['run_down']} straight down days"
+    if f.get("higher_lows", 0) >= 4:
+        return f"{f['higher_lows']} higher lows"
+    return None
 
 
 def volume_fragment(f) -> str | None:
@@ -360,6 +400,31 @@ CASCADE = [
               and _down(f) and _le(f["clv"], 0.30),
               desc="Made a fresh 10-day high, then closed down on the day and near "
                    "the low of its range."),
+    # ⭐ DOUBLE COMPRESSION OUTRANKS THE COMMON DIRECTIONAL AND VSA LABELS.
+    # A run of inside bars, or an inside day that is ALSO the narrowest of
+    # seven, is Crabel's double compression — rare and structural. Left in
+    # tier 5 they were swallowed by whatever ordinary thing the bar also did:
+    # measured 2026-08-24, `inside-day-nr7` had **264 satisfying and 44
+    # rendering** (91 lost to No Demand, 50 to Green to Red), and
+    # `inside-run-2` 124/23. "Opened above and closed below" is not a more
+    # useful thing to say about a bar than "third straight inside day".
+    # ⛔ The plain `Inside Day` and `Compression Bar (NR7)` stay in tier 5 on
+    # purpose — single-condition and common (21% of the market for NR7); only
+    # the two-condition forms are rare enough to earn the promotion.
+    Character("inside-run-3plus", "3+ Bar Inside Run", 5,
+              detect=lambda f: f["inside_run"] >= 3,
+              desc="Three or more consecutive sessions, each held entirely inside "
+                   "the one before it. A tight multi-day coil — volatility "
+                   "contracting hard, which is what precedes expansion."),
+    Character("inside-run-2", "2-Bar Inside Run", 5,
+              detect=lambda f: f["inside_run"] >= 2,
+              desc="Two consecutive inside days. The range has been narrowing for "
+                   "two sessions running."),
+    Character("inside-day-nr7", "Inside Day (NR7)", 5,
+              detect=lambda f: f["inside"] and f["nr7"],
+              desc="Held entirely inside yesterday's range AND printed the narrowest "
+                   "range of the last seven sessions. Crabel's double compression — "
+                   "the tightest coil a single bar can show."),
     Character("red-to-green", "Red to Green", 3,
               detect=lambda f: f["pc"] is not None and f["o"] < f["pc"] and _up(f),
               desc="Opened below yesterday's close and finished above it. Bought all "
@@ -425,11 +490,12 @@ CASCADE = [
 
     # ── Tier 5: the terminal descriptive partition. Every remaining bar lands
     # here, and the last predicate is identically true.
-    Character("inside-day-nr7", "Inside Day (NR7)", 5,
-              detect=lambda f: f["inside"] and f["nr7"],
-              desc="Held entirely inside yesterday's range AND printed the narrowest "
-                   "range of the last seven sessions. Crabel's double compression — "
-                   "the tightest coil a single bar can show."),
+    # ⭐ A RUN OF INSIDE BARS IS A COIL, and it is strictly more specific than
+    # the single Inside Day below it — three sessions that each failed to leave
+    # the one before is a different (and far more tradeable) statement than one.
+    # Measured 2026-08-24: 124 rows carry a run of 2+, 32 a run of 3+, and NONE
+    # of them was named — `multi_candle` has computed `inside_bar_run` nightly
+    # since June and it reached no label.
     Character("inside-day", "Inside Day", 5, detect=lambda f: f["inside"],
               desc="High and low both inside yesterday's. A pause: the market did not "
                    "find a reason to leave yesterday's range."),
@@ -506,7 +572,7 @@ def classify(bars: list[dict]) -> dict:
         ch = BY_KEY["unchanged"]
     parts = [ch.label]
     if ch.tier > 0:           # a no-trade / flat bar has no close or volume story
-        for frag in (close_fragment(f), volume_fragment(f)):
+        for frag in (close_fragment(f), volume_fragment(f), streak_fragment(f)):
             if frag:
                 parts.append(frag)
     return {"bar_character": ch.key, "bar_character_label": ", ".join(parts)}

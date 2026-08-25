@@ -422,7 +422,19 @@ def test_a_raising_consumer_still_advances_the_rows_date(monkeypatch):
     row = b.build_row("AAA", bars, None, None, failures=failures)
     assert row["bars_asof"] == str(bars[-1]["t"])
     assert row["price"] is None            # honest-None, never a fabricated 0
-    assert len(failures) == 6              # each one named, not one aggregate
+    # ⛔ A SUBSET, NOT A COUNT. This asserted `len(failures) == 6` — a hand-typed
+    # number beside the list it describes, which is this repo's most repeated
+    # defect (the writer-index FOUR, the COT router's "4 routes", the setup
+    # catalog's "24"). Two more bar consumers landed and it went stale the same
+    # day, while the property actually under test — every failure is NAMED, never
+    # rolled into one anonymous bucket — had not changed at all.
+    named = {"bars_technicals", "bars_ath_fields", "bars_single_candle",
+             "bars_multi_candle", "bars_setup_score", "bars_detect_patterns"}
+    assert named <= set(failures), sorted(named - set(failures))
+    # each entry is keyed by its own label and counts the exception BY TYPE
+    for label, kinds in failures.items():
+        assert label and isinstance(kinds, dict) and kinds, label
+        assert all(isinstance(k, str) and v >= 1 for k, v in kinds.items()), label
 
 
 # ───────────── the target set includes the rows we already serve ─────────────
