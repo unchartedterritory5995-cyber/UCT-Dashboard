@@ -111,6 +111,16 @@ describe('NewHighsLowsWidget', () => {
     expect(swr.mock.calls[0][0]).toContain('value=Technology')
   })
 
+  it('renders the % change on stock rows (colored by sign)', () => {
+    swr.mockReturnValue({ data: { ...LIVE, highs: [
+      { sym: 'RL', price: 356.01, pct: 12.4, count: 105, ts: TS, dir: 'high' },
+    ], lows: [] } })
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    const pct = screen.getByText('+12.4%')
+    expect(pct).toBeInTheDocument()
+    expect(pct).toHaveAttribute('data-sign', 'up')
+  })
+
   it('in a group overview, a row click drills into that group (no chart, no price)', () => {
     swr.mockReturnValue({ data: {
       ...LIVE, group: 'industry', value: null,

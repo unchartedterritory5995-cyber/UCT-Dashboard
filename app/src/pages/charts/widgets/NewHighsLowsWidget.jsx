@@ -57,6 +57,14 @@ function fmtPrice(p) {
                    : n.toFixed(2)
 }
 
+// % change vs prior close — the magnitude of the day's move (a +12% leader reads
+// very differently from a +0.4% drift making the same raw new-high count).
+function fmtPct(p) {
+  const n = Number(p)
+  if (!Number.isFinite(n)) return ''
+  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`
+}
+
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
 // One side (highs OR lows) — a scrollable event log with a count histogram. `total`
@@ -86,11 +94,14 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
           const tip = groupView
             ? `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} · click to drill in`
             : `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} today`
+          const pctTxt = groupView ? '' : fmtPct(e.pct)
           return (
             <button
               type="button"
               role="listitem"
-              key={`${e.sym}-${e.ts}-${i}`}
+              // Stable key (not ts/index) so a row is MOVED on re-sort, not remounted —
+              // lets the count pulse fire only on a real increment (see the keyed count).
+              key={`${tone}-${e.sym}`}
               className={`${styles.row}${clickable ? '' : ' ' + styles.rowInert}`}
               onClick={onClick}
               disabled={!clickable}
@@ -103,9 +114,14 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
               />
               <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
               <span className={styles.sym}>{e.sym}</span>
-              {/* Stock rows: ticker · price · count. Group rows: name · count (no price). */}
+              {/* Stock rows: ticker · price · %chg · count. Group rows: name · count.
+                  Always render the pct cell (empty ok) so columns stay aligned. */}
               {!groupView && <span className={styles.price}>{fmtPrice(e.price)}</span>}
-              <span className={styles.count}>{e.count}</span>
+              {!groupView && (
+                <span className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
+              )}
+              {/* keyed by count → remounts (and plays the pulse) only when it ticks up */}
+              <span key={e.count} className={styles.count}>{e.count}</span>
             </button>
           )
         })}
