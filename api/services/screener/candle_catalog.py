@@ -482,9 +482,15 @@ def d_evening_star(ctx):      return _star(ctx, False, doji_star=False)
 
 def _abandoned(ctx, bullish):
     """⛔ THE ONLY SHADOW-GAP PATTERN IN THE FAMILY — a true island, unanimous
-    across every source that addresses it. It is also the canary: Bulkowski
-    found 293 in 4.7M candle lines, so across 3,700 names expect 0-1 A DAY.
-    Daily hits mean this predicate silently degraded to a body gap.
+    across every source that addresses it (the body-gap requirement for the
+    ordinary star is 9 of 10 sources; the SHADOW gap is what separates this one).
+
+    ⭐ IT IS ALSO THE CALIBRATION CANARY, AND OUR OWN RUN IS THE CHECK.
+    Bulkowski counted 293 in 4.7M candle lines (0.006%, frequency rank 92/103),
+    which scales to 0-1 A DAY across 3,700 names — and the live market on
+    2026-08-24 returned EXACTLY ONE. That independent agreement is what validates
+    the predicate, not the borrowed statistic on its own: daily hits would mean it
+    had silently degraded to a body gap.
     """
     b1, b2, b3 = _prev(ctx, 2), _prev(ctx, 1), ctx.bars[-1]
     if b1 is None or b2 is None:
