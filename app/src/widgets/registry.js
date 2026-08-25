@@ -469,7 +469,7 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'minRvol', type: 'number', default: 2 },
       { key: 'minMove', type: 'number', default: 0.25 },
       { key: 'minDollarK', type: 'number' },   // $-vol/min floor ($thousands); blank = session-aware auto
-      { key: 'showLogos', type: 'boolean', default: true },   // company logos next to tickers
+      { key: 'showLogos', type: 'boolean', default: false },   // company logos next to tickers (off by default)
       { key: 'settings', type: 'json' },
     ],
     plainText: () => '[volume surge]',

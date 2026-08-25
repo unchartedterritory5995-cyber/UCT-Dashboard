@@ -113,6 +113,30 @@
   .tickUp, .tickDown { animation: none; }
 }
 
+/* New-surge alert: a stronger white triple-pulse when a name first crosses into a
+   surge (unlit → lit) — deliberately brighter/longer than the per-tick flash so a
+   fresh ignition catches the eye. */
+.surgeFlash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: #ffffff;
+  animation: volSurge 1.15s ease-out;
+}
+@keyframes volSurge {
+  0%   { opacity: 0.65; }
+  25%  { opacity: 0; }
+  45%  { opacity: 0.55; }
+  70%  { opacity: 0; }
+  85%  { opacity: 0.45; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .surgeFlash { animation: none; }
+}
+
 .none {
   padding: 22px 16px;
   text-align: center;

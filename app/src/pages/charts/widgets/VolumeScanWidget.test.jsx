@@ -45,12 +45,12 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })
 
-  it('shows company logos by default, and hides them when showLogos is off', () => {
+  it('hides company logos by default, and shows them when showLogos is on', () => {
     swr.mockReturnValue({ data: LIVE })
     const { container, rerender } = render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(container.querySelector('[data-logo="SMCI"]')).toBeInTheDocument()   // default on
-    rerender(<VolumeScanWidget color="A" opts={{ showLogos: false }} onOptsChange={() => {}} />)
-    expect(container.querySelector('[data-logo="SMCI"]')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-logo="SMCI"]')).not.toBeInTheDocument()   // default off
+    rerender(<VolumeScanWidget color="A" opts={{ showLogos: true }} onOptsChange={() => {}} />)
+    expect(container.querySelector('[data-logo="SMCI"]')).toBeInTheDocument()
   })
 
   it('clicking a row routes the symbol into the widget color group', () => {
