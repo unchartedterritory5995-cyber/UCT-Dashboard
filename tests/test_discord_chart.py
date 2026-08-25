@@ -368,9 +368,11 @@ def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
     client, rt = _app_client()
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None):
         scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
         assert house_fn is None  # CHART_RENDERER_URL is unset in tests → mplfinance only
+        from api.services import discord_chart_prefs as p
+        assert prefs == p.DEFAULTS  # no saved prefs for this user
         return "ok"
     monkeypatch.setattr(rt.di, "run_chart_job", fake_job)
 
@@ -435,7 +437,7 @@ def test_tool_register_puts_the_chart_command_and_clear_puts_empty():
     import httpx
     import importlib
     tool = importlib.import_module("tools.discord_chart_commands")
-    from api.services.discord_interactions import build_chart_command
+    from api.services.discord_interactions import build_commands
     seen = []
 
     def handler(request: httpx.Request):
@@ -453,7 +455,7 @@ def test_tool_register_puts_the_chart_command_and_clear_puts_empty():
     tool.register(client, "999", "8822", clear=False)
     assert seen[-1].method == "PUT"
     assert str(seen[-1].url).endswith("/applications/999/guilds/8822/commands")
-    assert json.loads(seen[-1].content) == [build_chart_command()]
+    assert json.loads(seen[-1].content) == build_commands()
 
     tool.register(client, "999", "8822", clear=True)
     assert json.loads(seen[-1].content) == []
@@ -469,7 +471,7 @@ def test_tool_register_global_puts_to_the_application_commands_route():
     import httpx
     import importlib
     tool = importlib.import_module("tools.discord_chart_commands")
-    from api.services.discord_interactions import build_chart_command
+    from api.services.discord_interactions import build_commands
     seen = []
 
     def handler(request: httpx.Request):
@@ -481,7 +483,7 @@ def test_tool_register_global_puts_to_the_application_commands_route():
     assert seen[-1].method == "PUT"
     assert str(seen[-1].url).endswith("/applications/999/commands")
     assert "/guilds/" not in str(seen[-1].url)
-    assert json.loads(seen[-1].content) == [build_chart_command()]
+    assert json.loads(seen[-1].content) == build_commands()
 
 
 def test_to_datetime_treats_unix_daily_bars_as_utc_dates_when_tf_is_a_date_tf():
@@ -728,7 +730,7 @@ def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
     def bars_fn(tk, tf, n):
         return daily_bars(300)
 
-    def house_fn(tk, tf, stats):
+    def house_fn(tk, tf, stats, options=None):
         calls["house"].append((tk, tf, sorted(stats)[:3]))
         return PNG_MAGIC + b"house"
 
@@ -896,7 +898,7 @@ def test_run_chart_job_serves_a_cache_hit_without_fetching_anything():
     from api.services import discord_chart_cache as cc
     from api.services.discord_interactions import run_chart_job, ChartRequest
     cc.clear()
-    cc.put("NVDA:D", PNG_MAGIC + b"cached", "NVDA_D_2026-08-25_Chart.png", ttl_s=45)
+    cc.put("NVDA:D:default", PNG_MAGIC + b"cached", "NVDA_D_2026-08-25_Chart.png", ttl_s=45)
     edits = _Edits()
 
     def bars_fn(*a):
@@ -938,7 +940,7 @@ def test_run_chart_job_skips_the_house_render_when_there_are_no_daily_bars():
     cc.clear()
     house_calls = []
 
-    def house_fn(*a):
+    def house_fn(*a, **k):
         house_calls.append(a)
         return _png_canvas(draw=True)
     edits = _Edits()
@@ -962,7 +964,7 @@ def test_run_chart_job_caches_the_produced_png_under_sym_tf():
     drawn = _png_canvas(draw=True)
     assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=lambda *a: daily_bars(300),
                          render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits, house_fn=lambda *a: drawn) == "ok"
-    hit = cc.get("NVDA:D")
+    hit = cc.get("NVDA:D:default")
     assert hit is not None and hit[0] == drawn and hit[1] == edits.calls[-1]["filename"]
 
 

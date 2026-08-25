@@ -14,6 +14,7 @@ import threading
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
+from api.services import discord_chart_prefs as prefs_mod
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
 
@@ -62,16 +63,45 @@ def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, bo
         return False
 
 
-def parse_chart_command(interaction: dict) -> ChartRequest:
+def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartRequest:
     data = interaction.get("data") or {}
     opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
     ticker = str(opts.get("ticker") or "").strip().upper().lstrip("$")
     if not _TICKER_RE.match(ticker):
         raise CommandError("Ticker must be 1-12 letters/digits (e.g. NVDA, BRK.B).")
-    tf = str(opts.get("tf") or "D")
+    tf = str(opts.get("tf") or default_tf or "D")
     if tf not in WINDOW:
         raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
     return ChartRequest(ticker=ticker, tf=tf)
+
+
+CHART_COMMAND_NAMES = ("chart", "c")
+SETTINGS_COMMAND = "chartsettings"
+
+
+def interaction_user_id(interaction: dict) -> str:
+    """Discord user id: `member.user.id` in a guild, `user.id` in a DM."""
+    m = interaction.get("member") or {}
+    u = (m.get("user") if isinstance(m, dict) else None) or interaction.get("user") or {}
+    return str(u.get("id") or "") if isinstance(u, dict) else ""
+
+
+def parse_settings_command(interaction: dict) -> tuple:
+    """/chartsettings show|set|reset -> ("show"|"set"|"reset", {changes})."""
+    data = interaction.get("data") or {}
+    subs = [o for o in (data.get("options") or []) if isinstance(o, dict) and o.get("type") == 1]
+    if not subs:
+        raise CommandError("Use /chartsettings show, set or reset.")
+    sub = str(subs[0].get("name") or "")
+    if sub in ("show", "reset"):
+        return sub, {}
+    if sub != "set":
+        raise CommandError("Use /chartsettings show, set or reset.")
+    changes = {o.get("name"): o.get("value") for o in (subs[0].get("options") or []) if isinstance(o, dict)}
+    changes = {k: v for k, v in changes.items() if k in prefs_mod.DEFAULTS and v is not None}
+    if not changes:
+        raise CommandError("Nothing to set. Pick at least one option (tf, mas, volume, ext, stats).")
+    return "set", changes
 
 
 def build_chart_command() -> dict:
@@ -86,6 +116,38 @@ def build_chart_command() -> dict:
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
         ],
     }
+
+
+def build_alias_command() -> dict:
+    """`/c` - the same command under a two-keystroke name (member request)."""
+    cmd = build_chart_command()
+    return {**cmd, "name": "c", "description": "Chart, short form: /c NVDA"}
+
+
+def build_settings_command() -> dict:
+    """`/chartsettings show|set|reset` - per-user defaults for /chart."""
+    tf_choices = [{"name": label, "value": value} for value, label in TF_LABEL.items()]
+    ma_choices = [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]
+    return {
+        "name": SETTINGS_COMMAND, "type": 1,
+        "description": "Your personal /chart defaults (timeframe, moving averages, volume, pre/post-market, stats)",
+        "options": [
+            {"name": "show", "type": 1, "description": "Show your current /chart settings"},
+            {"name": "set", "type": 1, "description": "Change one or more settings", "options": [
+                {"name": "tf", "type": 3, "required": False, "description": "Default timeframe", "choices": tf_choices},
+                {"name": "mas", "type": 3, "required": False, "description": "Moving averages", "choices": ma_choices},
+                {"name": "volume", "type": 5, "required": False, "description": "Show the volume pane"},
+                {"name": "ext", "type": 5, "required": False, "description": "Pre/post-market candles on intraday charts"},
+                {"name": "stats", "type": 5, "required": False, "description": "Show the stats strip (OHLC, gap, 52w, RVOL, ADR)"},
+            ]},
+            {"name": "reset", "type": 1, "description": "Back to the defaults"},
+        ],
+    }
+
+
+def build_commands() -> list:
+    """Every application command this bot registers (one authority)."""
+    return [build_chart_command(), build_alias_command(), build_settings_command()]
 
 
 def attachment_name(ticker: str, tf: str, last_t) -> str:
@@ -123,7 +185,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None) -> str:
+                  house_fn=None, prefs=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -135,7 +197,9 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
       4. only if that yields nothing: the timeframe's bars → the mplfinance
          `render_fn`. An unknown symbol therefore never pays for a render."""
     label = TF_LABEL[req.tf]
-    key = f"{req.ticker}:{req.tf}"
+    prefs = prefs or {}
+    options = prefs_mod.render_options(prefs)
+    key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
     try:
         hit = png_cache.get(key)
         if hit:
@@ -164,7 +228,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                 png = None
                 if house_fn is not None and daily:
                     try:
-                        png = house_fn(req.ticker, req.tf, compute_stats(daily))
+                        png = house_fn(req.ticker, req.tf, compute_stats(daily), options)
                     except Exception as e:  # noqa: BLE001
                         log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
                         png = None
@@ -174,8 +238,13 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                     bars = _fetch(req.tf, bars_to_request(req.tf))
                     if not bars:
                         return ("no_bars", None, None)
+                kw = {"daily_bars": daily if options["stats"] else None}
+                if prefs.get("mas") == "off":
+                    kw["show_mas"] = False
+                if prefs.get("volume") is False:
+                    kw["show_volume"] = False
                 try:
-                    png = render_fn(req.ticker, req.tf, bars, daily_bars=daily)
+                    png = render_fn(req.ticker, req.tf, bars, **kw)
                 except Exception as e:  # noqa: BLE001
                     log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
                     return ("render_failed", None, None)

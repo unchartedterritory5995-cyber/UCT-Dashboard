@@ -94,22 +94,32 @@ def _b64url(obj) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, token: str) -> str:
-    h = HOUSE_H + (STATS_STRIP_H if stats else 0)
+DEFAULT_OPTIONS = {"indicators": None, "ext": True, "stats": True}
+
+
+def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, token: str,
+                     options: dict | None = None) -> str:
+    """`options` = discord_chart_prefs.render_options(prefs): a partial
+    chart-settings override (`?indicators=`), and the ext / stats switches."""
+    opts = {**DEFAULT_OPTIONS, **(options or {})}
+    show_stats = bool(stats) and bool(opts["stats"])
+    h = HOUSE_H + (STATS_STRIP_H if show_stats else 0)
     params = {"sym": sym, "tf": tf, "w": HOUSE_W, "h": h}
     if tf not in ("D", "W", "M"):
         # Pre/post-market candles + session shading, exactly like the Charts
-        # widget with "Extended hours" on. Forced rather than inherited so a
+        # widget's Extended-hours switch. Explicit rather than inherited so a
         # bot chart never depends on whatever the saved setting happens to be.
-        params["ext"] = 1
+        params["ext"] = 1 if opts["ext"] else 0
     if token:
         params["token"] = token
-    if stats:
+    if show_stats:
         params["stats"] = _b64url(stats)
+    if opts.get("indicators"):
+        params["indicators"] = _b64url(opts["indicators"])
     return base_url.rstrip("/") + "/r/chart?" + urlencode(params)
 
 
-def render_house_chart(sym: str, tf: str, stats: dict | None, *, client=None) -> bytes | None:
+def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | None = None, *, client=None) -> bytes | None:
     """PNG bytes of the house chart, or None (unconfigured, renderer down,
     non-PNG body, any exception). Never raises."""
     renderer = os.environ.get("CHART_RENDERER_URL", "").strip().rstrip("/")
@@ -118,7 +128,7 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, *, client=None) ->
     secret = os.environ.get("CHART_RENDERER_SECRET", "")
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     base = os.environ.get("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
-    page_url = build_render_url(sym, tf, stats, base_url=base, token=token)
+    page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=options)
     try:
         import httpx
         own = client is None

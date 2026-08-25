@@ -15,6 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
 from api.services import discord_chart_house as house
+from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
 from api.services.discord_chart_render import render_chart_png
 
@@ -68,9 +69,12 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     itype = interaction.get("type")
     if itype == 1:
         return {"type": 1}
-    if itype == 2 and (interaction.get("data") or {}).get("name") == "chart":
+    name = (interaction.get("data") or {}).get("name")
+    if itype == 2 and name in di.CHART_COMMAND_NAMES:
+        uid = di.interaction_user_id(interaction)
+        prefs = _prefs_for(uid)
         try:
-            req = di.parse_chart_command(interaction)
+            req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
@@ -79,6 +83,41 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(di.run_chart_job, app_id, token, req,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
-                            house_fn=house.render_house_chart if house.house_enabled() else None)
+                            house_fn=house.render_house_chart if house.house_enabled() else None,
+                            prefs=prefs)
         return {"type": 5}
+    if itype == 2 and name == di.SETTINGS_COMMAND:
+        return _ephemeral(_settings_reply(interaction))
     return _ephemeral("Unknown command.")
+
+
+def _prefs_for(uid: str) -> dict:
+    """A member's saved /chart preferences; the defaults if unknown or the store misbehaves."""
+    if not uid:
+        return dict(prefs_mod.DEFAULTS)
+    try:
+        return prefs_mod.get_prefs(uid)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] prefs read failed for %s: %s", uid, e)
+        return dict(prefs_mod.DEFAULTS)
+
+
+def _settings_reply(interaction: dict) -> str:
+    uid = di.interaction_user_id(interaction)
+    if not uid:
+        return "Could not tell who you are; try again from a server channel."
+    try:
+        sub, changes = di.parse_settings_command(interaction)
+    except di.CommandError as e:
+        return str(e)
+    try:
+        if sub == "show":
+            return "Your /chart settings: " + prefs_mod.describe(prefs_mod.get_prefs(uid))
+        if sub == "reset":
+            return "Reset to defaults: " + prefs_mod.describe(prefs_mod.reset_prefs(uid))
+        return "Saved: " + prefs_mod.describe(prefs_mod.set_prefs(uid, **changes))
+    except ValueError as e:
+        return f"Not saved: {e}"
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] settings failed for %s: %s", uid, e)
+        return "Settings are unavailable right now, try again in a minute."

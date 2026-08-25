@@ -25,7 +25,7 @@ import httpx
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 
-from api.services.discord_interactions import DISCORD_API, build_chart_command  # noqa: E402
+from api.services.discord_interactions import DISCORD_API, build_commands  # noqa: E402
 
 
 def make_client(token: str, transport=None) -> httpx.Client:
@@ -44,7 +44,7 @@ def register(client: httpx.Client, app_id: str, guild_id: str | None, *, clear: 
     """PUT the command set. `guild_id=None` registers GLOBALLY (every server the
     app is installed in — the right choice when it lives in more than one);
     a guild id registers for that server only (instant, useful for testing)."""
-    body = [] if clear else [build_chart_command()]
+    body = [] if clear else build_commands()
     path = (f"/applications/{app_id}/commands" if guild_id is None
             else f"/applications/{app_id}/guilds/{guild_id}/commands")
     r = client.put(path, json=body)

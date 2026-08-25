@@ -265,7 +265,8 @@ def _stats_rows(st: dict):
     return row1, row2
 
 
-def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[dict] | None = None) -> bytes:
+def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[dict] | None = None,
+                     show_mas: bool = True, show_volume: bool = True) -> bytes:
     """Exact 1920x1080 PNG: header (title, MA legend, stats strip) over a
     candle pane and a volume pane with right-side axes and a last-price tag.
     `daily_bars` feeds the stats strip; without it the strip is omitted.
@@ -288,13 +289,17 @@ def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[di
         fig = plt.figure(figsize=FIGSIZE, dpi=DPI, facecolor=BASE)
         try:
             # External-axes mode: the header band above the panes is ours.
-            ax = fig.add_axes([0.035, 0.305, 0.905, 0.475])
-            vax = fig.add_axes([0.035, 0.085, 0.905, 0.195], sharex=ax)
+            if show_volume:
+                ax = fig.add_axes([0.035, 0.305, 0.905, 0.475])
+                vax = fig.add_axes([0.035, 0.085, 0.905, 0.195], sharex=ax)
+            else:
+                ax = fig.add_axes([0.035, 0.085, 0.905, 0.695])
+                vax = None
             addplots = [mpf.make_addplot(view[f"SMA{n}"], ax=ax, color=c, width=1.3)
-                        for n, c in _MAS if view[f"SMA{n}"].notna().any()]
-            if view["VolAvg"].notna().any():
+                        for n, c in _MAS if show_mas and view[f"SMA{n}"].notna().any()]
+            if vax is not None and view["VolAvg"].notna().any():
                 addplots.append(mpf.make_addplot(view["VolAvg"], ax=vax, color=_VOL_AVG_COLOR, width=1.1, alpha=0.85))
-            kwargs = dict(type="candle", ax=ax, volume=vax, style=_style(), xrotation=0,
+            kwargs = dict(type="candle", ax=ax, volume=vax if vax is not None else False, style=_style(), xrotation=0,
                           datetime_format="%b %d" if tf == "D" else "%b %y" if tf == "W" else "%m-%d %H:%M",
                           update_width_config=dict(candle_linewidth=1.1, candle_width=0.72,
                                                    volume_width=0.72, volume_linewidth=0.6))
@@ -310,23 +315,25 @@ def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[di
                         bbox=dict(boxstyle="round,pad=0.3", fc=tag_color, ec=tag_color),
                         annotation_clip=False)
             for a in (ax, vax):
+                if a is None:
+                    continue
                 a.set_facecolor(BASE)
                 a.tick_params(labelsize=12, colors=CREAM, length=3)
                 a.set_ylabel("")
-            ax.tick_params(labelbottom=False)
-            vax.set_ylabel("")
+            if vax is not None:
+                ax.tick_params(labelbottom=False)
 
             # Header band.
             _row(fig, 0.035, 0.975,
                  [(f"{ticker} · {TF_LABEL[tf]} · {last:,.2f}", GOLD, "bold"),
                   (fmt_pct(chg) if chg is not None else "", _dir_color(chg), "bold")], size=24, gap_px=16)
             legend = []
-            for n, c in _MAS:
+            for n, c in (_MAS if show_mas else ()):
                 val = view[f"SMA{n}"].iloc[-1]
                 if val == val:  # not NaN
                     legend += [(f"SMA{n}", c, "bold"), (f"{float(val):,.2f}", CREAM, "normal"), ("  ", CREAM, "normal")]
             va = view["VolAvg"].iloc[-1]
-            if va == va:
+            if show_volume and va == va:
                 legend += [("Avg Vol(50)", _VOL_AVG_COLOR, "bold"), (fmt_num(va), CREAM, "normal")]
             _row(fig, 0.035, 0.925, legend, size=13, gap_px=8)
             if row1:
