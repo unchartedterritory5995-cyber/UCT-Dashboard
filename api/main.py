@@ -2526,6 +2526,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
 
+    # Intraday New-High/New-Low accumulator (Charts "Situational Awareness"
+    # scanner). Single-writer background thread; folds one whole-market snapshot
+    # every few seconds into per-symbol HOD/LOD counters. No-ops unless
+    # NHNL_SCANNER_ENABLED=1.
+    try:
+        from api.services import nhnl_live
+        nhnl_live.start()
+        if nhnl_live.enabled():
+            logging.getLogger(__name__).info("[startup] nhnl_live accumulator started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] nhnl_live start failed")
+
     # Provider-coverage monitor (Task 22/23, 2026-08-05 data-dependability
     # migration) — generalizes fundamentals_monitor's detect->self-heal->alert
     # pattern to per-FIELD fill rate across research/earnings surfaces (the
@@ -5768,6 +5780,13 @@ async def lifespan(app: FastAPI):
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
+    try:
+        from api.services import nhnl_live
+        _nhnl_stop = getattr(nhnl_live, "stop", None)
+        if _nhnl_stop:
+            _nhnl_stop()
+    except Exception:
+        pass
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
@@ -5981,6 +6000,11 @@ app.include_router(news.router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
+# ── Intraday New-High / New-Low scanner (Charts "Situational Awareness" feed).
+# Paid, per-handler-gated like scans above. The accumulator thread it reads is
+# started in the lifespan below (dark behind NHNL_SCANNER_ENABLED).
+from api.routers import nhnl as nhnl_router
+app.include_router(nhnl_router.router)
 # ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
 # SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
 # filter branch; the freshness objection is answered by disclosure (each joined
