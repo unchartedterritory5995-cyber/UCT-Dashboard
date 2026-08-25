@@ -11,6 +11,7 @@ import AlertsWidget from './widgets/AlertsWidget'
 import CalendarWidget from './widgets/CalendarWidget'
 import OptionsFlowWidget from './widgets/OptionsFlowWidget'
 import PeriodSortWidget from './widgets/PeriodSortWidget'
+import NewHighsLowsWidget from './widgets/NewHighsLowsWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
@@ -52,6 +53,7 @@ export const WORKSPACE_WIDGETS = {
   calendar: { component: CalendarWidget, props: standardProps },
   optionsflow: { component: OptionsFlowWidget, props: standardProps },
   periodsort: { component: PeriodSortWidget, props: standardProps },
+  nhnl: { component: NewHighsLowsWidget, props: standardProps },
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {

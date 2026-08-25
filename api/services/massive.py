@@ -361,6 +361,59 @@ class _MassiveRestClient:
             }
         return out
 
+    def get_full_market_snapshot_hl(self) -> dict[str, dict]:
+        """Whole-market snapshot that ALSO carries today's running high/low.
+
+        `get_full_market_snapshot` deliberately drops the `day` OHLC (the gap-scan
+        it feeds only needs last/prev/volume). The intraday New-High/New-Low
+        accumulator (`nhnl_live`) needs `day.h`/`day.l` — today's running
+        high-of-day / low-of-day — to detect each fresh HOD/LOD print, so this
+        sibling extracts them (plus `min`/`lastTrade` for a future extended-session
+        pass). Same single all-tickers endpoint; provider-form ticker keys.
+
+        Per ticker:
+          last_price  — lastTrade.p (session-aware) -> day.c -> prevDay.c
+          prev_close  — prevDay.c
+          prev_vol    — prevDay.v (stable liquidity, for the tradability floor)
+          today_vol   — day.v
+          day_high    — day.h (today's RTH running high; 0 pre-open)
+          day_low     — day.l (today's RTH running low; 0 pre-open)
+          day_open    — day.o
+          min_c       — min.c (current minute close; extended-session aware)
+        Returns {} on error.
+        """
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"?apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return {}
+        out: dict[str, dict] = {}
+        for t in data.get("tickers", []):
+            ticker = t.get("ticker", "")
+            if not ticker:
+                continue
+            day      = t.get("day", {})
+            prev_day = t.get("prevDay", {})
+            last     = t.get("lastTrade", {})
+            minute   = t.get("min", {})
+            last_price = float(last.get("p") or day.get("c") or prev_day.get("c") or 0.0)
+            out[ticker] = {
+                "last_price": round(last_price, 4),
+                "prev_close": round(float(prev_day.get("c") or 0.0), 4),
+                "prev_vol":   int(prev_day.get("v") or 0),
+                "today_vol":  int(day.get("v") or 0),
+                "day_high":   round(float(day.get("h") or 0.0), 4),
+                "day_low":    round(float(day.get("l") or 0.0), 4),
+                "day_open":   round(float(day.get("o") or 0.0), 4),
+                "day_c":      round(float(day.get("c") or 0.0), 4),      # RTH close (for ext-price staleness check)
+                "min_c":      round(float(minute.get("c") or 0.0), 4),   # current minute close (ext-hours aware)
+                "last_trade_p": round(float(last.get("p") or 0.0), 4),   # raw lastTrade.p (ext-hours print)
+            }
+        return out
+
 
 def _get_client() -> _MassiveRestClient:
     """Return a shared _MassiveRestClient instance, initializing on first call."""

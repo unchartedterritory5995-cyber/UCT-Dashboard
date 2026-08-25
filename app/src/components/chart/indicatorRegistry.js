@@ -535,7 +535,11 @@ export function listIndicators(settings, opts = {}) {
     group: 'Moving averages',
     fields: MA_FIELDS,
     path: { kind: 'overlay', index },
-    values: ov || {},
+    // Force `onTop` to a strict boolean so the "Overlap candles" toggle reads
+    // right: its renderer treats `val !== false` as ON, so a stored overlay that
+    // predates this key (onTop === undefined) would show ON yet a click would
+    // write `false` — the toggle could never reach `true`. Default it to false.
+    values: { ...(ov || {}), onTop: !!(ov && ov.onTop) },
     canToggle: true,
   }))
   rows.push({

@@ -14,6 +14,7 @@ import { mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
 import { mergeAlertsWidgetSettings } from './widgets/alertsWidgetSettings'
 import { mergeCalendarWidgetSettings } from './widgets/calendarWidgetSettings'
 import { mergeOptionsFlowWidgetSettings } from './widgets/optionsFlowWidgetSettings'
+import { mergeNhnlSettings } from './widgets/nhnlSettings'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { sanitizeChartTabs } from './chartTabs'
 import { resolveActiveTab } from './widgetTabs'
@@ -92,12 +93,13 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow') {
+  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl') {
     const mergeFn = surrogate.type === 'news'
       ? mergeNewsWidgetSettings
       : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
         : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings
-          : surrogate.type === 'optionsflow' ? mergeOptionsFlowWidgetSettings : mergeProfileWidgetSettings
+          : surrogate.type === 'optionsflow' ? mergeOptionsFlowWidgetSettings
+            : surrogate.type === 'nhnl' ? mergeNhnlSettings : mergeProfileWidgetSettings
     const own = simpleOwnCanvas(surrogate.opts?.settings, mergeFn)
     if (!own) return null
     const entry = canvasEntry(own.canvas)

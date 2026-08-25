@@ -424,6 +424,23 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // the data replays; the renderer (full Watchlists page) does not
     liveCapable: false,
   },
+  nhnl: {
+    // First "Situational Awareness" tool: live intraday New-High / New-Low
+    // twin-panel scanner. Wants width (two columns) and height (event logs).
+    labels: { header: 'New Highs / Lows', menu: 'New Highs / Lows', tab: 'NH / NL' },
+    defaults: { w: 8, h: 12, minW: 3, minH: 5 },
+    placement: { family: 'panel', fill: 'wide' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'minPrice', type: 'number', default: 0 },
+      { key: 'minCount', type: 'number', default: 1 },
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: () => '[new highs / lows]',
+    reconstructable: false,                     // a live event stream at a past instant is not replayable
+    liveCapable: false,
+  },
 })
 
 // Registry ids in declaration order — this order IS the menu order.
