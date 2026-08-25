@@ -20,7 +20,8 @@ function Row({ label, hint, children }) {
   )
 }
 
-export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
+  title = 'Highs / Lows Settings', showLogos = null, onToggleLogos = null }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)
@@ -111,7 +112,7 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> Highs / Lows Settings</span>
+          <span className={styles.title}><UIcon name="gear" size={13} /> {title}</span>
           <div className={styles.headRight}>
             <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore settings to defaults">↺ Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
@@ -119,6 +120,19 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
         </div>
 
         <div className={styles.body}>
+          {showLogos !== null && onToggleLogos && (
+            <>
+              <div className={styles.sectionLabel}>Display</div>
+              <Row label="Logos" hint="company logo by ticker">
+                <div className={styles.seg}>
+                  <button className={`${styles.segBtn}${showLogos ? ' ' + styles.segBtnOn : ''}`}
+                    onClick={() => onToggleLogos(true)}>On</button>
+                  <button className={`${styles.segBtn}${!showLogos ? ' ' + styles.segBtnOn : ''}`}
+                    onClick={() => onToggleLogos(false)}>Off</button>
+                </div>
+              </Row>
+            </>
+          )}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
             <div className={styles.seg}>

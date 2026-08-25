@@ -8,6 +8,8 @@ vi.mock('../../../hooks/useMobileSWR', () => ({ default: (...a) => swr(...a) }))
 const setGroupSym = vi.fn()
 vi.mock('../WorkspaceContext', () => ({ useWorkspace: () => ({ setGroupSym }) }))
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (_v, d) => d }))
+// Stub the logo (real one fetches + sets timers) so we can assert on/off cleanly.
+vi.mock('../../../components/CompanyLogo', () => ({ default: ({ sym }) => <i data-logo={sym} /> }))
 
 import VolumeScanWidget from './VolumeScanWidget'
 
@@ -41,6 +43,14 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
     expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
+  })
+
+  it('shows company logos by default, and hides them when showLogos is off', () => {
+    swr.mockReturnValue({ data: LIVE })
+    const { container, rerender } = render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(container.querySelector('[data-logo="SMCI"]')).toBeInTheDocument()   // default on
+    rerender(<VolumeScanWidget color="A" opts={{ showLogos: false }} onOptsChange={() => {}} />)
+    expect(container.querySelector('[data-logo="SMCI"]')).not.toBeInTheDocument()
   })
 
   it('clicking a row routes the symbol into the widget color group', () => {

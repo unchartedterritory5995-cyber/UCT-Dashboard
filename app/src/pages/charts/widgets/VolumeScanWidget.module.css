@@ -46,8 +46,18 @@
   line-height: 1.25;
   overflow: hidden;
 }
-.row > .sym,
+.row > .symCell,
 .row > .surge { position: relative; z-index: 1; }
+
+/* Symbol column = optional company logo + ticker, kept tight so it stays thin. */
+.symCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.symCell :global(img),
+.symCell > span:first-child:not(.sym) { flex: 0 0 auto; }
 
 .sym {
   font-family: var(--font-sans);

@@ -23,6 +23,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
+import CompanyLogo from '../../../components/CompanyLogo'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
@@ -69,7 +70,7 @@ function TickFlash({ price, dir }) {
 // ranked by RVOL (lit first); a name that MEETS the criteria lights the WHOLE row
 // in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
 // each price tick the row flashes. Clicking charts the ticker.
-function Row({ e, onPick }) {
+function Row({ e, onPick, logos }) {
   const cls = e.lit ? `${styles.lit} ${styles['t' + (e.tier || 1)]}` : styles.unlit
   return (
     <button
@@ -80,7 +81,10 @@ function Row({ e, onPick }) {
       title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <TickFlash price={e.price} dir={e.dir} />
-      <span className={styles.sym}>{e.sym}</span>
+      <span className={styles.symCell}>
+        {logos && <CompanyLogo sym={e.sym} size={15} round />}
+        <span className={styles.sym}>{e.sym}</span>
+      </span>
       <span className={styles.surge}>{e.rvol}×</span>
     </button>
   )
@@ -133,12 +137,15 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   // server pick a session-aware default (thinner for pre/post).
   const minDollarK = opts?.minDollarK == null ? '' : Number(opts.minDollarK)
 
+  const showLogos = opts?.showLogos !== false   // company logos next to tickers (default on)
+
   const onPick = useCallback((sym) => {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
   const commitRvol = useCallback((v) => onOptsChange?.({ ...opts, minRvol: v }), [opts, onOptsChange])
   const commitMove = useCallback((v) => onOptsChange?.({ ...opts, minMove: v }), [opts, onOptsChange])
   const commitDollar = useCallback((v) => onOptsChange?.({ ...opts, minDollarK: v }), [opts, onOptsChange])
+  const toggleLogos = useCallback((v) => onOptsChange?.({ ...opts, showLogos: v }), [opts, onOptsChange])
 
   // Appearance settings — same per-widget model + ⚙ panel as the NH/NL scanner.
   const placedTheme = usePlacedTheme(opts?.placedTheme)
@@ -185,6 +192,9 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           gearEl={gearRef.current}
           hostEl={rootRef.current}
           themeVars={panelThemeVars}
+          title="Volume Surge Settings"
+          showLogos={showLogos}
+          onToggleLogos={toggleLogos}
         />
       )}
       <div className={chrome.toolbar}>
@@ -229,7 +239,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           {rows.length === 0 ? (
             <div className={styles.none}>Warming up… (baselines build over the first minute)</div>
           ) : (
-            rows.map((e) => <Row key={e.sym} e={e} onPick={onPick} />)
+            rows.map((e) => <Row key={e.sym} e={e} onPick={onPick} logos={showLogos} />)
           )}
         </div>
       )}
