@@ -341,19 +341,23 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 
 def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
              min_rvol: float = None, min_move: float = None, min_liq: float = None,
-             min_dollar: float = None) -> dict:
-    """Ranked relative-volume leaderboard for the endpoint.
+             min_dollar: float = None, show_all: bool = False) -> dict:
+    """Relative-volume leaderboard for the endpoint.
 
-    ONE row per symbol, ranked by `score` (rvol × move-weight) DESCENDING — the
-    top row is the strongest sustained relative-volume surge that is actually
-    moving. Rows carry `rvol` (the headline × number), `move` (% over the price
-    window), `pct` (session % change), and a colour `tier` (by rvol).
+    Two modes:
+      show_all=False → only the names that MEET the surge criteria, ranked by score
+                       (rvol × move-weight) — a tight "what's surging now" list.
+      show_all=True  → the WHOLE tradable top-N universe, ranked by RVOL descending,
+                       each row carrying a `lit` flag = does it meet the criteria.
+                       The UI shows every name but colours only the lit ones (so you
+                       always see the ranking, and the colour tells you what's real).
 
-    Filters (all default to the module tunables, overridable per request):
+    The gates that make a row `lit` (and that filter the show_all=False list):
       min_price / max_price  price band ($1–$250, like Trade Ideas)
       min_liq                prev-day volume floor (the "avg vol > 100k" gate)
       min_rvol               relative-volume floor (the surge gate)
       min_move               |move| floor over the price window (the dark-pool gate)
+      min_dollar             now-window $-volume floor (the illiquid-noise gate)
     """
     window = "rth" if _demo() else _active_window(_now_et())
     mnp = _DEFAULT_MIN_PRICE if min_price is None else min_price
@@ -372,27 +376,34 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     except (TypeError, ValueError):
         limit = 100
 
+    def _is_lit(m):
+        return (m["rvol"] >= mnr and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd)
+
     with _lock:
         asof = _state["asof"]
         session_date = _state["date"]
         ticks = _state["ticks"]
-        rows = []
+        rows = []   # (sym, m, lit)
         for sym, st in _state["syms"].items():
             m = st.get("m")
             if not m:
                 continue
+            # The price/liquidity band defines the tradable universe — applied in
+            # BOTH modes (an un-tradable name is never shown, lit or not).
             if not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
                 continue
-            if m["rvol"] < mnr or abs(m["move"]) < mnm:
+            lit = _is_lit(m)
+            if not show_all and not lit:
                 continue
-            if m.get("dvol", 0) < mnd:           # illiquid now-window (the "50× of nothing" gate)
-                continue
-            rows.append((sym, m))
+            rows.append((sym, m, lit))
 
-    rows.sort(key=lambda r: r[1]["score"], reverse=True)
-    total = len(rows)
+    if show_all:
+        rows.sort(key=lambda r: r[1]["rvol"], reverse=True)   # always ranked by RVOL
+    else:
+        rows.sort(key=lambda r: r[1]["score"], reverse=True)  # tight list by surge score
+    lit_total = sum(1 for _s, _m, lit in rows if lit)
     out = []
-    for sym, m in rows[:limit]:
+    for sym, m, lit in rows[:limit]:
         out.append({
             "sym": sym,
             "price": round(m["price"], 2),
@@ -403,6 +414,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "dvol": m.get("dvol", 0),   # $ traded in the now-window (tooltip)
             "score": m["score"],
             "tier": _tier(m["rvol"]),
+            "lit": lit,                 # meets the surge criteria → gets colour
         })
     return {
         "window": window,             # rth | pre | post | closed
@@ -410,7 +422,8 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         "asof": asof,
         "ticks": ticks,
         "active": window != "closed" and _running and (enabled() or _demo()),
-        "total": total,               # qualifying names (header count)
+        "total": lit_total,           # names MEETING the criteria (header count)
+        "shown": len(out),            # rows returned (whole top-N when show_all)
         "universe_top": _top_n(),     # scanning the N most-liquid names
         "filters": {"min_price": mnp, "max_price": mxp, "min_liq": mnl,
                     "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd},

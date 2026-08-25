@@ -14,6 +14,11 @@
   color: var(--ut-gold);
   white-space: nowrap;
 }
+.headCount {
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 .headCols {
   display: grid;
   grid-template-columns: 46px 54px 44px;
@@ -98,10 +103,20 @@
   background: #f0a53a;
   box-shadow: 0 0 6px rgba(240, 165, 58, 0.6);
 }
-.t1 .rvol { color: var(--nh-text, var(--wl-text, var(--text-muted))); }
+.t1 .rvol { color: var(--nh-sym, var(--wl-sym, var(--text-bright))); }
 .t2 .rvol { color: rgba(201, 168, 76, 0.9); }
 .t3 .rvol { color: var(--ut-gold, #c9a84c); }
 .t4 .rvol { color: #f7b24a; }
+
+/* Unlit rows: every top-N name is shown ranked by RVOL, but names that don't meet
+   the criteria are dimmed to grey (no rail colour, muted text) so the coloured
+   signals pop and the greyed ones read as "elevated number, not actionable". */
+.unlit { opacity: 0.72; }
+.unlit .rail { background: transparent; }
+.unlit .sym { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 500; }
+.unlit .rvol { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 600; }
+.unlit .move { color: var(--nh-text, var(--wl-text, var(--text-muted))); }
+.unlit:hover { opacity: 1; }
 
 .none {
   padding: 22px 16px;

@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import threading
+import time
 from typing import Callable, Iterable, Optional
 
 _logger = logging.getLogger(__name__)
@@ -53,6 +54,17 @@ _trade_listeners: list = []             # list[Callable[[str, dict], None]]
 _ws_loop: Optional[asyncio.AbstractEventLoop] = None
 _ws_connection = None
 _running = False
+
+# ── Feed-load instrumentation (measurement-only, zero effect on the feed) ──────
+# Per-channel message + byte counters so we can measure the REAL cost of the live
+# feed (and project what adding an A.* aggregate consumer for the volume scanner
+# would add) without a second connection or any subscription change. Incremented
+# on the WS thread; read via get_status(). Plain ints (GIL-atomic enough for a
+# monitor); reset_feed_counters() starts a clean measurement window.
+_feed_counts = {"A": 0, "AM": 0, "T": 0}
+_feed_bytes = 0
+_feed_frames = 0
+_feed_since = time.time()
 
 OnBarCallback = Callable[[str, dict, str], None]  # (symbol, payload_dict, kind) -> None
 # kind is "AM" (authoritative 1-min close), "A" (per-second aggregate), or "T" (per-trade tick)
@@ -199,7 +211,7 @@ def _build_auth_message(api_key: str) -> str:
 
 async def _run_websocket(on_bar: OnBarCallback) -> None:
     """Main reconnect loop. Returns only when the process exits."""
-    global _ws_connection, _running
+    global _ws_connection, _running, _feed_bytes, _feed_frames
     import websockets
 
     if not _API_KEY:
@@ -268,6 +280,12 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
                 try:
                     async for raw_msg in ws:
+                        # Measurement: frame size + count (cheap; monitoring only).
+                        try:
+                            _feed_bytes += len(raw_msg)
+                            _feed_frames += 1
+                        except Exception:
+                            pass
                         try:
                             payload = json.loads(raw_msg)
                         except json.JSONDecodeError:
@@ -275,6 +293,10 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                         # Massive frames messages as a JSON array of events
                         events = payload if isinstance(payload, list) else [payload]
                         for ev in events:
+                            if isinstance(ev, dict):
+                                _ec = ev.get("ev")
+                                if _ec in _feed_counts:
+                                    _feed_counts[_ec] += 1
                             parsed = parse_aggregate_event(ev)
                             if parsed is None:
                                 # Status events: routine per-subscription "success"
@@ -422,12 +444,40 @@ def get_active_symbols() -> list[str]:
         return sorted(_active)
 
 
+def reset_feed_counters() -> None:
+    """Start a clean measurement window (per-channel counts + bytes)."""
+    global _feed_bytes, _feed_frames, _feed_since
+    for k in _feed_counts:
+        _feed_counts[k] = 0
+    _feed_bytes = 0
+    _feed_frames = 0
+    _feed_since = time.time()
+
+
 def get_status() -> dict:
+    with _state_lock:
+        active_n = len(_active)
+    elapsed = max(1e-6, time.time() - _feed_since)
+    total_msgs = sum(_feed_counts.values())
     return {
         "connected": _running,
         "ws_url": _WS_URL,
-        "active_count": len(_active),
+        "active_count": active_n,
         "active_symbols": sorted(_active)[:50],
+        # Feed-load measurement over the current window (since boot / last reset).
+        "feed": {
+            "window_secs": round(elapsed, 1),
+            "active_symbols": active_n,
+            "frames": _feed_frames,
+            "bytes": _feed_bytes,
+            "bytes_per_sec": round(_feed_bytes / elapsed),
+            "msgs": dict(_feed_counts),
+            "msgs_per_sec": {k: round(v / elapsed, 1) for k, v in _feed_counts.items()},
+            "total_msgs_per_sec": round(total_msgs / elapsed, 1),
+            # Per-symbol A-rate (the aggregate channel the volume push would use) —
+            # the number to project the 300-name cost from.
+            "a_msgs_per_sym_per_sec": round(_feed_counts["A"] / elapsed / active_n, 3) if active_n else None,
+        },
     }
 
 

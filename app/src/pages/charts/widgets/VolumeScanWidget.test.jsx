@@ -15,10 +15,12 @@ const TS = '2026-08-25T13:26:04-04:00'
 const LIVE = {
   window: 'rth',
   asof: TS,
-  total: 2,
+  total: 2,           // 2 names MEET the criteria (lit)…
+  shown: 3,           // …but all 3 top-N names are shown
   rows: [
-    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, move: 5.2, dir: 'up', score: 28.5, tier: 4 },
-    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, move: -3.1, dir: 'down', score: 11.1, tier: 2 },
+    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, move: 5.2, dir: 'up', score: 28.5, tier: 4, lit: true },
+    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, move: -3.1, dir: 'down', score: 11.1, tier: 2, lit: true },
+    { sym: 'AAPL', price: 224.5, pct: 0.2, rvol: 1.2, move: 0.1, dir: 'up', score: 0.5, tier: 1, lit: false },
   ],
 }
 
@@ -28,14 +30,15 @@ beforeEach(() => {
 })
 
 describe('VolumeScanWidget', () => {
-  it('renders surging symbols with their relative-volume headline', () => {
+  it('shows every top-N name (lit + unlit), with the surging count in the header', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByText('RELATIVE VOLUME')).toBeInTheDocument()
+    expect(screen.getByText(/RELATIVE VOLUME/)).toBeInTheDocument()
+    expect(screen.getByText(/2 surging/)).toBeInTheDocument()   // lit count in header
     expect(screen.getByText('SMCI')).toBeInTheDocument()
-    expect(screen.getByText('11.4×')).toBeInTheDocument()   // RVOL headline
-    expect(screen.getByText('PLUG')).toBeInTheDocument()
-    expect(screen.getByText('4.3×')).toBeInTheDocument()
+    expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL headline
+    expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
+    expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })
 
   it('clicking a row routes the symbol into the widget color group', () => {
@@ -55,9 +58,10 @@ describe('VolumeScanWidget', () => {
     expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minRvol: 5, minMove: 0.25 }))
   })
 
-  it('the live poll URL carries the persisted filters', () => {
+  it('the live poll URL requests the whole universe and carries the persisted filters', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{ minRvol: 3, minMove: 0.5 }} onOptsChange={() => {}} />)
+    expect(swr.mock.calls[0][0]).toContain('show_all=1')
     expect(swr.mock.calls[0][0]).toContain('min_rvol=3')
     expect(swr.mock.calls[0][0]).toContain('min_move=0.5')
   })

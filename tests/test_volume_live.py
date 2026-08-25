@@ -192,6 +192,35 @@ def test_scans_only_the_top_liquid_names(monkeypatch):
     assert _row(rows, "SMALL") is None
 
 
+def test_show_all_lists_the_whole_universe_ranked_by_rvol_with_lit_flags(monkeypatch):
+    monkeypatch.setattr(volume_live, "_universe_map", lambda: {"HOT": "HOT", "QUIET": "QUIET"})
+    seq = {}
+    for t in range(0, 46):
+        # HOT: quiet baseline then a surge+move (lit). QUIET: steady volume, flat
+        # price the whole time (rvol ~1, no move) → shown but NOT lit.
+        if t <= 36:
+            hot_cv, hot_px = 100 * t, 10.0
+        else:
+            hot_cv, hot_px = 3600 + 1000 * (t - 36), 10.0 + 0.15 * (t - 36)
+        seq[t] = {
+            "HOT":   {"min_av": hot_cv, "last_price": hot_px, "prev_close": 10.0, "prev_vol": 1_000_000},
+            "QUIET": {"min_av": 100 * t, "last_price": 50.0, "prev_close": 50.0, "prev_vol": 1_000_000},
+        }
+    _feed(seq)
+
+    out = volume_live.get_live(show_all=True, min_dollar=0)
+    rows = out["rows"]
+    syms = [r["sym"] for r in rows]
+    assert "HOT" in syms and "QUIET" in syms          # the WHOLE universe is shown
+    assert syms[0] == "HOT"                            # ranked by RVOL (HOT surging → top)
+    assert _row(rows, "HOT")["lit"] is True            # meets the criteria → coloured
+    assert _row(rows, "QUIET")["lit"] is False         # steady/flat → shown grey, not lit
+    assert out["total"] == 1                           # header counts only the lit names
+    # show_all=False keeps the tight list — only the lit name comes back.
+    tight = [r["sym"] for r in volume_live.get_live(show_all=False, min_dollar=0)["rows"]]
+    assert tight == ["HOT"]
+
+
 def test_closed_window_serves_no_rows():
     volume_live._tick_once({}, "closed", "2026-08-25", _NOW, 0.0)
     out = volume_live.get_live()

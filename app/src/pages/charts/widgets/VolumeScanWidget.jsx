@@ -51,22 +51,25 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
-// A single surge row. RVOL is the headline (colour-tiered); the move column is the
-// short-window price change that the volume is driving (green up / red down); price
-// is the tradable level. Clicking charts the ticker.
+// A single row. Every top-N name is shown, always ranked by RVOL; only names that
+// MEET the surge criteria (`lit`) are coloured — the rest are dimmed to grey, so the
+// ranking is always visible but the colour tells you what's an actual signal. RVOL
+// is the headline (colour-tiered), the move column is the short-window price change,
+// price is the tradable level. Clicking charts the ticker.
 function Row({ e, onPick }) {
+  const cls = e.lit ? styles['t' + (e.tier || 1)] : styles.unlit
   return (
     <button
       type="button"
       role="listitem"
-      className={`${styles.row} ${styles['t' + (e.tier || 1)]}`}
+      className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
-      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}`}
+      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <span className={styles.rail} aria-hidden="true" />
       <span className={styles.sym}>{e.sym}</span>
       <span className={styles.price}>{fmtPrice(e.price)}</span>
-      <span className={`${styles.move} ${e.dir === 'up' ? styles.up : styles.down}`}>
+      <span className={`${styles.move} ${e.lit ? (e.dir === 'up' ? styles.up : styles.down) : ''}`}>
         {e.dir === 'up' ? '▲' : '▼'}{fmtPct(e.move).replace('+', '')}
       </span>
       <span className={styles.rvol}>{e.rvol}×</span>
@@ -147,7 +150,8 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
 
   const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
     ? `&min_dollar=${Math.round(minDollarK * 1000)}` : ''
-  const url = `/api/volume-scan/live?limit=150&min_rvol=${minRvol}&min_move=${minMove}${dollarQ}`
+  // Show the whole top-N universe (ranked by RVOL); the criteria only decide colour.
+  const url = `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_move=${minMove}${dollarQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
@@ -208,7 +212,9 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
       ) : (
         <div className={chrome.rows} role="list">
           <div className={`${chrome.sideHead} ${styles.head}`}>
-            <span className={styles.headTitle}>RELATIVE VOLUME</span>
+            <span className={styles.headTitle}>
+              RELATIVE VOLUME{total > 0 ? <span className={styles.headCount}> · {total} surging</span> : ''}
+            </span>
             <span className={styles.headCols}>
               <span className={styles.hcPrice}>PRICE</span>
               <span className={styles.hcMove}>MOVE</span>
@@ -216,7 +222,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
             </span>
           </div>
           {rows.length === 0 ? (
-            <div className={styles.none}>No volume surges right now.</div>
+            <div className={styles.none}>Warming up… (baselines build over the first minute)</div>
           ) : (
             rows.map((e) => <Row key={e.sym} e={e} onPick={onPick} />)
           )}
