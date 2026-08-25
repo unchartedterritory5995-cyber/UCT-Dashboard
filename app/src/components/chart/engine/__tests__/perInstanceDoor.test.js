@@ -280,6 +280,9 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // 2026-08-24: re-pinned for the graphite default palette retune — color
       // VALUE edits only (candles/volume/earnings → app --gain/--loss, canvas →
       // graphite #17181a); zero keys added/removed, structure byte-identical.
-      .toBe('795af39d18eaebd2056a06ce210f3e109cd2d01f72198a66b405a5f4984a9f64')
+      // 2026-08-24: re-pinned for the per-MA `onTop` z-order setting — each of the
+      // five overlays gains one additive default-off key `onTop:false` (behind the
+      // candles = prior behavior); nothing else moves.
+      .toBe('a2350c9f543ccccaccb148bc61cb89c9256228aab9e7a38b36d6fceff529d716')
   })
 })

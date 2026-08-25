@@ -99,15 +99,18 @@ export const CHART_DEFAULTS = {
   // re-keys every point; plotStyle swaps the LWC series type). The Indicators tab
   // shows them disabled rather than pretending they work.
   overlays: [
-    { enabled: true, type: 'EMA', period: 9,   color: '#4ade80', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
-    { enabled: true, type: 'EMA', period: 20,  color: '#f472b6', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
-    { enabled: true, type: 'SMA', period: 50,  color: '#60a5fa', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
-    { enabled: true, type: 'SMA', period: 200, color: '#fb923c', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    // `onTop`: false = the MA line sits BEHIND the candles (default); true = it
+    // overlaps / draws in FRONT of them. Applied via LWC's per-series z-order
+    // (setSeriesOrder) in StockChart — see the "Per-MA z-order" block.
+    { enabled: true, type: 'EMA', period: 9,   color: '#4ade80', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
+    { enabled: true, type: 'EMA', period: 20,  color: '#f472b6', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
+    { enabled: true, type: 'SMA', period: 50,  color: '#60a5fa', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
+    { enabled: true, type: 'SMA', period: 200, color: '#fb923c', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
     // APPENDED, never inserted: mergeChartSettings merges overlays POSITIONALLY, so
     // inserting a slot would shift every stored blob's overlays by one (a user's EMA 9
     // would silently become an SMA 5). New slots go on the end. This is the SMA 5 that
     // used to be the hardcoded `showSma5` prop, now a real editable overlay.
-    { enabled: true, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
   ],
 
   volume: {

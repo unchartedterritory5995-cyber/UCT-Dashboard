@@ -282,8 +282,13 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // --loss (#2faf68/#df4646), background #0e0f0d → graphite #17181a, earnings
   // beat/miss + ipo markers to the same. ZERO keys added or removed, so the tree
   // structure is byte-identical; the digest shifts only by those recoloured values.
+  // 2026-08-24: re-pinned for the per-MA `onTop` z-order setting. INVESTIGATED:
+  // every overlay gains exactly one additive key `onTop:false` (line behind the
+  // candles = the prior behavior) and nothing else moves — a default-off field no
+  // renderer reads unless the user toggles it, so no pixel moves; the digest shifts
+  // only by that additive field on each of the five overlays.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '541eae7614661a415b21c1e1e18f4cb4ef56397d7d8e941b971d22adc8b75502'
+    '50e2df2e40084f40c8236ea407f41611da8c37254fbe557be79d7d0141ed39b8'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
