@@ -38,7 +38,13 @@ function makeOption(series) {
   const lows = series.map(p => [new Date(p.t).getTime(), p.lo])
   const axisText = { color: '#8a8a90', fontSize: 9.5, fontFamily: CHART_FONT_FAMILY }
   return {
-    animation: false,
+    // Glide on update: each ~5s data change eases in over ~4.5s (linear) instead of
+    // snapping, so the lines drift smoothly rather than jumping.
+    animation: true,
+    animationDuration: 600,
+    animationDurationUpdate: 4500,
+    animationEasing: 'cubicOut',
+    animationEasingUpdate: 'linear',
     grid: { left: 6, right: 12, top: 24, bottom: 22, containLabel: true },
     legend: {
       data: ['New Highs', 'New Lows'],
@@ -81,8 +87,8 @@ export default function NhnlPulseWidget({ opts }) {
   const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
 
   const { data } = useMobileSWR('/api/nhnl/series', fetcher, {
-    refreshInterval: 5000,       // the chart doesn't need the scanner's 2s cadence
-    dedupingInterval: 3000,
+    refreshInterval: 3000,       // pull new ~5s points promptly; the chart glides between
+    dedupingInterval: 2000,
     marketHoursOnly: true,
     revalidateOnFocus: false,
   })

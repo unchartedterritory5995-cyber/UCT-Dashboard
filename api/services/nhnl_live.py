@@ -52,7 +52,8 @@ _log = logging.getLogger(__name__)
 
 # ── Tunables (env-overridable) ────────────────────────────────────────────────
 _RING_MAX = 600          # rolling event buffer per side is drawn from this
-_SERIES_MAX = 4000       # H/L Pulse time-series points (16h @ 15s ≈ 3840)
+_SERIES_MAX = 2880       # H/L Pulse points — rolling ~4h at 5s (fine enough to glide,
+                         # small enough to poll cheaply)
 _DEFAULT_TICK_SECONDS = 3.0
 _EPS = 1e-6              # float-noise guard for the high-water-mark compare
 _THEME_EPS = 1e-6       # theme-index level move needed to count a new high/low
@@ -86,7 +87,8 @@ _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 # (one batch spike per minute + three empty samples); a trailing WINDOW always spans a
 # full minute-batch, so it stays continuous. Bump _SERIES_METRIC to drop old-shaped
 # stored series.
-_SAMPLE_SECS = 15.0
+_SAMPLE_SECS = 5.0                   # append a point every ~5s so the line moves in small,
+                                     # frequent steps the client can glide between
 _DEFAULT_SERIES_WINDOW_SECS = 90.0   # "active" = made a new high/low within this window
 _SERIES_METRIC = "window_v2"
 _last_sample = 0.0
