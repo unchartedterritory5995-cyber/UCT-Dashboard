@@ -85,7 +85,7 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
             : (target ? () => onPick(target) : undefined)
           const tip = groupView
             ? `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} · click to drill in`
-            : `${e.sym} — ${tone === 'up' ? 'new high' : 'new low'} #${e.count}${e.ts ? ` at ${fmtTime(e.ts)}` : ''}`
+            : `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} today`
           return (
             <button
               type="button"
@@ -103,9 +103,8 @@ function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
               />
               <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
               <span className={styles.sym}>{e.sym}</span>
-              {/* Group rows: no price/time — hand that width to the (long) group name. */}
+              {/* Stock rows: ticker · price · count. Group rows: name · count (no price). */}
               {!groupView && <span className={styles.price}>{fmtPrice(e.price)}</span>}
-              {!groupView && <span className={styles.time}>{fmtTime(e.ts)}</span>}
               <span className={styles.count}>{e.count}</span>
             </button>
           )
