@@ -8,11 +8,16 @@
   flex-direction: column;
   align-items: center;
   padding: 10px 0;
-  position: sticky;
+  /* Overlay, not a flex child: the rail sits over the reserved 60px gutter and
+     expands rightward OVER the content on hover, so the page never reflows while
+     it opens (buttery-smooth on heavy pages, not just canvas ones). */
+  position: absolute;
+  left: 0;
   top: 0;
-  height: 100vh;
+  bottom: 0;
   overflow: hidden;
   transition: width 0.2s ease;
+  will-change: width;
   z-index: 100;
 }
 .nav:hover {

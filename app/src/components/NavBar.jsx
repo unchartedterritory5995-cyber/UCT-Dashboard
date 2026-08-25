@@ -13,9 +13,9 @@ const fetcher = (url) =>
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
+  { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
-  { to: '/charts',       label: 'Charts',        icon: 'equity' },
   { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },

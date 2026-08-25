@@ -1,5 +1,6 @@
 .shell {
   display: flex;
+  position: relative;  /* anchor the overlay sidebar */
   height: 100vh;
   height: 100dvh;  /* iOS Safari dynamic viewport */
   overflow: hidden;
@@ -7,6 +8,12 @@
 .main {
   flex: 1;
   min-width: 0;
+  /* Reserve the 60px nav rail as a fixed gutter. The sidebar is an OVERLAY
+     (position:absolute) that expands OVER this content on hover, so .main never
+     reflows during the expand — that's what keeps the hover-open buttery smooth
+     even on heavy pages like the Breadth table (the push-based layout forced a
+     full relayout of the table every animation frame). */
+  margin-left: 60px;
   overflow-y: auto;
   background: var(--bg);
 }
@@ -17,6 +24,8 @@
     flex-direction: column;
   }
   .main {
+    /* Desktop sidebar is hidden here — drop the rail gutter. */
+    margin-left: 0;
     /* Space for the fixed top header bar and the fixed bottom tab bar.
        Heights come from tokens.css (--mobile-topbar-h / --mobile-tabbar-h) so a
        route that must size itself against this shell subtracts the SAME values
