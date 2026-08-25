@@ -12,12 +12,15 @@
   font-family: var(--font-sans);
 }
 
-/* ── Toolbar (mirrors the Watchlist .listHeader strip) ────────────────────── */
+/* ── Toolbar — locked to the Watchlist list-title bar height (34px) so the column
+   headers + rows below line up row-for-row with the watchlist beside it. ──────── */
 .toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  height: 34px;
+  padding: 0 10px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
   background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
   flex: 0 0 auto;
@@ -31,13 +34,13 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--wl-text, var(--text-muted));
+  color: var(--ut-gold);   /* UCT gold, like the watchlist's list title */
 }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wl-text, var(--text-muted)); }
-.liveOn { color: var(--ut-green-bright); }
+.liveOn { color: var(--ut-gold); }
 .liveOn .dot {
-  background: var(--ut-green-bright);
-  box-shadow: 0 0 6px var(--ut-green-glow);
+  background: var(--ut-gold);
+  box-shadow: 0 0 6px var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
   animation: nhnlPulse 2s ease-in-out infinite;
 }
 @keyframes nhnlPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -52,8 +55,8 @@
 .filter { display: inline-flex; align-items: center; gap: 4px; }
 .filterLbl { font-size: 11px; color: var(--wl-text, var(--text-muted)); font-weight: 600; }
 .filterInput {
-  width: 44px;
-  padding: 3px 6px;
+  width: 42px;
+  padding: 2px 6px;
   font-family: var(--font-sans);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -93,9 +96,8 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
+  color: var(--ut-gold);   /* NEW HIGHS / NEW LOWS in UCT gold */
 }
-.up .sideTitle { color: var(--ut-green-bright); }
-.down .sideTitle { color: var(--ut-red-bright); }
 .sideCount {
   font-family: var(--font-sans);
   font-size: 11px;
