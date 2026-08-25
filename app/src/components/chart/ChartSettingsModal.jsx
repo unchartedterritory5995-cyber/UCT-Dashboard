@@ -272,18 +272,32 @@ export default function ChartSettingsModal({
   // dragging; clicking the ✕ or outside still closes it.
   const startDrag = (e) => {
     if (e.button !== 0 || e.target.closest?.('[data-modal-close]')) return
-    const r = panelRef.current?.getBoundingClientRect(); if (!r) return
+    const panel = panelRef.current
+    const r = panel?.getBoundingClientRect(); if (!r) return
     e.preventDefault()
+    // Pin the panel to fixed positioning up front so we can move it by DIRECT DOM
+    // (no re-render) during the drag. Matches the `pos` style applied on commit.
+    panel.style.position = 'fixed'; panel.style.margin = '0'; panel.style.animation = 'none'
+    panel.style.left = `${r.left}px`; panel.style.top = `${r.top}px`
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, w: r.width, h: r.height }
-    let raf = 0, last = null
+    let raf = 0, last = null, committed = null
     const flush = () => {
       raf = 0; const d = dragRef.current; if (!d || !last) return
       const nx = Math.max(8, Math.min(window.innerWidth - d.w - 8, d.ox + (last.clientX - d.sx)))
       const ny = Math.max(8, Math.min(window.innerHeight - d.h - 8, d.oy + (last.clientY - d.sy)))
-      setPos({ left: nx, top: ny }); last = null
+      committed = { left: nx, top: ny }
+      // Move by direct style — do NOT setState per frame. Re-rendering this large
+      // modal every frame, stacked on the dark-pool overlay's rAF loop and a live
+      // Scanner, was enough cumulative main-thread load to hang/crash the tab.
+      panel.style.left = `${nx}px`; panel.style.top = `${ny}px`
+      last = null
     }
     const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(flush) }
-    const up = () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    const up = () => {
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
+      if (committed) setPos(committed)   // commit the final position to React state ONCE
+    }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
   }
