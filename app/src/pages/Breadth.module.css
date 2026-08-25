@@ -191,7 +191,7 @@
   left: 0;
   background: var(--bg);
   color: var(--text);
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   border-right: 1px solid var(--border);
   z-index: 1;
