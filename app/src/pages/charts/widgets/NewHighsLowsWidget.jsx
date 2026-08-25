@@ -52,9 +52,22 @@ function fmtTime(iso) {
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
+// The soft "hot" wash, fired ONLY when a row's count actually increases while it's
+// already on screen — never on first mount. That's what keeps a whole list (or a
+// freshly-expanded group's stocks) from all flashing at once when it appears.
+function FlashOverlay({ count }) {
+  const prev = useRef(count)
+  const [flashKey, setFlashKey] = useState(0)
+  useEffect(() => {
+    if (count > prev.current) setFlashKey((k) => k + 1)   // real increment → re-key → replay
+    prev.current = count
+  }, [count])
+  if (flashKey === 0) return null                          // no wash until the first increment
+  return <span key={flashKey} className={styles.flash} aria-hidden="true" />
+}
+
 // A stock row — the flat universe list OR a nested row inside an expanded group.
-// Ticker + running count; clicking charts it. The soft "hot" wash re-fires when the
-// count ticks up (the wash overlay is keyed by count so it remounts only then).
+// Ticker + running count; clicking charts it.
 function StockRow({ e, tone, maxCount, onPick, nested }) {
   return (
     <button
@@ -66,7 +79,7 @@ function StockRow({ e, tone, maxCount, onPick, nested }) {
     >
       <span className={styles.bar}
         style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }} aria-hidden="true" />
-      <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
+      <FlashOverlay count={e.count} />
       <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
       <span className={styles.sym}>{e.sym}</span>
       <span className={styles.count}>{e.count}</span>
@@ -117,7 +130,7 @@ function Side({ title, tone, events, total, onPick, groupView, dim, drillBase })
               >
                 <span className={styles.bar}
                   style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }} aria-hidden="true" />
-                <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
+                <FlashOverlay count={e.count} />
                 <span className={`${styles.caret}${open ? ' ' + styles.caretOpen : ''}`} aria-hidden="true">▸</span>
                 <span className={styles.sym}>{e.sym}</span>
                 <span className={styles.count}>{e.count}</span>
