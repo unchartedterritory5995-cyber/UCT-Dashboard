@@ -566,3 +566,62 @@ def test_market_cap_is_handed_no_price_when_the_row_is_stale(tmp_path, monkeypat
     # The row itself is untouched: price and date still published.
     assert row["price"] == 100.0
     assert row["bars_asof"] == str(bars[-1]["t"])
+
+
+# ── the conjunction starters ────────────────────────────────────────────────
+def test_every_starter_screen_is_executable():
+    """⛔ A STARTER THAT REFERENCES A DEAD KEY IS A BROKEN PROMISE a member finds
+    before we do. Every filter key must exist, every operator must be legal for
+    that key's type, and every view must be real."""
+    from api.services.screener import saved_screens, filters
+    starters = saved_screens.starters()
+    assert starters
+    ids = [s["id"] for s in starters]
+    assert len(ids) == len(set(ids)), "duplicate starter id"
+    for s in starters:
+        spec = s["spec"]
+        assert s["name"] and spec["view"] in filters.VIEWS, s["id"]
+        for f in spec["filters"]:
+            key = f["key"]
+            assert key in filters.FILTERS, (s["id"], key)
+            assert filters.is_valid_op(key, f["op"]), (s["id"], key, f["op"])
+        sort_key = (spec.get("sort") or {}).get("key")
+        if sort_key:
+            assert sort_key in filters.FILTERS or sort_key in ("market_cap",), \
+                (s["id"], sort_key)
+
+
+def test_a_candle_type_starter_queries_the_match_set_not_the_rendered_head():
+    """⛔ Candle Type filters `candle_matches`, which is DELIMITER-WRAPPED so
+    `contains` is an exact-token test. A starter carrying a bare key would match
+    `inverted-hammer` when it meant `hammer` — or nothing at all."""
+    from api.services.screener import saved_screens, candle_catalog
+    for s in saved_screens.candle_starters():
+        for f in s["spec"]["filters"]:
+            if f["key"] == "candle_type":
+                assert f["op"] == "contains", s["id"]
+                assert f["value"].startswith(candle_catalog.MATCH_SEP), s["id"]
+                assert f["value"].endswith(candle_catalog.MATCH_SEP), s["id"]
+                inner = f["value"].strip(candle_catalog.MATCH_SEP)
+                assert inner in candle_catalog.BY_KEY, (s["id"], inner)
+
+
+def test_starters_only_name_values_the_classifiers_can_actually_emit():
+    """⛔ A starter pinned to a label nothing produces returns nothing FOREVER,
+    and is indistinguishable from a quiet market. Every enum value is checked
+    against the registry that emits it."""
+    from api.services.screener import saved_screens, candle_catalog, bar_character
+    ok = {
+        "bar_character": set(bar_character.BY_KEY),
+        "candle_weekly": set(candle_catalog.BY_KEY),
+        "candle_monthly": set(candle_catalog.BY_KEY),
+        "candle_recent": set(candle_catalog.RELATION_KEYS),
+        "candle_trend": {"up", "down", "neutral", "unknown"},
+        "candle_recent_status": {"provisional", "opened-with", "opened-against",
+                                 "opened-flat"},
+    }
+    for s in saved_screens.starters():
+        for f in s["spec"]["filters"]:
+            allowed = ok.get(f["key"])
+            if allowed and f["op"] == "eq":
+                assert f["value"] in allowed, (s["id"], f["key"], f["value"])
