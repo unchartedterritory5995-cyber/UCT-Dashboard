@@ -97,6 +97,7 @@ from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
+from api.routers import discord_interactions as discord_interactions_router
 from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
@@ -6050,6 +6051,7 @@ app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(quote_of_the_day_router.router)   # public: the day's quote, same for site + letter
 app.include_router(charts.router)
+app.include_router(discord_interactions_router.router)
 app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)

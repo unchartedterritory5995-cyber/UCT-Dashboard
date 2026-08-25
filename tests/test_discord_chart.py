@@ -302,3 +302,117 @@ def test_run_chart_job_never_raises_even_if_edit_fn_raises():
         raise RuntimeError("discord down")
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
                          bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a: PNG_MAGIC, edit_fn=edit_boom) == "error"
+
+
+# ── Task 3: endpoint ──────────────────────────────────────────────────────────
+
+def _app_client():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import discord_interactions as rt
+    app = FastAPI()
+    app.include_router(rt.router)
+    return TestClient(app), rt
+
+
+def _post(client, sk, payload: dict, *, ts="1700000000", sign=True, bad_sig=False):
+    body = json.dumps(payload).encode()
+    headers = {"content-type": "application/json"}
+    if sign:
+        headers["X-Signature-Ed25519"] = ("00" * 64) if bad_sig else _sign(sk, ts, body)
+        headers["X-Signature-Timestamp"] = ts
+    return client.post("/api/discord/interactions", content=body, headers=headers)
+
+
+def test_endpoint_dark_without_public_key(monkeypatch):
+    monkeypatch.delenv("DISCORD_CHART_PUBLIC_KEY", raising=False)
+    client, _ = _app_client()
+    sk, _pk = _keypair()
+    r = _post(client, sk, {"type": 1})
+    assert r.status_code == 503
+
+
+def test_endpoint_rejects_unsigned_and_bad_signature(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, _ = _app_client()
+    assert _post(client, sk, {"type": 1}, sign=False).status_code == 401
+    assert _post(client, sk, {"type": 1}, bad_sig=True).status_code == 401
+    r = _post(client, sk, {"type": 1})
+    assert r.status_code == 200 and r.json() == {"type": 1}
+
+
+def test_endpoint_malformed_body_after_valid_signature_is_400(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, _ = _app_client()
+    body = b"{not json"
+    r = client.post("/api/discord/interactions", content=body, headers={
+        "X-Signature-Ed25519": _sign(sk, "1", body), "X-Signature-Timestamp": "1"})
+    assert r.status_code == 400
+
+
+def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    scheduled = []
+
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn):
+        scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
+        return "ok"
+    monkeypatch.setattr(rt.di, "run_chart_job", fake_job)
+
+    r = _post(client, sk, _interaction("nvda", "15"))
+    assert r.status_code == 200 and r.json() == {"type": 5}
+    assert len(scheduled) == 1
+    app_id, token, req, bars_fn, render_fn, edit_fn = scheduled[0]
+    assert (app_id, token) == ("123", "tok")
+    assert req == rt.di.ChartRequest("NVDA", "15")
+    assert bars_fn is rt.fetch_bars
+    assert render_fn is rt.render_chart_png
+    assert edit_fn is rt.di.edit_original
+
+
+def test_endpoint_bad_ticker_is_immediate_ephemeral_and_schedules_nothing(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("must not schedule"))
+    r = _post(client, sk, _interaction("NVDA;rm"))
+    assert r.status_code == 200
+    assert r.json()["type"] == 4
+    assert r.json()["data"]["flags"] == 64
+    assert "Ticker" in r.json()["data"]["content"]
+
+
+def test_endpoint_unknown_command_is_ephemeral(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("must not schedule"))
+    r = _post(client, sk, _interaction("NVDA", name="recall"))
+    assert r.json() == {"type": 4, "data": {"content": "Unknown command.", "flags": 64}}
+    r = _post(client, sk, {"type": 3, "data": {"name": "chart"}})
+    assert r.json()["type"] == 4
+
+
+def test_fetch_bars_uses_get_bars_and_only_accepts_200_with_bars(monkeypatch):
+    from fastapi.responses import JSONResponse
+    from api.routers import discord_interactions as rt
+    from api.routers import bars as bars_router
+    calls = []
+
+    def fake_get_bars(ticker, tf, bars, since, to, warm):
+        calls.append((ticker, tf, bars, since, to, warm))
+        if ticker == "NVDA":
+            return JSONResponse(content={"ticker": "NVDA", "tf": tf, "bars": [{"t": "2026-08-25", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]})
+        if ticker == "ZZZZQ":
+            return JSONResponse(content={"ticker": "ZZZZQ", "tf": tf, "bars": [], "no_data": True})
+        return JSONResponse(status_code=503, content={"error": "provider"})
+    monkeypatch.setattr(bars_router, "get_bars", fake_get_bars)
+
+    assert rt.fetch_bars("NVDA", "D", 170) == [{"t": "2026-08-25", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
+    assert calls[-1] == ("NVDA", "D", 170, "", "", 0)
+    assert rt.fetch_bars("ZZZZQ", "D", 170) is None
+    assert rt.fetch_bars("BOOM", "60", 150) is None
