@@ -8,15 +8,14 @@
   flex-direction: column;
   align-items: center;
   padding: 10px 0;
-  /* Overlay, not a flex child: the rail sits over the reserved 60px gutter and
-     expands rightward OVER the content on hover, so the page never reflows while
-     it opens (buttery-smooth on heavy pages, not just canvas ones). */
-  position: absolute;
-  left: 0;
+  /* Flex child that pushes the content aside on expand (the layout adjusts so
+     nothing is covered). Kept smooth by isolating the heavy content's layout —
+     see `contain` on the page/table wrappers. */
+  position: sticky;
   top: 0;
-  bottom: 0;
+  height: 100vh;
   overflow: hidden;
-  transition: width 0.2s ease;
+  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: width;
   z-index: 100;
 }

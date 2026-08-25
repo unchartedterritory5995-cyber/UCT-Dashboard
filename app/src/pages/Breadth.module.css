@@ -93,6 +93,11 @@
   min-height: 0;
   border: none;
   border-radius: 0;
+  /* Isolate the grid's layout + paint so the sidebar's push (which resizes the
+     content area) doesn't force expensive relayout/repaint of the whole table
+     every animation frame — the table is width:max-content and independent, so
+     containment lets the browser scope the work and keeps the push smooth. */
+  contain: layout paint;
   /* Pull up 16px to cancel the shared PageHeader's bottom margin so the grid
      butts directly under the header's own border-bottom — one clean seam, no
      dark band, no double line. Sides/bottom escape the page padding (full-bleed). */
