@@ -75,6 +75,31 @@
 .filterInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .filterInput:focus { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
 
+/* Scope selectors (group by sector / industry / theme, then the category). */
+.scopeSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 92px;
+  padding: 2px 16px 2px 6px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--nh-text-strong, var(--widget-text-strong, var(--wl-sym, var(--text-bright))));
+  background-color: var(--menu-input-bg, var(--bg-elevated));
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8674' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 5px center;
+  border: 1px solid var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border))));
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scopeSelect:hover { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
+.scopeSelect:focus { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
+.scopeSelect option { background: var(--menu-input-bg, var(--bg-elevated)); color: var(--text-bright); }
+.scopeValue { max-width: 120px; }
+
 /* ⚙ gear — matches the other widgets' toolbar icon buttons. */
 .gear {
   display: inline-flex;
@@ -236,11 +261,14 @@
   .row { grid-template-columns: 11px minmax(42px, 1fr) 28px; }       /* drop price → ticker + count */
   .price { display: none; }
 }
-/* Toolbar: shed chrome so the ⚙ gear + filters always fit. Clock goes first,
-   then the LIVE label (its pulsing dot stays as the session indicator). */
+/* Toolbar: shed chrome as it narrows so the scope selector + ⚙ gear always fit.
+   Clock first, then the min-price/count boxes (secondary), then the LIVE label
+   (its pulsing dot stays as the session indicator). Scope stays — it's primary. */
 @container (max-width: 430px) { .asof { display: none; } }
+@container (max-width: 380px) { .filter { display: none; } }
 @container (max-width: 300px) {
   .toolbar { gap: 5px; padding: 0 6px; }
   .live { font-size: 0; gap: 0; }     /* keep only the pulse dot */
-  .filterInput { width: 34px; }
+  .scopeSelect { max-width: 74px; }
+  .scopeValue { max-width: 96px; }
 }

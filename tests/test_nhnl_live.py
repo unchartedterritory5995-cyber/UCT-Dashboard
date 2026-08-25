@@ -130,6 +130,31 @@ def test_etfs_are_excluded(monkeypatch):
     assert out["highs_total"] == 1
 
 
+# ── Scope: sector / industry / theme filtering ─────────────────────────────────
+
+def test_scope_filters_by_group_and_lists_categories(monkeypatch):
+    monkeypatch.setattr(nhnl_live, "_group_map", lambda: {
+        "AAA": {"sector": "Tech", "industry": "Software", "theme": "AI"},
+        "BBB": {"sector": "Energy", "industry": "Oil", "theme": None},
+    })
+    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed
+    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both new HOD
+
+    # Grouped by sector, no value → all names ranked + a category count per sector.
+    out = nhnl_live.get_live(group="sector")
+    assert out["group"] == "sector"
+    assert out["categories"] == {"Tech": 1, "Energy": 1}
+    assert {e["sym"] for e in out["highs"]} == {"AAA", "BBB"}
+
+    # Scoped to one sector → only that sector's names.
+    out2 = nhnl_live.get_live(group="sector", value="Tech")
+    assert {e["sym"] for e in out2["highs"]} == {"AAA"}
+
+    # A symbol with no theme falls in the "—" bucket.
+    out3 = nhnl_live.get_live(group="theme")
+    assert out3["categories"] == {"AI": 1, "—": 1}
+
+
 # ── Tradability gate ────────────────────────────────────────────────────────────
 
 def test_untradable_symbol_advances_mark_but_never_counts(monkeypatch):

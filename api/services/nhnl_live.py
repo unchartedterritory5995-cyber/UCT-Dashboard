@@ -241,6 +241,79 @@ def _etf_set() -> set:
         return set()
 
 
+# ── Sector / industry / theme grouping (for the scope selector) ───────────────
+_GROUP_CACHE: dict = {"map": None, "built_at": 0.0}
+_GROUP_TTL = 3600   # rebuild the universe grouping hourly (memberships move slowly)
+_GROUP_LOCK = threading.Lock()   # one rebuild at a time (no 200-poller thundering herd)
+GROUP_DIMS = ("sector", "industry", "theme")
+
+
+def _group_map() -> dict:
+    """{app_sym: {"sector", "industry", "theme"}} for the whole universe, cached ~1h.
+
+    Sector + industry come from the shared whole-market `industry_map` (Finviz Elite
+    SQLite, one bulk read). Theme is the symbol's smallest OWNER theme from the
+    taxonomy (mirrors groups.resolve_primary_theme's "smallest theme wins", owner-
+    only — the CLAUDE.md aggregates-are-owner-only invariant). Everything is a filter
+    over the already-running accumulator, so no extra scanning happens."""
+    now = _time.time()
+    c = _GROUP_CACHE
+    if c["map"] is not None and (now - c["built_at"]) < _GROUP_TTL:
+        return c["map"]
+    with _GROUP_LOCK:
+        # Double-check: another caller may have just rebuilt while we waited.
+        now = _time.time()
+        if c["map"] is not None and (now - c["built_at"]) < _GROUP_TTL:
+            return c["map"]
+        return _build_group_map(now)
+
+
+def _build_group_map(now: float) -> dict:
+    c = _GROUP_CACHE
+    m: dict = {}
+    # Sector + industry — one bulk SQLite hit over the tracked universe.
+    try:
+        from api.services import industry_map
+        si = industry_map.get_groups(list(_universe_map().values())) or {}
+        for sym, d in si.items():
+            m[sym] = {"sector": d.get("sector") or None,
+                      "industry": d.get("industry") or None, "theme": None}
+    except Exception:
+        _log.exception("[nhnl] industry_map lookup failed")
+    # Primary theme — smallest owner theme per symbol, built from one taxonomy read.
+    try:
+        from api.services import theme_db
+        from api.services import groups as _groups
+        data = theme_db.get_all_themes() or {}
+        best: dict = {}   # sym -> (owner_theme_size, theme_name)
+        for th in (data.get("themes") or []):
+            name = th.get("name")
+            holds = [h for h in (th.get("holdings") or []) if h.get("source") != "engine"]
+            size = len(holds)
+            if not name or size == 0:
+                continue
+            for h in holds:
+                try:
+                    sym = _groups.normalize_sym(h.get("sym"))   # dot -> hyphen, upper
+                except Exception:
+                    sym = str(h.get("sym") or "").upper()
+                if not sym:
+                    continue
+                cur = best.get(sym)
+                if cur is None or size < cur[0]:
+                    best[sym] = (size, name)
+        for sym, (_sz, name) in best.items():
+            if sym in m:
+                m[sym]["theme"] = name
+            else:
+                m[sym] = {"sector": None, "industry": None, "theme": name}
+    except Exception:
+        _log.exception("[nhnl] theme map build failed")
+    c["map"] = m
+    c["built_at"] = now
+    return m
+
+
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
     _state["session_key"] = session_key
@@ -331,27 +404,29 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
         _state["ticks"] += 1
 
 
-def get_live(limit: int = 100, min_price: float = 0.0,
-             min_count: int = 1, session: str = "auto") -> dict:
+def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
+             group: str = None, value: str = None, session: str = "auto") -> dict:
     """Ranked New-Highs / New-Lows leaderboards for the endpoint.
 
-    ONE row per symbol (deduped), ranked by running count DESCENDING then recency —
-    so the names making the most new highs/lows sit at the top (an event ring can't
-    hold every one of the ~1,500 active names at the open, so this reads the
-    per-symbol state directly).
+    ONE row per symbol (deduped), ranked by running count DESCENDING then recency.
 
     - `limit`     max rows per side.
     - `min_price` hide names below this price.
-    - `min_count` hide names whose count is below this (raise to see only the
-                  persistent, one-directional movers).
-    Cheap: copy the (sym,count,price,ts) tuples under the lock, sort outside it.
+    - `min_count` hide names whose count is below this.
+    - `group`     'sector' | 'industry' | 'theme' — the scope dimension (or None for
+                  the whole US-stock universe).
+    - `value`     when `group` is set, restrict to this ONE category (e.g. group=
+                  'sector', value='Technology'). When None, the full universe is
+                  ranked and `categories` lists every category for the dropdown.
+
+    Scope is a pure filter over the already-running accumulator — every sector /
+    industry / theme is always being scanned; this just changes what you look at.
     """
     window = "rth" if _demo() else _active_window(_now_et())
     with _lock:
         asof = _state["asof"]
         session_date = _state["date"]
         ticks = _state["ticks"]
-        # Copy only what we need out of the lock; sort/filter below without holding it.
         hi_rows, lo_rows = [], []
         for sym, st in _state["syms"].items():
             nh, nl, last = st.get("nh", 0), st.get("nl", 0), st.get("last")
@@ -359,13 +434,27 @@ def get_live(limit: int = 100, min_price: float = 0.0,
                 hi_rows.append((sym, nh, last, st.get("hi_ts")))
             if nl > 0:
                 lo_rows.append((sym, nl, last, st.get("lo_ts")))
-    highs_total = len(hi_rows)   # distinct names at a new high / low today
+    highs_total = len(hi_rows)   # distinct names at a new high / low today (unscoped)
     lows_total = len(lo_rows)
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
     except (TypeError, ValueError):
         limit = 100
+
+    dim = group if group in GROUP_DIMS else None
+    gmap = _group_map() if dim else {}
+
+    def _cat(sym):
+        return (gmap.get(sym) or {}).get(dim) or "—"   # "—" = no sector/industry/theme
+
+    # Category counts for the dropdown (distinct names per category, this dim).
+    categories = {}
+    if dim:
+        for sym, cnt, last, _ts in hi_rows + lo_rows:
+            if cnt < min_count or (isinstance(last, (int, float)) and last < min_price):
+                continue
+            categories[_cat(sym)] = categories.get(_cat(sym), 0) + 1
 
     def _rank(rows, direction):
         out = []
@@ -374,6 +463,8 @@ def get_live(limit: int = 100, min_price: float = 0.0,
                 continue
             if isinstance(last, (int, float)) and last < min_price:
                 continue
+            if dim and value and _cat(sym) != value:   # scope to one category
+                continue
             out.append({
                 "sym": sym,
                 "price": round(float(last), 2) if isinstance(last, (int, float)) else None,
@@ -381,7 +472,6 @@ def get_live(limit: int = 100, min_price: float = 0.0,
                 "ts": ts,
                 "dir": direction,
             })
-        # Busiest first; ties broken by the most-recent new high/low.
         out.sort(key=lambda r: (r["count"], r["ts"] or ""), reverse=True)
         return out[:limit]
 
@@ -394,8 +484,11 @@ def get_live(limit: int = 100, min_price: float = 0.0,
         "asof": asof,
         "ticks": ticks,
         "active": window != "closed" and _running and (enabled() or _demo()),
-        "highs_total": highs_total,   # universe-wide distinct-symbol counts
+        "highs_total": highs_total,   # universe-wide distinct-symbol counts (unscoped)
         "lows_total": lows_total,
+        "group": dim,                 # echo the active scope dim (or null)
+        "value": value if dim else None,
+        "categories": categories,     # {category: distinct-name count} for the dropdown
         "highs": highs,
         "lows": lows,
     }

@@ -31,16 +31,20 @@ def nhnl_live(
     limit: int = Query(100, ge=1, le=600),
     min_price: float = Query(0.0, ge=0.0),
     min_count: int = Query(1, ge=1),
+    group: str | None = Query(None, pattern="^(sector|industry|theme)$"),
+    value: str | None = Query(None, max_length=120),
 ):
-    """Live New-Highs / New-Lows event streams (newest first).
+    """Ranked New-Highs / New-Lows leaderboards (busiest name per side first).
 
-    Each side is a rolling log of fresh high-of-day (or low-of-day) prints; the
-    same symbol repeats as its running `count` climbs. `min_count` raises the bar
-    to only persistent, one-directional names; `min_price` hides cheap stock.
+    `min_count` raises the bar to only persistent movers; `min_price` hides cheap
+    stock. `group` (sector | industry | theme) scopes the view: with no `value` it
+    ranks the whole universe and returns `categories` for the dropdown; with a
+    `value` it restricts to that one category.
     """
     from api.services import nhnl_live
     return JSONResponse(content=nhnl_live.get_live(
-        limit=limit, min_price=min_price, min_count=min_count))
+        limit=limit, min_price=min_price, min_count=min_count,
+        group=group, value=(value or None)))
 
 
 @router.get("/api/nhnl/status")

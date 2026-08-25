@@ -146,6 +146,13 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
   const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
+  // Scope: view the whole universe, or filter by sector / industry / theme. Picking
+  // a dimension clears the category so a stale pick from another dim can't linger.
+  const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
+  const scopeValue = opts?.scopeValue || ''
+  const commitScope = useCallback((v) => onOptsChange?.({ ...opts, scope: v, scopeValue: '' }), [opts, onOptsChange])
+  const commitScopeValue = useCallback((v) => onOptsChange?.({ ...opts, scopeValue: v }), [opts, onOptsChange])
+
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
   const placedTheme = usePlacedTheme(opts?.placedTheme)
@@ -165,7 +172,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}`
+  const scopeQ = scope !== 'all'
+    ? `&group=${scope}${scopeValue ? `&value=${encodeURIComponent(scopeValue)}` : ''}`
+    : ''
+  const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}${scopeQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2s
     dedupingInterval: 1200,
@@ -177,6 +187,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lows = data?.lows || []
   const highsTotal = data?.highs_total ?? highs.length
   const lowsTotal = data?.lows_total ?? lows.length
+  // Categories for the scope dropdown (busiest first), from the current payload.
+  const catOptions = useMemo(
+    () => Object.entries(data?.categories || {}).sort((a, b) => b[1] - a[1]),
+    [data?.categories])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
@@ -200,6 +214,32 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={styles.spacer} />
+        <select
+          className={styles.scopeSelect}
+          value={scope}
+          onChange={(e) => commitScope(e.target.value)}
+          aria-label="Group scope"
+          title="Group by"
+        >
+          <option value="all">All stocks</option>
+          <option value="sector">Sector</option>
+          <option value="industry">Industry</option>
+          <option value="theme">Theme</option>
+        </select>
+        {scope !== 'all' && (
+          <select
+            className={`${styles.scopeSelect} ${styles.scopeValue}`}
+            value={scopeValue}
+            onChange={(e) => commitScopeValue(e.target.value)}
+            aria-label="Category"
+            title={`Pick a ${scope}`}
+          >
+            <option value="">All {scope}s</option>
+            {catOptions.map(([cat, cnt]) => (
+              <option key={cat} value={cat}>{cat} ({cnt})</option>
+            ))}
+          </select>
+        )}
         <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
           placeholder="0" min={0} onCommit={commitPrice} />
         <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
