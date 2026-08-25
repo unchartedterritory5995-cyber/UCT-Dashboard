@@ -4,10 +4,12 @@
 `api/services/screener/candle_backtest.py` + `tools/candle_backtest_run.py`.
 
 ```
-python tools/candle_backtest_run.py --workers 18 --min-dates 50 --entry open   # ← the trustworthy one
-python tools/candle_backtest_run.py --workers 18 --min-dates 50                # close entry, contaminated
+# entry defaults to `open` — the trustworthy convention
+python tools/candle_backtest_run.py --workers 18 --min-dates 50
 python tools/candle_backtest_run.py --workers 18 --min-dates 50 --since 20150101
-python tools/candle_backtest_run.py --workers 18 --min-dates 50 --min-price 5
+# `--entry close` is KNOWN CONTAMINATED and prints a warning; it exists only to
+# reproduce the bid-ask artifact deliberately, because the comparison IS the finding.
+python tools/candle_backtest_run.py --workers 18 --min-dates 50 --entry close
 ```
 
 | | |
@@ -77,10 +79,32 @@ recording because the opposite was equally possible.
 | in both | 26 — of which **22 agree on direction, 4 flip** |
 | largest surviving effect | **0.79% over 5 sessions, gross** |
 
-Strongest survivors: `char:gap-down-filled` +0.315 (t=12.0) · `char:no-supply`
-−0.176 (t=−9.7) · `bullish-belt-hold` +0.254 (t=7.6) · `gravestone-doji` +0.242
-(t=6.5) · `bearish-belt-hold` −0.185 (t=−6.3) · `bearish-engulfing` −0.151
-(t=−6.2) · `bullish-harami` +0.187 (t=6.0).
+### Out-of-sample, under the corrected convention
+
+Of the 32 open-entry survivors, re-measured on 2015-2026 only:
+**17 hold direction and significance · 14 keep sign but lose significance · 1 flips.**
+
+The 10 that hold most strongly — these are the trustworthy set:
+
+| label | 1976-2026 | 2015-2026 |
+|---|---|---|
+| `char:gap-down-filled` | +0.315% (t 12.0) | +0.287% (t 6.0) |
+| `char:no-supply` | −0.176% (t −9.7) | −0.100% (t −3.3) |
+| `char:flat-bar` | +0.171% (t 8.6) | +0.190% (t 5.3) |
+| `white-marubozu` | +0.165% (t 8.7) | +0.127% (t 3.9) |
+| `bullish-belt-hold` | +0.254% (t 7.6) | +0.224% (t 4.2) |
+| `gravestone-doji` | +0.242% (t 6.5) | +0.261% (t 3.1) |
+| `char:no-trade` | −0.381% (t −6.3) | −0.693% (t −6.9) |
+| `bearish-engulfing` | −0.151% (t −6.2) | −0.094% (t −2.2) |
+| `hikkake-bear-confirmed` | −0.118% (t −5.6) | −0.074% (t −2.4) |
+| `marubozu` | +0.055% (t 5.1) | +0.039% (t 2.0) |
+
+⚠️ `white-marubozu` is one of the four labels that FLIPPED when the entry moved,
+so its sign here is opposite to the close-entry table above. That is the point:
+the open-entry number is the one to trust.
+
+⚠️ `char:no-trade` is a data-quality label, not a tradeable one — a session that
+never traded, followed by underperformance. Real, but not a setup.
 
 **This is the picture the literature predicts.** Duvinage/Mazza/Petitjean: 5 of 83
 rules survive costs. Marshall/Young/Rose: none on the Dow. A handful of tiny,
