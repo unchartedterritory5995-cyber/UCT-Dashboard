@@ -86,16 +86,20 @@ _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 # per-minute batching, and a rate (a delta) is small (single digits/sec) and never
 # spikes on restart the way a cumulative total would. Bump _SERIES_METRIC to drop
 # old-shaped stored series.
-_SAMPLE_SECS = 2.0                   # sample every accumulator tick (~3s) — as fast as
-                                     # the counts actually change
-_DEFAULT_SERIES_WINDOW_SECS = 90.0   # rate averaged over this trailing window; MUST stay
-                                     # comfortably above the snapshot's ~60s batch period,
-                                     # or the two alias into sharp dips-to-zero
-_RATE_EMA_ALPHA = 0.3                # extra smoothing on the emitted rate (~3-sample EMA)
-_SERIES_METRIC = "rate_v3"
+_SAMPLE_SECS = 2.0                   # sample every accumulator tick (~3s)
+_DEFAULT_SERIES_WINDOW_SECS = 30.0   # rate averaged over this trailing window — short is
+                                     # fine because it rides the REAL-TIME trade tape
+                                     # (continuous), not the snapshot's minute batches
+_RATE_EMA_ALPHA = 0.35               # light smoothing on the emitted rate
+_SERIES_METRIC = "rt_v4"
 _last_sample = 0.0
 _cum_buf = deque(maxlen=40)          # (t_epoch, cum_hi, cum_lo) — spans > the rate window
 _rate_ema = {"hi": None, "lo": None}
+# Cumulative REAL-TIME new-high / new-low events (the print-exact trade tape). Unlike
+# Σnh over the snapshot, these grow continuously — no once-a-minute batch impulse — so
+# the Pulse rate off them is smooth + real-time, the way Trade Ideas reads the tape.
+_rt_hi = 0
+_rt_lo = 0
 
 
 def _series_window_secs() -> float:
@@ -453,7 +457,9 @@ def _build_group_map(now: float) -> dict:
 
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
-    global _rate_ema
+    global _rate_ema, _rt_hi, _rt_lo
+    _rt_hi = 0
+    _rt_lo = 0
     _state["session_key"] = session_key
     _state["window"] = window
     _state["date"] = date
@@ -705,12 +711,9 @@ def _sample_series(now: datetime) -> None:
     small rolling buffer of the cumulative totals. Small, smooth, restart-safe."""
     t = now.timestamp()
     window = _series_window_secs()
+    cum_hi = _rt_hi          # cumulative REAL-TIME events (continuous — no batch impulse)
+    cum_lo = _rt_lo
     with _lock:
-        cum_hi = 0
-        cum_lo = 0
-        for s in _state["syms"].values():
-            cum_hi += s.get("nh", 0)
-            cum_lo += s.get("nl", 0)
         _cum_buf.append((t, cum_hi, cum_lo))
         ref = None                       # oldest buffered point still inside the window
         for entry in _cum_buf:
@@ -875,7 +878,7 @@ def _on_trade_print(sym: str, trade: dict) -> None:
     """Runs on the bars-WS thread for every T. print of a print-counted symbol.
     MINIMAL by design — dict lookup + condition gate + compare under a DEDICATED
     lock (never the main _lock, so get_live / the poll never contend with the tape)."""
-    global _print_events_total
+    global _print_events_total, _rt_hi, _rt_lo
     if sym not in _print_counts:            # cheap pre-check before the price parse
         return
     p = trade.get("p")
@@ -890,8 +893,10 @@ def _on_trade_print(sym: str, trade: dict) -> None:
             return
         if p > st["hod"] * (1 + _EPS):
             st["nh"] += 1; st["hod"] = p; st["hi_ms"] = ms
+            _rt_hi += 1                     # real-time event → feeds the H/L Pulse
         elif p < st["lod"] * (1 - _EPS):
             st["nl"] += 1; st["lod"] = p; st["lo_ms"] = ms
+            _rt_lo += 1
         st["last"] = p
         _print_events_total += 1
 

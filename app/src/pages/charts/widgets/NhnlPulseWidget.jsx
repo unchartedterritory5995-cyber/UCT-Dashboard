@@ -160,15 +160,9 @@ export default function NhnlPulseWidget({ opts }) {
           {/* Breadth readout: live count chips + a horizontal tilt meter (our take on
               the ratio, not a vertical rail). */}
           <div className={styles.statStrip}>
-            <span className={`${styles.stat} ${styles.statHigh}`}>
-              <i aria-hidden="true" />New Highs <b>{curHi}</b>
-            </span>
-            <span className={`${styles.stat} ${styles.statLow}`}>
-              <i aria-hidden="true" />New Lows <b>{curLo}</b>
-            </span>
-            <span className={`${styles.stat} ${net >= 0 ? styles.statHigh : styles.statLow}`}>
-              Net <b>{net >= 0 ? '+' : ''}{net}</b>
-            </span>
+            <span className={`${styles.stat} ${styles.statHigh}`}>New Highs <b>{curHi}</b></span>
+            <span className={`${styles.stat} ${styles.statLow}`}>New Lows <b>{curLo}</b></span>
+            <span className={styles.stat}>Net <b>{net >= 0 ? '+' : ''}{net}</b></span>
             <span className={styles.spacer} />
             <span className={styles.peak} title="Session peak — highs / lows">
               peak {peakHi} / {peakLo}

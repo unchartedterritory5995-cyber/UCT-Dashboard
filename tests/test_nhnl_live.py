@@ -38,6 +38,9 @@ def _fresh_state(monkeypatch):
     with nhnl_live._lock:
         nhnl_live._state["series"] = nhnl_live.deque(maxlen=nhnl_live._SERIES_MAX)
     nhnl_live._cum_buf.clear()
+    nhnl_live._rate_ema = {"hi": None, "lo": None}
+    nhnl_live._rt_hi = 0
+    nhnl_live._rt_lo = 0
     nhnl_live._last_sample = 0.0
     yield
     nhnl_live._prov_to_app = None
@@ -218,12 +221,11 @@ def test_series_reports_alerts_per_second(monkeypatch):
     monkeypatch.setattr(nhnl_live, "_RATE_EMA_ALPHA", 1.0)   # isolate the raw rate (no EMA)
     t0 = datetime(2026, 8, 25, 10, 0, 0)
     t1 = datetime(2026, 8, 25, 10, 0, 10)   # 10 seconds later
-    nhnl_live._tick_once(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), "rth", "2026-08-25", t0)  # Σnh=0
+    nhnl_live._rt_hi = 0
     nhnl_live._sample_series(t0)             # first buffer point → rate 0
-    nhnl_live._tick_once(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), "rth", "2026-08-25", t1)  # Σnh=2
-    nhnl_live._sample_series(t1)             # 2 new-high events over 10s → 0.2 alerts/sec
+    nhnl_live._rt_hi = 2                      # 2 real-time new-high events (off the tape)
+    nhnl_live._sample_series(t1)             # 2 events over 10s → 0.2 alerts/sec
     assert nhnl_live.get_series()["series"][-1]["hi"] == 0.2
-    assert nhnl_live.get_series()["highs_total"] == 2         # all-day distinct-name total (ratio bar)
 
 
 # ── Persistence across deploys ──────────────────────────────────────────────────

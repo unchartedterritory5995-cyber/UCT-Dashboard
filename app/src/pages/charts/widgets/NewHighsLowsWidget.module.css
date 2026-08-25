@@ -146,12 +146,15 @@
 }
 .up .sideTitle { color: var(--nh-up, var(--ut-green-bright)); }
 .down .sideTitle { color: var(--nh-down, var(--ut-red-bright)); }
+/* Total value — same white font as the ticker symbols (.sym): family, weight,
+   letter-spacing, and the same --nh-sym color chain. */
 .sideCount {
   font-family: var(--font-sans);
   font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 600;
+  letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
-  color: var(--nh-text-strong, var(--wl-text-strong, var(--widget-text-strong, var(--text-bright))));
+  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright))));
 }
 
 .rows {

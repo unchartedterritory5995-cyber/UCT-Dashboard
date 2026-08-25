@@ -109,11 +109,14 @@ function Side({ title, tone, events, total, onPick, groupView, dim, drillBase })
 
   return (
     <div className={`${styles.side} ${styles[tone]}`}>
-      <div className={styles.sideHead}>
-        <span className={styles.sideTitle}>{title}</span>
-        <span className={styles.sideCount}>{total}</span>
-      </div>
+      {/* Header lives INSIDE the scroll container (sticky) so the total is inset by
+          the same scrollbar gutter as the rows — its number lines up with the row
+          count column instead of hanging past it. */}
       <div className={styles.rows} role="list">
+        <div className={styles.sideHead}>
+          <span className={styles.sideTitle}>{title}</span>
+          <span className={styles.sideCount}>{total}</span>
+        </div>
         {events.map((e) => {
           if (!groupView) {
             return <StockRow key={`${tone}-${e.sym}`} e={e} tone={tone} maxCount={maxCount} onPick={onPick} />

@@ -11,28 +11,28 @@
 }
 .stat {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.5px;
   white-space: nowrap;
-  /* bright label like the scanner's ticker text — high contrast, not dull grey */
-  color: var(--nh-text-strong, var(--widget-text-strong, var(--wl-sym, var(--text-bright, #f2f2f5))));
+  /* default label colour (Net): the scanner's ticker white */
+  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright, #f2f2f5))));
 }
-.stat i {
-  width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex-shrink: 0;
-}
+/* New Highs / New Lows LABELS are green / red like the scanner's panel titles. */
+.statHigh { color: var(--nh-up, var(--ut-green-bright)); }
+.statLow { color: var(--nh-down, var(--ut-red-bright)); }
+/* VALUES are white — the same font as the ticker symbols (.sym). */
 .stat b {
-  font-size: 13.5px;
-  font-weight: 800;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
+  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright, #f2f2f5))));
 }
-.statHigh b { color: var(--nh-up, var(--ut-green-bright)); }
-.statHigh i { background: var(--nh-up, var(--ut-green-bright)); }
-.statLow b { color: var(--nh-down, var(--ut-red-bright)); }
-.statLow i { background: var(--nh-down, var(--ut-red-bright)); }
 .spacer { flex: 1 1 auto; }
 .peak {
   font-family: var(--font-sans);
