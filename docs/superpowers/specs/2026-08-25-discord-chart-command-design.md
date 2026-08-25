@@ -149,7 +149,10 @@ Railway). Subcommands:
 - `register --guild <id>` — `PUT /applications/{app_id}/guilds/{guild}/commands`
   with the one `chart` command built from `TF_CHOICES` (ticker: string,
   required; tf: string with choices, optional). Guild-scoped so it is live
-  immediately. `--clear` PUTs an empty list (rollback).
+  immediately. `register --global` — `PUT /applications/{app_id}/commands`,
+  one registration for every server the app is installed in (the owner
+  installed it in both Uncharted Territory and UCT Intelligence). `--clear`
+  PUTs an empty list (rollback).
 - `endpoint --url https://uctintelligence.com/api/discord/interactions` —
   `PATCH /applications/@me {"interactions_endpoint_url": ...}`. Discord validates
   by sending a PING and a bad-signature request during the PATCH, so this runs
@@ -191,9 +194,19 @@ render failure, busy) replace the "thinking…" placeholder with one plain line.
   non-Friday keys). The renderer trusts that and does not re-clean.
 - The developing (current-session) bar is rendered as served. No "as of" logic
   beyond printing the last bar's time.
-- Intraday bars are rendered exactly as served (including any extended-hours
-  buckets the authority returns). Restricting to RTH is a follow-up knob, not
-  part of this build.
+- **Intraday frames are regular-session only (09:30–16:00 ET).** Decided on
+  real payloads, not in advance: the authority serves pre/post-market buckets
+  alongside the session, and a 130-bar window of 15-minute bars was ~2 sessions
+  of price plus days of thin extended-hours noise. `build_frame` drops buckets
+  outside `[09:30, 16:00)` for intraday timeframes and `bars_to_request(tf)`
+  asks for 2.5× the window for intraday so the visible window stays full
+  (measured: NVDA 15 min → 5 full sessions, SMA50 complete). Daily/weekly are
+  never filtered.
+- **A unix-keyed DAILY bar is a UTC date, not an ET instant.** The index path
+  (SPX/^GSPC) keys daily bars as unix seconds at UTC midnight; converting those
+  to ET dated every bar one day early. `to_datetime(t, tf)` takes the UTC date
+  for `D/W/M` and ET wall-clock for intraday. Equity daily bars arrive as
+  `"YYYY-MM-DD"` strings and are unaffected.
 
 ## Failure handling (complete list)
 
