@@ -132,6 +132,8 @@ export const VOLUME_PANE_SURFACE_FIXED = "Fixed by this chart's layout"
 export const MA_FIELDS = [
   { key: 'type',      label: 'Average type', type: 'select', options: MA_TYPES },
   { key: 'color',     label: 'Color',        type: 'color' },
+  // ON = the line draws in FRONT of the candles (overlaps); OFF = behind them.
+  { key: 'onTop',     label: 'Overlap candles', type: 'toggle' },
   { key: 'period',    label: 'Period',       type: 'number', min: 1, max: 400, step: 1 },
   { key: 'offset',    label: 'Offset',       type: 'number', min: -100, max: 100, step: 1, disabled: NOT_WIRED },
   { key: 'plotStyle', label: 'Plot style',   type: 'select', options: PLOT_STYLES, disabled: NOT_WIRED },

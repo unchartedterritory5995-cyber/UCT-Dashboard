@@ -8739,6 +8739,30 @@ export default function StockChart({
       }
     }
 
+    // ── Per-MA z-order — overlap the candles, or sit behind them ──────────────
+    // Each overlay's `onTop` (resolvedOverlays[i].onTop) picks whether its MA
+    // line draws IN FRONT of the candles (true) or BEHIND them (false, default).
+    // LWC z-orders series by their index within the pane (higher index = drawn
+    // later = on top); `setSeriesOrder` moves one. We only ever lift an MA ABOVE
+    // the candle (onTop) or drop it back to just below the candle — NEVER to
+    // index 0, so the candle stays the lowest-index price series that drives the
+    // axis formatter (per LWC's setSeriesOrder note). Guarded so it's a no-op
+    // once each line is already on its chosen side, so it never churns per paint.
+    try {
+      const _czCandle = candleSeriesRef.current
+      if (_czCandle && typeof _czCandle.seriesOrder === 'function') {
+        for (let i = 0; i < overlaySeriesRefs.current.length; i++) {
+          const s = overlaySeriesRefs.current[i]
+          if (!s || typeof s.seriesOrder !== 'function') continue
+          const onTop = !!resolvedOverlays?.[i]?.onTop
+          const cOrd = _czCandle.seriesOrder()
+          const sOrd = s.seriesOrder()
+          if (onTop && sOrd < cOrd) s.setSeriesOrder(cOrd + 1)          // lift in front of candles
+          else if (!onTop && sOrd > cOrd) s.setSeriesOrder(cOrd)        // drop back behind candles
+        }
+      }
+    } catch { /* z-order is cosmetic — never break the paint */ }
+
     // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
     // The overlay setData above ends at the last FETCHED bar, but the post-setData
     // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
