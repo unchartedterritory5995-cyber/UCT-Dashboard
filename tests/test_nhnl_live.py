@@ -37,6 +37,7 @@ def _fresh_state(monkeypatch):
     # H/L Pulse time series.
     with nhnl_live._lock:
         nhnl_live._state["series"] = nhnl_live.deque(maxlen=nhnl_live._SERIES_MAX)
+    nhnl_live._cum_buf.clear()
     nhnl_live._last_sample = 0.0
     yield
     nhnl_live._prov_to_app = None
@@ -212,14 +213,15 @@ def test_rows_carry_pct_change_vs_prior_close():
 
 # ── H/L Pulse time series ───────────────────────────────────────────────────────
 
-def test_series_counts_names_active_in_the_window(monkeypatch):
-    monkeypatch.setenv("NHNL_SERIES_WINDOW_SECS", "90")
-    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed (nh=0)
-    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both new high @ 10:01
-    nhnl_live._sample_series(_now(1))
-    assert nhnl_live.get_series()["series"][-1]["hi"] == 2   # both within the 90s window
-    nhnl_live._sample_series(_now(5))                         # 4 min later, both aged out of the window
-    assert nhnl_live.get_series()["series"][-1]["hi"] == 0
+def test_series_reports_alerts_per_second(monkeypatch):
+    monkeypatch.setenv("NHNL_SERIES_WINDOW_SECS", "60")
+    t0 = datetime(2026, 8, 25, 10, 0, 0)
+    t1 = datetime(2026, 8, 25, 10, 0, 10)   # 10 seconds later
+    nhnl_live._tick_once(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), "rth", "2026-08-25", t0)  # Σnh=0
+    nhnl_live._sample_series(t0)             # first buffer point → rate 0
+    nhnl_live._tick_once(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), "rth", "2026-08-25", t1)  # Σnh=2
+    nhnl_live._sample_series(t1)             # 2 new-high events over 10s → 0.2 alerts/sec
+    assert nhnl_live.get_series()["series"][-1]["hi"] == 0.2
     assert nhnl_live.get_series()["highs_total"] == 2         # all-day distinct-name total (ratio bar)
 
 

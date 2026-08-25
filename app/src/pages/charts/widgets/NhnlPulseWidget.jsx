@@ -72,7 +72,7 @@ function makeOption(series) {
       borderColor: 'rgba(255,255,255,0.12)',
       textStyle: { color: '#f2f2f5', fontSize: 11.5, fontFamily: CHART_FONT_FAMILY },
       axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.28)' } },
-      valueFormatter: (v) => Math.round(v),
+      valueFormatter: (v) => (Math.round(v * 10) / 10).toFixed(1),
     },
     xAxis: {
       type: 'time', max: xMax,
@@ -83,7 +83,7 @@ function makeOption(series) {
     },
     yAxis: {
       type: 'value', min: 0,
-      name: 'names at new H/L', nameGap: 8, nameLocation: 'end',
+      name: 'alerts / sec', nameGap: 8, nameLocation: 'end',
       nameTextStyle: { color: '#c7c7cf', fontSize: 10, fontFamily: CHART_FONT_FAMILY, align: 'left' },
       axisLabel: axisText,
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
@@ -112,16 +112,18 @@ export default function NhnlPulseWidget({ opts }) {
   const series = data?.series || []
   const option = useMemo(() => makeOption(series), [series])
 
-  // Live readout: average the last ~4 points (~1 min) so the numbers don't jitter.
+  // Live readout (alerts/sec): average the last few points so the numbers don't jitter.
+  const round1 = (n) => Math.round(n * 10) / 10
   const recent = series.slice(-4)
-  const curHi = recent.length ? Math.round(recent.reduce((s, p) => s + (p.hi || 0), 0) / recent.length) : 0
-  const curLo = recent.length ? Math.round(recent.reduce((s, p) => s + (p.lo || 0), 0) / recent.length) : 0
-  const net = curHi - curLo
+  const avg = (k) => (recent.length ? recent.reduce((s, p) => s + (p[k] || 0), 0) / recent.length : 0)
+  const curHi = round1(avg('hi'))
+  const curLo = round1(avg('lo'))
+  const net = round1(curHi - curLo)
   const tot = curHi + curLo
   const pctHi = tot ? Math.round((curHi / tot) * 100) : 50
   const pctLo = 100 - pctHi
-  const peakHi = series.reduce((m, p) => Math.max(m, p.hi || 0), 0)
-  const peakLo = series.reduce((m, p) => Math.max(m, p.lo || 0), 0)
+  const peakHi = round1(series.reduce((m, p) => Math.max(m, p.hi || 0), 0))
+  const peakLo = round1(series.reduce((m, p) => Math.max(m, p.lo || 0), 0))
 
   // RGL resizes the container without a window resize event, so drive echarts' resize
   // off a ResizeObserver on the chart wrapper.

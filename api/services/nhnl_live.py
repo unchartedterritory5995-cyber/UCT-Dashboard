@@ -79,21 +79,18 @@ _last_persist = 0.0       # epoch of the last state snapshot write
 _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 
 # ── Intraday time series (the "H/L Pulse" chart) ──────────────────────────────
-# Every ~15s we append how many names are ACTIVELY making new highs / lows right now:
-# the count of names whose last new high (lo) is within the trailing window. This is a
-# smooth, continuous "names currently hitting new highs" line (like Trade Ideas), not
-# a per-15s delta. That matters because ~3,400 names are polled from a snapshot whose
-# day.h/day.l updates ~once a minute, so a "new since last 15s" metric would sawtooth
-# (one batch spike per minute + three empty samples); a trailing WINDOW always spans a
-# full minute-batch, so it stays continuous. Bump _SERIES_METRIC to drop old-shaped
-# stored series.
-_SAMPLE_SECS = 5.0                   # append a point every ~5s so the line moves in small,
-                                     # frequent steps the client can glide between
-_DEFAULT_SERIES_WINDOW_SECS = 60.0   # "active" = made a new high/low within this window
-                                     # (~1 min: responsive, but still spans the snapshot's
-                                     # per-minute batch so it stays smooth)
-_SERIES_METRIC = "window_v2"
+# We plot a RATE — new-high / new-low ALERTS PER SECOND — exactly like Trade Ideas,
+# NOT a count of how many names are currently at a high. Every ~5s we compute the
+# rate as (Σnh now − Σnh ~window-seconds ago) / dt from a small rolling buffer of the
+# cumulative event totals (`_cum_buf`). The trailing window smooths the snapshot's
+# per-minute batching, and a rate (a delta) is small (single digits/sec) and never
+# spikes on restart the way a cumulative total would. Bump _SERIES_METRIC to drop
+# old-shaped stored series.
+_SAMPLE_SECS = 5.0                   # append a point every ~5s
+_DEFAULT_SERIES_WINDOW_SECS = 60.0   # rate is averaged over this trailing window
+_SERIES_METRIC = "rate_v3"
 _last_sample = 0.0
+_cum_buf = deque(maxlen=30)          # (t_epoch, cum_hi, cum_lo) — the rate window
 
 
 def _series_window_secs() -> float:
@@ -457,6 +454,7 @@ def _reset(session_key: str, window: str, date: str) -> None:
     _state["syms"] = {}
     _state["themes"] = {}
     _state["series"] = deque(maxlen=_SERIES_MAX)
+    _cum_buf.clear()
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -695,30 +693,31 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
 
 
 def _sample_series(now: datetime) -> None:
-    """Append one H/L Pulse point: how many names are ACTIVELY making new highs / lows
-    — i.e. their last new high (low) landed within the trailing window. A rolling count
-    off hi_ts/lo_ts, so it stays continuous between the snapshot's minute-batched
-    updates instead of collapsing to zero."""
-    cutoff = now.timestamp() - _series_window_secs()
+    """Append one H/L Pulse point: new-high / new-low ALERTS PER SECOND (like Trade
+    Ideas). Rate = (cumulative events now − cumulative events ~window ago) / dt, from a
+    small rolling buffer of the cumulative totals. Small, smooth, restart-safe."""
+    t = now.timestamp()
+    window = _series_window_secs()
     with _lock:
-        hi_n = 0
-        lo_n = 0
+        cum_hi = 0
+        cum_lo = 0
         for s in _state["syms"].values():
-            ht = s.get("hi_ts")
-            lt = s.get("lo_ts")
-            if ht:
-                try:
-                    if datetime.fromisoformat(ht).timestamp() >= cutoff:
-                        hi_n += 1
-                except (ValueError, TypeError):
-                    pass
-            if lt:
-                try:
-                    if datetime.fromisoformat(lt).timestamp() >= cutoff:
-                        lo_n += 1
-                except (ValueError, TypeError):
-                    pass
-        _state["series"].append({"t": now.isoformat(), "hi": hi_n, "lo": lo_n})
+            cum_hi += s.get("nh", 0)
+            cum_lo += s.get("nl", 0)
+        _cum_buf.append((t, cum_hi, cum_lo))
+        ref = None                       # oldest buffered point still inside the window
+        for entry in _cum_buf:
+            if entry[0] >= t - window:
+                ref = entry
+                break
+        if ref is None or ref[0] >= t:
+            hi_rate = 0.0
+            lo_rate = 0.0
+        else:
+            dt = t - ref[0]
+            hi_rate = max(0.0, (cum_hi - ref[1]) / dt)
+            lo_rate = max(0.0, (cum_lo - ref[2]) / dt)
+        _state["series"].append({"t": now.isoformat(), "hi": round(hi_rate, 2), "lo": round(lo_rate, 2)})
 
 
 def get_series() -> dict:
