@@ -171,16 +171,16 @@ def _seed_demo() -> None:
         syms = _state["syms"]
         for sym, price, cnt in reversed(_DEMO_LOWS):
             events.append({"sym": sym, "price": price, "count": cnt, "ts": ts, "dir": "low"})
-            syms[sym] = {"hod": price, "lod": price, "nh": 0, "nl": cnt, "last": price}
+            syms[sym] = {"hod": price, "lod": price, "nh": 0, "nl": cnt, "last": price, "hi_ts": None, "lo_ts": ts}
         for sym, price, cnt in reversed(_DEMO_HIGHS):
             events.append({"sym": sym, "price": price, "count": cnt, "ts": ts, "dir": "high"})
-            syms[sym] = {"hod": price, "lod": price, "nh": cnt, "nl": 0, "last": price}
+            syms[sym] = {"hod": price, "lod": price, "nh": cnt, "nl": 0, "last": price, "hi_ts": ts, "lo_ts": None}
         # Pad with extra distinct names (no events) so the panel headers show a
         # realistic universe-wide count, not just the ~2 dozen names in the list.
         for i in range(120):
-            syms[f"HDMY{i}"] = {"hod": 10, "lod": 9, "nh": 1, "nl": 0, "last": 10}
+            syms[f"HDMY{i}"] = {"hod": 10, "lod": 9, "nh": 1, "nl": 0, "last": 10, "hi_ts": ts, "lo_ts": None}
         for i in range(76):
-            syms[f"LDMY{i}"] = {"hod": 10, "lod": 9, "nh": 0, "nl": 1, "last": 9}
+            syms[f"LDMY{i}"] = {"hod": 10, "lod": 9, "nh": 0, "nl": 1, "last": 9, "hi_ts": None, "lo_ts": ts}
         _state["asof"] = ts
         _state["ticks"] = 1
     _log.info("[nhnl] DEMO fixture seeded (%d highs, %d lows)", len(_DEMO_HIGHS), len(_DEMO_LOWS))
@@ -230,6 +230,17 @@ def _is_tradable(app_sym: str, row: dict) -> bool:
         return isinstance(price, (int, float)) and price > 1.0
 
 
+def _etf_set() -> set:
+    """ETF / ETN / fund tickers (app-form) to EXCLUDE so the feed is stocks-only —
+    reuse the scans' shared set (Polygon reference types ETF/ETN/ETV/ETS/FUND,
+    cached ~24h). Fail-open to empty so a reference hiccup never drops real stocks."""
+    try:
+        from api.services import scan_volume
+        return scan_volume._etf_symbols() or set()
+    except Exception:
+        return set()
+
+
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
     _state["session_key"] = session_key
@@ -262,6 +273,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
     session_key = f"{today}:{window}"
     is_rth = window == "rth"
     prov_map = _universe_map()
+    etf = _etf_set()          # stocks-only — computed outside the lock (cached ~24h)
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
@@ -269,6 +281,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
         events = _state["events"]
 
         for prov, app in prov_map.items():
+            if app in etf:
+                continue      # ETFs / ETNs / funds excluded (stocks only)
             row = snapshot.get(prov)
             if not row:
                 continue
@@ -291,13 +305,15 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             st = syms.get(app)
             if st is None:
                 lo0 = ref_lo if isinstance(ref_lo, (int, float)) and ref_lo > 0 else ref_hi
-                syms[app] = {"hod": ref_hi, "lod": lo0, "nh": 0, "nl": 0, "last": price}
+                syms[app] = {"hod": ref_hi, "lod": lo0, "nh": 0, "nl": 0,
+                             "last": price, "hi_ts": None, "lo_ts": None}
                 continue
 
             # New high (of day in RTH; of the ext session in pre/post)?
             if ref_hi > st["hod"] * (1 + _EPS):
                 if _is_tradable(app, row):
                     st["nh"] += 1
+                    st["hi_ts"] = now_iso
                     events.append({"sym": app, "price": round(float(price or ref_hi), 2),
                                    "count": st["nh"], "ts": now_iso, "dir": "high"})
                 st["hod"] = ref_hi   # advance the mark even if untradable
@@ -305,6 +321,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             if isinstance(ref_lo, (int, float)) and ref_lo > 0 and ref_lo < st["lod"] * (1 - _EPS):
                 if _is_tradable(app, row):
                     st["nl"] += 1
+                    st["lo_ts"] = now_iso
                     events.append({"sym": app, "price": round(float(price or ref_lo), 2),
                                    "count": st["nl"], "ts": now_iso, "dir": "low"})
                 st["lod"] = ref_lo
@@ -316,47 +333,60 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
 
 def get_live(limit: int = 100, min_price: float = 0.0,
              min_count: int = 1, session: str = "auto") -> dict:
-    """Current New-Highs / New-Lows event streams (newest first), for the endpoint.
+    """Ranked New-Highs / New-Lows leaderboards for the endpoint.
+
+    ONE row per symbol (deduped), ranked by running count DESCENDING then recency —
+    so the names making the most new highs/lows sit at the top (an event ring can't
+    hold every one of the ~1,500 active names at the open, so this reads the
+    per-symbol state directly).
 
     - `limit`     max rows per side.
-    - `min_price` hide events below this price.
-    - `min_count` hide events whose running count is below this (raise it to see
-                  only persistent, one-directional names).
-    Cheap: a copy of the ring buffer + a filtered walk.
+    - `min_price` hide names below this price.
+    - `min_count` hide names whose count is below this (raise to see only the
+                  persistent, one-directional movers).
+    Cheap: copy the (sym,count,price,ts) tuples under the lock, sort outside it.
     """
     window = "rth" if _demo() else _active_window(_now_et())
     with _lock:
-        evs = list(_state["events"])
         asof = _state["asof"]
         session_date = _state["date"]
         ticks = _state["ticks"]
-        # Universe-wide breadth: how many DISTINCT symbols have made at least one
-        # new high (or low) today across the whole cap universe — not just the
-        # rows in the event list below. This is what the panel headers show.
-        syms = _state["syms"]
-        highs_total = sum(1 for st in syms.values() if st.get("nh", 0) > 0)
-        lows_total = sum(1 for st in syms.values() if st.get("nl", 0) > 0)
+        # Copy only what we need out of the lock; sort/filter below without holding it.
+        hi_rows, lo_rows = [], []
+        for sym, st in _state["syms"].items():
+            nh, nl, last = st.get("nh", 0), st.get("nl", 0), st.get("last")
+            if nh > 0:
+                hi_rows.append((sym, nh, last, st.get("hi_ts")))
+            if nl > 0:
+                lo_rows.append((sym, nl, last, st.get("lo_ts")))
+    highs_total = len(hi_rows)   # distinct names at a new high / low today
+    lows_total = len(lo_rows)
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
     except (TypeError, ValueError):
         limit = 100
 
-    highs: list = []
-    lows: list = []
-    for e in reversed(evs):  # newest first
-        price = e.get("price")
-        if price is not None and price < min_price:
-            continue
-        if e.get("count", 0) < min_count:
-            continue
-        if e.get("dir") == "high":
-            if len(highs) < limit:
-                highs.append(e)
-        elif len(lows) < limit:
-            lows.append(e)
-        if len(highs) >= limit and len(lows) >= limit:
-            break
+    def _rank(rows, direction):
+        out = []
+        for sym, cnt, last, ts in rows:
+            if cnt < min_count:
+                continue
+            if isinstance(last, (int, float)) and last < min_price:
+                continue
+            out.append({
+                "sym": sym,
+                "price": round(float(last), 2) if isinstance(last, (int, float)) else None,
+                "count": cnt,
+                "ts": ts,
+                "dir": direction,
+            })
+        # Busiest first; ties broken by the most-recent new high/low.
+        out.sort(key=lambda r: (r["count"], r["ts"] or ""), reverse=True)
+        return out[:limit]
+
+    highs = _rank(hi_rows, "high")
+    lows = _rank(lo_rows, "low")
 
     return {
         "window": window,             # rth | pre | post | closed

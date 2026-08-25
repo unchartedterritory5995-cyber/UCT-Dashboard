@@ -167,8 +167,8 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
 
   const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}`
   const { data } = useMobileSWR(url, fetcher, {
-    refreshInterval: 3000,       // feel live; server accumulates every few seconds
-    dedupingInterval: 2000,
+    refreshInterval: 2000,       // feel live; server accumulates every ~2s
+    dedupingInterval: 1200,
     marketHoursOnly: true,       // 10x-slow the poll when the market is closed
     revalidateOnFocus: false,
   })
