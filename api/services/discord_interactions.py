@@ -12,7 +12,7 @@ import re
 import threading
 from dataclasses import dataclass
 
-from api.services.discord_chart_render import MA_LEAD, TF_LABEL, WINDOW, to_datetime
+from api.services.discord_chart_render import TF_LABEL, WINDOW, bars_to_request, to_datetime
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
     """TICKER_TF_YYYY-MM-DD_Chart.png, the house chart naming convention."""
     safe = re.sub(r"[^A-Z0-9]", "", ticker.upper())
     tf_tag = tf if tf in ("D", "W") else f"{tf}m"
-    return f"{safe}_{tf_tag}_{to_datetime(last_t).strftime('%Y-%m-%d')}_Chart.png"
+    return f"{safe}_{tf_tag}_{to_datetime(last_t, tf).strftime('%Y-%m-%d')}_Chart.png"
 
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
@@ -118,7 +118,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         return "busy"
     try:
         try:
-            bars = bars_fn(req.ticker, req.tf, WINDOW[req.tf] + MA_LEAD)
+            bars = bars_fn(req.ticker, req.tf, bars_to_request(req.tf))
         except Exception as e:  # noqa: BLE001
             log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, req.tf, e)
             bars = None

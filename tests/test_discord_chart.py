@@ -471,3 +471,70 @@ def test_tool_register_global_puts_to_the_application_commands_route():
     assert str(seen[-1].url).endswith("/applications/999/commands")
     assert "/guilds/" not in str(seen[-1].url)
     assert json.loads(seen[-1].content) == [build_chart_command()]
+
+
+def test_to_datetime_treats_unix_daily_bars_as_utc_dates_when_tf_is_a_date_tf():
+    # The index path (SPX/^GSPC) serves DAILY bars keyed at UTC midnight as unix
+    # seconds: 1787616000 == 2026-08-25T00:00Z. Converting that to ET would date
+    # the bar 2026-08-24 20:00 — a day early. Date timeframes take the UTC date.
+    from api.services.discord_chart_render import to_datetime, build_frame
+    assert to_datetime(1787616000, tf="D") == dt.datetime(2026, 8, 25)
+    assert to_datetime(1787616000, tf="W") == dt.datetime(2026, 8, 25)
+    assert to_datetime(1787616000) == dt.datetime(2026, 8, 24, 20, 0)  # intraday semantics unchanged
+    bars = [{"t": 1787616000 - 86400 * i, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 1} for i in range(5)][::-1]
+    assert build_frame(bars, "D").index[-1] == dt.datetime(2026, 8, 25)
+
+
+def test_attachment_name_dates_an_index_daily_bar_by_utc():
+    from api.services.discord_interactions import attachment_name
+    assert attachment_name("SPX", "D", 1787616000) == "SPX_D_2026-08-25_Chart.png"
+
+
+def extended_hours_bars(sessions: int = 3, step_min: int = 15, seed: int = 11) -> list[dict]:
+    """Like intraday_bars but with 04:00-09:30 pre-market and 16:00-20:00 post-market buckets."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    day = dt.datetime(2026, 8, 24, 4, 0, tzinfo=et)
+    walk = iter(_walk(sessions * 64, seed))
+    bars = []
+    for _ in range(sessions):
+        t = day
+        while t.hour < 20:
+            o, h, l, c, v = next(walk)
+            bars.append({"t": int(t.timestamp()), "o": o, "h": h, "l": l, "c": c, "v": v})
+            t += dt.timedelta(minutes=step_min)
+        day += dt.timedelta(days=1)
+    return bars
+
+
+def test_build_frame_keeps_only_regular_session_bars_for_intraday_tfs():
+    from api.services.discord_chart_render import build_frame
+    bars = extended_hours_bars(sessions=3, step_min=15)
+    frame = build_frame(bars, "15")
+    times = [(ts.hour, ts.minute) for ts in frame.index]
+    assert min(times) == (9, 30)
+    assert max(times) == (15, 45)
+    assert len(frame) == 3 * 26  # 26 fifteen-minute buckets per regular session
+    # daily/weekly bars are never filtered (they carry no time of day)
+    assert len(build_frame(daily_bars(30), "D")) == 30
+
+
+def test_bars_to_request_covers_the_window_after_the_rth_filter():
+    from api.services.discord_chart_render import bars_to_request, WINDOW, MA_LEAD
+    assert bars_to_request("D") == WINDOW["D"] + MA_LEAD
+    assert bars_to_request("W") == WINDOW["W"] + MA_LEAD
+    for tf in ("60", "30", "15", "5"):
+        assert bars_to_request(tf) >= int((WINDOW[tf] + MA_LEAD) * 2.5)
+    with pytest.raises(ValueError):
+        bars_to_request("7")
+
+
+def test_run_chart_job_requests_bars_to_request_for_intraday():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services.discord_chart_render import bars_to_request
+    asked = []
+    edits = _Edits()
+    run_chart_job("1", "t", ChartRequest("SPY", "5"),
+                  bars_fn=lambda tk, tf, n: asked.append(n) or daily_bars(20),
+                  render_fn=lambda *a: PNG_MAGIC, edit_fn=edits)
+    assert asked == [bars_to_request("5")]

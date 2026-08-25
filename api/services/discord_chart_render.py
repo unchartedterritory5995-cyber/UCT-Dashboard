@@ -43,8 +43,18 @@ _PLOT_LOCK = threading.Lock()   # matplotlib is not thread-safe; handlers run in
 _STYLE = None                   # lazy: building the style imports mplfinance
 
 
-def to_datetime(t) -> _dt.datetime:
-    """Bar time → naive datetime in ET. Accepts "YYYY-MM-DD", YYYYMMDD, unix s, unix ms."""
+_DATE_TFS = ("D", "W", "M")
+_RTH_OPEN = (9, 30)   # first regular-session bucket (inclusive)
+_RTH_CLOSE = (16, 0)  # first after-hours bucket (exclusive)
+_INTRADAY_REQUEST_MULT = 2.5  # extended-hours buckets are up to ~60% of a 5-min day
+
+
+def to_datetime(t, tf: str | None = None) -> _dt.datetime:
+    """Bar time → naive datetime. Accepts "YYYY-MM-DD", YYYYMMDD, unix s, unix ms.
+
+    Intraday unix times become ET wall-clock. For a DATE timeframe (D/W/M) a
+    unix time is a UTC-midnight date key (the index path serves SPX/^GSPC that
+    way): take the UTC date, or 2026-08-25 would render as 08-24 20:00 ET."""
     s = str(t).strip()
     if "-" in s and len(s) >= 10:
         return _dt.datetime(int(s[:4]), int(s[5:7]), int(s[8:10]))
@@ -53,7 +63,20 @@ def to_datetime(t) -> _dt.datetime:
         return _dt.datetime(n // 10000, (n // 100) % 100, n % 100)
     if n > 10_000_000_000:  # milliseconds
         n //= 1000
+    if tf in _DATE_TFS:
+        d = _dt.datetime.fromtimestamp(n, tz=_dt.timezone.utc)
+        return _dt.datetime(d.year, d.month, d.day)
     return _dt.datetime.fromtimestamp(n, tz=_ET).replace(tzinfo=None)
+
+
+def bars_to_request(tf: str) -> int:
+    """How many bars to ask the bars authority for: the visible window plus the
+    SMA50 lead-in, scaled up for intraday because the RTH filter drops the
+    pre/post-market buckets the authority serves alongside the session."""
+    if tf not in WINDOW:
+        raise ValueError(f"unsupported tf {tf!r}")
+    base = WINDOW[tf] + MA_LEAD
+    return base if tf in _DATE_TFS else int(base * _INTRADAY_REQUEST_MULT)
 
 
 def build_frame(bars: list[dict], tf: str):
@@ -64,8 +87,18 @@ def build_frame(bars: list[dict], tf: str):
     if not bars or len(bars) < 3:
         raise ValueError("not enough bars")
     import pandas as pd
+    if tf not in _DATE_TFS:
+        # Regular session only: a clean intraday chart is 09:30-16:00 ET. The
+        # authority serves pre/post-market buckets too, which are thin, noisy,
+        # and would eat most of a 130-bar window.
+        def _rth(b):
+            ts = to_datetime(b["t"], tf)
+            return _RTH_OPEN <= (ts.hour, ts.minute) < _RTH_CLOSE
+        bars = [b for b in bars if _rth(b)]
+        if len(bars) < 3:
+            raise ValueError("not enough regular-session bars")
     df = pd.DataFrame({
-        "Date": [to_datetime(b["t"]) for b in bars],
+        "Date": [to_datetime(b["t"], tf) for b in bars],
         "Open": [float(b["o"]) for b in bars],
         "High": [float(b["h"]) for b in bars],
         "Low": [float(b["l"]) for b in bars],
