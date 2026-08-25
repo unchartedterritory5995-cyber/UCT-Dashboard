@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import threading
 from dataclasses import dataclass
 
+from api.services import discord_chart_cache as png_cache
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
 
@@ -21,9 +23,22 @@ DISCORD_API = "https://discord.com/api/v10"
 EPHEMERAL = 64  # message flag: only the invoking user sees it
 _TICKER_RE = re.compile(r"^[A-Z0-9.^-]{1,12}$")
 
-# Two renders at a time protects the API's event loop and memory; a third
-# caller is told to retry rather than queue behind a cold Massive fetch.
-RENDER_SLOTS = threading.BoundedSemaphore(2)
+def render_slot_count(default: int = 4) -> int:
+    """Concurrent renders the API will run (env DISCORD_CHART_MAX_CONCURRENT).
+    Each slot is a threadpool thread waiting on the renderer for a few seconds;
+    the renderer has its own RENDER_MAX_CONCURRENT. Cache hits and single-flight
+    waiters never take a slot."""
+    raw = os.environ.get("DISCORD_CHART_MAX_CONCURRENT", "")
+    try:
+        n = int(raw)
+        return n if 1 <= n <= 32 else default
+    except (TypeError, ValueError):
+        return default
+
+
+# Bounded so a burst can never pin the API's threadpool; extra callers are
+# told to retry rather than queue behind a cold Massive fetch.
+RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
 
 
 class CommandError(ValueError):
@@ -109,58 +124,78 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
                   house_fn=None) -> str:
-    """Background job: bars → PNG → edit the reply. Returns an outcome tag for
-    logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
+    """Background job: cache → bars → PNG → edit the reply. Returns an outcome
+    tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
-    `house_fn(ticker, tf, stats) -> bytes | None` is the house renderer (the
-    real /r/chart page via chart-renderer); when it yields nothing the
-    mplfinance `render_fn` draws the chart instead."""
+    Order of work (fast paths first):
+      1. a fresh cached PNG for (symbol, timeframe) is sent as-is;
+      2. simultaneous requests for the same chart share ONE production;
+      3. daily bars (stats + "does this symbol exist") → the house render
+         (`house_fn(ticker, tf, stats) -> bytes | None`, the real /r/chart page);
+      4. only if that yields nothing: the timeframe's bars → the mplfinance
+         `render_fn`. An unknown symbol therefore never pays for a render."""
     label = TF_LABEL[req.tf]
-    if not RENDER_SLOTS.acquire(blocking=False):
-        try:
-            edit_fn(app_id, token, content="Busy, try again in a few seconds.")
-        except Exception as e:  # noqa: BLE001
-            log.warning("[discord-chart] busy-edit failed: %s", e)
-        return "busy"
+    key = f"{req.ticker}:{req.tf}"
     try:
-        try:
-            bars = bars_fn(req.ticker, req.tf, bars_to_request(req.tf))
-        except Exception as e:  # noqa: BLE001
-            log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, req.tf, e)
-            bars = None
-        if not bars:
-            edit_fn(app_id, token, content=f"No bars for {req.ticker} ({label}).")
-            return "no_bars"
-        # The stats strip always reads DAILY bars. A daily chart already has
-        # them; every other timeframe fetches a second, small daily series and
-        # renders without the strip if that fetch fails.
-        if req.tf == "D":
-            daily = bars
-        else:
+        hit = png_cache.get(key)
+        if hit:
+            png, filename = hit
+            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png, filename=filename)
+            return "ok"
+
+        def _fetch(tf, n):
             try:
-                daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
+                return bars_fn(req.ticker, tf, n) or None
             except Exception as e:  # noqa: BLE001
-                log.warning("[discord-chart] daily stats bars failed %s: %s", req.ticker, e)
-                daily = None
-        png = None
-        if house_fn is not None:
+                log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
+                return None
+
+        def produce():
+            if not RENDER_SLOTS.acquire(blocking=False):
+                return ("busy", None, None)
             try:
-                png = house_fn(req.ticker, req.tf, compute_stats(daily) if daily else {})
-            except Exception as e:  # noqa: BLE001
-                log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
+                if req.tf == "D":
+                    bars = daily = _fetch("D", bars_to_request("D"))
+                    if not bars:
+                        return ("no_bars", None, None)
+                else:
+                    bars = None
+                    daily = _fetch("D", STATS_DAILY_BARS)
                 png = None
-        if not png:
-            try:
-                png = render_fn(req.ticker, req.tf, bars, daily_bars=daily)
-            except Exception as e:  # noqa: BLE001
-                log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
-                edit_fn(app_id, token, content="Chart failed, try again.")
-                return "render_failed"
-        edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png,
-                filename=attachment_name(req.ticker, req.tf, bars[-1]["t"]))
-        return "ok"
+                if house_fn is not None and daily:
+                    try:
+                        png = house_fn(req.ticker, req.tf, compute_stats(daily))
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
+                        png = None
+                    if png:
+                        return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
+                if bars is None:
+                    bars = _fetch(req.tf, bars_to_request(req.tf))
+                    if not bars:
+                        return ("no_bars", None, None)
+                try:
+                    png = render_fn(req.ticker, req.tf, bars, daily_bars=daily)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
+                    return ("render_failed", None, None)
+                return ("ok", png, attachment_name(req.ticker, req.tf, bars[-1]["t"]))
+            finally:
+                RENDER_SLOTS.release()
+
+        result = png_cache.single_flight(
+            key, produce, ttl_s=png_cache.ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+        outcome = result[0] if result else "render_failed"
+        if outcome == "ok":
+            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=result[1], filename=result[2])
+        elif outcome == "busy":
+            edit_fn(app_id, token, content="Busy, try again in a few seconds.")
+        elif outcome == "no_bars":
+            edit_fn(app_id, token, content=f"No bars for {req.ticker} ({label}).")
+        else:
+            edit_fn(app_id, token, content="Chart failed, try again.")
+        return outcome
     except Exception:  # noqa: BLE001
         log.exception("[discord-chart] job crashed %s %s", req.ticker, req.tf)
         return "error"
-    finally:
-        RENDER_SLOTS.release()

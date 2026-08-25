@@ -39,7 +39,36 @@ HOUSE_READY_JS = "() => window.__chartReady === true"
 # 2026-08-25: blank body ≈ 1.3, drawn body ≈ 30+.
 _MIN_BODY_STDDEV = 6.0
 # (settle_ms, ready_timeout_ms) per attempt; the retry gives late bars time.
-_ATTEMPTS = ((800, 40000), (5000, 45000))
+_ATTEMPTS = ((300, 30000), (3000, 45000))
+
+
+def house_ready_js(sym: str) -> str:
+    """Readiness without the page flag's 3.5 s floor. True when the export node
+    names the symbol, the chart canvases downsampled to 32x18 show real colour
+    variety (a blank/uniform canvas yields 1-2 colours; candles, MAs and grid
+    yield dozens), and that downsampled signature is unchanged across two
+    samples >=250 ms apart. `window.__chartReady` (the page's own held-still
+    flag) is accepted too, whichever comes first. Measured 2026-08-25 on the
+    live page: drawn at ~1.2 s, stable at ~1.5 s, vs 4.2 s for the flag."""
+    sym_js = repr(str(sym).upper())
+    return (
+        "() => {"
+        " if (window.__chartReady === true) return true;"
+        " const e = document.querySelector('#chart-export'); if (!e) return false;"
+        f" if (!(e.innerText || '').toUpperCase().includes({sym_js})) return false;"
+        " const cs = [...e.querySelectorAll('canvas')].filter(c => c.width > 200 && c.height > 100);"
+        " if (!cs.length) return false;"
+        " const off = window.__uctOff || (window.__uctOff = document.createElement('canvas'));"
+        " off.width = 32; off.height = 18; const o = off.getContext('2d', { willReadFrequently: true }); if (!o) return false;"
+        " let sig = ''; const seen = new Set();"
+        " for (const c of cs) { o.clearRect(0, 0, 32, 18); try { o.drawImage(c, 0, 0, 32, 18); } catch (err) { return false; }"
+        "   let d; try { d = o.getImageData(0, 0, 32, 18).data; } catch (err) { return false; }"
+        "   for (let i = 0; i < d.length; i += 4) { const px = (d[i] >> 3) + ',' + (d[i+1] >> 3) + ',' + (d[i+2] >> 3); sig += px + ';'; seen.add(px); } }"
+        " if (seen.size < 6) return false;"
+        " const now = performance.now(); const prev = window.__uctChartSample;"
+        " if (!prev || now - prev.t >= 250) { window.__uctChartSample = { s: sig, t: now }; return !!prev && prev.s === sig; }"
+        " return false; }"
+    )
 
 
 def has_chart_content(png: bytes) -> bool:
@@ -68,6 +97,11 @@ def _b64url(obj) -> str:
 def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, token: str) -> str:
     h = HOUSE_H + (STATS_STRIP_H if stats else 0)
     params = {"sym": sym, "tf": tf, "w": HOUSE_W, "h": h}
+    if tf not in ("D", "W", "M"):
+        # Pre/post-market candles + session shading, exactly like the Charts
+        # widget with "Extended hours" on. Forced rather than inherited so a
+        # bot chart never depends on whatever the saved setting happens to be.
+        params["ext"] = 1
     if token:
         params["token"] = token
     if stats:
@@ -95,7 +129,7 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, *, client=None) ->
                     "url": page_url, "selector": "#chart-export",
                     "width": HOUSE_W + _VIEWPORT_PAD, "height": HOUSE_H + STATS_STRIP_H + _VIEWPORT_PAD,
                     "scale": HOUSE_SCALE, "settle_ms": settle_ms,
-                    "ready_js": HOUSE_READY_JS, "ready_timeout_ms": ready_timeout_ms,
+                    "ready_js": house_ready_js(sym), "ready_timeout_ms": ready_timeout_ms,
                 }
                 r = c.post(f"{renderer}/render", json=body, headers={"X-Render-Secret": secret})
                 if not r.is_success:

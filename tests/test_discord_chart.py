@@ -60,6 +60,16 @@ def intraday_bars(n: int = 200, step_min: int = 15, seed: int = 9) -> list[dict]
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
+@pytest.fixture(autouse=True)
+def _clear_png_cache():
+    try:
+        from api.services import discord_chart_cache as cc
+        cc.clear()
+    except ImportError:
+        pass
+    yield
+
+
 # ── Task 1: renderer ──────────────────────────────────────────────────────────
 
 def test_to_datetime_accepts_iso_yyyymmdd_and_unix():
@@ -538,7 +548,7 @@ def test_run_chart_job_requests_bars_to_request_for_intraday():
     run_chart_job("1", "t", ChartRequest("SPY", "5"),
                   bars_fn=lambda tk, tf, n: asked.append(n) or daily_bars(20),
                   render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits)
-    assert asked == [bars_to_request("5"), STATS_DAILY_BARS]
+    assert asked == [STATS_DAILY_BARS, bars_to_request("5")]  # daily first, tf bars only for the fallback
 
 
 def test_tool_main_reads_token_from_a_custom_var_in_the_env_file(tmp_path, capsys):
@@ -619,7 +629,7 @@ def test_run_chart_job_fetches_daily_bars_for_stats_on_non_daily_tf():
         return PNG_MAGIC
     edits = _Edits()
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn, render_fn=render_fn, edit_fn=edits) == "ok"
-    assert asked == [("15", bars_to_request("15")), ("D", STATS_DAILY_BARS)]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", bars_to_request("15"))]
     assert seen["daily"] and len(seen["daily"]) == 300
 
     asked.clear(); seen.clear()
@@ -689,7 +699,7 @@ def test_house_render_posts_to_the_renderer_and_returns_png_or_none(monkeypatch)
     body = json.loads(req.content)
     assert body["url"].startswith("https://uctintelligence.com/r/chart?") and "token=tok123" in body["url"]
     assert body["scale"] == hs.HOUSE_SCALE and body["selector"] == "#chart-export"
-    assert body["ready_js"] == hs.HOUSE_READY_JS and body["ready_timeout_ms"] >= 30000
+    assert body["ready_js"] == hs.house_ready_js("NVDA") and body["ready_timeout_ms"] >= 30000
 
     def failing(request):
         return httpx.Response(502, json={"detail": "render failed"})
@@ -731,11 +741,13 @@ def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"house" and calls["mpl"] == []
     assert calls["house"][0][:2] == ("NVDA", "D") and "adr_pct" in calls["house"][0][2] or True
 
+    from api.services import discord_chart_cache as _cc; _cc.clear()
     # house unavailable → mplfinance path, same reply shape
     assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=render_fn,
                          edit_fn=edits, house_fn=lambda *a: None) == "ok"
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
 
+    from api.services import discord_chart_cache as _cc; _cc.clear()
     # house raising is also a fallback, never a failure
     def house_boom(*a):
         raise RuntimeError("renderer exploded")
@@ -743,6 +755,7 @@ def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
                          edit_fn=edits, house_fn=house_boom) == "ok"
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
 
+    from api.services import discord_chart_cache as _cc; _cc.clear()
     # no bars at all still short-circuits before either renderer
     assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "D"), bars_fn=lambda *a: None, render_fn=render_fn,
                          edit_fn=edits, house_fn=house_fn) == "no_bars"
@@ -791,7 +804,7 @@ def test_house_render_retries_a_blank_frame_then_gives_up(monkeypatch):
     out = hs.render_house_chart("NVDA", "D", {"close": 1}, client=httpx.Client(transport=httpx.MockTransport(handler)))
     assert out == drawn
     assert len(bodies) == 2
-    assert bodies[0]["ready_js"] == hs.HOUSE_READY_JS and bodies[0]["settle_ms"] < bodies[1]["settle_ms"]
+    assert bodies[0]["ready_js"] == hs.house_ready_js("NVDA") and bodies[0]["settle_ms"] < bodies[1]["settle_ms"]
 
     bodies.clear()
 
@@ -800,3 +813,176 @@ def test_house_render_retries_a_blank_frame_then_gives_up(monkeypatch):
         return httpx.Response(200, content=blank, headers={"content-type": "image/png"})
     assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(always_blank))) is None
     assert len(bodies) == 2  # one retry, then the mplfinance fallback takes over
+
+
+# ── v3: faster readiness, fetch order, PNG cache + single-flight, dialable concurrency ──
+
+def test_house_ready_js_samples_canvas_pixels_and_names_the_symbol():
+    from api.services.discord_chart_house import house_ready_js, HOUSE_READY_JS
+    js = house_ready_js("NVDA")
+    assert "getImageData" in js and "__chartReady" in js and "'NVDA'" in js
+    assert "250" in js  # two samples at least 250 ms apart must agree
+    assert HOUSE_READY_JS in js or "__chartReady === true" in js
+
+
+def test_house_render_passes_the_symbol_predicate_and_short_settle(monkeypatch):
+    import httpx
+    from api.services import discord_chart_house as hs
+    monkeypatch.setenv("CHART_RENDERER_URL", "http://r")
+    monkeypatch.setenv("CHART_RENDERER_SECRET", "s")
+    monkeypatch.setenv("CHART_RENDER_TOKEN", "t")
+    drawn = _png_canvas(draw=True)
+    bodies = []
+
+    def handler(request: httpx.Request):
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, content=drawn, headers={"content-type": "image/png"})
+    assert hs.render_house_chart("NVDA", "D", {"close": 1}, client=httpx.Client(transport=httpx.MockTransport(handler))) == drawn
+    assert bodies[0]["ready_js"] == hs.house_ready_js("NVDA")
+    assert bodies[0]["settle_ms"] <= 400
+
+
+def test_png_cache_hits_within_ttl_and_expires():
+    from api.services import discord_chart_cache as cc
+    cc.clear()
+    clock = {"t": 1000.0}
+    monkey_now = lambda: clock["t"]
+    assert cc.get("NVDA:D", now=monkey_now) is None
+    cc.put("NVDA:D", b"png1", "NVDA_D_x.png", ttl_s=45, now=monkey_now)
+    assert cc.get("NVDA:D", now=monkey_now) == (b"png1", "NVDA_D_x.png")
+    clock["t"] += 44
+    assert cc.get("NVDA:D", now=monkey_now) == (b"png1", "NVDA_D_x.png")
+    clock["t"] += 2
+    assert cc.get("NVDA:D", now=monkey_now) is None
+    assert cc.ttl_for("D") == 45 and cc.ttl_for("W") == 45 and cc.ttl_for("15") == 20 and cc.ttl_for("5") == 20
+
+
+def test_png_cache_single_flight_shares_one_producer_across_threads():
+    import threading, time as _time
+    from api.services import discord_chart_cache as cc
+    cc.clear()
+    produced = []
+    gate = threading.Event()
+
+    def producer():
+        produced.append(1)
+        gate.wait(5)
+        return (b"png", "NVDA_D_y.png")
+    results = []
+
+    def worker():
+        results.append(cc.single_flight("NVDA:D", producer, ttl_s=45))
+    threads = [threading.Thread(target=worker) for _ in range(6)]
+    for t in threads:
+        t.start()
+    _time.sleep(0.3)
+    gate.set()
+    for t in threads:
+        t.join(10)
+    assert produced == [1]                       # six callers, ONE render
+    assert results == [(b"png", "NVDA_D_y.png")] * 6
+    assert cc.get("NVDA:D") == (b"png", "NVDA_D_y.png")  # and it was cached for the next minute
+
+
+def test_png_cache_single_flight_does_not_cache_a_failed_producer():
+    from api.services import discord_chart_cache as cc
+    cc.clear()
+    assert cc.single_flight("ZZZZQ:D", lambda: None, ttl_s=45) is None
+    assert cc.get("ZZZZQ:D") is None
+    assert cc.single_flight("ZZZZQ:D", lambda: (b"p", "f.png"), ttl_s=45) == (b"p", "f.png")
+
+
+def test_run_chart_job_serves_a_cache_hit_without_fetching_anything():
+    from api.services import discord_chart_cache as cc
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    cc.clear()
+    cc.put("NVDA:D", PNG_MAGIC + b"cached", "NVDA_D_2026-08-25_Chart.png", ttl_s=45)
+    edits = _Edits()
+
+    def bars_fn(*a):
+        raise AssertionError("must not fetch on a cache hit")
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=bars_fn, edit_fn=edits) == "ok"
+    assert edits.calls[-1]["png"] == PNG_MAGIC + b"cached"
+    assert edits.calls[-1]["filename"] == "NVDA_D_2026-08-25_Chart.png"
+    assert edits.calls[-1]["content"] == "NVDA · Daily"
+
+
+def test_run_chart_job_fetch_order_daily_first_and_tf_bars_only_for_the_fallback():
+    from api.services import discord_chart_cache as cc
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services.discord_chart_render import STATS_DAILY_BARS, bars_to_request
+    cc.clear()
+    asked = []
+
+    def bars_fn(tk, tf, n):
+        asked.append((tf, n))
+        return daily_bars(300) if tf == "D" else intraday_bars(400, 15)
+    edits = _Edits()
+    # house succeeds → the 15-min bars are never fetched
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
+                         render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
+                         house_fn=lambda *a: _png_canvas(draw=True)) == "ok"
+    assert asked == [("D", STATS_DAILY_BARS)]
+    cc.clear(); asked.clear()
+    # house fails → fallback fetches the 15-min bars, after the daily ones
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
+                         render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
+                         house_fn=lambda *a: None) == "ok"
+    assert asked == [("D", STATS_DAILY_BARS), ("15", bars_to_request("15"))]
+    assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
+
+
+def test_run_chart_job_skips_the_house_render_when_there_are_no_daily_bars():
+    from api.services import discord_chart_cache as cc
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    cc.clear()
+    house_calls = []
+
+    def house_fn(*a):
+        house_calls.append(a)
+        return _png_canvas(draw=True)
+    edits = _Edits()
+    # unknown symbol: daily None, tf bars None → "No bars", house never attempted
+    assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "15"), bars_fn=lambda *a: None,
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits, house_fn=house_fn) == "no_bars"
+    assert house_calls == []
+    # daily fetch failed but intraday bars exist → mplfinance chart, house skipped
+    def bars_fn(tk, tf, n):
+        return None if tf == "D" else intraday_bars(400, 15)
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
+                         render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits, house_fn=house_fn) == "ok"
+    assert house_calls == [] and edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
+
+
+def test_run_chart_job_caches_the_produced_png_under_sym_tf():
+    from api.services import discord_chart_cache as cc
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    cc.clear()
+    edits = _Edits()
+    drawn = _png_canvas(draw=True)
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=lambda *a: daily_bars(300),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits, house_fn=lambda *a: drawn) == "ok"
+    hit = cc.get("NVDA:D")
+    assert hit is not None and hit[0] == drawn and hit[1] == edits.calls[-1]["filename"]
+
+
+def test_render_slots_come_from_env(monkeypatch):
+    import importlib
+    from api.services import discord_interactions as di
+    monkeypatch.setenv("DISCORD_CHART_MAX_CONCURRENT", "6")
+    assert di.render_slot_count() == 6
+    monkeypatch.setenv("DISCORD_CHART_MAX_CONCURRENT", "garbage")
+    assert di.render_slot_count() == 4
+    monkeypatch.delenv("DISCORD_CHART_MAX_CONCURRENT", raising=False)
+    assert di.render_slot_count() == 4
+
+
+def test_house_url_forces_extended_hours_on_for_intraday_only():
+    from urllib.parse import parse_qs, urlparse
+    from api.services.discord_chart_house import build_render_url
+    for tf in ("5", "15", "30", "60"):
+        q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="")).query)
+        assert q["ext"] == ["1"], tf  # pre/post-market candles + session shading, like the Charts widget
+    for tf in ("D", "W"):
+        q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="")).query)
+        assert "ext" not in q, tf     # daily/weekly have no sessions to show; leave the page's default alone
