@@ -1,125 +1,122 @@
 # What our candle labels are actually worth — measured on our own tape
 
-**Run 2026-08-25.** `api/services/screener/candle_backtest.py` +
-`tools/candle_backtest_run.py`. Reproduce with:
+**Run 2026-08-25, revised the same day after an adversarial audit.**
+`api/services/screener/candle_backtest.py` + `tools/candle_backtest_run.py`.
 
 ```
-python tools/candle_backtest_run.py --workers 18 --min-dates 50 --out result.json
-python tools/candle_backtest_run.py --workers 18 --min-dates 50 --since 20150101   # era check
-python tools/candle_backtest_run.py --workers 18 --min-dates 50 --min-price 5      # price check
+python tools/candle_backtest_run.py --workers 18 --min-dates 50 --entry open   # ← the trustworthy one
+python tools/candle_backtest_run.py --workers 18 --min-dates 50                # close entry, contaminated
+python tools/candle_backtest_run.py --workers 18 --min-dates 50 --since 20150101
+python tools/candle_backtest_run.py --workers 18 --min-dates 50 --min-price 5
 ```
 
 | | |
 |---|---|
-| observations | **18,852,257** labelled bar-observations |
-| cells | 81,935 (date × same-day-move) |
+| observations | **18,848,061** labelled bar-observations |
+| cells | 82,048 (date × same-day-move) |
 | tickers | 4,277, including delisted — no survivorship filter |
-| span | 1976-12-17 → 2026-08-21 (~50 years, many regimes) |
-| labels tested | 121 (66 candle structures + 55 bar characters) |
-| runtime | 942s on 18 cores |
+| span | 1976-12-17 → 2026-08-21 |
+| labels tested | 121 |
 
 ---
 
-## The four controls, and why each exists
+## ⚠️ READ THIS FIRST — the first version of this document was substantially wrong
 
-**This is where the truth is.** A backtest that reports a raw hit rate is worse
-than no backtest — it hands a member a number that *looks* like evidence. Three
-of these four were added because the measurement lied without them.
+The initial run reported a clean, striking finding: **every long-lower-wick shape
+bearish, every long-upper-wick shape bullish, 8 of 8, all Bonferroni-significant,
+holding out-of-sample and above $5.** It survived four controls.
 
-### 1. Date-matched base rate
-Every figure is an **excess** over what the same sessions did anyway. Straight
-from the T+1 lesson: bullish patterns "confirmed" 59.9% of the time, which
-looked like edge until the universe's own opening-gap rate on those same days
-turned out to be 59%.
+**It was largely a microstructure artifact**, and the audit that found it is the
+most valuable thing in this file.
 
-### 2. Same-day-move matching, in ATR units
-🔴 **Without it the first full run was pure mean reversion.** Every bearish
-label measured positive and every bullish label negative — a clean inversion
-across the board. `black-marubozu` +0.53%, `white-marubozu` −0.38%. That is not
-a candle effect: a black marubozu means the stock *fell hard today*, and stocks
-that fall hard bounce. Date-matching controls for what the MARKET did and does
-nothing about what the STOCK did. Bars are now compared against bars that moved
-the same amount, on the same day, in ATR units.
+### The bid-ask bounce
+Forward returns were measured from the labelled bar's **own close** — which puts
+that close in *both* the label and the return denominator. A long-**lower**-wick
+bar closes near its **high**, more often at the **ask**; a long-**upper**-wick bar
+closes near its **low**, at the **bid**. Bid-ask bounce alone produces exactly the
+reported pattern.
 
-### 3. Date clustering
-4,000 hammers on one morning are **one market doing one thing**. The per-date
-mean excess is computed first; the score and its standard error come from the
-spread *across dates*. `n_dates` is the honest sample size. A test pins that a
-thousandfold increase in instances does not move the t-statistic.
+Re-measuring from the **next open** — a different print, and the only entry a
+member could actually take:
 
-### 4. Winsorization at ±50%
-🔴 **The tell:** `gravestone-doji` first reported **+6.0% excess with t = 1.48**.
-A huge mean beside a negligible t is a handful of sub-dollar names that went up
-2,000% in a week. Clipped, it is **+0.93% at t = 24.5** — the outliers were not
-the signal, they were *drowning* it. `tweezer-bottom` went from +13.2% to +0.13%.
-The universe base rate is clipped by the same rule in the same pass.
+| shape | close entry | | next-open entry | | verdict |
+|---|---:|---:|---:|---:|---|
+| | exc5d | t | exc5d | t | |
+| gravestone-doji | +0.931 | 24.5 | **+0.242** | 6.5 | survives |
+| inverted-hammer | +0.541 | 18.3 | **+0.138** | 4.8 | survives |
+| inverted-umbrella | +0.388 | 14.2 | +0.046 | 1.7 | **gone** |
+| shooting-star | +0.220 | 7.2 | −0.061 | −2.0 | **FLIPS** |
+| hammer | −0.198 | −6.9 | +0.109 | 3.8 | **FLIPS** |
+| hanging-man | −0.386 | −14.6 | **−0.094** | −3.6 | survives |
+| umbrella | −0.463 | −18.2 | −0.064 | −2.5 | **gone** |
+| dragonfly-doji | −0.666 | −18.3 | +0.165 | 4.5 | **FLIPS** |
+
+**3 of 8 survive. 3 flip sign. 2 vanish.** The coherent "the wick determines
+direction" story does not survive, and what remains does not form a pattern.
+
+Across all 59 close-entry survivors, the **median effect retained at open entry is
+32%** — roughly **two thirds of the measured excess sat in the close-to-next-open
+window**, which is exactly where microstructure noise lives.
+
+### The other hole: a contaminated control
+The ATR used to bucket a bar's same-day move **included that bar's own true
+range**, so a long-wick bar inflated its own denominator and was compared against
+milder movers. Proven with a probe: an identical close lands in bucket 4 or 6
+depending only on the bar's range. **Fixed (ATR now lagged) — and it changed
+nothing**: 8 of 8 held, nothing flipped. A real bug with negligible impact, worth
+recording because the opposite was equally possible.
 
 ---
 
-## Results
-
-Bonferroni over 121 tests → significance at **|t| > 3.53**.
+## The trustworthy result (next-open entry)
 
 | | count |
 |---|---:|
-| naive \|t\| > 1.96 | 38 *(≈6 expected by chance)* |
-| **Bonferroni survivors** | **60** |
-| …that hold direction + significance in 2015-2026 | **42** |
-| …that keep sign but lose significance out-of-sample | 17 |
-| …that **flip** (flagged, do not use) | **1** — `char:gap-down-closed-green` |
-| Bonferroni survivors above $5 | 50 (45 in both sets, **45 of 45 agree on direction**) |
+| Bonferroni survivors (\|t\| > 3.53), **close entry** | 59 *(not trustworthy)* |
+| Bonferroni survivors, **next-open entry** | **32** |
+| in both | 26 — of which **22 agree on direction, 4 flip** |
+| largest surviving effect | **0.79% over 5 sessions, gross** |
+
+Strongest survivors: `char:gap-down-filled` +0.315 (t=12.0) · `char:no-supply`
+−0.176 (t=−9.7) · `bullish-belt-hold` +0.254 (t=7.6) · `gravestone-doji` +0.242
+(t=6.5) · `bearish-belt-hold` −0.185 (t=−6.3) · `bearish-engulfing` −0.151
+(t=−6.2) · `bullish-harami` +0.187 (t=6.0).
+
+**This is the picture the literature predicts.** Duvinage/Mazza/Petitjean: 5 of 83
+rules survive costs. Marshall/Young/Rose: none on the Dow. A handful of tiny,
+sub-0.3% gross effects is what an honest measurement of candlestick labels looks
+like — and it is why the CANDLE column ships **descriptive, with no score**.
 
 ---
 
-## The finding: it is the wick, and it runs opposite to the textbook
+## Data integrity — checked, not assumed
 
-Every long-**lower**-wick shape measures **bearish**. Every long-**upper**-wick
-shape measures **bullish**. Eight of eight, all Bonferroni-significant.
+Over 1.24M consecutive-bar pairs: 2:1 split signature **0.23 per 10k** (~150×
+below what unadjusted prices would show, so bars.db **is** split-adjusted) · **zero**
+self-contradicting bars · extreme moves 0.08 per 10k, already winsorized.
 
-| shape | textbook | excess 5d | t | 2015+ | ≥$5 |
-|---|---|---:|---:|:--:|:--:|
-| gravestone-doji | bearish | **+0.931%** | +24.5 | ✅ | ✅ |
-| inverted-hammer | bullish | +0.509% | +17.4 | ✅ | ✅ |
-| inverted-umbrella | neutral | +0.386% | +14.1 | ✅ | ✅ |
-| shooting-star | bearish | +0.206% | +6.8 | ✅ | ✅ |
-| hammer | bullish | −0.183% | −6.3 | ✅ | ✅ |
-| hanging-man | bearish | −0.376% | −14.4 | ✅ | ✅ |
-| umbrella | neutral | −0.449% | −17.5 | ✅ | ✅ |
-| dragonfly-doji | bullish | **−0.648%** | −17.8 | ✅ | ✅ |
+## The four controls
 
-**8 of 8 hold in 2015-2026. 8 of 8 hold above $5.** Six of the eight run
-*opposite* to the classical reading.
+1. **Date-matched base rate** — excess over what the same sessions did anyway.
+2. **Same-day-move matching in ATR units** — without it the whole thing was
+   short-term mean reversion. ATR is **lagged**.
+3. **Date clustering** — significance from `n_dates`, never `n_instances`.
+4. **Winsorization ±50%** — `gravestone-doji` first read +6.0% at t=1.48; a huge
+   mean beside a tiny t is an outlier report. Clipped: +0.93% at t=24.5.
 
-Plainly: **conditional on the same daily move, the bar that touched a higher
-high did better afterwards, and the bar that touched a lower low did worse.**
-The marubozu pair shows the same inversion (`black-marubozu` +0.385% t=19.6,
-`white-marubozu` −0.364% t=−19.2).
-
----
-
-## What this does NOT say
-
-- ⚠️ **Association, not mechanism.** A plausible reading is that the intraday
-  extreme carries momentum information the close does not; another is residual
-  mean-reversion the move-bucket did not fully absorb. This measurement cannot
-  separate them.
-- ⚠️ **Not a strategy.** No costs, no slippage, no sizing, no stops, entry at the
-  labelled close. Effects are **0.2–0.9% over five sessions, gross**. The
-  literature is consistent that most such edges do not survive costs —
-  Duvinage/Mazza/Petitjean: 5 of 83 rules; Marshall/Young/Rose: none on the Dow.
-- ⚠️ **Not permission to score the column.** Per the standing owner rule the
-  CANDLE column stays descriptive with no strength number. This tells *us* which
-  labels deserve emphasis; it does not put a forecast in front of a member.
-- ⚠️ **One label flips out-of-sample** (`char:gap-down-closed-green`) and 17 more
-  weaken. Treat the 42 that hold as the trustworthy set.
+Plus, now, **entry at the next open** as the microstructure control — the one that
+overturned the headline.
 
 ---
 
 ## Reusable lessons
 
-1. **Compute what the number would be by accident, before believing it.** Twice
-   in this project a result was the base rate wearing a costume.
-2. **A huge mean beside a small t-statistic is an outlier report, not a finding.**
-3. **Controls need controls.** Every "should be zero" test here is paired with
-   one proving the measurement can still detect a real effect.
-4. **Cross-sectional data is not independent.** One tape is one observation.
+1. **Compute what the number would be by accident.** Three times in this project a
+   result was an artifact wearing a costume: the T+1 base rate, the mean-reversion
+   inversion, and now the bid-ask bounce.
+2. **If a measurement uses a price in both the label and the return, it is not a
+   measurement.** The tell is an effect that lives entirely in the first session.
+3. **A huge mean beside a small t-statistic is an outlier report.**
+4. **The more beautiful the finding, the harder to audit it.** "8 of 8, perfectly
+   consistent, opposite the textbook" was exactly the shape that should have
+   invited more suspicion, not less.
