@@ -336,6 +336,41 @@ produces exactly that image, server-side:
 - **E2E v2 (2026-08-25 17:07 ET, `#dev-chat`):** `/chart NVDA` → the house
   image with the stats strip, 2592×1396, ~6 s end to end.
 
+## v3 (2026-08-25 late): faster and more scalable
+
+- **Readiness without the 3.5 s floor.** `discord_chart_house.house_ready_js`
+  downsamples every chart canvas to 32×18, requires ≥6 distinct colours
+  (a blank canvas has 1–2) and an identical signature across two samples
+  ≥250 ms apart; the page's `__chartReady` is accepted too, whichever first.
+  Measured live: ready 1.2–1.8 s, full render 1.9–3.0 s (was 5–6 s). A
+  6-point pixel sample was tried first and never certified "drawn" — fixed
+  points miss candles; downsampling averages them in.
+- **Fetch order.** cache → daily bars → house render → the timeframe's bars
+  only for the mplfinance fallback. The house render is skipped when there are
+  no daily bars, so an unknown symbol answers "No bars" without a render.
+- **`discord_chart_cache`**: PNG + filename cached 45 s (D/W) / 20 s
+  (intraday) per `SYMBOL:tf`, and single-flight — simultaneous requests for
+  the same chart share one production. Cache hits and waiters take no render
+  slot.
+- **Concurrency is a dial**: `DISCORD_CHART_MAX_CONCURRENT` (API, default 4)
+  and `RENDER_MAX_CONCURRENT` (renderer, set to 4). Beyond that, add
+  chart-renderer replicas.
+- **Intraday house URLs carry `ext=1`** so pre/post-market candles and session
+  shading match the Charts widget with Extended hours on, regardless of the
+  saved setting.
+- **Member access.** In Uncharted Territory only contributors/admins could
+  run `/chart`: the app and the command were open, but the `@everyone` role
+  lacked **Use Application Commands** (bit 31). Enabled in Server Settings →
+  Roles → Default Permissions on 2026-08-25 (verified via
+  `GET /guilds/{id}/roles`). A channel override beats the role: the member
+  chat channels (STOCKS AND TRADING and its synced children, `#main-chat`,
+  two CASUAL channels) carried an explicit deny for `@everyone` **and for
+  `Exclusive VIP Access`, the paying-member role** (Contributor allowed) —
+  the VIP override is what actually blocked members. Fixed per channel /
+  category in the UI (VIP → Allow, `@everyone` → passthrough), verified via
+  `GET /guilds/{id}/channels`; the TRADERS one-way feed channels keep their
+  deny on purpose.
+
 ## Rollout note (2026-08-25, what is actually live)
 
 `/chart` went live on the **existing "UCT Intelligence" application**
