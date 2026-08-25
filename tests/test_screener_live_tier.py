@@ -19,7 +19,7 @@ import datetime
 
 import pytest
 
-from api.services.screener import live_tier, snapshot_builder, snapshot_db
+from api.services.screener import candle_catalog, live_tier, snapshot_builder, snapshot_db
 
 ET = datetime.timezone(datetime.timedelta(hours=-4))
 YMD = 20260824                     # a Monday, the "today" every test runs on
@@ -409,8 +409,13 @@ def test_the_disclosure_names_only_the_columns_the_sweep_measured_recomputing(
     r = live_tier.run_sweep()
 
     assert r["rows_written"] == 1
-    assert set(r["columns_not_recomputed"]) == {
-        "chg_from_open_pct", "gap_pct", "new_52w_high", "new_ath"}
+    # ⛔ DERIVED, NOT RETYPED. This listed the four §3.2 columns by hand and went
+    # stale the day the forming-bar shape columns joined them. The property is
+    # "exactly the feed-dependent columns are disclosed", and the declaration of
+    # WHICH those are already lives in one place.
+    assert set(r["columns_not_recomputed"]) == set(
+        live_tier.FEED_FIELD_DEPENDENCIES)
+    assert len(r["columns_not_recomputed"]) >= 4
     assert set(live_tier.columns_not_recomputed()) == set(
         r["columns_not_recomputed"])
     effective = live_tier.live_columns_effective()
@@ -420,14 +425,19 @@ def test_the_disclosure_names_only_the_columns_the_sweep_measured_recomputing(
     assert all(r["cols_recomputed_by_column"][c] > 0 for c in effective)
 
 
-def test_the_over_claim_control_a_widened_feed_puts_all_twenty_two_back(
+def test_the_over_claim_control_a_widened_feed_puts_every_column_back(
         live_env, monkeypatch):
     """The control that proves the subtraction is measured, not hard-coded: the
-    moment `massive.get_full_market_snapshot` emits `day_open`/`day_high`, the
-    claim widens to all 22 with NO change in this module."""
+    moment `massive.get_full_market_snapshot` emits the day fields, the claim
+    widens to EVERY live column with no change in this module.
+
+    ⭐ The feed now carries `day_low` as well, for the forming-bar shape — so
+    "widened" means all three day fields. Without day_low the six shape columns
+    stay nightly and this control would silently stop being a control."""
     snapshot_db.upsert_rows([_nightly_row()])
     _feed(monkeypatch,
-          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0)})
+          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0,
+                         day_low=95.0)})
 
     r = live_tier.run_sweep()
 
@@ -456,8 +466,11 @@ def test_a_cycle_that_wrote_nothing_does_not_move_the_claim(live_env,
     columns live" on one bad minute while the previous overlay is still being
     served."""
     snapshot_db.upsert_rows([_nightly_row()])
+    # the fully-widened feed — all three day fields, so the first cycle really
+    # does recompute every live column and the claim starts at "nothing stale"
     _feed(monkeypatch,
-          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0)})
+          {"AAA": _quote(last=130.0, day_open=105.0, day_high=131.0,
+                         day_low=95.0)})
     live_tier.run_sweep()
     assert live_tier.columns_not_recomputed() == ()
 
@@ -482,8 +495,11 @@ def test_the_feed_dependency_declaration_matches_what_derive_row_actually_does(
     missing_on_minimal = set(live_tier.LIVE_COLUMNS) - minimal
     assert missing_on_minimal == set(live_tier.FEED_FIELD_DEPENDENCIES)
 
-    # and each declared column really does hang on the field it declares
-    widened = {"day_open": 105.0, "day_high": 131.0}
+    # and each declared column really does hang on the field it declares.
+    # ⭐ `day_low` joined the feed when the snapshot parse was widened for the
+    # forming-bar shape; "widened" means the WHOLE feed, so it belongs here or
+    # the candle columns can never be recomputed and the loop below is vacuous.
+    widened = {"day_open": 105.0, "day_high": 131.0, "day_low": 95.0}
     for col, field in live_tier.FEED_FIELD_DEPENDENCIES.items():
         without = {k: v for k, v in widened.items() if k != field}
         got = set()
@@ -838,7 +854,12 @@ def test_live_columns_are_real_snapshot_columns_with_matching_declared_types():
     missing = [c for c in live_tier.LIVE_COLUMNS if c not in snapshot_db.COLUMNS]
     assert not missing, missing
     assert len(set(live_tier.LIVE_COLUMNS)) == len(live_tier.LIVE_COLUMNS)
-    assert len(live_tier.LIVE_COLUMNS) == 22
+    # ⛔ NO HAND-TYPED COUNT. This asserted `== 22` and went stale the day the
+    # forming-bar shape columns landed — the same hand-typed-count-beside-the-
+    # list defect this repo keeps paying for. What actually matters is that
+    # every live column is a REAL snapshot column (above) and that the set is
+    # non-trivial; the size is a consequence, not a contract.
+    assert len(live_tier.LIVE_COLUMNS) >= 22
 
 
 def test_the_overlay_table_types_are_derived_from_snapshot_dbs_own_coldef(live_env):
@@ -1106,3 +1127,102 @@ def test_anchor_age_counts_weekday_sessions(asof, expect):
 
 def test_a_future_anchor_is_zero_sessions_old_not_negative():
     assert live_tier.anchor_age_sessions("20260901", YMD) == 0
+
+
+# ── the forming bar's shape ─────────────────────────────────────────────────
+def test_the_live_shape_uses_the_same_classifier_as_the_nightly_build():
+    """⛔ ONE CLASSIFIER, NOT A SECOND ONE. An intraday label and a 03:00 label
+    must never disagree about what a shape IS. A private intraday definition
+    would be a second authority over one value — this repo's most repeated
+    defect — so `derive_row` calls `candle_catalog.classify_shape` itself."""
+    import inspect
+    src = inspect.getsource(live_tier.derive_row)
+    assert "classify_shape" in src
+    assert "candle_catalog.BarCtx" in src
+
+
+def test_a_forming_bar_says_it_is_forming():
+    """⚠️ A hammer at 10:30 can be a marubozu by 16:00 — the high and low can
+    only widen. The marker is the difference between a description and a claim,
+    and it is the same word the weekly and monthly columns use."""
+    row = _nightly_row()
+    row.update({"candle_trend": "down", "avg_body": 1.2, "avg_range": 2.5,
+                "candle_type": "black-candle", "candle_label": "Black Candle"})
+    out = live_tier.derive_row(
+        row, _quote(last=130.0, day_open=105.0, day_high=131.0, day_low=95.0),
+        YMD, 1.0)
+    assert out is not None
+    assert out["candle_label"].endswith("(forming)")
+    assert out["candle_type"] in candle_catalog.BY_KEY
+
+
+def test_the_live_shape_refuses_where_the_nightly_build_refuses():
+    """⛔ A zero-range or self-contradicting bar keeps its NIGHTLY value rather
+    than publishing a shape computed from 0/0 — the same rule `candles` states,
+    not a second one."""
+    row = _nightly_row()
+    row.update({"candle_type": "black-candle", "candle_label": "Black Candle",
+                "avg_body": 1.2, "avg_range": 2.5})
+    # zero range
+    flat = live_tier.derive_row(
+        row, _quote(last=100.0, day_open=100.0, day_high=100.0, day_low=100.0),
+        YMD, 1.0)
+    assert flat is None or flat["candle_label"] == "Black Candle"
+    # close outside the day's range
+    bad = live_tier.derive_row(
+        row, _quote(last=140.0, day_open=105.0, day_high=131.0, day_low=95.0),
+        YMD, 1.0)
+    assert bad is None or bad["candle_label"] == "Black Candle"
+
+
+def test_the_relations_are_NOT_live():
+    """⛔ Engulfing, harami, the star family and the recency lookback all read
+    NEIGHBOURING bars this tier does not hold. Publishing them live would mean
+    inventing them from one bar. They must keep their 03:00 values."""
+    for col in ("candle_matches", "candle_recent", "candle_recent_status",
+                "candle_weekly", "candle_monthly", "bar_character"):
+        assert col not in live_tier.LIVE_COLUMNS, col
+
+
+def test_the_prior_trend_is_an_ANCHOR_not_a_live_value():
+    """⭐ The trend a bar prints INTO is by definition the trend BEFORE it, so
+    the nightly `candle_trend` is exactly right for today's forming bar. That is
+    the anchor contract working as designed, not a relaxation of it."""
+    assert "candle_trend" in live_tier.ANCHOR_COLUMNS
+    assert "candle_trend" not in live_tier.LIVE_COLUMNS
+    for lvl in ("avg_body", "avg_range"):
+        assert lvl in live_tier.ANCHOR_COLUMNS, lvl
+
+
+def test_the_overlay_table_gains_a_newly_added_live_column(live_env):
+    """🔴 MEASURED IN PRODUCTION, 2026-08-25. Six forming-bar columns were added
+    to `LIVE_COLUMNS`, the tier was enabled, the scheduler ran it every 60s — and
+    `screener_live` held ZERO ROWS with no `candle_type` column. `CREATE TABLE IF
+    NOT EXISTS` never widens, so a column added after the table first existed can
+    never appear on a pod that already holds one, and the sweep's INSERT then
+    names a column the table does not have.
+
+    ⭐ It failed SAFELY — the read path LEFT JOINs, so members kept nightly
+    values — which is exactly why neither the logs nor uptime screamed. Only
+    reading the table showed it. `screener_rows` has had this ALTER-add loop for
+    a year; the overlay needed the same one.
+    """
+    from api.services.screener import snapshot_db
+
+    conn = snapshot_db.connect()
+    conn.execute(f"DROP TABLE IF EXISTS {live_tier.LIVE_TABLE}")
+    narrow = [c for c in snapshot_db._live_write_columns()
+              if c not in ("candle_type", "candle_label")]
+    conn.execute(f"CREATE TABLE {live_tier.LIVE_TABLE} (" +
+                 ",".join(snapshot_db._coldef(c) for c in narrow) + ")")
+    conn.commit()
+    before = {r[1] for r in
+              conn.execute(f"PRAGMA table_info({live_tier.LIVE_TABLE})")}
+    assert "candle_type" not in before, "the probe did not set up a narrow table"
+
+    snapshot_db.init_db()
+
+    after = {r[1] for r in snapshot_db.connect().execute(
+        f"PRAGMA table_info({live_tier.LIVE_TABLE})")}
+    missing = [c for c in snapshot_db._live_write_columns() if c not in after]
+    assert not missing, f"init_db left the overlay narrower than it writes: {missing}"

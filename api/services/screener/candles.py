@@ -95,7 +95,8 @@ def _trend(bars, first_i, atr):
 #: it at every return — a shared mutable would let one caller's edit reach the
 #: next.
 _NO_SHAPE = {"candle_type": "none", "candle_label": None, "candle_matches": None,
-             "candle_trend": None, "body_pct": None, "upper_wick_pct": None,
+             "candle_trend": None, "avg_body": None, "avg_range": None,
+             "body_pct": None, "upper_wick_pct": None,
              "lower_wick_pct": None, "close_position": None,
              "wide_bar": False, "narrow_bar": False}
 
@@ -223,8 +224,22 @@ def single_candle(bars: list[dict]) -> dict:
     # publishing the 1-bar anchor unconditionally put "neutral" beside NKLR's
     # Three White Soldiers — a pattern that only fires in a downtrend. The
     # column and the label now answer the same question.
+    # ⭐ `avg_body` / `avg_range` ARE PUBLISHED SO THE LIVE TIER CAN REUSE THEM.
+    # They are rolling means over COMPLETED sessions excluding the newest bar —
+    # exactly the "level computed from completed sessions through bars_asof"
+    # the live tier's anchor contract requires. Without them an intraday
+    # classifier cannot tell a long body from a short one and would have to
+    # invent a second definition of "long".
     return {"candle_type": primary.key,
             "candle_label": label,
+            # ⚠️ A ZERO BASELINE IS REFUSED, NOT STORED. `avg_body == 0` means
+            # every prior bar closed where it opened; comparing a real body
+            # against it makes EVERY body "long" (`body > 1.5 * 0`). The
+            # classifier already guards with `bool(avg_body)`, so None and 0
+            # behave identically downstream — but None is the honest record of
+            # "no usable baseline", and a 0 in a stored column sorts and filters.
+            "avg_body": round(ctx1.avg_body, 6) if ctx1.avg_body > 0 else None,
+            "avg_range": round(ctx1.avg_range, 6) if ctx1.avg_range > 0 else None,
             "candle_matches": cat.encode_matches(keys),
             "candle_trend": ctx_by_len.get(primary.bars, ctx1).trend,
             "body_pct": round(ctx1.body_pct, 4),

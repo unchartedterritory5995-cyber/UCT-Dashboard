@@ -91,6 +91,8 @@ COLUMNS = [
     # rows carry one that today's bar alone cannot see.
     "candle_recent", "candle_recent_bars_ago", "candle_recent_label",
     "candle_recent_status",
+    # levels the LIVE tier reuses to classify the forming bar (see live_tier)
+    "avg_body", "avg_range",
     # the WEEKLY bar's structure, resampled from the daily series
     "candle_weekly", "candle_weekly_label",
     "candle_monthly", "candle_monthly_label",
@@ -404,6 +406,26 @@ def init_db() -> None:
         # its next init with no migration step and no separate flag — the same
         # reason the scan tables above need none.
         conn.executescript(_live_schema_sql())
+        # 🔴 THE OVERLAY TABLE NEEDS THE SAME ALTER-ADD `screener_rows` HAS.
+        # `CREATE TABLE IF NOT EXISTS` never widens, so a live column added
+        # after the table first existed can never appear on a pod that already
+        # holds one — and the sweep then writes NOTHING, because its INSERT
+        # names a column the table does not have.
+        #
+        # ⚠️ MEASURED IN PRODUCTION, 2026-08-25: six forming-bar columns were
+        # added to `LIVE_COLUMNS`, the tier was enabled, the scheduler ran it
+        # every 60s — and `screener_live` held **0 rows** with no `candle_type`
+        # column. The failure was SILENT to logs and uptime; only reading the
+        # table showed it. It also failed SAFELY (the read path LEFT JOINs, so
+        # members kept nightly values), which is exactly why nothing screamed.
+        from api.services.screener import live_tier as _lt   # local, as above
+        live_have = {r[1] for r in
+                     conn.execute(f"PRAGMA table_info({_lt.LIVE_TABLE})")}
+        if live_have:                      # empty ⇒ the CREATE just made it
+            for c in _live_write_columns():
+                if c not in live_have:
+                    conn.execute(f"ALTER TABLE {_lt.LIVE_TABLE} "
+                                 f"ADD COLUMN {_coldef(c)}")
         conn.commit()
 
 

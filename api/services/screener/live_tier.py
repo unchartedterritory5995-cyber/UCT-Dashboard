@@ -79,7 +79,7 @@ import sqlite3
 import time
 from datetime import date, timedelta
 
-from api.services.screener import snapshot_db, technicals
+from api.services.screener import candle_catalog, snapshot_db, technicals
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +124,21 @@ LIVE_COLUMNS = (
     "pattern_entry_dist_pct",   # 20 ⛔ THE ALGEBRA FLIPS — see _recover_pattern_level
     "pattern_stop_dist_pct",    # 21 ⛔ same
     "pt_upside_pct",            # 22 pt_target is a stored column, not an anchor
+    # ── the FORMING bar's shape (needs day_open/day_high/day_low) ──────────
+    # ⭐ A CANDLE IS A PURE FUNCTION OF O/H/L/C, and with the widened snapshot
+    # parse all four exist intraday. The history the classifier also needs —
+    # the prior trend and the rolling body/range baselines — are LEVELS FROM
+    # COMPLETED SESSIONS, which is exactly what the anchor contract permits:
+    # today's forming bar is classified against yesterday's completed context.
+    # ⛔ RELATIONS STAY NIGHTLY. Engulfing, harami, the star family and the
+    # rest read neighbouring bars this tier does not hold, so `candle_matches`
+    # and `candle_recent` are NOT live columns and keep their 03:00 values.
+    "body_pct",                 # 23
+    "upper_wick_pct",           # 24
+    "lower_wick_pct",           # 25
+    "close_position",           # 26
+    "candle_type",              # 27 SHAPE only — see the note above
+    "candle_label",             # 28 carries the "(forming)" marker
 )
 
 #: ⭐ THE COLUMNS THAT NEED A FEED FIELD THE SNAPSHOT PARSE MAY NOT EMIT, and
@@ -145,6 +160,14 @@ FEED_FIELD_DEPENDENCIES = {
     "gap_pct":           "day_open",
     "new_52w_high":      "day_high",
     "new_ath":           "day_high",
+    # the forming bar needs a whole OHLC; `day_low` is the field that arrived
+    # last, so it stands for the set.
+    "body_pct":          "day_low",
+    "upper_wick_pct":    "day_low",
+    "lower_wick_pct":    "day_low",
+    "close_position":    "day_low",
+    "candle_type":       "day_low",
+    "candle_label":      "day_low",
 }
 
 #: Stored columns the derivation READS that are not themselves live.
@@ -153,7 +176,13 @@ FEED_FIELD_DEPENDENCIES = {
 #: ⭐ `atr_pct` staying NIGHTLY is correct, not a compromise — a volatility
 #: level from completed sessions is exactly what belongs under an extension
 #: measure (spec §2.3).
-ANCHOR_COLUMNS = ("bars_asof", "atr_pct", "pt_target")
+# ⭐ `candle_trend`, `avg_body` and `avg_range` join the anchors for the
+# forming-bar shape. All three are computed from sessions through `bars_asof`,
+# so reusing them intraday is the contract working as designed rather than a
+# relaxation of it: the trend a bar prints INTO is by definition the trend
+# before it.
+ANCHOR_COLUMNS = ("bars_asof", "atr_pct", "pt_target",
+                  "candle_trend", "avg_body", "avg_range")
 
 #: The one SELECT the sweep runs against `screener_rows`. Derived from the two
 #: lists above so a 23rd live column cannot be forgotten here.
@@ -597,6 +626,49 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
     pt_target = _num(anchor_row.get("pt_target"))
     if pt_target is not None and pt_target > 0:
         put("pt_upside_pct", round((pt_target / p1 - 1) * 100, 2))
+
+    # ── the FORMING bar's shape ────────────────────────────────────────────
+    # ⭐ ONE CLASSIFIER, NOT A SECOND ONE. This builds the same `BarCtx` the
+    # nightly build uses and calls the SAME `classify_shape`, so an intraday
+    # label and a 03:00 label can never disagree about what a shape IS. A
+    # private intraday definition would be a second authority over one value.
+    #
+    # ⛔ REFUSES EXACTLY WHERE THE NIGHTLY BUILD REFUSES. No range, or an OHLC
+    # that contradicts itself, keeps the nightly value rather than publishing
+    # a shape computed from 0/0 — the same rule, stated once, in `candles`.
+    day_low = _num(quote.get("day_low"))
+    day_low = day_low if (day_low or 0) > 0 else None
+    if None not in (day_open, day_high, day_low):
+        o, h, l, c = float(day_open), float(day_high), float(day_low), p1
+        rng = h - l
+        if rng > 0 and min(o, c) >= l and max(o, c) <= h:
+            body, upper, lower = abs(c - o), h - max(o, c), min(o, c) - l
+            atr_abs = (_num(anchor_row.get("atr_pct")) or 0) * p0 / 100.0
+            tick = candle_catalog.tick_size(c)
+            ctx = candle_catalog.BarCtx(
+                bars=[], o=o, h=h, l=l, c=c, v=1,
+                rng=rng, body=body, upper=upper, lower=lower,
+                body_pct=body / rng, upper_pct=upper / rng,
+                lower_pct=lower / rng, close_pos=(c - l) / rng,
+                avg_body=_num(anchor_row.get("avg_body")) or 0.0,
+                avg_range=_num(anchor_row.get("avg_range")) or 0.0,
+                avg_range5=_num(anchor_row.get("avg_range")) or 0.0,
+                atr=atr_abs, tick=tick,
+                noise=rng < max(candle_catalog.MIN_RANGE_TICKS * tick,
+                                candle_catalog.MIN_RANGE_PCT * c),
+                trend=anchor_row.get("candle_trend") or "unknown",
+                up=c >= o)
+            shape = candle_catalog.classify_shape(ctx)
+            put("body_pct", round(ctx.body_pct, 4))
+            put("upper_wick_pct", round(ctx.upper_pct, 4))
+            put("lower_wick_pct", round(ctx.lower_pct, 4))
+            put("close_position", round(ctx.close_pos, 4))
+            put("candle_type", shape)
+            # ⚠️ "(forming)" IS NOT DECORATION. A hammer at 10:30 can be a
+            # marubozu by 16:00 — the high and low can only widen. The marker
+            # is the difference between a description and a claim, and it is
+            # the same word the weekly and monthly columns already use.
+            put("candle_label", candle_catalog.label_for(shape) + " (forming)")
 
     row = {
         "ticker": anchor_row.get("ticker"),
