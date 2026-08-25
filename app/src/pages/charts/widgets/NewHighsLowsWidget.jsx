@@ -61,32 +61,40 @@ const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', clos
 
 // One side (highs OR lows) — a scrollable event log with a count histogram. `total`
 // is the universe-wide distinct-symbol count for the panel header.
-function Side({ title, tone, events, total, onPick }) {
+function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
   const maxCount = useMemo(
     () => events.reduce((m, e) => Math.max(m, e.count || 0), 0) || 1,
     [events],
   )
   return (
-    <div className={`${styles.side} ${styles[tone]}`}>
+    <div className={`${styles.side} ${styles[tone]}${groupView ? ' ' + styles.noPrice : ''}`}>
       <div className={styles.sideHead}>
         <span className={styles.sideTitle}>{title}</span>
         <span className={styles.sideCount}>{total}</span>
       </div>
       <div className={styles.rows} role="list">
         {events.map((e, i) => {
-          // `pick` = the chartable symbol (a stock, or a sector's ETF). Group
-          // rows with no chartable proxy (industry breadth, theme index) come
-          // back with pick===null and stay inert. Old payloads (no pick) → sym.
+          // In a GROUP overview (Sector/Industry/Theme with no value), a row IS a
+          // group — clicking it drills into that group's stocks (2nd dropdown +
+          // scan). Otherwise `pick` is the chartable symbol (a stock, or null for
+          // a proxy-less group row); clicking charts it. Old payloads → sym.
           const target = e.pick === null ? null : (e.pick ?? e.sym)
+          const clickable = groupView || !!target
+          const onClick = groupView
+            ? () => onDrill(e.sym)
+            : (target ? () => onPick(target) : undefined)
+          const tip = groupView
+            ? `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} · click to drill in`
+            : `${e.sym} — ${tone === 'up' ? 'new high' : 'new low'} #${e.count}${e.ts ? ` at ${fmtTime(e.ts)}` : ''}`
           return (
             <button
               type="button"
               role="listitem"
               key={`${e.sym}-${e.ts}-${i}`}
-              className={`${styles.row}${target ? '' : ' ' + styles.rowInert}`}
-              onClick={target ? () => onPick(target) : undefined}
-              disabled={!target}
-              title={`${e.sym} — ${tone === 'up' ? 'new high' : 'new low'} #${e.count}${e.ts ? ` at ${fmtTime(e.ts)}` : ''}`}
+              className={`${styles.row}${clickable ? '' : ' ' + styles.rowInert}`}
+              onClick={onClick}
+              disabled={!clickable}
+              title={tip}
             >
               <span
                 className={styles.bar}
@@ -95,8 +103,9 @@ function Side({ title, tone, events, total, onPick }) {
               />
               <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
               <span className={styles.sym}>{e.sym}</span>
-              <span className={styles.price}>{fmtPrice(e.price)}</span>
-              <span className={styles.time}>{fmtTime(e.ts)}</span>
+              {/* Group rows: no price/time — hand that width to the (long) group name. */}
+              {!groupView && <span className={styles.price}>{fmtPrice(e.price)}</span>}
+              {!groupView && <span className={styles.time}>{fmtTime(e.ts)}</span>}
               <span className={styles.count}>{e.count}</span>
             </button>
           )
@@ -213,6 +222,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
+  // Group overview = a scope dim is active with no specific value selected. Rows
+  // are groups (sectors/industries/themes): no price column, and a click drills
+  // into that group's stocks (sets the 2nd dropdown + re-scans).
+  const groupView = !!data?.group && !data?.value
 
   return (
     <div ref={rootRef} className={styles.wrap} style={styleVars}>
@@ -276,8 +289,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </div>
       ) : (
         <div className={styles.panels}>
-          <Side title="NEW HIGHS" tone="up" events={highs} total={highsTotal} onPick={onPick} />
-          <Side title="NEW LOWS" tone="down" events={lows} total={lowsTotal} onPick={onPick} />
+          <Side title="NEW HIGHS" tone="up" events={highs} total={highsTotal}
+            onPick={onPick} groupView={groupView} onDrill={commitScopeValue} />
+          <Side title="NEW LOWS" tone="down" events={lows} total={lowsTotal}
+            onPick={onPick} groupView={groupView} onDrill={commitScopeValue} />
         </div>
       )}
     </div>

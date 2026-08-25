@@ -194,6 +194,12 @@
 .rowInert { cursor: default; }
 .rowInert:hover { background: transparent; }
 
+/* Group overview (Sector/Industry/Theme): drop price + time columns and hand ALL
+   the freed width to the (long) group name so it doesn't clip. Higher specificity
+   than the responsive .row rules so it holds at every widget width. */
+.noPrice .row { grid-template-columns: 11px minmax(42px, 1fr) 30px; }
+.noPrice .price, .noPrice .time { display: none; }
+
 /* Count histogram — dim tint anchored to the # side, behind the text. */
 .bar { position: absolute; top: 1px; bottom: 1px; right: 0; z-index: 0; border-radius: 3px 0 0 3px; pointer-events: none; }
 .up .bar { background: rgba(45, 140, 78, 0.24); }
