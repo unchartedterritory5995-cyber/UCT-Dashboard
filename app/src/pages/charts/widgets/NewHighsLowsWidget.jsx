@@ -27,6 +27,7 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
 import NhnlDropdown from './NhnlDropdown'
+import { useNhnlSessions, sessionQuery, isHistorical } from './useNhnlSessions'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
 
@@ -234,15 +235,21 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
+  // Session: Live, or review a past archived session (static — no polling).
+  const [sessionSel, setSessionSel] = useState('live')
+  const sessionOpts = useNhnlSessions()
+  const hist = isHistorical(sessionSel)
+  const sq = sessionQuery(sessionSel)
+
   const filterQS = `min_price=${minPrice}&min_count=${minCount}`
   const scopeQ = scope !== 'all' ? `&group=${scope}` : ''
-  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}`
+  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}${sq}`
   // Base for a group's inline expansion (Side appends &group=&value=&limit=10).
-  const drillBase = `/api/nhnl/live?${filterQS}`
+  const drillBase = `/api/nhnl/live?${filterQS}${sq}`
   const { data } = useMobileSWR(url, fetcher, {
-    refreshInterval: 2000,       // feel live; server accumulates every ~2s
+    refreshInterval: hist ? 0 : 2000,   // historical is static; live accumulates every ~2s
     dedupingInterval: 1200,
-    marketHoursOnly: true,       // 10x-slow the poll when the market is closed
+    marketHoursOnly: !hist,      // 10x-slow the poll when the market is closed (live only)
     revalidateOnFocus: false,
   })
 
@@ -252,7 +259,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lowsTotal = data?.lows_total ?? lows.length
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
-  const stamp = WINDOW_LABEL[window] || ''
+  const stamp = data?.historical ? 'REVIEW' : (WINDOW_LABEL[window] || '')
   // Group scope → rows are groups (sectors/industries/themes) that expand in place.
   const groupView = !!data?.group
   const dim = scope !== 'all' ? scope : null
@@ -276,6 +283,14 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={styles.spacer} />
+        <NhnlDropdown
+          value={sessionSel}
+          options={sessionOpts}
+          onChange={setSessionSel}
+          title="Session"
+          minWidth={80}
+          maxWidth={128}
+        />
         <NhnlDropdown
           value={scope}
           options={SCOPE_OPTIONS}

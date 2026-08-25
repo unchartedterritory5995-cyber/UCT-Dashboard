@@ -72,9 +72,9 @@ describe('NewHighsLowsWidget', () => {
   it('the live poll URL carries the persisted filters', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<NewHighsLowsWidget color="A" opts={{ minPrice: 10, minCount: 3 }} onOptsChange={() => {}} />)
-    expect(swr).toHaveBeenCalledWith(
-      expect.stringContaining('min_price=10'), expect.any(Function), expect.any(Object))
-    expect(swr.mock.calls[0][0]).toContain('min_count=3')
+    const liveUrl = swr.mock.calls.map(c => c[0]).find(u => u && u.includes('limit=150'))
+    expect(liveUrl).toContain('min_price=10')
+    expect(liveUrl).toContain('min_count=3')
   })
 
   it('shows the panels during post-market (not just RTH)', () => {
@@ -97,8 +97,9 @@ describe('NewHighsLowsWidget', () => {
   it('threads the group scope (no value) into the poll URL', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<NewHighsLowsWidget color="A" opts={{ scope: 'sector' }} onOptsChange={() => {}} />)
-    expect(swr.mock.calls[0][0]).toContain('group=sector')
-    expect(swr.mock.calls[0][0]).not.toContain('value=')   // overview only; drill is inline
+    const liveUrl = swr.mock.calls.map(c => c[0]).find(u => u && u.includes('limit=150'))
+    expect(liveUrl).toContain('group=sector')
+    expect(liveUrl).not.toContain('value=')   // overview only; drill is inline
   })
 
   it('expands a group inline to its member stocks (Theme-Tracker accordion)', () => {

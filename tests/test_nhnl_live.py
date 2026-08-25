@@ -42,6 +42,7 @@ def _fresh_state(monkeypatch):
     nhnl_live._rt_hi = 0
     nhnl_live._rt_lo = 0
     nhnl_live._last_sample = 0.0
+    nhnl_live._pending_archive = None
     yield
     nhnl_live._prov_to_app = None
 
@@ -226,6 +227,39 @@ def test_series_reports_alerts_per_second(monkeypatch):
     nhnl_live._rt_hi = 2                      # 2 real-time new-high events (off the tape)
     nhnl_live._sample_series(t1)             # 2 events over 10s → 0.2 alerts/sec
     assert nhnl_live.get_series()["series"][-1]["hi"] == 0.2
+
+
+# ── Session archive (review a past session) ─────────────────────────────────────
+
+def test_rollover_queues_an_archive_of_the_ending_session():
+    _tick(_snap(AAA=(100.0, 98.0, 99.0)), minute=0, window="rth")   # seed
+    _tick(_snap(AAA=(101.0, 98.0, 101.0)), minute=1, window="rth")  # AAA nh=1
+    assert nhnl_live._pending_archive is None
+    _tick(_ext_snap(AAA=50.0), minute=0, window="post")            # rth → post rollover
+    assert nhnl_live._pending_archive is not None                   # (written by the loop, not here)
+    assert nhnl_live._pending_archive["window"] == "rth"
+    assert "AAA" in nhnl_live._pending_archive["syms"]
+
+
+def test_archived_session_is_reviewable(monkeypatch, tmp_path):
+    monkeypatch.setenv("NHNL_ARCHIVE_DIR", str(tmp_path))
+    snap = {"date": "2026-08-25", "window": "rth", "session_key": "2026-08-25:rth",
+            "asof": "2026-08-25T16:00:00-04:00", "ticks": 5,
+            "syms": {"AAA": {"nh": 7, "nl": 0, "last": 10.0, "prev": 9.0,
+                             "hod": 10.0, "lod": 9.0, "hi_ts": None, "lo_ts": None}},
+            "series": [{"t": "2026-08-25T10:00:00-04:00", "hi": 1.2, "lo": 0.3}]}
+    nhnl_live._write_archive(snap)
+    # it shows up in the session list
+    assert any(s["date"] == "2026-08-25" and s["window"] == "rth"
+               for s in nhnl_live.list_sessions()["sessions"])
+    # the leaderboard serves the archived counts
+    out = nhnl_live.get_live(date="2026-08-25", session="rth")
+    assert out["historical"] is True
+    assert [(e["sym"], e["count"]) for e in out["highs"]] == [("AAA", 7)]
+    # the Pulse series serves the archived series
+    ser = nhnl_live.get_series(date="2026-08-25", session="rth")
+    assert ser["historical"] is True
+    assert ser["series"] == [{"t": "2026-08-25T10:00:00-04:00", "hi": 1.2, "lo": 0.3}]
 
 
 # ── Persistence across deploys ──────────────────────────────────────────────────
