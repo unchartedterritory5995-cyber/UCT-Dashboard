@@ -93,13 +93,13 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl') {
+  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse') {
     const mergeFn = surrogate.type === 'news'
       ? mergeNewsWidgetSettings
       : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
         : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings
           : surrogate.type === 'optionsflow' ? mergeOptionsFlowWidgetSettings
-            : surrogate.type === 'nhnl' ? mergeNhnlSettings : mergeProfileWidgetSettings
+            : (surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse') ? mergeNhnlSettings : mergeProfileWidgetSettings
     const own = simpleOwnCanvas(surrogate.opts?.settings, mergeFn)
     if (!own) return null
     const entry = canvasEntry(own.canvas)

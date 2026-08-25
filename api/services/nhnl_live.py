@@ -52,6 +52,7 @@ _log = logging.getLogger(__name__)
 
 # ── Tunables (env-overridable) ────────────────────────────────────────────────
 _RING_MAX = 600          # rolling event buffer per side is drawn from this
+_SERIES_MAX = 4000       # H/L Pulse time-series points (16h @ 15s ≈ 3840)
 _DEFAULT_TICK_SECONDS = 3.0
 _EPS = 1e-6              # float-noise guard for the high-water-mark compare
 _THEME_EPS = 1e-6       # theme-index level move needed to count a new high/low
@@ -64,6 +65,7 @@ _state = {
     "date": None,                # ET date string
     "syms": {},                  # app_sym -> {hod, lod, nh, nl, last}
     "themes": {},                # theme_name -> {val, hi, lo, nh, nl, hi_ts, lo_ts}
+    "series": deque(maxlen=_SERIES_MAX),  # {t, hi, lo} new-H/L events per ~15s sample
     "events": deque(maxlen=_RING_MAX),  # {sym, price, count, ts, dir}; oldest-left
     "asof": None,
     "ticks": 0,
@@ -74,6 +76,15 @@ _running = False
 _thread = None
 _last_persist = 0.0       # epoch of the last state snapshot write
 _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
+
+# ── Intraday time series (the "H/L Pulse" chart) ──────────────────────────────
+# Every ~15s we append the NUMBER of new-high and new-low events since the last
+# sample (the delta of Σnh / Σnl), giving two live lines of new-H/L activity through
+# the day. Bounded to one full session; persisted with the counts so it survives a
+# deploy. `_series_last` holds the cumulative totals at the previous sample.
+_SAMPLE_SECS = 15.0
+_last_sample = 0.0
+_series_last = {"hi": 0, "lo": 0}
 
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
@@ -424,11 +435,14 @@ def _build_group_map(now: float) -> dict:
 
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
+    global _series_last
     _state["session_key"] = session_key
     _state["window"] = window
     _state["date"] = date
     _state["syms"] = {}
     _state["themes"] = {}
+    _state["series"] = deque(maxlen=_SERIES_MAX)
+    _series_last = {"hi": 0, "lo": 0}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -666,6 +680,48 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
     }
 
 
+def _sample_series(now: datetime) -> None:
+    """Append one H/L Pulse point: new-high / new-low events since the last sample."""
+    global _series_last
+    with _lock:
+        cum_hi = 0
+        cum_lo = 0
+        for s in _state["syms"].values():
+            cum_hi += s.get("nh", 0)
+            cum_lo += s.get("nl", 0)
+        d_hi = cum_hi - _series_last["hi"]
+        d_lo = cum_lo - _series_last["lo"]
+        # A session reset (counters back to 0) would make the delta negative — clamp.
+        if d_hi < 0:
+            d_hi = 0
+        if d_lo < 0:
+            d_lo = 0
+        _series_last = {"hi": cum_hi, "lo": cum_lo}
+        _state["series"].append({"t": now.isoformat(), "hi": d_hi, "lo": d_lo})
+
+
+def get_series() -> dict:
+    """The H/L Pulse payload: the two-line time series + session distinct-name totals
+    (for the bull/bear ratio bar). Read-only; safe on the request path."""
+    window = "rth" if _demo() else _active_window(_now_et())
+    with _lock:
+        series = list(_state["series"])
+        hi_names = sum(1 for s in _state["syms"].values() if s.get("nh", 0) > 0)
+        lo_names = sum(1 for s in _state["syms"].values() if s.get("nl", 0) > 0)
+        asof = _state["asof"]
+        session_date = _state["date"]
+    return {
+        "window": window,
+        "asof": asof,
+        "date": session_date,
+        "active": window != "closed" and _running and (enabled() or _demo()),
+        "sample_secs": _SAMPLE_SECS,
+        "series": series,            # [{t, hi, lo}] oldest-first
+        "highs_total": hi_names,     # distinct names at a new high / low today
+        "lows_total": lo_names,
+    }
+
+
 def status() -> dict:
     """Diagnostics — accumulator health without the event payload."""
     with _lock:
@@ -709,6 +765,8 @@ def _persist_state() -> None:
                 "window": _state["window"],
                 "ticks": _state["ticks"],
                 "syms": _state["syms"],   # the counts — only the nhnl thread writes these
+                "series": list(_state["series"]),
+                "series_last": _series_last,
             }
         # Safe to serialize outside the lock: _state["syms"] is mutated ONLY by this
         # (the nhnl) thread; request threads and the trade tape never touch it.
@@ -738,12 +796,19 @@ def _load_state() -> None:
     syms = snap.get("syms")
     if not isinstance(syms, dict):
         return
+    global _series_last
     with _lock:
         _state["session_key"] = snap.get("session_key")
         _state["date"] = snap.get("date")
         _state["window"] = snap.get("window")
         _state["ticks"] = snap.get("ticks", 0)
         _state["syms"] = syms
+        ser = snap.get("series")
+        if isinstance(ser, list):
+            _state["series"] = deque(ser, maxlen=_SERIES_MAX)
+        sl = snap.get("series_last")
+        if isinstance(sl, dict):
+            _series_last = {"hi": sl.get("hi", 0), "lo": sl.get("lo", 0)}
     _log.info("[nhnl] restored %d symbols for session %s", len(syms), cur_key)
 
 
@@ -921,7 +986,13 @@ def _tick() -> None:
         _manage_print_set()
     except Exception:
         _log.exception("[nhnl] print-set management failed")
-    global _last_persist
+    global _last_persist, _last_sample
+    if window != "closed" and (_time.time() - _last_sample) >= _SAMPLE_SECS:
+        try:
+            _sample_series(now)
+        except Exception:
+            _log.exception("[nhnl] series sample failed")
+        _last_sample = _time.time()
     if window != "closed" and (_time.time() - _last_persist) >= _PERSIST_SECS:
         _persist_state()
         _last_persist = _time.time()

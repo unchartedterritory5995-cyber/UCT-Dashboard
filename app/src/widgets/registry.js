@@ -441,6 +441,21 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // a live event stream at a past instant is not replayable
     liveCapable: false,
   },
+  nhnlPulse: {
+    // "H/L Pulse": the live New-Highs-vs-New-Lows line chart companion to the
+    // scanner. Wants width for the time axis; less height than the scanner.
+    labels: { header: 'H/L Pulse', menu: 'H/L Pulse', tab: 'H/L Pulse' },
+    defaults: { w: 6, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'wide' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: () => '[h/l pulse]',
+    reconstructable: false,                     // a live intraday series at a past instant is not replayable
+    liveCapable: false,
+  },
 })
 
 // Registry ids in declaration order — this order IS the menu order.

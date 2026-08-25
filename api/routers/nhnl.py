@@ -47,6 +47,15 @@ def nhnl_live(
         group=group, value=(value or None)))
 
 
+@router.get("/api/nhnl/series")
+def nhnl_series(_user: dict = Depends(require_paid)):
+    """Intraday New-High vs New-Low activity time series (the "H/L Pulse" chart):
+    two lines sampled through the session, plus the session's distinct-name totals
+    for the bull/bear ratio bar."""
+    from api.services import nhnl_live
+    return JSONResponse(content=nhnl_live.get_series())
+
+
 @router.get("/api/nhnl/status")
 def nhnl_status(_user: dict = Depends(require_paid)):
     """Accumulator health (paid, like the feed it describes)."""

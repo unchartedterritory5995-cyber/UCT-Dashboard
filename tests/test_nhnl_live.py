@@ -34,6 +34,11 @@ def _fresh_state(monkeypatch):
     nhnl_live._print_counts.clear()
     nhnl_live._print_listener_on = False
     nhnl_live._print_events_total = 0
+    # H/L Pulse time series.
+    with nhnl_live._lock:
+        nhnl_live._state["series"] = nhnl_live.deque(maxlen=nhnl_live._SERIES_MAX)
+    nhnl_live._series_last = {"hi": 0, "lo": 0}
+    nhnl_live._last_sample = 0.0
     yield
     nhnl_live._prov_to_app = None
 
@@ -204,6 +209,19 @@ def test_rows_carry_pct_change_vs_prior_close():
     row = next(e for e in nhnl_live.get_live()["highs"] if e["sym"] == "AAA")
     assert row["price"] == 101.0
     assert row["pct"] == round((101.0 - 90.0) / 90.0 * 100, 2)   # +12.22% vs prior close
+
+
+# ── H/L Pulse time series ───────────────────────────────────────────────────────
+
+def test_series_samples_new_high_event_deltas():
+    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed
+    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both +1 nh (Σnh=2)
+    nhnl_live._sample_series(_now(1))                                          # delta 2-0 = 2
+    _tick(_snap(AAA=(102.0, 98.0, 102.0)), minute=2)                          # AAA +1 (Σnh=3)
+    nhnl_live._sample_series(_now(2))                                          # delta 3-2 = 1
+    out = nhnl_live.get_series()
+    assert [p["hi"] for p in out["series"]] == [2, 1]
+    assert out["highs_total"] == 2      # AAA, BBB distinct names for the ratio bar
 
 
 # ── Persistence across deploys ──────────────────────────────────────────────────
