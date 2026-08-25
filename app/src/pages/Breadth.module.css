@@ -191,7 +191,7 @@
   left: 0;
   background: var(--bg);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
   border-right: 1px solid var(--border);
   z-index: 1;
@@ -214,13 +214,16 @@
 /* A single saturation ramp per direction, built from the brand --gain / --loss
    / --ut-gold hues over the graphite ground: more signal = more saturated brand
    colour (not muddy forest→near-black). Text stays uniform bright white. */
-.bgG3 { background: rgba( 52, 209, 124, 0.62); }  /* extreme bullish */
-.bgG2 { background: rgba( 52, 209, 124, 0.36); }  /* bullish */
-.bgG1 { background: rgba( 52, 209, 124, 0.13); }  /* mild bullish */
+/* Classic trading red/green, toned for graphite: balanced green #2faf68
+   (47,175,104) + true red #df4646 (223,70,70), caution = brand gold. Clean
+   universal ticker colours, mild = subtle wash, extreme = saturated. */
+.bgG3 { background: rgba( 47, 175, 104, 0.62); }  /* extreme bullish */
+.bgG2 { background: rgba( 47, 175, 104, 0.36); }  /* bullish */
+.bgG1 { background: rgba( 47, 175, 104, 0.13); }  /* mild bullish */
 .bgA  { background: rgba(220, 187,  94, 0.22); }  /* caution — brand gold */
-.bgR1 { background: rgba(242,  75,  66, 0.13); }  /* mild bearish */
-.bgR2 { background: rgba(242,  75,  66, 0.36); }  /* bearish */
-.bgR3 { background: rgba(242,  75,  66, 0.62); }  /* extreme bearish */
+.bgR1 { background: rgba(223,  70,  70, 0.13); }  /* mild bearish */
+.bgR2 { background: rgba(223,  70,  70, 0.36); }  /* bearish */
+.bgR3 { background: rgba(223,  70,  70, 0.62); }  /* extreme bearish */
 
 /* ── Collapsible group headers ───────────────────────────────────────────────── */
 .groupHeaderClickable {

@@ -49,12 +49,12 @@
   --text-muted: #cfcac0;
   --text-bright: #f8f7f3;
   --text-heading: #ffffff;
-  --gain: #34d17c;
-  --gain-bg: #34d17c15;
-  --gain-border: #34d17c35;
-  --loss: #f24b42;
-  --loss-bg: #f24b4215;
-  --loss-border: #f24b4235;
+  --gain: #2faf68;
+  --gain-bg: #2faf6815;
+  --gain-border: #2faf6835;
+  --loss: #df4646;
+  --loss-bg: #df464615;
+  --loss-border: #df464635;
   --warn: #dcbb5e;
   --warn-bg: #dcbb5e15;
   --warn-border: #dcbb5e35;
@@ -364,12 +364,12 @@
 
   /* Semantic gain/loss + status: the dark-theme values (#3cb868 / #e74c3c) are
      washed out on white, so they follow the candle palette. */
-  --gain: #0a5c22;
-  --gain-bg: #0a5c2214;
-  --gain-border: #0a5c2238;
-  --loss: #7d1620;
-  --loss-bg: #7d162014;
-  --loss-border: #7d162038;
+  --gain: #1c7a45;
+  --gain-bg: #1c7a4514;
+  --gain-border: #1c7a4538;
+  --loss: #b12f2f;
+  --loss-bg: #b12f2f14;
+  --loss-border: #b12f2f38;
   --warn: #7a5c16;
   --warn-bg: #7a5c1614;
   --warn-border: #7a5c1638;
