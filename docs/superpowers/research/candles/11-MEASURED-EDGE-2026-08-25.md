@@ -106,6 +106,20 @@ the open-entry number is the one to trust.
 ⚠️ `char:no-trade` is a data-quality label, not a tradeable one — a session that
 never traded, followed by underperformance. Real, but not a setup.
 
+### Price floor, under the corrected entry
+
+Excluding sub-$5 bars: of the 32 survivors, **16 hold direction and Bonferroni
+significance, 16 keep their sign, and ZERO flip.** So the surviving effects are
+not carried by penny stocks — but they do SHRINK, in several cases by half
+(`char:gap-down-filled` +0.315 → +0.108, `gravestone-doji` +0.242 → +0.072).
+The ones that barely move are the ones to trust most: `char:no-supply` −0.176 →
+−0.143, `bullish-belt-hold` +0.254 → +0.198, `bearish-belt-hold` −0.185 → −0.143.
+
+⭐ Zero sign flips across the price floor is the cleanest robustness result in
+this file — and worth contrasting with the entry-convention test, where four
+labels flipped. That is what a genuine-but-small effect looks like versus an
+artifact.
+
 **This is the picture the literature predicts.** Duvinage/Mazza/Petitjean: 5 of 83
 rules survive costs. Marshall/Young/Rose: none on the Dow. A handful of tiny,
 sub-0.3% gross effects is what an honest measurement of candlestick labels looks
