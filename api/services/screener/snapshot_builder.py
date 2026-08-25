@@ -447,6 +447,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
                          lambda: candles.multi_candle(bars)))
         row.update(_step("bars_character",
                          lambda: bar_character.classify(bars)))
+        row.update(_step("bars_recent_pattern",
+                         lambda: candles.recent_relation(bars)))
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))

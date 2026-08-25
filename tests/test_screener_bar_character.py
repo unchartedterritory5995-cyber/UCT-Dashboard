@@ -137,10 +137,21 @@ def test_the_volume_confirmed_label_outranks_the_general_one():
 
 
 def test_the_guards_precede_every_tier_that_divides():
+    """⭐ `tier` IS A FAMILY LABEL, NOT A POSITION. It grouped the cascade when
+    every head sat in tier order, and asserting that monotonicity here would lock
+    the list into a shape measurement has already disproved: the double
+    compressions were promoted out of tier 5 into the middle of tier 3 because
+    they were being swallowed (264 satisfying, 44 rendering). Position is decided
+    by information density, which mostly but not always follows the family.
+
+    These two ARE real invariants: the guards must run before anything that
+    divides by a range, and the terminal must be last or the cascade is not total.
+    """
     order = [c.key for c in bc.CASCADE]
     assert order[:2] == ["no-trade", "flat-bar"]
-    assert all(c.tier >= bc.CASCADE[i - 1].tier
-               for i, c in enumerate(bc.CASCADE) if i)     # tiers never go back
+    assert all(c.tier == 0 for c in bc.CASCADE[:2])
+    assert all(c.tier != 0 for c in bc.CASCADE[2:])
+    assert bc.CASCADE[-1].detect({}) is True
 
 
 # ── one authority for relative volume ───────────────────────────────────────
@@ -172,3 +183,73 @@ def test_the_label_reads_as_a_sentence():
     assert out["bar_character"] == "gap-up-and-go"
     assert out["bar_character_label"] == \
         "Gap Up & Go, closed on the high, on Huge Volume"
+
+
+# ── the compression family ──────────────────────────────────────────────────
+def test_double_compression_outranks_the_common_directional_labels():
+    """🔴 MEASURED 2026-08-24: `inside-day-nr7` had **264 bars satisfying it and
+    44 rendering** — 91 lost to No Demand and 50 to Green to Red. "Opened above
+    and closed below" is not a more useful thing to say about a bar than "an
+    inside day that is also the narrowest of seven". After the promotion: 206."""
+    order = [c.key for c in bc.CASCADE]
+    for k in ("inside-run-3plus", "inside-run-2", "inside-day-nr7"):
+        assert order.index(k) < order.index("red-to-green"), k
+        assert order.index(k) < order.index("no-demand"), k
+    # ⛔ but the SINGLE-condition forms stay put — common is not notable
+    assert order.index("inside-day") > order.index("no-demand")
+    assert order.index("compression-bar-nr7") > order.index("no-demand")
+
+
+def test_a_run_of_inside_bars_beats_a_single_inside_day():
+    order = [c.key for c in bc.CASCADE]
+    assert order.index("inside-run-3plus") < order.index("inside-run-2")
+    assert order.index("inside-run-2") < order.index("inside-day-nr7")
+    assert order.index("inside-day-nr7") < order.index("inside-day")
+
+
+def test_nr4_is_not_a_label():
+    """⛔ 1,304 of 3,707 bars satisfy "narrowest of the last four" — a third of
+    the market. A label that common carries no information; NR7 (21%) is already
+    the edge of useful. Do not re-add it."""
+    assert "compression-bar-nr4" not in bc.BY_KEY
+    assert not any("NR4" in c.label for c in bc.CASCADE)
+
+
+def test_a_no_trade_session_never_reads_as_a_coil():
+    """⚠️ A zero-range bar is trivially "inside" the one before it, so a run of
+    no-trade sessions looks exactly like a tightening coil. Measured: 19 of the
+    32 bars satisfying `inside-run-3plus` were no-trade rows. The Tier-0 guard is
+    what keeps them out of the compression family."""
+    bars = _base(60) + [_bar(50, 50, 50, 50, v=0) for _ in range(3)]
+    assert bc.classify(bars)["bar_character"] == "no-trade"
+
+
+# ── the streak fragment ─────────────────────────────────────────────────────
+def test_a_streak_is_noted_only_when_it_is_notable():
+    """⛔ A one- or two-day run is the market's ordinary state. Printing it on
+    every row would be noise wearing the costume of information."""
+    assert bc.streak_fragment({"run_up": 2, "run_down": 0, "higher_lows": 0}) is None
+    assert bc.streak_fragment({"run_up": 4, "run_down": 0, "higher_lows": 0}) \
+        == "4 straight up days"
+    assert bc.streak_fragment({"run_up": 0, "run_down": 3, "higher_lows": 0}) \
+        == "3 straight down days"
+    assert bc.streak_fragment({"run_up": 0, "run_down": 0, "higher_lows": 5}) \
+        == "5 higher lows"
+    assert bc.streak_fragment({"run_up": 0, "run_down": 0, "higher_lows": 3}) is None
+
+
+def test_the_streak_counts_come_from_multi_candle_not_a_private_copy():
+    """⛔ `inside_bar_run`, `consecutive_up/down` and `higher_lows_run` are all
+    member-facing filters owned by `multi_candle`. A second implementation here
+    would drift from the values a member screens on."""
+    from api.services.screener import candles
+    bars = _base(50, 20.0)
+    p = 20.0
+    for _ in range(4):
+        p += 0.3
+        bars.append(_bar(p - 0.2, p + 0.1, p - 0.25, p))
+    f = bc.features(bars)
+    m = candles.multi_candle(bars)
+    assert f["run_up"] == m["consecutive_up"]
+    assert f["higher_lows"] == m["higher_lows_run"]
+    assert f["inside_run"] == m["inside_bar_run"]

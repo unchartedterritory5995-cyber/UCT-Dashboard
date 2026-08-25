@@ -290,3 +290,237 @@ def test_the_reported_trend_is_the_one_the_pattern_was_judged_against():
     # Three of the four combinations name a trend-qualified shape; the fourth
     # resolves to a relation, whose own anchor is what gets reported.
     assert checked >= 3, f"only {checked} trend-qualified names were exercised"
+
+
+# ── the recency lookback ────────────────────────────────────────────────────
+def test_a_pattern_that_completed_yesterday_is_still_reported():
+    """🔴 THE GAP THIS CLOSES. `single_candle` only ever looks at TODAY. Measured
+    2026-08-24 over 3,705 tickers: 796 (21.5%) had a multi-bar pattern today and
+    a further **1,425 (38.5%) had one in the previous four sessions** that nothing
+    on the screen could see. With the lookback, coverage is 59.9%."""
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)                  # small black
+    # the engulfing completes here ...
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    assert "bullish-engulfing" in candles.single_candle(bars)["candle_matches"]
+    # ... and then two more sessions pass
+    q = bars[-1]["c"]
+    bars += [_bar(q + 0.10, q + 0.42, q - 0.07, q + 0.31),
+             _bar(q + 0.36, q + 0.55, q + 0.21, q + 0.28)]
+
+    # ⭐ ASSERT THE CONTRACT, NOT A HAND-GUESSED NUMBER. Those two follow-up
+    # sessions may themselves form some relation — the first draft of this test
+    # appended near-identical bars and accidentally built a tweezer, so the
+    # "expected" age of 2 was wrong for a reason that had nothing to do with the
+    # lookback. What must hold is that the reported age is the MOST RECENT bar
+    # carrying a relation, and that no nearer bar carries one.
+    rec = candles.recent_relation(bars)
+    age = rec["candle_recent_bars_ago"]
+    assert age is not None, "an engulfing completed inside the window"
+
+    def _rels(n):
+        r = candles.single_candle(bars[:len(bars) - n])
+        return [k for k in cat.decode_matches(r["candle_matches"] or "")
+                if k in cat.RELATION_KEYS]
+
+    assert _rels(age), f"nothing at the reported age {age}"
+    for nearer in range(age):
+        assert not _rels(nearer), f"a nearer relation at {nearer} was skipped"
+    # the age marker is present; a "next open went ..." fragment may follow it
+    assert (f"({age}d ago)" in rec["candle_recent_label"]
+            if age else "ago" not in rec["candle_recent_label"])
+
+
+def test_todays_pattern_is_reported_at_age_zero_with_no_suffix():
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    rec = candles.recent_relation(bars)
+    assert rec["candle_recent_bars_ago"] == 0
+    assert "ago" not in rec["candle_recent_label"]
+
+
+def test_the_lookback_never_reports_a_shape():
+    """⛔ Every bar HAS a shape, so a shape-inclusive lookback would return
+    "Black Candle, 1 day ago" for the whole market and mean nothing. Only the
+    sparse multi-bar relations are worth dating."""
+    rng = random.Random(5)
+    for _ in range(300):
+        base = _flat(60, price=rng.uniform(5, 300))
+        px = base[-1]["c"]
+        bars = base + [_bar(px, px * 1.01, px * 0.99, px * 1.005)]
+        rec = candles.recent_relation(bars)
+        if rec["candle_recent"]:
+            assert rec["candle_recent"] in cat.RELATION_KEYS
+
+
+def test_the_lookback_is_bounded_and_safe_on_short_history():
+    # ⭐ every field absent, asserted by VALUE rather than by an exact dict —
+    # a literal here goes stale the moment the shape gains a field, which is
+    # exactly what happened when the T+1 status landed.
+    empty = candles.recent_relation([])
+    assert set(empty) >= {"candle_recent", "candle_recent_bars_ago",
+                          "candle_recent_label", "candle_recent_status"}
+    assert all(v is None for v in empty.values()), empty
+    candles.recent_relation([_bar(10, 11, 9, 10)])            # must not raise
+    rec = candles.recent_relation(_downtrend(), window=candles.RECENT_WINDOW)
+    if rec["candle_recent_bars_ago"] is not None:
+        assert 0 <= rec["candle_recent_bars_ago"] < candles.RECENT_WINDOW
+
+
+# ── T+1: what the next session's open did ───────────────────────────────────
+def test_todays_pattern_cannot_be_resolved_and_says_so():
+    """⛔ StockCharts: "without confirmation, these patterns would be considered
+    neutral". A pattern printed TODAY has no session after it, so the only
+    honest answer is `provisional` — never a verdict."""
+    down = _downtrend()
+    p = down[-1]["c"]
+    down[-1] = _bar(p + 0.5, p + 0.6, p - 0.1, p)
+    bars = down + [_bar(p - 0.3, p + 1.0, p - 0.4, p + 0.9)]
+    rec = candles.recent_relation(bars)
+    assert rec["candle_recent_bars_ago"] == 0
+    assert rec["candle_recent_status"] == "provisional"
+
+
+def test_the_status_states_the_fact_and_never_a_verdict():
+    """🔴 MEASURED 2026-08-24: across 1,043 resolved patterns the bullish side
+    "confirmed" 59.9% and the bearish 36.4%, while the universe's own opening-gap
+    base rate over the same sessions was 51.1% up / 35.8% down — which predicts
+    59% and 41% BEFORE any pattern is considered. The patterns added nothing.
+
+    ⛔ So the vocabulary may never imply validation. `confirmed`/`failed` would
+    read to a member as evidence the pattern worked when it mostly means the
+    market gapped up that day."""
+    banned = {"confirmed", "failed", "valid", "invalid", "success", "worked"}
+
+    # ⭐ EXERCISE `_confirmation` DIRECTLY. Driving this through
+    # `recent_relation` is fragile: the session appended to create the "next
+    # open" can itself form a NEW pattern at age 0, and the lookback then
+    # correctly reports THAT one as provisional — which is right behaviour and
+    # the wrong thing to be testing here.
+    def _after(next_open_delta):
+        bars = _flat(60, price=50.0)
+        bars.append(_bar(49.5, 50.6, 49.4, 50.5))           # the pattern bar
+        o = 50.5 + next_open_delta
+        bars.append(_bar(o, o + 0.4, o - 0.4, o + 0.05))    # the next session
+        return candles._confirmation(bars, 1, cat.BY_KEY["bullish-engulfing"])
+
+    seen = {_after(+1.5), _after(-1.5), _after(0.0)}
+    # ⛔ NOT VACUOUS: all three outcomes must actually be produced, or this
+    # asserts nothing about a vocabulary that was never exercised.
+    assert seen == {"opened-with", "opened-against", "opened-flat"}, seen
+    assert not (seen & banned)
+
+
+def test_a_neutral_pattern_has_nothing_to_resolve():
+    """⚠️ Harami cross, tri-star and separating lines carry NO directional claim,
+    so they must return None rather than be forced into a pass/fail they never
+    asserted."""
+    for key in ("harami-cross", "tri-star", "separating-lines"):
+        assert cat.BY_KEY[key].bias == "neutral"
+        assert candles._confirmation([_bar(10, 11, 9, 10)] * 3, 1,
+                                     cat.BY_KEY[key]) is None
+
+
+def test_a_one_tick_open_is_not_the_market_going_your_way():
+    """⛔ An open one cent above the close is not the market opening in your
+    favour; it is the same price. Uses the same band the geometry does."""
+    bars = _flat(60, price=50.0)
+    bars.append(_bar(50, 50.6, 49.6, 50.5))
+    bars.append(_bar(50.51, 51.0, 50.4, 50.9))       # opens 1c above the close
+    st = candles._confirmation(bars, 1, cat.BY_KEY["bullish-engulfing"])
+    assert st == "opened-flat"
+
+
+# ── hikkake ─────────────────────────────────────────────────────────────────
+def _hik(base_price=50.0, direction="down", extra=()):
+    """b1, an inside bar, then a break in `direction` — plus any extra bars."""
+    bars = _flat(60, base_price)
+    p = base_price
+    bars.append(_bar(p, p + 1.0, p - 1.0, p))               # b1: the wide bar
+    bars.append(_bar(p, p + 0.6, p - 0.6, p))               # inside, strictly
+    if direction == "down":
+        bars.append(_bar(p - 0.2, p + 0.4, p - 0.8, p - 0.5))   # lower H, lower L
+    else:
+        bars.append(_bar(p + 0.2, p + 0.8, p - 0.4, p + 0.5))   # higher H, higher L
+    bars.extend(extra)
+    return bars
+
+
+def test_a_downside_break_out_of_an_inside_bar_is_the_BULLISH_hikkake():
+    """⚠️ THE DIRECTION IS COUNTER-INTUITIVE AND IMPLEMENTERS GET IT BACKWARDS.
+    The downside break is the TRAP — it catches shorts — so it is the bullish
+    form. TA-Lib's CDLHIKKAKE and EarnForex's independent write-up of Chesler's
+    rules agree exactly on this."""
+    m = candles.single_candle(_hik(direction="down"))["candle_matches"]
+    assert "hikkake-bull" in cat.decode_matches(m)
+    assert "hikkake-bear" not in cat.decode_matches(m)
+
+    m2 = candles.single_candle(_hik(direction="up"))["candle_matches"]
+    assert "hikkake-bear" in cat.decode_matches(m2)
+    assert "hikkake-bull" not in cat.decode_matches(m2)
+
+
+def test_hikkake_needs_no_prior_trend():
+    """⭐ Nearly every other relation here is trend-gated. The hikkake setup is a
+    compression plus a failed break, which is meaningful in any context — which
+    is exactly why it fires often enough to screen on."""
+    assert cat.BY_KEY["hikkake-bull"].trend is None
+    assert cat.BY_KEY["hikkake-bear"].trend is None
+    out = candles.single_candle(_hik(direction="down"))
+    assert out["candle_trend"] in ("neutral", "unknown", "up", "down")
+    assert "hikkake-bull" in out["candle_matches"]
+
+
+def test_the_confirmation_takes_back_the_inside_bars_far_extreme():
+    p = 50.0
+    # the setup, then a session closing back above the inside bar's high (50.6)
+    bars = _hik(p, "down", extra=[_bar(p - 0.4, p + 0.9, p - 0.5, p + 0.75)])
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull-confirmed" in keys
+
+
+def test_a_new_setup_outranks_a_pending_confirmation():
+    """⛔ TA-Lib's rule, kept in the predicate so the two states can never both be
+    claimed for one session. Setup is the trap being laid; confirmed is it
+    springing — they are different tradeable states."""
+    # ⭐ BUILT SO BOTH STATES GENUINELY COMPETE. Setup A's inside bar tops at
+    # 50.6, so a close above that inside the next three sessions confirms it —
+    # and the final bar does exactly that WHILE completing a fresh setup B.
+    bars = _flat(60, 50.0)
+    bars += [_bar(50.0, 51.00, 49.00, 50.00),    # A: the wide bar
+             _bar(50.0, 50.60, 49.40, 50.00),    # A: inside  -> saved high 50.6
+             _bar(49.8, 50.40, 49.20, 49.50)]    # A: breaks DOWN -> bull setup
+    bars += [_bar(50.5, 52.00, 50.00, 51.50),    # B: the wide bar
+             _bar(51.3, 51.80, 50.40, 51.00),    # B: inside
+             _bar(51.0, 51.60, 50.20, 50.90)]    # B: breaks DOWN, closes 50.90
+    # that close clears 50.6, so setup A is due to confirm on this very bar
+    assert bars[-1]["c"] > 50.60
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull" in keys, keys
+    assert "hikkake-bull-confirmed" not in keys, keys
+
+
+def test_the_confirmation_window_is_three_sessions():
+    p = 50.0
+    late = [_bar(p - 0.45, p + 0.1, p - 0.55, p - 0.5) for _ in range(4)]
+    bars = _hik(p, "down", extra=late + [_bar(p - 0.4, p + 0.9, p - 0.5, p + 0.75)])
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull-confirmed" not in keys, "confirmed outside the 3-bar window"
+
+
+# ── the inside-bar run no longer counts sessions that never traded ──────────
+def test_a_no_trade_session_breaks_the_inside_bar_run():
+    """🔴 A zero-range bar is trivially "inside" the one before it. Measured
+    2026-08-24: of the 124 rows with a run of 2+, **34 were no-trade sessions**;
+    of the 32 with a run of 3+, **19 were**. The member-facing filter was
+    majority junk at the deep end (124 -> 86, and 32 -> 11 after the guard)."""
+    p = 50.0
+    real = [_bar(p, p + 1.0, p - 1.0, p), _bar(p, p + 0.8, p - 0.8, p),
+            _bar(p, p + 0.6, p - 0.6, p)]
+    assert candles.multi_candle(_flat(40, p) + real)["inside_bar_run"] == 2
+    # the same shape, but the newest session never traded
+    dead = real[:-1] + [_bar(p, p, p, p, v=0)]
+    assert candles.multi_candle(_flat(40, p) + dead)["inside_bar_run"] == 0

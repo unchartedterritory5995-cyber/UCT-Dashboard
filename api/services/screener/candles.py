@@ -239,9 +239,20 @@ def multi_candle(bars: list[dict]) -> dict:
     if n < 2:
         return out
     # inside-bar run (most recent backward)
+    # 🔴 A SESSION THAT NEVER TRADED IS NOT PART OF A COIL. A zero-range bar is
+    # trivially "inside" whatever came before it, so a halted or untraded name
+    # accumulated an inside-bar run indistinguishable from a genuine tightening.
+    # Measured 2026-08-24: of the 124 rows carrying a run of 2 or more, **34 were
+    # no-trade sessions**, and of the 32 with a run of 3+, **19 were** — the
+    # member-facing "Inside-Bar Run" filter was majority junk at the deep end.
+    # ⭐ The run BREAKS on such a bar rather than skipping it: a coil is a
+    # CONSECUTIVE narrowing, and a gap in the tape ends the sequence.
     run = 0
     for i in range(n - 1, 0, -1):
-        if bars[i]["h"] <= bars[i - 1]["h"] and bars[i]["l"] >= bars[i - 1]["l"]:
+        b_i = bars[i]
+        if (b_i["h"] - b_i["l"]) <= 0 or not (b_i.get("v") or 0):
+            break
+        if b_i["h"] <= bars[i - 1]["h"] and b_i["l"] >= bars[i - 1]["l"]:
             run += 1
         else:
             break
@@ -297,3 +308,119 @@ def multi_candle(bars: list[dict]) -> dict:
             break
     out["consecutive_up"], out["consecutive_down"] = up, down
     return out
+
+
+#: How far back the recency lookback reaches. FIVE SESSIONS, not more: a
+#: multi-bar reversal that completed a week ago has had a week of price action
+#: to invalidate it, and reporting it beside today's bar would imply a currency
+#: it no longer has.
+RECENT_WINDOW = 5
+
+
+def recent_relation(bars: list[dict], window: int = RECENT_WINDOW) -> dict:
+    """The most recent MULTI-BAR pattern within ``window`` sessions.
+
+    🔴 THE GAP THIS CLOSES. `single_candle` only ever looks at TODAY, and most
+    days most stocks print no multi-bar structure at all. Measured 2026-08-24
+    over 3,705 tickers: **796 (21.5%) had a multi-bar pattern today, and a
+    further 1,425 (38.5%) had one in the previous four sessions** that the
+    column could not see. Nearly twice as many rows carried a recent, still-live
+    structure as carried one today.
+
+    ⭐ AND A PATTERN THAT COMPLETED YESTERDAY IS OFTEN THE MORE ACTIONABLE ONE:
+    it has had a session of follow-through a trader can actually check, which is
+    exactly what the confirmation literature says a same-day label cannot claim.
+
+    ⛔ SHAPES ARE EXCLUDED ON PURPOSE. Every bar has a shape, so a shape-inclusive
+    lookback would return "Black Candle, 1 day ago" for the whole market and mean
+    nothing. Only the sparse multi-bar relations are worth dating.
+
+    Returns the age in sessions (0 = today) alongside the key, so a member can
+    tell a fresh signal from a stale one rather than being handed both as equals.
+    """
+    from . import candle_catalog as cat
+    out = {"candle_recent": None, "candle_recent_bars_ago": None,
+           "candle_recent_status": None, "candle_recent_label": None}
+    if not bars:
+        return out
+    for age in range(max(1, window)):
+        end = len(bars) - age
+        if end < 2:
+            break
+        got = single_candle(bars[:end])
+        rels = [cat.BY_KEY[k] for k in cat.decode_matches(got.get("candle_matches") or "")
+                if k in cat.RELATION_KEYS]
+        if rels:
+            best = min(rels, key=lambda p: (p.rank, p.key))
+            status = _confirmation(bars, age, best)
+            suffix = "" if age == 0 else f" ({age}d ago)"
+            if status in ("opened-with", "opened-against"):
+                suffix += " — next open went " + (
+                    "with it" if status == "opened-with" else "against it")
+            return {"candle_recent": best.key,
+                    "candle_recent_bars_ago": age,
+                    "candle_recent_status": status,
+                    "candle_recent_label": best.label + suffix}
+    return out
+
+
+def _confirmation(bars, age, pattern):
+    """Did the session AFTER the pattern open in the direction the pattern implies?
+
+    ⭐ THE OPENING GAP IS THE ONLY ONE OF THE THREE CLASSICAL CONFIRMATION
+    METHODS WITH MEASURED SUPPORT — Bulkowski put it at 82% against the next
+    bar's colour at 13% and its close at 5%. Colour and close are what most
+    retail material teaches, and both are close to worthless.
+
+    🔴 BUT WE MEASURED WHAT IT IS ACTUALLY WORTH HERE, AND IT IS NOT EDGE.
+    On 2026-08-24 across 1,043 resolved patterns: bullish "confirmed" 59.9%,
+    bearish 36.4%. The universe's own opening-gap base rate over those same
+    sessions was 51.1% up / 35.8% down — which predicts 59% and 41% BEFORE any
+    pattern is considered. The patterns added nothing, and the bearish side came
+    in slightly WORSE than chance.
+
+    ⛔ SO THE STATES ARE NAMED FOR WHAT HAPPENED, NOT FOR A VERDICT.
+    "Confirmed" would read to a member as evidence the pattern worked, when it
+    mostly means the market gapped up that day — which it does about half the
+    time. `opened-with` / `opened-against` assert only the fact, which is real
+    information about that stock and survives the base-rate problem intact. It
+    also keeps the column inside the standing rule that it describes and does not
+    forecast.
+
+    ⛔ AND IT IS WHY A SAME-DAY LABEL MAY NOT CLAIM A REVERSAL. StockCharts is
+    blunt about it — *"without confirmation, these patterns would be considered
+    neutral"* — so a pattern printed TODAY is `provisional` and nothing else. It
+    becomes answerable only once a session has opened after it, which is exactly
+    what the recency lookback already has in hand for anything older than today.
+
+    ⚠️ A NEUTRAL PATTERN HAS NOTHING TO CONFIRM. Harami cross, tri-star and
+    separating lines carry no directional claim, so they return ``None`` rather
+    than being forced into a pass/fail they never asserted.
+    """
+    if pattern.bias not in ("bullish", "bearish"):
+        return None
+    if age <= 0:
+        return "provisional"
+    end = len(bars) - age
+    if end < 1 or end >= len(bars):
+        return "provisional"
+    pat_close = bars[end - 1]["c"]
+    nxt_open = bars[end]["o"]
+    atr = _atr(bars[:end])
+    # ⛔ A GAP, NOT A TICK. An open one cent above the close is not the market
+    # opening in your favour; it is the same price. Same band the pattern
+    # geometry uses, so "meaningfully different" means one thing in this module.
+    tick = cat.tick_size(pat_close)
+    band = max(0.05 * atr, tick) if atr else tick
+    if pattern.bias == "bullish":
+        if nxt_open > pat_close + band:
+            return "opened-with"
+        if nxt_open < pat_close - band:
+            return "opened-against"
+    else:
+        if nxt_open < pat_close - band:
+            return "opened-with"
+        if nxt_open > pat_close + band:
+            return "opened-against"
+    return "opened-flat"         # the market declined to vote either way
+
