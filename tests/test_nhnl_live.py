@@ -215,6 +215,7 @@ def test_rows_carry_pct_change_vs_prior_close():
 
 def test_series_reports_alerts_per_second(monkeypatch):
     monkeypatch.setenv("NHNL_SERIES_WINDOW_SECS", "60")
+    monkeypatch.setattr(nhnl_live, "_RATE_EMA_ALPHA", 1.0)   # isolate the raw rate (no EMA)
     t0 = datetime(2026, 8, 25, 10, 0, 0)
     t1 = datetime(2026, 8, 25, 10, 0, 10)   # 10 seconds later
     nhnl_live._tick_once(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), "rth", "2026-08-25", t0)  # Σnh=0

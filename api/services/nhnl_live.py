@@ -88,10 +88,14 @@ _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 # old-shaped stored series.
 _SAMPLE_SECS = 2.0                   # sample every accumulator tick (~3s) — as fast as
                                      # the counts actually change
-_DEFAULT_SERIES_WINDOW_SECS = 60.0   # rate is averaged over this trailing window
+_DEFAULT_SERIES_WINDOW_SECS = 90.0   # rate averaged over this trailing window; MUST stay
+                                     # comfortably above the snapshot's ~60s batch period,
+                                     # or the two alias into sharp dips-to-zero
+_RATE_EMA_ALPHA = 0.3                # extra smoothing on the emitted rate (~3-sample EMA)
 _SERIES_METRIC = "rate_v3"
 _last_sample = 0.0
-_cum_buf = deque(maxlen=30)          # (t_epoch, cum_hi, cum_lo) — the rate window
+_cum_buf = deque(maxlen=40)          # (t_epoch, cum_hi, cum_lo) — spans > the rate window
+_rate_ema = {"hi": None, "lo": None}
 
 
 def _series_window_secs() -> float:
@@ -449,6 +453,7 @@ def _build_group_map(now: float) -> dict:
 
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
+    global _rate_ema
     _state["session_key"] = session_key
     _state["window"] = window
     _state["date"] = date
@@ -456,6 +461,7 @@ def _reset(session_key: str, window: str, date: str) -> None:
     _state["themes"] = {}
     _state["series"] = deque(maxlen=_SERIES_MAX)
     _cum_buf.clear()
+    _rate_ema = {"hi": None, "lo": None}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -711,14 +717,22 @@ def _sample_series(now: datetime) -> None:
             if entry[0] >= t - window:
                 ref = entry
                 break
+        global _rate_ema
         if ref is None or ref[0] >= t:
-            hi_rate = 0.0
-            lo_rate = 0.0
+            # Not enough span yet (startup / gap) — carry the last smoothed value rather
+            # than emitting a spurious 0 that would show as a dip.
+            hi_rate = _rate_ema["hi"] or 0.0
+            lo_rate = _rate_ema["lo"] or 0.0
         else:
             dt = t - ref[0]
             hi_rate = max(0.0, (cum_hi - ref[1]) / dt)
             lo_rate = max(0.0, (cum_lo - ref[2]) / dt)
-        _state["series"].append({"t": now.isoformat(), "hi": round(hi_rate, 2), "lo": round(lo_rate, 2)})
+        # Light EMA so single-sample wobble smooths into a gentle line.
+        a = _RATE_EMA_ALPHA
+        eh = hi_rate if _rate_ema["hi"] is None else a * hi_rate + (1 - a) * _rate_ema["hi"]
+        el = lo_rate if _rate_ema["lo"] is None else a * lo_rate + (1 - a) * _rate_ema["lo"]
+        _rate_ema = {"hi": eh, "lo": el}
+        _state["series"].append({"t": now.isoformat(), "hi": round(eh, 2), "lo": round(el, 2)})
 
 
 def get_series() -> dict:
