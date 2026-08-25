@@ -40,9 +40,14 @@ def show(client: httpx.Client) -> dict:
     return r.json()
 
 
-def register(client: httpx.Client, app_id: str, guild_id: str, *, clear: bool = False) -> list:
+def register(client: httpx.Client, app_id: str, guild_id: str | None, *, clear: bool = False) -> list:
+    """PUT the command set. `guild_id=None` registers GLOBALLY (every server the
+    app is installed in — the right choice when it lives in more than one);
+    a guild id registers for that server only (instant, useful for testing)."""
     body = [] if clear else [build_chart_command()]
-    r = client.put(f"/applications/{app_id}/guilds/{guild_id}/commands", json=body)
+    path = (f"/applications/{app_id}/commands" if guild_id is None
+            else f"/applications/{app_id}/guilds/{guild_id}/commands")
+    r = client.put(path, json=body)
     r.raise_for_status()
     return r.json()
 
@@ -70,7 +75,9 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show")
     reg = sub.add_parser("register")
-    reg.add_argument("--guild", default=None)
+    reg.add_argument("--guild", default=None, help="register for ONE server (instant)")
+    reg.add_argument("--global", dest="global_", action="store_true",
+                     help="register globally: every server the app is installed in")
     reg.add_argument("--clear", action="store_true")
     ep = sub.add_parser("endpoint")
     ep.add_argument("--url", required=True)
@@ -90,12 +97,16 @@ def main(argv=None) -> int:
         print(f"application_id={info['id']}\nname={info.get('name')}\npublic_key={info.get('verify_key')}")
         print(f"interactions_endpoint_url={info.get('interactions_endpoint_url')}")
     elif args.cmd == "register":
-        guild = args.guild or os.environ.get("DISCORD_CHART_GUILD_ID", "").strip()
-        if not guild:
-            print("--guild or DISCORD_CHART_GUILD_ID required", file=sys.stderr)
-            return 2
-        out = register(client, app_id, guild, clear=args.clear)
-        print(f"registered {len(out)} command(s) in guild {guild}: {[c.get('name') for c in out]}")
+        if args.global_:
+            out = register(client, app_id, None, clear=args.clear)
+            print(f"registered {len(out)} GLOBAL command(s): {[c.get('name') for c in out]}")
+        else:
+            guild = args.guild or os.environ.get("DISCORD_CHART_GUILD_ID", "").strip()
+            if not guild:
+                print("--guild, DISCORD_CHART_GUILD_ID, or --global required", file=sys.stderr)
+                return 2
+            out = register(client, app_id, guild, clear=args.clear)
+            print(f"registered {len(out)} command(s) in guild {guild}: {[c.get('name') for c in out]}")
     elif args.cmd == "endpoint":
         info = set_endpoint(client, args.url)
         print(f"interactions_endpoint_url={info.get('interactions_endpoint_url')}")

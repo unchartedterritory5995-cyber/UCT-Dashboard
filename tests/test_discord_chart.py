@@ -452,3 +452,22 @@ def test_tool_register_puts_the_chart_command_and_clear_puts_empty():
     assert json.loads(seen[-1].content) == {"interactions_endpoint_url": "https://uctintelligence.com/api/discord/interactions"}
 
     assert tool.invite_url("999") == "https://discord.com/oauth2/authorize?client_id=999&scope=applications.commands"
+
+
+def test_tool_register_global_puts_to_the_application_commands_route():
+    import httpx
+    import importlib
+    tool = importlib.import_module("tools.discord_chart_commands")
+    from api.services.discord_interactions import build_chart_command
+    seen = []
+
+    def handler(request: httpx.Request):
+        seen.append(request)
+        return httpx.Response(200, json=json.loads(request.content) if request.content else [])
+
+    client = tool.make_client("bot-token", transport=httpx.MockTransport(handler))
+    tool.register(client, "999", None, clear=False)
+    assert seen[-1].method == "PUT"
+    assert str(seen[-1].url).endswith("/applications/999/commands")
+    assert "/guilds/" not in str(seen[-1].url)
+    assert json.loads(seen[-1].content) == [build_chart_command()]
