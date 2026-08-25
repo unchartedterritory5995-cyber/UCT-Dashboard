@@ -124,8 +124,8 @@ def test_to_datetime_accepts_iso_yyyymmdd_and_unix():
     assert to_datetime("2026-08-25") == dt.datetime(2026, 8, 25)
     assert to_datetime(20260825) == dt.datetime(2026, 8, 25)
     # 2026-08-24 09:30 ET == 13:30 UTC
-    assert to_datetime(1787059800) == dt.datetime(2026, 8, 24, 9, 30)
-    assert to_datetime(1787059800 * 1000) == dt.datetime(2026, 8, 24, 9, 30)  # ms tolerated
+    assert to_datetime(1787578200) == dt.datetime(2026, 8, 24, 9, 30)
+    assert to_datetime(1787578200 * 1000) == dt.datetime(2026, 8, 24, 9, 30)  # ms tolerated
 
 
 def test_build_frame_is_window_wide_with_complete_sma50():
@@ -442,7 +442,7 @@ def test_attachment_name_follows_house_convention():
     from api.services.discord_interactions import attachment_name
     assert attachment_name("NVDA", "D", "2026-08-25") == "NVDA_D_2026-08-25_Chart.png"
     assert attachment_name("BRK.B", "W", "2026-08-21") == "BRKB_W_2026-08-21_Chart.png"
-    assert attachment_name("^GSPC", "15", 1787059800) == "GSPC_15m_2026-08-24_Chart.png"
+    assert attachment_name("^GSPC", "15", 1787578200) == "GSPC_15m_2026-08-24_Chart.png"
 
 
 def test_edit_original_multipart_shape_and_failure_paths():
