@@ -29,6 +29,31 @@ STATS_STRIP_H = 28
 HOUSE_SCALE = 2
 RENDER_TIMEOUT_S = 60.0
 _VIEWPORT_PAD = 40
+# ChartRender sets window.__chartReady only once the canvases inside
+# #chart-export have held still (never before 3.5 s) — a far better "done"
+# than "a canvas exists", which is true the instant the widget mounts.
+HOUSE_READY_JS = "() => window.__chartReady === true"
+# A sized-but-EMPTY canvas still passes every DOM predicate (bars late after a
+# deploy, empty series): judge the pixels like the Substack harness does —
+# grayscale std-dev of the chart body with the chrome bands dropped. Measured
+# 2026-08-25: blank body ≈ 1.3, drawn body ≈ 30+.
+_MIN_BODY_STDDEV = 6.0
+# (settle_ms, ready_timeout_ms) per attempt; the retry gives late bars time.
+_ATTEMPTS = ((800, 40000), (5000, 45000))
+
+
+def has_chart_content(png: bytes) -> bool:
+    """False for a frame whose chart body is near-uniform (nothing drew) or for
+    bytes that are not an image; True for a body with real variance."""
+    try:
+        import io
+        from PIL import Image, ImageStat
+        im = Image.open(io.BytesIO(png)).convert("L")
+        w, h = im.size
+        body = im.crop((0, int(h * 0.11), w, int(h * 0.91)))
+        return ImageStat.Stat(body).stddev[0] >= _MIN_BODY_STDDEV
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def house_enabled() -> bool:
@@ -60,27 +85,34 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, *, client=None) ->
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     base = os.environ.get("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     page_url = build_render_url(sym, tf, stats, base_url=base, token=token)
-    body = {
-        "url": page_url, "selector": "#chart-export",
-        "width": HOUSE_W + _VIEWPORT_PAD, "height": HOUSE_H + STATS_STRIP_H + _VIEWPORT_PAD,
-        "scale": HOUSE_SCALE, "settle_ms": 1600,
-    }
     try:
         import httpx
         own = client is None
         c = client or httpx.Client(timeout=RENDER_TIMEOUT_S)
         try:
-            r = c.post(f"{renderer}/render", json=body, headers={"X-Render-Secret": secret})
+            for attempt, (settle_ms, ready_timeout_ms) in enumerate(_ATTEMPTS, 1):
+                body = {
+                    "url": page_url, "selector": "#chart-export",
+                    "width": HOUSE_W + _VIEWPORT_PAD, "height": HOUSE_H + STATS_STRIP_H + _VIEWPORT_PAD,
+                    "scale": HOUSE_SCALE, "settle_ms": settle_ms,
+                    "ready_js": HOUSE_READY_JS, "ready_timeout_ms": ready_timeout_ms,
+                }
+                r = c.post(f"{renderer}/render", json=body, headers={"X-Render-Secret": secret})
+                if not r.is_success:
+                    log.warning("[discord-chart] house render HTTP %s for %s %s (attempt %d): %s",
+                                r.status_code, sym, tf, attempt, r.text[:160])
+                    continue
+                if not r.content.startswith(b"\x89PNG"):
+                    log.warning("[discord-chart] house render returned non-PNG for %s %s (attempt %d)", sym, tf, attempt)
+                    continue
+                if not has_chart_content(r.content):
+                    log.warning("[discord-chart] house render body BLANK for %s %s (attempt %d)", sym, tf, attempt)
+                    continue
+                return r.content
+            return None
         finally:
             if own:
                 c.close()
-        if not r.is_success:
-            log.warning("[discord-chart] house render HTTP %s for %s %s: %s", r.status_code, sym, tf, r.text[:160])
-            return None
-        if not r.content.startswith(b"\x89PNG"):
-            log.warning("[discord-chart] house render returned non-PNG for %s %s", sym, tf)
-            return None
-        return r.content
     except Exception as e:  # noqa: BLE001 — fallback, never a failure
         log.warning("[discord-chart] house render failed for %s %s: %s", sym, tf, e)
         return None

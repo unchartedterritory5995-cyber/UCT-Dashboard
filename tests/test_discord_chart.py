@@ -675,18 +675,21 @@ def test_house_render_posts_to_the_renderer_and_returns_png_or_none(monkeypatch)
     monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     seen = []
 
+    drawn = _png_canvas(draw=True)
+
     def handler(request: httpx.Request):
         seen.append(request)
-        return httpx.Response(200, content=PNG_MAGIC + b"house", headers={"content-type": "image/png"})
+        return httpx.Response(200, content=drawn, headers={"content-type": "image/png"})
     client = httpx.Client(transport=httpx.MockTransport(handler))
     png = hs.render_house_chart("NVDA", "D", {"close": 1.0}, client=client)
-    assert png == PNG_MAGIC + b"house"
+    assert png == drawn
     req = seen[-1]
     assert req.method == "POST" and str(req.url) == "http://chart-renderer.railway.internal:8080/render"
     assert req.headers["x-render-secret"] == "s3cret"
     body = json.loads(req.content)
     assert body["url"].startswith("https://uctintelligence.com/r/chart?") and "token=tok123" in body["url"]
     assert body["scale"] == hs.HOUSE_SCALE and body["selector"] == "#chart-export"
+    assert body["ready_js"] == hs.HOUSE_READY_JS and body["ready_timeout_ms"] >= 30000
 
     def failing(request):
         return httpx.Response(502, json={"detail": "render failed"})
@@ -743,3 +746,57 @@ def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
     # no bars at all still short-circuits before either renderer
     assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "D"), bars_fn=lambda *a: None, render_fn=render_fn,
                          edit_fn=edits, house_fn=house_fn) == "no_bars"
+
+
+# ── house render: content judge + retry (a sized-but-empty canvas is not a chart) ──
+
+def _png_canvas(w=1296, h=698, draw=False, scale=1):
+    """A house-shaped PNG: dark chrome bands, chart body either blank or with candles."""
+    from PIL import Image, ImageDraw
+    W, H = w * scale, h * scale
+    im = Image.new("RGB", (W, H), (10, 10, 10))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, W, 68 * scale], fill=(22, 22, 22))             # header + stats strip
+    d.rectangle([0, H - 20 * scale, W, H], fill=(22, 22, 22))          # footer
+    if draw:
+        for i in range(40):
+            x = 30 * scale + i * 28 * scale
+            y0 = 200 * scale + (i % 7) * 20 * scale
+            d.rectangle([x, y0, x + 10 * scale, y0 + (60 + (i % 5) * 15) * scale],
+                        fill=(60, 184, 104) if i % 2 else (231, 76, 60))
+    import io
+    buf = io.BytesIO(); im.save(buf, format="PNG"); return buf.getvalue()
+
+
+def test_has_chart_content_rejects_a_blank_body_and_accepts_candles():
+    from api.services.discord_chart_house import has_chart_content
+    assert has_chart_content(_png_canvas(draw=False)) is False
+    assert has_chart_content(_png_canvas(draw=True)) is True
+    assert has_chart_content(_png_canvas(draw=True, scale=2)) is True
+    assert has_chart_content(b"not a png") is False
+
+
+def test_house_render_retries_a_blank_frame_then_gives_up(monkeypatch):
+    import httpx
+    from api.services import discord_chart_house as hs
+    monkeypatch.setenv("CHART_RENDERER_URL", "http://r")
+    monkeypatch.setenv("CHART_RENDERER_SECRET", "s")
+    monkeypatch.setenv("CHART_RENDER_TOKEN", "t")
+    blank, drawn = _png_canvas(draw=False), _png_canvas(draw=True)
+    bodies = []
+
+    def handler(request: httpx.Request):
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, content=blank if len(bodies) == 1 else drawn, headers={"content-type": "image/png"})
+    out = hs.render_house_chart("NVDA", "D", {"close": 1}, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert out == drawn
+    assert len(bodies) == 2
+    assert bodies[0]["ready_js"] == hs.HOUSE_READY_JS and bodies[0]["settle_ms"] < bodies[1]["settle_ms"]
+
+    bodies.clear()
+
+    def always_blank(request: httpx.Request):
+        bodies.append(1)
+        return httpx.Response(200, content=blank, headers={"content-type": "image/png"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(always_blank))) is None
+    assert len(bodies) == 2  # one retry, then the mplfinance fallback takes over
