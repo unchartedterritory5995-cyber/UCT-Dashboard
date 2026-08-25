@@ -211,16 +211,17 @@
 }
 
 /* ── Cell background tiers (8-tier heat-map system) ─────────────────────────── */
-/* A single saturation ramp per direction, built from the brand --gain / --loss
-   / --ut-gold hues over the graphite ground: more signal = more saturated brand
-   colour (not muddy forest→near-black). Text stays uniform bright white. */
-.bgG3 { background: rgba( 52, 209, 124, 0.62); }  /* extreme bullish */
-.bgG2 { background: rgba( 52, 209, 124, 0.36); }  /* bullish */
-.bgG1 { background: rgba( 52, 209, 124, 0.13); }  /* mild bullish */
-.bgA  { background: rgba(220, 187,  94, 0.22); }  /* caution — brand gold */
-.bgR1 { background: rgba(242,  75,  66, 0.13); }  /* mild bearish */
-.bgR2 { background: rgba(242,  75,  66, 0.36); }  /* bearish */
-.bgR3 { background: rgba(242,  75,  66, 0.62); }  /* extreme bearish */
+/* One saturation ramp per direction, keyed to the UCT compass-mark colours —
+   logo green #67db44 (103,219,68) and logo red #de3f24 (222,63,36) — over the
+   graphite ground: mild = subtle wash, extreme = saturated brand colour. Caution
+   stays the logo's gold. Text stays uniform bright white. */
+.bgG3 { background: rgba(103, 219,  68, 0.60); }  /* extreme bullish */
+.bgG2 { background: rgba(103, 219,  68, 0.34); }  /* bullish */
+.bgG1 { background: rgba(103, 219,  68, 0.12); }  /* mild bullish */
+.bgA  { background: rgba(220, 187,  94, 0.22); }  /* caution — logo gold */
+.bgR1 { background: rgba(222,  63,  36, 0.12); }  /* mild bearish */
+.bgR2 { background: rgba(222,  63,  36, 0.34); }  /* bearish */
+.bgR3 { background: rgba(222,  63,  36, 0.60); }  /* extreme bearish */
 
 /* ── Collapsible group headers ───────────────────────────────────────────────── */
 .groupHeaderClickable {
