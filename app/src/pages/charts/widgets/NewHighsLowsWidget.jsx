@@ -22,6 +22,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { useWorkspace } from '../WorkspaceContext'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
+import { menuThemeVars } from '../../../utils/dividerColor'
+import UIcon from '../../../components/ui/UIcon'
+import NhnlSettingsPanel from './NhnlSettingsPanel'
+import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
 
 const fetcher = (url) =>
@@ -141,6 +146,25 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
   const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
+  // ── Appearance settings (per-widget opts.settings — same model as News /
+  // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
+  const placedTheme = usePlacedTheme(opts?.placedTheme)
+  const settings = useMemo(() => mergeNhnlSettings(opts?.settings || null), [opts?.settings])
+  const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
+  const rootRef = useRef(null)
+  const gearRef = useRef(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const patchSettings = useCallback(
+    (p) => onOptsChange?.({ ...opts, settings: { ...settings, ...p } }),
+    [opts, onOptsChange, settings])
+  const resetSettings = useCallback(
+    () => onOptsChange?.({ ...opts, settings: nhnlDefaultsForTheme(placedTheme) }),
+    [opts, onOptsChange, placedTheme])
+  // Theme the popover chrome to the widget's own canvas when customized.
+  const panelThemeVars = useMemo(
+    () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
+    [styleVars, settings])
+
   const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 3000,       // feel live; server accumulates every few seconds
@@ -158,7 +182,18 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const stamp = WINDOW_LABEL[window] || ''
 
   return (
-    <div className={styles.wrap}>
+    <div ref={rootRef} className={styles.wrap} style={styleVars}>
+      {settingsOpen && (
+        <NhnlSettingsPanel
+          settings={settings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={gearRef.current}
+          hostEl={rootRef.current}
+          themeVars={panelThemeVars}
+        />
+      )}
       <div className={styles.toolbar}>
         <span className={`${styles.live} ${isActive ? styles.liveOn : ''}`}>
           <span className={styles.dot} aria-hidden="true" />{stamp}
@@ -169,6 +204,16 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           placeholder="0" min={0} onCommit={commitPrice} />
         <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
           placeholder="1" min={1} onCommit={commitCount} />
+        <button
+          ref={gearRef}
+          type="button"
+          className={`${styles.gear} ${settingsOpen ? styles.gearOn : ''}`}
+          onClick={() => setSettingsOpen(o => !o)}
+          title="New Highs / Lows settings"
+          aria-label="New Highs / Lows settings"
+        >
+          <UIcon name="gear" size={13} gold={false} />
+        </button>
       </div>
 
       {!isActive ? (

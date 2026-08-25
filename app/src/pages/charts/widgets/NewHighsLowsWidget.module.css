@@ -1,28 +1,29 @@
 /* New Highs / New Lows widget — UCT skin, sized to MATCH the Watchlist widget so
-   the two line up horizontally. Header row = the shared 32px .gridHead height; data
-   rows = .listRow metrics; the symbol reuses .rowSym typography; every color rides
-   the same --widget-* → --wl-* token chain so it theme-follows identically. */
+   the two line up horizontally.
+   Color/size resolution order: the user's OWN settings (--nh-*, from the ⚙ panel)
+   → the chart-theme layer (--widget-*, published by WidgetHost on "All widgets")
+   → the watchlist token chain (--wl-*) → the global default. So an explicit pick
+   beats a theme, and an untouched widget follows whatever theme is applied. */
 .wrap {
   height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg)));
-  color: var(--widget-text, var(--wl-text, var(--text)));
+  background: var(--nh-bg, var(--widget-canvas, var(--wl-bg-solid, var(--bg))));
+  color: var(--nh-text, var(--widget-text, var(--wl-text, var(--text))));
   font-family: var(--font-sans);
 }
 
-/* ── Toolbar — locked to the Watchlist list-title bar height (34px) so the column
-   headers + rows below line up row-for-row with the watchlist beside it. ──────── */
+/* ── Toolbar — locked to the Watchlist list-title bar height (34px) ─────────── */
 .toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 34px;
-  padding: 0 10px;
+  padding: 0 8px 0 10px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
-  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
+  border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border))));
+  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated))));
   flex: 0 0 auto;
 }
 .spacer { flex: 1 1 auto; }
@@ -35,8 +36,9 @@
   letter-spacing: 0.08em;
   font-weight: 700;
   color: var(--ut-gold);   /* UCT gold, like the watchlist's list title */
+  white-space: nowrap;
 }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wl-text, var(--text-muted)); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wl-text, var(--text-muted)); flex-shrink: 0; }
 .liveOn { color: var(--ut-gold); }
 .liveOn .dot {
   background: var(--ut-gold);
@@ -48,21 +50,22 @@
 
 .asof {
   font-size: 10px;
-  color: var(--wl-text, var(--text-muted));
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.filter { display: inline-flex; align-items: center; gap: 4px; }
-.filterLbl { font-size: 11px; color: var(--wl-text, var(--text-muted)); font-weight: 600; }
+.filter { display: inline-flex; align-items: center; gap: 3px; }
+.filterLbl { font-size: 10px; color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 600; }
 .filterInput {
-  width: 42px;
-  padding: 2px 6px;
+  width: 40px;
+  padding: 2px 5px;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--widget-text-strong, var(--wl-sym, var(--text-bright)));
+  color: var(--nh-text-strong, var(--widget-text-strong, var(--wl-sym, var(--text-bright))));
   background: var(--menu-input-bg, var(--bg-elevated));
-  border: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, var(--border)));
+  border: 1px solid var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border))));
   border-radius: 5px;
   outline: none;
   -moz-appearance: textfield;
@@ -72,10 +75,28 @@
 .filterInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .filterInput:focus { border-color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
 
+/* ⚙ gear — matches the other widgets' toolbar icon buttons. */
+.gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.gear:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
+.gearOn { color: var(--widget-accent, var(--wl-accent, var(--ut-gold))); }
+
 /* ── Twin panels ─────────────────────────────────────────────────────────── */
 .panels { flex: 1 1 auto; display: flex; min-height: 0; }
 .side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.side:first-child { border-right: 1px solid var(--widget-divider, var(--wl-divider, var(--border))); }
+.side:first-child { border-right: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border)))); }
 
 /* sideHead == Watchlist .gridHead: 32px sticky header so panels align row-for-row. */
 .sideHead {
@@ -88,51 +109,53 @@
   min-height: 32px;
   padding: 0 8px;
   box-sizing: border-box;
-  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
-  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
+  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated))));
+  border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border))));
 }
 .sideTitle {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
-.up .sideTitle { color: var(--ut-green-bright); }
-.down .sideTitle { color: var(--ut-red-bright); }
+.up .sideTitle { color: var(--nh-up, var(--ut-green-bright)); }
+.down .sideTitle { color: var(--nh-down, var(--ut-red-bright)); }
 .sideCount {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--wl-text-strong, var(--widget-text-strong, var(--text-bright)));
+  color: var(--nh-text-strong, var(--wl-text-strong, var(--widget-text-strong, var(--text-bright))));
 }
 
-/* rows == Watchlist .listBody (scroll behavior + scrollbar). */
 .rows {
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
   scrollbar-width: thin;
-  scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))) transparent;
+  scrollbar-color: var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)))) transparent;
 }
 .rows::-webkit-scrollbar { width: 10px; }
 .rows::-webkit-scrollbar-thumb {
-  background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
+  background: var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))));
   border-radius: 5px;
 }
 
-/* row == Watchlist .listRow: padding 5px 8px, centered, one horizontal gridline. */
+/* row == Watchlist .listRow. Column priority: the TICKER always survives — the
+   symbol column is a flexible min-width so it never truncates before the optional
+   columns drop. Time drops first, then Price (see the @container rules). */
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: 11px minmax(0, 1fr) auto auto 30px;
+  grid-template-columns: 11px minmax(42px, 1fr) auto auto 30px;
   align-items: center;
   gap: 6px;
   width: 100%;
   padding: 5px 8px;
   box-sizing: border-box;
   border: 0;
-  border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, var(--border)));
+  border-bottom: 1px solid var(--nh-divider-strong, var(--widget-divider-strong, var(--wl-divider-strong, var(--border))));
   background: transparent;
   color: inherit;
   text-align: left;
@@ -140,64 +163,54 @@
   font: inherit;
   line-height: 1.3;
 }
-.row:hover { background: var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover))); }
+.row:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
 
 /* Count histogram — dim tint anchored to the # side, behind the text. */
-.bar {
-  position: absolute;
-  top: 1px;
-  bottom: 1px;
-  right: 0;
-  z-index: 0;
-  border-radius: 3px 0 0 3px;
-  pointer-events: none;
-}
+.bar { position: absolute; top: 1px; bottom: 1px; right: 0; z-index: 0; border-radius: 3px 0 0 3px; pointer-events: none; }
 .up .bar { background: rgba(45, 140, 78, 0.24); }
 .down .bar { background: rgba(192, 57, 43, 0.24); }
 
-.row > .arrow,
-.row > .sym,
-.row > .price,
-.row > .time,
-.row > .count { position: relative; z-index: 1; }
+.row > .arrow, .row > .sym, .row > .price, .row > .time, .row > .count { position: relative; z-index: 1; }
 
 .arrow { font-size: 8px; }
-.up .arrow { color: var(--ut-green-bright); }
-.down .arrow { color: var(--ut-red-bright); }
+.up .arrow { color: var(--nh-up, var(--ut-green-bright)); }
+.down .arrow { color: var(--nh-down, var(--ut-red-bright)); }
 
-/* sym == Watchlist .rowSym EXACTLY (font, size, weight, color, tracking). */
+/* sym == Watchlist .rowSym (font, size, weight, color, tracking). */
 .sym {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: var(--wl-sym, var(--widget-text-strong, var(--text-bright)));
+  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright))));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .price {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--nh-font-scale, 1));
   font-variant-numeric: tabular-nums;
-  color: var(--wl-text, var(--text-muted));
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
+  white-space: nowrap;
 }
 .time {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: calc(10px * var(--nh-font-scale, 1));
   font-variant-numeric: tabular-nums;
-  color: var(--wl-text, var(--text-muted));
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
   opacity: 0.7;
+  white-space: nowrap;
 }
 .count {
   text-align: right;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.up .count { color: var(--ut-green-bright); }
-.down .count { color: var(--ut-red-bright); }
+.up .count { color: var(--nh-up, var(--ut-green-bright)); }
+.down .count { color: var(--nh-down, var(--ut-red-bright)); }
 
 /* ── Empty / closed ──────────────────────────────────────────────────────── */
 .empty {
@@ -210,16 +223,24 @@
   padding: 20px;
   text-align: center;
 }
-.emptyTitle { font-weight: 700; color: var(--wl-text, var(--text-muted)); }
-.emptySub {
-  font-size: 11px;
-  color: var(--wl-text, var(--text-muted));
-  opacity: 0.8;
-  max-width: 260px;
-}
+.emptyTitle { font-weight: 700; color: var(--nh-text, var(--wl-text, var(--text-muted))); }
+.emptySub { font-size: 11px; color: var(--nh-text, var(--wl-text, var(--text-muted))); opacity: 0.8; max-width: 260px; }
 
-/* Narrow widget: drop the time column so sym/price/# stay readable. */
-@container (max-width: 360px) {
-  .row { grid-template-columns: 11px minmax(0, 1fr) auto 28px; }
+/* ── Responsive: drop optional columns as the widget narrows, ticker LAST ──── */
+/* Each panel is half the widget, so these thresholds are on the full widget. */
+@container (max-width: 470px) {
+  .row { grid-template-columns: 11px minmax(42px, 1fr) auto 30px; }  /* drop time */
   .time { display: none; }
+}
+@container (max-width: 340px) {
+  .row { grid-template-columns: 11px minmax(42px, 1fr) 28px; }       /* drop price → ticker + count */
+  .price { display: none; }
+}
+/* Toolbar: shed chrome so the ⚙ gear + filters always fit. Clock goes first,
+   then the LIVE label (its pulsing dot stays as the session indicator). */
+@container (max-width: 430px) { .asof { display: none; } }
+@container (max-width: 300px) {
+  .toolbar { gap: 5px; padding: 0 6px; }
+  .live { font-size: 0; gap: 0; }     /* keep only the pulse dot */
+  .filterInput { width: 34px; }
 }

@@ -7,6 +7,8 @@ const swr = vi.fn()
 vi.mock('../../../hooks/useMobileSWR', () => ({ default: (...a) => swr(...a) }))
 const setGroupSym = vi.fn()
 vi.mock('../WorkspaceContext', () => ({ useWorkspace: () => ({ setGroupSym }) }))
+// usePlacedTheme (via the settings wiring) reads usePreferences — a bare default is enough.
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (_v, d) => d }))
 
 import NewHighsLowsWidget from './NewHighsLowsWidget'
 
