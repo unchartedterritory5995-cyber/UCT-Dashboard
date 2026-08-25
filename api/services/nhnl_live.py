@@ -72,6 +72,8 @@ _state = {
 
 _running = False
 _thread = None
+_last_persist = 0.0       # epoch of the last state snapshot write
+_PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
@@ -494,7 +496,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             if st is None:
                 lo0 = ref_lo if isinstance(ref_lo, (int, float)) and ref_lo > 0 else ref_hi
                 syms[app] = {"hod": ref_hi, "lod": lo0, "nh": 0, "nl": 0,
-                             "last": price, "hi_ts": None, "lo_ts": None}
+                             "last": price, "prev": row.get("prev_close"),
+                             "hi_ts": None, "lo_ts": None}
                 continue
 
             # New high (of day in RTH; of the ext session in pre/post)?
@@ -545,7 +548,7 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
         # (sym, nh, nl, last, hi_ts, lo_ts) for every active symbol (stocks + the
         # tracked sector ETFs).
         sym_rows = [(s, st.get("nh", 0), st.get("nl", 0), st.get("last"),
-                     st.get("hi_ts"), st.get("lo_ts"))
+                     st.get("hi_ts"), st.get("lo_ts"), st.get("prev"))
                     for s, st in _state["syms"].items()
                     if st.get("nh", 0) > 0 or st.get("nl", 0) > 0]
 
@@ -570,10 +573,15 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
             return sym in theme_members.get(cat, ())
         return ((gmap.get(sym) or {}).get(dim) or "—") == cat
 
+    def _pct(last, prev):
+        if isinstance(last, (int, float)) and isinstance(prev, (int, float)) and prev > 0:
+            return round((last - prev) / prev * 100, 2)   # % change vs prior close
+        return None
+
     def rank_stocks(direction, cat=None):
         hi = direction == "high"
         full = []
-        for sym, nh, nl, last, hts, lts in sym_rows:
+        for sym, nh, nl, last, hts, lts, prev in sym_rows:
             cnt = nh if hi else nl
             if cnt < min_count or sym in etf:              # stocks only
                 continue
@@ -581,8 +589,8 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
                 continue
             if cat is not None and not _in_cat(sym, cat):  # drill to one category
                 continue
-            full.append({"sym": sym, "price": _r2(last), "count": cnt,
-                         "ts": hts if hi else lts, "dir": direction, "pick": sym})
+            full.append({"sym": sym, "price": _r2(last), "pct": _pct(last, prev),
+                         "count": cnt, "ts": hts if hi else lts, "dir": direction, "pick": sym})
         return _srt(full)
 
     def rank_breadth(direction):
@@ -599,7 +607,7 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
                 a[0] += 1
                 if (ts or "") > a[1]:
                     a[1] = ts or ""
-        for sym, nh, nl, last, hts, lts in sym_rows:
+        for sym, nh, nl, last, hts, lts, _prev in sym_rows:
             cnt = nh if hi else nl
             if cnt < min_count or sym in etf:
                 continue
@@ -621,7 +629,7 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
     # Category counts for the drill-down dropdown (distinct stocks per group).
     categories = {}
     if dim:
-        for sym, nh, nl, last, _h, _l in sym_rows:
+        for sym, nh, nl, last, _h, _l, _p in sym_rows:
             if sym in etf or (nh < min_count and nl < min_count):
                 continue
             if dim == "theme":
@@ -677,6 +685,66 @@ def status() -> dict:
             "print_syms": len(_print_syms),     # names currently print-counted
             "print_events": _print_events_total,  # total qualifying prints counted
         }
+
+
+# ── State persistence (survive deploys mid-session) ───────────────────────────
+# A web deploy restarts this daemon → counts would reset to 0 mid-session (a name
+# that made 40 new highs shows 5 after a 10am deploy). We snapshot the per-symbol
+# state to disk every ~30s and restore it on boot IFF it's the SAME live session
+# (date + window) — a new day/window resets counters anyway, so a stale file is
+# simply ignored. Best-effort throughout: persistence never breaks the accumulator.
+def _state_path() -> str:
+    p = os.environ.get("NHNL_STATE_PATH")
+    if p:
+        return p
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), "nhnl_state.json")
+
+
+def _persist_state() -> None:
+    try:
+        with _lock:
+            snap = {
+                "session_key": _state["session_key"],
+                "date": _state["date"],
+                "window": _state["window"],
+                "ticks": _state["ticks"],
+                "syms": _state["syms"],   # the counts — only the nhnl thread writes these
+            }
+        # Safe to serialize outside the lock: _state["syms"] is mutated ONLY by this
+        # (the nhnl) thread; request threads and the trade tape never touch it.
+        path = _state_path()
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(snap, f)
+        os.replace(tmp, path)
+    except Exception:
+        _log.exception("[nhnl] state persist failed")
+
+
+def _load_state() -> None:
+    """Restore counts on boot if the snapshot is from the CURRENT live session."""
+    try:
+        with open(_state_path()) as f:
+            snap = json.load(f)
+    except (FileNotFoundError, ValueError, OSError):
+        return
+    except Exception:
+        _log.exception("[nhnl] state load failed")
+        return
+    now = _now_et()
+    cur_key = f"{now.strftime('%Y-%m-%d')}:{_active_window(now)}"
+    if not isinstance(snap, dict) or snap.get("session_key") != cur_key:
+        return   # stale (different day/window) → fresh start; counters reset anyway
+    syms = snap.get("syms")
+    if not isinstance(syms, dict):
+        return
+    with _lock:
+        _state["session_key"] = snap.get("session_key")
+        _state["date"] = snap.get("date")
+        _state["window"] = snap.get("window")
+        _state["ticks"] = snap.get("ticks", 0)
+        _state["syms"] = syms
+    _log.info("[nhnl] restored %d symbols for session %s", len(syms), cur_key)
 
 
 # ── Print-exact machinery ─────────────────────────────────────────────────────
@@ -853,6 +921,10 @@ def _tick() -> None:
         _manage_print_set()
     except Exception:
         _log.exception("[nhnl] print-set management failed")
+    global _last_persist
+    if window != "closed" and (_time.time() - _last_persist) >= _PERSIST_SECS:
+        _persist_state()
+        _last_persist = _time.time()
 
 
 def _run_forever() -> None:
@@ -880,6 +952,7 @@ def start() -> None:
         return
     if _running:
         return
+    _load_state()             # restore counts if this boot is mid-session (deploy)
     _running = True
     _thread = threading.Thread(target=_run_forever, daemon=True, name="nhnl-scanner")
     _thread.start()

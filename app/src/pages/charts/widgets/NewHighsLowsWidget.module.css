@@ -173,7 +173,7 @@
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: 11px minmax(42px, 1fr) auto 30px;  /* arrow · ticker · price · count */
+  grid-template-columns: 11px minmax(40px, 1fr) auto auto 30px;  /* arrow · ticker · price · %chg · count */
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -237,15 +237,39 @@
   opacity: 0.7;
   white-space: nowrap;
 }
+/* % change vs prior close — the move's magnitude, colored by sign. */
+.pct {
+  text-align: right;
+  font-family: var(--font-sans);
+  font-size: calc(10.5px * var(--nh-font-scale, 1));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pct[data-sign="up"] { color: var(--nh-up, var(--ut-green-bright)); }
+.pct[data-sign="down"] { color: var(--nh-down, var(--ut-red-bright)); }
 .count {
   text-align: right;
   font-family: var(--font-sans);
   font-size: calc(11px * var(--nh-font-scale, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  transform-origin: right center;
+  animation: nhCountPulse 0.7s ease-out;   /* fires on each increment (span is keyed by count) */
 }
-.up .count { color: var(--nh-up, var(--ut-green-bright)); }
-.down .count { color: var(--nh-down, var(--ut-red-bright)); }
+.up .count { color: var(--nh-up, var(--ut-green-bright)); --nh-pulse: var(--nh-up, var(--ut-green-bright)); }
+.down .count { color: var(--nh-down, var(--ut-red-bright)); --nh-pulse: var(--nh-down, var(--ut-red-bright)); }
+
+/* "Hot now": the count pops + glows the moment it ticks up, so actively-printing
+   names visibly pulse while names that ran earlier sit still. */
+@keyframes nhCountPulse {
+  0%   { transform: scale(1.5); text-shadow: 0 0 9px var(--nh-pulse, transparent); }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .count { animation: none; }
+}
 
 /* ── Empty / closed ──────────────────────────────────────────────────────── */
 .empty {
@@ -263,9 +287,13 @@
 
 /* ── Responsive: drop optional columns as the widget narrows, ticker LAST ──── */
 /* Each panel is half the widget, so these thresholds are on the full widget. */
-@container (max-width: 340px) {
-  .row { grid-template-columns: 11px minmax(42px, 1fr) 28px; }       /* drop price → ticker + count */
+@container (max-width: 470px) {
+  .row { grid-template-columns: 11px minmax(40px, 1fr) auto 30px; }  /* drop price, KEEP %chg */
   .price { display: none; }
+}
+@container (max-width: 340px) {
+  .row { grid-template-columns: 11px minmax(40px, 1fr) 28px; }       /* drop %chg too → ticker + count */
+  .pct { display: none; }
 }
 /* Toolbar: shed chrome as it narrows so the scope selector + ⚙ gear always fit.
    Clock first, then the min-price/count boxes (secondary), then the LIVE label

@@ -194,6 +194,50 @@ def test_theme_overview_breadth_counts_multi_theme_membership(monkeypatch):
     assert {e["sym"] for e in out2["highs"]} == {"BBB"}
 
 
+# ── % change column ─────────────────────────────────────────────────────────────
+
+def test_rows_carry_pct_change_vs_prior_close():
+    snap0 = {"AAA": {"day_high": 100.0, "day_low": 98.0, "last_price": 99.0, "prev_close": 90.0}}
+    snap1 = {"AAA": {"day_high": 101.0, "day_low": 98.0, "last_price": 101.0, "prev_close": 90.0}}
+    nhnl_live._tick_once(snap0, "rth", "2026-08-25", _now(0))   # seed (stores prev_close)
+    nhnl_live._tick_once(snap1, "rth", "2026-08-25", _now(1))   # new HOD
+    row = next(e for e in nhnl_live.get_live()["highs"] if e["sym"] == "AAA")
+    assert row["price"] == 101.0
+    assert row["pct"] == round((101.0 - 90.0) / 90.0 * 100, 2)   # +12.22% vs prior close
+
+
+# ── Persistence across deploys ──────────────────────────────────────────────────
+
+def test_persist_restores_counts_for_the_same_session(monkeypatch, tmp_path):
+    monkeypatch.setenv("NHNL_STATE_PATH", str(tmp_path / "nhnl_state.json"))
+    now = nhnl_live._now_et()
+    key = f"{now.strftime('%Y-%m-%d')}:{nhnl_live._active_window(now)}"
+    with nhnl_live._lock:
+        nhnl_live._state["session_key"] = key
+        nhnl_live._state["date"] = now.strftime("%Y-%m-%d")
+        nhnl_live._state["window"] = nhnl_live._active_window(now)
+        nhnl_live._state["syms"] = {"AAA": {"hod": 101.0, "lod": 98.0, "nh": 7, "nl": 0,
+                                            "last": 101.0, "prev": 90.0, "hi_ts": None, "lo_ts": None}}
+    nhnl_live._persist_state()
+    with nhnl_live._lock:                       # simulate a deploy wiping in-memory state
+        nhnl_live._state["syms"] = {}
+        nhnl_live._state["session_key"] = None
+    nhnl_live._load_state()
+    assert nhnl_live._state["syms"]["AAA"]["nh"] == 7   # count survived the "deploy"
+
+
+def test_persist_ignored_when_session_is_stale(monkeypatch, tmp_path):
+    import json as _json
+    p = tmp_path / "nhnl_state.json"
+    p.write_text(_json.dumps({"session_key": "1999-01-01:rth", "date": "1999-01-01",
+                              "window": "rth", "ticks": 5, "syms": {"AAA": {"nh": 9}}}))
+    monkeypatch.setenv("NHNL_STATE_PATH", str(p))
+    with nhnl_live._lock:
+        nhnl_live._state["syms"] = {}
+    nhnl_live._load_state()
+    assert nhnl_live._state["syms"] == {}       # different day/window → not restored
+
+
 # ── Print-exact counting (bounded live trade tape) ──────────────────────────────
 
 def test_print_exact_counts_every_ratchet_and_poll_does_not_double(monkeypatch):
