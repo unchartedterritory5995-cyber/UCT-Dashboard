@@ -9914,10 +9914,35 @@ export default function StockChart({
   // dep) so it re-asserts the order whenever overlays/series are (re)built.
   useEffect(() => {
     if (!candlesOnTop) return
-    const s = candleSeriesRef.current
-    if (!s || typeof s.setSeriesOrder !== 'function') return
-    try { s.setSeriesOrder(Number.MAX_SAFE_INTEGER) } catch { /* older LWC */ }
-  }, [updateChart, candlesOnTop])
+    const cndl = candleSeriesRef.current
+    if (!cndl || typeof cndl.setSeriesOrder !== 'function') return
+    try {
+      // Candle clamped above every overlay that wants to sit BEHIND it (the
+      // default TradingView look). But a per-overlay `onTop` ("Overlap candles")
+      // request must WIN — lift that MA ABOVE the candle here. This effect is the
+      // LAST word on price-pane z-order (it runs after updateChart, its dep), so
+      // when it slammed the candle to the top UNCONDITIONALLY it re-buried every
+      // MA on each paint and the toggle looked dead.
+      //
+      // `setSeriesOrder(n)` is a MOVE-to-index that LWC CLAMPS to [0, count-1]
+      // (see typings: any n >= count lands the series on top). So the exact big
+      // number is irrelevant — what orders things is EXECUTION ORDER: move the
+      // candle to the top first, then move each onTop overlay to the top after,
+      // and each onTop line ends up ABOVE the (now one-below) candle. Behind
+      // overlays are left untouched, so they keep their relative order below.
+      const TOP = Number.MAX_SAFE_INTEGER
+      cndl.setSeriesOrder(TOP)                    // candle → top of the pane
+      const ovs = overlaySeriesRefs.current || []
+      const tails = overlayTailSeriesRefs.current || []
+      for (let i = 0; i < ovs.length; i++) {
+        if (!resolvedOverlays?.[i]?.onTop) continue
+        const os = ovs[i]
+        if (os && typeof os.setSeriesOrder === 'function') os.setSeriesOrder(TOP)   // this MA → above the candle
+        const ts = tails[i]
+        if (ts && typeof ts.setSeriesOrder === 'function') ts.setSeriesOrder(TOP)
+      }
+    } catch { /* older LWC */ }
+  }, [updateChart, candlesOnTop, resolvedOverlays])
 
   // Gold/white setup-day candle (Model Book). Runs AFTER updateChart so it
   // overrides the plain candle data. A candle-only setData (range preserved) →
