@@ -80,10 +80,14 @@ def test_render_options_hide_mas_and_volume_via_positional_overlays():
 # ── command payloads + parsing ────────────────────────────────────────────────
 
 def test_build_commands_has_chart_alias_and_settings_subcommands():
-    from api.services.discord_interactions import build_commands, build_chart_command
+    from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
     cmds = {c["name"]: c for c in build_commands()}
     assert set(cmds) == {"chart", "c", "chartsettings"}
-    assert cmds["chart"] == build_chart_command()
+    assert cmds["chart"] == dict(build_chart_command(), **GUILD_ONLY)
+    # every registered command is GUILD_INSTALL-only and usable only inside a guild —
+    # never a user install that could carry /chart into any server or DM
+    assert GUILD_ONLY == {"integration_types": [0], "contexts": [0]}
+    assert all(c["integration_types"] == [0] and c["contexts"] == [0] for c in cmds.values())
     assert cmds["c"]["options"] == cmds["chart"]["options"]
     subs = {o["name"]: o for o in cmds["chartsettings"]["options"]}
     assert set(subs) == {"show", "set", "reset"} and all(o["type"] == 1 for o in subs.values())
@@ -207,7 +211,7 @@ def test_endpoint_settings_round_trip_and_chart_uses_saved_default_tf(monkeypatc
     member = {"user": {"id": "424242"}}
 
     def settings(sub, opts=None):
-        return {"type": 2, "application_id": "123", "token": "tok", "member": member,
+        return {"type": 2, "application_id": "123", "token": "tok", "member": member, "guild_id": "882293203485720596",
                 "data": {"name": "chartsettings", "options": [
                     {"name": sub, "type": 1, "options": [{"name": k, "value": v} for k, v in (opts or {}).items()]}]}}
 
@@ -228,7 +232,7 @@ def test_endpoint_settings_round_trip_and_chart_uses_saved_default_tf(monkeypatc
         scheduled.append((req, prefs))
         return "ok"
     monkeypatch.setattr(rt.di, "run_chart_job", fake_job)
-    chart = {"type": 2, "application_id": "123", "token": "tok", "member": member,
+    chart = {"type": 2, "application_id": "123", "token": "tok", "member": member, "guild_id": "882293203485720596",
              "data": {"name": "c", "options": [{"name": "ticker", "type": 3, "value": "nvda"}]}}
     r = _post(client, sk, chart)
     assert r.json() == {"type": 5}

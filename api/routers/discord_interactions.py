@@ -69,6 +69,11 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     itype = interaction.get("type")
     if itype == 1:
         return {"type": 1}
+    if not di.guild_allowed(interaction):
+        log.warning("discord interaction refused: guild=%s context=%s owners=%s",
+                    interaction.get("guild_id"), interaction.get("context"),
+                    interaction.get("authorizing_integration_owners"))
+        return _ephemeral(di.NOT_ALLOWED_MESSAGE)
     name = (interaction.get("data") or {}).get("name")
     if itype == 2 and name in di.CHART_COMMAND_NAMES:
         uid = di.interaction_user_id(interaction)

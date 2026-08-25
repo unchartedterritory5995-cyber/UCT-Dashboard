@@ -152,13 +152,16 @@ def test_verify_signature_good_bad_and_garbage_never_raise():
     assert verify_signature(pk, "", "", body) is False
 
 
+UT_GUILD = "882293203485720596"  # Uncharted Territory, one of the two allowed servers
+
+
 def _interaction(ticker=None, tf=None, name="chart", itype=2):
     opts = []
     if ticker is not None:
         opts.append({"name": "ticker", "type": 3, "value": ticker})
     if tf is not None:
         opts.append({"name": "tf", "type": 3, "value": tf})
-    return {"type": itype, "application_id": "123", "token": "tok",
+    return {"type": itype, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
             "data": {"name": name, "options": opts}}
 
 
@@ -406,7 +409,7 @@ def test_endpoint_unknown_command_is_ephemeral(monkeypatch):
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("must not schedule"))
     r = _post(client, sk, _interaction("NVDA", name="recall"))
     assert r.json() == {"type": 4, "data": {"content": "Unknown command.", "flags": 64}}
-    r = _post(client, sk, {"type": 3, "data": {"name": "chart"}})
+    r = _post(client, sk, {"type": 3, "guild_id": UT_GUILD, "data": {"name": "chart"}})
     assert r.json()["type"] == 4
 
 
@@ -988,3 +991,48 @@ def test_house_url_forces_extended_hours_on_for_intraday_only():
     for tf in ("D", "W"):
         q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="")).query)
         assert "ext" not in q, tf     # daily/weekly have no sessions to show; leave the page's default alone
+
+
+# ── only OUR servers: everything else is refused before any command runs ──
+
+def test_guild_allowed_is_the_two_uct_servers_by_default_and_env_overrides(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.delenv("DISCORD_CHART_ALLOWED_GUILDS", raising=False)
+    assert di.allowed_guilds() == {"882293203485720596", "1524909611054792786"}
+    assert di.guild_allowed({"guild_id": "882293203485720596"})
+    assert di.guild_allowed({"guild_id": "1524909611054792786", "context": 0})
+    assert not di.guild_allowed({"guild_id": "999"})                      # some other server
+    assert not di.guild_allowed({})                                       # DM: no guild at all
+    assert not di.guild_allowed({"guild_id": "882293203485720596", "context": 1})  # bot DM
+    assert not di.guild_allowed({"guild_id": "882293203485720596", "context": 2})  # private channel
+    assert not di.guild_allowed({"guild_id": "882293203485720596",
+                                 "authorizing_integration_owners": {"1": "42"}})   # user install
+    monkeypatch.setenv("DISCORD_CHART_ALLOWED_GUILDS", "111, 222")
+    assert di.allowed_guilds() == {"111", "222"}
+    assert di.guild_allowed({"guild_id": "222"}) and not di.guild_allowed({"guild_id": "882293203485720596"})
+    monkeypatch.setenv("DISCORD_CHART_ALLOWED_GUILDS", "  ")            # blank = the default, never "allow all"
+    assert di.allowed_guilds() == {"882293203485720596", "1524909611054792786"}
+
+
+def test_endpoint_refuses_foreign_guild_dm_and_user_install_and_schedules_nothing(monkeypatch):
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    monkeypatch.delenv("DISCORD_CHART_ALLOWED_GUILDS", raising=False)
+    client, rt = _app_client()
+    scheduled = []
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: scheduled.append(a))
+    from api.services import discord_interactions as di
+    foreign = dict(_interaction("NVDA"), guild_id="424242424242424242")
+    dm = {k: v for k, v in _interaction("NVDA").items() if k != "guild_id"}
+    user_install = dict(_interaction("NVDA"), authorizing_integration_owners={"1": "77"})
+    settings_elsewhere = {"type": 2, "application_id": "123", "token": "tok", "guild_id": "5",
+                          "data": {"name": "chartsettings", "options": [{"name": "show", "type": 1, "options": []}]}}
+    for payload in (foreign, dm, user_install, settings_elsewhere):
+        r = _post(client, sk, payload)
+        assert r.status_code == 200
+        assert r.json() == {"type": 4, "data": {"content": di.NOT_ALLOWED_MESSAGE, "flags": 64}}
+    assert scheduled == []
+    # PING still answers (Discord validates the endpoint with one) and a home-server command still runs
+    assert _post(client, sk, {"type": 1}).json() == {"type": 1}
+    assert _post(client, sk, _interaction("NVDA")).json() == {"type": 5}
+    assert len(scheduled) == 1

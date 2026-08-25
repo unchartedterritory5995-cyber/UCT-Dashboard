@@ -145,9 +145,53 @@ def build_settings_command() -> dict:
     }
 
 
+# The ONLY servers this app serves. A public bot (or a stale guild install
+# made before the app was locked down) can still deliver interactions from
+# anywhere; every command handler refuses anything outside this set. Override
+# with DISCORD_CHART_ALLOWED_GUILDS (comma-separated ids); the default is the
+# two UCT servers so a deploy alone closes the door.
+DEFAULT_ALLOWED_GUILDS = frozenset({
+    "882293203485720596",   # Uncharted Territory (members)
+    "1524909611054792786",  # UCT Intelligence (dev/admin)
+})
+NOT_ALLOWED_MESSAGE = "This app only works inside the Uncharted Territory and UCT Intelligence servers."
+
+
+def allowed_guilds() -> frozenset:
+    raw = os.environ.get("DISCORD_CHART_ALLOWED_GUILDS", "")
+    ids = {x.strip() for x in raw.split(",") if x.strip()}
+    return frozenset(ids) if ids else DEFAULT_ALLOWED_GUILDS
+
+
+def guild_allowed(interaction: dict, allowed: frozenset | None = None) -> bool:
+    """True only for a command sent from inside one of our servers.
+
+    Refuses DMs / private channels (no guild, or a non-guild `context`), any
+    user-install authorization (`authorizing_integration_owners` carrying the
+    USER_INSTALL key "1"), and any guild id outside the allowlist."""
+    allowed = allowed if allowed is not None else allowed_guilds()
+    gid = str(interaction.get("guild_id") or "")
+    if not gid or gid not in allowed:
+        return False
+    ctx = interaction.get("context")
+    if ctx is not None and ctx != 0:  # 0 = GUILD
+        return False
+    owners = interaction.get("authorizing_integration_owners")
+    if isinstance(owners, dict) and "1" in owners:
+        return False
+    return True
+
+
+# Where the commands may be installed and used: GUILD_INSTALL only (never a
+# user install, which would let any Discord user carry /chart into any server
+# or DM), and only inside a guild. Registered on every command so a global
+# PUT can never inherit the app's install contexts.
+GUILD_ONLY = {"integration_types": [0], "contexts": [0]}
+
+
 def build_commands() -> list:
     """Every application command this bot registers (one authority)."""
-    return [build_chart_command(), build_alias_command(), build_settings_command()]
+    return [dict(c, **GUILD_ONLY) for c in (build_chart_command(), build_alias_command(), build_settings_command())]
 
 
 def attachment_name(ticker: str, tf: str, last_t) -> str:
