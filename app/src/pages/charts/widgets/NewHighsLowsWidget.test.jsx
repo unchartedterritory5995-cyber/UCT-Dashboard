@@ -85,54 +85,48 @@ describe('NewHighsLowsWidget', () => {
     expect(screen.getByText('RL')).toBeInTheDocument()
   })
 
-  it('switching scope persists the dimension and clears the stale category', () => {
+  it('switching the Group-by scope persists the dimension', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
-    render(<NewHighsLowsWidget color="A" opts={{ scopeValue: 'Old' }} onOptsChange={onOptsChange} />)
+    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
     fireEvent.click(screen.getByTitle('Group by'))                    // open scope menu
     fireEvent.click(screen.getByRole('option', { name: 'Sector' }))   // pick a dimension
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scope: 'sector', scopeValue: '' }))
+    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scope: 'sector' }))
   })
 
-  it('shows the category dropdown (busiest first) when a scope is active', () => {
-    swr.mockReturnValue({ data: { ...LIVE, group: 'sector', categories: { Healthcare: 3, Technology: 12 } } })
-    render(<NewHighsLowsWidget color="A" opts={{ scope: 'sector' }} onOptsChange={() => {}} />)
-    fireEvent.click(screen.getByTitle('Pick a sector'))              // open category menu
-    const labels = screen.getAllByRole('option').map(o => o.textContent)
-    expect(labels[0]).toMatch(/All sectors/)
-    expect(labels[1]).toMatch(/Technology.*12/)   // busiest first
-    expect(labels[2]).toMatch(/Healthcare.*3/)
-  })
-
-  it('threads scope + value into the poll URL', () => {
+  it('threads the group scope (no value) into the poll URL', () => {
     swr.mockReturnValue({ data: LIVE })
-    render(<NewHighsLowsWidget color="A" opts={{ scope: 'sector', scopeValue: 'Technology' }} onOptsChange={() => {}} />)
+    render(<NewHighsLowsWidget color="A" opts={{ scope: 'sector' }} onOptsChange={() => {}} />)
     expect(swr.mock.calls[0][0]).toContain('group=sector')
-    expect(swr.mock.calls[0][0]).toContain('value=Technology')
+    expect(swr.mock.calls[0][0]).not.toContain('value=')   // overview only; drill is inline
   })
 
-  it('renders the % change on stock rows (colored by sign)', () => {
-    swr.mockReturnValue({ data: { ...LIVE, highs: [
-      { sym: 'RL', price: 356.01, pct: 12.4, count: 105, ts: TS, dir: 'high' },
-    ], lows: [] } })
-    render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    const pct = screen.getByText('+12.4%')
-    expect(pct).toBeInTheDocument()
-    expect(pct).toHaveAttribute('data-sign', 'up')
+  it('expands a group inline to its member stocks (Theme-Tracker accordion)', () => {
+    // main overview vs the per-group drill are told apart by the URL's value= param.
+    swr.mockImplementation((u) =>
+      u && u.includes('value=Biotechnology')
+        ? { data: { window: 'rth', highs: [{ sym: 'BIIB', count: 5, dir: 'high' }], lows: [] } }
+        : { data: { ...LIVE, group: 'industry',
+            highs: [{ sym: 'Biotechnology', count: 32, dir: 'high', group: true }], lows: [] } })
+    render(<NewHighsLowsWidget color="A" opts={{ scope: 'industry' }} onOptsChange={() => {}} />)
+    expect(screen.queryByText('BIIB')).not.toBeInTheDocument()   // collapsed
+    fireEvent.click(screen.getByText('Biotechnology'))           // expand the group
+    expect(screen.getByText('BIIB')).toBeInTheDocument()          // its top stocks appear inline
+    expect(setGroupSym).not.toHaveBeenCalled()                    // expanding a group never charts it
+    // the inline drill asks for only the top 10 on this side
+    expect(swr.mock.calls.some(c => c[0] && c[0].includes('value=Biotechnology') && c[0].includes('limit=10'))).toBe(true)
   })
 
-  it('in a group overview, a row click drills into that group (no chart, no price)', () => {
-    swr.mockReturnValue({ data: {
-      ...LIVE, group: 'industry', value: null,
-      highs: [{ sym: 'Biotechnology', price: null, count: 32, ts: TS, dir: 'high', group: true }],
-      lows: [],
-    } })
-    const onOptsChange = vi.fn()
-    render(<NewHighsLowsWidget color="A" opts={{ scope: 'industry' }} onOptsChange={onOptsChange} />)
+  it('clicking a stock inside an expanded group charts it', () => {
+    swr.mockImplementation((u) =>
+      u && u.includes('value=Biotechnology')
+        ? { data: { window: 'rth', highs: [{ sym: 'BIIB', count: 5, dir: 'high' }], lows: [] } }
+        : { data: { ...LIVE, group: 'industry',
+            highs: [{ sym: 'Biotechnology', count: 32, dir: 'high', group: true }], lows: [] } })
+    render(<NewHighsLowsWidget color="A" opts={{ scope: 'industry' }} onOptsChange={() => {}} />)
     fireEvent.click(screen.getByText('Biotechnology'))
-    // clicking a group row drills (sets the 2nd dropdown value), never charts it
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scopeValue: 'Biotechnology' }))
-    expect(setGroupSym).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('BIIB'))
+    expect(setGroupSym).toHaveBeenCalledWith('A', 'BIIB')
   })
 
   it('shows a market-closed notice only when the window is closed', () => {

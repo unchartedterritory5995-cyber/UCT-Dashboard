@@ -50,73 +50,88 @@ function fmtTime(iso) {
   } catch { return '' }
 }
 
-// % change vs prior close — the magnitude of the day's move (a +12% leader reads
-// very differently from a +0.4% drift making the same raw new-high count).
-function fmtPct(p) {
-  const n = Number(p)
-  if (!Number.isFinite(n)) return ''
-  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`
-}
-
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
-// One side (highs OR lows) — a scrollable event log with a count histogram. `total`
-// is the universe-wide distinct-symbol count for the panel header.
-function Side({ title, tone, events, total, onPick, groupView, onDrill }) {
-  const maxCount = useMemo(
-    () => events.reduce((m, e) => Math.max(m, e.count || 0), 0) || 1,
-    [events],
-  )
+// A stock row — the flat universe list OR a nested row inside an expanded group.
+// Ticker + running count; clicking charts it. The soft "hot" wash re-fires when the
+// count ticks up (the wash overlay is keyed by count so it remounts only then).
+function StockRow({ e, tone, maxCount, onPick, nested }) {
   return (
-    <div className={`${styles.side} ${styles[tone]}${groupView ? ' ' + styles.noPrice : ''}`}>
+    <button
+      type="button"
+      role="listitem"
+      className={`${styles.row}${nested ? ' ' + styles.subRow : ''}`}
+      onClick={() => onPick(e.sym)}
+      title={`${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} today`}
+    >
+      <span className={styles.bar}
+        style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }} aria-hidden="true" />
+      <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
+      <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
+      <span className={styles.sym}>{e.sym}</span>
+      <span className={styles.count}>{e.count}</span>
+    </button>
+  )
+}
+
+// One side (highs OR lows). Flat stock list for UCT Universe; a Theme-Tracker-style
+// accordion for a group scope — each group row expands IN PLACE to its top-10 member
+// stocks on THIS side (new-high names under the highs column, new-low names under the
+// lows column). Single-open: opening one closes the previous.
+function Side({ title, tone, events, total, onPick, groupView, dim, drillBase }) {
+  const [expanded, setExpanded] = useState(null)
+  // Collapse when the scope dimension changes or we leave group view.
+  useEffect(() => { setExpanded(null) }, [dim, groupView])
+  // Only the expanded group fetches (top 10, this side). null key ⇒ no request.
+  const drillUrl = (groupView && expanded && dim)
+    ? `${drillBase}&group=${dim}&value=${encodeURIComponent(expanded)}&limit=10`
+    : null
+  const { data: drill } = useMobileSWR(drillUrl, fetcher, {
+    refreshInterval: 2000, dedupingInterval: 1200, marketHoursOnly: true, revalidateOnFocus: false,
+  })
+  const sub = (tone === 'up' ? drill?.highs : drill?.lows) || []
+  const subMax = useMemo(() => sub.reduce((m, e) => Math.max(m, e.count || 0), 0) || 1, [sub])
+  const maxCount = useMemo(
+    () => events.reduce((m, e) => Math.max(m, e.count || 0), 0) || 1, [events])
+
+  return (
+    <div className={`${styles.side} ${styles[tone]}`}>
       <div className={styles.sideHead}>
         <span className={styles.sideTitle}>{title}</span>
         <span className={styles.sideCount}>{total}</span>
       </div>
       <div className={styles.rows} role="list">
-        {events.map((e, i) => {
-          // In a GROUP overview (Sector/Industry/Theme with no value), a row IS a
-          // group — clicking it drills into that group's stocks (2nd dropdown +
-          // scan). Otherwise `pick` is the chartable symbol (a stock, or null for
-          // a proxy-less group row); clicking charts it. Old payloads → sym.
-          const target = e.pick === null ? null : (e.pick ?? e.sym)
-          const clickable = groupView || !!target
-          const onClick = groupView
-            ? () => onDrill(e.sym)
-            : (target ? () => onPick(target) : undefined)
-          const tip = groupView
-            ? `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} · click to drill in`
-            : `${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} today`
-          const pctTxt = groupView ? '' : fmtPct(e.pct)
+        {events.map((e) => {
+          if (!groupView) {
+            return <StockRow key={`${tone}-${e.sym}`} e={e} tone={tone} maxCount={maxCount} onPick={onPick} />
+          }
+          const open = expanded === e.sym
           return (
-            <button
-              type="button"
-              role="listitem"
-              // Stable key (not ts/index) so a row is MOVED on re-sort, not remounted —
-              // lets the count pulse fire only on a real increment (see the keyed count).
-              key={`${tone}-${e.sym}`}
-              className={`${styles.row}${clickable ? '' : ' ' + styles.rowInert}`}
-              onClick={onClick}
-              disabled={!clickable}
-              title={tip}
-            >
-              <span
-                className={styles.bar}
-                style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
-                aria-hidden="true"
-              />
-              {/* Hot-now cue: a soft tone-tinted wash that fades across the row when a
-                  fresh new high/low prints. Keyed by count so it re-mounts (and plays)
-                  only on a real increment; the text stays calm. */}
-              <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
-              <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
-              <span className={styles.sym}>{e.sym}</span>
-              {/* Stock rows: ticker · %chg · count. Group rows: name · count. */}
-              {!groupView && (
-                <span className={styles.pct} data-sign={e.pct >= 0 ? 'up' : 'down'}>{pctTxt}</span>
+            <div key={`${tone}-${e.sym}`} className={styles.groupBlock}>
+              <button
+                type="button"
+                className={`${styles.row} ${styles.groupRow}`}
+                onClick={() => setExpanded(open ? null : e.sym)}
+                aria-expanded={open}
+                title={`${e.sym} — ${e.count} ${tone === 'up' ? 'new high' : 'new low'}${e.count === 1 ? '' : 's'} · click to ${open ? 'collapse' : 'expand'}`}
+              >
+                <span className={styles.bar}
+                  style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }} aria-hidden="true" />
+                <span key={`f${e.count}`} className={styles.flash} aria-hidden="true" />
+                <span className={`${styles.caret}${open ? ' ' + styles.caretOpen : ''}`} aria-hidden="true">▸</span>
+                <span className={styles.sym}>{e.sym}</span>
+                <span className={styles.count}>{e.count}</span>
+              </button>
+              {open && (
+                <div className={styles.subList}>
+                  {sub.length === 0
+                    ? <div className={styles.subEmpty}>{drill ? 'No names' : 'Loading…'}</div>
+                    : sub.map((s) => (
+                        <StockRow key={`sub-${tone}-${s.sym}`} e={s} tone={tone} maxCount={subMax} onPick={onPick} nested />
+                      ))}
+                </div>
               )}
-              <span className={styles.count}>{e.count}</span>
-            </button>
+            </div>
           )
         })}
       </div>
@@ -179,12 +194,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
   const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
-  // Scope: view the whole universe, or filter by sector / industry / theme. Picking
-  // a dimension clears the category so a stale pick from another dim can't linger.
+  // Scope: view the whole universe, or group by sector / industry / theme (each group
+  // row expands in place to its member stocks — Theme-Tracker style).
   const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
-  const scopeValue = opts?.scopeValue || ''
-  const commitScope = useCallback((v) => onOptsChange?.({ ...opts, scope: v, scopeValue: '' }), [opts, onOptsChange])
-  const commitScopeValue = useCallback((v) => onOptsChange?.({ ...opts, scopeValue: v }), [opts, onOptsChange])
+  const commitScope = useCallback((v) => onOptsChange?.({ ...opts, scope: v }), [opts, onOptsChange])
 
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
@@ -205,10 +218,11 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const scopeQ = scope !== 'all'
-    ? `&group=${scope}${scopeValue ? `&value=${encodeURIComponent(scopeValue)}` : ''}`
-    : ''
-  const url = `/api/nhnl/live?limit=150&min_price=${minPrice}&min_count=${minCount}${scopeQ}`
+  const filterQS = `min_price=${minPrice}&min_count=${minCount}`
+  const scopeQ = scope !== 'all' ? `&group=${scope}` : ''
+  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}`
+  // Base for a group's inline expansion (Side appends &group=&value=&limit=10).
+  const drillBase = `/api/nhnl/live?${filterQS}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2s
     dedupingInterval: 1200,
@@ -220,21 +234,12 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lows = data?.lows || []
   const highsTotal = data?.highs_total ?? highs.length
   const lowsTotal = data?.lows_total ?? lows.length
-  // Category options for the scoped drill-down dropdown (busiest first), from the
-  // current payload; led by an "All <dim>s" entry that shows the group overview.
-  const valueOptions = useMemo(() => {
-    const cats = Object.entries(data?.categories || {}).sort((a, b) => b[1] - a[1])
-    const allLabel = scope === 'industry' ? 'All industries' : `All ${scope}s`
-    return [{ value: '', label: allLabel },
-            ...cats.map(([cat, cnt]) => ({ value: cat, label: cat, count: cnt }))]
-  }, [data?.categories, scope])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
-  // Group overview = a scope dim is active with no specific value selected. Rows
-  // are groups (sectors/industries/themes): no price column, and a click drills
-  // into that group's stocks (sets the 2nd dropdown + re-scans).
-  const groupView = !!data?.group && !data?.value
+  // Group scope → rows are groups (sectors/industries/themes) that expand in place.
+  const groupView = !!data?.group
+  const dim = scope !== 'all' ? scope : null
 
   return (
     <div ref={rootRef} className={styles.wrap} style={styleVars}>
@@ -263,16 +268,6 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           minWidth={96}
           maxWidth={112}
         />
-        {scope !== 'all' && (
-          <NhnlDropdown
-            value={scopeValue}
-            options={valueOptions}
-            onChange={commitScopeValue}
-            title={`Pick a ${scope}`}
-            minWidth={124}
-            maxWidth={180}
-          />
-        )}
         <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
           placeholder="0" min={0} onCommit={commitPrice} />
         <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
@@ -299,9 +294,9 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
       ) : (
         <div className={styles.panels}>
           <Side title="NEW HIGHS" tone="up" events={highs} total={highsTotal}
-            onPick={onPick} groupView={groupView} onDrill={commitScopeValue} />
+            onPick={onPick} groupView={groupView} dim={dim} drillBase={drillBase} />
           <Side title="NEW LOWS" tone="down" events={lows} total={lowsTotal}
-            onPick={onPick} groupView={groupView} onDrill={commitScopeValue} />
+            onPick={onPick} groupView={groupView} dim={dim} drillBase={drillBase} />
         </div>
       )}
     </div>
