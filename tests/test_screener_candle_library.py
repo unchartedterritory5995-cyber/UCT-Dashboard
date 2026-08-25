@@ -432,3 +432,95 @@ def test_a_one_tick_open_is_not_the_market_going_your_way():
     bars.append(_bar(50.51, 51.0, 50.4, 50.9))       # opens 1c above the close
     st = candles._confirmation(bars, 1, cat.BY_KEY["bullish-engulfing"])
     assert st == "opened-flat"
+
+
+# ── hikkake ─────────────────────────────────────────────────────────────────
+def _hik(base_price=50.0, direction="down", extra=()):
+    """b1, an inside bar, then a break in `direction` — plus any extra bars."""
+    bars = _flat(60, base_price)
+    p = base_price
+    bars.append(_bar(p, p + 1.0, p - 1.0, p))               # b1: the wide bar
+    bars.append(_bar(p, p + 0.6, p - 0.6, p))               # inside, strictly
+    if direction == "down":
+        bars.append(_bar(p - 0.2, p + 0.4, p - 0.8, p - 0.5))   # lower H, lower L
+    else:
+        bars.append(_bar(p + 0.2, p + 0.8, p - 0.4, p + 0.5))   # higher H, higher L
+    bars.extend(extra)
+    return bars
+
+
+def test_a_downside_break_out_of_an_inside_bar_is_the_BULLISH_hikkake():
+    """⚠️ THE DIRECTION IS COUNTER-INTUITIVE AND IMPLEMENTERS GET IT BACKWARDS.
+    The downside break is the TRAP — it catches shorts — so it is the bullish
+    form. TA-Lib's CDLHIKKAKE and EarnForex's independent write-up of Chesler's
+    rules agree exactly on this."""
+    m = candles.single_candle(_hik(direction="down"))["candle_matches"]
+    assert "hikkake-bull" in cat.decode_matches(m)
+    assert "hikkake-bear" not in cat.decode_matches(m)
+
+    m2 = candles.single_candle(_hik(direction="up"))["candle_matches"]
+    assert "hikkake-bear" in cat.decode_matches(m2)
+    assert "hikkake-bull" not in cat.decode_matches(m2)
+
+
+def test_hikkake_needs_no_prior_trend():
+    """⭐ Nearly every other relation here is trend-gated. The hikkake setup is a
+    compression plus a failed break, which is meaningful in any context — which
+    is exactly why it fires often enough to screen on."""
+    assert cat.BY_KEY["hikkake-bull"].trend is None
+    assert cat.BY_KEY["hikkake-bear"].trend is None
+    out = candles.single_candle(_hik(direction="down"))
+    assert out["candle_trend"] in ("neutral", "unknown", "up", "down")
+    assert "hikkake-bull" in out["candle_matches"]
+
+
+def test_the_confirmation_takes_back_the_inside_bars_far_extreme():
+    p = 50.0
+    # the setup, then a session closing back above the inside bar's high (50.6)
+    bars = _hik(p, "down", extra=[_bar(p - 0.4, p + 0.9, p - 0.5, p + 0.75)])
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull-confirmed" in keys
+
+
+def test_a_new_setup_outranks_a_pending_confirmation():
+    """⛔ TA-Lib's rule, kept in the predicate so the two states can never both be
+    claimed for one session. Setup is the trap being laid; confirmed is it
+    springing — they are different tradeable states."""
+    # ⭐ BUILT SO BOTH STATES GENUINELY COMPETE. Setup A's inside bar tops at
+    # 50.6, so a close above that inside the next three sessions confirms it —
+    # and the final bar does exactly that WHILE completing a fresh setup B.
+    bars = _flat(60, 50.0)
+    bars += [_bar(50.0, 51.00, 49.00, 50.00),    # A: the wide bar
+             _bar(50.0, 50.60, 49.40, 50.00),    # A: inside  -> saved high 50.6
+             _bar(49.8, 50.40, 49.20, 49.50)]    # A: breaks DOWN -> bull setup
+    bars += [_bar(50.5, 52.00, 50.00, 51.50),    # B: the wide bar
+             _bar(51.3, 51.80, 50.40, 51.00),    # B: inside
+             _bar(51.0, 51.60, 50.20, 50.90)]    # B: breaks DOWN, closes 50.90
+    # that close clears 50.6, so setup A is due to confirm on this very bar
+    assert bars[-1]["c"] > 50.60
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull" in keys, keys
+    assert "hikkake-bull-confirmed" not in keys, keys
+
+
+def test_the_confirmation_window_is_three_sessions():
+    p = 50.0
+    late = [_bar(p - 0.45, p + 0.1, p - 0.55, p - 0.5) for _ in range(4)]
+    bars = _hik(p, "down", extra=late + [_bar(p - 0.4, p + 0.9, p - 0.5, p + 0.75)])
+    keys = cat.decode_matches(candles.single_candle(bars)["candle_matches"])
+    assert "hikkake-bull-confirmed" not in keys, "confirmed outside the 3-bar window"
+
+
+# ── the inside-bar run no longer counts sessions that never traded ──────────
+def test_a_no_trade_session_breaks_the_inside_bar_run():
+    """🔴 A zero-range bar is trivially "inside" the one before it. Measured
+    2026-08-24: of the 124 rows with a run of 2+, **34 were no-trade sessions**;
+    of the 32 with a run of 3+, **19 were**. The member-facing filter was
+    majority junk at the deep end (124 -> 86, and 32 -> 11 after the guard)."""
+    p = 50.0
+    real = [_bar(p, p + 1.0, p - 1.0, p), _bar(p, p + 0.8, p - 0.8, p),
+            _bar(p, p + 0.6, p - 0.6, p)]
+    assert candles.multi_candle(_flat(40, p) + real)["inside_bar_run"] == 2
+    # the same shape, but the newest session never traded
+    dead = real[:-1] + [_bar(p, p, p, p, v=0)]
+    assert candles.multi_candle(_flat(40, p) + dead)["inside_bar_run"] == 0

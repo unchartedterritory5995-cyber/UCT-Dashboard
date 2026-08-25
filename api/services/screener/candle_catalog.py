@@ -697,6 +697,70 @@ def d_upside_tasuki(ctx):   return _tasuki(ctx, True) and ctx.trend == "up"
 def d_downside_tasuki(ctx): return _tasuki(ctx, False) and ctx.trend == "down"
 
 
+
+# ── hikkake — compression, then a FALSE break ──────────────────────────────
+# ⭐ THE ONE PATTERN HERE THAT NEEDS NO PRIOR TREND. The setup is an inside bar
+# followed by a break that fails, which is meaningful in any context — so unlike
+# the rare Japanese continuation patterns it actually fires often enough to
+# screen on. Created by Daniel L. Chesler (Active Trader, April 2004); the
+# Japanese name was chosen in consultation with a Tokyo University of Foreign
+# Studies linguist. It is a MODERN WESTERN pattern wearing a Japanese name, not
+# classical canon — worth knowing when weighing it against Nison's material.
+def _hikkake_setup(ctx, back=0):
+    """+1 bullish, -1 bearish, 0 none — for the break bar ``back`` sessions ago.
+
+    ⚠️ THE DIRECTION IS COUNTER-INTUITIVE AND IMPLEMENTERS GET IT BACKWARDS.
+    A BULLISH hikkake is a DOWNSIDE false break: the bar after the inside bar
+    makes a LOWER high and a LOWER low, trapping shorts, and is confirmed by a
+    close back ABOVE the inside bar's high. The trap fires AGAINST the direction
+    of the breaking bar. TA-Lib's `CDLHIKKAKE` and EarnForex's independent
+    write-up of Chesler's rules agree exactly on this.
+    """
+    n = len(ctx.bars)
+    j = n - 1 - back
+    if j < 2:
+        return 0
+    b1, ins, brk = ctx.bars[j - 2], ctx.bars[j - 1], ctx.bars[j]
+    if not (ins["h"] < b1["h"] and ins["l"] > b1["l"]):
+        return 0                                   # STRICT inside bar
+    if brk["h"] < ins["h"] and brk["l"] < ins["l"]:
+        return 1                                   # broke DOWN -> bullish trap
+    if brk["h"] > ins["h"] and brk["l"] > ins["l"]:
+        return -1                                  # broke UP   -> bearish trap
+    return 0
+
+
+def d_hikkake_bull(ctx):  return _hikkake_setup(ctx) == 1
+def d_hikkake_bear(ctx):  return _hikkake_setup(ctx) == -1
+
+
+def _hikkake_confirmed(ctx, bullish):
+    """The close takes out the inside bar's opposite extreme within 3 sessions.
+
+    ⛔ A NEW SETUP OUTRANKS A CONFIRMATION ON THE SAME BAR — TA-Lib's rule, kept
+    here so the two states can never both be claimed for one session.
+    ⭐ SETUP AND CONFIRMED ARE DIFFERENT TRADEABLE STATES and therefore different
+    column values. A screener that collapses them loses the entire point of the
+    pattern: the setup is the trap being laid, the confirmation is it springing.
+    """
+    if _hikkake_setup(ctx):
+        return False
+    n, c = len(ctx.bars), ctx.bars[-1]["c"]
+    for back in (1, 2, 3):                         # the window is unanimous
+        sig = _hikkake_setup(ctx, back)
+        if not sig:
+            continue
+        ins = ctx.bars[n - 2 - back]
+        if bullish and sig == 1 and c > ins["h"]:
+            return True
+        if not bullish and sig == -1 and c < ins["l"]:
+            return True
+    return False
+
+
+def d_hikkake_bull_confirmed(ctx):  return _hikkake_confirmed(ctx, True)
+def d_hikkake_bear_confirmed(ctx):  return _hikkake_confirmed(ctx, False)
+
 # ── THE REGISTRY ───────────────────────────────────────────────────────────
 # ⭐ ONE ENTRY PER PATTERN, AND NOTHING RESTATES A KEY. `candles.py` reads
 # `detect`, `filters.py` builds its enum from `label`, the frontend renders
@@ -897,6 +961,29 @@ RELATIONS = [
             "bearish", "reversal", 32, detect=d_deliberation, trend="up",
             desc="Three up bars where the third body goes short against the recent "
                  "average — the push ran out on the last one."),
+    # -- 3 bar, no trend required
+    Pattern("hikkake-bull-confirmed", "Hikkake Confirmed (Bull)", "relation", 6,
+            "bullish", "reversal", 33, detect=d_hikkake_bull_confirmed,
+            desc="A downside break out of an inside bar that trapped sellers, and "
+                 "the close has now taken back the inside bar's HIGH. The trap has "
+                 "sprung — this is the state a hikkake trader acts on."),
+    Pattern("hikkake-bear-confirmed", "Hikkake Confirmed (Bear)", "relation", 6,
+            "bearish", "reversal", 34, detect=d_hikkake_bear_confirmed,
+            desc="An upside break out of an inside bar that trapped buyers, and the "
+                 "close has now taken out the inside bar's LOW."),
+    Pattern("hikkake-bull", "Hikkake (Bull)", "relation", 3,
+            "bullish", "reversal", 35, detect=d_hikkake_bull,
+            desc="An inside bar, then a session breaking DOWN out of it — a lower "
+                 "high and a lower low. Counter-intuitively that is the BULLISH "
+                 "form: the downside break is the trap, and it is confirmed if the "
+                 "close retakes the inside bar's high within three sessions. Needs "
+                 "no prior trend, which is rare here."),
+    Pattern("hikkake-bear", "Hikkake (Bear)", "relation", 3,
+            "bearish", "reversal", 36, detect=d_hikkake_bear,
+            desc="An inside bar, then a session breaking UP out of it — a higher "
+                 "high and a higher low. The upside break is the trap; it is "
+                 "confirmed if the close loses the inside bar's low within three "
+                 "sessions."),
     # -- 2 bar
     Pattern("kicking-bullish", "Kicking (Bull)", "relation", 2,
             "bullish", "reversal", 40, detect=d_kicking_bull,

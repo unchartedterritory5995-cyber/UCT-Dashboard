@@ -239,9 +239,20 @@ def multi_candle(bars: list[dict]) -> dict:
     if n < 2:
         return out
     # inside-bar run (most recent backward)
+    # 🔴 A SESSION THAT NEVER TRADED IS NOT PART OF A COIL. A zero-range bar is
+    # trivially "inside" whatever came before it, so a halted or untraded name
+    # accumulated an inside-bar run indistinguishable from a genuine tightening.
+    # Measured 2026-08-24: of the 124 rows carrying a run of 2 or more, **34 were
+    # no-trade sessions**, and of the 32 with a run of 3+, **19 were** — the
+    # member-facing "Inside-Bar Run" filter was majority junk at the deep end.
+    # ⭐ The run BREAKS on such a bar rather than skipping it: a coil is a
+    # CONSECUTIVE narrowing, and a gap in the tape ends the sequence.
     run = 0
     for i in range(n - 1, 0, -1):
-        if bars[i]["h"] <= bars[i - 1]["h"] and bars[i]["l"] >= bars[i - 1]["l"]:
+        b_i = bars[i]
+        if (b_i["h"] - b_i["l"]) <= 0 or not (b_i.get("v") or 0):
+            break
+        if b_i["h"] <= bars[i - 1]["h"] and b_i["l"] >= bars[i - 1]["l"]:
             run += 1
         else:
             break
