@@ -139,7 +139,8 @@ def labels_for(bars, i, single_candle, classify_character, decode_matches):
     return out
 
 
-def scan_ticker(bars, single_candle, classify_character, decode_matches):
+def scan_ticker(bars, single_candle, classify_character, decode_matches,
+                entry="close"):
     """Accumulate per-(label, date) return sums for one ticker.
 
     Returns ``(labelled, universe)`` where each maps a key to
@@ -169,15 +170,38 @@ def scan_ticker(bars, single_candle, classify_character, decode_matches):
         prev = bars[i - 1]
         if not _usable(prev) or not prev["c"]:
             continue
+        # 🔴 THE ATR IS LAGGED, AND THIS WAS A REAL BUG. It originally included
+        # the bar being classified, which CONTAMINATES THE CONTROL WITH THE THING
+        # IT IS CONTROLLING FOR: a long-wick bar has a bigger true range, so it
+        # inflated its own denominator, scored a smaller |z|, and was compared
+        # against a bucket of MILDER movers than it belonged in. Since the wick
+        # shapes are precisely the ones with outsized ranges, the finding they
+        # produced could not be trusted until this was lagged.
+        # ⭐ The ATR now uses the 14 sessions BEFORE the bar, so the bucket is
+        # decided by information that exists before the bar prints.
+        atr_pct = (sum(trs) / len(trs)) / c0 * 100.0 if trs else 0.0
         trs.append(max(bar["h"] - bar["l"], abs(bar["h"] - prev["c"]),
                        abs(bar["l"] - prev["c"])))
         if len(trs) > 14:
             del trs[0]
-        atr_pct = (sum(trs) / len(trs)) / c0 * 100.0 if trs else 0.0
         day_ret = (c0 - prev["c"]) / prev["c"] * 100.0
         bucket = move_bucket(day_ret, atr_pct)
         if bucket is None:
             continue
+        # ⛔ ENTRY="OPEN" IS THE BID-ASK BOUNCE CONTROL, AND IT IS NOT OPTIONAL
+        # FOR TRUSTING THE WICK RESULT. Measuring from the labelled bar's own
+        # CLOSE puts that close in BOTH the label and the return denominator. A
+        # long-lower-wick bar closes near its HIGH — more often at the ask — and
+        # a long-upper-wick bar closes near its LOW, at the bid. Bid-ask bounce
+        # alone would then manufacture EXACTLY the observed pattern: lower wick
+        # negative, upper wick positive. Entering at the NEXT OPEN breaks that
+        # link, and it is also the only entry a member could actually take.
+        base_px = c0
+        if entry == "open":
+            nxt0 = bars[i + 1]
+            if not _usable(nxt0) or not nxt0["o"]:
+                continue
+            base_px = nxt0["o"]
         fwd = []
         ok = True
         for h in HORIZONS:
@@ -185,7 +209,7 @@ def scan_ticker(bars, single_candle, classify_character, decode_matches):
             if not _usable(nxt):
                 ok = False
                 break
-            fwd.append(_clip((nxt["c"] - c0) / c0 * 100.0))
+            fwd.append(_clip((nxt["c"] - base_px) / base_px * 100.0))
         if not ok:
             continue
         date = (bar["t"], bucket)          # ⭐ the base-rate key is BOTH

@@ -202,3 +202,68 @@ def test_the_clip_is_applied_to_the_universe_too():
                             lambda w: None, lambda s: ["x"])
     worst = max(abs(u[2] / u[0]) for u in uni.values() if u[0])
     assert worst <= bt.WINSOR_PCT + 1e-9, worst
+
+
+def test_the_bucketing_atr_never_includes_the_bar_it_buckets():
+    """🔴 A CONTAMINATED CONTROL IS WORSE THAN NO CONTROL. The ATR that decides
+    a bar's move-bucket originally INCLUDED that bar's own true range, so a
+    long-wick bar inflated its own denominator, scored a smaller |z|, and was
+    compared against milder movers than it belonged with. The wick shapes are
+    exactly the ones with outsized ranges, so the headline finding could not be
+    trusted until this was lagged.
+
+    The probe: a series of identical quiet bars, then ONE bar with an enormous
+    range but the SAME close. With a lagged ATR its bucket is decided entirely by
+    the quiet history; with a contaminated one the huge range would swallow the
+    move and drag it toward bucket centre.
+    """
+    # ⚠️ index chosen INSIDE the scan's range: it starts at WINDOW//4 and stops
+    # max(HORIZONS) from the end, so a probe outside that is never classified.
+    IDX = bt.WINDOW // 4 + 5
+    quiet = [_bar(100, 100.5, 99.5, 100, t=20260000 + i)
+             for i in range(IDX + max(bt.HORIZONS) + 5)]
+    seen = {}
+
+    def spy(window):
+        return {"candle_matches": ",x,"}
+
+    # the bar of interest closes +2 on a 40-wide range
+    wild = list(quiet)
+    wild[IDX] = _bar(100, 130, 90, 102, t=quiet[IDX]["t"])
+    lab_wild, _ = bt.scan_ticker(wild, spy, lambda w: None, lambda s: ["x"])
+    # the same close, an ordinary range
+    calm = list(quiet)
+    calm[IDX] = _bar(100, 102.5, 99.5, 102, t=quiet[IDX]["t"])
+    lab_calm, _ = bt.scan_ticker(calm, spy, lambda w: None, lambda s: ["x"])
+
+    bw = [k[1][1] for k in lab_wild if k[1][0] == quiet[IDX]["t"]]
+    bc = [k[1][1] for k in lab_calm if k[1][0] == quiet[IDX]["t"]]
+    assert bw and bc, "the bar of interest was not scanned"
+    assert bw == bc, ("a bar's own range changed its move-bucket — the ATR is "
+                      f"contaminated: wild={bw} calm={bc}")
+
+
+def test_entry_at_the_next_open_excludes_the_labelled_close():
+    """🔴 THE BID-ASK BOUNCE CONTROL. Measuring from the labelled bar's own close
+    puts that close in BOTH the label and the return denominator. A long-lower-
+    wick bar closes near its HIGH (more often at the ask) and a long-upper-wick
+    bar near its LOW (at the bid), so bounce alone would manufacture exactly the
+    lower-wick-negative / upper-wick-positive pattern the run reported. This
+    asserts the open-entry return does not touch the labelled close at all."""
+    IDX = bt.WINDOW // 4 + 2
+    n = IDX + max(bt.HORIZONS) + 4
+    bars = [_bar(100, 101, 99, 100, t=20260000 + i) for i in range(n)]
+    # give the labelled bar an extreme close; the NEXT open is ordinary
+    bars[IDX] = _bar(100, 101, 99, 100.9, t=bars[IDX]["t"])
+    a_close, _ = bt.scan_ticker(bars, lambda w: {"candle_matches": ",x,"},
+                                lambda w: None, lambda s: ["x"], entry="close")
+    a_open, _ = bt.scan_ticker(bars, lambda w: {"candle_matches": ",x,"},
+                               lambda w: None, lambda s: ["x"], entry="open")
+    t = bars[IDX]["t"]
+    rc = [v for k, v in a_close.items() if k[1][0] == t]
+    ro = [v for k, v in a_open.items() if k[1][0] == t]
+    assert rc and ro
+    # close-entry return reflects the odd close; open-entry does not
+    assert abs(rc[0][2] / rc[0][0]) > 1e-9
+    assert abs(ro[0][2] / ro[0][0]) < 1e-9, \
+        "open-entry return still depends on the labelled close"
