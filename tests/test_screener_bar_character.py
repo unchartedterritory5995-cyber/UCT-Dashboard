@@ -253,3 +253,43 @@ def test_the_streak_counts_come_from_multi_candle_not_a_private_copy():
     assert f["run_up"] == m["consecutive_up"]
     assert f["higher_lows"] == m["higher_lows_run"]
     assert f["inside_run"] == m["inside_bar_run"]
+
+
+# ── island reversals: the rarest label, and it was 25% junk ─────────────────
+def test_an_island_is_never_built_on_sessions_that_never_traded():
+    """🔴 CAUGHT BY AN END-TO-END BUILD, NOT BY A UNIT TEST. POLE published
+    `Island Reversal Top` — the rarest and most confident-looking label in the
+    cascade — off a 4c "gap up" and a 1c "gap down" on a $10.85 name whose two
+    middle sessions were ZERO-RANGE NO-TRADE bars.
+
+    ⭐ The same defect and the same two fixes as the abandoned baby in
+    `candle_catalog`: a chart gap must clear a band, and the window must be real
+    bars. It was missed here because CHARACTER has its OWN gap helpers — fixing
+    one module's copy left the other's bare. Measured: 3 of 12 rendered island
+    reversals were junk.
+    """
+    base = _base(60, 10.0)
+    dead = base + [_bar(10.83, 10.83, 10.83, 10.83, v=0),
+                   _bar(10.87, 10.87, 10.87, 10.87, v=0),
+                   _bar(10.86, 10.86, 10.83, 10.83)]
+    assert "island" not in (bc.classify(dead)["bar_character"] or "")
+
+
+def test_a_genuine_island_still_classifies():
+    """⛔ THE CONTROL. A guard that kills the pattern outright is not a fix —
+    real bars with real gaps must still produce the label."""
+    base = _base(60, 10.0)
+    real = base + [_bar(10.0, 10.3, 9.9, 10.2),
+                   _bar(12.0, 12.4, 11.8, 12.2),      # gaps clear above
+                   _bar(9.5, 9.8, 9.3, 9.4)]          # then clear below
+    assert bc.classify(real)["bar_character"] == "island-reversal-top"
+
+
+def test_a_chart_gap_must_clear_a_band_here_too():
+    """The band matches `candle_catalog`'s so "a gap" means one thing in both
+    modules — a one-tick separation is two prices the band already calls equal."""
+    base = _base(60, 50.0)
+    hair = base + [_bar(50.0, 50.5, 49.5, 50.0),
+                   _bar(50.6, 50.7, 50.51, 50.6),     # "gaps" by one cent
+                   _bar(50.4, 50.50, 50.3, 50.4)]
+    assert "island" not in (bc.classify(hair)["bar_character"] or "")

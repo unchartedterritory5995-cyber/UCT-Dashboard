@@ -757,10 +757,15 @@ VIEWS = {
         "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
         "hvc_52w"]},
     "candles": {"label": "Candles", "columns": [
-        "ticker", "company", "candle_type", "close_position", "body_pct",
-        "upper_wick_pct", "lower_wick_pct", "tight_consolidation", "nr7",
-        "inside_bar_run", "higher_lows_run", "pullback_depth_pct",
-        "consecutive_up", "consecutive_down"]},
+        # ⭐ THE FOUR NEW BAR-NAMING COLUMNS LIVE HERE OR THEY LIVE NOWHERE.
+        # Each shipped with its own filter, and a filter category with no view
+        # behind it is a half-shipped family — the exact gap the comment above
+        # this block was written for, three waves earlier. `candle_type` was the
+        # only one of the five visible anywhere.
+        "ticker", "company", "candle_type", "candle_trend", "bar_character",
+        "candle_recent", "candle_recent_bars_ago", "candle_weekly",
+        "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
+        "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
 }
 
 CATEGORIES = [

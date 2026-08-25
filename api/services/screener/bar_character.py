@@ -118,6 +118,8 @@ def features(bars: list[dict]) -> dict | None:
     spreads = [x["h"] - x["l"] for x in bars[-SPREAD_AVG_N - 1:-1]]
     avg_spread = sum(spreads) / len(spreads) if spreads else None
 
+    from . import candle_catalog          # tick size has ONE owner
+    tick = candle_catalog.tick_size(c)
     f = {
         "o": o, "h": h, "l": l, "c": c, "v": v, "rng": rng,
         "pc": pc, "ph": ph, "pl": pl,
@@ -136,11 +138,22 @@ def features(bars: list[dict]) -> dict | None:
     dn = _le(f["gap_atr"], -GAP_ATR) or _le(f["gap_pct"], -GAP_PCT)
     f["gap_up"], f["gap_dn"] = bool(up), bool(dn)
     f["gap_filled"] = (l <= pc if up else h >= pc) if (pc is not None and (up or dn)) else False
-    f["chart_gap_up"] = ph is not None and l > ph
-    f["chart_gap_dn"] = pl is not None and h < pl
+    # ⛔ A CHART GAP MUST CLEAR A BAND, and the window must be REAL BARS.
+    # These feed the island reversals — the rarest and most confident-looking
+    # labels in the cascade — and bare `>` on raw prices made islands out of
+    # nothing. Measured 2026-08-24: 3 of the 12 rendered island reversals were
+    # built on ZERO-RANGE NO-TRADE sessions, POLE's out of a 4c "gap up" and a
+    # 1c "gap down" on a $10.85 name that had not traded for two days. Same
+    # defect, and the same two fixes, as the abandoned baby in `candle_catalog`.
+    gband = max(0.05 * atr, tick) if atr else tick
     p2 = bars[-3] if len(bars) >= 3 else None
-    f["chart_gap_up_1"] = bool(prev and p2 and prev["l"] > p2["h"])
-    f["chart_gap_dn_1"] = bool(prev and p2 and prev["h"] < p2["l"])
+    win = [x for x in (p2, prev, b) if x is not None]
+    f["window_traded"] = len(win) == 3 and all(
+        (x["h"] - x["l"]) > 0 and (technicals._volume(x) or 0) > 0 for x in win)
+    f["chart_gap_up"] = ph is not None and l > ph + gband
+    f["chart_gap_dn"] = pl is not None and h < pl - gband
+    f["chart_gap_up_1"] = bool(prev and p2 and prev["l"] > p2["h"] + gband)
+    f["chart_gap_dn_1"] = bool(prev and p2 and prev["h"] < p2["l"] - gband)
 
     def _win(n, off=1):
         s = bars[-(n + off):-off] if off else bars[-n:]
@@ -267,12 +280,12 @@ CASCADE = [
     # ── Tier 1: the gap IS the story. Named by what the session settled —
     # never by a forward-looking gap TYPE, which only tomorrow can decide.
     Character("island-reversal-top", "Island Reversal Top", 1,
-              detect=lambda f: f["chart_gap_up_1"] and f["chart_gap_dn"],
+              detect=lambda f: f["window_traded"] and f["chart_gap_up_1"] and f["chart_gap_dn"],
               desc="Gapped away from the chart on the way up, then gapped back down "
                    "— leaving a cluster of bars stranded above with clear air on "
                    "both sides. Genuinely rare."),
     Character("island-reversal-bottom", "Island Reversal Bottom", 1,
-              detect=lambda f: f["chart_gap_dn_1"] and f["chart_gap_up"],
+              detect=lambda f: f["window_traded"] and f["chart_gap_dn_1"] and f["chart_gap_up"],
               desc="Gapped down away from the chart, then gapped back up, stranding "
                    "the bars between with clear air on both sides."),
     Character("gap-up-and-go", "Gap Up & Go", 1,
