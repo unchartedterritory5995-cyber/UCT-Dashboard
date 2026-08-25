@@ -192,29 +192,33 @@ def test_scans_only_the_top_liquid_names(monkeypatch):
     assert _row(rows, "SMALL") is None
 
 
-def test_show_all_lists_the_whole_universe_ranked_by_rvol_with_lit_flags(monkeypatch):
-    monkeypatch.setattr(volume_live, "_universe_map", lambda: {"HOT": "HOT", "QUIET": "QUIET"})
+def test_show_all_lists_the_whole_universe_lit_first_then_by_rvol(monkeypatch):
+    monkeypatch.setattr(volume_live, "_universe_map", lambda: {"HOT": "HOT", "NOISE": "NOISE"})
     seq = {}
     for t in range(0, 46):
-        # HOT: quiet baseline then a surge+move (lit). QUIET: steady volume, flat
-        # price the whole time (rvol ~1, no move) → shown but NOT lit.
+        # HOT: a moderate surge WITH a price move (lit, rvol ~9). NOISE: a BIGGER
+        # volume surge but FLAT price (unlit via the move gate, rvol ~20) — the CSIQ
+        # case. Even though NOISE has the higher RVOL, lit-first must sink it below HOT.
         if t <= 36:
             hot_cv, hot_px = 100 * t, 10.0
+            noise_cv = 100 * t
         else:
             hot_cv, hot_px = 3600 + 1000 * (t - 36), 10.0 + 0.15 * (t - 36)
+            noise_cv = 3600 + 2000 * (t - 36)
         seq[t] = {
-            "HOT":   {"min_av": hot_cv, "last_price": hot_px, "prev_close": 10.0, "prev_vol": 1_000_000},
-            "QUIET": {"min_av": 100 * t, "last_price": 50.0, "prev_close": 50.0, "prev_vol": 1_000_000},
+            "HOT":   {"min_av": hot_cv,   "last_price": hot_px, "prev_close": 10.0, "prev_vol": 1_000_000},
+            "NOISE": {"min_av": noise_cv, "last_price": 50.0,   "prev_close": 50.0, "prev_vol": 1_000_000},
         }
     _feed(seq)
 
     out = volume_live.get_live(show_all=True, min_dollar=0)
     rows = out["rows"]
     syms = [r["sym"] for r in rows]
-    assert "HOT" in syms and "QUIET" in syms          # the WHOLE universe is shown
-    assert syms[0] == "HOT"                            # ranked by RVOL (HOT surging → top)
+    assert "HOT" in syms and "NOISE" in syms           # the WHOLE universe is shown
     assert _row(rows, "HOT")["lit"] is True            # meets the criteria → coloured
-    assert _row(rows, "QUIET")["lit"] is False         # steady/flat → shown grey, not lit
+    assert _row(rows, "NOISE")["lit"] is False         # flat price → shown grey, not lit
+    assert _row(rows, "NOISE")["rvol"] > _row(rows, "HOT")["rvol"]   # NOISE has the higher RVOL…
+    assert syms.index("HOT") < syms.index("NOISE")     # …yet the lit name ranks ABOVE it
     assert out["total"] == 1                           # header counts only the lit names
     # show_all=False keeps the tight list — only the lit name comes back.
     tight = [r["sym"] for r in volume_live.get_live(show_all=False, min_dollar=0)["rows"]]

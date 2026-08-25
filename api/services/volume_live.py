@@ -398,7 +398,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        rows.sort(key=lambda r: r[1]["rvol"], reverse=True)   # always ranked by RVOL
+        # Lit (real, criteria-meeting) names first — each group ranked by RVOL — so
+        # the coloured signals sit at the top and greyed illiquid spikes (a 50× on a
+        # few after-hours shares) sink to the bottom instead of leading the list.
+        rows.sort(key=lambda r: (r[2], r[1]["rvol"]), reverse=True)
     else:
         rows.sort(key=lambda r: r[1]["score"], reverse=True)  # tight list by surge score
     lit_total = sum(1 for _s, _m, lit in rows if lit)
