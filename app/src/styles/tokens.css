@@ -247,13 +247,13 @@
      Dark ink = extreme, light tint = mild; the cell text stays uniform so the
      signed number always reads (§3.3). styles/tokens.test.js asserts these
      stay byte-equal to the Breadth ladder. */
-  --heat-g3: rgba(10, 50, 22, 0.97);
-  --heat-g2: rgba(22, 100, 48, 0.80);
-  --heat-g1: rgba(74, 222, 128, 0.16);
-  --heat-a: rgba(180, 130, 20, 0.32);
-  --heat-r1: rgba(248, 113, 113, 0.16);
-  --heat-r2: rgba(160, 25, 25, 0.80);
-  --heat-r3: rgba(55, 6, 6, 0.97);
+  --heat-g3: rgba(47, 175, 104, 0.62);
+  --heat-g2: rgba(47, 175, 104, 0.36);
+  --heat-g1: rgba(47, 175, 104, 0.13);
+  --heat-a: rgba(220, 187, 94, 0.22);
+  --heat-r1: rgba(223, 70, 70, 0.13);
+  --heat-r2: rgba(223, 70, 70, 0.36);
+  --heat-r3: rgba(223, 70, 70, 0.62);
 
   /* Glass surfaces. --glass-border-neutral is the DEFAULT card border;
      --glass-border-accent (gold) is restricted to the banner, the ONE hero

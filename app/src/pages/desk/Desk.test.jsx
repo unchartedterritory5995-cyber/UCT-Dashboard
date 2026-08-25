@@ -16,7 +16,7 @@ import Desk from './Desk'
 
 test('renders all four sub-tabs + brand tag', () => {
   render(<Desk />)
-  expect(screen.getByText('THE DESK')).toBeTruthy()
+  expect(screen.getByText('The Desk')).toBeTruthy()
   for (const label of ['Videos', 'Articles', 'Posts', 'Team']) {
     expect(screen.getByRole('tab', { name: new RegExp(label) })).toBeTruthy()
   }
