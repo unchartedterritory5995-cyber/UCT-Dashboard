@@ -19,17 +19,21 @@
 /* The color-cycle dot is intentionally a compact 10×10 marker; the mobile audit
    still flags it as sub-target. Left as a documented dense exception — growing it
    would reshape the widget header for a purely decorative-adjacent control. */
+/* The button is a 20px hit area (charts-no-drag, so it never starts a widget
+   drag) with the visible dot painted at 10px in the centre via a radial-gradient.
+   The larger forgiving zone means a click near the dot acts on the colour picker
+   instead of grabbing the header's drag handle. */
 .colorDot {
-  width: 10px; height: 10px; border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
   border: none; padding: 0; cursor: pointer;
-  flex-shrink: 0;
+  flex-shrink: 0; background: transparent;
 }
-.colorDotA { background: #dcbb5e; }
-.colorDotB { background: #60a5fa; }
-.colorDotC { background: #4ade80; }
-.colorDotD { background: #c084fc; }
+.colorDotA { background: radial-gradient(circle at center, #dcbb5e 4.5px, transparent 5px); }
+.colorDotB { background: radial-gradient(circle at center, #60a5fa 4.5px, transparent 5px); }
+.colorDotC { background: radial-gradient(circle at center, #4ade80 4.5px, transparent 5px); }
+.colorDotD { background: radial-gradient(circle at center, #c084fc 4.5px, transparent 5px); }
 /* Grey "not linked": this widget's ticker syncs with nothing. */
-.colorDotN { background: #6b7280; }
+.colorDotN { background: radial-gradient(circle at center, #6b7280 4.5px, transparent 5px); }
 /* Visually hidden but kept in the DOM for screen readers + tests.
    The widget's identity is already conveyed by its color dot + content. */
 .widgetLabel {

@@ -794,11 +794,26 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
     const maxX = cr ? Math.max(0, cr.width - elW) : Number.POSITIVE_INFINITY
     const maxY = cr ? Math.max(0, cr.height - elH) : Number.POSITIVE_INFINITY
     const base = box ? { x: box.relX, y: box.relY } : (pos ?? { x: 12, y: 8 })
-    const move = (ev) => onMove({
-      x: Math.max(0, Math.min(maxX, base.x + (ev.clientX - startX))),
-      y: Math.max(0, Math.min(maxY, base.y + (ev.clientY - startY))),
-    })
-    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up) }
+    let last = base
+    // Move the bar by DIRECT DOM during the drag — do NOT call onMove per event.
+    // onMove does setState + a synchronous localStorage.setItem AND retriggers this
+    // component's measuring layout-effect; firing that on every pointermove of a
+    // fast drag storms the main thread (hundreds of state-updates + disk writes +
+    // getBoundingClientRect re-measures a second). With a heavy Scanner widget also
+    // mounted, that storm hangs/crashes the tab. Here we only touch el.style
+    // (cheap, no layout read — `cr` was measured once at drag start) and persist
+    // the final position ONCE on pointerup.
+    const move = (ev) => {
+      const relX = Math.max(0, Math.min(maxX, base.x + (ev.clientX - startX)))
+      const relY = Math.max(0, Math.min(maxY, base.y + (ev.clientY - startY)))
+      last = { x: relX, y: relY }
+      if (el && cr) { el.style.left = `${cr.left + relX}px`; el.style.top = `${cr.top + relY}px` }
+    }
+    const up = () => {
+      document.removeEventListener('pointermove', move)
+      document.removeEventListener('pointerup', up)
+      onMove(last)   // commit + persist the final position a single time
+    }
     document.addEventListener('pointermove', move)
     document.addEventListener('pointerup', up)
   }
