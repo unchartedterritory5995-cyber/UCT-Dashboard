@@ -63,9 +63,19 @@ def main():
     ap.add_argument("--tickers", type=int, default=0, help="0 = all")
     ap.add_argument("--since", type=int, default=0, help="YYYYMMDD lower bound")
     ap.add_argument("--min-dates", type=int, default=30)
-    ap.add_argument("--entry", choices=("close", "open"), default="close",
-                    help="'open' measures from the NEXT open - the bid-ask "
-                         "bounce control, and the only entry a member could take")
+    # ⛔ THE DEFAULT IS `open`, AND THAT IS DELIBERATE. `close` is KNOWN
+    # CONTAMINATED: it measures from the labelled bar's own close, which puts
+    # that close in both the label and the return denominator, and bid-ask
+    # bounce alone then manufactures a wick "finding" (measured 2026-08-25 —
+    # 3 of 8 shapes flipped sign once the entry moved). Leaving the broken
+    # convention as the default would let the next person re-derive the wrong
+    # answer without doing anything wrong. `close` stays available because the
+    # COMPARISON between the two is the finding.
+    ap.add_argument("--entry", choices=("close", "open"), default="open",
+                    help="DEFAULT 'open' measures from the NEXT open — the "
+                         "bid-ask-bounce control, and the only entry a member "
+                         "could take. 'close' is known contaminated; use it "
+                         "only to reproduce that contamination deliberately.")
     ap.add_argument("--min-price", type=float, default=0.0,
                     help="skip bars closing below this — sub-$5 names have "
                          "structurally wider wicks and can carry a wick finding "
@@ -79,8 +89,13 @@ def main():
     conn.close()
     if a.tickers:
         tickers = tickers[:a.tickers]
-    print(f"tickers: {len(tickers)}  workers: {a.workers}  since: {a.since or 'all'}",
-          flush=True)
+    print(f"tickers: {len(tickers)}  workers: {a.workers}  since: {a.since or 'all'}  "
+          f"entry: {a.entry}", flush=True)
+    if a.entry == "close":
+        print("  ⚠️  ENTRY=CLOSE IS KNOWN CONTAMINATED (bid-ask bounce: the "
+              "labelled close sits in both the label and the return "
+              "denominator). Use it only for the deliberate comparison.",
+              flush=True)
 
     chunks = [tickers[i::a.workers] for i in range(a.workers)]
     lab, uni = {}, {}
