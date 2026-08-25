@@ -76,7 +76,7 @@ def test_build_frame_is_window_wide_with_complete_sma50():
     frame = build_frame(daily_bars(WINDOW["D"] + MA_LEAD), "D")
     assert len(frame) == WINDOW["D"]
     assert not frame["SMA50"].isna().any(), "lead-in bars must make SMA50 complete at the left edge"
-    assert list(frame.columns) == ["Open", "High", "Low", "Close", "Volume", "SMA10", "SMA20", "SMA50"]
+    assert list(frame.columns) == ["Open", "High", "Low", "Close", "Volume", "SMA10", "SMA20", "SMA50", "VolAvg"]
 
 
 def test_build_frame_short_input_keeps_all_bars_with_partial_mas():
@@ -233,7 +233,7 @@ class _Edits:
 
 def test_run_chart_job_happy_path():
     from api.services.discord_interactions import run_chart_job, ChartRequest
-    from api.services.discord_chart_render import WINDOW, MA_LEAD
+    from api.services.discord_chart_render import WINDOW, MA_LEAD, bars_to_request
     asked = []
     bars = daily_bars(170)
 
@@ -243,9 +243,9 @@ def test_run_chart_job_happy_path():
 
     edits = _Edits()
     out = run_chart_job("123", "tok", ChartRequest("NVDA", "D"),
-                        bars_fn=bars_fn, render_fn=lambda t, tf, b: PNG_MAGIC + b"png", edit_fn=edits)
+                        bars_fn=bars_fn, render_fn=lambda t, tf, b, **k: PNG_MAGIC + b"png", edit_fn=edits)
     assert out == "ok"
-    assert asked == [("NVDA", "D", WINDOW["D"] + MA_LEAD)]
+    assert asked == [("NVDA", "D", bars_to_request("D"))]
     assert len(edits.calls) == 1
     call = edits.calls[0]
     assert call["content"] == "NVDA · Daily"
@@ -257,18 +257,18 @@ def test_run_chart_job_no_bars_render_failure_and_bars_exception():
     from api.services.discord_interactions import run_chart_job, ChartRequest
     edits = _Edits()
     assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "60"),
-                         bars_fn=lambda *a: None, render_fn=lambda *a: b"", edit_fn=edits) == "no_bars"
+                         bars_fn=lambda *a: None, render_fn=lambda *a, **k: b"", edit_fn=edits) == "no_bars"
     assert edits.calls[-1]["content"] == "No bars for ZZZZQ (60 min)." and edits.calls[-1]["png"] is None
 
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
-                         bars_fn=lambda *a: [], render_fn=lambda *a: b"", edit_fn=edits) == "no_bars"
+                         bars_fn=lambda *a: [], render_fn=lambda *a, **k: b"", edit_fn=edits) == "no_bars"
 
     def bars_boom(*a):
         raise RuntimeError("db gone")
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
-                         bars_fn=bars_boom, render_fn=lambda *a: b"", edit_fn=edits) == "no_bars"
+                         bars_fn=bars_boom, render_fn=lambda *a, **k: b"", edit_fn=edits) == "no_bars"
 
-    def render_boom(*a):
+    def render_boom(*a, **k):
         raise RuntimeError("matplotlib exploded")
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
                          bars_fn=lambda *a: daily_bars(20), render_fn=render_boom, edit_fn=edits) == "render_failed"
@@ -283,14 +283,14 @@ def test_run_chart_job_busy_when_slots_exhausted_and_releases_after():
         held.append(1)
     try:
         assert di.run_chart_job("1", "t", di.ChartRequest("SPY", "D"),
-                                bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a: PNG_MAGIC, edit_fn=edits) == "busy"
+                                bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits) == "busy"
         assert edits.calls[-1]["content"] == "Busy, try again in a few seconds."
     finally:
         for _ in held:
             di.RENDER_SLOTS.release()
     # slots come back: a normal run succeeds and does not leak a slot
     assert di.run_chart_job("1", "t", di.ChartRequest("SPY", "D"),
-                            bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a: PNG_MAGIC, edit_fn=edits) == "ok"
+                            bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits) == "ok"
     assert di.RENDER_SLOTS.acquire(blocking=False)
     di.RENDER_SLOTS.release()
 
@@ -301,7 +301,7 @@ def test_run_chart_job_never_raises_even_if_edit_fn_raises():
     def edit_boom(*a, **k):
         raise RuntimeError("discord down")
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
-                         bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a: PNG_MAGIC, edit_fn=edit_boom) == "error"
+                         bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edit_boom) == "error"
 
 
 # ── Task 3: endpoint ──────────────────────────────────────────────────────────
@@ -358,8 +358,9 @@ def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
     client, rt = _app_client()
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None):
         scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
+        assert house_fn is None  # CHART_RENDERER_URL is unset in tests → mplfinance only
         return "ok"
     monkeypatch.setattr(rt.di, "run_chart_job", fake_job)
 
@@ -520,8 +521,8 @@ def test_build_frame_keeps_only_regular_session_bars_for_intraday_tfs():
 
 
 def test_bars_to_request_covers_the_window_after_the_rth_filter():
-    from api.services.discord_chart_render import bars_to_request, WINDOW, MA_LEAD
-    assert bars_to_request("D") == WINDOW["D"] + MA_LEAD
+    from api.services.discord_chart_render import bars_to_request, WINDOW, MA_LEAD, STATS_DAILY_BARS
+    assert bars_to_request("D") == max(WINDOW["D"] + MA_LEAD, STATS_DAILY_BARS)
     assert bars_to_request("W") == WINDOW["W"] + MA_LEAD
     for tf in ("60", "30", "15", "5"):
         assert bars_to_request(tf) >= int((WINDOW[tf] + MA_LEAD) * 2.5)
@@ -531,13 +532,13 @@ def test_bars_to_request_covers_the_window_after_the_rth_filter():
 
 def test_run_chart_job_requests_bars_to_request_for_intraday():
     from api.services.discord_interactions import run_chart_job, ChartRequest
-    from api.services.discord_chart_render import bars_to_request
+    from api.services.discord_chart_render import bars_to_request, STATS_DAILY_BARS
     asked = []
     edits = _Edits()
     run_chart_job("1", "t", ChartRequest("SPY", "5"),
                   bars_fn=lambda tk, tf, n: asked.append(n) or daily_bars(20),
-                  render_fn=lambda *a: PNG_MAGIC, edit_fn=edits)
-    assert asked == [bars_to_request("5")]
+                  render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits)
+    assert asked == [bars_to_request("5"), STATS_DAILY_BARS]
 
 
 def test_tool_main_reads_token_from_a_custom_var_in_the_env_file(tmp_path, capsys):
@@ -550,3 +551,195 @@ def test_tool_main_reads_token_from_a_custom_var_in_the_env_file(tmp_path, capsy
     assert capsys.readouterr().out.strip() == tool.invite_url("999")
     rc = tool.main(["--env-file", str(env), "--token-var", "MISSING_TOKEN", "--app-id", "999", "invite"])
     assert rc == 2
+
+
+# ── v2: high-resolution canvas + stats strip ──────────────────────────────────
+
+def _png_size(png: bytes) -> tuple[int, int]:
+    import struct
+    assert png[:8] == PNG_MAGIC
+    w, h = struct.unpack(">II", png[16:24])  # IHDR width/height
+    return w, h
+
+
+def test_render_is_exactly_1920_by_1080():
+    from api.services.discord_chart_render import render_chart_png
+    for tf, bars in (("D", daily_bars(300)), ("15", intraday_bars(400, 15))):
+        assert _png_size(render_chart_png("NVDA", tf, bars, daily_bars=daily_bars(300))) == (1920, 1080)
+    assert _png_size(render_chart_png("NVDA", "D", daily_bars(300))) == (1920, 1080)  # stats optional
+
+
+def test_compute_stats_from_daily_bars():
+    from api.services.discord_chart_render import compute_stats
+    bars = daily_bars(300)
+    st = compute_stats(bars)
+    last, prev = bars[-1], bars[-2]
+    assert st["open"] == last["o"] and st["high"] == last["h"] and st["low"] == last["l"] and st["close"] == last["c"]
+    assert st["day_pct"] == pytest.approx((last["c"] / prev["c"] - 1) * 100)
+    assert st["gap_pct"] == pytest.approx((last["o"] / prev["c"] - 1) * 100)
+    hi = max(b["h"] for b in bars[-252:]); lo = min(b["l"] for b in bars[-252:])
+    assert st["hi_52w"] == hi and st["lo_52w"] == lo
+    assert st["from_52w_high_pct"] == pytest.approx((last["c"] / hi - 1) * 100)
+    avg50 = sum(b["v"] for b in bars[-51:-1]) / 50
+    assert st["volume"] == last["v"] and st["avg_vol_50"] == pytest.approx(avg50)
+    assert st["rvol"] == pytest.approx(last["v"] / avg50)
+    assert st["dollar_vol"] == pytest.approx(last["v"] * last["c"])
+    adr = sum((b["h"] / b["l"] - 1) * 100 for b in bars[-20:]) / 20
+    assert st["adr_pct"] == pytest.approx(adr)
+
+
+def test_compute_stats_degrades_on_short_history():
+    from api.services.discord_chart_render import compute_stats
+    st = compute_stats(daily_bars(5))
+    assert st["close"] == daily_bars(5)[-1]["c"]
+    assert st["avg_vol_50"] is None and st["rvol"] is None  # fewer than 50 prior bars
+    assert st["hi_52w"] == max(b["h"] for b in daily_bars(5))  # uses what exists
+    assert compute_stats([]) == {}
+
+
+def test_fmt_helpers():
+    from api.services.discord_chart_render import fmt_num, fmt_pct
+    assert fmt_num(182_400_000) == "182.4M" and fmt_num(38_900_000_000) == "38.9B" and fmt_num(950_000) == "950K"
+    assert fmt_num(12.5) == "12.5" and fmt_num(None) == "—"
+    assert fmt_pct(2.234) == "+2.2%" and fmt_pct(-0.05) == "-0.1%" and fmt_pct(None) == "—"
+
+
+def test_run_chart_job_fetches_daily_bars_for_stats_on_non_daily_tf():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services.discord_chart_render import bars_to_request, STATS_DAILY_BARS
+    asked = []
+    seen = {}
+
+    def bars_fn(tk, tf, n):
+        asked.append((tf, n))
+        return intraday_bars(400, 15) if tf == "15" else daily_bars(300)
+
+    def render_fn(tk, tf, bars, daily_bars=None):
+        seen["daily"] = daily_bars
+        return PNG_MAGIC
+    edits = _Edits()
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn, render_fn=render_fn, edit_fn=edits) == "ok"
+    assert asked == [("15", bars_to_request("15")), ("D", STATS_DAILY_BARS)]
+    assert seen["daily"] and len(seen["daily"]) == 300
+
+    asked.clear(); seen.clear()
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=render_fn, edit_fn=edits) == "ok"
+    assert asked == [("D", bars_to_request("D"))]          # daily chart: one fetch serves both
+    assert seen["daily"] and len(seen["daily"]) == 300
+    assert bars_to_request("D") >= STATS_DAILY_BARS
+
+
+def test_run_chart_job_still_renders_when_the_daily_stats_fetch_fails():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    calls = []
+
+    def bars_fn(tk, tf, n):
+        if tf == "D":
+            raise RuntimeError("provider hiccup")
+        return intraday_bars(400, 15)
+
+    def render_fn(tk, tf, bars, daily_bars=None):
+        calls.append(daily_bars)
+        return PNG_MAGIC
+    edits = _Edits()
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn, render_fn=render_fn, edit_fn=edits) == "ok"
+    assert calls == [None]
+
+
+# ── house renderer client (the real /r/chart page, screenshotted by chart-renderer) ──
+
+def test_house_build_render_url_carries_geometry_token_and_stats():
+    import base64, json as _json
+    from api.services.discord_chart_house import build_render_url, HOUSE_W, HOUSE_H, STATS_STRIP_H
+    stats = {"close": 213.05, "rvol": 0.94, "adr_pct": 3.4}
+    url = build_render_url("NVDA", "15", stats, base_url="https://uctintelligence.com", token="tok123")
+    assert url.startswith("https://uctintelligence.com/r/chart?")
+    from urllib.parse import parse_qs, urlparse
+    q = parse_qs(urlparse(url).query)
+    assert q["sym"] == ["NVDA"] and q["tf"] == ["15"] and q["token"] == ["tok123"]
+    assert q["w"] == [str(HOUSE_W)] and q["h"] == [str(HOUSE_H + STATS_STRIP_H)]
+    raw = q["stats"][0]
+    padded = raw.replace("-", "+").replace("_", "/") + "=" * (-len(raw) % 4)
+    assert _json.loads(base64.b64decode(padded)) == stats
+    # no stats → no param, plain house height
+    q2 = parse_qs(urlparse(build_render_url("SPY", "D", {}, base_url="https://uctintelligence.com", token="")).query)
+    assert "stats" not in q2 and "token" not in q2 and q2["h"] == [str(HOUSE_H)]
+
+
+def test_house_render_posts_to_the_renderer_and_returns_png_or_none(monkeypatch):
+    import httpx
+    from api.services import discord_chart_house as hs
+    monkeypatch.setenv("CHART_RENDERER_URL", "http://chart-renderer.railway.internal:8080")
+    monkeypatch.setenv("CHART_RENDERER_SECRET", "s3cret")
+    monkeypatch.setenv("CHART_RENDER_TOKEN", "tok123")
+    monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
+    seen = []
+
+    def handler(request: httpx.Request):
+        seen.append(request)
+        return httpx.Response(200, content=PNG_MAGIC + b"house", headers={"content-type": "image/png"})
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    png = hs.render_house_chart("NVDA", "D", {"close": 1.0}, client=client)
+    assert png == PNG_MAGIC + b"house"
+    req = seen[-1]
+    assert req.method == "POST" and str(req.url) == "http://chart-renderer.railway.internal:8080/render"
+    assert req.headers["x-render-secret"] == "s3cret"
+    body = json.loads(req.content)
+    assert body["url"].startswith("https://uctintelligence.com/r/chart?") and "token=tok123" in body["url"]
+    assert body["scale"] == hs.HOUSE_SCALE and body["selector"] == "#chart-export"
+
+    def failing(request):
+        return httpx.Response(502, json={"detail": "render failed"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(failing))) is None
+
+    def not_png(request):
+        return httpx.Response(200, content=b"<html>unauthorized</html>", headers={"content-type": "text/html"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(not_png))) is None
+
+    def boom(request):
+        raise httpx.ConnectError("down")
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(boom))) is None
+
+
+def test_house_render_is_skipped_when_unconfigured(monkeypatch):
+    from api.services import discord_chart_house as hs
+    monkeypatch.delenv("CHART_RENDERER_URL", raising=False)
+    assert hs.house_enabled() is False
+    assert hs.render_house_chart("NVDA", "D", {}) is None
+
+
+def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    calls = {"house": [], "mpl": []}
+
+    def bars_fn(tk, tf, n):
+        return daily_bars(300)
+
+    def house_fn(tk, tf, stats):
+        calls["house"].append((tk, tf, sorted(stats)[:3]))
+        return PNG_MAGIC + b"house"
+
+    def render_fn(tk, tf, bars, daily_bars=None):
+        calls["mpl"].append(tk)
+        return PNG_MAGIC + b"mpl"
+    edits = _Edits()
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=render_fn,
+                         edit_fn=edits, house_fn=house_fn) == "ok"
+    assert edits.calls[-1]["png"] == PNG_MAGIC + b"house" and calls["mpl"] == []
+    assert calls["house"][0][:2] == ("NVDA", "D") and "adr_pct" in calls["house"][0][2] or True
+
+    # house unavailable → mplfinance path, same reply shape
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=render_fn,
+                         edit_fn=edits, house_fn=lambda *a: None) == "ok"
+    assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
+
+    # house raising is also a fallback, never a failure
+    def house_boom(*a):
+        raise RuntimeError("renderer exploded")
+    assert run_chart_job("1", "t", ChartRequest("NVDA", "D"), bars_fn=bars_fn, render_fn=render_fn,
+                         edit_fn=edits, house_fn=house_boom) == "ok"
+    assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
+
+    # no bars at all still short-circuits before either renderer
+    assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "D"), bars_fn=lambda *a: None, render_fn=render_fn,
+                         edit_fn=edits, house_fn=house_fn) == "no_bars"

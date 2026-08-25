@@ -56,6 +56,52 @@ const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
 
+// Height of the optional `?stats=` strip; the caller adds it to `?h=`.
+export const STATS_STRIP_H = 28
+
+const fmtNum = (v) => {
+  if (v == null || !Number.isFinite(Number(v))) return '—'
+  const x = Number(v); const a = Math.abs(x)
+  if (a >= 1e9) return `${(x / 1e9).toFixed(1)}B`
+  if (a >= 1e6) return `${(x / 1e6).toFixed(1)}M`
+  if (a >= 1e3) return `${(x / 1e3).toFixed(0)}K`
+  return x.toFixed(2)
+}
+const fmtPct = (v) => (v == null || !Number.isFinite(Number(v))) ? '—' : `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(1)}%`
+const dirColor = (v, fallback) => (v == null || !Number.isFinite(Number(v))) ? fallback : (Number(v) >= 0 ? '#22c55e' : '#ef4444')
+
+/** One-line price-action / volume strip under the header. Pure layout: every
+ *  number arrives pre-computed in `?stats=` (see `statsParam`). Missing keys
+ *  print as an em dash rather than dropping the cell, so the strip's shape is
+ *  stable from ticker to ticker. */
+function StatsStrip({ stats, bg, text }) {
+  const L = { color: '#9aa08f', fontSize: 11, letterSpacing: '0.3px' }
+  const V = { color: text, fontWeight: 600, fontSize: 12, marginLeft: 4 }
+  const Cell = ({ label, value, color }) => (
+    <span style={{ display: 'inline-flex', alignItems: 'baseline', marginRight: 14 }}>
+      <span style={L}>{label}</span><span style={{ ...V, color: color || V.color }}>{value}</span>
+    </span>
+  )
+  const rvol = stats.rvol
+  return (
+    <div data-testid="stats-strip" style={{ height: STATS_STRIP_H, background: bg, display: 'flex', alignItems: 'center', padding: '0 16px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+      <Cell label="O" value={fmtNum(stats.open)} />
+      <Cell label="H" value={fmtNum(stats.high)} />
+      <Cell label="L" value={fmtNum(stats.low)} />
+      <Cell label="C" value={fmtNum(stats.close)} />
+      <Cell label="Day" value={fmtPct(stats.day_pct)} color={dirColor(stats.day_pct, text)} />
+      <Cell label="Gap" value={fmtPct(stats.gap_pct)} color={dirColor(stats.gap_pct, text)} />
+      <Cell label="52w H" value={`${fmtNum(stats.hi_52w)} (${fmtPct(stats.from_52w_high_pct)})`} />
+      <Cell label="52w L" value={fmtNum(stats.lo_52w)} />
+      <Cell label="Vol" value={fmtNum(stats.volume)} />
+      <Cell label="Avg50" value={fmtNum(stats.avg_vol_50)} />
+      <Cell label="RVOL" value={rvol == null ? '—' : `${Number(rvol).toFixed(2)}x`} color={rvol != null && Number(rvol) >= 1.5 ? '#c9a84c' : undefined} />
+      <Cell label="$Vol" value={fmtNum(stats.dollar_vol)} />
+      <Cell label="ADR" value={stats.adr_pct == null ? '—' : `${Number(stats.adr_pct).toFixed(1)}%`} />
+    </div>
+  )
+}
+
 /** base64url → JSON, so a whole blob survives a URL untouched. Returns
  *  `undefined` on anything malformed: a bad param must not blank the chart — it
  *  degrades to "no override", and the harness catches the miss because the diff
@@ -169,6 +215,15 @@ export default function ChartRender() {
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
   const hidePriceLine = priceLineParam === '0' || priceLineParam === 'false'
+  //   ?stats=<base64url JSON>  a compact price-action / volume strip under the
+  //            header (Discord /chart). The NUMBERS are computed server-side
+  //            (api/services/discord_chart_render.compute_stats — one authority);
+  //            this page only lays them out. Absent = today's behavior exactly,
+  //            which keeps the Sunday Scans / Substack renderer untouched.
+  const statsParam = useMemo(() => {
+    const parsed = decodeB64UrlJson(sp.get('stats'))
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null
+  }, [sp])
 
   // ── Parity-gate params (see the header comment) ────────────────────────────
   //   ?indicators=<base64url JSON>  a PARTIAL chart_settings blob, deep-merged
@@ -561,7 +616,9 @@ export default function ChartRender() {
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
 
-  const chartH = h - 60  // 40px header + 20px footer
+  // 40px header + 20px footer (+ the optional stats strip, whose height the
+  // caller adds to ?h= so the chart canvas keeps the house proportions).
+  const chartH = h - 60 - (statsParam ? STATS_STRIP_H : 0)
 
   // Chrome follows the chart's own canvas colour, exactly as composeScreenshot
   // does ("fill EVERYTHING with the chart's own background... so the header/
@@ -607,6 +664,7 @@ export default function ChartRender() {
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
           </span>
         </div>
+        {statsParam && <StatsStrip stats={statsParam} bg={chromeBg} text={chromeText} />}
         {/* volInSeparatePane = volumeSeparatePane || cs.volume.separatePane.
             His SAVED separatePane is false, but the workspace widget passes the
             PROP, so his live chart — and every chart he exports by hand — puts

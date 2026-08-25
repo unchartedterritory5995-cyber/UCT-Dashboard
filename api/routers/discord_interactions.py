@@ -14,6 +14,7 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
+from api.services import discord_chart_house as house
 from api.services import discord_interactions as di
 from api.services.discord_chart_render import render_chart_png
 
@@ -77,6 +78,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(di.run_chart_job, app_id, token, req,
-                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original)
+                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                            house_fn=house.render_house_chart if house.house_enabled() else None)
         return {"type": 5}
     return _ephemeral("Unknown command.")

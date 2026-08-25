@@ -12,7 +12,8 @@ import re
 import threading
 from dataclasses import dataclass
 
-from api.services.discord_chart_render import TF_LABEL, WINDOW, bars_to_request, to_datetime
+from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
+                                               bars_to_request, compute_stats, to_datetime)
 
 log = logging.getLogger(__name__)
 
@@ -106,9 +107,14 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
         return False
 
 
-def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn) -> str:
+def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
+                  house_fn=None) -> str:
     """Background job: bars → PNG → edit the reply. Returns an outcome tag for
-    logs/tests: ok | busy | no_bars | render_failed | error. Never raises."""
+    logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
+
+    `house_fn(ticker, tf, stats) -> bytes | None` is the house renderer (the
+    real /r/chart page via chart-renderer); when it yields nothing the
+    mplfinance `render_fn` draws the chart instead."""
     label = TF_LABEL[req.tf]
     if not RENDER_SLOTS.acquire(blocking=False):
         try:
@@ -125,12 +131,31 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         if not bars:
             edit_fn(app_id, token, content=f"No bars for {req.ticker} ({label}).")
             return "no_bars"
-        try:
-            png = render_fn(req.ticker, req.tf, bars)
-        except Exception as e:  # noqa: BLE001
-            log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
-            edit_fn(app_id, token, content="Chart failed, try again.")
-            return "render_failed"
+        # The stats strip always reads DAILY bars. A daily chart already has
+        # them; every other timeframe fetches a second, small daily series and
+        # renders without the strip if that fetch fails.
+        if req.tf == "D":
+            daily = bars
+        else:
+            try:
+                daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] daily stats bars failed %s: %s", req.ticker, e)
+                daily = None
+        png = None
+        if house_fn is not None:
+            try:
+                png = house_fn(req.ticker, req.tf, compute_stats(daily) if daily else {})
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
+                png = None
+        if not png:
+            try:
+                png = render_fn(req.ticker, req.tf, bars, daily_bars=daily)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
+                edit_fn(app_id, token, content="Chart failed, try again.")
+                return "render_failed"
         edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png,
                 filename=attachment_name(req.ticker, req.tf, bars[-1]["t"]))
         return "ok"
