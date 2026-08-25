@@ -1192,3 +1192,37 @@ def test_the_prior_trend_is_an_ANCHOR_not_a_live_value():
     assert "candle_trend" not in live_tier.LIVE_COLUMNS
     for lvl in ("avg_body", "avg_range"):
         assert lvl in live_tier.ANCHOR_COLUMNS, lvl
+
+
+def test_the_overlay_table_gains_a_newly_added_live_column(live_env):
+    """🔴 MEASURED IN PRODUCTION, 2026-08-25. Six forming-bar columns were added
+    to `LIVE_COLUMNS`, the tier was enabled, the scheduler ran it every 60s — and
+    `screener_live` held ZERO ROWS with no `candle_type` column. `CREATE TABLE IF
+    NOT EXISTS` never widens, so a column added after the table first existed can
+    never appear on a pod that already holds one, and the sweep's INSERT then
+    names a column the table does not have.
+
+    ⭐ It failed SAFELY — the read path LEFT JOINs, so members kept nightly
+    values — which is exactly why neither the logs nor uptime screamed. Only
+    reading the table showed it. `screener_rows` has had this ALTER-add loop for
+    a year; the overlay needed the same one.
+    """
+    from api.services.screener import snapshot_db
+
+    conn = snapshot_db.connect()
+    conn.execute(f"DROP TABLE IF EXISTS {live_tier.LIVE_TABLE}")
+    narrow = [c for c in snapshot_db._live_write_columns()
+              if c not in ("candle_type", "candle_label")]
+    conn.execute(f"CREATE TABLE {live_tier.LIVE_TABLE} (" +
+                 ",".join(snapshot_db._coldef(c) for c in narrow) + ")")
+    conn.commit()
+    before = {r[1] for r in
+              conn.execute(f"PRAGMA table_info({live_tier.LIVE_TABLE})")}
+    assert "candle_type" not in before, "the probe did not set up a narrow table"
+
+    snapshot_db.init_db()
+
+    after = {r[1] for r in snapshot_db.connect().execute(
+        f"PRAGMA table_info({live_tier.LIVE_TABLE})")}
+    missing = [c for c in snapshot_db._live_write_columns() if c not in after]
+    assert not missing, f"init_db left the overlay narrower than it writes: {missing}"
