@@ -10,11 +10,15 @@
  *
  * Data: GET /api/nhnl/series (the nhnl_live accumulator's intraday time series).
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
+import { menuThemeVars } from '../../../utils/dividerColor'
+import UIcon from '../../../components/ui/UIcon'
+import NhnlSettingsPanel from './NhnlSettingsPanel'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
-import { mergeNhnlSettings, nhnlWidgetStyleVars } from './nhnlSettings'
+import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './NhnlPulseWidget.module.css'
 
@@ -22,8 +26,8 @@ const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
-const GREEN = '#34d17c'   // matches --ut-green-bright (the scanner's new-high green)
-const RED = '#f24b42'     // matches --ut-red-bright
+const GREEN = '#34d17c'   // default new-high line (matches --ut-green-bright); overridden
+const RED = '#f24b42'     // default new-low line — both follow the widget's Highs/Lows theme
 
 function fmtClock(v) {
   try {
@@ -33,7 +37,7 @@ function fmtClock(v) {
   } catch { return '' }
 }
 
-function makeOption(series) {
+function makeOption(series, green, red) {
   const highs = series.map(p => [new Date(p.t).getTime(), p.hi])
   const lows = series.map(p => [new Date(p.t).getTime(), p.lo])
   const axisText = { color: '#a9a9b2', fontSize: 10, fontFamily: CHART_FONT_FAMILY }
@@ -88,15 +92,32 @@ function makeOption(series) {
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.07)' } },
     },
     series: [
-      liveLine('New Highs', highs, GREEN, 3),
-      liveLine('New Lows', lows, RED, 2),
+      liveLine('New Highs', highs, green, 3),
+      liveLine('New Lows', lows, red, 2),
     ],
   }
 }
 
-export default function NhnlPulseWidget({ opts }) {
+export default function NhnlPulseWidget({ opts, onOptsChange }) {
+  const placedTheme = usePlacedTheme(opts?.placedTheme)
   const settings = useMemo(() => mergeNhnlSettings(opts?.settings || null), [opts?.settings])
   const styleVars = useMemo(() => nhnlWidgetStyleVars(settings), [settings])
+  // Chart lines follow the widget's Highs/Lows theme colors (fall back to the defaults).
+  const green = settings.upColor || GREEN
+  const red = settings.downColor || RED
+
+  const rootRef = useRef(null)
+  const gearRef = useRef(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const patchSettings = useCallback(
+    (p) => onOptsChange?.({ ...opts, settings: { ...settings, ...p } }),
+    [opts, onOptsChange, settings])
+  const resetSettings = useCallback(
+    () => onOptsChange?.({ ...opts, settings: nhnlDefaultsForTheme(placedTheme) }),
+    [opts, onOptsChange, placedTheme])
+  const panelThemeVars = useMemo(
+    () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
+    [styleVars, settings])
 
   const { data } = useMobileSWR('/api/nhnl/series', fetcher, {
     refreshInterval: 2000,       // pull new points as fast as the accumulator produces them
@@ -109,7 +130,7 @@ export default function NhnlPulseWidget({ opts }) {
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
   const series = data?.series || []
-  const option = useMemo(() => makeOption(series), [series])
+  const option = useMemo(() => makeOption(series, green, red), [series, green, red])
 
   // Live readout (alerts/sec): average the last few points so the numbers don't jitter.
   const round1 = (n) => Math.round(n * 10) / 10
@@ -139,13 +160,34 @@ export default function NhnlPulseWidget({ opts }) {
   }, [])
 
   return (
-    <div className={chrome.wrap} style={styleVars}>
+    <div ref={rootRef} className={chrome.wrap} style={styleVars}>
+      {settingsOpen && (
+        <NhnlSettingsPanel
+          settings={settings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={gearRef.current}
+          hostEl={rootRef.current}
+          themeVars={panelThemeVars}
+        />
+      )}
       <div className={chrome.toolbar}>
         <span className={`${chrome.live} ${isActive ? chrome.liveOn : ''}`}>
           <span className={chrome.dot} aria-hidden="true" />{stamp}
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtClock(data.asof)} ET</span>}
         <span className={chrome.spacer} />
+        <button
+          ref={gearRef}
+          type="button"
+          className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
+          onClick={() => setSettingsOpen(o => !o)}
+          title="H/L Pulse settings"
+          aria-label="H/L Pulse settings"
+        >
+          <UIcon name="gear" size={13} gold={false} />
+        </button>
       </div>
 
       {!isActive ? (
