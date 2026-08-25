@@ -94,3 +94,36 @@ describe('member-facing column descriptions', () => {
     expect(d).toMatch(/2026-08-24/)
   })
 })
+
+describe('a formatter must not read a column its view never selects', () => {
+  // 🔴 CAUGHT ON THE REAL SCREEN, NOT BY A TEST. Every candle formatter reads
+  // `row.<col>_label` and falls back to the raw key, so with the companion
+  // unselected the member saw `last-engulfing-top` instead of
+  // "Last Engulfing Top (Long White) +1". Tests were blind because a formatter
+  // handed a row that HAS the companion renders it perfectly.
+  it('every _label companion a candle formatter reads is defined', () => {
+    const companions = ['candle_label', 'bar_character_label',
+      'candle_recent_label', 'candle_weekly_label', 'candle_monthly_label']
+    for (const key of ['candle_type', 'bar_character', 'candle_recent',
+      'candle_weekly', 'candle_monthly']) {
+      const def = COLUMN_DEFS[key]
+      expect(def, `${key} has no column def`).toBeTruthy()
+      const src = def.fmt.toString()
+      const read = companions.filter(c => src.includes(c))
+      // the formatter reads exactly its own companion, and that companion
+      // must itself be a real snapshot column name (checked backend-side)
+      expect(read.length, `${key} formatter reads ${read}`).toBe(1)
+    }
+  })
+
+  it('every column a view can show has a def, so no raw KEY reaches a header', () => {
+    // the header falls back to the raw column name when a def is missing —
+    // `candle_recent_bars_ago` rendered as "CANDLE_RECENT_BARS_AGO" and
+    // collided with its neighbours.
+    for (const key of ['candle_recent_bars_ago', 'candle_trend', 'candle_weekly',
+      'candle_monthly', 'bar_character', 'candle_recent']) {
+      expect(COLUMN_DEFS[key], `${key} has no def — its header renders as the raw key`).toBeTruthy()
+      expect(typeof COLUMN_DEFS[key].label).toBe('string')
+    }
+  })
+})
