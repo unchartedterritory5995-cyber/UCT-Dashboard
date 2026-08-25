@@ -200,7 +200,7 @@ const CAPTURE_FIXTURES = {
   periodsort: { start: 20260706, end: 20260805, group: 'theme', settings: { bg: '#101010' }, colCfg: { order: ['flag', 'sym', 'periodchg'], sort: { key: 'periodchg', dir: 'desc' } } },
   nhnl: { minPrice: 5, minCount: 3, settings: { bg: '#101010' } },
   nhnlPulse: { settings: { bg: '#101010' } },
-  volumescan: { minRvol: 3, minMove: 0.5, settings: { bg: '#101010' } },
+  volumescan: { minRvol: 3, minMove: 0.5, minDollarK: 50, settings: { bg: '#101010' } },
 }
 
 describe('widget registry — params layer', () => {

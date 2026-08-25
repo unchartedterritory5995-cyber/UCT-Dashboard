@@ -31,18 +31,21 @@ def volume_scan_live(
     min_liq: float = Query(100000.0, ge=0.0),
     min_rvol: float = Query(2.0, ge=0.0),
     min_move: float = Query(0.25, ge=0.0),
+    min_dollar: float | None = Query(None, ge=0.0),
 ):
     """Ranked relative-volume surge leaderboard (highest sustained RVOL first).
 
     Each row is a stock whose CURRENT (last-minute) volume rate is elevated vs its
     own recent baseline AND which is actually moving in price. `min_rvol` is the
     surge gate, `min_move` the dark-pool / drift gate, `min_liq` the liquidity floor
-    (prev-day volume), and `min_price`/`max_price` the tradable band.
+    (prev-day volume), `min_price`/`max_price` the tradable band, and `min_dollar`
+    the now-window dollar-volume floor that drops illiquid "50× of nothing" prints
+    (default is session-aware — thinner for pre/post — when omitted).
     """
     from api.services import volume_live
     return JSONResponse(content=volume_live.get_live(
         limit=limit, min_price=min_price, max_price=max_price,
-        min_liq=min_liq, min_rvol=min_rvol, min_move=min_move))
+        min_liq=min_liq, min_rvol=min_rvol, min_move=min_move, min_dollar=min_dollar))
 
 
 @router.get("/api/volume-scan/status")

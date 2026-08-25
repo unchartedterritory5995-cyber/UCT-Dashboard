@@ -17,11 +17,13 @@ from api.services import volume_live
 
 @pytest.fixture(autouse=True)
 def _reset_state(monkeypatch):
-    # Fresh module state per test + a tiny two-name universe, no ETFs.
+    # Fresh module state per test + a tiny universe, no ETFs.
     volume_live._state = {
         "session_key": None, "window": "closed", "date": None,
         "syms": {}, "asof": None, "ticks": 0, "last_error": None,
     }
+    volume_live._top_set = None
+    volume_live._top_built = 0.0
     monkeypatch.setattr(volume_live, "_universe_map",
                         lambda: {"AAA": "AAA", "BBB": "BBB", "CHEAP": "CHEAP", "THIN": "THIN"})
     monkeypatch.setattr(volume_live, "_etf_set", lambda: set())
@@ -149,6 +151,45 @@ def test_baseline_persistence_round_trips(tmp_path, monkeypatch):
     volume_live._load_state()
     assert "AAA" in volume_live._state["syms"]
     assert volume_live._state["syms"]["AAA"]["seed_base"] > 0
+
+
+def test_illiquid_now_window_is_filtered_by_the_dollar_floor(monkeypatch):
+    # The CSIQ case: a liquid-by-history name (passes the prev-vol floor) that is
+    # trading almost nothing RIGHT NOW — a tiny burst vs a dead baseline reads as a
+    # big RVOL, but only a few thousand $ actually traded, so it must be dropped.
+    monkeypatch.setattr(volume_live, "_universe_map", lambda: {"DEAD": "DEAD"})
+    seq = {}
+    for t in range(0, 46):
+        cv = 5 * t if t <= 36 else 180 + 30 * (t - 36)   # ~$4k of shares in the burst
+        px = 14.00 if t <= 36 else 14.00 + 0.007 * (t - 36)
+        seq[t] = {"DEAD": {"min_av": cv, "last_price": px, "prev_close": 14.00, "prev_vol": 150_000}}
+    _feed(seq)
+    # It clears the RVOL + move gates (a real spike vs its dead baseline)…
+    lit = _row(volume_live.get_live(min_dollar=0)["rows"], "DEAD")
+    assert lit is not None and lit["rvol"] >= 2 and abs(lit["move"]) >= 0.25
+    assert lit["dvol"] < 15_000                         # …but traded only a few $k
+    # …so the default (and any real) dollar-volume floor drops it.
+    assert _row(volume_live.get_live()["rows"], "DEAD") is None
+    assert _row(volume_live.get_live(min_dollar=100_000)["rows"], "DEAD") is None
+
+
+def test_scans_only_the_top_liquid_names(monkeypatch):
+    monkeypatch.setenv("VOLUME_UNIVERSE_TOP", "1")
+    monkeypatch.setattr(volume_live, "_universe_map", lambda: {"BIG": "BIG", "SMALL": "SMALL"})
+    seq = {}
+    for t in range(0, 46):
+        cv = 100 * t if t <= 36 else 3600 + 1000 * (t - 36)
+        px = 10.0 if t <= 36 else 10.0 + 0.15 * (t - 36)
+        seq[t] = {
+            "BIG":   {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 5_000_000},  # huge $-vol
+            "SMALL": {"min_av": cv, "last_price": px, "prev_close": 2.0,   "prev_vol": 60_000},      # tiny $-vol
+        }
+    _feed(seq)
+    # Only the single most-liquid name is even tracked; SMALL is outside the top-N.
+    assert "SMALL" not in volume_live._state["syms"]
+    rows = volume_live.get_live(min_dollar=0)["rows"]
+    assert _row(rows, "BIG") is not None
+    assert _row(rows, "SMALL") is None
 
 
 def test_closed_window_serves_no_rows():

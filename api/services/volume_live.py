@@ -84,6 +84,16 @@ _DEFAULT_MAX_PRICE = 250.0
 _DEFAULT_MIN_LIQ = 100_000     # prev-day volume (shares) — the "avg vol > 100k" floor
 _DEFAULT_MIN_RVOL = 2.0
 _DEFAULT_MIN_MOVE = 0.25       # % over the price window — the dark-pool / drift gate
+# The "50× of nothing" guard: a relative-volume spike only counts if the name has
+# ALSO actually traded a meaningful dollar amount in the now-window. CSIQ printing
+# 143 shares (~$2k) after hours is 50× its own dead baseline but untradeable noise —
+# this floor drops it while a real post-market news mover (tens of $k/min) sails
+# through. Session-aware defaults: pre/post markets trade thinner than RTH.
+_DEFAULT_MIN_DOLLAR_RTH = 50_000     # $ traded in the last ~minute (regular hours)
+_DEFAULT_MIN_DOLLAR_EXT = 15_000     # pre-market / post-market floor
+
+_DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
+_TOP_TTL = 3600.0              # rebuild the top-liquid set hourly (liquidity is slow)
 
 _HIST_MAX = int((_NOW_SECS + _BASE_SECS + 60) / _MIN_SAMPLE_GAP) + 5
 
@@ -103,6 +113,13 @@ _running = False
 _thread = None
 _last_persist = 0.0
 _PERSIST_SECS = 30.0
+
+# The top-N most-liquid names to scan (app-syms), rebuilt hourly from the snapshot's
+# prev_close × prev_vol (yesterday's dollar volume). Restricting the universe keeps
+# the list to genuinely tradable names AND is the bounded set that a future
+# tick-by-tick push feed can cover cheaply on the existing WebSocket.
+_top_set: set | None = None
+_top_built = 0.0
 
 
 def _now_et() -> datetime:
@@ -131,6 +148,30 @@ def _envf(name: str, default: float) -> float:
         return default
 
 
+def _top_n() -> int:
+    try:
+        return max(1, int(os.environ.get("VOLUME_UNIVERSE_TOP", _DEFAULT_UNIVERSE_TOP)))
+    except (TypeError, ValueError):
+        return _DEFAULT_UNIVERSE_TOP
+
+
+def _rebuild_top_set(snapshot: dict, prov_map: dict, etf: set, n: int) -> set:
+    """The N most-liquid app-syms by yesterday's dollar volume (prev_close ×
+    prev_vol) from the current snapshot. ETFs excluded (this is a stocks scanner)."""
+    scored = []
+    for prov, app in prov_map.items():
+        if app in etf:
+            continue
+        row = snapshot.get(prov)
+        if not row:
+            continue
+        dvol = (row.get("prev_close") or 0) * (row.get("prev_vol") or 0)
+        if dvol > 0:
+            scored.append((dvol, app))
+    scored.sort(reverse=True)
+    return {app for _dv, app in scored[:n]}
+
+
 # ── Rate math (pure) ──────────────────────────────────────────────────────────
 def _at_or_after(hist, target_t):
     """First (t, cv, px) sample with t >= target_t (hist is oldest-first)."""
@@ -153,7 +194,9 @@ def _compute_metrics(hist, prev_close, prev_vol, seed_base):
     b = _at_or_after(hist, t_now - _NOW_SECS - _BASE_SECS)
     if a is None or a[0] >= t_now:
         return None
-    now_rate = max(0.0, (cv_now - a[1]) / max(t_now - a[0], 1.0))
+    now_shares = max(0.0, cv_now - a[1])           # shares traded in the now-window
+    now_rate = now_shares / max(t_now - a[0], 1.0)
+    now_dollar = now_shares * px_now               # $ actually traded in the last ~min
 
     # Baseline: prefer the measured trailing window; if history is still short,
     # fall back to the persisted seed so a name is rate-able within ~a minute of
@@ -190,7 +233,8 @@ def _compute_metrics(hist, prev_close, prev_vol, seed_base):
         "rvol": round(rvol, 2),
         "move": round(move, 2),
         "score": round(score, 3),
-        "base_rate": base_rate,   # persisted as the next boot's seed baseline
+        "dvol": round(now_dollar),   # $ traded in the now-window (the illiquid-noise gate)
+        "base_rate": base_rate,      # persisted as the next boot's seed baseline
     }
 
 
@@ -235,6 +279,15 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
     prov_map = _universe_map()
     etf = _etf_set()
     is_rth = window == "rth"
+    # Scan only the N most-liquid names (rebuilt hourly from the snapshot). Restricts
+    # the list to genuinely tradable stocks and bounds the tracked set.
+    global _top_set, _top_built
+    if _top_set is None or (sample_t - _top_built) >= _TOP_TTL:
+        rebuilt = _rebuild_top_set(snapshot, prov_map, etf, _top_n())
+        if rebuilt:
+            _top_set = rebuilt
+            _top_built = sample_t
+    top = _top_set
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
@@ -242,6 +295,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 
         for prov, app in prov_map.items():
             if app in etf:                      # stocks only (news reacts on stocks)
+                continue
+            if top and app not in top:          # outside the top-N liquid universe
                 continue
             row = snapshot.get(prov)
             if not row:
@@ -285,7 +340,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 
 
 def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
-             min_rvol: float = None, min_move: float = None, min_liq: float = None) -> dict:
+             min_rvol: float = None, min_move: float = None, min_liq: float = None,
+             min_dollar: float = None) -> dict:
     """Ranked relative-volume leaderboard for the endpoint.
 
     ONE row per symbol, ranked by `score` (rvol × move-weight) DESCENDING — the
@@ -305,6 +361,12 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     mnr = _DEFAULT_MIN_RVOL if min_rvol is None else min_rvol
     mnm = _DEFAULT_MIN_MOVE if min_move is None else min_move
     mnl = _DEFAULT_MIN_LIQ if min_liq is None else min_liq
+    # The now-window dollar-volume floor (the illiquid-noise guard). Default is
+    # session-aware — pre/post trade thinner than RTH — unless the caller overrides.
+    if min_dollar is not None:
+        mnd = min_dollar
+    else:
+        mnd = _DEFAULT_MIN_DOLLAR_RTH if window == "rth" else _DEFAULT_MIN_DOLLAR_EXT
     try:
         limit = max(1, min(int(limit), 300))
     except (TypeError, ValueError):
@@ -323,6 +385,8 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
                 continue
             if m["rvol"] < mnr or abs(m["move"]) < mnm:
                 continue
+            if m.get("dvol", 0) < mnd:           # illiquid now-window (the "50× of nothing" gate)
+                continue
             rows.append((sym, m))
 
     rows.sort(key=lambda r: r[1]["score"], reverse=True)
@@ -336,6 +400,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "rvol": m["rvol"],
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",
+            "dvol": m.get("dvol", 0),   # $ traded in the now-window (tooltip)
             "score": m["score"],
             "tier": _tier(m["rvol"]),
         })
@@ -346,8 +411,9 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         "ticks": ticks,
         "active": window != "closed" and _running and (enabled() or _demo()),
         "total": total,               # qualifying names (header count)
+        "universe_top": _top_n(),     # scanning the N most-liquid names
         "filters": {"min_price": mnp, "max_price": mxp, "min_liq": mnl,
-                    "min_rvol": mnr, "min_move": mnm},
+                    "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd},
         "rows": out,
     }
 

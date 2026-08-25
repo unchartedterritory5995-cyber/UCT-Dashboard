@@ -44,6 +44,12 @@ function fmtTime(iso) {
 
 const fmtPrice = (p) => (typeof p === 'number' ? (p >= 100 ? p.toFixed(1) : p.toFixed(2)) : '')
 const fmtPct = (v) => (typeof v === 'number' ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '')
+const fmtDollar = (d) => {
+  if (typeof d !== 'number' || d <= 0) return ''
+  if (d >= 1e6) return `$${(d / 1e6).toFixed(1)}M`
+  if (d >= 1e3) return `$${Math.round(d / 1e3)}K`
+  return `$${Math.round(d)}`
+}
 
 // A single surge row. RVOL is the headline (colour-tiered); the move column is the
 // short-window price change that the volume is driving (green up / red down); price
@@ -55,7 +61,7 @@ function Row({ e, onPick }) {
       role="listitem"
       className={`${styles.row} ${styles['t' + (e.tier || 1)]}`}
       onClick={() => onPick(e.sym)}
-      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}`}
+      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}`}
     >
       <span className={styles.rail} aria-hidden="true" />
       <span className={styles.sym}>{e.sym}</span>
@@ -111,12 +117,16 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
   const minRvol = Number(opts?.minRvol) || 2
   const minMove = opts?.minMove == null ? 0.25 : Number(opts.minMove)
+  // Min $-volume traded in the last minute, in $thousands. Undefined = let the
+  // server pick a session-aware default (thinner for pre/post).
+  const minDollarK = opts?.minDollarK == null ? '' : Number(opts.minDollarK)
 
   const onPick = useCallback((sym) => {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
   const commitRvol = useCallback((v) => onOptsChange?.({ ...opts, minRvol: v }), [opts, onOptsChange])
   const commitMove = useCallback((v) => onOptsChange?.({ ...opts, minMove: v }), [opts, onOptsChange])
+  const commitDollar = useCallback((v) => onOptsChange?.({ ...opts, minDollarK: v }), [opts, onOptsChange])
 
   // Appearance settings — same per-widget model + ⚙ panel as the NH/NL scanner.
   const placedTheme = usePlacedTheme(opts?.placedTheme)
@@ -135,7 +145,9 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const url = `/api/volume-scan/live?limit=150&min_rvol=${minRvol}&min_move=${minMove}`
+  const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
+    ? `&min_dollar=${Math.round(minDollarK * 1000)}` : ''
+  const url = `/api/volume-scan/live?limit=150&min_rvol=${minRvol}&min_move=${minMove}${dollarQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
@@ -172,6 +184,8 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           placeholder="2" min={1} step={0.5} onCommit={commitRvol} />
         <FilterBox label="Δ%≥" ariaLabel="Minimum move percent" value={opts?.minMove}
           placeholder="0.25" min={0} step={0.25} onCommit={commitMove} />
+        <FilterBox label="$K≥" ariaLabel="Minimum dollar volume per minute (thousands)"
+          value={opts?.minDollarK} placeholder="auto" min={0} step={10} onCommit={commitDollar} />
         <button
           ref={gearRef}
           type="button"
