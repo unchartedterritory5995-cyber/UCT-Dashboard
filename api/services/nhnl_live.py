@@ -78,17 +78,25 @@ _last_persist = 0.0       # epoch of the last state snapshot write
 _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 
 # ── Intraday time series (the "H/L Pulse" chart) ──────────────────────────────
-# Every ~15s we append how many DISTINCT NAMES made a new high / new low in that
-# window (a name that ratcheted its HOD five times counts once) — a bounded, steady
-# "breadth thrust" line like Trade Ideas' alert rate, NOT a sum of every ratchet
-# (which spikes to thousands at the open and dies midday). `_sample_marks` holds each
-# symbol's nh/nl at the previous sample so we can tell which names moved this window;
-# it's seeded from restored counts on boot so a deploy can never dump the whole day's
-# total as one giant first point. Bump _SERIES_METRIC to drop old-shaped stored series.
+# Every ~15s we append how many names are ACTIVELY making new highs / lows right now:
+# the count of names whose last new high (lo) is within the trailing window. This is a
+# smooth, continuous "names currently hitting new highs" line (like Trade Ideas), not
+# a per-15s delta. That matters because ~3,400 names are polled from a snapshot whose
+# day.h/day.l updates ~once a minute, so a "new since last 15s" metric would sawtooth
+# (one batch spike per minute + three empty samples); a trailing WINDOW always spans a
+# full minute-batch, so it stays continuous. Bump _SERIES_METRIC to drop old-shaped
+# stored series.
 _SAMPLE_SECS = 15.0
-_SERIES_METRIC = "names_v1"
+_DEFAULT_SERIES_WINDOW_SECS = 90.0   # "active" = made a new high/low within this window
+_SERIES_METRIC = "window_v2"
 _last_sample = 0.0
-_sample_marks: dict = {}   # app_sym -> (nh, nl) at the previous sample
+
+
+def _series_window_secs() -> float:
+    try:
+        return max(_SAMPLE_SECS, float(os.environ.get("NHNL_SERIES_WINDOW_SECS", _DEFAULT_SERIES_WINDOW_SECS)))
+    except (TypeError, ValueError):
+        return _DEFAULT_SERIES_WINDOW_SECS
 
 # Universe (provider-ticker -> app-ticker), built once.
 _prov_to_app: dict | None = None
@@ -439,14 +447,12 @@ def _build_group_map(now: float) -> dict:
 
 def _reset(session_key: str, window: str, date: str) -> None:
     """Start a fresh session's accumulation. Caller holds _lock."""
-    global _sample_marks
     _state["session_key"] = session_key
     _state["window"] = window
     _state["date"] = date
     _state["syms"] = {}
     _state["themes"] = {}
     _state["series"] = deque(maxlen=_SERIES_MAX)
-    _sample_marks = {}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -685,21 +691,29 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
 
 
 def _sample_series(now: datetime) -> None:
-    """Append one H/L Pulse point: how many DISTINCT NAMES made a new high / new low
-    in this window (nh/nl increased since the last sample). Bounded + steady."""
+    """Append one H/L Pulse point: how many names are ACTIVELY making new highs / lows
+    — i.e. their last new high (low) landed within the trailing window. A rolling count
+    off hi_ts/lo_ts, so it stays continuous between the snapshot's minute-batched
+    updates instead of collapsing to zero."""
+    cutoff = now.timestamp() - _series_window_secs()
     with _lock:
-        marks = _sample_marks
         hi_n = 0
         lo_n = 0
-        for app, s in _state["syms"].items():
-            nh = s.get("nh", 0)
-            nl = s.get("nl", 0)
-            pnh, pnl = marks.get(app, (0, 0))
-            if nh > pnh:
-                hi_n += 1
-            if nl > pnl:
-                lo_n += 1
-            marks[app] = (nh, nl)
+        for s in _state["syms"].values():
+            ht = s.get("hi_ts")
+            lt = s.get("lo_ts")
+            if ht:
+                try:
+                    if datetime.fromisoformat(ht).timestamp() >= cutoff:
+                        hi_n += 1
+                except (ValueError, TypeError):
+                    pass
+            if lt:
+                try:
+                    if datetime.fromisoformat(lt).timestamp() >= cutoff:
+                        lo_n += 1
+                except (ValueError, TypeError):
+                    pass
         _state["series"].append({"t": now.isoformat(), "hi": hi_n, "lo": lo_n})
 
 
@@ -799,16 +813,12 @@ def _load_state() -> None:
     syms = snap.get("syms")
     if not isinstance(syms, dict):
         return
-    global _sample_marks
     with _lock:
         _state["session_key"] = snap.get("session_key")
         _state["date"] = snap.get("date")
         _state["window"] = snap.get("window")
         _state["ticks"] = snap.get("ticks", 0)
         _state["syms"] = syms
-        # Seed the per-sample marks from the restored counts so the FIRST sample after
-        # a deploy reports ~0 (no names "newly moved"), never the whole day as a spike.
-        _sample_marks = {app: (s.get("nh", 0), s.get("nl", 0)) for app, s in syms.items()}
         # Only restore the stored series if it was built with the CURRENT metric shape.
         ser = snap.get("series")
         if isinstance(ser, list) and snap.get("series_metric") == _SERIES_METRIC:
