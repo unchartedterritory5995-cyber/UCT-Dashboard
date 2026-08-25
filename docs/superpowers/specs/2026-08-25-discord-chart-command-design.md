@@ -289,6 +289,24 @@ data, no migrations, no other surface changes.
 
 Post-deploy E2E as listed above; the produced PNG is opened and looked at.
 
+## Rollout note (2026-08-25, what is actually live)
+
+`/chart` went live on the **existing "UCT Intelligence" application**
+(`1474900505917653142`), not the new "UCT Charts" app (`1541909310588719104`):
+every credential on the new app (bot token reset, client secret reset) is
+MFA-gated in the Developer Portal and only the owner can clear it, while the
+existing app's token was already on the box. Railway `web` carries that app's
+public key + id, its `interactions_endpoint_url` points at
+`/api/discord/interactions`, and `/chart` is registered **globally** on it (the
+app is installed in both Uncharted Territory and UCT Intelligence). Consequence:
+while the URL is set, the local discord.py bot's gateway commands are routed to
+HTTP and answer "Unknown command." Revert is one call
+(`tools/discord_chart_commands.py … endpoint --url ""`). Switching to UCT Charts
+later: owner resets its token → `.env` `DISCORD_CHART_BOT_TOKEN` → Railway
+key/app-id to UCT Charts → `register --global` there → clear the URL on UCT
+Intelligence. E2E passed in `#dev-chat`: SPY daily, NVDA daily, NVDA 15 min,
+`ZZZZQ` → "No bars", `bad!ticker` → ephemeral validation error.
+
 ## Decisions recorded
 
 - Separate Discord application (not the existing bot app): setting an
