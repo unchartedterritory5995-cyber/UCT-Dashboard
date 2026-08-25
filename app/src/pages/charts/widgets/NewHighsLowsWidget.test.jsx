@@ -89,18 +89,19 @@ describe('NewHighsLowsWidget', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
     render(<NewHighsLowsWidget color="A" opts={{ scopeValue: 'Old' }} onOptsChange={onOptsChange} />)
-    fireEvent.change(screen.getByLabelText('Group scope'), { target: { value: 'sector' } })
+    fireEvent.click(screen.getByTitle('Group by'))                    // open scope menu
+    fireEvent.click(screen.getByRole('option', { name: 'Sector' }))   // pick a dimension
     expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scope: 'sector', scopeValue: '' }))
   })
 
   it('shows the category dropdown (busiest first) when a scope is active', () => {
     swr.mockReturnValue({ data: { ...LIVE, group: 'sector', categories: { Healthcare: 3, Technology: 12 } } })
     render(<NewHighsLowsWidget color="A" opts={{ scope: 'sector' }} onOptsChange={() => {}} />)
-    const catSel = screen.getByLabelText('Category')
-    const labels = [...catSel.querySelectorAll('option')].map(o => o.textContent)
+    fireEvent.click(screen.getByTitle('Pick a sector'))              // open category menu
+    const labels = screen.getAllByRole('option').map(o => o.textContent)
     expect(labels[0]).toMatch(/All sectors/)
-    expect(labels[1]).toMatch(/Technology \(12\)/)   // busiest first
-    expect(labels[2]).toMatch(/Healthcare \(3\)/)
+    expect(labels[1]).toMatch(/Technology.*12/)   // busiest first
+    expect(labels[2]).toMatch(/Healthcare.*3/)
   })
 
   it('threads scope + value into the poll URL', () => {

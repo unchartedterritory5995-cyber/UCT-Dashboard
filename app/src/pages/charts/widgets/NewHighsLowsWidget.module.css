@@ -190,6 +190,10 @@
 }
 .row:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
 
+/* Group-overview rows with no chartable proxy (industry breadth, theme index). */
+.rowInert { cursor: default; }
+.rowInert:hover { background: transparent; }
+
 /* Count histogram — dim tint anchored to the # side, behind the text. */
 .bar { position: absolute; top: 1px; bottom: 1px; right: 0; z-index: 0; border-radius: 3px 0 0 3px; pointer-events: none; }
 .up .bar { background: rgba(45, 140, 78, 0.24); }

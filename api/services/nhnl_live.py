@@ -54,6 +54,7 @@ _log = logging.getLogger(__name__)
 _RING_MAX = 600          # rolling event buffer per side is drawn from this
 _DEFAULT_TICK_SECONDS = 3.0
 _EPS = 1e-6              # float-noise guard for the high-water-mark compare
+_THEME_EPS = 1e-6       # theme-index level move needed to count a new high/low
 
 # ── Session state (guarded by _lock) ──────────────────────────────────────────
 _lock = threading.Lock()
@@ -62,6 +63,7 @@ _state = {
     "window": "closed",          # rth | pre | post | closed
     "date": None,                # ET date string
     "syms": {},                  # app_sym -> {hod, lod, nh, nl, last}
+    "themes": {},                # theme_name -> {val, hi, lo, nh, nl, hi_ts, lo_ts}
     "events": deque(maxlen=_RING_MAX),  # {sym, price, count, ts, dir}; oldest-left
     "asof": None,
     "ticks": 0,
@@ -213,6 +215,14 @@ def _universe_map() -> dict:
             mapping[prov] = app
     except Exception:
         mapping = {}
+    # Always track the SPDR sector ETFs (for the Sector scope overview), even if
+    # cap_universe.json doesn't list them.
+    for tk in _SECTOR_ETF_TICKERS:
+        try:
+            prov = massive.to_polygon_symbol(tk)
+        except Exception:
+            prov = tk
+        mapping.setdefault(prov, tk)
     _prov_to_app = mapping
     return mapping
 
@@ -246,6 +256,58 @@ _GROUP_CACHE: dict = {"map": None, "built_at": 0.0}
 _GROUP_TTL = 3600   # rebuild the universe grouping hourly (memberships move slowly)
 _GROUP_LOCK = threading.Lock()   # one rebuild at a time (no 200-poller thundering herd)
 GROUP_DIMS = ("sector", "industry", "theme")
+
+# The Sector scope shows the SPDR sector ETFs themselves making new highs/lows.
+# Keys are the Finviz/industry_map sector names (so the overview label == the
+# drill-down category name); values are the tradable SPDR ETF (a real ticker, so
+# the accumulator tracks its day.h/day.l like any stock).
+_SECTOR_ETF: dict = {
+    "Technology": "XLK", "Healthcare": "XLV", "Financial": "XLF",
+    "Industrials": "XLI", "Consumer Cyclical": "XLY", "Communication Services": "XLC",
+    "Basic Materials": "XLB", "Real Estate": "XLRE", "Consumer Defensive": "XLP",
+    "Energy": "XLE", "Utilities": "XLU",
+}
+_SECTOR_ETF_TICKERS: set = set(_SECTOR_ETF.values())
+
+# Theme scope: each UCT theme has a synthetic INDEX (an equal-weight composite of
+# its holdings). No intraday value exists in the app (the $IDX: composite is
+# daily-only), so we compute each theme's live intraday level ourselves — the
+# equal-weight mean of its holdings' % change vs prev close — and track ITS own
+# running high/low to count new theme-index highs/lows. Holdings come from the
+# taxonomy (owner+engine merged), cached hourly.
+_THEME_HOLD_CACHE: dict = {"map": None, "built_at": 0.0}
+_THEME_HOLD_TTL = 3600
+
+
+def _theme_holdings() -> dict:
+    """{theme_name: [provider-form holding tickers]} for every theme, cached ~1h."""
+    now = _time.time()
+    c = _THEME_HOLD_CACHE
+    if c["map"] is not None and (now - c["built_at"]) < _THEME_HOLD_TTL:
+        return c["map"]
+    m: dict = {}
+    try:
+        from api.services import theme_db, massive
+        from api.services import groups as _groups
+        data = theme_db.get_all_themes() or {}
+        for th in (data.get("themes") or []):
+            name = th.get("name")
+            if not name:
+                continue
+            provs = []
+            for h in (th.get("holdings") or []):
+                try:
+                    app = _groups.normalize_sym(h.get("sym"))
+                    provs.append(massive.to_polygon_symbol(app))
+                except Exception:
+                    continue
+            if provs:
+                m[name] = provs
+    except Exception:
+        _log.exception("[nhnl] theme holdings build failed")
+    c["map"] = m
+    c["built_at"] = now
+    return m
 
 
 def _group_map() -> dict:
@@ -320,6 +382,7 @@ def _reset(session_key: str, window: str, date: str) -> None:
     _state["window"] = window
     _state["date"] = date
     _state["syms"] = {}
+    _state["themes"] = {}
     _state["events"] = deque(maxlen=_RING_MAX)
     _state["ticks"] = 0
     _log.info("[nhnl] session reset for %s", session_key)
@@ -347,6 +410,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
     is_rth = window == "rth"
     prov_map = _universe_map()
     etf = _etf_set()          # stocks-only — computed outside the lock (cached ~24h)
+    th_holds = _theme_holdings()   # {theme: [prov tickers]} for the theme-index pass
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
@@ -354,8 +418,10 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
         events = _state["events"]
 
         for prov, app in prov_map.items():
-            if app in etf:
-                continue      # ETFs / ETNs / funds excluded (stocks only)
+            # ETFs/ETNs/funds excluded from the stock universe — EXCEPT the SPDR
+            # sector ETFs, which the Sector-scope overview shows directly.
+            if app in etf and app not in _SECTOR_ETF_TICKERS:
+                continue
             row = snapshot.get(prov)
             if not row:
                 continue
@@ -400,6 +466,37 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
                 st["lod"] = ref_lo
             st["last"] = price
 
+        # ── Theme-index pass: compute each theme's live level (equal-weight mean of
+        # its holdings' % change vs prev close) and count when it makes a fresh
+        # high/low of the session. The $IDX composite is daily-only, so we track our
+        # own running high/low. Uses the SAME snapshot — no extra fetch. ──────────
+        if th_holds:
+            pct: dict = {}
+            for prov, row in snapshot.items():
+                prev = row.get("prev_close")
+                if not isinstance(prev, (int, float)) or prev <= 0:
+                    continue
+                cur = row.get("last_price") if is_rth else _ext_value(row)
+                if not isinstance(cur, (int, float)) or cur <= 0:
+                    continue
+                pct[prov] = (cur - prev) / prev
+            themes = _state["themes"]
+            for name, provs in th_holds.items():
+                vals = [pct[p] for p in provs if p in pct]
+                if not vals:
+                    continue
+                val = sum(vals) / len(vals)
+                ts = themes.get(name)
+                if ts is None:
+                    themes[name] = {"val": val, "hi": val, "lo": val,
+                                    "nh": 0, "nl": 0, "hi_ts": None, "lo_ts": None}
+                    continue
+                if val > ts["hi"] + _THEME_EPS:
+                    ts["nh"] += 1; ts["hi_ts"] = now_iso; ts["hi"] = val
+                if val < ts["lo"] - _THEME_EPS:
+                    ts["nl"] += 1; ts["lo_ts"] = now_iso; ts["lo"] = val
+                ts["val"] = val
+
         _state["asof"] = now_iso
         _state["ticks"] += 1
 
@@ -427,15 +524,16 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
         asof = _state["asof"]
         session_date = _state["date"]
         ticks = _state["ticks"]
-        hi_rows, lo_rows = [], []
-        for sym, st in _state["syms"].items():
-            nh, nl, last = st.get("nh", 0), st.get("nl", 0), st.get("last")
-            if nh > 0:
-                hi_rows.append((sym, nh, last, st.get("hi_ts")))
-            if nl > 0:
-                lo_rows.append((sym, nl, last, st.get("lo_ts")))
-    highs_total = len(hi_rows)   # distinct names at a new high / low today (unscoped)
-    lows_total = len(lo_rows)
+        # (sym, nh, nl, last, hi_ts, lo_ts) for every active symbol (stocks + the
+        # tracked sector ETFs).
+        sym_rows = [(s, st.get("nh", 0), st.get("nl", 0), st.get("last"),
+                     st.get("hi_ts"), st.get("lo_ts"))
+                    for s, st in _state["syms"].items()
+                    if st.get("nh", 0) > 0 or st.get("nl", 0) > 0]
+        theme_rows = [(nm, ts.get("nh", 0), ts.get("nl", 0), ts.get("val"),
+                       ts.get("hi_ts"), ts.get("lo_ts"))
+                      for nm, ts in _state["themes"].items()
+                      if ts.get("nh", 0) > 0 or ts.get("nl", 0) > 0]
 
     try:
         limit = max(1, min(int(limit), _RING_MAX))
@@ -444,39 +542,99 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
 
     dim = group if group in GROUP_DIMS else None
     gmap = _group_map() if dim else {}
+    etf = _etf_set()
+    _r2 = lambda v: round(float(v), 2) if isinstance(v, (int, float)) else None
+    _srt = lambda full: sorted(full, key=lambda r: (r["count"], r["ts"] or ""), reverse=True)
 
     def _cat(sym):
-        return (gmap.get(sym) or {}).get(dim) or "—"   # "—" = no sector/industry/theme
+        return (gmap.get(sym) or {}).get(dim) or "—"
 
-    # Category counts for the dropdown (distinct names per category, this dim).
-    categories = {}
-    if dim:
-        for sym, cnt, last, _ts in hi_rows + lo_rows:
-            if cnt < min_count or (isinstance(last, (int, float)) and last < min_price):
-                continue
-            categories[_cat(sym)] = categories.get(_cat(sym), 0) + 1
-
-    def _rank(rows, direction):
-        out = []
-        for sym, cnt, last, ts in rows:
-            if cnt < min_count:
+    def rank_stocks(direction, cat=None):
+        hi = direction == "high"
+        full = []
+        for sym, nh, nl, last, hts, lts in sym_rows:
+            cnt = nh if hi else nl
+            if cnt < min_count or sym in etf:              # stocks only
                 continue
             if isinstance(last, (int, float)) and last < min_price:
                 continue
-            if dim and value and _cat(sym) != value:   # scope to one category
+            if cat is not None and _cat(sym) != cat:       # drill to one category
                 continue
-            out.append({
-                "sym": sym,
-                "price": round(float(last), 2) if isinstance(last, (int, float)) else None,
-                "count": cnt,
-                "ts": ts,
-                "dir": direction,
-            })
-        out.sort(key=lambda r: (r["count"], r["ts"] or ""), reverse=True)
-        return out[:limit]
+            full.append({"sym": sym, "price": _r2(last), "count": cnt,
+                         "ts": hts if hi else lts, "dir": direction, "pick": sym})
+        return _srt(full)
 
-    highs = _rank(hi_rows, "high")
-    lows = _rank(lo_rows, "low")
+    def rank_sector_etfs(direction):
+        hi = direction == "high"
+        st = {s: (nh, nl, last, hts, lts) for s, nh, nl, last, hts, lts in sym_rows
+              if s in _SECTOR_ETF_TICKERS}
+        full = []
+        for sector, tk in _SECTOR_ETF.items():
+            r = st.get(tk)
+            if not r:
+                continue
+            nh, nl, last, hts, lts = r
+            cnt = nh if hi else nl
+            if cnt < min_count:
+                continue
+            full.append({"sym": sector, "price": _r2(last), "count": cnt,
+                         "ts": hts if hi else lts, "dir": direction, "pick": tk, "group": True})
+        return _srt(full)
+
+    def rank_industry_breadth(direction):
+        hi = direction == "high"
+        agg: dict = {}   # industry -> [count, latest_ts]
+        for sym, nh, nl, last, hts, lts in sym_rows:
+            cnt = nh if hi else nl
+            if cnt < min_count or sym in etf:
+                continue
+            ind = (gmap.get(sym) or {}).get("industry") or "—"
+            ts = hts if hi else lts
+            a = agg.get(ind)
+            if a is None:
+                agg[ind] = [1, ts]
+            else:
+                a[0] += 1
+                if (ts or "") > (a[1] or ""):
+                    a[1] = ts
+        full = [{"sym": ind, "price": None, "count": n, "ts": t, "dir": direction,
+                 "pick": None, "group": True} for ind, (n, t) in agg.items()]
+        return _srt(full)
+
+    def rank_theme_index(direction):
+        hi = direction == "high"
+        full = []
+        for name, nh, nl, val, hts, lts in theme_rows:
+            cnt = nh if hi else nl
+            if cnt < min_count:
+                continue
+            lvl = round(100.0 * (1 + val), 2) if isinstance(val, (int, float)) else None
+            full.append({"sym": name, "price": lvl, "count": cnt,
+                         "ts": hts if hi else lts, "dir": direction, "pick": None, "group": True})
+        return _srt(full)
+
+    # Category counts for the drill-down dropdown (distinct stocks per dim value).
+    categories = {}
+    if dim:
+        for sym, nh, nl, last, _h, _l in sym_rows:
+            if sym in etf or (nh < min_count and nl < min_count):
+                continue
+            c = _cat(sym)
+            categories[c] = categories.get(c, 0) + 1
+
+    if dim is None:
+        hi_full, lo_full = rank_stocks("high"), rank_stocks("low")
+    elif value:
+        hi_full, lo_full = rank_stocks("high", value), rank_stocks("low", value)
+    elif dim == "sector":
+        hi_full, lo_full = rank_sector_etfs("high"), rank_sector_etfs("low")
+    elif dim == "industry":
+        hi_full, lo_full = rank_industry_breadth("high"), rank_industry_breadth("low")
+    else:  # theme
+        hi_full, lo_full = rank_theme_index("high"), rank_theme_index("low")
+
+    highs, lows = hi_full[:limit], lo_full[:limit]
+    highs_total, lows_total = len(hi_full), len(lo_full)
 
     return {
         "window": window,             # rth | pre | post | closed
@@ -484,7 +642,7 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
         "asof": asof,
         "ticks": ticks,
         "active": window != "closed" and _running and (enabled() or _demo()),
-        "highs_total": highs_total,   # universe-wide distinct-symbol counts (unscoped)
+        "highs_total": highs_total,   # count of rows in the CURRENT view (stocks / sectors / industries / themes)
         "lows_total": lows_total,
         "group": dim,                 # echo the active scope dim (or null)
         "value": value if dim else None,

@@ -26,8 +26,16 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
+import NhnlDropdown from './NhnlDropdown'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
+
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'UCT Universe' },
+  { value: 'sector', label: 'Sector' },
+  { value: 'industry', label: 'Industry' },
+  { value: 'theme', label: 'Theme' },
+]
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -65,27 +73,34 @@ function Side({ title, tone, events, total, onPick }) {
         <span className={styles.sideCount}>{total}</span>
       </div>
       <div className={styles.rows} role="list">
-        {events.map((e, i) => (
-          <button
-            type="button"
-            role="listitem"
-            key={`${e.sym}-${e.ts}-${i}`}
-            className={styles.row}
-            onClick={() => onPick(e.sym)}
-            title={`${e.sym} — new ${tone === 'up' ? 'high' : 'low'} #${e.count} at ${fmtTime(e.ts)}`}
-          >
-            <span
-              className={styles.bar}
-              style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
-              aria-hidden="true"
-            />
-            <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
-            <span className={styles.sym}>{e.sym}</span>
-            <span className={styles.price}>{fmtPrice(e.price)}</span>
-            <span className={styles.time}>{fmtTime(e.ts)}</span>
-            <span className={styles.count}>{e.count}</span>
-          </button>
-        ))}
+        {events.map((e, i) => {
+          // `pick` = the chartable symbol (a stock, or a sector's ETF). Group
+          // rows with no chartable proxy (industry breadth, theme index) come
+          // back with pick===null and stay inert. Old payloads (no pick) → sym.
+          const target = e.pick === null ? null : (e.pick ?? e.sym)
+          return (
+            <button
+              type="button"
+              role="listitem"
+              key={`${e.sym}-${e.ts}-${i}`}
+              className={`${styles.row}${target ? '' : ' ' + styles.rowInert}`}
+              onClick={target ? () => onPick(target) : undefined}
+              disabled={!target}
+              title={`${e.sym} — ${tone === 'up' ? 'new high' : 'new low'} #${e.count}${e.ts ? ` at ${fmtTime(e.ts)}` : ''}`}
+            >
+              <span
+                className={styles.bar}
+                style={{ width: `${Math.max(4, (e.count / maxCount) * 100)}%` }}
+                aria-hidden="true"
+              />
+              <span className={styles.arrow}>{tone === 'up' ? '▲' : '▼'}</span>
+              <span className={styles.sym}>{e.sym}</span>
+              <span className={styles.price}>{fmtPrice(e.price)}</span>
+              <span className={styles.time}>{fmtTime(e.ts)}</span>
+              <span className={styles.count}>{e.count}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -187,10 +202,14 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lows = data?.lows || []
   const highsTotal = data?.highs_total ?? highs.length
   const lowsTotal = data?.lows_total ?? lows.length
-  // Categories for the scope dropdown (busiest first), from the current payload.
-  const catOptions = useMemo(
-    () => Object.entries(data?.categories || {}).sort((a, b) => b[1] - a[1]),
-    [data?.categories])
+  // Category options for the scoped drill-down dropdown (busiest first), from the
+  // current payload; led by an "All <dim>s" entry that shows the group overview.
+  const valueOptions = useMemo(() => {
+    const cats = Object.entries(data?.categories || {}).sort((a, b) => b[1] - a[1])
+    const allLabel = scope === 'industry' ? 'All industries' : `All ${scope}s`
+    return [{ value: '', label: allLabel },
+            ...cats.map(([cat, cnt]) => ({ value: cat, label: cat, count: cnt }))]
+  }, [data?.categories, scope])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
@@ -214,31 +233,23 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={styles.spacer} />
-        <select
-          className={styles.scopeSelect}
+        <NhnlDropdown
           value={scope}
-          onChange={(e) => commitScope(e.target.value)}
-          aria-label="Group scope"
+          options={SCOPE_OPTIONS}
+          onChange={commitScope}
           title="Group by"
-        >
-          <option value="all">UCT Universe</option>
-          <option value="sector">Sector</option>
-          <option value="industry">Industry</option>
-          <option value="theme">Theme</option>
-        </select>
+          minWidth={96}
+          maxWidth={112}
+        />
         {scope !== 'all' && (
-          <select
-            className={`${styles.scopeSelect} ${styles.scopeValue}`}
+          <NhnlDropdown
             value={scopeValue}
-            onChange={(e) => commitScopeValue(e.target.value)}
-            aria-label="Category"
+            options={valueOptions}
+            onChange={commitScopeValue}
             title={`Pick a ${scope}`}
-          >
-            <option value="">All {scope}s</option>
-            {catOptions.map(([cat, cnt]) => (
-              <option key={cat} value={cat}>{cat} ({cnt})</option>
-            ))}
-          </select>
+            minWidth={124}
+            maxWidth={180}
+          />
         )}
         <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
           placeholder="0" min={0} onCommit={commitPrice} />

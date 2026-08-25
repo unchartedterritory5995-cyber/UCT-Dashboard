@@ -26,6 +26,9 @@ def _fresh_state(monkeypatch):
         nhnl_live._state["ticks"] = 0
     monkeypatch.setattr(nhnl_live, "_is_tradable", lambda sym, row: True)
     monkeypatch.setattr(nhnl_live, "_etf_set", lambda: set())
+    monkeypatch.setattr(nhnl_live, "_theme_holdings", lambda: {})
+    with nhnl_live._lock:
+        nhnl_live._state["themes"] = {}
     yield
     nhnl_live._prov_to_app = None
 
@@ -132,7 +135,7 @@ def test_etfs_are_excluded(monkeypatch):
 
 # ── Scope: sector / industry / theme filtering ─────────────────────────────────
 
-def test_scope_filters_by_group_and_lists_categories(monkeypatch):
+def test_scope_drill_filters_stocks_and_lists_categories(monkeypatch):
     monkeypatch.setattr(nhnl_live, "_group_map", lambda: {
         "AAA": {"sector": "Tech", "industry": "Software", "theme": "AI"},
         "BBB": {"sector": "Energy", "industry": "Oil", "theme": None},
@@ -140,19 +143,43 @@ def test_scope_filters_by_group_and_lists_categories(monkeypatch):
     _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed
     _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both new HOD
 
-    # Grouped by sector, no value → all names ranked + a category count per sector.
+    # Grouped by sector, no value → categories per sector (for the drill dropdown).
     out = nhnl_live.get_live(group="sector")
     assert out["group"] == "sector"
     assert out["categories"] == {"Tech": 1, "Energy": 1}
-    assert {e["sym"] for e in out["highs"]} == {"AAA", "BBB"}
 
-    # Scoped to one sector → only that sector's names.
+    # Drill into one sector → only THAT sector's stocks.
     out2 = nhnl_live.get_live(group="sector", value="Tech")
     assert {e["sym"] for e in out2["highs"]} == {"AAA"}
 
     # A symbol with no theme falls in the "—" bucket.
     out3 = nhnl_live.get_live(group="theme")
     assert out3["categories"] == {"AI": 1, "—": 1}
+
+
+def test_sector_overview_shows_the_sector_etfs():
+    nhnl_live._prov_to_app = {"XLK": "XLK", "AAA": "AAA"}   # XLK is a SPDR sector ETF
+    _tick(_snap(XLK=(100.0, 98.0, 99.0), AAA=(50.0, 48.0, 49.0)), minute=0)   # seed
+    _tick(_snap(XLK=(101.0, 98.0, 101.0), AAA=(50.0, 48.0, 49.0)), minute=1)  # XLK new high
+    out = nhnl_live.get_live(group="sector")   # overview → the sector ETFs themselves
+    # XLK maps to the "Technology" sector; the row shows the sector name + XLK's count,
+    # and its `pick` (the chartable symbol) is XLK.
+    assert [(e["sym"], e["pick"], e["count"]) for e in out["highs"]] == [("Technology", "XLK", 1)]
+    assert out["highs"][0].get("group") is True
+
+
+def test_theme_index_overview_counts_theme_new_highs(monkeypatch):
+    monkeypatch.setattr(nhnl_live, "_theme_holdings", lambda: {"AI Theme": ["AAA", "BBB"]})
+
+    def _tsnap(**rows):
+        return {s: {"last_price": last, "prev_close": prev, "day_high": last, "day_low": last}
+                for s, (last, prev) in rows.items()}
+
+    nhnl_live._tick_once(_tsnap(AAA=(100.0, 100.0), BBB=(50.0, 50.0)), "rth", "2026-08-25", _now(0))  # seed, val 0
+    nhnl_live._tick_once(_tsnap(AAA=(102.0, 100.0), BBB=(51.0, 50.0)), "rth", "2026-08-25", _now(1))  # both up → theme index high
+    out = nhnl_live.get_live(group="theme")
+    assert [(e["sym"], e["count"]) for e in out["highs"]] == [("AI Theme", 1)]
+    assert out["highs"][0]["price"] is not None   # index level (100-based)
 
 
 # ── Tradability gate ────────────────────────────────────────────────────────────
