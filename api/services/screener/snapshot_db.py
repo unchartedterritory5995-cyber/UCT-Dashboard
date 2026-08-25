@@ -91,6 +91,8 @@ COLUMNS = [
     # rows carry one that today's bar alone cannot see.
     "candle_recent", "candle_recent_bars_ago", "candle_recent_label",
     "candle_recent_status",
+    # levels the LIVE tier reuses to classify the forming bar (see live_tier)
+    "avg_body", "avg_range",
     # the WEEKLY bar's structure, resampled from the daily series
     "candle_weekly", "candle_weekly_label",
     "candle_monthly", "candle_monthly_label",

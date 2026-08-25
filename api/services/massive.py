@@ -334,7 +334,23 @@ class _MassiveRestClient:
           prev_close  — prevDay.c (yesterday's regular-session close)
           today_vol   — day.v (today's volume so far)
           prev_vol    — prevDay.v (yesterday's full-day volume; stable liquidity)
+          day_open    — day.o (today's opening print)
+          day_high    — day.h (today's high SO FAR)
+          day_low     — day.l (today's low SO FAR)
         Returns {} on error.
+
+        ⭐ THE OHL FIELDS COST NOTHING — THEY WERE ALREADY IN THE PAYLOAD.
+        This parse has always read the provider's `day` object for `c` and `v`
+        and thrown `o`, `h` and `l` away. They are three more keys off a
+        response the pod already fetches every ~30s for the whole market, with
+        no new call, no new endpoint and no new provider budget.
+
+        ⛔ THEY DESCRIBE A SESSION STILL IN PROGRESS. `day_high`/`day_low` can
+        only widen before the close and `day_open` is fixed once set; anything
+        consuming them owes the member that disclosure. The screener live tier
+        keeps a `(forming)` marker for exactly this reason. Pre-market, before
+        a regular-session print exists, the provider returns zeros — which is
+        why every consumer must treat 0 as ABSENT rather than as a price.
         """
         url = (
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
@@ -353,11 +369,25 @@ class _MassiveRestClient:
             prev_day = t.get("prevDay", {})
             last     = t.get("lastTrade", {})
             last_price = float(last.get("p") or day.get("c") or prev_day.get("c") or 0.0)
+            # ⛔ `or None` NOT `or 0.0`: the provider emits 0 for a session
+            # that has not printed yet (pre-market), and a 0 here would read as
+            # a real price of zero — it sorts, it filters, and it would make
+            # every derived candle fraction nonsense.
+            def _px(v):
+                try:
+                    f = float(v)
+                except (TypeError, ValueError):
+                    return None
+                return round(f, 4) if f > 0 else None
+
             out[ticker] = {
                 "last_price": round(last_price, 4),
                 "prev_close": round(float(prev_day.get("c") or 0.0), 4),
                 "today_vol":  int(day.get("v") or 0),
                 "prev_vol":   int(prev_day.get("v") or 0),
+                "day_open":   _px(day.get("o")),
+                "day_high":   _px(day.get("h")),
+                "day_low":    _px(day.get("l")),
             }
         return out
 
