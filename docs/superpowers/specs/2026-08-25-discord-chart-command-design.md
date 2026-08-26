@@ -654,3 +654,33 @@ failure path, so gating the capture on it would have been a race or a hang.
 
 Primary server: **Uncharted Territory** (members + owners); the UCT
 Intelligence server is the test bench only.
+
+
+## v11 — The chart message as the control surface (2026-08-25, ~21:20 CT)
+
+Owner, after seeing the Activity: it "takes people AWAY from discord"; what he
+wants is the Notebook's inline interactive chart, in the chat. Discord cannot
+host a live canvas in a message and the Activity is a panel over the channel,
+so the Activity is **parked** (`DISCORD_ACTIVITY_GUILDS=off`; the admin-only
+`launch` Entry Point must stay registered while Activities are enabled on the
+app — Discord 400s a bulk PUT without it) and the chart message itself became
+the control surface. Five rows, Discord's ceiling, each re-rendering the same
+message in place:
+
+1. `D W 60m 15m 5m`
+2. **Zoom** dropdown — Auto / 1M / 3M / 6M / 1Y / 2Y on D/W; Auto / 1D / 2D /
+   5D / 10D intraday → the page's `?bars=` per timeframe (`zoom_bars`).
+3. **Indicators** dropdown — None / RSI / MACD / RSI+MACD (engine instances).
+4. **Look** dropdown — Candles / Hollow / OHLC / Line / Area / Heikin-Ashi and
+   the theme presets.
+5. **◀ Earlier / Later ▶** (D/W) · `MAs: House → 10/20/50 → off` · Volume ·
+   Open interactive. Earlier/Later → `?to=YYYY-MM-DD` → StockChart
+   `replayCutoff` (the bars API serves a pre-cutoff window fast from SQLite);
+   one step = the window's calendar span (`_PAN_DAYS_*`); Later is disabled
+   while live and a step that would pass today returns to live.
+
+State rides in `custom_id` (`c2|SYM|tf|mas|vol|zoom|ind|style|theme|to`, ≤100
+chars); a dropdown pick applies ONE field over the state it carried (Discord
+sends `data.values`); legacy `chart|…` ids from earlier messages still parse.
+`zoom` is also a `/chartsettings` preference. Cache key gains `:to` only when
+panned.
