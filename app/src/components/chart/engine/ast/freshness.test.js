@@ -334,3 +334,47 @@ describe('the badge is a MEASUREMENT — the schema and the lane gate', () => {
     expect(errors.join('\n')).toMatch(/meta\.freshness/)
   })
 })
+
+describe("a FUNCTION's declared cadence is a CLAIM this reader checks", () => {
+  // ⭐⭐ WHY THIS EXISTS AT ALL. The cross-lane contract fixes `cadence` on
+  // functions, and `vwap`/`avwap` declare `cadence: "live"`. A declared field
+  // nothing reads is an INERT KNOB — this lane has already shipped two of those
+  // this wave — so the reader reads it. Today every declared value is `live`, so
+  // the arm changes no shipped answer, which is exactly the shape a mutation
+  // sweep found SURVIVING one task earlier (`budget`'s floor arm, C5). It is
+  // therefore railed through the PLANTED-MANIFEST seam this module already
+  // takes, not by a value that happens to differ.
+  const tree = { type: 'call', name: 'vwap', args: [] }
+  const withCadence = (cadence) => ({
+    ...TABLE,
+    functions: { ...TABLE.functions, vwap: { ...TABLE.functions.vwap, cadence } },
+  })
+
+  it('`live` adds NO ceiling — the shipped answer', () => {
+    const got = freshnessFor(tree, {})
+    expect(got.mode).toBe('live')
+    expect(got.cadences).toEqual([])
+    expect(got.scalars).toEqual([])
+  })
+
+  it('⛔ any OTHER cadence makes the tree `as-of-snapshot`, exactly as a scalar leaf does', () => {
+    const got = freshnessFor(tree, { table: withCadence('nightly') })
+    expect(got.mode).toBe('as-of-snapshot')
+    expect(got.cadences).toEqual(['nightly'])
+    expect(got.scalars).toEqual(['vwap'])
+    expect(got.reasons.join(' ')).toMatch(/rebuilt nightly/)
+  })
+
+  it('⛔ and an UNUSABLE cadence is `unknown` — fail-closed, never a quiet `live`', () => {
+    for (const bad of [null, 7, '']) {
+      expect(freshnessFor(tree, { table: withCadence(bad) }).mode, String(bad)).toBe('unknown')
+    }
+  })
+
+  it('the plant is load-bearing — without it the same tree is `live`', () => {
+    // ⛔ THE NON-VACUITY CONTROL. Without this, a reader that answered
+    // `as-of-snapshot` for the mere PRESENCE of a `cadence` key would pass the
+    // case above and every other row in this file.
+    expect(freshnessFor(tree, { table: withCadence('live') }).mode).toBe('live')
+  })
+})

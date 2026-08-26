@@ -9,7 +9,7 @@ import path from 'node:path'
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
   TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK,
-  BAR_READS, BAR_READERS,
+  BAR_READS, BAR_READERS, barReadersOf,
 } from './parse.js'
 import jsep from 'jsep'
 
@@ -605,6 +605,18 @@ describe('the manifest', () => {
         .filter(([, spec]) => spec.reads === BAR_READS).map(([n]) => n).sort())
     expect(BAR_READERS.length, 'the bar-reading roster is empty — the filter measures nothing')
       .toBeGreaterThan(0)
+    // ⛔ AND THE DERIVATION IS PROVED BY PLANTING, not by an equality that a
+    // hand-list of today's two names would also satisfy. A mutation sweep
+    // measured that: swapping the filter for `name === 'vwap' || name ===
+    // 'avwap'` SURVIVED every suite in this directory until this case existed.
+    expect(barReadersOf({
+      functions: {
+        zzz: { args: [], reads: BAR_READS },
+        sma: { args: ['series', 'int'] },
+      },
+    })).toEqual(['zzz'])
+    expect(barReadersOf({ functions: { sma: { args: [] } } })).toEqual([])
+    expect(barReadersOf(TABLE)).toEqual([...BAR_READERS])
   })
 
   it('the table is FROZEN — a caller cannot edit the grammar at runtime', () => {

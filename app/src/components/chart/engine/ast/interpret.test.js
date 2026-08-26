@@ -1321,6 +1321,26 @@ describe("`avwap`'s window is ENFORCED, not merely declared", () => {
     expect(Number.isFinite(raw[raw.length - 1].value)).toBe(true)
   })
 
+  it('⛔ the ANCHOR carries the same UNIT GUARD the bars do', () => {
+    // ⛔ A `YYYYMMDD` INTEGER HANDED IN AS AN INSTANT RESOLVES TO 1970.
+    // `AVWAP_MIN_INSTANT` exists because that defect was LIVE and MEASURED on
+    // the BAR side. The anchor is the same kind of value from the same kind of
+    // caller, so it takes the same guard — and a mutation sweep proved the guard
+    // was unrailed: deleting it survived every suite until this case existed.
+    //
+    // ⚠️ MEASURED ON `computeAVWAP` DIRECTLY rather than through the table,
+    // because the AST binding's own visible-boundary rule already refuses a
+    // sub-1990 anchor for a different reason — so a rail that only went through
+    // `interpret` would be green with the guard deleted.
+    for (const bad of [20250101, 5]) {
+      const col = computeAVWAP(BARS, bad)
+      expect(col.every((p) => !Number.isFinite(p.value)), String(bad)).toBe(true)
+    }
+    // NON-VACUITY: a real instant inside the series still answers.
+    const ok = computeAVWAP(BARS, BARS[1].t)
+    expect(ok.some((p) => Number.isFinite(p.value))).toBe(true)
+  })
+
   it('⭐ and `vwap()` is the SHIPPED accumulator, bar for bar — not a second one', () => {
     const got = interpret({ type: 'call', name: 'vwap', args: [] }, BARS, {})
     const want = computeVWAP(BARS)

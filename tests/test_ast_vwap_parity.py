@@ -336,3 +336,66 @@ def test_vwap_is_no_longer_listed_as_REFUSED(bars):
     assert "avwap" not in excluded
     # …and the withdrawal is KEPT as a record, in the file's own ⚰️ idiom.
     assert "_vwap_was_here" in excluded
+# --------------------------------------------------------------------------- #
+# the two guards a value-based rail cannot see
+# --------------------------------------------------------------------------- #
+
+def test_a_FUNCTIONS_declared_cadence_is_a_CLAIM_the_reader_CHECKS(bars):
+    """⭐⭐ WHY THIS EXISTS AT ALL. The cross-lane contract fixes ``cadence`` on
+    functions, and ``vwap``/``avwap`` declare ``cadence: "live"``. A declared
+    field nothing reads is an INERT KNOB -- this lane has already shipped two of
+    those this wave -- so ``ast_freshness`` reads it. Today every declared value
+    is ``live``, so the arm changes no shipped answer, which is exactly the shape
+    a mutation sweep found SURVIVING one task earlier (``ast_budget``'s floor
+    arm, C5). It is therefore railed through the PLANTED-MANIFEST seam the module
+    already takes, never by a value that happens to differ.
+    """
+    from api.services import ast_freshness
+
+    tree = {"type": "call", "name": "vwap", "args": []}
+
+    def with_cadence(cadence):
+        fns = dict(ast_table.TABLE["functions"])
+        fns["vwap"] = dict(fns["vwap"], cadence=cadence)
+        return dict(ast_table.TABLE, functions=fns)
+
+    shipped = ast_freshness.freshness_for(tree, {})
+    assert shipped["mode"] == "live"
+    assert shipped["cadences"] == [] and shipped["scalars"] == []
+
+    nightly = ast_freshness.freshness_for(tree, {"table": with_cadence("nightly")})
+    assert nightly["mode"] == "as-of-snapshot"
+    assert nightly["cadences"] == ["nightly"]
+    assert nightly["scalars"] == ["vwap"]
+    assert "rebuilt nightly" in " ".join(nightly["reasons"])
+
+    # ⛔ FAIL-CLOSED on a cadence this reader cannot use -- never a quiet `live`.
+    for bad in (None, 7, ""):
+        assert ast_freshness.freshness_for(
+            tree, {"table": with_cadence(bad)})["mode"] == "unknown", bad
+
+    # THE NON-VACUITY CONTROL: without it, a reader that answered
+    # `as-of-snapshot` for the mere PRESENCE of a `cadence` key would pass above.
+    assert ast_freshness.freshness_for(
+        tree, {"table": with_cadence("live")})["mode"] == "live"
+
+
+def test_the_ANCHOR_carries_the_same_UNIT_GUARD_the_bars_do(bars):
+    """⛔ A `YYYYMMDD` INTEGER HANDED IN AS AN INSTANT RESOLVES TO 1970.
+
+    ``AVWAP_MIN_INSTANT`` exists because that defect was LIVE and MEASURED on the
+    BAR side (`_fetch_bars_for_alert` handed the store's `20250101`). The anchor
+    is the same kind of value from the same kind of caller, so it takes the same
+    guard -- and a mutation sweep proved the guard was unrailed: deleting it
+    survived every suite until this case existed.
+
+    ⚠️ It is measured on ``compute_avwap_raw`` DIRECTLY rather than through the
+    table, because the AST binding's own visible-boundary rule already refuses a
+    sub-1990 anchor for a different reason -- so a rail that only went through
+    ``interpret`` would be green with the guard deleted.
+    """
+    assert all(v is None for v in compute_avwap_raw(bars, 20250101))
+    assert all(v is None for v in compute_avwap_raw(bars, 5))
+    # NON-VACUITY: a real instant inside the series still answers.
+    ok = compute_avwap_raw(bars, bars[len(bars) // 2]["t"])
+    assert any(v is not None for v in ok)

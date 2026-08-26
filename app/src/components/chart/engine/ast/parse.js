@@ -194,11 +194,22 @@ export const BAR_READS = 'bars'
  *  ⛔ DERIVED, NEVER LISTED. Both walkers ask "does this entry read the bars",
  *  never "is this call `vwap`", so a third such entry needs no change in either
  *  lane. `ast_table.bar_readers` is the same read on the same manifest. */
-export const BAR_READERS = Object.freeze(
-  Object.entries(TABLE.functions)
+export function barReadersOf(table) {
+  return Object.entries((table && table.functions) || {})
     .filter(([, spec]) => spec && spec.reads === BAR_READS)
     .map(([name]) => name)
-    .sort())
+    .sort()
+}
+
+/** ⚠️ THE PURE READER IS EXPORTED FOR ONE REASON: SO ITS DERIVATION CAN BE
+ *  RAILED. `TABLE` is frozen at import, so a manifest the shipped table does not
+ *  contain is unreachable from any test that only sees the constant — and a
+ *  derivation nobody can plant against is indistinguishable from a hand-list
+ *  that happens to be right today. A mutation sweep proved exactly that:
+ *  replacing the filter with `name === 'vwap' || name === 'avwap'` SURVIVED
+ *  every suite in this directory until `barReadersOf` had a seam. Same lesson,
+ *  same shape, one task earlier: `interpret.js::ownLookback`. */
+export const BAR_READERS = Object.freeze(barReadersOf(TABLE))
 
 /** Does this function read each argument at the bar it writes, and nowhere else?
  *
