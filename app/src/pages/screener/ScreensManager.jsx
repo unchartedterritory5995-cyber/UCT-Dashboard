@@ -3,7 +3,7 @@ import useSWR from 'swr'
 import UIcon from '../../components/ui/UIcon'
 import useSavedScreens from './hooks/useSavedScreens'
 import { sharedScreenUrl } from './screenShareLink'
-import { useUserDefinitions } from '../../hooks/useUserDefinitions'
+import { useUserDefinitions, deleteUserDefinition } from '../../hooks/useUserDefinitions'
 import { scannableScreens, SCAN_TF, defaultSession } from '../../components/screener/scanSession'
 import ScanResults from '../../components/screener/ScanResults'
 import RunNowButton from '../../components/screener/RunNowButton'
@@ -145,6 +145,36 @@ const barsFetcher = (url) => fetch(url, { credentials: 'include' })
 // restating the tier would be a second voice for one fact. What was genuinely
 // missing is the way BACK to the nightly answer, and that control belongs
 // beside the caption it retracts — inside the button, which owns it.
+//
+// ─── 🔴 DELETE — THE FIRST IRREVERSIBLE THING ON THIS SURFACE (W4a.6) ────────
+//
+// Publish, run, open a row: every other action here is undone by repeating it.
+// Delete is not, and its control sits one icon from the pencil that EDITS. So:
+//
+// ⛔ IT ASKS FIRST, AND THE QUESTION NAMES THE SCAN. Not "this item" — the rows
+//    in this menu are one line of member-chosen text apart, and the member is
+//    about to lose one of them permanently. Same arm-then-confirm two-step
+//    `BuilderSheet` already uses on its own saved list: one idiom for one act.
+//
+// ⛔ THE ROW LEAVES WHEN THE STORE SAYS IT IS GONE — NEVER OPTIMISTICALLY. This
+//    file holds no removal list. `deleteUserDefinition` revalidates the store
+//    and the next answer is what the list renders, so a delete that failed
+//    never takes a row off screen and puts it back. A row that vanishes and
+//    returns is a lie told twice, and the second one is the one a member acts on.
+//
+// ⛔ A REFUSAL IS THE STORE'S OWN SENTENCE, RENDERED ONCE, WITH NOTHING OF OURS
+//    OVER IT. `deleteUserDefinition` now carries the words back (its hand-back
+//    note says why); this file interpolates them and adds no frame. The same
+//    rule the run caption above is written under, applied to a harder case:
+//    "That scan could not be deleted" reads like help and is a second
+//    vocabulary for a decision the router already worded.
+//
+// ⛔ AND A DELETED SCAN'S ANSWERS GO WITH IT. The open detail pane and any
+//    on-demand run held for that def_id are retracted the moment the delete
+//    SUCCEEDS — not when it is merely asked for. The store's re-read is
+//    asynchronous, so between the 200 and the new list the row is still on
+//    screen; leaving `ScanResults` and the run caption mounted through that
+//    window shows a member results for something that no longer exists.
 
 const badgeStyle = {
   fontSize: 9, letterSpacing: '.5px', color: 'var(--text-muted)',
@@ -157,6 +187,25 @@ const badgeStyle = {
  *  `.saveMenuItem` — which also paints a hover background this is not. */
 const hdrRowStyle = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+}
+
+/** The delete prompt sits BELOW its row, not inside `.saveMenuAct` — that strip
+ *  is a fixed run of icon buttons and this question has to fit a scan's NAME,
+ *  which is as long as a member made it. The share panel is placed the same way
+ *  for the same reason.
+ *
+ *  ⚠️ INLINE RATHER THAN A NEW CSS-MODULE CLASS, deliberately: under vitest the
+ *  CSS-module proxy fabricates a class for ANY key, so `styles.deleteAsk` is
+ *  truthy whether or not the stylesheet declares it — an undeclared selector
+ *  here is a hole no test in this file could ever fail on. `ScannerPro.module.css`
+ *  has no stylesheet rail, so the safe move is not to add a key to it. */
+const deleteAskStyle = {
+  display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+  padding: '4px 8px 6px', fontSize: 11, color: 'var(--text-muted)',
+}
+const deleteErrStyle = {
+  margin: 0, padding: '0 8px 6px', fontSize: 11,
+  color: 'var(--color-danger, #f87171)',
 }
 
 function TypeBadge({ children }) {
@@ -199,6 +248,14 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // each render would re-open it every time and throw away what the member has
   // typed since.
   const [builder, setBuilder] = useState(null)
+  // ─── DELETE: armed → in flight → answered BY THE STORE ────────────────────
+  // `pendingDelete` is the ONE row whose confirm is showing (so a stray tap can
+  // never arm two), `deleting` is the one whose request is out, and
+  // `deleteError` is `{defId, message}` — keyed by row so the store's sentence
+  // renders beside the scan it is about and nowhere else.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [deleteError, setDeleteError] = useState(null)
   // Fetched only while the sheet is open — a member reading their screens never
   // asks for a window they are not going to compute anything against.
   const { data: spyBars } = useSWR(builder ? SPY_WINDOW : null, barsFetcher,
@@ -231,6 +288,35 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const setPublic = async (id, isPublic) => {
     setCopied(false)
     await update(id, { is_public: isPublic })
+  }
+
+  const armDelete = defId => { setPendingDelete(defId); setDeleteError(null) }
+  const keepScan = () => { setPendingDelete(null); setDeleteError(null) }
+
+  /** ⛔ THE ONLY DESTRUCTIVE CALL IN THIS FILE, and it goes through the store's
+   *  own door — the same module `BuilderSheet` deletes through. A hand-rolled
+   *  `fetch` here would be a second write door onto one object, which is what
+   *  `Screener.door.test.jsx`'s AST rail forbids for the save side.
+   *
+   *  ⛔ NOTHING IS REMOVED LOCALLY. The row leaves because the store's next
+   *  answer no longer carries it. What IS retracted, and only on success, are
+   *  this file's own claims ABOUT that scan: the open detail and any on-demand
+   *  run held for it. Both name a def_id the store has just destroyed. */
+  const confirmDelete = async defId => {
+    setDeleting(defId)
+    setDeleteError(null)
+    const res = await deleteUserDefinition(defId)
+    setDeleting(null)
+    if (!res.ok) {
+      // ⛔ VERBATIM. The store worded this refusal; a sentence composed here
+      // would be a second vocabulary for one decision, and the member would be
+      // reading ours instead of the one the router can actually change.
+      setDeleteError({ defId, message: res.error })
+      return
+    }
+    setPendingDelete(null)
+    setDetailId(id => (id === defId ? null : id))
+    setRun(r => (r && r.defId === defId ? null : r))
   }
 
   const copyLink = async url => {
@@ -398,8 +484,44 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                         onClick={() => { setOpen(false); setBuilder({ row }) }}>
                         <UIcon name="edit" size={12} />
                       </button>
+                      {/* 🔴 IT ARMS A CONFIRM; IT DOES NOT DELETE. Swapped out
+                          once armed so one tap can never mean two things, and
+                          so a test cannot satisfy itself by clicking the same
+                          control twice. */}
+                      {pendingDelete !== row.def_id && (
+                        <button type="button" aria-label={`Delete ${name}`}
+                          onClick={() => armDelete(row.def_id)}>
+                          <UIcon name="trash" size={12} />
+                        </button>
+                      )}
                     </span>
                   </div>
+
+                  {pendingDelete === row.def_id && (
+                    <div style={deleteAskStyle} data-testid={`delete-ask-${row.def_id}`}>
+                      {/* ⛔ NAMED. A member must be able to tell WHAT they are
+                          about to lose without reading the row above it. */}
+                      <span>{deleting === row.def_id
+                        ? `Deleting \u201C${name}\u201D\u2026`
+                        : `Delete \u201C${name}\u201D?`}</span>
+                      {/* Both accessible names CONTAIN their visible text
+                          (WCAG 2.5.3): a member using voice control says what
+                          they can read and the right button is pressed. */}
+                      <button type="button" aria-label={`Keep ${name}`}
+                        disabled={deleting === row.def_id}
+                        onClick={keepScan}>Keep</button>
+                      <button type="button" aria-label={`Confirm delete ${name}`}
+                        disabled={deleting === row.def_id}
+                        onClick={() => confirmDelete(row.def_id)}>Confirm delete</button>
+                    </div>
+                  )}
+
+                  {deleteError && deleteError.defId === row.def_id && (
+                    <p role="alert" data-testid="screens-manager-error--delete"
+                      style={deleteErrStyle}>
+                      {deleteError.message}
+                    </p>
+                  )}
 
                   {isOpen && (
                     <div data-testid={`scan-detail-${row.def_id}`}>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi } from 'vitest'
 
 // ScreensManager.test.jsx — the mount rail's "hook is mocked here" record for
@@ -31,8 +31,13 @@ const SCANNABLE_ROW = {
 // itself is `ScreensManager.door.test.jsx`'s subject.
 const refreshDefs = vi.fn()
 const userDefinitionsState = { rows: [SCANNABLE_ROW], error: null, refresh: refreshDefs }
+// ⭐ THE STORE'S OWN DELETE DOOR (W4a.6), spied rather than reimplemented. The
+// manager must reach the SAME module `BuilderSheet` deletes through — a second
+// door onto one object is how two callers end up disagreeing about what exists.
+const deleteDefinition = vi.fn()
 vi.mock('../../hooks/useUserDefinitions', () => ({
   useUserDefinitions: () => userDefinitionsState,
+  deleteUserDefinition: (...a) => deleteDefinition(...a),
 }))
 
 // The definition detail (Task 6). Mocked at the manager-test level per the
@@ -59,6 +64,8 @@ import { defaultSession } from '../../components/screener/scanSession'
 
 beforeEach(() => {
   create.mockClear(); update.mockClear(); remove.mockClear()
+  deleteDefinition.mockReset()
+  deleteDefinition.mockResolvedValue({ ok: true })
   ScanResultsSpy.mockClear()
   META.meta = { filters: [] }
   savedScreensState.saved = [{ id: 9, name: 'My RSI', spec: { view: 'technical' }, is_public: false, share_token: null }]
@@ -351,6 +358,202 @@ test('the restore is offered only ONCE a run is showing', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run' }))
     await screen.findByTestId('run-now-done')
     expect(screen.getByRole('button', { name: 'Back to the nightly results' })).toBeInTheDocument()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+// ─── 🔴 DELETE — THE FIRST IRREVERSIBLE THING A MEMBER CAN DO HERE (W4a.6) ───
+//
+// Every other action on this surface is undoable by repeating it: publish /
+// unpublish, arm / clear a run, open / close a row. Delete is not, and the trash
+// sits two pixels from the pencil that EDITS. So the three claims below are the
+// product, not decoration:
+//
+//   1. it ASKS FIRST, and the question NAMES the scan (never "this item");
+//   2. a refusal is the STORE'S OWN SENTENCE, rendered once, with nothing this
+//      component composed over it;
+//   3. the row leaves when the STORE says it is gone — never optimistically,
+//      because a row that vanishes and comes back is a lie told twice.
+//
+// ⛔ AND A DELETED SCAN'S ANSWERS GO WITH IT. Task 4 wired an on-demand run into
+// this file and Task 5 wired the detail pane; either one left standing over a
+// def_id the store has just destroyed is a member reading results for something
+// that no longer exists.
+
+const armDelete = () => fireEvent.click(screen.getByRole('button', { name: 'Delete Breakout base' }))
+const confirmDelete = () => fireEvent.click(screen.getByRole('button', { name: 'Confirm delete Breakout base' }))
+const rowButton = () => screen.queryByRole('button', { name: 'Breakout base' })
+
+test('Delete ASKS FIRST — arming sends nothing, and the question NAMES the scan', () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(screen.queryByTestId('delete-ask-u_breakout')).toBeNull()   // control: not armed
+  armDelete()
+  // ⛔ ASKING IS NOT DELETING.
+  expect(deleteDefinition).not.toHaveBeenCalled()
+  // ⛔ AND IT IS NAMED. "Delete this item?" over a menu of near-identical rows
+  // is how a member destroys the wrong formula.
+  expect(screen.getByTestId('delete-ask-u_breakout'))
+    .toHaveTextContent('Delete “Breakout base”?')
+  expect(rowButton()).toBeInTheDocument()
+})
+
+test('Keep disarms and sends nothing', async () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  fireEvent.click(screen.getByRole('button', { name: 'Keep Breakout base' }))
+  await waitFor(() => expect(screen.queryByTestId('delete-ask-u_breakout')).toBeNull())
+  expect(deleteDefinition).not.toHaveBeenCalled()
+  expect(rowButton()).toBeInTheDocument()
+})
+
+test("Confirm sends exactly ONE delete, through the store's own door, naming that def_id", async () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  confirmDelete()
+  await waitFor(() => expect(deleteDefinition).toHaveBeenCalledTimes(1))
+  expect(deleteDefinition).toHaveBeenCalledWith('u_breakout')
+})
+
+test('⛔ the row does NOT vanish optimistically — the STORE decides what exists', async () => {
+  const { unmount } = render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  confirmDelete()
+  await waitFor(() => expect(deleteDefinition).toHaveBeenCalledTimes(1))
+  // The mocked store has not answered differently yet, so the row is still
+  // listed — and it MUST be. A local removal list here would hide the row on a
+  // delete that later turned out to have failed, and then put it back.
+  expect(rowButton()).toBeInTheDocument()
+
+  // …and it leaves the moment the store's own answer does.
+  unmount()
+  userDefinitionsState.rows = []
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(screen.getByText('No scannable formulas yet')).toBeInTheDocument()
+})
+
+test("⭐ a REFUSED delete says the STORE'S OWN WORDS — verbatim, once — and the row stays", async () => {
+  deleteDefinition.mockResolvedValue({ ok: false, error: 'Not found' })
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  confirmDelete()
+
+  const alerts = await screen.findAllByTestId('screens-manager-error--delete')
+  // ⛔ ONE PLACE. Two captions over one refusal is the second-voice defect this
+  // file's own header already forbids for the run caption.
+  expect(alerts).toHaveLength(1)
+  expect(alerts[0]).toHaveAttribute('role', 'alert')
+  // ⛔ VERBATIM. Not framed, not paraphrased, not prefixed — the exact string the
+  // store handed back. A sentence composed here is a second vocabulary for one
+  // decision, and the two rot apart the first time the router rewords a gate.
+  expect(alerts[0].textContent.trim()).toBe('Not found')
+  // ⛔ AND THE MEMBER IS NOT LEFT BELIEVING IT WORKED.
+  expect(rowButton()).toBeInTheDocument()
+})
+
+test('a second attempt replaces the previous refusal rather than stacking one under it', async () => {
+  deleteDefinition.mockResolvedValue({ ok: false, error: 'Not found' })
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  confirmDelete()
+  await screen.findAllByTestId('screens-manager-error--delete')
+  confirmDelete()
+  await waitFor(() => expect(deleteDefinition).toHaveBeenCalledTimes(2))
+  expect(screen.getAllByTestId('screens-manager-error--delete')).toHaveLength(1)
+})
+
+test('while a delete is in flight the confirm cannot be fired twice', async () => {
+  let release
+  deleteDefinition.mockImplementation(() => new Promise((r) => { release = () => r({ ok: true }) }))
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()
+  confirmDelete()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm delete Breakout base' })).toBeDisabled())
+  // …and the ask says which state it is in, still naming the scan.
+  expect(screen.getByTestId('delete-ask-u_breakout'))
+    .toHaveTextContent('Deleting “Breakout base”…')
+  confirmDelete()                              // a second tap, on a disabled button
+  expect(deleteDefinition).toHaveBeenCalledTimes(1)
+  await act(async () => { release() })
+})
+
+// ─── ⛔ A DELETED SCAN'S ANSWERS GO WITH IT ──────────────────────────────────
+
+test("⛔ a deleted scan's OPEN DETAIL and its on-screen RUN are retracted", async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+    expect(screen.getByTestId('scan-detail-u_breakout')).toBeInTheDocument()
+    expect(screen.getByTestId('run-now-done')).toBeInTheDocument()
+
+    armDelete()
+    confirmDelete()
+    await waitFor(() => expect(screen.queryByTestId('scan-detail-u_breakout')).toBeNull())
+
+    // ⭐ AND THE PAYLOAD IS GONE, NOT MERELY HIDDEN. The store has not answered
+    // yet, so the row is still listed; re-opening it must show the NIGHTLY mount.
+    // Clearing only `detailId` leaves the run held, and this row's next opening
+    // would caption an on-demand answer for a scan that no longer exists.
+    ScanResultsSpy.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ payload: null }),
+    )
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('⛔ …and a REFUSED delete retracts NOTHING — nothing was destroyed', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    deleteDefinition.mockResolvedValue({ ok: false, error: 'Not found' })
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+
+    armDelete()
+    confirmDelete()
+    await screen.findAllByTestId('screens-manager-error--delete')
+
+    // The control for the case above: the retraction is keyed on the delete
+    // having SUCCEEDED, not on the member having asked for one.
+    expect(screen.getByTestId('scan-detail-u_breakout')).toBeInTheDocument()
+    expect(screen.getByTestId('run-now-done')).toBeInTheDocument()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test("⛔ and it is the DELETED scan that is retracted, never a neighbour's", async () => {
+  const OTHER = {
+    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
+  }
+  userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Other scan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delete Other scan' }))
+    await waitFor(() => expect(deleteDefinition).toHaveBeenCalledWith('u_other'))
+
+    // Deleting a DIFFERENT scan must not close the one the member is reading.
+    expect(screen.getByTestId('scan-detail-u_breakout')).toBeInTheDocument()
+    expect(screen.getByTestId('run-now-done')).toBeInTheDocument()
   } finally {
     vi.unstubAllGlobals()
   }

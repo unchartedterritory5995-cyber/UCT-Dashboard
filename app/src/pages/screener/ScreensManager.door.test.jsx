@@ -38,8 +38,14 @@ const ROW = Object.freeze({
 })
 const refresh = vi.fn()
 const defsState = { rows: [ROW], error: null, isLoading: false, refresh }
+// `deleteUserDefinition` is stubbed rather than omitted even though no case
+// here clicks Delete: a mock that is missing an export the component imports is
+// a mock that disagrees with the module, and the day one of these cases does
+// reach the delete door it would fail for the mock's reason, not the product's.
+const deleteDefinition = vi.fn(async () => ({ ok: true }))
 vi.mock('../../hooks/useUserDefinitions', () => ({
   useUserDefinitions: () => defsState,
+  deleteUserDefinition: (...a) => deleteDefinition(...a),
 }))
 
 // The sheet is mocked so the PROPS are the assertion. It renders a marker, not

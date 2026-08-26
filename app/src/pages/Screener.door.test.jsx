@@ -117,7 +117,10 @@ const spyBars = () => Array.from({ length: 400 }, (_, i) => ({
   t: `2025-0${1 + (i % 9)}-0${1 + (i % 9)}`, o: 500 + i, h: 501 + i, l: 499 + i, c: 500 + i, v: 1000,
 }))
 
-const H = { defs: null, requests: [] }
+// `deleteRefusal`, when set, is the sentence the STORE answers a DELETE with —
+// the only place any such string exists in this file, which is what makes the
+// refusal case below a measurement of the hop rather than of a fixture.
+const H = { defs: null, requests: [], deleteRefusal: null }
 const json = (body, status = 200) => Promise.resolve({
   ok: status < 400, status, json: () => Promise.resolve(body),
 })
@@ -133,6 +136,7 @@ beforeEach(async () => {
   await mutate(() => true, undefined, { revalidate: false })
   H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW] }
   H.requests = []
+  H.deleteRefusal = null
   clearUserDefinitions()
   vi.stubGlobal('fetch', vi.fn((url, init = {}) => {
     const u = String(url)
@@ -153,6 +157,16 @@ beforeEach(async () => {
       }
       H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW, row] }
       return json(row)
+    }
+    if (u.startsWith(`${USER_DEFINITIONS_KEY}/`) && method === 'DELETE') {
+      // ⛔ THE STORE IS THE ONE THAT STOPS LISTING IT — the shipped route
+      // appends a tombstone and the next GET no longer carries the row. Doing
+      // it HERE, inside the stub, is what makes "the row leaves" a claim about
+      // the product rather than about when the test happened to edit a fixture.
+      if (H.deleteRefusal) return json({ detail: H.deleteRefusal }, 404)
+      const id = decodeURIComponent(u.slice(USER_DEFINITIONS_KEY.length + 1))
+      H.defs = { definitions: H.defs.definitions.filter((r) => r.def_id !== id) }
+      return json({ ok: true, def_id: id })
     }
     if (u.startsWith(USER_DEFINITIONS_KEY)) return json(H.defs)
     if (u.startsWith(RESULTS_ENDPOINT)) return json(nightly())
@@ -291,6 +305,92 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
   }, 30000)
 })
 
+// ─── 🔴 THE ROUND TRIP: EDIT AND DELETE, ON THE REAL PAGE (W4a.6) ───────────
+//
+// `ScreensManager.test.jsx` drives both against a MOCKED store door, so it
+// proves the manager's decision and nothing about the hop. These three render
+// the real page over the real hook and a stubbed network, so what they measure
+// is the wire: an edit reaching the SAME id as a new version rather than a
+// second scan, a confirmed delete reaching the store's own URL exactly once,
+// and — the one no mock can prove — a refusal arriving in the SERVER'S OWN
+// WORDS, a string that exists nowhere on the client.
+describe('🔴 Edit and Delete from the screener go through the ONE store door', () => {
+  it('Edit → Save changes PUTs to the SAME id — an edit is a new VERSION, never a second scan', async () => {
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await openMenu(user)
+    await user.click(await screen.findByRole('button', { name: `Edit ${SCREEN_NAME}` }))
+
+    const dialog = await screen.findByRole('dialog', {}, { timeout: 8000 })
+    expect(dialog).toHaveTextContent('Edit formula')
+    // The row's own stored text and name came back — not a re-print of the tree.
+    expect(screen.getByLabelText('Formula')).toHaveValue(SCAN_SOURCE)
+    expect(screen.getByLabelText('Name')).toHaveValue(SCREEN_NAME)
+
+    const save = screen.getByRole('button', { name: /^Save changes/ })
+    await waitFor(() => expect(save).toBeEnabled(), { timeout: 6000 })
+    await user.click(save)
+
+    // 🔴 ONE WRITE, and it names the id the member opened. A POST here would
+    // leave the member with two scans called the same thing and only one of
+    // them edited — the failure an append-only store makes invisible.
+    await waitFor(() => expect(writes()).toHaveLength(1), { timeout: 6000 })
+    expect(writes()[0]).toMatchObject({ url: `${USER_DEFINITIONS_KEY}/${DEF_ID}`, method: 'PUT' })
+  }, 30000)
+
+  it('Delete asks first; Confirm issues ONE DELETE to the store and the row leaves My scans', async () => {
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await openMenu(user)
+    await user.click(await screen.findByRole('button', { name: `Delete ${SCREEN_NAME}` }))
+
+    // ⛔ ASKING IS NOT DELETING — nothing has left the browser.
+    expect(writes()).toHaveLength(0)
+    // ⛔ …and the member can tell WHAT they are about to lose.
+    expect(await screen.findByTestId(`delete-ask-${DEF_ID}`))
+      .toHaveTextContent(`Delete “${SCREEN_NAME}”?`)
+
+    await user.click(screen.getByRole('button', { name: `Confirm delete ${SCREEN_NAME}` }))
+
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(writes()[0]).toMatchObject({ url: `${USER_DEFINITIONS_KEY}/${DEF_ID}`, method: 'DELETE' })
+
+    // ⭐ AND THE ROW LEAVES BECAUSE THE STORE'S NEXT ANSWER NO LONGER CARRIES IT
+    // — the stub drops it on the DELETE, exactly as the shipped route's
+    // tombstone does, and `deleteUserDefinition`'s revalidation is what brings
+    // that answer back. Nothing in the client removed anything.
+    await waitFor(() => expect(screen.queryByRole('button', { name: SCREEN_NAME })).toBeNull())
+    // the member's OTHER scan is untouched
+    expect(screen.getByRole('button', { name: NO_SOURCE_NAME })).toBeInTheDocument()
+  }, 30000)
+
+  it("⭐ a REFUSED delete reaches the member in the SERVER'S OWN WORDS, and the row stays", async () => {
+    // ⛔ THIS IS THE CASE A MOCKED STORE DOOR CANNOT WRITE. `STORE_REFUSAL` is
+    // put into the HTTP body and nowhere else: no component, hook or fixture
+    // composes it, so the only way it can reach the DOM is by travelling the
+    // whole hop — router body → `deleteUserDefinition` → the manager's alert.
+    // The exact-equality assertion below then forbids anything being wrapped
+    // around it on the way.
+    const STORE_REFUSAL = 'Not found'
+    H.deleteRefusal = STORE_REFUSAL
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await openMenu(user)
+    await user.click(await screen.findByRole('button', { name: `Delete ${SCREEN_NAME}` }))
+    await user.click(screen.getByRole('button', { name: `Confirm delete ${SCREEN_NAME}` }))
+
+    const alert = await screen.findByTestId('screens-manager-error--delete')
+    expect(alert).toHaveAttribute('role', 'alert')
+    expect(alert.textContent.trim()).toBe(STORE_REFUSAL)
+    // ⛔ ONE VOICE, ONE PLACE.
+    expect(screen.getAllByTestId('screens-manager-error--delete')).toHaveLength(1)
+    // ⛔ AND THE MEMBER IS NOT LEFT BELIEVING IT WORKED: the scan is still there,
+    // still armed, one click from a retry.
+    expect(screen.getByRole('button', { name: SCREEN_NAME })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Confirm delete ${SCREEN_NAME}` })).toBeEnabled()
+  }, 30000)
+})
+
 // ─── ⭐ THE ONE-WRITE-DOOR RAILS ────────────────────────────────────────────
 describe('⭐ ONE builder, ONE write door', () => {
   const ROOT = (() => {
@@ -332,6 +432,39 @@ describe('⭐ ONE builder, ONE write door', () => {
   it('ScreensManager and ChartToolbar mount the SAME module', () => {
     expect(builderSource('app/src/pages/screener/ScreensManager.jsx'))
       .toBe(builderSource('app/src/components/chart/ChartToolbar.jsx'))
+  })
+
+  /** Every `method: '<VERB>'` a file writes into a request init. */
+  function requestVerbs(rel) {
+    const verbs = new Set()
+    walk(parse(read(rel)), (n) => {
+      if (n.type === 'Property' && n.key
+          && (n.key.name === 'method' || n.key.value === 'method')
+          && n.value.type === 'Literal' && typeof n.value.value === 'string') {
+        verbs.add(n.value.value)
+      }
+    })
+    return verbs
+  }
+
+  it('⭐ the DELETE goes through the store\'s own module — this file issues no verb of its own', () => {
+    const tree = parse(read('app/src/pages/screener/ScreensManager.jsx'))
+    const imported = {}
+    walk(tree, (n) => {
+      if (n.type === 'ImportDeclaration') {
+        for (const sp of n.specifiers) imported[sp.local.name] = n.source.value
+      }
+    })
+    // ⛔ ONE DOOR ONTO ONE OBJECT — the same module `BuilderSheet` deletes
+    // through. Two callers with two doors end up disagreeing about what exists.
+    expect(imported.deleteUserDefinition).toBe('../../hooks/useUserDefinitions')
+
+    // ⛔ AND NOTHING DESTRUCTIVE IS SPELLED HERE. The only `fetch` in this file
+    // is the concierge's bars window, a bare GET.
+    expect([...requestVerbs('app/src/pages/screener/ScreensManager.jsx')]).toEqual([])
+    // …non-vacuity: the SAME walk over the store's own module does find verbs,
+    // so an empty set above is a fact about this file and not about the walk.
+    expect([...requestVerbs('app/src/hooks/useUserDefinitions.js')]).toContain('DELETE')
   })
 
   it('ScreensManager imports NO save function and spells NO user-definitions URL', () => {
