@@ -170,10 +170,15 @@ describe('the concierge gets a bars window — the screener has no chart to take
     mount(); openMenu()
     fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
     expect(await screen.findByTestId('builder-sheet-mock')).toBeInTheDocument()
+    // ⛔ `toBeFalsy()` IS THE WHOLE ASSERTION, AND IT IS THE ONE THAT FIRES.
+    // An empty array is TRUTHY, so a fetcher that fabricated `[]` fails HERE —
+    // measured: mutating `barsFetcher` to return `[]` fails at this line, and a
+    // follow-on `Array.isArray(...) === false` stood here for one round crediting
+    // itself with the catch. It was unreachable: no array can get past `toBeFalsy`
+    // in the first place, so the clause could never run and never fail. Deleted
+    // rather than demoted — a comment that credits the wrong line is how the next
+    // engineer deletes the one that matters.
     await waitFor(() => expect(sheetProps().bars).toBeFalsy())
-    // ⛔ AND SPECIFICALLY NOT `[]` — an empty array is TRUTHY, so this second
-    // assertion is what a fetcher returning `[]` would fail.
-    expect(Array.isArray(sheetProps().bars)).toBe(false)
   })
 })
 
