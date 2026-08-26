@@ -586,3 +586,48 @@ pins `set(options) == set(DEFAULTS)`: every pref settable, none invented.
 Candidates for a later round (all page-supported): candle colours, volume MA
 period, text size, crosshair off, session shading, watermark lines, more
 indicator sets (Bollinger, Stochastic, ATR — the registry has fourteen).
+
+
+## v9 — Buttons, autocomplete, breadth pseudo-tickers (2026-08-25, ~20:15–20:20 CT)
+
+Owner chose #1 and #2 from the proposal list (scheduled posts, `/scan`
+presets and pattern overlays PARKED — see memory
+`project_discord_chart_parked_features_2026_08_25`), then asked for the
+breadth charts too.
+
+- **Buttons under every chart.** Two action rows on the reply: timeframes
+  `D · W · 60m · 15m · 5m` (active one blurple) and `MAs off/on ·
+  Volume off/on · Open interactive ↗` (a link to `/research/<sym>`). A click
+  is a MESSAGE_COMPONENT (type 3); the endpoint answers
+  DEFERRED_UPDATE_MESSAGE (6) — no loading state, no new message — and the
+  job PATCHes `@original` with the new image, content and rows, so the chart
+  re-renders **in place**. `custom_id = chart|SYM|tf|mas|vol` carries the full
+  state; only our own ids parse; guild allowlist and per-member throttle apply
+  to clicks exactly as to commands.
+- **Ticker autocomplete.** The `ticker` option is `autocomplete: true`;
+  APPLICATION_COMMAND_AUTOCOMPLETE (4) is answered with the dashboard's own
+  `ticker_search` (exact > prefix > substring over cap_universe, names from the
+  meta cache) as ≤25 choices (callback 8). ⛔ A refused guild must still get
+  type 8 with empty choices — Discord accepts nothing else there. Live: `NV` →
+  NVAX, NVCR, NVDA, NVEC… (alphabetical within the prefix tier; ranking by
+  liquidity is a later refinement).
+- **Breadth pseudo-tickers** (`UCTA5`, `UCTA50`, `UCTNH`, … — the bars
+  authority already serves them, daily-basis, intraday collapses to daily
+  silently). `breadth_adjust` makes that explicit: Daily/Weekly only (no
+  intraday buttons), the reply names the metric (`UCTA5 · % of Stocks Above
+  5-Day MA · Daily`), and stats strip / volume pane / pre-post are off — the
+  first live render had shown `Vol 0 · RVOL —`. Stocks pass through untouched.
+  The owner's own widget rendered UCTA5 blank at 9:09 PM while the API served
+  300 bars — a client-side issue on the app side, noted, not the bot's.
+
+### Interactive chart inside Discord — verdict
+The only mechanism is a **Discord Activity** (embedded web app via the
+discordsays.com proxy + Embedded App SDK; launched by the Entry Point command
+or callback type 12 LAUNCH_ACTIVITY from a command/button). Discord's rule:
+**unverified Activities can be launched only by the app's team developers and
+invited App Testers, and only in servers under 25 members.** Uncharted
+Territory has ~750 ⇒ it needs Discord's Activity verification (owner identity
+check + app review; unrelated to Public Bot). Path: build the Activity page
+(the app's real StockChart in a slim route), test in the dev server (<25
+members) with App Testers, submit for verification. Until then the buttons are
+the interactive layer and `Open interactive ↗` is the real chart.
