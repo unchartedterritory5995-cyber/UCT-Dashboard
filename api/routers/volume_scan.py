@@ -27,7 +27,7 @@ def volume_scan_live(
     _user: dict = Depends(require_paid),
     limit: int = Query(100, ge=1, le=300),
     min_price: float = Query(1.0, ge=0.0),
-    max_price: float = Query(250.0, ge=0.0),
+    max_price: float = Query(20000.0, ge=0.0),
     min_liq: float = Query(100000.0, ge=0.0),
     min_rvol: float = Query(2.0, ge=0.0),
     min_move: float = Query(0.25, ge=0.0),

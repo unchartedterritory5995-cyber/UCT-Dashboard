@@ -62,7 +62,12 @@ _MIN_EXPECTED_FRAC = 0.002  # floor on cumulative_fraction so expected() is neve
 
 # Serve-side qualification defaults (all overridable per request).
 _DEFAULT_MIN_PRICE = 1.0
-_DEFAULT_MAX_PRICE = 250.0
+# High ceiling, NOT a tight band: this scanner exists to catch big fast movers, and the
+# most newsworthy names are high-priced megacaps (META ~$590, NFLX, AVGO, BKNG…). A
+# $250 cap silently hid EVERY one of them — META could gap on breaking news and never
+# appear. The move / RVOL / burst / $-volume gates are all price-agnostic, so the only
+# thing worth excluding up here is a non-trading outlier (BRK.A).
+_DEFAULT_MAX_PRICE = 20000.0
 _DEFAULT_MIN_LIQ = 100_000     # prev-day volume (shares) — the "avg vol > 100k" floor
 _DEFAULT_MIN_RVOL = 2.0
 _DEFAULT_MIN_MOVE = 0.25       # % over the price window — the dark-pool / drift gate
@@ -397,6 +402,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         surging = (m["rvol"] >= mnr) or (m.get("burst", 0.0) >= mnb)
         return surging and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd
 
+    def _igniting(m):
+        # A genuine fast move — a STRONG burst AND a real move (not a marginal blip).
+        return m.get("burst", 0.0) >= _IGNITE_BURST and abs(m["move"]) >= _IGNITE_MOVE
+
     def _score(m):
         # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
         # move. Burst LIGHTS + PULSES a fresh mover but does not inflate its rank, so
@@ -422,10 +431,12 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Lit first, then by cumulative RVOL (the loud/significant names lead), burst as
-        # a tiebreak so a fresh igniter still ranks among its peers. Keeps the bold
-        # high-RVOL rows at the top and the dim marginal bursts below them.
-        rows.sort(key=lambda r: (r[2], r[1]["rvol"], r[1].get("burst", 0.0)), reverse=True)
+        # Lit first; then GENUINE fast movers (igniting) jump to the very top so a fresh
+        # news burst (a META-class gap) surfaces immediately even before its cumulative
+        # RVOL catches up; then by cumulative RVOL (loud/heavy names), burst as a
+        # tiebreak. Marginal bursts (not igniting) sit calmly below by their RVOL.
+        rows.sort(key=lambda r: (r[2], _igniting(r[1]), r[1]["rvol"], r[1].get("burst", 0.0)),
+                  reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
     lit_total = sum(1 for _s, _m, lit in rows if lit)
@@ -444,7 +455,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "tier": _tier(m),
             "lit": lit,
             # "Igniting now" — a strong burst AND a real move: the look-up-now cue.
-            "igniting": bool(burst >= _IGNITE_BURST and abs(m["move"]) >= _IGNITE_MOVE),
+            "igniting": bool(_igniting(m)),
         })
     return {
         "window": window,             # rth | pre | post | closed

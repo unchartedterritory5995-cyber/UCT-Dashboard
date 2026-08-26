@@ -93,6 +93,24 @@ def test_burst_rvol_lights_a_fresh_ignition_that_cumulative_rvol_misses():
     assert _row(volume_live.get_live(min_rvol=999, min_burst=3, min_dollar=0)["rows"], "AAA") is not None
 
 
+def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
+    # A META-class name (~$590) making a fast pre-market news move. The old $250 cap
+    # silently hid EVERY megacap — the exact liquid names this scanner exists to catch.
+    seq = {}
+    for t in range(0, 46):
+        cv = 300_000 if t <= 35 else 300_000 + 2_500 * (t - 35)   # quiet, then a news surge
+        px = 590.0 if t <= 35 else 590.0 + 0.9 * (t - 35)         # a fast +1.5% pop
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 590.0, "prev_vol": 15_000_000}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True          # surfaced (not filtered by price)
+    assert r["price"] > 250                             # a megacap the old cap excluded
+    assert r["burst"] >= 5 and r["igniting"] is True    # the news burst caught it
+    assert r["move"] >= 0.75
+    # The price band is still a real filter: an explicit low cap still excludes it.
+    assert _row(volume_live.get_live(max_price=250, min_dollar=0)["rows"], "AAA") is None
+
+
 def test_normal_activity_reads_below_1x_and_is_not_lit():
     # QUIET trades ~300k by 13:00 vs 520k expected → RVOL ≈ 0.58 (below normal).
     seq = {}
