@@ -131,12 +131,18 @@ function rangeFor(doc, refusal, message) {
   const len = text.length
   const token = named(refusal.token)
 
-  // The pre-pass runs behind the NATIVE reader alone, so its answers apply to a
-  // refusal from that lane and to no other: `parsePcf` never sees it, and its
-  // `index` already counts the member's own characters. A refusal that names no
-  // dialect is a translator's, and a translator measures on the text it was
-  // handed — the buffer here.
-  const pre = refusal.dialect === undefined || refusal.dialect === NATIVE_READER ? letFacts(text) : null
+  // ⛔ THE STAMP IS THE EVIDENCE THE PRE-PASS RAN, AND AN ABSENT STAMP IS NOT A
+  // NATIVE ONE. Only `readFormulaSource` runs `prepareSource`, and only for the
+  // native reader; every refusal that came through it carries `dialect` because
+  // `evaluateFormula` stamps its blank with `read.dialect`. `parsePcf` never
+  // meets the pre-pass and its `index` already counts the member's characters; a
+  // translator measures on the text it was handed, which is this buffer.
+  // ⚰️ THIS ACCEPTED `undefined` AND WAS WRONG. A Pine-shaped refusal over a
+  // buffer whose first lines happen to read `let x = …` was line-remapped
+  // through a pre-pass Pine never ran — reachable the moment a dialect grows a
+  // `let` line, which is what W3's thinkScript door is adding. Reading an
+  // ABSENCE as membership is how a mapping escapes the lane that owns it.
+  const pre = refusal.dialect === NATIVE_READER ? letFacts(text) : null
 
   // 1. THE PRE-PASS'S OWN REFUSAL, at the token it named in the member's text.
   //    `READERS.native` keeps only its guard and its sentence, so the position is
@@ -179,9 +185,15 @@ function rangeFor(doc, refusal, message) {
  * One refusal → the lint mark that repeats it, or nothing.
  *
  * @param {import('@codemirror/state').Text} doc the buffer the refusal was
- *        measured on. ⚠️ THAT IS THE CONTRACT: every range below is an offset
- *        into this text, so a caller holding a refusal from an older revision
- *        must re-measure rather than mark the newer buffer with it.
+ *        measured on. ⚠️ THAT IS THE CONTRACT, AND A STALE `doc` MIS-MARKS ON
+ *        EVERY PATH, EACH IN ITS OWN WAY: an offset indexes characters that
+ *        moved, a quoted token is found at its NEW home, and the pre-pass
+ *        recovery re-asks `prepareSource` about the NEWER text — so a
+ *        `let a = 1 / let a = 2` refusal carried onto `let aaa = …` marks `aaa`
+ *        while quoting the older sentence. ⛔ THE FIX IS THE CALLER'S: mark the
+ *        doc the refusal was measured on, or re-evaluate first. It is NOT
+ *        reading `refusal.source` here — that would give this module two texts
+ *        and let a range from one land in the other.
  * @param {object|null} refusal an `evaluateFormula` result, or a translator
  *        refusal (`{guard, message, line, column, token}`)
  * @returns {import('@codemirror/lint').Diagnostic[]}

@@ -205,6 +205,21 @@ describe('a `let` source is marked in the member\'s own coordinates', () => {
     const [d] = toDiagnostics(doc(src), r)
     expect([d.from, d.to]).toEqual([0, 3])
   })
+
+  it('⛔ …and a TRANSLATOR refusal is never remapped through a pre-pass the translator did not run', () => {
+    // ⚰️ The dialect stamp is the EVIDENCE that `prepareSource` ran, and an
+    // ABSENT stamp is not a native one. Reviewed 2026-08-26: with the gate
+    // accepting `undefined`, a Pine-shaped refusal over this buffer was
+    // line-remapped to [20, 26] — through a pre-pass Pine never met.
+    // Unreachable today only because no real Pine or thinkScript source has a
+    // line starting `let`, and W3 is adding a thinkScript door right now.
+    const src = 'let a = 1\nlet b = 2\nnosuch'
+    const refusal = { guard: 'pine:name', message: 'planted sentence from a translator at character 5' }
+    const [d] = toDiagnostics(doc(src), refusal)
+    expect([d.from, d.to]).toEqual([5, 6])
+    // the remap would have marked the whole of author line 3
+    expect(d.from).not.toBe(src.indexOf('nosuch'))
+  })
 })
 
 describe('⛔ 1:1, across every refusal this surface produces', () => {
