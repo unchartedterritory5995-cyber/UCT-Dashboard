@@ -345,16 +345,24 @@ def _klass_of(route) -> set[str]:
 
 
 def _strongest(found: set[str]) -> set[str]:
-    """The strongest classes in `found` — strongest = admits the FEWEST callers.
+    """The strongest classes in `found` — the ones nothing else in `found` is
+    strictly stronger than.
+
+    ⛔ RANKED BY SUBSET, NOT BY SIZE. "Admits fewer callers" only means
+    "is stronger" while the admit-sets nest, which they happen to do today. Two
+    classes admitting the same NUMBER of DIFFERENT callers would read as equal
+    under a size comparison and one of them could then stand in for the other —
+    the same substitution this whole file exists to refuse, wearing arithmetic.
+    `_ADMITS[j] < _ADMITS[k]` is a PROPER SUBSET: everyone `j` lets in, `k` lets
+    in too, and `k` lets in somebody more. That is what "j is stronger" means.
 
     Returns a SET, not a winner. Two classes can be genuinely equal (`admin` and
-    `flow_admin` are one door reached two ways), and breaking that tie would be
-    an ordering nobody measured. An ungated route has no strongest class at all.
+    `flow_admin` are one door reached two ways) or simply incomparable, and
+    breaking that tie would be an ordering nobody measured. An ungated route
+    falls out of this with no strongest class at all.
     """
-    if not found:
-        return set()
-    fewest = min(len(_ADMITS[klass]) for klass in found)
-    return {klass for klass in found if len(_ADMITS[klass]) == fewest}
+    return {klass for klass in found
+            if not any(_ADMITS[other] < _ADMITS[klass] for other in found)}
 
 
 def _claim_is_satisfied(expected: str, found: set[str]) -> bool:
@@ -519,7 +527,7 @@ def test_every_gated_route_carries_its_gate_in_the_DEPENDENCY_TREE(app, key):
                 f"{key[0]} {key[1]} was gated as {expected!r} and the app "
                 "reports NO GATE AT ALL — this route is open again. Restore the "
                 "gate; do NOT relabel the row.")
-        weaker = len(_ADMITS[expected]) < min(len(_ADMITS[k]) for k in strongest)
+        weaker = all(_ADMITS[expected] < _ADMITS[k] for k in strongest)
         raise AssertionError(
             f"{key[0]} {key[1]} was gated as {expected!r} and the strongest gate "
             f"the app actually carries is {sorted(strongest)} "
@@ -588,20 +596,27 @@ def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app)
     still claims `paid`. EVERY paid row is cut in turn, not one sampled name, so
     a router that grew a different gate shape cannot slip past.
 
-    ⭐ AND IT CARRIES ITS OWN NON-VACUITY CONTROL. On some routes the cut leaves
-    nothing behind, and "NO GATE AT ALL" would fail any check ever written. The
-    dangerous shape is the other one: a sibling dependency still resolves the
-    session, so the route stays perfectly reachable by any free account and
-    merely stops being PAID — `POST /api/scans/run` keeps its rate-limit
-    dependency exactly that way. At least one route must be of that shape, or
-    this test is passing for the easy reason and proving far less than it reads.
+    ⭐ AND ITS NON-VACUITY CONTROL IS UNCONDITIONAL, BY CONSTRUCTION. On many
+    routes the cut leaves nothing behind, and "NO GATE AT ALL" would fail any
+    check ever written — so a version of this test that only ever saw that shape
+    would prove almost nothing. The dangerous shape is the other one: a sibling
+    dependency still resolves the session, so the route stays perfectly reachable
+    by any free account and merely stops being PAID.
+
+    ⛔ THAT CONTROL USED TO BE `assert still_reachable`, AND IT WAS INCIDENTAL.
+    It passed only because `POST /api/scans/run` happens to keep a rate-limit
+    dependency — measured, 1 of 43 paid routes — so a change to that ONE route's
+    dependencies would have quietly emptied it. It is now asserted directly
+    against the ladder instead: a `paid` claim is refused by EVERY class weaker
+    than paid and by nothing at all, whether or not any route happens to be
+    shaped that way today.
 
     ⚠️ RESTORED IN A `finally`, AND THE RESTORE IS ASSERTED. The `app` fixture is
     module-scoped: a leaked mutation would poison every assertion after this one,
     and a silent restore failure would read as a pass.
     """
     table = _table(app)
-    cut_anything, still_reachable = [], []
+    cut_anything = []
 
     for key, expected in sorted(GATED.items()):
         if expected != "paid":
@@ -629,17 +644,85 @@ def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app)
             "assertion after this one is running against a damaged app")
 
         cut_anything.append(key)
-        if opened:
-            still_reachable.append((key, sorted(opened)))
 
     assert len(cut_anything) >= 8, (
         f"only {len(cut_anything)} paid rows carry `require_paid` as a direct "
         "dependency — the walk is not reaching the gates it claims to cut")
-    assert still_reachable, (
-        "every paid route lost ALL its classes when `require_paid` was cut, so "
-        "this test only ever proves that 'no gate' fails — it never exercises "
-        "the shape it exists for: a route still reachable by a logged-in free "
-        "member that simply is not paid any more")
+
+    # ⭐ THE CONTROL, DERIVED FROM THE LADDER AND ALWAYS ARMED. Every class the
+    # ladder ranks below `paid` must fail to satisfy a `paid` claim on its own,
+    # and so must an empty gate set. Derived, so a class added to the ladder
+    # joins this automatically rather than being remembered into it.
+    weaker_than_paid = {k for k in GATE_CLASSES if _ADMITS["paid"] < _ADMITS[k]}
+    assert weaker_than_paid, (
+        "the ladder ranks nothing below `paid`, so 'a paid claim cannot be met "
+        "by something weaker' is currently unfalsifiable — re-derive the ladder")
+    for klass in sorted(weaker_than_paid):
+        assert not _claim_is_satisfied("paid", {klass}), (
+            f"a route reporting only {klass!r} satisfied a claim of 'paid'. That "
+            "is the cut above surviving on a sibling dependency: the door is "
+            "open to anyone that gate admits and the row still says paid.")
+    assert not _claim_is_satisfied("paid", set()), (
+        "a route reporting NO GATE AT ALL satisfied a claim of 'paid'")
+
+
+#: 🔴 THE PAID SURFACE OF THE SERVED APP, PINNED. Measured 2026-08-26:
+#: 174 of the 1,130 routes that expose a dependency tree carry `require_paid`.
+#: This is a RATCHET, not a fact about the table — see the test below for the
+#: only two correct responses to it going red.
+PAID_SURFACE_FLOOR = 174
+
+
+def test_the_PAID_SURFACE_of_the_served_app_has_not_SHRUNK(app):
+    """🔴 THE DETECTOR FOR THE TWO-STEP EDIT, AND THE ONLY SHAPE THAT CAN BE ONE.
+
+    Every other assertion in this file compares the TABLE to the APP — which is
+    exactly what a two-step edit defeats. Downgrade the claim and delete the gate
+    in ONE commit and the table is TRUTHFUL about a now-weaker route, so no
+    table-vs-app check has anything to object to. MEASURED, 2026-08-26: the full
+    two-step on `POST /api/scans/run` leaves
+    `test_a_FREE_member_is_refused_on_the_PAID_routes` PASSING, because every
+    sweep here selects rows BY CLASS and the row is no longer `paid`.
+
+    ⭐ SO THIS ONE NEVER READS THE TABLE. It counts the routes the SERVED APP
+    gates with `require_paid` and refuses to let that number fall. No claim can
+    satisfy it because no claim is consulted: only a real gate on a real route
+    counts, and removing one is arithmetic. It therefore covers all 174 paid
+    routes, not just the 43 this file governs — the 131 that were never in the
+    table get the same ratchet for free.
+
+    ⚠️ IT IS A RATCHET AND THE NUMBER IS THE WHOLE MECHANISM. Adding paid
+    routes raises the count and passes. There are exactly two correct responses
+    to it going red:
+      * a gate was lost — RESTORE IT; or
+      * a paid route was retired ON PURPOSE — lower this floor IN THE SAME COMMIT
+        and name the route in the message.
+    That second edit is a visible line saying "the paid surface shrank", which is
+    the one sentence a two-step edit exists to avoid having to write. Lowering
+    the floor to make a red go away, without knowing which route left, IS the
+    door opening — it is not a fix, it is the regression being waved through.
+
+    ⚠️ NOT EVERY MOUNTED ROUTE HAS A DEPENDENCY TREE. `/openapi.json`, `/docs`
+    and the swagger assets are plain Starlette `Route`s with no `.dependant` at
+    all, so they are filtered rather than crashed on — and the survivors are
+    floored too, because a walk that started returning nothing would otherwise
+    make the paid count zero and this assertion loud for the wrong reason.
+    """
+    routed = [r for r in _table(app).values()
+              if getattr(r, "dependant", None) is not None]
+    assert len(routed) >= 1000, (
+        f"only {len(routed)} routes expose a dependency tree — the walk is broken "
+        "and any count taken from it below would be meaningless")
+
+    paid = sorted(k for k, r in _table(app).items()
+                  if getattr(r, "dependant", None) is not None
+                  and "paid" in _klass_of(r))
+    assert len(paid) >= PAID_SURFACE_FLOOR, (
+        f"the served app gates {len(paid)} routes with `require_paid`; the floor "
+        f"is {PAID_SURFACE_FLOOR}. {PAID_SURFACE_FLOOR - len(paid)} paid "
+        "route(s) stopped being paid. Restore the gate — or, if one was retired "
+        "on purpose, lower this floor in the same commit and NAME the route. Do "
+        "not lower it to clear the red: that is the two-step edit finishing.")
 
 
 def test_a_LEGITIMATELY_session_gated_route_still_passes(app):
@@ -652,7 +735,14 @@ def test_a_LEGITIMATELY_session_gated_route_still_passes(app):
     """
     table = _table(app)
     session_rows = [k for k, v in sorted(GATED.items()) if v == "session"]
-    assert session_rows, "no session-gated row left to control on"
+    # ⚠️ A FLOOR, BECAUSE THIS FILE'S OWN FIX MOVED THE NUMBER. Correcting the
+    # patterns-feedback row took `session` from 3 rows to 2, and a control that
+    # shrinks quietly ends up guarding nothing. These two ARE the free tier
+    # (`FREE_PAGES = ['/morning-wire']`); if either stops being session-gated
+    # that is a funnel decision, not a number to lower.
+    assert len(session_rows) >= 2, (
+        f"only {len(session_rows)} session-gated rows left ({session_rows}) — the "
+        "free tier is two routes, and this control is meant to hold both")
     for key in session_rows:
         found = _klass_of(table[key])
         assert _claim_is_satisfied("session", found), (
@@ -735,10 +825,28 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
             "typed opinion, not a measurement, and every claim ranked against "
             "it is resting on the wrong number")
 
+    # ⭐ ⛔ AND THE CONTROL MUST COVER THE LADDER, NOT A LIST BESIDE IT.
+    # `measured` is built by hand above — four named calls — so it is itself a
+    # second authority over the gate vocabulary, sitting inside the fix for a
+    # second-authority defect. MEASURED, 2026-08-26: appending a sixth class to
+    # `_GATE_LADDER` and running this file gave 94 passed, the new class SILENTLY
+    # UNMEASURED. So the coverage is asserted against `GATE_CLASSES` itself: a
+    # class can join the ladder only by also being measured here, or by being
+    # named in the one documented exemption below.
+    assert set(measured) | {"session"} == GATE_CLASSES, (
+        f"the ladder declares {sorted(GATE_CLASSES)} and this control measures "
+        f"{sorted(measured)}. `session` is the ONE documented exemption (it is "
+        "not callable in this shape — see the docstring); anything else missing "
+        "is a gate class whose admit-set nobody has ever checked, ranked against "
+        "every claim in the table as if somebody had")
+
     # …and the ordering the whole strength rule turns on falls straight out of
-    # the numbers above rather than being asserted as an opinion beside them.
-    assert len(_ADMITS["admin"]) < len(_ADMITS["paid"]) < len(_ADMITS["session"]), (
-        f"admin > paid > session is what `_claim_is_satisfied` rests on: {_ADMITS}")
+    # the measured sets above rather than being asserted as an opinion beside
+    # them. Chained PROPER SUBSETS, matching `_strongest`: everyone an admin gate
+    # lets in, a paid gate lets in too, and a paid gate lets in somebody more.
+    assert _ADMITS["admin"] < _ADMITS["paid"] < _ADMITS["session"], (
+        f"admin > paid > session is what `_claim_is_satisfied` rests on, and it "
+        f"must hold as nesting rather than as a count: {_ADMITS}")
 
     # A claim can only mean something if the ladder can actually produce it.
     unknown = sorted(set(GATED.values()) - GATE_CLASSES)
@@ -911,7 +1019,15 @@ def test_a_FREE_member_is_refused_on_the_PAID_routes(app, monkeypatch, clean_ove
             f"{key[0]} {key[1]} answered a FREE member {resp.status_code} — "
             f"{resp.text[:200]}")
         checked += 1
-    assert checked >= 30, checked
+    # ⚠️ A REAL FLOOR, NOT A LOOSE ONE. This counted 43 rows against a floor of
+    # 30, so a THIRTEEN-ROUTE hole in the paid surface could open without moving
+    # it. It is also the table-side half of the two-step detector: downgrading a
+    # row's claim out of `paid` drops this count, and a floor that means anything
+    # is what makes that drop say so.
+    assert checked >= 43, (
+        f"only {checked} paid rows were driven with a free member (floor 43) — "
+        "either a paid route was retired, or a row's claim was moved out of "
+        "'paid' and this sweep silently stopped covering it")
 
 
 # ── 5. the free tier, which a paywall fix must not break ─────────────────────
