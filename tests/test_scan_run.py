@@ -33,7 +33,10 @@ import time
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
+from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
 from api.services import user_definitions
 from api.services.screener import scan_evaluator, scan_store, snapshot_db
 from tests.test_scan_evaluator import (
@@ -804,3 +807,414 @@ def test_evaluate_one_is_called_EXACTLY_ONCE_inside__run_job_with_mode_on_demand
                and n.func.value.id == "_POOL"]
     assert len(submits) == 1
     assert isinstance(submits[0].args[0], pyast.Name) and submits[0].args[0].id == "_run_job"
+
+
+# ═══ the door: `api/routers/scan_run.py` ════════════════════════════════════
+#
+# ⭐ THE CONTRACT'S SHAPE, NOT THE BRIEF'S. The brief was drafted against a
+# SYNCHRONOUS `run_now(...) -> dict` and one route answering 200. The lane
+# contract's `Run-now (RULING 8/25)` replaced that with a JOB — `202 {job}` on
+# submit, `GET /api/scans/run/{job}` for the answer — precisely so the evaluator
+# stays off the request path, and W4a.1 shipped `submit_run`/`job_status` to it.
+# So this section pins TWO routes, and an evaluator gate reached at RUN time is
+# read off the POLL rather than off an HTTP status (the test that says so below).
+
+ALICE_USER = {"id": ALICE, "role": "member", "plan": "pro"}
+BOB_USER = {"id": BOB, "role": "member", "plan": "pro"}
+FREE_USER = {"id": ALICE, "role": "member", "plan": "free"}
+
+EXPECTED_ROUTES = 2
+PAID_DETAIL = "On-demand scans require a paid plan"
+ROUTER_REL = "api/routers/scan_run.py"
+
+
+@pytest.fixture(autouse=True)
+def fresh_rate_limit():
+    """⛔ THE WINDOW IS PER PROCESS, SO IT LEAKS ACROSS TESTS. ALICE submits in a
+    dozen tests here and the default budget is six a minute; without this the
+    file would go red in test ORDER, which is the worst kind of red — it moves
+    when you add a test somewhere else."""
+    try:
+        from api.routers import scan_run as mod
+    except ImportError:
+        yield
+        return
+    mod._run_calls.clear()
+    yield
+    mod._run_calls.clear()
+
+
+def _client(user):
+    from api.routers import scan_run as mod
+    app = FastAPI()
+    app.include_router(mod.router)
+    if user is not None:
+        # ⚠️ OVERRIDES ON THE IDENTITY DEPENDENCIES, NEVER ON `require_paid` —
+        # overriding the gate means the test never runs it.
+        app.dependency_overrides[get_current_user] = lambda: dict(user)
+        app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+    return TestClient(app)
+
+
+def _post(user, **body):
+    payload = {"def_id": DEF_ID, "tf": TF, "as_of": str(SESSION)}
+    payload.update(body)
+    return _client(user).post("/api/scans/run", json=payload)
+
+
+def _poll(user, job, timeout=15.0):
+    """Poll the REAL route until the job is terminal, and hand back the body.
+
+    ⭐ AND THE POLLING ITSELF IS EVIDENCE that the rate limit is charged on the
+    SUBMIT and not on the read: a loop like this against a 6/minute budget on the
+    GET would fail every test in this section within a second.
+    """
+    client = _client(user)
+    deadline = time.monotonic() + timeout
+    while True:
+        r = client.get(f"/api/scans/run/{job}")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        if body["state"] in _terminal():
+            return body
+        assert time.monotonic() < deadline, f"job {job} still {body['state']}"
+        time.sleep(0.01)
+
+
+def _http_run(user, **body):
+    r = _post(user, **body)
+    assert r.status_code == 202, r.text
+    return _poll(user, r.json()["job"])
+
+
+def _routes():
+    from api.routers import scan_run as mod
+    return [r for r in mod.router.routes if getattr(r, "methods", None)]
+
+
+# ─── the route set, the gate, the mount ──────────────────────────────────────
+
+def test_the_route_set_is_DERIVED_the_count_is_ASSERTED_and_every_route_is_PAID():
+    """⭐ TWO DEPENDENCIES, TWO ANSWERS — AND EACH ONLY WHERE IT IS USED.
+    `require_paid` decides WHETHER (402) and is on BOTH routes. `limits_dependency`
+    decides HOW MUCH, and it is on the SUBMIT alone, because the submit is what
+    hands the toolkit to the evaluator. Bolting it onto the poll would be a gate
+    that cannot fail: the slice was applied when the job RAN, and re-reading the
+    caller's plan at read time would be a second authority over one number.
+    """
+    from api.routers import scan_run as mod
+    from api.services import entitlements as ent
+    routes = _routes()
+    assert len(routes) == EXPECTED_ROUTES, [r.path for r in routes]
+    by_route = {(m, r.path): r for r in routes
+                for m in r.methods - {"HEAD", "OPTIONS"}}
+    assert set(by_route) == {("POST", "/api/scans/run"),
+                             ("GET", "/api/scans/run/{job}")}
+    for key, r in by_route.items():
+        deps = [d.call for d in r.dependant.dependencies]
+        assert mod.require_paid in deps, key
+        assert (ent.limits_dependency in deps) is (key[0] == "POST"), key
+    assert mod.router.dependencies == []
+
+
+def test_the_route_count_is_what_the_router_SOURCE_declares():
+    """The independent oracle: decorated handlers in the file, counted by AST."""
+    src = (ROOT / ROUTER_REL).read_text(encoding="utf-8")
+    n = 0
+    for node in pyast.walk(pyast.parse(src)):
+        if isinstance(node, pyast.FunctionDef):
+            for d in node.decorator_list:
+                if isinstance(d, pyast.Call) and isinstance(d.func, pyast.Attribute) \
+                        and isinstance(d.func.value, pyast.Name) \
+                        and d.func.value.id == "router" \
+                        and d.func.attr in ("get", "post", "put", "delete", "patch"):
+                    n += 1
+    assert n == EXPECTED_ROUTES
+
+
+def test_the_router_defines_its_OWN_require_paid_with_its_OWN_sentence():
+    """The per-router idiom `tests/test_user_definitions_auth.py` walks: one local
+    definition, one distinct 402 sentence, no `from … import require_paid`."""
+    src = (ROOT / ROUTER_REL).read_text(encoding="utf-8")
+    tree = pyast.parse(src)
+    defs = [n for n in tree.body
+            if isinstance(n, pyast.FunctionDef) and n.name == "require_paid"]
+    assert len(defs) == 1
+    assert not any(isinstance(n, pyast.ImportFrom)
+                   and any(a.name == "require_paid" for a in (n.names or []))
+                   for n in pyast.walk(tree))
+    details = [kw.value.value for n in pyast.walk(defs[0]) if isinstance(n, pyast.Call)
+               and isinstance(n.func, pyast.Name) and n.func.id == "HTTPException"
+               for kw in n.keywords if kw.arg == "detail"]
+    assert details == [PAID_DETAIL]
+    # …and it is a sentence no other router speaks. ⛔ DERIVED FROM THE DIRECTORY.
+    others = [path.read_text(encoding="utf-8")
+              for path in sorted((ROOT / "api" / "routers").glob("*.py"))
+              if path.name not in ("scan_run.py", "__init__.py")]
+    assert others, "the sibling census read nothing"
+    assert not any(PAID_DETAIL in s for s in others)
+
+
+def test_the_router_NEVER_imports_the_evaluator__the_repo_rail_this_lane_obeys():
+    """⛔ `test_the_evaluator_module_is_not_imported_by_any_ROUTER_at_all`. The one
+    bounded caller is the SERVICE (`scan_run._run_job`); a router that imported the
+    sweep would put universe-scale work one name away from a handler."""
+    tree = pyast.parse((ROOT / ROUTER_REL).read_text(encoding="utf-8"))
+    imported = set()
+    for n in pyast.walk(tree):
+        if isinstance(n, pyast.ImportFrom):
+            for a in n.names or ():
+                imported.add(f"{n.module or ''}.{a.name}")
+        elif isinstance(n, pyast.Import):
+            for a in n.names or ():
+                imported.add(a.name)
+    assert not any("scan_evaluator" in name for name in imported), sorted(imported)
+    # the control: the walk DOES see the service it is allowed to import
+    assert any(name.endswith("scan_run") for name in imported), sorted(imported)
+
+
+def test_the_route_is_REGISTERED_in_main_so_a_derived_census_can_find_it():
+    """⛔ BY AST OVER api/main.py — never by importing `api.main` (it builds caches
+    under the shared data root), never by grep (prose)."""
+    tree = pyast.parse((ROOT / "api" / "main.py").read_text(encoding="utf-8"))
+    alias = {}
+    for node in pyast.walk(tree):
+        if isinstance(node, pyast.ImportFrom) and (node.module or "") == "api.routers":
+            for a in node.names:
+                alias[a.asname or a.name] = f"api.routers.{a.name}"
+    mounted = set()
+    for node in pyast.walk(tree):
+        if isinstance(node, pyast.Call) and isinstance(node.func, pyast.Attribute) \
+                and node.func.attr == "include_router" and node.args:
+            arg = node.args[0]
+            if isinstance(arg, pyast.Attribute) and arg.attr == "router" \
+                    and isinstance(arg.value, pyast.Name):
+                mounted.add(alias.get(arg.value.id, arg.value.id))
+    assert "api.routers.scan_run" in mounted, sorted(m for m in mounted if "scan" in m)
+    assert "api.routers.scan_results" in mounted   # the control: the walk sees a sibling
+
+
+# ─── who may knock ───────────────────────────────────────────────────────────
+
+def test_ANONYMOUS_is_401_FREE_is_402_with_THIS_routers_sentence(store, bars, defs):
+    assert _client(None).post("/api/scans/run",
+                              json={"def_id": DEF_ID}).status_code == 401
+    r = _post(FREE_USER, symbols=["NVDA"])
+    assert r.status_code == 402 and r.json()["detail"] == PAID_DETAIL
+    assert not _pending(), "a refused caller still queued a job"
+
+
+def test_the_POLL_is_gated_TOO__anonymous_and_free_never_read_a_job(store, bars, defs):
+    """⛔ THE SECOND ROUTE IS A DOOR TOO. A gated submit with an open read would
+    hand every hit list on this pod to anybody who guessed a job id."""
+    job = _post(ALICE_USER, symbols=["NVDA"]).json()["job"]
+    assert _client(None).get(f"/api/scans/run/{job}").status_code == 401
+    assert _client(FREE_USER).get(f"/api/scans/run/{job}").status_code == 402
+    assert _poll(ALICE_USER, job)["state"] == "done"
+
+
+# ─── the answer ──────────────────────────────────────────────────────────────
+
+def test_a_paid_member_gets_a_JOB_202_and_POLLS_it_to_the_CONTRACTS_shape(store, bars, defs):
+    from api.services.screener import scan_run
+    submitted = _post(ALICE_USER, symbols=["NVDA", "INTC", "NOBARS"])
+    assert submitted.status_code == 202, submitted.text
+    handed = submitted.json()
+    assert handed["job"] and handed["state"] in scan_run.JOB_STATES
+    assert handed["tier"] == "on-demand"
+
+    body = _poll(ALICE_USER, handed["job"])
+    assert body["state"] == "done", body
+    assert set(body) >= {"state", "def_hash", "as_of", "tier", "hits", "coverage"}
+    assert body["def_hash"] == DEF_HASH and body["tier"] == "on-demand"
+    assert body["as_of"] == SESSION and body["tf"] == TF
+    assert body["hits"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
+    cov = body["coverage"]
+    assert set(cov) >= {"evaluated", "answered", "dropped", "not_computable",
+                        "withheld", "dropped_symbols"}
+    assert cov["evaluated"] == cov["answered"] + cov["dropped"] + cov["not_computable"] == 3
+
+
+def test_the_run_through_the_DOOR_writes_NOTHING(store, bars, defs, monkeypatch):
+    """The rail, at the surface a member actually reaches."""
+    _arm_writers(monkeypatch)
+    assert _http_run(ALICE_USER, symbols=["NVDA", "INTC"])["state"] == "done"
+
+
+def test_ANOTHER_members_definition_is_404_NOT_403_matching_user_definitions(store, bars, defs):
+    r = _post(BOB_USER, def_id=DEF_ID, symbols=["NVDA"])
+    assert r.status_code == 404 and r.json()["detail"] == "Not found"
+
+
+def test_ANOTHER_members_JOB_is_404_on_the_POLL__never_403_never_a_hit_list(store, bars, defs):
+    job = _post(ALICE_USER, symbols=["NVDA"]).json()["job"]
+    r = _client(BOB_USER).get(f"/api/scans/run/{job}")
+    assert r.status_code == 404 and r.json()["detail"] == "Not found"
+    assert _poll(ALICE_USER, job)["state"] == "done"
+
+
+# ─── the refusals, by status ─────────────────────────────────────────────────
+
+def test_over_the_cap_is_400_at_gate_universe_NAMING_the_count(store, bars, defs):
+    from api.services.screener import scan_run
+    r = _post(ALICE_USER, symbols=[f"S{i:04d}" for i in range(scan_run.MAX_RUN_SYMBOLS + 1)])
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith("[gate:universe]")
+    assert str(scan_run.MAX_RUN_SYMBOLS + 1) in r.json()["detail"]
+
+
+def test_600_PASTED_of_which_2_are_UNIQUE_RUNS_THROUGH_THE_DOOR(store, bars, defs):
+    """🔴 THE CONTROLLER RULING, AT THE SURFACE THE MEMBER TOUCHES. A pasted column
+    with duplicates is a small run, not an over-cap request — and the response must
+    SAY what it will evaluate, or the receipt claims work that never happened."""
+    body = _http_run(ALICE_USER, symbols=["NVDA"] * 550 + ["INTC"] * 50)
+    assert body["state"] == "done", body
+    assert body["universe"] == {"source": "symbols", "label": None,
+                                "requested": 2, "resolved": 2}
+    assert body["coverage"]["evaluated"] == 2
+
+
+def test_the_symbols_array_has_a_CEILING_derived_from_the_services_HARD_bound(store, bars, defs):
+    """An unbounded array is an unbounded request. ⛔ THE CEILING IS THE SERVICE'S
+    OWN `HARD_SYMBOL_BOUND`, not a second number — a model ceiling BELOW it would
+    make the service's own guard unreachable (a gate that cannot fail) and one
+    ABOVE it would admit a body the service has already said it will not read."""
+    from api.services.screener import scan_run
+    over = _post(ALICE_USER, symbols=["X"] * (scan_run.HARD_SYMBOL_BOUND + 1))
+    assert over.status_code == 422
+    # the control: exactly AT the bound the MODEL admits it, and the RUN cap — not
+    # the body ceiling — is what refuses it, BY NAME
+    at = _post(ALICE_USER, symbols=[f"S{i:04d}" for i in range(scan_run.HARD_SYMBOL_BOUND)])
+    assert at.status_code == 400 and at.json()["detail"].startswith("[gate:universe]")
+
+
+def test_a_list_the_member_OWNS_runs_and_another_members_list_is_refused_BY_NAME(
+        store, bars, defs, lists):
+    ok = _post(ALICE_USER, list_id="wl:4b9b2122-ddc")
+    assert ok.status_code == 202, ok.text
+    body = _poll(ALICE_USER, ok.json()["job"])
+    assert body["state"] == "done", body
+    assert body["universe"] == {"source": "wl:4b9b2122-ddc", "label": "Momentum",
+                                "requested": 2, "resolved": 2}
+    no = _post(ALICE_USER, list_id="wl:ff0000aa-bbb")
+    assert no.status_code == 400 and "ff0000aa-bbb" in no.json()["detail"]
+
+
+def test_a_NOT_SCANNABLE_definition_is_409_and_BUSY_is_429(store, bars, defs, slow_worker):
+    """The two statuses that are NOT 400: a well-formed request the STATE refused
+    (409), and one this pod has no room for right now (429). ⚠️ `slow_worker` gates
+    the first job so "busy" is a FACT rather than a race the worker can win."""
+    from api.services.screener import scan_run
+    numeric = _definition(_op("+", _series("close"), _num(1)), def_id="u_0000000000ff")
+    user_definitions.save(ALICE, "u_0000000000ff", numeric)
+    r = _post(ALICE_USER, def_id="u_0000000000ff", symbols=["NVDA"])
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"].startswith("[gate:not-scannable]")
+
+    first = _post(ALICE_USER, symbols=["NVDA"])
+    assert first.status_code == 202, first.text
+    assert slow_worker.entered.wait(5)
+    busy = _post(ALICE_USER, symbols=["INTC"])
+    assert busy.status_code == 429, busy.text
+    assert busy.json()["detail"].startswith("[gate:busy]")
+    slow_worker.release.set()
+    assert _poll(ALICE_USER, first.json()["job"])["state"] == "done"
+
+
+def test_the_gate_to_status_map_covers_the_CLOSED_gate_set_and_DEFAULTS_to_409():
+    """⛔ DERIVED FROM `RUN_GATES`, so a gate the sweep adds tomorrow cannot land on
+    a KeyError — it lands on 409, the honest answer for "the request was fine and
+    the state said no"."""
+    from api.routers import scan_run as mod
+    from api.services.screener import scan_run
+    statuses = {g: mod._status_for(g) for g in scan_run.RUN_GATES}
+    assert statuses[scan_run.UNIVERSE_GATE] == 400
+    assert statuses[scan_run.BUSY_GATE] == 429
+    evaluator_gates = set(scan_run.RUN_GATES) - {scan_run.UNIVERSE_GATE, scan_run.BUSY_GATE}
+    assert evaluator_gates and all(statuses[g] == 409 for g in evaluator_gates), statuses
+    assert mod._status_for("gate:invented-tomorrow") == 409
+
+
+def test_a_product_label_timeframe_is_400_and_TOLD_the_code(store, bars, defs):
+    r = _post(ALICE_USER, symbols=["NVDA"], tf="1D")
+    assert r.status_code == 400 and "'D'" in r.json()["detail"]
+
+
+def test_an_EVALUATOR_gate_reached_at_RUN_time_is_read_off_the_POLL_not_an_HTTP_status(
+        store, bars, defs):
+    """⭐ THE JOB SHAPE'S CONSEQUENCE, PINNED. `snapshot-stale` is refused INSIDE the
+    sweep, which runs after the submit already answered — so the member is handed a
+    202 and reads the refusal off the poll, gate word intact. A router that turned
+    this into a synchronous 409 would have to evaluate on the request path."""
+    scalar = _definition(_op(">", _series("market_cap"), _num(1)), def_id="u_0000000000cc")
+    user_definitions.save(ALICE, "u_0000000000cc", scalar)
+    body = _http_run(ALICE_USER, def_id="u_0000000000cc", symbols=["NVDA"])
+    assert body["state"] == "refused"
+    assert body["gate"] == "gate:snapshot-stale" and body["detail"]
+    assert "hits" not in body and body.get("error") is not True
+
+
+def test_a_CRASHED_job_is_200_on_the_poll_carrying_its_OWN_failure(store, bars, defs, monkeypatch):
+    """⛔ THE READ SUCCEEDED; THE RUN FAILED. Answering the poll with a 500 would
+    make a crashed job indistinguishable from a broken poll route, and the client
+    would retry a job that already has its terminal answer."""
+    def _boom(*a, **k):
+        raise RuntimeError("the bars store is on fire")
+    monkeypatch.setattr(scan_evaluator, "evaluate_one", _boom)
+    body = _http_run(ALICE_USER, symbols=["NVDA"])
+    assert body["state"] == "refused" and body["gate"] is None and body["error"] is True
+
+
+def test_an_UNKNOWN_job_id_is_404_not_a_500(store, bars, defs):
+    r = _client(ALICE_USER).get("/api/scans/run/deadbeef")
+    assert r.status_code == 404 and r.json()["detail"] == "Not found"
+
+
+# ─── the per-member window ───────────────────────────────────────────────────
+
+def test_the_rate_limit_is_PER_MEMBER_charged_BEFORE_the_run_and_carries_Retry_After(monkeypatch):
+    from fastapi import HTTPException
+    from api.routers import scan_run as mod
+    monkeypatch.setattr(mod, "_run_calls", {})
+    t0 = 1_000_000.0
+    for _ in range(mod.RUN_MAX_PER_MINUTE):
+        mod._charge_run("alice", now=t0)
+    with pytest.raises(HTTPException) as exc:
+        mod._charge_run("alice", now=t0)
+    assert exc.value.status_code == 429
+    assert int(exc.value.headers["Retry-After"]) >= 1
+    mod._charge_run("bob", now=t0)                    # another member is unaffected
+    mod._charge_run("alice", now=t0 + 61)             # the window rolls
+
+
+def test_the_rate_limit_is_WIRED_into_the_SUBMIT_and_the_POLL_STAYS_FREE(
+        store, bars, defs, monkeypatch):
+    """⭐ BOTH HALVES MATTER. A budget that is defined and never charged bounds
+    nothing; a budget charged on the POLL would spend a member's whole minute on
+    the handful of reads it takes to watch one job finish."""
+    from api.routers import scan_run as mod
+    monkeypatch.setattr(mod, "RUN_MAX_PER_MINUTE", 1)
+    monkeypatch.setattr(mod, "_run_calls", {})
+
+    first = _post(ALICE_USER, symbols=["NVDA"])
+    assert first.status_code == 202, first.text
+    job = first.json()["job"]
+    # ⛔ the poll is free: twenty reads under a budget of ONE
+    for _ in range(20):
+        assert _client(ALICE_USER).get(f"/api/scans/run/{job}").status_code == 200
+    assert _poll(ALICE_USER, job)["state"] == "done"
+
+    again = _post(ALICE_USER, symbols=["NVDA"])
+    assert again.status_code == 429 and "Retry-After" in again.headers
+    # ⛔ AND IT IS THE WINDOW, NOT THE BUSY GATE — a different sentence, no gate token
+    assert not again.json()["detail"].startswith("[gate:")
+
+
+def test_the_window_is_charged_BEFORE_the_definition_is_even_LOADED(store, bars, defs, monkeypatch):
+    """⛔ A REFUSED RUN COSTS THE SAME REQUEST. Billing on success alone would let a
+    caller loop 404s and 400s for free at whatever rate they liked."""
+    from api.routers import scan_run as mod
+    monkeypatch.setattr(mod, "RUN_MAX_PER_MINUTE", 1)
+    monkeypatch.setattr(mod, "_run_calls", {})
+    assert _post(BOB_USER, def_id=DEF_ID, symbols=["NVDA"]).status_code == 404
+    assert _post(BOB_USER, def_id=BOB_DEF_ID, symbols=["NVDA"]).status_code == 429
