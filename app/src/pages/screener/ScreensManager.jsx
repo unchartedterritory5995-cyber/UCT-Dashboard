@@ -314,7 +314,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
       setDeleteError({ defId, message: res.error })
       return
     }
-    setPendingDelete(null)
+    // ⛔ DEF-SCOPED, LIKE ITS TWO NEIGHBOURS. ⚰️ This was a bare
+    // `setPendingDelete(null)` while the lines under it were already keyed on
+    // `defId` — so arming B while A's request was still out, then having A
+    // succeed, DISARMED B (review round 1, fold-in). It failed safe (a stray
+    // disarm never deletes anything) but it contradicted the two lines below it,
+    // and a rule that holds on two of three lines is not a rule.
+    setPendingDelete(id => (id === defId ? null : id))
     setDetailId(id => (id === defId ? null : id))
     setRun(r => (r && r.defId === defId ? null : r))
   }

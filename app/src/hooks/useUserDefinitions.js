@@ -93,7 +93,8 @@ export function useUserDefinitions() {
  * a rev bump would then force-migrate.
  *
  * @returns {Promise<{ok: true, row: object} | {ok: false, error: string}>}
- *          — never null, on any branch. Callers read `.ok` unconditionally.
+ *          — never null, on any branch. Callers read `.ok` unconditionally, and
+ *          `error` is a NON-BLANK string whenever `ok` is false.
  */
 export async function saveUserDefinition(definition, defId = null) {
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
@@ -128,7 +129,14 @@ export async function saveUserDefinition(definition, defId = null) {
     // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING. FastAPI answers a
     // schema-invalid body with `detail: [{loc, msg, type}, …]`; interpolating
     // that shows the user "[object Object]", which is worse than the silence.
-    if (typeof body?.detail === 'string') detail = body.detail
+    //
+    // ⛔ AND IT IS TRIMMED AT THE ASSIGNMENT, WHICH IS THE ONLY PLACE THAT MAKES
+    // THE GUARANTEE STRUCTURAL. The gate below is `detail || <fallback>` —
+    // TRUTHINESS, not emptiness — so a store answering `detail: "   "` sailed
+    // past the fallback and the caller rendered a refusal made of spaces
+    // (measured 2026-08-26, review round 1, in BOTH doors). Trimming here means
+    // `detail` is either '' or a real sentence, and the `||` is then honest.
+    if (typeof body?.detail === 'string') detail = body.detail.trim()
   } catch { /* not JSON — an HTML error page, or an empty body */ }
   return { ok: false, error: detail || `The server refused this formula (${r.status}).` }
 }
@@ -252,9 +260,19 @@ export function useInstalledUserDefinitions() {
  * left (the `catch`) skips it, because nothing can have changed.
  *
  * @returns {Promise<{ok: true} | {ok: false, error: string}>} — never null, on
- *          any branch; `error` is a NON-EMPTY string whenever `ok` is false,
- *          because a caller rendering it verbatim renders an empty alert
- *          otherwise, and a refusal a member cannot read is one they did not get.
+ *          any branch; `error` is a NON-BLANK string whenever `ok` is false,
+ *          because a caller rendering it verbatim renders an alert that
+ *          ANNOUNCES NOTHING otherwise, and a refusal a member cannot read is
+ *          one they did not get.
+ *
+ * ⚰️ THAT GUARANTEE WAS PROSE AND THE CODE DID NOT HONOUR IT (review round 1).
+ * The gate was `detail || <fallback>` — truthiness — so a store answering
+ * `detail: "   "` produced `role="alert"` containing three spaces: announced by
+ * a screen reader as nothing at all, and rendered on screen as a blank line
+ * where the reason should be. A docstring stating the right principle over code
+ * that does not is this wave's most repeated defect, and I wrote it thirty lines
+ * above the line that broke it. The `.trim()` at the assignment is the fix, and
+ * it is structural rather than a second check the next edit can forget.
  */
 export async function deleteUserDefinition(defId) {
   let r
@@ -280,7 +298,9 @@ export async function deleteUserDefinition(defId) {
     // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING — FastAPI answers a
     // schema-invalid request with `detail: [{loc, msg, type}, …]`, and
     // interpolating that shows a member "[object Object]".
-    if (typeof body?.detail === 'string') detail = body.detail
+    // ⛔ AND TRIMMED HERE, not checked for later: see the docstring. A blank
+    // `detail` must reach the `||` as '' or the fallback never fires.
+    if (typeof body?.detail === 'string') detail = body.detail.trim()
   } catch { /* not JSON — an HTML error page, or an empty body */ }
   return { ok: false, error: detail || `The server refused to delete this formula (${r.status}).` }
 }

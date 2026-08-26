@@ -558,3 +558,34 @@ test("⛔ and it is the DELETED scan that is retracted, never a neighbour's", as
     vi.unstubAllGlobals()
   }
 })
+
+test("⛔ a delete that SUCCEEDS does not disarm a DIFFERENT row's pending confirm", async () => {
+  // ⚰️ REVIEW ROUND 1's FOLD-IN. The success path's `setPendingDelete(null)` was
+  // unguarded while the two lines under it were already keyed on `defId`, so
+  // arming B while A's request was still out and letting A land wiped B's
+  // confirm. It fails safe — a stray disarm never deletes anything — but a rule
+  // that holds on two of three lines is not a rule, and the member who armed B
+  // watches their prompt vanish for no reason they can see.
+  const OTHER = {
+    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
+  }
+  userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]
+  let release
+  deleteDefinition.mockImplementation(() => new Promise((r) => { release = () => r({ ok: true }) }))
+
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDelete()                                            // A: armed, then in flight
+  confirmDelete()
+  await waitFor(() => expect(deleteDefinition).toHaveBeenCalledTimes(1))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Other scan' }))   // B: armed
+  expect(screen.getByTestId('delete-ask-u_other')).toBeInTheDocument()
+
+  await act(async () => { release() })                   // A lands
+
+  // B is still asking. Nothing was sent for it.
+  expect(screen.getByTestId('delete-ask-u_other')).toBeInTheDocument()
+  expect(deleteDefinition).toHaveBeenCalledTimes(1)
+})

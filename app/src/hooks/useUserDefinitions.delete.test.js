@@ -19,6 +19,17 @@
 //
 // ⚠️ THE K3 REVALIDATION IS PINNED NEXT DOOR (`useUserDefinitions.metaMutate.test.js`)
 // and is deliberately NOT re-asserted here — one owner per claim.
+//
+// ⭐ THE FILE'S SCOPE WIDENED IN REVIEW ROUND 1, AND THE REASON IS THE FINDING.
+// The delete door was given the save door's shape deliberately — and inherited
+// the save door's latent bug with it: BOTH gate the store's `detail` on
+// TRUTHINESS (`detail || <fallback>`), so a refusal of `"   "` reached the
+// caller as three spaces and rendered a `role="alert"` that announces NOTHING.
+// Matching a sibling's shape is usually right; it also copies whatever the
+// sibling got wrong. So the non-blank guarantee is now railed across BOTH write
+// doors in one place, and parity cannot propagate it a third time. The file
+// keeps its name — the delete door is still its subject; the last describe is
+// the pair.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mutate = vi.fn()
@@ -27,7 +38,7 @@ vi.mock('swr', async (importOriginal) => {
   return { ...real, mutate: (...a) => mutate(...a) }
 })
 
-import { deleteUserDefinition, USER_DEFINITIONS_KEY } from './useUserDefinitions'
+import { deleteUserDefinition, saveUserDefinition, USER_DEFINITIONS_KEY } from './useUserDefinitions'
 
 beforeEach(() => {
   mutate.mockClear()
@@ -105,6 +116,11 @@ describe('a delete answers what the STORE said, not a boolean', () => {
       respond({ ok: false, status: 402, json: async () => ({ detail: 'Custom indicators require a paid plan' }) }),
       respond({ ok: false, status: 500, json: async () => { throw new Error('nope') } }),
       respond({ ok: false, status: 422, json: async () => ({ detail: [{ msg: 'bad' }] }) }),
+      // ⭐ THE FIXTURE THIS LOOP WAS MISSING, AND THE ONE THAT CAUGHT A REAL
+      // BUG. Six branches asserted "non-empty" and not one of them was BLANK,
+      // so the assertion could never fire on the case it was written for.
+      respond({ ok: false, status: 409, json: async () => ({ detail: '   ' }) }),
+      respond({ ok: false, status: 409, json: async () => ({ detail: '\n\t ' }) }),
       vi.fn(async () => { throw new TypeError('Failed to fetch') }),
     ]
     for (const f of branches) {
@@ -119,6 +135,70 @@ describe('a delete answers what the STORE said, not a boolean', () => {
         // a refusal a member cannot read is a refusal they did not get.
         expect(out.error.trim().length).toBeGreaterThan(0)
       }
+    }
+  })
+})
+
+// ─── ⭐ THE NON-BLANK GUARANTEE, ACROSS BOTH WRITE DOORS (review round 1) ────
+//
+// ⛔ A REFUSAL MADE OF WHITESPACE IS A REFUSAL A MEMBER DID NOT GET. The
+// screener renders the store's sentence VERBATIM inside `role="alert"` — that
+// is the whole point of the hand-back — so `"   "` is an alert a screen reader
+// announces as nothing and a sighted member reads as a blank line where the
+// reason should be. Worse than the fallback, because the fallback at least
+// names the status.
+//
+// ⛔ AND IT IS ASSERTED OVER THE PAIR, IN ONE CASE, ON PURPOSE. The bug existed
+// in `saveUserDefinition` first and arrived in `deleteUserDefinition` by the
+// parity that made the hand-back reviewable. A per-door rail would let the next
+// door inherit it again; a rail that walks both cannot be satisfied by fixing
+// one.
+describe('⭐ neither write door answers a refusal made of whitespace', () => {
+  const BLANK = ['   ', '\n', '\t\t', ' \r\n ']
+  /** The module's write doors, called the way a caller calls them. */
+  const DOORS = [
+    ['saveUserDefinition', () => saveUserDefinition({ compute: { kind: 'ast' } })],
+    ['deleteUserDefinition', () => deleteUserDefinition('u_1')],
+  ]
+
+  it('a blank `detail` falls through to the sentence that NAMES THE STATUS', async () => {
+    for (const [door, call] of DOORS) {
+      for (const blank of BLANK) {
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+          ok: false, status: 409, json: async () => ({ detail: blank }),
+        })))
+        const out = await call()
+        expect(out.ok, door).toBe(false)
+        expect(out.error.trim().length, `${door} answered a blank refusal`)
+          .toBeGreaterThan(0)
+        // …and what stands in its place is the one sentence this file owns for
+        // a refusal it cannot read, which names the number a member can quote.
+        expect(out.error, door).toContain('409')
+      }
+    }
+  })
+
+  it('⛔ …and a REAL sentence still comes through untouched — the trim is not a filter', async () => {
+    // The control. A guarantee bought by discarding the store's words would be
+    // the second-vocabulary defect the whole hand-back exists to prevent.
+    for (const [door, call] of DOORS) {
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: false, status: 404, json: async () => ({ detail: STORE_REFUSAL }),
+      })))
+      const out = await call()
+      expect(out.error, door).toBe(STORE_REFUSAL)
+    }
+  })
+
+  it('surrounding whitespace is trimmed off a real sentence rather than rendered with it', async () => {
+    for (const [door, call] of DOORS) {
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: false, status: 404, json: async () => ({ detail: `\n  ${STORE_REFUSAL}  \n` }),
+      })))
+      const out = await call()
+      // The caller interpolates this into a `<p>` verbatim; leading newlines are
+      // not part of what the router said.
+      expect(out.error, door).toBe(STORE_REFUSAL)
     }
   })
 })
