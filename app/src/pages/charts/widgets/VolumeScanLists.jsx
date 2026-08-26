@@ -68,7 +68,7 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
     <div className={styles.scopeWrap} ref={rootRef}>
       <button
         type="button"
-        className={`${styles.scopeBtn} ${active ? styles.scopeBtnCustom : ''}`}
+        className={`${styles.scopeBtn} ${styles.scopeBtnCustom}`}
         onClick={() => (open ? close() : setOpen(true))}
         title="Choose what the scanner watches"
       >
