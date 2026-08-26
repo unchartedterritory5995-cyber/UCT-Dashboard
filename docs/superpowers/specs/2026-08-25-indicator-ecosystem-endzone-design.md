@@ -123,7 +123,7 @@ Two kinds, both derived from series so the engine stays one-number-per-bar:
 - **Version history** UI over the store's `history`.
 
 ### 5.10 Hygiene (W0)
-Colour change applied live (isolate chip vs line first) · legend-compact settings door · `AST_DEFS` retired or made the install path (one truth) · concierge → `claude-opus-5` with a `cost_guard` entry · ~~`test_definition_record.py` red~~ (stale, see §2) · "Premium" badge on a member's own formula · the 8 zero-returning starters verified on prod · `computeVWAP` ET sessions.
+Colour change applied live (isolate chip vs line first) · legend-compact settings door · `AST_DEFS` retired or made the install path (one truth) · concierge → `claude-opus-5` with a `cost_guard` entry · ~~`test_definition_record.py` red~~ (stale, see §2) · "Premium" badge on a member's own formula · ~~the 8 zero-returning starters~~ **MEASURED 2026-08-26 (W0.7): on PROD it is 1 of 22, not 8.** The "8" was a real measurement of the LOCAL dev snapshot — 7 of them gate on columns that are 0% filled locally and 67-98% filled on prod (they return 111/255/155/12/153/357/44 rows there). The one genuine zero is `starter_gap_movers` · `computeVWAP` ET sessions.
 
 ## 6. Waves and file ownership (parallel where disjoint)
 
