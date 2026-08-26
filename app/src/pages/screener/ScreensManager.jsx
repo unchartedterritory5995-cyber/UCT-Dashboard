@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import UIcon from '../../components/ui/UIcon'
 import useSavedScreens from './hooks/useSavedScreens'
 import { sharedScreenUrl } from './screenShareLink'
@@ -8,6 +9,44 @@ import ScanResults from '../../components/screener/ScanResults'
 import RunNowButton from '../../components/screener/RunNowButton'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
+
+// ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
+// this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
+// resolves the SAME module — `Screener.door.test.jsx` reads both files' import
+// graphs and asserts they land on one file. Lazy because the builder pulls the
+// whole authoring bundle a member who only reads screens should never download;
+// `reachable.test.js` follows `lazy(() => import(…))` edges, so the door is
+// still on the import graph and an orphan here would still red.
+const BuilderSheet = lazy(() => import('../../components/chart/builder/BuilderSheet'))
+
+/** The door the "New scan" button opens on.
+ *
+ *  ⛔ CONDITIONS, NOT THE LIBRARY. The sheet's own default is the starter
+ *  library, which is right for a member who came to write an INDICATOR with
+ *  nothing in the box. A member who clicked "New scan" inside the screener is
+ *  authoring a SCREEN, and the picker is the door onto that. Spelled once,
+ *  exported, and checked against the sheet's OWN mode set (derived off its AST)
+ *  rather than against a list retyped here — `ScreensManager.door.test.jsx`. */
+export const NEW_SCAN_MODE = 'picker'
+
+/** The bars the concierge computes a proposal against.
+ *
+ *  The chart hands `BuilderSheet` the window the member is looking at; the
+ *  screener has no chart, so it hands the benchmark's last 400 daily bars.
+ *  ⭐ THIS IS NOT DECORATION: `definition_concierge._validate` runs its compute
+ *  stage only `if bars`, so a door that handed none could never fire "the
+ *  assistant's formula produces no value on the bars in view" — a proposal that
+ *  computes nothing would arrive unrefused. A window makes that gate live here.
+ *  400 is what the budget's own `_MIN_BARS` floor asks for. */
+export const SPY_WINDOW = '/api/bars/SPY?tf=D&bars=400'
+
+/** ⛔ ERROR ≠ EMPTY, one door down: a refused bars read answers `null`, never
+ *  `[]`. An empty ARRAY is a window with no bars in it, which the concierge
+ *  would read as computed-and-found-nothing; `null` is "we have no window",
+ *  which is what a 503 actually means. */
+const barsFetcher = (url) => fetch(url, { credentials: 'include' })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((b) => (b && Array.isArray(b.bars) ? b.bars : null))
 
 // ScreensManager — replaces SaveScreenBar (commit A of the E-4 unification
 // cutover, docs/superpowers/plans/2026-08-22-screener-wave4-e4-unification.md
@@ -57,11 +96,35 @@ import styles from './ScannerPro.module.css'
 // across a row change it would show one scan's names under another's formula —
 // the same coincidence `ScanResults` clears its open chart to prevent. Matching
 // on the pair means no effect has to remember to clear it.
+//
+// ─── THE AUTHORING DOOR (W4a.5) ─────────────────────────────────────────────
+//
+// "New scan" mounts the ONE `BuilderSheet` (lazy) on the Conditions picker;
+// "Edit" mounts the SAME sheet on the row. Saving goes through the sheet's own
+// `saveUserDefinition` — this file imports NO save function and spells NO
+// `/api/user-definitions` URL (`Screener.door.test.jsx`'s AST rail), because a
+// second write door onto one object is how two callers end up disagreeing about
+// what a definition is.
+//
+// ⛔ AND THIS FILE SAYS NOTHING ABOUT THE RUN IT IS SHOWING. `RunNowButton`
+// already captions the set below it (`run-now-done` — "Showing on-demand
+// results over N symbols from L"), and that caption is hoisted out of its own
+// collapse gate precisely so it is always beside the answer. A chip here
+// restating the tier would be a second voice for one fact. What was genuinely
+// missing is the way BACK to the nightly answer, and that control belongs
+// beside the caption it retracts — inside the button, which owns it.
 
 const badgeStyle = {
   fontSize: 9, letterSpacing: '.5px', color: 'var(--text-muted)',
   border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px',
   marginLeft: 6, textTransform: 'uppercase', fontWeight: 600, verticalAlign: 'middle',
+}
+
+/** The "My scans" header carries a control on its right. `.saveMenuHdr` is a
+ *  label, not a row, so the layout is stated here rather than by borrowing
+ *  `.saveMenuItem` — which also paints a hover background this is not. */
+const hdrRowStyle = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
 }
 
 function TypeBadge({ children }) {
@@ -79,7 +142,7 @@ function scanName(row) {
 
 export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
-  const { rows: defRows, error: defsError } = useUserDefinitions()
+  const { rows: defRows, error: defsError, refresh: refreshDefs } = useUserDefinitions()
   const scans = useMemo(() => scannableScreens(defRows), [defRows])
 
   const [open, setOpen] = useState(false)
@@ -96,6 +159,18 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // The on-demand run currently on screen: `{defId, session, payload}`. Matched,
   // never assumed — see the header note.
   const [run, setRun] = useState(null)
+  // The authoring door: null (closed) | {row: null} (a new scan, on the
+  // Conditions picker) | {row} (edit that row).
+  //
+  // ⛔ ONE OBJECT, HELD IN STATE, SO `editRow`'s IDENTITY IS STABLE. The sheet
+  // re-runs `openForEdit` whenever that prop changes; a row rebuilt inline on
+  // each render would re-open it every time and throw away what the member has
+  // typed since.
+  const [builder, setBuilder] = useState(null)
+  // Fetched only while the sheet is open — a member reading their screens never
+  // asks for a window they are not going to compute anything against.
+  const { data: spyBars } = useSWR(builder ? SPY_WINDOW : null, barsFetcher,
+    { revalidateOnFocus: false })
   const wrapRef = useRef(null)
 
   useEffect(() => {
@@ -243,7 +318,21 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           </div>
 
           <div className={styles.saveMenuSection}>
-            <div className={styles.saveMenuHdr}>My scans<TypeBadge>SCAN</TypeBadge></div>
+            <div className={styles.saveMenuHdr} style={hdrRowStyle}>
+              <span>My scans<TypeBadge>SCAN</TypeBadge></span>
+              {/* 🔴 THE AUTHORING DOOR. Closes the menu first: the sheet is a
+                  `Sheet` portalled to document.body, i.e. OUTSIDE `wrapRef`,
+                  so the menu's own outside-click handler would fire on the
+                  first click inside the sheet and shut the menu underneath it
+                  anyway — this just does it deliberately, before the sheet is
+                  on screen. */}
+              <span className={styles.saveMenuAct}>
+                <button type="button" aria-label="New scan"
+                  onClick={() => { setOpen(false); setBuilder({ row: null }) }}>
+                  <UIcon name="plus" size={11} /> New scan
+                </button>
+              </span>
+            </div>
             {defsError ? (
               <p role="alert" data-testid="screens-manager-error--scans" className={styles.saveMenuEmpty}>
                 Your saved scans could not be read ({String(defsError.message || defsError)}).
@@ -268,6 +357,15 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                         onClick={() => onUseScan(row.ast_hash, name)}>
                         Use as filter
                       </button>
+                      {/* ⛔ THE SAME SHEET, NOT A SECOND ONE, and it opens on
+                          the ROW rather than on `NEW_SCAN_MODE` — an edit lands
+                          on the Formula because `openForEdit` says so, and a
+                          mode forced from here would override the sheet's own
+                          rule about its own doors. */}
+                      <button type="button" aria-label={`Edit ${name}`}
+                        onClick={() => { setOpen(false); setBuilder({ row }) }}>
+                        <UIcon name="edit" size={12} />
+                      </button>
                     </span>
                   </div>
 
@@ -287,6 +385,15 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                         name={name}
                         session={session}
                         onResult={(payload) => setRun({ defId: row.def_id, session, payload })}
+                        /* ⭐ THE WAY BACK. Without it an on-demand run is a
+                           one-way door: the nightly receipt is only
+                           recoverable by changing the session or closing the
+                           row, both of which throw away something else. It is
+                           passed from HERE because this is where the run is
+                           held, and rendered THERE because the caption it
+                           retracts lives there — one control, beside the
+                           sentence it makes false. */
+                        onClear={() => setRun(null)}
                       />
                       <ScanResults
                         definition={row.definition}
@@ -309,6 +416,31 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
             <button type="button" className="btn btn-primary" onClick={saveCurrent}>Save current</button>
           </div>
         </div>
+      )}
+
+      {/* ⛔ MOUNTED OUTSIDE `{open && …}`. The menu closes when the door is
+          used, and a sheet nested inside that block would unmount with it —
+          the member would click "New scan" and get nothing. */}
+      {builder && (
+        <Suspense fallback={null}>
+          <BuilderSheet
+            open
+            onClose={() => setBuilder(null)}
+            initialMode={builder.row ? null : NEW_SCAN_MODE}
+            editRow={builder.row}
+            bars={spyBars || null}
+            onSaved={(savedRow) => {
+              // ⛔ THIS DECIDES WHAT IS ON SCREEN NEXT, AND NOTHING ELSE. The
+              // sheet already wrote the definition through its own
+              // `saveUserDefinition`; `refreshDefs` re-reads the store that
+              // owns what exists. A save performed here would be a second
+              // write door onto one object.
+              setBuilder(null)
+              refreshDefs()
+              if (savedRow && savedRow.def_id) { setDetailId(savedRow.def_id); setOpen(true) }
+            }}
+          />
+        </Suspense>
       )}
     </div>
   )

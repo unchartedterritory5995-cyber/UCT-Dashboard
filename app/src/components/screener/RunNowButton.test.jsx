@@ -534,3 +534,55 @@ describe('⭐ the constants this file publishes are the ones the server pins', (
     expect(jobUrl('a b/c')).toBe(`${RUN_ENDPOINT}/a%20b%2Fc`)
   })
 })
+
+// ─── THE RESTORE (W4a.5) ────────────────────────────────────────────────────
+//
+// The caption says the set BELOW this component is the on-demand one. The
+// control that makes that sentence false is rendered beside it, and it must
+// clear BOTH — the parent's payload and this caption — or one of the two is
+// left lying about what is on screen.
+describe('the way back out of an on-demand answer', () => {
+  const RESTORE = 'Back to the nightly results'
+
+  const runToDone = async () => {
+    open()
+    type('NVDA')
+    clickRun()
+    await screen.findByTestId('run-now-done')
+  }
+
+  it('⛔ is not offered at all when no parent can take the answer back', async () => {
+    mount()
+    await runToDone()
+    // A control that cleared this caption without clearing the payload would be
+    // the same identity lie with the labels swapped, so it is not rendered at
+    // all unless the caller passed something that can do both.
+    expect(screen.queryByRole('button', { name: RESTORE })).toBeNull()
+  })
+
+  it('clears the caption AND tells the parent, in one click', async () => {
+    const onClear = vi.fn()
+    render(<RunNowButton defId="u_0000000000aa" name="Above the 50" session="2026-08-21"
+      onResult={vi.fn()} onClear={onClear} />)
+    await runToDone()
+    expect(screen.getByRole('button', { name: RESTORE })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: RESTORE }))
+    expect(onClear).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('run-now-done')).toBeNull()
+    expect(screen.queryByRole('button', { name: RESTORE })).toBeNull()
+  })
+
+  it('and a SECOND run re-offers it — the caption and its retraction move together', async () => {
+    const onClear = vi.fn()
+    render(<RunNowButton defId="u_0000000000aa" name="Above the 50" session="2026-08-21"
+      onResult={vi.fn()} onClear={onClear} />)
+    await runToDone()
+    fireEvent.click(screen.getByRole('button', { name: RESTORE }))
+    expect(screen.queryByRole('button', { name: RESTORE })).toBeNull()
+
+    clickRun()
+    await screen.findByTestId('run-now-done')
+    expect(screen.getByRole('button', { name: RESTORE })).toBeInTheDocument()
+  })
+})

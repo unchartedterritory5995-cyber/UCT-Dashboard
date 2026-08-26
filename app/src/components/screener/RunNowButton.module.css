@@ -128,3 +128,17 @@
   .row { gap: 8px; }
   .go { margin-left: 0; }
 }
+
+/* The way back out of an on-demand answer, inline in the done caption. It is
+   a control inside a sentence, so it reads as a link rather than a button. */
+.restore {
+  margin-left: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ut-gold);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.restore:hover { color: var(--text-bright); }

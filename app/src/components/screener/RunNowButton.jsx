@@ -141,7 +141,7 @@ async function readJson(response) {
   try { return await response.json() } catch { return null }
 }
 
-export default function RunNowButton({ defId, name, session, onResult }) {
+export default function RunNowButton({ defId, name, session, onResult, onClear = null }) {
   const { meta } = useScreenerMeta()
   const lists = useMemo(() => {
     const entry = (meta && Array.isArray(meta.filters) ? meta.filters : []).find((f) => f.key === 'list')
@@ -409,6 +409,30 @@ export default function RunNowButton({ defId, name, session, onResult }) {
           Showing {done.tier} results over{' '}
           {done.resolved} {done.resolved === 1 ? 'symbol' : 'symbols'}
           {done.label ? ` from ${done.label}` : ''}.
+          {/* ⭐ THE WAY BACK, BESIDE THE SENTENCE IT RETRACTS (W4a.5).
+              An on-demand run replaces the nightly answer below, and until
+              now the only ways back were changing the session or closing
+              the row — each of which throws away something else.
+
+              ⛔ AND IT CLEARS THIS CAPTION IN THE SAME CLICK. The caption
+              is about the SET BELOW; the parent drops the payload and the
+              nightly answer comes back, so a caption left standing would
+              read "Showing on-demand results" over the nightly one — the
+              identity lie FINDING 1 closed, arriving a third way.
+
+              ⛔ RENDERED ONLY WHEN A PARENT CAN ACTUALLY TAKE IT BACK. A
+              button that cleared this caption without clearing the payload
+              would be the same lie with the labels swapped. */}
+          {onClear && (
+            <button
+              type="button"
+              className={styles.restore}
+              aria-label="Back to the nightly results"
+              onClick={() => { setDone(null); onClear() }}
+            >
+              Back to nightly
+            </button>
+          )}
         </p>
       )}
 

@@ -1,0 +1,225 @@
+// app/src/pages/screener/ScreensManager.door.test.jsx
+//
+// ─── THE AUTHORING DOOR, ASSERTED AT THE PROP BOUNDARY (W4a.5) ──────────────
+//
+// "New scan" opens the ONE `BuilderSheet` on the Conditions picker; "Edit"
+// opens the SAME sheet on the row and does NOT force a mode. Both are measured
+// through a mocked sheet, because what this file owns is the DECISION the
+// manager makes, not the sheet's behaviour once it has it.
+//
+// ⛔ THE REAL SHEET + THE REAL SAVE ARE `Screener.door.test.jsx`'s job — a
+// mocked sheet here would stay green through a lazy chunk that never resolves,
+// which is precisely the "built, tested, green and unreachable" defect the
+// page-level wire-cut exists for.
+import fs from 'node:fs'
+import path from 'node:path'
+import { SWRConfig } from 'swr'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
+
+const create = vi.fn(); const update = vi.fn(); const remove = vi.fn()
+vi.mock('./hooks/useSavedScreens', () => ({
+  default: () => ({ saved: [], starters: [], error: null, create, update, remove }),
+}))
+
+const META = vi.hoisted(() => ({ meta: { filters: [] }, isLoading: false }))
+vi.mock('./hooks/useScreenerMeta', () => ({
+  default: () => META, META_KEY: '/api/screener/meta',
+}))
+
+const ROW = Object.freeze({
+  def_id: 'u_breakout', version: 2, rev: 1, ast_hash: 'sha256:aaa',
+  definition: {
+    compute: { kind: 'ast', fn: 'sha256:aaa', ast: { type: 'op' }, source: 'close > open' },
+    meta: { name: 'Breakout base' },
+  },
+})
+const refresh = vi.fn()
+const defsState = { rows: [ROW], error: null, isLoading: false, refresh }
+vi.mock('../../hooks/useUserDefinitions', () => ({
+  useUserDefinitions: () => defsState,
+}))
+
+// The sheet is mocked so the PROPS are the assertion. It renders a marker, not
+// a dialog — a dialog here would be this file inventing the very thing the
+// page-level wire-cut exists to prove actually arrives.
+const SheetSpy = vi.fn()
+vi.mock('../../components/chart/builder/BuilderSheet', () => ({
+  default: (props) => { SheetSpy(props); return <div data-testid="builder-sheet-mock" /> },
+}))
+vi.mock('../../components/screener/ScanResults', () => ({
+  default: (props) => <div data-testid="scan-results-mock" data-payload={props.payload ? 'given' : 'none'} />,
+}))
+
+import ScreensManager, { SPY_WINDOW, NEW_SCAN_MODE } from './ScreensManager'
+
+beforeEach(() => {
+  SheetSpy.mockClear(); refresh.mockClear()
+  defsState.rows = [ROW]; defsState.error = null
+})
+afterEach(() => { vi.unstubAllGlobals() })
+
+const mount = () => render(
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <ScreensManager currentSpec={{}} onApply={vi.fn()} onUseScan={vi.fn()} />
+  </SWRConfig>,
+)
+const openMenu = () => fireEvent.click(screen.getByText('Screens ▾'))
+/** The props of the LAST render of the mocked sheet. */
+const sheetProps = () => SheetSpy.mock.calls.at(-1)[0]
+
+describe('the authoring door', () => {
+  it('"New scan" mounts the builder on the Conditions picker with nothing to edit', async () => {
+    mount(); openMenu()
+    expect(screen.queryByTestId('builder-sheet-mock')).toBeNull()      // control: closed until asked
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    expect(await screen.findByTestId('builder-sheet-mock')).toBeInTheDocument()
+    const props = sheetProps()
+    expect(props.open).toBe(true)
+    expect(props.initialMode).toBe(NEW_SCAN_MODE)
+    expect(props.editRow).toBeNull()
+    expect(typeof props.onSaved).toBe('function')
+    expect(typeof props.onClose).toBe('function')
+  })
+
+  it('⭐ the door opens on CONDITIONS because what it authors is a SCREEN', () => {
+    // Spelled as its own case so the mode is not merely "whatever the manager
+    // happens to pass". A door onto the Library would put the firm's starters
+    // above a member who came here to build a screen. `NEW_SCAN_MODE` is the one
+    // place that choice is made; the derived rail below proves the sheet knows it.
+    expect(NEW_SCAN_MODE).toBe('picker')
+  })
+
+  it('closing the sheet leaves nothing mounted', async () => {
+    mount(); openMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    await screen.findByTestId('builder-sheet-mock')
+    sheetProps().onClose()
+    await waitFor(() => expect(screen.queryByTestId('builder-sheet-mock')).toBeNull())
+  })
+
+  it('onSaved closes the sheet and opens the NEW scan\'s detail', async () => {
+    mount(); openMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    await screen.findByTestId('builder-sheet-mock')
+    sheetProps().onSaved({ def_id: 'u_breakout', version: 3, rev: 1 })
+    await waitFor(() => expect(screen.queryByTestId('builder-sheet-mock')).toBeNull())
+    expect(await screen.findByTestId('scan-detail-u_breakout')).toBeInTheDocument()
+    // The store is the authority on what exists; the manager only decides what
+    // is on screen next.
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('a save that names no row still closes the sheet and opens nothing', async () => {
+    mount(); openMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    await screen.findByTestId('builder-sheet-mock')
+    sheetProps().onSaved(null)
+    await waitFor(() => expect(screen.queryByTestId('builder-sheet-mock')).toBeNull())
+    expect(screen.queryByTestId('scan-detail-u_breakout')).toBeNull()
+  })
+
+  it('Edit opens the SAME builder on the row, and the picker is not forced', async () => {
+    mount(); openMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Breakout base' }))
+    await screen.findByTestId('builder-sheet-mock')
+    const props = sheetProps()
+    expect(props.editRow).toEqual(ROW)
+    // ⛔ NOT `NEW_SCAN_MODE`. An edit opens on the FORMULA — the sheet's own
+    // `openForEdit` rule — and a mode forced from here would override it.
+    expect(props.initialMode).toBeNull()
+  })
+
+  it('the menu closes when the sheet opens — the sheet portals outside the menu\'s outside-click wrap', async () => {
+    mount(); openMenu()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  })
+})
+
+describe('the concierge gets a bars window — the screener has no chart to take one from', () => {
+  it('fetches SPY_WINDOW only once the sheet is open, and hands the bars down', async () => {
+    const bars = [{ t: '2026-08-21', o: 1, h: 2, l: 0, c: 1, v: 10 }]
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      calls.push(String(url))
+      return { ok: true, status: 200, json: async () => ({ ticker: 'SPY', tf: 'D', bars }) }
+    }))
+    mount(); openMenu()
+    // control: a closed sheet asks for nothing
+    expect(calls.filter((u) => u === SPY_WINDOW)).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    await screen.findByTestId('builder-sheet-mock')
+    await waitFor(() => expect(calls.filter((u) => u === SPY_WINDOW).length).toBeGreaterThan(0))
+    await waitFor(() => expect(sheetProps().bars).toEqual(bars))
+  })
+
+  it('a refused bars read hands down null, and the door still opens', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) })))
+    mount(); openMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
+    expect(await screen.findByTestId('builder-sheet-mock')).toBeInTheDocument()
+    await waitFor(() => expect(sheetProps().bars).toBeNull())
+  })
+})
+
+// ─── ⭐ THE DERIVED RAIL: the mode this file hands over is one the sheet KNOWS ─
+//
+// ⛔ A TYPED LIST OF MODES IS THE DEFECT, NOT THE RAIL. The brief this task was
+// written from spelled the sheet's modes as `library | picker | formula`; the
+// sheet has had a FOURTH (`pine`) since Phase F. A guard built on that list
+// would have silently ignored a mode the sheet does know, and nothing would
+// have failed. So the set is read out of `BuilderSheet.jsx` itself.
+describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
+  const ROOT = (() => {
+    let dir = process.cwd()
+    for (let i = 0; i < 8; i++) {
+      if (fs.existsSync(path.join(dir, 'app', 'src', 'components', 'StockChart.jsx'))) return dir
+      const up = path.dirname(dir); if (up === dir) break; dir = up
+    }
+    throw new Error(`ScreensManager.door.test: no repo root from ${process.cwd()}`)
+  })()
+  const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
+  const parse = (src) => Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+  const walk = (n, visit) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach((x) => walk(x, visit)); return }
+    if (typeof n.type === 'string') visit(n)
+    for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, visit)
+  }
+
+  /** Every mode `BuilderSheet` can be put into — every string literal handed to
+   *  `setBuildMode(...)`, taken off its AST. */
+  function sheetModes() {
+    const out = new Set()
+    walk(parse(read('app/src/components/chart/builder/BuilderSheet.jsx')), (n) => {
+      if (n.type === 'CallExpression' && n.callee && n.callee.type === 'Identifier'
+          && n.callee.name === 'setBuildMode'
+          && n.arguments.length === 1 && n.arguments[0].type === 'Literal'
+          && typeof n.arguments[0].value === 'string') {
+        out.add(n.arguments[0].value)
+      }
+    })
+    return out
+  }
+
+  it('the walk sees a real mode set (not vacuous)', () => {
+    const modes = sheetModes()
+    expect(modes.size, 'no `setBuildMode(<literal>)` found — this rail would pass on anything')
+      .toBeGreaterThanOrEqual(3)
+    // The measured fourth door. If Pine is ever removed, this line is what says
+    // so — rather than a guard quietly narrowing without anybody noticing.
+    expect(modes.has('pine')).toBe(true)
+  })
+
+  it('NEW_SCAN_MODE is one of them', () => {
+    expect([...sheetModes()]).toContain(NEW_SCAN_MODE)
+  })
+
+  it('and the rail is discriminating — a mode the sheet has no tab for is caught', () => {
+    expect(sheetModes().has('conditions')).toBe(false)
+  })
+})

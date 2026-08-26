@@ -26,7 +26,11 @@ const SCANNABLE_ROW = {
   def_id: 'u_breakout', ast_hash: 'sha256:aaa',
   definition: { compute: { kind: 'ast', fn: 'sha256:aaa', ast: { op: '>' } }, meta: { name: 'Breakout base' } },
 }
-const userDefinitionsState = { rows: [SCANNABLE_ROW], error: null }
+// `refresh` is the store's own revalidation, called by the authoring door's
+// `onSaved` (W4a.5). Stubbed here so the manager can destructure it; the door
+// itself is `ScreensManager.door.test.jsx`'s subject.
+const refreshDefs = vi.fn()
+const userDefinitionsState = { rows: [SCANNABLE_ROW], error: null, refresh: refreshDefs }
 vi.mock('../../hooks/useUserDefinitions', () => ({
   useUserDefinitions: () => userDefinitionsState,
 }))
@@ -300,4 +304,54 @@ test('the run-now door is only inside an OPEN scan detail', () => {
   expect(screen.queryByRole('button', { name: 'Run Breakout base now' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
   expect(screen.getByRole('button', { name: 'Run Breakout base now' })).toBeInTheDocument()
+})
+
+// ─── 🔴 THE WAY BACK (W4a.5) ────────────────────────────────────────────────
+//
+// An on-demand run REPLACES the nightly answer under the same mount. Until the
+// restore existed the only ways back were changing the session or closing the
+// row — each of which throws away something else the member chose. The control
+// is rendered by `RunNowButton` (beside the caption it retracts) and wired from
+// here (where the run is held), so it is a JOIN: only a test that drives both
+// halves can see it, exactly like the payload case above.
+
+test('"Back to the nightly results" drops the held run and the nightly answer returns', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ payload: EXPECTED_PAYLOAD }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the nightly results' }))
+
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith({
+      definition: SCANNABLE_ROW.definition, asOf: defaultSession(), tf: 'D', payload: null,
+    })
+    // ⛔ AND THE CAPTION GOES WITH IT. A "Showing on-demand results" line left
+    // standing over the nightly answer is the identity lie the caption exists
+    // to prevent, arriving from the other side.
+    expect(screen.queryByTestId('run-now-done')).toBeNull()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('the restore is offered only ONCE a run is showing', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+    expect(screen.queryByRole('button', { name: 'Back to the nightly results' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Run Breakout base now' }))
+    fireEvent.change(screen.getByLabelText('Symbols to run'), { target: { value: 'NVDA' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+    await screen.findByTestId('run-now-done')
+    expect(screen.getByRole('button', { name: 'Back to the nightly results' })).toBeInTheDocument()
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
