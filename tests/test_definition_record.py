@@ -39,6 +39,7 @@ import os
 import pathlib
 import sqlite3
 import sys
+import threading
 
 import pytest
 
@@ -331,6 +332,166 @@ def test_this_module_CAPTURES_NO_DATABASE_PATH_at_import(store):
     assert dr.db_path() == ledger._DB_PATH, (
         "the record and the ledger resolved to two different files — a receipt "
         "in a second file can outlive the writes it certifies")
+
+
+# ── the spawn census: no write here is handed to a thread the fixture cannot
+#    join, and the door list the census reads is DERIVED from the stdlib ──────
+
+def _concurrency_doors() -> dict:
+    """`dotted module -> the attributes of it that start work a test cannot join`.
+
+    ⛔ DERIVED FROM THE STDLIB, NOT TYPED. `threading.Timer` **is** a `Thread`,
+    and `ThreadPoolExecutor` never says the word at its call site — so a
+    hand-typed `("threading.Thread",)` calls a one-line periodic flusher and a
+    two-worker pool clean. What is asked here instead is a question the stdlib
+    answers: which `threading` attributes are `Thread` subclasses, which
+    `_thread` attributes start one, and which `concurrent.futures` attributes
+    are `Executor`s. A door CPython adds is covered the day it lands, and no
+    name below is one somebody had to remember.
+    """
+    import _thread                      # the low-level door underneath threading
+    import concurrent.futures as _cf    # the pool door that never says "Thread"
+    return {
+        "threading": frozenset(
+            n for n in dir(threading)
+            if isinstance(getattr(threading, n), type)
+            and issubclass(getattr(threading, n), threading.Thread)),
+        "_thread": frozenset(n for n in dir(_thread) if n.startswith("start_")),
+        "concurrent.futures": frozenset(
+            n for n in dir(_cf)
+            if isinstance(getattr(_cf, n), type)
+            and issubclass(getattr(_cf, n), _cf.Executor)),
+    }
+
+
+def _spawn_sites(src: str) -> list:
+    """`[(lineno, the text as written)]` for every door THIS source opens.
+
+    ⛔ THE BINDINGS ARE RESOLVED OUT OF THE SOURCE'S OWN IMPORTS, because every
+    way to hide a spawn from a literal name match is one line long:
+    `import threading as th`, `from threading import Thread as T`, and
+    `class _Flusher(threading.Thread)` — which is not even a `Call`. A census
+    keyed on the strings `"threading.Thread"`/`"Thread"` misses all three, and
+    red-flags a local class that happens to be named `Thread`, so it is wrong in
+    both directions. That is why the parametrized control below carries a row
+    for each shape rather than describing them.
+    """
+    doors = _concurrency_doors()
+    tree = ast.parse(src)
+    mod_alias: dict = {}   # local name -> the dotted module it stands for
+    direct: dict = {}      # local name -> the "module.Attr" door it was pulled from
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                mod_alias[a.asname or a.name.split(".")[0]] = (
+                    a.name if a.asname else a.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod not in doors:
+                continue
+            for a in node.names:
+                if a.name == "*":
+                    for attr in doors[mod]:
+                        direct[attr] = f"{mod}.{attr}"
+                elif a.name in doors[mod]:
+                    direct[a.asname or a.name] = f"{mod}.{a.name}"
+
+    def _door_named(node) -> str | None:
+        """The resolved `module.Attr` this callee-or-base names, or None."""
+        if isinstance(node, ast.Name):
+            return direct.get(node.id)
+        dotted = _dotted(node)
+        if not dotted or "." not in dotted:
+            return None
+        head, attr = dotted.rsplit(".", 1)
+        segs = head.split(".")
+        segs[0] = mod_alias.get(segs[0], segs[0])
+        mod = ".".join(segs)
+        return f"{mod}.{attr}" if attr in doors.get(mod, ()) else None
+
+    hits: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if _door_named(node.func):
+                hits.add((node.lineno,
+                          _dotted(node.func) or getattr(node.func, "id", "?")))
+        elif isinstance(node, ast.ClassDef):
+            if any(_door_named(b) for b in node.bases):
+                hits.add((node.lineno, f"class {node.name}(...)"))
+    return sorted(hits)
+
+
+def test_this_module_STARTS_NO_THREAD_so_no_write_can_outlive_its_fixture():
+    """⛔ THE ESCAPE THE SHARED-ROOT GUARD EXISTS FOR, REFUSED AT THE SOURCE.
+
+    The repo-root guard names it in its own header — *"A `monkeypatch` env
+    override lives for the test. A DAEMON THREAD DOES NOT."* (`conftest.py`
+    L57-67): a write handed to a background thread resolves its path AFTER the
+    fixture unwound, its raise goes to `threading.excepthook`, and the test that
+    started it passes green — which is why `pytest_sessionfinish` (L658) has to
+    tally violations rather than rely on the raise. `threading` is imported in
+    `definition_record` for LOCKS, not for threads; this pins that second half,
+    so the isolation the `store` fixture grants is the isolation every write
+    actually gets. The failure message PRINTS the module's whole `threading.*`
+    surface instead of restating it here, where it would go stale silently.
+
+    ⭐ SCOPE, SAID PLAINLY SO NOBODY READS MORE PROTECTION INTO IT: this reads
+    THIS module's source. A thread started inside a module it calls is that
+    module's rail to carry, not this one's.
+
+    (W0.5, 2026-08-26 — the red spec §2 attributes to this file was the PROBE
+    connecting to the real ledger, fixed at the root in `b69c45ca4`. The thread
+    hypothesis is closed here rather than carried forward as a maybe.)
+    """
+    src = pathlib.Path(dr.__file__).read_text(encoding="utf-8")
+    sites = _spawn_sites(src)
+    surface = sorted({n.attr for n in ast.walk(ast.parse(src))
+                      if isinstance(n, ast.Attribute)
+                      and isinstance(n.value, ast.Name)
+                      and n.value.id == "threading"})
+    assert sites == [], (
+        f"definition_record opens a concurrency door at {sites} — join it in "
+        f"the fixture or drop it; a write on it resolves its path after the "
+        f"monkeypatch unwound, and its failure is invisible to the test that "
+        f"started it. Its threading surface is now {surface}")
+
+
+@pytest.mark.parametrize("source,expected", [
+    # the three one-line ways to hide a spawn from a literal name match
+    ("import threading\ndef f():\n    threading.Thread(target=f).start()\n", True),
+    ("import threading as th\ndef f():\n    th.Thread(target=f)\n", True),
+    ("from threading import Thread as T\ndef f():\n    T(target=f)\n", True),
+    # ⛔ a `Timer` IS a `Thread` — the shape a periodic flusher arrives in
+    ("import threading\ndef f():\n    threading.Timer(60, f)\n", True),
+    # the pool doors, which never say "Thread" at the call site
+    ("import concurrent.futures\n"
+     "def f():\n    concurrent.futures.ThreadPoolExecutor(2)\n", True),
+    ("from concurrent.futures import ThreadPoolExecutor as P\n"
+     "def f():\n    P(2)\n", True),
+    ("import _thread\ndef f():\n    _thread.start_new_thread(f, ())\n", True),
+    # the subclass shape, which is a ClassDef and not a Call at all
+    ("import threading\nclass _Flusher(threading.Thread):\n    pass\n", True),
+    # ⛔ THE NAMESAKE, THE OTHER DIRECTION: a local class that is not a thread
+    ("class Thread:\n    pass\ndef f():\n    Thread()\n", False),
+    # a lock is not a thread, in either import shape — this module's real one
+    ("import threading\n_L = threading.Lock()\n_I = threading.Lock()\n", False),
+    ("from threading import Lock\n_L = Lock()\n", False),
+    # prose and a string are not code
+    ("# threading.Thread is never started here\nX = 'threading.Thread'\n", False),
+])
+def test_the_spawn_census_SEES_every_alias_shape_and_IGNORES_the_namesake(
+        source, expected):
+    """⛔ A CENSUS NOBODY HAS SEEN FIRE IS NOT A CENSUS.
+
+    Phase C Task 1 measured this exact failure once already: a fixture written in
+    a shape the scanner structurally could not match left the scan asserting
+    nothing while staying green. Every `True` row here is a shape a real defect
+    takes, and four of them defeat a literal name match; the `False` rows are the
+    false positives that same match would have produced — so this control fails
+    for a wrong census in BOTH directions, not merely a blind one.
+    """
+    assert bool(_spawn_sites(source)) is expected
+
 
 
 #: Every symbol this store takes ON CONTRACT from a module it does not own, with
