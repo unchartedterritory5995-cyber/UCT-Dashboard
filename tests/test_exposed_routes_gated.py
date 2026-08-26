@@ -96,6 +96,18 @@ GATED: dict[tuple[str, str], str] = {
     ("POST", "/api/watchlist/save"): "flow_admin",
     ("POST", "/api/theme-performance/refresh"): "admin",
     ("POST", "/api/backtest"): "paid",
+    # ≤5-hundred-symbol on-demand scan (spec §5.5, lane W4a). GIL-bound
+    # compute on the single web pod, so: paid, per-member rate-limited, one
+    # run at a time, and QUEUED — the submit hands back a job id and the pool
+    # thread does the work, which is why the POLL is claimed here too. A hit
+    # list is the thing the toolkit sells; a gated submit beside an open read
+    # would hand every result on this pod to whoever guessed a job id.
+    # Probe-safe in both directions: the POST's body is required, so an
+    # anonymous probe refuses before validation and a paid probe without a
+    # body is 422; the GET's sample job id belongs to nobody, so a paid probe
+    # is the ordinary 404. Nothing in this file ever evaluates a scan.
+    ("POST", "/api/scans/run"): "paid",
+    ("GET", "/api/scans/run/{job}"): "paid",
     ("POST", "/api/admin/patterns/{detection_id}/review"): "admin",
     ("POST", "/api/patterns/{detection_id}/feedback"): "session",
     # ── P1: proprietary output, was anonymous ────────────────────────────────
@@ -189,6 +201,10 @@ PATH_PARAM_SAMPLES = {
     "metric_key": "up_4pct_today_list",
     "group_id": "ai",
     "detection_id": "no-such-detection",
+    # ⛔ A JOB ID THAT BELONGS TO NOBODY, ON PURPOSE. The run service answers
+    # not-there and not-yours identically (404), so a probe with this cannot
+    # read a real member's hits and cannot start any compute.
+    "job": "no-such-job",
     # ⛔ NOT AN INTEGER, ON PURPOSE — see `test_the_destructive_purge_route…`.
     "keep_days": "not-an-int",
 }
