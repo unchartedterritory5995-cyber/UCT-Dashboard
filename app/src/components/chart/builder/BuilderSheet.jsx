@@ -470,6 +470,22 @@ export class BuilderBoundary extends Component {
   }
 }
 
+/**
+ * ⭐ `initialMode` / `editRow` (W4a HAND-BACK) — the two things a SECOND opener
+ * needs to say. The chart toolbar passes neither and behaves exactly as before.
+ *
+ * `initialMode` names the door this sheet opens on; the open-reset applies it,
+ * so there is one writer of that value and no paint on the wrong tab.
+ *
+ * ⛔ IT IS NOT VALIDATED AGAINST A LIST HERE. A typed set of mode names beside
+ * the tabs that own them is a second authority — the one written for this task
+ * read `library | picker | formula` and had already missed `pine`, so it would
+ * have silently ignored a mode this sheet does have. The caller names a door;
+ * `ScreensManager.door.test.jsx` derives the real set off this file's AST.
+ *
+ * `editRow` is a STORE row to open for editing — it runs this sheet's own
+ * `openForEdit`, so a second opener cannot invent a second restore path.
+ */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
   initialMode = null, editRow = null,
@@ -704,7 +720,14 @@ export default function BuilderSheet({
   // formula they already own has no use for starters above their own work, so
   // `openForEdit` moves the sheet to Formula. `BuilderSheet.starters.test.jsx`
   // holds both halves.
-  const [buildMode, setBuildMode] = useState('library')
+  // ⛔ W4a — SEEDED FROM `initialMode` TOO, not merely reset to it. The chart
+  // keeps ONE sheet mounted and toggles `open`; the screener mounts a fresh one
+  // per click, so its first paint happens before any effect runs. `useEffect` is
+  // passive — it fires AFTER that paint — so a seed of `'library'` would show the
+  // library for a frame and then switch. One value, one source, both times it is
+  // written. (`Screener.door.test.jsx` is what measured this; the prop-level
+  // test could not see it, because a mock has no tabs to be on the wrong one of.)
+  const [buildMode, setBuildMode] = useState(() => initialMode || 'library')
   const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
@@ -716,12 +739,25 @@ export default function BuilderSheet({
     if (!open) return
     setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    setEditing(null); setBuildMode('library'); setPickerNote(null)
+    // ⛔ W4a — THE OPENING MODE IS DECIDED HERE AND NOWHERE ELSE. It used to
+    // be the literal `'library'`, and the screener's door (which wants the
+    // Conditions picker) was written as a SECOND effect setting it again
+    // afterwards. That is a second writer over one value, and it is visible:
+    // both are passive effects, so the sheet PAINTS on the library and then
+    // switches — `Screener.door.test.jsx` caught the flash on the real page
+    // while the prop-level test was green. `initialMode` is null for the
+    // chart's door, which is what keeps `'library'` the default it has always
+    // been.
+    setEditing(null); setBuildMode(initialMode || 'library'); setPickerNote(null)
     // ⛔ THE PLOTS RESET TOO. A sheet reopened with the previous formula's second
     // plot still in it would offer a Save whose document names a tree the box no
     // longer shows — the same reason `source` and `name` are cleared here.
     resetPlots()
-  }, [open, resetPlots])
+    // ⚠️ `initialMode` IS A DEPENDENCY, which means changing it re-runs the
+    // whole reset. That is correct — a sheet re-aimed at a different door is
+    // a new formula — and it is safe because the value is a STRING compared
+    // by value, not an object rebuilt per render.
+  }, [open, initialMode, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -863,40 +899,32 @@ export default function BuilderSheet({
     resetPlots()
   }, [resetPlots])
 
-  // ── W4a HAND-BACK: the `/screener` door's two ways in ─────────────────────
+  // ── W4a HAND-BACK: the `/screener` door opens the sheet ON A ROW ──────────
   //
-  // The chart toolbar opens this sheet one way and lets it choose its own mode.
-  // The screener opens the SAME sheet for a different reason — a member there is
-  // authoring a SCREEN — so it names the door it wants. Two additive props, no
-  // new state: `initialMode` is applied on top of the open-reset, and `editRow`
-  // runs the sheet's own `openForEdit`.
+  // The chart toolbar opens this sheet one way. The screener opens the SAME
+  // sheet two ways — a new screen (`initialMode`, handled by the open-reset
+  // above, which is the ONE writer of the opening mode) and an existing row.
+  // This effect owns only the second, because `openForEdit` is a callback and
+  // the reset cannot call it without taking on the row-restore's whole job.
   //
-  // ⛔ DECLARED AFTER THE `[open]` RESET AND AFTER `openForEdit`, ON PURPOSE.
-  // Effects run in declaration order, so the reset (which sets `library`) lands
-  // first and this decides the mode on top of it. Move this above the reset and
-  // the screener's door silently opens on the Library.
+  // ⛔ DECLARED AFTER THE `[open]` RESET AND AFTER `openForEdit`, ON PURPOSE:
+  // effects run in declaration order, so the reset empties the form first and
+  // this fills it from the row. Move it above the reset and every edit opens
+  // on a blank box.
   //
-  // ⛔ A ROW TO EDIT WINS, and it does not merely win the tie — `openForEdit`
-  // ends by moving the sheet to Formula itself, which is the sheet's own rule
-  // (a member editing their own work is not helped by a gallery of starters
-  // above it). A caller that passed both would be overridden by that rule
-  // anyway; returning early says so instead of leaving it to ordering.
-  //
-  // ⛔ AND `initialMode` IS NOT VALIDATED HERE. A typed list of modes beside the
-  // tabs that own them is a second authority: the one written for this task read
-  // `library | picker | formula` and had already missed `pine`, so it would have
-  // silently ignored a mode this sheet does have. The caller names a door;
-  // `ScreensManager.door.test.jsx` derives the real set off this file's AST and
-  // fails if the name is not one of them.
+  // ⛔ AND AN `editRow` WINS OVER AN `initialMode` BY CONSTRUCTION — not by
+  // this effect arbitrating, but because `openForEdit` ends by moving the
+  // sheet to the Formula itself. That is the sheet's own rule (a member
+  // editing their own work is not helped by a gallery of starters above it),
+  // and it is the rule precisely so no caller has to know it.
   //
   // ⚠️ `editRow` MUST BE HELD IN THE CALLER'S STATE (a stable identity), never
   // built inline, or this re-opens the row on every parent render and throws
   // away whatever the member has typed since.
   useEffect(() => {
-    if (!open) return
-    if (editRow) { openForEdit(editRow); return }
-    if (initialMode) setBuildMode(initialMode)
-  }, [open, editRow, initialMode, openForEdit])
+    if (!open || !editRow) return
+    openForEdit(editRow)
+  }, [open, editRow, openForEdit])
 
   // A new evaluation invalidates an acknowledgement of the OLD one. Carrying it
   // forward would let a user acknowledge a bounded forward reference and then
