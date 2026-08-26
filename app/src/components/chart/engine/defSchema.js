@@ -74,7 +74,7 @@
 // `compute.ast` is not expressible without a parser, and D-A1 rules that there is
 // exactly ONE. A second comparison written here by hand would be a second
 // grammar, which is the thing that ruling exists to prevent.
-import { astHash } from './ast/parse'
+import { astHash, KEY_RE } from './ast/parse'
 // ⭐ THE THIRD IMPORT, ADDED WITH THE TC2000 READER, AND IT REPLACES A DIRECT
 // `parseFormula` CALL RATHER THAN ADDING A SECOND ONE.
 //
@@ -385,10 +385,11 @@ export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'level
 /** `$<inputKey>` — the whole value is the reference, or it is not one. */
 const REF_RE = /^\$([A-Za-z][A-Za-z0-9_]*)$/
 
-/** Input / plot / event keys. Identifier-shaped because they are addressed:
- *  plots as `defId.plotKey`, inputs as `$inputKey`. A dot or a space in either
- *  would make those two grammars ambiguous. */
-const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
+// `KEY_RE` — input / plot / event / tree keys — is IMPORTED from `./ast/parse`,
+// beside `LOOKBACK_RE`: one grammar, read by this module and by `ast/trees.js`.
+// It was a private copy here until W1b.2, and the second private copy in
+// `trees.js` was the second-authority-over-one-value defect this repo names
+// most; `defSchema.test.js` now holds the two modules to the one export.
 
 /** Definition id. Hyphens allowed (`uct-rsi`); dots are not — `defId.plotKey`
  *  addressing has to stay unambiguous. */

@@ -17,13 +17,13 @@
 // mirror needs: each pair carries `astHash`'s full `'sha256:<hex>'` value (the
 // prefix is INSIDE the hashed text), and KEY_RE keeps keys ASCII, so the JS
 // sort and Python's `sorted()` agree without a collation rule.
-import { astHash, sha256Hex } from './parse'
+// ⛔ `KEY_RE` IS IMPORTED, NEVER RETYPED — the one input/plot/tree key grammar,
+// exported from `parse.js` beside `LOOKBACK_RE`. This file held its own copy for
+// one commit (W1b.1) and `defSchema.js` held another; `defSchema.test.js` now
+// holds both modules to the one export.
+import { astHash, sha256Hex, KEY_RE } from './parse'
 import { REPAINT_MODES } from './lint'
 import { FRESHNESS_MODES } from './freshness'
-
-/** Plot keys are addressed as `defId.plotKey` — the same grammar as `defSchema`'s
- *  KEY_RE (module-private there; an input key and a plot key share one alphabet). */
-const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
 
 /** @returns {string[]} the plot keys, SORTED — the order every consumer must use.
  *
