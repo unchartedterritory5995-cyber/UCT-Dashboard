@@ -266,21 +266,31 @@ def _clean_symbols(symbols: Optional[Sequence[Any]]) -> list:
     never a universe"; a loop over whatever arrived is the one unbounded thing
     left in it. `resolve_universe` refuses a SIZED body past the hard bound before
     calling here at all; this guard is for one that cannot be measured (a
-    generator), and it stops ONE PAST that bound so an unreadable input is REFUSED
-    rather than silently truncated.
+    generator), and it stops ON the (bound+1)-th item — one past the bound, which
+    is the fewest it can read and still KNOW the input is over — so an unreadable
+    input is REFUSED rather than silently truncated.
 
     ⛔ AND IT IS THE **HARD** BOUND BECAUSE THE DE-DUPE HAPPENS HERE. Stopping at
     `MAX_RUN_SYMBOLS` would refuse 600 pasted rows carrying 50 distinct tickers
     one line before this loop reduced them to 50 — the exact regression the ruling
     of 8/25 undid on the sized path. A generator and a list carrying the same
     names must resolve to the same universe, or the fix healed one door only.
+    ⚠️ AND THAT EQUIVALENCE IS A CLAIM ABOUT THE BOUNDARY, so it is measured AT
+    the boundary: `test_the_SIZED_and_GENERATOR_doors_AGREE_AT_THE_BOUNDARY` drives
+    both doors at `HARD_SYMBOL_BOUND` and `+ 1`. An infinite generator and a
+    `len()` check agree everywhere except the one input that matters.
     """
     seen: set = set()
     out: list = []
     walked = 0
     for raw in symbols or ():
         walked += 1
-        if walked > HARD_SYMBOL_BOUND + 1:
+        # ⛔ `> BOUND`, NOT `> BOUND + 1` — THE SIZED DOOR REFUSES AT `BOUND + 1`
+        # AND THIS ONE MUST TOO. Walking the (BOUND+1)-th item is the minimum
+        # needed to KNOW the input is over the bound; walking a (BOUND+2)-th
+        # would be a second, looser bound, and the two doors disagreed at exactly
+        # that one input until it was measured (fix round 1, W4a.2).
+        if walked > HARD_SYMBOL_BOUND:
             raise _too_many_to_walk(f"more than {HARD_SYMBOL_BOUND}")
         s = str(raw).strip().upper()
         if s and s not in seen:

@@ -414,6 +414,35 @@ def test_resolve_universe_bounds_the_WALK_TOO__an_UNSIZED_iterable_refuses(lists
     assert kept == ["S00000", "S00001", "S00002"]
 
 
+def test_the_SIZED_and_GENERATOR_doors_AGREE_AT_THE_BOUNDARY(lists):
+    """🔴 THE EQUIVALENCE CLAIM, MEASURED AT THE ONE INPUT THAT COULD BREAK IT.
+
+    `_clean_symbols`'s docstring asserts that "a generator and a list carrying the
+    same names must resolve to the same universe" — and neither existing test
+    could see it: the sized case is checked with a `len()` and the unsized case
+    with an INFINITE generator, so both doors were only ever exercised far from
+    the boundary. They disagreed at exactly one input (`HARD_SYMBOL_BOUND + 1`:
+    the sized path refused, the generator path did not), because the walk stopped
+    one past the bound PLUS ONE. Walking the (bound+1)-th item is the minimum
+    needed to KNOW the input is over; walking a (bound+2)-th is a second bound.
+
+    ⚠️ Not member-visible — `RunIn`'s `max_length` answers 422 first — which is
+    exactly why only a test at the boundary was ever going to find it.
+    """
+    from api.services.screener import scan_run
+    n = scan_run.HARD_SYMBOL_BOUND
+    for size, refuses in ((n, False), (n + 1, True)):
+        names = ["NVDA"] * size
+        for door, arg in (("sized", names), ("generator", (s for s in names))):
+            if refuses:
+                with pytest.raises(scan_run.RunRefused) as exc:
+                    scan_run.resolve_universe(ALICE, symbols=arg)
+                assert exc.value.gate == scan_run.UNIVERSE_GATE, (door, size)
+            else:
+                kept, _ = scan_run.resolve_universe(ALICE, symbols=arg)
+                assert kept == ["NVDA"], (door, size)
+
+
 def test_resolve_universe_resolves_a_list_the_caller_OWNS_through_list_universe(lists):
     from api.services.screener import scan_run
     syms, receipt = scan_run.resolve_universe(ALICE, list_id="wl:4b9b2122-ddc")
