@@ -6035,6 +6035,12 @@ app.include_router(volume_scan_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
+# ── THE E-6 RECORD READ (`/api/scans/definition-record`) — W5a 2026-08-25. The
+# record was written nightly and read by nothing; the Evidence tab reads it
+# here. Unconditional: the record is a shipped fact, not gated by the backtest
+# flag below. ⛔ REGISTERED so the E-7 census walks it off `router.routes`.
+from api.routers import definition_record as definition_record_router
+app.include_router(definition_record_router.router)
 # ── ON-DEMAND SCAN (W4a, spec §5.5): `POST /api/scans/run` queues one saved
 # definition over ≤500 named symbols and `GET /api/scans/run/{job}` reads the
 # answer. Paid, per-handler-gated, per-member rate-limited, and WRITTEN NOWHERE.
