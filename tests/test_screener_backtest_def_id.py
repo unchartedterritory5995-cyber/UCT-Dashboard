@@ -10,6 +10,8 @@ store tuples with a YYYYMMDD ts, so `_fmt_sqlite_bars` still runs.
 from __future__ import annotations
 
 import datetime
+import inspect
+import threading
 
 import pytest
 from fastapi import FastAPI
@@ -19,6 +21,7 @@ from api.middleware.auth_middleware import get_current_user, get_current_user_wi
 from api.routers import screener_backtest as bt
 from api.services import bars_fetch, bars_sqlite
 from api.services import user_definitions as defs
+from api.services.screener import saved_screens as scr_saved
 from api.services.screener import snapshot_builder
 
 PAID = {"id": "paid1", "role": "member", "plan": "pro"}
@@ -50,6 +53,19 @@ def row_for(tree, *, rev=2, version=3):
     return {"def_id": DEF_ID, "version": version, "rev": rev,
             "ast_hash": defs.ast_hash(tree) if tree is not SCALAR_TREE else "sha256:" + "0" * 64,
             "definition": {"compute": {"kind": "ast", "ast": tree, "rev": rev}}}
+
+
+def _date(key: int) -> datetime.date:
+    return datetime.date(key // 10_000, (key // 100) % 100, key % 100)
+
+
+def _minus_a_day(key: int) -> int:
+    return _back(key, 1)
+
+
+def _back(key: int, days: int) -> int:
+    d = _date(key) - datetime.timedelta(days=days)
+    return d.year * 10_000 + d.month * 100 + d.day
 
 
 def _store_rows(n=200):
@@ -152,11 +168,20 @@ def test_a_def_id_with_no_window_gets_the_WIDEST_window_under_the_ceiling_and_sa
     assert r.status_code == 200, r.text[:300]
     body = r.json()
     assert body["window"]["to"] == "2024-06-28"
-    assert body["window_request"]["derived"] is True
-    assert body["window_request"]["cap"] == 800
+    wr = body["window_request"]
+    assert wr["derived"] is True
+    assert wr["cap"] == 800
+    assert wr["max_days"] == bt.MAX_DERIVED_WINDOW_DAYS
+    assert wr["bound"] == "cap", wr        # here the CAP is the binding bound
     frm = int(body["window"]["from"].replace("-", ""))
     warmup = 3    # sma(close, 3)
     assert 2 * bt.bars_wanted(frm, 20240628, warmup, 20) <= 800
+    # ⭐ WIDEST, NOT MERELY FITTING — the assertion the name of this test claims.
+    # One calendar day earlier is over the ceiling, so nothing was left on the
+    # table (a `fit_window_start` that always returned the floor would pass the
+    # line above and fail this one).
+    wider = _minus_a_day(frm)
+    assert 2 * bt.bars_wanted(wider, 20240628, warmup, 20) > 800
     # ⚠️ THE CLOCK IS READ BEFORE THE DIGEST, NOT INSIDE IT: the same body asked
     # twice in one session is the same job, so a derived window still dedupes.
     assert client.post("/api/screener/backtest",
@@ -209,8 +234,137 @@ def test_fit_window_start_is_the_widest_span_under_the_cap_and_None_below_the_fl
     start = bt.fit_window_start(end, symbols=100, warmup=50, max_horizon=20, cap=30_000)
     assert start is not None
     assert 100 * bt.bars_wanted(start, end, 50, 20) <= 30_000
-    d = datetime.date(start // 10_000, (start // 100) % 100, start % 100) - datetime.timedelta(days=1)
-    wider = d.year * 10_000 + d.month * 100 + d.day
-    assert 100 * bt.bars_wanted(wider, end, 50, 20) > 30_000
+    assert 100 * bt.bars_wanted(_minus_a_day(start), end, 50, 20) > 30_000
     # CONTROL: a ceiling even the floor window cannot fit is None, not a guess
     assert bt.fit_window_start(end, symbols=100, warmup=50, max_horizon=20, cap=10) is None
+
+
+def test_the_DAY_CEILING_is_an_independent_bound_and_the_payload_names_it(monkeypatch):
+    """🔴 THE SENTENCE A MEMBER READS HAS TO BE TRUE OF ITS OWN CASE. For a narrow
+    saved screen — the case the Evidence tab exists to serve — the cap is nowhere
+    near binding and the window is decided by `MAX_DERIVED_WINDOW_DAYS`. A
+    `window_request` that named only the cap told that member the wrong reason,
+    printed a ceiling 20× the bars actually used, and would not have moved a day
+    if that ceiling were raised.
+
+    ⛔ AND THE OTHER CONSTANT'S OLD DEFENCE ("past which MAX_BARS_PER_SYMBOL caps
+    the read anyway") IS MEASURED FALSE HERE: at the day ceiling a symbol reads
+    well under that clamp, and the crossover is more than twice the ceiling away —
+    so the day ceiling is an independent, disclosed bound, not a redundant one."""
+    monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd",
+                        lambda now=None: 20240628)
+    client = _client(monkeypatch)                     # 2 symbols, the DEFAULT cap
+    body = client.post("/api/screener/backtest", json={"def_id": DEF_ID}).json()
+    wr = body["window_request"]
+    assert wr["derived"] is True
+    assert wr["cap"] == bt.DEFAULT_MAX_CELLS
+    assert wr["max_days"] == bt.MAX_DERIVED_WINDOW_DAYS
+    assert wr["bound"] == "max_days", wr
+    for name in ("SCREEN_BACKTEST_MAX_CELLS", "MAX_DERIVED_WINDOW_DAYS"):
+        assert name in wr["rule"], (name, wr["rule"])
+
+    frm = int(body["window"]["from"].replace("-", ""))
+    assert (_date(20240628) - _date(frm)).days == bt.MAX_DERIVED_WINDOW_DAYS
+    want = bt.bars_wanted(frm, 20240628, 3, 20)       # sma(close, 3), h=20
+    # the cap did not decide this window, and it is not close to deciding it
+    assert 2 * want < wr["cap"] // 10, (2 * want, wr["cap"])
+    # ...and neither did MAX_BARS_PER_SYMBOL: it does not bind at the ceiling,
+    # and the span where it WOULD is more than twice as far out. Derived from
+    # `bars_wanted` itself rather than typed beside it.
+    assert want < bt.MAX_BARS_PER_SYMBOL
+    crossover = next(d for d in range(bt.MAX_DERIVED_WINDOW_DAYS, 20_001)
+                     if bt.bars_wanted(_back(20240628, d), 20240628, 3, 20)
+                     >= bt.MAX_BARS_PER_SYMBOL)
+    assert crossover - bt.MAX_DERIVED_WINDOW_DAYS > 3_000, crossover
+    # ⛔ AND THE COMMENT QUOTES THE MEASURED FIGURE, NOT A REMEMBERED ONE. The
+    # constant's docstring states this number; it is derived here and looked up
+    # there, so the day it stops being true it stops being green.
+    assert f"{crossover:,} days" in inspect.getsource(bt), crossover
+
+
+def test_a_BACKGROUND_post_carries_the_request_facts_the_POLL_cannot_recover(monkeypatch):
+    """⭐ BACKGROUND IS THE EVIDENCE TAB'S OWN PATH, so the FIRST answer it ever
+    sees must say which definition it is about. The tree is in hand on the POST,
+    so the request-facts ride on the queued acknowledgement.
+
+    ⚠️ THE POLL CANNOT, AND THAT IS WHY THE CLAIM IS SCOPED. A job id is a digest
+    of the request and holds no tree, so a `running` / `unknown` poll has nothing
+    to derive a hash from — the CONTROL below states that rather than leaving a
+    consumer to discover it."""
+    client = _client(monkeypatch)
+    q = client.post("/api/screener/backtest?background=1",
+                    json={"def_id": DEF_ID, **WINDOW})
+    assert q.status_code == 200, q.text[:300]
+    qb = q.json()
+    assert qb["status"] in ("running", "ready"), qb
+    assert qb["def_hash"] == defs.ast_hash(BAR_TREE)
+    assert qb["definition"] == {"def_id": DEF_ID, "version": 3, "rev": 2}
+
+    # drain the pool INSIDE the fixture's stubs, so no worker outlives them
+    for _ in range(500):
+        polled = client.get(f"/api/screener/backtest/{qb['job']}").json()
+        if polled.get("status") != "running":
+            break
+        threading.Event().wait(0.02)
+    assert polled["status"] == "ready", polled
+    assert polled["def_hash"] == defs.ast_hash(BAR_TREE)      # the READY receipt has it
+
+    # CONTROL: a job still on the pool answers `running` and carries no hash.
+    with bt._INFLIGHT_GUARD:
+        bt._INFLIGHT.add("still-going")
+    try:
+        assert bt.status_for("still-going") == {"job": "still-going", "status": "running"}
+    finally:
+        with bt._INFLIGHT_GUARD:
+            bt._INFLIGHT.discard("still-going")
+
+
+@pytest.mark.parametrize("extra", [
+    {"universe": "not-an-id"},          # would have answered "saved screen id"
+    {"horizons": [0]},                  # would have answered "outside 1..250"
+    {"universe": 7},                    # would have answered 404 — a STATUS change
+    {},                                 # CONTROL: the defect alone
+])
+def test_a_body_with_TWO_defects_still_answers_the_WINDOW_it_always_answered(monkeypatch, extra):
+    """⛔ A ONE-DEFECT FIXTURE CANNOT SEE PRECEDENCE. Every row of the shipped
+    refusal parametrisation carries exactly ONE bad field, so it stays green under
+    any reordering of the validators — and this task reordered them. These bodies
+    carry TWO, so the answer names which validator ran first.
+
+    Measured on the reordered door before this fix: the same three bodies answered
+    `saved screen id`, `outside 1..250` and a **404**. The window a member typed is
+    parsed before a universe that has to be BUILT, which is where it was."""
+    monkeypatch.setattr(scr_saved, "get", lambda sid, user_id: None)
+    client = _client(monkeypatch)
+    r = client.post("/api/screener/backtest",
+                    json={"ast": BAR_TREE, "from": "not-a-date",
+                          "to": "2024-06-28", **extra})
+    assert r.status_code == 400, (extra, r.status_code, r.text[:200])
+    assert "`from`" in r.json()["detail"], (extra, r.json()["detail"])
+
+
+def test_the_CONTROL_each_of_those_defects_ALONE_still_names_ITSELF(monkeypatch):
+    """...so the rows above are the window winning a race it should win, and not
+    this door answering `from` to everything it is handed."""
+    monkeypatch.setattr(scr_saved, "get", lambda sid, user_id: None)
+    client = _client(monkeypatch)
+    for extra, needle, code in (({"universe": "not-an-id"}, "saved screen id", 400),
+                                ({"horizons": [0]}, "outside 1..", 400),
+                                ({"universe": 7}, "no saved screen", 404)):
+        r = client.post("/api/screener/backtest",
+                        json={"ast": BAR_TREE, **WINDOW, **extra})
+        assert r.status_code == code, (extra, r.status_code, r.text[:200])
+        assert needle in r.json()["detail"], (extra, r.json()["detail"])
+
+
+def test_an_EMPTY_universe_does_not_outrank_a_window_the_member_typed_wrong(monkeypatch):
+    """The same precedence, one box over: on a pod whose snapshot is empty the
+    reordered door answered **503** to a body whose date was simply mistyped."""
+    client = _client(monkeypatch, universe=())
+    bad = client.post("/api/screener/backtest",
+                      json={"ast": BAR_TREE, "from": "not-a-date", "to": "2024-06-28"})
+    assert bad.status_code == 400, bad.text[:200]
+    assert "`from`" in bad.json()["detail"]
+    # CONTROL: with a window it can parse, the empty universe IS the answer
+    ok = client.post("/api/screener/backtest", json={"ast": BAR_TREE, **WINDOW})
+    assert ok.status_code == 503, ok.text[:200]

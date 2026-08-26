@@ -652,6 +652,14 @@ def _same_day_excess(strat_obs: Sequence[Tuple[Optional[Tuple[str, int]], float]
         if acc is None:
             # NO CELL TO COMPARE AGAINST: this bar's own same-day move was not
             # measurable, so it joined none.
+            #
+            # ⚠️ THAT READING IS THE CALLER'S INVARIANT, NOT THIS SIGNATURE'S.
+            # `run_backtest`'s horizon loop registers EVERY answered bar's
+            # non-`None` cell in `cells` before any matching happens, so within
+            # that caller `acc is None` can only mean `cell is None` — the bucket
+            # was unmeasurable. A hand-built `cells` that omitted a cell the
+            # observations name would be counted here as unmeasurable too, which
+            # is why the invariant is stated rather than assumed by the reader.
             unmeasurable += 1
             continue
         if acc[0] <= signals_in.get(cell, 0):

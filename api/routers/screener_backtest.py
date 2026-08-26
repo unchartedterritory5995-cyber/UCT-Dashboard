@@ -217,10 +217,30 @@ def bars_wanted(frm: int, to: int, warmup: int, max_horizon: int) -> int:
 
 
 #: The derived-window search space, in calendar days. The floor is the smallest
-#: window worth replaying; the ceiling is ~10 years, past which
-#: ``MAX_BARS_PER_SYMBOL`` caps the read anyway.
+#: window worth replaying.
+#:
+#: ⛔⛔ THE CEILING IS AN INDEPENDENT BOUND, NOT A REDUNDANT ONE, WHICH IS WHY IT
+#: IS DISCLOSED (``window_request.max_days``). This comment used to defend it as
+#: harmless — *"past which MAX_BARS_PER_SYMBOL caps the read anyway"* — and that
+#: is MEASURED FALSE: at 3,650 days with ``sma(close, 3)`` and a 20-bar horizon a
+#: symbol reads **2,655** bars against a clamp of **5,000**, and the clamp does
+#: not begin to bind until **6,932 days (19.0 years)**. So raising this ceiling
+#: really would widen every derived window, and below roughly 450 symbols
+#: (451 at that warmup, 444 at a 50-bar one) it — not
+#: ``SCREEN_BACKTEST_MAX_CELLS`` — is the bound that decides the window. A
+#: ``window_request`` naming only the cap told those members the wrong reason.
 MIN_DERIVED_WINDOW_DAYS = 30
 MAX_DERIVED_WINDOW_DAYS = 3650
+
+
+def _as_date(session: int) -> datetime.date:
+    """``20240628`` → ``date(2024, 6, 28)``."""
+    return datetime.date(session // 10_000, (session // 100) % 100, session % 100)
+
+
+def _session_back(end: int, days: int) -> int:
+    d = _as_date(end) - datetime.timedelta(days=days)
+    return d.year * 10_000 + d.month * 100 + d.day
 
 
 def fit_window_start(end: int, symbols: int, warmup: int, max_horizon: int,
@@ -231,15 +251,16 @@ def fit_window_start(end: int, symbols: int, warmup: int, max_horizon: int,
     ⛔ SIZED BY THE SAME ``bars_wanted`` THE REQUEST IS CHARGED AGAINST, so a
     window derived here can never be refused by the ceiling it was fitted to. A
     binary search over calendar days: ``bars_wanted`` is monotone in the span.
+
+    ⚠️ ``cap`` IS ONE OF **TWO** BOUNDS. The span is also capped at
+    ``MAX_DERIVED_WINDOW_DAYS``, and for a universe of a few hundred symbols that
+    is the one that binds — ``window_bound`` says which, and the payload names
+    both, because "we picked the widest window your memory ceiling allows" is a
+    false sentence for exactly the narrow saved screen this surface serves best.
     """
-    end_d = datetime.date(end // 10_000, (end // 100) % 100, end % 100)
-
-    def key(days: int) -> int:
-        d = end_d - datetime.timedelta(days=days)
-        return d.year * 10_000 + d.month * 100 + d.day
-
     def fits(days: int) -> bool:
-        return symbols * bars_wanted(key(days), end, warmup, max_horizon) <= cap
+        return symbols * bars_wanted(_session_back(end, days), end,
+                                     warmup, max_horizon) <= cap
 
     lo, hi = MIN_DERIVED_WINDOW_DAYS, MAX_DERIVED_WINDOW_DAYS
     if not fits(lo):
@@ -250,7 +271,20 @@ def fit_window_start(end: int, symbols: int, warmup: int, max_horizon: int,
             lo = mid
         else:
             hi = mid - 1
-    return key(lo)
+    return _session_back(end, lo)
+
+
+def window_bound(start: int, end: int) -> str:
+    """``"cap"`` or ``"max_days"`` — which bound actually decided a DERIVED window.
+
+    ⭐ READ OFF THE WINDOW THAT CAME BACK, not off the search that produced it: a
+    span that reached the day ceiling is one the search never had to shrink for
+    memory, so the ceiling is what stopped it. Deriving it here rather than
+    returning a second value from ``fit_window_start`` keeps that function's
+    contract (a ``from``, or ``None``) intact and keeps one answer to "how wide".
+    """
+    span = (_as_date(end) - _as_date(start)).days
+    return "max_days" if span >= MAX_DERIVED_WINDOW_DAYS else "cap"
 
 
 #: ⛔ ONE WORKER. Two concurrent whole-universe sweeps would double this single
@@ -342,6 +376,15 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
         raise HTTPException(
             status_code=400,
             detail=f"definition {def_id!r} carries no `compute.ast` tree to replay")
+    # ⚠️⚠️ TWO SOURCES, ON PURPOSE, BECAUSE THERE ARE TWO `rev` NUMBERS IN THIS
+    # SYSTEM AND THEY DIVERGE. `version` is the STORE's (one per saved version,
+    # the row). `rev` is the BLOB's `compute.rev` — the number
+    # `scan_evaluator.evaluate_one` reads (`rev = compute.get("rev")`) and writes
+    # into the E-6 rule record, which is the thing this receipt is rendered
+    # BESIDE. The row's own `rev` column is a different number: it moves when
+    # `ast_hash` moves, while `compute.rev` sat at 1 for every stored blob until
+    # `PUT /api/user-definitions/{def_id}` gained a product caller. Reading both
+    # from the row would look tidier and would silently stop matching the record.
     return tree, {"def_id": def_id, "version": row.get("version"),
                   "rev": compute.get("rev")}
 
@@ -811,12 +854,37 @@ def run_screen_backtest(body: BacktestRequest,
 
     ``def_id`` replays the member's OWN saved definition instead of a posted
     ``ast`` (never both), and MAY omit ``from``/``to``: the window is then the
-    widest one this pod's memory ceiling allows, stated back in
-    ``window_request``. Every response carries ``def_hash`` — the hash of the
-    tree that ran — so a consumer can refuse a receipt for another screen.
+    widest one BOTH bounds allow — the memory ceiling and the ~10-year span cap —
+    with ``window_request`` naming both and saying which one bound.
+
+    ``def_hash`` — the hash of the tree that RAN — rides on every answer THIS
+    route gives, including the ``?background=1`` acknowledgement and every
+    refusal. ⚠️ It is NOT on a ``running``/``unknown`` poll of
+    ``GET /api/screener/backtest/{job}``: a job id is a digest of the request and
+    carries no tree, so there is nothing there to derive it from. Poll answers
+    have it once they are ``ready``.
     """
     tree, definition = _tree_of(body, user.get("id"))
     tf = _tf(body.tf)
+
+    # ⛔⛔ THE WINDOW THE MEMBER TYPED IS PARSED **HERE**, BEFORE THE UNIVERSE IS
+    # BUILT — where it was before this door learned to derive one. Only a body
+    # that states no window at all waits, because deriving one needs the symbol
+    # count. Moving the whole block below `_universe_for` changed which refusal a
+    # body with two defects gets: a mistyped `from` beside a saved-screen id
+    # answered a 404, and on a box with an empty snapshot it answered 503. The
+    # shipped refusal parametrisation could not see it — every fixture there
+    # carries exactly one defect — so the rail that CAN lives in
+    # `tests/test_screener_backtest_def_id.py`.
+    derived = bool(definition) and body.from_ is None and body.to is None
+    start = end = 0
+    if not derived:
+        start = _session(body.from_, "from")
+        end = _session(body.to, "to")
+        if start > end:
+            raise HTTPException(status_code=400,
+                                detail=f"`from` {start} is after `to` {end}")
+
     horizons = _horizons(body.horizons)
 
     # ⛔ THE TREE IS RESOLVED ONCE, AT THE DOOR. `max_lookback` walks every call on
@@ -836,14 +904,19 @@ def run_screen_backtest(body: BacktestRequest,
     # would let a window fitted to one ceiling be refused by another.
     cap = max_cells()
 
-    # ── the window: the member's, or the widest one the ceiling allows ─────── #
-    # ⭐ A `def_id` body may omit the window, and then the window is DERIVED from
-    # the same bound that would otherwise refuse it (`fit_window_start`), ending
-    # at the lane's own latest session. It is STATED in `window_request` and the
-    # engine echoes the dates it actually compared bars against in `window`.
+    # ── the derived window: the widest one BOTH bounds allow ──────────────── #
+    # ⭐ A `def_id` body may omit the window, and then it is DERIVED from the same
+    # bounds that would otherwise refuse it, ending at the lane's own latest
+    # session. It is STATED in `window_request` and the engine echoes the dates it
+    # actually compared bars against in `window`.
     window_request: Optional[dict] = None
-    if definition and body.from_ is None and body.to is None:
-        end = int(bars_fetch._expected_latest_session_yyyymmdd())
+    if derived:
+        # ⛔ THE DERIVED END GOES THROUGH THE SAME VALIDATOR THE MEMBER'S `to`
+        # DOES. It is our own fact, not theirs, but "is this a session key" has
+        # one owner — and an unvalidated int from a helper would have raised
+        # somewhere downstream as a 500 instead of refusing by name.
+        end = _session(bars_fetch._expected_latest_session_yyyymmdd(),
+                       "to (derived from the latest session)")
         start = fit_window_start(end, len(symbols), warmup, max(horizons), cap)
         if start is None:
             raise HTTPException(
@@ -853,15 +926,19 @@ def run_screen_backtest(body: BacktestRequest,
                         f"{cap:,} bars. Narrow the universe."))
         window_request = {
             "derived": True,
-            "rule": "the widest window whose symbols x bars fits SCREEN_BACKTEST_MAX_CELLS",
+            # ⛔ BOTH BOUNDS, AND WHICH ONE BOUND. This sentence named only the
+            # cap for one round, and it was FALSE for the case this surface serves
+            # best: under ~450 symbols the cap is nowhere near binding (a 20-name
+            # screen used 4% of it) and the span is decided by the day ceiling —
+            # so the member was told the wrong reason beside a number that would
+            # not have moved the window by a day if it were raised 100×.
+            "rule": ("the widest window under BOTH bounds: symbols x bars must "
+                     "fit SCREEN_BACKTEST_MAX_CELLS, and the span itself is "
+                     "capped at MAX_DERIVED_WINDOW_DAYS calendar days"),
+            "bound": window_bound(start, end),
             "cap": cap,
+            "max_days": MAX_DERIVED_WINDOW_DAYS,
         }
-    else:
-        start = _session(body.from_, "from")
-        end = _session(body.to, "to")
-        if start > end:
-            raise HTTPException(status_code=400,
-                                detail=f"`from` {start} is after `to` {end}")
 
     want = bars_wanted(start, end, warmup, max(horizons))
     to_key = padded_end(end, max(horizons))
@@ -891,6 +968,28 @@ def run_screen_backtest(body: BacktestRequest,
     # made `_envelope` raise `EnvelopeCollision`, which was that guard working
     # exactly as designed: two writers had reached for one value.
 
+    # ⭐ THE REQUEST-FACTS, KEPT TOGETHER BECAUSE THEY RIDE ON TWO ANSWERS. They
+    # go into the receipt envelope below AND onto the queued acknowledgement a
+    # `?background=1` POST returns — which is the FIRST answer the Evidence tab
+    # ever sees, so it cannot be the one that does not say which definition it is
+    # about. ⚠️ The POLL is a different matter: a job id is a digest of the
+    # request and holds no tree, so a `running` / `unknown` poll has nothing to
+    # derive a hash from. The claim is therefore "every POST answer and every
+    # `ready` receipt", and the route docstring says so rather than leaving a
+    # consumer to find out.
+    asked = {
+        # ⭐ THE MATHS THAT RAN, HASHED — `astHash(tree)`, the same string the
+        # chart, the scan and the record key on. The consumer compares it to the
+        # definition it asked about and refuses a receipt for any other. DERIVED
+        # from the tree, never the store's `ast_hash` column: the column describes
+        # the row, this describes what the engine was handed.
+        "def_hash": _hash_of(tree),
+    }
+    if definition:
+        asked["definition"] = definition
+    if window_request:
+        asked["window_request"] = window_request
+
     extras = {
         "job": job,
         "status": "ready",
@@ -903,17 +1002,8 @@ def run_screen_backtest(body: BacktestRequest,
         # they are, so this route is its only writer.
         "tf": tf,
         "universe_request": universe,
-        # ⭐ THE MATHS THAT RAN, HASHED — `astHash(tree)`, the same string the
-        # chart, the scan and the record key on. The consumer compares it to the
-        # definition it asked about and refuses a receipt for any other. DERIVED
-        # from the tree, never the store's `ast_hash` column: the column describes
-        # the row, this describes what the engine was handed.
-        "def_hash": _hash_of(tree),
+        **asked,
     }
-    if definition:
-        extras["definition"] = definition
-    if window_request:
-        extras["window_request"] = window_request
 
     def _run() -> dict:
         receipt = _run_engine(tree, symbols, start=start, end=end,
@@ -923,7 +1013,11 @@ def run_screen_backtest(body: BacktestRequest,
         return _envelope(receipt, extras)
 
     if background:
-        return _submit(job, _run)
+        # ⛔ THE STORED PAYLOAD WINS ON A COLLISION, AND NOTHING IS MUTATED.
+        # `_submit` may hand back a receipt already in the cache; that dict is the
+        # cache's own object, so it is merged INTO a new one rather than written
+        # to, and its own keys outrank these.
+        return {**asked, **_submit(job, _run)}
 
     if len(symbols) > INLINE_MAX_SYMBOLS:
         # ⛔ THE BOUND, QUOTED. Not a silent truncation and not a slow 504: the
