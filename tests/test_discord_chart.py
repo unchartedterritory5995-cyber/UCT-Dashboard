@@ -377,7 +377,7 @@ def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
     client, rt = _app_client()
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None):
         scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
         assert house_fn is None  # CHART_RENDERER_URL is unset in tests → mplfinance only
         from api.services import discord_chart_prefs as p
@@ -993,12 +993,14 @@ def test_render_slots_come_from_env(monkeypatch):
     assert di.render_slot_count() == 4
 
 
-def test_house_url_forces_extended_hours_on_for_intraday_only():
+def test_house_url_sets_ext_explicitly_for_intraday_only_and_candles_default_off():
     from urllib.parse import parse_qs, urlparse
     from api.services.discord_chart_house import build_render_url
     for tf in ("5", "15", "30", "60"):
         q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="")).query)
-        assert q["ext"] == ["1"], tf  # pre/post-market candles + session shading, like the Charts widget
+        assert q["ext"] == ["0"], tf  # regular hours by default (owner 8/25): the pre/post print is the axis chip
+        q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="", options={"ext": True})).query)
+        assert q["ext"] == ["1"], tf  # a member who wants the candles gets them
     for tf in ("D", "W"):
         q = parse_qs(urlparse(build_render_url("NVDA", tf, {}, base_url="https://x", token="")).query)
         assert "ext" not in q, tf     # daily/weekly have no sessions to show; leave the page's default alone
@@ -1212,3 +1214,54 @@ def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_th
     assert out == "ok" and edits[-1][1] == b"MPL"
     assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", di.PAGE_BARS)]
     assert rendered["n"] == di.bars_to_request("15")
+
+
+# ── pre/post-market = the price chip on the right axis, not candles (owner, 8/25) ──
+
+def test_house_url_carries_the_ext_tag_on_every_timeframe_and_candles_default_off():
+    from api.services import discord_chart_house as house
+    from urllib.parse import urlparse, parse_qs
+    def q(tf, **opts):
+        return parse_qs(urlparse(house.build_render_url("SPY", tf, None, base_url="https://x", token="t", options=opts)).query)
+    assert q("D", exttag=("post", 764.97))["exttag"] == ["post:764.97"]
+    assert q("5", exttag=("pre", 102.5))["exttag"] == ["pre:102.50"]
+    assert "exttag" not in q("D") and "exttag" not in q("5", exttag=None)
+    assert q("5")["ext"] == ["0"]                                  # candles off unless the member asks
+    assert q("5", ext=True)["ext"] == ["1"]
+
+
+def test_job_resolves_the_ext_quote_for_the_house_render_and_survives_a_failing_lookup():
+    from api.services import discord_interactions as di
+    from api.services import discord_chart_cache as cc
+    daily = [{"t": 1700000000 + i * 86400, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(300)]
+    got = {}
+    def house_fn(ticker, tf, stats, options):
+        got.update(options); return b"HOUSEPNG"
+    edits = []
+    edit_fn = lambda app_id, token, *, content, png=None, filename=None: edits.append(png)
+    out = di.run_chart_job("1", "tok", di.ChartRequest("SPY", "D"), bars_fn=lambda t, tf, n: daily,
+                           render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn, house_fn=house_fn,
+                           quote_fn=lambda t: ("post", 764.97))
+    assert out == "ok" and got["exttag"] == ("post", 764.97) and got["ext"] is False
+    got.clear(); cc.clear()
+    def boom(t):
+        raise RuntimeError("feed down")
+    out = di.run_chart_job("1", "tok", di.ChartRequest("SPY", "D"), bars_fn=lambda t, tf, n: daily,
+                           render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn, house_fn=house_fn, quote_fn=boom)
+    assert out == "ok" and edits[-1] == b"HOUSEPNG" and got.get("exttag") is None   # no quote, no chip, still a chart
+
+
+def test_fetch_ext_quote_reads_the_widgets_source_and_never_raises(monkeypatch):
+    from api.routers import discord_interactions as rt
+    from api.services import massive
+    class C:
+        def __init__(self, rows): self.rows = rows
+        def get_batch_rich_snapshots(self, tickers): return self.rows
+    monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": 764.97, "ext_session": "post"}}))
+    assert rt.fetch_ext_quote("spy") == ("post", 764.97)
+    monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": None, "ext_session": None}}))
+    assert rt.fetch_ext_quote("SPY") is None                       # regular session: no chip
+    def boom():
+        raise RuntimeError("massive down")
+    monkeypatch.setattr(massive, "_get_client", boom)
+    assert rt.fetch_ext_quote("SPY") is None

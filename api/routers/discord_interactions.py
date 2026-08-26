@@ -45,6 +45,22 @@ def fetch_bars(ticker: str, tf: str, n: int) -> list[dict] | None:
     return bars or None
 
 
+def fetch_ext_quote(ticker: str):
+    """('pre'|'post', price) when the live feed flags an extended-hours print
+    for the symbol, else None. Same source as the Charts widget's Pre/Post tag
+    (massive.get_batch_rich_snapshots -> _ext_price_for, stale-lastTrade aware).
+    Never raises; a missing quote just means no chip."""
+    try:
+        from api.services import massive
+        row = massive._get_client().get_batch_rich_snapshots([ticker]).get(ticker.upper()) or {}
+        sess, px = row.get("ext_session"), row.get("ext_price")
+        if sess in ("pre", "post") and isinstance(px, (int, float)) and px > 0:
+            return (sess, float(px))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] ext quote lookup failed %s: %s", ticker, e)
+    return None
+
+
 def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
@@ -93,7 +109,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         background.add_task(di.run_chart_job, app_id, token, req,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
-                            prefs=prefs)
+                            prefs=prefs, quote_fn=fetch_ext_quote)
         return {"type": 5}
     if itype == 2 and name == di.SETTINGS_COMMAND:
         return _ephemeral(_settings_reply(interaction))

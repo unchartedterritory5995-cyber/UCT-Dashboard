@@ -1108,7 +1108,7 @@ const SUNRISE_GRADIENT = 'linear-gradient(to bottom, #cbe6f7 0%, #e6eede 52%, #f
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
-const SESSION_EXT_COLOR = '#f5a623'  // pre/post-market price tag (TradingView "Pre"/"Post" orange)
+export const SESSION_EXT_COLOR = '#f5a623'  // pre/post-market price tag (TradingView "Pre"/"Post" orange)
 const SESSION_PREVIEW_COLOR = '#d8d6cf'  // muted (not-bright) white for the pre-market preview daily candle
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 // Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).

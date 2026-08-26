@@ -102,7 +102,7 @@ def _b64url(obj) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-DEFAULT_OPTIONS = {"indicators": None, "ext": True, "stats": True}
+DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None}
 
 # Visible bars for intraday renders. The page's own default zoom counts
 # pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
@@ -135,6 +135,13 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["stats"] = _b64url(stats)
     if opts.get("indicators"):
         params["indicators"] = _b64url(opts["indicators"])
+    tag = opts.get("exttag")
+    if tag:
+        # The live pre/post-market print as the orange right-axis chip (see
+        # ChartRender ?exttag=). Every timeframe: on D/W it sits beside the
+        # locked close, on intraday it is the one number that matters.
+        sess, px = tag
+        params["exttag"] = f"{sess}:{float(px):.2f}"
     return base_url.rstrip("/") + "/r/chart?" + urlencode(params)
 
 

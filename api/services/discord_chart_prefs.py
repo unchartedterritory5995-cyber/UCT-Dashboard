@@ -23,7 +23,11 @@ MA_CHOICES = {
     "10-20-50": "SMA 10/20/50",
     "off": "No moving averages",
 }
-DEFAULTS = {"tf": "D", "mas": "house", "volume": True, "ext": True, "stats": True}
+# `ext` = extended-hours CANDLES on intraday charts. Off by owner decision
+# (8/25): the pre/post-market print shows as the orange Pre/Post price chip on
+# the right axis instead, like the Charts widget - candles for it squashed a
+# session into a strip of flat overnight bars.
+DEFAULTS = {"tf": "D", "mas": "house", "volume": True, "ext": False, "stats": True}
 _BOOL_KEYS = ("volume", "ext", "stats")
 
 # Complete overlay slots (the page's override merge replaces the array as a
@@ -129,7 +133,7 @@ def reset_prefs(user_id: str) -> dict:
 def describe(prefs: dict) -> str:
     p = {**DEFAULTS, **(prefs or {})}
     return (f"Timeframe {TF_LABEL.get(p['tf'], p['tf'])} · MAs: {MA_CHOICES.get(p['mas'], p['mas'])} · "
-            f"Volume {'on' if p['volume'] else 'off'} · Pre/post-market {'on' if p['ext'] else 'off'} · "
+            f"Volume {'on' if p['volume'] else 'off'} · Pre/post-market candles {'on' if p['ext'] else 'off'} · "
             f"Stats strip {'on' if p['stats'] else 'off'}")
 
 

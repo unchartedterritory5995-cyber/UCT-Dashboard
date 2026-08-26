@@ -48,7 +48,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import StockChart from '../components/StockChart'
+import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
@@ -275,14 +275,29 @@ export default function ChartRender() {
   const lvl = (k) => { const v = parseFloat(sp.get(k) || ''); return Number.isFinite(v) && v > 0 ? v : null }
   const entry = lvl('entry'), stop = lvl('stop'), t1 = lvl('t1'), t2 = lvl('t2')
 
+  // ?exttag=post:764.97 — the extended-hours print as the orange Pre/Post chip
+  // on the right axis, exactly the tag the Charts widget draws from the live
+  // feed. This page is logged out and static (liveUpdates=false), so the bot
+  // resolves the quote server-side (massive.get_batch_rich_snapshots, the same
+  // source) and hands it over; chip only, no line, never a candle.
+  const extTag = (() => {
+    const v = sp.get('exttag') || ''
+    const mm = /^(pre|post):(\d+(?:\.\d+)?)$/.exec(v)
+    if (!mm) return null
+    const px = parseFloat(mm[2])
+    return Number.isFinite(px) && px > 0 ? { session: mm[1], price: px } : null
+  })()
+
   const priceLines = useMemo(() => {
     const L = []
+    if (extTag) L.push({ price: extTag.price, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
+      axisLabelVisible: true, lineVisible: false, title: extTag.session === 'post' ? 'Post' : 'Pre' })
     if (entry) L.push({ price: entry, color: '#3cb868', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Entry' })
     if (stop) L.push({ price: stop, color: '#e74c3c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' })
     if (t1) L.push({ price: t1, color: '#c9a84c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'T1' })
     if (t2) L.push({ price: t2, color: '#c9a84c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'T2' })
     return L
-  }, [entry, stop, t1, t2])
+  }, [entry, stop, t1, t2, extTag?.session, extTag?.price])
 
   // The owner's saved chart settings.
   //

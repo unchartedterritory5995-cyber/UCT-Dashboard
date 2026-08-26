@@ -306,7 +306,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None, prefs=None) -> str:
+                  house_fn=None, prefs=None, quote_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -360,8 +360,16 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                 if house_fn is not None and daily:
                     if req.tf != "D":
                         warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
+                    house_opts = dict(options)
+                    if quote_fn is not None:
+                        # The live pre/post-market print -> the orange Pre/Post chip on the
+                        # right axis (never a candle). Best-effort: no quote, no chip.
+                        try:
+                            house_opts["exttag"] = quote_fn(req.ticker) or None
+                        except Exception as e:  # noqa: BLE001
+                            log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
                     try:
-                        png = house_fn(req.ticker, req.tf, compute_stats(daily), options)
+                        png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
                     except Exception as e:  # noqa: BLE001
                         log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
                         png = None
