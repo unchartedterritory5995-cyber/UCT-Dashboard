@@ -28,6 +28,7 @@ import ast as pyast
 import contextlib
 import datetime
 import pathlib
+import re
 import sqlite3
 import threading
 import time
@@ -1291,3 +1292,103 @@ def test_the_window_is_charged_BEFORE_the_definition_is_even_LOADED(store, bars,
     monkeypatch.setattr(mod, "_run_calls", {})
     assert _post(BOB_USER, def_id=DEF_ID, symbols=["NVDA"]).status_code == 404
     assert _post(BOB_USER, def_id=BOB_DEF_ID, symbols=["NVDA"]).status_code == 429
+# --------------------------------------------------------------------------- #
+# the CLIENT half: one bound, one vocabulary, and neither is typed twice (W4a.4)
+# --------------------------------------------------------------------------- #
+
+#: The member-facing surface that POSTs this route (`RunNowButton`). Read as
+#: TEXT on purpose: what has to agree with these constants is the SHIPPED FILE,
+#: not a copy of its values carried into a fixture.
+_RUN_NOW_JSX = ROOT / "app" / "src" / "components" / "screener" / "RunNowButton.jsx"
+
+
+def _js_const(name: str, pattern: str) -> str:
+    """One ``export const <name> = …`` off the component, or a failure that says
+    the export moved.
+
+    ⚠️ CRLF, AND IT IS THE WHOLE TRAP. Every source file in this checkout has
+    Windows line endings and ``$`` under ``re.M`` matches BEFORE the newline —
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+    (the form W4a.4's brief prescribed) never fires and this pin passes on a file
+    it never read. Measured on this box by W4a.3. ``\s*;?\s*$`` absorbs it — and
+    a semicolon, if the file ever gains one — instead of pretending it is absent.
+    """
+    found = re.findall(rf"^export const {name} = ({pattern})\s*;?\s*$",
+                       _RUN_NOW_JSX.read_text(encoding="utf-8"), flags=re.M)
+    assert found, (
+        f"RunNowButton.jsx no longer exports {name} in the form this pin reads "
+        f"(/{pattern}/). The export IS the pin — if it moved, move this with it; "
+        "do not delete the assertion.")
+    return found[0]
+
+
+def test_the_CLIENT_cap_is_PINNED_EQUAL_to_the_servers_never_restated():
+    """⛔ TWO AUTHORITIES OVER ONE BOUND is this repo's most repeated defect, and a
+    cap is the shape that hurts most. The client's copy drifting DOWN silently
+    refuses runs this service would have taken; drifting UP sends a member to the
+    server to be told a number the control they used already knew.
+    """
+    from api.services.screener import scan_run
+
+    assert int(_js_const("RUN_SYMBOL_CAP", r"\d+")) == scan_run.MAX_RUN_SYMBOLS
+
+
+def test_the_CLIENTs_TERMINAL_STATES_are_the_SERVERS_and_its_TF_CODES_are_REAL():
+    """The other two closed sets that component publishes.
+
+    ⛔ A client that stopped watching on a state this service does not consider
+    final drops an answer on the floor; one that kept watching PAST a final state
+    polls a finished job until the TTL evicts it. And a ``tf`` the bars store does
+    not key on is a 400 the member cannot fix from the control that sent it.
+    """
+    from api.services.screener import scan_run, scan_store
+
+    states = tuple(re.findall(
+        r"'([a-z]+)'", _js_const("RUN_TERMINAL_STATES", r"\[[^\]]*\]")))
+    assert states == scan_run._TERMINAL, (
+        f"RunNowButton watches until {states}; this service's terminal states "
+        f"are {scan_run._TERMINAL}")
+
+    codes = re.findall(r"\['([A-Z0-9]+)'", _js_const("RUN_TFS", r"\[.*\]"))
+    assert codes, "the timeframe pairs no longer read as [['D', 'Daily'], …]"
+    assert set(codes) <= set(scan_store._TF_CODES), (
+        f"RunNowButton offers timeframes "
+        f"{sorted(set(codes) - set(scan_store._TF_CODES))} that "
+        "`scan_store._normalise_tf` refuses")
+
+
+def test_the_CLIENT_pins_are_NOT_VACUOUS__a_planted_disagreement_is_CAUGHT(
+        tmp_path, monkeypatch):
+    """⭐ THE CONTROL, and it exists because of how this pin nearly shipped.
+
+    A reader that matched NOTHING would make both assertions above vacuous and
+    they would stay green for the rest of time — which is exactly what the
+    brief's regex did on a CRLF checkout. So this points the reader at a file
+    that DISAGREES, written CRLF, and requires the pins to say so.
+    """
+    import sys
+
+    from api.services.screener import scan_run
+
+    planted = tmp_path / "RunNowButton.jsx"
+    crlf = "\r\n"
+    planted.write_text(
+        "export const RUN_ENDPOINT = '/api/scans/run'" + crlf
+        + f"export const RUN_SYMBOL_CAP = {scan_run.MAX_RUN_SYMBOLS + 1}" + crlf
+        + "export const RUN_TERMINAL_STATES = ['done']" + crlf
+        + "export const RUN_TFS = [['ZZ', 'Zulu']]" + crlf,
+        encoding="utf-8", newline="")
+    monkeypatch.setattr(sys.modules[__name__], "_RUN_NOW_JSX", planted)
+
+    # ⭐ the CRLF file PARSES — so a red below is the disagreement, not the regex
+    assert int(_js_const("RUN_SYMBOL_CAP", r"\d+")) == scan_run.MAX_RUN_SYMBOLS + 1
+
+    with pytest.raises(AssertionError):
+        test_the_CLIENT_cap_is_PINNED_EQUAL_to_the_servers_never_restated()
+    with pytest.raises(AssertionError):
+        test_the_CLIENTs_TERMINAL_STATES_are_the_SERVERS_and_its_TF_CODES_are_REAL()
+
+    # …and a file with no such export fails LOUDLY rather than passing empty
+    planted.write_text("export const NOTHING = 1" + crlf, encoding="utf-8", newline="")
+    with pytest.raises(AssertionError, match="no longer exports"):
+        _js_const("RUN_SYMBOL_CAP", r"\d+")

@@ -5,6 +5,7 @@ import { sharedScreenUrl } from './screenShareLink'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { scannableScreens, SCAN_TF, defaultSession } from '../../components/screener/scanSession'
 import ScanResults from '../../components/screener/ScanResults'
+import RunNowButton from '../../components/screener/RunNowButton'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 
@@ -42,6 +43,20 @@ import styles from './ScannerPro.module.css'
 // that chain. Importing `CoverageLine` here would give the four-outcome
 // receipt a second door into the app, which is the thing that rail exists to
 // prevent.
+//
+// ─── RUN IT NOW, ON A LIST THE MEMBER NAMES (W4a) ───────────────────────────
+//
+// `RunNowButton` sits inside the open scan detail and hands its finished answer
+// UP here; this feeds it to the ONE `ScanResults` mount above as `payload`. The
+// button renders no result of its own for the same reason this file imports no
+// `CoverageLine`: one answer, one mount, one door.
+//
+// ⛔ A RUN BELONGS TO THE (SCAN, SESSION) IT WAS RUN FOR, and that is why the
+// held run carries both and is matched rather than merely stored. A payload kept
+// across a session change would caption Friday's hits with Monday's date; kept
+// across a row change it would show one scan's names under another's formula —
+// the same coincidence `ScanResults` clears its open chart to prevent. Matching
+// on the pair means no effect has to remember to clear it.
 
 const badgeStyle = {
   fontSize: 9, letterSpacing: '.5px', color: 'var(--text-muted)',
@@ -78,6 +93,9 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // `SavedScreensPanel`'s single selected-screen + single session state.
   const [detailId, setDetailId] = useState(null)
   const [session, setSession] = useState(defaultSession)
+  // The on-demand run currently on screen: `{defId, session, payload}`. Matched,
+  // never assumed — see the header note.
+  const [run, setRun] = useState(null)
   const wrapRef = useRef(null)
 
   useEffect(() => {
@@ -264,7 +282,19 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                           onChange={(e) => setSession(e.target.value)}
                         />
                       </label>
-                      <ScanResults definition={row.definition} asOf={session} tf={SCAN_TF} />
+                      <RunNowButton
+                        defId={row.def_id}
+                        name={name}
+                        session={session}
+                        onResult={(payload) => setRun({ defId: row.def_id, session, payload })}
+                      />
+                      <ScanResults
+                        definition={row.definition}
+                        asOf={session}
+                        tf={SCAN_TF}
+                        payload={run && run.defId === row.def_id && run.session === session
+                          ? run.payload : null}
+                      />
                     </div>
                   )}
                 </div>

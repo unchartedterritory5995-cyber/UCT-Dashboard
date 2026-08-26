@@ -40,12 +40,23 @@ vi.mock('../../components/screener/ScanResults', () => ({
   default: (props) => { ScanResultsSpy(props); return <div data-testid="scan-results-mock" /> },
 }))
 
+// ⭐ `RunNowButton` is NOT mocked — it is the thing under test on this wire, and
+// a spy in its place would keep every case below green while the run-now door
+// went nowhere (the defect class `reachable.test.js` exists for). Only its DATA
+// source is stubbed: `useScreenerMeta` is an SWR hook and the member's lists are
+// server-minted, so the fixture here is one `filters[key='list']` entry.
+const META = vi.hoisted(() => ({ meta: null, isLoading: false }))
+vi.mock('./hooks/useScreenerMeta', () => ({
+  default: () => META, META_KEY: '/api/screener/meta',
+}))
+
 import ScreensManager from './ScreensManager'
 import { defaultSession } from '../../components/screener/scanSession'
 
 beforeEach(() => {
   create.mockClear(); update.mockClear(); remove.mockClear()
   ScanResultsSpy.mockClear()
+  META.meta = { filters: [] }
   savedScreensState.saved = [{ id: 9, name: 'My RSI', spec: { view: 'technical' }, is_public: false, share_token: null }]
   savedScreensState.starters = [{ id: 's1', name: 'Oversold', spec: { view: 'overview' } }]
   savedScreensState.error = null
@@ -164,6 +175,8 @@ test('clicking a scan row name mounts ScanResults with definition/asOf/tf', () =
     definition: SCANNABLE_ROW.definition,
     asOf: defaultSession(),
     tf: 'D',
+    // W4a: nothing has been run yet, so the mount reads the NIGHTLY receipt.
+    payload: null,
   })
 })
 
@@ -179,5 +192,112 @@ test('the session date input changes the asOf prop ScanResults receives', () => 
     definition: SCANNABLE_ROW.definition,
     asOf: '2026-01-02',
     tf: 'D',
+    payload: null,
   })
+})
+
+// ─── 🔴 THE RUN-NOW WIRE (W4a.4) ────────────────────────────────────────────
+//
+// ⛔ THIS IS THE CASE THAT GOES RED WHEN THE WIRE IS CUT while both halves stay
+// correct. `RunNowButton.test.jsx` asserts what the component SENDS and HANDS
+// BACK; it stays green for the whole time `onResult` goes nowhere. Only a test
+// that renders the manager and drives a real run can see the join.
+
+const DONE_JOB = {
+  job: 'r_7f3a9c21', state: 'done', tier: 'on-demand', def_id: 'u_breakout',
+  tf: 'D', as_of: 20260821, submitted_at: 1, finished_at: 3,
+  universe: { source: 'symbols', label: null, requested: 2, resolved: 2 },
+  def_hash: 'sha256:aaa', rev: 1, freshness: 'fresh', cadence: null,
+  mode: 'on-demand', persisted: false,
+  hits: [{ symbol: 'NVDA', value: 1, bar_time: 20260821 }],
+  coverage: {
+    evaluated: 2, answered: 1, dropped: 1, not_computable: 0, withheld: 0,
+    withheld_reason: null, dropped_symbols: [], dropped_listed: 1, truncated: false,
+  },
+}
+
+const EXPECTED_PAYLOAD = {
+  def_hash: 'sha256:aaa', tf: 'D', as_of: 20260821, status: 'evaluated',
+  coverage: DONE_JOB.coverage, tickers: ['NVDA'], truncated: false, tier: 'on-demand',
+}
+
+/** Drive a real run through the real button: open the row, paste a symbol, Run. */
+async function runNow(symbols = 'NVDA AMD') {
+  fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Run Breakout base now' }))
+  fireEvent.change(screen.getByLabelText('Symbols to run'), { target: { value: symbols } })
+  fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+  await screen.findByTestId('run-now-done')
+}
+
+test("a finished run's payload reaches the ScanResults mount the manager already had", async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith({
+      definition: SCANNABLE_ROW.definition,
+      asOf: defaultSession(),
+      tf: 'D',
+      payload: EXPECTED_PAYLOAD,
+    })
+    // ⛔ ONE MOUNT. A second `ScanResults` for the on-demand answer would give
+    // `CoverageLine` a second door and put two receipts on screen for one scan.
+    expect(screen.getAllByTestId('scan-results-mock')).toHaveLength(1)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('⛔ changing the SESSION drops the run — that answer was for a different day', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+    ScanResultsSpy.mockClear()
+
+    fireEvent.change(screen.getByLabelText('Session'), { target: { value: '2026-01-02' } })
+
+    // Keeping it would caption Friday's hits with Monday's session — the exact
+    // falsehood `ScanResults` clears its open chart to avoid.
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith({
+      definition: SCANNABLE_ROW.definition, asOf: '2026-01-02', tf: 'D', payload: null,
+    })
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('⛔ and a run belongs to the SCAN it was run for, never the next row opened', async () => {
+  const OTHER = {
+    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
+  }
+  userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 202, json: async () => DONE_JOB })))
+  try {
+    render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+    open()
+    await runNow()
+    ScanResultsSpy.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Other scan' }))
+
+    expect(ScanResultsSpy).toHaveBeenLastCalledWith({
+      definition: OTHER.definition, asOf: defaultSession(), tf: 'D', payload: null,
+    })
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('the run-now door is only inside an OPEN scan detail', () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(screen.queryByRole('button', { name: 'Run Breakout base now' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Breakout base' }))
+  expect(screen.getByRole('button', { name: 'Run Breakout base now' })).toBeInTheDocument()
 })
