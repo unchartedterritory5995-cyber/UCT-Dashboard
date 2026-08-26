@@ -1358,7 +1358,8 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
     assert later.to is None or later.to > "2026-05-15"
     assert [o["default"] for o in rows[1]["components"][0]["options"]][0] is True                  # daily zoom list, auto selected
     for bad in ("", "chart|NVDA|D|house", "chart|NV DA|D|house|1", "chart|NVDA|2|house|1", "chart|NVDA|D|sma|1", "other|NVDA|D|house|1",
-                "c2|NVDA|D|house|1|9y|none|candles|house|", "c2|NVDA|D|house|1|auto|none|candles|house|2026-13-01x"):
+                "c2|NVDA|D|house|1|9y|none|candles|house||t", "c2|NVDA|D|house|1|auto|none|candles|house|2026-13-01x|t",
+                "c2|NVDA|D|house|1|auto|none|candles|house|"):
         with pytest.raises(di.CommandError):
             di.parse_component({"data": {"custom_id": bad}})
     assert di.parse_component({"data": {"custom_id": "chart|NVDA|W|off|0"}}) == di.ChartRequest("NVDA", "W", mas="off", volume=False)   # legacy ids
@@ -1555,3 +1556,18 @@ def test_every_dropdown_obeys_discords_select_rules():
                 assert sum(1 for o in comp["options"] if o.get("default")) <= 1, comp["custom_id"]
                 assert all(len(o["label"]) <= 100 and len(o["value"]) <= 100 for o in comp["options"])
                 assert len(comp["custom_id"]) <= 100
+
+
+def test_every_custom_id_in_a_message_is_unique():
+    """8/25: a live chart's disabled 'Later' carried the same state as the active
+    timeframe button - Discord refused the edit (COMPONENT_CUSTOM_ID_DUPLICATED)
+    and the chart sat on 'thinking...'. Every control tags its id."""
+    from api.services import discord_interactions as di
+    for req in (di.ChartRequest("NVDA", "D"), di.ChartRequest("NVDA", "D", to="2026-05-01"), di.ChartRequest("NVDA", "5"),
+                di.ChartRequest("UCTA5", "W", daily_only=True), di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y")):
+        ids = [c["custom_id"] for row in di.chart_components(req, dict(di.prefs_mod.DEFAULTS)) for c in row["components"] if "custom_id" in c]
+        assert len(ids) == len(set(ids)), ids
+        assert all(len(i) <= 100 for i in ids)
+        for i in ids:                                    # and every one still parses to its chart
+            values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+            assert di.parse_component({"data": {"custom_id": i, "values": values}}).ticker == req.ticker

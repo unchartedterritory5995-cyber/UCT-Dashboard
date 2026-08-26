@@ -219,9 +219,13 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
     }
 
 
-def _encode(st: dict) -> str:
+def _encode(st: dict, tag: str = "") -> str:
+    # The trailing tag names the CONTROL (tf button, earlier, later, mas, vol) and
+    # is ignored by the parser: Discord requires every custom_id in a message to
+    # be unique, and two controls can legitimately point at the same state (the
+    # active timeframe button and a disabled "Later" both mean "this chart").
     return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
-                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or ""])
+                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", tag])
 
 
 def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
@@ -270,10 +274,10 @@ def parse_component(interaction: dict) -> ChartRequest:
         if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
             raise CommandError("Unknown button.")
         return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
-    if head == STATE_PREFIX and len(parts) == 10:
-        return _request_from_state(parts)
-    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) == 11:
-        req = _request_from_state(parts[1:])
+    if head == STATE_PREFIX and len(parts) == 11:
+        return _request_from_state(parts[:10])          # parts[10] = the control tag
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) == 12:
+        req = _request_from_state(parts[1:11])
         values = data.get("values") or []
         value = str(values[0]) if values else ""
         if head == SELECT_ZOOM:
@@ -309,10 +313,10 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     """The rows under a chart, reflecting what THIS image shows. Five rows is
     Discord's ceiling: timeframes · Zoom · Indicators · Look · pan/MAs/volume."""
     st = _state_of(req, prefs)
-    sid = lambda **changes: _encode({**st, **changes})  # noqa: E731
+    sid = lambda tag="", **changes: _encode({**st, **changes}, tag)  # noqa: E731
     tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
     tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
-            "custom_id": sid(tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+            "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
            for tf, label in tf_choices]
     zooms = prefs_mod.zoom_choices(st["tf"])
     zoom_now = st["zoom"] if st["zoom"] in zooms else "auto"
@@ -335,12 +339,12 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     later = pan_to(st["to"] or None, st["tf"], zoom_now, +1) if st["to"] else None
     row5 = []
     if can_pan:
-        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "\u25c0 Earlier", "custom_id": sid(to=earlier or "")})
-        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Later \u25b6", "custom_id": sid(to=later or ""),
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "\u25c0 Earlier", "custom_id": sid("e", to=earlier or "")})
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Later \u25b6", "custom_id": sid("l", to=later or ""),
                      "disabled": not st["to"]})
-    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid(mas=ma_next)})
+    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid("m", mas=ma_next)})
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
-                 "custom_id": sid(vol=not st["vol"])})
+                 "custom_id": sid("v", vol=not st["vol"])})
     if guild_id and str(guild_id) in activity_guilds():
         # The (parked) Activity: in an activity guild the last slot launches it instead of linking out.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
