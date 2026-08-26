@@ -879,3 +879,25 @@ order, `Skipped: ZZZZQ (no bars)`).
 taken from `/proc/1/environ` (the gcc-lib + zlib nix store paths). That is why
 earlier probes that only touched PIL worked and anything importing matplotlib
 did not.
+
+### v13b — the save pick resets its own dropdown (2026-08-26, ~09:30 CT)
+
+A select keeps showing whatever was last PICKED, so answering the save with a
+bare ephemeral left the Look dropdown reading "💾 Save this chart's settings…"
+where the chart's style belongs, until the member happened to click something
+else. It now answers **UPDATE_MESSAGE (type 7)** with the same rows — re-sending
+them resets the select — and the receipt follows as a private follow-up
+(`followup_ephemeral`, POST to the webhook root with flag 64).
+
+This was declined an hour earlier because an UPDATE_MESSAGE that does not list
+the message's files is the same wager `edit_original`'s follow-up refuses, and
+losing it would delete the chart from the message. **It does not have to be a
+wager**: a MESSAGE_COMPONENT interaction carries the whole message, so the file
+ids come straight off the payload (`message_attachment_ids`) and are re-declared,
+as is the content (it carries the context line). A message with no attachment
+declares none — an empty list would mean "remove every file".
+
+Verified live in #dev-chat, old and new side by side in the same channel: the
+9:11 message (saved under this code) reads **"Style: Candles"** again with its
+image intact and a fresh receipt; the 9:12 message (saved an hour earlier) still
+shows the stale "💾 Save…" label.
