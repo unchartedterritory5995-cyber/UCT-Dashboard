@@ -942,3 +942,68 @@ set in place. Cost: a cold four-symbol set takes ~40 s, because we now absorb
 four 5,000-bar fetches that the page used to race for. A warm set is seconds.
 🔧 The `find` browser tool named a button "W" that was the 5m button — button
 refs must come from `read_page`'s DOM ORDER, never from the finder's prose.
+
+### v15 — the performance pass (2026-08-26, ~10:30–12:00 CT)
+
+Owner: "make it all much faster and more efficient and more scalable." Measured
+in the pod BEFORE touching anything, which redirected almost every instinct.
+
+**What the measurements said**
+
+| stage | cost |
+|---|---|
+| bars fetch, 600 / 5,000 / 12,500 daily | 0.0–0.6 s — the store already has them |
+| page load (SPA) inside the renderer | 0.32–0.71 s |
+| load → `__chartBarsReady` | 1.0–1.4 s |
+| → full house readiness + settle | 1.9–2.7 s |
+
+So the render is the cost, not the data; and of the render, the page load is
+small. Three instincts died here:
+
+- *"Reuse warm browser pages"* — worth only ~0.4 s. Not built.
+- *"The readiness stability wait is padding"* — **it is not.** At
+  `__chartBarsReady` the ASML compare chart is missing **13,635 pixels** (its
+  overlay lines) and weekly/intraday headers are still settling. Trimming it
+  would have re-shipped the blank-overlay bug fixed that morning.
+- *"Right-size the pre-warm to the page's shallow window (600 bars)"* — shipped,
+  measured, and **reverted**: blanks came straight back (ANET D, AKAM 5m) and a
+  four-symbol cold set went 43 s → 79 s. What keeps a render healthy is real
+  history in the bars STORE, not matching the page's request size. The warm
+  never drops below `PAGE_BARS` again; the deep case (compare / `?to=`) still
+  reads the page's own number because it wants more.
+
+**What actually shipped**
+
+1. **Session-aware cache TTL.** It was a flat 45 s (20 s intraday) — shorter
+   than the work it was meant to save, so an immediate repeat of a slow set
+   re-rendered everything. Live hours are now 120 s (60 s intraday); QUIET hours
+   (weekends, and outside 04:00–20:00 ET, when nothing on the image can change)
+   are 15 minutes. The image carries its own "as of" stamp, which is what makes
+   serving a cached one honest — and why quiet is 15 minutes, not an hour.
+2. **A byte budget (96 MB, LRU, a hit counts as a use)** — a longer TTL without
+   one trades latency for an OOM at ~300 KB a chart.
+3. **A `/charts` set fetches all its bars first, serially, then renders
+   concurrently.** Four cold symbols fetching in parallel collide on the bars
+   store's write lock (web's 2 s `busy_timeout` is deliberate) —
+   `sqlite3.OperationalError: database is locked`, one chart reporting "no bars"
+   for a good ticker, and the rest arriving too late for the renderer.
+4. **The first render attempt is judged at 15 s instead of 30 s** — full
+   readiness measures 1.9–2.7 s, so 30 s only ever bought waiting on a chart
+   that was never going to settle, ahead of a 45 s retry.
+
+**Measured after**
+
+| | before | after |
+|---|---|---|
+| `/charts` × 4 cold | 43 s | **18.6 s** |
+| `/charts` × 4 repeat | full re-render | **0.03 s** |
+| single chart repeat | re-render after 45 s | **0.0 s** |
+| cache footprint | unbounded | 1.1 MB in use, 96 MB ceiling |
+
+**Known and not fixed:** a genuinely cold symbol under heavy concurrent load can
+still blank on the house path and fall back to mplfinance (the member gets a
+chart, not the house one). The mechanism is the same write lock: the PAGE's own
+`/api/bars` call fails, and a failed fetch paints a blank. Serializing every
+warm process-wide would fix it and would also serialize unrelated members'
+requests, so it is not being added on the strength of a synthetic hammer —
+if it shows up in production, that is the lever.
