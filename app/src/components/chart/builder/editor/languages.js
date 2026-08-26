@@ -26,7 +26,7 @@ import { tags } from '@lezer/highlight'
 import jsep from 'jsep'
 import { TABLE } from '../../engine/ast/parse'
 import { PINE_CALL_SHAPES } from '../../engine/ast/pine'
-import { PCF_CALLS, PCF_FUSED, PCF_DIFFERENT_FORMULA, priceLetters } from '../../engine/ast/pcf'
+import { PCF_CALLS, PCF_FUSED, priceLetters } from '../../engine/ast/pcf'
 
 export const DIALECTS = Object.freeze(['formula', 'pine', 'thinkscript', 'pcf'])
 
@@ -113,10 +113,13 @@ function defineFormula(declared, vocab) {
   return StreamLanguage.define({
     name: 'uct-formula',
     tokenTable: TOKEN_TABLE,
-    startState: () => ({ lets: new Set(), afterLet: false }),
-    copyState: (s) => ({ lets: new Set(s.lets), afterLet: s.afterLet }),
+    startState: () => ({ lets: new Set(), afterLet: false, awaitingEq: false }),
+    copyState: (s) => ({ lets: new Set(s.lets), afterLet: s.afterLet, awaitingEq: s.awaitingEq }),
     token(stream, state) {
       if (stream.eatSpace()) return null
+      // `awaitingEq` spans exactly ONE token — the binding name to its `=`.
+      const awaitingEq = state.awaitingEq
+      state.awaitingEq = false
       if (stream.match(WORD)) {
         const w = stream.current()
         if (w === 'let') {
@@ -125,7 +128,12 @@ function defineFormula(declared, vocab) {
           state.afterLet = true
           return 'keyword'
         }
-        if (state.afterLet) { state.afterLet = false; state.lets.add(w); return 'let' }
+        if (state.afterLet) {
+          state.afterLet = false
+          state.awaitingEq = true
+          state.lets.add(w)
+          return 'let'
+        }
         if (state.lets.has(w)) return 'let'
         if (vocab.functions.has(w)) return 'fn'
         if (vocab.series.has(w) || vocab.clock.has(w)) return 'series'
@@ -137,7 +145,17 @@ function defineFormula(declared, vocab) {
       // Only the identifier IMMEDIATELY after `let` is the binding.
       state.afterLet = false
       if (stream.match(NUMBER)) return 'number'
+      // The table's operators run FIRST so `==` — which the manifest DOES declare —
+      // can never be split by the `=` branch below.
       if (matchSymbol(stream, symbols)) return 'operator'
+      // ⛔ THE BINDING `=` IS THE LET FORM'S OWN SYNTAX, NOT A TABLE OPERATOR.
+      // `TABLE.operators` declares no `=`, and this file derives its symbol list
+      // from that section alone — so without this branch the `=` on every correct
+      // `let` line fell through to `stream.next()` and wore `tags.invalid`, the
+      // same class a planted non-table name gets. It is matched HERE, gated on the
+      // binding form, rather than by adding `=` to the derived symbols: the table
+      // stays the single authority over what an operator is.
+      if (awaitingEq && stream.match('=')) return 'operator'
       if (stream.match(BRACKETS)) return 'punctuation'
       stream.next()
       return 'unknown'
@@ -204,13 +222,33 @@ export const pineLanguage = StreamLanguage.define({
 
 // ── TC2000 PCF ──────────────────────────────────────────────────────────────
 // Price letters are DERIVED from the table's series (`priceLetters`), and the
-// call spellings from the three PCF maps. `AND OR NOT XOR` are Worden's. The
-// symbol list mirrors what `pcf.js`'s own tokenizer lexes as an operator.
+// call spellings from the PCF maps. `AND OR NOT XOR` are Worden's.
+//
+// ⛔⛔ THE MATCH IS ANCHORED AND WHOLE-TOKEN, BECAUSE THE COLOUR MUST AGREE WITH
+// THE REFUSAL. `pcf.js` `readFused` (L783-786) splits the dotted tail, then tests
+// `^NAME([A-Z])(\d*)$` for a family that declares `field` and `^NAME(\d*)$` for
+// one that does not; anything that matches no family reaches `refuse('pcf:name')`
+// at L940. An UNANCHORED prefix test (`letters.startsWith(call)`) coloured
+// `SUMMER`, `SQRC50` and `DIPLUSX` as functions while the engine refused them by
+// name — in a lane whose product is 1:1 agreement, that is the promise leaking.
+// The patterns below are BUILT from `PCF_FUSED`'s own entries, so a family added
+// there is matched here on its own declared shape.
+//
+// ⛔ `PCF_DIFFERENT_FORMULA` NEEDS NO GUARD HERE, AND THAT WAS MEASURED. `RSI`,
+// `WSTOC`, `MS` and `TSV` are look-alikes `pcf.js` refuses with their own sentence
+// ("TC2000's RSI is not Wilder's…"), so they must not wear the function colour —
+// and under the anchored match above they already cannot: none of them is a
+// `PCF_FUSED` family or a `PCF_CALLS` key, so `RSI14`/`MSFT` fall through to
+// `unknown` on their own. An explicit exclusion set here was DEAD CODE — deleting
+// it changed no test — and a guard that has never fired reads as protection while
+// providing none. The property is pinned in the test instead, derived from the map.
 const PCF_KEYWORDS = new Set(['AND', 'OR', 'NOT', 'XOR', 'TRUE', 'FALSE'])
-const PCF_CALL_NAMES = [...new Set([
-  ...Object.keys(PCF_CALLS), ...Object.keys(PCF_FUSED), ...Object.keys(PCF_DIFFERENT_FORMULA),
-])].sort((a, b) => b.length - a.length)
+const PCF_FUSED_PATTERNS = Object.entries(PCF_FUSED).map(([name, family]) => (
+  family.field ? new RegExp(`^${name}([A-Z])(\\d*)$`) : new RegExp(`^${name}(\\d*)$`)
+))
+const PCF_CALL_NAMES = new Set(Object.keys(PCF_CALLS))
 const PCF_LETTERS = priceLetters(TABLE)
+const PCF_BARE_LETTER = /^([A-Z])(\d*)$/
 const PCF_SYMBOLS = ['>=', '<=', '<>', '+', '-', '*', '/', '^', '\\', '>', '<', '=']
 
 export const pcfLanguage = StreamLanguage.define({
@@ -221,11 +259,15 @@ export const pcfLanguage = StreamLanguage.define({
     if (stream.match(NUMBER)) return 'number'
     if (stream.match(/^[A-Za-z_][A-Za-z0-9_.]*/)) {
       const w = stream.current()
-      const upper = w.toUpperCase()
-      if (PCF_KEYWORDS.has(upper)) return 'keyword'
-      const letters = (/^[A-Z]+/.exec(upper) || [''])[0]
-      if (PCF_CALL_NAMES.some((call) => letters.startsWith(call))) return 'fn'
-      if (letters.length === 1 && PCF_LETTERS.has(letters)) return 'series'
+      // The dotted tail is parameters, not part of the name — `readFused` splits
+      // it off before matching, so `AVGC50.2` is matched as `AVGC50`.
+      const base = w.split('.')[0].toUpperCase()
+      if (PCF_KEYWORDS.has(base)) return 'keyword'
+      const bare = PCF_BARE_LETTER.exec(base)
+      if (bare && PCF_LETTERS.has(bare[1])) return 'series'
+      if (PCF_FUSED_PATTERNS.some((re) => re.test(base))) return 'fn'
+      // The CALL form is a name followed by its parenthesis, never a bare word.
+      if (PCF_CALL_NAMES.has(base) && stream.peek() === '(') return 'fn'
       return 'unknown'
     }
     if (matchSymbol(stream, PCF_SYMBOLS)) return 'operator'

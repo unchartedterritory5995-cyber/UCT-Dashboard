@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest'
 import { highlightTree } from '@lezer/highlight'
 import { TABLE } from '../../engine/ast/parse'
 import { PINE_CALL_SHAPES } from '../../engine/ast/pine'
-import { PCF_CALLS, priceLetters } from '../../engine/ast/pcf'
+import { PCF_CALLS, PCF_FUSED, PCF_DIFFERENT_FORMULA, priceLetters } from '../../engine/ast/pcf'
 import { DIALECTS, FORMULA_VOCAB, languageFor, highlightStyle, formulaLanguage, vocabularyOf } from './languages'
 
 const CLASSES = Object.freeze({
@@ -69,6 +69,20 @@ describe('the formula dialect', () => {
     expect(classOf(lang, src, 'let')).toBe('keyword')
   })
 
+  it('⛔ the binding `=` is SYNTAX, not the error colour a planted name gets', () => {
+    // The manifest declares no `=`, and this file derives its symbol list from
+    // that section alone — so the `=` on every correct binding line fell through
+    // to `tags.invalid`, the same class `nosuchfn` wears.
+    expect(TABLE.operators['=']).toBeUndefined()
+    expect(classOf(lang, 'let fast = sma(close, 10)', '=')).toBe('operator')
+    // `==` IS declared, and must still lex as the table's own operator
+    expect(classOf(lang, 'close == 5', '==')).toBe('operator')
+    expect(classOf(lang, 'let fast = close == 5', '==')).toBe('operator')
+    // CONTROL: outside the binding form a lone `=` is not syntax this dialect has,
+    // so the branch cannot be a blanket "colour every `=`".
+    expect(classOf(lang, 'close = 5', '=')).toBe('unknown')
+  })
+
   it('⛔ the vocabulary sizes ARE the table sizes, both directions', () => {
     expect(FORMULA_VOCAB.functions.size).toBe(Object.keys(TABLE.functions).length)
     expect(FORMULA_VOCAB.series.size).toBe(Object.keys(TABLE.series).length)
@@ -98,11 +112,46 @@ describe('the foreign dialects', () => {
     for (const letter of priceLetters(TABLE).keys()) {
       expect(classOf(lang, `${letter} > ${letter}1`, letter), letter).toBe('series')
     }
+    // ⛔ EACH MAP IS DRIVEN THROUGH THE SHAPE THAT MAP DESCRIBES. `PCF_FUSED` is
+    // the fused spelling — a price letter only when the family declares `field`,
+    // exactly the branch `pcf.js` readFused takes. `PCF_CALLS` is the PAREN call.
+    // Driving PCF_CALLS through the fused shape (as this loop first did) asserted
+    // that `SQRC50`, `ABSC50` and `GREATESTC50` are functions — none of them valid
+    // TC2000 — and passed only because the old rule was an unanchored prefix test.
+    for (const [name, family] of Object.entries(PCF_FUSED)) {
+      const token = family.field ? `${name}C50` : `${name}50`
+      expect(classOf(lang, `${token} > 0`, token), token).toBe('fn')
+    }
     for (const call of Object.keys(PCF_CALLS)) {
-      expect(classOf(lang, `${call}C50 > 0`, `${call}C50`), call).toBe('fn')
+      expect(classOf(lang, `${call}(C, 50) > 0`, call), call).toBe('fn')
     }
     expect(classOf(lang, 'C > AVGC50 AND XYZZY', 'AND')).toBe('keyword')
     expect(classOf(lang, 'C > AVGC50 AND XYZZY', 'XYZZY')).toBe('unknown')
+  })
+
+  it('⛔ pcf: a NEAR-MISS is not a function — the colour agrees with pcf.js name for name', () => {
+    const lang = languageFor('pcf')
+    // Each of these shares a leading run with a real spelling and is refused by
+    // `pcf.js` (`pcf:name`). Under an unanchored prefix rule every one coloured `fn`.
+    for (const near of ['SUMMER', 'SQRC50', 'DIPLUSX', 'MSFT', 'ABSOLUTE']) {
+      expect(classOf(lang, `${near} > 0`, near), near).toBe('unknown')
+    }
+    // ⛔ A LOOK-ALIKE pcf.js REFUSES BY NAME must not wear the function colour
+    // either — `RSI14` gets its own sentence ("TC2000's RSI is not Wilder's…"),
+    // and colouring it `fn` would promise a translation that cannot happen.
+    for (const name of Object.keys(PCF_DIFFERENT_FORMULA)) {
+      expect(classOf(lang, `${name}14 > 0`, `${name}14`), name).toBe('unknown')
+    }
+    // A CALL name with neither its parenthesis nor fused params is not a call —
+    // `AVG` alone reaches pcf.js's refusal exactly as `AVGC50`/`AVG(` do not.
+    expect(classOf(lang, 'AVG > 0', 'AVG')).toBe('unknown')
+    // CONTROL: the real spellings still colour, so the refusals above are not a
+    // tokenizer that has simply stopped recognising anything.
+    expect(classOf(lang, 'AVGC50 > 0', 'AVGC50')).toBe('fn')
+    expect(classOf(lang, 'SUM(C, 50) > 0', 'SUM')).toBe('fn')
+    expect(classOf(lang, 'WRSI14 > 0', 'WRSI14')).toBe('fn')
+    // and the dotted tail is parameters, not part of the name
+    expect(classOf(lang, 'AVGC50.2 > 0', 'AVGC50.2')).toBe('fn')
   })
 
   it('thinkscript: keywords, a call shape, a comment — and NO claim on our table until W3 lands its map', () => {
