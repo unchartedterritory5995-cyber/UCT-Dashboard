@@ -334,6 +334,16 @@ const AWAITING_A_DECISION = {
     + 'MOUNTS AT W1a.6 through the same dynamic `import()` from FormulaField.jsx — whose own '
     + 'L134 comment already names this file as the thing that turns a refusal into a range, '
     + 'so the door is written and only the wire is outstanding.',
+  'app/src/components/chart/builder/editor/CodeEditor.jsx':
+    'W1a\'s editor COMPONENT — the one place the three modules below are composed into a '
+    + 'CodeMirror view over a controlled `value`. It owns two decisions worth reading before '
+    + 'mounting it: onChange fires SYNCHRONOUSLY per doc change (FormulaField keeps the one '
+    + '250 ms settle; a second timer over the same value would snap the doc back mid-keystroke), '
+    + 'and a refusal is applied ONLY while `refusal.source` equals the doc — because every range '
+    + 'diagnostics.js produces is an offset into the doc it was handed, so a refusal measured '
+    + '250 ms ago mis-marks the text that replaced it. MOUNTS AT W1a.6, which lands it in '
+    + 'FormulaField.jsx behind the same dynamic `import()`; the textarea stays the value carrier '
+    + 'and the accessible `Formula` control, so the nine sheet test files keep driving it.',
   'app/src/components/chart/builder/editor/languages.js':
     'W1a\'s four CodeMirror tokenizers (formula, pine, thinkscript, pcf) over ONE vocabulary '
     + 'authority: the formula dialect\'s names are read off the closed table at module load '
