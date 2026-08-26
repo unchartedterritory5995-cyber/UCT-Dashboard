@@ -60,6 +60,15 @@
 // answers `coverage: null` for a window that was never swept or has been pruned,
 // and this renders that in words rather than as an empty list — an unrun screen
 // presented as a quiet market is a lie a member would act on.
+//
+// ⭐ `payload` (W4a): a caller that already HOLDS an answer set — the on-demand
+// run, whose hits came back on `GET /api/scans/run/{job}` rather than from this
+// route — hands it in and no fetch happens. The shape is the route's own;
+// `toScanResultsPayload` in `RunNowButton.jsx` derives `tickers` from the job's
+// `hits` and forwards the receipt whole. ⛔ ONE MOUNT FOR BOTH ANSWERS: the
+// nightly receipt and the on-demand one render through the same code path, so
+// `CoverageLine` keeps exactly one door into the app (the planted-cut control in
+// `reachable.test.js`) and the two surfaces cannot drift apart.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../ui/UIcon'
@@ -122,8 +131,10 @@ export function ScanResultRow({ ticker, definition, onChart }) {
  *        arms on. Not an id, not a hash: the thing itself.
  * @param {string|number} props.asOf  the session whose receipt to read.
  * @param {string}  props.tf          the bars-store timeframe CODE (`D`).
+ * @param {object|null} props.payload an answer set the CALLER already holds
+ *        (W4a's on-demand run). Non-null means this surface fetches nothing.
  */
-export default function ScanResults({ definition, asOf, tf = 'D' }) {
+export default function ScanResults({ definition, asOf, tf = 'D', payload: given = null }) {
   const defHash = definition && definition.compute ? definition.compute.fn : null
 
   const [payload, setPayload] = useState(null)
@@ -138,6 +149,18 @@ export default function ScanResults({ definition, asOf, tf = 'D' }) {
   const [settings, setSettings] = useState(null)
 
   useEffect(() => {
+    // ⭐ W4a — A PAYLOAD HANDED IN IS THE ANSWER SET, so nothing is fetched and
+    // the open chart goes with the set it belonged to, exactly as a session
+    // change does below. `ScreensManager` hands the on-demand run's payload here
+    // so the receipt, the hits and the chart button are the SAME code path the
+    // nightly answer uses — one mount, one door to `CoverageLine`.
+    if (given) {
+      setPayload(given)
+      setLoadError(null)
+      setCharted(null)
+      setRefusal(null)
+      return undefined
+    }
     if (!defHash || asOf === null || asOf === undefined || asOf === '') return undefined
     let alive = true
     setPayload(null)
@@ -162,7 +185,7 @@ export default function ScanResults({ definition, asOf, tf = 'D' }) {
       .then((body) => { if (alive) setPayload(body) })
       .catch((err) => { if (alive) setLoadError(String((err && err.message) || err)) })
     return () => { alive = false }
-  }, [defHash, tf, asOf])
+  }, [defHash, tf, asOf, given])
 
   const chartHit = useCallback(({ ticker, definition: doc }) => {
     setRefusal(null)
