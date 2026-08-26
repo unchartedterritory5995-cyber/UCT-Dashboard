@@ -148,6 +148,9 @@ FUNCTIONS = sorted(TABLE[ast_table.FUNCTIONS_SECTION])
 #: The fourth section. Read, never listed — `ast_table.scalar_names` is the one
 #: derivation and a fifty-fifth scalar joins these cases the day it is declared.
 SCALARS = sorted(ast_table.scalar_names(TABLE))
+#: ⭐ THE CLOCK (closed table v2). It rides the `series` NODE, like a scalar, so
+#: it belongs in that node's enum — read off the manifest, never typed.
+CLOCK = sorted(ast_table.clock_names(TABLE))
 
 FIRST_SERIES = SERIES[0]
 #: A function of (series, int) — used for the "ordinary answer" cases. Chosen by
@@ -487,11 +490,13 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     # schema whose enums drifted from the table would be a constraint on a
     # vocabulary nobody runs.
     #
-    # ⭐ THE `series` ENUM IS SERIES **AND** SCALARS, because a scalar rides the
-    # `series` node type — the manifest's own `_scalars_node` ruling, and the
-    # reason `propose` can now be handed `rs_rank > 80` at all.
+    # ⭐ THE `series` ENUM IS SERIES **AND** SCALARS **AND** THE CLOCK, because
+    # all three ride the `series` node type — the manifest's own
+    # `_scalars_node` ruling, the reason `propose` can be handed `rs_rank > 80`
+    # at all, and (v2) the reason it can be handed `sessionfirst == 1`.
     defs = schema["input_schema"]["$defs"]
-    assert defs["series"]["properties"]["name"]["enum"] == sorted(set(SERIES) | set(SCALARS))
+    assert defs["series"]["properties"]["name"]["enum"] == sorted(
+        set(SERIES) | set(CLOCK) | set(SCALARS))
     assert defs["op"]["properties"]["name"]["enum"] == OPERATORS
     assert defs["call"]["properties"]["name"]["enum"] == FUNCTIONS
     # 🔴 A FLOOR, NOT AN EQUALITY, AND THE CHANGE IS DELIBERATE. These two lines
@@ -502,7 +507,7 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     # hazard is the table SHRINKING under a totality corpus that then silently
     # covers less. Growth is somebody else's deliberate change and lands here for
     # free; a disappearance is still a red test naming the number.
-    bar_entries = len(SERIES) + len(OPERATORS) + len(FUNCTIONS)
+    bar_entries = len(SERIES) + len(CLOCK) + len(OPERATORS) + len(FUNCTIONS)
     assert bar_entries == sum(len(TABLE[s]) for s in ast_table.BAR_SECTIONS)
     assert bar_entries >= 31, (
         f"the closed table's bar sections have SHRUNK to {bar_entries}; they "
@@ -1397,9 +1402,18 @@ def _probe_tree(section: str, name: str, spec: Any) -> Any:
     silently green on the day it arrives — the exact defect this rail exists to
     end, reintroduced one level up.
     """
-    if section in (ast_table.SERIES_SECTION, ast_table.SCALARS_SECTION):
-        # ⭐ BOTH RIDE THE `series` NODE — a scalar is a fourth VOCABULARY, not a
-        # fifth node type — and the two still report separately.
+    if section in (ast_table.SERIES_SECTION, ast_table.CLOCK_SECTION,
+                   ast_table.SCALARS_SECTION):
+        # ⭐ ALL THREE RIDE THE `series` NODE — neither a scalar nor a clock
+        # value is a new node type, each is another VOCABULARY — and they still
+        # report separately.
+        #
+        # ⭐ THE `clock` ARM WAS ADDED THE DAY THE SECTION LANDED, AND THAT IS
+        # THIS PROBE WORKING AS DESIGNED. Until it was, `_probe_tree` returned
+        # `None` for every clock entry and the walker refused all thirteen —
+        # which is exactly what the docstring above promises: a new section
+        # arrives LOUD and somebody has to teach the probe, rather than
+        # arriving silently green.
         return {"type": "series", "name": name}
     if section == ast_table.OPERATORS_SECTION:
         return {"type": "op", "name": name, "args": _probe_args((spec or {}).get("arity"))}

@@ -846,6 +846,7 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     conditions = (condition_phrases if condition_phrases is not None
                   else OPERATOR_SENTENCE_CONDITIONS)
     series: Dict[str, Any] = {}
+    clock: Dict[str, Any] = {}
     scalars: Dict[str, Any] = {}
     operators: Dict[str, Any] = {}
     functions: Dict[str, Any] = {}
@@ -853,6 +854,27 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     for name in sorted(t[ast_table.SERIES_SECTION]):
         gap = None if _SAYABLE.match(name) else "unsayable"
         series[name] = {"gap": gap}
+
+    # ⭐ THE FIFTH SECTION (closed table v2), AND IT IS SAID LIKE A SCALAR RATHER
+    # THAN LIKE A SERIES. A series is spoken AS ITS OWN NAME; a clock value has a
+    # declared `sentence` -- "the hour of the bar on a 24-hour clock, 0 to 23, in
+    # New York time" -- because `hour` alone in a read-back is a word a member
+    # cannot check the maths against, and `dayofweek` says nothing about whether
+    # Sunday is 1. `sentence.js::compileRules` makes exactly these two decisions
+    # and the two lanes are compared entry for entry by
+    # `test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED`.
+    #
+    # ⚠️ Arity zero, so `_placeholder_gap(phrase, 0)` is the same derived check the
+    # scalars get. `.get(...) or {}` because a synthetic probe manifest may declare
+    # fewer sections, exactly as the scalars block below does.
+    clock_table = t.get(ast_table.CLOCK_SECTION) or {}
+    for name in sorted(clock_table):
+        phrase = (clock_table[name] or {}).get("sentence")
+        if not isinstance(phrase, str) or phrase == "":
+            gap = "no-template"
+        else:
+            gap = _placeholder_gap(phrase, 0)
+        clock[name] = {"phrase": phrase, "gap": gap}
 
     # ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series --
     # which is SAID AS ITS OWN NAME, so an unsayable name is what breaks it -- a
@@ -910,8 +932,8 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
             gap = _placeholder_gap(phrase, len(args))
         functions[name] = {"phrase": phrase, "args": args, "gap": gap}
 
-    return {"series": series, "scalars": scalars, "operators": operators,
-            "functions": functions, _TABLE_KEY: t}
+    return {"series": series, "clock": clock, "scalars": scalars,
+            "operators": operators, "functions": functions, _TABLE_KEY: t}
 
 
 SENTENCE_RULES = compile_rules()
@@ -1044,6 +1066,18 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     # ⛔ NOT A FALLBACK TO THE COLUMN NAME. A scalar the table declares and
     # nobody wrote English for is refused BY NAME, because `market_cap` in a
     # sentence is a read-back the member cannot check the maths against.
+    # ⭐ THE TABLE'S CLOCK, CONSULTED AFTER THE SERIES AND BEFORE THE SCALARS --
+    # the same order, for the same reason, as `renderName` and `lint.js::astReach`.
+    # ⛔ NOT A FALLBACK TO THE COLUMN NAME: a clock entry the table declares and
+    # nobody wrote English for is refused BY NAME, because `dayofweek` in a
+    # sentence is a read-back the member cannot check the maths against.
+    clock_rules = rules.get("clock") or {}
+    if name in clock_rules:
+        rule = clock_rules[name]
+        if rule["gap"]:
+            _refuse_gap(rule["gap"], "clock value", name, path)
+        trace.append({"path": path, "rule": "series:clock"})
+        return rule["phrase"]
     scalar_rules = rules.get("scalars") or {}
     if name in scalar_rules:
         rule = scalar_rules[name]
@@ -1060,7 +1094,8 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     raise _SentenceRefused(
         "sentence:name",
         f"at {path}: {json.dumps(name)} -- this table declares "
-        f"{', '.join(sorted(rules['series']))}, its scalars are "
+        f"{', '.join(sorted(rules['series']))}, its clock is "
+        f"{', '.join(sorted(clock_rules)) or 'none'}, its scalars are "
         f"{', '.join(sorted(scalar_rules)) or 'none'}, and this definition declares "
         f"{', '.join(sorted(inputs)) or 'no inputs'}")
 
