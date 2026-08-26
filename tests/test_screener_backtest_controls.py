@@ -374,3 +374,117 @@ def test_the_atr_window_is_the_candle_modules_own_number():
     assert m, ("candle_backtest.scan_ticker no longer bounds its true-range "
                "window the way this rail reads it — re-derive, do not retype")
     assert int(m.group(1)) == bt.ATR_BARS
+
+
+# ─── 4 · what the port did NOT carry, reported rather than hidden ────────────
+#
+# `candle_backtest.summarize` averages per (date, bucket) CELL — "each date
+# contributes once no matter how many tickers carried the label" — and refuses a
+# label under MIN_DATES cells. This engine averages per OBSERVATION and floors on
+# min_signals, which counts SIGNALS. Porting the clustering would change what
+# `min_signals` means for every existing horizon, so the difference is REPORTED
+# (`n_cells`, the owner's `n_dates` one axis over) rather than left for a reader
+# of the source to notice.
+
+def test_thirty_signals_on_ONE_date_are_ONE_cell_and_the_receipt_says_so():
+    """🔴 THE GAP THE PORT LEFT, MADE VISIBLE. Thirty signals on one date in one
+    bucket clear `min_signals` and publish an excess the owner would have refused
+    outright (30 cells is its floor). `n_cells` is what lets a consumer see it."""
+    sig, peer = path(200.0), path(50.0)
+    names = [f"S{i:02d}" for i in range(30)] + ["PEER"]
+    b = {n: (peer if n == "PEER" else sig) for n in names}
+    one_date = bt.run_backtest(ABOVE_100, names, day(30), day(30),
+                               bars_for=reader(b), min_signals=30,
+                               horizons=(5,)).horizons[0]
+    assert one_date.below_floor is False          # the SIGNAL floor is cleared...
+    assert one_date.strategy.n == 30
+    assert one_date.same_day["n_matched"] == 30
+    assert one_date.same_day["n_cells"] == 1      # ...on ONE cell
+    assert one_date.same_day["excess_pct_winsorised"] is not None
+
+    # CONTROL: the SAME n_matched, the SAME floor verdict, spread over thirty
+    # dates. `min_signals` cannot tell these two runs apart — `n_cells` is the
+    # only field that can, which is the whole reason it ships.
+    spread = bt.run_backtest(ABOVE_100, ["AAA", "PEER"], day(24), day(53),
+                             bars_for=reader({"AAA": sig, "PEER": peer}),
+                             min_signals=30, horizons=(5,)).horizons[0]
+    assert spread.same_day["n_matched"] == one_date.same_day["n_matched"] == 30
+    assert spread.below_floor is one_date.below_floor is False
+    assert spread.same_day["n_cells"] == 30
+
+
+def test_the_two_null_reasons_are_NAMED_and_the_precedence_matches_the_number():
+    """⛔ NAMED, NOT INFERRED. The two states call for OPPOSITE actions: below the
+    floor, widen the window; wholly-occupied, widening will not help."""
+    cells = {("d1", 5): [4, 4 * 2.0]}
+    obs = [(("d1", 5), 3.0)]
+    ok = bt._same_day_excess(obs, cells, withheld=False)
+    assert ok["excess_null_reason"] is None
+    assert ok["excess_pct_winsorised"] is not None
+
+    floor = bt._same_day_excess(obs, cells, withheld=True)
+    assert floor["excess_null_reason"] == "below_floor"
+
+    own = bt._same_day_excess([(("d9", 1), 3.0)], {("d9", 1): [1, 3.0]},
+                              withheld=False)
+    assert own["n_matched"] == 0 and own["n_cells"] == 0
+    assert own["excess_null_reason"] == "no_unoccupied_cell"
+
+    for r in (floor, own):
+        assert r["excess_null_reason"] in bt.SAME_DAY_NULL_REASONS
+        assert r["excess_pct_winsorised"] is None
+    # the reason can never disagree with the number: one expression owns both,
+    # and `below_floor` wins because it withholds the rate whatever matching found
+    both = bt._same_day_excess([(("d9", 1), 3.0)], {("d9", 1): [1, 3.0]},
+                               withheld=True)
+    assert both["excess_null_reason"] == "below_floor"
+
+
+def test_a_NON_null_excess_survives_to_dict_and_the_basis_names_its_conditioning():
+    """⭐ THE KEY W5a.5 RENDERS, READ THROUGH THE DOOR IT RENDERS IT FROM. The
+    other `to_dict()` read in this file lands on the all-cells-occupied fixture
+    where the value is `None`, so the FLOAT path through `dict(self.same_day)`
+    was never exercised — and a receipt whose only proven serialisation is the
+    null one is a receipt nobody has watched carry a number."""
+    b = {"AAA": path(200.0), "BBB": path(200.0),
+         "CCC": opens_ramped(path(50.0)), "DDD": flat()}
+    r = bt.run_backtest(ABOVE_100, ["AAA", "BBB", "CCC", "DDD"], day(2), day(59),
+                        bars_for=reader(b), min_signals=1, horizons=(5,))
+    sd = r.to_dict()["horizons"][0]["same_day"]
+    assert isinstance(sd["excess_pct_winsorised"], float)
+    assert sd["excess_pct_winsorised"] == pytest.approx(
+        r.horizons[0].same_day["excess_pct_winsorised"])
+    assert sd["excess_null_reason"] is None and sd["n_cells"] > 0
+
+    # ⚠️ THE CONDITIONING IS STATED BESIDE THE NUMBER. W5a.5 renders this next to
+    # a POOLED excess computed over 100% of the arm; a reader who is not told
+    # that this one is not will read them as like for like.
+    basis = r.to_dict()["method"]["same_day_basis"]
+    for clause in ("MATCHED observations alone", "conditioned subsample",
+                   "per OBSERVATION, not per cell", "`n_cells`",
+                   "floors SIGNALS, not cells"):
+        assert clause in basis, f"same_day_basis no longer states: {clause}"
+
+
+def test_an_EMPTY_same_day_serialises_as_empty_and_not_as_absent():
+    """⛔ `is not None`, NOT TRUTHINESS. "computed and empty" and "never computed"
+    are different facts; a falsy check folds the first into the second, which is
+    the same class of defect as a 0 that means "unknown"."""
+    kw = dict(horizon=5, strategy=bt.Stats(n=1), baseline=bt.Stats(n=1),
+              below_floor=False, coverage={})
+    assert bt.HorizonResult(same_day={}, **kw).to_dict()["same_day"] == {}
+    # CONTROL: genuinely absent still serialises as absent
+    assert bt.HorizonResult(**kw).to_dict()["same_day"] is None
+
+
+def test_an_inverted_bar_is_not_bucketed_the_owners_h_ge_l_check_reaches_here():
+    """`candle_backtest._usable` refuses `h < l`. An inverted bar's true range is
+    NEGATIVE, which would pull the lagged ATR down and inflate every |z| measured
+    against it — moving real bars into buckets they do not belong in."""
+    good = path(200.0, n=20)
+    bad = [dict(b) for b in good]
+    bad[8]["h"], bad[8]["l"] = bad[8]["l"], bad[8]["h"]        # invert ONE bar
+    assert bt._move_buckets(good)[8] is not None               # CONTROL
+    assert bt._move_buckets(bad)[8] is None
+    # and the inversion is the only difference: every bar before it is untouched
+    assert bt._move_buckets(bad)[:8] == bt._move_buckets(good)[:8]

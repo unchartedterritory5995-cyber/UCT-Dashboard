@@ -255,7 +255,12 @@ class HorizonResult:
                 "baseline": self.baseline.to_dict(),
                 "below_floor": self.below_floor,
                 "coverage": dict(self.coverage),
-                "same_day": dict(self.same_day) if self.same_day else None}
+                # ⛔ `is not None`, NOT TRUTHINESS. An empty dict is "computed and
+                # empty"; `None` is "never computed". Collapsing the first into
+                # the second is the same class of defect as a 0 that means
+                # "unknown" — it sorts, it renders, and it is not true.
+                "same_day": (dict(self.same_day)
+                             if self.same_day is not None else None)}
 
 
 @dataclass(frozen=True)
@@ -385,7 +390,19 @@ def _method_block(*, warmup: int, min_signals: int,
         "same_day_basis": ("each signal observation minus the mean winsorised "
                            "return of every answered bar on the same date in the "
                            "same ATR-scaled same-day-move bucket; a cell the "
-                           "signals wholly occupy is unmatched, never zero"),
+                           "signals wholly occupy is unmatched, never zero. "
+                           # ⚠️ THE CONDITIONING, STATED WHERE THE NUMBER IS.
+                           # This is rendered beside a POOLED excess computed
+                           # over 100% of the arm, so the reader has to be told
+                           # that this one is not — and that the floor beneath it
+                           # counts signals where `candle_backtest` counts cells.
+                           "the mean is over the MATCHED observations alone -- a "
+                           "conditioned subsample, systematically the dates this "
+                           "screen was least selective -- and it is per "
+                           "OBSERVATION, not per cell: `n_cells` says how many "
+                           "(date, bucket) cells those observations came from, "
+                           "and `min_signals` floors SIGNALS, not cells, so a "
+                           "run concentrated on few dates can clear it"),
     }
 
 
@@ -502,6 +519,15 @@ def _finite_number(v: Any) -> bool:
 #: to pin the two equal. Move both or neither.
 ATR_BARS = 14
 
+#: Why ``same_day.excess_pct_winsorised`` is null, when it is. ⛔ NAMED, NOT
+#: INFERRED — this lane's rule. The two states call for OPPOSITE actions and a
+#: bare ``null`` cannot tell them apart: ``below_floor`` means "widen the window"
+#: (rule 5 withheld the rate), ``no_unoccupied_cell`` means this screen WAS its
+#: own cell on every date it fired, and widening will not help — loosen it, or
+#: read the pooled arms instead. The precedence mirrors the expression that nulls
+#: the value, so the reason can never disagree with the number beside it.
+SAME_DAY_NULL_REASONS: Tuple[str, ...] = ("below_floor", "no_unoccupied_cell")
+
 
 def _move_buckets(bars: Sequence[Mapping[str, Any]]) -> List[Optional[int]]:
     """Per bar, its same-day-move bucket — or ``None`` when it cannot be measured.
@@ -520,8 +546,13 @@ def _move_buckets(bars: Sequence[Mapping[str, Any]]) -> List[Optional[int]]:
         prev = bars[i - 1] if i > 0 else None
         h, l, c = bar.get("h"), bar.get("l"), bar.get("c")
         pc = prev.get("c") if prev is not None else None
+        # ⛔ ``h >= l`` IS THE OWNER'S SANITY CHECK, NOT A TIDY-UP
+        # (`candle_backtest._usable`). An inverted bar is a vendor defect, and
+        # its "true range" is NEGATIVE — which would pull the lagged ATR down,
+        # inflate every |z| measured against it, and quietly move real bars into
+        # buckets they do not belong in. The owner skips such a bar; so does this.
         usable = (all(_finite_number(v) for v in (h, l, c, pc))
-                  and float(c) > 0 and float(pc) > 0)
+                  and float(c) > 0 and float(pc) > 0 and float(h) >= float(l))
         if not usable:
             # ⛔ A bar with no measurable range still advances the tape; the TR
             # window is NOT extended past it, so the next bar's ATR is measured
@@ -550,22 +581,53 @@ def _same_day_excess(strat_obs: Sequence[Tuple[Optional[Tuple[str, int]], float]
     observations are counted UNMATCHED (`candle_backtest.summarize` drops the
     same cells). ``excess_pct_winsorised`` is ``None`` below the floor or with
     nothing matched: rule 5, a NULL is never a zero.
+
+    ⛔⛔ THE OWNER CLUSTERS BY CELL AND THIS DOES NOT, SO THE CELL COUNT SHIPS.
+    ``candle_backtest.summarize`` averages the per-CELL excesses — *"each date
+    contributes once no matter how many tickers carried the label"* — and refuses
+    a label under ``MIN_DATES`` cells, because 900 instances on eleven days is an
+    effective sample of eleven. This engine averages per OBSERVATION, and its
+    only floor is ``min_signals``, which counts SIGNALS. So thirty signals on ONE
+    date in ONE bucket clear that floor here and would have been refused there.
+    That difference is not hidden behind a comment: ``n_cells`` reports it the way
+    the owner reports ``n_dates``, so a consumer can see a mean over 30
+    observations in 1 cell for what it is. ⚠️ Porting the clustering itself would
+    change what ``min_signals`` means for every existing horizon and is a
+    different decision from adding the control; the count is what makes it
+    visible rather than assumed.
+
+    ⚠️ AND THE MEAN IS OVER A CONDITIONED SUBSAMPLE. Only the observations that
+    HAD a peer are averaged — systematically the dates this screen was least
+    selective. ``n_matched``/``n_unmatched`` size that conditioning; the caveat
+    itself travels in ``method.same_day_basis``, beside the number, because a
+    consumer renders this next to a pooled excess computed over 100% of the arm.
     """
     signals_in: Dict[Tuple[str, int], int] = {}
     for cell, _ in strat_obs:
         if cell is not None:
             signals_in[cell] = signals_in.get(cell, 0) + 1
     excess: List[float] = []
+    matched_cells: set = set()
     unmatched = 0
     for cell, r in strat_obs:
         acc = cells.get(cell) if cell is not None else None
         if acc is None or acc[0] <= signals_in.get(cell, 0):
             unmatched += 1
             continue
+        matched_cells.add(cell)
         excess.append(winsorise(r) - acc[1] / acc[0])
     n = len(excess)
+    # ⛔ ONE EXPRESSION OWNS BOTH THE NULL AND ITS REASON, in this order, so the
+    # two cannot come to disagree. `below_floor` first because it is the
+    # engine-wide rule that would withhold the rate whatever the matching found.
+    reason = ("below_floor" if withheld
+              else ("no_unoccupied_cell" if n == 0 else None))
     return {"n_matched": n, "n_unmatched": unmatched,
-            "excess_pct_winsorised": None if withheld or n == 0 else sum(excess) / n}
+            # ⭐ the owner's `n_dates`, one axis over: how many (date, bucket)
+            # cells the matched observations actually came from.
+            "n_cells": len(matched_cells),
+            "excess_pct_winsorised": None if reason else sum(excess) / n,
+            "excess_null_reason": reason}
 
 
 def _stats(returns: Sequence[float], *, withheld: bool) -> Stats:
