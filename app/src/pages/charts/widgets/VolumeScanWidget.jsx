@@ -246,9 +246,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
         <div className={chrome.rows} role="list">
           <div className={`${chrome.sideHead} ${styles.head}`}>
             <span className={styles.headSym}>SYMBOL</span>
-            <span className={styles.headSurge}>
-              RVOL{total > 0 ? <span className={styles.headCount}> · {total}</span> : ''}
-            </span>
+            <span className={styles.headSurge}>RVOL</span>
           </div>
           {rows.length === 0 ? (
             <div className={styles.none}>Warming up… (baselines build over the first minute)</div>

@@ -97,7 +97,10 @@ _IGNITE_MOVE = 0.75          # …AND a real, fast price move
 # Instant surge — the OTHER way to light: catch a genuine explosion the SECOND it happens,
 # without waiting for the sustained window to fill. Deliberately HIGH bars (a big burst AND
 # a real fast move together) so modest blips on quiet names don't flicker in.
-_SURGE_BURST = 8.0           # recent 60-sec rate ≥ 8× typical-for-now…
+# Keyed off burst_intraday = recent-minute pace vs the stock's OWN day pace, so a real
+# explosion (quiet → a huge minute, like CRCL) fires but a name merely elevated-vs-a-normal-
+# day (META) does not. The 60-sec window inherently smooths single-second blips → no flashes.
+_INSTANT_SURGE = 5.0         # recent-minute pace ≥ 5× the stock's own day pace…
 _SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min window)
 # Intraday-surge gate — a name below the "extreme level" bar must be ACCELERATING vs its
 # OWN day pace to light (not merely elevated-and-flat). `surge_intraday` = recent pace ÷
@@ -316,6 +319,10 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     # vs its own pace, so it should NOT light. None until the sustained window is built
     # (a freshly-tracked mover isn't held back — the gate is skipped while unknown).
     surge_intraday = round(svol / rvol_day, 2) if (svol is not None and rvol_day > 0) else None
+    # Instant version (60-sec window) — recent-minute pace vs the stock's OWN day pace. A
+    # CRCL-style explosion (quiet all morning, then a 700K-share minute) reads very high
+    # here; a name merely elevated-vs-a-normal-day (META) reads low. Fires the instant catch.
+    burst_intraday = round(burst / rvol_day, 2) if rvol_day > 0 else 0.0
 
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
@@ -326,6 +333,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
         "rvol": round(rvol, 2),          # PRIMARY: sustained recent rate (cumulative fallback)
         "rvol_day": round(rvol_day, 2),  # cumulative-on-the-day (context)
         "surge_intraday": surge_intraday,  # recent pace ÷ own day pace (>1 accelerating, <1 fading)
+        "burst_intraday": burst_intraday,  # recent-MINUTE pace ÷ own day pace (the instant-catch signal)
         "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
@@ -478,17 +486,17 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             m["rvol"] >= _SUSTAINED_HIGH_RVOL
             or (m["rvol"] >= mnr and accelerating_ok)
         )
-        instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
+        instant = m.get("burst_intraday", 0.0) >= _INSTANT_SURGE and abs(m["move"]) >= _SURGE_MOVE
         return sustained or instant
 
     def _igniting(m):
-        # The gold ring = a GENUINE surge happening NOW — a big instant burst, OR a heavy
-        # name that is ACCELERATING (not just plateaued) with a real move. Never a coasting
-        # elevated-and-flat name.
+        # The gold ring = a GENUINE surge happening NOW — an instant explosion (recent minute
+        # towering over the stock's own day pace, like CRCL), OR a heavy name ACCELERATING
+        # (not just plateaued) with a real move. Never a coasting elevated-and-flat name.
         surge = m.get("surge_intraday")
         accelerating = (m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
                         and (surge is None or surge >= _MIN_INTRADAY_SURGE))
-        instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
+        instant = m.get("burst_intraday", 0.0) >= _INSTANT_SURGE and abs(m["move"]) >= _SURGE_MOVE
         return accelerating or instant
 
     def _score(m):
@@ -534,6 +542,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "rvol": m["rvol"],
             "rvol_day": m.get("rvol_day"),
             "surge_intraday": m.get("surge_intraday"),
+            "burst_intraday": m.get("burst_intraday"),
             "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",

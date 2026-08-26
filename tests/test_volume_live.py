@@ -71,20 +71,20 @@ def test_unusual_cumulative_volume_with_a_move_is_lit_and_tiered():
     assert aaa["move"] > 1 and aaa["dir"] == "up"
 
 
-def test_a_modest_burst_below_the_surge_bar_does_not_light():
-    # STABILITY: a quiet name with a MODEST fresh burst (below the instant-surge bar) must
-    # NOT light — the old low burst gate made quiet names flicker in and out of the shaded
-    # set every few seconds. Only heavy SUSTAINED volume OR a BIG instant surge lights.
+def test_a_fresh_pickup_without_a_real_fast_move_does_not_light():
+    # A quiet name with a fresh volume pickup but only a SMALL move (below the instant-surge
+    # move bar). Volume without a real fast move is not actionable — it must NOT light, and
+    # must not flicker.
     seq = {}
     for t in range(0, 46):
-        cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a modest 60-sec blip
-        px = 50.0 if t <= 35 else 50.0 + 0.045 * (t - 35)       # +0.9% (below the surge move bar)
+        cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a fresh pickup
+        px = 50.0 if t <= 35 else 50.0 + 0.025 * (t - 35)       # only +0.5% (below the surge bar)
         seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 50.0, "prev_vol": 1_000_000}}
     _feed(seq)
     r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
-    assert r is not None and r["rvol"] < 2       # sustained RVOL is low (a quiet name)
-    assert 4 <= r["burst"] < 8                    # a modest burst, below the instant-surge bar
-    assert r["lit"] is False and r["igniting"] is False   # neither path fires — no flicker
+    assert r is not None and r["rvol"] < 2       # low sustained level…
+    assert abs(r["move"]) < 1                     # …and no real fast move
+    assert r["lit"] is False and r["igniting"] is False
     assert volume_live.get_live(min_dollar=0)["rows"] == []
 
 
@@ -100,7 +100,7 @@ def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True            # surfaced + lit (not price-capped)
     assert r["price"] > 250                              # a megacap the old cap excluded
-    assert r["burst"] >= 8 and r["igniting"] is True     # a big INSTANT surge, caught immediately
+    assert r["burst_intraday"] >= 5 and r["igniting"] is True   # a big INSTANT surge (CRCL-style)
     # The price band is still a real filter: an explicit low cap still excludes it.
     assert _row(volume_live.get_live(max_price=250, min_dollar=0)["rows"], "AAA") is None
 

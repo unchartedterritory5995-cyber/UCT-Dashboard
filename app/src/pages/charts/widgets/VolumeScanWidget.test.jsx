@@ -38,7 +38,6 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByText('SYMBOL')).toBeInTheDocument()
     expect(screen.queryByText('VOL SURGE')).not.toBeInTheDocument()   // renamed → RVOL
     expect(screen.getAllByText(/RVOL/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/· 2/)).toBeInTheDocument()         // lit count in header
     expect(screen.getByText('SMCI')).toBeInTheDocument()
     expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
