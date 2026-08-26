@@ -433,12 +433,28 @@ LIVE_CYCLE_COLUMNS = (
     ("receipt_json", "TEXT NOT NULL DEFAULT '{}'"),
     ("swept_json", "TEXT NOT NULL DEFAULT '[]'"),
 )
-#: The two provenance words a `hits_for` row can carry. Closed set.
+#: The two provenance words a `hits_for` row can carry. Closed set — and a
+#: LOAD-BEARING one: `hits_for` emits `_TIER_NIGHTLY`/`_TIER_LIVE`, unpacked from
+#: this tuple below, so the words a reader sees cannot drift from the words
+#: declared here. A closed set nothing reads is a comment wearing a constant's
+#: clothes; `tests/test_scan_live_sweep.py` reads `hits_for`'s AST to prove
+#: neither word is retyped inside it.
 LIVE_TIERS = ("nightly", "live")
 #: Cycle receipts kept — 120 five-minute cycles ≈ 1.5 regular sessions.
 LIVE_CYCLES_KEEP = 120
 #: The demand ring's bound (symbols a member or a definition just NAMED).
 DEMAND_MAX = 2000
+
+#: The far end of the TICK window: 2100-01-01 UTC, DERIVED not typed. The near
+#: end is `_AS_OF_MAX` (a tick must be past 1973-02-27 to be distinguishable from
+#: a YYYYMMDD). ⛔ THE UPPER BOUND IS NOT DECORATION: today's MILLISECOND epoch is
+#: ~1.79e12, which sails past the YYYYMMDD check, writes happily — and then kills
+#: every later READ of that definition, because `live_session_ymd` hands it to
+#: `datetime.fromtimestamp`, which raises `OSError [Errno 22]` (measured on this
+#: box). One bad write would poison the overlay for a definition until somebody
+#: deleted the row by hand. `_normalise_as_of` validates its value to a real
+#: calendar date for the same reason; this is that mirror.
+_TICK_MAX = int(datetime.datetime(2100, 1, 1, tzinfo=datetime.timezone.utc).timestamp())
 
 
 def live_max_age_s() -> float:
@@ -605,12 +621,29 @@ def prune(before_as_of: Any) -> dict:
 def _normalise_tick(as_of: Any) -> int:
     """The live table keys the TICK (unix seconds) — the mirror image of
     `_normalise_as_of`, which refuses an epoch. A YYYYMMDD here would file a
-    whole session's answer under one second of it, and never age out."""
+    whole session's answer under one second of it, and never age out.
+
+    ⛔ BOUNDED AT BOTH ENDS, and the upper one is the load-bearing half: a
+    MILLISECOND epoch is not a YYYYMMDD, so the lower check waves it through, and
+    the row it writes then crashes `live_session_ymd` on every subsequent read of
+    that definition. The writer refuses exactly what the reader cannot render.
+    """
+    if as_of is None:
+        raise ValueError(
+            "as_of is None: the live table keys the TICK (unix seconds) the "
+            "snapshot was read at, and a caller that omitted `as_of` (or a "
+            "receipt missing `cycle_started`) has sent nothing to key on.")
     n = ledger._normalize_bar_time(as_of)
     if _AS_OF_MIN <= n <= _AS_OF_MAX or n <= 0:
         raise ValueError(
             f"as_of {as_of!r} normalises to {n}, a YYYYMMDD session date; the live "
             "table keys the TICK (unix seconds) the snapshot was read at.")
+    if n > _TICK_MAX:
+        raise ValueError(
+            f"as_of {as_of!r} normalises to {n}, past {_TICK_MAX} (2100-01-01) — a "
+            "MILLISECOND epoch, most likely. The live table keys the TICK in "
+            "SECONDS; a millisecond value writes cleanly and then breaks every "
+            "later read of this definition inside `live_session_ymd`.")
     return n
 
 
@@ -734,6 +767,12 @@ def last_live_cycle(tf: Any = SCAN_JOIN_TF) -> Optional[dict]:
 
 _ET = ZoneInfo("America/New_York")
 
+#: The words `hits_for` puts in a row's `tier`, UNPACKED from the closed set so
+#: the declaration is the authority and not a duplicate of it. Changing
+#: `LIVE_TIERS`' contents changes what a reader sees; changing its LENGTH fails
+#: at import, here, rather than somewhere downstream at 03:00.
+_TIER_NIGHTLY, _TIER_LIVE = LIVE_TIERS
+
 
 def live_session_ymd(tick: Any) -> int:
     """The ET session a tick falls in, as YYYYMMDD — comparable with ``as_of``.
@@ -774,6 +813,14 @@ def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
     ``as_of None`` reads the latest covered session. No covered session at all
     is ``{"as_of": None, "rows": [], "live": None}`` — "nobody has looked", the
     same answer ``coverage`` gives, never an empty market.
+
+    ⚠️ "LEFT JOIN" HERE IS THE SEMANTICS, NOT THE MECHANISM. This assembles the
+    overlay in Python across FOUR statements on four short-lived connections
+    (latest coverage, nightly hits, live rows, last cycle). That is fine for one
+    definition; W4b.5 renders N of them per page, where it becomes an N+1 — and
+    ``last_live_cycle`` is definition-INDEPENDENT, so N reads would fetch one
+    unchanging row N times. Consolidating into one statement is W4b.5's, and the
+    tables live in ONE FILE precisely so that it can be done without ``ATTACH``.
     """
     h, code = _live_key(def_hash, tf)
     latest = latest_covered_as_of(h, code)
@@ -791,7 +838,7 @@ def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
                 fresh[r["symbol"]] = r
 
     def _row(sym: str, r: Optional[dict], in_nightly: bool) -> dict:
-        return {"symbol": sym, "tier": "live" if r else "nightly",
+        return {"symbol": sym, "tier": _TIER_LIVE if r else _TIER_NIGHTLY,
                 "in_nightly": in_nightly,
                 "live_as_of": r["as_of"] if r else None,
                 "value": r["value"] if r else None,

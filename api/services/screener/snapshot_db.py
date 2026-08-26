@@ -290,10 +290,14 @@ def _live_write_columns() -> list:
     return list(live_tier.LIVE_META_COLUMNS) + list(live_tier.LIVE_COLUMNS)
 
 
-# A FOURTH executescript: the LIVE SCAN side tables (lane W4b). Same file for
-# the same reason as `_SCAN_SCHEMA` (the read path LEFT JOINs them in ONE SQL
-# string on ONE connection). ⭐ THE SHAPE IS DERIVED from `scan_store`'s own
-# column declarations, never retyped — a hand-typed list is one that drifts.
+# A FOURTH executescript: the LIVE SCAN side tables (lane W4b). Same file as
+# `_SCAN_SCHEMA` for the same reason: a cross-database join needs `ATTACH`, which
+# `connect()` does not do, so anything that must be joined to `screener_rows` in
+# ONE statement has to live here. ⚠️ Today's reader does NOT do that —
+# `scan_store.hits_for` assembles the overlay in Python across four statements;
+# co-location is what LETS W4b.5 consolidate it, not a claim that it already has.
+# ⭐ THE SHAPE IS DERIVED from `scan_store`'s own column declarations, never
+# retyped — a hand-typed list is one that drifts.
 def _scan_live_schema_sql() -> str:
     from api.services.screener import scan_store as _ss
     hits = ",\n  ".join(f"{n} {t}" for n, t in _ss.LIVE_HIT_COLUMNS)
