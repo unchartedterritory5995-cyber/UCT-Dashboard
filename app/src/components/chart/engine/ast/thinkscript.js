@@ -165,14 +165,25 @@ export const TS_STATE_WARMUP = 250
  *  both read these keys by name and one door's refusal must render like every
  *  other door's.
  *
- *  ⚠️ THE `assertDeclared` BELOW IS UNREACHABLE TODAY AND IS KEPT ON PURPOSE —
- *  W3.2's mutation sweep deleted it and every rail stayed green, which is
- *  recorded rather than papered over. It cannot fire yet because every caller
- *  passes a LITERAL guard (closed by the source sweep in `thinkscript.test.js`)
- *  or one off a `ThinkScriptRefusal`, whose constructor already checked it. It
- *  becomes live the first time a task builds a guard name from a construct kind
- *  — the shape W3.3 has — and deleting cheap defence at a chokepoint because
- *  today's two callers happen to be safe is how the chokepoint stops being one. */
+ *  ⚠️⚠️ THE `assertDeclared` BELOW IS A RUNTIME GUARD, **NOT A RAIL**, AND NO
+ *  TEST WILL EVER CATCH ITS DELETION. Measured twice and recorded rather than
+ *  papered over:
+ *    1. W3.2's mutation sweep deleted it — every rail stayed GREEN. It cannot
+ *       fire today because every caller passes a LITERAL guard (closed by the
+ *       source sweep in `thinkscript.test.js`) or one off a
+ *       `ThinkScriptRefusal`, whose constructor already checked it.
+ *    2. W3.2's REVIEW then planted W3.3's actual shape — a branch emitting
+ *       `` `thinkscript:${kind}` `` — and BOTH variants stayed GREEN too. So it
+ *       is not even prospectively railed: the source sweep's
+ *       `/'(thinkscript:[a-z-]+)'/g` is structurally blind to a template
+ *       literal, which is exactly how a computed guard will be written.
+ *
+ *  ⛔ IT IS KEPT ANYWAY, and the next engineer should know why: it is the only
+ *  thing that will catch a computed guard name that `REFUSALS` does not declare,
+ *  precisely because no test can. Deleting cheap defence at a chokepoint because
+ *  today's two callers happen to be safe is how the chokepoint stops being one.
+ *  ⏳ W3.3, WHICH WILL WRITE THE FIRST COMPUTED GUARD: widen the source sweep to
+ *  match `` `thinkscript:${…}` `` too, or it ships blind. */
 function refusalValue(guard, message, at) {
   assertDeclared(guard)
   return {
@@ -186,6 +197,22 @@ function refusalValue(guard, message, at) {
   }
 }
 
+/** A thrown error as a refusal value, mirroring `pine.js::fromError`.
+ *
+ *  ⏳ BOTH BRANCHES ARE UNREACHABLE TODAY AND NOTHING EXERCISES THEM — disclosed
+ *  rather than left looking covered. Nothing inside `translateThinkScript`'s try
+ *  can currently throw: the only `throw` in this module is `assertDeclared`, and
+ *  no live call site can reach it (see `refusalValue` above). This is
+ *  brief-mandated scaffolding for the tasks that parse, and it is KEPT because
+ *  the alternative is W3.3 discovering mid-task that the door has no answer for
+ *  a thrown `ThinkScriptRefusal` — which is the whole mechanism by which a
+ *  construct refuses at its token. It goes live with the first `throw` in a
+ *  reader, and that task owns testing it.
+ *
+ *  ⚠️ THE SECOND BRANCH DELIBERATELY SWALLOWS A NON-REFUSAL INTO A MEMBER-FACING
+ *  GUARD, the same trade `pine.js` makes: the promise that this door never
+ *  throws outranks a clean stack, and the underlying message is appended so the
+ *  bug is still legible in what the member is shown. */
 function fromError(err) {
   if (err instanceof ThinkScriptRefusal) return refusalValue(err.guard, err.message, err.at)
   return refusalValue('thinkscript:statement',
@@ -285,25 +312,32 @@ export function translateThinkScript(source, opts = {}) {
     outputs: [], selected: -1, refusal: null, refusals: [], ignored: [], folded: [],
   }
 
-  if (typeof source !== 'string' || source.trim() === '') {
-    const r = refusalValue('thinkscript:empty', REFUSALS['thinkscript:empty'], null)
-    return { ...blank, refusal: r, refusals: [r] }
-  }
-
-  const lines = source.replace(/\r\n?/g, '\n').split('\n')
-
-  let refusals
+  // ⛔ THE **WHOLE** BODY IS INSIDE THE TRY, AND THAT IS A FIX, NOT A STYLE.
+  // The empty-source branch used to sit above it, calling `refusalValue` —
+  // which asserts its guard — outside any catch. The day that assert fires it
+  // would throw straight out of a function whose header promises it never
+  // throws, and the four callers that treat this as total (the corpus gate over
+  // 24 real files, the intake bench, `ImportBox`, a member's arbitrary paste)
+  // would all see the exception instead of a refusal. Found in W3.2 review.
+  let lines = []
   try {
-    refusals = [refusalValue('thinkscript:unsupported',
+    if (typeof source !== 'string' || source.trim() === '') {
+      const r = refusalValue('thinkscript:empty', REFUSALS['thinkscript:empty'], null)
+      return { ...blank, refusal: r, refusals: [r] }
+    }
+
+    lines = source.replace(/\r\n?/g, '\n').split('\n')
+
+    const refusals = [refusalValue('thinkscript:unsupported',
       REFUSALS['thinkscript:unsupported'], firstToken(lines))].sort(byPosition)
+
+    return {
+      ...blank,
+      refusal: withExcerpt(refusals[0] || null, lines),
+      refusals: withExcerpts(refusals, lines),
+    }
   } catch (err) {
     const r = withExcerpt(fromError(err), lines)
     return { ...blank, refusal: r, refusals: [r] }
-  }
-
-  return {
-    ...blank,
-    refusal: withExcerpt(refusals[0] || null, lines),
-    refusals: withExcerpts(refusals, lines),
   }
 }

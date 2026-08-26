@@ -87,7 +87,44 @@ describe('the refusal vocabulary', () => {
     const src = readSource()
     const emitted = new Set([...src.matchAll(/'(thinkscript:[a-z-]+)'/g)].map((m) => m[1]))
     expect([...emitted].filter((g) => !(g in TS))).toEqual([])
-    expect(emitted.size, 'a closure sweep that found no guards is not a sweep').toBeGreaterThan(15)
+    // ⛔ NON-VACUITY, DERIVED FROM THE AUTHORITY RATHER THAN TYPED. A bad path
+    // or a broken regex yields an empty set; this says the sweep found the whole
+    // declared table. ⚠️ It replaces `emitted.size > 15`, which LOOKED like a
+    // floor and was not: the table's own quoted keys satisfied it on their own,
+    // so it could never have noticed that the module emits only two guards of
+    // the twenty-seven it declares. That fact is now measured below, out loud.
+    expect([...emitted].sort()).toEqual(Object.keys(TS).sort())
+  })
+
+  it('⭐ …and only TWO of the twenty-seven are live, which is measured, not assumed', () => {
+    // ⛔ A CLOSED SET SAYS NOTHING ABOUT HOW MUCH OF IT IS REACHABLE. Twenty-five
+    // of these guards are vocabulary the readers will grow into; two are what
+    // this translator can actually say today. Measured by RUNNING it — the only
+    // honest source for "what does this thing emit" — and pinned BY NAME, so
+    // W3.3's first new guard reds this and has to be acknowledged rather than
+    // quietly joining a set nobody was counting.
+    const reached = new Set()
+    for (const src of ['', '   \n', 'plot x = close;', '# Mobius\ndef a = 1;\n',
+      'RSI() crosses above 30', 'declare lower;\nplot scan = close > Average(close, 50);']) {
+      for (const r of translateThinkScript(src).refusals) reached.add(r.guard)
+    }
+    expect([...reached].sort()).toEqual(['thinkscript:empty', 'thinkscript:unsupported'])
+  })
+
+  it('…and exactly one more guard is REFERENCED in code without being reachable', () => {
+    // ⛔ THE GAP BETWEEN "WRITTEN INTO CODE" AND "REACHABLE" IS WHERE DEAD
+    // SCAFFOLDING HIDES, so it is pinned by name too. `thinkscript:statement`
+    // is referenced only from `fromError`'s currently-unreachable branch —
+    // disclosed in the module beside it. Stripping the declaration table is what
+    // makes this measurable at all: sweeping the whole file just finds the
+    // twenty-seven names the table itself spells.
+    const src = readSource()
+    const table = /export const REFUSALS = Object\.freeze\(\{[\s\S]*?\n\}\)/.exec(src)
+    expect(table, 'the REFUSALS declaration must be findable, or this test measures the whole file').toBeTruthy()
+    const code = src.replace(table[0], '')
+    const inCode = new Set([...code.matchAll(/'(thinkscript:[a-z-]+)'/g)].map((m) => m[1]))
+    expect([...inCode].sort()).toEqual(
+      ['thinkscript:empty', 'thinkscript:statement', 'thinkscript:unsupported'])
   })
 
   it('⭐ …and CLOSED at runtime too, for a guard this file could never see', () => {

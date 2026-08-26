@@ -49,6 +49,23 @@ const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8')
  *  decided. */
 const SNAP_FILES = Object.keys(SNAPSHOT).filter((k) => !k.startsWith('_')).sort()
 
+/** One script's snapshot entry, safe to read a property off even when there is
+ *  no entry.
+ *
+ *  ⛔ IT EXISTS SO A MISSING ENTRY IS REPORTED BY NAME RATHER THAN AS A STACK
+ *  TRACE, and the distinction is not cosmetic. Three of the dereferences below
+ *  run while vitest is COLLECTING — inside `describe` bodies, before any `it`
+ *  exists — so `entry(f).translates` on a script that is on disk and absent
+ *  from the map reds the entire FILE with
+ *  `TypeError: Cannot read properties of undefined`, and every named assertion
+ *  in it, including the two that would have said which script, never runs. The
+ *  gate fired either way; it just could not say what was wrong, in the one file
+ *  whose whole argument is that a rail must report NAMES rather than counts.
+ *  ⚠️ IT DOES NOT SOFTEN ANYTHING: a missing entry simply reads as "not
+ *  translating", and `every fixture is in the snapshot` plus the per-script
+ *  `it` below both still fail, now naming the file. Found in W3.2 review. */
+const entry = (f) => SNAPSHOT[f] || {}
+
 describe('the corpus is real and it is all there', () => {
   it('every fixture is present and every fixture is in the snapshot', () => {
     // ⭐ A FLOOR ON THE CENSUS, AN EQUALITY ON THE MAP — and the difference is
@@ -79,7 +96,18 @@ describe('the corpus is real and it is all there', () => {
 describe('every script lands exactly where the snapshot says', () => {
   for (const f of FILES) {
     const want = SNAPSHOT[f]
-    it(`${f} — ${want.translates ? `${want.usable} column(s)` : want.refusal.guard}`, () => {
+    // ⛔ THE TITLE IS BUILT AT COLLECTION TIME, SO IT MUST SURVIVE A MISSING
+    // ENTRY. Dereferencing `want.translates` here for a script that is on disk
+    // and absent from the snapshot reds the whole FILE with a
+    // `TypeError: Cannot read properties of undefined` before a single `it`
+    // runs — a stack trace, in the one file whose entire argument is that a
+    // rail must report NAMES rather than counts. The gate still fires either
+    // way; this is about what it says when it does. Found in W3.2 review.
+    const label = !want ? 'MISSING FROM THE SNAPSHOT'
+      : want.translates ? `${want.usable} column(s)` : want.refusal.guard
+    it(`${f} — ${label}`, () => {
+      expect(want, `${f} is on disk and has no snapshot entry — regenerate with `
+        + 'TS_CORPUS_WRITE=1 and read the diff').toBeTruthy()
       const got = translateThinkScript(read(f))
       expect(got.version, 'version').toBe('thinkscript')
       expect(got.ok, 'translates').toBe(want.translates)
@@ -117,8 +145,8 @@ describe('every script lands exactly where the snapshot says', () => {
 })
 
 describe('a script that translates goes all the way through the SHIPPED doors', () => {
-  const TRANSLATING = FILES.filter((f) => SNAPSHOT[f].translates)
-  const THROUGH = TRANSLATING.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
+  const TRANSLATING = FILES.filter((f) => entry(f).translates)
+  const THROUGH = TRANSLATING.filter((f) => entry(f).downstream && entry(f).downstream.ok)
 
   // ⏳ BOTH SETS ARE EMPTY TODAY AND THIS BLOCK THEREFORE RUNS ONE VACUOUS TEST.
   // That is stated rather than hidden: the machinery is written now so the task
@@ -128,12 +156,12 @@ describe('a script that translates goes all the way through the SHIPPED doors', 
   // stay empty by accident. ⛔ Do not "simplify" it away while it is empty.
 
   it('⭐ the ones that translate but CANNOT be saved are NAMED, with the wall they hit', () => {
-    const blocked = TRANSLATING.filter((f) => !SNAPSHOT[f].downstream || !SNAPSHOT[f].downstream.ok)
+    const blocked = TRANSLATING.filter((f) => !entry(f).downstream || !entry(f).downstream.ok)
     for (const f of blocked) {
       const out = translateThinkScript(read(f))
       const down = evaluateFormula(out.outputs[out.selected].formula, BUILDER_INPUT_SCOPE)
       expect(down.ok, f).toBe(false)
-      expect(down.guard, f).toBe(SNAPSHOT[f].downstream.guard)
+      expect(down.guard, f).toBe(entry(f).downstream.guard)
       expect(canSaveFormula(down, false), f).toBe(false)
     }
     expect(blocked).toEqual(SNAPSHOT._blocked)
@@ -149,14 +177,14 @@ describe('a script that translates goes all the way through the SHIPPED doors', 
       const down = evaluateFormula(row.formula, BUILDER_INPUT_SCOPE)
       expect(down.ok, `${f}: ${down.guard} ${down.error}`).toBe(true)
       expect(down.readback).toBe(sentenceFor(parsed.ast, BUILDER_INPUT_SCOPE))
-      expect(down.verdict.mode).toBe(SNAPSHOT[f].downstream.repaint)
+      expect(down.verdict.mode).toBe(entry(f).downstream.repaint)
       expect(canSaveFormula(down, false)).toBe(true)
     })
   }
 })
 
 describe('a script that refuses refuses for a DECLARED reason', () => {
-  const REFUSING = FILES.filter((f) => !SNAPSHOT[f].translates)
+  const REFUSING = FILES.filter((f) => !entry(f).translates)
 
   it('there is more than one of them, or the sweep below measures nothing', () => {
     // ⚠️ A FLOOR ON NON-VACUITY, NOT A COVERAGE TARGET. The coverage number is
@@ -191,8 +219,8 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
 
 describe('the whole corpus, in one number', () => {
   it('reports what fraction of real thinkScript this engine can run', () => {
-    const translating = FILES.filter((f) => SNAPSHOT[f].translates).length
-    const columns = FILES.reduce((n, f) => n + SNAPSHOT[f].usable, 0)
+    const translating = FILES.filter((f) => entry(f).translates).length
+    const columns = FILES.reduce((n, f) => n + entry(f).usable, 0)
 
     // ⛔⛔ THESE THREE LITERALS ARE THE WALL, AND THEY ARE LITERALS ON PURPOSE.
     // Comparing the roll-up to the per-file entries would only catch a
@@ -221,7 +249,7 @@ describe('the whole corpus, in one number', () => {
     // ⛔ "IT TRANSLATED" AND "IT WORKS" ARE DIFFERENT CLAIMS. A formula can come
     // out of the translator and still be refused by the budget, the linter or
     // the read-back.
-    const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
+    const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
     expect(saveable.length).toBe(0)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
   })
