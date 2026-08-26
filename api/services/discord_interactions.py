@@ -50,7 +50,7 @@ BARS_RETRY_DELAY_S = 1.5
 # page's own fetch hits the web pod's memory cache (0.2-0.35 s) instead of the
 # cold path (7-20 s on 5-minute bars, measured 2026-08-25) - which was long
 # enough to time out the renderer's first attempt and cost a 45 s retry.
-PAGE_BARS = 5000
+PAGE_BARS = 5000                 # legacy default; the real number comes from discord_chart_house.page_fetch_bars
 
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
 # slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
@@ -801,15 +801,21 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         png = None
         warm = None
         if house_fn is not None and daily:
-            # Pre-warm the page's OWN fetch on every timeframe, DAILY INCLUDED.
-            # The page asks /api/bars for PAGE_BARS bars whatever the timeframe,
-            # while the stats fetch above only wants 260 - so a daily chart used
-            # to leave the page to pull 5,000 bars itself, inside the renderer's
-            # deadline. One at a time that just cost a few seconds. FOUR at once
-            # (a /charts set, 2026-08-26) raced and the renderer returned BLANK
-            # bodies for three of them: "house render body BLANK for AVGO D".
-            # The fetch belongs on our side of the deadline.
-            warm = _fetch(req.tf, PAGE_BARS)
+            # Pre-warm the page's OWN fetch, on every timeframe and at the size
+            # the page will actually ask for: a shallow first-paint window
+            # normally, the full depth when a comparison or a `?to=` cutoff
+            # pins it. Getting this wrong is what turned four simultaneous
+            # daily charts into three blank ones on 2026-08-26 - the page was
+            # left pulling history inside the renderer's deadline.
+            from api.services import discord_chart_house as _house
+            deep = bool(compare or req.to)
+            warm = _fetch(req.tf, _house.page_fetch_bars(req.tf, deep))
+            for other in compare:
+                # the page fetches each comparison symbol too; warm those as well
+                try:
+                    bars_fn(other, req.tf, _house.COMPARE_FETCH_BARS)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] compare warm failed %s: %s", other, e)
             house_opts = dict(options)
             if req.breadth_name:
                 house_opts["breadth"] = req.breadth_name

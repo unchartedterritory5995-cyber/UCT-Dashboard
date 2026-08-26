@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import base64
 import json
+import functools
 import logging
+import pathlib
+import re
 import os
 from urllib.parse import urlencode
 
@@ -42,7 +45,14 @@ HOUSE_READY_JS = "() => window.__chartBarsReady === true && window.__chartReady 
 # 2026-08-25: blank body ≈ 1.3, drawn body ≈ 30+.
 _MIN_BODY_STDDEV = 6.0
 # (settle_ms, ready_timeout_ms) per attempt; the retry gives late bars time.
-_ATTEMPTS = ((300, 30000), (3000, 45000))
+# Measured 2026-08-26 in the pod: a healthy chart reaches full readiness in
+# 1.9-2.7 s. The first attempt's 30 s ceiling therefore only ever bought
+# WAITING on a chart that was never going to settle - and the retry then spent
+# 45 s more, which is where "/charts sat for 40 s" came from. 15 s is 6x the
+# measured need; the renderer screenshots whatever it has when the predicate
+# times out, and the pixel judge below decides, so a slow-but-fine chart is not
+# lost - it is judged sooner.
+_ATTEMPTS = ((300, 15000), (3000, 45000))
 
 
 def house_ready_js(sym: str) -> str:
@@ -100,6 +110,45 @@ def house_enabled() -> bool:
 def _b64url(obj) -> str:
     raw = json.dumps(obj, separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+@functools.lru_cache(maxsize=1)
+def _page_bar_depths() -> tuple[int, dict]:
+    """(FIRST_PAINT_BARS, {tf: fullBarsFor(tf)}) read from the PAGE'S OWN module,
+    `app/src/utils/barsBackfill.js`.
+
+    The page decides how many bars it asks /api/bars for; a copy of those
+    numbers here would be a second authority over one value, and the copy would
+    be the one that goes stale. Same technique as `api/main.py`'s
+    `idb_cache_logic_version()`, which parses barsIDB.js for the same reason.
+    Returns (0, {}) - and says so once - if the source is not in the image."""
+    try:
+        src = (pathlib.Path(__file__).resolve().parents[2] / "app" / "src" / "utils" / "barsBackfill.js").read_text(encoding="utf-8")
+        first = int(re.search(r"FIRST_PAINT_BARS\s*=\s*(\d+)", src).group(1))
+        full = {m.group(1): int(m.group(2)) for m in re.finditer(r"case\s*'([^']+)':\s*return\s*(\d+)", src)}
+        if first and full:
+            return first, full
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] page bar depths unreadable (%s); warming the default", e)
+    return 0, {}
+
+
+def page_fetch_bars(tf: str, deep: bool = False, default: int = 5000) -> int:
+    """How many bars the /r/chart page will ask /api/bars for on this render.
+
+    The page fetches a shallow first-paint window (FIRST_PAINT_BARS) unless an
+    overlay or a pinned range forces the full depth - a comparison symbol or a
+    `?to=` replay cutoff, which is exactly `deep`. Warming THAT number means the
+    page's own fetch is a cache hit; warming a different one leaves it to pull
+    history inside the renderer's deadline, which is what turned four
+    simultaneous daily charts into three blank ones on 2026-08-26."""
+    first, full = _page_bar_depths()
+    if not first:
+        return default
+    return full.get(str(tf), default) if deep else first
+
+
+COMPARE_FETCH_BARS = 2000        # StockChart: min(barCount || 1500, 2000) per comparison symbol
 
 
 DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None,

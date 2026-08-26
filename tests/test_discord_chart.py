@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import pathlib
 import random
 
 import pytest
+
+from api.services import discord_chart_house as house_mod
 
 
 # ── synthetic bars ────────────────────────────────────────────────────────────
@@ -710,7 +713,14 @@ def test_house_render_posts_to_the_renderer_and_returns_png_or_none(monkeypatch)
     body = json.loads(req.content)
     assert body["url"].startswith("https://uctintelligence.com/r/chart?") and "token=tok123" in body["url"]
     assert body["scale"] == hs.HOUSE_SCALE and body["selector"] == "#chart-export"
-    assert body["ready_js"] == hs.house_ready_js("NVDA") and body["ready_timeout_ms"] >= 30000
+    # the first attempt is judged sooner than a healthy chart could ever need
+    # (measured: full readiness in 1.9-2.7 s); the retry keeps a long ceiling
+    assert body["ready_js"] == hs.house_ready_js("NVDA")
+    # 15 s is ~6x the measured full-readiness time (1.9-2.7 s on the pod), so a
+    # healthy chart is never cut off - and a chart that will never settle is
+    # judged in 15 s instead of 30 before the long retry.
+    assert body["ready_timeout_ms"] == hs._ATTEMPTS[0][1] <= 20000
+    assert hs._ATTEMPTS[-1][1] >= 45000
 
     def failing(request):
         return httpx.Response(502, json={"detail": "render failed"})
@@ -922,7 +932,7 @@ def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reus
     from api.services import discord_chart_cache as cc
     from api.services.discord_interactions import run_chart_job, ChartRequest
     from api.services.discord_chart_render import STATS_DAILY_BARS, bars_to_request
-    from api.services.discord_interactions import PAGE_BARS
+    from api.services.discord_chart_house import page_fetch_bars
     cc.clear()
     asked = []
 
@@ -935,7 +945,7 @@ def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reus
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
                          render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
                          house_fn=lambda *a: _png_canvas(draw=True)) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS), ("15", PAGE_BARS)]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", page_fetch_bars("15", False))]
     cc.clear(); asked.clear()
     # house fails: the fallback renders from the warmed bars, no third fetch
     seen = {}
@@ -943,7 +953,7 @@ def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reus
         seen["n"] = len(bars); return PNG_MAGIC + b"mpl"
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
                          render_fn=render_fn, edit_fn=edits, house_fn=lambda *a: None) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS), ("15", PAGE_BARS)]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", page_fetch_bars("15", False))]
     assert seen["n"] == bars_to_request("15")
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
 
@@ -1179,7 +1189,7 @@ def test_house_ready_js_refuses_until_the_page_has_bars():
 
 
 def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_them_for_fallback():
-    """The /r/chart page fetches PAGE_BARS bars itself; cold, that took 7-20 s on
+    """The /r/chart page fetches its own bars; cold, that took 7-20 s on
     5-minute data and timed out the renderer's first attempt. The job warms that
     exact request in-process first (Daily is already fetched for the stats)."""
     from api.services import discord_interactions as di
@@ -1198,7 +1208,7 @@ def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_th
     out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "5"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
                            edit_fn=edit_fn, house_fn=house_fn)
     assert out == "ok" and edits[-1][1] == b"HOUSEPNG"
-    assert order == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "5", di.PAGE_BARS), ("house", "5", None)]
+    assert order == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "5", house_mod.page_fetch_bars("5", False)), ("house", "5", None)]
     # Daily needs no extra warm: the stats fetch already is the page's request shape
     order.clear()
     di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "D"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
@@ -1212,7 +1222,7 @@ def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_th
     out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "15"), bars_fn=bars_fn, render_fn=render_fn,
                            edit_fn=edit_fn, house_fn=lambda *a, **k: None)
     assert out == "ok" and edits[-1][1] == b"MPL"
-    assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", di.PAGE_BARS)]
+    assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", house_mod.page_fetch_bars("15", False))]
     assert rendered["n"] == di.bars_to_request("15")
 
 
@@ -2111,11 +2121,46 @@ def test_the_charts_row_fits_the_id_limit_by_construction_and_the_backstop_still
     assert di.multi_components(absurd) == []
 
 
+def test_the_warm_matches_what_the_page_will_actually_fetch_including_comparisons():
+    """The page asks for a shallow window normally and the FULL depth when a
+    comparison or a ?to= cutoff pins it — those numbers are read from the page's
+    own module, never copied. Warming a different number leaves the page pulling
+    history inside the renderer's deadline (three blank charts, 2026-08-26)."""
+    from api.services.discord_interactions import produce_chart, ChartRequest
+    from api.services import discord_chart_prefs as p, discord_chart_house as house
+    shallow = house.page_fetch_bars("D", False)
+    deep = house.page_fetch_bars("D", True)
+    assert shallow and deep and deep > shallow, (shallow, deep)      # read, not guessed
+    def run(req, compare=()):
+        asked = []
+        produce_chart(req, p.render_options(dict(p.DEFAULTS), req.tf), dict(p.DEFAULTS), compare,
+                      bars_fn=lambda tkr, tf, n: asked.append((tkr, tf, n)) or daily_bars(30),
+                      render_fn=lambda *a, **k: PNG_MAGIC, house_fn=lambda *a, **k: PNG_MAGIC + b"h")
+        return asked
+    assert ("WRM1", "D", shallow) in run(ChartRequest("WRM1", "D"))
+    assert ("WRM2", "D", deep) in run(ChartRequest("WRM2", "D", to="2026-05-01"))
+    asked = run(ChartRequest("WRM3", "D", compare=("SPY", "QQQ")), compare=("SPY", "QQQ"))
+    assert ("WRM3", "D", deep) in asked
+    for sym in ("SPY", "QQQ"):                                        # the page fetches these too
+        assert (sym, "D", house.COMPARE_FETCH_BARS) in asked, asked
+
+
+def test_page_bar_depths_are_read_from_the_pages_own_module_not_copied():
+    from api.services import discord_chart_house as house
+    first, full = house._page_bar_depths()
+    src = (pathlib.Path(house.__file__).resolve().parents[2] / "app" / "src" / "utils" / "barsBackfill.js").read_text(encoding="utf-8")
+    assert f"FIRST_PAINT_BARS = {first}" in src                        # the value came from there
+    assert full.get("D") and f"return {full['D']}" in src
+    assert house.page_fetch_bars("D", False) == first
+    assert house.page_fetch_bars("D", True) == full["D"]
+    assert house.page_fetch_bars("ZZ", True) == 5000                   # unknown tf falls back
+
+
 def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_rendering():
     """2026-08-26: the pre-warm skipped tf=D, so the PAGE fetched its 5,000 bars
     itself, inside the renderer's deadline. Four of those at once (a /charts
     set) came back BLANK. The fetch has to happen on our side of the deadline."""
-    from api.services.discord_interactions import produce_chart, ChartRequest, PAGE_BARS
+    from api.services.discord_interactions import produce_chart, ChartRequest
     from api.services import discord_chart_prefs as p
     for tf in ("D", "W", "60", "5"):
         asked = []
@@ -2126,10 +2171,11 @@ def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_renderin
                             bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
                             house_fn=lambda *a, **k: PNG_MAGIC + b"house")
         assert out[0] == "ok"
-        assert (tf, PAGE_BARS) in asked, f"tf={tf} never warmed the page's own request: {asked}"
+        want = __import__("api.services.discord_chart_house", fromlist=["x"]).page_fetch_bars(tf, False)
+        assert (tf, want) in asked, f"tf={tf} never warmed the page's own request: {asked}"
     # without the house path there is no page to warm for
     asked = []
     produce_chart(ChartRequest("WRMB", "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
                   bars_fn=lambda t, tf, n: asked.append((tf, n)) or daily_bars(30),
                   render_fn=lambda *a, **k: PNG_MAGIC, house_fn=None)
-    assert all(n != PAGE_BARS for _, n in asked), asked
+    assert all(n < 600 or n == bars_to_request("D") for _, n in asked), asked
