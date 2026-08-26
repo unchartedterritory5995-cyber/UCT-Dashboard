@@ -1410,7 +1410,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of bars since the most recent multi-bar candle pattern"
+      "sentence": "the number of sessions since the most recent multi-bar candle pattern completed, 0 on the newest bar and at most 4 (blank when none formed inside the last five sessions)"
     },
     "avg_body": {
       "source": {
@@ -1423,7 +1423,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the average candle body size"
+      "sentence": "the average candle body, open to close, in price rather than percent, over the 15 completed sessions before the newest bar"
     },
     "avg_range": {
       "source": {
@@ -1436,7 +1436,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the average candle range"
+      "sentence": "the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar"
     },
     "inside_bar_run": {
       "source": {
@@ -2356,18 +2356,18 @@
     "rnd_to_revenue": "Wave 7, 2026-08-24: declared in the schema and read by the nightly fundamentals pass, but NEVER YET WRITTEN by a production build -- so under R8 it cannot be a scalar yet. A column no build has filled would make every expression over it silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. PROMOTE IT after a clean nightly fill shows real coverage, exactly as pattern_engine_vcp and pattern_engine_flat_base were promoted the same day they filled -- and move only the split, never the column total.",
     "sbc_to_revenue": "Wave 7, 2026-08-24: declared in the schema and read by the nightly fundamentals pass, but NEVER YET WRITTEN by a production build -- so under R8 it cannot be a scalar yet. A column no build has filled would make every expression over it silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. PROMOTE IT after a clean nightly fill shows real coverage, exactly as pattern_engine_vcp and pattern_engine_flat_base were promoted the same day they filled -- and move only the split, never the column total.",
     "cash_conversion_cycle": "Wave 7, 2026-08-24: declared in the schema and read by the nightly fundamentals pass, but NEVER YET WRITTEN by a production build -- so under R8 it cannot be a scalar yet. A column no build has filled would make every expression over it silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. PROMOTE IT after a clean nightly fill shows real coverage, exactly as pattern_engine_vcp and pattern_engine_flat_base were promoted the same day they filled -- and move only the split, never the column total.",
-    "candle_label": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_matches": "a delimiter-WRAPPED list of every pattern the bar matched, not a scalar -- the numeric part is candle_recent_bars_ago; the filter reads this membership, no expression over it is writeable",
-    "candle_trend": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "bar_character": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "bar_character_label": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_recent": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_recent_label": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_recent_status": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_weekly": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_weekly_label": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_monthly": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range).",
-    "candle_monthly_label": "TEXT -- a classification label, for the same reason as candle_type. The measured numeric part is declared (candle_recent_bars_ago / avg_body / avg_range)."
+    "candle_label": "TEXT -- the wording the Candle column displays: the bar's named shape, with the runner-up in parentheses. A name is not a magnitude. The measured parts of that same bar are declared as scalars instead: body as a fraction of range (body_pct), the two wicks (upper_wick_pct, lower_wick_pct) and where it closed (close_position).",
+    "candle_matches": "TEXT -- every named shape the newest bar satisfied at once, delimiter-wrapped so the Candle Type filter can test membership. A list is not a number and this grammar has no string literal, so no expression over it is writeable. The measured parts of that same bar are declared as scalars instead: body_pct, upper_wick_pct, lower_wick_pct and close_position.",
+    "candle_trend": "TEXT -- the Prior Trend the candle printed into (up, down, neutral or unknown), read from a 10-day EMA at the bar before the pattern begins. It is a verdict, not a magnitude, and it has no numeric part: no column stores the slope or the distance behind the verdict.",
+    "bar_character": "TEXT -- the Bar Character headline: what the newest bar DID, one of 53 behaviours across gaps, structural failures, reversals and volume, decided by a strict priority cascade. A headline is not a magnitude. The facts it is built from are declared as scalars where they are stored as numbers: the gap (gap_pct), volume against its average (vol_ratio), whether the range was wide or narrow against ATR (wide_bar, narrow_bar) and where the bar closed (close_position). The 20-day high and low tests and the gap-filled verdict are not stored as columns.",
+    "bar_character_label": "TEXT -- the wording the Character column displays: the headline plus where the bar closed and how heavy the volume was. Prose, not a magnitude, and it carries no number of its own: the gap (gap_pct), the volume ratio (vol_ratio), a wide or narrow range (wide_bar, narrow_bar) and the close position (close_position) it describes are the declared scalars.",
+    "candle_recent": "TEXT -- the name of the Recent Pattern: the most recent multi-bar structure inside the last five sessions. A name is not a magnitude; its numeric part, how many sessions ago it completed, is declared as candle_recent_bars_ago.",
+    "candle_recent_label": "TEXT -- the wording the Recent Pattern column displays: the name, its age and what the next open did. Prose, not a magnitude; the one number inside it, the age in sessions, is declared as candle_recent_bars_ago.",
+    "candle_recent_status": "TEXT -- Next Open After Pattern: whether the session after the Recent Pattern opened with it or against it, or provisional while no session has opened since. It is a direction, not a magnitude, and it has no numeric part: the size of that opening gap is not stored, only which side of the pattern's close it fell on.",
+    "candle_weekly": "TEXT -- the Weekly Candle: the named shape of the weekly bar, resampled from the daily series. A name is not a magnitude, and it has no numeric part: the weekly bar's body, wicks and close position are computed to name it and not stored as columns. Only the DAILY bar's measurements are declared (body_pct, upper_wick_pct, lower_wick_pct, close_position).",
+    "candle_weekly_label": "TEXT -- the wording the Weekly column displays, including the (forming) flag while the week is still open. Prose, not a magnitude, and it has no numeric part: nothing about the weekly bar is stored as a number.",
+    "candle_monthly": "TEXT -- the Monthly Candle: the named shape of the monthly bar, resampled from the daily series. A name is not a magnitude, and it has no numeric part: the monthly bar's body, wicks and close position are computed to name it and not stored as columns. Only the DAILY bar's measurements are declared (body_pct, upper_wick_pct, lower_wick_pct, close_position).",
+    "candle_monthly_label": "TEXT -- the wording the Monthly column displays, including the (forming) flag while the month is still open. Prose, not a magnitude, and it has no numeric part: nothing about the monthly bar is stored as a number."
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent."
