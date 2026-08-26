@@ -377,7 +377,7 @@ def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
     client, rt = _app_client()
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None, components_fn=None):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None, components_fn=None, **_k):
         scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
         assert house_fn is None  # CHART_RENDERER_URL is unset in tests → mplfinance only
         from api.services import discord_chart_prefs as p
@@ -1648,3 +1648,67 @@ def test_renderer_warm_on_boot_renders_spy_once_when_the_house_path_is_on(monkey
     m._start_chart_renderer_warm_background(delay_seconds=0)
     time.sleep(0.3)
     assert calls == []                                                          # inert without the renderer
+
+
+# ── the context line is edited in AFTER the chart, never before it ──
+
+def test_context_line_follows_the_chart_as_a_content_only_edit_and_never_delays_or_breaks_it():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p
+    order = []
+    def context_fn(ticker):
+        order.append(("context", ticker)); return "Earnings TODAY · ±8.1% implied"
+    edits = _Edits()
+    def spy(*a, **k):
+        order.append(("edit", k.get("content"), k.get("png") is not None)); return edits(*a, **k)
+    out = run_chart_job("1", "t", ChartRequest("CTXA", "D"), bars_fn=lambda *a: daily_bars(20),
+                        render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy, prefs=dict(p.DEFAULTS), context_fn=context_fn)
+    assert out == "ok"
+    assert order == [("edit", "CTXA · Daily", True), ("context", "CTXA"),
+                     ("edit", "CTXA · Daily\nEarnings TODAY · ±8.1% implied", False)]   # image first, then the line
+    # the cached-PNG path gets the same follow-up
+    order.clear()
+    assert run_chart_job("1", "t", ChartRequest("CTXA", "D"), bars_fn=lambda *a: pytest.fail("cached"),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy, prefs=dict(p.DEFAULTS), context_fn=context_fn) == "ok"
+    assert [o[0] for o in order] == ["edit", "context", "edit"]
+    # an empty line = no second edit; a raising context_fn = chart still ok, single edit
+    order.clear()
+    run_chart_job("1", "t", ChartRequest("CTXB", "D"), bars_fn=lambda *a: daily_bars(20),
+                  render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy, prefs=dict(p.DEFAULTS), context_fn=lambda t: "")
+    assert [o[0] for o in order] == ["edit"]
+    order.clear()
+    def boom(t):
+        raise RuntimeError("provider down")
+    assert run_chart_job("1", "t", ChartRequest("CTXC", "D"), bars_fn=lambda *a: daily_bars(20),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy, prefs=dict(p.DEFAULTS), context_fn=boom) == "ok"
+    assert [o[0] for o in order] == ["edit"]
+    # breadth symbols have no earnings: no lookup at all
+    order.clear()
+    run_chart_job("1", "t", ChartRequest("UCTA5", "D", daily_only=True, display="UCTA5", breadth_name="UCTA5"),
+                  bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy,
+                  prefs=dict(p.DEFAULTS), context_fn=lambda t: pytest.fail("breadth must not look up earnings"))
+    assert [o[0] for o in order] == ["edit"]
+    # no context_fn (older callers) = exactly the old behaviour
+    order.clear()
+    run_chart_job("1", "t", ChartRequest("CTXD", "D"), bars_fn=lambda *a: daily_bars(20),
+                  render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=spy, prefs=dict(p.DEFAULTS))
+    assert [o[0] for o in order] == ["edit"]
+
+
+def test_router_passes_the_context_line_into_the_job_unless_the_flag_is_off(monkeypatch):
+    from api.services import discord_interactions as di, discord_chart_context as cc
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    seen = {}
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: seen.update(k) or "ok")
+    body = {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "77"}},
+            "data": {"name": "chart", "options": [{"name": "ticker", "value": "NVDA"}]}}
+    monkeypatch.setenv("DISCORD_CHART_CONTEXT", "1")
+    _post(client, sk, body)
+    assert seen.get("context_fn") is cc.context_line
+    seen.clear()
+    monkeypatch.setenv("DISCORD_CHART_CONTEXT", "0")
+    _post(client, sk, body)
+    assert seen.get("context_fn") is None

@@ -589,7 +589,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None, prefs=None, quote_fn=None, components_fn=None) -> str:
+                  house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -609,11 +609,33 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
+    headline = (req.display or req.ticker) + f" · {label}"
+
+    def _context_follow_up():
+        # The context line (next earnings, implied move, today's catalyst) is
+        # edited in AFTER the image is up: a member never waits on a lookup for
+        # the chart, and a failed lookup costs nothing but the line. A
+        # content-only edit keeps the attachment and the controls (Discord
+        # keeps what the payload omits). Breadth symbols have no earnings.
+        if context_fn is None or req.breadth_name:
+            return
+        try:
+            line = context_fn(req.ticker)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] context line failed %s: %s", req.ticker, e)
+            return
+        if line:
+            try:
+                edit_fn(app_id, token, content=headline + "\n" + line)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] context edit failed %s: %s", req.ticker, e)
+
     try:
         hit = png_cache.get(key)
         if hit:
             png, filename = hit
-            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=png, filename=filename, **extra)
+            edit_fn(app_id, token, content=headline, png=png, filename=filename, **extra)
+            _context_follow_up()
             return "ok"
 
         def _fetch(tf, n):
@@ -688,7 +710,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
         outcome = result[0] if result else "render_failed"
         if outcome == "ok":
-            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=result[1], filename=result[2], **extra)
+            edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
+            _context_follow_up()
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":

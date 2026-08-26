@@ -17,6 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
 from api.services import discord_activity_handoff as handoff
+from api.services import discord_chart_context as chart_context
 from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
@@ -208,6 +209,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
                             prefs=prefs, quote_fn=fetch_ext_quote,
+                            context_fn=chart_context.context_line if chart_context.enabled() else None,
                             components_fn=functools.partial(di.chart_components, guild_id=str(interaction.get("guild_id") or "")))
         # A button click updates the message it sits on (no loading state, no new
         # message); a slash command gets the deferred "thinking..." reply.
