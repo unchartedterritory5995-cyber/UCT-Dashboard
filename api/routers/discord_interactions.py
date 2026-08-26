@@ -7,6 +7,7 @@ dark rather than trusting anything unsigned.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
@@ -89,6 +90,27 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         return []
 
 
+def breadth_adjust(req, prefs: dict):
+    """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
+    series built from the breadth monitor (the bars authority collapses an
+    intraday request to daily silently). Make that explicit for the member:
+    daily or weekly only, the metric's name in the reply, and no stats strip or
+    pre/post treatment (volume, RVOL, gap and ADR are meaningless for a
+    percentage). Anything else passes through untouched."""
+    try:
+        from api.services import breadth_symbols as bs
+        if not bs.is_breadth_symbol(req.ticker):
+            return req, prefs
+        meta = bs.SYMBOLS.get(req.ticker.upper()) or {}
+        name = meta.get("name") or ""
+        req = dataclasses.replace(req, tf="W" if req.tf == "W" else "D", daily_only=True,
+                                  display=f"{req.ticker} · {name}" if name else req.ticker)
+        return req, {**prefs, "stats": False, "ext": False, "volume": False}   # a % series has no volume
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] breadth check failed %s: %s", getattr(req, "ticker", "?"), e)
+        return req, prefs
+
+
 def _autocomplete(choices: list) -> dict:
     return {"type": 8, "data": {"choices": choices}}
 
@@ -143,6 +165,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         if wait:
             return _ephemeral(di.throttle_message(wait))
         prefs = {**prefs, **req.overrides()}   # this call only; saved settings untouched
+        req, prefs = breadth_adjust(req, prefs)
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
         token = str(interaction.get("token") or "")
         if not app_id or not token:

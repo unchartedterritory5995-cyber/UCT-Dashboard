@@ -111,6 +111,8 @@ class ChartRequest:
     volume: bool | None = None   # per-call override of the member's volume preference
     style: str | None = None     # per-call chart style (candles/hollow/bars/line/area/heikin)
     theme: str | None = None     # per-call theme preset
+    daily_only: bool = False     # breadth pseudo-tickers: the series is daily-basis, no intraday
+    display: str | None = None   # what the reply calls it (breadth: "UCTA5 · % of Stocks Above 5-Day MA")
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -199,8 +201,9 @@ def chart_components(req: ChartRequest, prefs: dict | None = None) -> list:
     p = {**prefs_mod.DEFAULTS, **(prefs or {})}
     mas = req.mas if req.mas is not None else p["mas"]
     vol = req.volume if req.volume is not None else bool(p["volume"])
+    tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
     tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == req.tf else _STYLE_SECONDARY, "label": label,
-            "custom_id": component_id(req.ticker, tf, mas, vol)} for tf, label in BUTTON_TFS]
+            "custom_id": component_id(req.ticker, tf, mas, vol)} for tf, label in tf_choices]
     toggles = [
         {"type": 2, "style": _STYLE_SECONDARY, "label": "MAs off" if mas != "off" else "MAs on",
          "custom_id": component_id(req.ticker, req.tf, "off" if mas != "off" else "house", vol)},
@@ -413,7 +416,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         hit = png_cache.get(key)
         if hit:
             png, filename = hit
-            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png, filename=filename, **extra)
+            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=png, filename=filename, **extra)
             return "ok"
 
         def _fetch(tf, n):
@@ -486,7 +489,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
         outcome = result[0] if result else "render_failed"
         if outcome == "ok":
-            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=result[1], filename=result[2], **extra)
+            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=result[1], filename=result[2], **extra)
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":

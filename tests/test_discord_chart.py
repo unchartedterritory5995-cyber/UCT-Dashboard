@@ -1423,3 +1423,52 @@ def test_job_hands_components_to_the_edit_when_a_components_fn_is_given():
                      render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn, house_fn=lambda *a: b"HOUSE",
                      components_fn=di.chart_components)
     assert edits[-1] is not None and len(edits) == 2
+
+
+# ── breadth pseudo-tickers (UCTA5 …): daily-basis, named, no stats strip (owner, 8/25) ──
+
+def test_breadth_adjust_makes_the_daily_basis_explicit_and_names_the_metric():
+    from api.routers.discord_interactions import breadth_adjust
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    from api.services import breadth_symbols as bs
+    assert bs.is_breadth_symbol("UCTA5") and not bs.is_breadth_symbol("NVDA")
+    req, prefs = breadth_adjust(di.ChartRequest("UCTA5", "15"), {**p.DEFAULTS, "stats": True, "ext": True})
+    assert req.tf == "D" and req.daily_only and req.display == "UCTA5 · " + bs.SYMBOLS["UCTA5"]["name"]
+    assert prefs["stats"] is False and prefs["ext"] is False and prefs["volume"] is False
+    req, _ = breadth_adjust(di.ChartRequest("UCTA5", "W"), dict(p.DEFAULTS))
+    assert req.tf == "W"                                                    # weekly stays weekly
+    req, prefs = breadth_adjust(di.ChartRequest("NVDA", "15"), {**p.DEFAULTS, "stats": True})
+    assert req == di.ChartRequest("NVDA", "15") and prefs["stats"] is True   # a stock passes through untouched
+    rows = di.chart_components(req.__class__("UCTA5", "D", daily_only=True), dict(p.DEFAULTS))
+    assert [b["label"] for b in rows[0]["components"]] == ["D", "W"]         # no intraday buttons for a daily series
+    assert [b["label"] for b in di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
+
+
+def test_endpoint_routes_a_breadth_symbol_as_daily_with_its_name(monkeypatch):
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    scheduled = []
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: scheduled.append((a, k)) or "ok")
+    assert _post(client, sk, _interaction("ucta5", "5")).json() == {"type": 5}
+    (_, _, req), kw = scheduled[-1]
+    assert req.ticker == "UCTA5" and req.tf == "D" and req.daily_only and "% of Stocks Above 5-Day MA" in req.display
+    assert kw["prefs"]["stats"] is False
+
+
+def test_job_titles_the_reply_with_the_display_name():
+    from api.services import discord_interactions as di
+    from api.services import discord_chart_cache as cc
+    cc.clear()
+    import datetime as _dt
+    daily = [{"t": (_dt.date(2025, 1, 1) + _dt.timedelta(days=i)).isoformat(), "o": 50, "h": 55, "l": 45, "c": 52.8, "v": 0}
+             for i in range(300)]
+    edits = []
+    def edit_fn(app_id, token, *, content, png=None, filename=None, components=None):
+        edits.append(content)
+    out = di.run_chart_job("1", "tok", di.ChartRequest("UCTA5", "D", daily_only=True, display="UCTA5 · % of Stocks Above 5-Day MA"),
+                           bars_fn=lambda t, tf, n: daily, render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn,
+                           house_fn=lambda *a: b"HOUSE", prefs={**di.prefs_mod.DEFAULTS, "stats": False})
+    assert out == "ok" and edits[-1] == "UCTA5 · % of Stocks Above 5-Day MA · Daily"
