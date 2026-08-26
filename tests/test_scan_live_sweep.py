@@ -511,3 +511,43 @@ def test_note_demand_IGNORES_blanks_and_a_zero_limit_is_an_empty_list(monkeypatc
     scan_store.note_demand(["", None, "  eee ", "eee"])
     assert scan_store.demand_recent() == ["EEE"]
     assert scan_store.demand_recent(limit=0) == []
+
+
+# ═══ 6. the forming bar: which series a tree reads AT OFFSET ZERO ════════════
+
+def _offset(child, n):
+    """The canonical `offset` node — `close[1]` is an offset of ONE around `close`."""
+    return {"type": "offset", "value": n, "args": [child]}
+
+
+def test_forming_bar_series_is_EVERY_series_read_at_offset_ZERO_and_offsets_COMPOSE():
+    """⛔ THE OFFSET IS ACCUMULATED ALONG THE PATH, NOT READ OFF THE NEAREST NODE.
+    A window `[i-n, i]` includes `i`, so `sma(close, 20)` reads the forming bar
+    just as bare `close` does; `high[1] > high[2]` reads nothing on it. Only the
+    SUM of the offsets between the root and the series says which of those it is.
+    """
+    f = scan_evaluator._forming_bar_series
+    assert f(_op(">", _series("close"),
+                 {"type": "call", "name": "sma", "args": [_series("close"), _num(20)]})) == {"close"}
+    assert f(_op(">", _series("high"), _offset(_series("high"), 1))) == {"high"}
+    assert f(_op(">", _offset(_series("high"), 1), _offset(_series("high"), 2))) == set()   # the control
+    assert f({"type": "call", "name": "sma", "args": [_offset(_series("high"), 1), _num(5)]}) == set()
+    assert f(_offset(_offset(_series("low"), 1), 0)) == set()                               # 1 + 0
+
+
+def test_forming_bar_series_is_DERIVED_from_the_manifest_not_a_hand_list():
+    """A scalar rides the same `series` node; it is not a bar field and must not be reported."""
+    assert scan_evaluator._forming_bar_series(_op(">", _series("market_cap"), _num(1))) == set()
+    assert scan_evaluator._forming_bar_series(_series("volume")) == {"volume"}
+
+
+def test_the_bar_field_map_is_the_SAME_declaration_backtest_reads():
+    """⛔ ONE DECLARATION OF WHICH BAR KEY A SERIES READS. `backtest._bar_fields`
+    already answers that question off `TABLE['series'][name]['field']`; a second
+    `{"close": "c"}` here would be the second-authority defect, and it would rot
+    silently the day the manifest grows a series."""
+    from api.services.screener import backtest
+    tree = _op(">", _series("close"),
+               {"type": "call", "name": "sma", "args": [_series("close"), _num(20)]})
+    assert tuple(sorted(scan_evaluator._BAR_FIELD_OF(n)
+                        for n in scan_evaluator._forming_bar_series(tree))) == backtest._bar_fields(tree)

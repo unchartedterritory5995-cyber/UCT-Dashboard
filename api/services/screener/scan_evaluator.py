@@ -527,6 +527,57 @@ def cadence_ceiling(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> Opti
     return "/".join(cadences) if cadences else None
 
 
+def _BAR_FIELD_OF(name: str) -> str:
+    """``closedTable.json::series[name].field`` — the ONE declaration of which bar
+    key a series reads. ``screener/backtest._bar_fields`` reads the same one.
+
+    ⛔ NOT A LOCAL ``{"close": "c"}``. A second copy of this map is the defect this
+    repo has paid for more than any other: it agrees on the day it is written and
+    rots silently the day the manifest grows a series. Reading the declaration
+    means a sixth series is covered here with no edit in this file.
+    """
+    from api.services.ast_lint import TABLE
+    return TABLE["series"][name]["field"]
+
+
+def _forming_bar_series(tree: Any) -> set:
+    """The table-declared BAR SERIES this tree reads AT OFFSET 0 — i.e. on the
+    forming bar.
+
+    ``close > sma(close, 20)`` reads `close` at 0 (a window ``[i-n, i]`` includes
+    ``i``); ``high[1] > high[2]`` reads nothing at 0 and is therefore answerable
+    from confirmed bars alone. Offsets COMPOSE along the path — the accumulated
+    sum decides, not the nearest node — and ``ast_interpret._offset_bars``
+    validates each one, so a hand-written blob spelling ``value: -26`` refuses
+    here exactly as it would in the interpreter rather than reading as 0.
+
+    ⛔ DERIVED FROM THE MANIFEST'S ``series`` SECTION, NEVER BY REGEX AND NEVER BY
+    HAND. A declared SCALAR rides the very same ``{"type": "series"}`` node —
+    ``market_cap`` is one — and it is not a bar field; membership in the section
+    is what tells the two apart. Iterative, like ``ast_freshness._walk``: the
+    escape corpus carries an 8,001-node tree.
+    """
+    series_names = ast_freshness._sections(None)[0]
+    found: set = set()
+    stack = [(tree, 0)]
+    while stack:
+        node, off = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        if kind == "series":
+            if off == 0 and node.get("name") in series_names:
+                found.add(node["name"])
+            continue
+        if kind == "offset":
+            child = (node.get("args") or [None])[0]
+            stack.append((child, off + ast_interpret._offset_bars(node)))
+            continue
+        for arg in node.get("args") or []:
+            stack.append((arg, off))
+    return found
+
+
 def _bars_are_current(sym: str, bars: Sequence[Mapping[str, Any]], as_of: int) -> bool:
     """⛔ A SCREEN OVER STALE BARS RETURNS A PLAUSIBLE, RANKED, WRONG ANSWER.
 
