@@ -238,6 +238,53 @@ def test_custom_list_scans_only_requested_and_bypasses_the_liquidity_floor():
     assert _row(out["rows"], "AAA") is None            # AAA is not on the list
 
 
+def test_price_sharpness_tells_a_sudden_expansion_from_a_smooth_grind():
+    # The ATR-style range-expansion read off the close series: a steady trend (every minute
+    # moves about the same) reads ~1; a sudden blow-out reads high. This is what separates
+    # a genuinely SHARP move from a smooth 45° grind at the same volume.
+    t_now = 660.0
+    # Smooth grind: +~0.1%/min, every minute alike → recent ≈ typical → ~1.
+    smooth = [(float(t), 0, 100.0 * (1 + 0.001 * (t / 60.0))) for t in range(0, 661, 15)]
+    s_smooth = volume_live._price_sharpness(smooth, t_now)
+    assert s_smooth is not None and s_smooth < 1.8
+
+    # Sharp expansion: flat for ~9 min, then a fast pop in the last minute.
+    sharp = [(float(t), 0, (100.0 if t <= 600 else 100.0 + 0.05 * (t - 600))) for t in range(0, 661, 15)]
+    s_sharp = volume_live._price_sharpness(sharp, t_now)
+    assert s_sharp is not None and s_sharp >= volume_live._SHARP_MIN
+    assert s_sharp > s_smooth * 2                      # unmistakably sharper
+
+
+def test_a_smooth_grind_on_big_volume_shades_but_does_not_flash():
+    # ANF: elevated volume on a smooth ~45° intraday trend — no sudden range expansion.
+    # It must SHADE a tier colour (the volume is real) but NOT flash white.
+    seq = {}
+    for t in range(0, 201):
+        cv = 278 * t                        # sustained ~10× pace → high recent RVOL (t5)
+        px = 100.0 + 0.03 * t               # a steady climb: each minute ~alike → not sharp
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 1_000_000}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["tier"] >= 4                    # shaded bright (extreme volume)…
+    assert r["sharpness"] is not None and r["sharpness"] < volume_live._SHARP_MIN
+    assert r["flash"] is False               # …but NO white flash — it's a smooth grind
+
+
+def test_a_sharp_move_on_big_volume_flashes_white():
+    # CRCL: quiet, then a SUDDEN sharp move on a big volume burst — the flash case.
+    seq = {}
+    for t in range(0, 201):
+        cv = (20 * t if t <= 180 else 20 * 180 + 4_000 * (t - 180))   # quiet, then a burst
+        px = (100.0 if t <= 180 else 100.0 + 0.35 * (t - 180))        # flat, then a fast pop
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 1_000_000}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["sharpness"] is not None and r["sharpness"] >= volume_live._SHARP_MIN
+    assert r["flash"] is True                 # big volume + a SUDDEN sharp move → white flash
+
+
 def test_register_custom_syms_keeps_them_active():
     volume_live.register_custom_syms({"NVDA", "TSLA"})
     active = volume_live._custom_active()

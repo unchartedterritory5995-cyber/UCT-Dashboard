@@ -53,19 +53,19 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
-// Extreme-surge alert: a white triple-pulse the moment a row crosses into an EXTREME
-// tier (t4 Very High / t5 Extreme) — reserved for the big signals so the white flash
-// stays rare and meaningful. Lower tiers get their colour + the gold igniting pulse,
-// but no white flash. Only fires on the transition INTO extreme; a row already extreme
-// on first render (or climbing within the lower tiers) never flashes.
-function SurgeFlash({ lit, tier }) {
-  const wasExtreme = useRef(lit && tier >= 4)
+// Extreme-surge alert: a white triple-pulse the moment the server flags a row as a
+// genuinely SHARP move on big volume (`flash` = big volume AND a sudden range expansion
+// vs the stock's own recent 1–5-min candles — NOT a smooth 45° grind at elevated volume).
+// A heavy-volume name still shades its tier colour + gets the gold igniting pulse; only a
+// big + SHARP move flashes white. Fires only on the transition INTO flash; a row already
+// flashing on first render never re-fires.
+function SurgeFlash({ flash }) {
+  const wasFlash = useRef(!!flash)
   const [k, setK] = useState(0)
   useEffect(() => {
-    const isExtreme = lit && tier >= 4
-    if (isExtreme && !wasExtreme.current) setK((x) => x + 1)
-    wasExtreme.current = isExtreme
-  }, [lit, tier])
+    if (flash && !wasFlash.current) setK((x) => x + 1)
+    wasFlash.current = !!flash
+  }, [flash])
   if (k === 0) return null
   return <span key={k} className={styles.surgeFlash} aria-hidden="true" />
 }
@@ -91,7 +91,7 @@ function Row({ e, onPick, logos, onContext }) {
       onContextMenu={onContext ? (ev) => onContext(ev, e.sym) : undefined}
       title={`${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
-      <SurgeFlash lit={e.lit} tier={e.tier || 1} />
+      <SurgeFlash flash={e.flash} />
       {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}

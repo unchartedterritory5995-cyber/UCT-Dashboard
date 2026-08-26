@@ -102,6 +102,12 @@ _IGNITE_MOVE = 0.75          # …AND a real, fast price move
 # day (META) does not. The 60-sec window inherently smooths single-second blips → no flashes.
 _INSTANT_SURGE = 5.0         # recent-minute pace ≥ 5× the stock's own day pace…
 _SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min window)
+# White FLASH — the loudest alert, reserved for a genuinely SHARP move on big volume: a
+# SUDDEN range expansion (sharpness) vs the stock's own recent 1-min candles, NOT a smooth
+# 45° grind at elevated volume. A heavy-volume name still SHADES a colour, but only a big +
+# SHARP move flashes white.
+_SHARP_MIN = 2.5            # recent move ≥ 2.5× the stock's own recent 1-min moves…
+_FLASH_MOVE = 1.0           # …AND a real move (≥ 1%)
 # Intraday-surge gate — a name below the "extreme level" bar must be ACCELERATING vs its
 # OWN day pace to light (not merely elevated-and-flat). `surge_intraday` = recent pace ÷
 # day pace; an earnings name coasting on yesterday's volume (SMTC/SCHW) reads ~1 and is
@@ -285,6 +291,34 @@ def _at_or_after(hist, target_t):
     return None
 
 
+def _price_sharpness(hist, t_now):
+    """How SUDDEN the recent move is vs the stock's OWN recent ~1-min moves — an ATR-style
+    range-expansion read off the close series. ~1 = a steady trend (every minute moves about
+    the same, e.g. a smooth 45° grind); high = a sharp expansion (a minute that blows out vs
+    the recent norm, e.g. a fast breakout/flush). None until there's enough history. This is
+    what tells a genuine SHARP move apart from a smooth one at the same volume."""
+    if len(hist) < 6:
+        return None
+    step = 55.0
+    pts = []                       # prices ~55s apart, newest first, back ~10 min
+    nxt = t_now
+    for s in reversed(hist):
+        if s[0] <= nxt and isinstance(s[2], (int, float)) and s[2] > 0:
+            pts.append(s[2])
+            nxt = s[0] - step
+            if len(pts) >= 11:
+                break
+    if len(pts) < 3:
+        return None
+    moves = [abs(pts[i] - pts[i + 1]) / pts[i + 1] * 100.0
+             for i in range(len(pts) - 1) if pts[i + 1] > 0]
+    if len(moves) < 2:
+        return None
+    recent = moves[0]
+    typ = sum(moves[1:]) / len(moves[1:])
+    return round(recent / max(typ, 0.04), 2)
+
+
 def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     """Turn one symbol's rolling (t, cum_vol, px) history + the day's expected-so-far
     fraction (and its per-second slope `cum_rate`) into the served metrics, or None
@@ -349,6 +383,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     # CRCL-style explosion (quiet all morning, then a 700K-share minute) reads very high
     # here; a name merely elevated-vs-a-normal-day (META) reads low. Fires the instant catch.
     burst_intraday = round(burst / rvol_day, 2) if rvol_day > 0 else 0.0
+    sharpness = _price_sharpness(hist, t_now)   # sudden range expansion vs recent 1-min moves
 
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
@@ -360,6 +395,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
         "rvol_day": round(rvol_day, 2),  # cumulative-on-the-day (context)
         "surge_intraday": surge_intraday,  # recent pace ÷ own day pace (>1 accelerating, <1 fading)
         "burst_intraday": burst_intraday,  # recent-MINUTE pace ÷ own day pace (the instant-catch signal)
+        "sharpness": sharpness,            # recent move ÷ own recent 1-min moves (range expansion)
         "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
@@ -575,6 +611,14 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     out = []
     for sym, m, lit in rows[:limit]:
         burst = m.get("burst", 0.0)
+        tier = _tier(m)
+        sharp = m.get("sharpness")
+        # WHITE FLASH — big volume AND a genuinely SHARP move (sudden range expansion),
+        # NOT a smooth grind at elevated volume. Big-volume names still shade a colour
+        # (the tier), but only a sharp move flashes.
+        big_vol = tier >= 4 or m.get("burst_intraday", 0.0) >= _INSTANT_SURGE
+        flash = bool(lit and big_vol and abs(m["move"]) >= _FLASH_MOVE
+                     and sharp is not None and sharp >= _SHARP_MIN)
         out.append({
             "sym": sym,
             "price": round(m["price"], 2),
@@ -583,12 +627,14 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "rvol_day": m.get("rvol_day"),
             "surge_intraday": m.get("surge_intraday"),
             "burst_intraday": m.get("burst_intraday"),
+            "sharpness": sharp,
             "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",
             "dvol": m.get("dvol", 0),
-            "tier": _tier(m),
+            "tier": tier,
             "lit": lit,
+            "flash": flash,
             # "Igniting now" — a strong burst AND a real move: the look-up-now cue.
             "igniting": bool(_igniting(m)),
         })

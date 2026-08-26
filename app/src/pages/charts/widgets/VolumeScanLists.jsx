@@ -72,9 +72,9 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
         onClick={() => (open ? close() : setOpen(true))}
         title="Choose what the scanner watches"
       >
-        <UIcon name={active ? 'star' : 'list'} size={11} gold={false} />
+        <UIcon name={active ? 'star' : 'rows'} size={11} gold={false} />
         <span className={styles.scopeLabel}>{label}</span>
-        <UIcon name="dots" size={11} gold={false} />
+        <UIcon name="more" size={11} gold={false} />
       </button>
 
       {open && (
@@ -84,7 +84,7 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
             className={`${styles.scopeItem} ${!activeId ? styles.scopeItemActive : ''}`}
             onClick={() => { helpers.setActive(null); close() }}
           >
-            <UIcon name="list" size={12} gold={false} />
+            <UIcon name="rows" size={12} gold={false} />
             <span className={styles.scopeItemName}>Top 1,000 <span className={styles.scopeItemHint}>· by $ volume</span></span>
             {!activeId && <UIcon name="check" size={12} gold={false} />}
           </button>
