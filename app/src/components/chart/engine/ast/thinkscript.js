@@ -608,12 +608,21 @@ const NOT_AN_ATOM = Object.freeze(new Set([
  *     Same-tier and left-associative hands `between` the comparison already
  *     built, which is the reading the brief wanted from the looser tier anyway.
  *
- *  2. `within` IS LOOSER THAN COMPARISON, and it is the one place this ladder
- *     departs from the operator pages — because `within` is not on them. It is a
- *     RESERVED WORD whose left operand is a CONDITION ("true at least one time
- *     for the given number of bars"), so `close > open within 3 bars` can only
- *     mean `(close > open) within 3 bars`; read at the comparison tier it would
- *     take `open` as its condition and leave the `>` dangling.
+ *  2. `within` MUST NEVER BIND TIGHTER THAN COMPARISON, and it is the one place
+ *     this ladder departs from the operator pages — because `within` is not on
+ *     them. It is a RESERVED WORD whose left operand is a CONDITION ("true at
+ *     least one time for the given number of bars"), so
+ *     `close > open within 3 bars` can only mean `(close > open) within 3 bars`;
+ *     bound tighter it would take `open` as its condition and leave the `>`
+ *     dangling.
+ *     ⚠️ THE RUNG ITSELF IS NOT LOAD-BEARING AND THE SWEEP PROVED IT. Moving
+ *     `within` from 25 to 30 — onto the comparison tier — changes NOTHING any
+ *     rail can see, because the loop is left-associative: at either rung
+ *     `within` is handed the comparison that has already been built. Moving it
+ *     to 35, above comparison, reds three tests. So the ruling is the BOUNDARY
+ *     (`<= 30`), not the number, and 25 is a readable rung on the correct side
+ *     of it rather than a measured value. Recorded because a comment claiming a
+ *     difference no test can see is the defect this file keeps warning about.
  *
  *  3. UNARY AND POSTFIX CARRY NO NUMBER HERE, deliberately. The brief listed
  *     `UNARY_BP` and `POSTFIX_BP` constants, but `parseUnary` and `parsePostfix`
@@ -650,8 +659,21 @@ const CMP = Object.freeze({ '==': '==', '!=': '!=', '<>': '!=', '>': '>', '<': '
  *  a prefix; a matcher that took the first hit in list order would read
  *  `a is greater than or equal to b` as `a > (or equal to b)` and die at `or`
  *  with a wrong reason at a wrong token — and it would do it silently the day
- *  somebody re-sorted the list alphabetically. `matchWordOperator` picks the
- *  longest phrase that matches, so the order here carries no meaning at all.
+ *  somebody re-sorted the list alphabetically. `infixAt` picks the longest
+ *  phrase that matches, so the order here carries no meaning at all.
+ *
+ *  ⚠️⚠️ AND THAT LAST SENTENCE IS WHY NO TEST CAN CATCH THE LONGEST-MATCH GUARD
+ *  ALONE — MEASURED, not assumed. The sweep replaced it with "take the first
+ *  match" and all 144 tests stayed GREEN, because the rows below HAPPEN to be
+ *  written longest-first, so the two rules agree on this table: it is an
+ *  EQUIVALENT MUTANT, not an unrailed guard. What separates them is a pair:
+ *  re-ordering the rows short-first with the guard KEPT stays green (the guard
+ *  absorbs the order — which is its whole job), and re-ordering with the guard
+ *  REMOVED reds `is greater than or equal to`. The behavioural rail that does
+ *  exist is `every row of the word-operator table is REACHABLE, and parses as
+ *  ITSELF` in `thinkscript.test.js`, which walks THIS array — so a row added in
+ *  the wrong place is caught by the guard, and a row that is unreachable for any
+ *  other reason is caught by name.
  *
  *  ⚠️ `is true` / `is false` ARE ON THE LOGICAL PAGE, whose NOT row reads
  *  `!, is false` — the two spellings are literally one row, so `is false` is `!`
@@ -660,7 +682,7 @@ const CMP = Object.freeze({ '==': '==', '!=': '!=', '<>': '!=', '>': '>', '<': '
  *  the value straight through hands this engine exactly the truthiness decision
  *  thinkorswim's own runtime would make on it, which is what every other boolean
  *  context in this translator already does. */
-const WORD_OPERATORS = Object.freeze([
+export const TS_WORD_OPERATORS = Object.freeze([
   { words: ['and'], kind: 'binary', op: '&&' },
   { words: ['or'], kind: 'binary', op: '||' },
   { words: ['is', 'greater', 'than', 'or', 'equal', 'to'], kind: 'binary', op: '>=' },
@@ -712,7 +734,7 @@ function infixAt(c) {
   }
   if (t.kind !== 'ident') return null
   let best = null
-  for (const entry of WORD_OPERATORS) {
+  for (const entry of TS_WORD_OPERATORS) {
     if (best && entry.words.length <= best.length) continue
     if (entry.words.every((w, i) => isWordTok(peek(c, i), w))) {
       best = { entry, bp: bpOf(entry), tok: t, length: entry.words.length }

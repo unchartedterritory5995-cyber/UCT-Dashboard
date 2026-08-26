@@ -19,7 +19,7 @@ import path from 'node:path'
 
 import {
   translateThinkScript, lexThinkScript, readStatements, ThinkScriptRefusal,
-  TS_STATE_WARMUP, TS_CALL_SHAPES, REFUSALS as TS, NOTES as TS_NOTES,
+  TS_STATE_WARMUP, TS_CALL_SHAPES, TS_WORD_OPERATORS, REFUSALS as TS, NOTES as TS_NOTES,
 } from './thinkscript.js'
 import { REFUSALS as PINE, printFormula } from './pine.js'
 import { PCF_REFUSALS as PCF } from './pcf.js'
@@ -1002,15 +1002,62 @@ describe('precedence, per the thinkScript reference', () => {
     expect(f('close > open within 1 bars')).toBe('highest(close > open, 1) > 0')
   })
 
-  it('⭐ …and `within` DOES bind looser than comparison, which `between` does not', () => {
-    // ⚠️ THE ASYMMETRY IS THE MEASUREMENT. `within` is a RESERVED WORD, not a row
-    // of the comparison table, and its left operand is a CONDITION — so
-    // `close > open within 3 bars` can only mean `(close > open) within 3 bars`.
-    // Read at the comparison tier it would take `open` as its condition and leave
-    // the `>` dangling.
+  it('⭐ …and `within` must never bind TIGHTER than comparison — its operand is a CONDITION', () => {
+    // ⚠️ THE BOUNDARY IS THE MEASUREMENT, NOT THE RUNG. `within` is a RESERVED
+    // WORD, not a row of the comparison table, and its left operand is a
+    // CONDITION — so `close > open within 3 bars` can only mean
+    // `(close > open) within 3 bars`. Bound TIGHTER it would take `open` as its
+    // condition and leave the `>` dangling, and these two assertions red.
+    //
+    // ⛔ WHAT THIS TEST DOES **NOT** MEASURE, said out loud because the sweep
+    // measured it: moving `within` from its own rung (25) onto the comparison
+    // tier (30) changes nothing here and nothing anywhere — the loop is
+    // left-associative, so at either rung `within` is handed the comparison
+    // already built. Only a move ABOVE comparison is observable. The earlier
+    // draft of this comment claimed the 25-vs-30 asymmetry was load-bearing; it
+    // is not, and a comment asserting a difference no rail can see is exactly
+    // the second-authority defect this lane keeps paying for.
     expect(f('close > open within 3 bars')).toBe('highest(close > open, 3) > 0')
     expect(f('close > open within 2 bars and volume > 0'))
       .toBe('highest(close > open, 2) > 0 && volume > 0')
+  })
+
+  it('⛔ every row of the word-operator table is REACHABLE, and parses as ITSELF', () => {
+    // ⭐ DERIVED FROM THE TABLE, NEVER TYPED BESIDE IT. This walks
+    // `TS_WORD_OPERATORS` itself, so a row that is unreachable — most obviously
+    // one shadowed by a shorter row that PREFIXES it — is reported by its own
+    // phrase rather than by a count that happens to still add up. It is the
+    // behavioural half of the longest-match guard: that guard cannot be killed
+    // by a single-site mutation (with the rows written longest-first, "first
+    // match" and "longest match" agree, so it is an EQUIVALENT MUTANT), and this
+    // is what still fails if a row is ever added in the wrong place.
+    for (const entry of TS_WORD_OPERATORS) {
+      const phrase = entry.words.join(' ')
+      if (entry.kind === 'binary') {
+        expect(f(`close ${phrase} open`), phrase).toBe(`close ${entry.op} open`)
+      } else if (entry.kind === 'postfix') {
+        expect(f(`close ${phrase}`), phrase).toBe(entry.op === null ? 'close' : '!close')
+      } else if (entry.kind === 'cross') {
+        expect(f(`close ${phrase} open`), phrase).toBe(
+          entry.dir === 'above' ? 'crossOver(close, open)'
+            : entry.dir === 'below' ? 'crossUnder(close, open)'
+              : 'crossOver(close, open) || crossUnder(close, open)')
+      } else if (entry.kind === 'between') {
+        expect(f(`close ${phrase} low and high`), phrase).toBe('close >= low && close <= high')
+      } else if (entry.kind === 'within') {
+        expect(f(`close ${phrase} 3 bars`), phrase).toBe('highest(close, 3) > 0')
+      } else {
+        // ⛔ NEVER A SILENT SKIP. A kind with no probe would let a whole family
+        // of rows pass this rail without being run — the vacuous green this repo
+        // keeps paying for.
+        throw new Error(`${phrase}: this rail has no probe for kind ${entry.kind} — add one`)
+      }
+    }
+    // non-vacuity, and no two rows spelling the same phrase
+    expect(TS_WORD_OPERATORS.length).toBeGreaterThan(10)
+    expect(new Set(TS_WORD_OPERATORS.map((e) => e.words.join(' '))).size)
+      .toBe(TS_WORD_OPERATORS.length)
+    expect(Object.isFrozen(TS_WORD_OPERATORS)).toBe(true)
   })
 
   it('⭐ `crosses` is the engine\'s crossing function, in all THREE spellings', () => {
