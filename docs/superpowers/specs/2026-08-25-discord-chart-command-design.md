@@ -901,3 +901,44 @@ Verified live in #dev-chat, old and new side by side in the same channel: the
 9:11 message (saved under this code) reads **"Style: Candles"** again with its
 image intact and a fresh receipt; the 9:12 message (saved an hour earlier) still
 shows the stale "💾 Save…" label.
+
+### v14 — /charts gets controls, renders concurrently, and stops blanking (2026-08-26, ~10:00 CT)
+
+**A timeframe row.** Four charts' individual state does not fit a control, but
+the set's SHARED timeframe does: one row (`m2|SYM+SYM+SYM|tf`, D/W/60m/15m/5m,
+breadth sets get D/W) re-runs the whole set in place. The id carries only
+symbols and a timeframe, so the worst a real request reaches is 56 characters —
+derived in a rail, not asserted in a comment. The length backstop in
+`multi_components` cannot fire on real input and says so; the rail exercises
+that branch directly rather than leaving it untested.
+
+**Concurrent production.** The set's charts rendered one after another, so four
+charts cost four charts' wall clock. They now render together, bounded by the
+same `RENDER_SLOTS` the single command uses — but WAITING for a slot
+(`produce_chart(slot_wait=…)`) instead of grabbing it non-blocking, or three
+charts of one request would report themselves "busy" to each other. A single
+`/chart` still answers instantly, which is right when a member watches one reply.
+
+**And that immediately produced blank charts — the interesting part.** The first
+live `/charts` of four cold symbols logged `house render body BLANK for AVGO D
+(attempt 1)` three times over, retries included. The obvious reading was "the
+renderer cannot do four at once", and the obvious fix was to turn concurrency
+down. Both were wrong: measured on the pod with the bars already warm, the
+renderer does **4/4 concurrent renders in 2.8 s**. The real cause was one line —
+the page's own fetch was pre-warmed on every timeframe EXCEPT `D`:
+
+    we pre-fetch   260 bars (stats)      the PAGE asks /api/bars for 5000
+
+so a daily chart left the page to pull 5,000 bars itself, inside the renderer's
+deadline. One at a time that only costs seconds. Four at once race it and the
+renderer hands back an empty body. The fetch now happens on OUR side of the
+deadline for every timeframe. ⭐ **A resource that fails under concurrency is
+not necessarily short of capacity — find out what the concurrent work is
+actually waiting on before you throttle it.**
+
+Verified live with four COLD symbols (`/charts CRWD PANW ZS DDOG`): all four
+rendered, no blanks, no skips; the 5m and W buttons each re-rendered the whole
+set in place. Cost: a cold four-symbol set takes ~40 s, because we now absorb
+four 5,000-bar fetches that the page used to race for. A warm set is seconds.
+🔧 The `find` browser tool named a button "W" that was the 5m button — button
+refs must come from `read_page`'s DOM ORDER, never from the finder's prose.
