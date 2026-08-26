@@ -399,3 +399,78 @@ def test_the_ANCHOR_carries_the_same_UNIT_GUARD_the_bars_do(bars):
     # NON-VACUITY: a real instant inside the series still answers.
     ok = compute_avwap_raw(bars, bars[len(bars) // 2]["t"])
     assert any(v is not None for v in ok)
+
+
+# --------------------------------------------------------------------------- #
+# what the SCAN LANE actually does with a vwap hole
+# --------------------------------------------------------------------------- #
+
+def test_the_scan_lane_LAUNDERS_a_vwap_hole_into_a_confident_answer():
+    r"""\U0001F534\U0001F534 THE MEASUREMENT BEHIND `_functions_bar_readers`' CORRECTED CLAIM.
+
+    That note said "every symbol reports `not_computable`. That is the fail-closed
+    answer." **It was false**, and this is the case that stops it being written
+    again. Two facts compose:
+
+      * ``scan_definition.assert_scannable`` refuses a tree that yields a NUMBER,
+        so a bare ``vwap()`` is never a scannable spelling -- every legal one puts
+        it under a COMPARISON;
+      * a comparison against a hole is ``0``, not a hole. That is ``_cmp`` and the
+        ``_booleans`` rule, deliberate, documented, and far older than this entry:
+        *"A COMPARISON AGAINST NaN IS 0, NOT NaN ... the one place JS and Python
+        agree by luck"*.
+
+    ``scan_evaluator`` reaches ``not_computable`` only on a NON-FINITE value, so
+    the hole never gets there. The screen therefore answers, at FULL COVERAGE,
+    either nothing at all or the entire universe -- and a member cannot tell
+    either from a real result.
+
+    \u26d4 THIS IS NOT A TEST OF A BUG THIS LANE OWNS. The laundering predates these
+    two names and is tracked as X23. What this pins is the CONSEQUENCE, at the
+    entry that makes it reachable, so the manifest's claim stays true.
+    """
+    from api.services import ast_interpret as ai
+
+    # Bars exactly as `scan_evaluator._read_bars` builds them for `tf="D"`:
+    # `t` is the store's `ts`, a YYYYMMDD int, so the unit gate refuses.
+    daily = [{"t": 20260601 + i, "o": 10.0, "h": 11.0, "l": 9.0,
+              "c": 10.0 + i, "v": 100 + i} for i in range(5)]
+
+    hole = ai.interpret(VWAP, daily, opts={"tf": "D"})
+    assert all(v is None for v in hole), hole          # the column IS a hole
+
+    gt = {"type": "op", "name": ">",
+          "args": [{"type": "series", "name": "close"}, VWAP]}
+    empty = ai.interpret(gt, daily, opts={"tf": "D"})
+    assert empty == [0.0] * 5, empty                   # a screen that finds NOTHING
+
+    negated = ai.interpret({"type": "op", "name": "!", "args": [gt]},
+                           daily, opts={"tf": "D"})
+    assert negated == [1.0] * 5, negated               # …and one that finds EVERYTHING
+
+    disjunct = ai.interpret(
+        {"type": "op", "name": "||",
+         "args": [gt, {"type": "op", "name": ">",
+                       "args": [{"type": "series", "name": "volume"},
+                                {"type": "num", "value": 1}]}]},
+        daily, opts={"tf": "D"})
+    assert disjunct == [1.0] * 5, disjunct
+
+    # \u26d4 AND THE SCAN'S OWN TEST FOR "not computable" NEVER FIRES on these.
+    # `scan_evaluator` asks `math.isfinite(value)`; every value above is finite.
+    for column in (empty, negated, disjunct):
+        assert all(isinstance(v, float) and math.isfinite(v) for v in column)
+
+    # NON-VACUITY: with REAL instants the same trees answer with real variety, so
+    # the columns above are the unit gate's doing and not a broken fixture.
+    # ⚠️ TWO ET DAYS, deliberately: a session VWAP does not answer for bars whose
+    # session boundary is not visible in the series, so a single-day fixture here
+    # would be a control that agrees with the subject for the wrong reason.
+    live = [{"t": t, "o": 10.0, "h": 11.0, "l": 9.0, "c": c, "v": 100}
+            for t, c in ((1781046000, 9.0),      # 2026-06-09 19:00 ET
+                         (1781078400, 20.0),     # 2026-06-10 04:00 ET
+                         (1781078700, 21.0),
+                         (1781079000, 22.0))]
+    computed = ai.interpret(VWAP, live, opts={"tf": "5"})
+    assert any(v is not None for v in computed), computed
+    assert set(ai.interpret(gt, live, opts={"tf": "5"})) != {0.0}
