@@ -318,8 +318,35 @@ describe('the control-door census — how many doors, and whether an eighth exis
     ).toEqual([
       'app/src/components/chart/ChartSettingsModal.jsx',
       'app/src/components/chart/ChartToolbar.jsx',
+      // ⭐ THE FOURTH SITE IS NOT A FOURTH WRITER. `/r/chart?preset=oled` (the
+      // Discord chart command's theme option, 2026-08-25) reads `PRESETS[...]`
+      // to build a settings OVERRIDE it hands to StockChart as a PROP. It never
+      // reaches the persistence path, so it cannot stamp anything over what a
+      // member saved — the property door seven is actually held to. That
+      // property is asserted below rather than assumed, exactly as the modal's
+      // clone-the-live-default is.
+      //
+      // ⚠️ This census went RED the moment that page landed and stayed red for
+      // hours, because the page's own tests were the only ones anybody ran. A
+      // scan that names sites by REGEX will keep meeting honest matches; the
+      // answer is to name them and pin why they are safe, never to loosen the
+      // regex until the scan stops seeing them.
+      'app/src/pages/ChartRender.jsx',
       'app/src/pages/Settings.jsx',
     ])
+    const render = SHIPPED.find(s => s.file === 'app/src/pages/ChartRender.jsx')
+    for (const [what, re] of [
+      ['usePreferences', /usePreferences\s*\(/],
+      ['a preferences POST', /api\/auth\/preferences/],
+      ['the workspace save path', /scheduleSave|savePreferences|setChartSettings\s*\(/],
+    ]) {
+      expect(re.test(render.src),
+        `ChartRender now reaches the persistence path via ${what}. It is an EXPORT page: the ` +
+        'preset it reads must stay a settingsOverride prop, or a screenshot URL becomes a ' +
+        'writer that stamps a whole blob over whatever the member saved.').toBe(false)
+    }
+    expect(render.src, 'the preset must still reach the chart as an override prop')
+      .toMatch(/settingsOverride=\{csOverride\}/)
     // …and the third one really is a reset of the live default, not a frozen
     // literal — the property that makes it harmless is asserted, not assumed.
     const modal = SHIPPED.find(s => s.file === 'app/src/components/chart/ChartSettingsModal.jsx')
