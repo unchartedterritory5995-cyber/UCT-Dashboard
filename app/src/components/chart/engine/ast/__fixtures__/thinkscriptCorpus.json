@@ -1,0 +1,393 @@
+{
+  "01-supertrend-mobius.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "02-macd-lookback-cross-watchlist.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "03-adx-dmi-lower.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "declare"
+    },
+    "downstream": null
+  },
+  "04-rsi-with-rate-of-change.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "05-bollinger-rsi-buy-arrow.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "declare"
+    },
+    "downstream": null
+  },
+  "06-vwap-rejection.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "07-ttm-squeeze-watchlist.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "08-relative-strength-zscore-vs-spy.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "09-above-average-price-volume.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "def"
+    },
+    "downstream": null
+  },
+  "10-rsi-laguerre-fractal-energy.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "11-money-flow-index-mobile.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "12-scan-volume-2x-avg-price-up-5pct.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "def"
+    },
+    "downstream": null
+  },
+  "13-scan-52-week-high.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "Def"
+    },
+    "downstream": null
+  },
+  "14-scan-inside-bar.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "15-scan-premarket-gap-up.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "16-scan-rsi-crosses-30-70.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "RSI"
+    },
+    "downstream": null
+  },
+  "17-compoundvalue-vs-manual-fibonacci.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "declare"
+    },
+    "downstream": null
+  },
+  "18-fold-up-down-points-ratio.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "19-consecutive-bars-above-ema-count.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "declare"
+    },
+    "downstream": null
+  },
+  "20-roc-stdev-lower-switch.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "21-strategy-ma-crossover-addorder.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "input"
+    },
+    "downstream": null
+  },
+  "22-average-daily-range-zones.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "23-previous-day-high-low-mean.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "24-position-capital-efficiency.ts": {
+    "translates": false,
+    "outputs": 0,
+    "usable": 0,
+    "selectedFormula": null,
+    "ignoredLines": [],
+    "folded": [],
+    "perOutputRefusals": {},
+    "refusal": {
+      "guard": "thinkscript:unsupported",
+      "line": 1,
+      "column": 1,
+      "token": "#"
+    },
+    "downstream": null
+  },
+  "_translating": 0,
+  "_columns": 0,
+  "_saveable": 0,
+  "_blocked": [],
+  "_guardsFired": [
+    "thinkscript:unsupported"
+  ]
+}

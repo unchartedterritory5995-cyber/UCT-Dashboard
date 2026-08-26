@@ -1,0 +1,228 @@
+// 🔴 THE CORPUS GATE — 24 REAL PUBLISHED thinkScript STUDIES, END TO END.
+//
+// ⛔ HAND-WRITTEN TOY INPUTS PROVE NOTHING. Every input under
+// `tests/fixtures/thinkscript/` was copied verbatim from a public forum post or
+// repository (see `SOURCES.md` beside them) and is byte-for-byte as published —
+// header lines, capitalised keywords, a typo'd `ArrowUP`, and the en-dashes one
+// author pasted into an expression as minus signs.
+//
+// ⭐ THE SNAPSHOT IS THE COVERAGE MAP. `__fixtures__/thinkscriptCorpus.json`
+// records, per script, whether it translates, how many columns it offers, how
+// many this engine computes, which lines were listed as ignored, what was folded
+// — and, where it refuses, the guard, the line, the column and the token. It is
+// NOT a `toMatchSnapshot` that rewrites itself: it is a committed fixture
+// compared with explicit assertions, regenerated only by the deliberate
+// `TS_CORPUS_WRITE=1` run and reviewed in the diff.
+//
+// ⭐⭐ AND IT STARTS AT ZERO ON PURPOSE. `thinkscript.js` translates NOTHING
+// today; all 24 refuse `thinkscript:unsupported` at their first token. That is
+// not a placeholder — it is the MEASURED starting line, pinned in both
+// directions, so every later task's gain is a fact rather than a claim. The
+// spec's ≥70% for this lane was amended to the measured Wave-1 ceiling of 15/24
+// (19/24 once `tf`/`sym` land) because 70% was proven unreachable; nine of these
+// scripts refuse by Wave-1 DESIGN and are named in the lane brief.
+//
+// ⚠️ THIS FILE MOVES WHEN `closedTable.json` MOVES, AND THAT IS CORRECT. When it
+// goes red naming a script, that is the notification, not a flake.
+
+import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+
+import { translateThinkScript, REFUSALS } from './thinkscript.js'
+import { parseFormula, astHash } from './parse.js'
+import { sentenceFor } from './sentence.js'
+import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
+import SNAPSHOT from './__fixtures__/thinkscriptCorpus.json'
+
+const DIR = path.resolve(process.cwd(), '../tests/fixtures/thinkscript')
+
+/** ⛔ NO `existsSync` GUARD AND NO `it.skip`. A corpus gate that passes with no
+ *  corpus is `lesson_gate_that_cannot_fail`. */
+const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.ts')).sort()
+const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8')
+
+/** The snapshot carries per-script entries plus `_`-prefixed roll-ups. Splitting
+ *  them is DERIVED from the prefix rather than from a typed list of meta keys —
+ *  the roll-up set is asserted by name in the generator, which is where it is
+ *  decided. */
+const SNAP_FILES = Object.keys(SNAPSHOT).filter((k) => !k.startsWith('_')).sort()
+
+describe('the corpus is real and it is all there', () => {
+  it('every fixture is present and every fixture is in the snapshot', () => {
+    // ⭐ A FLOOR ON THE CENSUS, AN EQUALITY ON THE MAP — and the difference is
+    // the point. The DIRECTORY is another lane's artifact and grows; an exact
+    // count there reds this whole file the moment a correctly-recorded script is
+    // added, which trains the next reader to edit a number instead of reading a
+    // failure. What must be exact is that the snapshot covers EXACTLY the files
+    // on disk — that equality names the new script instead of counting it, and
+    // it is what actually keeps the map honest.
+    expect(FILES.length, 'a corpus gate with no corpus is not a gate').toBeGreaterThanOrEqual(24)
+    expect(SNAP_FILES).toEqual(FILES)
+  })
+
+  it('every fixture is genuine thinkScript, not something this repo wrote', () => {
+    for (const f of FILES) {
+      const src = read(f)
+      expect(src.length, f).toBeGreaterThan(40)
+      // ⚠️ CASE-INSENSITIVE ON PURPOSE. thinkorswim matches identifiers and
+      // keywords case-insensitively and the corpus proves it: `13` writes `Def`
+      // and `Plot`, `06` writes `compoundValue` and `addlabel`. A case-sensitive
+      // marker list here would be a second, wronger grammar beside the one the
+      // translator is being built to.
+      expect(/(?:^|\n)[ \t]*(?:declare|def|plot|input|rec)\b|crosses[ \t]+(?:above|below)/i.test(src), f).toBe(true)
+    }
+  })
+})
+
+describe('every script lands exactly where the snapshot says', () => {
+  for (const f of FILES) {
+    const want = SNAPSHOT[f]
+    it(`${f} — ${want.translates ? `${want.usable} column(s)` : want.refusal.guard}`, () => {
+      const got = translateThinkScript(read(f))
+      expect(got.version, 'version').toBe('thinkscript')
+      expect(got.ok, 'translates').toBe(want.translates)
+      expect(got.outputs.length, 'outputs offered').toBe(want.outputs)
+      expect(got.outputs.filter((o) => o.formula && !o.hidden).length,
+        'columns this engine computes').toBe(want.usable)
+
+      const perOutput = {}
+      for (const o of got.outputs) {
+        if (o.refusal) perOutput[o.refusal.guard] = (perOutput[o.refusal.guard] || 0) + 1
+      }
+      expect(perOutput, 'per-output refusals').toEqual(want.perOutputRefusals)
+
+      // ⛔ THE IGNORED LINES ARE PINNED BY NUMBER, NEVER BY COUNT. "we ignored 6
+      // lines" is satisfied by ignoring the wrong six.
+      expect(got.ignored.map((n) => n.line), 'ignored line numbers').toEqual(want.ignoredLines)
+      expect(got.folded.map((x) => `${x.name}=${x.folded}`), 'folded').toEqual(want.folded)
+
+      if (want.refusal) {
+        // ⭐ THE GUARD, THE LINE, THE COLUMN AND THE TOKEN. "It refused" is
+        // satisfiable by a translator that refuses everything at line 1 — which
+        // is very nearly what this one does today, so the token is what makes
+        // the record worth anything.
+        expect(got.refusal.guard).toBe(want.refusal.guard)
+        expect(got.refusal.line).toBe(want.refusal.line)
+        expect(got.refusal.column).toBe(want.refusal.column)
+        expect(got.refusal.token).toBe(want.refusal.token)
+      } else {
+        expect(got.refusal).toBe(null)
+      }
+      const sel = got.selected >= 0 ? got.outputs[got.selected] : null
+      expect(sel ? sel.formula : null, 'the column offered first').toBe(want.selectedFormula)
+    })
+  }
+})
+
+describe('a script that translates goes all the way through the SHIPPED doors', () => {
+  const TRANSLATING = FILES.filter((f) => SNAPSHOT[f].translates)
+  const THROUGH = TRANSLATING.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
+
+  // ⏳ BOTH SETS ARE EMPTY TODAY AND THIS BLOCK THEREFORE RUNS ONE VACUOUS TEST.
+  // That is stated rather than hidden: the machinery is written now so the task
+  // that translates the first script inherits a finished gate instead of writing
+  // one under time pressure, and the vacuity itself is pinned — `the whole
+  // corpus, in one number` asserts 0 in BOTH directions, so this block cannot
+  // stay empty by accident. ⛔ Do not "simplify" it away while it is empty.
+
+  it('⭐ the ones that translate but CANNOT be saved are NAMED, with the wall they hit', () => {
+    const blocked = TRANSLATING.filter((f) => !SNAPSHOT[f].downstream || !SNAPSHOT[f].downstream.ok)
+    for (const f of blocked) {
+      const out = translateThinkScript(read(f))
+      const down = evaluateFormula(out.outputs[out.selected].formula, BUILDER_INPUT_SCOPE)
+      expect(down.ok, f).toBe(false)
+      expect(down.guard, f).toBe(SNAPSHOT[f].downstream.guard)
+      expect(canSaveFormula(down, false), f).toBe(false)
+    }
+    expect(blocked).toEqual(SNAPSHOT._blocked)
+  })
+
+  for (const f of THROUGH) {
+    it(`${f} parses, budgets, lints, reads back and may be saved`, () => {
+      const out = translateThinkScript(read(f))
+      const row = out.outputs[out.selected]
+      const parsed = parseFormula(row.formula)
+      expect(parsed.ok, row.formula).toBe(true)
+      expect(astHash(parsed.ast)).toBe(astHash(row.ast))
+      const down = evaluateFormula(row.formula, BUILDER_INPUT_SCOPE)
+      expect(down.ok, `${f}: ${down.guard} ${down.error}`).toBe(true)
+      expect(down.readback).toBe(sentenceFor(parsed.ast, BUILDER_INPUT_SCOPE))
+      expect(down.verdict.mode).toBe(SNAPSHOT[f].downstream.repaint)
+      expect(canSaveFormula(down, false)).toBe(true)
+    })
+  }
+})
+
+describe('a script that refuses refuses for a DECLARED reason', () => {
+  const REFUSING = FILES.filter((f) => !SNAPSHOT[f].translates)
+
+  it('there is more than one of them, or the sweep below measures nothing', () => {
+    // ⚠️ A FLOOR ON NON-VACUITY, NOT A COVERAGE TARGET. The coverage number is
+    // pinned in both directions below, which is where a narrowing belongs.
+    expect(REFUSING.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('every guard fired is one this module declares, and the caret is under the token', () => {
+    for (const f of REFUSING) {
+      const r = translateThinkScript(read(f)).refusal
+      expect(Object.keys(REFUSALS), `${f} → ${r.guard}`).toContain(r.guard)
+      if (r.line != null) {
+        const line = read(f).replace(/\r\n?/g, '\n').split('\n')[r.line - 1]
+        expect(r.excerpt, f).toBe(`${line}\n${' '.repeat(r.column - 1)}^`)
+        expect(line.slice(r.column - 1, r.column - 1 + r.token.length), f).toBe(r.token)
+      }
+    }
+  })
+
+  it('the refusal corpus covers the constructs the spec DEFERS, from REAL scripts', () => {
+    // ⚠️ EVERY FILE, NOT ONLY THE ONES THAT REFUSE WHOLE. A script can translate
+    // and still refuse eight of its ten plots by name, and those refusals are
+    // the ones a member reads most.
+    const fired = new Set()
+    for (const f of FILES) for (const r of translateThinkScript(read(f)).refusals) fired.add(r.guard)
+    for (const guard of SNAPSHOT._guardsFired) expect(fired, guard).toContain(guard)
+    // ⛔ AND THE OTHER DIRECTION, so a guard that starts firing on the corpus is
+    // acknowledged rather than quietly joining the record.
+    expect([...fired].sort()).toEqual([...SNAPSHOT._guardsFired].sort())
+  })
+})
+
+describe('the whole corpus, in one number', () => {
+  it('reports what fraction of real thinkScript this engine can run', () => {
+    const translating = FILES.filter((f) => SNAPSHOT[f].translates).length
+    const columns = FILES.reduce((n, f) => n + SNAPSHOT[f].usable, 0)
+
+    // ⛔⛔ THESE THREE LITERALS ARE THE WALL, AND THEY ARE LITERALS ON PURPOSE.
+    // Comparing the roll-up to the per-file entries would only catch a
+    // hand-edited fixture: regenerating moves BOTH, so a change that quietly
+    // narrowed coverage would sail through green. A number typed HERE cannot be
+    // regenerated past — moving it is an edit to a test file that a reviewer
+    // reads in the diff, which is the whole point.
+    //
+    // ⚠️ This is the one place this lane types a count rather than deriving it,
+    // and the distinction is deliberate: the DIRECTORY census above is a floor
+    // because it is another lane's artifact and grows correctly, while COVERAGE
+    // is this lane's own measured product property and must not move silently in
+    // either direction.
+    //
+    // ⭐ 0/24, 0 columns, 0 saveable — W3.2, the measured starting line.
+    expect(translating, 'scripts that translate').toBe(0)
+    expect(columns, 'columns this engine computes').toBe(0)
+
+    // …and the fixture's own roll-ups agree with its per-file entries, which is
+    // the different failure: a hand-edited snapshot.
+    expect(SNAPSHOT._translating, 'fixture roll-up disagrees with its own entries').toBe(translating)
+    expect(SNAPSHOT._columns, 'fixture roll-up disagrees with its own entries').toBe(columns)
+  })
+
+  it('⭐ every script that translates is one a member could actually SAVE', () => {
+    // ⛔ "IT TRANSLATED" AND "IT WORKS" ARE DIFFERENT CLAIMS. A formula can come
+    // out of the translator and still be refused by the budget, the linter or
+    // the read-back.
+    const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
+    expect(saveable.length).toBe(0)
+    expect(SNAPSHOT._saveable).toBe(saveable.length)
+  })
+})
