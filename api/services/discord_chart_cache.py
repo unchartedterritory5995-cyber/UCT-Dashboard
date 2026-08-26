@@ -40,8 +40,12 @@ from zoneinfo import ZoneInfo
 _ET = ZoneInfo("America/New_York")
 
 # seconds a finished chart is served without re-rendering, while the tape can move
-_TTL = {"D": 45, "W": 45, "M": 45}
-_TTL_INTRADAY = 20
+# Measured 2026-08-26: a render is 2-8 s and a busy set can take longer than
+# the OLD 45 s TTL, so a repeat of the very same request missed the cache and
+# rendered again. The image carries its own "as of" stamp, so a two-minute-old
+# daily chart is honest rather than stale.
+_TTL = {"D": 120, "W": 120, "M": 120}
+_TTL_INTRADAY = 60
 # …and while nothing can move at all (see the module docstring)
 _TTL_QUIET = int(os.environ.get("DISCORD_CHART_QUIET_TTL", "900"))
 # Total PNG bytes held. ~250-400 KB each, so 96 MB is a few hundred charts.

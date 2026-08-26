@@ -25,8 +25,8 @@ def test_quiet_hours_hold_a_chart_far_longer_than_a_live_tape():
     sat = dt.datetime(2026, 8, 29, 12, 0, tzinfo=ET)
     assert not cache.market_quiet(live) and not cache.market_quiet(pre)
     assert cache.market_quiet(night) and cache.market_quiet(dawn) and cache.market_quiet(sat)
-    assert cache.ttl_for("D", live) == 45 and cache.ttl_for("5", live) == 20
-    assert cache.ttl_for("D", night) == cache._TTL_QUIET > 45 * 5
+    assert cache.ttl_for("D", live) == 120 and cache.ttl_for("5", live) == 60
+    assert cache.ttl_for("D", night) == cache._TTL_QUIET > cache._TTL["D"] * 5
     assert cache.ttl_for("5", sat) == cache._TTL_QUIET
     # the boundaries themselves
     assert not cache.market_quiet(dt.datetime(2026, 8, 26, 4, 0, tzinfo=ET))

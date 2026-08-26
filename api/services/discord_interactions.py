@@ -807,9 +807,17 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
             # pins it. Getting this wrong is what turned four simultaneous
             # daily charts into three blank ones on 2026-08-26 - the page was
             # left pulling history inside the renderer's deadline.
+            # ⛔ NEVER BELOW PAGE_BARS. Right-sizing this to the page's shallow
+            # first-paint window (600) was MEASURED WORSE on 2026-08-26: blanks
+            # came straight back (ANET D, AKAM 5m) and a four-symbol set went
+            # 43s -> 79s. A deep pull puts real history in the bars store, which
+            # is what actually keeps the page's own fetch off the provider and
+            # inside the renderer's deadline; the page's request size is not the
+            # thing that matters. The deep case (compare / ?to=) asks for MORE
+            # than PAGE_BARS, so it still reads the page's own number.
             from api.services import discord_chart_house as _house
             deep = bool(compare or req.to)
-            warm = _fetch(req.tf, _house.page_fetch_bars(req.tf, deep))
+            warm = _fetch(req.tf, max(_house.page_fetch_bars(req.tf, deep), PAGE_BARS))
             for other in compare:
                 # the page fetches each comparison symbol too; warm those as well
                 try:
@@ -887,11 +895,9 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         """Pull this chart's bars BEFORE anything renders."""
         req, prefs = item
         from api.services import discord_chart_house as _house
-        wants = [("D", STATS_DAILY_BARS)]
-        if req.tf != "D":
-            wants.append((req.tf, _house.page_fetch_bars(req.tf, bool(req.to))))
-        else:
-            wants[0] = ("D", _house.page_fetch_bars("D", bool(req.to)))
+        deep = max(_house.page_fetch_bars(req.tf, bool(req.to)), PAGE_BARS)
+        wants = [("D", STATS_DAILY_BARS)] if req.tf != "D" else []
+        wants.append((req.tf, deep))
         for tf, n in wants:
             try:
                 bars_fn(req.ticker, tf, n)

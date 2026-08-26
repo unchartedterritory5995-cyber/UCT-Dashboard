@@ -875,7 +875,13 @@ def test_png_cache_hits_within_ttl_and_expires():
     assert cc.get("NVDA:D", now=monkey_now) == (b"png1", "NVDA_D_x.png")
     clock["t"] += 2
     assert cc.get("NVDA:D", now=monkey_now) is None
-    assert cc.ttl_for("D") == 45 and cc.ttl_for("W") == 45 and cc.ttl_for("15") == 20 and cc.ttl_for("5") == 20
+    # TTL is session-aware now (see test_discord_chart_cache.py); pin the LIVE
+    # values against a fixed mid-session moment so this cannot pass or fail on
+    # the clock the suite happens to run at.
+    live = dt.datetime(2026, 8, 26, 11, 0, tzinfo=cc._ET)
+    assert cc.ttl_for("D", live) == cc.ttl_for("W", live) == cc._TTL["D"]
+    assert cc.ttl_for("15", live) == cc.ttl_for("5", live) == cc._TTL_INTRADAY
+    assert cc._TTL["D"] > cc._TTL_INTRADAY
 
 
 def test_png_cache_single_flight_shares_one_producer_across_threads():
@@ -945,7 +951,7 @@ def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reus
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
                          render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
                          house_fn=lambda *a: _png_canvas(draw=True)) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS), ("15", page_fetch_bars("15", False))]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", max(page_fetch_bars("15", False), 5000))]
     cc.clear(); asked.clear()
     # house fails: the fallback renders from the warmed bars, no third fetch
     seen = {}
@@ -953,7 +959,7 @@ def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reus
         seen["n"] = len(bars); return PNG_MAGIC + b"mpl"
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
                          render_fn=render_fn, edit_fn=edits, house_fn=lambda *a: None) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS), ("15", page_fetch_bars("15", False))]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", max(page_fetch_bars("15", False), 5000))]
     assert seen["n"] == bars_to_request("15")
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
 
@@ -1208,7 +1214,7 @@ def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_th
     out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "5"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
                            edit_fn=edit_fn, house_fn=house_fn)
     assert out == "ok" and edits[-1][1] == b"HOUSEPNG"
-    assert order == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "5", house_mod.page_fetch_bars("5", False)), ("house", "5", None)]
+    assert order == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "5", max(house_mod.page_fetch_bars("5", False), di.PAGE_BARS)), ("house", "5", None)]
     # Daily needs no extra warm: the stats fetch already is the page's request shape
     order.clear()
     di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "D"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
@@ -1222,7 +1228,7 @@ def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_th
     out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "15"), bars_fn=bars_fn, render_fn=render_fn,
                            edit_fn=edit_fn, house_fn=lambda *a, **k: None)
     assert out == "ok" and edits[-1][1] == b"MPL"
-    assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", house_mod.page_fetch_bars("15", False))]
+    assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", max(house_mod.page_fetch_bars("15", False), di.PAGE_BARS))]
     assert rendered["n"] == di.bars_to_request("15")
 
 
@@ -2137,10 +2143,13 @@ def test_the_warm_matches_what_the_page_will_actually_fetch_including_comparison
                       bars_fn=lambda tkr, tf, n: asked.append((tkr, tf, n)) or daily_bars(30),
                       render_fn=lambda *a, **k: PNG_MAGIC, house_fn=lambda *a, **k: PNG_MAGIC + b"h")
         return asked
-    assert ("WRM1", "D", shallow) in run(ChartRequest("WRM1", "D"))
-    assert ("WRM2", "D", deep) in run(ChartRequest("WRM2", "D", to="2026-05-01"))
+    from api.services.discord_interactions import PAGE_BARS
+    # the warm never drops below PAGE_BARS — shrinking it to the page's shallow
+    # window brought the blank renders straight back (measured 2026-08-26)
+    assert ("WRM1", "D", max(shallow, PAGE_BARS)) in run(ChartRequest("WRM1", "D"))
+    assert ("WRM2", "D", max(deep, PAGE_BARS)) in run(ChartRequest("WRM2", "D", to="2026-05-01"))
     asked = run(ChartRequest("WRM3", "D", compare=("SPY", "QQQ")), compare=("SPY", "QQQ"))
-    assert ("WRM3", "D", deep) in asked
+    assert ("WRM3", "D", max(deep, PAGE_BARS)) in asked
     for sym in ("SPY", "QQQ"):                                        # the page fetches these too
         assert (sym, "D", house.COMPARE_FETCH_BARS) in asked, asked
 
@@ -2171,8 +2180,9 @@ def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_renderin
                             bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
                             house_fn=lambda *a, **k: PNG_MAGIC + b"house")
         assert out[0] == "ok"
-        want = __import__("api.services.discord_chart_house", fromlist=["x"]).page_fetch_bars(tf, False)
-        assert (tf, want) in asked, f"tf={tf} never warmed the page's own request: {asked}"
+        from api.services.discord_interactions import PAGE_BARS
+        want = max(house_mod.page_fetch_bars(tf, False), PAGE_BARS)
+        assert (tf, want) in asked, f"tf={tf} never warmed deeply enough: {asked}"
     # without the house path there is no page to warm for
     asked = []
     produce_chart(ChartRequest("WRMB", "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
