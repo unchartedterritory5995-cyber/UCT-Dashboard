@@ -1257,11 +1257,38 @@ def test_fetch_ext_quote_reads_the_widgets_source_and_never_raises(monkeypatch):
     class C:
         def __init__(self, rows): self.rows = rows
         def get_batch_rich_snapshots(self, tickers): return self.rows
-    monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": 764.97, "ext_session": "post"}}))
+    # the REAL words the feed uses (massive._detect_session -> _ext_price_for), not the chip's
+    monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": 764.97, "ext_session": "post_market"}}))
     assert rt.fetch_ext_quote("spy") == ("post", 764.97)
+    monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": 102.5, "ext_session": "pre_market"}}))
+    assert rt.fetch_ext_quote("SPY") == ("pre", 102.5)
     monkeypatch.setattr(massive, "_get_client", lambda: C({"SPY": {"ext_price": None, "ext_session": None}}))
     assert rt.fetch_ext_quote("SPY") is None                       # regular session: no chip
     def boom():
         raise RuntimeError("massive down")
     monkeypatch.setattr(massive, "_get_client", boom)
     assert rt.fetch_ext_quote("SPY") is None
+
+
+def test_ext_session_words_are_the_feeds_own(monkeypatch):
+    """8/25: the adapter compared ext_session to 'pre'/'post' while the feed says
+    'pre_market'/'post_market' - the chip never drew and the test that 'covered'
+    it used the wrong word too. Pin the contract to the function that owns it."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    from api.services import massive
+    from api.routers.discord_interactions import EXT_SESSION_WORD
+    words = set()
+    class FakeDT(dt.datetime):
+        _now = None
+        @classmethod
+        def now(cls, tz=None):
+            return cls._now
+    for hhmm in ((5, 0), (10, 0), (17, 0), (2, 0)):
+        FakeDT._now = dt.datetime(2026, 8, 25, *hhmm, tzinfo=ZoneInfo("America/New_York"))
+        monkeypatch.setattr(dt, "datetime", FakeDT)
+        words.add(massive._detect_session())
+    monkeypatch.undo()
+    assert words == {"pre_market", "regular", "post_market"}
+    for w in words - {"regular"}:
+        assert EXT_SESSION_WORD[w] in ("pre", "post")

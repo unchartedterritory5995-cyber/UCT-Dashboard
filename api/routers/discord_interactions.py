@@ -45,6 +45,9 @@ def fetch_bars(ticker: str, tf: str, n: int) -> list[dict] | None:
     return bars or None
 
 
+EXT_SESSION_WORD = {"pre_market": "pre", "post_market": "post", "pre": "pre", "post": "post"}
+
+
 def fetch_ext_quote(ticker: str):
     """('pre'|'post', price) when the live feed flags an extended-hours print
     for the symbol, else None. Same source as the Charts widget's Pre/Post tag
@@ -53,8 +56,12 @@ def fetch_ext_quote(ticker: str):
     try:
         from api.services import massive
         row = massive._get_client().get_batch_rich_snapshots([ticker]).get(ticker.upper()) or {}
-        sess, px = row.get("ext_session"), row.get("ext_price")
-        if sess in ("pre", "post") and isinstance(px, (int, float)) and px > 0:
+        # massive._detect_session() speaks 'pre_market' / 'post_market' / 'regular'
+        # and _ext_price_for echoes that word back as ext_session; the page's chip
+        # wants the widget's 'pre' / 'post'. Map, never compare the raw word.
+        sess = EXT_SESSION_WORD.get(str(row.get("ext_session") or ""))
+        px = row.get("ext_price")
+        if sess and isinstance(px, (int, float)) and px > 0:
             return (sess, float(px))
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] ext quote lookup failed %s: %s", ticker, e)
