@@ -290,6 +290,27 @@ def _live_write_columns() -> list:
     return list(live_tier.LIVE_META_COLUMNS) + list(live_tier.LIVE_COLUMNS)
 
 
+# A FOURTH executescript: the LIVE SCAN side tables (lane W4b). Same file for
+# the same reason as `_SCAN_SCHEMA` (the read path LEFT JOINs them in ONE SQL
+# string on ONE connection). ⭐ THE SHAPE IS DERIVED from `scan_store`'s own
+# column declarations, never retyped — a hand-typed list is one that drifts.
+def _scan_live_schema_sql() -> str:
+    from api.services.screener import scan_store as _ss
+    hits = ",\n  ".join(f"{n} {t}" for n, t in _ss.LIVE_HIT_COLUMNS)
+    cycles = ",\n  ".join(f"{n} {t}" for n, t in _ss.LIVE_CYCLE_COLUMNS)
+    return f"""
+CREATE TABLE IF NOT EXISTS {_ss.LIVE_HITS_TABLE} (
+  {hits},
+  PRIMARY KEY (def_hash, tf, symbol)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_scan_hits_live_asof ON {_ss.LIVE_HITS_TABLE}(as_of);
+CREATE TABLE IF NOT EXISTS {_ss.LIVE_CYCLES_TABLE} (
+  {cycles},
+  PRIMARY KEY (cycle_started)
+);
+"""
+
+
 def upsert_live_rows(rows: list) -> int:
     """Write the overlay. ONE writer, and this is it.
 
@@ -426,6 +447,17 @@ def init_db() -> None:
                 if c not in live_have:
                     conn.execute(f"ALTER TABLE {_lt.LIVE_TABLE} "
                                  f"ADD COLUMN {_coldef(c)}")
+        # 🔴 THE FOURTH SCRIPT NEEDS THE SAME ALTER-ADD THE THIRD ONE NEEDED
+        # (measured 2026-08-25: `CREATE TABLE IF NOT EXISTS` never widens).
+        conn.executescript(_scan_live_schema_sql())
+        from api.services.screener import scan_store as _ss
+        for table, cols in ((_ss.LIVE_HITS_TABLE, _ss.LIVE_HIT_COLUMNS),
+                            (_ss.LIVE_CYCLES_TABLE, _ss.LIVE_CYCLE_COLUMNS)):
+            have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+            if have:                       # empty ⇒ the CREATE just made it
+                for name, coltype in cols:
+                    if name not in have:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {coltype}")
         conn.commit()
 
 

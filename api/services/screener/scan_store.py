@@ -75,6 +75,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import json
+import os
 import time
 from collections.abc import Mapping as _MappingABC
 from typing import Any, Iterable, Mapping, Optional, Sequence
@@ -397,6 +398,56 @@ def coverage(def_hash: str, tf: Any, as_of: Any) -> Optional[dict]:
 #: evaluator from anything a route handler reaches; the equality is pinned by
 #: tests/test_screener_wave4_store.py::test_scan_join_tf_is_the_sweeps_default_tf.
 SCAN_JOIN_TF = "D"
+
+
+# --------------------------------------------------------------------------- #
+# the LIVE side tables — declared HERE, created by `snapshot_db` (lane W4b)
+# --------------------------------------------------------------------------- #
+
+#: ⭐ THE SHAPE HAS ONE OWNER AND IT IS THIS MODULE. `snapshot_db.init_db`
+#: DERIVES the `CREATE TABLE` and the ALTER-add widening loop from these tuples
+#: (its `_scan_live_schema_sql`), so a column added here reaches a pod that
+#: already holds the table — the 8/25 lesson: `CREATE TABLE IF NOT EXISTS`
+#: never widens, and `screener_live` sat at 0 rows for as long as nobody read it.
+#:
+#: ⛔ EVERY NON-KEY COLUMN IS NULLABLE OR DEFAULTED. `ALTER TABLE … ADD COLUMN`
+#: on a `WITHOUT ROWID` table refuses a NOT NULL column without a default, and
+#: the widening loop is the whole reason this shape exists.
+LIVE_HITS_TABLE = "scan_hits_live"
+LIVE_CYCLES_TABLE = "scan_live_cycles"
+LIVE_HIT_COLUMNS = (
+    ("def_hash", "TEXT NOT NULL"),
+    ("tf", "TEXT NOT NULL"),
+    ("symbol", "TEXT NOT NULL"),
+    ("as_of", "INTEGER NOT NULL DEFAULT 0"),      # the TICK (unix seconds), never a session
+    ("value", "REAL"),
+    ("live_cols", "INTEGER NOT NULL DEFAULT 0"),
+    ("src_price", "REAL"),
+)
+LIVE_CYCLE_COLUMNS = (
+    ("cycle_started", "INTEGER NOT NULL"),         # the TICK the cycle began at
+    ("tf", "TEXT NOT NULL DEFAULT 'D'"),
+    ("receipt_json", "TEXT NOT NULL DEFAULT '{}'"),
+    ("swept_json", "TEXT NOT NULL DEFAULT '[]'"),
+)
+#: The two provenance words a `hits_for` row can carry. Closed set.
+LIVE_TIERS = ("nightly", "live")
+#: Cycle receipts kept — 120 five-minute cycles ≈ 1.5 regular sessions.
+LIVE_CYCLES_KEEP = 120
+#: The demand ring's bound (symbols a member or a definition just NAMED).
+DEMAND_MAX = 2000
+
+
+def live_max_age_s() -> float:
+    """The dead-sweeper contract for the LIVE scan overlay: a live row older than
+    this is served as nightly. ⛔ Declared HERE, not read off the evaluator —
+    the off-request-path rail forbids importing the evaluator from anything a
+    route reaches (the `SCAN_JOIN_TF` note above). Task 3 pins
+    `live_max_age_s() >= 2 * live_interval_s()` so the two stay consistent."""
+    try:
+        return float(os.environ.get("SCAN_LIVE_MAX_AGE_S", "") or 900.0)
+    except ValueError:
+        return 900.0
 
 
 def latest_covered_as_of(def_hash: str, tf: Any) -> Optional[int]:
