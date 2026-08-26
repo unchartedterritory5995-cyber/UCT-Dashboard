@@ -584,3 +584,34 @@ def test_the_vwap_BINDING_NAMES_the_shipped_accumulator_in_its_own_SOURCE():
     seen = {n.func.id for n in pyast.walk(other)
             if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
     assert seen == {"compute_avwap_raw"}
+def test_a_DATE_SHAPED_anchor_refuses_BY_NAME_and_a_short_history_does_NOT(bars):
+    r"""⛔ THE ASYMMETRY BETWEEN THE TWO REFUSALS, MEASURED.
+
+    ``avwap(20250101)`` is the bars store's daily key spelled as an instant. It
+    resolves to 1970 and is wrong for EVERY symbol, on every timeframe, forever
+    -- so it is a defect in the TREE, and this lane's rule for a tree defect is a
+    refusal NAMED AT THE TOKEN rather than a quiet column.
+
+    ⚠️ "No bar precedes the anchor" is the opposite kind of fact: it is true of
+    ONE SYMBOL'S HISTORY. Refusing it by name would make a short-history symbol
+    reject a formula that is correct for the rest of the universe, so it stays a
+    NOT-COMPUTABLE column -- the same split ``_scalars_node`` already draws
+    between "declared but not known for this symbol" and ``resolve:name``.
+
+    Both halves are asserted here, because a rail on only the loud one would let
+    the quiet one become a refusal later without anybody noticing.
+    """
+    with pytest.raises(ast_interpret.TableRefusal) as caught:
+        ast_interpret.interpret(_avwap(20250101), bars)
+    assert caught.value.guard == "resolve:window", caught.value.guard
+    assert "20250101" in str(caught.value)
+    assert "1970" in str(caught.value)
+
+    # …and the OTHER refusal is a column, not an exception, on the same tree
+    # shape with a legal-but-too-early anchor.
+    early = bars[0]["t"] - 1
+    assert all(v is None for v in ast_interpret.interpret(_avwap(early), bars))
+
+    # NON-VACUITY: a legal anchor raises nothing at all.
+    assert any(v is not None
+               for v in ast_interpret.interpret(_avwap(bars[len(bars) // 2]["t"]), bars))

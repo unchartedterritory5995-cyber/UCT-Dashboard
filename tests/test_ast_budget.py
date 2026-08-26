@@ -257,7 +257,15 @@ def test_a_session_anchored_call_SATURATES_the_lookback_budget():
                   "args": [{"type": "series", "name": "close"}, vwap]}):
         assert ast_interpret.max_lookback(tree) == cap
         assert ast_budget.budget_result(tree, None)["ok"]
-    for tree in ({"type": "call", "name": "sma",
+    # ⛔ `crossOver(close, vwap())` IS FIRST BECAUSE IT IS FIRST IN A MEMBER'S
+    # HEAD. This case originally named ``sma``, ``change`` and the bar offset and
+    # omitted the one formula anybody actually types -- a rail over the shapes an
+    # engineer thinks of is not a rail over the shapes a member writes.
+    close = {"type": "series", "name": "close"}
+    for tree in ({"type": "call", "name": "crossOver", "args": [close, vwap]},
+                 {"type": "call", "name": "highest",
+                  "args": [vwap, {"type": "num", "value": 2}]},
+                 {"type": "call", "name": "sma",
                   "args": [vwap, {"type": "num", "value": 20}]},
                  {"type": "call", "name": "change", "args": [vwap]},
                  {"type": "offset", "value": 1, "args": [vwap]}):
@@ -265,6 +273,18 @@ def test_a_session_anchored_call_SATURATES_the_lookback_budget():
         result = ast_budget.budget_result(tree, None)
         assert not result["ok"]
         assert result["guard"] == "budget:lookback", result
+        # ⭐ AND THE MESSAGE SAYS WHICH BUDGET AND WHY, NOT JUST "too long".
+        for phrase in ("lookback budget", "vwap()", "one whole trading session",
+                       "nothing can be wrapped around it"):
+            assert phrase in result["error"], (phrase, result["error"])
+
+    # ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL: a lookback refusal with no
+    # session-anchored call in it says nothing about sessions, or the clause is
+    # decoration rather than a reason.
+    deep = {"type": "offset", "value": cap + 1, "args": [close]}
+    plain = ast_budget.budget_result(deep, None)
+    assert not plain["ok"] and plain["guard"] == "budget:lookback"
+    assert "trading session" not in plain["error"], plain["error"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

@@ -1333,6 +1333,28 @@ describe("`avwap`'s window is ENFORCED, not merely declared", () => {
     expect(Number.isFinite(raw[raw.length - 1].value)).toBe(true)
   })
 
+  it('⛔ a DATE-SHAPED anchor refuses BY NAME; a short history does NOT', () => {
+    // ⛔ THE ASYMMETRY BETWEEN THE TWO REFUSALS. `avwap(20250101)` is the bars
+    // store's daily key spelled as an instant: it resolves to 1970 and is wrong
+    // for EVERY symbol, on every timeframe, forever — a defect in the TREE, and
+    // this lane's rule for a tree defect is a refusal NAMED AT THE TOKEN.
+    //
+    // ⚠️ "No bar precedes the anchor" is the opposite kind of fact: it is true
+    // of ONE SYMBOL'S HISTORY, so it stays a NOT-COMPUTABLE column. A rail on
+    // only the loud half would let the quiet one quietly become a refusal.
+    let caught = null
+    try { interpret(avwap(20250101), BARS, {}) } catch (e) { caught = e }
+    expect(caught, 'a date-shaped anchor did not refuse').toBeTruthy()
+    expect(caught.guard).toBe('resolve:window')
+    expect(caught.message).toMatch(/20250101/)
+    expect(caught.message).toMatch(/1970/)
+
+    // …and the OTHER refusal is a column, not a throw.
+    expect(finite(interpret(avwap(BARS[0].t - 1), BARS, {}))).toHaveLength(0)
+    // NON-VACUITY: a legal anchor throws nothing at all.
+    expect(finite(interpret(avwap(BARS[1].t), BARS, {})).length).toBeGreaterThan(0)
+  })
+
   it('⛔ the ANCHOR carries the same UNIT GUARD the bars do', () => {
     // ⛔ A `YYYYMMDD` INTEGER HANDED IN AS AN INSTANT RESOLVES TO 1970.
     // `AVWAP_MIN_INSTANT` exists because that defect was LIVE and MEASURED on

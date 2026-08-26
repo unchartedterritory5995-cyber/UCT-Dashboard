@@ -217,14 +217,35 @@ describe('the three caps are a closed set, declared once', () => {
       expect(maxLookback(tree), src).toBe(DEFAULT_BUDGET.maxLookback)
       expect(checkBudget(tree, null).ok, `${src} must still be usable`).toBe(true)
     }
-    const refused = ['sma(vwap(), 20)', 'change(vwap())', 'vwap()[1]']
+    // ⛔ `crossOver(close, vwap())` IS FIRST IN THIS LIST BECAUSE IT IS FIRST
+    // IN A MEMBER'S HEAD. The original version of this case named `sma`,
+    // `change` and the bar offset and omitted the one formula anybody actually
+    // types — a rail that covers the shapes an engineer thinks of is not a rail
+    // over the shapes a member writes.
+    const refused = ['crossOver(close, vwap())', 'highest(vwap(), 2)',
+                     'sma(vwap(), 20)', 'change(vwap())', 'vwap()[1]']
     for (const src of refused) {
       const tree = parseFormula(src).ast
       expect(maxLookback(tree), src).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
       const r = checkBudget(tree, null)
       expect(r.ok, `${src} unexpectedly fits`).toBe(false)
       expect(r.guard, src).toBe('budget:lookback')
+      // ⭐ AND THE MESSAGE SAYS WHICH BUDGET AND WHY, NOT JUST "too long". Two
+      // bare numbers one apart read as an arbitrary rejection; the member has no
+      // way to know the fix is not a smaller window.
+      expect(r.error, src).toMatch(/lookback budget/)
+      expect(r.error, src).toMatch(/vwap\(\)/)
+      expect(r.error, src).toMatch(/one whole trading session/)
+      expect(r.error, src).toMatch(/nothing can be wrapped around it/)
     }
+    // ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL. A node-budget refusal, and a
+    // lookback refusal with no session-anchored call in it, say nothing about
+    // sessions — otherwise the clause is decoration rather than a reason.
+    const deepOffset = parseFormula(`close[${DEFAULT_BUDGET.maxLookback + 1}]`).ast
+    const plain = checkBudget(deepOffset, null)
+    expect(plain.ok).toBe(false)
+    expect(plain.guard).toBe('budget:lookback')
+    expect(plain.error).not.toMatch(/trading session/)
   })
 })
 
