@@ -214,6 +214,19 @@ SWEEP_MINUTE_ET = 0
 #: timeframe is accepted the day the map declares it.
 DEFAULT_TF = "D"
 
+#: The three ways `evaluate_one` may be asked to run — ONE parameter, the single
+#: authority over what a run WRITES (contract ruling 8/25, lane W4a.1). ⛔ CLOSED,
+#: like `RUN_GATES`: a caller branches on it, and a mode nobody declared refuses
+#: rather than quietly behaving as one of these.
+#:
+#:   nightly    the sweep. Files `scan_hits`, `scan_coverage` and the rule record.
+#:   live       RESERVED — lane W4b.3 owns this branch (the 5-minute live sweep:
+#:              bar source + `scan_hits_live`). Until it lands, `live` runs and
+#:              persists exactly as `nightly` does.
+#:   on-demand  a member's run-now (W4a, spec §5.5): the SAME loop, the SAME four
+#:              outcomes, the SAME hash — and NOTHING written.
+EVALUATE_MODES = ("nightly", "live", "on-demand")
+
 #: ⏰ THE ONLY NUMBER THE BUDGET DECLARES — how long before the regular session
 #: opens the sweep must have stopped starting definitions. ⛔ THE OPEN ITSELF IS
 #: NOT A NUMBER HERE: `market_open_et` derives it from the bars store's own
@@ -893,18 +906,29 @@ def _assert_sweep_closes(*, handed: int, swept: int, refused: int,
 def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
-                 limits: Any = None) -> dict:
+                 limits: Any = None,
+                 mode: str = "nightly") -> dict:
     """Run one scan definition over the universe and STATE ITS OWN COVERAGE.
 
     Returns::
 
         {def_hash, rev, tf, as_of, freshness,
-         hits: [...],
+         hits: [...], hit_rows: [{symbol, value, bar_time}],
          cadence,
          evaluated, answered, dropped, not_computable,
          withheld, withheld_reason,
          dropped_symbols: [{ticker, reason, detail?}], dropped_listed, truncated,
-         recorded, record_refused}
+         recorded, record_refused,
+         mode, persisted}
+
+    ⭐ `mode='on-demand'` IS THE ON-DEMAND DOOR (W4a, spec §5.5). The SAME loop,
+    the SAME four outcomes, the SAME hash — and NOTHING written: no `scan_hits`,
+    no `scan_coverage`, no rule record, and no ledger read either. A member's
+    500-symbol run filed under the nightly key would overwrite the universe's
+    receipt with a list's, and `coverage(...)` would then describe five names as
+    though they were the market. `mode` is the ONE authority over that
+    (`EVALUATE_MODES`); `'live'` is reserved for W4b.3 and persists as `nightly`
+    until that lane lands.
 
     ⚠️ `rev` IS READ OFF `definition['compute']['rev']` AND RETURNED. E-6's
     receipt is keyed on it; this function does not invent it and does not default
@@ -918,6 +942,14 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         indistinguishable from a quiet market, which is the one reading E-2's
         three-state design exists to keep impossible.
     """
+    if mode not in EVALUATE_MODES:
+        raise ValueError(
+            f"mode {mode!r} is not one of {EVALUATE_MODES}. The set is closed on "
+            "purpose: it is the one authority over what this run writes.")
+    # ⭐ DERIVED FROM `mode`, NEVER A SECOND FLAG. `'live'` is W4b.3's branch; until
+    # it lands, live persists exactly as nightly does.
+    persist = mode != "on-demand"
+
     if not isinstance(definition, dict) or not definition:
         raise ScanRunRefused(
             "no-definition",
@@ -989,6 +1021,10 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
                          and rev >= 0) else None
+    if not persist:
+        # No rule record, and no ledger read to seed one — a run nobody files
+        # has nothing to resume from.
+        record_rev = None
     tf_label = ledger._BARS_STORE_TF_KEYS.get(tf_code)
     throughs: dict = {}
     if record_rev is not None and tf_label:
@@ -996,6 +1032,7 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             def_hash, record_rev, tf_label)
 
     hits: list = []
+    hit_rows: list = []
     unanswered: list = []
     pending_record: list = []
     evaluated = answered = dropped = not_computable = 0
@@ -1062,6 +1099,11 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             answered += 1
             if float(value) != 0.0:              # `<ast> != 0`, E-A1
                 hits.append(sym)
+                # ⭐ THE VALUE AND THE BAR IT CAME FROM, beside the symbol. The
+                # sweep discards both; the on-demand door returns them, and W4c
+                # will store them on the hit row. Additive — `hits` is unchanged.
+                hit_rows.append({"symbol": sym, "value": float(value),
+                                 "bar_time": bars[index].get("t")})
 
             if record_rev is not None and tf_label:
                 if sym not in throughs:
@@ -1101,7 +1143,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # today — a plan's boundary published as a fact about the market. The member
     # gets the withholding in their own envelope; the shared store keeps silence,
     # which reads correctly as `coverage(...) is None` — "nobody looked".
-    if not history_withheld:
+    # ⛔ AND AN ON-DEMAND RUN WRITES NOTHING AT ALL — `mode` in the docstring.
+    if persist and not history_withheld:
         scan_store.record_hits(def_hash, tf_code, session, hits)
         scan_store.record_coverage(
             def_hash, tf_code, session,
@@ -1134,6 +1177,9 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         "truncated": truncated,
         "recorded": recorded,
         "record_refused": record_refused,
+        "hit_rows": hit_rows,
+        "mode": mode,
+        "persisted": bool(persist and not history_withheld),
     }
 
 
