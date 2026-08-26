@@ -24,9 +24,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parse as parseJs } from 'acorn'
 import * as lint from './lint.js'
-import { TABLE, parseFormula } from './parse.js'
+import { TABLE, parseFormula, isPointwise, SESSION_LOOKBACK, SESSION_MAX_BARS } from './parse.js'
 // ⚠️ IMPORTED BY THE TEST, NEVER BY THE LINTER — see the agreement case below.
-import { maxLookback as interpretMaxLookback } from './interpret.js'
+import { maxLookback as interpretMaxLookback, ownLookback } from './interpret.js'
 import * as engineRegistry from '../nativeRegistry'
 
 /** The repo root, found by walking up. `import.meta.url` is an `http:` URL under
@@ -1005,5 +1005,123 @@ describe('the clock, linted — the window comes from the MANIFEST, not from thi
     // above is measuring the manifest rather than a name this file knows.
     expect(lint.astReach({ type: 'series', name: 'zzPlantedWindow' }).reasons.length)
       .toBeGreaterThan(0)
+  })
+})
+
+// --------------------------------------------------------------------------- //
+// the `session` window, and the planted-`forward` rail the pivots will rest on
+// --------------------------------------------------------------------------- //
+
+describe('a declared window that names a SESSION, and one that reaches FORWARD', () => {
+  const SER = { type: 'series', name: 'close' }
+  const num = (v) => ({ type: 'num', value: v })
+  const call = (name, ...args) => ({ type: 'call', name, args })
+
+  /** A grammar the shipped manifest does not contain, merged onto the manifest
+   *  itself — the corpus's own overlay idiom. ⛔ The shipped half is NEVER
+   *  copied: a second full grammar here would be a second manifest. */
+  const planted = (spec) => ({
+    ...TABLE,
+    functions: { ...TABLE.functions, zzPlanted: { yields: 'num', sentence: 'planted', ...spec } },
+  })
+
+  it('reads `session` as a NUMBER, not as unanalysable', () => {
+    // ⛔ THE FAILURE THIS PREVENTS IS NOT HYPOTHETICAL. The narrow `argN` regex
+    // read `2*arg3` as unanalysable and branded ADX `repaints` in production;
+    // `canSaveFormula` refuses `repaints` outright. A lane that read `session`
+    // the same way would do it to every session-anchored indicator.
+    const table = planted({ args: ['series'], lookback: SESSION_LOOKBACK })
+    const reach = lint.astReach(call('zzPlanted', SER), { table })
+    expect([reach.back, reach.forward]).toEqual([SESSION_MAX_BARS, 0])
+    expect(reach.reasons).toEqual([])
+    expect(lint.modeFromReach(reach.forward)).toBe('non-repainting')
+  })
+
+  it('⛔ and the number is the manifest\'s, not this file\'s — the two lanes read one key', () => {
+    expect(SESSION_MAX_BARS).toBe(TABLE.sessionMaxBars)
+    expect(Number.isInteger(SESSION_MAX_BARS) && SESSION_MAX_BARS > 0).toBe(true)
+  })
+
+  it('the INTERPRETER\'s own reader resolves `session` to the same number', () => {
+    // ⛔ THE MIRRORED HALF, RAILED IN ITS OWN LANE. `ownLookback` is what
+    // `maxLookback` sums, and it is reachable from here only because it is
+    // exported — its manifest is frozen at import, so a planted declaration
+    // cannot arrive through `fnSpec`. Deleting its `session` branch must make
+    // THIS lane red; asserting it through the linter would leave the branch
+    // unproved on the side that actually fetches the bars.
+    const node = call('zzPlanted', SER)
+    expect(ownLookback(node, { args: ['series'], lookback: SESSION_LOOKBACK }))
+      .toBe(SESSION_MAX_BARS)
+    // ⛔ THE CONTROL: an unreadable declaration still refuses, so the line
+    // above is not a reader that says yes to everything.
+    expect(() => ownLookback(node, { args: ['series'], lookback: 'sessions' })).toThrow()
+  })
+
+  it('a `session` window is never POINTWISE — it may not be stepped one bar at a time', () => {
+    // `isPointwise` is `lookback === 0`, and it decides whether a value may be
+    // applied inside a recurrence step. A session-anchored value reads a whole
+    // day, so it must never qualify — asked of the shipped reader rather than
+    // trusted to `'session' !== 0`.
+    expect(isPointwise({ args: ['series'], lookback: SESSION_LOOKBACK })).toBe(false)
+    expect(isPointwise({ args: ['series'], lookback: 0 })).toBe(true)
+  })
+
+  it('⭐ the linter and the interpreter bound a session window at the SAME number', () => {
+    // The two `maxLookback`s in this directory may not disagree — see the
+    // agreement case above. This is that agreement on the one declaration
+    // neither of them can reach the other's copy of.
+    const table = planted({ args: ['series'], lookback: SESSION_LOOKBACK })
+    expect(lint.maxLookback(call('zzPlanted', SER), { table })).toBe(SESSION_MAX_BARS)
+    // ⚠️ The interpreter cannot be handed an overlay (its table is frozen at
+    // import), so its half is asserted on the constant BOTH readers resolve to.
+    expect(interpretMaxLookback({ type: 'series', name: 'close' })).toBe(0)
+    expect(SESSION_MAX_BARS).toBe(TABLE.sessionMaxBars)
+  })
+
+  it('a session window is BACKWARD, so it never turns a clean tree into a repainting one', () => {
+    const table = planted({ args: ['series'], lookback: SESSION_LOOKBACK })
+    const tree = { type: 'op', name: '>', args: [call('zzPlanted', SER), SER] }
+    expect(lint.lintRepaint(tree, { table }).mode).toBe('non-repainting')
+  })
+
+  // ⛔⛔ THE PLANTED-`forward` RAIL. `ichimokuChikou` already proves `forward:
+  // "argN"` works — for ONE entry, whose argument is always 26. The pivot work
+  // will declare `forward: "arg2"` with an argument a member types, so the claim
+  // that has to hold is "a tree that reaches forward cannot pass as
+  // non-repainting FOR ANY k", and that is what these rows measure.
+  const FORWARD_TABLE = planted({ args: ['series', 'int'], lookback: 'arg1', forward: 'arg1' })
+
+  it.each([[1], [3], [26], [400]])('a declared forward reach of %i decides preview-repaints', (k) => {
+    const v = lint.lintRepaint(call('zzPlanted', SER, num(k)), { table: FORWARD_TABLE })
+    expect(v.forward).toBe(k)
+    expect(v.mode).toBe('preview-repaints')
+  })
+
+  it('⛔ THE NON-VACUITY CONTROL — the same entry with k = 0 is non-repainting', () => {
+    // Without this row, a linter that answered `preview-repaints` for the mere
+    // PRESENCE of a `forward` key would pass every row above.
+    const v = lint.lintRepaint(call('zzPlanted', SER, num(0)), { table: FORWARD_TABLE })
+    expect(v.forward).toBe(0)
+    expect(v.mode).toBe('non-repainting')
+  })
+
+  it('a forward reach is not laundered by arithmetic around it', () => {
+    const tree = { type: 'op', name: '>', args: [call('zzPlanted', SER, num(4)), SER] }
+    const v = lint.lintRepaint(tree, { table: FORWARD_TABLE })
+    expect([v.forward, v.mode]).toEqual([4, 'preview-repaints'])
+  })
+
+  it('⛔ nor by a SESSION lookback declared beside it — the one interaction of this task\'s two halves', () => {
+    const table = planted({ args: ['series', 'int'], lookback: SESSION_LOOKBACK, forward: 'arg1' })
+    const v = lint.lintRepaint(call('zzPlanted', SER, num(2)), { table })
+    expect([v.back, v.forward, v.mode]).toEqual([SESSION_MAX_BARS, 2, 'preview-repaints'])
+  })
+
+  it('⛔ THE PLANT ITSELF IS LOAD-BEARING — without the overlay the same name is unanalysable', () => {
+    // Same control the planted-clock case carries: proves every row above is
+    // measuring the manifest rather than a name this file taught the linter.
+    const bare = lint.lintRepaint(call('zzPlanted', SER, num(3)))
+    expect(bare.mode).toBe('repaints')
+    expect(bare.reasons.length).toBeGreaterThan(0)
   })
 })

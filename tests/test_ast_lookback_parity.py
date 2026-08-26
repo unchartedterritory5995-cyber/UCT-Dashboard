@@ -25,7 +25,7 @@ import re
 
 import pytest
 
-from api.services import ast_interpret
+from api.services import ast_interpret, ast_lint
 
 TABLE_PATH = (pathlib.Path(__file__).resolve().parents[1]
               / "app/src/components/chart/engine/ast/closedTable.json")
@@ -58,26 +58,74 @@ def _js_lookback_pattern() -> str:
 
 
 def test_the_two_lanes_declare_the_same_grammar():
-    """The JS pattern and the Python pattern accept the same shapes."""
+    """⛔ THREE COPIES, NOT TWO — AND THE THIRD IS WHY THIS CASE GREW.
+
+    `parse.js::LOOKBACK_RE` and `ast_interpret._LOOKBACK_RE` were compared here
+    from the start. `ast_lint._ARG_REF` is a THIRD hand-written copy of the same
+    grammar — the linter may not import either of the others (its import set is
+    pinned to the standard library), so it must hold its own — and it was never
+    read here. It stayed on the narrow `^arg(\\d+)$` for the whole life of the
+    `2*argN` grammar, which made the Python repaint linter answer `repaints` for
+    `adx(high, low, close, 14)` while every other reader answered 28. Two agreeing
+    copies is precisely what made the third invisible.
+    """
     js = _js_lookback_pattern()
     py = ast_interpret._LOOKBACK_RE.pattern
+    lint = ast_lint._ARG_REF.pattern
     # Normalise the anchors/escapes each language spells differently.
-    norm = lambda s: (s.replace(r"\Z", "").replace("$", "")
+    norm = lambda s: (s.replace(r"\Z", "").replace("$", "").replace("^", "")
                       .replace("(?:", "(").replace("\\d", "d").replace(" ", ""))
     assert norm(js) == norm(py), (
         "the lanes accept different lookback shapes\n"
         f"  js: {js}\n  py: {py}")
+    assert norm(lint) == norm(py), (
+        "the Python LINTER accepts a different lookback shape from the Python "
+        "INTERPRETER, so one of them bounds a window the other does not\n"
+        f"  lint: {lint}\n  interpret: {py}")
+
+
+def test_every_reader_resolves_a_MULTIPLIED_window_to_the_same_number():
+    """⛔ THE PATTERNS MATCHING IS NOT THE SAME CLAIM AS THE READERS AGREEING.
+
+    A copy could carry the right pattern and read the wrong capture group — which
+    is exactly the shape of the bug, one level down. So this asks both readers for
+    the NUMBER, on the shipped declaration that carries a multiplier.
+    """
+    tree = {"type": "call", "name": "adx", "args": [
+        {"type": "series", "name": "high"},
+        {"type": "series", "name": "low"},
+        {"type": "series", "name": "close"},
+        {"type": "num", "value": 14},
+    ]}
+    assert ast_interpret.max_lookback(tree) == 28
+    assert ast_lint.max_lookback(tree) == 28
+    assert ast_lint.lint_repaint(tree)["mode"] == "non-repainting", (
+        "the repaint linter cannot bound a multiplied window, so it brands a "
+        "correct indicator `repaints` — and `canSaveFormula` refuses that")
 
 
 @pytest.mark.parametrize("name,spec", sorted(FUNCTIONS.items()))
 def test_every_declared_lookback_is_readable_by_the_python_lane(name, spec):
     """⛔ NON-VACUITY: every shipped declaration must parse, or the sweep below is
-    measuring an empty set."""
+    measuring an empty set.
+
+    ⚠️ IT ASKS THE READERS, NOT THE REGEX. `lookback: "session"` is a legal
+    declaration that no regex here matches — it names a window rather than
+    measuring one — so a probe pinned to `_LOOKBACK_RE` would have gone red on the
+    first session-anchored entry to ship, for a declaration both lanes read
+    perfectly well.
+    """
     lb = spec.get("lookback")
     if isinstance(lb, (int, float)):
         return
+    if lb == ast_interpret.SESSION_LOOKBACK:
+        assert ast_lint._resolve_declaration(lb, []) == ast_interpret.SESSION_MAX_BARS
+        return
     assert ast_interpret._LOOKBACK_RE.fullmatch(str(lb)), (
         f"{name} declares lookback {lb!r}, which this lane cannot read")
+    assert ast_lint._ARG_REF.match(str(lb)), (
+        f"{name} declares lookback {lb!r}, which the repaint LINTER cannot read — "
+        "it will brand every tree calling it `repaints`")
 
 
 def test_a_multiple_is_read_as_a_multiple_not_as_the_bare_argument():

@@ -17,7 +17,9 @@ import {
 import {
   interpret, maxLookback, nodeCount, TableRefusal, REFUSALS as INTERPRET_REFUSALS,
 } from './interpret.js'
-import { parseFormula, canonicalise, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
+import {
+  parseFormula, canonicalise, TABLE, REFUSALS as PARSE_REFUSALS, SESSION_MAX_BARS,
+} from './parse.js'
 
 /** The repo root, found by walking up — the same helper `interpret.test.js` and
  *  `lint.test.js` use, and it THROWS BY NAME rather than defaulting, because a
@@ -545,3 +547,47 @@ function generated(spec) {
   }
   throw new Error(`unknown AST generator spec: ${spec}`)
 }
+
+// --------------------------------------------------------------------------- //
+// 🔴 THE SESSION WINDOW DOES NOT FIT THIS BUDGET — DECLARED, NOT SMOOTHED OVER
+// --------------------------------------------------------------------------- //
+
+describe('the `session` lookback and the lookback cap', () => {
+  it('the budget inherits the session bound through the SHARED maxLookback — there is no second reader', () => {
+    // ⭐ THE POINT OF THIS CASE IS THE ABSENCE OF A CHANGE. `budget.js` learned
+    // nothing about `session`: it thresholds `maxLookback`, and `maxLookback`
+    // learned it once, in `interpret.js`. A `session` arm added HERE would be the
+    // second authority over one window that this whole engine keeps paying for.
+    const src = readSource('budget.js')
+    expect(src.includes('session'),
+      'budget.js names the session window itself instead of inheriting it from the ' +
+      'measurement it thresholds').toBe(false)
+  })
+
+  it('🔴 one ET session is LONGER than the lookback budget allows — a ruling, not a bug', () => {
+    // One extended ET session is 960 one-minute bars (04:00–20:00 ET); the cap is
+    // 550. So a tree calling a `lookback: "session"` function refuses
+    // `budget:lookback` — at the save door and at compute.
+    //
+    // ⛔ THE FIX IS NOT TO DECLARE A SHORTER WINDOW. A regular-hours 390 would
+    // slip under the cap by claiming the maths reads 570 fewer bars than it does,
+    // which is `_functions_warmup`'s one forbidden direction and the
+    // `sessionfirst lookback: 0` defect one task on.
+    //
+    // ⚠️ WHEN THE CAP'S OWNER RULES, THIS IS THE CASE TO EDIT — and it names both
+    // numbers, so the edit cannot be made without seeing them.
+    expect(SESSION_MAX_BARS).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
+
+    // …and the refusal that will arrive, measured through the same cap, on the
+    // one shape that can reach `maxLookback` with a session-sized window today.
+    const tooFar = { type: 'offset', value: SESSION_MAX_BARS, args: [{ type: 'series', name: 'close' }] }
+    expect(maxLookback(tooFar)).toBe(SESSION_MAX_BARS)
+    const result = checkBudget(tooFar, undefined)
+    expect([result.ok, result.guard]).toEqual([false, CAP_GUARD.maxLookback])
+    // …and the SAFETY half throws the same guard, so the refusal is not merely a
+    // UX string a compute path could walk past.
+    let guard = null
+    try { assertBudget(tooFar, undefined) } catch (err) { guard = err.guard }
+    expect(guard).toBe(CAP_GUARD.maxLookback)
+  })
+})

@@ -71,6 +71,50 @@ export const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
 
 export const TABLE = deepFreeze(TABLE_JSON)
 
+/** ⭐⭐ THE OTHER SHAPE A DECLARED `lookback` MAY TAKE — the whole session.
+ *
+ *  `lookback: 'session'` is the window back to the first bar of the bar's own
+ *  New York calendar day. It is deliberately NOT spellable as `argN`: no
+ *  argument carries it, because how many bars a session holds is a property of
+ *  the CALENDAR and the TIMEFRAME, not of anything the author typed. That is
+ *  the whole reason it needs a name of its own rather than a number.
+ *
+ *  ⛔ IT LIVES BESIDE `LOOKBACK_RE` FOR THE IDENTICAL REASON, and that reason is
+ *  a rail's doing rather than a preference: `lint.test.js` pins this module as
+ *  the linter's ONLY import (`{ imports: ['./parse.js'] }`), so a sentinel owned
+ *  by `interpret.js` would be unreachable from the reader that most needs it.
+ */
+export const SESSION_LOOKBACK = 'session'
+
+/** How far back `lookback: 'session'` reaches, in bars — READ OFF THE MANIFEST.
+ *
+ *  ⛔⛔ NOT A LITERAL HERE, AND THAT IS THE POINT. Four readers need this number
+ *  — `interpret.js::ownLookback`, `lint.js::resolveDeclaration`,
+ *  `ast_interpret._own_lookback`, `ast_lint._resolve_declaration` — across two
+ *  languages, and the Python linter is pinned by its own import rail to the
+ *  standard library, so it can reach neither of the other three. The ONE place
+ *  all four can see is the table, which is DATA for exactly this reason. A
+ *  per-lane copy would be the fifth hand-written copy of a window grammar in
+ *  this directory; the fourth branded ADX as repainting in production.
+ *
+ *  ⭐ WHY 960 — and why it is `closedTable.json::_session` that argues it, not
+ *  this comment: the session is the ET CALENDAR DAY (04:00–20:00 ET = 16 hours),
+ *  not regular hours, and the finest bar this platform serves is one minute, so
+ *  a session can never hold more bars than it holds minutes.
+ */
+export const SESSION_MAX_BARS = (() => {
+  const n = TABLE.sessionMaxBars
+  if (!Number.isInteger(n) || n < 1) {
+    // ⛔ A REFUSAL AT IMPORT, NOT A DEFAULT. A fallback number here would be the
+    // per-lane copy this constant exists to prevent, and it would be invisible:
+    // the grammar would go on answering, with a window nobody declared.
+    throw new Error(
+      `closedTable.json declares sessionMaxBars=${JSON.stringify(n)}; the session window `
+      + 'must be a whole number of bars, and no lane may supply one of its own')
+  }
+  return n
+})()
+
 /** The canonical node types, and there are no others.
  *
  *  ⚠️ ASSERTED BY WALKING A PARSED TREE, never by reading this constant back —

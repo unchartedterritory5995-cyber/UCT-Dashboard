@@ -173,6 +173,37 @@ MAX_RECURRENCE_STEPS = 1000000
 #: ``bars x warmup`` times, so a deep lag is paid on every bar of every symbol.
 MAX_SELF_LAG = 4
 
+#: The one ``lookback`` that names a window instead of measuring one.
+#:
+#: ⭐⭐ ``lookback: "session"`` reaches back to the first bar of the bar's own New
+#: York calendar day. It could never have been spelled ``argN``: no argument
+#: carries it, because how many bars a session holds is decided by the CALENDAR
+#: and the TIMEFRAME rather than by anything the author typed.
+SESSION_LOOKBACK = "session"
+
+#: How far back that reaches, in bars -- READ OFF THE MANIFEST.
+#:
+#: ⛔⛔ NOT A LITERAL HERE. Four readers need this number across two languages,
+#: and ``ast_lint`` is pinned by its own import rail to the standard library, so
+#: it can import neither this module nor ``ast_table``. The ONE place all four
+#: can see it is the table, which is DATA for precisely that reason -- and a
+#: per-lane copy would be the fifth hand-written copy of a window grammar in this
+#: engine. The fourth branded ADX as repainting in production.
+#:
+#: ⭐ 960 = the minutes in the extended ET session (04:00-20:00), and the finest
+#: bar this platform serves is one minute, so no timeframe can hold more bars in
+#: a session than that. ``closedTable.json::_session`` carries the full argument
+#: and the measurement; this is the reader, not the authority.
+SESSION_MAX_BARS = TABLE["sessionMaxBars"]
+if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
+        or SESSION_MAX_BARS < 1:
+    # ⛔ A REFUSAL AT IMPORT, NOT A DEFAULT. A fallback here would BE the per-lane
+    # copy this constant exists to prevent, and it would be invisible: the
+    # grammar would go on answering, with a window nobody declared.
+    raise ValueError(
+        f"closedTable.json declares sessionMaxBars={SESSION_MAX_BARS!r}; the session "
+        "window must be a whole number of bars, and no lane may supply one of its own")
+
 
 def _refuse(guard: str, detail: str) -> Any:
     raise TableRefusal(guard, f"{REFUSALS[guard]} {detail}")
@@ -1122,10 +1153,18 @@ def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
     only say "one of my arguments". Over-stating a window costs extra NaN at the
     left edge; UNDER-stating hands back numbers computed from bars that were never
     fetched, which is why the indicator was withheld rather than mis-declared.
+
+    ⭐⭐ AND ONE FORM THAT IS NEITHER A CONSTANT NOR AN ARGUMENT -- ``"session"``,
+    checked BEFORE the regex. It resolves to ``SESSION_MAX_BARS``, which is read
+    off the manifest so that ``ast_lint`` -- a module that may not import this one
+    -- resolves it to the same number. That is the only arrangement in which the
+    two ``max_lookback`` implementations can go on agreeing.
     """
     lb = spec.get("lookback")
     if _is_number(lb):
         return int(lb)
+    if lb == SESSION_LOOKBACK:
+        return SESSION_MAX_BARS
     m = _LOOKBACK_RE.fullmatch(str(lb))
     if m is None:
         _refuse("interpret:node",

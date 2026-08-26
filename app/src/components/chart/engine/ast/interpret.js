@@ -47,7 +47,10 @@
 //     refusal. There is no `try` anywhere in this file, and `budget.test.js`
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
-import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE } from './parse.js'
+import {
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE,
+  SESSION_LOOKBACK, SESSION_MAX_BARS,
+} from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
 // either measurement is a second grammar (there are already two `maxLookback`s
@@ -845,12 +848,31 @@ function offsetBars(node) {
  *  accepts has to be re-implemented identically in `ast_interpret.py`, and the
  *  two lanes agreeing is what `test_ast_lookback_parity.py` measures. A grammar
  *  that grows past what both sides can trivially mirror is how they drift.
+ *
+ *  ⭐⭐ AND ONE FORM THAT IS NEITHER — `'session'`. It is checked BEFORE the
+ *  regex and it takes no argument, because the bars in a session are decided by
+ *  the CALENDAR and the TIMEFRAME rather than by anything the author typed.
+ *  `SESSION_MAX_BARS` is read off the manifest, not owned here, so the linter
+ *  (whose import graph cannot reach this file) resolves it to the same number —
+ *  which is the only arrangement in which the two `maxLookback`s in this
+ *  directory can go on agreeing.
  */
 
 
-function ownLookback(node, spec) {
+/** ⚠️ EXPORTED FOR ONE REASON: SO ITS BRANCHES CAN BE RAILED IN THIS LANE TOO.
+ *
+ *  `maxLookback` reaches this only through `fnSpec`, which reads a manifest that
+ *  is frozen at import — so a declaration the shipped table does not contain is
+ *  unreachable from a test, and a branch that cannot be reached cannot be proved
+ *  by deleting it. The Python lane never had that problem (`_own_lookback` takes
+ *  the spec directly and its tests call it), and "the rail went to whichever
+ *  consumer happened to be reachable" is exactly how the previous task shipped a
+ *  guard on one side of a mirrored pair. This is a pure reader: it takes a node
+ *  and a spec and returns a number. */
+export function ownLookback(node, spec) {
   const lb = spec.lookback
   if (typeof lb === 'number') return lb
+  if (lb === SESSION_LOOKBACK) return SESSION_MAX_BARS
   const m = LOOKBACK_RE.exec(String(lb))
   if (!m) {
     refuse('interpret:node',

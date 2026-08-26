@@ -55,6 +55,7 @@
 
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
+  SESSION_LOOKBACK, SESSION_MAX_BARS,
 } from './parse.js'
 
 // --------------------------------------------------------------------------- //
@@ -199,9 +200,21 @@ export function declaredInputs(def) {
  * constant folder, which is the dataflow analysis the manifest's `_no_offset`
  * note exists to avoid. Fail closed: the user sees `repaints` and one confused
  * moment, which is the cheap side of the asymmetry.
+ *
+ * ⭐⭐ `'session'` RESOLVES TO A NUMBER RATHER THAN TO `UNKNOWN`, and the number
+ * comes off the MANIFEST (`SESSION_MAX_BARS`), never from a literal here. A lane
+ * that read it as `UNKNOWN` would brand every session-anchored indicator
+ * `repaints` — which is not a hypothetical: the narrow `argN` regex did exactly
+ * that to ADX in production, and `canSaveFormula` refuses `repaints` outright.
+ *
+ * ⚠️ IT IS READ IN BOTH SLOTS, DELIBERATELY. A `forward: 'session'` would be a
+ * window reaching to the session's LAST bar, which is a coherent declaration and
+ * would decide `preview-repaints`. Nothing declares it today; special-casing the
+ * lookback slot would be a second grammar for one word.
  */
 function resolveDeclaration(decl, argNodes) {
   if (decl === UNBOUNDED) return UNBOUNDED
+  if (decl === SESSION_LOOKBACK) return SESSION_MAX_BARS
   if (typeof decl === 'number') {
     return Number.isInteger(decl) ? decl : UNKNOWN
   }

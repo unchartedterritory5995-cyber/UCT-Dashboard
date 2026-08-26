@@ -95,6 +95,29 @@ def load_table(path: Optional[pathlib.Path] = None) -> Dict[str, Any]:
 
 TABLE: Dict[str, Any] = load_table()
 
+#: The one ``lookback`` that names a window instead of measuring one -- the bars
+#: back to the first bar of this bar's own New York calendar day.
+SESSION_LOOKBACK = "session"
+
+#: How far back that reaches, in bars -- READ OFF THE MANIFEST, never owned here.
+#:
+#: ⛔⛔ THIS MODULE COULD NOT HOLD IT EVEN IF IT WANTED TO.
+#: ``test_no_evaluator_is_reachable_from_the_linter`` pins this file's imports to
+#: ``{__future__, json, pathlib, re, typing}``, so ``ast_interpret``'s copy is
+#: unreachable from here -- and the JS lane is pinned the same way
+#: (``lint.js`` may import ``./parse.js`` and nothing else). The ONE artifact all
+#: four readers can see is the table, which is DATA for exactly that reason.
+#: ``closedTable.json::_session`` carries the argument for the number; this is a
+#: reader, not an authority.
+SESSION_MAX_BARS = TABLE["sessionMaxBars"]
+if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
+        or SESSION_MAX_BARS < 1:
+    # ⛔ REFUSE AT IMPORT RATHER THAN FALL BACK. A default here would BE the
+    # per-lane copy this constant exists to prevent.
+    raise ValueError(
+        f"closedTable.json declares sessionMaxBars={SESSION_MAX_BARS!r}; the session "
+        "window must be a whole number of bars, and no lane may supply one of its own")
+
 # --------------------------------------------------------------------------- #
 # the window, DERIVED FROM THE MANIFEST
 # --------------------------------------------------------------------------- #
@@ -120,7 +143,30 @@ TABLE: Dict[str, Any] = load_table()
 # window is wider than its declaration would be branded on the declaration and
 # the linter would be wrong -- and no static analysis of the TREE can see that,
 # because the tree does not contain the compute.
-_ARG_REF = re.compile(r"^arg(\d+)$")
+#
+# ⚰️⚰️ THIS WAS `^arg(\d+)$` AND IT BRANDED ADX AS REPAINTING -- IN THIS LANE,
+# AFTER THE SAME DEFECT WAS FIXED IN THE OTHER ONE.
+#
+# `lint.js` records the JS half: *"IT WAS THE FOURTH HAND-WRITTEN COPY OF ONE
+# GRAMMAR. Three were found and removed when `2*argN` landed ... and this one
+# survived because no test had ever declared a function with a multiplied window
+# AND asked the linter about it."* There was a FIFTH, here, and it survived the
+# same sweep for the same reason: the Python agreement rail
+# (`test_the_two_lookback_readings_AGREE_through_an_offset`) exercised offsets and
+# `sma`, never a multiplied window. Measured 2026-08-26 before the fix:
+#
+#     ast_lint.lint_repaint(adx(high, low, close, 14))
+#       -> {'mode': 'repaints', 'back': 'unknown',
+#           'reasons': ['unanalysable: `adx` declares a window this linter cannot bound']}
+#     ast_interpret.max_lookback(same tree)  -> 28
+#
+# and `canSaveFormula` refuses `repaints` outright, so the server lane branded a
+# correct, non-repainting indicator unsaveable.
+#
+# ⛔ IT MIRRORS `parse.js::LOOKBACK_RE` AND `ast_interpret._LOOKBACK_RE`, and the
+# three are held equal by `tests/test_ast_lookback_parity.py` -- which now reads
+# all three rather than two, because "two agree" is what let this one drift.
+_ARG_REF = re.compile(r"^(?:(\d+)\s*\*\s*)?arg(\d+)$")
 
 
 def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
@@ -133,9 +179,21 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
     its window is a computed value; bounding it would need a constant folder,
     which is the dataflow analysis the manifest's ``_no_offset`` note exists to
     avoid. Fail closed.
+
+    ⭐⭐ ``"session"`` RESOLVES TO A NUMBER RATHER THAN TO ``UNKNOWN``, and the
+    number comes off the MANIFEST. A lane that read it as ``UNKNOWN`` would brand
+    every session-anchored indicator ``repaints``, which is not hypothetical --
+    the narrow ``argN`` regex above did exactly that to ADX.
+
+    ⚠️ IT IS READ IN BOTH SLOTS, DELIBERATELY. A ``forward: "session"`` would be a
+    window reaching to the session's LAST bar -- a coherent declaration that would
+    decide ``preview-repaints``. Nothing declares it today; special-casing the
+    lookback slot would be a second grammar for one word.
     """
     if decl == UNBOUNDED:
         return UNBOUNDED
+    if decl == SESSION_LOOKBACK:
+        return SESSION_MAX_BARS
     if isinstance(decl, bool):
         return UNKNOWN
     if isinstance(decl, int):
@@ -144,7 +202,10 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         m = _ARG_REF.match(decl)
         if not m:
             return UNKNOWN
-        idx = int(m.group(1))
+        # ⭐ GROUP 2 IS THE ARGUMENT, GROUP 1 THE OPTIONAL MULTIPLIER (`2*arg3`).
+        # The multiplier is applied HERE so the linter bounds the SAME window the
+        # interpreter and the budget walker do -- three readers, one grammar.
+        idx = int(m.group(2))
         if idx >= len(arg_nodes):
             return UNKNOWN
         node = arg_nodes[idx]
@@ -153,7 +214,8 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         value = node.get("value")
         if isinstance(value, bool) or not isinstance(value, int):
             return UNKNOWN
-        return value
+        times = int(m.group(1)) if m.group(1) else 1
+        return times * value
     return UNKNOWN
 
 
