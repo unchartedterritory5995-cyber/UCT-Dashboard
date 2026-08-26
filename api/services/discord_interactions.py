@@ -43,6 +43,12 @@ def render_slot_count(default: int = 4) -> int:
 # told to retry rather than queue behind a cold Massive fetch.
 RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
 BARS_RETRY_DELAY_S = 1.5
+# What the /r/chart page's StockChart asks /api/bars for, on every timeframe.
+# The job warms that exact request in-process before the house render so the
+# page's own fetch hits the web pod's memory cache (0.2-0.35 s) instead of the
+# cold path (7-20 s on 5-minute bars, measured 2026-08-25) - which was long
+# enough to time out the renderer's first attempt and cost a 45 s retry.
+PAGE_BARS = 5000
 
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
 # slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
@@ -350,7 +356,10 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                     bars = None
                     daily = _fetch("D", STATS_DAILY_BARS)
                 png = None
+                warm = None
                 if house_fn is not None and daily:
+                    if req.tf != "D":
+                        warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
                     try:
                         png = house_fn(req.ticker, req.tf, compute_stats(daily), options)
                     except Exception as e:  # noqa: BLE001
@@ -359,7 +368,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                     if png:
                         return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
                 if bars is None:
-                    bars = _fetch(req.tf, bars_to_request(req.tf))
+                    bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
                     if not bars:
                         return ("no_bars", None, None)
                 kw = {"daily_bars": daily if options["stats"] else None}

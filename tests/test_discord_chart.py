@@ -918,28 +918,33 @@ def test_run_chart_job_serves_a_cache_hit_without_fetching_anything():
     assert edits.calls[-1]["content"] == "NVDA · Daily"
 
 
-def test_run_chart_job_fetch_order_daily_first_and_tf_bars_only_for_the_fallback():
+def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reused_by_the_fallback():
     from api.services import discord_chart_cache as cc
     from api.services.discord_interactions import run_chart_job, ChartRequest
     from api.services.discord_chart_render import STATS_DAILY_BARS, bars_to_request
+    from api.services.discord_interactions import PAGE_BARS
     cc.clear()
     asked = []
 
     def bars_fn(tk, tf, n):
         asked.append((tf, n))
-        return daily_bars(300) if tf == "D" else intraday_bars(400, 15)
+        return daily_bars(300) if tf == "D" else intraday_bars(5000, 15)
     edits = _Edits()
-    # house succeeds → the 15-min bars are never fetched
+    # house succeeds: daily first (stats), then the page's own 15-min request is
+    # warmed in-process (cold it took 7-20 s and timed out the renderer, 8/25)
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
                          render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
                          house_fn=lambda *a: _png_canvas(draw=True)) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS)]
+    assert asked == [("D", STATS_DAILY_BARS), ("15", PAGE_BARS)]
     cc.clear(); asked.clear()
-    # house fails → fallback fetches the 15-min bars, after the daily ones
+    # house fails: the fallback renders from the warmed bars, no third fetch
+    seen = {}
+    def render_fn(tk, tf, bars, **kw):
+        seen["n"] = len(bars); return PNG_MAGIC + b"mpl"
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=bars_fn,
-                         render_fn=lambda *a, **k: PNG_MAGIC + b"mpl", edit_fn=edits,
-                         house_fn=lambda *a: None) == "ok"
-    assert asked == [("D", STATS_DAILY_BARS), ("15", bars_to_request("15"))]
+                         render_fn=render_fn, edit_fn=edits, house_fn=lambda *a: None) == "ok"
+    assert asked == [("D", STATS_DAILY_BARS), ("15", PAGE_BARS)]
+    assert seen["n"] == bars_to_request("15")
     assert edits.calls[-1]["png"] == PNG_MAGIC + b"mpl"
 
 
@@ -1169,3 +1174,41 @@ def test_house_ready_js_refuses_until_the_page_has_bars():
     assert js.index("__chartBarsReady") < js.index("__chartReady === true")
     assert js.index("__chartBarsReady") < js.index("getImageData")
     assert "__chartBarsReady === true" in HOUSE_READY_JS
+
+
+def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_them_for_fallback():
+    """The /r/chart page fetches PAGE_BARS bars itself; cold, that took 7-20 s on
+    5-minute data and timed out the renderer's first attempt. The job warms that
+    exact request in-process first (Daily is already fetched for the stats)."""
+    from api.services import discord_interactions as di
+    daily = [{"t": 1700000000 + i * 86400, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(300)]
+    intra = [{"t": 1700000000 + i * 300, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(5000)]
+    order = []
+    def bars_fn(ticker, tf, n):
+        order.append(("bars", tf, n))
+        return daily if tf == "D" else intra
+    def house_fn(ticker, tf, stats, options):
+        order.append(("house", tf, None))
+        return b"HOUSEPNG"
+    edits = []
+    def edit_fn(app_id, token, *, content, png=None, filename=None):
+        edits.append((content, png))
+    out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "5"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
+                           edit_fn=edit_fn, house_fn=house_fn)
+    assert out == "ok" and edits[-1][1] == b"HOUSEPNG"
+    assert order == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "5", di.PAGE_BARS), ("house", "5", None)]
+    # Daily needs no extra warm: the stats fetch already is the page's request shape
+    order.clear()
+    di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "D"), bars_fn=bars_fn, render_fn=lambda *a, **k: b"MPL",
+                     edit_fn=edit_fn, house_fn=house_fn)
+    assert [o for o in order if o[0] == "bars" and o[1] != "D"] == []
+    # when the house render fails, the fallback reuses the warmed bars (no third fetch)
+    order.clear()
+    rendered = {}
+    def render_fn(ticker, tf, bars, **kw):
+        rendered["n"] = len(bars); return b"MPL"
+    out = di.run_chart_job("1", "tok", di.ChartRequest("TSLA", "15"), bars_fn=bars_fn, render_fn=render_fn,
+                           edit_fn=edit_fn, house_fn=lambda *a, **k: None)
+    assert out == "ok" and edits[-1][1] == b"MPL"
+    assert [o for o in order if o[0] == "bars"] == [("bars", "D", di.STATS_DAILY_BARS), ("bars", "15", di.PAGE_BARS)]
+    assert rendered["n"] == di.bars_to_request("15")
