@@ -92,8 +92,13 @@ _DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent 60-sec rate ≥ 3× t
 # a 60-sec blip on a quiet name reads as a huge burst (tiny expected) and would ring a
 # nothing-name (AEM at 0.12×) while a real sustained mover (META) that isn't spiking in
 # THIS 60 sec would not. Ring only genuinely-heavy sustained names that are moving fast.
-_IGNITE_RVOL = 4.0           # SUSTAINED RVOL genuinely high (≥ High tier)…
+_IGNITE_RVOL = 6.0           # SUSTAINED RVOL genuinely high (≥ Very High tier, t4+)…
 _IGNITE_MOVE = 0.75          # …AND a real, fast price move
+# Instant surge — the OTHER way to light: catch a genuine explosion the SECOND it happens,
+# without waiting for the sustained window to fill. Deliberately HIGH bars (a big burst AND
+# a real fast move together) so modest blips on quiet names don't flicker in.
+_SURGE_BURST = 8.0           # recent 60-sec rate ≥ 8× typical-for-now…
+_SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min window)
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -439,18 +444,27 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         limit = 100
 
     def _is_lit(m):
-        # A name surges either way: heavy SUSTAINED volume (primary rvol) OR a fresh
-        # 60-sec burst (surfaces a mover before the sustained window fills). It counts as
-        # a "move" if it moved in the last ~2 min OR is up big on the day (the pre-market
-        # news shape, robust when the 2-min window is momentarily flat). Plus real $ flow.
-        surging = (m["rvol"] >= mnr) or (m.get("burst", 0.0) >= mnb)
+        # Best of both, gated by real $ flow:
+        #  • SUSTAINED — heavy sustained volume (the smooth ~10-min rvol) + a real move.
+        #    Stays lit until volume dies down; no flicker.
+        #  • INSTANT SURGE — a genuine explosion right now (big burst + a real fast move),
+        #    caught the SECOND it happens, no waiting for the sustained window. The HIGH
+        #    bars keep modest blips on quiet names out (they were the flicker).
+        # A "move" for the sustained path = the last ~2 min OR up big on the day (robust
+        # when the 2-min window is momentarily flat — the pre-market news shape).
+        if m.get("dvol", 0) < mnd:
+            return False
         moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
-        return surging and moved and m.get("dvol", 0) >= mnd
+        sustained = m["rvol"] >= mnr and moved
+        instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
+        return sustained or instant
 
     def _igniting(m):
-        # A genuine fast move — strong SUSTAINED volume (not a 60-sec blip on a quiet
-        # name) AND a real move. This earns the gold ring + a top spot.
-        return m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+        # The gold ring = a GENUINE fast move happening NOW — sustained-heavy (t4+) with a
+        # move, OR a big instant surge. Never a modest blip.
+        sustained_hot = m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+        instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
+        return sustained_hot or instant
 
     def _score(m):
         # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
@@ -477,10 +491,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Sustained volume LEADS: highest sustained RVOL at the top, so a name with
-        # sustained huge volume STAYS at the top until it dies down. Igniting + burst
-        # break ties so a fresh fast mover still surfaces among equals.
-        rows.sort(key=lambda r: (r[2], r[1]["rvol"], _igniting(r[1]), r[1].get("burst", 0.0)),
+        # Genuine surges LEAD: igniting names (a big instant surge OR sustained-heavy +
+        # move) sit at the very top so a fresh explosion surfaces the second it happens;
+        # then by sustained RVOL so heavy names stay near the top until they die down.
+        rows.sort(key=lambda r: (r[2], _igniting(r[1]), r[1]["rvol"], r[1].get("burst", 0.0)),
                   reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)

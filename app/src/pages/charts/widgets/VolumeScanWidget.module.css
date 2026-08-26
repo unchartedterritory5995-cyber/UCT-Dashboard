@@ -82,10 +82,10 @@
    t1–t4 are deep, desaturated blocks with BLACK text (low contrast → they recede), and
    ONLY t5 (Extreme, 10×+) is a bright, saturated red with white text + a glow — so the
    eye is drawn only to the extremes. ──────── */
-.t1 { background: #47614e; }   /* Notable   2–3×  — muted deep green */
-.t2 { background: #43744f; }   /* Elevated  3–4×  — muted green      */
-.t3 { background: #3f8752; }   /* High      4–6×  — muted green      */
-.t4 { background: #b8973f; }   /* Very High 6–10× — muted deep gold  */
+.t1 { background: #202a24; }   /* Notable   2–3×  — near-unlit, barely there */
+.t2 { background: #243a2b; }   /* Elevated  3–4×  — very dark, only sort of noticeable */
+.t3 { background: #2b5138; }   /* High      4–6×  — dark green, a touch more present */
+.t4 { background: #b8973f; }   /* Very High 6–10× — gold: the jump — starts to catch the eye */
 .t5 {                          /* Extreme   10×+  — the ONLY bright tier */
   background: var(--ut-red-bright);
   box-shadow: inset 0 0 0 1px var(--ut-red), 0 0 11px rgba(242, 75, 66, 0.5);
@@ -99,25 +99,6 @@
 .unlit .sym { color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright)))); }
 .unlit .surge { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 600; opacity: 0.62; }
 .unlit:hover { background: var(--nh-hover, var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)))); }
-
-/* ── Live-tick flash: a brief green/red wash on every price tick (fills the row
-   behind the text, fades out fast). On a coloured row it reads as a quick pulse. ── */
-.tick {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-}
-.tickUp { background: var(--nh-up, var(--ut-green-bright, #34d17c)); animation: volTick 0.5s ease-out; }
-.tickDown { background: var(--nh-down, var(--ut-red-bright, #f24b42)); animation: volTick 0.5s ease-out; }
-@keyframes volTick {
-  0% { opacity: 0.3; }
-  100% { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tickUp, .tickDown { animation: none; }
-}
 
 /* New-surge alert: a stronger white triple-pulse when a name first crosses into a
    surge (unlit → lit) — deliberately brighter/longer than the per-tick flash so a

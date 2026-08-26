@@ -52,20 +52,6 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
-// Live-tick flash: re-mounts a brief tinted overlay whenever a row's price changes,
-// so every price tick pulses the row (green up / red down) — the "it's live" cue.
-// Keyed by the price value so it only fires on a real change, never on first mount.
-function TickFlash({ price, dir }) {
-  const prev = useRef(price)
-  const [k, setK] = useState(0)
-  useEffect(() => {
-    if (prev.current != null && price != null && price !== prev.current) setK((x) => x + 1)
-    prev.current = price
-  }, [price])
-  if (k === 0) return null
-  return <span key={k} className={`${styles.tick} ${dir === 'up' ? styles.tickUp : styles.tickDown}`} aria-hidden="true" />
-}
-
 // Extreme-surge alert: a white triple-pulse the moment a row crosses into an EXTREME
 // tier (t4 Very High / t5 Extreme) — reserved for the big signals so the white flash
 // stays rare and meaningful. Lower tiers get their colour + the gold igniting pulse,
@@ -103,7 +89,6 @@ function Row({ e, onPick, logos }) {
       onClick={() => onPick(e.sym)}
       title={`${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
-      <TickFlash price={e.price} dir={e.dir} />
       <SurgeFlash lit={e.lit} tier={e.tier || 1} />
       {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>

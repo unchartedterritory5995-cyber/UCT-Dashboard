@@ -71,26 +71,21 @@ def test_unusual_cumulative_volume_with_a_move_is_lit_and_tiered():
     assert aaa["move"] > 1 and aaa["dir"] == "up"
 
 
-def test_burst_rvol_lights_a_fresh_ignition_that_cumulative_rvol_misses():
-    # A name QUIET all day (cumulative RVOL well below 1×, so the cumulative gate
-    # would never light it) that IGNITES in the last window: a small volume spike vs
-    # the near-nothing typically traded per minute at 13:00 → a high burst. This is
-    # the fast mover cumulative RVOL is structurally slow to catch.
+def test_a_modest_burst_below_the_surge_bar_does_not_light():
+    # STABILITY: a quiet name with a MODEST fresh burst (below the instant-surge bar) must
+    # NOT light — the old low burst gate made quiet names flicker in and out of the shaded
+    # set every few seconds. Only heavy SUSTAINED volume OR a BIG instant surge lights.
     seq = {}
     for t in range(0, 46):
-        cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a fresh spike
-        px = 50.0 if t <= 35 else 50.0 + 0.045 * (t - 35)       # +0.9% fast move on the spike
+        cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a modest 60-sec blip
+        px = 50.0 if t <= 35 else 50.0 + 0.045 * (t - 35)       # +0.9% (below the surge move bar)
         seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 50.0, "prev_vol": 1_000_000}}
     _feed(seq)
-    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
-    assert r is not None and r["lit"] is True
-    assert r["rvol"] < 2                     # sustained/cumulative RVOL alone would NOT light it
-    assert 4 <= r["burst"] <= 6              # the 60-sec burst caught it (discovery path)
-    assert r["igniting"] is False            # …but a 60-sec burst alone does NOT ring…
-    assert r["tier"] == 1                    # …and the colour stays CALM (dim) until volume sustains
-    # It's the burst PATH that lit it: raise both gates → gone; raise only rvol → stays.
-    assert _row(volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"], "AAA") is None
-    assert _row(volume_live.get_live(min_rvol=999, min_burst=3, min_dollar=0)["rows"], "AAA") is not None
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["rvol"] < 2       # sustained RVOL is low (a quiet name)
+    assert 4 <= r["burst"] < 8                    # a modest burst, below the instant-surge bar
+    assert r["lit"] is False and r["igniting"] is False   # neither path fires — no flicker
+    assert volume_live.get_live(min_dollar=0)["rows"] == []
 
 
 def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
@@ -98,14 +93,14 @@ def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
     # silently hid EVERY megacap — the exact liquid names this scanner exists to catch.
     seq = {}
     for t in range(0, 46):
-        cv = 300_000 if t <= 35 else 300_000 + 2_500 * (t - 35)   # quiet, then a news surge
+        cv = 300_000 if t <= 35 else 300_000 + 3_500 * (t - 35)   # quiet, then a BIG instant surge
         px = 590.0 if t <= 35 else 590.0 + 0.9 * (t - 35)         # a fast +1.5% pop
         seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 590.0, "prev_vol": 15_000_000}}
     _feed(seq)
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
-    assert r is not None and r["lit"] is True          # surfaced (not filtered by price)
-    assert r["price"] > 250                             # a megacap the old cap excluded
-    assert r["burst"] >= 5                              # the news burst caught it
+    assert r is not None and r["lit"] is True            # surfaced + lit (not price-capped)
+    assert r["price"] > 250                              # a megacap the old cap excluded
+    assert r["burst"] >= 8 and r["igniting"] is True     # a big INSTANT surge, caught immediately
     # The price band is still a real filter: an explicit low cap still excludes it.
     assert _row(volume_live.get_live(max_price=250, min_dollar=0)["rows"], "AAA") is None
 
@@ -217,11 +212,9 @@ def test_min_rvol_and_min_move_filters_are_honored():
         px = 10.0 if t <= 36 else 10.0 + 0.008 * (t - 36)   # a small move (no big day-move)
         seq[t] = {"AAA": {"min_av": 60_000 * t, "last_price": px, "prev_close": 10.0, "prev_vol": 1_000_000}}
     _feed(seq)
-    # Cumulative-RVOL gate alone no longer clears the board — burst is an independent
-    # surge path (this synthetic feed sustains a high rate → high burst); BOTH must be
-    # raised to exclude the name. The move gate is AND, so it still filters alone.
-    assert volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"] == []
-    assert _row(volume_live.get_live(min_rvol=999, min_burst=1, min_dollar=0)["rows"], "AAA") is not None
+    # min_rvol / min_move are honoured. A high min_rvol excludes the name (its move is below
+    # the instant-surge bar, so there's no backdoor); a high min_move excludes it.
+    assert volume_live.get_live(min_rvol=999, min_dollar=0)["rows"] == []
     assert _row(volume_live.get_live(min_rvol=2, min_dollar=0)["rows"], "AAA") is not None
     assert volume_live.get_live(min_move=999, min_dollar=0)["rows"] == []
 
