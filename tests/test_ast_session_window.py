@@ -370,6 +370,21 @@ def test_the_cap_is_DERIVED_from_the_session_constant_and_never_typed():
             "deriving it from the session constant — two numbers that must agree, "
             "typed in two places")
 
+    # ⛔⛔ AND THE SHAPE IS ASSERTED IN *BOTH* LANES, because the two arms are NOT
+    # both behaviourally live at today's values: `max(550, 960) == 960`, so
+    # deleting the FLOOR changes no number and every value-based rail stays green.
+    # A mutation sweep measured exactly that — dropping the floor SURVIVED in
+    # Python while dying in JS, because only the JS test asserted the expression.
+    # That asymmetry is the "the fix went to the declaration and the rail went to
+    # whichever consumer happened to be open" defect, inside this task's own
+    # mirrored pair. Both lanes now carry it.
+    assert "max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)" in py_src, (
+        "ast_budget.py no longer reads as 'the larger of the two families it "
+        "holds' — a corrected session shorter than the floor would then silently "
+        "refuse the nested-recurrence family the 2026-08-22 move admitted")
+    assert "Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)" in js_src, (
+        "budget.js no longer reads as 'the larger of the two families it holds'")
+
 
 def test_the_budget_holds_no_READER_of_a_lookback_declaration():
     """⭐ THE DISTINCTION THE RULING TURNS ON, AND IT IS NARROW.
