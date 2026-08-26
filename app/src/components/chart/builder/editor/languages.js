@@ -24,7 +24,7 @@
 import { StreamLanguage, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import jsep from 'jsep'
-import { TABLE } from '../../engine/ast/parse'
+import { TABLE, KEY_RE } from '../../engine/ast/parse'
 import { PINE_CALL_SHAPES } from '../../engine/ast/pine'
 import { PCF_FUSED, PCF_VOCABULARY, priceLetters } from '../../engine/ast/pcf'
 
@@ -61,17 +61,49 @@ export function highlightStyle(classes) {
   )
 }
 
-/** Every name the FORMULA dialect colours, read off ONE table. Sections are read
- *  BY NAME so a section the manifest lacks today is an empty set, not a throw:
- *  `clock` (series-kind, closed-table v2) is empty until W2a lands it and the
- *  real set the day it does. */
+/** Every name the FORMULA dialect colours, read off ONE table. The colour
+ *  buckets are read by SHAPE (see below); the per-section sets `series`,
+ *  `clock` and `operators` are read BY NAME so a section the manifest lacks
+ *  today is an empty set, not a throw. */
 export function vocabularyOf(table) {
   const section = (name) => Object.freeze(new Set(Object.keys((table && table[name]) || {})))
+  // ⭐⭐ THE THREE COLOUR BUCKETS ARE READ BY **SHAPE**, ACROSS EVERY NAME-BEARING
+  // SECTION — not by naming `functions`/`series`/`clock`/`scalars`.
+  //
+  // ⛔ A NAMED LIST HERE MADE THE EDITOR'S TWO HALVES ABLE TO DISAGREE. The
+  // completion source (`completions.js`) walks every non-`_` section, so the day
+  // the manifest gains a SIXTH name-bearing section it would offer those names
+  // while this tokenizer — reading five literals — painted them `tags.invalid`:
+  // the editor promising a name and then underlining it. Both halves now derive
+  // the same way, so a new section lands on both at once, which is what makes
+  // the "offered ⇔ coloured" pin a symmetry rather than a tripwire.
+  //
+  // ⛔ THE ORDER MATCHES `optionFor`'s AND FOR THE SAME REASON: closed-table v2
+  // gives every FUNCTION a `cadence` beside its `args`, so `args` must decide
+  // first or all fifty calls quietly become scalars.
+  const functions = new Set()
+  const scalars = new Set()
+  const columns = new Set()
+  for (const [name, entries] of Object.entries(table || {})) {
+    if (name.startsWith('_') || !entries || typeof entries !== 'object') continue
+    for (const [label, entry] of Object.entries(entries)) {
+      // A colour is for a NAME a member types; a section keyed by symbols
+      // (`operators`) is not one. `KEY_RE` is parse.js's own definition.
+      if (!KEY_RE.test(label) || !entry || typeof entry !== 'object') continue
+      if (Array.isArray(entry.args)) functions.add(label)
+      else if (entry.cadence !== undefined) scalars.add(label)
+      else columns.add(label)
+    }
+  }
   return Object.freeze({
+    // `series` and `clock` stay as the sections declare them: the FOREIGN
+    // tokenizers below make a deliberately narrow claim on `series` alone.
     series: section('series'),
     clock: section('clock'),
-    functions: section('functions'),
-    scalars: section('scalars'),
+    functions: Object.freeze(functions),
+    scalars: Object.freeze(scalars),
+    /** series-kind: `series`, `clock`, and any section shaped like them. */
+    columns: Object.freeze(columns),
     operators: section('operators'),
     // The parser's own literals, kept to the ones the manifest's `_booleans` note
     // says canonicalise (a boolean is a 0/1 number; `null` is not a column).
@@ -136,7 +168,7 @@ function defineFormula(declared, vocab) {
         }
         if (state.lets.has(w)) return 'let'
         if (vocab.functions.has(w)) return 'fn'
-        if (vocab.series.has(w) || vocab.clock.has(w)) return 'series'
+        if (vocab.columns.has(w)) return 'series'
         if (vocab.scalars.has(w)) return 'scalar'
         if (vocab.literals.has(w)) return 'literal'
         if (declared.has(w)) return 'input'

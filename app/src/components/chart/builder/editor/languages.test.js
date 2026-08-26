@@ -91,6 +91,45 @@ describe('the formula dialect', () => {
     expect(FORMULA_VOCAB.scalars.size).toBe(Object.keys(TABLE.scalars).length)
     expect(FORMULA_VOCAB.operators.size).toBe(Object.keys(TABLE.operators).length)
     expect([...FORMULA_VOCAB.literals].sort()).toEqual(['false', 'true'])
+    // `columns` is series-kind read by SHAPE, so it holds `series` ∪ `clock` today
+    // and absorbs a section shaped like them tomorrow.
+    expect([...FORMULA_VOCAB.columns].sort())
+      .toEqual([...new Set([...FORMULA_VOCAB.series, ...FORMULA_VOCAB.clock])].sort())
+  })
+
+  it('⭐ a name-bearing section the manifest gains is COLOURED by shape — not by a list of section names', () => {
+    // ⛔ THE DEFECT THIS CLOSES: `vocabularyOf` read five section names as literals
+    // while `completions.js` walked every section, so a sixth would have been
+    // OFFERED in the popup and painted `tags.invalid` in the same editor.
+    const planted = vocabularyOf({
+      ...TABLE,
+      omens: {
+        nosuchomen: { lookback: 0, yields: 'num', sentence: 'a planted series-kind read' },
+        nosuchcall: { args: ['series', 'int'], argRoles: ['source', 'period'], lookback: 'arg1', sentence: 'a planted call' },
+        nosuchfund: { cadence: 'nightly', yields: 'num', sentence: 'a planted fundamental' },
+      },
+    })
+    const lang = formulaLanguage(undefined, planted)
+    expect(classOf(lang, 'nosuchomen > 10', 'nosuchomen')).toBe('series')
+    expect(classOf(lang, 'nosuchcall(close, 3)', 'nosuchcall')).toBe('fn')
+    expect(classOf(lang, 'nosuchfund > 10', 'nosuchfund')).toBe('scalar')
+    // ⛔ `args` DECIDES BEFORE `cadence` — closed-table v2 gives every function a
+    // cadence, and the other order turns all fifty calls into scalars in silence.
+    const v2 = vocabularyOf({
+      ...TABLE,
+      functions: { ...TABLE.functions, sma: { ...TABLE.functions.sma, cadence: 'nightly' } },
+    })
+    expect(classOf(formulaLanguage(undefined, v2), 'sma(close, 3)', 'sma')).toBe('fn')
+    // CONTROL: without the perturbation the same three names are strangers.
+    const bare = formulaLanguage(undefined, vocabularyOf({ ...TABLE }))
+    for (const name of ['nosuchomen', 'nosuchcall', 'nosuchfund']) {
+      expect(classOf(bare, `${name} > 10`, name), name).toBe('unknown')
+    }
+    // …and a section keyed by SYMBOLS is still not a vocabulary of names.
+    for (const op of Object.keys(TABLE.operators)) {
+      expect(FORMULA_VOCAB.columns.has(op), op).toBe(false)
+      expect(FORMULA_VOCAB.functions.has(op), op).toBe(false)
+    }
   })
 })
 
@@ -224,15 +263,16 @@ describe('the foreign dialects', () => {
       // has no such literals — the hand copy was wrong in BOTH directions at once.
       'TRUE', 'FALSE',
     ]
-    let named = 0
-    for (const src of refused) {
-      const r = parsePcf(src)
-      expect(r.ok, src).toBe(false)
-      expect(r.guard, src).toBe('pcf:name')
-      named += 1
+    // ⚠️ THE GUARD IS THE SHAPE OF THE COLLECTED VERDICTS, NOT A COUNTER. A tally
+    // incremented inside the loop can only fail after an assertion above it has
+    // already failed — it reads as a non-vacuity guard while proving nothing.
+    // Collecting first and asserting on the collection is the real thing.
+    const verdicts = refused.map((src) => ({ src, r: parsePcf(src) }))
+    expect(verdicts.map(({ src, r }) => `${src} → ${r.ok ? 'ok' : r.guard}`))
+      .toEqual(refused.map((src) => `${src} → pcf:name`))
+    for (const { src, r } of verdicts) {
       expect(classOf(lang, src, r.token), `${src} → ${r.token}`).toBe('unknown')
     }
-    expect(named, 'no case reached the by-name branch — this half measured nothing').toBe(refused.length)
   })
 
   it('⛔ pcf: the tokenizer\'s vocabulary IS pcf.js\'s — every word it accepts is read off the module', () => {

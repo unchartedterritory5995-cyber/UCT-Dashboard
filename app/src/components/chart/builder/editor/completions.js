@@ -20,7 +20,7 @@
 // completion is a NAME a member types, and `&&`/`?:`/`u-` are not names. That is
 // `KEY_RE` — parse.js's own definition of a writable name — not a section list.
 
-import { TABLE, KEY_RE } from '../../engine/ast/parse'
+import { TABLE, KEY_RE, LOOKBACK_RE } from '../../engine/ast/parse'
 import { prepareSource } from '../../engine/ast/letPrepass'
 
 const WORD_UNDER_CARET = /[A-Za-z_][A-Za-z0-9_]*/
@@ -33,6 +33,28 @@ function renderSentence(entry) {
   return entry.sentence.replace(/\{(\d+)\}/g, (whole, i) => (roles[Number(i)] !== undefined ? roles[Number(i)] : whole))
 }
 
+/** A `lookback` declaration as a member can read it.
+ *
+ *  ⭐ THE SAME SUBSTITUTION `renderSentence` DOES, ON THE SAME 0-BASED POSITIONS.
+ *  The manifest writes a lookback as a REFERENCE to an argument (`arg1`, and
+ *  `2*arg3` with a multiplier) for 28 of today's 50 functions — `sma` among
+ *  them, the first name anyone types — so printing it verbatim put `lookback
+ *  arg1` in front of a member. `LOOKBACK_RE` is `parse.js`'s own pattern for
+ *  that grammar (`lint.js` uses it under the alias `ARG_REF`, and reads the
+ *  index the same 0-based way at `argNodes[Number(m[2])]`), so this resolves the
+ *  reference with the manifest's own regex and the manifest's own role names.
+ *  A shape it does not recognise — a plain number, anything new — is printed
+ *  as written rather than guessed at. */
+function renderLookback(entry) {
+  const raw = String(entry.lookback)
+  const m = LOOKBACK_RE.exec(raw)
+  if (!m) return raw
+  const roles = Array.isArray(entry.argRoles) ? entry.argRoles : []
+  const role = roles[Number(m[2])]
+  if (role === undefined) return raw
+  return m[1] === undefined ? role : `${m[1]}*${role}`
+}
+
 /** One manifest entry → the option CodeMirror shows for it.
  *
  *  ⛔ THE ORDER OF THESE THREE TESTS IS LOAD-BEARING, AND IT IS ABOUT TO MATTER.
@@ -41,18 +63,13 @@ function renderSentence(entry) {
  *  as fundamentals — offering `sma` as `scalar · nightly`, with nothing refusing.
  *  `args` is what makes a thing callable, so `args` decides first.
  *
- *  ⚠️ `detail` PRINTS `entry.lookback` VERBATIM, which for 28 of today's 50
- *  functions is a reference (`arg1`, `2*arg3`) rather than a number. Reading it
- *  as `lookback period` would mean resolving `argN` against `argRoles`, and the
- *  pattern that does that (`ARG_REF`) is private to `lint.js`. Hand-copying it
- *  to prettify a string is the second authority this file exists to avoid, so
- *  the reference is shown as the manifest writes it. Exporting `ARG_REF` is a
- *  W2a hand-back somebody can take later if the wording is worth it. */
+ *  `detail` resolves the lookback REFERENCE (`renderLookback`) rather than
+ *  printing it verbatim — see there for why and with whose regex. */
 function optionFor(label, entry, section) {
   const info = renderSentence(entry) || (typeof entry.doc === 'string' ? entry.doc : undefined)
   if (Array.isArray(entry.args)) {
     const roles = Array.isArray(entry.argRoles) ? entry.argRoles : entry.args
-    return { label, type: 'function', detail: `(${roles.join(', ')}) · lookback ${entry.lookback}`, info }
+    return { label, type: 'function', detail: `(${roles.join(', ')}) · lookback ${renderLookback(entry)}`, info }
   }
   if (entry.cadence !== undefined) {
     return { label, type: 'property', detail: `scalar · ${entry.cadence}`, info }
@@ -98,19 +115,31 @@ export function inputOptions(inputs) {
  * the right one for a save. So a refused source is offered the one thing it is
  * missing (a trailing `0`) and the SAME grammar is asked again. That supplies a
  * line; it never decides what binds. A source that still refuses binds nothing.
+ *
+ * ⛔⛔ AND THE SCOPE GOES WITH IT. `prepareSource`'s second argument is the
+ * declared-input scope, and its own docblock warns that ABSENT IS NOT EMPTY: a
+ * caller that omits it has the input-shadow gate short-circuited to an empty
+ * set. This module is a caller that KNOWS the inputs — `formulaCompletionSource`
+ * is handed them — so omitting them was asking the grammar a question with the
+ * answer removed. Measured: `let period = 5` beside a declared `period` read
+ * `ok` without the scope and `let:shadow` with it, and the popup offered
+ * `period` TWICE, the second labelled `let` for a binding the save gate refuses.
+ *
+ * @param {string} text the buffer
+ * @param {object} [inputs] the declared-input scope, when the caller knows it
  */
-export function letBindings(text) {
+export function letBindings(text, inputs = undefined) {
   const src = typeof text === 'string' ? text : ''
   if (!src.includes('let')) return []
-  const read = prepareSource(src)
-  const settled = read.ok ? read : prepareSource(`${src}\n0`)
+  const read = prepareSource(src, inputs)
+  const settled = read.ok ? read : prepareSource(`${src}\n0`, inputs)
   if (!settled.ok) return []
   return settled.bindings.map((b) => ({ name: b.name, line: b.line }))
 }
 
 /** Just the names — `letBindings` without the lines. */
-export function letNames(text) {
-  return letBindings(text).map((b) => b.name)
+export function letNames(text, inputs = undefined) {
+  return letBindings(text, inputs).map((b) => b.name)
 }
 
 /**
@@ -131,7 +160,7 @@ export function formulaCompletionSource({ inputs = undefined, table = TABLE } = 
     // the pre-pass's own `bindings[].line`; matching the typed text against the
     // buffer by hand would find a later USE and suppress the wrong one.
     const caretLine = ctx.state.doc.lineAt(ctx.pos).number
-    const lets = letBindings(ctx.state.doc.toString())
+    const lets = letBindings(ctx.state.doc.toString(), inputs)
       .filter((b) => b.line !== caretLine)
       .map((b) => ({ label: b.name, type: 'variable', detail: 'let' }))
     const options = [...fixed, ...lets].filter((o) => o.label.toLowerCase().startsWith(typed))
