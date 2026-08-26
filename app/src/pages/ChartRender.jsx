@@ -48,6 +48,9 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+
+// Comparison-line colours, in order of the ?compare= list (distinct from every house MA colour).
+const COMPARE_COLORS = ['#38bdf8', '#f472b6', '#a3e635']
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
@@ -366,10 +369,26 @@ export default function ChartRender() {
   // `?instances=` lands LAST and as its own merge step. `mergeSettingsOverride`
   // merges `indicatorInstances` by instanceId (never wholesale), so this adds the
   // engine's instances without disturbing anything the settings blob said.
+  // `?compare=SPY,QQQ` (Discord /chart compare:) - up to three symbols drawn the
+  // way the Charts widget draws comparisons: %-rebased lines with their own
+  // coloured labels on the right (StockChart `comparisonSymbols`, scaleMode
+  // 'new'). Replaces any saved comparison wholesale: a bot chart never inherits
+  // whatever the owner last compared on his own screen.
+  const compareParam = sp.get('compare') || ''
+  const compareSyms = useMemo(
+    () => Array.from(new Set(compareParam.split(',').map(s => s.trim().toUpperCase())
+      .filter(s => /^[A-Z0-9.^-]{1,12}$/.test(s)))).slice(0, 3),
+    [compareParam],
+  )
+  const compareOverride = useMemo(() => (compareSyms.length
+    ? { comparisonSymbols: compareSyms.map((sym, i) => ({ sym, color: COMPARE_COLORS[i % COMPARE_COLORS.length], enabled: true, scaleMode: 'new' })) }
+    : null), [compareSyms])
+
   const csOverride = useMemo(() => {
-    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta) return null
+    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta && !compareOverride) return null
     let out = ownerSettings
     if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
+    if (compareOverride) out = mergeSettingsOverride(out || {}, compareOverride)
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {
       // ⚠️ `engineEnabled: true` stood beside this key until B5 Task 4. It was the
@@ -380,7 +399,7 @@ export default function ChartRender() {
       })
     }
     return out
-  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam])
+  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam, compareOverride])
 
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk
@@ -717,6 +736,13 @@ export default function ChartRender() {
         <div style={{ height: 40, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 14, position: 'relative' }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 18 }}>{sym}</span>
           {meta.company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({meta.company})</span>}
+          {compareSyms.length > 0 && (
+            <span data-testid="compare-tag" style={{ marginLeft: 10, fontSize: 13, color: chromeText }}>
+              vs {compareSyms.map((cs, i) => (
+                <span key={cs} style={{ color: COMPARE_COLORS[i % COMPARE_COLORS.length], fontWeight: 600 }}>{i ? ' · ' : ''}{cs}</span>
+              ))}
+            </span>
+          )}
           {/* RAW code ('D'), not 'Daily' - composeScreenshot draws opts.tf
               verbatim, and these two headers sit in the same issue. */}
           <span style={{ marginLeft: 12 }}>{tf}</span>

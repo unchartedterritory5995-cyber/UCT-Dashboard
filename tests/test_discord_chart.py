@@ -1126,7 +1126,7 @@ def test_chart_command_options_expose_mas_and_volume_and_house_description():
     from api.services.discord_interactions import build_chart_command
     cmd = build_chart_command()
     opts = {o["name"]: o for o in cmd["options"]}
-    assert set(opts) == {"ticker", "tf", "mas", "volume", "style", "theme"}
+    assert set(opts) == {"ticker", "tf", "compare", "mas", "volume", "style", "theme"}
     assert {c["value"] for c in opts["mas"]["choices"]} == {"house", "10-20-50", "off"}
     assert opts["volume"]["type"] == 5 and not opts["volume"].get("required")
     assert "EMA 9/20" in cmd["description"] and "10/20/50 SMA" not in cmd["description"]
@@ -1712,3 +1712,63 @@ def test_router_passes_the_context_line_into_the_job_unless_the_flag_is_off(monk
     monkeypatch.setenv("DISCORD_CHART_CONTEXT", "0")
     _post(client, sk, body)
     assert seen.get("context_fn") is None
+
+
+# ── compare: overlay symbols as %-rebased lines ──
+
+def _cmd(**opts):
+    return {"data": {"options": [{"name": k, "value": v} for k, v in opts.items()]}}
+
+
+def test_compare_option_parses_validates_and_rides_every_control():
+    from api.services import discord_interactions as di
+    req = di.parse_chart_command(_cmd(ticker="nvda", compare="spy, $qqq nvda iwm"))
+    assert req.compare == ("SPY", "QQQ", "IWM")                     # upper, $ stripped, base + dupes dropped
+    assert di.parse_chart_command(_cmd(ticker="NVDA", compare="  ")).compare is None
+    assert di.parse_chart_command(_cmd(ticker="NVDA")).compare is None
+    with pytest.raises(di.CommandError):
+        di.parse_chart_command(_cmd(ticker="NVDA", compare="spy qqq iwm dia"))       # more than 3
+    with pytest.raises(di.CommandError):
+        di.parse_chart_command(_cmd(ticker="NVDA", compare="spy y!"))                # not a ticker
+    assert any(o["name"] == "compare" for o in di.build_chart_command()["options"])
+    # every control under a compared chart keeps the comparison
+    rows = di.chart_components(req, dict(di.prefs_mod.DEFAULTS))
+    ids = [c["custom_id"] for row in rows for c in row["components"] if "custom_id" in c]
+    assert ids and all(len(i) <= 100 for i in ids) and len(ids) == len(set(ids))
+    for i in ids:
+        values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+        back = di.parse_component({"data": {"custom_id": i, "values": values}})
+        assert back.ticker == "NVDA" and back.compare == ("SPY", "QQQ", "IWM"), i
+    # ids minted before the compare field (one part shorter) still parse, with no comparison
+    assert di.parse_component({"data": {"custom_id": "c2|NVDA|D|house|1|auto|none|candles|house||t"}}).compare is None
+    assert di.parse_component({"data": {"custom_id": "zoom|c2|NVDA|D|house|1|auto|none|candles|house||", "values": ["1y"]}}).zoom == "1y"
+    # a bad compare field is an unknown button, never a half-parsed chart
+    with pytest.raises(di.CommandError):
+        di.parse_component({"data": {"custom_id": "c2|NVDA|D|house|1|auto|none|candles|house||SPY+bad!|t"}})
+
+
+def test_compare_reaches_the_house_render_the_cache_key_and_the_headline():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p, discord_chart_house as house
+    seen = []
+    def house_fn(ticker, tf, stats, opts):
+        seen.append(dict(opts)); return PNG_MAGIC + b"house"
+    edits = _Edits()
+    assert run_chart_job("1", "t", ChartRequest("CMPA", "D", compare=("SPY", "QQQ")), bars_fn=lambda *a: daily_bars(20),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits, house_fn=house_fn, prefs=dict(p.DEFAULTS)) == "ok"
+    assert seen[-1]["compare"] == ["SPY", "QQQ"]
+    assert edits.calls[-1]["content"] == "CMPA vs SPY/QQQ · Daily"
+    # the plain chart is a different image: no cache collision with the compared one
+    assert run_chart_job("1", "t", ChartRequest("CMPA", "D"), bars_fn=lambda *a: daily_bars(20),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits, house_fn=house_fn, prefs=dict(p.DEFAULTS)) == "ok"
+    assert len(seen) == 2 and not seen[-1].get("compare")
+    assert edits.calls[-1]["content"] == "CMPA · Daily"
+    # a breadth symbol never carries a comparison, whatever the request says
+    assert run_chart_job("1", "t", ChartRequest("UCTA5", "D", daily_only=True, display="UCTA5", breadth_name="UCTA5", compare=("SPY",)),
+                         bars_fn=lambda *a: daily_bars(20), render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edits,
+                         house_fn=house_fn, prefs=dict(p.DEFAULTS)) == "ok"
+    assert not seen[-1].get("compare") and edits.calls[-1]["content"] == "UCTA5 · Daily"
+    # and the page URL carries it
+    url = house.build_render_url("NVDA", "D", None, base_url="http://r", token="x", options={"compare": ["spy", "QQQ"]})
+    assert "compare=SPY" in url and "QQQ" in url
+    assert "compare=" not in house.build_render_url("NVDA", "D", None, base_url="http://r", token="x", options={})

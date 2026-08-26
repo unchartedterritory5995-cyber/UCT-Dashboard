@@ -118,6 +118,7 @@ class ChartRequest:
     zoom: str | None = None      # per-call visible window (prefs key)
     indicators: str | None = None  # per-call lower-pane indicators (prefs key)
     to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
+    compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -136,6 +137,30 @@ def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, bo
         return True
     except Exception:
         return False
+
+
+COMPARE_MAX = 3
+
+
+def parse_compare(raw, base: str) -> tuple | None:
+    """`compare:` option text -> up to COMPARE_MAX upper-case symbols. Accepts
+    spaces, commas, plus signs and a leading $; drops the base symbol and
+    duplicates; a token that is not a ticker is a CommandError."""
+    if raw is None:
+        return None
+    syms: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(raw).strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"compare: '{tok}' is not a ticker (letters/digits, e.g. SPY QQQ).")
+        if tok == base or tok in syms:
+            continue
+        syms.append(tok)
+    if len(syms) > COMPARE_MAX:
+        raise CommandError(f"compare: up to {COMPARE_MAX} symbols.")
+    return tuple(syms) or None
 
 
 def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartRequest:
@@ -162,7 +187,8 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
     if theme is not None and str(theme) not in prefs_mod.THEME_CHOICES:
         raise CommandError("theme must be one of: " + ", ".join(prefs_mod.THEME_CHOICES) + ".")
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=volume,
-                        style=None if style is None else str(style), theme=None if theme is None else str(theme))
+                        style=None if style is None else str(style), theme=None if theme is None else str(theme),
+                        compare=parse_compare(opts.get("compare"), ticker))
 
 
 CHART_COMMAND_NAMES = ("chart", "c")
@@ -217,6 +243,7 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
         "style": req.style if req.style is not None else p["style"],
         "theme": req.theme if req.theme is not None else p["theme"],
         "to": req.to or "",
+        "cmp": "+".join(req.compare) if req.compare else "",
     }
 
 
@@ -225,19 +252,25 @@ def _encode(st: dict, tag: str = "") -> str:
     # is ignored by the parser: Discord requires every custom_id in a message to
     # be unique, and two controls can legitimately point at the same state (the
     # active timeframe button and a disabled "Later" both mean "this chart").
+    # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
+    # minted before it (one field shorter) still parse - see parse_component.
     return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
-                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", tag])
+                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
 
 
 def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
     st = {"ticker": ticker, "tf": tf, "mas": mas, "vol": bool(volume),
           "zoom": rest.get("zoom", "auto"), "ind": rest.get("ind", "none"),
-          "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", "")}
+          "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", ""),
+          "cmp": rest.get("cmp", "")}
     return _encode(st)
 
 
 def _request_from_state(parts: list) -> ChartRequest:
-    _, ticker, tf, mas, vol, zoom, ind, style, theme, to = parts
+    """10 fields (ids minted before the compare overlay) or 11 (with it)."""
+    if len(parts) == 10:
+        parts = list(parts) + [""]
+    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts
     ticker = ticker.strip().upper()
     ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1")
           and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
@@ -245,8 +278,12 @@ def _request_from_state(parts: list) -> ChartRequest:
           and (to == "" or _DATE_RE.match(to)))
     if not ok:
         raise CommandError("Unknown button.")
+    try:
+        compare = parse_compare(cmp, ticker) if cmp else None
+    except CommandError:
+        raise CommandError("Unknown button.")
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"), zoom=zoom, indicators=ind,
-                        style=style, theme=theme, to=to or None)
+                        style=style, theme=theme, to=to or None, compare=compare)
 
 
 def component_kind(interaction: dict) -> str:
@@ -275,10 +312,10 @@ def parse_component(interaction: dict) -> ChartRequest:
         if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
             raise CommandError("Unknown button.")
         return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
-    if head == STATE_PREFIX and len(parts) == 11:
-        return _request_from_state(parts[:10])          # parts[10] = the control tag
-    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) == 12:
-        req = _request_from_state(parts[1:11])
+    if head == STATE_PREFIX and len(parts) in (11, 12):
+        return _request_from_state(parts[:-1])          # the last part = the control tag
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) in (12, 13):
+        req = _request_from_state(parts[1:-1])
         values = data.get("values") or []
         value = str(values[0]) if values else ""
         if head == SELECT_ZOOM:
@@ -427,6 +464,8 @@ def build_chart_command() -> dict:
             {"name": "tf", "description": "Timeframe (default: your /chartsettings, else Daily)", "type": 3,
              "required": False,
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
+            {"name": "compare", "description": "Overlay up to 3 symbols as % lines, e.g. SPY QQQ", "type": 3,
+             "required": False},
             {"name": "mas", "description": "Moving averages for THIS chart only", "type": 3, "required": False,
              "choices": [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]},
             {"name": "volume", "description": "Volume pane for THIS chart only (True/False)", "type": 5,
@@ -605,11 +644,13 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     options = prefs_mod.render_options(prefs, req.tf)
     if req.to:
         options["to"] = req.to
-    key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
+    compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
+    key = (f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
+           + (":vs:" + "+".join(compare) if compare else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
-    headline = (req.display or req.ticker) + f" · {label}"
+    headline = (req.display or req.ticker) + (f" vs {'/'.join(compare)}" if compare else "") + f" · {label}"
 
     def _context_follow_up():
         # The context line (next earnings, implied move, today's catalyst) is
@@ -673,6 +714,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                     house_opts = dict(options)
                     if req.breadth_name:
                         house_opts["breadth"] = req.breadth_name
+                    if compare:
+                        house_opts["compare"] = list(compare)   # %-rebased overlay lines on the page
                     if quote_fn is not None:
                         # The live pre/post-market print -> the orange Pre/Post chip on the
                         # right axis (never a candle). Best-effort: no quote, no chip.
