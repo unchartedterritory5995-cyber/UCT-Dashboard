@@ -1156,3 +1156,16 @@ def test_job_retries_a_failed_bars_fetch_once_before_saying_no_bars(monkeypatch)
     out = di.run_chart_job("1", "tok", di.ChartRequest("ZZZZ", "30"),
                            bars_fn=lambda t, tf, n: daily if tf == "D" else None, render_fn=render_fn, edit_fn=edit_fn)
     assert out == "no_bars" and "try again in a minute" in edits[-1][0]
+
+
+def test_house_ready_js_refuses_until_the_page_has_bars():
+    """8/25: two 5-minute renders were captured while their bars fetch was in
+    flight (7-20 s cold) - header + watermark satisfied the colour test and the
+    page's held-still flag is true of an empty chart. The bars guard must come
+    BEFORE either ready branch."""
+    from api.services.discord_chart_house import house_ready_js, HOUSE_READY_JS
+    js = house_ready_js("NVDA")
+    assert "if (window.__chartBarsReady !== true) return false;" in js
+    assert js.index("__chartBarsReady") < js.index("__chartReady === true")
+    assert js.index("__chartBarsReady") < js.index("getImageData")
+    assert "__chartBarsReady === true" in HOUSE_READY_JS

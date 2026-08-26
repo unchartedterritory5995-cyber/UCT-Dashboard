@@ -32,7 +32,10 @@ _VIEWPORT_PAD = 40
 # ChartRender sets window.__chartReady only once the canvases inside
 # #chart-export have held still (never before 3.5 s) — a far better "done"
 # than "a canvas exists", which is true the instant the widget mounts.
-HOUSE_READY_JS = "() => window.__chartReady === true"
+# The page's own held-still flag, gated on its bars-landed flag: an EMPTY
+# chart holds still too (5-minute renders shipped blank twice on 2026-08-25
+# while the 5,000-bar fetch was still in flight).
+HOUSE_READY_JS = "() => window.__chartBarsReady === true && window.__chartReady === true"
 # A sized-but-EMPTY canvas still passes every DOM predicate (bars late after a
 # deploy, empty series): judge the pixels like the Substack harness does —
 # grayscale std-dev of the chart body with the chrome bands dropped. Measured
@@ -48,11 +51,16 @@ def house_ready_js(sym: str) -> str:
     variety (a blank/uniform canvas yields 1-2 colours; candles, MAs and grid
     yield dozens), and that downsampled signature is unchanged across two
     samples >=250 ms apart. `window.__chartReady` (the page's own held-still
-    flag) is accepted too, whichever comes first. Measured 2026-08-25 on the
-    live page: drawn at ~1.2 s, stable at ~1.5 s, vs 4.2 s for the flag."""
+    flag) is accepted too, whichever comes first - but neither before the page's
+    `window.__chartBarsReady` says StockChart has its bars. Measured 2026-08-25
+    on the live page: drawn at ~1.2 s, stable at ~1.5 s, vs 4.2 s for the flag."""
     sym_js = repr(str(sym).upper())
     return (
         "() => {"
+        # No bars, not ready - whatever the pixels say. The header + watermark
+        # alone satisfy the colour-variety test below, and the page's held-still
+        # flag is true of an empty chart, so this guard comes before both.
+        " if (window.__chartBarsReady !== true) return false;"
         " if (window.__chartReady === true) return true;"
         " const e = document.querySelector('#chart-export'); if (!e) return false;"
         f" if (!(e.innerText || '').toUpperCase().includes({sym_js})) return false;"

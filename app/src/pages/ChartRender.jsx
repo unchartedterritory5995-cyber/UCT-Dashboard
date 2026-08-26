@@ -28,6 +28,9 @@
 //      settings AND (in fixed-bars mode) the bar fixture have landed, or a
 //      screenshot can be taken mid-theme and the gate goes intermittently red.
 //   2. `#chart-export` — the harness screenshots that ELEMENT, not the page.
+//      (`window.__chartBarsReady` — set by StockChart's first-bars latch — is
+//      the Discord renderer's precondition for BOTH of its ready branches: a
+//      chart with no bars holds still just like a finished one.)
 //   3. `?fixedbars=` + `?indicators=` + `?instances=` + `?userdefs=` — see the
 //      param block below.
 //      Live bars make two runs differ, which is the whole reason the repo had no
@@ -43,7 +46,7 @@
 // the route resolves exactly as before, which is what keeps the Sunday Scans /
 // Substack renderer out of the blast radius.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../components/StockChart'
 import { mergeSettingsOverride } from '../components/chart/chartDefaults'
@@ -451,6 +454,23 @@ export default function ChartRender() {
   //
   // Reading the canvas does not change what is rendered: `getImageData` is a
   // read, and nothing here touches chart state.
+  // ── `window.__chartBarsReady` — did the chart get its BARS? ───────────────
+  // `__chartReady` means "pixels held still"; an EMPTY chart holds still too,
+  // and the Discord renderer's canvas signature is satisfied by the header +
+  // watermark alone. Twice on 2026-08-25 a 5-minute render was captured while
+  // its 5,000-bar fetch was still in flight (7-20 s cold) and shipped blank.
+  // StockChart's own first-bars latch (`onBarsReady`, once per mount, also on
+  // a fatal error so the pixel judge still gets its turn) flips this; the
+  // renderer refuses to call a frame ready until it is true.
+  // Reset DURING render, not in an effect: a child's mount effect runs before
+  // the parent's, so an effect here would wipe a latch StockChart had already
+  // flipped. The write is idempotent per (sym, tf) and this page is a one-shot
+  // export, so the render-time side effect is the correct order, not a shortcut.
+  const barsKey = `${sym}|${tf}`
+  const barsKeyRef = useRef(null)
+  if (barsKeyRef.current !== barsKey) { barsKeyRef.current = barsKey; window.__chartBarsReady = false }
+  const onBarsReady = () => { window.__chartBarsReady = true }
+
   useEffect(() => {
     window.__chartReady = false
     window.__chartReadyMs = null
@@ -678,6 +698,7 @@ export default function ChartRender() {
             height={`${chartH}px`}
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
+            onBarsReady={onBarsReady}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
             barsOverride={fixtureBars}
