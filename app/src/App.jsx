@@ -10,6 +10,7 @@ import { SWRConfig } from 'swr'
 // retry that hard-reloads the page instead of hanging on a missing chunk.
 import lazy from './utils/lazyWithRetry'
 import { COMING_SOON } from './utils/comingSoon'
+import { isDiscordLaunch } from './utils/discordLaunch'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
@@ -219,6 +220,11 @@ function OptionsFlowRoute() {
   return <OptionsFlow />
 }
 
+// A Discord Activity launch lands on "/" with Discord's own parameters (see
+// utils/discordLaunch.js). Decided once at boot: the root then IS the
+// interactive chart, and the intro film never plays inside Discord's frame.
+const DISCORD_LAUNCH = typeof window !== 'undefined' && isDiscordLaunch(window.location.search)
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -228,7 +234,7 @@ export default function App() {
         {/* Cinematic intro overlay — plays on page load for the APP, but never
             on public marketing routes: a cold visitor clicking through to the
             landing page must see it immediately, not a 9-second brand film. */}
-        {![
+        {!DISCORD_LAUNCH && ![
           '/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy',
           '/r/chart', '/r/activity', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets',
           '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ',
@@ -257,7 +263,9 @@ export default function App() {
                 returns here the moment VITE_COMING_SOON is off). */}
             <Route
               path="/"
-              element={<PublicOnly>{COMING_SOON ? <ComingSoon /> : <Landing />}</PublicOnly>}
+              element={DISCORD_LAUNCH
+                ? <DiscordActivity />
+                : <PublicOnly>{COMING_SOON ? <ComingSoon /> : <Landing />}</PublicOnly>}
             />
             {/* Always-public marketing landing page — reachable from the
                 in-app logo even while logged in (unlike "/", which redirects

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChartPane from '../components/chart/pane/ChartPane'
+import { launchContext } from '../utils/discordLaunch'
 
 // ── /r/activity — the interactive chart INSIDE Discord ──────────────────────
 //
@@ -24,15 +25,7 @@ const LAST_SYM_KEY = 'uct.activity.sym'
 const DEFAULT_SYM = 'SPY'
 const TF_CODES = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
 
-export function launchContext(search) {
-  const sp = new URLSearchParams(search || '')
-  return {
-    inDiscord: sp.has('frame_id'),
-    channelId: sp.get('channel_id') || '',
-    guildId: sp.get('guild_id') || '',
-    instanceId: sp.get('instance_id') || '',
-  }
-}
+export { launchContext }
 
 function readLastSym() {
   try { return (localStorage.getItem(LAST_SYM_KEY) || '').toUpperCase() || null } catch { return null }
