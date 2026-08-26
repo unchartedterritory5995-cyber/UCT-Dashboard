@@ -21,11 +21,39 @@
 //                  binding (both DERIVED from the manifest, never listed here)
 //                  or like a declared input
 //   let:undefined  a binding used before it is bound, or bound to itself
-// ⚠️ THE EXTENSION IS LOAD-BEARING, not style. `tests/test_scan_definition.py`
-// boots these modules in RAW NODE (`await import(pathToFileURL(…))`), where an
-// extensionless specifier is `ERR_MODULE_NOT_FOUND` rather than a resolution —
-// and this module is now one hop from `pcf.js`, the one read door a lane would
-// boot to check a stored `compute.source` across lanes.
+//
+// ⛔⛔ THE ONE REAL COST, NAMED: A PARSER OFFSET NO LONGER INDEXES THE MEMBER'S
+// TEXT. `parseFormula` sees the INLINED string, so jsep's character offset — the
+// part `parse.js` keeps unedited *because* "a rewritten one loses the character
+// offset the text box needs", and the part `FormulaField.jsx` calls "the only
+// part a user can act on" — counts characters nobody typed. Measured:
+//
+//     let fast = ema(close, 12)        the typo `(` is at character 64
+//     let slow = ema(close, 26)        the door says "Expected ) at character 36"
+//     fast - slow(                     36 indexes the inlined string
+//
+// This is inherent: substitution changes the length of the text before the
+// error, so no offset survives it. ⚠️ It is PINNED by a case, not just written
+// here, so it stays a known fact rather than a surprise.
+//
+// ⭐ WHAT IS RECOVERABLE IS THE **LINE**, EXACTLY — and the result carries it as
+// `lineOffset`: `authorLine = inlinedLine + lineOffset`. That identity holds
+// because the pre-pass removes only a PREFIX of whole lines (the bindings) and
+// then preserves every line of the expression region, blank ones included.
+// ⛔ THE BLANK LINES ARE KEPT FOR THIS REASON ALONE. Dropping them was free and
+// invisible to the parser, and it broke the identity for any expression with a
+// gap in it — which is precisely when a member most needs the mark in the right
+// place. A CALLER PLACING A DIAGNOSTIC ON A `let` SOURCE MUST NOT USE A RAW
+// PARSER OFFSET: map the offset to a line in `source`, add `lineOffset`, and
+// mark the whole line — or mark the expression region as a whole.
+//
+// ⚠️ THE `.js` EXTENSION BELOW IS LOAD-BEARING, not style. `tools/ast_conformance.py`
+// boots these modules in RAW NODE and its `_JS_JSON_HOOK` shims `.json` ONLY —
+// it registers no `resolve` hook, so an extensionless specifier there is
+// `ERR_MODULE_NOT_FOUND` rather than a resolution, and this module is one hop
+// from `pcf.js`. ⚰️ SAID `tests/test_scan_definition.py` was the exposure — it
+// is not: that harness's `_JS_HOOK` DOES carry a `resolve` that appends `.js`
+// (reviewer, fix round 1). The extension is still required; the witness moved.
 import { TABLE, KEY_RE, RECURRENCE_BINDINGS } from './parse.js'
 
 export const LET_GUARDS = Object.freeze(['let:syntax', 'let:shadow', 'let:undefined'])
@@ -55,6 +83,14 @@ const IDENT_RE = /[A-Za-z_][A-Za-z0-9_]*/g
  *  landing tomorrow reserves `time` and `barindex` the day it lands with no
  *  edit here. A hand-list of four section names would be a second authority
  *  over "what names are taken".
+ *
+ *  ⛔ AND THE `_` TEST IS LOAD-BEARING, NOT TIDINESS. The `_`-prefixed keys are
+ *  not all prose: `_functions_excluded` and `_scalars_excluded` are OBJECTS
+ *  whose keys are the names this table deliberately does NOT compute. Without
+ *  the prefix test they would be reserved too — and a member would be refused
+ *  `let:shadow` for naming a binding after something the engine cannot compute
+ *  at all, which is the exact opposite of what the gate is for. A case pins
+ *  that an excluded name is still a legal binding.
  *
  *  ⛔ AND A RECURRENCE BINDING IS RESERVED TOO — the same line `interpret.js`
  *  already carries for inputs, for the same reason. `self` is in no section, so
@@ -102,23 +138,58 @@ function substitute(text, name, expr) {
  *        that does not know the inputs (the text box mid-type) must not have a
  *        binding refused for shadowing a knob it cannot see. The sheet's save
  *        gate and W1a's diagnostics hand it in; `readFormulaSource` does not.
- * @returns {{ok: true, source: string, bindings: {name: string, expr: string, line: number}[]}
+ *
+ *        ⛔⛔ SO A CALLER THAT PASSES NO SCOPE GETS NO INPUT-SHADOW PROTECTION,
+ *        AND THE OUTCOME IS A STORED DEFECT, NOT A MISSED WARNING. Because
+ *        `readFormulaSource` passes none, `defSchema.validateAstCompute` ACCEPTS
+ *        a document that declares an input `period` and also says
+ *        `let period = 5`: the pre-pass rewrites every `period` to `(5)`, the
+ *        tree agrees with the source, rule 2 is satisfied, and the document
+ *        SAVES WITH ITS DECLARED KNOB DOING NOTHING. Turning the knob then
+ *        changes nothing and the definition looks broken for no visible reason.
+ *        The save gate (W1b.5) is the place that knows the inputs and MUST hand
+ *        them in; that wiring is the gate, not this default.
+ * @returns {{ok: true, source: string, bindings: {name: string, expr: string, line: number}[],
+ *             lineOffset: number}
  *          | {ok: false, source: null, bindings: [], guard: string, error: string,
  *             line: number, column: number, token: string}}
+ *
+ *        `bindings[].expr` is the INLINED text — what actually replaced the
+ *        name, and the only version that hands back to the parser as the same
+ *        tree. ⚠️ The author's own words are not lost and need no second field:
+ *        `bindings[].line` is the line of `source` they are on, so a caller
+ *        that wants `let line = fast - slow` reads it off the member's text.
+ *
+ *        `lineOffset` maps a position in the returned `source` back to the
+ *        member's: `authorLine = inlinedLine + lineOffset`. It is 0 whenever the
+ *        source is returned verbatim. See the header for what is NOT mappable.
  */
 export function prepareSource(source, inputs = undefined) {
   // A non-string is the PARSER's refusal to name, not this one's: handing the
   // empty string on keeps `canonicalise:empty` the message a caller sees, which
   // is byte-identical to what `parseFormula` said before this door existed.
-  if (typeof source !== 'string') return { ok: true, source: '', bindings: [] }
+  if (typeof source !== 'string') return { ok: true, source: '', bindings: [], lineOffset: 0 }
 
   const lines = source.split('\n')
   const lets = []
   const exprLines = []
+  // The member's line number of the FIRST expression line, minus one. Once the
+  // expression has started EVERY line joins it, blank ones included, so
+  // `authorLine = inlinedLine + lineOffset` holds for the whole region.
+  let lineOffset = 0
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i]
-    if (raw.trim() === '') continue
-    if (!LET_LINE_RE.test(raw)) { exprLines.push(raw); continue }
+    const started = exprLines.length > 0
+    // ⛔ BLANK LINES ARE SKIPPED ONLY *ABOVE* THE EXPRESSION. Inside it they are
+    // kept, or a gap in the member's formula silently slides every line below it
+    // and `lineOffset` stops being a mapping. Above it they cost nothing: the
+    // offset already counts them.
+    if (raw.trim() === '' && !started) continue
+    if (!LET_LINE_RE.test(raw)) {
+      if (!started) lineOffset = i
+      exprLines.push(raw)
+      continue
+    }
     const line = i + 1
     // ⭐ POSITION FIRST, SHAPE SECOND. A `let` below the expression is refused
     // for being below it whether or not the line itself is well formed — the
@@ -149,7 +220,9 @@ export function prepareSource(source, inputs = undefined) {
   // ⭐ THE NO-`let` PATH RETURNS THE SOURCE ITSELF, before any of the work
   // below. Every formula this product has ever saved takes it, so the pre-pass
   // is invisible to all of them.
-  if (!lets.length) return { ok: true, source, bindings: [] }
+  // `lineOffset: 0` because `source` IS the member's text — every position in it
+  // is already theirs, and that is the claim, not an absence of one.
+  if (!lets.length) return { ok: true, source, bindings: [], lineOffset: 0 }
 
   const declared = inputs && typeof inputs === 'object' ? new Set(Object.keys(inputs)) : new Set()
   const names = lets.map((b) => b.name)
@@ -196,5 +269,5 @@ export function prepareSource(source, inputs = undefined) {
     bindings.push({ name: b.name, expr: inlined, line: b.line })
   }
   for (const b of bindings) out = substitute(out, b.name, b.expr)
-  return { ok: true, source: out, bindings }
+  return { ok: true, source: out, bindings, lineOffset }
 }

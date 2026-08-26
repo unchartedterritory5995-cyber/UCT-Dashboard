@@ -24,7 +24,8 @@ describe('let bindings are SUGAR — the tree and the hash are the hand-inlined 
   })
 
   it('a source with no `let` is returned UNTOUCHED — invisible to every formula ever saved', () => {
-    expect(prepareSource('sma(close, 20)')).toEqual({ ok: true, source: 'sma(close, 20)', bindings: [] })
+    expect(prepareSource('sma(close, 20)'))
+      .toEqual({ ok: true, source: 'sma(close, 20)', bindings: [], lineOffset: 0 })
   })
 
   it('substitution is whole-identifier: `fast` never touches `fastest`', () => {
@@ -114,9 +115,76 @@ describe('let bindings are SUGAR — the tree and the hash are the hand-inlined 
 
   it('NEVER THROWS on a non-string — the empty source is the PARSER\'s refusal to name, not this one\'s', () => {
     for (const junk of [null, undefined, 42, {}, []]) {
-      expect(prepareSource(junk)).toEqual({ ok: true, source: '', bindings: [] })
+      expect(prepareSource(junk)).toEqual({ ok: true, source: '', bindings: [], lineOffset: 0 })
     }
     expect(readFormulaSource(null).result).toMatchObject({ ok: false, guard: 'canonicalise:empty' })
+  })
+
+  it('⛔ an EXCLUDED name is still a legal binding — the `_` prefix test is not tidiness', () => {
+    // `_functions_excluded` and `_scalars_excluded` are OBJECTS, not prose.
+    // Without the prefix test their ~107 keys would be reserved, and a member
+    // would be refused `let:shadow` for naming a binding after something this
+    // engine cannot compute at all — the exact opposite of the gate's purpose.
+    const live = new Set(Object.keys(TABLE)
+      .filter((k) => !k.startsWith('_') && TABLE[k] && typeof TABLE[k] === 'object')
+      .flatMap((k) => Object.keys(TABLE[k])))
+    // ⛔ DERIVED, and it must be a name the live sections do NOT also declare —
+    // W2a is promoting excluded names into `functions` as it lands the clock
+    // section, so a typed fixture here would rot into a vacuous pass.
+    const excluded = ['_functions_excluded', '_scalars_excluded']
+      .flatMap((k) => Object.keys(TABLE[k] || {}))
+      .filter((n) => KEY_RE.test(n) && !live.has(n))
+    expect(excluded.length, 'no excluded name is available — this case measured nothing')
+      .toBeGreaterThan(10)
+    for (const name of excluded.slice(0, 6)) {
+      expect(prepareSource(`let ${name} = 1\n${name}`).ok, `${name} is excluded, so it is free`).toBe(true)
+    }
+  })
+})
+
+describe('⛔⛔ THE ONE REAL COST — a parser offset stops indexing the member\'s text', () => {
+  const TYPO = 'let fast = ema(close, 12)\nlet slow = ema(close, 26)\nfast - slow('
+
+  it('the reported character indexes the INLINED string, and corresponds to nothing typed', () => {
+    const authored = TYPO.lastIndexOf('(')            // the `(` the member actually mistyped
+    expect(authored, 'the fixture itself').toBe(63)   // 0-based ⇒ "character 64"
+    const { result } = readFormulaSource(TYPO)
+    expect(result).toMatchObject({ ok: false, guard: 'parser' })
+    const reported = Number(/character (\d+)/.exec(result.error)[1])
+    // ⚠️ PINNED AS A KNOWN FACT, NOT ASSERTED AS CORRECT. It is inherent:
+    // substitution changes the length of the text before the error, so no
+    // offset survives it. The fix is `lineOffset` below, plus the header's
+    // instruction that a caller must not place a mark from a raw offset.
+    expect(reported, 'the offset no longer points at the typo').not.toBe(authored)
+    expect(reported, 'it indexes the inlined text').toBeLessThanOrEqual(prepareSource(TYPO).source.length)
+  })
+
+  it('⭐ the LINE is exactly recoverable: authorLine = inlinedLine + lineOffset', () => {
+    expect(prepareSource(TYPO).lineOffset, 'two `let` lines came off the top').toBe(2)
+    // inlined line 1 is the member's line 3 — the line the typo is on
+    expect(prepareSource(TYPO).source.split('\n').length).toBe(1)
+    expect(TYPO.split('\n')[1 + 2 - 1]).toBe('fast - slow(')
+  })
+
+  it('⛔ a BLANK LINE INSIDE the expression is KEPT, or the mapping is a lie', () => {
+    const pre = prepareSource('let a = 2\na +\n\n1')
+    expect(pre.source, 'the gap survives').toBe('(2) +\n\n1')
+    expect(pre.lineOffset).toBe(1)
+    const authorLines = 'let a = 2\na +\n\n1'.split('\n')
+    // every inlined line maps back onto the member's own line, all the way down
+    pre.source.split('\n').forEach((_, idx) => {
+      expect(authorLines[idx + pre.lineOffset], `inlined line ${idx + 1}`).toBeDefined()
+    })
+    expect(authorLines[0 + pre.lineOffset]).toBe('a +')
+    expect(authorLines[2 + pre.lineOffset]).toBe('1')
+  })
+
+  it('blank lines ABOVE the expression cost nothing — the offset already counts them', () => {
+    const pre = prepareSource('\n\nlet a = 2\n\na + 1')
+    expect(pre.ok, pre.error).toBe(true)
+    expect(pre.source).toBe('(2) + 1')
+    expect(pre.lineOffset, 'the expression is the member\'s line 5').toBe(4)
+    expect('\n\nlet a = 2\n\na + 1'.split('\n')[pre.lineOffset]).toBe('a + 1')
   })
 })
 
@@ -176,6 +244,41 @@ describe('HB-1 — the ONE read door applies the pre-pass, so `let` reaches the 
     const { result } = readFormulaSource('let close = 1\nclose')
     expect(result).toMatchObject({ ok: false, guard: 'let:shadow' })
     expect(result.error, 'and the door reports the refusing gate\'s own sentence').toMatch(/close/)
+  })
+
+  it('the EXPLICIT-dialect path pre-passes too — `FormulaField` names its dialect and must not skip the gate', () => {
+    // `FormulaField.jsx` calls `readFormulaSource(source, dialect)`. That path
+    // bypasses `detectDialect` entirely, so it would bypass the pre-pass with it
+    // if the hook lived in the detector instead of in the READER.
+    const { dialect, result } = readFormulaSource(LET_MACD, 'native')
+    expect(dialect).toBe('native')
+    expect(result.ok, result.error).toBe(true)
+    expect(astHash(result.ast)).toBe(astHash(parseFormula(HAND).ast))
+    expect(readFormulaSource('let close = 1\nclose', 'native').result)
+      .toMatchObject({ ok: false, guard: 'let:shadow' })
+  })
+
+  it('⛔⛔ NO SCOPE AT THE DOOR ⇒ a declared input can be SHADOWED INTO INERTNESS, and the schema accepts it', () => {
+    // The cost of `readFormulaSource` passing no input scope, stated as a fact
+    // rather than a worry: this document SAVES, and its `period` knob does
+    // nothing, because the pre-pass rewrote every `period` to `(5)`.
+    // ⛔ W1b.5's save gate is what must hand `declaredInputs(def)` in.
+    const src = 'let period = 5\nsma(close, period)'
+    expect(prepareSource(src, { period: true }).ok, 'WITH the scope it refuses').toBe(false)
+    const { result } = readFormulaSource(src)
+    expect(result.ok, 'but the door has no scope, so it parses').toBe(true)
+    const ast = result.ast
+    const r = validateDefinition({
+      schemaVersion: 1, id: 'u_0123456789ab', version: 1,
+      compute: { kind: 'ast', fn: astHash(ast), rev: 1, ast, source: src },
+      meta: { name: 'Inert knob', tier: 'premium', repaint: 'non-repainting', freshness: 'live' },
+      placement: { target: 'pane' },
+      inputs: [{ key: 'period', type: 'int', label: 'Length', default: 20, min: 2, max: 200 }],
+      plots: [{ key: 'value', style: 'line', color: '#c9a84c' }],
+    })
+    expect(r.ok, 'TODAY the schema accepts it — the gate lives at the save door, not here').toBe(true)
+    expect(astHash(ast), 'and the stored tree has no `period` in it at all')
+      .toBe(astHash(parseFormula('sma(close, (5))').ast))
   })
 
   it('a source with no `let` reads BYTE-IDENTICALLY to parseFormula — the door gained nothing to break', () => {
