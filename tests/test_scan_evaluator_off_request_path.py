@@ -75,7 +75,8 @@ _API = _ROOT / "api"
 
 #: The module whose entry points must be unreachable, and the entry points.
 _SUBJECT = "api.services.screener.scan_evaluator"
-_ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep")
+_ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep",
+                 "live_sweep_job")
 
 #: The subject's OTHER public functions — the ones a request may name, because
 #: none of them touches the universe, the bars store or the screener snapshot.
@@ -109,9 +110,23 @@ _ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep
 #:                      `live_tier.sanity_reason`, which is arithmetic over two
 #:                      dicts. O(bars) for ONE symbol, O(1) in symbols — which is
 #:                      what this partition is about.
+#:   live_enabled     — `os.environ.get("SCAN_LIVE_SWEEP_ENABLED")`, read per call
+#:                      so a rollback is unsetting a variable rather than a deploy.
+#:   live_interval_s  — `os.environ.get("SCAN_LIVE_INTERVAL_S")` with a floor and a
+#:                      fallback. Arithmetic over one string.
+#:   note_demand      — a delegate onto `scan_store.note_demand`: a bounded
+#:                      (2,000-entry) in-memory dict write behind a `threading.Lock`
+#:                      held for the length of the write. No store, no universe.
+#:                      ⚠️ A ROUTER MUST STILL NOT CALL IT HERE — the import rail
+#:                      above forbids a router importing ANYTHING from this module,
+#:                      so W4a's run-now door calls `scan_store.note_demand`
+#:                      directly. This name exists for the lane contract and for
+#:                      the sweep's own use, and it is classified rather than
+#:                      entry-pointed because reaching it costs a request nothing.
 _OFF_SWEEP_READS = ("cadence_ceiling", "expected_session", "enabled",
                     "market_open_et", "sweep_deadline", "previous_session",
-                    "live_bars_for")
+                    "live_bars_for", "live_enabled", "live_interval_s",
+                    "note_demand")
 
 
 # ═══ the module index, DERIVED from the filesystem ══════════════════════════
@@ -561,6 +576,14 @@ def test_the_ONLY_production_caller_of_the_sweep_is_the_SCHEDULER():
                     and full.rsplit(".", 1)[-1] in _ENTRY_POINTS):
                 rel = path.relative_to(_ROOT).as_posix()
                 sites.add(f"{rel}::{enclosing.get(id(call), '<module>')}")
+    # ⚠️ RED ON THIS BRANCH, AND NOT THIS LANE'S TO CLEAR. `scan_run.py::_run_job`
+    # (lane W4a's run-now pool worker) calls `evaluate_one(mode='on-demand')`, so
+    # there are TWO production call sites today and this assertion names the second
+    # one. W4b.3 left it exactly as it found it: widening the expected set is a
+    # RULING about whether the on-demand pool counts as "the scheduler", and the
+    # contract assigns that to W4a plus the controller. Editing it here to go green
+    # would be this rail's own failure mode — a census that grows to fit whatever
+    # it finds.
     assert sites == {"api/main.py::_run_scan_sweep"}, (
         f"the sweep's production call sites are {sorted(sites)} — exactly one is "
         "expected, and it is the scheduler job")
