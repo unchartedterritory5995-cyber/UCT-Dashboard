@@ -1,0 +1,53 @@
+//@version=5
+indicator("VCP Tightness Score [0-100]", shorttitle="VCP Tightness", overlay=false)
+
+// --- Inputs ---
+len = input.int(5, title="Tightness Lookback (Bars)", minval=2, tooltip="Bars to measure the spread (e.g., 5).")
+adr_len = input.int(20, title="ADR Lookback (Bars)", minval=1, tooltip="Bars to calculate Average Range %.")
+baseline = input.int(50, title="Historical Baseline (Bars)", minval=10, tooltip="Window to normalize the 0-100 score.")
+
+// --- Calculation ---
+// 1. Calculate Average Range % (ADR%)
+bar_range_pct = ((high - low) / low) * 100
+adr_pct = ta.sma(bar_range_pct, adr_len)
+safe_adr = adr_pct == 0 ? 0.0001 : adr_pct // Prevent division by zero
+
+// 2. Calculate the Closing Spread % over 'len' bars
+hi_c = ta.highest(close, len)
+lo_c = ta.lowest(close, len)
+close_spread_pct = ((hi_c - lo_c) / lo_c) * 100
+
+// 3. Calculate the Total Price Swing (High-Low) % over 'len' bars
+hi_p = ta.highest(high, len)
+lo_p = ta.lowest(low, len)
+price_spread_pct = ((hi_p - lo_p) / lo_p) * 100
+
+// 4. Create Ratios relative to ADR%
+close_ratio = close_spread_pct / safe_adr
+price_ratio = price_spread_pct / safe_adr
+
+// 5. Combine the ratios
+// Averaging them ensures the score drops lowest only when BOTH closes and absolute highs/lows are tight relative to ADR.
+combined_ratio = (close_ratio + price_ratio) / 2
+
+// 6. Normalize to 0-100 scale based on historical extremes
+highest_ratio = ta.highest(combined_ratio, baseline)
+lowest_ratio  = ta.lowest(combined_ratio, baseline)
+
+range_ratio = highest_ratio - lowest_ratio
+score = range_ratio == 0 ? 0 : ((combined_ratio - lowest_ratio) / range_ratio) * 100
+
+// --- Plotting ---
+// Color logic: Lime (<= 10), Yellow (11-25), Orange (26-50), Dark Red (> 50)
+col = score <= 10 ? color.new(color.lime, 0) : 
+      score <= 25 ? color.new(color.yellow, 0) : 
+      score <= 50 ? color.new(color.orange, 0) : 
+      color.new(#8B0000, 0) // Hex code for Dark Red
+
+// Plot as a solid line
+plot(score, title="Combined Tightness Score", style=plot.style_line, linewidth=2, color=col)
+
+// Visual threshold lines
+hline(10, title="Super Tight", color=color.lime, linestyle=hline.style_dashed)
+hline(25, title="Tight", color=color.yellow, linestyle=hline.style_dashed)
+hline(50, title="Loose", color=color.orange, linestyle=hline.style_dotted)

@@ -1,0 +1,126 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © yogy.frestarahmawan
+
+//@version=5
+indicator("Minervini Trend Template", overlay=true)
+
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+sma200_22 = sma200[22]
+
+// 1. stock price is above ma 150 and 200
+is_price_above_sma_150_and_200 = if (close > sma150) and (close > sma200)
+    true 
+else 
+    false
+    
+c_1 = is_price_above_sma_150_and_200 ? 1 : 0
+
+// 2. sma 150 is above sma 200
+is_sma_150_above_sma_200 = if sma150 > sma200 
+    true
+else 
+    false
+
+c_2 = is_sma_150_above_sma_200 ? 1 : 0
+    
+// 3. sma 200 is trending at least 1 month(22 days)
+is_trending_at_least_1_month = if sma200 > sma200_22
+    true
+else 
+    false
+    
+c_3 = is_trending_at_least_1_month ? 1 : 0
+
+// 4. sma 50 is above both sma 150 and 200
+is_sma_50_above_sma_150_and_200 = if (sma50 > sma150) and (sma50 > sma200)
+    true 
+else 
+    false
+
+c_4 = is_sma_50_above_sma_150_and_200 ? 1 : 0
+
+// 5. current stock price is above sma 50 
+is_current_price_above_ma_50 = if (close > sma50)
+    true 
+else 
+    false
+
+c_5 = is_current_price_above_ma_50 ? 1 : 0
+
+// 6. current stock price is 25% above 52 weeks low
+// Many of the best are up 100-300% before coming out of consolidation
+high_loopback = input(260, "High Lookback Length")
+low_loopback = input(260, "Low Lookback Length")
+
+highest_price = ta.highest(high, high_loopback)
+lowest_price = ta.lowest(low, low_loopback)
+
+is_price_25_percent_above_52_weeks_low = if ((close/lowest_price)-1) * 100 >= 25
+    true
+else 
+    false
+    
+c_6 = is_price_25_percent_above_52_weeks_low ? 1 : 0
+
+// Show 52 High / Low Line 
+show_52_week_high_low = input.bool(defval = true, title="Show 52 week highest/lowest")
+plot(show_52_week_high_low ? highest_price: na, title='52 Week High', trackprice=true, color=color.orange, offset=-9999)
+plot(show_52_week_high_low ? lowest_price: na, title='52 Week Low', trackprice=true, color=color.orange, offset=-9999)
+
+// 7. Current Price is within 25% of 52 week high
+is_price_within_52_high = if (1-(close/highest_price)) * 100 <= 25
+    true
+else 
+    false
+    
+c_7 = is_price_within_52_high ? 1 : 0
+
+// 8. RS rating > 70
+// relative strength IBD style
+three_month_rs  = 0.4*(close/close[13])
+six_month_rs    = 0.2*(close/(close[26]*2))
+nine_month_rs   = 0.2*(close/(close[39]*3))
+twelve_month_rs = 0.2*(close/(close[52]*4))
+rs_rating = (three_month_rs + six_month_rs + nine_month_rs + twelve_month_rs) * 100
+rs_rating_str = str.tostring(rs_rating, "#.00")
+is_rs_rating_more_than_seventy = rs_rating > 70
+
+c_8 = is_rs_rating_more_than_seventy ? 1 : 0
+
+is_meet_all_criteria = is_price_above_sma_150_and_200 and is_sma_150_above_sma_200 and is_trending_at_least_1_month and is_sma_50_above_sma_150_and_200 and is_price_25_percent_above_52_weeks_low and is_price_within_52_high and is_rs_rating_more_than_seventy and is_current_price_above_ma_50
+count = c_1 + c_2 + c_3 + c_4 + c_5 + c_6 + c_7 + c_8
+
+// table section
+
+var groupPanel = 'minervini_criteria'
+string table_vertical_pos = input.string('bottom', 'Panel position', inline='11', options=['top', 'middle', 'bottom'], group=groupPanel)
+string table_horizontal_pos = input.string('right', '', inline='11', options=['left', 'center', 'right'], group=groupPanel)
+
+text_color = color.black
+
+fn_fill_header(_id, _row) => 
+    table.cell(table_id=_id, column=0, row=_row, text='Criteria', width=0, height=0, text_color=text_color, text_size=size.small, bgcolor=color.aqua)
+    table.cell(table_id=_id, column=1, row=_row, text='', width=0, height=0, text_color=text_color, text_size=size.small, bgcolor=color.aqua)
+
+fn_fill_value(_id, _row, criteria, value, _color_value) => 
+    table.cell(table_id=_id, column=0, row=_row, text=criteria, width=0, height=0, text_color=text_color, text_size=size.small, bgcolor=color.white)
+    table.cell(table_id=_id, column=1, row=_row, text=value, width=0, height=0, text_color=text_color, text_size=size.small, bgcolor=_color_value)
+
+var T = table.new(
+     position= table_vertical_pos + "_" + table_horizontal_pos, columns=2, rows=10, bgcolor=color.white, 
+     frame_color=color.gray, frame_width=2, border_color=color.gray, border_width=1)
+
+
+if barstate.islastconfirmedhistory
+    fn_fill_header(T, 0)
+    fn_fill_value(T, 1, 'Stock price is above MA 150 and 200', is_price_above_sma_150_and_200 ? 'yes' : 'no', is_price_above_sma_150_and_200 ? color.aqua: color.red)
+    fn_fill_value(T, 2, 'MA 150 is above MA 200', is_sma_150_above_sma_200 ? 'yes' : 'no', is_sma_150_above_sma_200 ? color.aqua: color.red)
+    fn_fill_value(T, 3, 'MA 200 is trending at least 1 month(22 days)', is_trending_at_least_1_month ? 'yes' : 'no', is_trending_at_least_1_month ? color.aqua: color.red)
+    fn_fill_value(T, 4, 'MA 50 is above both MA 150 and MA 200', is_sma_50_above_sma_150_and_200 ? 'yes' : 'no', is_sma_50_above_sma_150_and_200 ? color.aqua: color.red)
+    fn_fill_value(T, 5, 'The current stock price is trading  above MA 50', is_current_price_above_ma_50 ? 'yes' : 'no', is_current_price_above_ma_50 ? color.aqua: color.red)
+    fn_fill_value(T, 6, 'Current stock price is 25% above 52 weeks low', is_price_25_percent_above_52_weeks_low ? 'yes' : 'no', is_price_25_percent_above_52_weeks_low ? color.aqua: color.red)
+    fn_fill_value(T, 7, 'Current Price is within 25% of 52 week high', is_price_within_52_high ? 'yes' : 'no', is_price_within_52_high ? color.aqua: color.red)
+    fn_fill_value(T, 8, 'RS rating more than 70',is_rs_rating_more_than_seventy ? "yes (" + rs_rating_str + ")"  : "no (" + rs_rating_str + ")",  is_rs_rating_more_than_seventy? color.aqua: color.red)
+    fn_fill_value(T, 9, 'Meet minervini criteria', " (" + str.tostring(count, "0") + " of 8)", color.white)

@@ -1,0 +1,113 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Amphibiantrading
+
+//@version=6
+indicator("Earnings Gap Ups", overlay = true)
+
+enum lineStyle
+    solid = 'Solid'
+    dotted = 'Dotted'
+    dashed = 'Dashed'
+
+idCol = input.color(color.green, 'Gap Label Color')
+showHVC = input.bool(true, 'Show HVC', inline = '1')
+hvcCol = input.color(color.blue, '', inline = '1')
+hvcStyle = input.enum(lineStyle.solid, ' ', inline = '1')
+showHVC5 = input.bool(true, 'Show HVC Undercut', inline = '2')
+hvc5Col = input.color(color.red, '', inline = '2')
+hvc5Style = input.enum(lineStyle.solid, ' ', inline = '2')
+showGDHL = input.bool(true, 'Show Gap Day High/Low', inline = '3')
+gdhlCol = input.color(color.aqua, '', inline = '3')
+gdhlStyle = input.enum(lineStyle.solid, ' ', inline = '3')
+showAlpha = input.bool(true, 'Show Alpha Window', inline = '4')
+alphaCol = input.color(color.new(color.green,80), '', inline = '4')
+
+type gap
+    bool    act = true
+    int     count = 0
+    int     b = bar_index
+    float   h = high
+    float   l = low
+    float   hvc = close
+    float   hvc5
+    line    hvcLine
+    line    hvc5Line
+    line    gdhLine
+    line    gdlLine
+    label   hvcLab
+    label   hvc5Lab
+    label   gdhLab
+    label   gdlLab
+    string  gapType
+    label   gapLabTxt
+    label   gapLab
+    box     alphaBox
+
+method switcher(string this) =>
+    switch this
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+method manage(array<gap> this)=>
+    for g in this
+        if g.count > 40
+            g.act := false
+        if g.act
+            if g.count < 50
+                g.count += 1
+            if high > g.alphaBox.get_top()
+                g.alphaBox.set_top(high)
+
+method styler(lineStyle this)=>
+    switch this
+        lineStyle.solid => line.style_solid
+        lineStyle.dashed => line.style_dashed
+        lineStyle.dotted => line.style_dotted
+
+var gapUpArr = array.new<gap>()
+
+eps = request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on, true)
+est = request.earnings(syminfo.tickerid, earnings.estimate, barmerge.gaps_on, barmerge.lookahead_on, true)
+var epsSur = ((eps - est) / math.abs(est)) * 100
+earningsDay = not na(eps)
+amcEPS = earningsDay[1]
+
+if earningsDay
+    epsSur := ((eps - est) / math.abs(est)) * 100
+
+volAvg =  ta.sma(volume, 50)
+pegVol = ((volume - volAvg) / volAvg) * 100
+gapClose = ((close - close[1]) / close[1]) * 100  >= 10
+gapMonster = ((close - close[1]) / close[1]) * 100  >= 20
+closeRange = (close - low) / (high - low) *100
+priceChange = ta.change(close)
+pricePercent = priceChange / close[1] * 100
+
+peg = (open > close[1] and gapClose and earningsDay and epsSur >= 20 and pegVol >= 200) or 
+     (open > close[1] and gapClose and amcEPS and epsSur >= 20 and pegVol >= 200)
+monster = (open > close [1] and gapMonster and earningsDay and pegVol >= 300) or 
+     (open > close[1] and gapMonster and amcEPS and pegVol >= 300)
+monsterPeg = (open > close [1] and gapMonster and earningsDay and pegVol >= 300 and epsSur >= 20) or 
+     (open > close[1] and gapMonster and amcEPS and pegVol >= 300 and epsSur >= 20)
+
+if monsterPeg or monster or peg
+    newGap = gap.new(hvc5 = close*0.95, gapType = monsterPeg ? 'Monster Peg' : monster ? 'Monster' : 'PEG', alphaBox = na)
+    newGap.gapLab := label.new(bar_index, low*0.99, '', color = idCol, style = label.style_circle, size = size.auto)
+    newGap.gapLabTxt := label.new(bar_index, low*0.99, newGap.gapType, textcolor = idCol, color = color.new(color.white,100), style = label.style_label_up)
+    if showHVC
+        newGap.hvcLine := line.new(bar_index, close, bar_index+50, close, color = hvcCol, style = hvcStyle.styler())
+        newGap.hvcLab := label.new(bar_index, close, 'HVC', color = color.new(color.white,100), style = label.style_label_right, textcolor = hvcCol)
+    if showHVC5
+        newGap.hvc5Line := line.new(bar_index, newGap.hvc5, bar_index+50, newGap.hvc5, color = hvc5Col, style = hvc5Style.styler())
+        newGap.hvc5Lab := label.new(bar_index, newGap.hvc5, 'HVC -5%', color = color.new(color.white,100), style = label.style_label_right, textcolor = hvc5Col)
+    if showGDHL
+        newGap.gdhLine := line.new(bar_index, high, bar_index+50, high, color = gdhlCol, style = gdhlStyle.styler())
+        newGap.gdlLine := line.new(bar_index, low, bar_index+50, low, color = gdhlCol, style = gdhlStyle.styler())
+        newGap.gdhLab := label.new(bar_index, high, 'GDH', color = color.new(color.white,100), style = label.style_label_right, textcolor = gdhlCol)
+        newGap.gdlLab := label.new(bar_index, low, 'GDL', color = color.new(color.white,100), style = label.style_label_right, textcolor = gdhlCol)
+    if showAlpha
+        newGap.alphaBox := box.new(bar_index, high, bar_index+50, low, border_width = 0, bgcolor = alphaCol)
+    gapUpArr.push(newGap)
+
+gapUpArr.manage()

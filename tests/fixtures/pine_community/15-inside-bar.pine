@@ -1,0 +1,30 @@
+// This source code is subject to the terms of the GNU License 2.0 at https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
+// © cma
+
+//@version=4
+study('Inside Bar Ind/Alert', overlay=true)
+
+bullishBar = 1
+bearishBar = -1
+
+isInside() =>
+    previousBar = 1
+    bodyStatus = (close >= open) ? 1 : -1
+    isInsidePattern = high < high[previousBar] and low > low[previousBar]
+    
+    isInsidePattern ? bodyStatus : 0
+
+barcolor(isInside() == bullishBar ? color.green : na)
+barcolor(isInside() == bearishBar ? color.red : na)
+
+// When is bullish bar paint green
+plotshape(isInside() == bullishBar, style=shape.triangleup,
+                 location=location.abovebar, color=color.green)
+
+// When is bearish bar paint red
+plotshape(isInside() == bearishBar, style=shape.triangledown,
+                 location=location.belowbar, color=color.red)
+
+isInsideBarMade = isInside() == bullishBar or isInside() == bearishBar
+
+alertcondition(isInsideBarMade, title='Inside Bar', message='Inside Bar came up!')

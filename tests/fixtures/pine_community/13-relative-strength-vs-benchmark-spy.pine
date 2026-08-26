@@ -1,0 +1,32 @@
+//@version=5
+indicator("Relative Strength vs Benchmark", overlay=false)
+
+// ===== Inputs
+benchmark     = input.symbol("SPY", "Benchmark")
+emaLen        = input.int(50, "RS EMA length", minval=5, maxval=200)
+showBg        = input.bool(true, "Color background when RS > EMA")
+normalizeBase = input.bool(false, "Normalize RS to 1.0 at first bar")
+
+// ===== Series
+benchClose = request.security(benchmark, timeframe.period, close)
+rsRaw      = close / benchClose
+
+// Optional normalization so the panel starts ~1.0
+var float base = na
+base := na(base) and normalizeBase ? rsRaw : base
+rs    = normalizeBase and not na(base) ? rsRaw / base : rsRaw
+
+rsE   = ta.ema(rs, emaLen)
+
+// ===== Plots
+plot(rs,  color=color.new(color.blue, 0),   linewidth=2, title="RS (Symbol vs Benchmark)")
+plot(rsE, color=color.new(color.orange, 0), linewidth=1, title="RS EMA")
+
+// ===== Background: outperform / underperform
+bgcolor(showBg ? (rs > rsE ? color.new(color.green, 88) : color.new(color.red, 90)) : na)
+
+// ===== Alerts
+crossUp   = ta.crossover(rs, rsE)
+crossDown = ta.crossunder(rs, rsE)
+alertcondition(crossUp,   "RS turns to Outperform",   "Relative Strength crossed ABOVE its EMA (outperformance)")
+alertcondition(crossDown, "RS turns to Underperform", "Relative Strength crossed BELOW its EMA (underperformance)")

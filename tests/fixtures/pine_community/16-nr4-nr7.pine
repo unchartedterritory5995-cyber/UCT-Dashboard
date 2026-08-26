@@ -1,0 +1,12 @@
+//@version=2
+//FxLowe - NR4 & NR7.
+
+study(title = "NR4 & NR7", overlay = true)
+
+nr4 = (tr <= tr[1]) and (tr <= tr[2]) and (tr <= tr[3])
+nr7 = nr4 and (tr <= tr[4]) and (tr <= tr[5]) and (tr <= tr[6])
+
+barcolor( nr7 ? fuchsia : na, offset = 0, editable = true, title = "NR7")
+barcolor( nr4 ? blue : na, offset = 0, editable = true, title = "NR4")
+plotshape(nr4, title= "NR4", location=location.abovebar, color=white, style=shape.arrowdown, text="NR\n4__")
+plotshape(nr7, title= "NR7", location=location.abovebar, color=white, style=shape.arrowdown, text="NR\n4&7")
