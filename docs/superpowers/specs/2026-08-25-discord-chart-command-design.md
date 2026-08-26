@@ -769,3 +769,113 @@ producer `/chart` and `/charts` share. Commands re-registered globally:
 dropdown (`d0203f726` — the first option stays the chart's own style; a push
 had gone out with that test red because a `pytest | tail` pipeline hid the
 exit code; every chain since gates on `$?`).
+
+## v13 — the verification pass (2026-08-26, ~06:00–08:30 CT)
+
+Owner: "you can do all of this perfectly and deliberately." No new features:
+this pass went looking for what v12 had shipped wrong. It found four real
+defects, three of them invisible to a green suite. Every finding below was
+measured on the live pod, not reasoned about.
+
+### 1. `compare:` had pushed the worst-case `custom_id` past Discord's limit
+
+A control's id carries the whole chart state, and `compare:` added an 11th
+field. Derived from the real choice tables, the worst case was **115
+characters for a button and 120 for a select against a hard limit of 100** —
+a 12-character ticker with three long compare symbols. Discord validates the
+whole components tree as a unit, so ONE over-long id rejects the entire edit
+and the member sits on "thinking…" forever: the same silent failure as the
+`COMPONENT_CUSTOM_ID_DUPLICATED` and `TOO_MANY_DEFAULT_VALUES` bugs of 8/25,
+found this time before a member met it.
+
+`compare_budget(ticker)` now derives what the compare list may spend from the
+longest value of every other field, **plus a `to` date it assumes is always
+present** — so panning ("Earlier") can never overflow an id that was legal
+when the chart was posted. An over-long list is refused at the command with
+the number in the message. Everyday sets are untouched: `SPY+QQQ+IWM` fits
+every ticker (budget 26 for `NVDA`, 18 for a 12-character ticker).
+
+⭐ The budget is derived, so a longer theme or indicator name added later
+shrinks it automatically instead of silently overflowing; the rail computes
+the worst case the same way and fails if the fixed fields ever fill the id.
+
+⚠️ Both new rails passed VACUOUSLY at first: they fed three IDENTICAL symbols,
+which `parse_compare` deduplicates to one, so nothing overflowed. The dedupe
+was correct and the tests were meaningless. Distinct symbols now.
+
+### 2. The context line's edit no longer bets the chart on omission semantics
+
+The v12 follow-up edit sent content only, relying on "Discord keeps what the
+payload omits" for both the image and the controls. **This repo has a measured
+counter-example**: `desk_session_announce._edit` says, verified against the
+live API, that a PATCH which does not list the message's file DROPS it. That
+case is narrower (an embed consuming the file via `attachment://`) and a plain
+attachment is probably safe — but "probably" is not a wager worth taking with
+the product's only artifact.
+
+`edit_original` now returns the edited MESSAGE instead of `True`, so the
+caller can read its attachment ids, and the follow-up re-declares both the
+attachment (`keep_attachments`) and the same control rows. An `edit_fn` that
+returns a bare bool (older callers, test doubles) still works — it just stays
+content-only. Verified in-pod: the second edit carries
+`keep_attachments=['111222333']` and the full 5-row tree.
+
+### 3. Every comparison colour collided with a line the house chart draws
+
+The v12 palette was picked by eye: `#38bdf8 / #f472b6 / #a3e635`. Read against
+the real palette, **`#f472b6` is byte-identical to the house EMA-20**, `#38bdf8`
+sits 25 units from the SMA-50 blue and `#a3e635` next to the EMA-9 green — the
+pod's own render showed the QQQ comparison and the EMA-20 as the same pink
+line. Candidates were then scored against EVERY colour the chart already draws
+(overlays, candles, grid/text, the pre/post chip) and the trio whose nearest
+neighbour is furthest won: **`#c084fc` purple (91) · `#22d3ee` cyan (43) ·
+`#e8e8ea` off-white (56)**. Re-rendered on the pod: purple 1,951 px, cyan
+2,380 px, **old pink 0 px**. `compareColors.test.js` re-measures against the
+live palette and carries a control proving it can fail (the old palette does).
+
+⭐ The same lesson as the readiness gate, one layer over: a value picked by
+eye against a palette you did not read is a guess. Read the palette.
+
+### 4. A census had been RED on master since the day before
+
+`controlDoorCensus.test.js` scans for modules that hand a WHOLE settings blob
+to the persistence path. `/r/chart`'s `?preset=` support (v8, yesterday)
+reads `PRESETS[...]`, so the scan matched it and the census went red **the
+moment that page landed** — and stayed red, because the only tests anybody ran
+for that work were the page's own. ChartRender is an export page: the preset
+becomes a `settingsOverride` PROP and never reaches persistence, which is the
+property door seven is actually held to. The site is now NAMED in the census
+and that property is ASSERTED (no `usePreferences`, no preferences POST, no
+workspace save path), not assumed.
+
+⭐ A regex-based census will keep meeting honest matches. Name them and pin
+why they are safe; never loosen the regex until it stops seeing them.
+
+### What was measured and deliberately left alone
+
+- **MAs rebase to their own first value in % mode**, so on a short window a
+  slow MA can leave the frame. Turning MAs off for a compared chart looked
+  tempting — until the controlled pair (same forced `bars=65`, MAs on vs off)
+  showed MA visibility also **changes the framing** (3 months vs 9). That
+  coupling lives inside StockChart, so MA visibility is not a safe lever for
+  the bot; the rebasing is the app's own behaviour and a compared chart keeps
+  the member's MA setting untouched.
+- `get_implied_move` returns `None` in 0.0 s on the pod (the known provider
+  gap), so the `±x% implied` half of the context line stays dormant in prod.
+
+### The in-pod E2E (what "verified" means here)
+
+`run_chart_job` / `run_multi_chart_job` were run INSIDE the pod with a
+capturing `edit_fn` — real bars, the real chart-renderer, the real context
+line, the real component tree — and every tree was checked against Discord's
+documented rules (≤5 rows, a select alone in its row, ≤5 buttons, ≤25 options,
+≤1 default, ids unique and ≤100). All five paths PASS: plain · compare ·
+compare+panned+RSI/MACD+tradingview (longest id 70) · breadth (one edit, no
+comparison, no context line) · `/charts AMD ZZZZQ AVGO` (two attachments in
+order, `Skipped: ZZZZQ (no bars)`).
+
+🔧 `railway ssh` runs OUTSIDE the app's environment: numpy fails with
+`libstdc++.so.6: cannot open shared object file` until `LD_LIBRARY_PATH` is
+taken from `/proc/1/environ` (the gcc-lib + zlib nix store paths). That is why
+earlier probes that only touched PIL worked and anything importing matplotlib
+did not.
