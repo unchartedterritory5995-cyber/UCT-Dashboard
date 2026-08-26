@@ -43,22 +43,16 @@
  * section, so "the fourteen natives" is a sentence about the SETTINGS BLOB and
  * has not been a sentence about this registry since.
  *
- * ⚠️ `ast` IS EMPTY AND THAT IS A CLAIM, NOT A PLACEHOLDER. Phase D Task 8 built
- * the lane — `defSchema` validates an `ast` definition, `validateUserDefinitions`
- * budgets and lints it, `computeFor` interprets it — and registered NOTHING on
- * it, because an `ast` definition is a user's formula and arrives per user. The
- * day this repo ships one, this list is what says so.
- *
- * ⛔⛔ AND A USER'S FORMULA STILL DOES NOT COUNT HERE — PHASE D TASK 16. That
- * task gave the registry a RUNTIME index so an installed user definition
- * resolves through `getDefinition` and draws; this manifest is untouched by it
- * ON PURPOSE. `listDefinitions()` remains the SHIPPED catalogue and is what the
- * equality below is compared against, so `ast: []` and `REGISTRY_SIZES.ast === 0`
- * stay claims about this BUILD rather than about whoever happens to be signed
- * in. A manifest that counted session state would read green in every suite that
- * installs nothing and mean nothing in the one that does — the vacuous-gate shape
- * this whole file is written against. `nativeRegistry.test.js` asserts it by
- * installing a valid user definition and re-checking all three rails.
+ * ⚠️ `ast` IS EMPTY AND THAT IS A CLAIM, NOT A PLACEHOLDER — AND IT IS THE ONLY
+ * PLACE THE CLAIM LIVES. An `ast` definition is a user's formula: it installs per
+ * session through `installUserDefinitions` into the registry's SESSION index and
+ * never into `listDefinitions()`, the shipped catalogue this manifest is compared
+ * against. There is no shipped array for the lane (W0.3 retired the frozen-empty
+ * `AST_DEFS`); `idsByLane` seeds every lane from `REGISTRY_LANES`, so the equality
+ * holds — and the day this repo ships an `ast` definition, this list is what says
+ * so. `nativeRegistry.test.js` asserts all three rails WHILE a user definition is
+ * installed, which is what keeps `ast: []` a statement about this BUILD rather
+ * than about whoever is signed in.
  */
 export const SHIPPED_DEF_IDS = Object.freeze({
   native: Object.freeze([

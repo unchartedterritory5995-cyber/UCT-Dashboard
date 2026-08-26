@@ -1824,27 +1824,13 @@ if (_serverRegistered.errors.length) {
  *  keep in step by hand. */
 export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
-/**
- * AST-lane definitions shipped in this repo — **deliberately none**.
- *
- * ⭐ TASK 8 BUILDS THE LANE AND REGISTERS NOTHING ON IT, AND THE EMPTY ARRAY IS
- * THE DELIVERABLE'S SHAPE, not an oversight. An `ast` definition is a USER's
- * formula: it arrives from the builder or the concierge, through
- * `validateUserDefinitions`, and is INSTALLED per session by
- * `installUserDefinitions` below rather than listed here. A repo-authored one would
- * be a native wearing a formula — the same maths this file already computes in
- * `NATIVE_COMPUTE`, on a lane with a budget and an interpreter between it and
- * the screen, for no gain.
- *
- * ⛔ WHY IT EXISTS AT ALL RATHER THAN `listDefinitions()` STAYING A TWO-LANE
- * UNION: so the third lane is a partition with a NAME and a size that DERIVES.
- * `registrySizes.js` reads `{native, server, ast}` and a rail asserts the whole
- * catalogue equals a hand-written manifest, by lane, by name. With no `ast`
- * entry in that partition the manifest could not say "and zero on the third
- * lane" — and "zero" is a claim worth being able to break: the day this array
- * gains a member, the manifest is what says so out loud.
- */
-export const AST_DEFS = Object.freeze([])
+// ─── the ast lane ships NOTHING, and there is no array to say so twice ───────
+// An `ast` definition is a USER's formula: it arrives from the builder or the
+// concierge, through `validateUserDefinitions`, and is INSTALLED per session by
+// `installUserDefinitions` below. The shipped manifest (`registrySizes.js`,
+// `SHIPPED_DEF_IDS.ast = []`) is the ONE declaration that this build ships none;
+// `idsByLane(listDefinitions())` proves it by partition. (W0.3 retired the
+// frozen-empty `AST_DEFS` that used to stand here as a second authority.)
 
 /**
  * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.
@@ -1884,7 +1870,7 @@ export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']
 /** ⭐ ONE INDEX ACROSS BOTH LANES. `getDefinition` is what `instances.js` and the
  *  binder resolve through, so a server definition missing from here would be an
  *  instance the chart drops on the floor — visible as nothing at all. */
-const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.id, d]))
+const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS].map(d => [d.id, d]))
 
 // ─── the RUNTIME lane: definitions installed by THIS SESSION ────────────────
 //
@@ -1892,24 +1878,24 @@ const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.
 // Task 11 shipped a builder a trader could type `sma(close, 20)` into. It
 // parsed, budgeted, linted, passed `validateUserDefinitions` and persisted to
 // `/api/user-definitions` — and could not draw one pixel on any chart. The cause
-// was one line: `_byId` above is built ONCE at module import out of three FROZEN
-// arrays, `AST_DEFS` is deliberately `[]`, and the ONLY operation this file ever
-// performed on `_byId` was `.get`. So `getDefinition('u_…')` answered null,
-// `validateInstance` failed with *"names no registered definition"*,
-// `normalizeInstances` dropped the instance before layout, and the chart built
-// two panes where three were asked for. ~6,100 frontend tests were green over
-// it: every component was correct alone, and the defect lived in the CONTRACT
-// between them — the fifth on this project, and the reason the repo's own lesson
-// says budget a live-surface pass on every visual feature.
+// was one line: `_byId` above is built ONCE at module import out of two FROZEN
+// arrays, and the ONLY operation this file ever performed on `_byId` was
+// `.get`. So `getDefinition('u_…')` answered null, `validateInstance` failed
+// with *"names no registered definition"*, `normalizeInstances` dropped the
+// instance before layout, and the chart built two panes where three were asked
+// for. ~6,100 frontend tests were green over it: every component was correct
+// alone, and the defect lived in the CONTRACT between them — the fifth on this
+// project, and the reason the repo's own lesson says budget a live-surface pass
+// on every visual feature.
 //
-// ⛔ IT IS A SECOND INDEX, NOT A MUTATION OF `_byId` OR OF `AST_DEFS`, and the
-// separation is the design rather than an implementation detail. `NATIVE_DEFS` /
-// `SERVER_DEFS` / `AST_DEFS` are frozen catalogues of WHAT SHIPS;
-// `registrySizes.js` is a hand-written manifest this registry must PROVE it
-// equals, by lane and by name, and it imports NOTHING so it cannot derive from
-// the thing it checks. A user's formula is not shipped — it arrives per user,
-// per session — and it must not be able to make that manifest true by joining
-// it. Two indexes keep both facts sayable at once, and the split is by QUESTION:
+// ⛔ IT IS A SECOND INDEX, NOT A MUTATION OF `_byId`, and the separation is the
+// design rather than an implementation detail. `NATIVE_DEFS` / `SERVER_DEFS`
+// are frozen catalogues of WHAT SHIPS; `registrySizes.js` is a hand-written
+// manifest this registry must PROVE it equals, by lane and by name, and it
+// imports NOTHING so it cannot derive from the thing it checks. A user's
+// formula is not shipped — it arrives per user, per session — and it must not
+// be able to make that manifest true by joining it. Two indexes keep both facts
+// sayable at once, and the split is by QUESTION:
 // `listDefinitions()` answers *what does this build ship*, `getDefinition`
 // answers *what can this chart resolve*.
 
@@ -2032,8 +2018,10 @@ export function getDefinition(defId) {
  * Phase D Task 8 and is empty). This used to be `[...NATIVE_DEFS]`, and the
  * union is the one line Task 14 handed back. A caller that wants only the
  * natives asks `NATIVE_DEFS`; a caller enumerating "what indicators exist" must
- * see all three, because a definition invisible to this list is invisible to the
- * catalog, the settings migration and the alert addressing alike.
+ * see every lane that HAS members, because a definition invisible to this list
+ * is invisible to the catalog, the settings migration and the alert addressing
+ * alike. The ast lane has none to spread — W0.3 retired its frozen-empty array,
+ * and `SHIPPED_DEF_IDS.ast` is the one place that claim is now declared.
  *
  * ⛔ AND THE NUMBER IS NOT WRITTEN DOWN HERE. `registrySizes.js` holds the one
  * hand-written manifest of what ships, by lane, by name; a count typed into a
@@ -2041,7 +2029,7 @@ export function getDefinition(defId) {
  * 1 SERVER" through a phase that added a lane.
  */
 export function listDefinitions() {
-  return [...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]
+  return [...NATIVE_DEFS, ...SERVER_DEFS]
 }
 
 /**
