@@ -173,9 +173,15 @@ def definition_results(
     # exactly this for the nightly half.
     live_only = [r for r in overlay["rows"] if not r["in_nightly"]]
     present = snapshot_db.symbols_in_snapshot([r["symbol"] for r in live_only])
+    extra = [r for r in live_only if r["symbol"] in present]
     # …and it is bounded by the SAME page limit, so the overlay cannot make a
-    # capped page arbitrarily long.
-    page += [r for r in live_only if r["symbol"] in present][:limit]
+    # capped page arbitrarily long. ⛔ AND A CUT TAIL SETS `truncated`: a page
+    # that silently loses symbols returns fewer hits and reads as a quiet
+    # market, which is the exact lie `CoverageLine` exists to refuse. `hits` IS
+    # the page, so "the page is short of the hits" is literally true here and
+    # keeps its own word — `withheld` still means "your plan stops here".
+    page += extra[:limit]
+    truncated = truncated or len(extra) > limit
 
     # 🔴 THE ENTITLEMENT, APPLIED ONCE OVER THE WHOLE PAGE — not merely looked
     # up, and not once PER SLICE. A cap that is computed and never applied is the

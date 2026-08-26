@@ -2382,6 +2382,39 @@ def test_a_not_run_window_carries_EMPTY_hits_and_a_NULL_live_block(store):
     assert body["hits"] == [] and body["live"] is None
 
 
+def test_a_LIVE_ONLY_tail_the_PAGE_LIMIT_cut_SETS_truncated_never_drops_silently(
+        store, monkeypatch):
+    """⛔ A PAGE THAT SILENTLY LOSES SYMBOLS LOOKS LIKE A QUIET MARKET. That is
+    `CoverageLine`'s whole reason for existing, and `truncated` is the word this
+    payload already owns for "the page is short of the hits". The live-only tail
+    is bounded by the SAME `limit` as the nightly half, so when it is cut the
+    sentence is literally true of `hits` and the flag must say so — a member told
+    "200 of 200" while 40 live hits sat behind the cut is the same lie in a new
+    place.
+
+    ⚠️ NOT the entitlement's word: `withheld` means "your plan stops here" and
+    `truncated` means "ask for the next page". They stay separate.
+    """
+    _seed_nightly(["AAA"], 20260825, extra_rows=("DDD", "EEE"))
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0},
+        {"symbol": "EEE", "value": 1, "live_cols": 2, "src_price": 3.0}], t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+
+    body = _get(PAID_USER, as_of="20260825", limit=1).json()
+    assert body["tickers"] == ["AAA"]
+    assert [h["symbol"] for h in body["hits"]] == ["AAA", "DDD"], body["hits"]
+    assert body["truncated"] is True, (
+        "one of the two live-only hits was cut by the page limit and the payload "
+        "still claims the page is the whole answer")
+
+    # …and the CONTROL: a limit that reaches every live-only hit does NOT set it.
+    whole = _get(PAID_USER, as_of="20260825", limit=2).json()
+    assert [h["symbol"] for h in whole["hits"]] == ["AAA", "DDD", "EEE"]
+    assert whole["truncated"] is False
+
+
 def test_the_ENTITLEMENT_CAP_is_applied_ONCE_over_the_WHOLE_page_never_twice(
         store, monkeypatch):
     """🔴 THE BRIEF'S STEP 3 CAPPED TWICE — nightly and live-only separately — which
