@@ -861,9 +861,18 @@ function containsSelfSeries(node, table) {
 /** ⭐⭐ DOES THIS UPDATE FORGET ITS SEED? `accum` RE-SEEDS a fixed number of bars
  *  back — deliberately, so a column cannot depend on where a fetch happened to
  *  start — and that is sound ONLY for an update that forgets where it began.
+ *
  *  `min`/`max` against a self-free operand forget once that operand dominates; a
  *  ternary arm that holds or passes through forgets; `nz` passes through.
  *  `self + x` NEVER forgets.
+ *
+ *  ⭐ EXPORTED FOR `thinkscript.js` (W3.5 hand-back, one word). This is a rule
+ *  about the ENGINE's `accum`, not about Pine — it reads
+ *  `table.functions.accum.recurrence.binds` and nothing Pine-shaped — and it
+ *  lives here only because Pine needed it first. thinkScript's `CompoundValue`
+ *  is the same accumulator reached from another language, so it asks the same
+ *  question, and it must never ask a SECOND copy of it: two convergence rules is
+ *  how two translators come to disagree about one engine function.
  *
  *  🔴 `x := x[1] + volume` is OBV by hand, and folding it would turn a running
  *  total into a ROLLING SUM — a plausible column that is not the indicator
@@ -874,7 +883,7 @@ function containsSelfSeries(node, table) {
  *  carrying the value forward. Only the ARMS must forget.
  *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
-function forgetsItsSeed(node, table) {
+export function forgetsItsSeed(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
   const bind = spec.recurrence.binds
