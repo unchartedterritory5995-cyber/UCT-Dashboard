@@ -527,3 +527,26 @@ is true, before either branch; `HOUSE_READY_JS` carries the same gate.
 Still true: a cold intraday render costs the bars API's cold path (7–20 s)
 before the ~2 s render; the deferred reply covers it. Warming that path is a
 bars-API concern, not the bot's.
+
+
+## v7 — Pre/post-market as the price chip, not candles (2026-08-25, ~19:50 CT)
+
+Owner decision, shown with the Charts widget's own "Post 764.97" tag: the
+extended-hours print is the orange price chip on the right axis; extended-hours
+candles are off by default (they squashed a session into flat overnight bars).
+
+- **Source** = the widget's: `massive.get_batch_rich_snapshots()` →
+  `ext_price` / `ext_session` (`_ext_price_for`, stale-`lastTrade` aware). The
+  job's `quote_fn` (`fetch_ext_quote` in the router) resolves it in-process,
+  best-effort, before the house render; no quote → no chip, chart unchanged.
+- **Transport** = `?exttag=pre|post:<price>` on the render URL, every timeframe.
+- **Paint** = `ChartRender` appends a `priceLines` entry — `SESSION_EXT_COLOR`
+  (now exported from StockChart, one owner), `axisLabelVisible`,
+  `lineVisible:false`, title `Pre`/`Post` — so it is the same chip the widget
+  draws. On D/W it sits beside the locked close; on intraday it is the one
+  number that matters.
+- `DEFAULTS.ext = False`; `/chartsettings set ext:True` restores the candles
+  per member; the option text says the chip always shows.
+- Also this evening: `PAGE_BARS` pre-warm (the page's 5,000-bar request made
+  in-process first, so the renderer's first attempt lands; AMZN 5-min verified
+  house image in ~20 s cold).
