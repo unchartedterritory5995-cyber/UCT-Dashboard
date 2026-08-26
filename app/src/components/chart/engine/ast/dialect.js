@@ -31,7 +31,20 @@ import { detectDialect as detectPcfDialect } from './pcf.js'
  *  two vocabularies meet. */
 export const DIALECTS = Object.freeze(['pine', 'thinkscript', 'pcf', 'formula'])
 
-/** dialect → the key `pcf.js::READERS` (and `readFormulaSource`) knows it by. */
+/** dialect → the key `pcf.js::READERS` (and `readFormulaSource`) knows it by.
+ *
+ *  ⛔⛔ FOR `pine` AND `thinkscript` THIS NAMES THE DOOR FOR THE **TRANSLATED
+ *  RESULT**, NEVER FOR THE PASTE. `READERS` has exactly two keys (`native`,
+ *  `pcf`) and `readFormulaSource` looks the name up directly, so
+ *  `readFormulaSource(src, READER_NAME[detectDialect(src)])` on a Pine paste
+ *  hands raw Pine to the NATIVE reader and refuses it at some arbitrary token —
+ *  the wrong-door defect this module's header exists to prevent, one line below
+ *  the map that would cause it. The order is: TRANSLATE first
+ *  (`pine.js::translatePine` / `thinkscript.js::translateThinkScript`), and only
+ *  the formula source that comes OUT of the translator goes to
+ *  `readFormulaSource` under this name. `pcf` and `formula` are the only two
+ *  entries a caller may hand `readFormulaSource` together with the original
+ *  source. */
 export const READER_NAME = Object.freeze({
   pine: 'native', thinkscript: 'native', pcf: 'pcf', formula: 'native',
 })

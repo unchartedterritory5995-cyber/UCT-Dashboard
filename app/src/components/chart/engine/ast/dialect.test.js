@@ -27,10 +27,19 @@ const PINE = '../tests/fixtures/pine'
 const COMMUNITY = '../tests/fixtures/pine_community'
 
 describe('every committed corpus detects as its own dialect', () => {
+  // ⭐ A FLOOR, NOT AN EXACT COUNT — and the difference was measured, not
+  // guessed. This gate exists to prove the sweep below HAS INPUTS; it is not a
+  // census of the corpus, which is a different lane's artifact. An exact count
+  // reds the whole file the moment a correctly-detected script is added — the new
+  // case passes while the gate says `expected 25 to be 24` — which trains the
+  // next reader to edit a number instead of reading a failure. The native gate
+  // below was already written as a floor and absorbed W2a's 77 → 90 corpus growth
+  // (`b0e5e693a`) with no edit at all; these three are now the same idiom.
+  // Coverage does not depend on the number: each file below gets its own `it`.
   it('the corpora are all there — a gate with no inputs is not a gate', () => {
-    expect(files(TS, '.ts').length).toBe(24)
-    expect(files(PINE, '.pine').length).toBe(21)
-    expect(files(COMMUNITY, '.pine').length).toBe(30)
+    expect(files(TS, '.ts').length).toBeGreaterThanOrEqual(24)
+    expect(files(PINE, '.pine').length).toBeGreaterThanOrEqual(21)
+    expect(files(COMMUNITY, '.pine').length).toBeGreaterThanOrEqual(30)
   })
 
   for (const f of files(TS, '.ts')) {
@@ -117,6 +126,30 @@ describe('the tie-break is DOCUMENTED, not accidental', () => {
     expect(detectDialect('')).toBe('formula')
     expect(detectDialect(null)).toBe('formula')
     expect(detectDialect('   ')).toBe('formula')
+  })
+})
+
+describe('`DIALECTS` is the precedence, not a bag of names', () => {
+  // ⛔ THE MODULE HEADER SAYS "ORDER IS THE WHOLE GRAMMAR", SO THE ORDER MUST BE
+  // ABLE TO FAIL. Every other assertion in this file either sorts `DIALECTS` or
+  // ignores it, so reversing the array left all of them green — a declared
+  // contract with no rail under it. This reads the precedence OUT OF THE ANSWERS:
+  // for each planted source carrying two dialects' markers, the winner must be
+  // whichever of the two `DIALECTS` lists FIRST. Reorder the array and the
+  // expected winner moves while `detectDialect` does not, so this reds.
+  it('a source carrying two dialects resolves to whichever DIALECTS lists first', () => {
+    expect([...DIALECTS]).toEqual(['pine', 'thinkscript', 'pcf', 'formula'])
+    const AMBIGUOUS = [
+      ['//@version=5\ndeclare lower;\ndef x = close;\nplot y = x;\n', 'pine', 'thinkscript'],
+      ['def AVGC50 = Average(close, 50);\nplot scan = close > AVGC50;\n', 'thinkscript', 'pcf'],
+      ['// @version=4\nsrc = close\nplot(src)\n', 'pine', 'pcf'],
+    ]
+    for (const [src, a, b] of AMBIGUOUS) {
+      const ia = DIALECTS.indexOf(a)
+      const ib = DIALECTS.indexOf(b)
+      expect(Math.min(ia, ib), `${a}/${b} must both be named in DIALECTS`).toBeGreaterThanOrEqual(0)
+      expect(detectDialect(src), `${JSON.stringify(src)} carries ${a} + ${b}`).toBe(DIALECTS[Math.min(ia, ib)])
+    }
   })
 })
 
