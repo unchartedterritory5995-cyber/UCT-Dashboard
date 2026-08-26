@@ -33,6 +33,7 @@ snapshot pull with `nhnl_live` via `massive.get_full_market_snapshot_hl_cached`
 per-second `A.*` push feed can drive `min.av`/price in ~1s instead of the ~2.5s poll.
 """
 import logging
+import math
 import os
 import threading
 import time as _time
@@ -143,10 +144,20 @@ _COAST_TIER_CAP = 3.5        # …so its effective surge caps at ~T2 (Elevated),
 # grinding to new intraday extremes on its highest-volume candle (NET/NTNX) — which the
 # coasting gate would otherwise suppress — while the sharpness gate keeps a smooth elevated
 # grind (ANF) out. It also drives the tier so the breakout reads bold, not a faint T1.
-_EXPANSION_BURST = 3.0       # the fresh candle is ≥3× the normal-for-now volume rate…
-_EXPANSION_MOVE = 1.0        # …AND a real FAST move (last ~2 min ≥1%) — the "size + price move
+_SPIKE_MULT = 3.0            # recent volume ≥3× the stock's OWN trailing rate (a spike vs its own
+                             # norm — how a trader eyeballs it), OR…
+_EXPANSION_BURST = 3.0       # …the fresh candle is ≥3× the normal-for-now rate (absolute burst)…
+_EXPANSION_MOVE = 0.6        # …AND a real FAST move (last ~2 min ≥0.6%) — the "size + price move
                              # together" signal. Uses the fast move, NOT the day move, so a name
-                             # gapped-and-flat (earnings, high pct all day) isn't re-admitted.
+                             # gapped-and-flat (earnings, high pct all day) isn't re-admitted. A
+                             # smaller move still counts if the candle is a genuinely sharp expansion.
+# TIER-HOLD / decay. Once a name is FLAGGED (a genuine volume+move signal), it LATCHES on and its
+# shown strength eases DOWN through the tiers (T4→T3→T2→T1) as its volume normalizes — instead of
+# blinking out in a second (you might miss the ticker). Peak-hold with exponential decay: the
+# shown strength tracks the live reading UP, then decays from the peak when it falls.
+_EFF_DECAY_TAU = 75.0        # decay time constant (s): a T4 (~8) eases to T1 (~2) in ~1.7 min
+_HOLD_SECS = 120.0           # max time a flagged name lingers after its LAST genuine signal
+_HOLD_LIT_FLOOR = 2.0        # …while its decayed strength is still ≥ this (≈ still in T1); then it drops
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -333,6 +344,30 @@ def _at_or_after(hist, target_t):
     return None
 
 
+def _intraday_vol_burst(hist, t_now):
+    """The recent ~1½-min volume rate ÷ the stock's OWN trailing ~10-min average rate — a sudden
+    spike vs its OWN recent baseline (6-8K/min → 30K/min ≈ 4×), the way a trader eyeballs it.
+    Independent of the normal-day rate, so a MEGACAP whose spike reads only ~2-3× vs a normal day
+    (ARM) still shows the real spike, and an elevated-but-flat name (recent ≈ trailing) reads ~1.
+    None until there's enough history."""
+    if len(hist) < 6:
+        return None
+    cv_now = hist[-1][1]
+    a = _at_or_after(hist, t_now - 90.0)          # ~1½ min ago (edge of the recent window)
+    b = _at_or_after(hist, t_now - 690.0)         # ~11½ min ago (edge of the trailing window)
+    if a is None or b is None or a[0] <= b[0]:
+        return None
+    recent = cv_now - a[1]
+    trail = a[1] - b[1]
+    if trail <= 0:
+        return None
+    recent_rate = recent / max(0.25, (t_now - a[0]) / 60.0)
+    trail_rate = trail / max(1.0, (a[0] - b[0]) / 60.0)
+    if trail_rate <= 0:
+        return None
+    return round(recent_rate / trail_rate, 2)
+
+
 def _price_sharpness(hist, t_now):
     """How SUDDEN the recent move is vs the stock's OWN recent ~1-min moves — an ATR-style
     range-expansion read off the close series. ~1 = a steady trend (every minute moves about
@@ -426,6 +461,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     # here; a name merely elevated-vs-a-normal-day (META) reads low. Fires the instant catch.
     burst_intraday = round(burst / rvol_day, 2) if rvol_day > 0 else 0.0
     sharpness = _price_sharpness(hist, t_now)   # sudden range expansion vs recent 1-min moves
+    vspike = _intraday_vol_burst(hist, t_now)   # recent volume rate vs the stock's OWN trailing rate
 
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
@@ -438,6 +474,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
         "surge_intraday": surge_intraday,  # recent pace ÷ own day pace (>1 accelerating, <1 fading)
         "burst_intraday": burst_intraday,  # recent-MINUTE pace ÷ own day pace (the instant-catch signal)
         "sharpness": sharpness,            # recent move ÷ own recent 1-min moves (range expansion)
+        "vspike": vspike,                  # recent volume rate ÷ own trailing rate (spike vs its own norm)
         "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
@@ -552,6 +589,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
                 st["last_add"] = sample_t
 
             st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
+            _apply_hold(st, st["m"], sample_t)   # latch + decay so a flagged name lingers
 
         _state["asof"] = now_iso
         _state["ticks"] += 1
@@ -613,12 +651,17 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         #    caught the SECOND it happens. HIGH bars keep modest blips on quiet names out.
         # A "move" = the last ~2 min OR up big on the day (robust when the 2-min window is
         # momentarily flat — the pre-market news shape).
+        # HELD — flagged recently (a real signal) → linger on the scanner while it decays through
+        # the tiers, even after the live volume/move has faded. This is what keeps a 1-second pop
+        # visible for ~1-2 min so you can see the ticker.
+        if m.get("held"):
+            return True
         if m.get("dvol", 0) < mnd:
             return False
         moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
         surge = m.get("surge_intraday")
         accelerating_ok = surge is None or surge >= _MIN_INTRADAY_SURGE
-        eff = _eff_rvol(m)   # sustained RVOL, lifted by a hard intraday acceleration (megacaps)
+        eff = _eff(m)        # decayed HELD strength (raw when no hold applies)
         sustained = moved and (
             eff >= _SUSTAINED_HIGH_RVOL
             or (eff >= mnr and accelerating_ok)
@@ -628,19 +671,19 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     def _igniting(m):
         # The gold ring = a GENUINE surge happening NOW — an instant explosion (a vertical
         # candle towering over the stock's own day pace, like CRCL / INTC), OR a heavy name
-        # ACCELERATING (not just plateaued) with a real move. Never a coasting flat name.
+        # ACCELERATING (not just plateaued) with a real move. NOT a held/decaying row (the ring
+        # fades once the live surge stops, while the row lingers), never a coasting flat name.
         surge = m.get("surge_intraday")
-        accelerating = (_eff_rvol(m) >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+        accelerating = (_eff(m) >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
                         and (surge is None or surge >= _MIN_INTRADAY_SURGE))
         return accelerating or _instant_surge(m) or _expansion_breakout(m)
 
     def _score(m):
-        # Rank by EFFECTIVE surge strength (what the colour reflects), weighted by the move.
-        # Burst LIGHTS + PULSES a fresh mover but does not inflate its rank, so the loud heavy
-        # names lead and marginal bursts don't crowd the top.
+        # Rank by the (held) EFFECTIVE surge strength, weighted by the move — so a flagged name
+        # holds its place near the top, then drifts DOWN the list as its held strength decays.
         mw = abs(m["move"]) / 0.5
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
-        return _eff_rvol(m) * mw
+        return _eff(m) * mw
 
     with _lock:
         asof = _state["asof"]
@@ -665,7 +708,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         # Genuine surges LEAD: igniting names (a big instant surge OR sustained-heavy +
         # move) sit at the very top so a fresh explosion surfaces the second it happens;
         # then by sustained RVOL so heavy names stay near the top until they die down.
-        rows.sort(key=lambda r: (r[2], _igniting(r[1]), _eff_rvol(r[1]), r[1].get("burst", 0.0)),
+        rows.sort(key=lambda r: (r[2], _igniting(r[1]), _eff(r[1]), r[1].get("burst", 0.0)),
                   reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
@@ -691,6 +734,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "rvol_day": m.get("rvol_day"),
             "surge_intraday": m.get("surge_intraday"),
             "burst_intraday": m.get("burst_intraday"),
+            "vspike": m.get("vspike"),
             "sharpness": sharp,
             "burst": burst,
             "move": m["move"],
@@ -742,22 +786,25 @@ def _eff_rvol(m: dict) -> float:
         base = min(rvol, _COAST_TIER_CAP)
     else:
         base = rvol
-    # A fresh range-expansion breakout drives the tier too (its absolute burst), so a strong
-    # mover breaking to new extremes reads bold even when its sustained rvol is modest or
-    # coast-capped (NET). Gated by sharpness + a real move, so a flat grind isn't lifted.
+    # A fresh volume SPIKE + move breakout drives the tier too (its spike magnitude), so a strong
+    # mover reads bold even when its sustained rvol is modest or coast-capped (NET/ARM). Gated by
+    # the breakout (spike + real move), so a flat grind isn't lifted.
     if _expansion_breakout(m):
-        base = max(base, m.get("burst") or 0.0)
+        base = max(base, m.get("burst") or 0.0, m.get("vspike") or 0.0)
     return base
 
 
 def _expansion_breakout(m: dict) -> bool:
-    """SIZE + PRICE MOVE together, right now: a genuinely big volume candle (ABSOLUTE burst —
-    not the ÷own-day-pace ratio, which dilutes for a name active all day) AND a real fast move.
-    Catches a strong mover breaking to new intraday extremes on its highest-volume candle
-    (NET/NTNX), which the coasting gate would otherwise suppress. A flat/fading name (no fast
-    move) or a merely-elevated one (no fresh burst) does NOT qualify. A smaller move still
-    counts if it's a genuinely SHARP sudden expansion (a vertical candle — INTC)."""
-    if (m.get("burst") or 0.0) < _EXPANSION_BURST:
+    """SIZE + PRICE MOVE together, right now — the core catch. A clear volume SPIKE — recent
+    volume ≥ _SPIKE_MULT× the stock's OWN trailing rate (how a trader eyeballs it: 6-8K/min →
+    30K/min), which catches a MEGACAP whose spike reads only ~2-3× vs a normal day (ARM), OR a
+    big absolute burst vs the normal-for-now rate — AND a real fast move. Catches a strong mover
+    breaking out on its highest-volume candle (ARM/NET/NTNX), which the coasting gate would
+    otherwise suppress. A flat/fading name (no fast move) or a merely-elevated one (no spike)
+    does NOT qualify. A smaller move still counts if it's a genuinely SHARP sudden expansion
+    (a vertical candle — INTC)."""
+    spike = (m.get("vspike") or 0.0) >= _SPIKE_MULT or (m.get("burst") or 0.0) >= _EXPANSION_BURST
+    if not spike:
         return False
     move = abs(m.get("move") or 0.0)
     if move >= _EXPANSION_MOVE:
@@ -780,6 +827,48 @@ def _instant_surge(m: dict) -> bool:
     return sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE
 
 
+def _eff(m: dict) -> float:
+    """The effective surge strength used for the tier / rank / lit — the DECAYED HELD value once
+    the tick has applied the hold (so a flagged name eases down through the tiers as its volume
+    fades), else the raw computation."""
+    held = m.get("eff")
+    return held if held is not None else _eff_rvol(m)
+
+
+def _signal(m: dict) -> bool:
+    """Param-independent 'a genuine signal fired right now' — the trigger that LATCHES the hold.
+    A fresh catch (instant / expansion) OR a strong ACCELERATING sustained surge. Excludes a
+    coasting elevated name (no catch, not accelerating), so a flat earnings name is never held."""
+    if _instant_surge(m) or _expansion_breakout(m):
+        return True
+    surge = m.get("surge_intraday")
+    acc = surge is None or surge >= _MIN_INTRADAY_SURGE
+    moved = abs(m.get("move") or 0.0) >= _DEFAULT_MIN_MOVE or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
+    return bool(moved and acc and _eff_rvol(m) >= _SUSTAINED_HIGH_RVOL)
+
+
+def _apply_hold(st: dict, m: dict, t: float) -> None:
+    """Latch + decay the effective surge so a FLAGGED name lingers and eases down through the
+    tiers (T4→T1) as its volume normalizes, instead of blinking out. Peak-hold with exponential
+    decay: the shown strength tracks the live reading UP, then decays from the peak when the live
+    reading falls. A name stays lit for up to _HOLD_SECS after its LAST genuine signal while the
+    decayed strength is still above the T1 floor. Mutates m in place (sets `eff` + `held`)."""
+    if not m:
+        return
+    raw = _eff_rvol(m)
+    prev = st.get("eff_hold", 0.0)
+    prev_t = st.get("eff_hold_t", t)
+    dt = t - prev_t if t > prev_t else 0.0
+    decayed = prev * math.exp(-dt / _EFF_DECAY_TAU) if prev > 0 else 0.0
+    held = raw if raw >= decayed else decayed
+    st["eff_hold"] = held
+    st["eff_hold_t"] = t
+    m["eff"] = round(held, 2)
+    if _signal(m):
+        st["signal_t"] = t
+    m["held"] = (t - st.get("signal_t", -1e18)) < _HOLD_SECS and held >= _HOLD_LIT_FLOOR
+
+
 def _rvol_tier(rvol: float) -> int:
     if rvol >= 10:
         return 5   # Extreme
@@ -798,8 +887,9 @@ def _tier(m: dict) -> int:
     by a hard intraday acceleration for megacaps — see _eff_rvol) so a genuine sustained push
     gets the loud colours while weak/marginal prints stay calm. A 1-minute burst does NOT by
     itself inflate the tier — a fresh ignition is surfaced by the row's `igniting` pulse + its
-    rank. UCT-palette ramp: faint green → gold → hot red."""
-    return _rvol_tier(_eff_rvol(m))
+    rank. UCT-palette ramp: faint green → gold → hot red. Uses the DECAYED HELD strength, so a
+    flagged name eases down T4→T3→T2→T1 as its volume normalizes rather than blinking out."""
+    return _rvol_tier(_eff(m))
 
 
 def status() -> dict:
@@ -860,6 +950,7 @@ def on_aggregate(sym: str, payload: dict, kind: str) -> None:
             else:
                 hist[-1] = (t, int(av), float(price))   # refresh the developing point in place
             st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
+            _apply_hold(st, st["m"], t)   # latch + decay so a flagged name lingers
     except Exception:
         pass   # a shared callback — never break the bars feed
 

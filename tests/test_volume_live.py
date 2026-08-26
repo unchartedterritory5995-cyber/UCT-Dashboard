@@ -211,11 +211,11 @@ def test_scans_only_the_top_liquid_names(monkeypatch):
 def test_min_rvol_and_min_move_filters_are_honored():
     seq = {}
     for t in range(0, 46):
-        px = 10.0 if t <= 36 else 10.0 + 0.008 * (t - 36)   # a small move (no big day-move)
+        px = 10.0 if t <= 36 else 10.0 + 0.005 * (t - 36)   # a small move, below the catch bars
         seq[t] = {"AAA": {"min_av": 60_000 * t, "last_price": px, "prev_close": 10.0, "prev_vol": 1_000_000}}
     _feed(seq)
-    # min_rvol / min_move are honoured. A high min_rvol excludes the name (its move is below
-    # the instant-surge bar, so there's no backdoor); a high min_move excludes it.
+    # min_rvol / min_move gate the SUSTAINED path. A high min_rvol excludes the name (its move is
+    # below the instant/expansion catch bars, so there's no backdoor); a high min_move excludes it.
     assert volume_live.get_live(min_rvol=999, min_dollar=0)["rows"] == []
     assert _row(volume_live.get_live(min_rvol=2, min_dollar=0)["rows"], "AAA") is not None
     assert volume_live.get_live(min_move=999, min_dollar=0)["rows"] == []
@@ -380,6 +380,34 @@ def test_a_strong_mover_breaking_out_on_a_volume_burst_is_lit_bold_not_suppresse
     assert r["igniting"] is True           # and igniting, so it ranks near the top
 
 
+def test_a_megacap_volume_spike_vs_its_own_norm_is_caught_even_when_the_normal_day_burst_is_diluted(monkeypatch):
+    # ARM shape: a MEGACAP whose spike reads only ~2× vs a NORMAL day (its huge baseline dilutes
+    # both burst and burst_intraday, so those gates miss it) — but whose recent volume is ~4× its
+    # OWN trailing intraday rate (6-8K/min → 30K/min), with a real move. The scanner must catch it
+    # the way a trader eyeballs the spike: recent volume vs the stock's OWN recent norm (vspike).
+    monkeypatch.setattr(volume_live, "_PRICE_SECS", 120.0)
+    monkeypatch.setattr(volume_live, "_NOW_DOLLAR_SECS", 60.0)
+    prev_vol = 8_000_000
+    cf = volume_live._cumfrac(_NOW)
+    cv = prev_vol * cf                            # midday cumulative → rvol_day ~1 (normal-ish day)
+    seq = {}
+    for t in range(0, 721, 3):                    # ~12 min
+        if t < 630:
+            cv += (7000 / 60.0) * 3               # ~7K/min trailing baseline
+            px = 248.0
+        else:
+            cv += (30000 / 60.0) * 3              # ~30K/min spike in the last 90s
+            px = 248.0 + 2.0 * ((t - 630) / 90.0)  # a +0.8% pop
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 248.0, "prev_vol": prev_vol}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["burst"] < 3                  # the normal-day burst is DILUTED (megacap) — the old gates miss it…
+    assert r["vspike"] >= 3                 # …but recent volume is ≥3× its OWN trailing rate (the real spike)
+    assert r["move"] >= 0.6                 # …with a real fast move
+    assert r["tier"] >= 3 and r["igniting"] is True   # → lit BOLD + igniting, near the top
+
+
 def test_a_dead_morning_name_trading_normally_now_is_not_boosted():
     # The boost's guard: a name whose morning was DEAD (rvol_day very low) but is merely trading
     # NORMALLY now has a high surge_intraday ratio — yet its recent rate is NOT elevated vs a
@@ -414,6 +442,43 @@ def test_top_set_promotes_a_name_surging_today_over_one_liquid_only_yesterday():
     assert "BIG" in top
     assert "NTNX" in top        # promoted by TODAY's heavy $-vol ($195M) over MIDLIQ's $80M yday
     assert "MIDLIQ" not in top
+
+
+def test_a_flagged_name_holds_then_eases_down_through_the_tiers_then_drops():
+    # DAVE-shape follow-through: once a name is FLAGGED (a genuine volume+move spike → bold), it
+    # LINGERS on the scanner and its tier eases DOWN (T4→T3→T2→…) as the volume normalizes, so a
+    # 1-second pop stays visible for ~1-2 min — instead of blinking out. Then it drops.
+    st = {}
+    spike = {"move": 2.0, "pct": 2.0, "burst": 8.0, "vspike": 6.0, "sharpness": 5.0,
+             "surge_intraday": 1.2, "rvol": 3.0, "burst_intraday": 3.0}
+    volume_live._apply_hold(st, spike, 0.0)          # the spike: bold + latched
+    peak = spike["eff"]
+    assert spike["held"] is True
+    assert volume_live._rvol_tier(peak) >= 4         # T4/T5 — bold
+
+    # the live surge FADES (volume + fast move gone), but the hold lingers and DECAYS
+    quiet = {"move": 0.0, "pct": 2.0, "burst": 1.0, "vspike": 1.0, "sharpness": 0.0,
+             "surge_intraday": 1.0, "rvol": 1.0, "burst_intraday": 1.0}
+    q1 = dict(quiet)
+    volume_live._apply_hold(st, q1, 45.0)            # ~45s later
+    assert q1["held"] is True                         # still on the scanner…
+    assert q1["eff"] < peak                           # …but eased down
+    assert volume_live._rvol_tier(q1["eff"]) < volume_live._rvol_tier(peak)
+
+    # well past the hold window → no longer held (decayed below the floor / past _HOLD_SECS)
+    q2 = dict(quiet)
+    volume_live._apply_hold(st, q2, 200.0)
+    assert q2["held"] is False
+
+
+def test_a_name_that_never_flagged_is_not_held():
+    # The hold only latches a GENUINE signal. A quiet name (no catch, not accelerating) is never
+    # flagged, so it is never held on the scanner.
+    st = {}
+    m = {"move": 0.1, "pct": 0.2, "burst": 1.2, "vspike": 1.1, "sharpness": 0.0,
+         "surge_intraday": 1.0, "rvol": 1.5, "burst_intraday": 1.0}
+    volume_live._apply_hold(st, m, 0.0)
+    assert m["held"] is False
 
 
 def test_register_custom_syms_keeps_them_active():
