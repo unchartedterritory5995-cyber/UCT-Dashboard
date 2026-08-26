@@ -137,6 +137,16 @@ _SURGE_BOOST_MIN_RVOL = 2.0  # …AND recent rate ≥ 2× a NORMAL day (genuinel
 _COAST_SURGE = 1.5           # at/below this the name is coasting (elevated, not accelerating)…
 _COAST_TIER_CAP = 3.5        # …so its effective surge caps at ~T2 (Elevated), below the
                              # extreme-bypass level — it shows its elevated volume but stays calm
+# RANGE-EXPANSION BREAKOUT — a name TRENDING/BREAKING right now: a fresh range-expansion candle
+# (sharpness) on a genuinely big volume candle (ABSOLUTE burst, not the ÷own-day-pace ratio,
+# which dilutes for a name active all day) WITH a real move. This catches a strong mover
+# grinding to new intraday extremes on its highest-volume candle (NET/NTNX) — which the
+# coasting gate would otherwise suppress — while the sharpness gate keeps a smooth elevated
+# grind (ANF) out. It also drives the tier so the breakout reads bold, not a faint T1.
+_EXPANSION_BURST = 3.0       # the fresh candle is ≥3× the normal-for-now volume rate…
+_EXPANSION_MOVE = 1.0        # …AND a real FAST move (last ~2 min ≥1%) — the "size + price move
+                             # together" signal. Uses the fast move, NOT the day move, so a name
+                             # gapped-and-flat (earnings, high pct all day) isn't re-admitted.
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -613,7 +623,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             eff >= _SUSTAINED_HIGH_RVOL
             or (eff >= mnr and accelerating_ok)
         )
-        return sustained or _instant_surge(m)
+        return sustained or _instant_surge(m) or _expansion_breakout(m)
 
     def _igniting(m):
         # The gold ring = a GENUINE surge happening NOW — an instant explosion (a vertical
@@ -622,7 +632,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         surge = m.get("surge_intraday")
         accelerating = (_eff_rvol(m) >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
                         and (surge is None or surge >= _MIN_INTRADAY_SURGE))
-        return accelerating or _instant_surge(m)
+        return accelerating or _instant_surge(m) or _expansion_breakout(m)
 
     def _score(m):
         # Rank by EFFECTIVE surge strength (what the colour reflects), weighted by the move.
@@ -719,18 +729,41 @@ def _eff_rvol(m: dict) -> float:
     rvol = m.get("rvol") or 0.0
     surge = m.get("surge_intraday")
     if surge is None:
-        return rvol   # freshly tracked — not enough history to judge acceleration yet
+        base = rvol   # freshly tracked — not enough history to judge acceleration yet
     # Lift only when the recent rate is GENUINELY elevated vs a normal day (rvol ≥ the boost
     # floor) AND accelerating hard vs its own day — so a name whose morning was dead but is
     # merely trading NORMALLY now (low rvol, high surge) is not inflated into a fake surge.
-    if surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
-        return max(rvol, float(surge))
+    elif surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
+        base = max(rvol, float(surge))
     # COASTING — elevated but flat (surge ~1): cap the effective tier so an earnings name
     # heavy all day doesn't read "Very High" on stale volume. The bold tiers require the
     # volume to be EXPANDING now, not just high-vs-a-normal-day.
-    if surge < _COAST_SURGE:
-        return min(rvol, _COAST_TIER_CAP)
-    return rvol
+    elif surge < _COAST_SURGE:
+        base = min(rvol, _COAST_TIER_CAP)
+    else:
+        base = rvol
+    # A fresh range-expansion breakout drives the tier too (its absolute burst), so a strong
+    # mover breaking to new extremes reads bold even when its sustained rvol is modest or
+    # coast-capped (NET). Gated by sharpness + a real move, so a flat grind isn't lifted.
+    if _expansion_breakout(m):
+        base = max(base, m.get("burst") or 0.0)
+    return base
+
+
+def _expansion_breakout(m: dict) -> bool:
+    """SIZE + PRICE MOVE together, right now: a genuinely big volume candle (ABSOLUTE burst —
+    not the ÷own-day-pace ratio, which dilutes for a name active all day) AND a real fast move.
+    Catches a strong mover breaking to new intraday extremes on its highest-volume candle
+    (NET/NTNX), which the coasting gate would otherwise suppress. A flat/fading name (no fast
+    move) or a merely-elevated one (no fresh burst) does NOT qualify. A smaller move still
+    counts if it's a genuinely SHARP sudden expansion (a vertical candle — INTC)."""
+    if (m.get("burst") or 0.0) < _EXPANSION_BURST:
+        return False
+    move = abs(m.get("move") or 0.0)
+    if move >= _EXPANSION_MOVE:
+        return True
+    sharp = m.get("sharpness")
+    return sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE
 
 
 def _instant_surge(m: dict) -> bool:

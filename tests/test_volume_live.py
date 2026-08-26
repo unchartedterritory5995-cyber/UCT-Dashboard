@@ -68,7 +68,7 @@ def test_unusual_cumulative_volume_with_a_move_is_lit_and_tiered():
     aaa = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert aaa is not None and aaa["lit"] is True
     assert 4.5 <= aaa["rvol"] <= 6                          # cumulative ~5.2×
-    assert aaa["tier"] == 3 and aaa["burst"] > 0           # tier tracks cumulative RVOL (High)
+    assert aaa["tier"] >= 3 and aaa["burst"] > 0           # High or bolder (a fresh burst + a real move)
     assert aaa["move"] > 1 and aaa["dir"] == "up"
 
 
@@ -344,6 +344,40 @@ def test_an_earnings_name_heavy_but_flat_all_day_does_not_scream_very_high():
     assert r["surge_intraday"] <= 1.2     # …but it's FLAT — not accelerating vs its own day
     assert r["tier"] <= 2                 # → capped (Elevated at most), never a bold "Very High"
     assert r["lit"] is False              # and not lit — nothing unusual is happening right now
+
+
+def test_a_strong_mover_breaking_out_on_a_volume_burst_is_lit_bold_not_suppressed(monkeypatch):
+    # NET shape: elevated ALL day (surge ~1, so the coasting cap alone would suppress it) and
+    # grinding UP, then a fresh candle that is its biggest volume of the day + a real fast move —
+    # a breakout happening NOW. This must LIGHT BOLD (size + price move together), not sit unlit
+    # like a flat coaster. Its ÷own-pace burst ratio is diluted (active all day), so the catch
+    # keys off the ABSOLUTE burst + the fast move.
+    # This one runs a realistic ~10-min timeline, so use the real move/burst windows (the short
+    # synthetic tests shrink them to 10s).
+    monkeypatch.setattr(volume_live, "_PRICE_SECS", 120.0)
+    monkeypatch.setattr(volume_live, "_NOW_DOLLAR_SECS", 60.0)
+    prev_vol = 4_000_000
+    cf = volume_live._cumfrac(_NOW)
+    cr = volume_live._cumrate(_NOW)
+    base = cr * prev_vol * 2.0                         # ~2× a normal day's per-second rate
+    cv = 2 * prev_vol * cf - base * 600
+    seq = {}
+    for t in range(0, 601, 3):
+        if t < 585:
+            cv += base * 3
+            px = 277.0 + 12.0 * (t / 585.0)            # steady climb +4.3%
+        else:
+            cv += base * 3 * 8                         # the highest-volume candle of the day
+            px = 289.0 + 0.8 * ((t - 585) / 15.0)      # a fast pop on top (the breakout)
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 277.0, "prev_vol": prev_vol}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["surge_intraday"] <= 1.5     # elevated all day at ~flat pace (a coaster by that gate)…
+    assert r["burst"] >= 3                 # …but a genuine fresh volume burst right now…
+    assert r["move"] >= 1                  # …and a real fast move (size + price together)
+    assert r["tier"] >= 3                  # → lit BOLD, not suppressed by the coasting cap
+    assert r["igniting"] is True           # and igniting, so it ranks near the top
 
 
 def test_a_dead_morning_name_trading_normally_now_is_not_boosted():
