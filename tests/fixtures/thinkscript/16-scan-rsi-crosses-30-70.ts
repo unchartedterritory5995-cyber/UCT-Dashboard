@@ -1,0 +1,1 @@
+RSI() crosses above 30 or RSI() crosses below 70
