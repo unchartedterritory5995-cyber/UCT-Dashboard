@@ -1445,10 +1445,19 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[
         # hours. Derived rather than formatted, which keeps the memo exact.
         minute[i] = float(int((t - utc_hour * 3600) // 60))
         # The ET calendar day as ONE number, so the comparison is numeric and no
-        # string key is built per bar. ``sessionfirst`` is 1 on the first bar of
-        # the series by construction: no previous bar means no previous day.
+        # string key is built per bar.
+        #
+        # ⛔⛔ THE OLDEST BAR IS None, NOT 1, AND THAT IS THE WHOLE OF WHY THIS
+        # COLUMN DECLARES ``lookback: 1``. It is a function of TWO bars -- this
+        # bar's ET day against the previous bar's -- exactly as ``change(close)``
+        # is. While bar 0 answered 1 the value depended on the WINDOW rather than
+        # on the tape: slice the same series anywhere and its leading bar claimed
+        # to open a session whether or not it did (measured -- ``bars[1:]`` and
+        # ``bars[4:]`` both read 1 where the full series read 0). The blank is the
+        # same warm-up pad every windowed entry in this table carries, and it is
+        # what makes every bar this column DOES answer for window-independent.
         day = y * 10000 + mo * 100 + d
-        first[i] = 0.0 if day == prev_day else 1.0
+        first[i] = None if prev_day < 0 else (0.0 if day == prev_day else 1.0)
         prev_day = day
 
     cols["time"] = time_col

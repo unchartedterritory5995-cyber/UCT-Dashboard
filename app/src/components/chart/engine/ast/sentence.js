@@ -337,6 +337,15 @@ export function yieldsOf(node, rules) {
     case 'num':
       return node.value === 0 || node.value === 1 ? BOOL : NUM
     case 'series': {
+      // ⛔ ALL THE VOCABULARIES THAT RIDE THIS NODE AND DECLARE A `yields`, NOT
+      // JUST THE SCALARS. This read only `rules.scalars`, so the `clock`
+      // section's thirteen declarations were INERT the day they landed: a bare
+      // `isintraday` classified `num` and was refused as a scan while the
+      // identical 0/1 shape on a scalar was accepted. A bar field is absent
+      // deliberately -- it declares no `yields` because it is a price -- and an
+      // input is absent because a knob is dated by nothing and declares nothing.
+      const clock = (r && r.clock) || EMPTY
+      if (own(clock, node.name)) return settle(clock[node.name].yields)
       const scalars = (r && r.scalars) || EMPTY
       return own(scalars, node.name) ? settle(scalars[node.name].yields) : NUM
     }

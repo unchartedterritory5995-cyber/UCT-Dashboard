@@ -253,7 +253,20 @@ def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
     fail-closed is the answer until somebody declares it.
     """
     m = manifest if manifest is not None else TABLE
-    for section in (OPERATORS_SECTION, FUNCTIONS_SECTION, SCALARS_SECTION):
+    # ⛔ THE SECTION LIST IS DERIVED, NEVER TYPED, AND THAT IS THE FIX FOR A
+    # MEASURED DEFECT. It read ``(OPERATORS, FUNCTIONS, SCALARS)`` -- a hand-list
+    # of four sections' worth of table with one missing -- so when ``clock``
+    # landed, every one of its thirteen ``yields`` declarations was INERT: this
+    # function raised ``KeyError`` on ``isintraday`` and ``is_boolean_tree`` fell
+    # to False, which refused a bare ``isintraday`` as a scan while the identical
+    # 0/1 shape on a scalar was accepted. Worse, a later engineer who "fixed" the
+    # declaration would have changed nothing, because no consumer read the
+    # section -- ``lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage``.
+    # ``SERIES_SECTION`` is deliberately absent from the derivation and that is
+    # not a second hand-list: a bar field declares no ``yields`` at all (it is a
+    # price, always ``num``), so including it would only ever return the default
+    # by a longer route. Everything else that declares names is consulted.
+    for section in (sec for sec in SECTIONS if sec != SERIES_SECTION):
         entry = (m.get(section) or {}).get(name)
         if entry is not None:
             value = entry.get("yields")

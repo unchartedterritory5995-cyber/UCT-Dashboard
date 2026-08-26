@@ -1,7 +1,7 @@
 {
  "_": "THE CLOCK ORACLE. Twenty-one bars and the thirteen columns `app/src/components/chart/indicators.js::computeClock` produces for them, RECORDED FROM THAT LANE and asserted by the other one (`tests/test_ast_clock_parity.py`). It is the `self_lag_parity.json` idiom: a lane that drifts fails against the OTHER LANE'S OWN OUTPUT rather than against numbers somebody retyped in a docstring.",
  "_bars": "SYNTHETIC AND DELIBERATELY NOT A TRADING SERIES. Three properties are what it is for, and none of them survives in ordinary tape. (1) THE DST FALLBACK: bars 8-12 straddle 2025-11-02, when ET goes 01:59:59 EDT -> 01:00:00 EST, so 01:30 ET occurs TWICE, one UTC hour apart. Both must read hour 1 minute 30; an implementation holding one offset captured at import reads the second as 2:30, and is correct for half the year. (2) A WEEKEND: real US equity bars never print on a Saturday or a Sunday, so `dayofweek` could not cover 7 or 1 from any honest series -- these two days are invented on purpose and the fixture says so rather than implying the tape has them. (3) TWO MIDNIGHTS: bar 5 is 20:00 ET on 2025-10-31, which is 00:00 UTC on the 1st (the trap `VWAP_SESSION_ANCHOR` retired -- it must stay inside the Friday ET day, `sessionfirst` 0), and bar 18 is 00:00 ET, which IS the ET session boundary and must be `sessionfirst` 1.",
- "_expected": "`null` IS NaN, never a value. Every column is aligned to `bars` and exactly as long. Recorded with `tf` = \"5\", which is why the four timeframe booleans read 1/0/0/0 here; `tf_booleans` is what covers the rest.",
+ "_expected": "`null` IS NaN, never a value. Every column is aligned to `bars` and exactly as long. Recorded with `tf` = \"5\", which is why the four timeframe booleans read 1/0/0/0 here; `tf_booleans` is what covers the rest. ⛔ `sessionfirst[0]` IS null AND THAT IS THE COLUMN'S WARM-UP, NOT A GAP IN THE FIXTURE. It reads the PREVIOUS bar's ET day, declares `lookback: 1` for it, and the oldest bar has no previous day to differ from. It read 1 until 2026-08-26; that 1 was a value the WINDOW produced rather than the tape -- slicing this same series at bar 1 or bar 4 made its new leading bar claim to open a session too. The `sliced` block below is what holds that fixed.",
  "_tf_booleans": "THE TIMEFRAME VOCABULARY, PINNED ACROSS THE LANES. Each key is the `tf` handed to `computeClock`; `__absent__` is no argument at all. The four values are that timeframe's flat answer. THE `null` ROWS ARE THE POINT: `3`, `1H`, `2D`, `d` and the empty string are not codes this platform ships, and an unrecognised code answers NOT-COMPUTABLE rather than a confident 0 -- the same answer an absent `tf` gets. A lane that guessed from the string's SHAPE would call `3` intraday and `2D` daily, and this block goes red for both. The eight real codes are the one list each lane spells for itself, so this is where a divergence between the two surfaces.",
  "_non_instant": "THE UNIT GATE, AND IT IS PARTIAL. `non_instant_bars` is the same series with `t` rewritten as `bars_sqlite`'s YYYYMMDD ints -- exactly what the alert and scan lanes hand a daily series, and what once made `compute_vwap` anchor 400 daily bars in 1970. The eight time-derived columns must ALL be null; `barindex` and the four timeframe booleans must be UNTOUCHED, because they read no `t` and a guard firing on them would refuse a column it has no reason to doubt.",
  "tf": "5",
@@ -338,7 +338,7 @@
    30
   ],
   "sessionfirst": [
-   1,
+   null,
    0,
    0,
    1,
@@ -1029,6 +1029,64 @@
    0,
    0,
    0,
+   0,
+   0
+  ]
+ },
+ "_sliced_sessionfirst": "⭐ WINDOW-INDEPENDENCE, FROZEN. Each key is a bar index; its value is what `sessionfirst` must be for `bars[k:]` -- and it is the FULL series' own answer from bar k on, with the first element blanked because that bar is now the warm-up bar. ⛔ THE POINT IS THE TAIL: from the second bar of any slice, the answer must be IDENTICAL to the full series. Before the warm-up pad it was not -- `bars[1:]` read [1,0,1,0] where the full series read [0,0,1,0] -- so a chart scrolled one bar to the left drew a session marker on a bar that opens nothing.",
+ "sliced_sessionfirst": {
+  "1": [
+   null,
+   0,
+   1,
+   0,
+   0,
+   1,
+   0,
+   1,
+   0,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "4": [
+   null,
+   0,
+   1,
+   0,
+   1,
+   0,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "9": [
+   null,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0,
+   1,
+   0,
+   1,
    0,
    0
   ]

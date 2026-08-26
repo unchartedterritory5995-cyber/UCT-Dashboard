@@ -1124,10 +1124,19 @@ export function computeClock(bars, tf) {
     // Derived rather than formatted, which is what keeps the memo above exact.
     cols.minute[i] = Math.floor((t - utcHour * 3600) / 60)
     // The ET calendar day as ONE number, so the comparison below is numeric and
-    // no string key has to be built per bar. `sessionfirst` is 1 on the first
-    // bar of the series by construction: no previous bar means no previous day.
+    // no string key has to be built per bar.
+    //
+    // ⛔⛔ THE OLDEST BAR IS BLANK, NOT 1, AND THAT IS THE WHOLE OF WHY THIS
+    // COLUMN DECLARES `lookback: 1`. It is a function of TWO bars -- this bar's
+    // ET day against the previous bar's -- exactly as `change(close)` is. While
+    // bar 0 answered 1 the value depended on the WINDOW rather than on the tape:
+    // slice the same series anywhere and its leading bar claimed to open a
+    // session whether or not it did (measured -- `bars[1:]` and `bars[4:]` both
+    // read 1 where the full series read 0). NaN is the same warm-up pad every
+    // windowed entry in this table carries, and it is what makes every bar this
+    // column DOES answer for window-independent.
     const day = p.y * 10000 + p.m * 100 + p.d
-    cols.sessionfirst[i] = day === prevDay ? 0 : 1
+    cols.sessionfirst[i] = prevDay < 0 ? NA : (day === prevDay ? 0 : 1)
     prevDay = day
   }
   return cols

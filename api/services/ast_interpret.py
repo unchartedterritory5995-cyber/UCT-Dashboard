@@ -1361,9 +1361,20 @@ def interpret(ast: Any, bars: List[dict],
     # them. It is not made conditional on the tree because ``scope`` is also
     # what the shadow check reads and what ``resolve:name`` lists — a clock name
     # seeded only when it is used would let an input named ``hour`` shadow it on
-    # every OTHER formula, silently. The bounded cost is real: the unit gate
-    # short-circuits before any zone work (which is the daily/scan case), and
-    # the wall-clock path memoises on the UTC hour.
+    # every OTHER formula, silently.
+    #
+    # ⛔ THE COST IS ~12% OF ONE ``interpret`` CALL AND IT IS **NOT FREE ON
+    # DAILY BARS**. Measured against this same module with the ``clock`` section
+    # removed (best-of-11 x 300, A/B/A/B/A/B): ``sma(close, 20)`` over 579
+    # five-minute bars 1.62 -> 1.85 ms, over 579 ``YYYYMMDD`` daily bars
+    # 1.37 -> 1.49 ms. ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT
+    # THE **SEEDING**: ``compute_clock`` still allocates thirteen ``[None] * n``
+    # columns and the loop below still maps over all thirteen, whichever branch
+    # the gate takes. An earlier note here read the daily case as FREE on the
+    # strength of a -0.07 ms delta -- noise standing in for a measurement, and a
+    # negative delta for purely ADDED work is the tell. The trade still holds,
+    # in the units that decide it: 3,700 symbols x ~0.15 ms is well under a
+    # second per nightly sweep.
     clock_cols = compute_clock(bars, (opts or {}).get("tf"))
     for name in TABLE.get(CLOCK_SECTION) or {}:
         col = clock_cols.get(name)

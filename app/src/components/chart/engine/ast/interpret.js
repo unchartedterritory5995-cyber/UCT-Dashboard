@@ -1101,9 +1101,19 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // them. It is deliberately NOT made conditional on the tree, because `scope`
   // is also what the shadow check reads and what `resolve:name` lists — a clock
   // name seeded only when it is used would let an input named `hour` shadow it
-  // on every OTHER formula, silently. The cost is bounded: the unit gate
-  // short-circuits before any zone work (the daily/scan case) and the
-  // wall-clock path memoises on the UTC hour.
+  // on every OTHER formula, silently.
+  //
+  // ⛔ THE COST IS ~12% OF ONE `interpret` CALL AND IT IS **NOT FREE ON DAILY
+  // BARS**. Measured on the Python mirror against the same module with the
+  // `clock` section removed: `sma(close, 20)` over 579 five-minute bars
+  // 1.62 -> 1.85 ms, over 579 `YYYYMMDD` daily bars 1.37 -> 1.49 ms.
+  // ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT THE **SEEDING**:
+  // `computeClock` still allocates thirteen `Float64Array`s and still writes
+  // all thirteen, whichever branch the gate takes. On THIS lane the number
+  // that matters is allocation rather than time -- 13 columns x 5,000 bars x
+  // 8 B is ~507 KB transient per call at full history, which is GC churn on
+  // every repaint and the first thing to reach for (a lazy seed) if this ever
+  // shows up in a profile.
   {
     const cols = computeClock(bars, opts ? opts.tf : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {

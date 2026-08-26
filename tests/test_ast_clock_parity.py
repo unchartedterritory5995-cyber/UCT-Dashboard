@@ -104,10 +104,33 @@ def test_the_fixture_actually_spans_a_DST_CHANGE_and_a_WEEKEND():
         "two sides of the fallback and this fixture proves nothing about it")
 
     # AND ONE MORE ET DAY THAN A UTC READER WOULD FIND. Bar 5 is 20:00 ET on the
-    # 31st == 00:00 UTC on the 1st: a UTC-day reader opens a session there.
-    assert sum(exp["sessionfirst"]) == len(set(zip(
-        exp["year"], exp["month"], exp["dayofmonth"]))), (
-        "`sessionfirst` does not count the ET calendar days in the fixture")
+    # 31st == 00:00 UTC on the 1st: a UTC-day reader opens a session there, and an
+    # ET one does not.
+    #
+    # ⛔ THE COUNT IS "ET DAYS MINUS ONE", AND THE MINUS ONE IS THE WARM-UP BAR.
+    # The oldest bar has no previous day to differ from, so the session it opens
+    # is the one day this column cannot claim -- exactly as `change(close)` cannot
+    # claim the first bar's change. Asserting the raw day count here would be
+    # asserting the fabricated 1 this fix removed.
+    days = set(zip(exp["year"], exp["month"], exp["dayofmonth"]))
+    assert exp["sessionfirst"][0] is None, "the warm-up bar carries a value"
+    assert exp["sessionfirst"].count(None) == 1, (
+        "more than the warm-up bar is blank -- something else is refusing")
+    assert sum(v for v in exp["sessionfirst"] if v is not None) == len(days) - 1, (
+        f"`sessionfirst` marks {sum(v for v in exp['sessionfirst'] if v)} openings "
+        f"for {len(days)} ET calendar days (one is the warm-up bar's)")
+    # ⚠️ AND THE DISCRIMINATOR IS NOT THE DAY COUNT — THIS FIXTURE HAPPENS TO
+    # HAVE SEVEN OF EACH. It is that at least one bar opens a UTC day WITHOUT
+    # opening an ET session: bar 5 is 20:00 ET on the 31st, which IS 00:00 UTC on
+    # the 1st. A lane bucketing by the UTC day marks it 1; the ET lane marks it 0
+    # because the Friday session has not ended. That single bar is the measured
+    # $14.45 open-gap defect `VWAP_SESSION_ANCHOR` retired, in a new column.
+    utc_only = [i for i in range(1, len(exp["time"]))
+                if exp["time"][i] // 86400 != exp["time"][i - 1] // 86400
+                and exp["sessionfirst"][i] == 0]
+    assert utc_only, (
+        "no bar opens a UTC day without opening an ET session — the fixture no "
+        "longer distinguishes the two bucketings and this whole case is vacuous")
 
 
 def test_the_timeframe_booleans_agree_on_EVERY_code_INCLUDING_the_refused_ones():
@@ -176,6 +199,169 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
     assert len(time_derived) == 8, sorted(time_derived)
     for name in sorted(exp):
         _same(_column(name, bars, "D"), exp[name], name)
+
+
+def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
+    """⛔⛔ THE ONE CLOCK VALUE THAT READS A SECOND BAR, AND THE DEFECT IT CARRIED.
+
+    ``sessionfirst`` compares this bar's ET day against the PREVIOUS bar's, so it
+    is a function of two bars exactly as ``change(close)`` is. It declared
+    ``lookback: 0`` and answered 1 on the leading bar of ANY window -- so the same
+    bar of the same tape said "opens a session" or "does not" depending on where
+    the series happened to start. Measured before the fix: ``bars[1:]`` and
+    ``bars[4:]`` both read ``[1, 0, 1, 0]`` where the full series read
+    ``[0, 0, 1, 0]``.
+
+    Two halves, and BOTH are needed. The declaration is what a budget and a
+    warm-up pad read; the blank is what makes the remaining values true.
+    """
+    doc = _doc()
+    bars = doc["bars"]
+    full = _column("sessionfirst", bars, doc["tf"])
+
+    # 1. THE DECLARATION IS TRUE. It is the only clock entry with a window, and
+    #    the manifest is what says so -- read, never typed.
+    windows = {n: spec["lookback"] for n, spec in ast_table.TABLE[
+        ast_table.CLOCK_SECTION].items()}
+    assert windows["sessionfirst"] == 1, windows
+    assert [n for n, w in windows.items() if w] == ["sessionfirst"], (
+        f"another clock entry grew a window and nothing bounded it: {windows}")
+
+    # 2. THE VALUE IS WINDOW-INDEPENDENT. Every slice agrees with the full series
+    #    from its SECOND bar on, and its first bar is blank rather than guessed.
+    for cut, expected in sorted(doc["sliced_sessionfirst"].items()):
+        i = int(cut)
+        got = _column("sessionfirst", bars[i:], doc["tf"])
+        _same(got, expected, f"sessionfirst on bars[{i}:]")
+        assert got[0] is None, f"bars[{i}:] fabricated a value on its warm-up bar"
+        assert got[1:] == full[i + 1:], (
+            f"bars[{i}:] disagrees with the full series from its second bar on: "
+            f"{got[1:6]} vs {full[i + 1:i + 6]}")
+
+    # ⛔ NON-VACUITY: at least one slice must START inside a session, or every
+    # assertion above is satisfied by a series whose every bar opens one.
+    assert any(full[int(c) + 1] == 0 for c in doc["sliced_sessionfirst"]), (
+        "no slice begins mid-session -- the rail would pass on a fixture where "
+        "the fabricated 1 was accidentally correct")
+
+
+def test_a_clock_leaf_is_LIVE_and_NON_REPAINTING_and_both_branches_can_be_DELETED():
+    """⛔⛔ TWO BRANCHES THAT SHIPPED WITH NO RAIL, IN THIS LANE.
+
+    ``ast_freshness`` gained ``if name in clock: continue`` and ``ast_lint``
+    gained a clock arm resolving reach from the manifest; nothing in
+    ``tests/test_ast_lint.py`` or ``tests/test_ast_indicators.py`` mentions a
+    clock name, so DELETING either kept every suite green —
+    ``lesson_built_tested_green_and_unreachable``, in the two modules whose whole
+    job is to fail closed.
+
+    Each assertion is PAIRED with the same walk over a table missing only the
+    ``clock`` section, which is exactly what deleting the branch produces:
+    freshness falls to ``unknown`` and the linter to ``repaints``.
+    """
+    from api.services import ast_freshness, ast_lint
+
+    names = sorted(ast_table.clock_names())
+    assert names, "no clock section — this rail would be vacuous"
+    stripped = dict(ast_table.TABLE)
+    stripped[ast_table.CLOCK_SECTION] = {}
+
+    for name in names:
+        tree = _leaf(name)
+        fresh = ast_freshness.freshness_for(tree)
+        assert fresh["mode"] == "live", f"{name}: {fresh['mode']}"
+        assert fresh["scalars"] == [], f"{name} was counted as a per-symbol value"
+        assert ast_freshness.freshness_for(tree, {"table": stripped})["mode"] == "unknown", (
+            f"{name} read live off a table that does not declare it")
+
+        assert ast_lint.lint_repaint(tree)["mode"] == "non-repainting", name
+        assert ast_lint.lint_repaint(tree, {"table": stripped})["mode"] == "repaints", (
+            f"{name} was bounded by a table that does not declare it")
+
+    # ⚠️ AND A CLOCK LEAF DOES NOT LAUNDER A SCALAR: the snapshot still dominates,
+    # or the branch above would be a way to make anything read live.
+    mixed = {"type": "op", "name": ">",
+             "args": [_leaf("hour"), _leaf("market_cap")]}
+    assert ast_freshness.freshness_for(mixed)["mode"] == "as-of-snapshot"
+    assert ast_freshness.scalars_in(mixed) == {"market_cap"}
+
+
+def test_a_clock_leafs_REACH_is_the_manifests_own_lookback_not_a_hardcoded_zero():
+    """⛔ THE LINTERS READ THE DECLARATION RATHER THAN ASSUMING IT.
+
+    Both hardcoded ``(0, 0)`` for every clock name, which was true for twelve and
+    FALSE for ``sessionfirst`` — and a hardcoded zero would go on being false for
+    the next entry that declares a window. The reach is now
+    ``own_window(<the entry>, [])``: the same call a function's reach is, so the
+    manifest is the one authority and a fourteenth entry is bounded on the day it
+    lands.
+    """
+    from api.services import ast_lint
+
+    for name, spec in sorted(ast_table.TABLE[ast_table.CLOCK_SECTION].items()):
+        reach = ast_lint.ast_reach(_leaf(name))
+        assert reach["back"] == spec["lookback"], (
+            f"{name}: linter says back={reach['back']}, the manifest declares "
+            f"lookback={spec['lookback']}")
+        assert reach["forward"] == 0, f"{name} claims to read a later bar"
+        assert reach["reasons"] == [], f"{name} was unanalysable: {reach['reasons']}"
+
+    # ⭐ NON-VACUITY, AND IT IS THE WHOLE FINDING: at least one clock entry must
+    # declare a NON-ZERO window, or `back == lookback` is satisfied by the
+    # hardcoded zero this replaced.
+    assert any(spec["lookback"] for spec
+               in ast_table.TABLE[ast_table.CLOCK_SECTION].values()), (
+        "every clock entry declares lookback 0 — this rail cannot tell a derived "
+        "reach from a hardcoded one")
+
+    # ⛔ AND THE DERIVATION IS REAL: a PLANTED entry with a three-bar window is
+    # bounded at three without this file (or the linter) knowing its name.
+    planted = dict(ast_table.TABLE)
+    planted[ast_table.CLOCK_SECTION] = dict(
+        planted[ast_table.CLOCK_SECTION],
+        **{"zzPlantedWindow": {"lookback": 3, "yields": "num",
+                               "sentence": "a planted windowed clock value"}})
+    got = ast_lint.ast_reach(_leaf("zzPlantedWindow"), {"table": planted})
+    assert (got["back"], got["forward"]) == (3, 0), got
+
+
+def test_the_five_ZERO_ONE_clock_values_are_DECLARED_bool_and_a_consumer_READS_it():
+    """⛔ A `yields` NOBODY READS IS AN INERT KNOB.
+
+    ``ast_table.yields_of`` hand-listed the sections it consulted and skipped the
+    fifth, so all thirteen clock declarations resolved to nothing: ``yields_of``
+    raised ``KeyError`` and ``is_boolean_tree`` fell to False. The visible cost was
+    a member being refused a bare ``isintraday`` as a scan while the identical 0/1
+    shape on a scalar was accepted -- and the invisible one was that DECLARING it
+    correctly would have changed nothing.
+    ``lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage``.
+    """
+    from api.services import scan_definition
+
+    declared = {n: ast_table.yields_of(n) for n in sorted(ast_table.clock_names())}
+    bools = sorted(n for n, y in declared.items() if y == "bool")
+    assert bools == sorted(TF_FLAGS + ("sessionfirst",)), declared
+    # ⚠️ AND THE OTHER EIGHT ARE MAGNITUDES. Both halves, so a lane that declared
+    # everything `bool` -- or everything `num` -- fails.
+    assert sorted(n for n, y in declared.items() if y == "num") == sorted(
+        set(declared) - set(bools)), declared
+
+    # THE CONSUMER, not the declaration: this is the reader that was skipping it.
+    for name in bools:
+        assert scan_definition.is_boolean_tree(_leaf(name)) is True, name
+    for name in set(declared) - set(bools):
+        assert scan_definition.is_boolean_tree(_leaf(name)) is False, name
+
+    # ⭐ THE CONTROL. A planted clock entry declaring `bool` must reach the same
+    # consumer, so the section is genuinely being walked rather than a list of
+    # five names having been typed somewhere.
+    planted = dict(ast_table.TABLE)
+    planted[ast_table.CLOCK_SECTION] = dict(
+        planted[ast_table.CLOCK_SECTION],
+        **{"zzPlantedFlag": {"lookback": 0, "yields": "bool",
+                             "sentence": "a planted flag"}})
+    assert ast_table.yields_of("zzPlantedFlag", planted) == "bool"
+    assert ast_table.yields_of("hour", planted) == "num"
 
 
 # ─── the seam between the manifest and the maths ─────────────────────────────

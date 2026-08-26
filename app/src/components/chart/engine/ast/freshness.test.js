@@ -284,6 +284,51 @@ describe('the badge is a MEASUREMENT — the schema and the lane gate', () => {
     expect(validateDefinition(astDoc()).ok).toBe(true)
   })
 
+  it('⭐ A CLOCK LEAF IS `live`, AND THE BRANCH THAT SAYS SO CAN BE DELETED — the control', () => {
+    // ⛔ THIS RAIL EXISTS BECAUSE THE BRANCH SHIPPED WITHOUT ONE.
+    // `freshness.js` gained `if (own(clock, name)) continue` with the `clock`
+    // section (closed table v2) and nothing in this file mentioned a clock name,
+    // so DELETING that line kept every suite green —
+    // `lesson_built_tested_green_and_unreachable`, in the module whose whole job
+    // is to fail closed.
+    //
+    // The two halves are what make it a rail rather than an observation: WITH the
+    // section a clock leaf is `live`, and WITHOUT it — the same tree, the same
+    // walker, a table missing only that section — it is `unknown`. That second
+    // half is exactly what deleting the branch produces.
+    const names = Object.keys(TABLE.clock)
+    expect(names.length).toBeGreaterThan(0)
+    for (const name of names) {
+      const tree = { type: 'series', name }
+      const got = freshnessFor(tree)
+      expect(got.mode, `${name} is not live`).toBe('live')
+      expect(got.scalars, `${name} was counted as a per-symbol value`).toEqual([])
+      expect(got.reasons).toEqual(['every value this formula reads comes from the bar it draws on'])
+      // THE CONTROL, per name: strip the section and the SAME leaf reads unknown.
+      const without = freshnessFor(tree, { table: { ...TABLE, clock: {} } })
+      expect(without.mode, `${name} read live off a table that does not declare it`)
+        .toBe('unknown')
+    }
+    // ⚠️ AND A CLOCK LEAF DOES NOT LAUNDER A SCALAR. `hour > market_cap` still
+    // reads the snapshot, or the branch above would be a way to make anything live.
+    const mixed = freshnessFor(parseFormula('hour > market_cap').ast)
+    expect(mixed.mode).toBe('as-of-snapshot')
+    expect(mixed.scalars).toEqual(['market_cap'])
+  })
+
+  it('…and a clock leaf is `non-repainting`, with the same control on the LINTER', () => {
+    // ⛔ THE LINTER'S OWN CLOCK BRANCH (`lint.js::astReach`), which shipped with
+    // no rail either. Same shape: with the section a clock leaf is bounded; with
+    // the section gone the walker cannot resolve the name and fails closed to
+    // `repaints`, which is what deleting the branch produces.
+    for (const name of Object.keys(TABLE.clock)) {
+      const tree = { type: 'series', name }
+      expect(lintRepaint(tree).mode, `${name} repaints`).toBe('non-repainting')
+      expect(lintRepaint(tree, { table: { ...TABLE, clock: {} } }).mode,
+        `${name} was bounded by a table that does not declare it`).toBe('repaints')
+    }
+  })
+
   it('⛔ refuses a `meta.freshness` outside the vocabulary at the SCHEMA door', () => {
     const { errors } = validateDefinition(astDoc({ meta: { freshness: 'snapshot:nightly' } }))
     expect(errors.join('\n')).toMatch(/meta\.freshness/)

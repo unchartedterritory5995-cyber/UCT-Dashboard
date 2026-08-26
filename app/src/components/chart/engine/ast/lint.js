@@ -381,18 +381,26 @@ export function astReach(ast, opts = {}) {
           break
         }
         if (own(clockNames, node.name)) {
-          // ⭐ A CLOCK LEAF, AND ITS ZERO IS A DIFFERENT FACT FROM A SCALAR'S.
-          // A scalar is (0, 0) because it is ONE number for the whole column; a
-          // clock value is (0, 0) because it is THIS bar's own — `hour` changes
-          // every bar and still reads no other one. Both are non-repainting and
-          // the reasons do not transfer, which is why this is its own branch
-          // rather than a widening of the scalar test.
+          // ⭐ A CLOCK LEAF'S WINDOW IS READ OFF ITS OWN DECLARATION, THROUGH THE
+          // SAME `ownWindow` A CALL'S IS. It is not a widening of the scalar test
+          // and it is not a zero: a scalar reaches nothing because it is ONE
+          // number for the whole column, whereas most clock values reach nothing
+          // because they are THIS bar's own — and `sessionfirst` reaches ONE bar,
+          // because it compares this bar's ET day against the previous bar's,
+          // exactly as `change(close)` does.
+          //
+          // ⛔ IT WAS HARDCODED `{back: 0, forward: 0}` AND THAT WAS A DECLARED
+          // PROPERTY THAT WAS FALSE. True for twelve of thirteen, false for the
+          // thirteenth, and it would go on being false for the next entry that
+          // declares a window. Reading `spec.lookback` makes the manifest the one
+          // authority: a fourteenth entry is bounded on the day it lands, with no
+          // edit here and nobody having to remember.
           //
           // ⛔ AND UNLIKE A SCALAR, THERE IS NO SECOND VERDICT TO ASK FOR. The
           // freshness gate exists because a scalar's zero hides a day-old value;
           // a clock leaf is read off the bar being drawn, so `freshness.js`
-          // answers `live` and this zero is the whole truth.
-          reachOf.set(node, { back: 0, forward: 0 })
+          // answers `live` and this window is the whole truth.
+          reachOf.set(node, ownWindow(clockNames[node.name], []))
           break
         }
         if (own(scalarNames, node.name)) {

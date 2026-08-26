@@ -964,3 +964,46 @@ describe('🔴 a `k*argN` window is bounded, not unanalysable', () => {
     expect(lint.lintRepaint(bogus).mode).not.toBe('non-repainting')
   })
 })
+
+
+describe('the clock, linted — the window comes from the MANIFEST, not from this file', () => {
+  // ⛔ THESE RAILS EXIST BECAUSE THE BRANCH SHIPPED WITHOUT ONE. `astReach` gained
+  // a clock arm with closed table v2 and no test in this file named a clock entry,
+  // so deleting the arm kept every suite green —
+  // `lesson_built_tested_green_and_unreachable`.
+
+  it('every clock leaf is bounded by ITS OWN declared lookback', () => {
+    const declared = TABLE.clock
+    expect(Object.keys(declared).length).toBeGreaterThan(0)
+    for (const [name, spec] of Object.entries(declared)) {
+      const reach = lint.astReach({ type: 'series', name })
+      expect(reach.back, `${name}: linter says ${reach.back}, manifest declares ${spec.lookback}`)
+        .toBe(spec.lookback)
+      expect(reach.forward, `${name} claims to read a later bar`).toBe(0)
+      expect(reach.reasons, `${name} was unanalysable`).toEqual([])
+    }
+  })
+
+  it('⭐ and at least one of them has a REAL window — or the rail above cannot tell a derived reach from a hardcoded zero', () => {
+    // `sessionfirst` compares this bar's ET day against the PREVIOUS bar's, so it
+    // is a function of two bars exactly as `change(close)` is. It declared
+    // `lookback: 0` until 2026-08-26 and the linter hardcoded a matching zero —
+    // two authorities agreeing on one false statement.
+    const windowed = Object.entries(TABLE.clock).filter(([, s]) => s.lookback > 0)
+    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst'])
+    expect(lint.maxLookback({ type: 'series', name: 'sessionfirst' })).toBe(1)
+    // …and it agrees with the function that reads exactly the same history.
+    expect(lint.maxLookback(parseFormula('change(close)').ast))
+      .toBe(lint.maxLookback({ type: 'series', name: 'sessionfirst' }))
+  })
+
+  it('⛔ a PLANTED clock entry with a three-bar window is bounded at three — the derivation is real', () => {
+    const table = { ...TABLE, clock: { ...TABLE.clock, zzPlantedWindow: { lookback: 3, yields: 'num', sentence: 'planted' } } }
+    const reach = lint.astReach({ type: 'series', name: 'zzPlantedWindow' }, { table })
+    expect([reach.back, reach.forward]).toEqual([3, 0])
+    // THE CONTROL: without the plant the same name is unanalysable, so the line
+    // above is measuring the manifest rather than a name this file knows.
+    expect(lint.astReach({ type: 'series', name: 'zzPlantedWindow' }).reasons.length)
+      .toBeGreaterThan(0)
+  })
+})
