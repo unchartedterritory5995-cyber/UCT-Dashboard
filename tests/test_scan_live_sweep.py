@@ -136,7 +136,12 @@ def test_a_MILLISECOND_epoch_is_REFUSED_because_it_would_poison_every_later_read
     through. The row then writes cleanly and kills every subsequent READ of that
     definition — `live_session_ymd` hands it to `datetime.fromtimestamp`."""
     ms = TICK * 1000
-    with pytest.raises(OSError):                       # the control: the reader really does die
+    # ⚠️ THE CLASS IS PLATFORM-SPECIFIC, THE MEANING IS NOT. On Windows the C
+    # runtime's `gmtime` refuses an out-of-range `time_t` and CPython surfaces
+    # `OSError`; on glibc that same call succeeds at this magnitude and the
+    # refusal comes from CPython's own year check as `ValueError`/`OverflowError`.
+    # Pinning one of them would make this control pass only on this box.
+    with pytest.raises((OSError, ValueError, OverflowError)):   # the control: the reader really does die
         scan_store.live_session_ymd(ms)
     with pytest.raises(ValueError, match="MILLISECOND"):
         scan_store.upsert_live_hits(DEF, "D", ROWS, ms)
@@ -253,10 +258,11 @@ def _one_nightly_hit_and_one_live_row(wrote_tick, symbol="AAA"):
 
 
 def test_a_live_row_OLDER_than_max_age_serves_NIGHTLY_the_dead_sweeper_case(store, monkeypatch):
-    """⚠️ THE AGE GATE ONLY. Every case here is refused by age alone — including the
-    next-day read, which is 83,880 s old against a 900 s ceiling — so this test
-    says NOTHING about the session gate. That gate has its own pair below, where
-    the age gate is held open so only the session can answer."""
+    """⚠️ THE AGE GATE ONLY. Both reads sit INSIDE the 8/26 session — 10:43 and
+    10:57 against a row written at 10:42 — so the session gate answers `live` for
+    each of them and age is the only thing that can separate them. This test
+    therefore says NOTHING about the session gate. That gate has its own pair
+    below, where the age gate is held open so only the session can answer."""
     _one_nightly_hit_and_one_live_row(_tick(2026, 8, 26, 10, 42))
     t = _tick(2026, 8, 26, 10, 42)
     monkeypatch.setenv("SCAN_LIVE_MAX_AGE_S", "900")
