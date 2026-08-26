@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { render, cleanup, act, fireEvent, screen, within } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips, legendAlways } from './legendProbe'
+import { DEBOUNCE_MS } from '../../IndicatorSettingsDialog'
 import { stripComments } from './sourceScan'
 
 /** `StockChart.jsx`, resolved from THIS file rather than from `process.cwd()` —
@@ -1687,6 +1688,101 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     expect(isIndicatorEnabled(next, 'rsi', ENGINE_OWNED),
       'the ONE reader every control surface shares says RSI is off while a line is on the chart')
       .toBe(true)
+    view.unmount()
+  })
+})
+
+// ─── W0.1 — A COLOUR CHANGE REACHES THE LINE *AND* THE OFF-CURSOR CHIP ──────
+//
+// 2026-08-15, measured on production: Settings → Style → colour → Done left the
+// legend chip on the OLD colour until a reload, while the instance AND the mirror
+// already held the new hex. The write was never the problem. These cases drive
+// that exact door on a mounted chart and assert the two things a member can SEE,
+// separately, so a failure names which half went stale.
+describe('W0.1 — a colour change through the settings dialog', () => {
+  const RSI_DEFAULT = '#7b68ee'   // nativeRegistry.js:306 — RSI's declared default
+  const RSI_ON = () => mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+  const rsiSeries = () => {
+    const c = H.addSeriesCalls.find(x => x.options && x.options.color === RSI_DEFAULT)
+    expect(c, 'no series was created with RSI\'s default colour — the chart never drew RSI').toBeTruthy()
+    return c.series
+  }
+  /** The chip span for `label` in the legend row (the `O …` cell's parent). */
+  const chipIn = (view, label) => {
+    const o = [...view.container.querySelectorAll('span')].find(s => /^O\s/.test(s.textContent || ''))
+    if (!o) return null
+    return [...o.parentElement.querySelectorAll('[data-instance-id]')]
+      .find(e => (e.textContent || '').startsWith(label)) || null
+  }
+  /** The OFF-CURSOR chip, polled the way the alwaysShowLegend case above polls. */
+  const offCursorChip = async (view, label) => {
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+      const el = chipIn(view, label)
+      if (el) return el
+    }
+    throw new Error(`no off-cursor ${label} chip rendered`)
+  }
+  /** Past the dialog's colour debounce, on REAL timers (its own test file's idiom). */
+  const settle = async () => {
+    await act(async () => { await new Promise(r => setTimeout(r, DEBOUNCE_MS + 80)) })
+  }
+  /** Gear → Style tab → swatch → a preset that is not the current colour → Done. */
+  const recolourThroughTheDialog = async (view) => {
+    const gear = view.container.querySelector('button[aria-label="RSI(14) settings"]')
+    expect(gear, 'no gear on the RSI chip — the door this case drives does not exist').toBeTruthy()
+    await act(async () => { fireEvent.click(gear) })
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Style' }))
+    // The colour row is keyed by its input (`data-input-key`, IndicatorSettingsDialog.jsx:426);
+    // the swatch is its only button and opens a portalled popup whose presets carry the
+    // hex as `title` (the `everyAdjustment` sweep's idiom).
+    const swatch = dialog.querySelector('[data-input-key="color"] button')
+    expect(swatch, 'no colour swatch on the Style tab').toBeTruthy()
+    fireEvent.click(swatch)
+    const preset = [...document.querySelectorAll('button')]
+      .find(b => /^#[0-9a-f]{6}$/i.test(b.getAttribute('title') || '')
+        && (b.getAttribute('title') || '').toLowerCase() !== RSI_DEFAULT)
+    expect(preset, 'the colour popup offered no preset other than the current colour').toBeTruthy()
+    const picked = preset.getAttribute('title').toLowerCase()
+    fireEvent.click(preset)
+    await settle()
+    await act(async () => { fireEvent.click(within(dialog).getByRole('button', { name: 'Done' })) })
+    return picked
+  }
+  const mount = () => render(
+    <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(RSI_ON())} alwaysShowLegend />)
+
+  it('recolours the LINE — the control that isolates the chip', async () => {
+    const view = mount()
+    await offCursorChip(view, 'RSI')
+    const picked = await recolourThroughTheDialog(view)
+    expect(rsiSeries().options().color.toLowerCase(), 'the series never received the new colour').toBe(picked)
+    view.unmount()
+  })
+
+  it('🔴 recolours the OFF-CURSOR chip with NO crosshair delivered — the 8/15 symptom', async () => {
+    const view = mount()
+    const before = await offCursorChip(view, 'RSI')
+    expect(before.style.color.replace(/\s/g, '')).toBe(hexToRgb(RSI_DEFAULT))
+    const picked = await recolourThroughTheDialog(view)
+    // ⛔ NO `settledLegend` HERE. A crosshair would drive the hovering path, which
+    // reads `engineInstancesRef` fresh and was never the stale half.
+    const after = await offCursorChip(view, 'RSI')
+    expect(after.style.color.replace(/\s/g, ''),
+      'the off-cursor chip kept the OLD colour after Done — the legend payload was not re-derived')
+      .toBe(hexToRgb(picked))
+    view.unmount()
+  })
+
+  it('…and the HOVER path was already fresh (control)', async () => {
+    const view = mount()
+    await offCursorChip(view, 'RSI')
+    const picked = await recolourThroughTheDialog(view)
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.3 }))
+    const chip = chipIn(view, 'RSI')
+    expect(chip, 'no RSI chip under the crosshair').toBeTruthy()
+    expect(chip.style.color.replace(/\s/g, '')).toBe(hexToRgb(picked))
     view.unmount()
   })
 })

@@ -11108,8 +11108,18 @@ export default function StockChart({
     // replaces the clicked bar with the latest one on the next data tick.
     if (readoutIsOwned()) return
     setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    // ⭐ W0.1 (2026-08-25) — AND WHEN THE INSTANCE LIST MOVES. A colour (or period)
+    // edit in the settings dialog re-syncs the engine through `updateChart` (its
+    // deps carry `cs`; it is declared above this effect, so `engineInstancesRef`
+    // is already rewritten when this runs) — but nothing re-derived the OFF-CURSOR
+    // payload: the pointer is on the dialog, so no crosshair event fires, and a
+    // daily chart after hours never ticks. Measured on production 2026-08-15 as
+    // "the chip keeps the old colour until a reload". The LINE was never stale
+    // (`binder.test.js` → a recolour reaches `applyOptions`); the chip was.
+    // `readoutIsOwned()` above still stands this down under a hover, a synced
+    // crosshair or a pinned bar, exactly as it does for a data tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effAlwaysShow, chartReady, ohlcData, overlayData])
+  }, [effAlwaysShow, chartReady, ohlcData, overlayData, cs.indicatorInstances])
 
   // Live legend ticking. Two pieces, deliberately split so the legend tracks the
   // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole
