@@ -195,6 +195,13 @@ def resolve_universe(user_id: Any, *, symbols: Optional[Sequence[Any]] = None,
                              "not a list — a run needs a bounded set of names")
         source = {"source": rc.get("selector", list_id), "label": rc.get("label")}
     else:
+        if isinstance(symbols, (str, bytes)):
+            # ⛔ ITERATED, `"NVDA"` IS FOUR SYMBOLS WE DO NOT HOLD — four `no-bars`
+            # drops and a receipt that reads like a quiet market. The wire says
+            # `string[]`; a string is a spelling problem, and it says so.
+            raise BadRequest(
+                "symbols must be a list of tickers, not a string — iterated, "
+                f"{symbols!r:.40} would be one symbol per character")
         syms = _clean_symbols(symbols)
         source = {"source": "symbols", "label": None}
     requested = len(syms)
@@ -431,6 +438,7 @@ def _run_job(job_id: str) -> None:
         definition = job["definition"]
         tf_code, session, limits = job["tf"], job["as_of"], job["limits"]
         syms = list(job["symbols"])
+    outcome: Optional[dict] = None
     try:
         _note_demand(syms)
         # ⛔ THE LITERAL, NOT `TIER`. The AST rails (this file's test, W4a.3's) read
@@ -439,8 +447,8 @@ def _run_job(job_id: str) -> None:
             definition, tf_code, universe=syms, as_of=session,
             limits=limits, mode="on-demand")
     except scan_evaluator.ScanRunRefused as exc:
-        refusal = RunRefused(f"gate:{exc.gate}", exc.detail)
-        outcome = {"state": "refused", "gate": refusal.gate, "detail": refusal.detail}
+        # the evaluator's own gate, namespaced — in `RUN_GATES` by derivation
+        outcome = {"state": "refused", "gate": f"gate:{exc.gate}", "detail": exc.detail}
     except Exception as exc:                                   # noqa: BLE001
         # ⛔ RECORDED, NEVER SWALLOWED, NEVER A GATE. A crash that left the job
         # `running` would poll forever; one dressed as a refusal would read as
@@ -450,8 +458,14 @@ def _run_job(job_id: str) -> None:
                    "detail": f"{type(exc).__name__}: {exc}"[:300]}
     else:
         outcome = {"state": "done", "envelope": env}
-    with _LOCK:
-        job = _JOBS.get(job_id)
-        if job is not None:
-            job.update(outcome)
-            job["finished_at"] = _clock()
+    finally:
+        # ⛔ TERMINAL, WHATEVER HAPPENED. A job left `running` polls forever AND
+        # locks its member out under the per-member gate; the fallback below is
+        # for an exception no clause above caught (an interrupt mid-run).
+        with _LOCK:
+            job = _JOBS.get(job_id)
+            if job is not None:
+                job.update(outcome or {
+                    "state": "refused", "gate": None, "error": True,
+                    "detail": "the worker was interrupted before it recorded an outcome"})
+                job["finished_at"] = _clock()

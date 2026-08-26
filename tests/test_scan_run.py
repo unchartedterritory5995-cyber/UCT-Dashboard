@@ -278,6 +278,16 @@ def test_resolve_universe_UPPERCASES_DEDUPES_and_keeps_the_callers_order(lists):
     assert receipt == {"source": "symbols", "label": None, "requested": 3}
 
 
+def test_resolve_universe_REFUSES_a_bare_STRING_by_name__not_letter_by_letter(lists):
+    """⛔ `"NVDA"` iterated is `["N","V","D","A"]` — four symbols we do not hold,
+    four `no-bars` drops, and a receipt that reads like a quiet market. The wire
+    says `string[]`; a string is a spelling problem and says so."""
+    from api.services.screener import scan_run
+    with pytest.raises(scan_run.BadRequest) as exc:
+        scan_run.resolve_universe(ALICE, symbols="NVDA, AMD")
+    assert "list" in str(exc.value)
+
+
 def test_resolve_universe_REFUSES_over_the_cap_NAMING_the_count(lists):
     from api.services.screener import scan_run
     too_many = [f"S{i:04d}" for i in range(scan_run.MAX_RUN_SYMBOLS + 1)]
