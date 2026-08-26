@@ -26,7 +26,7 @@ import { tags } from '@lezer/highlight'
 import jsep from 'jsep'
 import { TABLE } from '../../engine/ast/parse'
 import { PINE_CALL_SHAPES } from '../../engine/ast/pine'
-import { PCF_CALLS, PCF_FUSED, priceLetters } from '../../engine/ast/pcf'
+import { PCF_FUSED, PCF_VOCABULARY, priceLetters } from '../../engine/ast/pcf'
 
 export const DIALECTS = Object.freeze(['formula', 'pine', 'thinkscript', 'pcf'])
 
@@ -242,14 +242,42 @@ export const pineLanguage = StreamLanguage.define({
 // `unknown` on their own. An explicit exclusion set here was DEAD CODE — deleting
 // it changed no test — and a guard that has never fired reads as protection while
 // providing none. The property is pinned in the test instead, derived from the map.
-const PCF_KEYWORDS = new Set(['AND', 'OR', 'NOT', 'XOR', 'TRUE', 'FALSE'])
-const PCF_FUSED_PATTERNS = Object.entries(PCF_FUSED).map(([name, family]) => (
-  family.field ? new RegExp(`^${name}([A-Z])(\\d*)$`) : new RegExp(`^${name}(\\d*)$`)
-))
-const PCF_CALL_NAMES = new Set(Object.keys(PCF_CALLS))
+// ⛔⛔ AND THE WORD LISTS COME FROM `pcf.js` TOO — `PCF_VOCABULARY`, its own
+// enumeration of everything it accepts. A hand-typed keyword set stood here and
+// was wrong in BOTH directions at once: it missed `NAND`/`NOR`/`XNOR`/`MOD`
+// (legal TC2000 the reader accepts, painted `tags.invalid`) and invented
+// `TRUE`/`FALSE` (which the reader refuses BY NAME, painted as keywords). The
+// stateful calls (`CountTrue`…), the fundamentals (`Capitalization`…) and `IIF`
+// were invisible for the same reason — their maps were module-private. The
+// hand-typed `PCF_SYMBOLS` mirror went with it.
+const PCF_KEYWORDS = new Set(PCF_VOCABULARY.words)
+const PCF_CALL_NAMES = new Set(PCF_VOCABULARY.calls)
+const PCF_BARE_NAMES = new Set(PCF_VOCABULARY.bare)
+const PCF_SYMBOLS = PCF_VOCABULARY.symbols
 const PCF_LETTERS = priceLetters(TABLE)
 const PCF_BARE_LETTER = /^([A-Z])(\d*)$/
-const PCF_SYMBOLS = ['>=', '<=', '<>', '+', '-', '*', '/', '^', '\\', '>', '<', '=']
+const PCF_FUSED_PATTERNS = Object.entries(PCF_FUSED).map(([name, family]) => ({
+  re: family.field ? new RegExp(`^${name}([A-Z])(\\d*)$`) : new RegExp(`^${name}(\\d*)$`),
+  field: !!family.field,
+}))
+
+/** ⛔ SHAPE IS NOT THE WHOLE TEST. `AVGZ50` matches `^AVG([A-Z])(\d*)$` and is
+ *  REFUSED BY NAME — `readFused` checks the captured letter against the table's
+ *  own `priceLetters` ("this table declares O, H, L, C, V") — so a pattern test
+ *  alone painted a refusal as a function. The membership check reads the SAME
+ *  map the refusal reads. */
+const fusedFamily = (base) => PCF_FUSED_PATTERNS.some(({ re, field }) => {
+  const m = re.exec(base)
+  return !!m && (!field || PCF_LETTERS.has(m[1]))
+})
+
+/** ⛔ `pcf.js` DECIDES CALL-VS-FUSED ON THE NEXT **TOKEN**, AND ITS LEXER SKIPS
+ *  WHITESPACE (`tokenize`, then `atom`: *"if the next token is `(` this is a
+ *  call"*). A single-character peek made legal `AVG (C, 50)` an error colour.
+ *  ⚠️ BOUNDED TO THE LINE: `StringStream` exposes one line, so a call whose `(`
+ *  sits on the NEXT line still reads as fused. `pcf.js` would accept it; nobody
+ *  writes it, and the stream API cannot see it. Recorded, not silently ignored. */
+const CALL_AHEAD = /^\s*\(/
 
 export const pcfLanguage = StreamLanguage.define({
   name: 'pcf',
@@ -262,12 +290,26 @@ export const pcfLanguage = StreamLanguage.define({
       // The dotted tail is parameters, not part of the name — `readFused` splits
       // it off before matching, so `AVGC50.2` is matched as `AVGC50`.
       const base = w.split('.')[0].toUpperCase()
+      // ⚠️ KEYWORDS FIRST, and that is `pcf.js`'s order too: `unary()` intercepts
+      // `NOT` before `atom()` ever sees it, so `NOT (…)` is a prefix operator and
+      // not a call. (The reader does refuse `MOD(…)`/`AND(…)` by name where this
+      // still says keyword — a spelling nobody writes, recorded rather than
+      // special-cased into a branch that would never fire in practice.)
       if (PCF_KEYWORDS.has(base)) return 'keyword'
+      // ⭐ CALLED-OR-NOT IS THE FORK, BEFORE ANYTHING ELSE — the same fork `atom`
+      // takes. A name with a parenthesis after it reaches `buildCall`, which knows
+      // only price letters, `IIF`, the stateful three and `PCF_CALLS`; the fused
+      // families are NOT among them, so `AVGC50(C, 5)` is refused by name even
+      // though `AVGC50` alone reads. Testing the fused shape first painted it `fn`.
+      if (CALL_AHEAD.test(stream.string.slice(stream.pos))) {
+        if (PCF_LETTERS.has(base)) return 'series'
+        return PCF_CALL_NAMES.has(base) ? 'fn' : 'unknown'
+      }
       const bare = PCF_BARE_LETTER.exec(base)
       if (bare && PCF_LETTERS.has(bare[1])) return 'series'
-      if (PCF_FUSED_PATTERNS.some((re) => re.test(base))) return 'fn'
-      // The CALL form is a name followed by its parenthesis, never a bare word.
-      if (PCF_CALL_NAMES.has(base) && stream.peek() === '(') return 'fn'
+      if (fusedFamily(base)) return 'fn'
+      // A TC2000 fundamental standing alone — `Capitalization`, `MarketCap`.
+      if (PCF_BARE_NAMES.has(base)) return 'scalar'
       return 'unknown'
     }
     if (matchSymbol(stream, PCF_SYMBOLS)) return 'operator'

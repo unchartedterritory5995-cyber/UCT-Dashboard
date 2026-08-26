@@ -7,7 +7,9 @@ import { describe, it, expect } from 'vitest'
 import { highlightTree } from '@lezer/highlight'
 import { TABLE } from '../../engine/ast/parse'
 import { PINE_CALL_SHAPES } from '../../engine/ast/pine'
-import { PCF_CALLS, PCF_FUSED, PCF_DIFFERENT_FORMULA, priceLetters } from '../../engine/ast/pcf'
+import {
+  PCF_CALLS, PCF_FUSED, PCF_DIFFERENT_FORMULA, PCF_VOCABULARY, priceLetters, parsePcf,
+} from '../../engine/ast/pcf'
 import { DIALECTS, FORMULA_VOCAB, languageFor, highlightStyle, formulaLanguage, vocabularyOf } from './languages'
 
 const CLASSES = Object.freeze({
@@ -154,6 +156,115 @@ describe('the foreign dialects', () => {
     expect(classOf(lang, 'AVGC50.2 > 0', 'AVGC50.2')).toBe('fn')
   })
 
+  it('⛔ pcf: whitespace before the parenthesis is STILL a call — pcf.js decides on the next TOKEN', () => {
+    const lang = languageFor('pcf')
+    // `pcf.js` `tokenize` eats spaces before it emits a token, and `atom` asks
+    // whether the NEXT TOKEN is `(` — so `AVG (C, 50)` is the same call as
+    // `AVG(C, 50)`. A single-character peek called the first one `tags.invalid`,
+    // which tells a member their WORKING formula is broken.
+    for (const call of Object.keys(PCF_CALLS)) {
+      expect(classOf(lang, `${call} (C, 50) > 0`, call), call).toBe('fn')
+    }
+    expect(parsePcf('AVG (C, 50) > C').ok, 'the engine refuses spaced calls — fix the case').toBe(true)
+    // CONTROL, both halves: with no parenthesis ahead the same word is NOT a call,
+    // and `pcf.js` refuses it, so the colour is agreeing rather than blanket-passing.
+    expect(classOf(lang, 'AVG > 0', 'AVG')).toBe('unknown')
+    expect(parsePcf('AVG > 0').ok).toBe(false)
+  })
+
+  it('⛔ pcf: a fused family asks for a price letter THIS TABLE declares — shape alone is not the test', () => {
+    const lang = languageFor('pcf')
+    const letters = priceLetters(TABLE)
+    const stranger = 'ZQXJKW'.split('').find((l) => !letters.has(l))
+    expect(stranger, 'every letter this case could plant is a declared price letter').toBeTypeOf('string')
+    const declared = [...letters.keys()][0]
+    let families = 0
+    for (const [name, family] of Object.entries(PCF_FUSED)) {
+      if (!family.field) continue
+      families += 1
+      // `AVGZ50` matches `^AVG([A-Z])(\d*)$` and is REFUSED BY NAME at that token
+      // (`pcf.js` readFused: "this table declares O, H, L, C, V").
+      const bad = `${name}${stranger}50`
+      const refusal = parsePcf(`${bad} > 0`)
+      expect(refusal.ok, bad).toBe(false)
+      expect(refusal.token, bad).toBe(bad)
+      expect(classOf(lang, `${bad} > 0`, bad), bad).toBe('unknown')
+      // CONTROL: the same family with a DECLARED letter reads AND colours.
+      const good = `${name}${declared}50`
+      expect(parsePcf(`${good} > 0`).ok, good).toBe(true)
+      expect(classOf(lang, `${good} > 0`, good), good).toBe('fn')
+    }
+    expect(families, 'no PCF family declares a price letter — this case measured nothing').toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ pcf: a formula the ENGINE READS carries no error colour, and a name it refuses BY NAME wears one', () => {
+    const lang = languageFor('pcf')
+    // ⭐ THE VERDICT COMES FROM `pcf.js`, NOT FROM THIS FILE. Every source below is
+    // run through `parsePcf` first; the colour is asserted against what the reader
+    // actually said. Half of these were `tags.invalid` because `PCF_STATEFUL`,
+    // `PCF_SCALARS`, `IIF` and `MOD` were module-private — legal TC2000 spellings
+    // the tokenizer could not see.
+    const reads = [
+      'AVG (C, 50) > C', 'AVGC50 > C', 'XAVG(C, 10) > C', 'C(3) > O', 'AVGC50.2 > 0',
+      'CountTrue(C > O, 10) > 3', 'SinceTrue(C > O, 10) > 3', 'TrueInRow(C > O, 10) > 3',
+      'Capitalization > 250', 'MarketCap > 250',
+      'IIF(C > O, 1, 0) > 0', 'V MOD 100 > 0',
+      'C > O AND V > 100', 'C > O OR V > 100', 'C > O XOR V > 100',
+      'C > O NAND V > 100', 'C > O NOR V > 100', 'C > O XNOR V > 100',
+      'NOT (C > O)', 'C ^ 2 > 100', 'C <> O',
+    ]
+    for (const src of reads) {
+      expect(parsePcf(src).ok, `the engine refuses \`${src}\` — fix the case, not the tokenizer`).toBe(true)
+      expect(spans(lang, src).filter(([, cls]) => cls === 'unknown'), src).toEqual([])
+    }
+    // …and the other direction, driven by the refusal's OWN token.
+    const refused = [
+      'AVGZ50 > C', 'AVGC50(C, 5) > 0', 'NOSUCHFN(C, 5) > 1', 'SUMMER > 0', 'RSI14 > 0',
+      // ⛔ `TRUE`/`FALSE` were hand-typed into this tokenizer's keyword set and PCF
+      // has no such literals — the hand copy was wrong in BOTH directions at once.
+      'TRUE', 'FALSE',
+    ]
+    let named = 0
+    for (const src of refused) {
+      const r = parsePcf(src)
+      expect(r.ok, src).toBe(false)
+      expect(r.guard, src).toBe('pcf:name')
+      named += 1
+      expect(classOf(lang, src, r.token), `${src} → ${r.token}`).toBe('unknown')
+    }
+    expect(named, 'no case reached the by-name branch — this half measured nothing').toBe(refused.length)
+  })
+
+  it('⛔ pcf: the tokenizer\'s vocabulary IS pcf.js\'s — every word it accepts is read off the module', () => {
+    const lang = languageFor('pcf')
+    for (const call of PCF_VOCABULARY.calls) {
+      expect(classOf(lang, `${call}(C, 50, 1) > 0`, call), call).toBe('fn')
+    }
+    for (const bare of PCF_VOCABULARY.bare) {
+      expect(classOf(lang, `${bare} > 250`, bare), bare).toBe('scalar')
+    }
+    for (const word of PCF_VOCABULARY.words) {
+      expect(classOf(lang, `C > O ${word} V > 1`, word), word).toBe('keyword')
+    }
+    for (const sym of PCF_VOCABULARY.symbols) {
+      expect(classOf(lang, `C ${sym} O`, sym), sym).toBe('operator')
+    }
+    // ⛔ SIZES PINNED SO A HAND SET CAN NEVER STAND IN FOR THE MODULE. `IIF` is in
+    // no map — it is a branch of `buildCall` — so `calls` is strictly larger than
+    // the two maps it unions, and `words` carries the four DERIVED_LOGIC spellings
+    // (`XOR`/`NAND`/`NOR`/`XNOR`) the old hand list was missing three of.
+    expect(PCF_VOCABULARY.calls.length).toBeGreaterThan(Object.keys(PCF_CALLS).length)
+    expect(new Set(PCF_VOCABULARY.calls).size).toBe(PCF_VOCABULARY.calls.length)
+    for (const call of Object.keys(PCF_CALLS)) expect(PCF_VOCABULARY.calls).toContain(call)
+    for (const word of ['AND', 'OR', 'NOT', 'XOR', 'NAND', 'NOR', 'XNOR', 'MOD']) {
+      expect(PCF_VOCABULARY.words, word).toContain(word)
+    }
+    expect(PCF_VOCABULARY.words).not.toContain('TRUE')
+    // longest first, or `>=` is split by `>`
+    const lengths = PCF_VOCABULARY.symbols.map((s) => s.length)
+    expect(lengths).toEqual([...lengths].sort((a, b) => b - a))
+  })
+
   it('thinkscript: keywords, a call shape, a comment — and NO claim on our table until W3 lands its map', () => {
     const lang = languageFor('thinkscript')
     const src = '# rsi\ndef r = RSI(length = 14);\nplot signal = r < 30;'
@@ -171,14 +282,23 @@ describe('the foreign dialects', () => {
 
 describe('derivation and stability', () => {
   it('⭐ a section the manifest gains later (`clock`, closed-table v2) colours the day it lands — read by name, never typed', () => {
-    // Today's manifest carries no `clock`, so the vocabulary reads an empty set
-    // — pinned both directions against the artifact, whatever it holds.
+    // Whatever the manifest holds today — pinned both directions against the artifact.
     expect(FORMULA_VOCAB.clock.size).toBe(Object.keys(TABLE.clock || {}).length)
-    // CONTROL: the same word, the same tokenizer, with and without the section.
-    // A planted section is the perturbation; without it the word stays unknown.
-    const planted = vocabularyOf({ ...TABLE, clock: { barindex: { doc: 'planted' } } })
-    expect(classOf(formulaLanguage(undefined, planted), 'barindex > 10', 'barindex')).toBe('series')
-    expect(classOf(formulaLanguage(undefined, vocabularyOf({ ...TABLE })), 'barindex > 10', 'barindex')).toBe('unknown')
+    // ⛔ THE PLANTED NAME IS ONE NO TABLE VERSION WILL CARRY. This case planted
+    // `barindex`, which was safe until it wasn't: W2a landed the real `clock`
+    // section, and the control arm — "the same word, WITHOUT the section, stays
+    // unknown" — started asserting that a name the manifest now declares is not
+    // one. The claim under test is that the section is read BY NAME, so the
+    // perturbation must be a name only the perturbation can supply.
+    const planted = vocabularyOf({ ...TABLE, clock: { ...(TABLE.clock || {}), nosuchclock: { doc: 'planted' } } })
+    expect(classOf(formulaLanguage(undefined, planted), 'nosuchclock > 10', 'nosuchclock')).toBe('series')
+    const without = vocabularyOf({ ...TABLE, clock: {} })
+    expect(classOf(formulaLanguage(undefined, without), 'nosuchclock > 10', 'nosuchclock')).toBe('unknown')
+    // …and the promise DELIVERED: every name the real section carries colours,
+    // with not one line of the tokenizer having changed to admit it.
+    for (const name of Object.keys(TABLE.clock || {})) {
+      expect(classOf(languageFor('formula'), `${name} > 10`, name), name).toBe('series')
+    }
   })
 
   it('the same declared inputs hand back the SAME formula language (a define per keystroke leaks a node type each)', () => {
