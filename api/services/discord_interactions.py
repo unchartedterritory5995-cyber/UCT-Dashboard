@@ -801,8 +801,15 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         png = None
         warm = None
         if house_fn is not None and daily:
-            if req.tf != "D":
-                warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
+            # Pre-warm the page's OWN fetch on every timeframe, DAILY INCLUDED.
+            # The page asks /api/bars for PAGE_BARS bars whatever the timeframe,
+            # while the stats fetch above only wants 260 - so a daily chart used
+            # to leave the page to pull 5,000 bars itself, inside the renderer's
+            # deadline. One at a time that just cost a few seconds. FOUR at once
+            # (a /charts set, 2026-08-26) raced and the renderer returned BLANK
+            # bodies for three of them: "house render body BLANK for AVGO D".
+            # The fetch belongs on our side of the deadline.
+            warm = _fetch(req.tf, PAGE_BARS)
             house_opts = dict(options)
             if req.breadth_name:
                 house_opts["breadth"] = req.breadth_name

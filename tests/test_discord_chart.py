@@ -2109,3 +2109,27 @@ def test_the_charts_row_fits_the_id_limit_by_construction_and_the_backstop_still
     # the backstop: only reachable by construction, never by parse_multi_component
     absurd = [(di.ChartRequest("B" * 12, "D"), None)] * 12
     assert di.multi_components(absurd) == []
+
+
+def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_rendering():
+    """2026-08-26: the pre-warm skipped tf=D, so the PAGE fetched its 5,000 bars
+    itself, inside the renderer's deadline. Four of those at once (a /charts
+    set) came back BLANK. The fetch has to happen on our side of the deadline."""
+    from api.services.discord_interactions import produce_chart, ChartRequest, PAGE_BARS
+    from api.services import discord_chart_prefs as p
+    for tf in ("D", "W", "60", "5"):
+        asked = []
+        def bars_fn(ticker, t, n):
+            asked.append((t, n)); return daily_bars(30)
+        prefs = dict(p.DEFAULTS)
+        out = produce_chart(ChartRequest("WRMA", tf), p.render_options(prefs, tf), prefs,
+                            bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
+                            house_fn=lambda *a, **k: PNG_MAGIC + b"house")
+        assert out[0] == "ok"
+        assert (tf, PAGE_BARS) in asked, f"tf={tf} never warmed the page's own request: {asked}"
+    # without the house path there is no page to warm for
+    asked = []
+    produce_chart(ChartRequest("WRMB", "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
+                  bars_fn=lambda t, tf, n: asked.append((tf, n)) or daily_bars(30),
+                  render_fn=lambda *a, **k: PNG_MAGIC, house_fn=None)
+    assert all(n != PAGE_BARS for _, n in asked), asked
