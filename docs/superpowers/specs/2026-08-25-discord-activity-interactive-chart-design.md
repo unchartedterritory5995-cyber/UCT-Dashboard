@@ -93,3 +93,22 @@ is not a screenshot and not a Discord widget — it is the Charts widget.
 
 Drawings persistence, journal embeds, alerts from inside the Activity, and
 anything that needs the member's dashboard account.
+
+
+## Build log
+
+- **v1 shipped 2026-08-25 ~20:45 CT** (`f87a9c471`): portal root mapping
+  `/ → uctintelligence.com`, Activities enabled, commands re-registered with
+  the admin-only Entry Point (`launch`, type 4, APP_HANDLER), `/r/activity`
+  page, handoff store + endpoint, "Open in Discord" button (dev server only via
+  `DISCORD_ACTIVITY_GUILDS`). `/r/activity` verified in a plain tab: the full
+  house chart, logged out.
+- **First launch failed (white frame, session ended in seconds):** Discord
+  opens an Activity at the **root** of the mapping — never at a path — with
+  `instance_id/channel_id/guild_id/frame_id/platform` appended. The frame
+  loaded `uctintelligence.com/` (the Coming Soon page), which never calls
+  `ready()`. The proxy was fine (it returned our index.html; no Cloudflare
+  block). Fix `416ff829d`: `utils/discordLaunch.js` recognises the launch and
+  `App.jsx` serves `DiscordActivity` at `/` (intro film skipped); `/r/activity`
+  stays for plain-tab testing. Second click during that state showed "This
+  interaction failed" — re-test after the fix.
