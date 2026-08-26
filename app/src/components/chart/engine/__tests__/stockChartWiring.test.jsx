@@ -4201,6 +4201,44 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     expect(sec.items[0].id).toBe('i-hide')
   })
 
+  it('W0.2 — a sibling appearing does NOT rename the indicator: the noun is the catalog\'s, only the SUFFIX is the legend\'s', () => {
+    // ⚠️ `stoch` IS THE CASE MACD CANNOT MAKE. Its first chip-declaring plot is
+    // labelled `%K` (`legend: { label: '%K' }`), so a row that takes its whole
+    // wording from the chip renames the indicator the moment a second copy exists:
+    // one Stochastic reads `Stoch settings…` and two read `%K (kPeriod 14) settings…`.
+    // MACD's first chip happens to be labelled `MACD`, which is why the case above
+    // passes either way. In a menu whose whole job is naming which copy you are
+    // about to edit, the definition's own name must not disappear.
+    const noun = labelFor('stoch')
+    const inputs = { kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' }
+    const one = { instanceId: 'engine-test:stoch-a', defId: 'stoch', hidden: false, inputs }
+    const two = { ...one, instanceId: 'engine-test:stoch-b', inputs: { ...inputs, kPeriod: 5 } }
+
+    // ONE copy — the byte-identical row every other menu case reads.
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const lone = renderChart({ settings: { indicators: { stoch: { enabled: true } }, indicatorInstances: [one] } })
+    const loneRows = sectionOf(openContextMenu(lone, { region: 'indicator', key: 'stoch' }), 'region')
+      .items.filter(i => /settings…$/.test(i.label))
+    expect(loneRows.map(i => i.id)).toEqual(['i-set'])
+    expect(loneRows[0].label).toBe(`${noun} settings…`)
+
+    // TWO copies — the SAME noun, plus the suffix that says which is which.
+    cleanup(); H.reset()
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const view = renderChart({ settings: { indicators: { stoch: { enabled: true } }, indicatorInstances: [one, two] } })
+    const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: 'stoch' }), 'region')
+    const rows = sec.items.filter(i => /settings…$/.test(i.label))
+    expect(rows.map(i => i.id)).toEqual(['i-set:engine-test:stoch-a', 'i-set:engine-test:stoch-b'])
+    expect(rows.map(i => i.label), 'the indicator lost its NAME the moment a copy appeared')
+      .toEqual([`${noun} (kPeriod 14) settings…`, `${noun} (kPeriod 5) settings…`])
+    // …and the rows still open their OWN instance.
+    act(() => { rows[1].onSelect() })
+    const k = document.body.querySelector('[role="dialog"] [data-input-key="kPeriod"] input')
+    expect(k, 'the second row opened no dialog').toBeTruthy()
+    expect(k.value, 'the second row opened the FIRST instance').toBe('5')
+    expect(sec.items[0].id).toBe('i-hide')
+  })
+
   it('and Hide routes at the ONE writer, for a flipped id and an un-flipped one alike', () => {
     // ⚠️ BOTH ids, deliberately. A flipped id's writer moves the mirror anyway,
     // so a loop that only ran `rsi` would pass for the wrong reason — B3 measured

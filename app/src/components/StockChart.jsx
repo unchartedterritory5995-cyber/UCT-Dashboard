@@ -101,7 +101,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, chipsFrom } from './chart/engine/readout'
+import { legendChips, siblingSuffixes } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
@@ -134,11 +134,6 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
-/** `chipsFrom` needs a truthy series handle to look up; it finds nothing in an empty
- *  map and falls through to `lastValue`, which makes it usable as a pure LABELLER —
- *  the same trick `IndicatorSettingsDialog.chipFacts` uses for its title. */
-const MENU_SERIES_SENTINEL = Object.freeze({ __menuOnly: true })
-const EMPTY_SERIES_DATA = new Map()
 
 /** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
  *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
@@ -1392,23 +1387,13 @@ function liveInstanceIdsFor(cs, defId) {
   return out
 }
 
-/** The label the LEGEND would give each of these instances — `readout.chipsFrom`
- *  CALLED, not re-implemented, so `MACD (fastPeriod 5)` here is the chip's own
- *  wording, sibling disambiguation included. `instanceId → label`; an instance the
- *  pipeline yields nothing for is simply absent (the caller falls back to `label`). */
-function instanceMenuLabels(cs, def, instIds, registry) {
-  const plots = def && Array.isArray(def.plots) ? def.plots : []
-  const entries = instIds.flatMap((instanceId) => plots.map((p) => ({
-    defId: def.id, plotKey: p && p.key, series: MENU_SERIES_SENTINEL, lastValue: 0, instanceId,
-  })))
-  let chips = []
-  try {
-    chips = chipsFrom(entries, EMPTY_SERIES_DATA, registry,
-      (_defId, instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {})
-  } catch { chips = [] }
-  const byId = new Map()
-  for (const c of chips) if (c && !byId.has(c.instanceId)) byId.set(c.instanceId, c.label)
-  return byId
+/** What each of these siblings gets APPENDED to its shared name, in the same order:
+ *  `readout.siblingSuffixes` CALLED, not re-implemented, so ` (fastPeriod 5)` here is
+ *  the legend's own disambiguation grammar. Inputs are read per instance exactly as
+ *  `engineChips` reads them (`inst.inputs`), so the two surfaces compare the same
+ *  values; an empty list of siblings yields an empty list of suffixes. */
+function instanceMenuSuffixes(cs, instIds) {
+  return siblingSuffixes(instIds.map((instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {}))
 }
 
 export default function StockChart({
@@ -3662,15 +3647,20 @@ export default function StockChart({
       // with no settings surface at all (production, 2026-08-15; owner call: keep
       // the compact behaviour, the door must survive). A lone instance keeps the
       // exact row it always had, byte for byte.
+      //
+      // ⛔ THE NOUN IS THE CATALOG'S ON BOTH PATHS — only the SUFFIX is the
+      // legend's. Labelling a sibling row from its first chip renames the
+      // indicator the moment a copy appears: `stoch`'s first chip-declaring plot
+      // is labelled `%K`, so one Stochastic read `Stoch settings…` and two read
+      // `%K (kPeriod 14) settings…`. In a menu whose whole job is naming which
+      // copy you are about to edit, the definition's name must not disappear.
       const siblings = (showDrawingTools && instId) ? liveInstanceIdsFor(cs, key) : []
-      const sibLabels = siblings.length > 1
-        ? instanceMenuLabels(cs, engineRegistry.getDefinition(key), siblings, engineRegistry)
-        : null
+      const sibSuffixes = siblings.length > 1 ? instanceMenuSuffixes(cs, siblings) : null
       const settingsRow = (showDrawingTools && instId)
         ? (siblings.length > 1
-            ? siblings.map((sib) => ({
+            ? siblings.map((sib, n) => ({
                 id: `i-set:${sib}`,
-                label: `${sibLabels.get(sib) || label} settings…`,
+                label: `${label}${sibSuffixes[n]} settings…`,
                 onSelect: () => setSettingsInstanceId(sib),
               }))
             : [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }])
