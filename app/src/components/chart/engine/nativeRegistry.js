@@ -1592,9 +1592,17 @@ export const AST_LANE_TIER = 'premium'
  * the refusal is what gets printed, never the function that happened to be on
  * the stack.
  *
+ * ⭐ EXPORTED FOR ONE REASON: so its key-set backstop can be SEEN REFUSING.
+ * Every other gate here is reachable through `validateUserDefinitions` and is
+ * tested there; the `compute.trees` key-set check is not, because `defSchema`
+ * refuses the same document first. A guard nobody has watched fire is not a
+ * guard, so the test calls this directly rather than asserting in a comment that
+ * it cannot be reached. It is NOT a door for product code — `validateUserDefinitions`
+ * is the door, and it is the only caller in `app/src`.
+ *
  * @returns {string[]} errors, empty when the definition can run here.
  */
-function validateAstLane(def) {
+export function validateAstLane(def) {
   const errors = []
   const dataPlots = astPlotKey(def)
   const trees = astTrees(def)
@@ -1616,11 +1624,22 @@ function validateAstLane(def) {
       return errors
     }
   } else {
-    // ⚠️ THIS IS A BACKSTOP, NOT THE DOOR. `defSchema.validateTreesAgainstPlots`
-    // refuses the key-set disagreement in both directions and runs first, so
-    // nothing reaching here through `validateUserDefinitions` can fail this —
-    // it exists because the loop below indexes `trees[k]` and an absent tree
-    // must be a named refusal rather than an `undefined` handed to a linter.
+    // ⚠️ THIS IS A BACKSTOP, NOT THE DOOR — AND IT IS WATCHED FIRING RATHER THAN
+    // DESCRIBED AS UNFIREABLE. `defSchema.validateTreesAgainstPlots`
+    // (`defSchema.js`) refuses the key-set disagreement in both directions and
+    // runs FIRST: measured against nine hostile shapes (missing tree, extra
+    // tree, extra plot, dropped plot, `{}`, `[]`, `null`, a falsy tree, zero data
+    // plots), `validateUserDefinitions` short-circuits before this function every
+    // time, with a better message. So a member never meets this sentence.
+    //
+    // It stays because the loop below indexes `trees[k]` and an absent tree must
+    // be a named refusal rather than an `undefined` handed to `checkBudget` —
+    // which would report a DOCUMENT defect as a budget refusal, the wrong-door
+    // defect this file names four separate times. A comment saying "this cannot
+    // fire" would have been a gate that cannot fail (`lesson_gate_that_cannot_fail`),
+    // so `validateAstLane` is EXPORTED and `treesLane.test.js` calls it directly
+    // and watches it refuse — beside the case showing which door a member
+    // actually meets for the same document.
     const missing = dataPlots.filter((k) => !Object.prototype.hasOwnProperty.call(trees, k))
     const extra = Object.keys(trees).filter((k) => !dataPlots.includes(k))
     if (missing.length || extra.length || !dataPlots.length) {
