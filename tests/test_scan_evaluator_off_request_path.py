@@ -102,8 +102,16 @@ _ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep
 #:                      the session, which is its weekend/holiday walk-back
 #:                      answering "the last session strictly before this one".
 #:                      No store read.
+#:   live_bars_for    — W4b.2's forming bar. ⭐ IT READS NOTHING: the bars and the
+#:                      quote both arrive as ARGUMENTS, so there is no universe,
+#:                      no bars store and no screener snapshot behind it. The work
+#:                      is `_last_confirmed_index` over the caller's OWN bars plus
+#:                      `live_tier.sanity_reason`, which is arithmetic over two
+#:                      dicts. O(bars) for ONE symbol, O(1) in symbols — which is
+#:                      what this partition is about.
 _OFF_SWEEP_READS = ("cadence_ceiling", "expected_session", "enabled",
-                    "market_open_et", "sweep_deadline", "previous_session")
+                    "market_open_et", "sweep_deadline", "previous_session",
+                    "live_bars_for")
 
 
 # ═══ the module index, DERIVED from the filesystem ══════════════════════════
