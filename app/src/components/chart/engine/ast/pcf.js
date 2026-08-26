@@ -755,6 +755,47 @@ function scalarInMillions(table, token, name) {
   return opNode('/', [seriesNode(name), num(1000000)])
 }
 
+/** The one word this reader spells the ternary. It lives in no map — it is a
+ *  branch of `buildCall` — so it is named ONCE here and read from both places. */
+const PCF_TERNARY = 'IIF'
+
+/** ⭐ EVERY WORD AND SYMBOL THIS READER ACCEPTS, AND THE ROLE IT PLAYS —
+ *  DERIVED FROM THE MAPS ABOVE, never typed.
+ *
+ *  ⛔ THIS EXISTS BECAUSE A HAND COPY OF IT WAS WRONG IN BOTH DIRECTIONS AT ONCE.
+ *  The editor's PCF tokenizer (`builder/editor/languages.js`) could reach
+ *  `PCF_CALLS` and `PCF_FUSED` — they are exported — but `PCF_STATEFUL`,
+ *  `PCF_SCALARS`, `IIF`, `MOD` and the four `DERIVED_LOGIC` spellings were
+ *  module-private, so it kept a hand-typed keyword set beside them. That set
+ *  MISSED `NAND`/`NOR`/`XNOR`/`MOD` (legal TC2000 this reader accepts, painted
+ *  `tags.invalid` — telling a member a WORKING formula is broken) and INVENTED
+ *  `TRUE`/`FALSE` (which this reader refuses by name, painted as keywords).
+ *  A vocabulary the consumer cannot read is a vocabulary the consumer will
+ *  re-type; exporting it is what makes the two agree by construction.
+ *
+ *  `calls` are `NAME(…)`, `bare` stand alone (a fundamental), `words` are the
+ *  operators PCF spells as words, `symbols` the ones it spells as punctuation —
+ *  LONGEST FIRST, because a matcher that tries `>` before `>=` splits the token.
+ */
+export const PCF_VOCABULARY = (() => {
+  const isWord = (k) => /^[A-Za-z]/.test(k)
+  const uniq = (xs) => Object.freeze([...new Set(xs)])
+  return Object.freeze({
+    calls: uniq([...Object.keys(PCF_CALLS), ...Object.keys(PCF_STATEFUL), PCF_TERNARY]),
+    bare: uniq(Object.keys(PCF_SCALARS)),
+    words: uniq([
+      ...Object.keys(INFIX).filter(isWord),
+      ...Object.keys(OPERATOR_CALLS).filter(isWord),
+      ...Object.keys(DERIVED_LOGIC),
+      PREFIX_NOT,
+    ]),
+    symbols: Object.freeze([...new Set([
+      ...Object.keys(INFIX).filter((k) => !isWord(k)),
+      ...Object.keys(OPERATOR_CALLS).filter((k) => !isWord(k)),
+    ])].sort((a, b) => b.length - a.length)),
+  })
+})()
+
 /** One fused token → a canonical node. */
 function readFused(table, token, letters, nodeTypes) {
   const { base, dotted } = splitDotted(token)
@@ -1135,7 +1176,7 @@ class Reader {
     }
 
     // The ternary. TC2000 spells it `IIF(b, t, f)`.
-    if (upper === 'IIF') {
+    if (upper === PCF_TERNARY) {
       if (nodes.length !== 3) {
         refuse('pcf:arity',
           `\`IIF\` takes three arguments and was handed ${nodes.length}`, at, token.text)
