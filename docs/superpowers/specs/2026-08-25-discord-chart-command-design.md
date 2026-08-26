@@ -550,3 +550,39 @@ candles are off by default (they squashed a session into flat overnight bars).
 - Also this evening: `PAGE_BARS` pre-warm (the page's 5,000-bar request made
   in-process first, so the renderer's first attempt lands; AMZN 5-min verified
   house image in ~20 s cold).
+
+
+## v7b — The chip drew nothing: the feed's session words (2026-08-25, ~20:00 CT)
+
+`massive._detect_session()` returns `'pre_market' | 'post_market' | 'regular'`
+and `_ext_price_for` echoes that word as `ext_session`; the adapter compared it
+to the chip's `'pre' | 'post'` and silently returned None — and the unit test
+had asserted the chip's words too, so it passed while lying. `EXT_SESSION_WORD`
+maps the feed's words; a rail drives `_detect_session` through all three
+windows and requires every extended word to map. Verified live on QQQ Daily
+post-market: green last-price tag with the orange `Post` chip beneath it.
+
+## v8 — `/chartsettings` menu (2026-08-25, ~20:15 CT)
+
+Owner: "a variety of additional settings … such as theme, indicators, and tons
+of other things". Rule kept: every setting maps onto something the `/r/chart`
+page already honours — a preset, a partial chart-settings override, or engine
+indicator instances. Nothing teaches the chart a new trick.
+
+| setting | choices | what the page receives |
+|---|---|---|
+| `theme` | house · classic · oled · tradingview · light | `?preset=` → `PRESETS[key]` applied as its delta from `CHART_DEFAULTS` (owner's unrelated settings survive; explicit `?indicators=` still wins) |
+| `style` | candles · hollow · bars · line · area · heikin | `chartType` / `heikinAshi` |
+| `scale` | linear · log | `logScale` |
+| `indicators` | none · rsi · macd · rsi+macd | `?instances=` — `{instanceId:'inst:rsi:1', defId:'rsi', inputs:{period:14}, hidden:false}` etc., registry-default inputs |
+| `grid`, `watermark` | on/off | `grid.visible`, `watermark.visible` (section merges) |
+| (existing) `tf` `mas` `volume` `ext` `stats` | | |
+
+`/chart` and `/c` also take `style` and `theme` per call (like `mas`/`volume`).
+`style_signature` now covers every render-affecting pref generically (never
+`tf`), so two styles can never share a cached PNG. The settings-command test
+pins `set(options) == set(DEFAULTS)`: every pref settable, none invented.
+
+Candidates for a later round (all page-supported): candle colours, volume MA
+period, text size, crosshair off, session shading, watermark lines, more
+indicator sets (Bollinger, Stochastic, ATR — the registry has fourteen).
