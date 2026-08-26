@@ -21,6 +21,7 @@ def _reset_state(monkeypatch):
     }
     volume_live._top_set = None
     volume_live._top_built = 0.0
+    volume_live._custom_registry.clear()
     monkeypatch.setattr(volume_live, "_universe_map",
                         lambda: {"AAA": "AAA", "BBB": "BBB", "CHEAP": "CHEAP", "THIN": "THIN"})
     monkeypatch.setattr(volume_live, "_etf_set", lambda: set())
@@ -218,6 +219,29 @@ def test_min_rvol_and_min_move_filters_are_honored():
     assert volume_live.get_live(min_rvol=999, min_dollar=0)["rows"] == []
     assert _row(volume_live.get_live(min_rvol=2, min_dollar=0)["rows"], "AAA") is not None
     assert volume_live.get_live(min_move=999, min_dollar=0)["rows"] == []
+
+
+def test_custom_list_scans_only_requested_and_bypasses_the_liquidity_floor():
+    # A sub-$1 name is hidden from the default top-N (tradable floor). But a user who puts
+    # it on their OWN list sees it — the list scans ONLY those names and bypasses the floor.
+    seq = {}
+    for t in range(0, 46):
+        px = 0.50 if t <= 36 else 0.50 + 0.02 * (t - 36)
+        seq[t] = {
+            "CHEAP": {"min_av": 60_000 * t, "last_price": px, "prev_close": 0.50, "prev_vol": 5_000_000},
+            "AAA":   {"min_av": 60_000 * t, "last_price": 50.0, "prev_close": 50.0, "prev_vol": 1_000_000},
+        }
+    _feed(seq)
+    assert _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "CHEAP") is None  # default hides it
+    out = volume_live.get_live(show_all=True, min_dollar=0, syms=["cheap"])  # case-insensitive
+    assert _row(out["rows"], "CHEAP") is not None      # shown despite the floor
+    assert _row(out["rows"], "AAA") is None            # AAA is not on the list
+
+
+def test_register_custom_syms_keeps_them_active():
+    volume_live.register_custom_syms({"NVDA", "TSLA"})
+    active = volume_live._custom_active()
+    assert "NVDA" in active and "TSLA" in active
 
 
 def test_closed_window_serves_no_rows():

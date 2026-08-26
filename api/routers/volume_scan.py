@@ -33,6 +33,7 @@ def volume_scan_live(
     min_move: float = Query(0.25, ge=0.0),
     min_dollar: float | None = Query(None, ge=0.0),
     min_burst: float = Query(3.0, ge=0.0),
+    syms: str | None = Query(None, description="CSV of a user's own list — scan ONLY these"),
     show_all: bool = Query(False),
 ):
     """Relative-volume leaderboard.
@@ -51,10 +52,11 @@ def volume_scan_live(
     `show_all=false` returns only the names meeting the criteria, ranked by surge.
     """
     from api.services import volume_live
+    sym_list = [s for s in (syms or "").split(",") if s.strip()][:500] or None
     return JSONResponse(content=volume_live.get_live(
         limit=limit, min_price=min_price, max_price=max_price,
         min_liq=min_liq, min_rvol=min_rvol, min_move=min_move,
-        min_dollar=min_dollar, min_burst=min_burst, show_all=show_all))
+        min_dollar=min_dollar, min_burst=min_burst, syms=sym_list, show_all=show_all))
 
 
 @router.get("/api/volume-scan/status")

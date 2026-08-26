@@ -26,6 +26,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
+import { ScopeControl, AddTickerBar, makeListHelpers } from './VolumeScanLists'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
 
@@ -73,7 +74,7 @@ function SurgeFlash({ lit, tier }) {
 // ranked by RVOL (lit first); a name that MEETS the criteria lights the WHOLE row
 // in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
 // each price tick the row flashes. Clicking charts the ticker.
-function Row({ e, onPick, logos }) {
+function Row({ e, onPick, logos, onContext }) {
   // "Igniting now" = a fresh volume burst WITH a real move (server flag). A lit
   // igniter gets a persistent pulse ring, distinct from the one-shot surge flash —
   // the "this is moving fast RIGHT NOW" cue, on top of its (hotter) tier colour.
@@ -87,6 +88,7 @@ function Row({ e, onPick, logos }) {
       role="listitem"
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
+      onContextMenu={onContext ? (ev) => onContext(ev, e.sym) : undefined}
       title={`${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <SurgeFlash lit={e.lit} tier={e.tier || 1} />
@@ -176,10 +178,37 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
+  // ── Custom scan lists (persisted in opts) — scan ONLY the user's names, else the
+  // top-1,000 liquid universe. ─────────────────────────────────────────────────────
+  const lists = Array.isArray(opts?.volLists) ? opts.volLists : []
+  const activeListId = opts?.volActive || null
+  const activeList = useMemo(() => lists.find(l => l.id === activeListId) || null, [lists, activeListId])
+  const commitLists = useCallback(
+    (nextLists, nextActiveId) => onOptsChange?.({ ...opts, volLists: nextLists, volActive: nextActiveId ?? null }),
+    [opts, onOptsChange])
+  const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
+  const customEmpty = !!(activeList && activeList.syms.length === 0)
+  const [ctxMenu, setCtxMenu] = useState(null)   // {sym,x,y} right-click "remove from list" menu
+  const onRowContext = useCallback((ev, sym) => {
+    ev.preventDefault()
+    setCtxMenu({ sym, x: ev.clientX, y: ev.clientY })
+  }, [])
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = () => setCtxMenu(null)
+    document.addEventListener('mousedown', close, true)
+    document.addEventListener('wheel', close, true)
+    return () => { document.removeEventListener('mousedown', close, true); document.removeEventListener('wheel', close, true) }
+  }, [ctxMenu])
+
   const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
     ? `&min_dollar=${Math.round(minDollarK * 1000)}` : ''
-  // Show the whole top-N universe (ranked by surge); the criteria only decide colour.
-  const url = `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_burst=${minBurst}&min_move=${minMove}${dollarQ}`
+  const symsQ = (activeList && activeList.syms.length)
+    ? `&syms=${encodeURIComponent(activeList.syms.join(','))}` : ''
+  // Show every name in scope (ranked by surge); the criteria only decide colour. An empty
+  // custom list fetches nothing (null URL) — the empty-state + add-bar show instead.
+  const url = customEmpty ? null
+    : `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_burst=${minBurst}&min_move=${minMove}${dollarQ}${symsQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
@@ -214,6 +243,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           <span className={chrome.dot} aria-hidden="true" />{stamp}
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtTime(data.asof)} ET</span>}
+        <ScopeControl lists={lists} activeId={activeListId} helpers={listHelpers} themeVars={panelThemeVars} />
         <span className={chrome.spacer} />
         <FilterBox label="RVOL≥" ariaLabel="Minimum relative volume" value={opts?.minRvol}
           placeholder="2" min={1} step={0.5} onCommit={commitRvol} />
@@ -243,16 +273,37 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           </div>
         </div>
       ) : (
-        <div className={chrome.rows} role="list">
-          <div className={`${chrome.sideHead} ${styles.head}`}>
-            <span className={styles.headSym}>SYMBOL</span>
-            <span className={styles.headSurge}>RVOL</span>
+        <>
+          <div className={chrome.rows} role="list">
+            <div className={`${chrome.sideHead} ${styles.head}`}>
+              <span className={styles.headSym}>SYMBOL</span>
+              <span className={styles.headSurge}>RVOL</span>
+            </div>
+            {customEmpty ? (
+              <div className={styles.none}>This list is empty — add tickers below to start scanning it.</div>
+            ) : rows.length === 0 ? (
+              <div className={styles.none}>
+                {activeList ? 'Warming up your list…' : 'Warming up… (baselines build over the first minute)'}
+              </div>
+            ) : (
+              rows.map((e) => (
+                <Row key={e.sym} e={e} onPick={onPick} logos={showLogos}
+                  onContext={activeList ? onRowContext : undefined} />
+              ))
+            )}
           </div>
-          {rows.length === 0 ? (
-            <div className={styles.none}>Warming up… (baselines build over the first minute)</div>
-          ) : (
-            rows.map((e) => <Row key={e.sym} e={e} onPick={onPick} logos={showLogos} />)
-          )}
+          {activeList && <AddTickerBar list={activeList} helpers={listHelpers} />}
+        </>
+      )}
+
+      {ctxMenu && activeList && (
+        <div className={styles.rowMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} role="menu">
+          <div className={styles.rowMenuHead}>{ctxMenu.sym}</div>
+          <button type="button" className={styles.rowMenuItem}
+            onMouseDown={(ev) => { ev.preventDefault(); listHelpers.removeSym(activeListId, ctxMenu.sym); setCtxMenu(null) }}>
+            <UIcon name="trash" size={12} gold={false} />
+            <span>Remove from {activeList.name}</span>
+          </button>
         </div>
       )}
     </div>

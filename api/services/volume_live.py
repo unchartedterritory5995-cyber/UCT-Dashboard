@@ -199,6 +199,32 @@ _top_built = 0.0
 # Provider symbols currently subscribed to bar_stream (owner="volume") for the A.* push.
 _subscribed_provs: set = set()
 
+# Custom scan lists — app-symbols a user's OWN list asks the scanner to actively track, on
+# top of the top-N liquid universe. Registered (app-sym -> expiry epoch) on each live request
+# carrying `syms`, with a TTL so a name stops being tracked shortly after the user switches
+# away. Bounded so it can never grow without limit.
+_custom_registry: dict = {}
+_CUSTOM_TTL = 300.0        # seconds a requested symbol stays tracked after its last request
+_CUSTOM_MAX = 3000         # hard cap on the total custom universe (across all users)
+
+
+def register_custom_syms(app_syms) -> None:
+    """Keep the given app-symbols tracked (refresh their TTL). Called from get_live when a
+    request carries a user's custom list, so those names build metrics + get the A.* push."""
+    now = _time.time()
+    exp = now + _CUSTOM_TTL
+    reg = _custom_registry
+    for k in [k for k, e in reg.items() if e <= now]:   # prune expired first
+        reg.pop(k, None)
+    for s in app_syms:
+        if s in reg or len(reg) < _CUSTOM_MAX:
+            reg[s] = exp
+
+
+def _custom_active() -> set:
+    now = _time.time()
+    return {k for k, e in _custom_registry.items() if e > now}
+
 
 def _now_et() -> datetime:
     return datetime.now(_ET) if _ET else datetime.utcnow()
@@ -387,15 +413,17 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
             _top_set = rebuilt
             _top_built = sample_t
     top = _top_set
+    custom = _custom_active()
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
         syms = _state["syms"]
 
         for prov, app in prov_map.items():
-            if app in etf:                      # stocks only (news reacts on stocks)
+            in_custom = app in custom
+            if app in etf and not in_custom:    # stocks only, UNLESS the user put it on a list
                 continue
-            if top and app not in top:          # outside the top-N liquid universe
+            if not in_custom and top and app not in top:   # outside the top-N and not on a list
                 continue
             row = snapshot.get(prov)
             if not row:
@@ -433,7 +461,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
              min_rvol: float = None, min_move: float = None, min_liq: float = None,
              min_dollar: float = None, min_burst: float = None,
-             show_all: bool = False) -> dict:
+             syms: list = None, show_all: bool = False) -> dict:
     """Relative-volume leaderboard for the endpoint.
 
     Two modes:
@@ -461,6 +489,15 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     else:
         mnd = _DEFAULT_MIN_DOLLAR_RTH if window == "rth" else _DEFAULT_MIN_DOLLAR_EXT
     mnb = _DEFAULT_MIN_BURST if min_burst is None else min_burst
+    # Custom list: scan ONLY the user's names. Register them (keeps them tracked + pushed)
+    # and filter the leaderboard to that set. Their own picks bypass the liquidity floor.
+    wanted = None
+    if syms:
+        wanted = {str(s).strip().upper() for s in syms if s and str(s).strip()}
+        if wanted:
+            register_custom_syms(wanted)
+        else:
+            wanted = None
     try:
         limit = max(1, min(int(limit), 300))
     except (TypeError, ValueError):
@@ -513,10 +550,13 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         ticks = _state["ticks"]
         rows = []   # (sym, m, lit)
         for sym, st in _state["syms"].items():
+            if wanted is not None and sym not in wanted:
+                continue
             m = st.get("m")
             if not m:
                 continue
-            if not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
+            # A user's own list is shown as-is; the top-N default keeps the tradable floor.
+            if wanted is None and not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
                 continue
             lit = _is_lit(m)
             if not show_all and not lit:
@@ -669,11 +709,11 @@ def _sync_push_subscriptions() -> None:
                 pass
             _subscribed_provs = set()
         return
-    top = _top_set
-    if not top:
+    universe = set(_top_set or ()) | _custom_active()   # top-N + every active custom-list name
+    if not universe:
         return
     app_to_prov = {app: prov for prov, app in _universe_map().items()}
-    want = {app_to_prov[a] for a in top if a in app_to_prov}
+    want = {app_to_prov[a] for a in universe if a in app_to_prov}
     new = want - _subscribed_provs
     gone = _subscribed_provs - want
     try:

@@ -164,3 +164,124 @@
   .row { padding: 5px 6px; gap: 4px; }
   .sym { letter-spacing: 0.3px; }
 }
+
+/* ═══ Custom scan lists — scope pill, list menu, add-ticker bar, row context menu.
+   Rides the widget's --nh-* / --menu-* tokens + UIcon glyphs (no emoji), tuned to feel
+   like a premium, native part of the widget. ═══════════════════════════════════════════ */
+
+.scopeWrap { position: relative; flex: 0 1 auto; min-width: 0; }
+.scopeBtn {
+  display: flex; align-items: center; gap: 5px;
+  max-width: 148px; height: 22px; padding: 0 7px;
+  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.12)));
+  border-radius: 6px;
+  background: var(--menu-input-bg, var(--nh-elev, var(--bg-elevated, #16191f)));
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s;
+}
+.scopeBtn:hover { border-color: var(--ut-gold); }
+.scopeBtnCustom { border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); color: var(--ut-gold); }
+.scopeLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.scopeMenu {
+  position: absolute; top: 26px; left: 0; z-index: 40;
+  width: 216px; max-height: 320px; overflow-y: auto; padding: 5px;
+  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
+  border-radius: 9px;
+  background: var(--menu-bg, var(--nh-elev, var(--bg-elevated, #14171d)));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.scopeItem {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; min-height: 30px; padding: 0 7px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 12px; text-align: left; cursor: pointer;
+}
+button.scopeItem:hover, .scopeItem:hover { background: var(--menu-hover, var(--nh-hover, rgba(255, 255, 255, 0.06))); }
+.scopeItemActive { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.scopeItemMain { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.scopeItemName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.scopeItemHint { color: var(--nh-text, var(--wl-text, var(--text-muted))); font-weight: 500; font-size: 10.5px; margin-left: auto; }
+.scopeItemMain .scopeItemHint {
+  margin-left: 4px; padding: 1px 5px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07); min-width: 14px; text-align: center;
+}
+.scopeItemBtns { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.scopeIconBtn {
+  display: flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border: 0; border-radius: 5px; background: transparent; color: var(--nh-text, var(--text-muted)); cursor: pointer;
+}
+.scopeIconBtn:hover { background: rgba(255, 255, 255, 0.09); color: var(--text-bright); }
+.scopeIconDanger:hover { background: rgba(242, 75, 66, 0.18); color: var(--ut-red-bright, #f24b42); }
+.scopeDivider {
+  font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.09em; font-weight: 700;
+  color: var(--nh-text, var(--text-muted)); opacity: 0.7;
+  padding: 8px 8px 3px; border-top: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.07)); margin-top: 3px;
+}
+.scopeDivider:empty { padding: 0; margin: 4px 6px; }
+.scopeCreate {
+  display: flex; align-items: center; gap: 7px; width: 100%; min-height: 30px; padding: 0 7px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ut-gold);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.scopeCreate:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.scopeEdit {
+  flex: 1 1 auto; min-width: 0; height: 24px; padding: 0 6px;
+  border: 1px solid var(--ut-gold); border-radius: 5px;
+  background: var(--menu-input-bg, var(--bg, #0d0f13)); color: var(--text-bright);
+  font-family: var(--font-sans); font-size: 12px; outline: none;
+}
+
+/* Add-ticker bar (bottom of the widget when a list is active). */
+.addBar {
+  position: relative; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 6px; padding: 6px 9px;
+  border-top: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.1)));
+  background: var(--nh-bg, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated, #101216))));
+  color: var(--nh-text, var(--text-muted));
+}
+.addInput {
+  flex: 1 1 auto; min-width: 0; height: 22px; padding: 0 2px; border: 0; background: transparent;
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright))); font-family: var(--font-sans);
+  font-size: 12px; letter-spacing: 0.3px; outline: none;
+}
+.addInput::placeholder { color: var(--nh-text, var(--text-muted)); opacity: 0.8; }
+.addCount { flex: 0 0 auto; font-size: 10px; font-weight: 600; color: var(--nh-text, var(--text-muted)); white-space: nowrap; }
+.addSuggest {
+  position: absolute; left: 6px; right: 6px; bottom: calc(100% + 4px); z-index: 41;
+  padding: 4px; border-radius: 8px;
+  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
+  background: var(--menu-bg, var(--nh-elev, var(--bg-elevated, #14171d)));
+  box-shadow: 0 -8px 26px rgba(0, 0, 0, 0.5);
+  max-height: 210px; overflow-y: auto;
+}
+.addSuggestItem {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 5px 7px;
+  border: 0; border-radius: 5px; background: transparent; text-align: left; cursor: pointer;
+}
+.addSuggestHi, .addSuggestItem:hover { background: var(--menu-hover, var(--nh-hover, rgba(255, 255, 255, 0.07))); }
+.addSuggestSym { font-family: var(--font-sans); font-size: 12px; font-weight: 700; color: var(--ut-gold); flex: 0 0 auto; }
+.addSuggestName {
+  font-family: var(--font-sans); font-size: 11px; color: var(--nh-text, var(--text-muted));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Right-click "remove from list" menu. */
+.rowMenu {
+  position: fixed; z-index: 60; min-width: 168px; padding: 4px;
+  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
+  border-radius: 8px; background: var(--menu-bg, var(--nh-elev, var(--bg-elevated, #14171d)));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+.rowMenuHead {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--ut-gold); padding: 5px 8px 4px;
+}
+.rowMenuItem {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px;
+  border: 0; border-radius: 5px; background: transparent; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; color: var(--nh-sym, var(--text-bright)); text-align: left;
+}
+.rowMenuItem:hover { background: rgba(242, 75, 66, 0.16); color: var(--ut-red-bright, #f24b42); }
