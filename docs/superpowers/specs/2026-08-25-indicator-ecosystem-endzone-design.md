@@ -41,7 +41,7 @@ scans on a member's own script, and evidence.
 - Scans: Phase E E-1…E-6, E-8, E-9 shipped; 05:00 ET sweep **armed in prod** (`SCAN_SWEEP_ENABLED=1`); `scan_hits`/`scan_coverage`; scan→chart; alerts on user formulas (`USER_FUNCS`); E-7 mechanism live with no numbers. No authoring door on `/screener`; nightly only; no MTF; no value columns.
 - Evidence: `api/services/screener/backtest.py` (833 lines, pure, baseline REQUIRED, fill-at-open) and `api/routers/backtest.py` + `backtest_engine.simulate` + 4 strategy templates — **both paid-gated and reachable from no UI**. `candle_backtest.py` holds the date-matched base rate.
 - Live precedent: `screener/live_tier.py` — a side table, one writer, LEFT-JOIN overlay, zero new provider calls (the 30 s `full_market_snapshot`), per-row provenance. The nightly sweep's whole compute measured **42.4 s**.
-- Known reds/landmines: colour change not live (8/15, unfixed) · `computeVWAP` buckets sessions by UTC day · `test_definition_record.py` red on the shared-root guard · legend compact mode hides the settings door · two settings systems (MAs vs indicators).
+- Known reds/landmines: colour change not live (8/15, unfixed) · `computeVWAP` buckets sessions by UTC day · ~~`test_definition_record.py` red on the shared-root guard~~ (CORRECTED 2026-08-26: green since b69c45ca4 — the red was the probe’s own sqlite3.connect, not a writer) · legend compact mode hides the settings door · two settings systems (MAs vs indicators).
 
 ### A4 amended 2026-08-26 — the measured ceiling, not an aspiration
 
@@ -123,7 +123,7 @@ Two kinds, both derived from series so the engine stays one-number-per-bar:
 - **Version history** UI over the store's `history`.
 
 ### 5.10 Hygiene (W0)
-Colour change applied live (isolate chip vs line first) · legend-compact settings door · `AST_DEFS` retired or made the install path (one truth) · concierge → `claude-opus-5` with a `cost_guard` entry · `test_definition_record.py` red · "Premium" badge on a member's own formula · the 8 zero-returning starters verified on prod · `computeVWAP` ET sessions.
+Colour change applied live (isolate chip vs line first) · legend-compact settings door · `AST_DEFS` retired or made the install path (one truth) · concierge → `claude-opus-5` with a `cost_guard` entry · ~~`test_definition_record.py` red~~ (stale, see §2) · "Premium" badge on a member's own formula · the 8 zero-returning starters verified on prod · `computeVWAP` ET sessions.
 
 ## 6. Waves and file ownership (parallel where disjoint)
 
