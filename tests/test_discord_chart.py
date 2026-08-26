@@ -2179,3 +2179,23 @@ def test_a_daily_house_render_warms_the_pages_own_5000_bar_fetch_before_renderin
                   bars_fn=lambda t, tf, n: asked.append((tf, n)) or daily_bars(30),
                   render_fn=lambda *a, **k: PNG_MAGIC, house_fn=None)
     assert all(n < 600 or n == bars_to_request("D") for _, n in asked), asked
+
+
+def test_a_charts_set_fetches_every_symbols_bars_before_it_renders_anything():
+    """Four cold symbols fetching at once collide on the bars store's write lock
+    (web's busy_timeout is 2s by design): one raises 'database is locked' and
+    reports 'no bars', and the survivors land too late for the renderer and come
+    back BLANK. Bars first, serially; renders still concurrent."""
+    from api.services.discord_interactions import run_multi_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p
+    order = []
+    def bars_fn(ticker, tf, n):
+        order.append(("bars", ticker)); return daily_bars(30)
+    def house_fn(ticker, tf, stats, opts):
+        order.append(("render", ticker)); return PNG_MAGIC + ticker.encode()
+    items = [(ChartRequest(s, "D"), dict(p.DEFAULTS)) for s in ("SEQA", "SEQB", "SEQC")]
+    assert run_multi_chart_job("1", "t", items, bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
+                               edit_fn=lambda a, b, **k: True, house_fn=house_fn) == "ok"
+    first_render = next(i for i, (kind, _) in enumerate(order) if kind == "render")
+    warmed = {sym for kind, sym in order[:first_render] if kind == "bars"}
+    assert warmed == {"SEQA", "SEQB", "SEQC"}, f"a render started before every symbol had bars: {order}"

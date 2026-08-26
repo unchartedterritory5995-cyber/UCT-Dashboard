@@ -883,10 +883,36 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
         return (req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None)
 
+    def _warm_bars(item) -> None:
+        """Pull this chart's bars BEFORE anything renders."""
+        req, prefs = item
+        from api.services import discord_chart_house as _house
+        wants = [("D", STATS_DAILY_BARS)]
+        if req.tf != "D":
+            wants.append((req.tf, _house.page_fetch_bars(req.tf, bool(req.to))))
+        else:
+            wants[0] = ("D", _house.page_fetch_bars("D", bool(req.to)))
+        for tf, n in wants:
+            try:
+                bars_fn(req.ticker, tf, n)
+            except Exception as e:  # noqa: BLE001 — produce_chart retries and judges
+                log.warning("[discord-chart] multi warm %s %s: %s", req.ticker, tf, e)
+
     try:
         if len(items) < 2:
             results = [_one(it) for it in items]
         else:
+            # ⛔ SEQUENTIALLY, and before any render. Four cold symbols fetching
+            # at once collide on the bars store's write lock — web runs a 2 s
+            # busy_timeout BY DESIGN (CLAUDE.md: a longer one compounds with the
+            # retry loop and saturates the anyio pool), so the loser raises
+            # "database is locked", its chart reports "no bars", and the ones
+            # that do land arrive too late for the renderer's deadline and come
+            # back BLANK. Measured 2026-08-26: four cold symbols in parallel =
+            # 43 s with a blank and a lock error; fetched first, the renders
+            # themselves are ~3 s for the set.
+            for it in items:
+                _warm_bars(it)
             # ex.map keeps the order asked, which the reply and the attachment
             # list both depend on.
             with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
