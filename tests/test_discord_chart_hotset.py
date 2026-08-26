@@ -83,3 +83,33 @@ def test_the_cache_can_report_an_entrys_age_without_exposing_its_storage():
     assert cache.age_of("AGE:D", now=now) == 0
     clock[0] += 30
     assert round(cache.age_of("AGE:D", now=now)) == 30
+
+
+def test_the_roster_is_seeded_with_zero_hits_so_real_demand_always_outranks_it():
+    from api.services.discord_interactions import seed_roster, ROSTER_MAX
+    from api.services import discord_chart_hotset as hs
+    assert seed_roster(["nvda", "spy", "not a ticker", "AMD"]) == 3      # junk dropped
+    seeded = dict((k, hits) for k, hits, _ in hs.snapshot())
+    assert all(h == 0 for h in seeded.values()), seeded
+    # a member asking for one of them promotes it above the rest of the roster
+    key = next(k for k in seeded if k.startswith("NVDA:"))
+    hs.record(key, ChartRequest("NVDA", "D"), dict(p.DEFAULTS), 120)
+    top = hs.snapshot()[0]
+    assert top[0] == key and top[1] == 1
+    # re-seeding never inflates a real chart's count
+    seed_roster(["NVDA"])
+    assert dict((k, h) for k, h, _ in hs.snapshot())[key] == 1
+    # and it is bounded
+    hs.clear_for_tests()
+    assert seed_roster([f"SYM{i}" for i in range(ROSTER_MAX + 15)]) == ROSTER_MAX
+
+
+def test_a_seeded_chart_is_warmed_so_the_first_member_to_ask_gets_a_hit():
+    from api.services.discord_interactions import seed_roster, warm_hot_charts
+    from api.services import discord_chart_hotset as hs
+    seed_roster(["ROST"])
+    key = hs.snapshot()[0][0]
+    assert cache.get(key) is None
+    assert warm_hot_charts(bars_fn=lambda *a: bars(), render_fn=lambda *a, **k: PNG,
+                           house_fn=lambda t, tf, s, o: PNG) == [key]
+    assert cache.get(key) is not None            # the first asker pays nothing

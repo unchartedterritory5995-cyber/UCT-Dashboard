@@ -703,6 +703,17 @@ def _discord_chart_hot_warm() -> None:
         from api.routers import discord_interactions as rt
         if not house.house_enabled():
             return
+        # The day's names, so the FIRST member to ask gets a hit too. Seeded with
+        # zero hits, so anything a member actually asked for outranks them.
+        try:
+            from api.services import engine
+            roster = [r.get("sym") or r.get("ticker") for r in (engine.get_leadership() or [])[:6]]
+            movers = engine.get_movers() or {}
+            roster += [m.get("sym") for m in (movers.get("ripping") or [])[:3]]
+            roster += [m.get("sym") for m in (movers.get("drilling") or [])[:2]]
+            di.seed_roster([s for s in roster if s])
+        except Exception as e:  # noqa: BLE001 — a roster we cannot read is not a reason to skip the warm
+            log.debug("[discord-chart] roster seed skipped: %s", e)
         di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
                            house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote)
     except Exception:

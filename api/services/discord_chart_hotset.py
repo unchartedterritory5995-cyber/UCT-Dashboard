@@ -55,6 +55,24 @@ def record(key: str, req, prefs: dict, ttl_s: int, *, now: Callable[[], float] =
                 _seen.pop(k, None)
 
 
+def seed(key: str, req, prefs: dict, ttl_s: int) -> bool:
+    """Add a chart nobody has asked for YET — the day's roster, so the first
+    member to type it gets a hit too. Seeded entries carry ZERO hits, so real
+    demand always outranks them for the cycle's limited slots and evicts them
+    first when the set is full. A key already present is left alone: seeding
+    must never inflate a real chart's hit count."""
+    if not key:
+        return False
+    with _lock:
+        if key in _seen:
+            return False
+        _seen[key] = (time.monotonic(), 0, req, dict(prefs or {}), int(ttl_s))
+        if len(_seen) > _MAX_KEYS:
+            for k in sorted(_seen, key=lambda k: (_seen[k][1], _seen[k][0]))[: len(_seen) - _MAX_KEYS]:
+                _seen.pop(k, None)
+        return key in _seen
+
+
 def due(cache_age: Callable[[str], float | None], *, limit: int = 8,
         now: Callable[[], float] = time.monotonic) -> list[tuple]:
     """[(key, req, prefs)] worth re-rendering now: asked for recently, and either

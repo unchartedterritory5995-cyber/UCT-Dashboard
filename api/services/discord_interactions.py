@@ -1023,6 +1023,29 @@ def message_attachment_ids(interaction: dict) -> list:
     return [a["id"] for a in (msg.get("attachments") or []) if isinstance(a, dict) and a.get("id")]
 
 
+ROSTER_MAX = int(os.environ.get("DISCORD_CHART_ROSTER_MAX", "10"))
+
+
+def seed_roster(symbols, tf: str = "D") -> int:
+    """Put the day's names in the hot set before anyone asks for them, so the
+    FIRST member to type NVDA gets a cache hit like everyone after them.
+
+    Seeded with zero hits: a chart a member actually asked for always outranks
+    the roster for the warm cycle's limited slots, and the roster is what gets
+    evicted when the set fills up. Bounded by ROSTER_MAX."""
+    n = 0
+    prefs = dict(prefs_mod.DEFAULTS)
+    for sym in list(symbols)[:ROSTER_MAX]:
+        sym = str(sym or "").upper().strip()
+        if not _TICKER_RE.match(sym):
+            continue
+        req = ChartRequest(ticker=sym, tf=tf)
+        key = f"{sym}:{tf}:{prefs_mod.style_signature(prefs)}"
+        if hotset.seed(key, req, prefs, png_cache.ttl_for(tf)):
+            n += 1
+    return n
+
+
 def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6) -> list:
     """Re-render the charts members keep asking for, just before their cache
     entry goes stale, so the next member gets a hit instead of a 2.4 s render.
