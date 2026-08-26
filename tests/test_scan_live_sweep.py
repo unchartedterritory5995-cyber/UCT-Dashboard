@@ -1329,8 +1329,11 @@ def test_the_LIVE_SKIP_REASONS_are_a_CLOSED_set_a_caller_can_branch_on():
     """Every word a cycle can answer `skipped_reason` with, declared once. ⚠️ pinned
     by MEMBERSHIP, never by length — a seventh reason is a ruling, not a red."""
     for word in ("disabled", "closed", "build_in_flight", "no-definitions",
-                 "no-universe", "budget"):
+                 "no-universe", "budget", "failed"):
         assert word in scan_evaluator.LIVE_SKIP_REASONS, word
+    # ⛔ THE WARNING SET IS A SUBSET OF IT, railed rather than trusted: a warning
+    # word that is not a skip reason is a warning nothing can ever emit.
+    assert set(scan_evaluator.LIVE_WARNING_REASONS) <= set(scan_evaluator.LIVE_SKIP_REASONS)
     assert scan_evaluator.LIVE_UNSWEPT_REASON == "budget:live-interval"
     assert scan_evaluator.LIVE_UNSWEPT_REASON != scan_evaluator.UNSWEPT_REASON, (
         "the live budget and the nightly market-open budget are DIFFERENT facts "
@@ -1681,6 +1684,73 @@ def clock_nightly(monkeypatch):
     return frozen
 
 
+def _raises(exc):
+    """A stub that raises `exc` when called with anything."""
+    def _boom(*a, **k):
+        raise exc
+    return _boom
+
+
+def test_a_cycle_that_RAISES_still_FILES_a_receipt_before_the_error_LEAVES(
+        store, bars, live_clock, feed, monkeypatch):
+    """🔴 THE PROPERTY `_finish_live` EXISTS FOR, HELD ON THE PATH THAT BREAKS IT.
+
+    Every RETURN path files a receipt. The setup phase — `_load_universe`, the
+    fairness read, the receipt write itself — can RAISE, and a raise that left no
+    receipt would make `last_live_cycle()` read `None`: "nothing has run since the
+    deploy". That is the exact reading `_finish_live`'s own comment says it
+    prevents, and it is the one a status surface must never be told when a cycle
+    DID run and broke. The realistic path is sqlite under lock contention on the
+    single web pod, which is why the stub raises what sqlite raises.
+
+    ⛔ AND THE ERROR IS STILL LOUD. The artifact and the loudness are not a trade:
+    the receipt is filed and the exception is RE-RAISED, which `pytest.raises`
+    below is what pins.
+    """
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    monkeypatch.setattr(snapshot_builder, "_load_universe",
+                        _raises(sqlite3.OperationalError("database is locked")))
+    with pytest.raises(sqlite3.OperationalError):
+        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", mode="live")
+
+    cyc = scan_store.last_live_cycle("D")
+    assert cyc is not None, (
+        "a cycle died and left NOTHING behind — a dead scheduler now reads as a "
+        "quiet evening, which is the one thing the receipt exists to prevent")
+    assert cyc["receipt"]["skipped_reason"] == "failed"
+    assert "OperationalError" in cyc["receipt"]["failure"]
+    assert "database is locked" in cyc["receipt"]["failure"]
+    assert cyc["swept"] == [] and cyc["receipt"]["cycle_started"] == cyc["cycle_started"]
+
+
+def test_the_FAILURE_receipt_never_MASKS_the_original_error(
+        store, bars, live_clock, feed, monkeypatch):
+    """⛔ IF THE STORE IS THE BROKEN THING, THE SECOND WRITE FAILS TOO — and the
+    exception a caller must see is the FIRST one. A handler that let its own
+    recovery raise would replace "the universe read died" with "the receipt write
+    died", and the second sentence is the less useful of the two."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    monkeypatch.setattr(snapshot_builder, "_load_universe",
+                        _raises(RuntimeError("the universe read died")))
+    monkeypatch.setattr(scan_store, "record_live_cycle",
+                        _raises(sqlite3.OperationalError("database is locked")))
+    with pytest.raises(RuntimeError, match="the universe read died"):
+        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", mode="live")
+
+
+def test_the_HEALTHY_cycle_carries_the_failure_slot_EMPTY(
+        store, bars, live_clock, feed, monkeypatch):
+    """The control for the two above: `failure` is always present and `None` when
+    nothing broke. A key that only appears when something broke is a key every
+    reader has to branch on — and `skipped_reason` stays the one authority over
+    whether a cycle did its whole job."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    r = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    assert r["failure"] is None and r["skipped_reason"] is None
+    assert scan_store.last_live_cycle("D")["receipt"]["failure"] is None
+
+
 # ═══ 13. `live_sweep_job`: the scheduler's door, and it reads the ARTIFACT ════
 
 def test_live_sweep_job_reads_the_ARTIFACT_back_and_EXPLAINS_a_budget_shortfall(
@@ -1707,6 +1777,25 @@ def test_a_DARK_live_job_does_not_even_READ_the_definitions(store, monkeypatch):
     monkeypatch.setattr(scan_evaluator, "definitions_to_sweep",
                         lambda: pytest.fail("a dark job read the definitions store"))
     scan_evaluator.live_sweep_job()
+
+
+def test_the_JOB_SURVIVES_a_failing_cycle_and_the_ARTIFACT_still_answers(
+        store, bars, live_clock, feed, monkeypatch, caplog):
+    """⛔ THE JOB DOES NOT PROPAGATE. APScheduler's next tick is five minutes away
+    either way, and a `[scan-live]` line beside a filed receipt is more use to
+    whoever reads the logs than a bare traceback with no artifact. The cycle has
+    already recorded `failed`, so the read-back below still answers."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    monkeypatch.setattr(scan_evaluator, "definitions_to_sweep", lambda: [_definition(PRICE_TREE)])
+    monkeypatch.setattr(snapshot_builder, "_load_universe",
+                        _raises(RuntimeError("the universe read died")))
+    with caplog.at_level("INFO"):
+        scan_evaluator.live_sweep_job()          # ⛔ does NOT raise
+    assert any("[scan-live] the cycle FAILED" in r.message for r in caplog.records), (
+        [r.message for r in caplog.records])
+    assert any("[scan-live] receipts read back" in r.message for r in caplog.records), (
+        "the artifact read-back was skipped on the failure path")
+    assert scan_store.last_live_cycle("D")["receipt"]["skipped_reason"] == "failed"
 
 
 def test_note_demand_on_the_evaluator_DELEGATES_to_the_store(monkeypatch):
