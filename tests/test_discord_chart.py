@@ -217,7 +217,7 @@ def test_edit_original_multipart_shape_and_failure_paths():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     ok = edit_original("123", "tok", content="NVDA · Daily", png=PNG_MAGIC + b"x" * 100,
                        filename="NVDA_D_2026-08-25_Chart.png", client=client)
-    assert ok is True
+    assert ok == {"id": "1"}          # the edited MESSAGE, so the follow-up can pin its attachments
     req = seen[-1]
     assert req.method == "PATCH"
     assert str(req.url) == f"{DISCORD_API}/webhooks/123/tok/messages/@original"
@@ -229,7 +229,7 @@ def test_edit_original_multipart_shape_and_failure_paths():
     assert PNG_MAGIC in body
 
     ok = edit_original("123", "tok", content="No bars for X (Daily).", client=client)
-    assert ok is True
+    assert ok == {"id": "1"}
     assert json.loads(seen[-1].content) == {"content": "No bars for X (Daily)."}
 
     def failing(request):
@@ -1917,3 +1917,52 @@ def test_a_compare_list_that_would_overflow_the_id_is_refused_at_the_command():
     bad = "c2|NVDA|D|house|1|auto|none|candles|house||" + "+".join("Z" * 11 + str(i) for i in range(3)) + "|t"
     with pytest.raises(di.CommandError):
         di.parse_component({"data": {"custom_id": bad}})
+
+
+def test_the_context_edit_re_declares_the_chart_and_its_controls_so_neither_can_be_dropped():
+    """`desk_session_announce._edit` is this repo's measured precedent: a PATCH
+    that did not list the message's file DROPPED it. The chart IS the product,
+    so the context line's edit re-states the attachment ids (from the first
+    edit's response) and the same control rows rather than trusting omission."""
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p
+    calls = []
+    def edit_fn(app_id, token, **kw):
+        calls.append(kw)
+        return {"id": "msg1", "attachments": [{"id": "999", "filename": kw.get("filename")}]} if kw.get("png") else True
+    rows = [{"type": 1, "components": [{"type": 2, "style": 1, "label": "D", "custom_id": "x"}]}]
+    assert run_chart_job("1", "t", ChartRequest("CTXE", "D"), bars_fn=lambda *a: daily_bars(20),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edit_fn, prefs=dict(p.DEFAULTS),
+                         components_fn=lambda r, pr: rows, context_fn=lambda t: "Earnings tomorrow") == "ok"
+    assert len(calls) == 2
+    assert calls[1]["keep_attachments"] == ["999"]          # the image is named, not left to omission
+    assert calls[1]["components"] == rows                    # so are the controls
+    assert calls[1]["png"] is None if "png" in calls[1] else True
+    # an edit_fn that returns a bare bool (older callers, test doubles) still works
+    calls.clear()
+    assert run_chart_job("1", "t", ChartRequest("CTXF", "D"), bars_fn=lambda *a: daily_bars(20),
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=lambda *a, **k: calls.append(k) or True,
+                         prefs=dict(p.DEFAULTS), context_fn=lambda t: "Earnings tomorrow") == "ok"
+    assert len(calls) == 2 and "keep_attachments" not in calls[1]
+
+
+def test_edit_original_returns_the_message_and_can_pin_the_files_a_text_edit_keeps():
+    from api.services.discord_interactions import edit_original
+    seen = []
+    class R:
+        is_success = True; status_code = 200; text = ""
+        def json(self): return {"id": "m1", "attachments": [{"id": "999"}]}
+    class Bad(R):
+        is_success = False; status_code = 500
+        def json(self): raise ValueError("no body")
+    class C:
+        def patch(self, url, **kw):
+            seen.append(kw); return R()
+    msg = edit_original("1", "t", content="X", png=b"PNG", filename="x.png", client=C())
+    assert msg["attachments"][0]["id"] == "999"              # the caller learns the file's id
+    edit_original("1", "t", content="X · Daily\nEarnings tomorrow", keep_attachments=["999"], client=C())
+    payload = seen[-1]["json"]
+    assert payload["attachments"] == [{"id": "999"}] and "files" not in seen[-1]
+    class C5:
+        def patch(self, url, **kw): return Bad()
+    assert edit_original("1", "t", content="X", client=C5()) is False

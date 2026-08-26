@@ -130,7 +130,7 @@ def compose(ticker: str, *, today: _dt.date, earnings: Optional[dict] = None,
         if isinstance(rank, int) and rank > 0:
             head += f" #{rank}"
         tag = str(catalyst.get("tag") or "").strip()
-        if tag:
+        if tag and tag.lower() != "catalyst":       # "Catalyst #15 (Catalyst)" reads like a stutter
             head += f" ({tag})"
         room = MAX_LEN - len(" · ".join(parts)) - (3 if parts else 0) - len(head) - 2
         sentence = _first_sentence(catalyst["thesis_text"], max(24, room))

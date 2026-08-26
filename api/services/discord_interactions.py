@@ -654,13 +654,17 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
                   filename: str | None = None, components: list | None = None, client=None,
-                  pngs: list | None = None) -> bool:
+                  pngs: list | None = None, keep_attachments: list | None = None):
     """PATCH the deferred reply (or, for a button click, the message the button
     is on). With `png`, multipart (payload_json + files[0]); without, JSON.
     `pngs` = several images at once ([(bytes, filename), ...] - /charts):
     files[i] + attachments ids 0..n. `components` = the button rows to show
-    under it; None leaves the message's existing rows alone. Returns True on
-    2xx. Never raises."""
+    under it; None leaves the message's existing rows alone. `keep_attachments`
+    = ids of files the message already has, re-declared so a text-only edit
+    cannot drop the chart ("the message's files are exactly these").
+
+    Returns the edited MESSAGE (dict, truthy) on 2xx - the caller needs its
+    attachment ids for the follow-up edit - or False. Never raises."""
     url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
     images = list(pngs) if pngs else ([(png, filename)] if png is not None else [])
     try:
@@ -676,6 +680,8 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                     payload["attachments"] = [{"id": i, "filename": fn} for i, (_, fn) in enumerate(images)]
                     return c.patch(url, data={"payload_json": json.dumps(payload)},
                                    files={f"files[{i}]": (fn, data, "image/png") for i, (data, fn) in enumerate(images)})
+                if keep_attachments is not None:
+                    payload["attachments"] = [{"id": i} for i in keep_attachments]
                 return c.patch(url, json=payload)
             r = _send(components)
             if not r.is_success and components is not None and 400 <= r.status_code < 500:
@@ -694,7 +700,11 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                 c.close()
         if not r.is_success:
             log.warning("[discord-chart] edit_original HTTP %s: %s", r.status_code, r.text[:200])
-        return bool(r.is_success)
+            return False
+        try:
+            return r.json() or True
+        except Exception:  # noqa: BLE001 — a 2xx with an unreadable body is still a success
+            return True
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[discord-chart] edit_original failed: %s", e)
         return False
@@ -844,12 +854,20 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
     headline = (req.display or req.ticker) + (f" vs {'/'.join(compare)}" if compare else "") + f" · {label}"
 
-    def _context_follow_up():
+    def _context_follow_up(sent):
         # The context line (next earnings, implied move, today's catalyst) is
         # edited in AFTER the image is up: a member never waits on a lookup for
-        # the chart, and a failed lookup costs nothing but the line. A
-        # content-only edit keeps the attachment and the controls (Discord
-        # keeps what the payload omits). Breadth symbols have no earnings.
+        # the chart, and a failed lookup costs nothing but the line.
+        #
+        # ⛔ This second edit RE-DECLARES what the message already holds - the
+        # attachment ids off the first edit's response, and the same control
+        # rows - instead of relying on "Discord keeps what the payload omits".
+        # `desk_session_announce._edit` is this repo's measured precedent for
+        # the other reading: a PATCH that did not list the file DROPPED it. The
+        # chart IS the product; it is not worth the wager. `sent` is the first
+        # edit's return (the message dict from edit_original; a test double or
+        # an older edit_fn may return a bare bool - then there is nothing to
+        # re-declare and the edit stays content-only). Breadth has no earnings.
         if context_fn is None or req.breadth_name:
             return
         try:
@@ -857,18 +875,24 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         except Exception as e:  # noqa: BLE001
             log.warning("[discord-chart] context line failed %s: %s", req.ticker, e)
             return
-        if line:
-            try:
-                edit_fn(app_id, token, content=headline + "\n" + line)
-            except Exception as e:  # noqa: BLE001
-                log.warning("[discord-chart] context edit failed %s: %s", req.ticker, e)
+        if not line:
+            return
+        kw = dict(extra)
+        if isinstance(sent, dict):
+            keep = [a.get("id") for a in (sent.get("attachments") or []) if a.get("id") is not None]
+            if keep:
+                kw["keep_attachments"] = keep
+        try:
+            edit_fn(app_id, token, content=headline + "\n" + line, **kw)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] context edit failed %s: %s", req.ticker, e)
 
     try:
         hit = png_cache.get(key)
         if hit:
             png, filename = hit
-            edit_fn(app_id, token, content=headline, png=png, filename=filename, **extra)
-            _context_follow_up()
+            sent = edit_fn(app_id, token, content=headline, png=png, filename=filename, **extra)
+            _context_follow_up(sent)
             return "ok"
 
         produce = lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,  # noqa: E731
@@ -878,8 +902,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
         outcome = result[0] if result else "render_failed"
         if outcome == "ok":
-            edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
-            _context_follow_up()
+            sent = edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
+            _context_follow_up(sent)
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":

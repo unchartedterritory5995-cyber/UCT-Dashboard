@@ -50,13 +50,15 @@ def test_compose_only_quotes_the_straddle_inside_the_implied_window():
 def test_compose_catalyst_is_first_sentence_markdown_stripped_and_the_line_is_capped():
     cat = {"rank": 1, "tag": "Catalyst", "thesis_text": "$NVDA rips " + "very " * 80 + "hard. Then more."}
     line = cc.compose("NVDA", today=TODAY, catalyst=cat)
-    assert line.startswith("Catalyst #1 (Catalyst): $NVDA rips very")
+    assert line.startswith("Catalyst #1: $NVDA rips very")      # the tag is dropped when it just says "Catalyst"
     assert len(line) <= cc.MAX_LEN and line.endswith("…")
     assert cc.compose("X", today=TODAY, catalyst={"rank": None, "tag": "", "thesis_text": "No clear catalyst."}) == "Catalyst: No clear catalyst."
     assert cc.compose("X", today=TODAY, catalyst={"rank": 3, "thesis_text": ""}) == ""
     # earnings text keeps its room when the catalyst is long
     both = cc.compose("X", today=TODAY, earnings={"report_date": "2026-11-19"}, catalyst=cat)
     assert both.startswith("Earnings Thu Nov 19 (in 12d) · Catalyst #1") and len(both) <= cc.MAX_LEN
+    # a tag that is NOT the generic word still shows
+    assert "(Earnings)" in cc.compose("X", today=TODAY, catalyst={"rank": 2, "tag": "Earnings", "thesis_text": "Beat and raised."})
 
 
 # ── context_line (cached entry point) ──
