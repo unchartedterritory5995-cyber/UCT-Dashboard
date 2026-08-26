@@ -4175,6 +4175,32 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     expect(labelFor('williamsR'), 'the label is the catalog\'s, not a coincidence').toBe('%R')
   })
 
+  it('W0.2 — two instances in ONE pane each get their own "<label> settings…" row (the compact-legend door)', () => {
+    // Pane keys are DEFINITION ids (`paneLayout.orderedPaneKeys` dedupes by defId), so
+    // both MACDs share the 'macd' pane. Once the legend is compact there are no chips
+    // and no gears, and this menu is the only door — one row per live instance, or the
+    // second MACD has no settings surface at all (measured on production 2026-08-15).
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const a = { instanceId: 'engine-test:macd-a', defId: 'macd', hidden: false,
+      inputs: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, macdColor: '#2196F3', signalColor: '#FF9800' } }
+    const b = { ...a, instanceId: 'engine-test:macd-b', inputs: { ...a.inputs, fastPeriod: 5 } }
+    const view = renderChart({ settings: { indicators: { macd: { enabled: true } }, indicatorInstances: [a, b] } })
+    const sec = sectionOf(openContextMenu(view, { region: 'indicator', key: 'macd' }), 'region')
+    const rows = sec.items.filter(i => /settings…$/.test(i.label))
+    expect(rows.map(i => i.id), 'one settings row per live instance')
+      .toEqual(['i-set:engine-test:macd-a', 'i-set:engine-test:macd-b'])
+    // The labels tell the two apart the way the LEGEND does — `readout.chipsFrom`,
+    // which suffixes the input that DIFFERS (MACD declares no legendParams).
+    expect(rows.map(i => i.label)).toEqual(['MACD (fastPeriod 12) settings…', 'MACD (fastPeriod 5) settings…'])
+    // …and each row opens ITS OWN instance: the dialog's Fast box reads 5 for the second.
+    act(() => { rows[1].onSelect() })
+    const fast = document.body.querySelector('[role="dialog"] [data-input-key="fastPeriod"] input')
+    expect(fast, 'the second row opened no dialog').toBeTruthy()
+    expect(fast.value, 'the second row opened the FIRST instance').toBe('5')
+    // The menu's first row is untouched (every other case reads it).
+    expect(sec.items[0].id).toBe('i-hide')
+  })
+
   it('and Hide routes at the ONE writer, for a flipped id and an un-flipped one alike', () => {
     // ⚠️ BOTH ids, deliberately. A flipped id's writer moves the mirror anyway,
     // so a loop that only ran `rsi` would pass for the wrong reason — B3 measured

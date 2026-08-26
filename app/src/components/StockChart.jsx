@@ -101,7 +101,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips } from './chart/engine/readout'
+import { legendChips, chipsFrom } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
@@ -134,6 +134,11 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+/** `chipsFrom` needs a truthy series handle to look up; it finds nothing in an empty
+ *  map and falls through to `lastValue`, which makes it usable as a pure LABELLER —
+ *  the same trick `IndicatorSettingsDialog.chipFacts` uses for its title. */
+const MENU_SERIES_SENTINEL = Object.freeze({ __menuOnly: true })
+const EMPTY_SERIES_DATA = new Map()
 
 /** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
  *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
@@ -1371,6 +1376,39 @@ function firstLiveInstanceId(cs, defId) {
     if (findInstance(cs, i.instanceId)) return i.instanceId
   }
   return null
+}
+
+/** EVERY live instance of `defId`, in `indicatorInstances` order — the same
+ *  `findInstance` liveness ask as `firstLiveInstanceId`, asked of every element.
+ *  Two copies of one indicator share ONE pane (`paneLayout.orderedPaneKeys` keys
+ *  panes by definition id), so that pane's menu must offer each of them a door. */
+function liveInstanceIdsFor(cs, defId) {
+  const list = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  const out = []
+  for (const i of list) {
+    if (!i || typeof i !== 'object' || i.defId !== defId) continue
+    if (findInstance(cs, i.instanceId)) out.push(i.instanceId)
+  }
+  return out
+}
+
+/** The label the LEGEND would give each of these instances — `readout.chipsFrom`
+ *  CALLED, not re-implemented, so `MACD (fastPeriod 5)` here is the chip's own
+ *  wording, sibling disambiguation included. `instanceId → label`; an instance the
+ *  pipeline yields nothing for is simply absent (the caller falls back to `label`). */
+function instanceMenuLabels(cs, def, instIds, registry) {
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  const entries = instIds.flatMap((instanceId) => plots.map((p) => ({
+    defId: def.id, plotKey: p && p.key, series: MENU_SERIES_SENTINEL, lastValue: 0, instanceId,
+  })))
+  let chips = []
+  try {
+    chips = chipsFrom(entries, EMPTY_SERIES_DATA, registry,
+      (_defId, instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {})
+  } catch { chips = [] }
+  const byId = new Map()
+  for (const c of chips) if (c && !byId.has(c.instanceId)) byId.set(c.instanceId, c.label)
+  return byId
 }
 
 export default function StockChart({
@@ -3618,8 +3656,24 @@ export default function StockChart({
       // drawing only through the legacy projection) the row falls back to the
       // global surface rather than opening a dialog on nothing.
       const instId = firstLiveInstanceId(cs, key)
+      // ⭐ W0.2 — ONE ROW PER LIVE INSTANCE. Two copies of an indicator share one
+      // pane, and once the legend collapses to compact (no chips, no gears) this
+      // menu is the only door left; a single "first MACD" row left the second copy
+      // with no settings surface at all (production, 2026-08-15; owner call: keep
+      // the compact behaviour, the door must survive). A lone instance keeps the
+      // exact row it always had, byte for byte.
+      const siblings = (showDrawingTools && instId) ? liveInstanceIdsFor(cs, key) : []
+      const sibLabels = siblings.length > 1
+        ? instanceMenuLabels(cs, engineRegistry.getDefinition(key), siblings, engineRegistry)
+        : null
       const settingsRow = (showDrawingTools && instId)
-        ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
+        ? (siblings.length > 1
+            ? siblings.map((sib) => ({
+                id: `i-set:${sib}`,
+                label: `${sibLabels.get(sib) || label} settings…`,
+                onSelect: () => setSettingsInstanceId(sib),
+              }))
+            : [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }])
         : settingsLink('i-set', `${label} settings…`)
       // ⭐ chart-UX-walls TASK 4 — the region menu's own alert door, beside
       // `Hide <label>` and `<label> settings…`. It opens the SAME popover the 🔔
@@ -11103,9 +11157,11 @@ export default function StockChart({
   // legend vanishes off-hover and only reappears (compact) on crosshair move.
   useEffect(() => {
     if (!chartReady) return
-    // ⭐ THROUGH `readoutIsOwned()` — a hover, a synced crosshair, OR a bar pinned
-    // by 'on click' mode. The pin is the new third owner; without it this effect
-    // replaces the clicked bar with the latest one on the next data tick.
+    // ⭐ THROUGH `readoutIsOwned()` — a hover OR a synced crosshair, the TWO owners
+    // it names. (A third, a bar pinned by 'on click' mode, lived there for a day and
+    // is retired: 'hold' mode ends the peek when the pointer is released, so it
+    // needs no ownership.) Without the gate this effect replaces the owned bar with
+    // the latest one on the next data tick.
     if (readoutIsOwned()) return
     setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
     // ⭐ W0.1 (2026-08-25) — AND WHEN THE INSTANCE LIST MOVES. A colour (or period)
@@ -11116,8 +11172,8 @@ export default function StockChart({
     // daily chart after hours never ticks. Measured on production 2026-08-15 as
     // "the chip keeps the old colour until a reload". The LINE was never stale
     // (`binder.test.js` → a recolour reaches `applyOptions`); the chip was.
-    // `readoutIsOwned()` above still stands this down under a hover, a synced
-    // crosshair or a pinned bar, exactly as it does for a data tick.
+    // `readoutIsOwned()` above still stands this down under a hover or a synced
+    // crosshair, exactly as it does for a data tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effAlwaysShow, chartReady, ohlcData, overlayData, cs.indicatorInstances])
 
