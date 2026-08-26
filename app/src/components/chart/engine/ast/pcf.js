@@ -1481,15 +1481,40 @@ export const READERS = Object.freeze({
   // printed output — a `let` there would mean the PRINTER emitted one).
   // ⛔ A NEW SITE THAT READS **MEMBER** TEXT BELONGS HERE, not beside those.
   //
-  // ⛔⛔ AND THIS DOOR PASSES NO INPUT SCOPE, SO IT CANNOT REFUSE `let:shadow`
-  // OVER A DECLARED INPUT. That is not a missing warning, it is a storable
-  // defect: a document declaring an input `period` and saying `let period = 5`
-  // parses here, satisfies `defSchema` rule 2, and SAVES WITH ITS KNOB INERT —
-  // the pre-pass rewrote every `period` away. The gate is the SAVE path handing
-  // `declaredInputs(def)` to `prepareSource` (W1b.5), never this default.
-  native: (source) => {
-    const pre = prepareSource(source)
-    if (!pre.ok) return { ok: false, error: pre.error, guard: pre.guard }
+  // ⛔⛔ THE INPUT SCOPE IS THREADED, AND ABSENT IS STILL NOT EMPTY (W1b.5).
+  // This door used to pass NONE, and the consequence was a STORABLE defect, not
+  // a missing warning: a document declaring an input `period` and saying
+  // `let period = 5` parsed here, satisfied `defSchema` rule 2, and SAVED WITH
+  // ITS KNOB INERT — the pre-pass had rewritten every `period` to `(5)`, so
+  // turning the knob moved nothing. Meanwhile `editor/completions.js` DID hand
+  // the scope in, so the completion popup refused the very text this door
+  // accepted: two readings of one grammar, and the stricter one was the one that
+  // could not stop a save.
+  //
+  // ⛔ IT IS STILL OPTIONAL, AND THAT IS THE CONTRACT `prepareSource`'s own
+  // docblock sets: a caller that does not KNOW the inputs (a text box mid-type
+  // before the form has any) must not have a binding refused for shadowing a
+  // knob it cannot see. A caller that knows them hands them in —
+  // `evaluateFormula` (the text box and every save gate above it) and
+  // `defSchema.validateAstCompute` (the stored document) both do.
+  native: (source, inputs) => {
+    const pre = prepareSource(source, inputs)
+    // ⭐ AND THE REFUSAL KEEPS WHERE IT REFUSED. `prepareSource` names a line, a
+    // column AND a token, all in the MEMBER's own coordinates, and this door
+    // dropped all three — so `editor/diagnostics.js` had nothing to place a mark
+    // with and fell back to searching the sentence's quoted token. Measured:
+    // `let a = 1\nlet a = 2\na` refuses at the SECOND binding (offset 14) and a
+    // token search finds the FIRST (offset 4), putting a red squiggle under
+    // correct code. Spread rather than assigned so a refusal that carries no
+    // position (there is none today) does not gain `undefined` keys that read as
+    // a measurement.
+    if (!pre.ok) {
+      return {
+        ok: false, error: pre.error, guard: pre.guard,
+        ...(Number.isInteger(pre.line) ? { line: pre.line, column: pre.column } : {}),
+        ...(pre.token ? { token: pre.token } : {}),
+      }
+    }
     return parseFormula(pre.source)
   },
   pcf: (source) => parsePcf(source),
@@ -1505,14 +1530,20 @@ export const READERS = Object.freeze({
  *  validate — a SECOND AUTHORITY OVER ONE VALUE, this repo's most repeated
  *  defect.
  *
+ *  @param {string} source
+ *  @param {string} [dialect] `'auto'` (the default), or a key of `READERS`
+ *  @param {object} [inputs] the declared-input scope (`lint.declaredInputs`'
+ *         `{[key]: true}`), when the caller knows it. ⚠️ OPTIONAL, AND ABSENT IS
+ *         NOT EMPTY — see `READERS.native`. Only the native reader consults it;
+ *         `parsePcf` has no bindings to shadow.
  *  @returns {{dialect: string, result: object}} `result` is the reader's own
  *           tagged return, unedited, so the refusal a caller reports is the
  *           refusing door's.
  */
-export function readFormulaSource(source, dialect = 'auto') {
+export function readFormulaSource(source, dialect = 'auto', inputs = undefined) {
   const named = dialect && dialect !== 'auto' && READERS[dialect] ? dialect : detectDialect(source)
   const use = READERS[named] ? named : 'native'
-  return { dialect: use, result: READERS[use](source) }
+  return { dialect: use, result: READERS[use](source, inputs) }
 }
 
 // --------------------------------------------------------------------------- //
