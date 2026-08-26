@@ -128,7 +128,22 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
 
   const parsed = read.result
   if (!parsed.ok) {
-    return { ...blank, guard: parsed.guard || 'parser', error: parsed.error }
+    // ⭐ THE READER'S OWN POSITION, WHEN IT HAS ONE. `parsePcf` answers with the
+    // index and the token it refused at; jsep puts its offset in the message.
+    // Neither is re-derived here — the editor reads what the door said, and
+    // `editor/diagnostics.js` turns whichever of the two is present into a range.
+    //
+    // ⚠️ A `let:*` REFUSAL REACHES HERE WITH NEITHER. `prepareSource` names a
+    // line, a column AND a token, and `pcf.js::READERS.native` keeps only the
+    // guard and the sentence — so there is nothing to forward. `diagnostics.js`
+    // recovers the position by asking the SAME door again rather than this file
+    // widening another lane's reader; the note is here so the absence reads as
+    // measured rather than forgotten.
+    return {
+      ...blank, guard: parsed.guard || 'parser', error: parsed.error,
+      ...(Number.isInteger(parsed.index) ? { index: parsed.index } : {}),
+      ...(typeof parsed.token === 'string' && parsed.token ? { token: parsed.token } : {}),
+    }
   }
   const ast = parsed.ast
 
