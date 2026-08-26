@@ -14,13 +14,15 @@
 // compared with explicit assertions, regenerated only by the deliberate
 // `TS_CORPUS_WRITE=1` run and reviewed in the diff.
 //
-// ⭐⭐ AND IT STARTS AT ZERO ON PURPOSE. `thinkscript.js` translates NOTHING
-// today; all 24 refuse `thinkscript:unsupported` at their first token. That is
-// not a placeholder — it is the MEASURED starting line, pinned in both
-// directions, so every later task's gain is a fact rather than a claim. The
-// spec's ≥70% for this lane was amended to the measured Wave-1 ceiling of 15/24
-// (19/24 once `tf`/`sym` land) because 70% was proven unreachable; nine of these
-// scripts refuse by Wave-1 DESIGN and are named in the lane brief.
+// ⭐⭐ AND IT STARTED AT ZERO ON PURPOSE. At W3.2 `thinkscript.js` translated
+// NOTHING; all 24 refused `thinkscript:unsupported` at their first token. That
+// was not a placeholder — it was the MEASURED starting line, pinned in both
+// directions, so every later task's gain is a fact rather than a claim. W3.3
+// held the number at 0 and moved the walls off line 1; W3.4 measures **3/24, 14
+// columns, 3 saveable**. The spec's ≥70% for this lane was amended to the
+// measured Wave-1 ceiling of 15/24 (19/24 once `tf`/`sym` land) because 70% was
+// proven unreachable; nine of these scripts refuse by Wave-1 DESIGN and are
+// named in the lane brief.
 //
 // ⚠️ THIS FILE MOVES WHEN `closedTable.json` MOVES, AND THAT IS CORRECT. When it
 // goes red naming a script, that is the notification, not a flake.
@@ -235,14 +237,20 @@ describe('the whole corpus, in one number', () => {
     // is this lane's own measured product property and must not move silently in
     // either direction.
     //
-    // ⭐ 0/24 translating, 11 columns, 0 saveable — W3.3, MEASURED.
-    // ⏳ Still 0 translating, and that is the predicted number, not a
-    // disappointment: every one of these 24 needs at least one thinkorswim
-    // FUNCTION, and this task maps none of them. What moved is the wall — see
-    // `the walls have moved` below — and the eleven columns are the plots inside
-    // otherwise-blocked studies that this reader can already compute end to end.
-    expect(translating, 'scripts that translate').toBe(0)
-    expect(columns, 'columns this engine computes').toBe(11)
+    // ⭐ 3/24 translating, 14 columns, 3 saveable — W3.4, MEASURED.
+    // ⏳ W3.2 measured 0/24 and 11 columns; W3.3 held both while moving the
+    // walls. ⚠️⚠️ THE LANE BRIEF PREDICTED "0–1" FOR W3.4, ON THE REASONING THAT
+    // "every remaining file needs at least one table function". The real number
+    // is THREE, and the brief was wrong about its own task rather than the
+    // translator being generous: W3.4's specified tests demand `StDev`,
+    // `Highest` and `Average` resolve (its `:offset-literal` test is only
+    // reachable if `Average` translates at all), so the CALL-SHAPE MECHANISM had
+    // to land here — and with it the four rows those tests exercise.
+    // `12-scan-volume-2x`, `13-scan-52-week-high` and `14-scan-inside-bar` need
+    // nothing else. Nothing here was tuned toward the corpus: the four shapes
+    // are the ones this task's own rails name, and W3.5 still owns the map.
+    expect(translating, 'scripts that translate').toBe(3)
+    expect(columns, 'columns this engine computes').toBe(14)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
@@ -259,7 +267,14 @@ describe('the whole corpus, in one number', () => {
     // be regenerated past, which is the whole point of typing them here.
     const at = (f) => translateThinkScript(read(f)).refusal || {}
     const atLineOne = FILES.filter((f) => at(f).line === 1 && at(f).column === 1)
-    expect(atLineOne, 'W3.2 had all 24 here').toEqual([])
+    // ⭐ BY NAME, NEVER BY COUNT — and the one name here is not the failure this
+    // rail watches for. `16-scan-rsi-crosses-30-70.ts` is a ONE-LINE scan whose
+    // very first token IS its function call (`RSI() crosses above 30 or …`), so
+    // line 1 column 1 is exactly where its wall genuinely stands. It arrived in
+    // W3.4: the file used to refuse at `crosses` in column 7, and mapping
+    // `crosses` moved its wall BACKWARDS onto the real unmapped function. A
+    // rail that only counted would have read that as a regression.
+    expect(atLineOne, 'W3.2 had all 24 here').toEqual(['16-scan-rsi-crosses-30-70.ts'])
 
     // ⚠️ A FLOOR, NOT THE MEASURED NUMBER. W3.3 measured NINETEEN of the 24
     // refusing at a thinkorswim FUNCTION NAME; the floor is the brief's 8 so
@@ -305,9 +320,19 @@ describe('the whole corpus, in one number', () => {
   it('⭐ every script that translates is one a member could actually SAVE', () => {
     // ⛔ "IT TRANSLATED" AND "IT WORKS" ARE DIFFERENT CLAIMS. A formula can come
     // out of the translator and still be refused by the budget, the linter or
-    // the read-back.
+    // the read-back. ⭐ THREE SCRIPTS CROSSED THAT LINE IN W3.4 and all three
+    // came out the far side of `canSaveFormula` — non-repainting, inside the
+    // lookback cap, saveable. `_blocked` below is the set that translated and
+    // could NOT be saved, and it is what this rail is really watching: a
+    // translator that starts emitting formulas the save door refuses has made
+    // the number go up and the product worse.
     const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
-    expect(saveable.length).toBe(0)
+    const translating = FILES.filter((f) => entry(f).translates)
+    expect(saveable.length).toBe(3)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
+    // ⛔ NAMES, so a script that translates-but-cannot-save is reported as
+    // itself rather than as an arithmetic disagreement between two counts.
+    expect(translating.filter((f) => !saveable.includes(f))).toEqual([])
+    expect(SNAPSHOT._blocked).toEqual([])
   })
 })

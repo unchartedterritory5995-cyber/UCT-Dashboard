@@ -36,15 +36,22 @@
 // reading, not a quoted one, and the read-back says `crossing above` so a member
 // sees which function they got.
 //
-// ⏳ WHAT IT READS TODAY (W3.3): the LEXER and the STATEMENT READER. `declare`,
-// `input`, `def`/`rec`, a forward declaration and its later assignment, `plot`
-// (quoted names included) and a bare condition all read, over an expression
-// grammar of numbers, the five bar fields, the arithmetic and comparison
-// operators, `and`/`or`/`not`, `if … then … else`, `[n]` and the `Double.*`
-// constants. ⛔ NOT ONE FUNCTION IS MAPPED YET — every call refuses
-// `thinkscript:function` AT ITS NAME, and so does every reserved phrase that
-// needs one (`crosses above`, `within N bars`, `%`). That map is W3.4's, and
-// until it exists a call must refuse rather than resolve to a neighbour.
+// ⏳ WHAT IT READS TODAY (W3.4): the LEXER, the STATEMENT READER and the
+// EXPRESSIONS. `declare`, `input`, `def`/`rec`, a forward declaration and its
+// later assignment, `plot` (quoted names included) and a bare condition all
+// read; the expression grammar is ONE binding-power loop over the `BP` ladder
+// below, covering numbers, the five bar fields, the arithmetic and comparison
+// operators in BOTH their symbol and their word spellings, `and`/`or`/`not`,
+// `if … then … else`, `[n]`, the `Double.*` constants, `between`,
+// `within N bars`, `crosses [above|below]` and `%`.
+//
+// ⏳ THE FUNCTION MAP ITSELF IS STILL W3.5's. What landed here is the call-shape
+// MECHANISM — thinkorswim's own parameter names, named arguments in any order,
+// documented defaults, arity and the window check — seeded with the four rows
+// (`Average`, `StDev`, `Highest`, `Lowest`) this task's own rails exercise,
+// because a named-argument guard with no declared parameter list to check
+// against is unimplementable. Every OTHER call still refuses
+// `thinkscript:function` AT ITS NAME rather than resolving to a neighbour.
 // `thinkscript.corpus.test.js` pins where all 24 real published studies in
 // `tests/fixtures/thinkscript/` now land, so every later task's gain stays a
 // fact rather than a claim.
@@ -362,9 +369,18 @@ const IDENT_PART = /[A-Za-z0-9_]/
  *  join, because a statement here is `;`-terminated, an enum default is a brace
  *  group, and `BollingerBands(length = X).LowerBand` takes a member off a call
  *  result — a dot the identifier lexer cannot swallow because what follows it is
- *  not an identifier start. */
+ *  not an identifier start.
+ *
+ *  ⚠️ `&&` AND `||` JOINED IN W3.4, AND THE REFERENCE IS ASYMMETRIC ABOUT THEM.
+ *  thinkorswim's Logical Operators page (fetched 2026-08-26) spells its AND row
+ *  `and, &&` — the symbol is the platform's own — while its OR row reads `or`
+ *  alone. `||` is accepted anyway, because the pair is ONE grammar: a member who
+ *  writes `&&` writes `||` in the next line, and reading one while refusing the
+ *  other would refuse half a script over punctuation. ⛔ A SINGLE `&` OR `|` IS
+ *  STILL A CHARACTER THIS LEXER CANNOT NAME and refuses at its own column — the
+ *  superset stops at the two spellings the page and its own grammar imply. */
 const PUNCT = [
-  '==', '!=', '<>', '>=', '<=',
+  '==', '!=', '<>', '>=', '<=', '&&', '||',
   '?', ':', ',', ';', '.', '(', ')', '[', ']', '{', '}',
   '>', '<', '+', '-', '*', '/', '%', '=', '!',
 ]
@@ -566,13 +582,205 @@ const NOT_AN_ATOM = Object.freeze(new Set([
   'case', 'switch', 'do', 'to', 'with', 'while', 'default',
 ]))
 
+/** ⭐⭐ THE PRECEDENCE, LOOSEST FIRST, AND IT IS THE ONLY COPY. thinkorswim's
+ *  reference publishes the operator ROSTER (its Arithmetic / Comparison /
+ *  Logical / Conditional pages, all fetched 2026-08-26) and does NOT publish a
+ *  precedence table, so this ladder is the conventional one every C-family
+ *  language uses — stated HERE, in one place, rather than living implicitly in a
+ *  recursive-descent chain nobody can read.
+ *
+ *  ⛔⛔ AND THE PARSER READS IT. W3.3 shipped the chain
+ *  (`parseOr → parseAnd → parseWithin → parseComparison → parseAdditive → …`),
+ *  which encodes exactly this ladder in the SHAPE of its call graph. Writing the
+ *  table beside that chain would have created the defect this repo names as its
+ *  most repeated — a second authority over one value — where the readable copy
+ *  and the executed copy drift and the drift is silent. So the chain was
+ *  replaced by ONE binding-power loop that reads this table: change a number
+ *  here and the grammar changes, or nothing does.
+ *
+ *  ⚠️ THREE RULINGS IN THIS LADDER ARE MEASURED RATHER THAN CONVENTIONAL:
+ *
+ *  1. `between` and `crosses` SIT WITH THE COMPARISONS, because the reference's
+ *     own Comparison Operators page lists `between`, `crosses`, `crosses above`
+ *     and `crosses below` as ROWS OF THAT TABLE, beside `>` and `is greater
+ *     than`. The lane brief put `between` on a looser tier of its own; that
+ *     would be this translator inventing a level the platform does not document.
+ *     Same-tier and left-associative hands `between` the comparison already
+ *     built, which is the reading the brief wanted from the looser tier anyway.
+ *
+ *  2. `within` IS LOOSER THAN COMPARISON, and it is the one place this ladder
+ *     departs from the operator pages — because `within` is not on them. It is a
+ *     RESERVED WORD whose left operand is a CONDITION ("true at least one time
+ *     for the given number of bars"), so `close > open within 3 bars` can only
+ *     mean `(close > open) within 3 bars`; read at the comparison tier it would
+ *     take `open` as its condition and leave the `>` dangling.
+ *
+ *  3. UNARY AND POSTFIX CARRY NO NUMBER HERE, deliberately. The brief listed
+ *     `UNARY_BP` and `POSTFIX_BP` constants, but `parseUnary` and `parsePostfix`
+ *     below sit at FIXED positions in the grammar — binding tighter than every
+ *     binary operator is what their position IS — so a number for them would be
+ *     read by nothing. An unread constant beside the code that decides the same
+ *     thing is the same second authority as an unread ladder. `pine.js`'s
+ *     printer declares its own `UNARY_BP`/`POSTFIX_BP` because its PRINTER
+ *     genuinely compares them; nothing here does. */
+const BP = Object.freeze({
+  '||': 10,
+  '&&': 20,
+  'within': 25,
+  '==': 30, '!=': 30, '<': 30, '>': 30, '<=': 30, '>=': 30,
+  'between': 30, 'crosses': 30,
+  '+': 40, '-': 40,
+  '*': 50, '/': 50, '%': 50,
+})
+
+/** The symbol an operator is CANONICALLY spelled with. `<>` is thinkScript's
+ *  other spelling of `!=` (`10-rsi-laguerre` writes it), and folding it here
+ *  means the tree, the printer and `BP` only ever see one of the two. */
 const CMP = Object.freeze({ '==': '==', '!=': '!=', '<>': '!=', '>': '>', '<': '<', '>=': '>=', '<=': '<=' })
+
+/** ⭐ THE WORD SPELLINGS ARE THE SYMBOL SPELLINGS. thinkorswim's Comparison
+ *  Operators page lists `is greater than` and `>` as SEPARATE ROWS WITH THE SAME
+ *  DESCRIPTION, and its Logical page does the same for `and` / `&&`. So these
+ *  are not a convenience mapping bolted onto a symbol grammar — they are the
+ *  same operators, and the reader must not grow a second grammar for the long
+ *  ones. Every entry below is a row of one of those two pages, quoted.
+ *
+ *  ⛔ LONGEST MATCH WINS, AND IT IS DECIDED BY MEASURING THE PHRASE, NOT BY THE
+ *  ORDER OF THIS LIST. `is greater than or equal to` and `is greater than` share
+ *  a prefix; a matcher that took the first hit in list order would read
+ *  `a is greater than or equal to b` as `a > (or equal to b)` and die at `or`
+ *  with a wrong reason at a wrong token — and it would do it silently the day
+ *  somebody re-sorted the list alphabetically. `matchWordOperator` picks the
+ *  longest phrase that matches, so the order here carries no meaning at all.
+ *
+ *  ⚠️ `is true` / `is false` ARE ON THE LOGICAL PAGE, whose NOT row reads
+ *  `!, is false` — the two spellings are literally one row, so `is false` is `!`
+ *  by quotation rather than by inference. `is true` is that row's neighbour,
+ *  `is true | logical value`, and it resolves to the operand UNCHANGED: passing
+ *  the value straight through hands this engine exactly the truthiness decision
+ *  thinkorswim's own runtime would make on it, which is what every other boolean
+ *  context in this translator already does. */
+const WORD_OPERATORS = Object.freeze([
+  { words: ['and'], kind: 'binary', op: '&&' },
+  { words: ['or'], kind: 'binary', op: '||' },
+  { words: ['is', 'greater', 'than', 'or', 'equal', 'to'], kind: 'binary', op: '>=' },
+  { words: ['is', 'less', 'than', 'or', 'equal', 'to'], kind: 'binary', op: '<=' },
+  { words: ['is', 'not', 'equal', 'to'], kind: 'binary', op: '!=' },
+  { words: ['is', 'greater', 'than'], kind: 'binary', op: '>' },
+  { words: ['is', 'less', 'than'], kind: 'binary', op: '<' },
+  { words: ['is', 'equal', 'to'], kind: 'binary', op: '==' },
+  { words: ['equals'], kind: 'binary', op: '==' },
+  { words: ['is', 'true'], kind: 'postfix', op: null },
+  { words: ['is', 'false'], kind: 'postfix', op: '!' },
+  { words: ['crosses', 'above'], kind: 'cross', dir: 'above' },
+  { words: ['crosses', 'below'], kind: 'cross', dir: 'below' },
+  { words: ['crosses'], kind: 'cross', dir: 'either' },
+  { words: ['between'], kind: 'between', op: 'between' },
+  { words: ['within'], kind: 'within', op: 'within' },
+])
+
+/** The binding power an infix entry answers to — ONE lookup, so `is greater
+ *  than` and `>` can never end up on different rungs. ⚠️ `is true` / `is false`
+ *  take no right operand, so they answer to the COMPARISON tier they are
+ *  documented beside rather than to a rung of their own. */
+function bpOf(entry) {
+  if (entry.kind === 'cross') return BP.crosses
+  if (entry.kind === 'postfix') return BP['==']
+  return BP[entry.op]
+}
 
 const cursorOf = (toks) => ({ toks, i: 0 })
 const peek = (c, k = 0) => c.toks[c.i + k] || null
 const take = (c) => c.toks[c.i++]
 
 const syntaxAt = (c, tok) => refuse('thinkscript:syntax', tok || c.toks[c.toks.length - 1] || null)
+
+/** The infix operator sitting at the cursor, WITHOUT consuming it — a symbol, or
+ *  the LONGEST word phrase that matches from here.
+ *
+ *  ⛔ THE LONGEST, not the first: `is greater than or equal to` and
+ *  `is greater than` share a prefix, and taking the shorter one reads
+ *  `a is greater than or equal to b` as `a > (or equal to b)`.
+ *
+ *  @returns {{entry: object, bp: number, tok: object, length: number}|null} */
+function infixAt(c) {
+  const t = peek(c)
+  if (!t) return null
+  if (t.kind === 'punct') {
+    const op = has(CMP, t.value) ? CMP[t.value] : t.value
+    return has(BP, op) ? { entry: { kind: 'binary', op }, bp: BP[op], tok: t, length: 1 } : null
+  }
+  if (t.kind !== 'ident') return null
+  let best = null
+  for (const entry of WORD_OPERATORS) {
+    if (best && entry.words.length <= best.length) continue
+    if (entry.words.every((w, i) => isWordTok(peek(c, i), w))) {
+      best = { entry, bp: bpOf(entry), tok: t, length: entry.words.length }
+    }
+  }
+  return best
+}
+
+/**
+ * One expression, read at a binding power.
+ *
+ * ⭐ ONE LOOP, DRIVEN BY `BP` ABOVE. Everything about precedence lives in that
+ * table; this function only knows "looser than what I was called at means stop".
+ * The left-associativity of every tier is the `+ 1` on the recursive call.
+ *
+ * ⚠️ `if … then … else …` IS A PREFIX FORM HERE, not an infix ternary, which is
+ * how thinkScript writes it — so it is read by `parseExpression` below, at the
+ * front of a value, and its `else` arm re-enters there. That is what makes
+ * `if a then 1 else if b then -1 else 0` nest to the right without a rung.
+ */
+function parseBinary(c, minBp) {
+  let left = parseUnary(c)
+  for (;;) {
+    const found = infixAt(c)
+    if (!found || found.bp < minBp) return left
+    const { entry, bp, tok } = found
+    for (let n = 0; n < found.length; n += 1) take(c)
+
+    // ⭐ `x between a and b` — the reference's own words are *"within the range
+    // of value1 and value2 (inclusive)"*. ⛔ THE BOUNDS ARE READ AT THE TIER
+    // ABOVE, which is the load-bearing half: `between` SPENDS an `and` closing
+    // its own phrase, so a reader that let the logical `and` win would take
+    // `high and volume > 0` as the upper bound — a wrong column, not a refusal.
+    // ⚠️ The CALL form `between(a, b, c)` is untouched and still refuses at its
+    // name — `23-previous-day-high-low-mean` uses it six times, and a FUNCTION
+    // called `Between` needs its own citation, which is the function map's job.
+    // That is why `between` is not in `NOT_AN_ATOM`.
+    if (entry.kind === 'between') {
+      const lo = parseBinary(c, bp + 1)
+      if (!isWordTok(peek(c), 'and')) throw syntaxAt(c, peek(c))
+      take(c)
+      left = { e: 'between', x: left, lo, hi: parseBinary(c, bp + 1), tok }
+      continue
+    }
+
+    // `<cond> within N bars` — *"true at least one time for the given number of
+    // bars starting from the current one"*. The trailing `bar`/`bars` is
+    // consumed POSITIONALLY rather than reserved, because `23-previous-day`
+    // opens `def bar = barNumber();` and reads `bar` seventeen times.
+    if (entry.kind === 'within') {
+      const count = parseBinary(c, bp + 1)
+      if (isWordTok(peek(c), 'bars') || isWordTok(peek(c), 'bar')) take(c)
+      left = { e: 'within', cond: left, count, tok }
+      continue
+    }
+
+    // `x is true` / `x is false` take no right operand at all.
+    if (entry.kind === 'postfix') {
+      left = entry.op === null ? left : { e: 'unary', op: entry.op, arg: left, tok }
+      continue
+    }
+
+    const right = parseBinary(c, bp + 1)
+    left = entry.kind === 'cross'
+      ? { e: 'cross', dir: entry.dir, left, right, tok }
+      : { e: 'binary', op: entry.op, left, right, tok }
+  }
+}
 
 function parseExpression(c) {
   if (isWordTok(peek(c), 'if')) {
@@ -585,115 +793,7 @@ function parseExpression(c) {
     take(c)
     return { e: 'if', cond, then: a, otherwise: parseExpression(c), tok }
   }
-  return parseOr(c)
-}
-
-function parseOr(c) {
-  let left = parseAnd(c)
-  while (isWordTok(peek(c), 'or')) {
-    const tok = take(c)
-    left = { e: 'binary', op: '||', left, right: parseAnd(c), tok }
-  }
-  return left
-}
-
-function parseAnd(c) {
-  let left = parseWithin(c)
-  while (isWordTok(peek(c), 'and')) {
-    const tok = take(c)
-    left = { e: 'binary', op: '&&', left, right: parseWithin(c), tok }
-  }
-  return left
-}
-
-/** `<cond> within N bars` — the reference calls it *"true at least one time for
- *  the given number of bars starting from the current one"*, which is
- *  `highest(<cond>, N) > 0`. ⏳ THAT IDENTITY IS W3.5's TO EMIT; this task reads
- *  the shape and refuses at the word, because a phrase that needs an engine
- *  function and has none mapped is the same fact as a call that has none. */
-function parseWithin(c) {
-  let left = parseComparison(c)
-  while (isWordTok(peek(c), 'within')) {
-    const tok = take(c)
-    const count = parseComparison(c)
-    if (isWordTok(peek(c), 'bars') || isWordTok(peek(c), 'bar')) take(c)
-    left = { e: 'call', name: 'within', base: null, args: [{ name: null, value: left }, { name: null, value: count }], tok }
-  }
-  return left
-}
-
-function parseComparison(c) {
-  let left = parseAdditive(c)
-  for (;;) {
-    const t = peek(c)
-    if (t && t.kind === 'punct' && has(CMP, t.value)) {
-      const tok = take(c)
-      left = { e: 'binary', op: CMP[tok.value], left, right: parseAdditive(c), tok }
-      continue
-    }
-    if (isWordTok(t, 'crosses')) {
-      const tok = take(c)
-      let name = 'crosses'
-      if (isWordTok(peek(c), 'above') || isWordTok(peek(c), 'below')) name = `crosses ${key(take(c).value)}`
-      left = { e: 'call', name, base: null, args: [{ name: null, value: left }, { name: null, value: parseAdditive(c) }], tok }
-      continue
-    }
-    // ⭐ `x between a and b` — the reference's own words are *"within the range
-    // of value1 and value2 (inclusive)"*, i.e. `(x >= a) && (x <= b)`. ⏳ That
-    // identity is W3.5's to emit; read here so the construct refuses BY NAME
-    // rather than as a syntax error at a word thinkorswim documents. ⚠️ The CALL
-    // form `between(a, b, c)` is untouched — `23-previous-day-high-low-mean`
-    // uses it six times — which is why `between` is not in `NOT_AN_ATOM`.
-    if (isWordTok(t, 'between')) {
-      const tok = take(c)
-      const lo = parseAdditive(c)
-      if (!isWordTok(peek(c), 'and')) throw syntaxAt(c, peek(c))
-      take(c)
-      left = {
-        e: 'call',
-        name: 'between',
-        base: null,
-        args: [{ name: null, value: left }, { name: null, value: lo }, { name: null, value: parseAdditive(c) }],
-        tok,
-      }
-      continue
-    }
-    if (isWordTok(t, 'is') && isWordTok(peek(c, 2), 'than')
-      && (isWordTok(peek(c, 1), 'greater') || isWordTok(peek(c, 1), 'less'))) {
-      const tok = take(c)
-      const which = key(take(c).value)
-      take(c)
-      left = { e: 'call', name: `is ${which} than`, base: null, args: [{ name: null, value: left }, { name: null, value: parseAdditive(c) }], tok }
-      continue
-    }
-    return left
-  }
-}
-
-function parseAdditive(c) {
-  let left = parseMultiplicative(c)
-  for (;;) {
-    const t = peek(c)
-    if (t && t.kind === 'punct' && (t.value === '+' || t.value === '-')) {
-      const tok = take(c)
-      left = { e: 'binary', op: tok.value, left, right: parseMultiplicative(c), tok }
-      continue
-    }
-    return left
-  }
-}
-
-function parseMultiplicative(c) {
-  let left = parseUnary(c)
-  for (;;) {
-    const t = peek(c)
-    if (t && t.kind === 'punct' && (t.value === '*' || t.value === '/' || t.value === '%')) {
-      const tok = take(c)
-      left = { e: 'binary', op: tok.value, left, right: parseUnary(c), tok }
-      continue
-    }
-    return left
-  }
+  return parseBinary(c, 0)
 }
 
 function parseUnary(c) {
@@ -745,13 +845,20 @@ function parseArguments(c) {
   if (isPunctTok(peek(c), ')')) { take(c); return args }
   for (;;) {
     let name = null
+    let nameTok = null
     const a = peek(c)
+    // ⭐ THE NAME'S OWN TOKEN IS KEPT, and it is the whole reason a refusal can
+    // land on `source` rather than on the call. A quoted name is the same name —
+    // `19-consecutive-bars` writes `MovAvgExponential("length" = 21)` — so the
+    // token's TEXT stays `"length"` (with its quotes) while its VALUE is
+    // `length`, which is what keeps the corpus gate's caret assertion honest.
     if (a && (a.kind === 'ident' || a.kind === 'string') && isPunctTok(peek(c, 1), '=')) {
       name = a.value
+      nameTok = a
       take(c)
       take(c)
     }
-    args.push({ name, value: parseExpression(c) })
+    args.push({ name, nameTok, value: parseExpression(c) })
     if (isPunctTok(peek(c), ',')) { take(c); continue }
     break
   }
@@ -1015,6 +1122,11 @@ function readProgram(lexed) {
 
 const cSeries = (name) => ({ type: 'series', name })
 const cOp = (name, args) => ({ type: 'op', name, args })
+/** ⛔ NEVER CALLED DIRECTLY — `Resolver.engineCall` is the only caller, because
+ *  the promise this module makes is that every engine name it emits was LOOKED
+ *  UP in the closed table first. A `cCall` reachable from anywhere else is how
+ *  that promise quietly stops being true. */
+const cCall = (name, args) => ({ type: 'call', name, args })
 
 /** ⚠️ A NEGATIVE LITERAL IS `u-` OF A POSITIVE ONE, which is what `parseFormula`
  *  produces and therefore what the round trip demands. Emitting `{num: -2}` for
@@ -1038,6 +1150,66 @@ function literalInteger(node) {
 }
 
 const isEnum = (v) => !!v && v.ts === 'enum'
+
+/**
+ * ⭐⭐ THE CALL SHAPES — a thinkorswim function, its OWN parameter names, and the
+ * engine function it is an IDENTITY for.
+ *
+ * ⛔ EVERY ROW IS A QUOTED IDENTITY, and `cite` is where the quote lives so it
+ * travels with the row instead of ageing in a comment three screens up.
+ * `thinkscript.test.js` reads both fields: it asserts every `engine` name is one
+ * `closedTable.json` declares, and that every row carries a citation. A shape is
+ * therefore never "the function I believe this is" — it is the function the
+ * reference's own formula says it is, checked against the table that owns the
+ * name.
+ *
+ * ⏳ AND IT IS A SEED, NOT THE MAP. W3.5 owns the function map proper —
+ * `ExpAverage` and `WildersAverage` with their seeding note, `MovingAverage`'s
+ * enum dispatch, `TrueRange`'s role order, `RSI`/`ATR`'s averaging convention,
+ * `Log` → `ln`, `Round`'s digit count, `HighestAll`'s refusal and
+ * `CompoundValue` → `accum`. What lands HERE is the MECHANISM (named arguments,
+ * arity, documented defaults, the window check) plus the four rows this task's
+ * own rails exercise, because a named-argument guard with no declared parameter
+ * list to check against is unimplementable and untestable.
+ *
+ * ⚠️ `defaults` IS DELIBERATELY SPARSE, AND THE ASYMMETRY IS THE POINT. The
+ * reference publishes `length` default 12 for `Average` and for
+ * `Highest`/`Lowest`; it publishes none for `StDev` on the page this lane
+ * quoted, so `StDev(close)` refuses `:arity` rather than being handed a 12 this
+ * translator made up. A guessed default is invisible in the result — the member
+ * gets a deviation they never asked for and never see.
+ */
+export const TS_CALL_SHAPES = Object.freeze({
+  average: {
+    engine: 'sma',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    cite: 'Functions/Tech-Analysis/Average: "Returns the average value of a set of data '
+      + 'for the last length bars", shown as Sum(data, length) / length; length default 12',
+  },
+  stdev: {
+    engine: 'stdev',
+    params: ['data', 'length'],
+    defaults: {},
+    cite: 'Functions/Statistical/StDev: reimplemented on the page itself as '
+      + 'Sqrt(Average(Sqr(data), length) - Sqr(Average(data, length))) — divided by length, '
+      + 'i.e. the POPULATION deviation, which is the divisor closedTable declares for stdev',
+  },
+  highest: {
+    engine: 'highest',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    cite: 'Functions/Tech-Analysis/Highest: "the highest value of data for the last '
+      + 'length bars"; length default 12',
+  },
+  lowest: {
+    engine: 'lowest',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    cite: 'Functions/Tech-Analysis/Lowest: "the lowest value of data for the last '
+      + 'length bars"; length default 12 — the same page row as Highest',
+  },
+})
 
 class Resolver {
   constructor(env) {
@@ -1147,6 +1319,85 @@ class Resolver {
     throw refuse('thinkscript:undefined', tok)
   }
 
+  /**
+   * ⛔⛔ THE ONE DOOR TO THE ENGINE'S TABLE, and every engine name this module
+   * emits goes through it — the shapes above, `within`'s `highest`, `crosses`'s
+   * `crossOver`/`crossUnder` and `%`'s `mod` alike. A name the table does not
+   * declare refuses `:function` HERE rather than being printed into a formula
+   * the engine will later fail to parse: the module header promises the lookup
+   * happens at translation time, and this is where that promise is kept.
+   *
+   * ⭐ THE `int` CHECK IS THE REPAINT LINTER'S RULE, NOT THIS MODULE'S TASTE —
+   * the same one `pine.js` applies at the same seam. `lint.js::resolveDeclaration`
+   * answers UNKNOWN for a window that is not a `num` node, which fails the whole
+   * tree closed to `repaints` at the save door. Refusing here names the LENGTH;
+   * refusing there would name the badge. ⚠️ A negative literal is `u-` of a
+   * positive one, so it is not a `num` node either and lands here too.
+   *
+   * @param {string} name the ENGINE function
+   * @param {Array<{node: object, tok: object}>} args resolved, each with the
+   *   token a refusal about it should point at
+   */
+  engineCall(name, args, tok) {
+    if (!has(TABLE.functions, name)) throw refuse('thinkscript:function', tok)
+    const spec = TABLE.functions[name]
+    if (args.length !== spec.args.length) throw refuse('thinkscript:arity', tok)
+    return cCall(name, args.map((a, i) => {
+      if (spec.args[i] === 'int'
+        && (a.node.type !== 'num' || !Number.isInteger(a.node.value))) {
+        throw refuse('thinkscript:window', a.tok || tok)
+      }
+      return a.node
+    }))
+  }
+
+  /**
+   * A written thinkorswim call → the engine identity its shape declares.
+   *
+   * ⭐ THE k-TH POSITIONAL FILLS THE k-TH PARAMETER, which is the rule that
+   * catches a slot handed two values. "Fill the leftmost FREE slot" reads
+   * `Average(close, data = open)` as `sma(open, close)` — a wrong column with no
+   * refusal anywhere — because it quietly slides the positional past the slot it
+   * was written for. The two rules differ ONLY on that collision, which is
+   * exactly the case worth refusing.
+   */
+  resolveCall(n) {
+    // A method's receiver refuses at ITS OWN token first, so
+    // `BollingerBands(length = X).LowerBand` names `BollingerBands`; and a method
+    // form is never one of these shapes, so it refuses at the method name.
+    if (n.base) {
+      this.resolve(n.base)
+      throw refuse('thinkscript:function', n.tok)
+    }
+    const shape = TS_CALL_SHAPES[key(n.name)]
+    if (!shape) throw refuse('thinkscript:function', n.tok)
+
+    const slots = new Array(shape.params.length).fill(null)
+    for (const a of n.args) {
+      if (a.name == null) continue
+      const i = shape.params.findIndex((p) => key(p) === key(a.name))
+      if (i === -1) throw refuse('thinkscript:named-argument', a.nameTok || n.tok)
+      if (slots[i]) throw refuse('thinkscript:arity', a.nameTok || n.tok)
+      slots[i] = a
+    }
+    let k = 0
+    for (const a of n.args) {
+      if (a.name != null) continue
+      if (k >= slots.length) throw refuse('thinkscript:arity', n.tok)
+      if (slots[k]) throw refuse('thinkscript:arity', a.value.tok || n.tok)
+      slots[k] = a
+      k += 1
+    }
+
+    const filled = slots.map((a, i) => {
+      if (a) return { node: this.asNode(this.resolve(a.value), a.value.tok || n.tok), tok: a.value.tok || n.tok }
+      const p = shape.params[i]
+      if (!has(shape.defaults, p)) throw refuse('thinkscript:arity', n.tok)
+      return { node: cNum(shape.defaults[p], n.tok), tok: n.tok }
+    })
+    return this.engineCall(shape.engine, filled, n.tok)
+  }
+
   binary(n) {
     const l = this.resolve(n.left)
     const r = this.resolve(n.right)
@@ -1173,11 +1424,14 @@ class Resolver {
     }
     const a = this.asNode(l, n.tok)
     const b = this.asNode(r, n.tok)
-    // ⏳ `%` IS THE ENGINE'S `mod`, A FUNCTION RATHER THAN AN OPERATOR — so it
-    // needs the map W3.4 builds, exactly as a written call does, and refuses the
-    // same way until it exists. Refused AFTER both sides resolve so an earlier
-    // refusal inside them keeps the earlier position.
-    if (n.op === '%') throw refuse('thinkscript:function', n.tok)
+    // ⭐ `%` IS THE ENGINE'S `mod`, A FUNCTION RATHER THAN AN OPERATOR, so it
+    // goes through the same door a written call does. thinkorswim's Arithmetic
+    // Operators page reads `%` → "remainder"; `closedTable.json` reads `mod` →
+    // "the remainder of {0} divided by {1}". One identity, and the printed text
+    // names the function a member can then read back in the formula box.
+    if (n.op === '%') {
+      return this.engineCall('mod', [{ node: a, tok: n.tok }, { node: b, tok: n.tok }], n.tok)
+    }
     return cOp(n.op, [a, b])
   }
 
@@ -1193,11 +1447,55 @@ class Resolver {
         return { ts: 'text', value: n.value, tok: n.tok }
       }
       case 'name': return this.resolveName(n.tok)
-      case 'call': {
-        // A method's receiver refuses at ITS OWN token first, so
-        // `BollingerBands(length = X).LowerBand` names `BollingerBands`.
-        if (n.base) this.resolve(n.base)
-        throw refuse('thinkscript:function', n.tok)
+      case 'call': return this.resolveCall(n)
+      // ⭐ `x between a and b` → `(x >= a) && (x <= b)`, INCLUSIVE BOTH ENDS,
+      // because the reference's own words are *"within the range of value1 and
+      // value2 (inclusive)"*. ⚠️ `x` appears in both halves as the SAME node
+      // object: the budget counts DISTINCT subtrees, so sharing costs nothing,
+      // and every walker in this engine reads trees rather than mutating them.
+      case 'between': {
+        const x = this.asNode(this.resolve(n.x), n.tok)
+        return cOp('&&', [
+          cOp('>=', [x, this.asNode(this.resolve(n.lo), n.tok)]),
+          cOp('<=', [x, this.asNode(this.resolve(n.hi), n.tok)]),
+        ])
+      }
+      // ⭐ `<cond> within N bars` → `highest(<cond>, N) > 0`. The reference:
+      // *"true at least one time for the given number of bars starting from the
+      // current one"* / *"at least one Doji among three candles including the
+      // current one"* — and `highest` over a 0/1 column IS that sentence, using
+      // a function the shipped table already declares. ⛔ N MUST BE A POSITIVE
+      // WHOLE NUMBER once inputs are folded: `within 0 bars` names no window at
+      // all, and a length the engine cannot read fails the repaint linter closed.
+      case 'within': {
+        const cond = this.asNode(this.resolve(n.cond), n.tok)
+        const countTok = n.count.tok || n.tok
+        const k = literalInteger(this.asNode(this.resolve(n.count), countTok))
+        if (k === null || k <= 0) throw refuse('thinkscript:window', countTok)
+        return cOp('>', [
+          this.engineCall('highest', [
+            { node: cond, tok: n.tok }, { node: { type: 'num', value: k }, tok: countTok },
+          ], n.tok),
+          { type: 'num', value: 0 },
+        ])
+      }
+      // ⭐ `crosses above` / `crosses below` are the reference's *"human-readable
+      // version of the Crosses function"*, and this engine's `crossOver` /
+      // `crossUnder` are what they name. ⚠️ THE PRIOR-BAR EDGE IS OURS AND IS
+      // SAID OUT LOUD in the module header: the page pins "gets higher than",
+      // never the inequality on the bar before. ⭐ BARE `crosses` IS "EITHER
+      // DIRECTION", and the disjunction of the two named crossings is exactly
+      // that sentence rather than a third convention this file invented.
+      case 'cross': {
+        const a = this.asNode(this.resolve(n.left), n.tok)
+        const b = this.asNode(this.resolve(n.right), n.tok)
+        const pair = [{ node: a, tok: n.tok }, { node: b, tok: n.tok }]
+        if (n.dir === 'above') return this.engineCall('crossOver', pair, n.tok)
+        if (n.dir === 'below') return this.engineCall('crossUnder', pair, n.tok)
+        return cOp('||', [
+          this.engineCall('crossOver', pair, n.tok),
+          this.engineCall('crossUnder', pair, n.tok),
+        ])
       }
       case 'member': {
         this.resolve(n.base)

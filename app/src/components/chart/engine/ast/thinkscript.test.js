@@ -19,11 +19,11 @@ import path from 'node:path'
 
 import {
   translateThinkScript, lexThinkScript, readStatements, ThinkScriptRefusal,
-  TS_STATE_WARMUP, REFUSALS as TS, NOTES as TS_NOTES,
+  TS_STATE_WARMUP, TS_CALL_SHAPES, REFUSALS as TS, NOTES as TS_NOTES,
 } from './thinkscript.js'
-import { REFUSALS as PINE } from './pine.js'
+import { REFUSALS as PINE, printFormula } from './pine.js'
 import { PCF_REFUSALS as PCF } from './pcf.js'
-import { REFUSALS as PARSE } from './parse.js'
+import { TABLE, parseFormula, astHash, REFUSALS as PARSE } from './parse.js'
 import { REFUSALS as INTERPRET } from './interpret.js'
 import { REFUSALS as BUDGET } from './budget.js'
 import { REFUSALS as SENTENCE } from './sentence.js'
@@ -50,7 +50,7 @@ const readSource = () => stripComments(fs.readFileSync(MODULE_PATH, 'utf8'))
 const OTHER_DOORS = [['pine', PINE], ['pcf', PCF], ['parse', PARSE],
   ['interpret', INTERPRET], ['budget', BUDGET], ['sentence', SENTENCE]]
 
-/** ⭐ THE MEASURED REACHABLE SET — nineteen of the twenty-nine after fix round 1.
+/** ⭐ THE MEASURED REACHABLE SET — TWENTY-TWO of the twenty-nine after W3.4.
  *  Typed ONCE and read by the two tests that partition the table, so
  *  "reachable", "written but unreachable" and "not written at all" can never
  *  overlap or leave a guard in none of the three.
@@ -60,14 +60,20 @@ const OTHER_DOORS = [['pine', PINE], ['pcf', PCF], ['parse', PARSE],
  *  `:offset-chained` at the bracket instead of being discovered by a failed
  *  round trip that could only name the output. It is pinned as written-and-
  *  unreachable below, beside `:study-ref` — which went the other way, and is
- *  reachable now that `reference` is read. */
+ *  reachable now that `reference` is read.
+ *
+ *  ⏳ W3.4 ADDED THREE — `:arity`, `:named-argument` and `:window`, the three
+ *  the W3.3 partition named as "the call-shape guards that need the function
+ *  map". They are here because the map's MECHANISM landed with the expressions;
+ *  the map itself is still W3.5's. */
 const REACHABLE = [
-  'thinkscript:block', 'thinkscript:builtin', 'thinkscript:character', 'thinkscript:cycle',
-  'thinkscript:empty', 'thinkscript:enum-arm', 'thinkscript:fold', 'thinkscript:function',
-  'thinkscript:future-offset', 'thinkscript:input-kind', 'thinkscript:no-output',
+  'thinkscript:arity', 'thinkscript:block', 'thinkscript:builtin', 'thinkscript:character',
+  'thinkscript:cycle', 'thinkscript:empty', 'thinkscript:enum-arm', 'thinkscript:fold',
+  'thinkscript:function', 'thinkscript:future-offset', 'thinkscript:input-kind',
+  'thinkscript:named-argument', 'thinkscript:no-output',
   'thinkscript:offset-chained', 'thinkscript:offset-literal', 'thinkscript:state',
   'thinkscript:statement', 'thinkscript:study-ref', 'thinkscript:syntax',
-  'thinkscript:type', 'thinkscript:undefined',
+  'thinkscript:type', 'thinkscript:undefined', 'thinkscript:window',
 ]
 
 /** The sentence for a guard, read from the one authority rather than retyped —
@@ -169,16 +175,14 @@ describe('the refusal vocabulary', () => {
     expect([...planted.matchAll(/`thinkscript:\$\{([^}]*)\}`/g)].map((m) => m[1])).toEqual(['kind'])
   })
 
-  it('⭐ …and NINETEEN of the twenty-nine are now reachable, which is measured, not assumed', () => {
+  it('⭐ …and TWENTY-TWO of the twenty-nine are now reachable, which is measured, not assumed', () => {
     // ⛔ A CLOSED SET SAYS NOTHING ABOUT HOW MUCH OF IT IS REACHABLE. Measured by
     // RUNNING it — the only honest source for "what does this thing emit" — and
-    // pinned BY NAME, so W3.4's first new guard reds this and has to be
-    // acknowledged rather than quietly joining a set nobody was counting.
-    // ⏳ W3.2 measured TWO. The eleven still out are the constructs W3.4-W3.6
-    // classify (`:aggregation`, `:symbol`, `:time`, `:strategy`, `:account`,
-    // `:fold`) plus the call-shape guards that need the function map
-    // (`:arity`, `:window`, `:named-argument`), plus `:study-ref` and
-    // `:unsupported` — both pinned by name in the next test.
+    // pinned BY NAME, so the next new guard reds this and has to be acknowledged
+    // rather than quietly joining a set nobody was counting.
+    // ⏳ W3.2 measured TWO, W3.3 nineteen. The six still out are the constructs
+    // W3.6 classifies (`:aggregation`, `:symbol`, `:time`, `:strategy`,
+    // `:account`) plus `:unsupported`, pinned by name in the next test.
     const reached = new Set()
     for (const src of [
       '', '   \n',
@@ -186,7 +190,15 @@ describe('the refusal vocabulary', () => {
       'def x = close\nplot p = x > 0;',
       'plot p = close > open;\nAddLabel(yes, "x", Color.RED);',
       'plot p = HL2;',
-      'plot scan = close > Average(close, 50);',
+      // ⚠️ THE `:function` PROBE MOVED IN W3.4 and had to. It was
+      // `Average(close, 50)`, which this task MAPS — so the probe would have gone
+      // on passing while measuring nothing. `TTM_Squeeze` is proprietary and
+      // thinkorswim publishes no formula for it, so it is a wall that will still
+      // be a wall after the function map lands.
+      'plot scan = close > TTM_Squeeze(close, 20);',
+      'plot p = Average(source = close, length = 5);',
+      'plot p = Average(close, 5, 9);',
+      'plot p = Average(close, 5.5);',
       'plot p = mystery;',
       'def a = b;\ndef b = a;\nplot p = a;',
       'def x = x[1];\nplot p = x;',
@@ -234,22 +246,23 @@ describe('the refusal vocabulary', () => {
     expect(REACHABLE.filter((g) => !inCode.has(g))).toEqual([])
   })
 
-  it('…and the nine still UNWRITTEN are named, so a later task cannot quietly drop one', () => {
+  it('…and the six still UNWRITTEN are named, so a later task cannot quietly drop one', () => {
     // ⛔ THE THIRD SET, AND THE ONE A ROADMAP ACTUALLY LIVES IN. These are
     // declared vocabulary no line of this module writes yet; each belongs to a
     // named later task (`:aggregation` `:symbol` `:time` `:strategy` `:account`
-    // to W3.6, `:arity` `:window` `:named-argument` to W3.4). ⭐ AND
-    // `:unsupported` IS IN HERE, which is the notification that matters: it was
-    // the ONLY thing this translator could say at W3.2 and nothing says it now.
+    // to W3.6). ⭐ AND `:unsupported` IS IN HERE, which is the notification that
+    // matters: it was the ONLY thing this translator could say at W3.2 and
+    // nothing says it now.
+    // ⏳ W3.3 LISTED NINE. `:arity`, `:named-argument` and `:window` left this
+    // set in W3.4 with the call-shape mechanism they were waiting on.
     const src = readSource()
     const table = /export const REFUSALS = Object\.freeze\(\{[\s\S]*?\n\}\)/.exec(src)
     const code = src.replace(table[0], '')
     const inCode = new Set([...code.matchAll(/'(thinkscript:[a-z-]+)'/g)].map((m) => m[1]))
     expect(Object.keys(TS).filter((g) => !inCode.has(g)).sort()).toEqual([
-      'thinkscript:account', 'thinkscript:aggregation', 'thinkscript:arity',
-      'thinkscript:named-argument', 'thinkscript:strategy',
-      'thinkscript:symbol', 'thinkscript:time', 'thinkscript:unsupported',
-      'thinkscript:window',
+      'thinkscript:account', 'thinkscript:aggregation',
+      'thinkscript:strategy', 'thinkscript:symbol', 'thinkscript:time',
+      'thinkscript:unsupported',
     ])
     // ⛔ THE THREE SETS PARTITION THE TABLE — no guard in two of them, none in
     // none of them. Without this, moving a guard between the lists above could
@@ -308,7 +321,7 @@ describe('the empty and the unreadable', () => {
     // ⚠️ MEASURED ON BOTH ANSWERS. At W3.2 this ran on `plot x = close;`, which
     // refused; that script TRANSLATES now, so a shape test pinned to it would
     // only ever have seen the succeeding branch from here on.
-    for (const src of ['plot x = close;', 'plot x = Average(close, 50);']) {
+    for (const src of ['plot x = close;', 'plot x = TTM_Squeeze(close, 20);']) {
       const out = translateThinkScript(src)
       for (const k of ['ok', 'version', 'declaration', 'title', 'outputs', 'selected',
         'refusal', 'refusals', 'ignored', 'folded']) {
@@ -322,7 +335,7 @@ describe('the empty and the unreadable', () => {
       expect(out.title, src).toBe(null)
     }
     expect(translateThinkScript('plot x = close;').selected).toBe(0)
-    expect(translateThinkScript('plot x = Average(close, 50);').selected).toBe(-1)
+    expect(translateThinkScript('plot x = TTM_Squeeze(close, 20);').selected).toBe(-1)
   })
 
   it('an output ROW carries the eight keys `ImportBox` and the corpus both read', () => {
@@ -337,7 +350,7 @@ describe('the empty and the unreadable', () => {
     // ⭐ THE SHAPE IS A CONTRACT, NOT A CONVENIENCE. `ImportBox` and the corpus
     // fixture both read these by name; a missing `token` reads as "somewhere in
     // your script", which is not a refusal a member can act on.
-    const r = translateThinkScript('plot x = Average(close, 50);').refusal
+    const r = translateThinkScript('plot x = TTM_Squeeze(close, 20);').refusal
     expect(Object.keys(r).sort()).toEqual(
       ['column', 'excerpt', 'guard', 'index', 'line', 'message', 'token'])
   })
@@ -353,7 +366,7 @@ describe('what the reader still refuses, and where it says so', () => {
   // replacement lives.
 
   it('a script whose function this task has not mapped refuses, by name', () => {
-    const out = translateThinkScript('def a = Average(close, 50);\nplot scan = close > a;\n')
+    const out = translateThinkScript('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n')
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('thinkscript:function')
     expect(out.refusal.message).toBe(TS['thinkscript:function'])
@@ -371,14 +384,14 @@ describe('what the reader still refuses, and where it says so', () => {
     // neither is checkable. ⚠️ W3.2's version of this ran on an indented
     // `declare`, which now reads and is ignored; the indentation is what
     // mattered and it is kept.
-    const src = '   def a = Average(close, 50);\nplot scan = close > a;\n'
+    const src = '   def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n'
     const out = translateThinkScript(src)
     const r = out.refusal
     const line = src.split('\n')[r.line - 1]
     expect(r.line).toBe(1)
     expect(r.column).toBe(12)
-    expect(r.token).toBe('Average')
-    expect(line.slice(r.column - 1, r.column - 1 + r.token.length)).toBe('Average')
+    expect(r.token).toBe('TTM_Squeeze')
+    expect(line.slice(r.column - 1, r.column - 1 + r.token.length)).toBe('TTM_Squeeze')
     expect(r.excerpt).toBe(`${line}\n${' '.repeat(r.column - 1)}^`)
     expect(r.index).toBe(11)
   })
@@ -430,7 +443,7 @@ describe('what the reader still refuses, and where it says so', () => {
     // order would report the chrome on line 9 ahead of the function on line 2 —
     // and the function is the thing the member has to fix.
     const out = translateThinkScript(
-      'def a = Average(close, 50);\nplot p = a > 0;\nAddLabel(yes, "x", Color.RED);\n')
+      'def a = TTM_Squeeze(close, 20);\nplot p = a > 0;\nAddLabel(yes, "x", Color.RED);\n')
     expect(out.refusals.map((r) => [r.line, r.guard])).toEqual([
       [1, 'thinkscript:function'],
       [3, 'thinkscript:statement'],
@@ -821,15 +834,17 @@ describe('declare, input, def and plot', () => {
     expect(r.guard).toBe('thinkscript:no-output')
   })
 
-  it('⭐ a call refuses at the FUNCTION NAME — this task maps none of them yet', () => {
-    // ⏳ THE MEASURED WALL OF W3.3. Every thinkorswim call reaches the engine
-    // table through a map that is W3.4's; until it exists the honest answer is
-    // the token and the reason, never a neighbouring function.
-    const r = translateThinkScript('def a = Average(close, 50);\nplot scan = close > a;\n').refusal
+  it('⭐ a call this lane maps NO shape for refuses at the FUNCTION NAME', () => {
+    // ⏳ THE MEASURED WALL. W3.3 measured it with `Average`, which W3.4 maps; the
+    // wall did not disappear, it MOVED, and this is where it stands now.
+    // `TTM_Squeeze` is proprietary — thinkorswim publishes no formula for it — so
+    // the honest answer stays the token and the reason, never a neighbouring
+    // function that happens to be in the table.
+    const r = translateThinkScript('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n').refusal
     expect(r.guard).toBe('thinkscript:function')
     expect(r.line).toBe(1)
     expect(r.column).toBe(9)
-    expect(r.token).toBe('Average')
+    expect(r.token).toBe('TTM_Squeeze')
   })
 
   it('⭐⭐ DOCUMENTED thinkScript never refuses `:syntax` — the CLASS, not just the corpus', () => {
@@ -846,9 +861,12 @@ describe('declare, input, def and plot', () => {
     // constructs the reference documents and this reader parses, so the next
     // task adds a row rather than rediscovering the class.
     const cases = [
-      // the reference's own `between`, in BOTH its forms
+      // ⭐ THE `between` OPERATOR LEFT THIS LIST IN W3.4 — it TRANSLATES now, and
+      // an honest refusal became an honest translation rather than a wall moving.
+      // Its CALL form stays, and stays for a stated reason: a thinkorswim
+      // FUNCTION called `Between` needs its own citation off its own page, which
+      // is the function map's job, not the operator table's.
       ['plot p = between(close, low, high);', 'thinkscript:function', 'between'],
-      ['plot p = close between low and high;', 'thinkscript:function', 'between'],
       // a study reference — thinkorswim does not publish the formula
       ['plot p = reference RSI("length" = 14)."RSI";', 'thinkscript:study-ref', 'reference'],
       // a user-defined script is a program, and this engine stores one expression
@@ -872,8 +890,333 @@ describe('declare, input, def and plot', () => {
     // ⛔ RESOLUTION IS LAZY ON PURPOSE. A study that defines nine intermediates
     // and plots one of them must not be refused for the eight the member's
     // column never touches.
-    const out = translateThinkScript('def unused = Average(close, 50);\nplot p = close > open;\n')
+    const out = translateThinkScript('def unused = TTM_Squeeze(close, 20);\nplot p = close > open;\n')
     expect(out.ok).toBe(true)
     expect(out.refusals).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────── //
+// W3.4 — THE EXPRESSIONS
+// ─────────────────────────────────────────────────────────────────────────── //
+
+const formulaOf = (src) => {
+  const out = translateThinkScript(src)
+  return out.outputs[out.selected === -1 ? 0 : out.selected].formula
+}
+const astHashOf = (text) => astHash(parseFormula(text).ast)
+const printFormulaOf = (ast) => printFormula(ast)
+
+describe('precedence, per the thinkScript reference', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  it('`*` binds tighter than `+`, and the printed text says so with the fewest brackets', () => {
+    expect(f('close + open * 2')).toBe('close + open * 2')
+    expect(f('(close + open) * 2')).toBe('(close + open) * 2')
+  })
+
+  it('comparison is looser than arithmetic, `and` looser than comparison, `or` looser than `and`', () => {
+    expect(f('close > open + 1 and low < high or volume > 0'))
+      .toBe('close > open + 1 && low < high || volume > 0')
+  })
+
+  it('`!` is unary and binds tightest; `-` negates', () => {
+    expect(f('!(close > open)')).toBe('!(close > open)')
+    expect(f('-close + open')).toBe('-close + open')
+  })
+
+  it('the WORD operators are the symbol operators — the reference calls them "human-readable"', () => {
+    // ⭐ EVERY ROW HERE IS ON thinkorswim's OWN Comparison Operators PAGE, which
+    // lists the word spelling and the symbol as SEPARATE ROWS WITH THE SAME
+    // DESCRIPTION (`is greater than` / `>` both read "is greater than"). So this
+    // is not a convenience mapping: the two spellings are one operator, and the
+    // reader must not have a second grammar for the long one.
+    expect(f('close is greater than open')).toBe('close > open')
+    expect(f('close is less than open')).toBe('close < open')
+    expect(f('close is equal to open')).toBe('close == open')
+    expect(f('close is not equal to open')).toBe('close != open')
+    expect(f('close equals open')).toBe('close == open')
+    expect(f('close <> open')).toBe('close != open')
+    expect(f('close && open || low')).toBe('close && open || low')
+  })
+
+  it('⭐ `is false` IS `!` — the reference prints them in ONE ROW, `!, is false`', () => {
+    // ⛔ SO THIS IS QUOTATION, NOT INFERENCE. The Logical Operators page's NOT row
+    // spells both, which makes `is false` the same operator `!` already is.
+    expect(f('!(close > open)')).toBe('!(close > open)')
+    expect(f('(close > open) is false')).toBe('!(close > open)')
+    // …and its neighbour row, `is true | logical value`, resolves to the operand
+    // UNCHANGED: passing the value straight through hands this engine exactly the
+    // truthiness decision thinkorswim's own runtime makes, which is what every
+    // other boolean context in this translator already does.
+    expect(f('(close > open) is true')).toBe('close > open')
+    // ⭐ THE CONTROL — the two are not the same answer, so neither is a no-op the
+    // other's test would cover.
+    expect(f('(close > open) is true')).not.toBe(f('(close > open) is false'))
+  })
+
+  it('⭐ the LONGER word operator wins — `is greater than or equal to` is not `is greater than`', () => {
+    // ⛔ THE ONE ORDERING BUG THIS TABLE CAN HAVE, and it is silent: matching the
+    // short phrase first reads `a is greater than or equal to b` as
+    // `a > (or equal to b)`, which then dies as a syntax error at `or` — a wrong
+    // reason at a wrong token for a spelling the reference publishes.
+    expect(f('close is greater than or equal to open')).toBe('close >= open')
+    expect(f('close is less than or equal to open')).toBe('close <= open')
+  })
+
+  it('`if c then a else b` is the ternary, and it nests right', () => {
+    expect(f('if close > open then 1 else if close < open then -1 else 0'))
+      .toBe('close > open ? 1 : close < open ? -1 : 0')
+  })
+
+  it('⭐ `between` is INCLUSIVE both ends — the reference says "(inclusive)"', () => {
+    expect(f('close between low and high')).toBe('close >= low && close <= high')
+  })
+
+  it('⭐ …and `between` binds where the reference PUTS it: with the comparisons', () => {
+    // ⚠️ THE BRIEF PUT `between` ON ITS OWN TIER, LOOSER THAN COMPARISON. The
+    // reference's Comparison Operators page (fetched 2026-08-26) lists `between`,
+    // `crosses`, `crosses above` and `crosses below` as ROWS OF THE COMPARISON
+    // TABLE — so they are comparisons, and a separate tier would be this
+    // translator's invention. Same-tier and left-associative gives the reading
+    // the phrase needs anyway: the left operand is whatever comparison has been
+    // built so far, which is the same operand the brief's looser tier hands it.
+    //
+    // ⭐ THE LOAD-BEARING HALF IS THE `and`. `between` SPENDS an `and` closing
+    // its own phrase, so a reader that let the logical `and` win would silently
+    // take `high and volume > 0` as the upper bound — a wrong column, not a
+    // refusal. The bounds are read at the tier ABOVE `and` for exactly that
+    // reason.
+    expect(f('close between low and high and volume > 0'))
+      .toBe('close >= low && close <= high && volume > 0')
+  })
+
+  it('⭐ `within N bars` is "true at least once in the last N bars, INCLUDING this one"', () => {
+    // The reference: "true at least one time for the given number of bars starting
+    // from the current one" / "at least one Doji among three candles including the
+    // current one".
+    // ⛔ `highest(cond, N) > 0` IS that sentence — an identity over a 0/1 column,
+    // available in the shipped table today. `barssince` is not needed and would
+    // add a lookback declaration nobody measured.
+    expect(f('close > open within 3 bars')).toBe('highest(close > open, 3) > 0')
+    expect(f('close > open within 1 bars')).toBe('highest(close > open, 1) > 0')
+  })
+
+  it('⭐ …and `within` DOES bind looser than comparison, which `between` does not', () => {
+    // ⚠️ THE ASYMMETRY IS THE MEASUREMENT. `within` is a RESERVED WORD, not a row
+    // of the comparison table, and its left operand is a CONDITION — so
+    // `close > open within 3 bars` can only mean `(close > open) within 3 bars`.
+    // Read at the comparison tier it would take `open` as its condition and leave
+    // the `>` dangling.
+    expect(f('close > open within 3 bars')).toBe('highest(close > open, 3) > 0')
+    expect(f('close > open within 2 bars and volume > 0'))
+      .toBe('highest(close > open, 2) > 0 && volume > 0')
+  })
+
+  it('⭐ `crosses` is the engine\'s crossing function, in all THREE spellings', () => {
+    expect(f('close crosses above open')).toBe('crossOver(close, open)')
+    expect(f('close crosses below open')).toBe('crossUnder(close, open)')
+    // ⭐ BARE `crosses` IS "EITHER DIRECTION", and the disjunction of the two
+    // named crossings is exactly that sentence — not a third convention. The
+    // prior-bar edge is this engine's (`crossOver` is `a > b && a[1] <= b[1]`),
+    // which the module header states out loud.
+    expect(f('close crosses open')).toBe('crossOver(close, open) || crossUnder(close, open)')
+  })
+
+  it('`%` is the engine\'s `mod`, which is a FUNCTION rather than an operator', () => {
+    // The reference's Arithmetic Operators page (fetched 2026-08-26) reads `%` →
+    // "remainder"; `closedTable.json` reads `mod` → "the remainder of {0} divided
+    // by {1}". One identity, and the printed text names the function a member can
+    // then read in the formula box.
+    expect(f('close % 2')).toBe('mod(close, 2)')
+    expect(f('close % 2 == 0')).toBe('mod(close, 2) == 0')
+  })
+})
+
+describe('bar offsets', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  it('`x[n]` is the engine\'s own offset node, spelled the same way', () => {
+    expect(f('close[1]')).toBe('close[1]')
+    expect(f('close - close[2]')).toBe('close - close[2]')
+  })
+
+  it('`[0]` folds away — one column can never have two hashes', () => {
+    expect(f('close[0] > open[0]')).toBe('close > open')
+  })
+
+  it('an offset of a DEFINED NAME is an offset of its whole expression', () => {
+    const out = translateThinkScript('def a = high - low;\nplot p = a[1] > 0;\n')
+    expect(out.outputs[out.selected].formula).toBe('(high - low)[1] > 0')
+  })
+
+  it('an offset whose index is a FOLDED INPUT reduces, exactly as a length does', () => {
+    const out = translateThinkScript('input n = 3;\nplot p = close - close[n];\n')
+    expect(out.outputs[out.selected].formula).toBe('close - close[3]')
+  })
+
+  it('⛔ a FUTURE offset refuses by name at the index — 23-previous-day writes `c[-1]`', () => {
+    const r = translateThinkScript('plot p = close[-1];\n').refusal
+    expect(r.guard).toBe('thinkscript:future-offset')
+    expect(r.line).toBe(1)
+  })
+
+  it('⛔ an index that cannot reduce to a whole number refuses at the index', () => {
+    const r = translateThinkScript('def n = Average(close, 3);\nplot p = close[n];\n').refusal
+    expect(r.guard).toBe('thinkscript:offset-literal')
+  })
+})
+
+describe('named arguments resolve by the DECLARED parameter order', () => {
+  it('`StDev(data = x, length = n)` is `stdev(x, n)` whatever order they are written in', () => {
+    const a = translateThinkScript('plot p = StDev(data = close, length = 20);\n').outputs[0].formula
+    const b = translateThinkScript('plot p = StDev(length = 20, data = close);\n').outputs[0].formula
+    expect(a).toBe('stdev(close, 20)')
+    expect(b).toBe(a)
+  })
+
+  it('a QUOTED argument name is the same name — 19 writes `MovAvgExponential("length" = 21)`', () => {
+    expect(translateThinkScript('plot p = Highest("data" = close, "length" = 5);\n').outputs[0].formula)
+      .toBe('highest(close, 5)')
+  })
+
+  it('⛔ an argument name the function does not declare refuses BY NAME', () => {
+    const r = translateThinkScript('plot p = Average(source = close, length = 5);\n').refusal
+    expect(r.guard).toBe('thinkscript:named-argument')
+    expect(r.token).toBe('source')
+  })
+
+  it('⭐ …and the SAME call with the declared name translates — the guard did not simply start refusing', () => {
+    // ⛔ THE OVER-REFUSAL DIRECTION. A guard that refuses every named argument
+    // also "passes" the test above, and W3.3's most valuable mutation was exactly
+    // this shape: emptying an arm list reds five tests, which is how you know a
+    // guard is a guard and not a wall.
+    expect(translateThinkScript('plot p = Average(data = close, length = 5);\n').outputs[0].formula)
+      .toBe('sma(close, 5)')
+  })
+
+  it('positionals fill the slots the names left open, left to right', () => {
+    expect(translateThinkScript('plot p = Average(close, length = 5);\n').outputs[0].formula)
+      .toBe('sma(close, 5)')
+    expect(translateThinkScript('plot p = Average(close, 5);\n').outputs[0].formula)
+      .toBe('sma(close, 5)')
+  })
+
+  it('⛔ one slot filled TWICE refuses — a second value for `data` is not a second argument', () => {
+    const r = translateThinkScript('plot p = Average(close, data = open);\n').refusal
+    expect(r.guard).toBe('thinkscript:arity')
+  })
+
+  it('⛔ …and so does a call handed more values than the shape declares', () => {
+    const r = translateThinkScript('plot p = Average(close, 5, 9);\n').refusal
+    expect(r.guard).toBe('thinkscript:arity')
+    expect(r.token).toBe('Average')
+  })
+
+  it('⭐ a DOCUMENTED default fills a missing argument; an UNDOCUMENTED one refuses', () => {
+    // ⛔ THE ASYMMETRY IS DELIBERATE AND IT IS THE WHOLE POINT. The reference
+    // publishes `length` default 12 for `Average` and for `Highest`/`Lowest`; it
+    // publishes no default for `StDev` on the page this lane quoted. A translator
+    // that guessed 12 for `StDev` would ship a member a 12-bar deviation they
+    // never asked for and never see — a chart that looks right and is wrong.
+    expect(translateThinkScript('plot p = Average(close);\n').outputs[0].formula)
+      .toBe('sma(close, 12)')
+    expect(translateThinkScript('plot p = Highest(high);\n').outputs[0].formula)
+      .toBe('highest(high, 12)')
+    const r = translateThinkScript('plot p = StDev(close);\n').refusal
+    expect(r.guard).toBe('thinkscript:arity')
+    expect(r.token).toBe('StDev')
+  })
+
+  it('⛔ a length that is not a written whole number refuses AT THE LENGTH', () => {
+    // ⛔ `lint.js::resolveDeclaration` answers UNKNOWN for a window that is not a
+    // `num` node, which fails the whole tree closed to `repaints` at the save
+    // door. Refusing here names the length; refusing there would name the badge.
+    const computed = translateThinkScript('def n = close - open;\nplot p = Average(close, n);\n').refusal
+    expect(computed.guard).toBe('thinkscript:window')
+    const fractional = translateThinkScript('plot p = Average(close, 5.5);\n').refusal
+    expect(fractional.guard).toBe('thinkscript:window')
+    const negative = translateThinkScript('plot p = Average(close, -5);\n').refusal
+    expect(negative.guard).toBe('thinkscript:window')
+    // ⭐ AND THE CONTROL: a folded input length is a written whole number by the
+    // time the engine sees it, so this guard must not eat the commonest shape in
+    // the corpus.
+    expect(translateThinkScript('input len = 50;\nplot p = Average(close, len);\n')
+      .outputs[0].formula).toBe('sma(close, 50)')
+  })
+
+  it('⛔ `within N bars` needs a positive whole number too, and says `:window` when it has none', () => {
+    for (const bad of ['close > open within 0 bars', 'close > open within 2.5 bars']) {
+      const r = translateThinkScript(`plot p = ${bad};\n`).refusal
+      expect(r.guard, bad).toBe('thinkscript:window')
+    }
+    // the control — the same phrase with a real count still translates
+    expect(translateThinkScript('plot p = close > open within 4 bars;\n').outputs[0].formula)
+      .toBe('highest(close > open, 4) > 0')
+  })
+})
+
+describe('the CALL SHAPES this task maps, and the promise each one makes', () => {
+  it('⛔ every engine name a shape names is one the CLOSED TABLE declares', () => {
+    // ⭐ THE MODULE HEADER'S PROMISE, MADE MECHANICAL. "Every engine name this
+    // module emits is LOOKED UP in the table at translation time" — so a shape
+    // pointing at a function the table does not declare is a mistranslation
+    // waiting for the day someone re-partitions the table. W2a moved it to
+    // version 2 while this lane was mid-flight; this is what makes that safe.
+    const missing = Object.entries(TS_CALL_SHAPES)
+      .filter(([, s]) => !Object.prototype.hasOwnProperty.call(TABLE.functions, s.engine))
+      .map(([k, s]) => `${k} → ${s.engine}`)
+    expect(missing).toEqual([])
+    // non-vacuity: the sweep looked at a real, non-empty map
+    expect(Object.keys(TS_CALL_SHAPES).length).toBeGreaterThan(3)
+  })
+
+  it('⛔ every shape CITES the page it was read from, and fills the engine\'s arity', () => {
+    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
+      expect(typeof shape.cite, name).toBe('string')
+      expect(shape.cite.length, name).toBeGreaterThan(20)
+      // ⛔ THE PARAMS ARE THE ENGINE'S ARGUMENTS, ONE FOR ONE, for every shape
+      // this task maps. ⚠️ W3.5 maps `ATR(length)` onto `atr(high, low, close, n)`
+      // — four engine arguments from one thinkorswim parameter — and will need an
+      // explicit plan; this rail goes red the moment that lands, which is the
+      // notification, not a bug.
+      expect(shape.params.length, name).toBe(TABLE.functions[shape.engine].args.length)
+      expect(new Set(shape.params).size, `${name} declares a parameter twice`).toBe(shape.params.length)
+    }
+  })
+
+  it('the table is frozen, so a caller cannot map a function out from under a rail', () => {
+    expect(Object.isFrozen(TS_CALL_SHAPES)).toBe(true)
+  })
+
+  it('⛔ a call this task has NOT mapped still refuses at its own name', () => {
+    // ⭐ THE WALL DID NOT DISAPPEAR, IT MOVED. `TTM_Squeeze` is proprietary and
+    // thinkorswim publishes no formula for it, so it refuses here and will refuse
+    // in every later task too.
+    const r = translateThinkScript('plot p = TTM_Squeeze(close, 20);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.token).toBe('TTM_Squeeze')
+  })
+})
+
+describe('the round trip is the proof that nothing half-translated', () => {
+  it('every formula this module emits reads back as the SAME tree', () => {
+    for (const expr of ['close > open + 1 and low < high', 'if close > open then 1 else 0',
+      'close[1] * -2', 'close between low and high', 'close > open within 3 bars',
+      'close crosses above open', 'close % 2 == 0', 'Average(close, 20) > StDev(close, 20)']) {
+      const out = translateThinkScript(`plot p = ${expr};\n`)
+      const row = out.outputs[0]
+      expect(row.refusal, expr).toBe(null)
+      expect(astHashOf(row.formula), expr).toBe(astHashOf(printFormulaOf(row.ast)))
+    }
+  })
+
+  it('⭐ and the whole-script path emits the same text for a member as for a rail', () => {
+    // ⛔ NOT A TAUTOLOGY DRESSED AS A RAIL. `formulaOf` walks the door's own
+    // `selected` index, which is what `ImportBox` reads; the row above reads
+    // `outputs[0]`. A door that selected the wrong column would pass one and fail
+    // the other.
+    expect(formulaOf('def a = Average(close, 50);\nplot scan = close > a;\n'))
+      .toBe('close > sma(close, 50)')
   })
 })

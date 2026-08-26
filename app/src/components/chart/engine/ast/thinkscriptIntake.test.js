@@ -91,12 +91,17 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
     // ⛔ The half that matters. "It refused" is satisfiable by a bench that
     // refuses everything at line 1 with no token; naming the token AT its column
     // is what makes the next build decision possible.
-    const d = diagnose('def a = Average(close, 50);\nplot scan = close > a;\n')
+    // ⚠️ THE PROBE MOVED IN W3.4 AND HAD TO. It was `Average(close, 50)`, which
+    // that task MAPS — so this control would have gone on passing while
+    // measuring a wall that no longer exists. `TTM_Squeeze` is proprietary and
+    // thinkorswim publishes no formula for it, so it is a wall the function map
+    // will not move either.
+    const d = diagnose('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n')
     expect(d.threw, 'the bench must never report a throw').toBe(undefined)
     expect(d.translates).toBe(false)
     expect(d.refusal.guard).toBe('thinkscript:function')
     expect(typeof d.refusal.line).toBe('number')
-    expect(d.refusal.token).toBe('Average')
+    expect(d.refusal.token).toBe('TTM_Squeeze')
     expect(d.refusal.column).toBe(9)
   })
 
@@ -111,7 +116,7 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
   })
 
   it('the report shape is complete even with nothing to report', () => {
-    const d = diagnose('plot x = Average(close, 50);')
+    const d = diagnose('plot x = TTM_Squeeze(close, 20);')
     for (const k of ['translates', 'outputs', 'usable', 'selectedFormula', 'ignoredLines',
       'folded', 'perOutputRefusals', 'refusal', 'downstream']) {
       expect(Object.prototype.hasOwnProperty.call(d, k), k).toBe(true)
