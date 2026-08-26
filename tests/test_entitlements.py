@@ -891,6 +891,24 @@ READBACK_DOORS = {"api.services.screener.scan_run.job_status"}
 #: resolved set to be ENTIRELY non-result, exactly like the read-back arm — and a
 #: handler this walk cannot resolve at all still counts as producing. Controlled
 #: by `test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one`.
+#:
+#: ⚠️ AND HERE IS EXACTLY HOW FAR THAT GUARANTEE REACHES, because the first
+#: version of this comment overstated it and a review measured the gap
+#: (W4b.5 fix round 1, finding 1). `_doors_reached` resolves the handler's body
+#: AND every function DEFINED IN THE SAME MODULE that it calls, transitively —
+#: so the one-line-helper escape ("name the exempt door in the handler, reach
+#: `hits` from a helper") is closed, in both the attribute and the
+#: `from … import hits as h` spellings.
+#:
+#: ⛔ WHAT IS STILL OUT OF REACH, STATED RATHER THAN IMPLIED: a producing door
+#: reached through a function in ANOTHER module. That is not a hole this
+#: exemption opens — it is the reach `_serves_definition_results` has too, and it
+#: is the SAME reach, which is what keeps the two consistent: a handler that
+#: binds no result-store module is never RECOGNISED as a definition-result
+#: surface at all, so it never reaches these arms to be excused by them. The
+#: lenient arms can only be entered by a handler that binds a store directly, and
+#: that population is now resolved completely. A cross-module walk would be a
+#: real widening of the census; it is not this fix, and nothing shipped needs it.
 NON_RESULT_DOORS = {
     "api.services.screener.scan_store.live_beat",
     "api.services.screener.scan_store.demand_recent",
@@ -1003,30 +1021,80 @@ def _doors_reached(source: str, func_name: str, pkg: str) -> set:
                 inside.add(id(n))
     if handler is None:
         return set()
+
+    # ⛔ THE HANDLER *AND EVERY MODULE-LEVEL FUNCTION IT REACHES* — fix round 1,
+    # W4b.5 finding 1. This walked the handler body ALONE until 2026-08-26, and
+    # that made the lenient arms below a DOORWAY rather than a door exemption: a
+    # handler naming one exempt door while reaching a PRODUCING one through a
+    # one-line helper resolved to the exempt door only, landed in the lenient
+    # arm, and was excused from `limits_dependency` while handing back a
+    # definition's symbols. `test_the_NON_RESULT_arm_is_not_reachable_THROUGH_A_
+    # HELPER` is that exact shape, and the walk below is what closes it.
+    #
+    # ⚠️ SCOPED TO THIS MODULE, DELIBERATELY, and the limit is stated rather than
+    # implied: a door reached through a function in ANOTHER module is still
+    # invisible here. That is the same reach `_serves_definition_results` has, so
+    # a route whose handler binds no store at all is not recognised as a
+    # definition-result surface in the first place — the lenient arm can only be
+    # entered by a handler that DOES bind one, which is the population this walk
+    # now covers completely.
+    bodies = _reached_functions(tree, handler)
+
     top = [n for n in pyast.walk(tree)
            if isinstance(n, (pyast.Import, pyast.ImportFrom)) and id(n) not in inside]
     aliases = _alias_map(top, pkg)
-    aliases.update(_alias_map(
-        [n for n in pyast.walk(handler)
-         if isinstance(n, (pyast.Import, pyast.ImportFrom))], pkg))
+    for fn in bodies:
+        aliases.update(_alias_map(
+            [n for n in pyast.walk(fn)
+             if isinstance(n, (pyast.Import, pyast.ImportFrom))], pkg))
 
+    nodes = [n for fn in bodies for n in pyast.walk(fn)]
     out = set()
     for local, target in aliases.items():
         # a door imported BY NAME (`from ...scan_run import job_status`)
         if "." in target:
             head, attr = target.rsplit(".", 1)
             if attr in RESULT_STORES.get(head, ()) and any(
-                    isinstance(n, pyast.Name) and n.id == local
-                    for n in pyast.walk(handler)):
+                    isinstance(n, pyast.Name) and n.id == local for n in nodes):
                 out.add(target)
         # a door reached THROUGH the module object (`scan_run.job_status(...)`)
-        for node in pyast.walk(handler):
+        for node in nodes:
             if (isinstance(node, pyast.Attribute)
                     and isinstance(node.value, pyast.Name)
                     and node.value.id == local
                     and node.attr in RESULT_STORES.get(target, ())):
                 out.add(f"{target}.{node.attr}")
     return out
+
+
+def _reached_functions(tree, start) -> list:
+    """``start`` plus every function DEFINED IN THIS MODULE that it calls,
+    transitively — the handler's real reach inside its own file.
+
+    ⛔ BY NAME OFF THE MODULE'S OWN DEFS, so a call to something imported, built
+    in, or defined elsewhere adds nothing: a walk that followed every call would
+    resolve every route to every door, make all three arms collapse into
+    "producing", and read as maximum strictness while actually having stopped
+    measuring. `test_the_helper_walk_does_not_INVENT_a_door_from_an_unrelated_
+    call` is the control on precisely that.
+
+    Recursion is bounded by the `seen` set, so a helper pair that calls each
+    other terminates.
+    """
+    by_name = {n.name: n for n in pyast.walk(tree)
+               if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))}
+    order, seen, stack = [start], {getattr(start, "name", None)}, [start]
+    while stack:
+        fn = stack.pop()
+        for node in pyast.walk(fn):
+            if not (isinstance(node, pyast.Call) and isinstance(node.func, pyast.Name)):
+                continue
+            name = node.func.id
+            if name in by_name and name not in seen:
+                seen.add(name)
+                order.append(by_name[name])
+                stack.append(by_name[name])
+    return order
 
 
 def _mounted_router_modules() -> set:
@@ -1307,6 +1375,114 @@ def test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one():
     # same exempt door.
     assert found["/api/planted/beat-and-hits"] - lenient == {
         "api.services.screener.scan_store.hits"}
+
+
+def test_the_NON_RESULT_arm_is_not_reachable_THROUGH_A_HELPER():
+    """🔴 FIX ROUND 1, FINDING 1 — THE HOLE MY OWN ⛔ CLAIM DENIED EXISTED.
+
+    W4b.5 shipped `NON_RESULT_DOORS` with the note "exempts a DOOR, never a
+    ROUTE", and that was FALSE AS A GUARANTEE: `_doors_reached` walked the
+    HANDLER BODY ONLY, so a handler naming `scan_store.live_beat` while reaching
+    `scan_store.hits` through a module-level helper resolved to `{live_beat}`,
+    landed in the lenient arm, and was exempt from `limits_dependency` while
+    handing back a definition's symbols. The conclusion held — no shipped route
+    abuses it — but the reasoning did not, and the exemption W4b.5 added put two
+    more doors in a position to play that part.
+
+    ⛔ THE INDIRECTION IS CLOSED, NOT MERELY DOCUMENTED. `_doors_reached` now
+    follows calls to module-level functions transitively, so a door a helper
+    opens is the handler's door. This drives the exact shape the review measured,
+    including the `from … import hits as h` spelling.
+    """
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "router = APIRouter()",
+        "def _page(d):",
+        "    return scan_store.hits(d, 'D', 20260101)",
+        "@router.get('/api/planted/via-helper')",
+        "def planted_via_helper():",
+        "    return {'beat': scan_store.live_beat('D'), 'rows': _page('d1')}",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/via-helper")
+    def planted_via_helper():                                   # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    doors = found["/api/planted/via-helper"]
+    assert "api.services.screener.scan_store.hits" in doors, (
+        "the producing door reached through a module-level helper was invisible: "
+        f"{doors} — the lenient arm is a doorway after all")
+    assert doors - (READBACK_DOORS | NON_RESULT_DOORS) == {
+        "api.services.screener.scan_store.hits"}, doors
+
+
+def test_the_helper_walk_sees_the_IMPORTED_NAME_spelling_too():
+    """The other spelling of the same escape: the helper imports the door BY NAME
+    (`from …scan_store import hits as h`) instead of reaching it through the
+    module object. `_doors_reached` resolves both, and a walk that handled only
+    the attribute form would leave this one open."""
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "from api.services.screener.scan_store import hits as h",
+        "router = APIRouter()",
+        "def _page(d):",
+        "    return h(d, 'D', 20260101)",
+        "@router.get('/api/planted/via-import')",
+        "def planted_via_import():",
+        "    return {'beat': scan_store.live_beat('D'), 'rows': _page('d1')}",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/via-import")
+    def planted_via_import():                                   # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert "api.services.screener.scan_store.hits" in found["/api/planted/via-import"], (
+        found)
+
+
+def test_the_helper_walk_does_not_INVENT_a_door_from_an_unrelated_call():
+    """The control on the control. A handler calling a module-level helper that
+    touches NO result store must still resolve to its own doors only — a
+    transitive walk that returned everything would make every route producing and
+    the lenient arms unreachable, which reads as "safe" and is really "blind"."""
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "router = APIRouter()",
+        "def _fmt(x):",
+        "    return str(x).upper()",
+        "@router.get('/api/planted/beat-only')",
+        "def planted_beat_only():",
+        "    return _fmt(scan_store.live_beat('D'))",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/beat-only")
+    def planted_beat_only():                                    # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert found["/api/planted/beat-only"] == {
+        "api.services.screener.scan_store.live_beat"}, found
+    assert not (found["/api/planted/beat-only"] - NON_RESULT_DOORS)
 
 
 def test_the_census_prefilter_does_not_DROP_a_router_before_the_AST_sees_it():

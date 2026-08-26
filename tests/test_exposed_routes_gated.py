@@ -108,6 +108,19 @@ GATED: dict[tuple[str, str], str] = {
     # is the ordinary 404. Nothing in this file ever evaluates a scan.
     ("POST", "/api/scans/run"): "paid",
     ("GET", "/api/scans/run/{job}"): "paid",
+    # ── W4b.5's live-sweep reader. TWO ROUTES, TWO DIFFERENT CALLERS. ────────
+    # `/api/scans/live-status` is the intraday sweeper's liveness beat (last
+    # cycle receipt + how stale it is) and it is product surface: paid, like the
+    # saved scans it reports on. `/api/scans/demand` hands the WORKER's prewarm
+    # ring the demand list AND every symbol members have watchlisted or tagged —
+    # member data, no member session, so it carries the PUSH_SECRET bearer and
+    # admits no human account at all.
+    # ⚠️ CLAIMED HERE BECAUSE THE MODULE-SCOPED RAIL IN
+    # `tests/test_scan_live_sweep.py` WALKS `scan_live.py` ALONE. That rail
+    # proves each route carries one of its own two gates; it says nothing about
+    # the SERVED app, and this table plus the paid-surface ratchet is what does.
+    ("GET", "/api/scans/live-status"): "paid",
+    ("GET", "/api/scans/demand"): "worker",
     ("POST", "/api/admin/patterns/{detection_id}/review"): "admin",
     # ⚰️ CLAIMED "session" UNTIL 2026-08-26 AND THE APP HAS CARRIED `require_paid`
     # SINCE 2026-08-09. Corrected against the handler, not against this table:
@@ -319,6 +332,20 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     ("paid",       lambda n, o: "require_paid" in n,       frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
     ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
+    # ⭐ 2026-08-26 — THE MACHINE DOOR, AND IT ADMITS NO HUMAN ACCOUNT AT ALL.
+    # `require_push_secret` checks a shared bearer and never looks at a user, so
+    # of this file's three declared callers it admits NONE — an empty admit-set,
+    # which makes it a PROPER SUBSET of `admin` and therefore the strongest rung
+    # on the ladder. That is not a flourish: it is what stops a `worker` row
+    # being satisfiable by an admin gate, or vice versa.
+    #
+    # 🔴 WHY IT HAD TO EXIST BEFORE `/api/scans/demand` COULD BE CLAIMED AT ALL:
+    # the vocabulary had no word for a bearer-only route, so `_klass_of` reported
+    # NOTHING for one and no claim could ever be satisfied. Every PUSH_SECRET
+    # surface in the app was therefore UNCLAIMABLE and sat outside this audit by
+    # construction — silently, because an unclaimed route is simply absent from
+    # `GATED` and nothing counts the absence.
+    ("worker",     lambda n, o: "require_push_secret" in n, frozenset()),
 )
 
 #: Derived off the ladder, never retyped beside it.
@@ -363,6 +390,25 @@ def _strongest(found: set[str]) -> set[str]:
     """
     return {klass for klass in found
             if not any(_ADMITS[other] < _ADMITS[klass] for other in found)}
+
+
+def _closed_to_paid() -> set:
+    """The `GATED` rows whose CLASS does not admit a paid member — derived off
+    `_ADMITS`, never listed.
+
+    ⛔ THIS REPLACES A HAND-TYPED `("admin", "flow_admin")` THAT APPEARED TWICE.
+    The paid sweep below exists to prove a gate is not an OUTAGE, and it must
+    obviously skip doors a paid member is not supposed to open. Spelling those
+    doors as two class NAMES made the skip list a second authority over the
+    ladder: adding a class the ladder says admits nobody (`worker`, 2026-08-26)
+    left it out of the tuple, and the sweep would then have demanded that a paid
+    member get through a machine-only door and gone red for being right.
+
+    Reading `_ADMITS` instead means a new rung is skipped or swept according to
+    what it actually admits, with no edit here — and `session`/`paid`/`flow_user`
+    keep being swept because they really do admit a paid member.
+    """
+    return {k for k, klass in GATED.items() if "paid" not in _ADMITS[klass]}
 
 
 def _claim_is_satisfied(expected: str, found: set[str]) -> bool:
@@ -818,6 +864,32 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
     measured["flow_user"] = _flow_admits(fa.require_flow_user)
     measured["flow_admin"] = _flow_admits(fa.require_flow_admin)
 
+    # ⭐ THE MACHINE DOOR, MEASURED IN BOTH DIRECTIONS. `require_push_secret`
+    # never looks at a user — it reads one header — so the honest admit-set over
+    # this file's three declared callers is EMPTY, and an empty set asserted on
+    # its own is exactly the shape that passes when a gate is simply broken.
+    # So the POSITIVE half runs too: the same gate, handed the right bearer,
+    # ADMITS (returns without raising). Without it, `frozenset()` would be
+    # satisfied by a function that refused every input including the correct one.
+    from api.routers.scan_live import require_push_secret
+
+    class _Req:
+        def __init__(self, auth):
+            self.headers = {"authorization": auth} if auth else {}
+
+    monkeypatch.setenv("PUSH_SECRET", "ladder-secret")
+    measured["worker"] = _admits(
+        lambda _u: require_push_secret(_Req("")) or None)
+    try:
+        require_push_secret(_Req("Bearer ladder-secret"))
+        worker_admitted = True
+    except HTTPException:
+        worker_admitted = False
+    assert worker_admitted, (
+        "`require_push_secret` refused its OWN correct bearer — the empty "
+        "admit-set above is a broken gate, not a strict one, and the `worker` "
+        "rung would be ranked on a refusal that means nothing")
+
     for klass, admitted in sorted(measured.items()):
         assert admitted == set(_ADMITS[klass]), (
             f"the ladder says {klass!r} admits {sorted(_ADMITS[klass])}; the "
@@ -844,9 +916,10 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
     # the measured sets above rather than being asserted as an opinion beside
     # them. Chained PROPER SUBSETS, matching `_strongest`: everyone an admin gate
     # lets in, a paid gate lets in too, and a paid gate lets in somebody more.
-    assert _ADMITS["admin"] < _ADMITS["paid"] < _ADMITS["session"], (
-        f"admin > paid > session is what `_claim_is_satisfied` rests on, and it "
-        f"must hold as nesting rather than as a count: {_ADMITS}")
+    assert (_ADMITS["worker"] < _ADMITS["admin"] < _ADMITS["paid"]
+            < _ADMITS["session"]), (
+        f"worker > admin > paid > session is what `_claim_is_satisfied` rests "
+        f"on, and it must hold as nesting rather than as a count: {_ADMITS}")
 
     # A claim can only mean something if the ladder can actually produce it.
     unknown = sorted(set(GATED.values()) - GATE_CLASSES)
@@ -952,11 +1025,11 @@ def test_a_PAID_member_is_NOT_refused_on_any_route_gated_here(app, monkeypatch, 
     make this file go red for the wrong reason and get "fixed" by loosening the
     thing it is protecting. The control below is what keeps that honest.
     """
-    admin_only = {k for k, v in GATED.items() if v in ("admin", "flow_admin")}
+    closed = _closed_to_paid()
     client = _client(app, PAID_USER, monkeypatch)
     table = _table(app)
     for key in sorted(GATED):
-        if key in NEVER_PROBED or key in admin_only:
+        if key in NEVER_PROBED or key in closed:
             continue
         url, kwargs = _request_for(table[key], key, with_body=True)
         resp = client.request(key[0], url, **kwargs)
@@ -973,12 +1046,12 @@ def test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal(
     paid pass to have produced a healthy number of actual 200s, so the assertion
     above rests on routes that really answered.
     """
-    admin_only = {k for k, v in GATED.items() if v in ("admin", "flow_admin")}
+    closed = _closed_to_paid()
     client = _client(app, PAID_USER, monkeypatch)
     table = _table(app)
     ok = []
     for key in sorted(GATED):
-        if key in NEVER_PROBED or key in admin_only:
+        if key in NEVER_PROBED or key in closed:
             continue
         url, kwargs = _request_for(table[key], key, with_body=True)
         if client.request(key[0], url, **kwargs).status_code == 200:

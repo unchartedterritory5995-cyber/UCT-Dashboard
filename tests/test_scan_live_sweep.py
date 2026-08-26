@@ -2722,7 +2722,7 @@ def test_the_DEMAND_route_carries_the_ring_and_the_member_lists_and_a_stamp(
     from api.routers import scan_live as live_mod
 
     monkeypatch.setenv("PUSH_SECRET", "s3cret")
-    monkeypatch.setattr(live_mod, "_member_list_symbols", lambda: ["MSFT", "NVDA"])
+    monkeypatch.setattr(live_mod, "_member_list_symbols", lambda: (["MSFT", "NVDA"], True))
     monkeypatch.setattr(scan_store, "_DEMAND", collections.OrderedDict())
     scan_store.note_demand(["aapl", "tsla"])
     app = FastAPI()
@@ -2734,10 +2734,126 @@ def test_the_DEMAND_route_carries_the_ring_and_the_member_lists_and_a_stamp(
     assert isinstance(body["as_of"], (int, float)) and body["as_of"] > 0
 
 
-def test_the_member_list_read_NEVER_RAISES_into_the_worker_response(monkeypatch):
-    """A missing or unreadable `auth.db` must cost the ring its member lists, not
-    the whole demand answer — the ring still has the recent ring and cap universe."""
+def test_the_member_list_read_REALLY_REACHES_auth_db__the_NAME_it_imports_EXISTS(store):
+    """🔴 FIX ROUND 1 — THE BUG THE REVIEW'S MINOR UNCOVERED, AND IT WAS NOT MINOR.
+
+    W4b.5 shipped `from api.services.auth_db import get_db_path`, copied from the
+    brief and from `bars_prewarm.py` L400. **`api.services.auth_db` has no
+    `get_db_path`.** The import raised `ImportError`, `_member_list_symbols`'s
+    own `except Exception: return []` swallowed it, and `lists` was therefore
+    PERMANENTLY EMPTY — the worker's prewarm ring would have fallen back to
+    cap-universe order forever while every test stayed green.
+
+    ⭐ THIS IS THE "BUILT, TESTED GREEN AND UNREACHABLE" SHAPE, produced by a
+    broad `except` sitting on top of a wiring mistake. The rail is behavioural:
+    the path resolver must RETURN A PATH, not be caught by a handler.
+    """
+    from api.routers import scan_live as live_mod
+    from api.services import auth_db
+
+    path = live_mod._auth_db_path()
+    assert isinstance(path, str) and path, (
+        "`_auth_db_path()` did not return a path — the import it makes names "
+        "something `auth_db` does not export, and the broad `except` below it "
+        "turns that into a silent empty member list")
+    # …and it is auth_db's OWN answer, not a second copy of the default.
+    assert path == auth_db._DB_PATH
+
+
+def test_the_LISTS_read_names_TABLES_and_COLUMNS_auth_db_REALLY_DECLARES(tmp_path, monkeypatch):
+    """⛔ PIN THE TWO NAMES, so a rename goes RED instead of silently `[]`.
+
+    `_MEMBER_LIST_SQL` must spell literal SQL (a table name is not a bindable
+    parameter), so the names cannot be imported from `auth_db`. What CAN be done
+    — and is done here — is prove they still exist in the schema `auth_db`
+    actually creates. The (table, column) pairs are PARSED OUT OF THE ROUTER'S
+    OWN SQL rather than retyped, so this cannot drift from what the router runs.
+    """
+    import re
+    import sqlite3 as _sq
+    from api.routers import scan_live as live_mod
+    from api.services import auth_db
+
+    pairs = [(m.group(2), m.group(1)) for m in
+             (re.match(r"SELECT DISTINCT (\w+) FROM (\w+)$", q)
+              for q in live_mod._MEMBER_LIST_SQL) if m]
+    assert len(pairs) == len(live_mod._MEMBER_LIST_SQL) == 2, (
+        f"the router's SQL is no longer in the shape this pin can read: "
+        f"{live_mod._MEMBER_LIST_SQL}")
+
+    db = tmp_path / "auth.db"
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(db))
+    auth_db.init_db()
+    with contextlib.closing(_sq.connect(str(db))) as conn:
+        for table, column in pairs:
+            cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+            assert cols, (
+                f"`auth_db` declares no table `{table}` — the router's member-list "
+                "read selects from it and would return [] forever")
+            assert column in cols, (
+                f"`{table}` has no column `{column}` (it has {cols}) — the read "
+                "would raise sqlite3.Error and be swallowed into an empty list")
+
+
+def test_a_FAILED_member_list_read_is_DISCLOSED_never_served_as_an_EMPTY_LIST(
+        store, monkeypatch, tmp_path):
+    """⛔ AN EMPTY AUTHORITY IS NOT AN AUTHORITY. "no member has a watchlist" and
+    "I could not read the watchlists" are different facts, and the ring orders
+    its whole pass on the difference. Serving `[]` for both is what let the
+    `get_db_path` bug hide: the payload looked exactly like a quiet Sunday.
+    """
     from api.routers import scan_live as live_mod
 
-    monkeypatch.setattr(live_mod, "_auth_db_path", lambda: "/nonexistent/nope.db")
-    assert live_mod._member_list_symbols() == []
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    # ⚠️ AN EMPTY-BUT-VALID DATABASE, NOT A BOGUS PATH. The first version of this
+    # test pointed at `/nonexistent/nope.db` and passed for a reason that was an
+    # accident of this box: `C:\nonexistent\` HAPPENS TO EXIST, sqlite defers
+    # file creation, so `connect` SUCCEEDED and the failure actually came from
+    # `SELECT … FROM watchlist_items` — a different branch from the one the test
+    # claimed to exercise. A real file with no tables drives the table-missing
+    # branch (the RENAME case) deterministically, everywhere.
+    empty = tmp_path / "no-tables.db"
+    with contextlib.closing(sqlite3.connect(str(empty))) as c:
+        c.execute("CREATE TABLE unrelated (x)")
+        c.commit()
+    monkeypatch.setattr(live_mod, "_auth_db_path", lambda: str(empty))
+    app = FastAPI()
+    app.include_router(live_mod.router)
+    body = TestClient(app).get(
+        "/api/scans/demand", headers={"Authorization": "Bearer s3cret"}).json()
+    assert body["lists"] == []
+    assert body["lists_ok"] is False, (
+        "a renamed/absent watchlist table was served as an empty member list — "
+        "the ring silently reorders its pass and nobody is told")
+
+    # …and the CONTROL: a readable one says so, or `lists_ok` means nothing.
+    monkeypatch.setattr(live_mod, "_member_list_symbols", lambda: (["MSFT"], True))
+    ok_body = TestClient(app).get(
+        "/api/scans/demand", headers={"Authorization": "Bearer s3cret"}).json()
+    assert ok_body["lists"] == ["MSFT"] and ok_body["lists_ok"] is True
+
+
+def test_the_member_list_read_NEVER_RAISES_into_the_worker_response(monkeypatch):
+    """A `auth.db` that cannot be OPENED AT ALL must cost the ring its member
+    lists, not the whole demand answer — the ring still has the recent ring and
+    cap universe — and it must still say `ok=False`.
+
+    🔴 THIS RAILS THE SECOND RETURN, AND IT EXISTS BECAUSE THE MUTATION HARNESS
+    CAUGHT ME. `_member_list_symbols` has TWO exits that report failure: the
+    per-statement `sqlite3.Error` path (a renamed table) and the whole-connection
+    `except Exception` path. Fix round 1 mutated the second one to `True` and
+    EVERY TEST STILL PASSED — the disclosure test above drives only the first,
+    because `sqlite3.connect` succeeds on almost any path. Two exits, two rails.
+
+    ⚠️ THE FAILURE IS INJECTED AT `connect`, not conjured from a path: sqlite
+    defers file creation, so there is no portable "unopenable" filename to point
+    at — and the previous attempt to find one passed by accident of this box's
+    directory layout.
+    """
+    from api.routers import scan_live as live_mod
+
+    def _boom(*_a, **_k):
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(live_mod.sqlite3, "connect", _boom)
+    assert live_mod._member_list_symbols() == ([], False)

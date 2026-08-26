@@ -39,11 +39,11 @@ would satisfy.
 """
 from __future__ import annotations
 
+import contextlib
 import hmac
 import os
 import sqlite3
 import time
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -101,19 +101,38 @@ def live_status(_user: dict = Depends(require_paid)):
     dressed-up zero.
 
     ⛔ NO ARITHMETIC HERE. ``scan_store.live_beat`` owns the clock and the bound.
+
+    ⚠️ TIMEFRAME IS ``scan_store.SCAN_JOIN_TF`` AND TAKES NO QUERY PARAMETER, on
+    purpose: the Wave-1 sweep REFUSES any ``tf`` but ``D`` by name, so a ``tf``
+    argument here would be a knob whose only other setting is an error. When the
+    sweep gains a second timeframe this grows a parameter and the beat becomes
+    per-``tf`` — the store's ``live_beat(tf)`` already takes one.
     """
     return scan_store.live_beat(scan_store.SCAN_JOIN_TF)
 
 
-def _auth_db_path() -> Optional[str]:
-    """``auth.db``'s path, resolved LAZILY and never at import.
+def _auth_db_path() -> str:
+    """``auth.db``'s path, read off ``auth_db``'s OWN declaration.
 
-    ⚠️ A module-level capture would freeze the path before ``conftest.py``'s
-    redirect and point a test at the owner's live ``C:\\data\\auth.db``. Seamed as
-    its own function so a test can point it somewhere harmless.
+    🔴 THIS SHIPPED BROKEN AND THE BUG IS WORTH THE PARAGRAPH. W4b.5 wrote
+    ``from api.services.auth_db import get_db_path`` — copied from the brief and
+    from ``bars_prewarm.py`` L400 — and **that function does not exist**. The
+    import raised ``ImportError``, the broad ``except`` in the caller swallowed
+    it, and ``lists`` was PERMANENTLY ``[]``: the ring would have fallen back to
+    cap-universe order forever with every test green. A grep found the name in a
+    sibling and nobody asked the module whether it exported it.
+    ⚠️ ``api/services/bars_prewarm.py`` L400 STILL CARRIES THE SAME DEAD IMPORT,
+    inside its own bare ``except`` — that file is not this lane's to edit, and
+    the worker's member-list read has been dead for as long as it has been there.
+
+    ``_DB_PATH`` is ``auth_db``'s single authority on this (it reads
+    ``AUTH_DB_PATH`` once at import, which is that module's choice, not ours);
+    reading it by attribute means a rename raises here — loudly, and
+    ``tests/test_scan_live_sweep.py`` drives this function to prove it returns a
+    real path rather than being caught.
     """
-    from api.services.auth_db import get_db_path
-    return get_db_path()
+    from api.services import auth_db
+    return auth_db._DB_PATH
 
 
 #: ⛔ LITERAL SQL, NOT AN f-STRING OVER A TABLE NAME. `bars_prewarm` L400-406
@@ -127,31 +146,43 @@ _MEMBER_LIST_SQL = (
 )
 
 
-def _member_list_symbols() -> list:
-    """Every symbol a member has watchlisted or tagged — the union of
-    ``watchlist_items.sym`` and ``ticker_tags.sym``, the two reads
-    ``bars_prewarm`` (L400-406) makes on the WORKER.
+def _member_list_symbols() -> tuple:
+    """``(symbols, ok)`` — every symbol a member has watchlisted or tagged, and
+    WHETHER THE READ ACTUALLY HAPPENED.
 
-    ⭐ THIS IS HOW MEMBER LISTS REACH THE PREWARM RING AT ALL. ``auth.db`` is
-    web-local and EMPTY on the worker pod, so the ring cannot read these tables
-    itself; it pulls them over this route with the worker credential.
+    The union of ``watchlist_items.sym`` and ``ticker_tags.sym``. ⭐ This is how
+    member lists reach the prewarm ring at all: ``auth.db`` is web-local and
+    EMPTY on the worker pod, so the ring cannot read these tables itself and
+    pulls them over this route with the worker credential.
 
-    ⛔ NEVER RAISES. A missing or locked ``auth.db`` costs the ring its member
-    lists for one pass — it still has the demand ring and cap universe — and must
-    not cost the worker the whole demand answer.
+    ⛔ IT STILL NEVER RAISES — a missing or locked ``auth.db`` must cost the ring
+    its member lists for one pass, not the whole demand answer — ⛔ BUT IT NO
+    LONGER LIES ABOUT IT. "No member has a watchlist" and "I could not read the
+    watchlists" are different facts and the ring orders its entire pass on the
+    difference; returning ``[]`` for both is exactly what let the ``get_db_path``
+    bug above hide, because a broken wire and a quiet Sunday looked identical on
+    the wire. ``ok`` is ``False`` if anything went wrong, and the route publishes
+    it as ``lists_ok``.
+
+    ⚠️ ``contextlib.closing``, not a bare ``with`` on the connection: sqlite3's
+    ``__exit__`` COMMITS the transaction, it does not CLOSE the handle. The repo
+    idiom is ``closing`` (``snapshot_db``, ``tweet_store``) and on a read path
+    that runs once per ring pass a leaked handle is a real file descriptor.
     """
     out: set = set()
+    ok = True
     try:
-        with sqlite3.connect(_auth_db_path()) as db:
+        with contextlib.closing(sqlite3.connect(_auth_db_path())) as db:
             for sql in _MEMBER_LIST_SQL:
                 try:
                     out |= {str(s).upper() for (s,) in db.execute(sql) if s}
                 except sqlite3.Error:
-                    # one table absent (a fresh volume) is not the other's problem
-                    continue
+                    # one table absent (a fresh volume) is not the other's
+                    # problem — but it IS a fact the caller is told about.
+                    ok = False
     except Exception:
-        return []
-    return sorted(out)
+        return [], False
+    return sorted(out), ok
 
 
 @router.get("/api/scans/demand")
@@ -163,6 +194,12 @@ def demand(_gate: None = Depends(require_push_secret)):
     costs the ring one pass of cap-universe order). ``lists`` is the member
     watchlist/tag union. ``as_of`` stamps when the worker was told.
     """
+    lists, lists_ok = _member_list_symbols()
     return {"recent": scan_store.demand_recent(),
-            "lists": _member_list_symbols(),
+            "lists": lists,
+            # ⛔ THE DISCLOSURE, BESIDE THE ANSWER. An empty `lists` with
+            # `lists_ok: false` means "ask again"; with `true` it means "nobody
+            # has a watchlist". The ring must not reorder a whole pass on a
+            # number it cannot tell apart from a broken wire.
+            "lists_ok": lists_ok,
             "as_of": time.time()}
