@@ -144,19 +144,26 @@ function substitute(text, name, expr) {
  * @param {object} [inputs] the declared input scope (`declaredInputs(def)`'s
  *        `{[key]: true}` shape). ⚠️ OPTIONAL, AND ABSENT IS NOT EMPTY: a caller
  *        that does not know the inputs (the text box mid-type) must not have a
- *        binding refused for shadowing a knob it cannot see. The sheet's save
- *        gate and W1a's diagnostics hand it in; `readFormulaSource` does not.
+ *        binding refused for shadowing a knob it cannot see.
  *
- *        ⛔⛔ SO A CALLER THAT PASSES NO SCOPE GETS NO INPUT-SHADOW PROTECTION,
- *        AND THE OUTCOME IS A STORED DEFECT, NOT A MISSED WARNING. Because
- *        `readFormulaSource` passes none, `defSchema.validateAstCompute` ACCEPTS
- *        a document that declares an input `period` and also says
+ *        ⛔⛔ A CALLER THAT PASSES NO SCOPE GETS NO INPUT-SHADOW PROTECTION, AND
+ *        THE OUTCOME WAS A STORED DEFECT, NOT A MISSED WARNING. Until W1b.5
+ *        `readFormulaSource` passed none, so `defSchema.validateAstCompute`
+ *        ACCEPTED a document that declares an input `period` and also says
  *        `let period = 5`: the pre-pass rewrites every `period` to `(5)`, the
  *        tree agrees with the source, rule 2 is satisfied, and the document
- *        SAVES WITH ITS DECLARED KNOB DOING NOTHING. Turning the knob then
- *        changes nothing and the definition looks broken for no visible reason.
- *        The save gate (W1b.5) is the place that knows the inputs and MUST hand
- *        them in; that wiring is the gate, not this default.
+ *        SAVED WITH ITS DECLARED KNOB DOING NOTHING. Turning the knob changed
+ *        nothing and the definition looked broken for no visible reason.
+ *        ✅ FIXED, AND THE FIX IS THE WIRING RATHER THAN THIS DEFAULT.
+ *        `readFormulaSource(source, dialect, inputs)` threads a scope into
+ *        `READERS.native`, and the three callers that KNOW the inputs hand
+ *        theirs in: `evaluateFormula` (the text box, and every save gate that
+ *        reads its verdict), `defSchema.validateCompute` (`declaredInputs(def)`,
+ *        so a document POSTed straight at the API is refused too) and
+ *        `editor/completions.js`, which already did — which is why the popup was
+ *        for a while STRICTER than the door that could actually stop a save.
+ *        `BuilderSheet.letScope.test.jsx` is the rail on the handing-in, because
+ *        the wiring is the part that can be silently dropped later.
  * @returns {{ok: true, source: string, bindings: {name: string, expr: string, line: number}[],
  *             lineOffset: number}
  *          | {ok: false, source: null, bindings: [], guard: string, error: string,

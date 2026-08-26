@@ -105,7 +105,7 @@ import { readFormulaSource } from './ast/pcf'
 // the linter learns a fourth window form, a hand-copied literal here would keep
 // refusing it while the linter accepted it, and the two would disagree about
 // what a definition means.
-import { UNBOUNDED as FORWARD_UNBOUNDED } from './ast/lint'
+import { UNBOUNDED as FORWARD_UNBOUNDED, declaredInputs } from './ast/lint'
 // ⭐ THE FOURTH IMPORT, ADDED WITH THE MULTI-TREE DOCUMENT (spec §5.1), AND IT
 // COSTS THE PURITY CLAIM NOTHING EITHER: `assertTrees` and `treesHash` are pure
 // functions of a map of trees. Imported rather than re-derived because
@@ -588,7 +588,7 @@ function noteRef(plot, field, key) {
 
 // ─── Section validators ──────────────────────────────────────────────────────
 
-function validateCompute(compute, errors) {
+function validateCompute(compute, errors, inputScope) {
   if (!isPlainObject(compute)) {
     errors.push(`compute: required object, got ${fmt(compute)}`)
     return
@@ -632,7 +632,7 @@ function validateCompute(compute, errors) {
   }
 
   if (compute.kind === 'ast') {
-    validateAstCompute(compute, errors)
+    validateAstCompute(compute, errors, inputScope)
   } else {
     // ⛔ THE MULTI-TREE KEYS BELONG TO THE `ast` LANE ALONE. On any other kind
     // they would be preserved by the unknown-key policy and read by nothing —
@@ -678,7 +678,7 @@ function validateCompute(compute, errors) {
  *    so the alternative was not "no handle", it was "a handle that means
  *    nothing", which is the shape a rename rots into.)
  */
-function validateAstCompute(compute, errors) {
+function validateAstCompute(compute, errors, inputScope) {
   if (!isNonEmptyString(compute.source)) {
     errors.push(
       `compute.source: an "ast" definition must carry the SOURCE the user edits alongside the ` +
@@ -729,11 +729,11 @@ function validateAstCompute(compute, errors) {
   // send an author round the loop once per defect. Only the alias check needs
   // `storedHash`; shape, one-key, per-tree canonicality, `treesHash` and
   // `sources` do not, so they are all still answerable here.
-  validateTrees(compute, storedHash, errors)
+  validateTrees(compute, storedHash, errors, inputScope)
 
   if (storedHash === undefined) return   // compute.ast is unusable; reported above
   if (!isNonEmptyString(compute.source)) return   // already reported above
-  const { result: parsed } = readFormulaSource(compute.source)
+  const { result: parsed } = readFormulaSource(compute.source, 'auto', inputScope)
   if (!parsed.ok) {
     errors.push(
       `compute.source does not parse to compute.ast — it does not parse at all ` +
@@ -776,7 +776,7 @@ function validateAstCompute(compute, errors) {
  * make the compute section depend on `plots[]` order, a second authority over
  * which tree the scan runs.
  */
-function validateTrees(compute, storedHash, errors) {
+function validateTrees(compute, storedHash, errors, inputScope) {
   const { trees, scanPlot, sources } = compute
   if (trees === undefined) {
     for (const k of V2_COMPUTE_KEYS) {
@@ -877,7 +877,7 @@ function validateTrees(compute, storedHash, errors) {
     }
     // Through the ONE read door, in the source's own dialect — the same rule as
     // `compute.source` above, per tree.
-    const { result } = readFormulaSource(sources[k])
+    const { result } = readFormulaSource(sources[k], 'auto', inputScope)
     if (!result.ok) {
       errors.push(`compute.sources.${k} does not parse (${result.error})`)
       continue
@@ -1918,7 +1918,24 @@ export function validateDefinition(def) {
       errors.push(`version: required integer >= 1 (the presentation version), got ${fmt(out.version)}`)
     }
 
-    validateCompute(out.compute, errors)
+    // ⛔⛔ THE DOCUMENT'S OWN DECLARED INPUTS GO TO THE READ DOOR (W1b.5), AND
+    // THE DEFECT THIS CLOSES IS A STORED ONE, NOT A MISSING WARNING.
+    // `letPrepass.prepareSource` refuses `let period = 5` beside a declared
+    // input `period` — but ONLY when it is handed the scope, and until now
+    // nothing on the save path handed it one. So the pre-pass silently rewrote
+    // every `period` to `(5)`, the tree agreed with the source, rule 2 was
+    // satisfied, and the document SAVED WITH ITS DECLARED KNOB INERT: a member
+    // turns the setting and nothing moves. `editor/completions.js` was already
+    // passing the scope, so the completion popup refused text this validator
+    // accepted — one grammar with two readings, and the stricter one sat where
+    // it could not stop a save.
+    //
+    // ⛔ IT IS `declaredInputs(out)`, THE SAME READER `lintDefinition` USES, not
+    // a key list built here. And it runs BEFORE `validateInput` on purpose: a
+    // malformed input row is reported by its own validator, while
+    // `declaredInputs` skips anything without a usable string `key`, so a bad
+    // row can only make the scope SMALLER — never invent a shadow.
+    validateCompute(out.compute, errors, declaredInputs(out))
     validateMeta(out.meta, out, errors)
     validatePlacement(out.placement, errors)
 

@@ -275,27 +275,45 @@ describe('HB-1 — the ONE read door applies the pre-pass, so `let` reaches the 
       .toMatchObject({ ok: false, guard: 'let:shadow' })
   })
 
-  it('⛔⛔ NO SCOPE AT THE DOOR ⇒ a declared input can be SHADOWED INTO INERTNESS, and the schema accepts it', () => {
-    // The cost of `readFormulaSource` passing no input scope, stated as a fact
-    // rather than a worry: this document SAVES, and its `period` knob does
-    // nothing, because the pre-pass rewrote every `period` to `(5)`.
-    // ⛔ W1b.5's save gate is what must hand `declaredInputs(def)` in.
+  it('✅ THE SCOPE REACHES THE DOOR ⇒ a shadowed declared input can no longer be STORED INERT (W1b.5)', () => {
+    // ⚰️ THIS CASE USED TO ASSERT THE OPPOSITE, AND IT WAS RIGHT TO. W1b.3 pinned
+    // the cost of `readFormulaSource` passing no input scope as a FACT rather
+    // than a worry: this exact document SAVED, and its `period` knob did
+    // nothing, because the pre-pass had rewritten every `period` to `(5)`. The
+    // assertion below is the same document; only the verdict moved, and it moved
+    // because `readFormulaSource(source, dialect, inputs)` now threads a scope
+    // and `defSchema.validateCompute` hands it `declaredInputs(def)`.
     const src = 'let period = 5\nsma(close, period)'
     expect(prepareSource(src, { period: true }).ok, 'WITH the scope it refuses').toBe(false)
-    const { result } = readFormulaSource(src)
-    expect(result.ok, 'but the door has no scope, so it parses').toBe(true)
-    const ast = result.ast
-    const r = validateDefinition({
+
+    // ⛔ ABSENT IS STILL NOT EMPTY — the contract this module's docblock sets. A
+    // caller with no scope (a text box before the form declares anything) must
+    // still read this source, or every mid-type keystroke becomes a refusal.
+    expect(readFormulaSource(src).result.ok, 'no scope ⇒ no input-shadow gate').toBe(true)
+    // …and the same door, handed the scope, refuses at the binding.
+    expect(readFormulaSource(src, 'auto', { period: true }).result)
+      .toMatchObject({ ok: false, guard: 'let:shadow', line: 1, column: 5, token: 'period' })
+
+    // The tree the document would have stored: no `period` in it at all.
+    const ast = parseFormula('sma(close, (5))').ast
+    const doc = (inputs) => ({
       schemaVersion: 1, id: 'u_0123456789ab', version: 1,
       compute: { kind: 'ast', fn: astHash(ast), rev: 1, ast, source: src },
       meta: { name: 'Inert knob', tier: 'premium', repaint: 'non-repainting', freshness: 'live' },
       placement: { target: 'pane' },
-      inputs: [{ key: 'period', type: 'int', label: 'Length', default: 20, min: 2, max: 200 }],
+      inputs,
       plots: [{ key: 'value', style: 'line', color: '#c9a84c' }],
     })
-    expect(r.ok, 'TODAY the schema accepts it — the gate lives at the save door, not here').toBe(true)
-    expect(astHash(ast), 'and the stored tree has no `period` in it at all')
-      .toBe(astHash(parseFormula('sma(close, (5))').ast))
+    const refused = validateDefinition(doc([{ key: 'period', type: 'int', label: 'Length', default: 20, min: 2, max: 200 }]))
+    expect(refused.ok, 'the schema refuses it now — at the API too, not only in the sheet').toBe(false)
+    expect(refused.errors.join('\n')).toMatch(/declared input/)
+
+    // ⛔ THE CONTROL, AND IT IS WHAT MAKES THE REFUSAL ABOUT THE SHADOW. The
+    // very same source and tree, with NO input called `period` declared, is
+    // still a legal document — so the gate above is the scope reaching the
+    // grammar and not the `let` grammar being refused wholesale.
+    expect(validateDefinition(doc([{ key: 'span', type: 'int', label: 'Span', default: 20, min: 2, max: 200 }])).ok)
+      .toBe(true)
   })
 
   it('a source with no `let` reads BYTE-IDENTICALLY to parseFormula — the door gained nothing to break', () => {
