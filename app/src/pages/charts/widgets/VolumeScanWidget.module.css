@@ -92,9 +92,14 @@
   background: rgba(48, 165, 90, 0.92);
   box-shadow: 0 0 11px rgba(48, 165, 90, 0.45);
 }
-/* Text: white on every lit tier — reads cleanly on the dark muted fills, and the
-   Extreme (t5) still pops via its bright red fill + glow. */
-.lit .sym, .lit .surge { color: #fff; }
+/* Text brightness ramps with the tier too — t1 just a touch above the unlit grey,
+   climbing to the brightest pure-white at t5 — so the RVOL reading itself signals
+   strength alongside the fill. */
+.t1 .sym, .t1 .surge { color: rgba(255, 255, 255, 0.68); }
+.t2 .sym, .t2 .surge { color: rgba(255, 255, 255, 0.78); }
+.t3 .sym, .t3 .surge { color: rgba(255, 255, 255, 0.87); }
+.t4 .sym, .t4 .surge { color: rgba(255, 255, 255, 0.94); }
+.t5 .sym, .t5 .surge { color: #fff; }
 .lit:hover { filter: brightness(1.08); }
 
 /* Unlit rows: dark, with a dimmed RVOL so the full ranking is still readable. */
