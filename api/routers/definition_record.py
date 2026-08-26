@@ -22,6 +22,14 @@ definition therefore claims its one-bar origin (*"the record begins when the
 definition does"*), a claim across months refuses in the record's words, and
 ``?from=&to=`` lets a caller ask about any other window explicitly.
 
+🔴 ``claim.hit_rate`` REACHES HTTP HERE FOR THE FIRST TIME, AND IT NAMES ITSELF.
+It is an OCCURRENCE rate — ``bars_true / bars_evaluated``, the share of evaluated
+bars on which the definition was true — not a win rate, so "never a naked hit
+rate" is satisfied by what it counts rather than by a baseline beside it. The
+payload says so out loud in ``hit_rate_means`` (see ``HIT_RATE_MEANS`` below),
+because the Evidence tab renders this within inches of the backtest's
+strategy/baseline pair and an unlabelled percentage there reads as performance.
+
 ⛔ THE E-7 CENSUS CLASSIFIES THIS HANDLER (it reads ``definition_record``), so it
 carries ``Depends(limits_dependency)`` and APPLIES it: the claim's named
 ``unproven`` symbols pass through ``entitlements.apply_symbol_cap`` exactly as
@@ -53,6 +61,25 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
                             detail="A definition's forward record requires a paid plan")
     return user
 
+
+#: 🔴 WHAT `claim.hit_rate` COUNTS, SAID OUT LOUD, BECAUSE THIS IS WHERE THAT
+#: NUMBER FIRST REACHES HTTP.
+#:
+#: The program's hardest rule is NEVER A NAKED HIT RATE: anything reporting
+#: STRATEGY PERFORMANCE renders a baseline beside it or a named refusal. This
+#: number is not that. It is `bars_true / bars_evaluated` — the share of evaluated
+#: bars on which the definition was TRUE. The record holds no forward return, no
+#: entry, no exit, so there is no win to rate and nothing a baseline could be a
+#: baseline OF. Saying nothing would still have been wrong: the Evidence tab
+#: renders this inches from the backtest's strategy/baseline pair (spec §5.9), and
+#: a bare "hit rate: 29.5%" beside two win rates reads as a third win rate. So the
+#: field names itself, and `test_the_hit_rate_SAYS_WHAT_IT_COUNTS_and_the_sentence_is_TRUE_of_the_store`
+#: checks the sentence against the record's own columns rather than trusting it.
+HIT_RATE_MEANS = (
+    "the share of evaluated bars on which this definition was TRUE — an "
+    "occurrence rate, not a win rate: the forward record stores whether the "
+    "screen fired, never what happened next, so there is no return here and no "
+    "baseline to put beside it")
 
 #: The key handed to `claim_for` when the record holds NO rows for this
 #: definition. The claim answers `NO_RECORD_YET` before it looks at the window
@@ -166,4 +193,9 @@ def definition_record_claim(
         "window": window,
         # ⛔ THE CLAIM, WHOLE, IN ITS OWN WORDS — refusal sentence included.
         "claim": claim,
+        # 🔴 AND WHAT ITS NUMBER COUNTS, BESIDE IT AND NEVER INSIDE IT. The
+        # claim comes back as `claim_for` shaped it; a key added into that dict
+        # would be this route editing the record's own words. This is the route
+        # speaking for itself, which is a different thing and gets its own field.
+        "hit_rate_means": HIT_RATE_MEANS,
     })

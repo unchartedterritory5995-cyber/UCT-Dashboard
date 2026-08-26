@@ -195,6 +195,52 @@ def test_a_definition_without_a_usable_rev_is_refused_the_record_is_keyed_on_it(
     assert r.status_code == 400 and "rev" in r.json()["detail"]
 
 
+# ─── what the number COUNTS ──────────────────────────────────────────────────
+
+def test_the_hit_rate_SAYS_WHAT_IT_COUNTS_and_the_sentence_is_TRUE_of_the_store(monkeypatch, store):
+    """🔴 NEVER A NAKED HIT RATE — and this route is where `claim.hit_rate` first
+    reaches HTTP.
+
+    The program's hardest rule is that anything reporting STRATEGY PERFORMANCE
+    renders a baseline beside it or a NAMED refusal. This number is not that: it
+    is `bars_true / bars_evaluated`, the share of evaluated bars on which the
+    definition was TRUE — an OCCURRENCE rate. The record holds no forward return,
+    so there is no win to rate and no baseline to put beside it. But the Evidence
+    tab renders it inches from the backtest's strategy/baseline pair, where a
+    reader will take it for performance unless the payload says otherwise. So the
+    payload says otherwise, in its own field.
+
+    ⛔ AND THE SENTENCE IS CHECKED AGAINST THE STORE, NOT JUST ECHOED. The claim
+    "no forward return, therefore no baseline" is only true while the record's
+    columns are what they are, so the column set is read off `sqlite_master`
+    (`lesson_probe_names_must_be_derived_not_typed`) rather than restated here. The
+    day a `forward_return` column lands, this goes red and the sentence gets
+    rewritten instead of quietly becoming a lie.
+    """
+    import contextlib
+    import sqlite3
+
+    dr.record_evaluations(DEF_HASH, REV, "1D", JULY, at=AT)
+    body = _get(_client(monkeypatch)).json()
+
+    assert body["hit_rate_means"] == mod.HIT_RATE_MEANS
+    assert "occurrence rate" in mod.HIT_RATE_MEANS, mod.HIT_RATE_MEANS
+    assert "not a win rate" in mod.HIT_RATE_MEANS, mod.HIT_RATE_MEANS
+
+    # the number it describes is really the one in the payload, and really is the
+    # ratio the sentence names — measured off the fixture, never retyped
+    claim = body["claim"]
+    assert claim["hit_rate"] == pytest.approx(
+        sum(r["bars_true"] for r in JULY) / sum(r["bars_evaluated"] for r in JULY))
+
+    with contextlib.closing(sqlite3.connect(str(store))) as c:
+        cols = {r[1] for r in c.execute(f"PRAGMA table_info({dr.TABLE_NAME})")}
+    assert {"bars_true", "bars_evaluated"} <= cols, cols     # CONTROL: the probe sees
+    assert not [c for c in cols if "return" in c or "baseline" in c or "pnl" in c], (
+        f"{dr.TABLE_NAME} grew a performance column, so `hit_rate` may no longer be "
+        f"an occurrence rate and HIT_RATE_MEANS is now false: {sorted(cols)}")
+
+
 # ─── the entitlement, DRIVEN ─────────────────────────────────────────────────
 
 def test_the_ROUTE_reaches_limits_dependency_WITHOUT_an_override(monkeypatch, store):
