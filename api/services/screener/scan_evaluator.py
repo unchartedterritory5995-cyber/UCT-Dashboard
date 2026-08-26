@@ -1943,6 +1943,15 @@ def _finish_live(receipt: dict, started: datetime.datetime, *,
     last cycle ran and the market was shut" is only knowable from the artifact, and
     a status surface that could not tell that from "nothing has run since the
     deploy" would report a dead scheduler as a quiet evening.
+
+    ⛔ AND THAT COSTS ONE ROW, NOT 210. The job is registered on a 24 h interval
+    against a 6.5 h window, so most ticks of the day answer `closed`; left to
+    accumulate they would evict a whole session of real receipts out of
+    `LIVE_CYCLES_KEEP` and destroy the very artifact the paragraph above is about.
+    `scan_store.LIVE_COLLAPSING_REASONS` makes consecutive `closed` rows REPLACE
+    one another, so the beat stays fresh to within one interval and the flood does
+    not happen. ⛔ Do NOT "fix" the flood by passing `record=False` here: that is
+    the one change that would close the hole by removing the thing it protects.
     """
     if skipped is not None and skipped not in LIVE_SKIP_REASONS:
         raise ValueError(

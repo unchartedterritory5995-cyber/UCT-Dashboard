@@ -2049,3 +2049,168 @@ def test_the_live_window_and_the_nightly_sweep_are_DISJOINT_by_derivation():
     assert scan_evaluator._live_session_state(
         _at(2026, 8, 26, scan_evaluator.SWEEP_HOUR_ET,
             scan_evaluator.SWEEP_MINUTE_ET)) == "closed"
+
+
+# ─── 14b. the REGISTERED cadence meets the store's bound (fix round 1) ────────
+#
+# 🔴 THE TRIGGER RUNS 24 HOURS; THE WINDOW IS 6.5. Registration is unconditional
+# and `IntervalTrigger` has no session bounds — by design, because the session
+# test is DERIVED inside the cycle and a cron with typed hours would be a second
+# authority over `market_open_et`. The consequence is that most ticks of the day
+# land OUTSIDE the window and answer `closed`, and `closed` IS recorded (a
+# deliberate ruling: "the flag is off" is knowable from the environment, "the
+# last cycle ran and the market was shut" is only knowable from the artifact).
+#
+# ⛔ SO TWO POPULATIONS SHARE ONE FIFO: 210 low-information `closed` ticks a night
+# against 78 high-information real receipts a session, bounded together at
+# `LIVE_CYCLES_KEEP`. Nothing railed that bound before this round, which is
+# exactly how it went unnoticed.
+
+
+def _cycle_rows(path, tf="D"):
+    """Every receipt row, newest first — the ARTIFACT, not `last_live_cycle`'s
+    one-row view, because eviction is invisible from the top of the table."""
+    with contextlib.closing(sqlite3.connect(str(path))) as c:
+        c.row_factory = sqlite3.Row
+        return [dict(r) for r in c.execute(
+            f"SELECT cycle_started, receipt_json FROM {scan_store.LIVE_CYCLES_TABLE} "
+            "WHERE tf=? ORDER BY cycle_started DESC", (tf,))]
+
+
+def _ticks_per(span_seconds) -> int:
+    """How many ticks of the REGISTERED cadence fit in `span_seconds`. ⛔ Derived
+    from `live_interval_s()`, never typed: change the env var and every count in
+    this section moves with it."""
+    return int(span_seconds // scan_evaluator.live_interval_s())
+
+
+def _file(tick, *, skipped=None):
+    scan_store.record_live_cycle(
+        {"cycle_started": int(tick), "tf": "D", "skipped_reason": skipped}, [])
+
+
+def test_an_OVERNIGHT_of_CLOSED_ticks_does_not_EVICT_the_sessions_REAL_receipts(
+        store, monkeypatch):
+    """🔴 THE ARMING BLOCKER, AS A RAIL.
+
+    One session of real receipts, then one overnight of `closed` ticks, at the
+    cadence this task actually registered. Before the fix, 0 of the session's
+    receipts survived and `last_live_cycle('D')` read `closed` at the next open —
+    the whole of yesterday gone, and the one artifact this pipeline names as its
+    success criterion destroyed by the ticks that were supposed to prove the
+    scheduler was alive.
+
+    ⛔ EVERY COUNT IS DERIVED from the registered interval and the declared
+    session length. Nothing here types 78, 210 or 288.
+    """
+    monkeypatch.delenv("SCAN_LIVE_INTERVAL_S", raising=False)
+    interval = scan_evaluator.live_interval_s()
+    session_ticks = _ticks_per(scan_evaluator.REGULAR_SESSION_LENGTH.total_seconds())
+    overnight_ticks = _ticks_per(datetime.timedelta(days=1).total_seconds()) - session_ticks
+    assert session_ticks and overnight_ticks > session_ticks, (
+        "the day no longer has more closed ticks than open ones -- re-read this test")
+
+    base = 1_800_000_000
+    for i in range(session_ticks):                      # a full regular session
+        _file(base + i * interval)
+    session_last = base + (session_ticks - 1) * interval
+    for i in range(overnight_ticks):                    # then the whole night
+        _file(session_last + (i + 1) * interval, skipped="closed")
+
+    rows = _cycle_rows(store)
+    real = [r for r in rows if json.loads(r["receipt_json"]).get("skipped_reason") is None]
+    assert len(real) == session_ticks, (
+        f"{session_ticks - len(real)} of {session_ticks} real receipts were EVICTED by "
+        f"{overnight_ticks} closed ticks -- a status surface reading this table at the "
+        "next open cannot see that yesterday's session ran at all")
+    assert len(rows) <= scan_store.LIVE_CYCLES_KEEP
+
+
+def test_a_CLOSED_receipt_is_a_STATE_not_an_EVENT_so_consecutive_ones_COLLAPSE(store):
+    """⭐ THE FIX, AND ITS SHAPE. 210 rows that all say "the market is shut" carry
+    exactly the information of ONE row plus its timestamp. So `closed` collapses:
+    a trailing closed row is REPLACED, never appended.
+
+    ⛔ AND THE LIVENESS BEAT IS PRESERVED AT FULL FRESHNESS, which is the whole
+    reason `closed` is recorded where `disabled` is not. The surviving row always
+    carries the NEWEST tick, so "when did the scheduler last beat" is answerable
+    to within one interval all night — the property is kept, only the 209
+    redundant copies of it are dropped.
+    """
+    base, step = 1_800_000_000, scan_evaluator.live_interval_s()
+    _file(base, skipped="closed")
+    _file(base + step, skipped="closed")
+    _file(base + 2 * step, skipped="closed")
+
+    rows = _cycle_rows(store)
+    assert len(rows) == 1, f"{len(rows)} closed rows survived; a state needs one"
+    assert rows[0]["cycle_started"] == base + 2 * step, (
+        "the collapse kept the OLDEST closed row -- the liveness beat is now stale, "
+        "which is worse than not recording it at all")
+    assert scan_store.last_live_cycle("D")["cycle_started"] == base + 2 * step
+
+
+def test_the_collapsed_closed_row_SURVIVES_as_HISTORY_once_a_real_cycle_follows(store):
+    """⛔ COLLAPSE IS NOT DELETION. "The session ended and the scheduler was alive
+    through the night" is one row of real history and it stays — only a closed row
+    directly REPLACED by another closed row goes."""
+    base, step = 1_800_000_000, scan_evaluator.live_interval_s()
+    _file(base, skipped="closed")
+    _file(base + step, skipped="closed")
+    _file(base + 2 * step)                              # the open: a real cycle
+    _file(base + 3 * step)
+
+    rows = _cycle_rows(store)
+    kinds = [json.loads(r["receipt_json"]).get("skipped_reason") for r in rows]
+    assert kinds == [None, None, "closed"], kinds
+
+
+def test_a_real_receipt_is_an_EVENT_and_is_NEVER_collapsed_into_its_neighbour(store):
+    """The control on the collapse: it must be the `closed` WORD that collapses,
+    not "the newest two rows". Two real cycles a tick apart are two events."""
+    base, step = 1_800_000_000, scan_evaluator.live_interval_s()
+    _file(base)
+    _file(base + step)
+    assert len(_cycle_rows(store)) == 2
+
+    # ⛔ AND A NON-CLOSED SKIP IS AN EVENT TOO: `no-definitions` twice in a session
+    # is two facts about two cycles, not one state.
+    _file(base + 2 * step, skipped="no-definitions")
+    _file(base + 3 * step, skipped="no-definitions")
+    assert len(_cycle_rows(store)) == 4
+
+
+def test_the_KEEP_bound_STILL_MEANS_what_its_own_comment_says(store, monkeypatch):
+    """⭐ THE CONSTANT'S COMMENT IS A CLAIM, AND IT IS NOW CHECKED. `LIVE_CYCLES_KEEP`
+    says "≈ 1.5 regular sessions" — a premise the unconditional registration
+    falsified until the collapse landed, because the sessions were sharing the
+    window with a nightly flood. Nothing railed it before this round.
+    """
+    monkeypatch.delenv("SCAN_LIVE_INTERVAL_S", raising=False)
+    session_ticks = _ticks_per(scan_evaluator.REGULAR_SESSION_LENGTH.total_seconds())
+    assert scan_store.LIVE_CYCLES_KEEP / session_ticks >= 1.5, (
+        f"KEEP={scan_store.LIVE_CYCLES_KEEP} holds only "
+        f"{scan_store.LIVE_CYCLES_KEEP / session_ticks:.2f} sessions at a "
+        f"{scan_evaluator.live_interval_s()} s cadence, not the 1.5 it claims")
+    # ⛔ AND THE FLOOR CADENCE IS THE HARD CASE: at 30 s a session is 780 ticks and
+    # the bound holds a fifth of one. That is a REAL limit of this table and it is
+    # stated here rather than discovered later -- but it is bounded by the same
+    # constant, not by an overnight flood, which is the difference this fix buys.
+    monkeypatch.setenv("SCAN_LIVE_INTERVAL_S", "30")
+    assert _ticks_per(scan_evaluator.REGULAR_SESSION_LENGTH.total_seconds()) == 780
+
+
+def test_the_COLLAPSING_reasons_are_a_SUBSET_of_the_words_a_cycle_can_actually_EMIT():
+    """⛔ THE SAME RAIL `LIVE_WARNING_REASONS` CARRIES, for the same reason: a word
+    in the store's collapse policy that no cycle can ever emit is a policy that can
+    never fire, and it would sit there reading as protection.
+
+    The two constants live in different modules on purpose — the prune is the
+    WRITER's policy and `scan_store` cannot import the evaluator without a cycle —
+    so this is the only place the relationship can be asserted.
+    """
+    assert set(scan_store.LIVE_COLLAPSING_REASONS) <= set(scan_evaluator.LIVE_SKIP_REASONS)
+    # ⛔ AND `disabled` IS NOT AMONG THEM: it is never recorded at all
+    # (`record=False`), so collapsing it would be a rule about rows that cannot
+    # exist -- and reading it here would suggest they do.
+    assert "disabled" not in scan_store.LIVE_COLLAPSING_REASONS

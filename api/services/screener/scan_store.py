@@ -441,7 +441,20 @@ LIVE_CYCLE_COLUMNS = (
 #: neither word is retyped inside it.
 LIVE_TIERS = ("nightly", "live")
 #: Cycle receipts kept — 120 five-minute cycles ≈ 1.5 regular sessions.
+#: ⛔ THAT CLAIM ONLY HOLDS BECAUSE OF `LIVE_COLLAPSING_REASONS` BELOW. The live
+#: job is registered unconditionally on a 24 h interval against a 6.5 h window,
+#: so 210 of the day's 288 ticks land outside it; before the collapse they shared
+#: this bound with the session's 78 real receipts and evicted every one of them
+#: overnight. Railed now, both halves, in `tests/test_scan_live_sweep.py`.
 LIVE_CYCLES_KEEP = 120
+#: Skip reasons that name a STATE rather than an EVENT. While one holds, every
+#: tick reports the same fact and only the NEWEST carries information, so a
+#: trailing row with one of these is REPLACED by its successor instead of
+#: accumulating. ⛔ Railed as a SUBSET of `scan_evaluator.LIVE_SKIP_REASONS` (a
+#: word here that no cycle can emit is a policy that can never fire) — the same
+#: idiom as `LIVE_WARNING_REASONS`. Declared HERE because the prune is the
+#: writer's policy and `scan_store` cannot import the evaluator.
+LIVE_COLLAPSING_REASONS = ("closed",)
 #: The demand ring's bound (symbols a member or a definition just NAMED).
 DEMAND_MAX = 2000
 
@@ -724,7 +737,9 @@ def live_hits(def_hash: str, tf: Any) -> list:
 
 
 def record_live_cycle(receipt: Mapping[str, Any], swept: Sequence[str]) -> None:
-    """The cycle receipt, ONE row per cycle, pruned to `LIVE_CYCLES_KEEP`.
+    """The cycle receipt, pruned to `LIVE_CYCLES_KEEP`. One row per cycle —
+    EXCEPT that consecutive `LIVE_COLLAPSING_REASONS` rows collapse to the
+    newest, see the block below.
 
     `receipt["cycle_started"]` is stored as the int TICK (a missing or
     YYYYMMDD value is refused by `_normalise_tick`); the receipt dict itself is
@@ -735,6 +750,32 @@ def record_live_cycle(receipt: Mapping[str, Any], swept: Sequence[str]) -> None:
     _ensure()
     with snapshot_db._WRITE_LOCK, contextlib.closing(snapshot_db.connect()) as conn, \
             _one_transaction(conn):
+        # ⛔ A STATE COLLAPSES; AN EVENT ACCUMULATES. The trigger runs 24 h against
+        # a 6.5 h window, so most ticks of the day answer `closed`, and 210 rows a
+        # night all saying "the market is shut" would push a whole session of real
+        # receipts out of `LIVE_CYCLES_KEEP` — destroying the one artifact that
+        # distinguishes a dead scheduler from a quiet evening, which is the exact
+        # thing recording `closed` exists to protect.
+        #
+        # ⭐ SO THE BEAT IS KEPT AND THE FLOOD IS NOT. The surviving row always
+        # carries the NEWEST tick, so "when did the scheduler last beat" stays
+        # answerable to within one interval all night; only the redundant copies go.
+        # ⛔ REPLACED, NOT SUPPRESSED: a closed row that a real cycle follows stays
+        # put, because "the session ended and the sweeper was alive through the
+        # night" is one row of real history.
+        if str(receipt.get("skipped_reason") or "") in LIVE_COLLAPSING_REASONS:
+            prev = conn.execute(
+                f"SELECT cycle_started, receipt_json FROM {LIVE_CYCLES_TABLE} "
+                "WHERE tf=? ORDER BY cycle_started DESC LIMIT 1", (code,)).fetchone()
+            if prev is not None and prev["cycle_started"] != started:
+                try:
+                    prior = (json.loads(prev["receipt_json"]) or {}).get("skipped_reason")
+                except (ValueError, TypeError):          # a hand-edited row: leave it
+                    prior = None
+                if str(prior or "") in LIVE_COLLAPSING_REASONS:
+                    conn.execute(
+                        f"DELETE FROM {LIVE_CYCLES_TABLE} WHERE tf=? AND cycle_started=?",
+                        (code, prev["cycle_started"]))
         conn.execute(
             f"INSERT OR REPLACE INTO {LIVE_CYCLES_TABLE} (cycle_started, tf, receipt_json, "
             "swept_json) VALUES (?,?,?,?)",

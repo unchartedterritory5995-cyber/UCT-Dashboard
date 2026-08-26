@@ -1328,6 +1328,15 @@ def register_screener_jobs(scheduler):
     # disjoint from the 05:00 nightly sweep by derivation, not by two hours
     # chosen to agree (`test_the_live_window_and_the_nightly_sweep_are_DISJOINT`).
     #
+    # ⚠️ AND THE TRIGGER ITSELF HAS NO SESSION BOUNDS, DELIBERATELY. A cron with
+    # typed hours would be a second authority over `market_open_et`, and it would
+    # be wrong on DST and every NYSE holiday; the session test is DERIVED inside
+    # the cycle instead. The cost is that 210 of the day's 288 ticks land outside
+    # the window and answer `closed` — which IS recorded, on purpose, because it
+    # is the only evidence the sweeper is alive overnight. Consecutive ones
+    # COLLAPSE in the store (`scan_store.LIVE_COLLAPSING_REASONS`), so that beat
+    # costs one row rather than evicting a whole session of real receipts.
+    #
     # ⛔ `max_instances=1` IS A CORRECTNESS GUARD, NOT A TUNING KNOB: this is the
     # single web pod, and two overlapping cycles would double the provider reads
     # and race the one cycle receipt every status surface reads back.
