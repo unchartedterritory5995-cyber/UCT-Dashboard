@@ -676,6 +676,21 @@ describe('declare, input, def and plot', () => {
     expect(r.token).toBe('x')
   })
 
+  it('⭐ the column offered FIRST is the one that answers yes or no, not the first one written', () => {
+    // ⛔ A MEMBER PASTING A STUDY WANTS A SCAN, and most published studies plot
+    // their levels before their signal. `treeYieldsBool` is IMPORTED from
+    // `pine.js` to decide this — one `yields` reader for the engine — so this is
+    // also the only thing holding that import honest.
+    const out = translateThinkScript('plot band = high - low;\nplot sig = close > open;\n')
+    expect(out.ok).toBe(true)
+    expect(out.selected).toBe(1)
+    expect(out.outputs[out.selected].formula).toBe('close > open')
+    // …and with no boolean anywhere it is simply the first, so the rule above is
+    // a PREFERENCE and not "always the last one".
+    const flat = translateThinkScript('plot a = high - low;\nplot b = close * 2;\n')
+    expect(flat.selected).toBe(0)
+  })
+
   it('a bare expression with no plot IS the output — 16-scan-rsi-crosses has no `plot` at all', () => {
     const out = translateThinkScript('close > open\n')
     expect(out.ok).toBe(true)

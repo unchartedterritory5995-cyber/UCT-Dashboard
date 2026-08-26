@@ -138,7 +138,17 @@ export const REFUSALS = Object.freeze({
  *  source sweep tell a note code from a guard without a second hand-typed list.
  *  Their sentences join the disjointness sweep for the same reason every guard's
  *  does — a gate that matches on words must not be satisfiable by another
- *  table's words. */
+ *  table's words.
+ *
+ *  ⚠️⚠️ AND `assertNote` BELOW IS A RUNTIME GUARD, **NOT A RAIL** — MEASURED, not
+ *  assumed. W3.3's mutation sweep deleted it and all 97 tests stayed GREEN, for
+ *  exactly the reason the identical disclosure above `refusalValue` gives: every
+ *  caller passes a LITERAL code that the source sweep already closes. It is kept
+ *  anyway, and the two tables' guards are kept SEPARATE, because one shared
+ *  check would let a note code stand in for a missing guard — and that is the
+ *  mistake no test could see either. Re-measured on the same sweep:
+ *  `refusalValue`'s `assertDeclared` STILL survives deletion, now against W3.3's
+ *  much larger call surface, so that disclosure is current rather than inherited. */
 export const NOTES = Object.freeze({
   'thinkscript:note-declare':
     'a chart placement is a drawing instruction, and a screened column has no chart to be placed on',
