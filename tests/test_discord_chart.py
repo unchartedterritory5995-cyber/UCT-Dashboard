@@ -1036,3 +1036,42 @@ def test_endpoint_refuses_foreign_guild_dm_and_user_install_and_schedules_nothin
     assert _post(client, sk, {"type": 1}).json() == {"type": 1}
     assert _post(client, sk, _interaction("NVDA")).json() == {"type": 5}
     assert len(scheduled) == 1
+
+
+# ── per-member throttle: nobody hogs the render slots ──
+
+def test_user_rate_check_allows_n_then_throttles_then_recovers(monkeypatch):
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "3/60")
+    assert di.user_rate() == (3, 60.0)
+    t0 = 1_000_000.0
+    assert [di.user_rate_check("u1", t0 + i) for i in range(3)] == [0.0, 0.0, 0.0]
+    wait = di.user_rate_check("u1", t0 + 5)
+    assert 54 < wait <= 55                                  # oldest hit at t0 leaves the window at t0+60
+    assert di.user_rate_check("u2", t0 + 5) == 0.0          # another member is unaffected
+    assert di.user_rate_check("", t0 + 5) == 0.0            # unknown uid never throttles
+    assert di.user_rate_check("u1", t0 + 60) == 0.0         # window rolled, allowed again
+    assert "3 charts per minute" in di.throttle_message(wait) and "55s" in di.throttle_message(wait)
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "garbage")
+    assert di.user_rate() == (6, 60.0)                      # bad env → the default, never unlimited
+
+
+def test_endpoint_throttles_a_member_after_the_allowance_and_schedules_nothing_extra(monkeypatch):
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "2/60")
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    scheduled = []
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: scheduled.append(a))
+    payload = dict(_interaction("NVDA"), member={"user": {"id": "777"}})
+    assert _post(client, sk, payload).json() == {"type": 5}
+    assert _post(client, sk, payload).json() == {"type": 5}
+    r = _post(client, sk, payload).json()
+    assert r["type"] == 4 and r["data"]["flags"] == 64 and r["data"]["content"].startswith("Slow down")
+    assert len(scheduled) == 2
+    # a different member still renders; settings commands are never throttled
+    other = dict(_interaction("NVDA"), member={"user": {"id": "778"}})
+    assert _post(client, sk, other).json() == {"type": 5}

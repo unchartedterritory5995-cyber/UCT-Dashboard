@@ -11,6 +11,8 @@ import logging
 import os
 import re
 import threading
+import time
+from collections import deque
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
@@ -40,6 +42,54 @@ def render_slot_count(default: int = 4) -> int:
 # Bounded so a burst can never pin the API's threadpool; extra callers are
 # told to retry rather than queue behind a cold Massive fetch.
 RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
+
+# Per-member throttle. A chart costs renderer CPU and one of the shared render
+# slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
+# means six charts per rolling sixty seconds per Discord user.
+_rate_lock = threading.Lock()
+_rate_hits: dict[str, deque] = {}
+
+
+def user_rate(default: str = "6/60") -> tuple[int, float]:
+    raw = os.environ.get("DISCORD_CHART_USER_RATE", default)
+    try:
+        n, s = raw.split("/")
+        n, sec = int(n), float(s)
+        if n > 0 and sec > 0:
+            return n, sec
+    except ValueError:
+        pass
+    n, s = default.split("/")
+    return int(n), float(s)
+
+
+def user_rate_check(uid: str, now: float | None = None) -> float:
+    """0.0 when the member may render now (their hit is recorded); otherwise
+    the seconds until their next slot. An unknown uid is never throttled."""
+    if not uid:
+        return 0.0
+    n, window = user_rate()
+    now = time.time() if now is None else now
+    with _rate_lock:
+        q = _rate_hits.setdefault(str(uid), deque())
+        while q and now - q[0] >= window:
+            q.popleft()
+        if len(q) >= n:
+            return max(0.0, window - (now - q[0]))
+        q.append(now)
+        return 0.0
+
+
+def reset_rate_for_tests() -> None:
+    with _rate_lock:
+        _rate_hits.clear()
+
+
+def throttle_message(wait_s: float) -> str:
+    n, window = user_rate()
+    per = "minute" if int(window) == 60 else f"{int(window)}s"
+    return f"Slow down: up to {n} charts per {per} per member. Try again in {max(1, int(wait_s + 0.999))}s."
+
 
 
 class CommandError(ValueError):
