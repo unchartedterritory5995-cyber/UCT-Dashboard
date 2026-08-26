@@ -697,3 +697,75 @@ the body names the exact component index — `railway logs -s web | grep
   unique; a live chart's disabled "Later" carried the same state as the active
   timeframe button. Every control now ends its id with a tag (`t/e/l/m/v`) the
   parser ignores. Rail: `test_every_custom_id_in_a_message_is_unique`.
+
+
+## v12 — "Ultimate" wave: context line · `compare:` · `/charts` (2026-08-26, ~02:00–04:00 CT)
+
+Owner: "Keep going with what we can do and build to get this to be ultimate."
+Four ships, each verified on the pod (the owner's Discord web session had
+expired, so the in-chat check is his; every server-side fact below was
+measured with `railway ssh -s web … /opt/venv/bin/python`).
+
+**Context line under every chart** (`a5ad0fcda` + `529956f9a`,
+`api/services/discord_chart_context.py`). A second content line, edited in
+AFTER the image (content-only PATCH keeps the attachment and the controls),
+so a lookup never delays a chart and a failed lookup loses only its part:
+`Earnings tomorrow · Catalyst #1 (Catalyst): NVDA is gapping +2.51% …`.
+Cached per ticker for 30 min; capped at 180 chars; breadth symbols skip it;
+`DISCORD_CHART_CONTEXT=0` turns it off. Sources, all read-only and already
+cached upstream: `earnings_table._next_report_date` (the fundamentals card's
+own lookup, 0.03 s on the pod) · `earnings_enrichment.get_implied_move`
+(only inside 14 days of the report) · `catalyst.store.get_ticker_for_date`.
+- ⛔ The earnings table's FORWARD ROWS are not the date source: on the pod they
+  carried `report_date=None` for NVDA two days before its report (the nearest
+  forward quarter fails `_stamp_next_report_date`'s period-end sanity gate),
+  while `_next_report_date` answered `2026-08-26`. First cut used the rows and
+  printed no date for NVDA/CRWD/ORCL; the second uses the card's lookup.
+- ⚠️ `get_implied_move` returns `None` in 0.0 s on the pod (the known
+  provider gap — `project_expected_move_blank_in_prod`), so the `±x% implied`
+  part is dormant in prod; it lights up the day the chain is reachable.
+- Live probe after the fix: NVDA `Earnings tomorrow · Catalyst #1 …` · CRWD
+  `Earnings tomorrow` · ORCL `Earnings Tue Sep 8 (in 14d)` · AAPL `Earnings
+  Thu Oct 29 (in 65d)` · SPY (nothing to say) → empty, no second edit.
+
+**`compare:` option** (`01bc808cf`): `/chart NVDA compare:SPY QQQ` (up to 3;
+spaces/commas/`$` accepted; the base symbol and duplicates dropped) draws the
+comparisons the way the Charts widget does — `?compare=` on `/r/chart` →
+StockChart `comparisonSymbols` (`scaleMode: 'new'`, own colours
+`#38bdf8 / #f472b6 / #a3e635`, header tag `vs SPY · QQQ`). The comparison
+rides every control's state as an **11th field** (`c2|…|to|SPY+QQQ|tag`);
+ids minted before it (one part shorter) still parse. Cache key gains
+`:vs:SPY+QQQ`; headline `NVDA vs SPY/QQQ · Daily`. Breadth symbols never
+carry one. Rails: `test_compare_option_parses_validates_and_rides_every_control`,
+`test_compare_reaches_the_house_render_the_cache_key_and_the_headline`,
+`ChartRender.compare.test.jsx`.
+
+**The compare render captured NO lines at first** (`eedbcc346` fixed it).
+Pixel probe on the pod (count the palette colours in the PNG, header row
+excluded): the first compare render had the % scale switched on and **zero**
+overlay-colour pixels below the header — the two smooth lines in it were
+NVDA's own 50/200 SMAs rebased to %. Cause: `__chartBarsReady` came from
+StockChart's first-bars latch, which knows nothing about the comparison
+fetch (a second SWR request). Fix: StockChart fires a new
+`onComparisonsReady(syms)` when the current set is drawn (a symbol with no
+bars counts as done, so an unknown compare symbol never starves the
+renderer); the page's readiness = base bars AND (no comparisons OR overlays
+drawn). After the fix: SPY line 2,167–2,241 sampled pixels spanning x 0→2538,
+QQQ 3,086 when asked, 3 when not. Rail: `ChartRender.compareready.test.jsx`.
+⭐ **A readiness gate covers the fetch it was written for; every later fetch
+the page grows escapes it.** Verify a render by counting the pixels of the
+thing you added, not by "the page said ready".
+
+**`/charts NVDA AMD AVGO`** (`9d1ee198c`): up to 4 charts in ONE message,
+one attachment per symbol in the order asked (`files[0..n]` +
+`attachments` ids); a symbol that fails is named (`Skipped: ZZZZ (no bars)`),
+never dropped; each chart counts against the member's rate; no controls (four
+charts' state does not fit a button). `produce_chart()` is now the one
+producer `/chart` and `/charts` share. Commands re-registered globally:
+`chart · c · charts · chartsettings` (the bot token lives in
+`uct_intelligence/.env` as `DISCORD_BOT_TOKEN`, not on Railway).
+
+**Also this wave:** the save-as-defaults pick now sits LAST in the Look
+dropdown (`d0203f726` — the first option stays the chart's own style; a push
+had gone out with that test red because a `pytest | tail` pipeline hid the
+exit code; every chain since gates on `$?`).
