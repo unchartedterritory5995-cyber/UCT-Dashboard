@@ -1864,3 +1864,56 @@ def test_endpoint_charts_defers_schedules_the_multi_job_and_counts_every_chart_a
     body["data"]["options"][0]["value"] = "nope!"
     r = _post(client, sk, body).json()
     assert r["type"] == 4 and "not a ticker" in r["data"]["content"]
+
+
+def test_no_control_id_can_exceed_discords_100_char_limit_even_at_the_worst_case():
+    """8/26: `compare:` added an 11th state field and pushed the WORST-CASE id to
+    115 chars (a select to 120). Discord validates the whole components tree as
+    a unit, so one over-long id rejects the entire edit and the member sits on
+    "thinking..." forever. The compare list is budgeted from what every other
+    field leaves over - derived from the real tables, so this test also fails
+    the day someone adds a longer theme/zoom/indicator name."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    longest = lambda xs: max((str(x) for x in xs), key=len)
+    worst_ticker = "A" * 12
+    budget = di.compare_budget(worst_ticker)
+    assert budget > 0, "the fixed fields alone now fill the id - shorten the encoding"
+    # A compare list exactly at budget, on the longest of every other field.
+    cmp_syms = []                                        # DISTINCT: identical symbols dedupe away
+    while len(cmp_syms) < di.COMPARE_MAX:
+        nxt = f"BBBB{len(cmp_syms)}"
+        if len("+".join(cmp_syms + [nxt])) > budget:
+            break
+        cmp_syms.append(nxt)
+    assert len(cmp_syms) == di.COMPARE_MAX, (budget, cmp_syms)
+    req = di.ChartRequest(worst_ticker, "60", mas=longest(p.MA_CHOICES), volume=True,
+                          zoom=longest(p.ZOOM_CHOICES), indicators=longest(p.INDICATOR_CHOICES),
+                          style=longest(p.STYLE_CHOICES), theme=longest(p.THEME_CHOICES),
+                          to="2026-12-31", compare=tuple(cmp_syms))
+    ids = [c["custom_id"] for row in di.chart_components(req, dict(p.DEFAULTS))
+           for c in row["components"] if "custom_id" in c]
+    assert ids
+    over = [(len(i), i) for i in ids if len(i) > di.CUSTOM_ID_MAX]
+    assert not over, over
+    # and every one of them still round-trips to the same chart
+    for i in ids:
+        values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+        assert di.parse_component({"data": {"custom_id": i, "values": values}}).compare == tuple(cmp_syms)
+
+
+def test_a_compare_list_that_would_overflow_the_id_is_refused_at_the_command():
+    from api.services import discord_interactions as di
+    budget = di.compare_budget("NVDA")
+    assert budget >= len("SPY+QQQ+IWM")                      # the everyday case must fit
+    ok = di.parse_compare("SPY QQQ IWM", "NVDA")
+    assert ok == ("SPY", "QQQ", "IWM")
+    too_long = " ".join("Z" * 11 + str(i) for i in range(3))       # distinct, 12 chars each
+    with pytest.raises(di.CommandError) as e:
+        di.parse_compare(too_long, "NVDA")
+    assert "too long together" in str(e.value)
+    # the budget shrinks for a long base ticker (its own symbol is in the id too)
+    assert di.compare_budget("A" * 12) < di.compare_budget("F")
+    # an id carrying an over-long compare field is an unknown button, not a half-chart
+    bad = "c2|NVDA|D|house|1|auto|none|candles|house||" + "+".join("Z" * 11 + str(i) for i in range(3)) + "|t"
+    with pytest.raises(di.CommandError):
+        di.parse_component({"data": {"custom_id": bad}})

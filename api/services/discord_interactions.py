@@ -140,12 +140,22 @@ def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, bo
 
 
 COMPARE_MAX = 3
+# Discord refuses a custom_id over 100 characters, and it validates the WHOLE
+# components tree as a unit: ONE over-long id = the entire edit rejected = the
+# member sits on "thinking..." forever (the same silent failure as
+# COMPONENT_CUSTOM_ID_DUPLICATED, 8/25). Every other field of the state is
+# bounded by a choice table; the compare list is the only one a member can
+# stretch, so it gets whatever the rest leave over - DERIVED from the real
+# tables (see compare_budget), never a typed number, so adding a longer theme
+# name shrinks the budget instead of silently overflowing the id.
+CUSTOM_ID_MAX = 100
 
 
 def parse_compare(raw, base: str) -> tuple | None:
     """`compare:` option text -> up to COMPARE_MAX upper-case symbols. Accepts
     spaces, commas, plus signs and a leading $; drops the base symbol and
-    duplicates; a token that is not a ticker is a CommandError."""
+    duplicates; a token that is not a ticker, too many symbols, or a list that
+    would not fit a control's custom_id is a CommandError."""
     if raw is None:
         return None
     syms: list[str] = []
@@ -160,6 +170,10 @@ def parse_compare(raw, base: str) -> tuple | None:
         syms.append(tok)
     if len(syms) > COMPARE_MAX:
         raise CommandError(f"compare: up to {COMPARE_MAX} symbols.")
+    budget = compare_budget(base)
+    if len("+".join(syms)) > budget:
+        raise CommandError(f"compare: those symbols are too long together for {base}'s chart controls "
+                           f"({budget} characters of tickers). Try two.")
     return tuple(syms) or None
 
 
@@ -282,6 +296,21 @@ def _encode(st: dict, tag: str = "") -> str:
     # minted before it (one field shorter) still parse - see parse_component.
     return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
                      st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
+
+
+def compare_budget(ticker: str) -> int:
+    """Characters of compare list (`SPY+QQQ`) that still fit a control's
+    custom_id for `ticker`, WORST CASE: the longest value of every other field,
+    a `to` date present even when the chart is live (so panning can never push
+    an id over afterwards), and the longest select prefix. Derived from the
+    choice tables themselves - a longer theme name shrinks this automatically."""
+    longest = lambda xs: max((str(x) for x in xs), key=len, default="")   # noqa: E731
+    st = {"ticker": (ticker or "")[:12] or "X", "tf": longest(WINDOW), "mas": longest(prefs_mod.MA_CHOICES),
+          "vol": True, "zoom": longest(prefs_mod.ZOOM_CHOICES), "ind": longest(prefs_mod.INDICATOR_CHOICES),
+          "style": longest(prefs_mod.STYLE_CHOICES), "theme": longest(prefs_mod.THEME_CHOICES),
+          "to": "2026-12-31", "cmp": ""}
+    fixed = len(longest((SELECT_ZOOM, SELECT_IND, SELECT_LOOK)) + "|") + len(_encode(st, "x"))
+    return max(0, CUSTOM_ID_MAX - fixed)
 
 
 def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
