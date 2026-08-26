@@ -79,6 +79,7 @@ import os
 import time
 from collections.abc import Mapping as _MappingABC
 from typing import Any, Iterable, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo
 
 from api.services import ast_freshness
 from api.services.screener import snapshot_db
@@ -719,3 +720,86 @@ def last_live_cycle(tf: Any = SCAN_JOIN_TF) -> Optional[dict]:
         return None
     return {"cycle_started": row["cycle_started"], "tf": row["tf"],
             "receipt": json.loads(row["receipt_json"]), "swept": json.loads(row["swept_json"])}
+
+
+# --------------------------------------------------------------------------- #
+# the overlay read: nightly hits LEFT-JOINed with same-session live rows
+# --------------------------------------------------------------------------- #
+
+_ET = ZoneInfo("America/New_York")
+
+
+def live_session_ymd(tick: Any) -> int:
+    """The ET session a tick falls in, as YYYYMMDD — comparable with ``as_of``.
+
+    The one place the two encodings meet: a live row keys the TICK, a nightly row
+    keys the SESSION, and the same-session gate in ``hits_for`` needs the tick's
+    session to say whether an overlay belongs on that nightly set at all.
+    """
+    d = datetime.datetime.fromtimestamp(int(tick), _ET)
+    return d.year * 10_000 + d.month * 100 + d.day
+
+
+def _now_for_reads() -> float:
+    """The read path's clock — ONE seam a route test can freeze (``monkeypatch``)
+    without touching the writers' ``time.time()``."""
+    return time.time()
+
+
+def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
+             now: Optional[float] = None) -> dict:
+    """The nightly hits for a session LEFT-JOINed with the definition's live rows.
+
+    ``{"as_of": YYYYMMDD, "rows": [{symbol, tier, in_nightly, live_as_of, value,
+    src_price, live_cols}], "live": {…the last cycle's receipt, definition_swept,
+    fresh_rows} | None}``. ``tier`` is one of ``LIVE_TIERS``.
+
+    ⛔ NEVER FABRICATES. A symbol is ``tier: "live"`` only if a live row exists
+    for it, was written in the CURRENT ET session (``live_session_ymd``) and is
+    younger than ``live_max_age_s()`` — a dead sweeper's rows age back into
+    ``nightly`` instead of standing as fresh forever. A live-only symbol comes
+    back with ``in_nightly: False`` rather than being dropped or promoted: the
+    two sets answer DIFFERENT questions (this tick's forming bar vs. that
+    session's closed bar) and the reader is told which one each row came from.
+    The overlay applies only to the LATEST covered session — that is the set
+    the live sweep evaluated against; an older requested session is served as
+    it was.
+
+    ``as_of None`` reads the latest covered session. No covered session at all
+    is ``{"as_of": None, "rows": [], "live": None}`` — "nobody has looked", the
+    same answer ``coverage`` gives, never an empty market.
+    """
+    h, code = _live_key(def_hash, tf)
+    latest = latest_covered_as_of(h, code)
+    session = _normalise_as_of(as_of) if as_of is not None else latest
+    if session is None:
+        return {"as_of": None, "rows": [], "live": None}
+    nightly = hits(h, code, session)
+    fresh: dict = {}
+    if session == latest:
+        now_ts = float(_now_for_reads() if now is None else now)
+        today = live_session_ymd(int(now_ts))
+        max_age = live_max_age_s()
+        for r in live_hits(h, code):
+            if live_session_ymd(r["as_of"]) == today and now_ts - r["as_of"] <= max_age:
+                fresh[r["symbol"]] = r
+
+    def _row(sym: str, r: Optional[dict], in_nightly: bool) -> dict:
+        return {"symbol": sym, "tier": "live" if r else "nightly",
+                "in_nightly": in_nightly,
+                "live_as_of": r["as_of"] if r else None,
+                "value": r["value"] if r else None,
+                "src_price": r["src_price"] if r else None,
+                "live_cols": r["live_cols"] if r else 0}
+
+    seen = set(nightly)
+    rows = [_row(s, fresh.get(s), True) for s in nightly]
+    rows += [_row(s, r, False) for s, r in sorted(fresh.items()) if s not in seen]
+    cycle = last_live_cycle(code)
+    live = None
+    if cycle:
+        live = dict(cycle["receipt"])
+        live["cycle_started"] = cycle["cycle_started"]
+        live["definition_swept"] = h in set(cycle["swept"])
+        live["fresh_rows"] = len(fresh)
+    return {"as_of": session, "rows": rows, "live": live}

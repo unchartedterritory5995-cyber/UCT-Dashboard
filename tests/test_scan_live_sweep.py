@@ -166,3 +166,68 @@ def test_the_nightly_tables_are_BYTE_IDENTICAL_across_every_live_write(store):
     scan_store.upsert_live_hits(DEF, "D", ROWS, TICK)
     scan_store.record_live_cycle({"cycle_started": TICK, "tf": "D"}, [DEF])
     assert _dump() == before
+
+
+# ═══ 3. the overlay read: nightly hits LEFT-JOINed with SAME-SESSION live rows ═══
+
+ET = ZoneInfo("America/New_York")
+
+
+def _tick(y, m, d, hh, mm):
+    return int(datetime.datetime(y, m, d, hh, mm, tzinfo=ET).timestamp())
+
+
+def test_hits_for_OVERLAYS_live_rows_on_the_latest_nightly_session_and_marks_live_only(store):
+    scan_store.record_hits(DEF, "D", 20260825, ["AAA", "CCC"])
+    scan_store.record_coverage(DEF, "D", 20260825, evaluated=3, answered=3, dropped=0,
+                               not_computable=0, dropped_symbols=[], freshness="live")
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [{"symbol": "AAA", "value": 1, "live_cols": 5, "src_price": 1.0},
+                                          {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0}], t)
+    out = scan_store.hits_for(DEF, "D", now=t + 60)
+    by = {r["symbol"]: r for r in out["rows"]}
+    assert out["as_of"] == 20260825
+    assert by["AAA"]["tier"] == "live" and by["AAA"]["in_nightly"] is True and by["AAA"]["live_as_of"] == t
+    assert by["CCC"]["tier"] == "nightly" and by["CCC"]["live_as_of"] is None
+    assert by["DDD"]["tier"] == "live" and by["DDD"]["in_nightly"] is False
+    assert [r["symbol"] for r in out["rows"]] == ["AAA", "CCC", "DDD"], "nightly order first, live-only after"
+    assert out["live"] is None, "no cycle has ever run is a real answer, distinct from a quiet cycle"
+
+
+def test_a_live_row_from_ANOTHER_session_or_OLDER_than_max_age_serves_NIGHTLY(store, monkeypatch):
+    scan_store.record_hits(DEF, "D", 20260825, ["AAA"])
+    scan_store.record_coverage(DEF, "D", 20260825, evaluated=1, answered=1, dropped=0,
+                               not_computable=0, dropped_symbols=[], freshness="live")
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [{"symbol": "AAA", "value": 1, "live_cols": 5, "src_price": 1}], t)
+    monkeypatch.setenv("SCAN_LIVE_MAX_AGE_S", "900")
+    assert scan_store.hits_for(DEF, "D", now=t + 60)["rows"][0]["tier"] == "live"        # the control
+    assert scan_store.hits_for(DEF, "D", now=t + 901)["rows"][0]["tier"] == "nightly"    # dead sweeper
+    assert scan_store.hits_for(DEF, "D", now=_tick(2026, 8, 27, 10, 0))["rows"][0]["tier"] == "nightly"
+
+
+def test_an_OLDER_requested_session_is_never_overlaid(store):
+    for day in (20260824, 20260825):
+        scan_store.record_hits(DEF, "D", day, ["AAA"])
+        scan_store.record_coverage(DEF, "D", day, evaluated=1, answered=1, dropped=0,
+                                   not_computable=0, dropped_symbols=[], freshness="live")
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [{"symbol": "AAA", "value": 1, "live_cols": 5, "src_price": 1}], t)
+    assert scan_store.hits_for(DEF, "D", 20260824, now=t + 1)["rows"][0]["tier"] == "nightly"
+    assert scan_store.hits_for(DEF, "D", 20260825, now=t + 1)["rows"][0]["tier"] == "live"
+
+
+def test_hits_for_answers_NOBODY_LOOKED_when_there_is_no_nightly_session(store):
+    assert scan_store.hits_for(DEF, "D") == {"as_of": None, "rows": [], "live": None}
+
+
+def test_the_live_block_is_the_LAST_CYCLE_and_says_whether_THIS_definition_was_swept(store):
+    scan_store.record_hits(DEF, "D", 20260825, [])
+    scan_store.record_coverage(DEF, "D", 20260825, evaluated=1, answered=1, dropped=0,
+                               not_computable=0, dropped_symbols=[], freshness="live")
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.record_live_cycle({"cycle_started": t, "tf": "D", "skipped_reason": None}, ["other"])
+    live = scan_store.hits_for(DEF, "D", now=t + 5)["live"]
+    assert live["cycle_started"] == t and live["definition_swept"] is False
+    assert live["skipped_reason"] is None
+    assert live["fresh_rows"] == 0
