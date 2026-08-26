@@ -1007,3 +1007,37 @@ chart, not the house one). The mechanism is the same write lock: the PAGE's own
 warm process-wide would fix it and would also serialize unrelated members'
 requests, so it is not being added on the strength of a synthetic hammer —
 if it shows up in production, that is the lever.
+
+### v15b — the warm gate, and three wrong diagnoses (2026-08-26, ~12:00–13:00 CT)
+
+The owner asked for the serialisation lever v15 had declined. **The objection
+was wrong, and measuring showed why**: a symbol already in the bars store
+fetches in ~0 ms, so a gate holds its slot for ~0 ms. Only genuinely cold
+fetches ever queue — which is precisely when serialising them is what keeps
+both alive. `bars_warm_gate()` (one slot, `DISCORD_CHART_WARM_CONCURRENCY`, a
+30 s timeout that then proceeds anyway rather than stranding a member) wraps
+every bars fetch in the chart path; the renders they feed stay concurrent.
+
+Six simultaneous COLD charts were then still slow (38–62 s, two shed as "busy",
+some blank). Three hypotheses, all wrong, each killed by a measurement:
+
+1. **"The renderer can't take the concurrency."** No — with bars warm it does
+   2 → 2.3 s, 3 → 6.8 s, 4 → 7.3 s, **6 → 4.8 s, 6/6 good**.
+2. **"Bars coverage collapsed — the worker sleeps when idle."** No — the store
+   holds **4,040 daily and 3,720 five-minute tickers**, and every symbol in the
+   storm had 7–10k daily rows. ⚠️ This one nearly stuck: daily `ts` is stored as
+   **YYYYMMDD, not a unix timestamp**, so a unix-cutoff freshness query reports
+   every daily bar as 1970 — a wrong query briefly "confirming" a wrong theory.
+3. **"The page's request size"** — already killed in v15.
+
+The real cost was **first-touch freshness plus blank retries**: a symbol whose
+daily bar needs freshening pays a provider delta, six of those serialise behind
+the gate, and any blank then cost 15 s + **45 s** before the member saw
+anything. So attempt 2's ceiling drops to **25 s** — still >3× the slowest
+healthy render measured under load — and the rail derives both ceilings from
+that 7.3 s rather than pinning round numbers.
+
+**The remaining ceiling is shared infrastructure, not chart code**: the first
+touch of a stale symbol is a provider delta. The dashboard already owns
+prewarming; a second prewarmer in the chart path would be a second authority
+over "keep bars fresh".
