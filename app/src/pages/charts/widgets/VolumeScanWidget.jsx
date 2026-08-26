@@ -87,7 +87,9 @@ function Row({ e, onPick, logos, onContext }) {
     : e.lit
       ? `${styles.lit} ${styles['t' + (e.tier || 1)]}${igniting ? ` ${styles.igniting}` : ''}`
       : styles.unlit
-  const title = e.pending
+  // Description used as an aria-label (NOT title) — a `title` shows a native hover
+  // tooltip that obscures the chart; aria-label keeps it accessible with no popup.
+  const desc = e.pending
     ? `${e.sym} — added to your list (waiting for the first reading)`
     : `${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`
   return (
@@ -97,7 +99,7 @@ function Row({ e, onPick, logos, onContext }) {
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
       onContextMenu={onContext ? (ev) => onContext(ev, e.sym) : undefined}
-      title={title}
+      aria-label={desc}
     >
       {!e.pending && <SurgeFlash flash={e.flash} />}
       {igniting && <span className={styles.ignite} aria-hidden="true" />}
@@ -297,7 +299,6 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
 
       {ctxMenu && activeList && (
         <div ref={ctxRef} className={styles.rowMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} role="menu">
-          <div className={styles.rowMenuHead}>{ctxMenu.sym}</div>
           <button type="button" className={styles.rowMenuItem}
             onMouseDown={(ev) => { ev.preventDefault(); listHelpers.removeSym(activeListId, ctxMenu.sym); setCtxMenu(null) }}>
             <UIcon name="trash" size={12} gold={false} />

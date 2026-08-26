@@ -10,8 +10,30 @@
  * same --nh-* / --menu-* tokens + UIcon glyphs as the rest of the widget (no emoji).
  */
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './VolumeScanWidget.module.css'
+
+const MENU_W = 216
+
+// Anchor the dropdown under the pill in VIEWPORT coords (it's portaled to <body>, so it
+// escapes the widget's overflow:hidden and overlays the chart). Clamps to the viewport
+// and flips above when there isn't room below.
+function placeMenu(btn) {
+  if (!btn) return null
+  const doc = btn.ownerDocument || document
+  const win = doc.defaultView || window
+  const r = btn.getBoundingClientRect()
+  const vw = win.innerWidth, vh = win.innerHeight
+  const left = Math.max(8, Math.min(r.left, vw - MENU_W - 8))
+  const below = vh - r.bottom - 12
+  const above = r.top - 12
+  const openUp = below < 200 && above > below
+  const maxH = Math.min(340, Math.max(140, openUp ? above : below))
+  return openUp
+    ? { left, bottom: vh - r.top + 4, maxHeight: maxH }
+    : { left, top: r.bottom + 4, maxHeight: maxH }
+}
 
 let _idc = 0
 const newId = () => `vl_${Date.now().toString(36)}_${(_idc++).toString(36)}`
@@ -41,18 +63,37 @@ export function makeListHelpers(lists, activeId, commit) {
 // ── Scope pill + dropdown ──────────────────────────────────────────────────────
 export function ScopeControl({ lists, activeId, helpers, themeVars }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState('')
   const rootRef = useRef(null)
+  const btnRef = useRef(null)
+  const menuRef = useRef(null)
   const active = lists.find(l => l.id === activeId) || null
   const label = active ? active.name : 'Top 1,000'
 
+  const openMenu = () => { setPos(placeMenu(btnRef.current)); setOpen(true) }
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) close() }
+    // Clicks inside the pill OR the (portaled) menu must NOT close it — otherwise this
+    // capture-phase close fires before an item's own handler.
+    const onDown = (e) => {
+      if (rootRef.current && rootRef.current.contains(e.target)) return
+      if (menuRef.current && menuRef.current.contains(e.target)) return
+      close()
+    }
+    const reflow = () => setPos(placeMenu(btnRef.current))
+    const win = (btnRef.current?.ownerDocument || document).defaultView || window
     document.addEventListener('mousedown', onDown, true)
-    return () => document.removeEventListener('mousedown', onDown, true)
+    win.addEventListener('scroll', reflow, true)
+    win.addEventListener('resize', reflow)
+    return () => {
+      document.removeEventListener('mousedown', onDown, true)
+      win.removeEventListener('scroll', reflow, true)
+      win.removeEventListener('resize', reflow)
+    }
   }, [open])
 
   const close = () => { setOpen(false); setEditingId(null); setCreating(false); setDraft('') }
@@ -64,21 +105,13 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
   }
   const commitRename = (id) => { if (draft.trim()) helpers.rename(id, draft); setEditingId(null); setDraft('') }
 
-  return (
-    <div className={styles.scopeWrap} ref={rootRef}>
-      <button
-        type="button"
-        className={`${styles.scopeBtn} ${styles.scopeBtnCustom}`}
-        onClick={() => (open ? close() : setOpen(true))}
-        title="Choose what the scanner watches"
-      >
-        <UIcon name={active ? 'star' : 'rows'} size={11} gold={false} />
-        <span className={styles.scopeLabel}>{label}</span>
-        <UIcon name="more" size={11} gold={false} />
-      </button>
-
-      {open && (
-        <div className={styles.scopeMenu} style={themeVars || undefined} role="menu">
+  const menu = open && (
+    <div
+      ref={menuRef}
+      className={styles.scopeMenu}
+      style={{ position: 'fixed', ...(pos || {}), ...(themeVars || {}) }}
+      role="menu"
+    >
           <button
             type="button"
             className={`${styles.scopeItem} ${!activeId ? styles.scopeItemActive : ''}`}
@@ -136,7 +169,22 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
             </button>
           )}
         </div>
-      )}
+      )
+
+  return (
+    <div className={styles.scopeWrap} ref={rootRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        className={`${styles.scopeBtn} ${styles.scopeBtnCustom}`}
+        onClick={() => (open ? close() : openMenu())}
+        title="Choose what the scanner watches"
+      >
+        <UIcon name={active ? 'star' : 'rows'} size={11} gold={false} />
+        <span className={styles.scopeLabel}>{label}</span>
+        <UIcon name="more" size={11} gold={false} />
+      </button>
+      {menu && createPortal(menu, (btnRef.current?.ownerDocument || document).body)}
     </div>
   )
 }

@@ -54,15 +54,15 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByText('SMCI')).toBeInTheDocument()
     expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
-    expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
+    expect(screen.getByLabelText(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })
 
   it('flags an igniting name (burst + move) with the burst in its tooltip', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByTitle(/SMCI.*9\.2× burst.*igniting now/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/SMCI.*9\.2× burst.*igniting now/)).toBeInTheDocument()
     // PLUG is lit but not igniting — no "igniting now" in its tooltip.
-    expect(screen.getByTitle(/^PLUG —/).title).not.toMatch(/igniting now/)
+    expect(screen.getByLabelText(/^PLUG —/).getAttribute('aria-label')).not.toMatch(/igniting now/)
   })
 
   it('no longer renders the RVOL / Burst / Δ% / $K filter boxes', () => {
@@ -79,14 +79,14 @@ describe('VolumeScanWidget', () => {
     mockPrefs = { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Mine', syms: ['NVDA'] }]) }
     render(<VolumeScanWidget color="A" opts={{ volActive: 'l1' }} onOptsChange={() => {}} />)
     expect(screen.getByText('NVDA')).toBeInTheDocument()
-    expect(screen.getByTitle(/NVDA — added to your list/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/NVDA — added to your list/)).toBeInTheDocument()
   })
 
   it('right-clicking a custom-list row removes the ticker from the ACCOUNT list', () => {
     swr.mockReturnValue({ data: LIVE })
     mockPrefs = { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Mine', syms: ['SMCI', 'PLUG', 'AAPL'] }]) }
     render(<VolumeScanWidget color="A" opts={{ volActive: 'l1' }} onOptsChange={() => {}} />)
-    fireEvent.contextMenu(screen.getByTitle(/^SMCI —/))
+    fireEvent.contextMenu(screen.getByLabelText(/^SMCI —/))
     const remove = screen.getByText(/Remove from Mine/)
     fireEvent.mouseDown(remove)   // the bug was: this never fired removeSym
     // Lists persist on the account (not per-widget opts) so they survive close/reopen.
@@ -115,7 +115,7 @@ describe('VolumeScanWidget', () => {
   it('clicking a row routes the symbol into the widget color group', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    fireEvent.click(screen.getByTitle(/^SMCI —/))
+    fireEvent.click(screen.getByLabelText(/^SMCI —/))
     expect(setGroupSym).toHaveBeenCalledWith('A', 'SMCI')
   })
 
