@@ -113,6 +113,14 @@ import { UNBOUNDED as FORWARD_UNBOUNDED } from './ast/lint'
 // (W1b.8's `user_definitions.trees_hash`, to be held to W1b.7's pinned fixture
 // string); a second spelling of it here would be a second hash over one
 // document — the defect this repo names most.
+//
+// ⚠️ AND THE DEPENDENCY-GRAPH ACCOUNTING THE IMPORT ABOVE DOES, DONE HONESTLY:
+// this one DOES grow the graph, by one module. `trees.js` imports `./parse` and
+// `./lint` (both already here) and `./freshness`, which is NEW — and
+// `freshness.js`'s own only import is `./parse`. So the cost is one leaf that
+// reads the same manifest this module's other imports read: no evaluator, no
+// clock, no second grammar. It is here because the alternative is worse — the
+// hash and the badge aggregators would be re-spelled per consumer.
 import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 
 /** Schema major. A definition MUST declare exactly this to register. */
@@ -678,28 +686,32 @@ function validateAstCompute(compute, errors) {
       `never read back, which is a definition no author can ever correct.`,
     )
   }
+  // ⭐ `compute.ast`'s TWO OWN RULES REPORT WITHOUT RETURNING, so that the
+  // multi-tree rules below are reached whatever shape the scan tree is in.
+  // `storedHash === undefined` is the one signal that the tree is unusable —
+  // the same condition `validateTrees`' alias branch already guards on.
+  let storedHash
   if (compute.ast === undefined || compute.ast === null) {
     errors.push(
       `compute.ast: an "ast" definition must carry the canonical tree — got ${fmt(compute.ast)}. ` +
       `The tree is the implementation (D-A1: one parser, at author time); a definition without ` +
       `one names maths that does not exist.`,
     )
-    return
+  } else {
+    try {
+      storedHash = astHash(compute.ast)
+    } catch (err) {
+      errors.push(
+        `compute.ast: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
+        `the persisted shape is the contract with the Python lane and is deliberately smaller ` +
+        `than jsep's.`,
+      )
+    }
   }
 
-  let storedHash
-  try {
-    storedHash = astHash(compute.ast)
-  } catch (err) {
-    errors.push(
-      `compute.ast: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
-      `the persisted shape is the contract with the Python lane and is deliberately smaller ` +
-      `than jsep's.`,
-    )
-    return
-  }
-
-  if (isNonEmptyString(compute.fn) && compute.fn !== storedHash) {
+  // Silent with no hash to compare against: there is no expected value, so
+  // there is no disagreement to report — one defect, one sentence.
+  if (storedHash !== undefined && isNonEmptyString(compute.fn) && compute.fn !== storedHash) {
     errors.push(
       `compute.fn: an "ast" definition's compute handle IS its astHash — expected ` +
       `${fmt(storedHash)}, got ${fmt(compute.fn)}. The tree is the implementation, so there is no ` +
@@ -708,11 +720,18 @@ function validateAstCompute(compute, errors) {
     )
   }
 
-  // ⭐ THE MULTI-TREE RULES RUN HERE — ABOVE THE SCAN-SOURCE PARSE AND ITS
-  // EARLY RETURN — so a document whose scan text is broken still hears about
-  // its trees in the same pass rather than one refusal per save attempt.
+  // ⭐ THE MULTI-TREE RULES RUN HERE — ABOVE EVERY EARLY RETURN THIS FUNCTION
+  // HAS (a missing `ast`, a non-canonical `ast`, and the scan-source parse
+  // below) — so a document hears about its trees in the SAME pass rather than
+  // one refusal per save attempt. ⛔ ALL THREE, NOT JUST THE LAST: the sheet
+  // writes `ast = trees[scanPlot]`, so the likeliest v2 authoring bug breaks
+  // `compute.ast` and the trees TOGETHER, and reporting only the first would
+  // send an author round the loop once per defect. Only the alias check needs
+  // `storedHash`; shape, one-key, per-tree canonicality, `treesHash` and
+  // `sources` do not, so they are all still answerable here.
   validateTrees(compute, storedHash, errors)
 
+  if (storedHash === undefined) return   // compute.ast is unusable; reported above
   if (!isNonEmptyString(compute.source)) return   // already reported above
   const { result: parsed } = readFormulaSource(compute.source)
   if (!parsed.ok) {
@@ -1490,10 +1509,12 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `${path}.hidden: expected true or false (a hidden plot is COMPUTED and never drawn), got ${fmt(plot.hidden)}`,
     )
   }
-  // And never on a guide: an `hlines` plot returns no column, so there is
+  // And never HIDDEN on a guide: an `hlines` plot returns no column, so there is
   // nothing to compute and nothing to hide. Keeping `hidden ⇒ data-bearing`
   // true by construction is what lets the binder's pass-one skip be one line.
-  if (plot.hidden !== undefined && styleOk && plot.style === 'hlines') {
+  // ⚠️ `=== true`, not "declared": `hidden: false` on a guide claims nothing —
+  // it is the default written down — and the sentence below does not describe it.
+  if (plot.hidden === true && styleOk && plot.style === 'hlines') {
     errors.push(
       `${path}.hidden: an "hlines" plot is a guide — it returns no column, so there is nothing to ` +
       `compute and nothing to hide; drop the plot instead of hiding it`,
@@ -1649,8 +1670,17 @@ function validateBandEdges(plots, errors) {
  * A's and plot B's values per visible bar; `BaselineSeries` cannot, it fills to
  * a constant). Until then the field is validated, carried and cross-checked,
  * and drawn by nothing — exactly as `colorMode: 'column:<key>'` is today.
- * Validated-but-inert is a DECLARED state, not an accident: the test that says
- * so turns "nobody renders this" from a surprise into a fact the next lane reads.
+ *
+ * ⛔ VALIDATED-BUT-INERT IS A DECLARED STATE, NOT AN ACCIDENT, and the thing
+ * that makes that sentence true is `defSchema.test.js`'s *"fill is
+ * VALIDATED-BUT-INERT until W6"* block, not this comment: a source probe over
+ * every engine module (the list DERIVED from the directory) asserting none of
+ * them reads the field, plus the other half — the schema CARRIES it. So W6
+ * wiring the renderer turns a green test red, which is a lane being told, and
+ * a comment claiming inertness while a renderer quietly consumed the field
+ * could not survive. ⚠️ Written this way because the first draft of this
+ * paragraph asserted a test that did not exist yet (caught in review) — the
+ * same over-claim the `treesHash` import comment above was corrected for.
  *
  * The refusals are the ways a fill can have no area: its own key (one edge), a
  * guide (an `hlines` plot returns no column, so no second edge), a key nothing

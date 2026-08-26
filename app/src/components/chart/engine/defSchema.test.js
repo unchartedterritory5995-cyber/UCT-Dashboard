@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
@@ -1093,6 +1095,40 @@ describe('schema v2 — many trees, one hash', () => {
       expect(e).toMatch(/compute\.source does not parse/)
       expect(e).toMatch(/compute\.scanPlot/)
     })
+    it('a MISSING compute.ast still reports the tree defects — EVERY early return is above the tree rules, not just one', () => {
+      // ⛔ THE LIKELIER v2 AUTHORING FAILURE, and the reason one early return was
+      // not enough: the sheet writes `ast = trees[scanPlot]`, so a bug there
+      // breaks `compute.ast` and the trees TOGETHER. Reporting the missing tree
+      // and swallowing the rest is the "one refusal per save attempt" the
+      // placement exists to prevent.
+      const d = macdV2()
+      delete d.compute.ast
+      d.compute.scanPlot = 'nope'
+      d.compute.treesHash = `sha256:${'0'.repeat(64)}`
+      const e = errs(d).join(' ')
+      expect(e).toMatch(/compute\.ast: an "ast" definition must carry the canonical tree/)
+      expect(e).toMatch(/compute\.scanPlot/)
+      expect(e).toMatch(/compute\.treesHash: expected/)
+      // …and the `fn` rule still does NOT fire with no tree to hash it against:
+      // there is no expected value, so there is no disagreement to report.
+      expect(e).not.toMatch(/compute handle IS its astHash/)
+    })
+    it('…and a NON-CANONICAL compute.ast does too — including the per-tree source rules', () => {
+      const d = macdV2()
+      d.compute.ast = { type: 'Literal', value: 1 }
+      d.compute.fn = `sha256:${'0'.repeat(64)}`
+      d.compute.sources.macd = 'ema(close, 5)'
+      const e = errs(d).join(' ')
+      expect(e).toMatch(/compute\.ast: not a canonical tree/)
+      expect(e).toMatch(/compute\.sources\.macd does not parse to compute\.trees\.macd/)
+      // The ALIAS check is the one rule that needs compute.ast's hash, and it
+      // stays silent rather than guessing — one defect, one sentence.
+      expect(e).not.toMatch(/must BE compute\.trees/)
+    })
+    it('hidden: FALSE on a guide is accepted — the refusal is about hiding a plot that computes nothing', () => {
+      const d = macdV2(); d.plots[3].hidden = false
+      expect(ok(d).plots[3].hidden).toBe(false)
+    })
     it('v2 keys on a NON-ast kind are refused by name — a native names a function, it computes no trees', () => {
       const d = rsiDef(); d.compute.trees = { rsi: parseFormula('close').ast }
       expect(errs(d).join(' ')).toMatch(/compute\.trees: only an "ast" definition/)
@@ -1139,6 +1175,53 @@ describe('schema v2 — many trees, one hash', () => {
     it('`cross` is RESERVED and NOT buildable — the two lists disagree on purpose', () => {
       expect(RESERVED_PLOT_STYLES).toContain('cross')
       expect(PLOT_STYLES).not.toContain('cross')
+    })
+  })
+
+  // ─── `fill` is VALIDATED-BUT-INERT until W6 ────────────────────────────────
+  //
+  // Brief §1.4: *"Until W6, `fill` is validated-but-inert exactly as
+  // `colorMode: 'column:<key>'` is today, and a test says so."* This is that
+  // test, and it exists because "nobody renders this" is otherwise a fact that
+  // lives only in a comment — the shape a lane inherits as a surprise. Both
+  // halves are asserted: nothing DRAWS it, and the schema CARRIES it.
+  describe('⛔ fill is VALIDATED-BUT-INERT until W6 — a declared state, not an accident', () => {
+    const ENGINE = resolve(process.cwd(), 'src/components/chart/engine')
+    /** ⛔ SOURCE PROBE, DELIBERATELY, and the file list is DERIVED from the
+     *  directory rather than typed: a renderer added tomorrow is covered the day
+     *  it lands. A behavioural test cannot prove the ABSENCE of a reader — a
+     *  renderer that reads `plot.fill` and draws nothing yet renders nothing
+     *  different, and no DOM assertion anywhere can see it. */
+    const engineSources = () => [['', ENGINE], ['ast/', resolve(ENGINE, 'ast')]]
+      .flatMap(([prefix, dir]) => readdirSync(dir)
+        .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'defSchema.js')
+        .map((f) => [prefix + f, readFileSync(resolve(dir, f), 'utf8')]))
+    /** ⛔ `.fill` NOT FOLLOWED BY `(`. `col.fill(NaN)` (interpret.js),
+     *  `new Array(n).fill(0)` (paneLayout.js) and `ctx.fill()` are the Array and
+     *  Canvas METHODS — a probe that counted those would report every renderer as
+     *  a reader and be green forever after W6 wires the real one. */
+    const FIELD_READ = /\.fill\b(?!\s*\()/
+
+    it('no engine module READS the fill field today — so W6 turning it on is a visible edit, not a silent one', () => {
+      const readers = engineSources().filter(([, src]) => FIELD_READ.test(src)).map(([name]) => name)
+      expect(readers,
+        'a module reads plots[].fill. The field is SCHEMA-ONLY in Wave 1 (spec §6 gives the renderer ' +
+        'to W6): if a renderer now consumes it, this claim in validateFills\' header is stale and the ' +
+        'comment must move with the code.',
+      ).toEqual([])
+      // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
+      // one legitimate reader, excluded above — must MATCH, or the pattern has
+      // rotted into one that reports every deletion as done; and the Array
+      // method must NOT, or the exclusion above is doing nothing.
+      expect(FIELD_READ.test(readFileSync(resolve(ENGINE, 'defSchema.js'), 'utf8')),
+        'the probe shape matches nothing — it rotted').toBe(true)
+      expect(FIELD_READ.test('col.fill(NaN)'), 'the Array method is not a field read').toBe(false)
+      expect(engineSources().length, 'the derived file list is empty — readdir found nothing').toBeGreaterThan(10)
+    })
+
+    it('…and the schema CARRIES it — inert means "drawn by nobody", never "quietly dropped"', () => {
+      const d = macdV2(); d.plots[0].fill = { with: 'signal' }
+      expect(ok(d).plots[0].fill).toEqual({ with: 'signal' })
     })
   })
 
