@@ -12,8 +12,10 @@ spelling of either rule here would drift from the first the day it moved.
 """
 from __future__ import annotations
 
+import ast
 import inspect
 import re
+from pathlib import Path
 
 import pytest
 
@@ -113,3 +115,79 @@ def test_the_baseline_stays_REQUIRED_after_stats_grew_a_defaulted_field():
     with pytest.raises(TypeError):
         bt.HorizonResult(horizon=5, strategy=bt.Stats(n=10),
                          below_floor=False, coverage={})
+
+
+# ─── 2 · the purity rail reaches the module the rules come from ─────────────
+#
+# `tests/test_screener_backtest.py::test_the_engine_imports_no_clock_and_no_rng`
+# scans `backtest.py`'s OWN text. Since W5a.1 the engine's determinism also
+# rests on `candle_backtest.py` (the clip; W5a.2 adds the bucket rule), which
+# that rail never reads. At HEAD the module imports only `math` -- a fact, not
+# a rail -- so this section makes it one. The banned tokens are DERIVED from the
+# owner rail's source (never re-typed), so the two rails cannot drift apart.
+
+OWNER_RAIL_FILE = "test_screener_backtest.py"
+OWNER_RAIL = "test_the_engine_imports_no_clock_and_no_rng"
+#: What a pure rules module may import: annotations and arithmetic, nothing else.
+ALLOWED_IMPORTS = frozenset({"__future__", "math"})
+
+
+def _owner_banned_tokens() -> tuple:
+    """The literal tuple the owner rail iterates (`for banned in (...)`), read
+    off its AST -- so this file never re-types the list and cannot lag it."""
+    src = Path(__file__).with_name(OWNER_RAIL_FILE).read_text(encoding="utf-8")
+    fn = next(n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == OWNER_RAIL)
+    for node in ast.walk(fn):
+        if isinstance(node, ast.For) and isinstance(node.iter, ast.Tuple):
+            toks = tuple(e.value for e in node.iter.elts
+                         if isinstance(e, ast.Constant) and isinstance(e.value, str))
+            if toks:
+                return toks
+    raise AssertionError(f"{OWNER_RAIL} no longer iterates a literal tuple of tokens")
+
+
+def _imports_of(src: str) -> set:
+    """Top-level module names a source text imports (`a.b` -> `a`); a relative
+    import is reported as `.` so it is refused by name too."""
+    found = set()
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Import):
+            found.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            found.add("." if node.level else (node.module or "").split(".")[0])
+    return found
+
+
+def _tokens_found(src: str, banned) -> list:
+    return [b for b in banned if b in src]
+
+
+def test_candle_backtest_imports_only_math():
+    """⭐ THE RAIL. `backtest.winsorise` IS `candle_backtest._clip`; a clock or an
+    RNG imported THERE reaches the engine through a door the owner rail never
+    scans. Refused BY NAME: the message lists the offending modules."""
+    extra = _imports_of(inspect.getsource(cb)) - ALLOWED_IMPORTS
+    assert not extra, f"candle_backtest must stay pure (imports only math): {sorted(extra)}"
+
+
+def test_candle_backtest_carries_none_of_the_owner_rails_banned_tokens():
+    banned = _owner_banned_tokens()
+    assert banned, "derived an EMPTY banned list -- this rail would measure nothing"
+    found = _tokens_found(inspect.getsource(cb), banned)
+    assert not found, f"candle_backtest must be deterministic: found {found}"
+
+
+def test_the_purity_rail_goes_red_when_a_forbidden_import_is_planted():
+    """CONTROL (contract: a rail that reads 0 both ways has measured nothing).
+    The same checkers over a COPY of the source with `time` and `datetime`
+    planted name them, and over a copy with the derived tokens planted find
+    every one; over the real source both name nothing."""
+    src = inspect.getsource(cb)
+    banned = _owner_banned_tokens()
+    assert _imports_of(src) - ALLOWED_IMPORTS == set()
+    assert _tokens_found(src, banned) == []
+    planted_imports = src + "\nimport time\nfrom datetime import datetime\n"
+    assert _imports_of(planted_imports) - ALLOWED_IMPORTS == {"time", "datetime"}
+    planted_tokens = src + "\n" + "\n".join(banned) + "\n"
+    assert sorted(_tokens_found(planted_tokens, banned)) == sorted(banned)
