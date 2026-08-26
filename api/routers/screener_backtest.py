@@ -58,6 +58,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import ast_interpret, bars_fetch, bars_sqlite
+from api.services import user_definitions as defs
 from api.services.screener import saved_screens as scr_saved
 from api.services.screener import snapshot_builder
 from api.services.screener import query as scr_query
@@ -206,6 +207,43 @@ def bars_wanted(frm: int, to: int, warmup: int, max_horizon: int) -> int:
     return max(1, min(want, MAX_BARS_PER_SYMBOL))
 
 
+#: The derived-window search space, in calendar days. The floor is the smallest
+#: window worth replaying; the ceiling is ~10 years, past which
+#: ``MAX_BARS_PER_SYMBOL`` caps the read anyway.
+MIN_DERIVED_WINDOW_DAYS = 30
+MAX_DERIVED_WINDOW_DAYS = 3650
+
+
+def fit_window_start(end: int, symbols: int, warmup: int, max_horizon: int,
+                     cap: int) -> Optional[int]:
+    """The earliest ``from`` (YYYYMMDD) whose read fits ``cap`` — or ``None``
+    when even the floor window does not.
+
+    ⛔ SIZED BY THE SAME ``bars_wanted`` THE REQUEST IS CHARGED AGAINST, so a
+    window derived here can never be refused by the ceiling it was fitted to. A
+    binary search over calendar days: ``bars_wanted`` is monotone in the span.
+    """
+    end_d = datetime.date(end // 10_000, (end // 100) % 100, end % 100)
+
+    def key(days: int) -> int:
+        d = end_d - datetime.timedelta(days=days)
+        return d.year * 10_000 + d.month * 100 + d.day
+
+    def fits(days: int) -> bool:
+        return symbols * bars_wanted(key(days), end, warmup, max_horizon) <= cap
+
+    lo, hi = MIN_DERIVED_WINDOW_DAYS, MAX_DERIVED_WINDOW_DAYS
+    if not fits(lo):
+        return None
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if fits(mid):
+            lo = mid
+        else:
+            hi = mid - 1
+    return key(lo)
+
+
 #: ⛔ ONE WORKER. Two concurrent whole-universe sweeps would double this single
 #: pod's SQLite read pressure for no member benefit; a second request for the
 #: same job dedupes onto the first, and a different job queues behind it.
@@ -228,7 +266,7 @@ def _receipt_key(job: str) -> str:
 # --------------------------------------------------------------------------- #
 
 class BacktestRequest(BaseModel):
-    """``{ast, universe, from, to, horizons, tf}``.
+    """``{ast | def_id, universe, from, to, horizons, tf}``.
 
     ⚠️ ``from`` IS THE WIRE NAME. The spec's payload says ``from``, which is a
     Python keyword, so it is ALIASED rather than renamed — a member-facing body
@@ -262,12 +300,46 @@ class BacktestRequest(BaseModel):
     #: is the difference between "invalid" and "here is the ceiling".
     horizons: list[Any] | None = None
     tf: str = "D"
+    #: A member's OWN saved definition, replayed by id. Mutually exclusive with
+    #: `ast`: two trees for one backtest are two authorities over which screen is
+    #: being replayed. The tree is `compute.ast` — the scan tree by the v2
+    #: document contract — read through the same member-scoped store door
+    #: `GET /api/user-definitions/{def_id}` answers through.
+    def_id: str | None = None
 
     model_config = {"populate_by_name": True}
 
 
-def _tree_of(body: BacktestRequest) -> dict:
-    """The canonical tree, or a 400 that says which half is missing.
+def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
+    """``(tree, provenance)`` for a member's OWN definition.
+
+    ⛔ SCOPED TO THE MEMBER AT THE STORE (`user_definitions.get(user_id, def_id)`)
+    so another member's id is a 404, not a leak. ⭐ `compute.ast` IS THE SCAN
+    TREE by the v2 document contract (the plot `scanPlot` names; single-tree
+    documents unchanged) — reading `compute.trees` here would put a second
+    opinion on "which tree is the scan" beside the one the sweep uses.
+    """
+    try:
+        row = defs.get(user_id, def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if row is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no definition {def_id!r} for this member")
+    doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
+    compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
+    tree = compute.get("ast")
+    if compute.get("kind") != "ast" or not isinstance(tree, dict) or not tree:
+        raise HTTPException(
+            status_code=400,
+            detail=f"definition {def_id!r} carries no `compute.ast` tree to replay")
+    return tree, {"def_id": def_id, "version": row.get("version"),
+                  "rev": compute.get("rev")}
+
+
+def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
+    """``(tree, provenance)`` — the canonical tree, or a 400 that says which half
+    is missing. ``provenance`` is ``{}`` for an ``ast`` body.
 
     ⛔ ``source`` IS REFUSED BY NAME, NOT IGNORED. There is no server-side parser
     in this repo: ``canonicalise`` lives in
@@ -277,8 +349,15 @@ def _tree_of(body: BacktestRequest) -> dict:
     browser lane parses and this door takes the tree. Accepting ``source`` and
     silently doing nothing with it is the shape that ships a field nobody serves.
     """
+    if body.def_id:
+        if isinstance(body.ast, dict) and body.ast:
+            raise HTTPException(
+                status_code=400,
+                detail=("send `def_id` OR `ast`, not both — two trees for one "
+                        "backtest are two authorities over which screen is replayed"))
+        return _definition_tree(body.def_id, user_id)
     if isinstance(body.ast, dict) and body.ast:
-        return body.ast
+        return body.ast, {}
     if body.source:
         raise HTTPException(
             status_code=400,
@@ -286,7 +365,18 @@ def _tree_of(body: BacktestRequest) -> dict:
                     "the parser is the browser lane (engine/ast/parse.js), and "
                     "running node per request is the fan-out this surface is "
                     "bounded to avoid. Send `ast`."))
-    raise HTTPException(status_code=400, detail="a backtest needs an `ast` — the screen to replay")
+    raise HTTPException(status_code=400,
+                        detail="a backtest needs an `ast` (or a `def_id`) — the screen to replay")
+
+
+def _hash_of(tree: dict) -> Optional[str]:
+    """``astHash`` of the tree the engine is about to RUN — the maths, not a
+    stored field. ``None`` when a hand-posted ``ast`` is not canonical (the
+    store never hands one back that is not), stated rather than guessed."""
+    try:
+        return defs.ast_hash(tree)
+    except (ValueError, TypeError):
+        return None
 
 
 def _session(value: Any, field: str) -> int:
@@ -709,14 +799,15 @@ def run_screen_backtest(body: BacktestRequest,
     A screen that reads a declared scalar comes back ``200`` with
     ``{backtestable: false, refused: "scalar_no_history", names: [...]}`` — a
     refusal is an ANSWER about what we hold, not an error.
+
+    ``def_id`` replays the member's OWN saved definition instead of a posted
+    ``ast`` (never both), and MAY omit ``from``/``to``: the window is then the
+    widest one this pod's memory ceiling allows, stated back in
+    ``window_request``. Every response carries ``def_hash`` — the hash of the
+    tree that ran — so a consumer can refuse a receipt for another screen.
     """
-    tree = _tree_of(body)
+    tree, definition = _tree_of(body, user.get("id"))
     tf = _tf(body.tf)
-    start = _session(body.from_, "from")
-    end = _session(body.to, "to")
-    if start > end:
-        raise HTTPException(status_code=400,
-                            detail=f"`from` {start} is after `to` {end}")
     horizons = _horizons(body.horizons)
 
     # ⛔ THE TREE IS RESOLVED ONCE, AT THE DOOR. `max_lookback` walks every call on
@@ -730,6 +821,39 @@ def run_screen_backtest(body: BacktestRequest,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     symbols, universe = _universe_for(body.universe, user.get("id"))
+
+    # ⛔ THE CEILING IS READ ONCE PER REQUEST, and it is the SAME number the
+    # derived window is fitted to and the sweep is charged against. Two reads
+    # would let a window fitted to one ceiling be refused by another.
+    cap = max_cells()
+
+    # ── the window: the member's, or the widest one the ceiling allows ─────── #
+    # ⭐ A `def_id` body may omit the window, and then the window is DERIVED from
+    # the same bound that would otherwise refuse it (`fit_window_start`), ending
+    # at the lane's own latest session. It is STATED in `window_request` and the
+    # engine echoes the dates it actually compared bars against in `window`.
+    window_request: Optional[dict] = None
+    if definition and body.from_ is None and body.to is None:
+        end = int(bars_fetch._expected_latest_session_yyyymmdd())
+        start = fit_window_start(end, len(symbols), warmup, max(horizons), cap)
+        if start is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"even a {MIN_DERIVED_WINDOW_DAYS}-day window over "
+                        f"{len(symbols):,} symbols exceeds the memory ceiling of "
+                        f"{cap:,} bars. Narrow the universe."))
+        window_request = {
+            "derived": True,
+            "rule": "the widest window whose symbols x bars fits SCREEN_BACKTEST_MAX_CELLS",
+            "cap": cap,
+        }
+    else:
+        start = _session(body.from_, "from")
+        end = _session(body.to, "to")
+        if start > end:
+            raise HTTPException(status_code=400,
+                                detail=f"`from` {start} is after `to` {end}")
+
     want = bars_wanted(start, end, warmup, max(horizons))
     to_key = padded_end(end, max(horizons))
 
@@ -740,7 +864,6 @@ def run_screen_backtest(body: BacktestRequest,
     # truncated to a smaller universe, which would publish a win rate for a screen
     # the member did not ask about.
     cells = len(symbols) * want
-    cap = max_cells()
     if cells > cap:
         raise HTTPException(
             status_code=400,
@@ -771,7 +894,17 @@ def run_screen_backtest(body: BacktestRequest,
         # they are, so this route is its only writer.
         "tf": tf,
         "universe_request": universe,
+        # ⭐ THE MATHS THAT RAN, HASHED — `astHash(tree)`, the same string the
+        # chart, the scan and the record key on. The consumer compares it to the
+        # definition it asked about and refuses a receipt for any other. DERIVED
+        # from the tree, never the store's `ast_hash` column: the column describes
+        # the row, this describes what the engine was handed.
+        "def_hash": _hash_of(tree),
     }
+    if definition:
+        extras["definition"] = definition
+    if window_request:
+        extras["window_request"] = window_request
 
     def _run() -> dict:
         receipt = _run_engine(tree, symbols, start=start, end=end,
