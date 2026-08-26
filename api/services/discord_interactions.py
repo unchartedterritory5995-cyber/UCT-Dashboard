@@ -193,6 +193,32 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
 
 CHART_COMMAND_NAMES = ("chart", "c")
 SETTINGS_COMMAND = "chartsettings"
+MULTI_COMMAND = "charts"
+MULTI_MAX = 4
+
+
+def parse_charts_command(interaction: dict, default_tf: str = "D") -> list:
+    """/charts NVDA AMD AVGO -> one ChartRequest per symbol, in the order given
+    (spaces, commas, a leading $ all fine; duplicates dropped; 1..MULTI_MAX)."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    tickers: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(opts.get("tickers") or "").strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"'{tok}' is not a ticker (letters/digits, e.g. NVDA AMD AVGO).")
+        if tok not in tickers:
+            tickers.append(tok)
+    if not tickers:
+        raise CommandError("Give me 1-4 tickers, e.g. /charts NVDA AMD AVGO.")
+    if len(tickers) > MULTI_MAX:
+        raise CommandError(f"Up to {MULTI_MAX} tickers per /charts.")
+    tf = str(opts.get("tf") or default_tf or "D")
+    if tf not in WINDOW:
+        raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
+    return [ChartRequest(ticker=t, tf=tf) for t in tickers]
 
 # ── Buttons under every chart ────────────────────────────────────────────────
 # Members asked "how do I change the timeframe?" in chat on launch night. The
@@ -478,6 +504,20 @@ def build_chart_command() -> dict:
     }
 
 
+def build_charts_command() -> dict:
+    """/charts NVDA AMD AVGO - several charts in one message (no controls)."""
+    tf_opt = next(o for o in build_chart_command()["options"] if o["name"] == "tf")
+    return {
+        "name": MULTI_COMMAND,
+        "description": f"Several charts in one message: /charts NVDA AMD AVGO (up to {MULTI_MAX})",
+        "type": 1,
+        "options": [
+            {"name": "tickers", "description": f"Up to {MULTI_MAX} tickers, space or comma separated", "type": 3, "required": True},
+            tf_opt,
+        ],
+    }
+
+
 def build_alias_command() -> dict:
     """`/c` - the same command under a two-keystroke name (member request)."""
     cmd = build_chart_command()
@@ -570,7 +610,7 @@ def build_commands(activity: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
     are enabled on the app)."""
-    cmds = [build_chart_command(), build_alias_command(), build_settings_command()]
+    cmds = [build_chart_command(), build_alias_command(), build_charts_command(), build_settings_command()]
     if activity:
         cmds.append(build_launch_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
@@ -584,12 +624,16 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
 
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
-                  filename: str | None = None, components: list | None = None, client=None) -> bool:
+                  filename: str | None = None, components: list | None = None, client=None,
+                  pngs: list | None = None) -> bool:
     """PATCH the deferred reply (or, for a button click, the message the button
     is on). With `png`, multipart (payload_json + files[0]); without, JSON.
-    `components` = the button rows to show under it; None leaves the message's
-    existing rows alone. Returns True on 2xx. Never raises."""
+    `pngs` = several images at once ([(bytes, filename), ...] - /charts):
+    files[i] + attachments ids 0..n. `components` = the button rows to show
+    under it; None leaves the message's existing rows alone. Returns True on
+    2xx. Never raises."""
     url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
+    images = list(pngs) if pngs else ([(png, filename)] if png is not None else [])
     try:
         import httpx
         own = client is None
@@ -599,10 +643,10 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                 payload: dict = {"content": content}
                 if comps is not None:
                     payload["components"] = comps
-                if png is not None:
-                    payload["attachments"] = [{"id": 0, "filename": filename}]
+                if images:
+                    payload["attachments"] = [{"id": i, "filename": fn} for i, (_, fn) in enumerate(images)]
                     return c.patch(url, data={"payload_json": json.dumps(payload)},
-                                   files={"files[0]": (filename, png, "image/png")})
+                                   files={f"files[{i}]": (fn, data, "image/png") for i, (data, fn) in enumerate(images)})
                 return c.patch(url, json=payload)
             r = _send(components)
             if not r.is_success and components is not None and 400 <= r.status_code < 500:
@@ -625,6 +669,125 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[discord-chart] edit_original failed: %s", e)
         return False
+
+
+def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
+                  bars_fn, render_fn, house_fn=None, quote_fn=None) -> tuple:
+    """ONE chart: (outcome, png, filename). outcome = ok | busy | no_bars |
+    render_failed. Takes a render slot for the duration; never raises.
+    Daily bars first (stats + "does this symbol exist") → the house render →
+    only if that yields nothing, the timeframe's bars → the mplfinance fallback."""
+    def _fetch(tf, n):
+        # One retry after a short pause: a cold intraday pull can miss once
+        # (provider timeout, a fetch-on-miss still landing) and answer fine
+        # a second later - two members hit "No bars" on a symbol the feed
+        # served seconds after.
+        for attempt in (0, 1):
+            try:
+                bars = bars_fn(req.ticker, tf, n) or None
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
+                bars = None
+            if bars or attempt:
+                return bars
+            time.sleep(BARS_RETRY_DELAY_S)
+        return None
+
+    if not RENDER_SLOTS.acquire(blocking=False):
+        return ("busy", None, None)
+    try:
+        if req.tf == "D":
+            bars = daily = _fetch("D", bars_to_request("D"))
+            if not bars:
+                return ("no_bars", None, None)
+        else:
+            bars = None
+            daily = _fetch("D", STATS_DAILY_BARS)
+        png = None
+        warm = None
+        if house_fn is not None and daily:
+            if req.tf != "D":
+                warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
+            house_opts = dict(options)
+            if req.breadth_name:
+                house_opts["breadth"] = req.breadth_name
+            if compare:
+                house_opts["compare"] = list(compare)   # %-rebased overlay lines on the page
+            if quote_fn is not None:
+                # The live pre/post-market print -> the orange Pre/Post chip on the
+                # right axis (never a candle). Best-effort: no quote, no chip.
+                try:
+                    house_opts["exttag"] = quote_fn(req.ticker) or None
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
+            try:
+                png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
+                png = None
+            if png:
+                return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
+        if bars is None:
+            bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
+            if not bars:
+                return ("no_bars", None, None)
+        kw = {"daily_bars": daily if options["stats"] else None}
+        if prefs.get("mas") == "off":
+            kw["show_mas"] = False
+        if prefs.get("volume") is False:
+            kw["show_volume"] = False
+        try:
+            png = render_fn(req.ticker, req.tf, bars, **kw)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
+            return ("render_failed", None, None)
+        return ("ok", png, attachment_name(req.ticker, req.tf, bars[-1]["t"]))
+    finally:
+        RENDER_SLOTS.release()
+
+
+def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render_fn, edit_fn,
+                        house_fn=None, quote_fn=None) -> str:
+    """/charts A B C: one message, one attachment per symbol, in the order
+    asked. `items` = [(ChartRequest, prefs), ...] (prefs per chart: a breadth
+    symbol has its own). No controls (the state of four charts does not fit a
+    button); a symbol that fails is named, never silently dropped. Returns
+    ok | no_bars | error."""
+    try:
+        results = []
+        for req, prefs in items:
+            prefs = {**prefs_mod.DEFAULTS, **(prefs or {})}
+            options = prefs_mod.render_options(prefs, req.tf)
+            key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+            hit = png_cache.get(key)
+            if hit:
+                results.append((req, "ok", hit[0], hit[1]))
+                continue
+            r = png_cache.single_flight(
+                key, lambda req=req, options=options, prefs=prefs: produce_chart(
+                    req, options, prefs, bars_fn=bars_fn, render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn),
+                ttl_s=png_cache.ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+            results.append((req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None))
+        label = TF_LABEL[items[0][0].tf]
+        oks = [(png, fn) for _, o, png, fn in results if o == "ok"]
+        why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
+        skipped = [f"{req.ticker} ({why.get(o, o)})" for req, o, _, _ in results if o != "ok"]
+        if not oks:
+            edit_fn(app_id, token, content="No charts: " + ", ".join(skipped) + ". Unknown tickers, or the feed is still catching up.")
+            return "no_bars"
+        content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o == "ok") + f" · {label}"
+        if skipped:
+            content += "\nSkipped: " + ", ".join(skipped)
+        edit_fn(app_id, token, content=content, pngs=oks)
+        return "ok"
+    except Exception:  # noqa: BLE001
+        log.exception("[discord-chart] multi job failed")
+        try:
+            edit_fn(app_id, token, content="Charts failed, try again.")
+        except Exception:  # noqa: BLE001
+            pass
+        return "error"
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
@@ -679,75 +842,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             _context_follow_up()
             return "ok"
 
-        def _fetch(tf, n):
-            # One retry after a short pause: a cold intraday pull can miss once
-            # (provider timeout, a fetch-on-miss still landing) and answer fine
-            # a second later - two members hit "No bars" on a symbol the feed
-            # served seconds after.
-            for attempt in (0, 1):
-                try:
-                    bars = bars_fn(req.ticker, tf, n) or None
-                except Exception as e:  # noqa: BLE001
-                    log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
-                    bars = None
-                if bars or attempt:
-                    return bars
-                time.sleep(BARS_RETRY_DELAY_S)
-            return None
-
-        def produce():
-            if not RENDER_SLOTS.acquire(blocking=False):
-                return ("busy", None, None)
-            try:
-                if req.tf == "D":
-                    bars = daily = _fetch("D", bars_to_request("D"))
-                    if not bars:
-                        return ("no_bars", None, None)
-                else:
-                    bars = None
-                    daily = _fetch("D", STATS_DAILY_BARS)
-                png = None
-                warm = None
-                if house_fn is not None and daily:
-                    if req.tf != "D":
-                        warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
-                    house_opts = dict(options)
-                    if req.breadth_name:
-                        house_opts["breadth"] = req.breadth_name
-                    if compare:
-                        house_opts["compare"] = list(compare)   # %-rebased overlay lines on the page
-                    if quote_fn is not None:
-                        # The live pre/post-market print -> the orange Pre/Post chip on the
-                        # right axis (never a candle). Best-effort: no quote, no chip.
-                        try:
-                            house_opts["exttag"] = quote_fn(req.ticker) or None
-                        except Exception as e:  # noqa: BLE001
-                            log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
-                    try:
-                        png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
-                    except Exception as e:  # noqa: BLE001
-                        log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
-                        png = None
-                    if png:
-                        return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
-                if bars is None:
-                    bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
-                    if not bars:
-                        return ("no_bars", None, None)
-                kw = {"daily_bars": daily if options["stats"] else None}
-                if prefs.get("mas") == "off":
-                    kw["show_mas"] = False
-                if prefs.get("volume") is False:
-                    kw["show_volume"] = False
-                try:
-                    png = render_fn(req.ticker, req.tf, bars, **kw)
-                except Exception as e:  # noqa: BLE001
-                    log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
-                    return ("render_failed", None, None)
-                return ("ok", png, attachment_name(req.ticker, req.tf, bars[-1]["t"]))
-            finally:
-                RENDER_SLOTS.release()
-
+        produce = lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,  # noqa: E731
+                                        house_fn=house_fn, quote_fn=quote_fn)
         result = png_cache.single_flight(
             key, produce, ttl_s=png_cache.ttl_for(req.tf),
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)

@@ -1772,3 +1772,95 @@ def test_compare_reaches_the_house_render_the_cache_key_and_the_headline():
     url = house.build_render_url("NVDA", "D", None, base_url="http://r", token="x", options={"compare": ["spy", "QQQ"]})
     assert "compare=SPY" in url and "QQQ" in url
     assert "compare=" not in house.build_render_url("NVDA", "D", None, base_url="http://r", token="x", options={})
+
+
+# ── /charts A B C: several charts in one message ──
+
+def test_parse_charts_command_orders_dedupes_caps_and_validates():
+    from api.services import discord_interactions as di
+    reqs = di.parse_charts_command({"data": {"name": "charts", "options": [{"name": "tickers", "value": "nvda, $amd avgo nvda"}]}}, default_tf="W")
+    assert [r.ticker for r in reqs] == ["NVDA", "AMD", "AVGO"] and {r.tf for r in reqs} == {"W"}
+    reqs = di.parse_charts_command({"data": {"options": [{"name": "tickers", "value": "spy"}, {"name": "tf", "value": "5"}]}})
+    assert [(r.ticker, r.tf) for r in reqs] == [("SPY", "5")]
+    for bad in ("", "   ", "nvda amd avgo smci pltr", "nvda y!"):
+        with pytest.raises(di.CommandError):
+            di.parse_charts_command({"data": {"options": [{"name": "tickers", "value": bad}]}})
+    with pytest.raises(di.CommandError):
+        di.parse_charts_command({"data": {"options": [{"name": "tickers", "value": "NVDA"}, {"name": "tf", "value": "2h"}]}})
+    cmds = {c["name"]: c for c in di.build_commands()}
+    assert "charts" in cmds and cmds["charts"]["integration_types"] == [0] and cmds["charts"]["contexts"] == [0]
+    assert [o["name"] for o in cmds["charts"]["options"]] == ["tickers", "tf"]
+    assert len(cmds["charts"]["description"]) <= 100
+
+
+def test_multi_chart_job_posts_every_chart_in_order_names_the_misses_and_reuses_the_cache():
+    from api.services.discord_interactions import run_multi_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p
+    rendered = []
+    def house_fn(ticker, tf, stats, opts):
+        rendered.append(ticker); return PNG_MAGIC + ticker.encode()
+    def bars_fn(ticker, tf, n):
+        return None if ticker == "ZZZZQ" else daily_bars(20)
+    calls = []
+    edit_fn = lambda app_id, token, **k: calls.append(k) or True  # noqa: E731
+    items = [(ChartRequest(t, "D"), dict(p.DEFAULTS)) for t in ("MLTA", "ZZZZQ", "MLTB")]
+    assert run_multi_chart_job("1", "t", items, bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
+                               edit_fn=edit_fn, house_fn=house_fn) == "ok"
+    assert rendered == ["MLTA", "MLTB"]
+    sent = calls[-1]
+    assert sent["content"] == "MLTA · MLTB · Daily\nSkipped: ZZZZQ (no bars)"
+    assert [fn.split("_")[0] for _, fn in sent["pngs"]] == ["MLTA", "MLTB"]          # order asked, misses out
+    assert all(png.startswith(PNG_MAGIC) for png, _ in sent["pngs"])
+    # second call: both hits, nothing re-rendered
+    rendered.clear()
+    assert run_multi_chart_job("1", "t", items[:1] + items[2:], bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC,
+                               edit_fn=edit_fn, house_fn=house_fn) == "ok"
+    assert rendered == [] and calls[-1]["content"] == "MLTA · MLTB · Daily"
+    # nothing renders: a plain sentence, no attachments
+    assert run_multi_chart_job("1", "t", [(ChartRequest("ZZZZQ", "D"), dict(p.DEFAULTS))], bars_fn=bars_fn,
+                               render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edit_fn, house_fn=house_fn) == "no_bars"
+    assert calls[-1]["content"].startswith("No charts: ZZZZQ (no bars)") and "pngs" not in calls[-1]
+    # a breadth item keeps its display name
+    assert run_multi_chart_job("1", "t", [(ChartRequest("UCTA5", "D", daily_only=True, display="UCTA5 · % above 5-day", breadth_name="UCTA5"), dict(p.DEFAULTS))],
+                               bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=edit_fn, house_fn=house_fn) == "ok"
+    assert calls[-1]["content"] == "UCTA5 · % above 5-day · Daily"
+
+
+def test_edit_original_sends_several_attachments_as_files_0_to_n():
+    from api.services.discord_interactions import edit_original
+    seen = {}
+    class R:
+        is_success = True; status_code = 200; text = ""
+    class C:
+        def patch(self, url, **kw):
+            seen.update(kw); return R()
+    assert edit_original("1", "t", content="A · B · Daily", pngs=[(b"PNGa", "A_D_2026-08-25_Chart.png"), (b"PNGb", "B_D_2026-08-25_Chart.png")], client=C())
+    payload = json.loads(seen["data"]["payload_json"])
+    assert payload["attachments"] == [{"id": 0, "filename": "A_D_2026-08-25_Chart.png"}, {"id": 1, "filename": "B_D_2026-08-25_Chart.png"}]
+    assert set(seen["files"]) == {"files[0]", "files[1]"} and seen["files"]["files[1]"][1] == b"PNGb"
+    assert "components" not in payload
+
+
+def test_endpoint_charts_defers_schedules_the_multi_job_and_counts_every_chart_against_the_rate(monkeypatch):
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "3/60")
+    client, rt = _app_client()
+    seen = []
+    monkeypatch.setattr(rt.di, "run_multi_chart_job", lambda app_id, token, items, **k: seen.append((items, k)) or "ok")
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("/charts must not run the single job"))
+    body = {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "9090"}},
+            "data": {"name": "charts", "options": [{"name": "tickers", "value": "NVDA AMD"}]}}
+    r = _post(client, sk, body).json()
+    assert r == {"type": 5}
+    items, kw = seen[-1]
+    assert [req.ticker for req, _ in items] == ["NVDA", "AMD"] and all(isinstance(p, dict) for _, p in items)
+    assert kw["edit_fn"] is rt.di.edit_original and "components_fn" not in kw
+    # two charts used 2 of 3; a further two-chart call does not fit
+    r = _post(client, sk, body).json()
+    assert r["type"] == 4 and r["data"]["flags"] == 64 and r["data"]["content"].startswith("Slow down")
+    body["data"]["options"][0]["value"] = "nope!"
+    r = _post(client, sk, body).json()
+    assert r["type"] == 4 and "not a ticker" in r["data"]["content"]

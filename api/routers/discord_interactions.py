@@ -165,6 +165,27 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         # The Entry Point command (App Launcher). The Activity page reads the
         # channel's newest handoff itself; nothing to record here.
         return {"type": 12}
+    if itype == 2 and name == di.MULTI_COMMAND:
+        uid = di.interaction_user_id(interaction)
+        prefs = _prefs_for(uid)
+        try:
+            reqs = di.parse_charts_command(interaction, default_tf=prefs.get("tf", "D"))
+        except di.CommandError as e:
+            return _ephemeral(str(e))
+        for _ in reqs:                                   # each chart counts against the member's rate
+            wait = di.user_rate_check(uid)
+            if wait:
+                return _ephemeral(di.throttle_message(wait))
+        items = [breadth_adjust(req, dict(prefs)) for req in reqs]
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(di.run_multi_chart_job, app_id, token, items,
+                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                            house_fn=house.render_house_chart if house.house_enabled() else None,
+                            quote_fn=fetch_ext_quote)
+        return {"type": 5}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
