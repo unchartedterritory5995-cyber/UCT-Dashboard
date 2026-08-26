@@ -366,6 +366,22 @@ def test_a_dead_morning_name_trading_normally_now_is_not_boosted():
     assert r["tier"] == 1 and r["lit"] is False   # not boosted, not lit
 
 
+def test_top_set_promotes_a_name_surging_today_over_one_liquid_only_yesterday():
+    # NTNX shape: a name whose PRIOR-day $-vol ranks it below the cutoff, but which is trading
+    # HEAVY today, must be PROMOTED into the tracked top-N (ranked by max(prev, today) $-vol) —
+    # otherwise the scanner never sees today's surge until tomorrow.
+    snap = {
+        "BIG":    {"prev_close": 100.0, "prev_vol": 50_000_000, "last_price": 100.0, "min_av": 1_000_000},  # $5B yesterday
+        "MIDLIQ": {"prev_close": 40.0,  "prev_vol": 2_000_000,  "last_price": 40.0,  "min_av": 100_000},    # $80M yday, quiet today
+        "NTNX":   {"prev_close": 66.0,  "prev_vol": 500_000,    "last_price": 65.0,  "min_av": 3_000_000},  # $33M yday, $195M TODAY
+    }
+    prov_map = {k: k for k in snap}
+    top = volume_live._rebuild_top_set(snap, prov_map, set(), 2)   # top-2 only
+    assert "BIG" in top
+    assert "NTNX" in top        # promoted by TODAY's heavy $-vol ($195M) over MIDLIQ's $80M yday
+    assert "MIDLIQ" not in top
+
+
 def test_register_custom_syms_keeps_them_active():
     volume_live.register_custom_syms({"NVDA", "TSLA"})
     active = volume_live._custom_active()

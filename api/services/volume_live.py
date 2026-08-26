@@ -148,7 +148,9 @@ _SUSTAIN_SECS = 600.0        # ~10-min sustained window
 _SUSTAIN_MIN_WIN = 120.0     # need ≥2 min of history before it's trusted (else cumulative)
 
 _DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
-_TOP_TTL = 3600.0             # rebuild the top-liquid set hourly
+_TOP_TTL = 120.0              # rebuild the top-liquid set every ~2 min — cheap (a scan of the
+                             # cap universe) and responsive, so a name surging TODAY is promoted
+                             # into the tracked set within minutes, not up to an hour later
 
 _HIST_MAX = int(_HIST_SECS / _MIN_SAMPLE_GAP) + 5
 
@@ -289,8 +291,12 @@ def _top_n() -> int:
 
 
 def _rebuild_top_set(snapshot: dict, prov_map: dict, etf: set, n: int) -> set:
-    """The N most-liquid app-syms by yesterday's dollar volume (prev_close ×
-    prev_vol) from the current snapshot. ETFs excluded (this is a stocks scanner)."""
+    """The N most-liquid app-syms by dollar volume — the MAX of YESTERDAY's ($ = prev_close ×
+    prev_vol) and TODAY's-so-far ($ = min_av × price). Ranking by today's activity too means a
+    name trading HEAVY today — one whose quiet prior day would rank it below the cutoff — is
+    promoted into the tracked set and can light the SECOND it surges, instead of being invisible
+    to the scanner until tomorrow (NTNX-shape). Cumulative day $-vol only grows, so a promoted
+    name stays in. ETFs excluded (this is a stocks scanner)."""
     scored = []
     for prov, app in prov_map.items():
         if app in etf:
@@ -298,7 +304,10 @@ def _rebuild_top_set(snapshot: dict, prov_map: dict, etf: set, n: int) -> set:
         row = snapshot.get(prov)
         if not row:
             continue
-        dvol = (row.get("prev_close") or 0) * (row.get("prev_vol") or 0)
+        prev_dv = (row.get("prev_close") or 0) * (row.get("prev_vol") or 0)
+        px = row.get("last_price") or row.get("prev_close") or 0
+        today_dv = (row.get("min_av") or row.get("today_vol") or 0) * px
+        dvol = max(prev_dv, today_dv)
         if dvol > 0:
             scored.append((dvol, app))
     scored.sort(reverse=True)
