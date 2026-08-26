@@ -147,7 +147,14 @@ RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe")
 
 #: Why ONE symbol was tried and failed. Each is a fact about that symbol, and
 #: every one of them is re-runnable: fix the bars, rebuild the snapshot, run again.
-DROP_REASONS = ("no-bars", "stale-bars", "no-screener-row", "refused")
+#:
+#:   no-live-quote -- the feed refused this symbol; `detail` carries the live
+#:                    tier's OWN word (`no_feed`/`not_traded`/`no_price`/
+#:                    `no_prev_close`/`bad_anchor`/`stale_anchor`/
+#:                    `insane_deviation`) rather than a second spelling of it,
+#:                    and it is re-runnable NEXT TICK -- five minutes, not
+#:                    tonight, which is what makes it a drop and not a refusal.
+DROP_REASONS = ("no-bars", "stale-bars", "no-screener-row", "refused", "no-live-quote")
 
 #: ⛔ ITS OWN BUCKET, controller resolution 5. "We could not compute it at the last
 #: confirmed bar" is not "something broke", and a member reading one number for
@@ -482,7 +489,7 @@ def _row_is_current(row: Optional[Mapping[str, Any]], as_of: int) -> bool:
     nightly build skipped keeps last month's fundamentals, and answering on them
     is a plausible, ranked, wrong answer for that symbol specifically. It is
     reported as `no-screener-row` -- for THIS session there is no row -- with the
-    stale date in the detail, because `DROP_REASONS` is a closed set and a fifth
+    stale date in the detail, because `DROP_REASONS` is a closed set and a NEW
     reason is not this task's to declare.
     """
     if not row:
@@ -620,6 +627,75 @@ def _last_confirmed_index(bars: Sequence[Mapping[str, Any]],
         except (TypeError, ValueError):
             continue
     return None
+
+
+# --------------------------------------------------------------------------- #
+# the forming bar (spec 5.5) -- the ONLY thing the live mode reads that the
+# nightly mode does not
+# --------------------------------------------------------------------------- #
+
+#: The drop word for a symbol whose live quote the sanity owner refused.
+LIVE_DROP_REASON = "no-live-quote"
+
+#: The prefix of the per-FIELD not-computable detail. ⛔ NAMESPACED, and it names
+#: the FIELD: `live:forming-bar:high` tells a member WHICH input the feed did not
+#: carry. The whole bar failing because one of five fields is pre-open would throw
+#: away four fields that arrived.
+LIVE_NOT_COMPUTABLE_DETAIL = "live:forming-bar:"
+
+
+def live_bars_for(symbol: str, daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
+                  session: int, prev_session: Optional[int] = None) -> dict:
+    """The confirmed daily bars through `prev_session` PLUS today's forming bar
+    built from the shared snapshot -- or a refusal that names its reason.
+
+    ⛔ THE GATE IS `live_tier.sanity_reason`, REUSED, with the anchor SYNTHESISED
+    from the bars themselves (`{price: the last confirmed close, bars_asof: the
+    previous session}`). It reads nothing else off the anchor, so there is no
+    screener-row coupling to extract and no second copy of the rules to drift:
+    the live tier and the live sweep answer "is this quote usable" with one
+    function, and a gate added there is honoured here with no edit in this file.
+
+    A forming bar's `o/h/l` are the feed's `day_open/day_high/day_low` (`None`
+    pre-open -- `massive._px` emits `None` for the provider's 0, because a 0 there
+    would sort and filter as a real price of zero), `c` is `last_price`, `v` is
+    `today_vol`; `live_cols` counts the fields that arrived, which is what lets a
+    caller refuse PER FIELD instead of throwing the whole bar away.
+
+    ⚠️ ANY STORE BAR NEWER THAN `prev_session` IS DROPPED. The store can already
+    hold a partial candle for today (`bars_prewarm` writes one mid-session); the
+    snapshot is the newer description of that SAME forming bar, so it replaces
+    whatever partial the store happened to hold rather than sitting beside it.
+
+    ⚠️ The daily bar's `t` is a YYYYMMDD -- `_last_confirmed_index` keys by
+    `ledger._normalize_bar_time` and daily bars are dates in this store. The live
+    table's `as_of` is the TICK, a unix second. Two encodings, two facts.
+    """
+    from api.services.screener import live_tier
+    bars = list(daily_bars or [])
+    if not bars:
+        return {"bars": [], "reason": "no-bars", "detail": None, "live_cols": 0}
+    prev = prev_session if prev_session is not None else previous_session(int(session))
+    idx = _last_confirmed_index(bars, prev) if prev is not None else None
+    if idx is None:
+        return {"bars": [], "reason": "stale-bars",
+                "detail": f"newest bar {bars[-1].get('t')!r}", "live_cols": 0}
+    anchor = {"price": bars[idx].get("c"), "bars_asof": prev}
+    why = live_tier.sanity_reason(anchor, quote, int(session))
+    if why:
+        return {"bars": [], "reason": LIVE_DROP_REASON, "detail": why, "live_cols": 0}
+
+    def _f(v):
+        # ⛔ `isinstance(v, bool)` IS CHECKED: `isinstance(True, int)` is True and
+        # `float(True)` is 1.0, which would read as a real price of one dollar.
+        return None if v is None or isinstance(v, bool) else (float(v) if float(v) > 0 else None)
+
+    forming = {"t": int(session), "o": _f(quote.get("day_open")), "h": _f(quote.get("day_high")),
+               "l": _f(quote.get("day_low")), "c": float(quote["last_price"]),
+               "v": int(quote.get("today_vol") or 0)}
+    live_cols = sum(1 for k in ("c", "v", "o", "h", "l") if forming[k] is not None)
+    return {"bars": bars[:idx + 1] + [forming], "reason": None, "detail": None,
+            "live_cols": live_cols}
 
 
 # --------------------------------------------------------------------------- #

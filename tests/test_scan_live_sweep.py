@@ -551,3 +551,109 @@ def test_the_bar_field_map_is_the_SAME_declaration_backtest_reads():
                {"type": "call", "name": "sma", "args": [_series("close"), _num(20)]})
     assert tuple(sorted(scan_evaluator._BAR_FIELD_OF(n)
                         for n in scan_evaluator._forming_bar_series(tree))) == backtest._bar_fields(tree)
+# ═══ 7. the forming bar itself: the snapshot's candle behind the live tier's gate ═══
+#
+# SESSION is a Wednesday and PREV the Tuesday before it, so the anchor is exactly
+# one weekday session old and `live_tier`'s own `stale_anchor` gate is open —
+# leaving each parametrised case below refused by the ONE gate it names.
+
+SESSION = 20260826
+PREV = 20260825
+
+#: `_daily_bars` closes at `start_close + n - 1`, so a 60-bar run ends at 69.0 —
+#: which is why `prev_close` reads 69.0 here. The anchor price the gate compares
+#: against is that same last confirmed close, so the pair is not a coincidence:
+#: change one and the deviation case below stops measuring what it names.
+QUOTE = {"last_price": 71.0, "prev_close": 69.0, "today_vol": 1_000_000, "prev_vol": 2_000_000,
+         "day_open": 69.5, "day_high": 71.4, "day_low": 69.1}
+
+
+def _bars(n, end):
+    """`n` daily bars ending on `end`, in the DICT shape `_read_bars` hands out."""
+    return [{"t": k, "o": o, "h": h, "l": l, "c": c, "v": v}
+            for k, o, h, l, c, v in _daily_bars(n, end=end)]
+
+
+def test_live_bars_for_APPENDS_the_forming_bar_after_the_last_confirmed_one():
+    bars = _bars(60, end=datetime.date(2026, 8, 25))          # confirmed through PREV
+    out = scan_evaluator.live_bars_for("AAA", bars, QUOTE, session=SESSION, prev_session=PREV)
+    assert out["reason"] is None and out["live_cols"] == 5
+    last = out["bars"][-1]
+    assert last == {"t": SESSION, "o": 69.5, "h": 71.4, "l": 69.1, "c": 71.0, "v": 1_000_000}
+    assert out["bars"][-2]["t"] == PREV and len(out["bars"]) == 61
+
+
+def test_a_store_bar_NEWER_than_the_previous_session_is_REPLACED_by_the_snapshots_forming_bar():
+    """⚠️ The store can already hold a PARTIAL bar for today — `bars_prewarm` writes
+    one mid-session. The snapshot is the newer description of that same forming
+    bar, so it REPLACES it; keeping both would put two candles on one session and
+    keeping the store's would answer today off a stale intraday write."""
+    bars = _bars(61, end=datetime.date(2026, 8, 26))          # the store carries a partial today
+    assert bars[-1]["t"] == SESSION and bars[-1]["c"] != 71.0, "the control: a DIFFERENT today bar"
+    out = scan_evaluator.live_bars_for("AAA", bars, QUOTE, session=SESSION, prev_session=PREV)
+    assert [b["t"] for b in out["bars"]][-2:] == [PREV, SESSION] and out["bars"][-1]["c"] == 71.0
+
+
+@pytest.mark.parametrize("quote, reason, detail", [
+    (None, "no-live-quote", "no_feed"),
+    (dict(QUOTE, today_vol=0, day_open=None), "no-live-quote", "not_traded"),
+    (dict(QUOTE, last_price=0), "no-live-quote", "no_price"),
+    (dict(QUOTE, last_price=300.0), "no-live-quote", "insane_deviation"),
+])
+def test_a_quote_the_live_tier_would_refuse_is_refused_HERE_with_ITS_reason(quote, reason, detail):
+    """⛔ ONE SANITY OWNER. Every word in `detail` is `live_tier`'s own, so the live
+    tier and the live sweep can never disagree about whether a quote is usable —
+    and a fifth gate added there is honoured here with no edit in this lane."""
+    bars = _bars(60, end=datetime.date(2026, 8, 25))
+    out = scan_evaluator.live_bars_for("AAA", bars, quote, session=SESSION, prev_session=PREV)
+    assert (out["bars"], out["reason"], out["detail"]) == ([], reason, detail)
+
+
+def test_the_gate_IS_live_tiers_sanity_reason_by_AST_not_a_second_copy():
+    """The structural half of the test above: the four cases would pass just as
+    well against a hand-written copy of the same four rules, which is exactly the
+    second-authority defect. This says the call is there."""
+    fn = _function_node("live_bars_for")
+    calls = {getattr(n.func, "attr", None) for n in pyast.walk(fn) if isinstance(n, pyast.Call)}
+    assert "sanity_reason" in calls
+
+
+def test_stale_daily_bars_are_a_DROP_before_any_quote_is_looked_at():
+    """A symbol whose newest confirmed bar is not the previous session has no
+    anchor to hang a live price on — the drop is a fact about the BARS, and it is
+    reached before the quote is consulted at all."""
+    bars = _bars(60, end=datetime.date(2026, 8, 21))
+    out = scan_evaluator.live_bars_for("AAA", bars, QUOTE, session=SESSION, prev_session=PREV)
+    assert out["reason"] == "stale-bars" and out["bars"] == []
+    assert scan_evaluator.live_bars_for("AAA", [], QUOTE, session=SESSION, prev_session=PREV)["reason"] == "no-bars"
+
+
+def test_a_pre_open_quote_carries_NO_ohl_and_live_cols_says_so():
+    """⛔ PRE-OPEN THE FEED RETURNS 0 FOR o/h/l AND `massive._px` EMITS None. The
+    bar is still usable — `c` and `v` are real — so the refusal is PER FIELD:
+    `live_cols` says how many of the five arrived, and a tree reading `high` on
+    the forming bar is what W4b.3 turns into `live:forming-bar:high`."""
+    bars = _bars(60, end=datetime.date(2026, 8, 25))
+    q = dict(QUOTE, day_open=None, day_high=None, day_low=None)
+    out = scan_evaluator.live_bars_for("AAA", bars, q, session=SESSION, prev_session=PREV)
+    assert out["live_cols"] == 2 and out["bars"][-1]["h"] is None
+
+
+def test_the_per_field_refusal_word_is_NAMESPACED_and_names_the_FIELD_that_is_MISSING():
+    """The detail W4b.3 reports is `live:forming-bar:<field>` — namespaced into the
+    lane contract's closed-set idiom, and it names the field so a member reading a
+    short screen learns WHICH input the feed did not carry, never just "no"."""
+    assert scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL == "live:forming-bar:"
+    for name in ("open", "high", "low"):
+        detail = scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL + name
+        assert detail.startswith("live:") and detail.endswith(name)
+
+
+def test_no_live_quote_is_IN_the_closed_DROP_REASONS_set_beside_the_others():
+    """A refusal word a caller cannot branch on exhaustively is not a closed set.
+    ⚠️ Pinned by MEMBERSHIP, never by the tuple's length — a sixth reason tomorrow
+    is a ruling, not a red here."""
+    assert scan_evaluator.LIVE_DROP_REASON == "no-live-quote"
+    assert scan_evaluator.LIVE_DROP_REASON in scan_evaluator.DROP_REASONS
+    for older in ("no-bars", "stale-bars", "no-screener-row", "refused"):
+        assert older in scan_evaluator.DROP_REASONS, "the widening must not DISPLACE a nightly word"
