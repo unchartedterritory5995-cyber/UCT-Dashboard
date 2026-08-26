@@ -96,6 +96,22 @@ describe('the table half', () => {
     for (const label of offered) expect(KEY_RE.test(label), label).toBe(true)
   })
 
+  it('⛔ a v2 function declares a `cadence` TOO — and is still a call, not a fundamental', () => {
+    // The closed-table v2 contract: *"Every entry carries `yields`, `lookback`,
+    // `sentence`, and (functions) `cadence`"*. Nothing declares both YET, so this
+    // plants the shape that is coming: read `cadence` before `args` and all fifty
+    // calls silently become `scalar · nightly`, with no refusal anywhere to say so.
+    expect(Object.values(TABLE.functions).filter((e) => e.cadence !== undefined).length,
+      'a function already declares cadence — this case is now measuring the real thing, not a plant').toBe(0)
+    const planted = tableOptions({
+      ...TABLE,
+      functions: { ...TABLE.functions, sma: { ...TABLE.functions.sma, cadence: 'nightly' } },
+    })
+    const sma = planted.find((o) => o.label === 'sma')
+    expect(sma.type).toBe('function')
+    expect(sma.detail).toBe(`(${TABLE.functions.sma.argRoles.join(', ')}) · lookback ${TABLE.functions.sma.lookback}`)
+  })
+
   it('⭐ a section the manifest gains later is offered the day it lands — read by shape, never typed', () => {
     const planted = tableOptions({
       ...TABLE,

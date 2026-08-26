@@ -33,7 +33,21 @@ function renderSentence(entry) {
   return entry.sentence.replace(/\{(\d+)\}/g, (whole, i) => (roles[Number(i)] !== undefined ? roles[Number(i)] : whole))
 }
 
-/** One manifest entry → the option CodeMirror shows for it. */
+/** One manifest entry → the option CodeMirror shows for it.
+ *
+ *  ⛔ THE ORDER OF THESE THREE TESTS IS LOAD-BEARING, AND IT IS ABOUT TO MATTER.
+ *  The closed-table v2 contract has every function declare a `cadence` alongside
+ *  its `args`; a `cadence` test placed first would then relabel all fifty calls
+ *  as fundamentals — offering `sma` as `scalar · nightly`, with nothing refusing.
+ *  `args` is what makes a thing callable, so `args` decides first.
+ *
+ *  ⚠️ `detail` PRINTS `entry.lookback` VERBATIM, which for 28 of today's 50
+ *  functions is a reference (`arg1`, `2*arg3`) rather than a number. Reading it
+ *  as `lookback period` would mean resolving `argN` against `argRoles`, and the
+ *  pattern that does that (`ARG_REF`) is private to `lint.js`. Hand-copying it
+ *  to prettify a string is the second authority this file exists to avoid, so
+ *  the reference is shown as the manifest writes it. Exporting `ARG_REF` is a
+ *  W2a hand-back somebody can take later if the wording is worth it. */
 function optionFor(label, entry, section) {
   const info = renderSentence(entry) || (typeof entry.doc === 'string' ? entry.doc : undefined)
   if (Array.isArray(entry.args)) {
