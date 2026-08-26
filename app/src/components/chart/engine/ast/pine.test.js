@@ -7,6 +7,9 @@
 // place for the wrong reason.
 
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   translatePine, printFormula, treeYieldsBool, lexPine,
   REFUSALS as PINE_REFUSALS,
@@ -15,6 +18,8 @@ import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS } from './pars
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
 import { REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { REFUSALS as SENTENCE_REFUSALS, sentenceFor, yieldsOf } from './sentence.js'
+
+const __dirnameSafe = path.dirname(fileURLToPath(import.meta.url))
 
 const wrap = (body, head = '//@version=5\nindicator("t")\n') => `${head}plot(${body})\n`
 
@@ -366,6 +371,60 @@ describe('the round trip is the proof nothing half-translated', () => {
       const theirs = yieldsOf(row.ast) === 'bool'
       expect(mine, body).toBe(theirs)
     }
+  })
+
+  it('⛔ …and the sweep above is VACUOUS for whole sections — so every declared name is checked directly', () => {
+    // ⛔⛔ THE PARITY RAIL ABOVE COULD NOT HAVE CAUGHT THE ONE DIVERGENCE THAT
+    // ACTUALLY HAPPENED. It iterates PINE cases, and `PINE_KNOWN_BUILTINS`
+    // refuses `hour` / `time` / `year`, so no Pine script can produce a clock
+    // leaf — the whole `clock` section was outside its reach. When closed table
+    // v2 gave five clock entries `yields: "bool"` and `treeYieldsBool` still
+    // read only `table.scalars`, the two answers diverged on all five and this
+    // file stayed green. A rail whose subject cannot contain the defect is not
+    // a rail for it.
+    //
+    // ⭐ SO THE SUBJECT IS THE MANIFEST, NOT THE CORPUS: every declared name, on
+    // the node type it rides. This is the form that covers a SECTION added
+    // tomorrow, with no edit here.
+    const trees = [
+      ...Object.keys(TABLE.series).map((name) => ({ type: 'series', name })),
+      ...Object.keys(TABLE.clock).map((name) => ({ type: 'series', name })),
+      ...Object.keys(TABLE.scalars).map((name) => ({ type: 'series', name })),
+      ...Object.entries(TABLE.operators).map(([name, spec]) => ({
+        type: 'op', name, args: Array.from({ length: spec.arity || 0 }, () => ({ type: 'num', value: 1 })),
+      })),
+      ...Object.entries(TABLE.functions).map(([name, spec]) => ({
+        type: 'call', name, args: (spec.args || []).map(() => ({ type: 'num', value: 1 })),
+      })),
+    ]
+    expect(trees.length).toBeGreaterThan(150)
+    const disagree = trees.filter((t) => treeYieldsBool(t) !== (yieldsOf(t) === 'bool'))
+    expect(disagree.map((t) => `${t.type}:${t.name}`)).toEqual([])
+
+    // ⚠️ NON-VACUITY, BOTH DIRECTIONS: the sweep must contain names of each
+    // answer, or an agreement over an all-`num` set proves nothing.
+    const bools = trees.filter((t) => treeYieldsBool(t))
+    expect(bools.length, 'nothing in the table yields bool').toBeGreaterThan(0)
+    expect(trees.length - bools.length).toBeGreaterThan(0)
+    // …and the clock is IN the sweep, which is the section the old rail missed.
+    expect(bools.some((t) => Object.prototype.hasOwnProperty.call(TABLE.clock, t.name))).toBe(true)
+  })
+
+  it('⛔ `treeYieldsBool` holds NO section list of its own — it reaches the one resolver', () => {
+    // ⛔ THE STRUCTURAL HALF, AND IT IS WHY THE FIX WAS A DELETION RATHER THAN A
+    // CORRECTED COMMENT. A behavioural sweep passes the day two readers happen
+    // to agree; what made them diverge was that there WERE two. This reads the
+    // shipped source and fails if this function ever re-grows a manifest walk.
+    const src = fs.readFileSync(path.join(__dirnameSafe, 'pine.js'), 'utf8')
+    const start = src.indexOf('export function treeYieldsBool')
+    expect(start, 'treeYieldsBool was renamed — this rail is now measuring nothing')
+      .toBeGreaterThan(-1)
+    const body = src.slice(start, src.indexOf('\n}', start) + 2)
+    for (const section of ['scalars', 'clock', 'operators', 'functions', 'series']) {
+      expect(body, `treeYieldsBool re-reads table.${section} — that is a second yields authority`)
+        .not.toMatch(new RegExp(`\\.${section}\\b|\\['${section}'\\]`))
+    }
+    expect(body).toMatch(/yieldsOf\(/)
   })
 })
 

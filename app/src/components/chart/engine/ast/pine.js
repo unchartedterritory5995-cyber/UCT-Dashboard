@@ -72,6 +72,11 @@
 // screenshot.
 
 import { TABLE, NODE_TYPES, parseFormula, astHash } from './parse.js'
+// ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
+// used to carry a second copy, and closed table v2 made the two disagree in a
+// single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
+// imports this file, so the graph stays a tree.
+import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -3449,36 +3454,51 @@ function readsBars(node) {
   return false
 }
 
-/** `yields` off the manifest, resolved the way `sentence.js::yieldsOf` and
- *  `scan_definition.is_boolean_tree` both resolve it. Local rather than imported
- *  so that a caller-supplied table is honoured; `pine.test.js` asserts the two
- *  agree on the shipped manifest. */
-export function treeYieldsBool(node, table = TABLE) {
-  if (!node || typeof node !== 'object') return false
-  switch (node.type) {
-    case 'num': return node.value === 0 || node.value === 1
-    case 'series': {
-      const spec = (table.scalars || {})[node.name]
-      return !!spec && spec.yields === 'bool'
-    }
-    case 'op': {
-      const spec = (table.operators || {})[node.name]
-      const declared = spec ? spec.yields : 'num'
-      if (declared !== 'passthrough') return declared === 'bool'
-      const arms = Array.isArray(node.args) ? node.args.slice(1) : []
-      return arms.length > 0 && arms.every((a) => treeYieldsBool(a, table))
-    }
-    case 'call': {
-      const spec = (table.functions || {})[node.name]
-      return !!spec && spec.yields === 'bool'
-    }
-    case 'offset':
-      // ⭐ A BAR OFFSET CHANGES *WHEN*, NEVER *WHAT*. `signal[1]` holds the same
-      // kind of value `signal` does, so the answer is the child's — deriving it
-      // any other way would be a second opinion about one declaration.
-      return treeYieldsBool(node.args && node.args[0], table)
-    default: return false
+/** Compiled sentence rules for ONE table object, memoised.
+ *
+ *  ⚠️ `yieldsOf` takes COMPILED RULES, not a manifest, and `compileRules` probes
+ *  every declared entry — so calling it per node would put a full table compile
+ *  inside `foldLogicalIdentity`'s fold loop. A `WeakMap` keyed on the table
+ *  OBJECT costs one compile per distinct table and none at all for the shipped
+ *  one, which is already compiled as `SENTENCE_RULES` at that module's load. */
+const _RULES_FOR_TABLE = new WeakMap()
+
+function rulesFor(table) {
+  if (!table || typeof table !== 'object') return SENTENCE_RULES
+  if (table === TABLE) return SENTENCE_RULES
+  let rules = _RULES_FOR_TABLE.get(table)
+  if (!rules) {
+    rules = compileRules(table)
+    _RULES_FOR_TABLE.set(table, rules)
   }
+  return rules
+}
+
+/** Does this tree produce values in {0, 1, NaN}?
+ *
+ *  ⭐⭐ IT IS `sentence.js::yieldsOf`, NOT A SECOND READING OF THE MANIFEST, AND
+ *  THAT IS THE WHOLE POINT OF THIS FUNCTION'S SHAPE. It used to re-walk the
+ *  table itself — five branches that happened to agree with `yieldsOf` and with
+ *  `scan_definition.is_boolean_tree` — and its own docstring ASSERTED that
+ *  agreement. Closed table v2 broke it in one commit: the `series` arm read only
+ *  `table.scalars`, so the moment the `clock` section declared five entries
+ *  `bool`, `yieldsOf` said bool and this said false for every one of them. ⛔ A
+ *  COMMENT CLAIMING AGREEMENT, BESIDE CODE THAT DISAGREES, IS THE ARTIFACT A
+ *  LATER ENGINEER AUDITS AGAINST — so the agreement is now structural rather
+ *  than asserted, and the only honest fix was to DELETE this reader, not to
+ *  correct its comment.
+ *
+ *  ⚠️ WHY THE OLD COPY LOOKED NECESSARY: the note said "local rather than
+ *  imported so that a caller-supplied table is honoured". `yieldsOf` honours one
+ *  too — it just takes it COMPILED (`rulesFor` above). There was no cycle to
+ *  avoid either: both modules import `parse.js` and neither imports the other.
+ *
+ *  ⛔ AND NOTHING HERE FIXES THE THIRD READER BY REACHING INTO IT.
+ *  `is_boolean_tree` is the PYTHON lane's, held to this one by
+ *  `test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE`. Two lanes is the
+ *  design; three readers in ONE lane was the defect. */
+export function treeYieldsBool(node, table = TABLE) {
+  return yieldsOf(node, rulesFor(table)) === 'bool'
 }
 
 /** The argument a screener reads. `plot(series, title, …)` and
