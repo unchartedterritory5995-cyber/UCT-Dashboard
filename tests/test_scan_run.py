@@ -45,10 +45,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ALICE = "alice"
 BOB = "bob"
 CAROL = "carol"
+DAVE = "dave"
 
 DEF_ID = "u_0000000000aa"
 BOB_DEF_ID = "u_00000000000b"
 CAROL_DEF_ID = "u_00000000000c"
+DAVE_DEF_ID = "u_00000000000d"
 #: `close > 100` — bars-only (no snapshot gate), and `_daily_bars(start_close=…)`
 #: decides the answer per symbol: 150.. climbs above 100, 10.. never does.
 TREE = _op(">", _series("close"), _num(100))
@@ -90,6 +92,7 @@ def defs(tmp_path, monkeypatch):
     user_definitions.save(ALICE, DEF_ID, DEFINITION)
     user_definitions.save(BOB, BOB_DEF_ID, _definition(TREE, def_id=BOB_DEF_ID))
     user_definitions.save(CAROL, CAROL_DEF_ID, _definition(TREE, def_id=CAROL_DEF_ID))
+    user_definitions.save(DAVE, DAVE_DEF_ID, _definition(TREE, def_id=DAVE_DEF_ID))
     return DEF_ID
 
 
@@ -134,14 +137,32 @@ def test_and_mode_nightly_is_the_UNCHANGED_default(store, bars):
     assert out["hit_rows"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
 
 
-def test_mode_live_is_RESERVED_accepted_and_runs(store, bars):
-    """`'live'` is W4b.3's branch. Until it lands the kwarg is ACCEPTED and the run
-    completes; what it persists (`scan_hits_live`) is that lane's to pin, so this
-    test deliberately does not."""
+def test_mode_live_is_RESERVED__and_TODAYS_NIGHTLY_PERSISTENCE_IS_PINNED(store, bars):
+    """🔴 PINNED SO LANE W4b.3 MUST CONSCIOUSLY CHANGE IT — the earlier version of
+    this test asserted only that the kwarg was accepted, which left the real
+    behaviour unrailed.
+
+    TODAY `'live'` takes the NIGHTLY WRITE PATH: `persist = mode != "on-demand"`
+    is True for it, so it files `scan_hits` and `scan_coverage` under the nightly
+    key `(def_hash, tf, session)`. That is harmless while nothing passes `'live'`
+    and WRONG the moment the live sweep runs for real — live rows would overwrite
+    the nightly receipt silently, which is the exact failure the `mode` parameter
+    exists to prevent, and it was found independently from the store's side too
+    (W4b.1's AST rail).
+
+    ⛔ SO THE STATE OF PLAY IS ASSERTED, NOT THE INTENTION. Lane W4b.3 OWNS the
+    change: its live branch must write only `scan_hits_live`/`scan_live_cycles`
+    and extend the AST rail to `scan_evaluator` in the same commit. When it does,
+    THIS TEST GOES RED — and that red is the point. It cannot land quietly.
+    """
     out = scan_evaluator.evaluate_one(DEFINITION, TF, universe=["NVDA", "INTC"], as_of=SESSION, mode="live")
     assert out["mode"] == "live"
     assert out["evaluated"] == 2 and out["hits"] == ["NVDA"]
-    assert "persisted" in out
+    # ⚠️ W4b.3: these four lines are what your live branch must turn over.
+    assert out["persisted"] is True
+    assert scan_store.coverage(DEF_HASH, TF, SESSION) is not None
+    assert sorted(scan_store.hits(DEF_HASH, TF, SESSION)) == ["NVDA"]
+    assert out["hit_rows"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
 
 
 def test_an_unknown_mode_is_refused_BEFORE_anything_is_read_or_written(store, bars, monkeypatch):
@@ -189,13 +210,19 @@ def lists(tmp_path, monkeypatch):
 
 # ═══ the job harness ═══════════════════════════════════════════════════════
 
-_TERMINAL = ("done", "refused")
+def _terminal():
+    """⛔ DERIVED FROM THE SERVICE, NEVER RETYPED. This was the one place in the
+    lane that typed what it could read, and the cost was specific: a fifth job
+    state would leave `_drain` treating it as pending and hanging for its whole
+    timeout — a test-harness failure wearing a product bug's clothes."""
+    from api.services.screener import scan_run
+    return scan_run._TERMINAL
 
 
 def _pending():
     from api.services.screener import scan_run
     with scan_run._LOCK:
-        return [j["job"] for j in scan_run._JOBS.values() if j["state"] not in _TERMINAL]
+        return [j["job"] for j in scan_run._JOBS.values() if j["state"] not in _terminal()]
 
 
 def _drain(timeout=15.0):
@@ -235,7 +262,7 @@ def _wait(job, user, timeout=15.0):
     deadline = time.monotonic() + timeout
     while True:
         st = scan_run.job_status(job, user)
-        if st["state"] in _TERMINAL:
+        if st["state"] in _terminal():
             return st
         assert time.monotonic() < deadline, f"job {job} still {st['state']} after {timeout}s"
         time.sleep(0.01)
@@ -300,6 +327,31 @@ def test_resolve_universe_REFUSES_over_the_cap_NAMING_the_count(lists):
     # the control: one fewer is admitted, so the cap is a boundary and not a wall
     kept, _ = scan_run.resolve_universe(ALICE, symbols=too_many[:-1])
     assert len(kept) == scan_run.MAX_RUN_SYMBOLS
+
+
+def test_resolve_universe_bounds_the_WALK_TOO__an_UNSIZED_iterable_refuses(lists):
+    """⛔ THE CAP USED TO BE CHECKED AFTER THE WALK. `_clean_symbols` ran over
+    whatever arrived before any bound was consulted — an unbounded request-path
+    loop inside the module whose thesis is "bounded, never a universe".
+
+    ⚠️ AND THIS TEST IS ITS OWN CONTROL: the generator below is INFINITE, so a
+    walk that is not bounded does not fail this test, it HANGS it.
+    """
+    from api.services.screener import scan_run
+
+    def _forever():
+        i = 0
+        while True:
+            yield f"S{i:05d}"
+            i += 1
+
+    with pytest.raises(scan_run.RunRefused) as exc:
+        scan_run.resolve_universe(ALICE, symbols=_forever())
+    assert exc.value.gate == scan_run.UNIVERSE_GATE
+    assert f"more than {scan_run.MAX_RUN_SYMBOLS}" in str(exc.value)
+    # the control: an unsized input UNDER the cap is admitted, walked to the end
+    kept, _ = scan_run.resolve_universe(ALICE, symbols=(f"S{i:05d}" for i in range(3)))
+    assert kept == ["S00000", "S00001", "S00002"]
 
 
 def test_resolve_universe_resolves_a_list_the_caller_OWNS_through_list_universe(lists):
@@ -494,24 +546,40 @@ def test_ONE_run_per_MEMBER_at_a_time__the_second_submit_is_refused_busy(slow_wo
 
 
 def test_the_pods_run_queue_is_BOUNDED__over_the_bound_is_refused_busy(slow_worker, monkeypatch):
+    """⚠️ THE TWO NUMBERS IN THE MESSAGE ARE MADE TO DIFFER, ON PURPOSE. At the
+    moment of refusal `pending == MAX_PENDING_RUNS` by construction, so asserting
+    a bare `"2" in ...` would pass whichever number the sentence actually named —
+    it measured nothing. Lowering the bound while THREE are already in flight
+    separates them (3 in flight, bound 2), so each half of the sentence is pinned
+    to the value it claims to report.
+    """
     from api.services.screener import scan_run
-    monkeypatch.setattr(scan_run, "MAX_PENDING_RUNS", 2)
     a = scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
     assert slow_worker.entered.wait(5)
     b = scan_run.submit_run(BOB, BOB_DEF_ID, symbols=["INTC"], tf=TF, as_of=SESSION)
+    c = scan_run.submit_run(CAROL, CAROL_DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
+    monkeypatch.setattr(scan_run, "MAX_PENDING_RUNS", 2)
     with pytest.raises(scan_run.RunRefused) as exc:
-        scan_run.submit_run(CAROL, CAROL_DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
-    assert exc.value.gate == scan_run.BUSY_GATE and "2" in str(exc.value)
+        scan_run.submit_run(DAVE, DAVE_DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
+    assert exc.value.gate == scan_run.BUSY_GATE
+    assert "3 runs are already in flight" in str(exc.value)
+    assert "the bound is 2" in str(exc.value)
     slow_worker.release.set()
-    assert _wait(a, ALICE)["state"] == "done" and _wait(b, BOB)["state"] == "done"
-    # the control: drained, carol is admitted
-    assert _run(CAROL, CAROL_DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)["state"] == "done"
+    for job, who in ((a, ALICE), (b, BOB), (c, CAROL)):
+        assert _wait(job, who)["state"] == "done"
+    # the control: drained, dave is admitted under the SAME lowered bound
+    assert _run(DAVE, DAVE_DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)["state"] == "done"
 
 
 def test_a_FINISHED_job_expires_after_the_TTL__a_PENDING_one_never_does(slow_worker, monkeypatch):
     from api.services.screener import scan_run
     now = [1_000_000.0]
     monkeypatch.setattr(scan_run, "_clock", lambda: now[0])
+    # ⚠️ THE DURATION CAP IS A DIFFERENT RAIL AND IT IS TESTED SEPARATELY (below).
+    # Neutralised here — and the queue wait DERIVES from it, so both move — because
+    # any TTL-sized jump also passes `MAX_RUN_SECONDS`, and this test is about what
+    # the TTL does to a FINISHED job versus a pending one.
+    monkeypatch.setattr(scan_run, "MAX_RUN_SECONDS", 10 ** 9)
     a = scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
     assert slow_worker.entered.wait(5)
     b = scan_run.submit_run(BOB, BOB_DEF_ID, symbols=["INTC"], tf=TF, as_of=SESSION)
@@ -528,6 +596,81 @@ def test_a_FINISHED_job_expires_after_the_TTL__a_PENDING_one_never_does(slow_wor
         scan_run.job_status(a, ALICE)
     with pytest.raises(scan_run.JobNotFound):
         scan_run.job_status(b, BOB)
+
+
+def test_a_WEDGED_run_AGES_OUT_and_FREES_ITS_MEMBER__the_pod_self_heals(slow_worker, monkeypatch):
+    """🔴 A WORKER THAT BLOCKS IS NOT A WORKER THAT RAISES, AND ONLY ONE OF THEM
+    WAS HANDLED. `_run_job`'s `finally` covers a raise; nothing catches a HANG (a
+    SQLite lock retry loop, a wedged bars read). The TTL cannot reach it either —
+    its clock starts at `finished_at`, which a wedged job never gets — so the one
+    worker never freed, the pending slots filled permanently, and every one of
+    those members stayed locked out by the per-member gate FOREVER.
+
+    Here the worker is wedged for real (held inside the evaluator) and the clock
+    is injected, in the same idiom as the TTL test above.
+    """
+    from api.services.screener import scan_run
+    now = [1_000_000.0]
+    monkeypatch.setattr(scan_run, "_clock", lambda: now[0])
+    job = scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
+    assert slow_worker.entered.wait(5)                  # wedged INSIDE the evaluator
+    assert scan_run.job_status(job, ALICE)["state"] == "running"
+
+    now[0] += scan_run.MAX_RUN_SECONDS + 1
+    st = scan_run.job_status(job, ALICE)
+    assert st["state"] == "refused", "a wedged run never became terminal"
+    # ⛔ NOT A GATE. A timeout is this pod failing the member, not something they
+    # can act on — same shape as a crash.
+    assert st["gate"] is None and st["error"] is True
+    assert str(scan_run.MAX_RUN_SECONDS) in st["detail"]
+
+    # 🔑 THE POINT: the member is FREED — the next submit is ADMITTED, not busy.
+    nxt = scan_run.submit_run(ALICE, DEF_ID, symbols=["INTC"], tf=TF, as_of=SESSION)
+    assert scan_run.job_status(nxt, ALICE)["state"] == "queued"
+
+    slow_worker.release.set()
+    assert _wait(nxt, ALICE)["state"] == "done"
+    # ⛔ AND THE FIRST TERMINAL VERDICT WINS: the wedged worker finishing later must
+    # not flip the answer the member already read from `refused` back to `done`.
+    assert scan_run.job_status(job, ALICE)["state"] == "refused"
+
+
+def test_a_job_QUEUED_BEHIND_a_wedged_worker_AGES_OUT_TOO(slow_worker, monkeypatch):
+    """The other half of the same failure, and aging only the RUNNING job would
+    have missed it: everything queued behind a wedged worker never starts, so
+    those members would stay locked out even after the running job was released."""
+    from api.services.screener import scan_run
+    now = [2_000_000.0]
+    monkeypatch.setattr(scan_run, "_clock", lambda: now[0])
+    scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf=TF, as_of=SESSION)
+    assert slow_worker.entered.wait(5)
+    queued = scan_run.submit_run(BOB, BOB_DEF_ID, symbols=["INTC"], tf=TF, as_of=SESSION)
+    assert scan_run.job_status(queued, BOB)["state"] == "queued"
+
+    now[0] += scan_run._max_queue_wait_seconds() + 1
+    st = scan_run.job_status(queued, BOB)
+    assert st["state"] == "refused" and st["gate"] is None and st["error"] is True
+
+    again = scan_run.submit_run(BOB, BOB_DEF_ID, symbols=["INTC"], tf=TF, as_of=SESSION)
+    assert scan_run.job_status(again, BOB)["state"] == "queued"
+    slow_worker.release.set()
+    assert _wait(again, BOB)["state"] == "done"
+    # ⛔ the abandoned job is NOT resurrected when the worker reaches it
+    assert scan_run.job_status(queued, BOB)["state"] == "refused"
+
+
+def test_the_modules_BOUNDS_ARE_ARITHMETIC_not_prose():
+    """⛔ THE HEADER'S CLAIM, CHECKED. "Nothing queued can outlive the TTL" is only
+    true while the whole queue ahead of a job is capped below it — so the two
+    bounds are pinned to each other rather than asserted in a comment, and tuning
+    either past the other fails HERE."""
+    from api.services.screener import scan_run
+    assert scan_run._max_queue_wait_seconds() == (
+        scan_run.MAX_PENDING_RUNS * scan_run.MAX_RUN_SECONDS)
+    assert scan_run._max_queue_wait_seconds() <= scan_run.JOB_TTL_SECONDS
+    # and the three state tuples are ONE partition, not three hand-kept lists
+    assert set(scan_run.JOB_STATES) == set(scan_run._PENDING) | set(scan_run._TERMINAL)
+    assert not (set(scan_run._PENDING) & set(scan_run._TERMINAL))
 
 
 def test_the_job_table_is_BOUNDED__the_OLDEST_finished_job_is_evicted_first(store, bars, defs, monkeypatch):

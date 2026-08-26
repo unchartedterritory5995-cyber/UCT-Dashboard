@@ -26,14 +26,36 @@ holding one of the pod's 64 shared anyio threads (the 2026-07-01 outage class;
 E-A2/A3). The pool's `max_workers=1` IS the "one run at a time per pod" rail
 the brief named `_SINGLE_FLIGHT`; it is pinned by AST, not by convention.
 
-⛔ BOUNDED, NEVER A UNIVERSE. Three bounds, each refusing BY NAME:
-  * `MAX_RUN_SYMBOLS` after list resolution                      → `gate:universe`
+⛔ BOUNDED, NEVER A UNIVERSE. Four bounds, each refusing BY NAME:
+  * `MAX_RUN_SYMBOLS`, checked on what was SENT and again after
+    list resolution — the walk itself is bounded too            → `gate:universe`
   * one run in flight (queued or running) per MEMBER             → `gate:busy`
-  * `MAX_PENDING_RUNS` in flight per POD, so nothing queued can
-    outlive `JOB_TTL_SECONDS` (8 × ~6 s ≪ 10 min)                → `gate:busy`
+  * `MAX_PENDING_RUNS` in flight per POD                         → `gate:busy`
+  * `MAX_RUN_SECONDS` on a run's own duration, and
+    `_max_queue_wait_seconds()` (DERIVED: the whole queue ahead
+    of a job timing out at that cap) on the wait                 → self-healing
 The job table itself is bounded (`MAX_JOBS`) and evicts the OLDEST FINISHED
-job first — a queued or running job is never evicted, so a member who was
+job first — a queued or running job is never DELETED, so a member who was
 handed a job id always gets an answer for it.
+
+🔴 AND A WORKER THAT BLOCKS IS NOT A WORKER THAT RAISES. `_run_job`'s `finally`
+covers a raise; nothing catches a HANG (a SQLite lock retry loop, a wedged bars
+read). Without a duration cap the one worker never frees, the pending slots fill
+and are never released, `MAX_PENDING_RUNS` refuses every later submit forever,
+and each of those members stays locked out by the per-member gate — permanently,
+because the TTL's clock starts at `finished_at` and a wedged job never has one.
+So `_evict_locked` AGES a run past `MAX_RUN_SECONDS`, and a wait past
+`_max_queue_wait_seconds()`, into a terminal `refused` + `error` state: the
+member is freed, the queue slot is freed, and the TTL can then expire the row.
+
+⚠️ THAT IS SELF-HEALING OF THE JOB TABLE, NOT RESURRECTION OF THE WORKER. A
+Python thread cannot be killed; a wedged `_POOL` thread stays wedged, and later
+submits will queue and age out in turn. What the cap buys is that the pod keeps
+ANSWERING — honestly, by name — instead of refusing everyone in silence. The
+aging runs on the next request (`submit_run`/`job_status` both call
+`_evict_locked`), so no background timer is involved. ⛔ AND THE FIRST TERMINAL
+VERDICT WINS: if the wedged worker later finishes, `_run_job` finds the job no
+longer `running` and leaves the answer the member was already given.
 
 ⛔ WRITES NOTHING. `mode='on-demand'` is what `evaluate_one` is called with —
 ONE parameter, the evaluator's own closed set (`EVALUATE_MODES`), the single
@@ -98,16 +120,33 @@ _TERMINAL = ("done", "refused")
 #: and renders once; ten minutes is a browser tab left open, not a store.
 JOB_TTL_SECONDS = 600
 
-#: Jobs in flight (queued + running) per pod. ⭐ SIZED SO A QUEUED JOB CANNOT
-#: OUTLIVE THE TTL: the measured worst case is ~6 s per 500-symbol run, so eight
-#: in flight is under a minute of backlog against a ten-minute TTL. A queue that
-#: could grow past the TTL would hand a member an id whose answer expires before
-#: it is computed.
+#: Jobs in flight (queued + running) per pod.
 MAX_PENDING_RUNS = 8
+
+#: 🔴 THE CAP ON A RUN'S OWN DURATION, and the one that keeps this pod alive when
+#: a worker WEDGES rather than raises (module header). ⭐ IT IS ~10x THE MEASURED
+#: WORST CASE, not a round number: a 500-symbol run is 0.7-5.7 s of GIL-bound
+#: compute on this box, so a run still going after a minute is not slow, it is
+#: stuck. Same shape of margin as `scan_evaluator.SWEEP_STOP_BEFORE_OPEN` — a
+#: bound whose whole job is to be wrong in the safe direction.
+MAX_RUN_SECONDS = 60
 
 #: The job table's bound. Finished jobs are evicted oldest-first past this;
 #: pending ones never are (and there are at most `MAX_PENDING_RUNS` of those).
 MAX_JOBS = 64
+
+
+def _max_queue_wait_seconds() -> float:
+    """The longest a job can honestly sit `queued`: everything ahead of it timing
+    out at the duration cap, on the one worker.
+
+    ⛔ DERIVED, NEVER TYPED — and it is what makes the header's claim CHECKABLE
+    rather than decorative: `MAX_PENDING_RUNS x MAX_RUN_SECONDS` must stay under
+    `JOB_TTL_SECONDS`, or a member could be handed a job id whose answer expires
+    before it could possibly be computed. `tests/test_scan_run.py` asserts that
+    inequality, so tuning either bound past it fails BY ARITHMETIC.
+    """
+    return MAX_PENDING_RUNS * MAX_RUN_SECONDS
 
 
 class RunRefused(Exception):
@@ -162,13 +201,34 @@ def _new_job_id() -> str:
 # the universe
 # --------------------------------------------------------------------------- #
 
+def _over_cap(count: Any, source: str) -> RunRefused:
+    """THE ONE over-cap sentence, so the two call sites cannot word it two ways.
+    `count` is a number, or a phrase when the input could not be measured."""
+    return RunRefused(
+        UNIVERSE_GATE,
+        f"{count} symbols for a run of {source!r}; the cap is {MAX_RUN_SYMBOLS}. "
+        "Pick a shorter list — the nightly sweep already covers the whole universe")
+
+
 def _clean_symbols(symbols: Optional[Sequence[Any]]) -> list:
     """Uppercased, de-duplicated, order-stable — the same normalisation
     `list_universe._finish` applies, because `ohlcv.ticker` is uppercase and a
-    case mismatch would read as `no-bars` on a symbol we hold."""
+    case mismatch would read as `no-bars` on a symbol we hold.
+
+    ⛔ AND THE WALK ITSELF IS BOUNDED. This runs on the REQUEST PATH in a module
+    whose whole thesis is "bounded, never a universe"; a loop over whatever
+    arrived — before any cap was consulted — is the one unbounded thing left in
+    it. `resolve_universe` refuses a SIZED body before calling here at all; this
+    guard is for one that cannot be measured (a generator), and it stops ONE PAST
+    the cap so an over-long input is REFUSED rather than silently truncated.
+    """
     seen: set = set()
     out: list = []
-    for raw in symbols or []:
+    walked = 0
+    for raw in symbols or ():
+        walked += 1
+        if walked > MAX_RUN_SYMBOLS + 1:
+            raise _over_cap(f"more than {MAX_RUN_SYMBOLS}", "symbols")
         s = str(raw).strip().upper()
         if s and s not in seen:
             seen.add(s)
@@ -202,6 +262,11 @@ def resolve_universe(user_id: Any, *, symbols: Optional[Sequence[Any]] = None,
             raise BadRequest(
                 "symbols must be a list of tickers, not a string — iterated, "
                 f"{symbols!r:.40} would be one symbol per character")
+        # ⛔ THE CAP FIRST, THE WALK SECOND. Checking it after `_clean_symbols`
+        # meant the request path had already walked every name the caller sent.
+        if symbols is not None and hasattr(symbols, "__len__") \
+                and len(symbols) > MAX_RUN_SYMBOLS:
+            raise _over_cap(len(symbols), "symbols")
         syms = _clean_symbols(symbols)
         source = {"source": "symbols", "label": None}
     requested = len(syms)
@@ -211,10 +276,7 @@ def resolve_universe(user_id: Any, *, symbols: Optional[Sequence[Any]] = None,
                          "an empty universe produces an empty hit list that is "
                          "indistinguishable from a quiet market")
     if requested > MAX_RUN_SYMBOLS:
-        raise RunRefused(UNIVERSE_GATE,
-                         f"{requested} symbols after resolving {source['source']!r}; "
-                         f"the cap is {MAX_RUN_SYMBOLS}. Pick a shorter list — the "
-                         "nightly sweep already covers the whole universe")
+        raise _over_cap(requested, source["source"])
     return syms, {**source, "requested": requested}
 
 
@@ -252,9 +314,35 @@ _COVERAGE_KEYS = ("evaluated", "answered", "dropped", "not_computable",
                   "dropped_listed", "truncated")
 
 
+def _abandon_locked(job: dict, now: float, detail: str) -> None:
+    """Give a wedged job a terminal answer. ⛔ `gate: None` + `error: True`, the
+    crash shape — a timeout is this pod failing the member, never one of the
+    closed gates the member could act on. Caller holds `_LOCK`."""
+    log.warning("[scan-run] job %s abandoned: %s", job["job"], detail)
+    job.update({"state": "refused", "gate": None, "error": True,
+                "detail": detail, "finished_at": now})
+
+
 def _evict_locked(now: float, *, make_room: bool = False) -> None:
-    """TTL first, then (on submit) the bound — and NEVER a queued or running job.
-    Caller holds `_LOCK`."""
+    """Age out what is wedged, expire what is finished, then (on submit) make
+    room — and NEVER DELETE a job that is still queued or running.
+    Caller holds `_LOCK`.
+
+    🔴 THE AGING IS FIRST AND IT IS WHY THE POD SELF-HEALS. See the module
+    header: a blocked worker frees nothing on its own, and the TTL cannot reach
+    it because the TTL's clock starts at `finished_at`.
+    """
+    queue_wait = _max_queue_wait_seconds()
+    for job in _JOBS.values():
+        if job["state"] == "running" and now - job["started_at"] > MAX_RUN_SECONDS:
+            _abandon_locked(job, now,
+                            f"the run passed {MAX_RUN_SECONDS}s without finishing and "
+                            "was abandoned; the worker may still be wedged, so try "
+                            "again and tell someone if it repeats")
+        elif job["state"] == "queued" and now - job["submitted_at"] > queue_wait:
+            _abandon_locked(job, now,
+                            f"the job waited {queue_wait:.0f}s without starting — the "
+                            "one run worker on this pod is not draining; try again")
     expired = [jid for jid, job in _JOBS.items()
                if job["state"] in _TERMINAL
                and now - job["finished_at"] > JOB_TTL_SECONDS]
@@ -430,8 +518,10 @@ def _run_job(job_id: str) -> None:
     """
     with _LOCK:
         job = _JOBS.get(job_id)
-        if job is None:                                        # pragma: no cover
-            # a pending job is never evicted; this is belt-and-braces
+        if job is None or job["state"] != "queued":
+            # ⛔ ABANDONED, OR GONE. The duration/queue cap already gave this job a
+            # terminal answer and the member has read it; running it now would
+            # replace that answer with a later, different one.
             return
         job["state"] = "running"
         job["started_at"] = _clock()
@@ -464,7 +554,10 @@ def _run_job(job_id: str) -> None:
         # for an exception no clause above caught (an interrupt mid-run).
         with _LOCK:
             job = _JOBS.get(job_id)
-            if job is not None:
+            # ⛔ THE FIRST TERMINAL VERDICT WINS: a job the duration cap already
+            # abandoned keeps that answer, so a member is never told `refused`
+            # and then `done` for one run.
+            if job is not None and job["state"] == "running":
                 job.update(outcome or {
                     "state": "refused", "gate": None, "error": True,
                     "detail": "the worker was interrupted before it recorded an outcome"})
