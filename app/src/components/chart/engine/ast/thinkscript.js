@@ -125,6 +125,10 @@ export const REFUSALS = Object.freeze({
     'the translated text did not read back as the same tree, so nothing is offered',
   'thinkscript:input-kind':
     'this input has no default this translator can freeze it at',
+  'thinkscript:enum-arm':
+    'this is not one of the choices the thinkorswim input declares',
+  'thinkscript:offset-chained':
+    'a second bar offset on one value names a bar that a single offset already names',
 })
 
 /** ⭐ A NOTE IS NOT A REFUSAL, AND IT GETS ITS OWN CLOSED TABLE. What `ignored[]`
@@ -634,6 +638,26 @@ function parseComparison(c) {
       left = { e: 'call', name, base: null, args: [{ name: null, value: left }, { name: null, value: parseAdditive(c) }], tok }
       continue
     }
+    // ⭐ `x between a and b` — the reference's own words are *"within the range
+    // of value1 and value2 (inclusive)"*, i.e. `(x >= a) && (x <= b)`. ⏳ That
+    // identity is W3.5's to emit; read here so the construct refuses BY NAME
+    // rather than as a syntax error at a word thinkorswim documents. ⚠️ The CALL
+    // form `between(a, b, c)` is untouched — `23-previous-day-high-low-mean`
+    // uses it six times — which is why `between` is not in `NOT_AN_ATOM`.
+    if (isWordTok(t, 'between')) {
+      const tok = take(c)
+      const lo = parseAdditive(c)
+      if (!isWordTok(peek(c), 'and')) throw syntaxAt(c, peek(c))
+      take(c)
+      left = {
+        e: 'call',
+        name: 'between',
+        base: null,
+        args: [{ name: null, value: left }, { name: null, value: lo }, { name: null, value: parseAdditive(c) }],
+        tok,
+      }
+      continue
+    }
     if (isWordTok(t, 'is') && isWordTok(peek(c, 2), 'than')
       && (isWordTok(peek(c, 1), 'greater') || isWordTok(peek(c, 1), 'less'))) {
       const tok = take(c)
@@ -690,11 +714,14 @@ function parsePostfix(c) {
   for (;;) {
     const t = peek(c)
     if (isPunctTok(t, '[')) {
-      take(c)
+      // ⭐ THE `[` IS KEPT. `tok` stays the value's own token so a refusal inside
+      // the value points at the value; `bracket` is where the OFFSET itself
+      // lives, and it is the only honest caret for "this offset is the problem".
+      const bracket = take(c)
       const index = parseExpression(c)
       if (!isPunctTok(peek(c), ']')) throw syntaxAt(c, peek(c))
       take(c)
-      node = { e: 'offset', base: node, index, tok: node.tok }
+      node = { e: 'offset', base: node, index, tok: node.tok, bracket }
       continue
     }
     if (isPunctTok(t, '.')) {
@@ -755,6 +782,11 @@ function parseAtom(c) {
     // refusal. This engine stores ONE expression rather than a program, so the
     // construct has nowhere to go and says exactly that.
     if (k === 'fold') throw refuse('thinkscript:fold', t)
+    // ⛔ `reference <Study>` NAMES ANOTHER STUDY, and thinkorswim publishes no
+    // formula for one. Refusing at the word is the whole reason `:study-ref`
+    // exists; before this it reported a syntax error at the study's NAME, which
+    // is a false reason pointing one token past the real one.
+    if (k === 'reference') throw refuse('thinkscript:study-ref', t)
     if (NOT_AN_ATOM.has(k)) throw syntaxAt(c, t)
     take(c)
     if (isPunctTok(peek(c), '(')) {
@@ -804,7 +836,14 @@ const nameOf = (tok) => tok.value
  *  ⭐ THE ARM MARKED `default` WINS, AND WHERE NONE IS MARKED THE FIRST DOES —
  *  which is what the reference says the platform does. `24-position-capital`
  *  writes `default` thirteenth in a list of seventeen, so "take the first" alone
- *  would fold every one of its three colour inputs to the wrong arm. */
+ *  would fold every one of its three colour inputs to the wrong arm.
+ *
+ *  ⛔⛔ AND IT RETURNS THE ARMS, WHICH IS NOT A CONVENIENCE. Returning only the
+ *  chosen arm made an undeclared one UNCHECKABLE — `mode == mode.UseZ` folded to
+ *  `false` and `if … then close else open` silently became `open`, with no
+ *  refusal anywhere. That is a chart that looks right and is wrong, the one
+ *  outcome this translator exists to prevent, and it was structural: nothing
+ *  downstream HAD the list to check against. Found in W3.3 review. */
 function readEnumDefault(rest, nameTok) {
   let depth = 0
   const arms = []
@@ -823,7 +862,7 @@ function readEnumDefault(rest, nameTok) {
     throw refuse('thinkscript:input-kind', nameTok)
   }
   if (!arms.length) throw refuse('thinkscript:input-kind', nameTok)
-  return chosen === null ? arms[0] : chosen
+  return { arms, chosen: chosen === null ? arms[0] : chosen }
 }
 
 /** What an input froze at, spelled the way the member wrote it. A single string
@@ -877,9 +916,9 @@ function readStatement(toks, ctx) {
     const rest = toks.slice(3)
     if (!rest.length) throw refuse('thinkscript:input-kind', nameTok)
     if (isPunctTok(rest[0], '{')) {
-      const arm = readEnumDefault(rest, nameTok)
-      bindNew(name, { kind: 'enum', family: key(name), arm, tok: nameTok, input: true })
-      ctx.folded.push({ name, folded: arm, line: nameTok.line, column: nameTok.column })
+      const { arms, chosen } = readEnumDefault(rest, nameTok)
+      bindNew(name, { kind: 'enum', family: key(name), arm: chosen, arms, tok: nameTok, input: true })
+      ctx.folded.push({ name, folded: chosen, line: nameTok.line, column: nameTok.column })
       return
     }
     const expr = parseWhole(rest)
@@ -902,6 +941,15 @@ function readStatement(toks, ctx) {
     // script; refusing the statement would be a wall at a line that is not the
     // member's problem. ⚠️ A colliding `def` still refuses: a variable really
     // cannot be defined twice, and that is a different fact from this one.
+    // ⛔ THE SAME PLOT NAME TWICE IS A DUPLICATE COLUMN, NOT A SHADOW. W3.3
+    // disclosed this asymmetry and review asked for the guard: a duplicate `def`
+    // refused while a duplicate `plot` quietly produced two columns both titled
+    // `p` with `ok: true`. ⚠️ Checked BEFORE `shadowed`, because it is the
+    // shadowing rule below that would otherwise absorb it.
+    if (k === 'plot') {
+      if (ctx.plotted.has(key(name))) throw refuse('thinkscript:statement', nameTok)
+      ctx.plotted.add(key(name))
+    }
     const shadowed = k === 'plot' && ctx.env.has(key(name))
     if (toks.length === 2) {
       // ⭐ A FORWARD DECLARATION. `10-rsi-laguerre` writes `plot RSI;` at the top
@@ -922,11 +970,13 @@ function readStatement(toks, ctx) {
     return
   }
 
-  if (k === 'if' || k === 'switch') {
+  if (k === 'if' || k === 'switch' || k === 'script') {
     // ⛔ A BLOCK ASSIGNS ONE NAME FROM SEVERAL STATEMENTS. This engine stores a
     // single expression per column, so the shape has nowhere to go — and saying
     // so at the word that opened it is more useful than refusing the name it
-    // was going to fill.
+    // was going to fill. ⭐ `script foo { … }` — a user-defined sub-script — is
+    // the same fact: a program where one expression is stored. It reported a
+    // syntax error at the script's NAME until W3.3 review.
     throw refuse('thinkscript:block', head)
   }
 
@@ -950,7 +1000,7 @@ function readStatement(toks, ctx) {
 function readProgram(lexed) {
   const ctx = {
     env: new Map(), outputs: [], ignored: [...lexed.notes], folded: [],
-    hard: [], declaration: null, text: lexed.text,
+    hard: [], declaration: null, text: lexed.text, plotted: new Set(),
   }
   for (const run of readStatements(lexed.tokens)) {
     try { readStatement(run.tokens, ctx) } catch (err) { ctx.hard.push(fromError(err)) }
@@ -1040,7 +1090,7 @@ class Resolver {
     let err = null
     try {
       value = b.kind === 'enum'
-        ? { ts: 'enum', family: b.family, arm: key(b.arm), tok: b.tok }
+        ? { ts: 'enum', family: b.family, arm: key(b.arm), arms: b.arms, tok: b.tok }
         : this.resolve(b.expr)
     } catch (e) { err = e }
     this.stack.pop()
@@ -1067,7 +1117,15 @@ class Resolver {
     }
     if (this.env.has(base)) {
       const v = this.resolveBinding(base, tok)
-      if (isEnum(v)) return { ts: 'enum', family: v.family, arm: rest, tok }
+      if (isEnum(v)) {
+        // ⛔⛔ THE ARM MUST BE ONE THE INPUT DECLARED. `mode.UseZ` against
+        // `{default UseA, UseB}` used to sail through and then quietly decide a
+        // comparison, which is a mistranslation rather than a refusal.
+        if (!Array.isArray(v.arms) || !v.arms.some((a) => key(a) === rest)) {
+          throw refuse('thinkscript:enum-arm', tok)
+        }
+        return { ts: 'enum', family: v.family, arm: rest, arms: v.arms, tok }
+      }
       throw refuse('thinkscript:builtin', tok)
     }
     // `Color.RED`, `AverageType.HULL`, `AggregationPeriod.DAY` — a symbolic
@@ -1097,7 +1155,20 @@ class Resolver {
       // point of folding an input: `17-compoundvalue` plots BOTH arms of
       // `{default UseCompoundValue, ManualCalculation}` and the member gets one.
       if (!isEnum(l) || !isEnum(r)) throw refuse('thinkscript:type', n.tok)
-      const same = l.family === r.family && l.arm === r.arm
+      // ⛔⛔ FOLD ONLY WHAT A DECLARED ARM LIST CAN DECIDE. The old form compared
+      // `family` and `arm` as plain strings, so a cross-family pair and an
+      // undeclared arm BOTH came out "not equal" — a decision this translator
+      // had no grounds to make, delivered silently as a column. Now one side
+      // must be an input whose arms are known, the other must name one of them,
+      // and anything else refuses AT THE OFFENDING TOKEN.
+      const declared = Array.isArray(l.arms) ? l : (Array.isArray(r.arms) ? r : null)
+      if (!declared) throw refuse('thinkscript:enum-arm', n.tok)
+      const other = declared === l ? r : l
+      if (other.family !== declared.family
+        || !declared.arms.some((a) => key(a) === other.arm)) {
+        throw refuse('thinkscript:enum-arm', other.tok || n.tok)
+      }
+      const same = declared.arm === other.arm
       return { ts: 'bool', value: n.op === '==' ? same : !same, tok: n.tok }
     }
     const a = this.asNode(l, n.tok)
@@ -1146,7 +1217,17 @@ class Resolver {
         this.lagged = k > 0
         let base
         try { base = this.asNode(this.resolve(n.base), n.tok) } finally { this.lagged = outerLag }
-        return k === 0 ? base : { type: 'offset', value: k, args: [base] }
+        if (k === 0) return base
+        // ⛔ `close[1][1]` AND `close[2]` ARE THE SAME COLUMN WITH TWO HASHES, so
+        // the engine refuses the chain (`canonicalise:offset-chained`). Decided
+        // HERE rather than discovered by the round trip, because the round trip
+        // could only name the OUTPUT — W3.3 review measured the caret landing on
+        // `p` in `plot p = close[1][1];`, which is correct code. A caret on
+        // correct code sends a member to fix the wrong thing.
+        if (base && base.type === 'offset') {
+          throw refuse('thinkscript:offset-chained', n.bracket || n.tok)
+        }
+        return { type: 'offset', value: k, args: [base] }
       }
       case 'unary': {
         const v = this.asNode(this.resolve(n.arg), n.tok)

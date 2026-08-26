@@ -50,16 +50,24 @@ const readSource = () => stripComments(fs.readFileSync(MODULE_PATH, 'utf8'))
 const OTHER_DOORS = [['pine', PINE], ['pcf', PCF], ['parse', PARSE],
   ['interpret', INTERPRET], ['budget', BUDGET], ['sentence', SENTENCE]]
 
-/** ⭐ THE MEASURED REACHABLE SET AT W3.3 — seventeen of the twenty-seven. Typed
- *  ONCE and read by the two tests that partition the table, so "reachable",
- *  "written but unreachable" and "not written at all" can never overlap or leave
- *  a guard in none of the three. */
+/** ⭐ THE MEASURED REACHABLE SET — nineteen of the twenty-nine after fix round 1.
+ *  Typed ONCE and read by the two tests that partition the table, so
+ *  "reachable", "written but unreachable" and "not written at all" can never
+ *  overlap or leave a guard in none of the three.
+ *
+ *  ⚠️ `:roundtrip` LEFT THIS SET IN FIX ROUND 1 and that is a gain, not a loss:
+ *  its only reachable case was a chained offset, which now refuses
+ *  `:offset-chained` at the bracket instead of being discovered by a failed
+ *  round trip that could only name the output. It is pinned as written-and-
+ *  unreachable below, beside `:study-ref` — which went the other way, and is
+ *  reachable now that `reference` is read. */
 const REACHABLE = [
   'thinkscript:block', 'thinkscript:builtin', 'thinkscript:character', 'thinkscript:cycle',
-  'thinkscript:empty', 'thinkscript:fold', 'thinkscript:function', 'thinkscript:future-offset',
-  'thinkscript:input-kind', 'thinkscript:no-output', 'thinkscript:offset-literal',
-  'thinkscript:roundtrip', 'thinkscript:state', 'thinkscript:statement',
-  'thinkscript:syntax', 'thinkscript:type', 'thinkscript:undefined',
+  'thinkscript:empty', 'thinkscript:enum-arm', 'thinkscript:fold', 'thinkscript:function',
+  'thinkscript:future-offset', 'thinkscript:input-kind', 'thinkscript:no-output',
+  'thinkscript:offset-chained', 'thinkscript:offset-literal', 'thinkscript:state',
+  'thinkscript:statement', 'thinkscript:study-ref', 'thinkscript:syntax',
+  'thinkscript:type', 'thinkscript:undefined',
 ]
 
 /** The sentence for a guard, read from the one authority rather than retyped —
@@ -161,7 +169,7 @@ describe('the refusal vocabulary', () => {
     expect([...planted.matchAll(/`thinkscript:\$\{([^}]*)\}`/g)].map((m) => m[1])).toEqual(['kind'])
   })
 
-  it('⭐ …and SIXTEEN of the twenty-seven are now reachable, which is measured, not assumed', () => {
+  it('⭐ …and NINETEEN of the twenty-nine are now reachable, which is measured, not assumed', () => {
     // ⛔ A CLOSED SET SAYS NOTHING ABOUT HOW MUCH OF IT IS REACHABLE. Measured by
     // RUNNING it — the only honest source for "what does this thing emit" — and
     // pinned BY NAME, so W3.4's first new guard reds this and has to be
@@ -190,6 +198,8 @@ describe('the refusal vocabulary', () => {
       'input benchmark;\nplot p = close;',
       'plot p = close[1][2];',
       'def x = fold i = 0 to 8 with p do p + close;\nplot q = x;',
+      'input mode = {default UseA, UseB};\nplot p = if mode == mode.UseZ then close else open;',
+      'plot p = reference RSI("length" = 14)."RSI";',
     ]) {
       for (const r of translateThinkScript(src).refusals) reached.add(r.guard)
     }
@@ -198,12 +208,14 @@ describe('the refusal vocabulary', () => {
 
   it('…and exactly one more guard is REFERENCED in code without being reachable', () => {
     // ⛔ THE GAP BETWEEN "WRITTEN INTO CODE" AND "REACHABLE" IS WHERE DEAD
-    // SCAFFOLDING HIDES, so it is pinned by name too. `thinkscript:study-ref` is
-    // written where a member is taken off a value this engine resolved — and
-    // every path that could reach it today goes through a CALL, which refuses
-    // `thinkscript:function` one step earlier. It goes live with W3.6's study
-    // references. Stripping the declaration tables is what makes this measurable
-    // at all: sweeping the whole file just finds the names the tables spell.
+    // SCAFFOLDING HIDES, so it is pinned by name too. `thinkscript:roundtrip` is
+    // written where the printed text fails to read back as the tree it came
+    // from — and after fix round 1 nothing reaches it: its one reachable case, a
+    // chained offset, is now decided at the bracket. It is KEPT because the
+    // printer and the parser are two different tables and a drift between them
+    // must refuse loudly rather than ship a wrong formula. Stripping the
+    // declaration tables is what makes this measurable at all: sweeping the
+    // whole file just finds the names the tables spell.
     const src = readSource()
     const strip = (re) => {
       const m = re.exec(src)
@@ -216,7 +228,7 @@ describe('the refusal vocabulary', () => {
     const inCode = new Set([...code.matchAll(/'(thinkscript:[a-z-]+)'/g)].map((m) => m[1]))
     const reachable = new Set(REACHABLE)
     expect([...inCode].filter((g) => !reachable.has(g) && !(g in TS_NOTES)).sort())
-      .toEqual(['thinkscript:study-ref'])
+      .toEqual(['thinkscript:roundtrip'])
     // ⛔ AND EVERY REACHABLE GUARD IS ACTUALLY WRITTEN HERE, so `REACHABLE` cannot
     // drift into naming a guard some other module emits.
     expect(REACHABLE.filter((g) => !inCode.has(g))).toEqual([])
@@ -242,7 +254,7 @@ describe('the refusal vocabulary', () => {
     // ⛔ THE THREE SETS PARTITION THE TABLE — no guard in two of them, none in
     // none of them. Without this, moving a guard between the lists above could
     // lose one entirely and every assertion would still pass.
-    expect([...REACHABLE, 'thinkscript:study-ref',
+    expect([...REACHABLE, 'thinkscript:roundtrip',
       ...Object.keys(TS).filter((g) => !inCode.has(g))].sort()).toEqual(Object.keys(TS).sort())
   })
 
@@ -589,6 +601,57 @@ describe('declare, input, def and plot', () => {
     expect(out.folded).toEqual([expect.objectContaining({ name: 'mode', folded: 'UseB' })])
   })
 
+  it('⛔⛔ an arm the input NEVER DECLARED refuses — a silent fold to `false` is the one thing this lane exists to prevent', () => {
+    // ⛔⛔ MEASURED IN W3.3 REVIEW, AND IT IS THE LANE'S NON-NEGOTIABLE. `mode ==
+    // mode.UseZ` folded to `false` with NO REFUSAL AT ALL, so
+    // `if … then close else open` silently became `open`. The member gets a
+    // chart that looks right and is wrong — worse than any refusal. The cause
+    // was structural: `readEnumDefault` threw the arm list away, so nothing
+    // COULD check membership.
+    const src = 'input mode = {default UseA, UseB};\nplot p = if mode == mode.UseZ then close else open;\n'
+    const out = translateThinkScript(src)
+    expect(out.ok).toBe(false)
+    const r = out.refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
+    expect(r.token).toBe('mode.UseZ')
+    expect(r.line).toBe(2)
+    expect(r.column).toBe(21)
+    expect(src.split('\n')[1].slice(r.column - 1, r.column - 1 + r.token.length)).toBe('mode.UseZ')
+  })
+
+  it('…and the `!=` form refuses too, so the fix is not "an unknown arm is always false"', () => {
+    // ⛔ WITHOUT THIS, A FIX THAT FOLDED AN UNKNOWN ARM TO `true` INSTEAD OF
+    // `false` would pass the test above while mistranslating the other way.
+    const r = translateThinkScript(
+      'input mode = {default UseA, UseB};\nplot p = if mode != mode.UseZ then close else open;\n').refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
+    expect(r.token).toBe('mode.UseZ')
+  })
+
+  it('⛔ …and two DIFFERENT enum families never quietly compare unequal', () => {
+    const r = translateThinkScript(
+      'input mode = {default UseA, UseB};\nplot p = if mode == AverageType.UseA then close else open;\n').refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
+    expect(r.token).toBe('AverageType.UseA')
+  })
+
+  it('⛔ …and an undeclared arm refuses OUTSIDE a comparison as well', () => {
+    const r = translateThinkScript('input mode = {default UseA, UseB};\nplot p = mode.UseZ;\n').refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
+    expect(r.token).toBe('mode.UseZ')
+  })
+
+  it('…while a DECLARED arm still folds, both ways — the guard must not close the door it protects', () => {
+    const a = translateThinkScript(
+      'input mode = {default UseA, UseB};\nplot p = if mode == mode.UseA then close else open;\n')
+    expect(a.ok).toBe(true)
+    expect(a.outputs[a.selected].formula).toBe('close')
+    const b = translateThinkScript(
+      'input mode = {UseA, default UseB};\nplot p = if mode == mode.UseA then close else open;\n')
+    expect(b.ok).toBe(true)
+    expect(b.outputs[b.selected].formula).toBe('open')
+  })
+
   it('an input with no default refuses BY NAME rather than guessing one', () => {
     const r = translateThinkScript('input benchmark;\nplot p = close > 0;\n').refusals
       .find((x) => x.guard === 'thinkscript:input-kind')
@@ -699,6 +762,40 @@ describe('declare, input, def and plot', () => {
     expect(out.outputs[0].formula).toBe('close > open')
   })
 
+  it('⛔ a chained bar offset refuses at the SECOND BRACKET, not at the plot name', () => {
+    // ⛔ W3.3 REVIEW: `plot p = close[1][1];` is legal thinkScript and refused
+    // `:roundtrip` with the caret on `p` — a caret on CORRECT code, which sends
+    // a member to fix the wrong thing. Same class as W3.2's whitespace caret.
+    // `close[1][1]` and `close[2]` are the same column with two hashes, so the
+    // engine refuses the chain; the member's fix is at the bracket.
+    const src = 'plot p = close[1][1];\n'
+    const r = translateThinkScript(src).refusal
+    expect(r.guard).toBe('thinkscript:offset-chained')
+    expect(r.line).toBe(1)
+    expect(r.column).toBe(18)
+    expect(r.token).toBe('[')
+    expect(src.split('\n')[0].slice(r.column - 1, r.column)).toBe('[')
+  })
+
+  it('⛔ the same plot name twice refuses — two columns under one title is not a study', () => {
+    // ⚠️ DISCLOSED AS AN ASYMMETRY IN W3.3 AND GUARDED HERE: a duplicate `def`
+    // refused while a duplicate `plot` quietly produced two columns both titled
+    // `p`, with `ok: true`.
+    const r = translateThinkScript('plot p = close;\nplot p = open;\n').refusal
+    expect(r.guard).toBe('thinkscript:statement')
+    expect(r.line).toBe(2)
+    expect(r.token).toBe('p')
+  })
+
+  it('…while a plot REUSING a `def` name still reads, because 11-money-flow is published that way', () => {
+    // ⛔ THE GUARD ABOVE MUST NOT CLOSE THIS DOOR. `def mfi = …; plot MFI = mfi;`
+    // is published and running, and identifiers here fold case-insensitively, so
+    // those two are one key.
+    const out = translateThinkScript('def mfi = close - open;\nplot MFI = mfi;\n')
+    expect(out.ok).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close - open')
+  })
+
   it('⛔ a bare CALL is chrome, not an output — `AddLabel(…)` answers with no value to screen on', () => {
     // ⛔ THE ONE RULE THAT KEEPS `assert(…)`, `AddCloud(…)` AND
     // `signal.AssignValueColor(…)` FROM BECOMING COLUMNS. W3.6 turns this subset
@@ -733,6 +830,42 @@ describe('declare, input, def and plot', () => {
     expect(r.line).toBe(1)
     expect(r.column).toBe(9)
     expect(r.token).toBe('Average')
+  })
+
+  it('⭐⭐ DOCUMENTED thinkScript never refuses `:syntax` — the CLASS, not just the corpus', () => {
+    // ⛔⛔ THE CORPUS RAIL IN `thinkscript.corpus.test.js` IS CORPUS-SCOPED BY
+    // CONSTRUCTION and structurally cannot see a construct no fixture happens to
+    // use. W3.3 review found three that way: `between`, `reference` and `script`
+    // are all documented thinkScript and all reported "this thinkScript line does
+    // not end where a statement has to end" — a FALSE REASON at a true position,
+    // which is the worse half of a wrong refusal and sends a member to rewrite
+    // code that was already correct.
+    //
+    // ⚠️ THIS LIST IS THE SCOPE, AND IT IS HAND-WRITTEN ON PURPOSE. It cannot
+    // claim to cover a language of thousands of names; what it does is hold the
+    // constructs the reference documents and this reader parses, so the next
+    // task adds a row rather than rediscovering the class.
+    const cases = [
+      // the reference's own `between`, in BOTH its forms
+      ['plot p = between(close, low, high);', 'thinkscript:function', 'between'],
+      ['plot p = close between low and high;', 'thinkscript:function', 'between'],
+      // a study reference — thinkorswim does not publish the formula
+      ['plot p = reference RSI("length" = 14)."RSI";', 'thinkscript:study-ref', 'reference'],
+      // a user-defined script is a program, and this engine stores one expression
+      ['script foo {\n  plot out = close;\n}\nplot p = foo(1);', 'thinkscript:block', 'script'],
+    ]
+    for (const [src, guard, token] of cases) {
+      const r = translateThinkScript(src).refusal
+      expect(r, src).toBeTruthy()
+      expect(r.guard, src).toBe(guard)
+      expect(r.token, src).toBe(token)
+      const line = src.split('\n')[r.line - 1]
+      expect(line.slice(r.column - 1, r.column - 1 + token.length), src).toBe(token)
+    }
+    // ⛔ AND THE CONTROL. Without it this rail is satisfied by a reader that has
+    // stopped being able to say `:syntax` at all — a genuinely unfinished
+    // statement must still say it.
+    expect(translateThinkScript('plot p = close >').refusal.guard).toBe('thinkscript:syntax')
   })
 
   it('…and an UNREFERENCED def never refuses, because nothing reads it', () => {

@@ -284,6 +284,17 @@ describe('the whole corpus, in one number', () => {
     // a reserved word when `23` binds it as a variable, and a `fold` loop
     // reported as an unfinished statement instead of as a fold. NAMES, not a
     // count, so the next one says which script.
+    //
+    // ⚠️⚠️ AND ITS SCOPE IS THE 24 FILES, NOT THE LANGUAGE — read this before
+    // treating it as a general guarantee. It is CORPUS-SCOPED BY CONSTRUCTION
+    // and structurally cannot see a construct no fixture happens to use: W3.3
+    // review found `between`, `reference` and `script` all refusing `:syntax`
+    // with this rail green, because not one of the 24 writes them. The
+    // class-level rail is `⭐⭐ DOCUMENTED thinkScript never refuses :syntax` in
+    // `thinkscript.test.js`, which is hand-written and is where a newly-read
+    // construct gets its row. The two are complementary and NEITHER replaces the
+    // other: this one covers real scripts nobody hand-picked, that one covers
+    // constructs no real script here happens to contain.
     const bad = FILES.filter((f) => {
       const r = translateThinkScript(read(f)).refusal
       return !!r && r.guard === 'thinkscript:syntax'
