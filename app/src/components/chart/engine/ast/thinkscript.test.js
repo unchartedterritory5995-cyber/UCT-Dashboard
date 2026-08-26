@@ -1058,6 +1058,26 @@ describe('precedence, per the thinkScript reference', () => {
       .toBe('close > open ? 1 : 0 || volume > 0')
   })
 
+  it('⏳ `from` is the ONE published operator this reader does not parse, and it is MEASURED', () => {
+    // ⛔ NOT "ABSENT AND HARMLESS" — measured, and it is the wrong-REASON class.
+    // `from` is level 1 on the published table, beside `[]`. Nothing here parses
+    // it, so it falls out of the expression as a leftover token and refuses
+    // `thinkscript:syntax` AT `from` — the right position with a false reason,
+    // which is the same defect W3.3 fixed for `between`, `reference` and
+    // `script`. It is NOT fixed here because fixing it means deciding what
+    // `close from 2 bars ago` MEANS, and this lane has no fetched citation for
+    // that; guessing it is an offset would be exactly the silent mistranslation
+    // the whole door exists to prevent.
+    // ⏳ HANDED ON with the measurement rather than a comment claiming it is
+    // fine: whoever cites the page gives it a named guard and adds its row to
+    // the `DOCUMENTED thinkScript never refuses :syntax` list below, which is
+    // where this class is held and which this pins as knowingly incomplete.
+    const r = translateThinkScript('plot p = close from 2 bars ago;\n').refusal
+    expect(r.guard).toBe('thinkscript:syntax')
+    expect(r.token).toBe('from')
+    expect(r.column).toBe(16)
+  })
+
   it('⛔ every operator this reader parses has a PUBLISHED level — no rung is invented', () => {
     // ⭐ DERIVED, NOT TYPED BESIDE THE LADDER. `TS_PRECEDENCE` is copied from
     // thinkorswim's own Operator-Precedence page; this asserts that every word

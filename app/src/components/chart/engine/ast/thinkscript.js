@@ -645,12 +645,22 @@ const NOT_AN_ATOM = Object.freeze(new Set([
  *  single line to change.
  *
  *  ⚠️ LEVELS 1, 2 AND 4 ARE PRESENT ON THE PAGE AND ABSENT FROM THIS MAP, for
- *  two different reasons that are worth keeping apart. `[]` (1) and `!` (2) ARE
- *  implemented — as postfix and prefix forms in `parsePostfix`/`parseUnary`,
- *  whose position in the grammar IS "tighter than every infix operator" — so a
- *  number for them would be read by nothing, which is the same unread-constant
- *  defect one level down. Level 4, `+` as string concatenation, is not
- *  implemented at all: a screened column holds a number. */
+ *  THREE different reasons that are worth keeping apart.
+ *    * `[]` (1) and `!` (2) ARE implemented — as postfix and prefix forms in
+ *      `parsePostfix`/`parseUnary`, whose position in the grammar IS "tighter
+ *      than every infix operator" — so a number for them would be read by
+ *      nothing, which is the same unread-constant defect one level down.
+ *    * `+` as string concatenation (4) is not implemented at all: a screened
+ *      column holds a number.
+ *    * ⏳ `from` (1) IS NOT PARSED, AND THAT IS A KNOWN WRONG-REASON REFUSAL
+ *      rather than a harmless gap. Measured: `close from 2 bars ago` falls out
+ *      of the expression as a leftover token and refuses `thinkscript:syntax`
+ *      AT `from` — right position, false reason, the same class W3.3 fixed for
+ *      `between`, `reference` and `script`. It is left alone because fixing it
+ *      means deciding what `from` MEANS, and this lane has no fetched citation
+ *      for that; guessing it is an offset would be the silent mistranslation
+ *      this door exists to prevent. Pinned by `⏳ from is the ONE published
+ *      operator this reader does not parse` in `thinkscript.test.js`. */
 export const TS_PRECEDENCE = Object.freeze({
   '*': 3, '/': 3, '%': 3,
   '+': 5, '-': 5,
@@ -675,10 +685,21 @@ const bpOfLevel = (level) => -level
 /** The symbol an operator is CANONICALLY spelled with. `<>` is thinkScript's
  *  other spelling of `!=` (`10-rsi-laguerre` writes it), and folding it here
  *  means the tree and the printer only ever see one of the two.
- *  ⛔ THE FOLD HAPPENS **AFTER** THE LEVEL LOOKUP, NOT BEFORE. `<>` is its own
- *  row of the published precedence table; asking that table for a folded
- *  spelling would be asking it for a row it does not have, and the day the two
- *  spellings sit on different rows the fold would silently answer for both. */
+ *
+ *  ⚠️ THE FOLD HAPPENS AFTER THE LEVEL LOOKUP, AND TODAY THAT ORDERING DECIDES
+ *  NOTHING — measured: `<>` and `!=` are BOTH row 7 of the published table, so
+ *  folding first returns the same level and all 148 tests pass either way. It is
+ *  ordered this way as future-proofing only: the page lists the two spellings
+ *  separately, so if it ever gave them different levels, folding first would
+ *  silently answer with `!=`'s. ⛔ NO TEST CAN TELL THE TWO ORDERINGS APART,
+ *  which is why this says so instead of offering a reason.
+ *
+ *  ⛔⛔ AND THE SENTENCE THAT USED TO BE HERE WAS FALSE — *"asking that table for
+ *  a row it does not have"* — because `!=` IS a row. It was written in the same
+ *  commit that removed the "thinkorswim does not publish a precedence table"
+ *  alibi, which is the third time this lane has produced this exact shape: a
+ *  comment that explains why something was not checked, standing in for the
+ *  check. The tell is a rationale for an absence. */
 const CMP = Object.freeze({ '==': '==', '!=': '!=', '<>': '!=', '>': '>', '<': '<', '>=': '>=', '<=': '<=' })
 
 /** ⭐ THE WORD SPELLINGS ARE THE SYMBOL SPELLINGS. thinkorswim's Comparison
@@ -761,9 +782,9 @@ function infixAt(c) {
   const t = peek(c)
   if (!t) return null
   if (t.kind === 'punct') {
-    // ⭐ THE LEVEL IS LOOKED UP BY THE SPELLING THE MEMBER WROTE, and only THEN
-    // is the spelling folded to canonical. `<>` is its own row of the published
-    // table; folding first would ask that table for a row it does not have.
+    // The level is looked up by the spelling the member wrote, and only then is
+    // the spelling folded to canonical — see `CMP` above for why that ordering
+    // is future-proofing rather than a fix, and decides nothing today.
     if (!has(TS_PRECEDENCE, t.value)) return null
     const op = has(CMP, t.value) ? CMP[t.value] : t.value
     return { entry: { kind: 'binary', op }, bp: bpOfLevel(TS_PRECEDENCE[t.value]), tok: t, length: 1 }
