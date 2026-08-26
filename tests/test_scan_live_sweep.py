@@ -231,3 +231,110 @@ def test_the_live_block_is_the_LAST_CYCLE_and_says_whether_THIS_definition_was_s
     assert live["cycle_started"] == t and live["definition_swept"] is False
     assert live["skipped_reason"] is None
     assert live["fresh_rows"] == 0
+
+
+# ═══ 4. the AST rail: live functions never WRITE a nightly table (and a control) ═══
+
+NIGHTLY_TABLES = ("scan_hits", "scan_coverage", "screener_rows")
+WRITE_VERBS = ("INSERT", "DELETE", "UPDATE", "REPLACE")
+#: The ONLY interpolations the probe resolves — read off the store, never retyped.
+LIVE_CONSTANTS = {"LIVE_HITS_TABLE": scan_store.LIVE_HITS_TABLE,
+                  "LIVE_CYCLES_TABLE": scan_store.LIVE_CYCLES_TABLE}
+Writes = collections.namedtuple("Writes", "tables unresolved")
+
+
+def _sql_strings(node, constants):
+    """Every string an execute* call can be reading, ONE per literal.
+
+    A plain `Constant` as-is. A `JoinedStr` (f-string) reassembled with `constants`
+    substituted for `{NAME}` placeholders and every OTHER interpolation reported by
+    its source text instead of being dropped — the literal parts of
+    `f"DELETE FROM {LIVE_HITS_TABLE} …"` never carry the table, which is how the
+    brief's probe read every live writer as writing nothing. A JoinedStr's Constant
+    children are never re-visited as bare literals."""
+    if isinstance(node, pyast.JoinedStr):
+        parts, unresolved = [], []
+        for v in node.values:
+            if isinstance(v, pyast.Constant):
+                parts.append(str(v.value))
+            elif (isinstance(v, pyast.FormattedValue) and isinstance(v.value, pyast.Name)
+                  and v.value.id in constants):
+                parts.append(constants[v.value.id])
+            else:
+                unresolved.append(pyast.unparse(v.value))
+        yield "".join(parts), unresolved
+        return
+    if isinstance(node, pyast.Constant) and isinstance(node.value, str):
+        yield node.value, []
+        return
+    for child in pyast.iter_child_nodes(node):
+        yield from _sql_strings(child, constants)
+
+
+def _writes_by_function(source: str, *, resolve: bool = True) -> dict:
+    """{function name: Writes(tables its execute*/executescript SQL WRITES, the
+    interpolations in its execute* f-strings it could NOT resolve)}. AST, never grep.
+    `resolve=False` is the brief's literal probe, kept ONLY so a control can show it
+    is blind."""
+    constants = LIVE_CONSTANTS if resolve else {}
+    tree = pyast.parse(source)
+    out = {}
+    for fn in [n for n in pyast.walk(tree) if isinstance(n, pyast.FunctionDef)]:
+        tables, unresolved = set(), []
+        for call in [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)]:
+            if getattr(call.func, "attr", None) not in ("execute", "executemany", "executescript"):
+                continue
+            for text, missing in _sql_strings(call, constants):
+                unresolved += missing
+                sql = text.upper()
+                if any(v in sql for v in WRITE_VERBS):
+                    for t in NIGHTLY_TABLES + tuple(LIVE_CONSTANTS.values()):
+                        if re.search(rf"\b{t.upper()}\b", sql):
+                            tables.add(t)
+        out[fn.name] = Writes(tables, unresolved)
+    return out
+
+
+def test_no_LIVE_function_writes_a_NIGHTLY_table_and_no_nightly_writer_touches_a_live_one():
+    src = pathlib.Path(scan_store.__file__).read_text(encoding="utf-8")
+    writes = _writes_by_function(src)
+    live_fns = {n for n in writes if "live" in n}
+    assert live_fns >= {"upsert_live_hits", "record_live_cycle"}, live_fns
+    for name in live_fns:
+        assert not (writes[name].tables & set(NIGHTLY_TABLES)), f"{name} writes {writes[name].tables}"
+        assert not writes[name].unresolved, (
+            f"{name} builds SQL from {writes[name].unresolved} — a table the probe cannot "
+            "read is a table this rail cannot clear")
+    for name in ("record_hits", "record_coverage", "prune"):
+        assert not (writes[name].tables & set(LIVE_CONSTANTS.values())), name
+    # …and the live writers are SEEN writing their own tables: the rail passes on the
+    # code, not on blindness
+    assert writes["upsert_live_hits"].tables == {scan_store.LIVE_HITS_TABLE}
+    assert writes["record_live_cycle"].tables == {scan_store.LIVE_CYCLES_TABLE}
+
+
+def test_the_write_probe_SEES_a_planted_offender_in_BOTH_spellings():
+    planted = ("def upsert_live_x(conn):\n"
+               "    conn.execute('DELETE FROM scan_hits WHERE 1')\n")
+    assert _writes_by_function(planted)["upsert_live_x"].tables == {"scan_hits"}
+    # ⚠️ the real writers spell their table through an f-string — the probe must read THAT
+    planted_f = ("def upsert_live_y(conn):\n"
+                 "    conn.execute(f'DELETE FROM {LIVE_HITS_TABLE} WHERE 1')\n")
+    assert _writes_by_function(planted_f)["upsert_live_y"].tables == {scan_store.LIVE_HITS_TABLE}
+
+
+def test_the_probe_REFUSES_an_fstring_it_cannot_resolve_rather_than_clearing_it():
+    planted = ("def upsert_live_z(conn):\n"
+               "    conn.execute(f'DELETE FROM {NIGHTLY} WHERE 1')\n")
+    got = _writes_by_function(planted)["upsert_live_z"]
+    assert got.tables == set() and got.unresolved == ["NIGHTLY"], got
+
+
+def test_WITHOUT_fstring_resolution_the_rail_would_pass_VACUOUSLY():
+    """The brief's literal probe reads every live writer as writing NOTHING, so the
+    rail above would pass on blindness rather than on the code. Kept as a control:
+    the day someone simplifies the probe, this goes red before the rail goes silent."""
+    src = pathlib.Path(scan_store.__file__).read_text(encoding="utf-8")
+    naive = _writes_by_function(src, resolve=False)
+    assert naive["upsert_live_hits"].tables == set() and naive["record_live_cycle"].tables == set()
+    assert naive["record_hits"].tables == {"scan_hits"}, "plain literals it CAN read"
