@@ -261,12 +261,19 @@ export default function RunNowButton({ defId, name, session, onResult }) {
       return
     }
 
-    // ⛔ HAND IT OVER FIRST, CAPTION SECOND, AND THE ORDER IS LOAD-BEARING. The
-    // caption says "showing on-demand results" about the set BELOW — which only
-    // becomes the on-demand set once the parent has taken the payload. Captioning
-    // first meant a parent that threw left a caption describing a set that was
-    // never handed over, i.e. the nightly one wearing an on-demand label: the
-    // same identity lie FINDING 1 closed, arriving from the other side.
+    // ⭐ HAND IT OVER FIRST, CAPTION SECOND. The caption says "showing on-demand
+    // results" about the set BELOW, and that set only becomes the on-demand one
+    // once the parent has taken the payload — so a caption written before the
+    // hand-over is describing a set that may never arrive: the nightly one
+    // wearing an on-demand label, the same identity lie FINDING 1 closed,
+    // arriving from the other side.
+    //
+    // ⚠️ BUT THE ORDER IS NOT WHAT ENFORCES THAT, and saying otherwise would be a
+    // comment no test can back. `setDone(null)` in the catch below is the
+    // enforcement; mutating the order alone is an EQUIVALENT MUTANT (round 1,
+    // R5 — measured, survived, declared) because the catch clears the caption
+    // either way. The order is what keeps this correct the day someone edits
+    // that catch, which is worth having and is not worth overclaiming.
     try {
       onResult(toScanResultsPayload(finished), finished)
     } catch {
