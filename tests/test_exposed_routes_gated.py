@@ -345,6 +345,35 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # surface in the app was therefore UNCLAIMABLE and sat outside this audit by
     # construction — silently, because an unclaimed route is simply absent from
     # `GATED` and nothing counts the absence.
+    #
+    # ⛔⛔ AND THIS RUNG DOES NOT COVER THAT CLASS. READ THIS BEFORE ASSUMING IT
+    # DOES. `_klass_of` reads the DEPENDENCY TREE, so a route reports `worker`
+    # only if it carries the check as a NAMED `Depends`. Measured 2026-08-26 by
+    # AST over `api/routers/*.py` (a handler counts as gated if it, or a
+    # module-level helper it calls, names the string `PUSH_SECRET`):
+    #
+    #     38 PUSH_SECRET-gated routes
+    #      9 carry it as a `Depends`  -> claimable, and now report `worker`
+    #        (`scan_live.demand` + 8 in `education.py`)
+    #     29 gate INLINE in the handler body -> STILL UNCLAIMABLE
+    #        (desk_zoom_webhook 14, cot 3, push 3, calendar 2, note_sync 2,
+    #         broker_sync/catalysts/massive_stream_router/wire/wire_feedback 1 each)
+    #
+    # ⚠️ The re-review counted 55/9/46 on a wider scope; the 9 agrees EXACTLY and
+    # the disagreement is only in what counts as "a PUSH_SECRET route". Either
+    # number says the same thing: the majority of this family remains outside the
+    # audit, and this rung is the PRECEDENT for pulling them in — not the fix.
+    # Doing so means converting an inline check into a `Depends`, which changes
+    # those routes' behaviour and is an owner decision, not a test edit.
+    #
+    # 🔴 NOR IS PUSH_SECRET THE ONLY FAMILY MISSING FROM THIS LADDER. A sweep
+    # prompted by this rung found four more gate functions absent from it,
+    # covering ~129 routes — `requires_voice_access` (54), `require_community`
+    # (37), `require_chat` (21), `require_plan(...)` (12), all of which raise
+    # 402/403 on a real plan check yet report only `session`, so a `session`
+    # claim satisfies them and a downgrade is invisible — plus
+    # `require_article_reader` (5), which reports NOTHING AT ALL, exactly the
+    # shape this rung was added to fix. That is queued as owner ruling O11.
     ("worker",     lambda n, o: "require_push_secret" in n, frozenset()),
 )
 
@@ -864,13 +893,24 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
     measured["flow_user"] = _flow_admits(fa.require_flow_user)
     measured["flow_admin"] = _flow_admits(fa.require_flow_admin)
 
-    # ⭐ THE MACHINE DOOR, MEASURED IN BOTH DIRECTIONS. `require_push_secret`
-    # never looks at a user — it reads one header — so the honest admit-set over
-    # this file's three declared callers is EMPTY, and an empty set asserted on
-    # its own is exactly the shape that passes when a gate is simply broken.
-    # So the POSITIVE half runs too: the same gate, handed the right bearer,
-    # ADMITS (returns without raising). Without it, `frozenset()` would be
-    # satisfied by a function that refused every input including the correct one.
+    # ⭐ THE MACHINE DOOR. `require_push_secret` never looks at a user — it reads
+    # one header — so the honest admit-set over this file's three declared
+    # callers is EMPTY. An empty set is also what a gate that refuses EVERYTHING
+    # produces, so it is only evidence if the same harness can be seen admitting.
+    #
+    # 🔴 FIX ROUND 2, OPEN 3. The first version wrote
+    # `_admits(lambda _u: require_push_secret(_Req("")) or None)` and called that
+    # "both directions". It was not: the real gate returns `None` on SUCCESS, so
+    # that lambda yields `None` whether it passed or raised, and `_admits` — which
+    # collects a caller only when the invoke returns non-None — could NEVER have
+    # reported one. The empty set was true BY CONSTRUCTION, and the "positive
+    # half" was a separate try/except that exercised none of the measuring
+    # apparatus. A gate that admitted everybody would have measured `∅` too.
+    #
+    # ⛔ SO THE INVOKE NOW RETURNS THE CALLER ON ADMISSION, and the permissive
+    # direction is measured THROUGH `_admits` itself: with the right bearer the
+    # very same call path must report ALL THREE callers. That is what makes the
+    # empty set below a measurement instead of a tautology.
     from api.routers.scan_live import require_push_secret
 
     class _Req:
@@ -878,17 +918,28 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
             self.headers = {"authorization": auth} if auth else {}
 
     monkeypatch.setenv("PUSH_SECRET", "ladder-secret")
-    measured["worker"] = _admits(
-        lambda _u: require_push_secret(_Req("")) or None)
-    try:
-        require_push_secret(_Req("Bearer ladder-secret"))
-        worker_admitted = True
-    except HTTPException:
-        worker_admitted = False
-    assert worker_admitted, (
-        "`require_push_secret` refused its OWN correct bearer — the empty "
-        "admit-set above is a broken gate, not a strict one, and the `worker` "
-        "rung would be ranked on a refusal that means nothing")
+
+    def _worker_admits(auth: str) -> set:
+        def _invoke(user):
+            require_push_secret(_Req(auth))      # raises HTTPException if refused
+            return dict(user)                    # …admitted: a non-None caller
+        return _admits(_invoke)
+
+    measured["worker"] = _worker_admits("")
+
+    # THE PERMISSIVE DIRECTION, THROUGH THE SAME APPARATUS. If this were also
+    # empty, the row above would be measuring the harness, not the gate.
+    with_bearer = _worker_admits("Bearer ladder-secret")
+    assert with_bearer == set(callers), (
+        f"handed its OWN correct bearer, `require_push_secret` admitted "
+        f"{sorted(with_bearer)} of {sorted(callers)} through this file's own "
+        "`_admits`. The empty admit-set recorded for `worker` is therefore not "
+        "evidence of a strict gate — it is what this harness returns no matter "
+        "what the gate does, and the strongest rung on the ladder would be "
+        "ranked on nothing.")
+    assert not measured["worker"], (
+        f"without a bearer the gate admitted {sorted(measured['worker'])} — a "
+        "machine door is open to human callers")
 
     for klass, admitted in sorted(measured.items()):
         assert admitted == set(_ADMITS[klass]), (
