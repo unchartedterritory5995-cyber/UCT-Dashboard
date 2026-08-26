@@ -262,6 +262,28 @@ describe('refusals', () => {
     expect(onResult).not.toHaveBeenCalled()
   })
 
+  it('⛔ a throw from the PARENT is never dressed up as a network failure', async () => {
+    // The `try` used to enclose `onResult`, so a parent handler that threw
+    // produced "Could not reach the server — check your connection" about a run
+    // that had already SUCCEEDED. This component composes only two sentences of
+    // its own; both must be true whenever they appear.
+    const boom = vi.fn(() => { throw new Error('the parent blew up') })
+    render(<RunNowButton defId="u_0000000000aa" name="Above the 50" session="2026-08-21" onResult={boom} />)
+    open()
+    type('NVDA')
+    clickRun()
+    await waitFor(() => expect(boom).toHaveBeenCalledTimes(1), { timeout: 5000 })
+
+    const alert = await screen.findByTestId('run-now-error')
+    expect(alert.textContent, 'the run reached the server — saying otherwise is false')
+      .not.toMatch(/could not reach the server/i)
+    expect(alert).toHaveTextContent('could not be displayed')
+    // ⛔ AND NO CAPTION. The parent never took the payload, so the set below is
+    // still the nightly one; "Showing on-demand results" would be the identity
+    // lie FINDING 1 closed, arriving from the other side.
+    expect(screen.queryByTestId('run-now-done')).toBeNull()
+  })
+
   it('a poll that 404s stops the loop and says so — an expired job is not polled forever', async () => {
     answer(
       { ok: true, status: 202, json: async () => QUEUED },
@@ -340,6 +362,57 @@ describe('while it runs', () => {
   })
 })
 
+// ─── 🔴 A RUN OUTLIVES THE FORM THAT STARTED IT (review round 1, FINDING 1) ──
+//
+// The trigger toggles the CONTROLS. It does not stop the run: the loop is
+// cancelled only by the ticket (a second Run, or unmount). So a member who
+// clicks Run and then collapses the panel still gets `onResult` — the set below
+// SWAPS from the nightly receipt to an on-demand one — and if the caption lived
+// inside `{open && …}` that swap would happen with NOTHING on screen saying the
+// results changed identity. That is the confusion the caption was added to
+// prevent, arriving through the one door the caption could not reach.
+//
+// ⛔ SO THE THREE STATUS LINES ARE NOT PART OF THE PANEL. They describe the RUN
+// and the answer set below it; only the form is behind the toggle.
+
+describe('the run keeps speaking when its panel is collapsed', () => {
+  const collapse = () => fireEvent.click(screen.getByRole('button', { name: 'Run Above the 50 now' }))
+
+  it('⛔ the caption is rendered even though the panel was collapsed mid-flight', async () => {
+    answer({ ok: true, status: 202, json: async () => QUEUED }, ok(RUNNING), ok(DONE))
+    const onResult = mount()
+    open()
+    type('NVDA')
+    clickRun()
+    collapse()
+    // the form is gone…
+    expect(screen.queryByLabelText('Symbols to run')).toBeNull()
+    // …and the answer still lands, so it must still be captioned
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1), { timeout: 5000 })
+    expect(screen.getByTestId('run-now-done')).toHaveTextContent('on-demand')
+  })
+
+  it('and so is the progress, so a collapsed run is not a silent one', async () => {
+    answer({ ok: true, status: 202, json: async () => QUEUED }, ok(RUNNING), ok(DONE))
+    mount()
+    open()
+    type('NVDA')
+    clickRun()
+    collapse()
+    expect(await screen.findByTestId('run-now-state')).toHaveTextContent('2 ahead')
+  })
+
+  it('and so is a refusal — it is not held back until the panel is reopened', async () => {
+    answer({ ok: false, status: 429, json: async () => ({ detail: '[gate:busy] one at a time' }) })
+    mount()
+    open()
+    type('NVDA')
+    clickRun()
+    collapse()
+    expect(await screen.findByTestId('run-now-error')).toHaveTextContent('[gate:busy]')
+  })
+})
+
 describe('the lists come from the screener\'s own meta', () => {
   it('with no lists in meta the list mode is not offered, and paste still works', () => {
     META.meta = { filters: [] }
@@ -406,25 +479,44 @@ describe('⭐ the stylesheet actually declares every class the component uses', 
   // branch (a shared "N ahead" line above the state words, say) a RUNNING job
   // — which carries NO `position` key at all — starts rendering `undefined`.
   // A source rail is the only thing that can fail for that.
+  /**
+   * Every `.position` read in `src` that is NOT guarded.
+   *
+   * ⛔ ONE GRAMMAR, ONE COPY (review round 1, FINDING 2). This started as an
+   * inline regex pair in the rail and a RE-TYPED pair in its control — which
+   * means loosening the real filter left the control green, and the control is
+   * the only thing standing between this rail and silence. That is
+   * `lesson_one_grammar_four_hand_written_copies`, landing in the one rail that
+   * exists precisely BECAUSE no behavioural test can fire here. Both cases below
+   * now call this function, so a loosened filter takes the control down with it.
+   *
+   * `progress.position` is exempt because it is the ALREADY-NORMALISED value
+   * this component put in its own state (`null` when the key was absent); the
+   * guard being asserted is on the raw `job.position` off the wire.
+   */
+  const unguardedPositionReads = (src) => [...src.matchAll(/(.{0,60})\.position\b/g)]
+    .map((m) => m[0])
+    .filter((snippet) => !/typeof\s+[\w.]+\.position\s*===\s*'number'/.test(snippet)
+      && !/progress\.position/.test(snippet))
+
   it('every read of `position` is guarded — the key exists ONLY while queued', () => {
-    const reads = [...read(JSX_REL).matchAll(/\.position\b/g)]
-    expect(reads.length, 'the walk found no `.position` read — this rail would pass on anything')
+    const src = read(JSX_REL)
+    expect([...src.matchAll(/\.position\b/g)].length,
+      'the walk found no `.position` read — this rail would pass on anything')
       .toBeGreaterThan(0)
-    const unguarded = [...read(JSX_REL).matchAll(/(.{0,60})\.position\b/g)]
-      .map((m) => m[0])
-      .filter((snippet) => !/typeof\s+[\w.]+\.position\s*===\s*'number'/.test(snippet)
-        && !/progress\.position/.test(snippet))
-    expect(unguarded,
+    expect(unguardedPositionReads(src),
       'a `job.position` read outside a `typeof … === \'number\'` guard — a running '
       + 'job has no such key and would render `undefined`').toEqual([])
   })
 
   it('and THAT rail is not vacuous either — a planted unguarded read is caught', () => {
-    const dirty = "const p = { position: job.position }\n"
-    const found = [...dirty.matchAll(/(.{0,60})\.position\b/g)].map((m) => m[0])
-      .filter((s) => !/typeof\s+[\w.]+\.position\s*===\s*'number'/.test(s)
-        && !/progress\.position/.test(s))
-    expect(found).toHaveLength(1)
+    // ⭐ THE SAME FUNCTION the assertion above calls. A filter loosened to let an
+    // unguarded read through fails HERE too, which is the whole point.
+    expect(unguardedPositionReads('const p = { position: job.position }\n')).toHaveLength(1)
+    // …and the guarded form is still recognised, so the control is discriminating
+    // rather than merely counting matches.
+    expect(unguardedPositionReads(
+      "position: typeof job.position === 'number' ? job.position : null,\n")).toEqual([])
   })
 })
 

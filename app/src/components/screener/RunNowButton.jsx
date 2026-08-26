@@ -205,6 +205,8 @@ export default function RunNowButton({ defId, name, session, onResult }) {
     if (useList) body.list_id = listId
     else body.symbols = symbols
 
+    // The finished job, carried OUT of the try — see the catch below for why.
+    let finished = null
     try {
       let response = await fetch(RUN_ENDPOINT, {
         method: 'POST',
@@ -248,20 +250,49 @@ export default function RunNowButton({ defId, name, session, onResult }) {
         fail(refusalText(job, 0))
         return
       }
+      finished = job
+    } catch {
+      // ⛔ THE TRY ENDS AT THE LAST NETWORK STEP (review round 1). It used to
+      // enclose `onResult` as well, so a throw from the PARENT's handler was
+      // reported as "Could not reach the server — check your connection" about a
+      // run that had already succeeded. A composed sentence that can be false, in
+      // the one component whose whole discipline is to speak the engine's words.
+      fail('Could not reach the server — check your connection and try again.')
+      return
+    }
+
+    // ⛔ HAND IT OVER FIRST, CAPTION SECOND, AND THE ORDER IS LOAD-BEARING. The
+    // caption says "showing on-demand results" about the set BELOW — which only
+    // becomes the on-demand set once the parent has taken the payload. Captioning
+    // first meant a parent that threw left a caption describing a set that was
+    // never handed over, i.e. the nightly one wearing an on-demand label: the
+    // same identity lie FINDING 1 closed, arriving from the other side.
+    try {
+      onResult(toScanResultsPayload(finished), finished)
+    } catch {
+      // ⛔ "THE RUN FINISHED AND ITS ANSWER COULD NOT BE SHOWN" is a THIRD fact,
+      // and it is neither of the two this file already knows how to say. Calling
+      // it a network failure would be false (the answer arrived); captioning it
+      // as shown would be false (it is not). Nothing about the ENGINE is being
+      // paraphrased here — this sentence is about this surface, which is the one
+      // thing this surface is entitled to speak about.
       setBusy(false)
       setProgress(null)
-      // ⛔ THE LABEL IS THE SERVER'S, NOT THE SELECTOR WE SENT. `universe.label`
-      // is what `list_universe.resolve` called the list; rendering `wl:4b9b…`
-      // would show a member an id they never chose a name for.
-      setDone({
-        tier: job.tier,
-        resolved: job.universe && job.universe.resolved,
-        label: (job.universe && job.universe.label) || null,
-      })
-      onResult(toScanResultsPayload(job), job)
-    } catch {
-      fail('Could not reach the server — check your connection and try again.')
+      setDone(null)
+      setError('This run finished, but its results could not be displayed.')
+      return
     }
+
+    setBusy(false)
+    setProgress(null)
+    // ⛔ THE LABEL IS THE SERVER'S, NOT THE SELECTOR WE SENT. `universe.label`
+    // is what `list_universe.resolve` called the list; rendering `wl:4b9b…`
+    // would show a member an id they never chose a name for.
+    setDone({
+      tier: finished.tier,
+      resolved: finished.universe && finished.universe.resolved,
+      label: (finished.universe && finished.universe.label) || null,
+    })
   }, [defId, tf, session, useList, listId, symbols, onResult])
 
   return (
@@ -337,32 +368,47 @@ export default function RunNowButton({ defId, name, session, onResult }) {
               {busy ? 'Running…' : 'Run'}
             </button>
           </div>
-
-          {progress && (
-            <p className={styles.state} role="status" data-testid="run-now-state">
-              <UIcon name="clock" size={12} />
-              {progress.state === 'queued'
-                ? (progress.position ? `Queued — ${progress.position} ahead of you`
-                  : 'Queued — next up')
-                : 'Running on this pod’s one worker…'}
-            </p>
-          )}
-
-          {done && (
-            <p className={styles.done} role="status" data-testid="run-now-done">
-              <UIcon name="check" size={12} />
-              Showing {done.tier} results over{' '}
-              {done.resolved} {done.resolved === 1 ? 'symbol' : 'symbols'}
-              {done.label ? ` from ${done.label}` : ''}.
-            </p>
-          )}
-
-          {error && (
-            <p className={styles.error} role="alert" data-testid="run-now-error">
-              <UIcon name="warning" size={12} /> {error}
-            </p>
-          )}
         </div>
+      )}
+
+      {/* ─── 🔴 OUTSIDE THE TOGGLE, ON PURPOSE ─────────────────────────────
+          The trigger collapses the FORM; it does not stop the run — the loop is
+          cancelled only by the ticket (a second Run, or unmount). So a member
+          who clicks Run and then collapses the panel still gets an answer, and
+          the set below still SWAPS from the nightly receipt to an on-demand one.
+          With these three inside `{open && …}` that swap happened with nothing
+          on screen saying the results had changed identity — the exact confusion
+          the caption exists to prevent, arriving through the one door the
+          caption could not reach (review round 1, FINDING 1).
+
+          ⛔ THEY DESCRIBE THE RUN AND THE ANSWER SET, NOT THE FORM. Which is why
+          the fix is here rather than disabling the trigger while busy: taking a
+          control away from a member is a worse answer than telling them the
+          truth. */}
+
+      {progress && (
+        <p className={styles.state} role="status" data-testid="run-now-state">
+          <UIcon name="clock" size={12} />
+          {progress.state === 'queued'
+            ? (progress.position ? `Queued — ${progress.position} ahead of you`
+              : 'Queued — next up')
+            : 'Running on this pod’s one worker…'}
+        </p>
+      )}
+
+      {done && (
+        <p className={styles.done} role="status" data-testid="run-now-done">
+          <UIcon name="check" size={12} />
+          Showing {done.tier} results over{' '}
+          {done.resolved} {done.resolved === 1 ? 'symbol' : 'symbols'}
+          {done.label ? ` from ${done.label}` : ''}.
+        </p>
+      )}
+
+      {error && (
+        <p className={styles.error} role="alert" data-testid="run-now-error">
+          <UIcon name="warning" size={12} /> {error}
+        </p>
       )}
     </div>
   )
