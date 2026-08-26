@@ -198,6 +198,8 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                 req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
         if kind == "chart" and itype == 3 and di.is_save_pick(interaction):
             # "Save this chart's settings as my defaults" - writes the member's
             # /chartsettings from the message's state; no re-render.
@@ -210,7 +212,29 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             except Exception as e:  # noqa: BLE001
                 log.warning("[discord-chart] save-defaults failed for %s: %s", uid, e)
                 return _ephemeral("Settings are unavailable right now, try again in a minute.")
-            return _ephemeral("Saved as your defaults: " + prefs_mod.describe(saved))
+            # Answer with UPDATE_MESSAGE rather than a bare ephemeral: a select
+            # keeps showing whatever was last PICKED, so a plain ephemeral left
+            # "\U0001f4be Save this chart's settings…" standing where the chart's
+            # style should be, until the member happened to click something else.
+            # Re-sending the same rows resets it.
+            #
+            # ⛔ The message's FILES ARE RE-DECLARED from the interaction payload
+            # (`message_attachment_ids`), never omitted - an UPDATE_MESSAGE that
+            # does not list them is the same wager `edit_original`'s follow-up
+            # refuses, and losing it would delete the chart from the message.
+            # Content is restated for the same reason (it carries the context line).
+            data: dict = {"components": di.chart_components(req, saved, guild_id=str(interaction.get("guild_id") or "")),
+                          "content": str((interaction.get("message") or {}).get("content") or "")}
+            att = di.message_attachment_ids(interaction)
+            if att:
+                data["attachments"] = [{"id": i} for i in att]
+            if app_id and token:
+                # The confirmation cannot ride an UPDATE_MESSAGE; it follows as a
+                # private message. Best-effort: a lost follow-up costs the receipt,
+                # never the save (already written) or the reset rows.
+                background.add_task(di.followup_ephemeral, app_id, token,
+                                    "Saved as your defaults: " + prefs_mod.describe(saved))
+            return {"type": 7, "data": data}
         if kind == "activity":
             # "Open in Discord": remember what this channel is looking at, then let
             # Discord open the Activity (LAUNCH_ACTIVITY carries no parameters).
@@ -222,8 +246,6 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             return _ephemeral(di.throttle_message(wait))
         prefs = {**prefs, **req.overrides()}   # this call only; saved settings untouched
         req, prefs = breadth_adjust(req, prefs)
-        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
-        token = str(interaction.get("token") or "")
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(di.run_chart_job, app_id, token, req,

@@ -829,6 +829,38 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         return "error"
 
 
+def followup_ephemeral(app_id: str, token: str, content: str, client=None) -> bool:
+    """POST a private follow-up to an interaction the app has already answered.
+    Used after an UPDATE_MESSAGE (type 7) response, which carries no room for a
+    confirmation of its own. Never raises."""
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}"
+    try:
+        import httpx
+        own = client is None
+        c = client or httpx.Client(timeout=15.0)
+        try:
+            r = c.post(url, json={"content": content, "flags": EPHEMERAL})
+        finally:
+            if own:
+                c.close()
+        if not r.is_success:
+            log.warning("[discord-chart] followup HTTP %s: %s", r.status_code, r.text[:200])
+        return bool(r.is_success)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] followup failed: %s", e)
+        return False
+
+
+def message_attachment_ids(interaction: dict) -> list:
+    """The ids of the files the component's message already holds, straight off
+    the interaction payload (a MESSAGE_COMPONENT interaction carries the whole
+    message). Re-declaring them on an UPDATE_MESSAGE means "the message's files
+    are exactly these" - the same reason edit_original's follow-up pins them
+    rather than trusting omission."""
+    msg = interaction.get("message") or {}
+    return [a["id"] for a in (msg.get("attachments") or []) if isinstance(a, dict) and a.get("id")]
+
+
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
                   house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome

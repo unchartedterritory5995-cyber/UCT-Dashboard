@@ -1619,9 +1619,19 @@ def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch
     look = rows[3]["components"][0]
     assert look["options"][-1]["value"] == di.SAVE_VALUE and not look["options"][-1].get("default")
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4242"}},
+             "message": {"id": "m1", "content": "NVDA · Weekly",
+                         "attachments": [{"id": "555", "filename": "NVDA_W_2026-08-26_Chart.png"}]},
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
+    sent = []
+    monkeypatch.setattr(rt.di, "followup_ephemeral", lambda app_id, token, content: sent.append(content) or True)
     r = _post(client, sk, click).json()
-    assert r["type"] == 4 and r["data"]["flags"] == 64 and r["data"]["content"].startswith("Saved as your defaults")
+    # UPDATE_MESSAGE, so the select stops showing "Save…" where the style belongs
+    assert r["type"] == 7
+    assert [c["custom_id"] for row in r["data"]["components"] for c in row["components"] if "custom_id" in c]
+    # ⛔ the message's file and text are RE-DECLARED, never left to omission
+    assert r["data"]["attachments"] == [{"id": "555"}]
+    assert r["data"]["content"] == "NVDA · Weekly"
+    assert sent and sent[0].startswith("Saved as your defaults")          # the receipt follows privately
     saved = p.get_prefs("4242")
     assert (saved["tf"], saved["mas"], saved["volume"], saved["zoom"], saved["indicators"], saved["style"], saved["theme"]) == \
         ("W", "off", False, "1y", "rsi", "line", "oled")
@@ -1966,3 +1976,41 @@ def test_edit_original_returns_the_message_and_can_pin_the_files_a_text_edit_kee
     class C5:
         def patch(self, url, **kw): return Bad()
     assert edit_original("1", "t", content="X", client=C5()) is False
+
+
+def test_a_save_on_a_message_with_no_attachment_declares_none_and_still_confirms(monkeypatch):
+    """The reset must not invent an attachments array where there is nothing to
+    keep — an empty list would mean "remove every file"."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    sent = []
+    monkeypatch.setattr(rt.di, "followup_ephemeral", lambda app_id, token, content: sent.append(content) or True)
+    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[3]["components"][0]
+    click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4343"}},
+             "message": {"id": "m1", "content": "NVDA · Daily"},          # no attachments key at all
+             "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
+    r = _post(client, sk, click).json()
+    assert r["type"] == 7 and "attachments" not in r["data"]
+    assert sent and sent[0].startswith("Saved as your defaults")
+    assert di.message_attachment_ids(click) == []
+    p.reset_prefs("4343")
+
+
+def test_followup_ephemeral_posts_privately_and_never_raises():
+    from api.services.discord_interactions import followup_ephemeral, DISCORD_API
+    seen = []
+    class R:
+        is_success = True; status_code = 200; text = ""
+    class C:
+        def post(self, url, **kw):
+            seen.append((url, kw)); return R()
+    assert followup_ephemeral("123", "tok", "Saved as your defaults: x", client=C())
+    url, kw = seen[-1]
+    assert url == f"{DISCORD_API}/webhooks/123/tok"                       # the webhook root = a follow-up
+    assert kw["json"] == {"content": "Saved as your defaults: x", "flags": 64}
+    class Boom:
+        def post(self, *a, **k): raise RuntimeError("network")
+    assert followup_ephemeral("123", "tok", "x", client=Boom()) is False
