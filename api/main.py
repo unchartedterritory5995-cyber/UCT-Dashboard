@@ -1308,6 +1308,53 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True)
 
+    # -- the LIVE scan sweep: every SCAN_LIVE_INTERVAL_S through the regular
+    # session (spec §5.5, owner decision 1). The nightly answer above is a true
+    # number implying something false by 10:00; this one re-evaluates the same
+    # definitions on the forming bar and writes to the live side tables.
+    #
+    # ⛔ REGISTERED UNCONDITIONALLY, like `screener_live_tier` below, and for that
+    # tier's constraint 4: A JOB REGISTERED ONLY UNDER THE FLAG CANNOT BE TURNED
+    # OFF WITHOUT A DEPLOY. `SCAN_LIVE_SWEEP_ENABLED` is read PER CALL inside
+    # `live_sweep_job` (before it even opens the definitions store) and again
+    # inside `run_sweep(mode='live')`, so rollback is unsetting one env var and
+    # the next tick answers `disabled`. ⚠️ The flag-gated `if` above this block is
+    # the NIGHTLY sweep's; do not let it grow to wrap this one.
+    #
+    # ⛔ IT NEVER TAKES `snapshot_builder._BUILD_LOCK`. A four-minute hold would
+    # starve the live tier's 60 s cadence with `build_in_flight`; the cycle
+    # PROBES `build_in_flight()` between definitions and stops instead. And its
+    # window — the DERIVED open through open + REGULAR_SESSION_LENGTH — is
+    # disjoint from the 05:00 nightly sweep by derivation, not by two hours
+    # chosen to agree (`test_the_live_window_and_the_nightly_sweep_are_DISJOINT`).
+    #
+    # ⛔ `max_instances=1` IS A CORRECTNESS GUARD, NOT A TUNING KNOB: this is the
+    # single web pod, and two overlapping cycles would double the provider reads
+    # and race the one cycle receipt every status surface reads back.
+    #
+    # `misfire_grace_time=60`: apscheduler 3.11.2's `job_defaults` grace is 1
+    # SECOND (see the note on the implied-move job below), and a check loop
+    # delayed past it drops the run silently (EVENT_JOB_MISSED, the function
+    # never called). One missed tick is a five-minute hole in the overlay that
+    # nothing reports — the whole cost of a momentarily busy loop.
+    #
+    # ⚠️ STATED, NOT HIDDEN: this sits inside `register_screener_jobs`, so it also
+    # inherits that function's `SCREENER_SNAPSHOT_ENABLED` master switch, exactly
+    # as the nightly sweep and the live tier do. That is the screener FAMILY's
+    # switch, a different fact from this feature's own flag.
+    def _run_live_scan_sweep():
+        try:
+            scan_evaluator.live_sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener live scan sweep error: {e}")
+
+    from apscheduler.triggers.interval import IntervalTrigger as _LiveInterval
+    scheduler.add_job(
+        _run_live_scan_sweep,
+        trigger=_LiveInterval(seconds=scan_evaluator.live_interval_s()),
+        id="screener_scan_sweep_live", max_instances=1, replace_existing=True,
+        coalesce=True, misfire_grace_time=60)
+
     # -- Screen alerts: the set difference between last night's hits and
     # tonight's, delivered on the channels the watchlist pipeline already owns.
     # ⛔ IT RUNS AFTER THE SWEEP AND ONLY WHEN THE SWEEP RUNS. There is

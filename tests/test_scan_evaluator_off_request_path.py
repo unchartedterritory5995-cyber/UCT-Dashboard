@@ -602,8 +602,14 @@ def test_the_evaluator_module_is_not_imported_by_any_ROUTER_at_all():
     assert not offenders, f"routers importing the sweep: {sorted(set(offenders))}"
 
 
-#: The scheduler job that has always been the sweep's one production caller.
+#: The 05:00 ET cron job — the sweep's original production caller.
 _SCHEDULER_SITE = "api/main.py::_run_scan_sweep"
+
+#: The intraday cycle's cron wrapper (W4b.4). ⛔ A SECOND SCHEDULER JOB, NOT A
+#: SECOND DOOR — and it is registered UNCONDITIONALLY beside the nightly one,
+#: because a job registered only under its flag cannot be turned off without a
+#: deploy. `SCAN_LIVE_SWEEP_ENABLED` is read INSIDE `live_sweep_job` instead.
+_LIVE_SCHEDULER_SITE = "api/main.py::_run_live_scan_sweep"
 
 
 def _sweep_call_sites(overlay=None) -> set:
@@ -653,10 +659,15 @@ def _sweep_call_sites(overlay=None) -> set:
 
 
 def _expected_sweep_call_sites() -> set:
-    """The scheduler job plus every `_BOUNDED_CALLERS` entry — DERIVED from that
-    set, never retyped beside it, so a second name added there without a ruling
-    cannot be spelled into this expectation by accident."""
-    out = {_SCHEDULER_SITE}
+    """BOTH scheduler jobs plus every `_BOUNDED_CALLERS` entry — the latter
+    DERIVED from that set, never retyped beside it, so a second name added there
+    without a ruling cannot be spelled into this expectation by accident.
+
+    ⚠️ The two scheduler sites ARE typed, deliberately: deriving them from
+    `main.py` would make the expectation equal the measurement and this whole
+    census would assert nothing. A named door is the point.
+    """
+    out = {_SCHEDULER_SITE, _LIVE_SCHEDULER_SITE}
     for module, func in _BOUNDED_CALLERS:
         path = _MODULES.get(module)
         assert path is not None, f"{module} is not a module under api/"
@@ -665,18 +676,24 @@ def _expected_sweep_call_sites() -> set:
 
 
 def test_the_production_callers_of_the_sweep_are_the_SCHEDULER_and_ONE_BOUNDED_DOOR():
-    """⭐ THE DOOR HAS EXACTLY TWO PRODUCTION CALL SITES AND BOTH ARE NAMED.
+    """⭐ EVERY PRODUCTION CALL SITE OF THE DOOR IS NAMED, AND THERE ARE THREE.
 
     (Was `test_the_ONLY_production_caller_of_the_sweep_is_the_SCHEDULER` until
     2026-08-26 — renamed, not relaxed: leaving a name that says ONLY beside an
     assertion that expects two is the artifact-that-lies defect this program keeps
-    paying for. A grep for the old name lands here.)
+    paying for. A grep for the old name lands here. ⚠️ The count has since moved
+    AGAIN, which is why it now lives only in this line and not in the test name:
+    "the SCHEDULER" below means the scheduler, not one job on it.)
 
-    Phase C's zero-to-one idiom, now zero-to-two: a door deliberately shut, with
-    the shut asserted, and each opening NAMED — so a third caller (a route, a
+    Phase C's zero-to-one idiom, now zero-to-three: a door deliberately shut, with
+    the shut asserted, and each opening NAMED — so a fourth caller (a route, a
     warmer, a startup hook) fails BY NAME rather than arriving unnoticed.
 
       * `api/main.py::_run_scan_sweep`  — the 05:00 ET cron job.
+      * `api/main.py::_run_live_scan_sweep` — the live cycle's cron wrapper
+        (W4b.4), every `SCAN_LIVE_INTERVAL_S` through the regular session. TWO
+        scheduler jobs now, both named, and both registered unconditionally or
+        under a flag exactly as their own rails assert.
       * `_BOUNDED_CALLERS`              — the on-demand pool worker (spec §5.5,
         lane W4a). It is NOT a request: the handlers queue, this runs on
         `scan_run._POOL`'s one thread, and everything about that shape is
@@ -689,10 +706,15 @@ def test_the_production_callers_of_the_sweep_are_the_SCHEDULER_and_ONE_BOUNDED_D
         "and the BOUNDED on-demand worker (`_BOUNDED_CALLERS`)")
 
 
-def test_the_call_site_census_SEES_a_planted_THIRD_caller():
+def test_the_call_site_census_SEES_a_planted_EXTRA_caller():
     """⚠️ THE CONTROL ON THE TEST ABOVE. An expectation that grew to admit a real
     call site is worth nothing unless the instrument can still SEE the next one.
     A planted module calling the sweep from an ordinary function must appear.
+
+    (Was `..._SEES_a_planted_THIRD_caller` until W4b.4 added the live cycle's
+    cron wrapper and made "THIRD" wrong. Renamed to a name WITHOUT a numeral so
+    the next lane to open a named door cannot make it wrong again — a grep for
+    the old name lands here.)
     """
     planted = "api.services.__planted_for_this_test__"
     sites = _sweep_call_sites(overlay={planted: (

@@ -1811,3 +1811,241 @@ def test_note_demand_on_the_evaluator_DELEGATES_to_the_store(monkeypatch):
     assert len(calls) == 1 and getattr(calls[0].func, "attr", None) == "note_demand", (
         "note_demand does more than delegate — a second ring is a second answer to "
         "'what did somebody just ask about'")
+
+
+# ═══ 14. the SCHEDULER: the registration that turns all of the above ON ═══════
+#
+# ⛔ THE RISK LIVES HERE, NOT IN THE CYCLE. This runs on the SINGLE web pod — one
+# uvicorn process, one event loop, one 64-slot anyio threadpool shared by every
+# member — so `max_instances=1` is a CORRECTNESS guard (overlapping cycles double
+# the provider reads and race the receipt), not a tuning knob.
+#
+# ⛔ AND THE INSTRUMENT MUST BE ABLE TO SEE AN ABSENCE. "assert the job is in the
+# list" is the classic vacuous scheduler test: it passes for a registration that
+# cannot be turned off just as happily as for one that can. Every presence
+# assertion below is paired with a SIBLING whose absence is asserted in the SAME
+# call, so a `_FakeScheduler` that had stopped recording ids would go red.
+
+
+def _main_source() -> str:
+    import api.main as main_mod
+    return pathlib.Path(main_mod.__file__).read_text(encoding="utf-8")
+
+
+def _register_screener_jobs_node():
+    for node in pyast.walk(pyast.parse(_main_source())):
+        if (isinstance(node, (pyast.FunctionDef, pyast.AsyncFunctionDef))
+                and node.name == "register_screener_jobs"):
+            return node
+    raise AssertionError("api/main.py no longer defines register_screener_jobs")
+
+
+def _add_job_gate_depth() -> dict:
+    """``{job id: how many `if` statements wrap its `add_job` call}``, DERIVED by
+    walking `register_screener_jobs`'s own body — never a typed list of ids.
+
+    ⚠️ The function's leading `SCREENER_SNAPSHOT_ENABLED` guard is a RETURN, not a
+    wrapper, so it contributes no depth to anything after it. That master switch
+    gates the whole screener job family and is a different fact from a feature's
+    own flag, which is exactly what this probe is here to tell apart.
+    """
+    out = {}
+
+    def _walk(body, depth):
+        for stmt in body:
+            if isinstance(stmt, pyast.If):
+                _walk(stmt.body, depth + 1)
+                _walk(stmt.orelse, depth + 1)
+                continue
+            for node in pyast.walk(stmt):
+                if not (isinstance(node, pyast.Call)
+                        and getattr(node.func, "attr", None) == "add_job"):
+                    continue
+                for kw in node.keywords:
+                    if kw.arg == "id" and isinstance(kw.value, pyast.Constant):
+                        out[kw.value.value] = depth
+
+    _walk(_register_screener_jobs_node().body, 0)
+    return out
+
+
+def _register(monkeypatch, **env):
+    """Register the screener job family against a fake scheduler and hand back
+    ``{id: job}``. `start_screener_snapshot_warm` is stubbed because it is a boot
+    warm, not part of what registration asserts."""
+    import api.main as main_mod
+    monkeypatch.setenv("SCREENER_SNAPSHOT_ENABLED", "1")
+    for key, value in env.items():
+        if value is None:
+            monkeypatch.delenv(key, raising=False)
+        else:
+            monkeypatch.setenv(key, value)
+    monkeypatch.setattr(main_mod, "start_screener_snapshot_warm", lambda: None)
+    sched = _FakeScheduler()
+    assert main_mod.register_screener_jobs(sched) is True
+    return {j["id"]: j for j in sched.jobs}
+
+
+def test_the_live_job_is_registered_with_the_live_tiers_idiom_PLUS_a_misfire_grace(monkeypatch):
+    """⭐ THE LIVE TIER'S OWN `add_job` SHAPE, plus the one thing it is missing.
+
+    `screener_live_tier` registers `IntervalTrigger(seconds=…), max_instances=1,
+    replace_existing=True, coalesce=True` and NO `misfire_grace_time` — see the
+    test below for why that is a hole here rather than a style choice.
+
+    ⛔ THE CADENCE IS READ, NEVER TYPED: 240 comes back only if the registration
+    called `scan_evaluator.live_interval_s()` instead of writing 300 down.
+    """
+    by_id = _register(monkeypatch, SCAN_LIVE_INTERVAL_S="240",
+                      SCAN_LIVE_SWEEP_ENABLED=None)
+    assert "screener_scan_sweep_live" in by_id, (
+        "the live cycle has no scheduler job — every rail under it is inert")
+    job = by_id["screener_scan_sweep_live"]
+    assert job["max_instances"] == 1, (
+        "overlapping live cycles would double the provider reads and race the receipt")
+    assert job["coalesce"] is True
+    assert job["replace_existing"] is True
+    assert job["misfire_grace_time"] == 60
+    assert job["trigger"].interval.total_seconds() == 240, (
+        "the registration retyped the cadence instead of reading live_interval_s()")
+
+
+def test_the_misfire_GRACE_is_WIDER_than_the_INSTALLED_schedulers_own_DEFAULT():
+    """🔴 THE NUMBER THIS EXISTS TO BEAT IS READ OUT OF THE INSTALLED LIBRARY.
+
+    APScheduler 3.11.2 defaults `job_defaults['misfire_grace_time']` to **1
+    second**, and `executors/base.py` SKIPS a due run (EVENT_JOB_MISSED, the
+    function never called) whose trigger time is further behind `now` than that
+    when the check loop reaches it. On a single pod under GIL contention one
+    second is nothing, and a silently dropped tick here is a five-minute hole in
+    the overlay that nothing reports.
+
+    ⛔ Read, not retyped: if a future apscheduler ships a sane default this goes
+    red and somebody re-decides, rather than the assertion quietly agreeing with a
+    number that has moved.
+    """
+    from apscheduler.schedulers.background import BackgroundScheduler
+    library_default = BackgroundScheduler()._job_defaults["misfire_grace_time"]
+    assert library_default == 1, (
+        f"apscheduler's default misfire grace is now {library_default}s, not 1s -- "
+        "the reason this job widens it has changed and needs re-deciding")
+    assert 60 > library_default
+
+
+def test_the_live_job_is_registered_UNCONDITIONALLY_while_the_NIGHTLY_one_is_FLAG_GATED(
+        monkeypatch):
+    """🔴 THE LIVE TIER'S CONSTRAINT 4: *a job registered only under the flag
+    cannot be turned off without a deploy.* The FLAG gates the WORK inside the
+    job (`run_sweep` re-reads it per call), never the registration — so rollback
+    is unsetting an env var and the next tick answers `disabled`.
+
+    ⛔ AND THIS IS THE NON-VACUITY CONTROL FOR EVERY PRESENCE ASSERTION IN THIS
+    SECTION. With BOTH flags dark, the nightly sweep is ABSENT from the very same
+    `sched.jobs` list the live job is PRESENT in. A `_FakeScheduler` that had
+    stopped recording — or a `register_screener_jobs` that bailed early — could
+    not produce that pair.
+    """
+    dark = _register(monkeypatch, SCAN_LIVE_SWEEP_ENABLED=None, SCAN_SWEEP_ENABLED=None)
+    assert "screener_scan_sweep_live" in dark, (
+        "the live job is registered only under its flag -- the kill switch would "
+        "then need a deploy, which is not a kill switch")
+    assert "screener_scan_sweep" not in dark, (
+        "the flag-gated sibling was registered anyway: this instrument cannot see "
+        "an absence, so the assertion above proves nothing")
+
+    lit = _register(monkeypatch, SCAN_LIVE_SWEEP_ENABLED="1", SCAN_SWEEP_ENABLED="1")
+    assert "screener_scan_sweep_live" in lit and "screener_scan_sweep" in lit
+
+
+def test_the_live_add_job_is_wrapped_in_NO_flag_test__BY_AST():
+    """The structural half of the test above: the behavioural pair could both pass
+    on a registration gated by something that happens to be true in the test
+    environment. This walks `register_screener_jobs` and counts the `if`
+    statements between each `add_job` and the function body.
+
+    ⛔ WITH ITS OWN CONTROL: the nightly sweep MUST come back gated. A probe that
+    reported zero for everything would pass the live assertion for free.
+    """
+    depth = _add_job_gate_depth()
+    assert depth.get("screener_scan_sweep_live") == 0, (
+        f"the live add_job sits under {depth.get('screener_scan_sweep_live')} "
+        "conditional(s) -- registration must not be gated")
+    assert depth.get("screener_scan_sweep", 0) >= 1, (
+        "the probe reports the flag-gated nightly sweep as unconditional too, so "
+        "it cannot see gating at all and the assertion above is vacuous")
+
+
+def test_the_registered_job_REACHES_live_sweep_job_and_a_RAISING_cycle_is_SWALLOWED(
+        store, monkeypatch):
+    """⛔ THE WRAPPER SWALLOWS, LIKE THE NIGHTLY ONE. An exception escaping into
+    APScheduler's executor is a traceback in a log nobody reads; the cycle has
+    already filed its own receipt and logged its own `[scan-live]` line, and the
+    next tick is five minutes away either way.
+
+    ⭐ THE MIDDLE STEP IS WHAT MAKES THE LAST ONE MEAN ANYTHING: a wrapper that
+    never called `live_sweep_job` would swallow a raise for free.
+    """
+    fn = _register(monkeypatch,
+                   SCAN_LIVE_SWEEP_ENABLED=None)["screener_scan_sweep_live"]["fn"]
+
+    fn()                                        # the REAL job, dark
+    assert scan_store.last_live_cycle("D") is None, (
+        "a dark tick filed a receipt -- the flag no longer gates the work")
+
+    seen = []
+    monkeypatch.setattr(scan_evaluator, "live_sweep_job", lambda: seen.append(1))
+    fn()
+    assert seen == [1], "the registered job never reaches live_sweep_job"
+
+    monkeypatch.setattr(scan_evaluator, "live_sweep_job", _raises(RuntimeError("x")))
+    fn()                                        # ⛔ does NOT raise
+
+
+def test_the_REGISTERED_job_still_FILES_a_receipt_when_the_CYCLE_DIES(
+        store, bars, live_clock, feed, monkeypatch):
+    """🔴 THE END-TO-END PROOF THAT W4b.3's FIX IS NO LONGER LATENT.
+
+    `_finish_live` files a receipt on the raising path and re-raises; until this
+    registration existed nothing ever CALLED that path on a schedule, so a cycle
+    that died left `last_live_cycle()` reading `None` — indistinguishable from "a
+    scheduler that never ran". This drives the real chain the pod will drive —
+    `add_job`'s own callable -> the wrapper -> `live_sweep_job` -> `run_sweep`
+    -> `_finish_live` — and reads the ARTIFACT back out of the store.
+
+    ⛔ A status surface that could not tell a dead scheduler from a quiet evening
+    is the failure this whole pipeline is built to avoid.
+    """
+    fn = _register(monkeypatch,
+                   SCAN_LIVE_SWEEP_ENABLED="1")["screener_scan_sweep_live"]["fn"]
+    monkeypatch.setattr(scan_evaluator, "definitions_to_sweep",
+                        lambda: [_definition(PRICE_TREE)])
+    monkeypatch.setattr(snapshot_builder, "_load_universe",
+                        _raises(sqlite3.OperationalError("database is locked")))
+
+    fn()                                        # ⛔ the pod never sees this raise
+
+    filed = scan_store.last_live_cycle("D")
+    assert filed is not None, (
+        "the cycle died and left NO receipt -- the status surface cannot tell this "
+        "from a scheduler that never started")
+    assert filed["receipt"]["skipped_reason"] == "failed"
+    assert "database is locked" in str(filed["receipt"]["failure"])
+
+
+def test_the_live_window_and_the_nightly_sweep_are_DISJOINT_by_derivation():
+    """The nightly sweep stops STARTING definitions at `sweep_deadline()` = the
+    open minus 30 min; the live window opens AT the open. Neither can be inside
+    the other, and neither number is typed here.
+    """
+    day = datetime.date(2026, 8, 26)
+    opened = scan_evaluator.market_open_et(day)
+    nightly_deadline = scan_evaluator.sweep_deadline(
+        _at(2026, 8, 26, scan_evaluator.SWEEP_HOUR_ET, scan_evaluator.SWEEP_MINUTE_ET))
+    assert nightly_deadline < opened
+    assert scan_evaluator._live_session_state(nightly_deadline) == "closed"
+    assert scan_evaluator._live_session_state(opened) is None
+    # ⛔ AND THE HOUR THE NIGHTLY ACTUALLY FIRES IS OUTSIDE THE LIVE WINDOW TOO --
+    # the deadline being early is not the same fact as the cron being early.
+    assert scan_evaluator._live_session_state(
+        _at(2026, 8, 26, scan_evaluator.SWEEP_HOUR_ET,
+            scan_evaluator.SWEEP_MINUTE_ET)) == "closed"
