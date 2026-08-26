@@ -49,8 +49,23 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-// Comparison-line colours, in order of the ?compare= list (distinct from every house MA colour).
-const COMPARE_COLORS = ['#38bdf8', '#f472b6', '#a3e635']
+// Comparison-line colours, in the order of the ?compare= list.
+//
+// ⛔ DERIVED, NOT PICKED BY EYE. The first cut was #38bdf8 / #f472b6 / #a3e635,
+// and #f472b6 is BYTE-IDENTICAL to the house EMA-20 while #38bdf8 sits 25 units
+// from the SMA-50 blue — on the pod's own render (2026-08-26) the AMD/QQQ
+// comparison and the EMA-20 were the same pink line. These three were chosen by
+// scoring candidates against EVERY colour the house chart already draws
+// (chartDefaults' overlays + candles + grid/text + the pre/post chip) and
+// keeping the trio whose nearest neighbour is furthest away:
+//   #c084fc purple    nearest SMA-50  #60a5fa (91)
+//   #22d3ee cyan      nearest SMA-50  #60a5fa (43)
+//   #e8e8ea off-white nearest axis text #9aa0a6 (56)
+// compareColors.test.js re-runs that measurement against the live palette, so a
+// future house recolour that crowds one of these fails instead of shipping two
+// lines of the same colour. Comparisons draw at lineWidth 2 (MAs are 1) and
+// carry a price-scale label in their own colour, which is the second signal.
+export const COMPARE_COLORS = ['#c084fc', '#22d3ee', '#e8e8ea']
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
