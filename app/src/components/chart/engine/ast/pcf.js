@@ -52,6 +52,7 @@
 //   * Condition Formula Template Table — `/m/69445/l/756693`
 
 import { TABLE, NODE_TYPES, assertCanonical, parseFormula } from './parse.js'
+import { prepareSource } from './letPrepass.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -1389,8 +1390,16 @@ const PCF_MARKERS = [
   /(^|[^<>!=])=(?!=)/,
 ]
 
-/** A marker only the native dialect produces. */
-const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/]
+/** A marker only the native dialect produces.
+ *
+ *  ⛔ A `let` LINE IS NEVER TC2000 — and it MUST be listed, because `let x = …`
+ *  carries a bare `=`, which is a PCF marker. Without this the whole `let`
+ *  vocabulary is handed to the TC2000 reader and refused for a reason that has
+ *  nothing to do with what the member typed. Deliberately BROADER than the
+ *  binding grammar `letPrepass.js` enforces (`KEY_RE`): a malformed binding must
+ *  reach the native door and be refused `let:syntax` at its own token, not
+ *  disappear into the other dialect. */
+const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/, /^\s*let\s+[A-Za-z_][A-Za-z0-9_]*\s*=/m]
 
 /** Which reader should read this source.
  *
@@ -1414,7 +1423,17 @@ export function detectDialect(source) {
  *  name resolves to `native` rather than throwing: a bad argument must not take
  *  a text box or a schema validator down. */
 export const READERS = Object.freeze({
-  native: parseFormula,
+  // ⭐ W1b — the `let` PRE-PASS RUNS HERE, INSIDE THE ONE READ DOOR, so the text
+  // box, `defSchema`'s rule 2 and every save gate see the same inlined source.
+  // A pre-pass applied at any one call site would let a `let` formula validate
+  // in the builder and fail in the schema — a second authority over what a
+  // source means. The refusal comes back in `parseFormula`'s tagged shape so
+  // every existing caller reads it unchanged.
+  native: (source) => {
+    const pre = prepareSource(source)
+    if (!pre.ok) return { ok: false, error: pre.error, guard: pre.guard }
+    return parseFormula(pre.source)
+  },
   pcf: (source) => parsePcf(source),
 })
 
