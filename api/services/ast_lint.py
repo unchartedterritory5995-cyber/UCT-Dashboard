@@ -530,8 +530,17 @@ def lint_definition(defn: Dict[str, Any], opts: Optional[Dict[str, Any]] = None)
         address = "%s.%s" % (defn.get("id"), plot_key)
 
         if lane == "ast":
-            verdict = lint_repaint(compute.get("ast"),
-                                   dict(opts, inputs=declared_inputs(defn)))
+            # W1b -- A PLOT LINTS **ITS** TREE; the scan alias (``compute.ast``) is
+            # what a plot with no tree of its own lints, which is every plot of a
+            # tree-less (pre-W1b) document and every ``hlines`` guide. Reading
+            # ``compute.ast`` for all of them would report one tree's verdict under
+            # four plot keys. ``.get(key, default)`` rather than ``or`` on purpose:
+            # a tree that is present and falsy is a document defect for
+            # ``defSchema``/``user_definitions`` to name, not something to paper
+            # over with the scan tree's answer -- and the JS lane's
+            # ``hasOwnProperty`` says exactly the same thing.
+            tree = (compute.get("trees") or {}).get(plot_key, compute.get("ast"))
+            verdict = lint_repaint(tree, dict(opts, inputs=declared_inputs(defn)))
             rows.append(dict(address=address, defId=defn.get("id"), plotKey=plot_key,
                              lane=lane, decidability="decided", **verdict))
             continue

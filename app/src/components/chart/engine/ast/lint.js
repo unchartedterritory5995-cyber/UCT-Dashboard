@@ -663,7 +663,17 @@ export function lintDefinition(def, opts = {}) {
 
     // ── the lane this linter was built for ────────────────────────────────
     if (lane === 'ast') {
-      const ast = def.compute.ast
+      // ⭐ W1b — A PLOT LINTS **ITS** TREE; the scan alias is what a plot with no
+      // tree of its own lints, which is every plot of a tree-less (pre-W1b)
+      // document and every `hlines` guide. Reading `compute.ast` for all of them
+      // would report one tree's verdict under four plot keys — a per-plot row
+      // that is not per-plot, which is the whole obligation this function exists
+      // to satisfy.
+      const trees = def.compute.trees
+      const ast = (trees && typeof trees === 'object'
+        && Object.prototype.hasOwnProperty.call(trees, plotKey))
+        ? trees[plotKey]
+        : def.compute.ast
       // ⭐ THE DEFINITION'S OWN INPUTS ARE DERIVED HERE, NEVER ACCEPTED FROM THE
       // CALLER. A caller cannot widen a definition's scalar set by handing one
       // in — which is what would turn a declared knob into a general escape
