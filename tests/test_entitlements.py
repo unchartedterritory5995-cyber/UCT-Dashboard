@@ -794,7 +794,21 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
 #: in the wild rather than in a fixture. The deliberate edit is this bump PLUS
 #: `Depends(limits_dependency)` on that handler — the number alone would have been
 #: a way to make a red test quiet.
-EXPECTED_DEFINITION_RESULT_ROUTES = 1
+#:
+#: ⭐ 2026-08-25 — 1 → 2, AND THE RAIL FIRED AGAIN, THE SAME WAY. W5a mounted
+#: `GET /api/scans/definition-record` (`api/routers/definition_record.py`, which
+#: reads `definition_record.claim_for`/`latest_evaluation`) and this census went
+#: RED naming BOTH paths. The deliberate edit is this bump PLUS
+#: `Depends(limits_dependency)` on that handler, APPLIED to the claim's named
+#: `unproven` symbols — the number alone would have been a way to quiet a red.
+#: ⚠️ MEASURED, NOT PREDICTED: W4a's `POST /api/scans/run` was already merged
+#: when this bump was made and is NOT classified — `api/routers/scan_run.py`
+#: imports only `api.services.screener.scan_run`, so it clears the cheap
+#: name prefilter (it mentions the stores in prose) and the AST correctly
+#: rejects it. The lane brief predicted "3 after both lanes merge"; the census
+#: says 2. If a future task moves a store read INTO that router, this constant
+#: moves with it — read the failure's path list, never a forecast.
+EXPECTED_DEFINITION_RESULT_ROUTES = 2
 
 #: The modules that OWN definition results. ⚠️ Each is checked to EXIST and to
 #: expose its read door below, so a rename empties the census LOUDLY instead of
@@ -963,6 +977,33 @@ def _definition_result_routes() -> list:
 
 def _dependency_calls(route) -> list:
     return [d.call for d in route.dependant.dependencies]
+
+
+def test_the_census_SEES_every_route_that_hands_back_definition_RESULTS():
+    """⭐ THE RECOGNITION HALF, WHICH THE COUNT ALONE DOES NOT SAY.
+
+    ⛔ THE COUNT MOVING IS NOT THE ASSERTION. This census passed W4a's
+    `POST /api/scans/run` for the wrong reason and the wrong reason mattered:
+    the cheap prefilter cleared the router (the word `scan_evaluator` is in its
+    own PROSE, three times), so it WAS imported and AST-walked — and then
+    `_serves_definition_results` resolved its one `api.services.screener.*` alias
+    against `RESULT_STORES`, matched no key, and answered False for BOTH handlers.
+    A census yielding `['/api/scans/definition-results']` while a route that
+    computes and hands back hits sat beside it is not covering that route; it
+    cannot SEE it. So the paths are asserted, not just how many there are.
+
+    ⛔ AND THE DOORS ARE NAMED, so this cannot be satisfied by a route that
+    merely mentions the module: `submit_run` and `job_status` are the two
+    functions of the run service a request may reach, and the census resolves
+    which of them each handler actually names.
+    """
+    paths = {r.path for r in _definition_result_routes()}
+    assert "/api/scans/run" in paths, (
+        "the on-demand run route is not in the definition-results census: "
+        f"{sorted(paths)}")
+    assert "/api/scans/run/{job}" in paths, (
+        "the poll that hands back the hits is not in the census: "
+        f"{sorted(paths)}")
 
 
 def test_EVERY_definition_results_route_is_covered_by_the_DERIVED_census():
