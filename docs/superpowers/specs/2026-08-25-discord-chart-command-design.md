@@ -684,3 +684,16 @@ chars); a dropdown pick applies ONE field over the state it carried (Discord
 sends `data.values`); legacy `chart|…` ids from earlier messages still parse.
 `zoom` is also a `/chartsettings` preference. Cache key gains `:to` only when
 panned.
+
+
+### v11 build log — two Discord rules the first deploy tripped
+Both surfaced only as a 400 on the PATCH (the member sees "thinking…" forever;
+the body names the exact component index — `railway logs -s web | grep
+"edit_original HTTP"` is the diagnostic):
+- `COMPONENT_TOO_MANY_DEFAULT_VALUES` — a single-select may mark ONE option
+  default; the Look select had marked the style *and* the theme. The style
+  carries it now. Rail: `test_every_dropdown_obeys_discords_select_rules`.
+- `COMPONENT_CUSTOM_ID_DUPLICATED` — every `custom_id` in a message must be
+  unique; a live chart's disabled "Later" carried the same state as the active
+  timeframe button. Every control now ends its id with a tag (`t/e/l/m/v`) the
+  parser ignores. Rail: `test_every_custom_id_in_a_message_is_unique`.
