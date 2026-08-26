@@ -17,7 +17,7 @@ import {
 import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
 import { REFUSALS as BUDGET_REFUSALS } from './budget.js'
-import { REFUSALS as SENTENCE_REFUSALS, sentenceFor, yieldsOf } from './sentence.js'
+import { REFUSALS as SENTENCE_REFUSALS, sentenceFor, yieldsOf, compileRules } from './sentence.js'
 
 const __dirnameSafe = path.dirname(fileURLToPath(import.meta.url))
 
@@ -373,6 +373,32 @@ describe('the round trip is the proof nothing half-translated', () => {
     }
   })
 
+  /** The manifest's own name-bearing sections, READ OFF THE MANIFEST.
+   *
+   *  ⛔ `Object.keys`, NEVER A LIST TYPED HERE — `compileRules`'s own
+   *  `PROBED_SECTIONS` is this same line two files away, and
+   *  `definition_concierge._name_sections` is its Python twin. An `_`-prefixed
+   *  key is the manifest's note convention and `tableVersion` is a scalar, so
+   *  neither reaches this list. */
+  const sectionsOf = (table) => Object.keys(table)
+    .filter((k) => !k.startsWith('_') && table[k] && typeof table[k] === 'object')
+
+  /** ⚠️ ONLY THE TWO CALLABLE SECTIONS ARE NAMED, AND THAT IS THE WHOLE
+   *  DERIVATION: they are the ones that change the NODE TYPE. Everything else
+   *  rides the `series` leaf, so a sixth series-riding section is swept the day
+   *  it lands with no edit here. Exactly `definition_concierge`'s
+   *  `_CALLABLE_SECTIONS` + `_LEAF_NODE` shape. */
+  const NODE_OF = { operators: 'op', functions: 'call' }
+
+  /** One minimal tree per declared entry, across every declared section. */
+  const treesFor = (table) => sectionsOf(table).flatMap((section) =>
+    Object.entries(table[section]).map(([name, spec]) => {
+      const type = NODE_OF[section] || 'series'
+      if (type === 'series') return { type, name }
+      const arity = type === 'op' ? (spec.arity || 0) : ((spec && spec.args) || []).length
+      return { type, name, args: Array.from({ length: arity }, () => ({ type: 'num', value: 1 })) }
+    }))
+
   it('⛔ …and the sweep above is VACUOUS for whole sections — so every declared name is checked directly', () => {
     // ⛔⛔ THE PARITY RAIL ABOVE COULD NOT HAVE CAUGHT THE ONE DIVERGENCE THAT
     // ACTUALLY HAPPENED. It iterates PINE cases, and `PINE_KNOWN_BUILTINS`
@@ -383,20 +409,15 @@ describe('the round trip is the proof nothing half-translated', () => {
     // file stayed green. A rail whose subject cannot contain the defect is not
     // a rail for it.
     //
-    // ⭐ SO THE SUBJECT IS THE MANIFEST, NOT THE CORPUS: every declared name, on
-    // the node type it rides. This is the form that covers a SECTION added
-    // tomorrow, with no edit here.
-    const trees = [
-      ...Object.keys(TABLE.series).map((name) => ({ type: 'series', name })),
-      ...Object.keys(TABLE.clock).map((name) => ({ type: 'series', name })),
-      ...Object.keys(TABLE.scalars).map((name) => ({ type: 'series', name })),
-      ...Object.entries(TABLE.operators).map(([name, spec]) => ({
-        type: 'op', name, args: Array.from({ length: spec.arity || 0 }, () => ({ type: 'num', value: 1 })),
-      })),
-      ...Object.entries(TABLE.functions).map(([name, spec]) => ({
-        type: 'call', name, args: (spec.args || []).map(() => ({ type: 'num', value: 1 })),
-      })),
-    ]
+    // ⭐ SO THE SUBJECT IS THE MANIFEST, NOT THE CORPUS: every declared name, in
+    // every declared section, on the node type it rides — see `treesFor`, whose
+    // section list is `Object.keys(table)` rather than five names typed here.
+    // ⛔ THIS COMMENT USED TO CLAIM THAT PROPERTY WHILE THE CODE HAND-LISTED THE
+    // FIVE SECTIONS, so a sixth left the sweep at 194 -> 194 and covered neither
+    // new name. A comment asserting a property the code lacks is the same defect
+    // as the diverging reader this rail exists to kill — measured, then fixed by
+    // deriving rather than by editing the sentence.
+    const trees = treesFor(TABLE)
     expect(trees.length).toBeGreaterThan(150)
     const disagree = trees.filter((t) => treeYieldsBool(t) !== (yieldsOf(t) === 'bool'))
     expect(disagree.map((t) => `${t.type}:${t.name}`)).toEqual([])
@@ -410,6 +431,39 @@ describe('the round trip is the proof nothing half-translated', () => {
     expect(bools.some((t) => Object.prototype.hasOwnProperty.call(TABLE.clock, t.name))).toBe(true)
   })
 
+  it('⭐ THE CONTROL: a SIXTH section reaches the sweep with no edit to this file', () => {
+    // ⛔ WITHOUT THIS, "the subject is the manifest" is a sentence rather than a
+    // measurement — which is exactly how the hand-listed version passed review
+    // once already. The perturbation is a whole new series-riding section; the
+    // sweep must grow by exactly its entries and must ASK BOTH READERS about
+    // them.
+    const planted = {
+      ...TABLE,
+      zzSixthSection: {
+        zzPlantedA: { lookback: 0, yields: 'bool', sentence: 'planted A' },
+        zzPlantedB: { lookback: 0, yields: 'num', sentence: 'planted B' },
+      },
+    }
+    const before = treesFor(TABLE)
+    const after = treesFor(planted)
+    expect(after.length).toBe(before.length + 2)
+    expect(after.map((t) => t.name)).toEqual(expect.arrayContaining(['zzPlantedA', 'zzPlantedB']))
+
+    // ⚠️ AND THE `_`-PREFIXED NOTE CONVENTION IS RESPECTED, or every prose note
+    // in the manifest would arrive as a vocabulary of one name per character.
+    const noted = { ...TABLE, _zzNote: { zzFromNote: { doc: 'a note, not a section' } } }
+    expect(treesFor(noted).length).toBe(before.length)
+
+    // ⛔ AND THE TWO READERS STILL AGREE ON THE PLANTED SECTION. They agree by
+    // CONSTRUCTION now — `treeYieldsBool` IS `yieldsOf` — so this cannot fail
+    // while that holds, and that is the point: it is the regression detector for
+    // the day somebody re-forks the reader, and its SUBJECT is now complete.
+    const rules = compileRules(planted)
+    for (const tree of after.filter((t) => t.name.startsWith('zzPlanted'))) {
+      expect(treeYieldsBool(tree, planted)).toBe(yieldsOf(tree, rules) === 'bool')
+    }
+  })
+
   it('⛔ `treeYieldsBool` holds NO section list of its own — it reaches the one resolver', () => {
     // ⛔ THE STRUCTURAL HALF, AND IT IS WHY THE FIX WAS A DELETION RATHER THAN A
     // CORRECTED COMMENT. A behavioural sweep passes the day two readers happen
@@ -420,7 +474,12 @@ describe('the round trip is the proof nothing half-translated', () => {
     expect(start, 'treeYieldsBool was renamed — this rail is now measuring nothing')
       .toBeGreaterThan(-1)
     const body = src.slice(start, src.indexOf('\n}', start) + 2)
-    for (const section of ['scalars', 'clock', 'operators', 'functions', 'series']) {
+    // ⛔ THE FORBIDDEN NAMES ARE THE MANIFEST'S OWN SECTIONS, not five strings
+    // typed here — same derivation as `treesFor`, for the same reason: a second
+    // reader of a SIXTH section would slip past a hand-list silently.
+    const sections = sectionsOf(TABLE)
+    expect(sections.length).toBeGreaterThanOrEqual(5)
+    for (const section of sections) {
       expect(body, `treeYieldsBool re-reads table.${section} — that is a second yields authority`)
         .not.toMatch(new RegExp(`\\.${section}\\b|\\['${section}'\\]`))
     }
