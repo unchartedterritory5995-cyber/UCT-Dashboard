@@ -1091,10 +1091,24 @@ describe('precedence, per the thinkScript reference', () => {
       expect(TS_PRECEDENCE[phrase], phrase).toBeGreaterThanOrEqual(1)
       expect(TS_PRECEDENCE[phrase], phrase).toBeLessThanOrEqual(12)
     }
-    for (const sym of ['*', '/', '%', '+', '-', '<', '>', '<=', '>=',
-      '==', '!=', '<>', '&&', '||']) {
+    const SYMBOLS = ['*', '/', '%', '+', '-', '<', '>', '<=', '>=',
+      '==', '!=', '<>', '&&', '||']
+    for (const sym of SYMBOLS) {
       expect(Object.prototype.hasOwnProperty.call(TS_PRECEDENCE, sym), sym).toBe(true)
     }
+    // ⛔⛔ AND THE REVERSE DIRECTION, which is the half a mutation found missing:
+    // a key NOTHING READS. The claim this map makes is "thinkorswim's table,
+    // copied row for row" — and a row for an operator the reader cannot parse
+    // makes that claim quietly false while every assertion above still passes.
+    // Measured: adding `'from': 1` (a real row of the page this reader does NOT
+    // parse) left all 106 tests green until this existed.
+    // ⚠️ `if` is the one key with no infix spelling — `parseValue` looks it up by
+    // name for the `else` arm's rung — so it is accounted for BY NAME here
+    // rather than by widening the sweep until nothing can fail it.
+    const reachable = new Set([...SYMBOLS, 'if',
+      ...TS_WORD_OPERATORS.map((e) => e.words.join(' '))])
+    expect(Object.keys(TS_PRECEDENCE).filter((k) => !reachable.has(k)),
+      'a level nothing looks up is a row this map claims to copy and does not use').toEqual([])
     // ⭐ AND THE PAGE'S OWN ORDERING, spot-checked where this lane got it wrong:
     // relational binds tighter than equality, equality than the logical words,
     // and `within` is the loosest thing in the language.
