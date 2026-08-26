@@ -429,6 +429,17 @@ test('⛔ the row does NOT vanish optimistically — the STORE decides what exis
   // delete that later turned out to have failed, and then put it back.
   expect(rowButton()).toBeInTheDocument()
 
+  // ⭐ …BUT THE PROMPT IS GONE, AND THE TRASH IS BACK. Found by the fix-round-1
+  // sweep as a SURVIVOR (R6): nothing asserted the successful delete disarms its
+  // OWN confirm, and every other case was blind to it because the prompt lives
+  // inside a row those cases had already stopped looking at. Leaving the confirm
+  // armed over a row that IS deleted invites a second DELETE into the window
+  // before the store answers — and `soft_delete` reports an already-tombstoned
+  // row as nothing-to-do, so the store answers that second one "Not found" and
+  // the member is shown a refusal for a delete that worked.
+  expect(screen.queryByTestId('delete-ask-u_breakout')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Delete Breakout base' })).toBeInTheDocument()
+
   // …and it leaves the moment the store's own answer does.
   unmount()
   userDefinitionsState.rows = []
