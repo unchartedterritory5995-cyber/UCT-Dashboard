@@ -492,6 +492,40 @@ def get_row(ticker: str) -> dict | None:
         return dict(r) if r else None
 
 
+def symbols_in_snapshot(tickers) -> set:
+    """The subset of `tickers` that HAS a `screener_rows` row — `ticker` only.
+
+    ⭐ THE MEMBERSHIP QUESTION, ANSWERED WHERE `screener_rows` LIVES. W4b.5's read
+    surface appends live-only symbols to a definition's page and must apply the
+    same join `scan_results._hit_tickers` applies to the nightly half: a ticker
+    the nightly build dropped out of the snapshot is one a member cannot act on.
+
+    ⛔ AND IT IS NOT `get_rows`. That projects `SELECT *` — 65 wide columns — and
+    a live sweep's overlay can name thousands of symbols on a request path. This
+    asks only whether the row exists.
+
+    ⛔ IT ALSO DOES NOT LIVE IN `scan_store`, whose own header says
+    "`screener_rows` IS UNTOUCHED — its 65 columns and 8 indexes are not this
+    module's". A second module reading this table would be a second authority on
+    what "present in the snapshot" means, which is the defect the join exists to
+    avoid in the first place.
+    """
+    tks = sorted({t.upper() for t in (tickers or []) if t})
+    if not tks:
+        return set()
+    out: set = set()
+    with connect() as conn:
+        # SQLite's variable limit is 999 — chunked exactly like `get_rows` below,
+        # because a live overlay can name the whole universe.
+        for i in range(0, len(tks), 900):
+            chunk = tks[i:i + 900]
+            ph = ", ".join("?" for _ in chunk)
+            for r in conn.execute(
+                    f"SELECT ticker FROM screener_rows WHERE ticker IN ({ph})", chunk):
+                out.add(r["ticker"])
+    return out
+
+
 def get_rows(tickers: list) -> dict:
     """Batch fetch: {ticker: row-dict} for the given tickers, one connection.
     Tickers are uppercased to match the stored PK; misses are simply absent."""

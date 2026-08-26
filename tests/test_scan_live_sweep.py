@@ -2256,3 +2256,428 @@ def test_the_FIRST_closed_tick_after_the_bell_does_NOT_eat_the_sessions_LAST_rec
     assert kinds == ["closed", None, None], kinds
     assert rows[1]["cycle_started"] == base + step, (
         "the closing tick swallowed the session's final real receipt")
+
+
+# ═══ 15. THE READ SURFACE (W4b.5) — the receipt finally gets a reader ════════
+#
+# ⛔ THE THING THIS SECTION EXISTS FOR. Before W4b.5 the sweep filed an honest
+# liveness receipt every cycle and `last_live_cycle` had THREE references in
+# `api/`, all of them inside `scan_evaluator.py` (one a comment). Nobody off the
+# pod could answer "is the sweeper alive?", so the arming runbook's confirm step
+# was written against a surface nothing mounted. These tests are the reader.
+#
+# ⭐ AND THE ANSWER IS THE AGE OF THE TOP ROW. A healthy read is ~one interval
+# old; a scheduler dead since the bell reads hundreds of minutes stale. THAT
+# DIFFERENCE IS THE WHOLE SIGNAL — a reader that drops the age, or that filters
+# `closed` rows out of what it exposes, makes a healthy sweeper and a dead one
+# indistinguishable, which is exactly the shape section 14b refuted with
+# byte-identical table hashes.
+
+from fastapi import FastAPI                                        # noqa: E402
+from fastapi.testclient import TestClient                          # noqa: E402
+from api.middleware.auth_middleware import (get_current_user,      # noqa: E402
+                                            get_current_user_with_plan)
+from api.routers import scan_results as results_mod                # noqa: E402
+
+PAID_USER = {"id": "paid1", "role": "member", "plan": "pro"}
+FREE_USER = {"id": "free1", "role": "member", "plan": "free"}
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _client(user, module=results_mod):
+    app = FastAPI()
+    app.include_router(module.router)
+    if user is not None:
+        # ⚠️ THE OVERRIDES ARE ON THE IDENTITY DEPENDENCIES, NEVER ON
+        # `require_paid` — overriding the gate means the test never runs it.
+        app.dependency_overrides[get_current_user] = lambda: dict(user)
+        app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+    return TestClient(app)
+
+
+def _get(user, **params):
+    q = {"def_hash": DEF, "tf": "D"}
+    q.update(params)
+    return _client(user).get("/api/scans/definition-results", params=q)
+
+
+def _seed_nightly(symbols, as_of, extra_rows=("DDD", "ZZZ")):
+    """One swept session, exactly as the sweep files it, plus the `screener_rows`
+    the route joins against — the join is what keeps a symbol the nightly build
+    dropped out of the snapshot off a member's page."""
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        for t in list(symbols) + list(extra_rows):
+            conn.execute("INSERT OR IGNORE INTO screener_rows (ticker) VALUES (?)", (t,))
+        conn.commit()
+    scan_store.record_hits(DEF, "D", as_of, list(symbols))
+    scan_store.record_coverage(DEF, "D", as_of, evaluated=len(symbols) + 2,
+                               answered=len(symbols) + 2, dropped=0, not_computable=0,
+                               dropped_symbols=[], freshness="live")
+
+
+def test_definition_results_carries_TIER_and_LIVE_AS_OF_per_hit_and_the_last_receipt(
+        store, monkeypatch):
+    _seed_nightly(["AAA", "CCC"], 20260825)
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "AAA", "value": 1, "live_cols": 5, "src_price": 71.0},
+        {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0}], t)
+    scan_store.record_live_cycle(
+        {"cycle_started": t, "tf": "D", "skipped_reason": None, "answered": 3}, [DEF])
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+    body = _get(PAID_USER, as_of="20260825").json()
+    # ⛔ UNCHANGED FOR W5a's CURRENT READER. `ScanResults.jsx` reads `tickers`;
+    # provenance is ADDED beside it, never folded into it.
+    assert body["tickers"] == ["AAA", "CCC"], body
+    by = {h["symbol"]: h for h in body["hits"]}
+    assert by["AAA"]["tier"] == "live" and by["AAA"]["live_as_of"] == t
+    assert by["AAA"]["src_price"] == 71.0 and by["AAA"]["live_cols"] == 5
+    assert by["CCC"]["tier"] == "nightly" and by["CCC"]["live_as_of"] is None
+    assert by["CCC"]["in_nightly"] is True
+    # the live-only symbol is APPENDED and SAYS it was not in the nightly set —
+    # never dropped (a hit the member cannot see) and never promoted (a hit the
+    # nightly artifact never made).
+    assert by["DDD"]["tier"] == "live" and by["DDD"]["in_nightly"] is False
+    assert body["live"]["definition_swept"] is True and body["live"]["answered"] == 3
+    assert body["live"]["cycle_started"] == t
+
+
+def test_the_hits_PAGE_carries_the_nightly_tickers_FIRST_and_IN_THE_SAME_ORDER(
+        store, monkeypatch):
+    """⛔ THE TWO LISTS ARE ONE ANSWER. `tickers` is the nightly page; `hits` is
+    that same page with provenance, plus the live-only tail. A page whose two
+    halves disagreed about order would make the tier chip land on the wrong row."""
+    _seed_nightly(["AAA", "CCC"], 20260825)
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0}], t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+    body = _get(PAID_USER, as_of="20260825").json()
+    syms = [h["symbol"] for h in body["hits"]]
+    assert syms[:len(body["tickers"])] == body["tickers"], syms
+    assert [h["symbol"] for h in body["hits"] if not h["in_nightly"]] == ["DDD"]
+
+
+def test_a_live_only_hit_with_NO_screener_row_is_not_reported__the_same_join_the_page_passes(
+        store, monkeypatch):
+    """A live-only symbol still has to exist in `screener_rows`, for exactly the
+    reason `_hit_tickers` joins: a ticker the nightly build dropped is one a member
+    cannot act on, and half a row is worse than none."""
+    _seed_nightly(["AAA"], 20260825, extra_rows=())
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "GONE", "value": 1, "live_cols": 5, "src_price": 1.0}], t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+    body = _get(PAID_USER, as_of="20260825").json()
+    assert [h["symbol"] for h in body["hits"]] == ["AAA"]
+    assert body["tickers"] == ["AAA"]
+
+
+def test_a_not_run_window_carries_EMPTY_hits_and_a_NULL_live_block(store):
+    """🔴 E6-A2 AGAIN, ON THE NEW FIELDS. "Nobody looked" must not acquire a live
+    block on the way out — a receipt beside an empty page reads as a swept quiet
+    market, which is the one thing the `not-run` branch exists to refuse."""
+    body = _get(PAID_USER, as_of="20260101").json()
+    assert body["status"] == "not-run"
+    assert body["hits"] == [] and body["live"] is None
+
+
+def test_the_ENTITLEMENT_CAP_is_applied_ONCE_over_the_WHOLE_page_never_twice(
+        store, monkeypatch):
+    """🔴 THE BRIEF'S STEP 3 CAPPED TWICE — nightly and live-only separately — which
+    hands a capped member up to `2 * max_symbols` symbols. The shipped toolkit is
+    `max_symbols=None`, so the defect is INVISIBLE today and would ship a doubled
+    ceiling the day a second toolkit is sold.
+
+    ⛔ AND THE NIGHTLY HALF KEEPS PRECEDENCE: the cap trims the TAIL, and the
+    live-only tail is what the page appends, so a live-only symbol can never
+    displace a nightly hit a member already paid for.
+    """
+    from api.services import entitlements
+
+    _seed_nightly(["AAA", "CCC"], 20260825, extra_rows=("DDD", "EEE"))
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0},
+        {"symbol": "EEE", "value": 1, "live_cols": 2, "src_price": 3.0}], t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+
+    capped = entitlements.Limits(toolkit="all", max_symbols=3, max_history_bars=None,
+                                 max_definitions=10, min_refresh_seconds=None)
+    app = FastAPI()
+    app.include_router(results_mod.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(PAID_USER)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(PAID_USER)
+    app.dependency_overrides[entitlements.limits_dependency] = lambda: capped
+    body = TestClient(app).get("/api/scans/definition-results",
+                               params={"def_hash": DEF, "tf": "D", "as_of": "20260825"}).json()
+
+    assert len(body["hits"]) == capped.max_symbols, (
+        f"{len(body['hits'])} rows reached a member capped at {capped.max_symbols} — "
+        "the cap was applied per-SLICE instead of once over the page")
+    # the nightly half survives whole; the live-only tail is what got trimmed
+    assert body["tickers"] == ["AAA", "CCC"]
+    assert [h["symbol"] for h in body["hits"]] == ["AAA", "CCC", "DDD"]
+    # …and the member is TOLD, beside the four counts, never inside them
+    assert body["coverage"]["withheld"] == 1
+    assert body["coverage"]["withheld_reason"] == entitlements.SYMBOLS_WITHHELD
+    for key in ("evaluated", "answered", "dropped", "not_computable"):
+        assert body["coverage"][key] == scan_store.coverage(DEF, "D", 20260825)[key], key
+
+
+def test_the_CAP_probe_is_NOT_vacuous__the_UNCAPPED_toolkit_returns_the_whole_page(
+        store, monkeypatch):
+    """The control. Without it the assertion above passes on a route that returns
+    three rows because it can only ever find three."""
+    _seed_nightly(["AAA", "CCC"], 20260825, extra_rows=("DDD", "EEE"))
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.upsert_live_hits(DEF, "D", [
+        {"symbol": "DDD", "value": 1, "live_cols": 2, "src_price": 2.0},
+        {"symbol": "EEE", "value": 1, "live_cols": 2, "src_price": 3.0}], t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
+    body = _get(PAID_USER, as_of="20260825").json()
+    assert [h["symbol"] for h in body["hits"]] == ["AAA", "CCC", "DDD", "EEE"]
+    assert "withheld" not in (body["coverage"] or {})
+
+
+# ─── the beat's own door: /api/scans/live-status ─────────────────────────────
+
+def _live_client(user=PAID_USER):
+    from api.routers import scan_live as live_mod
+    return _client(user, module=live_mod)
+
+
+def test_live_status_is_PAID_and_the_demand_route_is_BEARER_GATED(store, monkeypatch):
+    from api.routers import scan_live as live_mod
+
+    app = FastAPI()
+    app.include_router(live_mod.router)
+    c = TestClient(app)
+    # no identity override at all: the paid gate must refuse, not 500
+    assert c.get("/api/scans/live-status").status_code in (401, 402, 403)
+    assert c.get("/api/scans/demand").status_code == 401
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    assert c.get("/api/scans/demand",
+                 headers={"Authorization": "Bearer wrong"}).status_code == 401
+    # ⚠️ THE RING IS PER-PROCESS MODULE STATE, so it carries whatever an earlier
+    # test in this file left in it. Replaced rather than appended to — the
+    # section-5 idiom — or this assertion reads another test's symbols.
+    monkeypatch.setattr(scan_store, "_DEMAND", collections.OrderedDict())
+    scan_store.note_demand(["zzz"])
+    r = c.get("/api/scans/demand", headers={"Authorization": "Bearer s3cret"})
+    assert r.status_code == 200, r.text
+    assert r.json()["recent"] == ["ZZZ"] and "lists" in r.json()
+
+
+def test_a_BLANK_push_secret_refuses_the_demand_route_rather_than_opening_it(
+        store, monkeypatch):
+    """⛔ THE FAILURE DIRECTION IS CLOSED. An unset `PUSH_SECRET` must not make
+    `Authorization: Bearer ` (empty) match — the same contract as
+    `DESK_TSDR_ANNOUNCE_SHOWS`: blank announces nothing."""
+    from api.routers import scan_live as live_mod
+
+    monkeypatch.delenv("PUSH_SECRET", raising=False)
+    app = FastAPI()
+    app.include_router(live_mod.router)
+    c = TestClient(app)
+    assert c.get("/api/scans/demand", headers={"Authorization": "Bearer "}).status_code == 401
+    monkeypatch.setenv("PUSH_SECRET", "")
+    assert c.get("/api/scans/demand", headers={"Authorization": "Bearer "}).status_code == 401
+
+
+def test_a_FREE_member_is_refused_the_live_status(store):
+    assert _live_client(FREE_USER).get("/api/scans/live-status").status_code == 402
+
+
+def test_live_status_serves_the_TOP_ROW_and_the_AGE_the_runbook_confirms_on(
+        store, monkeypatch):
+    """⭐ THE ARMING RUNBOOK'S CONFIRM STEP, PERFORMABLE OFF THE POD.
+
+    A healthy sweeper's top row is younger than one interval; a scheduler that
+    died at the bell reads hundreds of minutes stale. The number is computed
+    SERVER-side off the store's own read clock, because a caller comparing a raw
+    `cycle_started` against its own wall clock is a second authority on "now" —
+    and the operator curling this wants the answer, not the arithmetic.
+    """
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.record_live_cycle(
+        {"cycle_started": t, "tf": "D", "skipped_reason": None, "cycle_seconds": 3.1}, [DEF])
+
+    healthy = 4 * 60                                    # inside one 5-minute interval
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + healthy)
+    body = _live_client().get("/api/scans/live-status").json()
+    assert body["last_cycle"]["cycle_started"] == t
+    assert body["last_cycle"]["receipt"]["cycle_seconds"] == 3.1
+    assert body["age_s"] == pytest.approx(healthy)
+    assert body["stale"] is False
+    assert body["max_age_s"] == scan_store.live_max_age_s()
+
+    # …and the dead-scheduler read, the one the whole receipt exists to make
+    # distinguishable: 20:00 against a 10:42 last beat.
+    dead = int(_tick(2026, 8, 26, 20, 0) - t)
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + dead)
+    dead_body = _live_client().get("/api/scans/live-status").json()
+    assert dead_body["age_s"] == pytest.approx(dead)
+    assert dead_body["stale"] is True
+    assert dead_body["age_s"] > body["age_s"] * 10, (
+        "a healthy read and a dead-scheduler read are not separable on this "
+        "surface — the reader lost the AGE and with it the whole signal")
+
+
+def test_NO_cycle_EVER_is_its_own_answer_and_is_NOT_reported_as_stale(store):
+    """"Nobody has swept" and "the sweeper died" are different facts and a member
+    reading `stale: true` for a pod that has simply never run would chase the
+    wrong thing. `age_s`/`stale` are both `null` — the same "nobody looked"
+    grammar `coverage is None` already uses."""
+    body = _live_client().get("/api/scans/live-status").json()
+    assert body["last_cycle"] is None
+    assert body["age_s"] is None and body["stale"] is None
+    assert body["max_age_s"] == scan_store.live_max_age_s()
+
+
+def test_a_CLOSED_top_row_is_STILL_THE_BEAT__the_reader_NEVER_filters_it_out(
+        store, monkeypatch):
+    """⛔ THE REFUTED FIX, RE-REFUTED ON THE READ PATH. Not recording `closed` at
+    all was proven wrong by byte-identical table hashes: a healthy overnight pod
+    and a dead one became indistinguishable. A reader that hides `closed` rows
+    rebuilds exactly that blindness one layer up — overnight, EVERY top row says
+    `closed`, and a reader that filtered them would answer "no cycle has ever
+    run" for a perfectly healthy sweeper every single night.
+    """
+    t = _tick(2026, 8, 26, 18, 30)
+    scan_store.record_live_cycle(
+        {"cycle_started": t, "tf": "D", "skipped_reason": "closed"}, [])
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 120)
+    body = _live_client().get("/api/scans/live-status").json()
+    assert body["last_cycle"] is not None, (
+        "the reader filtered the `closed` receipt out and reported a healthy "
+        "overnight sweeper as one that has never run")
+    assert body["last_cycle"]["receipt"]["skipped_reason"] == "closed"
+    assert body["age_s"] == pytest.approx(120)
+    assert body["stale"] is False
+
+
+def test_the_STALE_threshold_is_the_STORES_max_age_never_a_typed_number(store, monkeypatch):
+    """The bound is `scan_store.live_max_age_s()`, which Task 3 pins at
+    `>= 2 * live_interval_s()` — so `stale` means "at least two intervals were
+    missed", derived, and it MOVES when the env var moves."""
+    t = _tick(2026, 8, 26, 10, 42)
+    scan_store.record_live_cycle({"cycle_started": t, "tf": "D", "skipped_reason": None}, [])
+    monkeypatch.setenv("SCAN_LIVE_MAX_AGE_S", "60")
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 90)
+    body = _live_client().get("/api/scans/live-status").json()
+    assert body["max_age_s"] == 60.0 and body["stale"] is True
+    monkeypatch.setenv("SCAN_LIVE_MAX_AGE_S", "600")
+    later = _live_client().get("/api/scans/live-status").json()
+    assert later["max_age_s"] == 600.0 and later["stale"] is False, (
+        "the staleness verdict did not move with the store's own bound — a "
+        "typed threshold has appeared beside it")
+
+
+def test_the_AGE_is_the_STORES_to_compute__the_router_reads_no_clock_of_its_own():
+    """⛔ ONE CLOCK. `scan_store._now_for_reads` is the read path's single seam;
+    a router that subtracted its own `time.time()` would be a second authority on
+    "now", and the route test above could freeze one of them while the handler
+    used the other. BY AST, over the handler."""
+    from api.routers import scan_live as live_mod
+
+    tree = pyast.parse(pathlib.Path(live_mod.__file__).read_text(encoding="utf-8"))
+    fns = [n for n in pyast.walk(tree)
+           if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))
+           and n.name == "live_status"]
+    assert len(fns) == 1, "the live-status handler was renamed; this rail lost its subject"
+    calls = {pyast.unparse(n.func) for n in pyast.walk(fns[0]) if isinstance(n, pyast.Call)}
+    assert "scan_store.live_beat" in calls, calls
+    assert not {c for c in calls if c.startswith(("time.", "datetime."))}, calls
+    assert not [n for n in pyast.walk(fns[0])
+                if isinstance(n, pyast.BinOp) and isinstance(n.op, pyast.Sub)], (
+        "the handler subtracts something — the age belongs to the store")
+
+
+def test_every_route_in_scan_live_is_GATED__DERIVED_off_router_routes():
+    """⛔ DERIVED FROM `router.routes`, and from the GATE OBJECTS — never from a
+    substring of the handler's source. `main.py` includes this router with no
+    router-level dependency, so an ungated route here is reachable by anybody, and
+    a rail that looked for the WORD `PUSH_SECRET` would be cleared by a comment.
+    """
+    from api.routers import scan_live as live_mod
+
+    gates = {live_mod.require_paid, live_mod.require_push_secret}
+    routes = [r for r in live_mod.router.routes if getattr(r, "methods", None)]
+    assert routes, "the router mounts nothing — this whole rail would pass vacuously"
+    for route in routes:
+        calls = {d.call for d in route.dependant.dependencies}
+        assert calls & gates, (
+            f"{sorted(route.methods)} {route.path} carries neither gate: {calls}")
+
+
+def test_the_GATE_census_SEES_an_UNGATED_route():
+    """The control: a route mounted without either dependency must be caught."""
+    from fastapi import APIRouter as _APIRouter
+    from api.routers import scan_live as live_mod
+
+    r = _APIRouter()
+
+    @r.get("/api/scans/__planted__")
+    def _planted():                                        # pragma: no cover
+        return {}
+
+    gates = {live_mod.require_paid, live_mod.require_push_secret}
+    planted = [x for x in r.routes if getattr(x, "methods", None)]
+    assert planted and not any({d.call for d in x.dependant.dependencies} & gates
+                               for x in planted)
+
+
+def test_scan_live_is_REGISTERED_in_main():
+    """⛔ A route defined in a module nobody includes is invisible to the E-7
+    census AND to the runbook — which is the exact class this task retires."""
+    from tests.test_scan_results_route import _included_router_modules
+
+    included = _included_router_modules((ROOT / "api/main.py").read_text(encoding="utf-8"))
+    assert "api.routers.scan_live" in included, (
+        f"api.routers.scan_live is not passed to include_router in api/main.py — "
+        f"the reader exists and nothing serves it. Mounted: {len(included)} routers.")
+
+
+def test_the_scan_live_router_reaches_the_EVALUATOR_nowhere():
+    """⛔ THE ROUTER RAIL, RESTATED WHERE THIS FILE CAN SEE IT.
+    `tests/test_scan_evaluator_off_request_path.py` walks every `api/routers/*`
+    module; this is the same assertion aimed at the one file W4b.5 adds, so a
+    breakage names THIS lane rather than surfacing as a census failure elsewhere."""
+    src = pathlib.Path(ROOT / "api/routers/scan_live.py").read_text(encoding="utf-8")
+    tree = pyast.parse(src)
+    for node in pyast.walk(tree):
+        if isinstance(node, pyast.Import):
+            assert not any("scan_evaluator" in a.name for a in node.names), pyast.unparse(node)
+        elif isinstance(node, pyast.ImportFrom):
+            base = node.module or ""
+            assert "scan_evaluator" not in base, pyast.unparse(node)
+            assert not any(a.name == "scan_evaluator" for a in node.names), pyast.unparse(node)
+
+
+def test_the_DEMAND_route_carries_the_ring_and_the_member_lists_and_a_stamp(
+        store, monkeypatch):
+    """The worker's door. `auth.db` is EMPTY on the worker, so `lists` is the ONLY
+    way member watchlist/tag symbols reach the prewarm ring at all."""
+    from api.routers import scan_live as live_mod
+
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    monkeypatch.setattr(live_mod, "_member_list_symbols", lambda: ["MSFT", "NVDA"])
+    monkeypatch.setattr(scan_store, "_DEMAND", collections.OrderedDict())
+    scan_store.note_demand(["aapl", "tsla"])
+    app = FastAPI()
+    app.include_router(live_mod.router)
+    body = TestClient(app).get("/api/scans/demand",
+                               headers={"Authorization": "Bearer s3cret"}).json()
+    assert body["recent"] == ["TSLA", "AAPL"]              # most recent FIRST
+    assert body["lists"] == ["MSFT", "NVDA"]
+    assert isinstance(body["as_of"], (int, float)) and body["as_of"] > 0
+
+
+def test_the_member_list_read_NEVER_RAISES_into_the_worker_response(monkeypatch):
+    """A missing or unreadable `auth.db` must cost the ring its member lists, not
+    the whole demand answer — the ring still has the recent ring and cap universe."""
+    from api.routers import scan_live as live_mod
+
+    monkeypatch.setattr(live_mod, "_auth_db_path", lambda: "/nonexistent/nope.db")
+    assert live_mod._member_list_symbols() == []

@@ -6091,6 +6091,18 @@ app.include_router(volume_scan_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
+# ── THE LIVE SWEEP'S READER (W4b.5) — `/api/scans/live-status` (paid) and
+# `/api/scans/demand` (PUSH_SECRET bearer, the worker's prewarm ring).
+# 🔴 UNTIL THIS MOUNT EXISTED THE INTRADAY SWEEP'S LIVENESS RECEIPT HAD NO
+# READER: `last_live_cycle` was referenced only inside `scan_evaluator.py`, so
+# "is the sweeper alive?" could not be answered without a shell on the pod and
+# the arming runbook's confirm step named a surface nothing served. Mounted
+# UNCONDITIONALLY — a reader gated behind the flag it is supposed to report on
+# would go dark exactly when somebody needed it.
+# ⛔ REGISTERED so the E-7 census walks it off `router.routes` rather than typing
+# the paths, and so the runbook check is a GET rather than an `ssh`.
+from api.routers import scan_live as scan_live_router
+app.include_router(scan_live_router.router)
 # ── THE E-6 RECORD READ (`/api/scans/definition-record`) — W5a 2026-08-25. The
 # record was written nightly and read by nothing; the Evidence tab reads it
 # here. Unconditional: the record is a shipped fact, not gated by the backtest

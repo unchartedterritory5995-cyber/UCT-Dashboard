@@ -821,14 +821,35 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
 #: `scan_run` entry below, and the assertion that MATTERS is
 #: `test_the_census_SEES_every_route_that_hands_back_definition_RESULTS`, which
 #: names the paths.
-EXPECTED_DEFINITION_RESULT_ROUTES = 4
+#: ⭐ 2026-08-26 — 4 → 6, AND BOTH NEW ROUTES ARE THE *THIRD* SHAPE. W4b.5 mounts
+#: `api/routers/scan_live.py`: `GET /api/scans/live-status` (the intraday
+#: sweeper's LIVENESS BEAT — the last cycle receipt and how stale it is) and
+#: `GET /api/scans/demand` (the demand ring + member watchlist symbols, for the
+#: WORKER's prewarm ring, under the PUSH_SECRET bearer). Both BIND `scan_store`,
+#: so the blunt recogniser is right to see them — and NEITHER hands back a
+#: definition's hits.
+#: ⛔ AND `Depends(limits_dependency)` WOULD HAVE BEEN THE WRONG ANSWER, not
+#: merely a redundant one. `/api/scans/demand` is credentialed by a shared secret
+#: and has NO member session at all; `limits_dependency` resolves through
+#: `get_current_user_with_plan`, so bolting it on would have broken the worker's
+#: only door while reading as protection — the exact "declared there and never
+#: used" shape `READBACK_DOORS` below was written to refuse. So the doors are
+#: NAMED instead (`NON_RESULT_DOORS`), which turns "could not tell" into a real
+#: answer and keeps the strict half strict.
+EXPECTED_DEFINITION_RESULT_ROUTES = 6
 
 #: The modules that OWN definition results. ⚠️ Each is checked to EXIST and to
 #: expose its read door below, so a rename empties the census LOUDLY instead of
 #: quietly — the `_fetch_naaim` failure one lane over
 #: (a guard whose list stopped matching the thing it guarded, and passed).
 RESULT_STORES = {
-    "api.services.screener.scan_store": ("hits", "coverage", "join_clause"),
+    # ⚠️ `live_beat` and `demand_recent` are listed so `_doors_reached` can NAME
+    # them, NOT because they serve results — see `NON_RESULT_DOORS`. An
+    # unlistable door resolves to the empty set, which this census reads as
+    # "could not tell" and holds to the STRICT rule; naming them is what makes
+    # the classification an answer instead of a shrug.
+    "api.services.screener.scan_store": ("hits", "coverage", "join_clause",
+                                         "live_beat", "demand_recent"),
     "api.services.screener.scan_evaluator": ("evaluate_one", "run_sweep"),
     "api.services.definition_record": ("latest_evaluation",),
     # ⭐ W4a's on-demand run. It does not READ a stored result — it COMPUTES one
@@ -855,6 +876,25 @@ RESULT_STORES = {
 #: census` asserts that a covered PRODUCING route exists in the same module.
 #: An unpaired read-back is a hit list handed out under no plan at all.
 READBACK_DOORS = {"api.services.screener.scan_run.job_status"}
+
+#: ⛔ THE DOORS THAT LIVE ON A RESULT STORE AND HAND BACK NO RESULT.
+#:
+#: `scan_store` owns the definition-result tables AND the live sweep's operational
+#: artifacts. `live_beat` answers "is the intraday sweeper alive, and how stale is
+#: its last cycle" — a receipt about the JOB, carrying no symbol and no
+#: definition's hits. `demand_recent` answers "which symbols did somebody just
+#: NAME", which is an input to the worker's prewarm order, not an output of any
+#: scan. A toolkit sells whole-market scan RESULTS; neither of these is one.
+#:
+#: ⛔ SO THIS IS AN EXEMPTION FOR A DOOR, NEVER FOR A ROUTE. A handler reaching one
+#: of these AND a producing door is still strict — the arm below requires the
+#: resolved set to be ENTIRELY non-result, exactly like the read-back arm — and a
+#: handler this walk cannot resolve at all still counts as producing. Controlled
+#: by `test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one`.
+NON_RESULT_DOORS = {
+    "api.services.screener.scan_store.live_beat",
+    "api.services.screener.scan_store.demand_recent",
+}
 
 
 def _dotted(func) -> str:
@@ -1135,11 +1175,24 @@ def test_EVERY_definition_results_route_is_covered_by_the_DERIVED_census():
           "new route `Depends(limits_dependency)` — a whole-market scan result is "
           "the thing a toolkit sells.")
 
-    producing = [(r, d) for r, d in routes if not d or (d - READBACK_DOORS)]
-    readback = [(r, d) for r, d in routes if d and not (d - READBACK_DOORS)]
+    # ⭐ THREE ARMS, AND EVERY ROUTE LANDS IN EXACTLY ONE. `lenient` is the union
+    # of the two non-strict door sets; a route is only spared if EVERY door it
+    # reaches is in it, so one producing door anywhere pulls the whole route back
+    # under the strict rule.
+    lenient = READBACK_DOORS | NON_RESULT_DOORS
+    producing = [(r, d) for r, d in routes if not d or (d - lenient)]
+    readback = [(r, d) for r, d in routes
+                if d and not (d - lenient) and (d & READBACK_DOORS)]
+    non_result = [(r, d) for r, d in routes if d and not (d - NON_RESULT_DOORS)]
     assert producing, (
         "every definition-result route resolved to a read-back door — the strict "
         "half of this rule is exercising nothing")
+    assert non_result, (
+        "no route resolved to a NON-RESULT door — `NON_RESULT_DOORS` is naming "
+        "doors nothing reaches, which is an exemption that can only rot")
+    assert len(producing) + len(readback) + len(non_result) == len(routes), (
+        "a route landed in two arms or none: "
+        f"{sorted(r.path for r, _ in routes)}")
 
     for route, _ in producing:
         assert ent.limits_dependency in _dependency_calls(route), route.path
@@ -1207,6 +1260,53 @@ def test_the_census_would_CATCH_a_planted_UNGATED_definition_result_route():
     assert uncovered == ["/api/planted/ungated"], (
         "the coverage rule did not report the planted ungated route (or reported "
         f"the gated one too): {uncovered}")
+
+
+def test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one():
+    """⛔ THE CONTROL ON THE LENIENT ARM, AND IT IS THE WHOLE REASON THE ARM IS
+    SAFE. `NON_RESULT_DOORS` exempts a DOOR, not a route: a handler that reads
+    `scan_store.live_beat` and `scan_store.hits` in the same breath is handing back
+    a definition's symbols and must still carry the entitlement. Driven through
+    `_result_routes_in` — the same function the census calls — so this cannot pass
+    against a copy of the decision.
+    """
+    from fastapi import APIRouter
+
+    source = (
+        "from fastapi import APIRouter, Depends\n"
+        "from api.services.screener import scan_store\n"
+        "router = APIRouter()\n"
+        "@router.get('/api/planted/beat')\n"
+        "def planted_beat():\n"
+        "    return scan_store.live_beat('D')\n"
+        "@router.get('/api/planted/beat-and-hits')\n"
+        "def planted_beat_and_hits():\n"
+        "    return {'b': scan_store.live_beat('D'), 'h': scan_store.hits('d', 'D', 1)}\n")
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/beat")
+    def planted_beat():                                             # pragma: no cover
+        return {}
+
+    @planted.get("/api/planted/beat-and-hits")
+    def planted_beat_and_hits():                                    # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert found["/api/planted/beat"] == {
+        "api.services.screener.scan_store.live_beat"}, found
+    assert found["/api/planted/beat-and-hits"] == {
+        "api.services.screener.scan_store.live_beat",
+        "api.services.screener.scan_store.hits"}, found
+
+    lenient = READBACK_DOORS | NON_RESULT_DOORS
+    # the beat-only route is spared…
+    assert not (found["/api/planted/beat"] - lenient)
+    # …and the one that ALSO hands back hits is NOT, though it carries the very
+    # same exempt door.
+    assert found["/api/planted/beat-and-hits"] - lenient == {
+        "api.services.screener.scan_store.hits"}
 
 
 def test_the_census_prefilter_does_not_DROP_a_router_before_the_AST_sees_it():

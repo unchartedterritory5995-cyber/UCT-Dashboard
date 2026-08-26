@@ -832,6 +832,49 @@ def _now_for_reads() -> float:
     return time.time()
 
 
+def live_beat(tf: Any = SCAN_JOIN_TF) -> dict:
+    """THE LIVENESS BEAT: the newest cycle receipt AND HOW OLD IT IS.
+
+    ``{"last_cycle": <last_live_cycle> | None, "max_age_s": float,
+    "now": float, "age_s": float | None, "stale": bool | None}``
+
+    ⭐ THE AGE IS THE WHOLE SIGNAL, WHICH IS WHY IT IS COMPUTED HERE. A healthy
+    sweeper's top row is younger than one interval (~4 min on the shipped
+    cadence); a scheduler that died at the bell reads ~814 min stale at 20:00.
+    That difference is the ONLY thing distinguishing "the market is quiet" from
+    "the job is gone", and it is the reason ``record_live_cycle`` files a
+    ``closed`` receipt at all rather than staying silent overnight — a fix that
+    skipped them was refuted with byte-identical table hashes.
+
+    ⛔ SO NOTHING HERE FILTERS BY ``skipped_reason``. Overnight, EVERY top row
+    says ``closed``; a reader that hid them would answer "no cycle has ever run"
+    for a perfectly healthy pod every single night, rebuilding one layer up
+    exactly the blindness the collapse rule exists to prevent.
+
+    ⛔ AND THE CLOCK IS ``_now_for_reads``, THE READ PATH'S ONE SEAM. A router
+    subtracting its own ``time.time()`` would be a second authority on "now" —
+    and a caller comparing a raw ``cycle_started`` against a BROWSER clock would
+    be a third, skewed one. The operator curling this wants the answer, not the
+    arithmetic.
+
+    ⚠️ ``age_s`` / ``stale`` are ``None`` — never ``0`` / ``True`` — when no cycle
+    has ever run. "Nobody has swept" and "the sweeper died" are different facts;
+    the same grammar ``coverage is None`` already uses for "nobody looked".
+
+    ⛔ THE STALENESS BOUND IS ``live_max_age_s()``, NOT A NUMBER TYPED HERE. Task 3
+    pins ``live_max_age_s() >= 2 * live_interval_s()``, so ``stale`` means "at
+    least two intervals were missed" — derived, and it moves when the env moves.
+    (The interval itself lives on the evaluator, which a route may not import.)
+    """
+    code = _normalise_tf(tf)
+    cycle = last_live_cycle(code)
+    now_ts = float(_now_for_reads())
+    max_age = live_max_age_s()
+    age = None if cycle is None else now_ts - float(cycle["cycle_started"])
+    return {"last_cycle": cycle, "max_age_s": max_age, "now": now_ts,
+            "age_s": age, "stale": None if age is None else age > max_age}
+
+
 def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
              now: Optional[float] = None) -> dict:
     """The nightly hits for a session LEFT-JOINed with the definition's live rows.
