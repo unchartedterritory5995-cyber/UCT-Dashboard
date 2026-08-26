@@ -125,6 +125,15 @@ from api.services.ast_freshness import series_in
 from api.services.ast_interpret import interpret, max_lookback, unresolved_scalars
 from api.services.ast_table import TABLE, SERIES_SECTION
 
+# ⭐ THE CONTROLS ARE IMPORTED, NEVER RESTATED. `candle_backtest` measured both on
+# 18.8M bars and `docs/superpowers/research/candles/11-MEASURED-EDGE-2026-08-25.md`
+# records why each exists. A second winsorising rule here (a percentile, say)
+# would be a second authority over "what counts as an outlier" and would drift
+# from the first the day either moved. `_clip` is private there on purpose — it
+# is one number's rule — and this module names that dependency rather than
+# copying the two lines.
+from api.services.screener.candle_backtest import WINSOR_PCT, _clip as winsorise
+
 BarsFor = Callable[[str], Optional[Sequence[Mapping[str, Any]]]]
 
 #: The forward horizons a caller gets when it names none, in bars.
@@ -207,11 +216,18 @@ class Stats:
     median_pct: Optional[float] = None
     best: Optional[float] = None
     worst: Optional[float] = None
+    #: The mean of the SAME returns after `candle_backtest`'s clip (±WINSOR_PCT).
+    #: ⭐ ON BOTH ARMS by construction (one dataclass): that module's rule is "the
+    #: universe base rate is clipped by the SAME rule in the SAME pass" — a clipped
+    #: strategy mean beside a raw baseline mean compares two unlike-treated
+    #: populations. Withheld (`None`) whenever the rate is (rule 5).
+    avg_pct_winsorised: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {"n": self.n, "win_rate": self.win_rate, "avg_pct": self.avg_pct,
                 "median_pct": self.median_pct, "best": self.best,
-                "worst": self.worst}
+                "worst": self.worst,
+                "avg_pct_winsorised": self.avg_pct_winsorised}
 
 
 @dataclass(frozen=True)
@@ -347,6 +363,12 @@ def _method_block(*, warmup: int, min_signals: int,
         "answers": ("did names matching this screen tend to go up? -- NOT what a "
                     "portfolio would have made. No sizing, stops, portfolio "
                     "construction or transaction costs are modelled."),
+        # ⭐ THE CONTROLS, NAMED WHERE THE MEMBER CAN SEE THEM (spec §5.9). The
+        # clip is `candle_backtest`'s (±50%; `gravestone-doji` read +6.0% at
+        # t=1.48 raw and +0.93% at t=24.5 clipped). `winsor_pct` is READ off that
+        # module so the payload cannot say 50 while the rule says something else.
+        "winsorised": True,
+        "winsor_pct": WINSOR_PCT,
     }
 
 
@@ -466,7 +488,8 @@ def _stats(returns: Sequence[float], *, withheld: bool) -> Stats:
     mid = n // 2
     med = ordered[mid] if n % 2 else (ordered[mid - 1] + ordered[mid]) / 2
     return Stats(n=n, win_rate=wins / n * 100, avg_pct=sum(returns) / n,
-                 median_pct=med, best=ordered[-1], worst=ordered[0])
+                 median_pct=med, best=ordered[-1], worst=ordered[0],
+                 avg_pct_winsorised=sum(winsorise(r) for r in returns) / n)
 
 
 # --------------------------------------------------------------------------- #
