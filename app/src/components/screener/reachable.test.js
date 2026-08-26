@@ -258,10 +258,20 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
  *
- * ⭐ THIS LIST CAN ONLY SHRINK. A test below asserts every path here still
- * exists, so an entry outlives its file by exactly zero commits — the failure
- * mode of every allow-list (quietly accumulating names of things that are gone)
- * cannot happen here.
+ * ⭐ THIS LIST CAN ONLY SHRINK, AND TWO TESTS BELOW ARE WHY — read both before
+ * concluding a guard is missing. An entry cannot outlive its FILE ('the
+ * allow-list cannot outlive its files'), and it cannot outlive its REASON
+ * either ('and it cannot excuse something that is actually wired', which fails
+ * the moment a recorded path becomes reachable). Together they close the two
+ * failure modes of every allow-list: quietly keeping names of things that are
+ * gone, and quietly keeping an exemption for something that got wired — the
+ * second being the worse one, because the day that wire is cut again the rail
+ * would stay green. Their control is in the second describe.
+ *
+ * ⚠️ SO AN ENTRY HERE IS A COUNTDOWN, NOT A PARKING SPACE. The five W1a/W3
+ * entries below name the task that mounts them; when W1a.6 and W3.7 land, this
+ * rail goes RED until those entries are deleted. That is the intended
+ * behaviour, not a regression — do not re-green it by widening anything.
  *
  * ⛔ AND IT IS NOT A PLACE TO PARK A NEW ORPHAN. Adding a line is a decision
  * recorded in a diff with a reason beside it; that is the point.
@@ -307,6 +317,47 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
+  'app/src/components/chart/builder/editor/completions.js':
+    'W1a\'s CodeMirror completion source, and DERIVED end to end: the closed table '
+    + '(name, arity/lookback, the manifest\'s own sentence), the definition\'s declared '
+    + 'inputs, and every `let` binding in the buffer. It types no name of its own, so it '
+    + 'cannot offer one parse.js would refuse. MOUNTS AT W1a.6, which lands the editor in '
+    + 'FormulaField.jsx behind a dynamic `import()` — the textarea stays the value carrier '
+    + 'and the fallback, so the chart bundle does not grow. Built ahead of its door on '
+    + 'purpose; the walk follows ImportExpression, so the day that one line lands this '
+    + 'entry stops being true and must be deleted.',
+  'app/src/components/chart/builder/editor/diagnostics.js':
+    'W1a\'s refusal-to-lint-mark mapping, 1:1: the message is the door\'s VERBATIM and only '
+    + 'the RANGE is derived (line/column, index/token, jsep\'s own "at character N", or the '
+    + 'token the sentence quotes; the whole buffer when none of those is present, because '
+    + 'guessing where a refusal probably is would be a second authority over the door). '
+    + 'MOUNTS AT W1a.6 through the same dynamic `import()` from FormulaField.jsx — whose own '
+    + 'L134 comment already names this file as the thing that turns a refusal into a range, '
+    + 'so the door is written and only the wire is outstanding.',
+  'app/src/components/chart/builder/editor/languages.js':
+    'W1a\'s four CodeMirror tokenizers (formula, pine, thinkscript, pcf) over ONE vocabulary '
+    + 'authority: the formula dialect\'s names are read off the closed table at module load '
+    + 'and the foreign dialects\' overlapping names off the translator maps, so a name it '
+    + 'colours as a function is a name the parser resolves. MOUNTS AT W1a.6 via the same '
+    + 'dynamic `import()` from FormulaField.jsx; CodeMirror is deliberately absent from '
+    + 'vite\'s manualChunks, so that one lazy edge is the only thing keeping it out of the '
+    + 'chart bundle.',
+  'app/src/components/chart/engine/ast/dialect.js':
+    'W3\'s "which language is this?" decision — ONE answer over pine/thinkscript/pcf/formula, '
+    + 'made once BEFORE any read and never as a fallback (trying Pine, failing, then trying '
+    + 'thinkScript reports a thinkScript refusal for a Pine typo). It CALLS pcf.js\'s own '
+    + 'detector rather than re-typing TC2000\'s marker set, which would be a second authority '
+    + 'over one value. MOUNTS AT W3.7, which renames PineBox\'s component to `ImportBox` — one '
+    + 'paste box over all four dialects — and has BuilderSheet mount it with dialect="auto". '
+    + 'ImportBox is this module\'s only intended caller.',
+  'app/src/components/chart/engine/ast/thinkscript.js':
+    'W3\'s thinkScript reader: `def x = Average(close, 50); plot scan = close > x;` reaching '
+    + 'the SAME canonical tree parse.js produces, so the chart, the scan and the alert all get '
+    + 'the object they already share. Its own header records why it imports no printer YET — '
+    + 'that task shipped the refusal vocabulary and nothing that emits a tree, and importing '
+    + 'pine.js\'s printer it never calls would be four symbols of decoration in a file a later '
+    + 'engineer audits against. MOUNTS AT W3.7 beside dialect.js, through ImportBox\'s '
+    + 'translateThinkScript.',
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
@@ -512,6 +563,54 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // 145s against a usual 91s) while passing 11/11 on its own.
     // ⛔ A gate that fails at random gets ignored, which is worse than no gate —
     // the flake is a defect in the RAIL, not a reason to distrust the sweep.
+  }, 60000)
+
+  it('THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught', () => {
+    // ⛔ BOTH ALLOW-LIST ASSERTIONS ABOVE ARE GREEN FOR A REASON THAT LOOKS
+    // EXACTLY LIKE PASSING VACUOUSLY. Every key in AWAITING_A_DECISION is, today,
+    // present on disk AND unreachable — so `[].toEqual([])` is what they measure,
+    // and a broken predicate (a bad path join, a `reachable` set that came back
+    // empty) would read green forever. Neither has ever been SEEN to fail.
+    //
+    // ⭐ AND THE SECOND ONE IS ABOUT TO MATTER. Five entries above are exemptions
+    // for modules W1a.6 and W3.7 will MOUNT. On the day they do, those entries
+    // stop being true and start silently excusing a module nobody is watching —
+    // the rail must go RED and demand their deletion. This is the proof it will.
+    //
+    // The two predicates are exercised on a SYNTHETIC allow-list, the same way
+    // the sweep control above exercises `classify` on synthetic tracked-sets.
+    const reachableNow = reachableFrom(ROOTS)
+    const present = (k) => fs.existsSync(path.join(ROOT, k))
+    const wired = (k) => reachableNow.has(path.join(ROOT, k))
+
+    // (a) A module the app really imports — 222 import statements, asserted
+    //     reachable above. An entry for it is a stale exemption.
+    const WIRED = 'app/src/components/ui/UIcon.jsx'
+    expect(present(WIRED) && wired(WIRED),
+      'the wired anchor moved — this control cannot show the reachability guard '
+      + 'firing, so it proves nothing').toBe(true)
+
+    // (b) A path that has never existed. An entry for it outlived its file.
+    const GONE = 'app/src/components/screener/__never_existed__.js'
+    expect(present(GONE), 'the vanished anchor must NOT exist — it is fabricated')
+      .toBe(false)
+
+    // (c) ⛔ THE NON-VACUITY HALF, AND IT IS DERIVED, NEVER TYPED: a real recorded
+    //     module — present AND unreachable — that BOTH predicates must stay
+    //     silent about. Without it these checks could just be answering "yes".
+    const PARKED = Object.keys(AWAITING_A_DECISION).find((k) => present(k) && !wired(k))
+    expect(PARKED, 'no recorded module is both present and unreachable, so this '
+      + 'control has no negative case and cannot tell a real guard from one that '
+      + 'reports everything').toBeTruthy()
+
+    const SYNTHETIC = { [WIRED]: 'stale — wired', [GONE]: 'stale — deleted', [PARKED]: 'genuinely parked' }
+    expect(Object.keys(SYNTHETIC).filter(wired),
+      'the reachability guard did not report an allow-listed module the app '
+      + 'imports 222 times — an entry could outlive its REASON unnoticed')
+      .toEqual([WIRED])
+    expect(Object.keys(SYNTHETIC).filter((k) => !present(k)),
+      'the existence guard did not report an allow-listed path that is not there — '
+      + 'an entry could outlive its FILE unnoticed').toEqual([GONE])
   }, 60000)
 
   it('a specifier that is prose, not an import, is not an edge', () => {
