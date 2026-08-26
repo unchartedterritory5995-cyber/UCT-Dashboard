@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES } from './parse.js'
 import {
-  interpret, maxLookback, nodeCount, FN, TableRefusal, REFUSALS, MAX_RECURRENCE_STEPS,
+  parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, BAR_READERS,
+} from './parse.js'
+import {
+  interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS,
+  MAX_RECURRENCE_STEPS,
 } from './interpret.js'
 import { DEFAULT_BUDGET } from './budget.js'
 
@@ -452,18 +455,45 @@ describe('the implementation and the manifest are the same list', () => {
     // here would be a second roster; asking the table which entries are
     // recurrences means a second one needs no edit, and an entry that stopped
     // declaring one would land RED with its own name in the message.
-    const byWalker = Object.keys(RECURRENCES).sort()
+    //
+    // ⭐ AND A SECOND KIND, DERIVED THE SAME WAY (2026-08-26). An entry
+    // declaring `reads: 'bars'` is handed `interpret`'s own bar array rather
+    // than a pack of argument columns, so its implementation lives in `BAR_FN`
+    // and not in `FN` — the split is what lets `vwap()` read a real instant
+    // where `bindShipped` can only offer a bar index. Same rule as above: the
+    // roster is the MANIFEST's, so a third such entry needs no edit here.
+    const byWalker = [...Object.keys(RECURRENCES), ...BAR_READERS].sort()
     expect(byWalker.length, 'the exception must be non-empty or this rail widened for nothing')
+      .toBeGreaterThan(0)
+    expect(BAR_READERS.length, 'the bar-reading exception must be non-empty too')
       .toBeGreaterThan(0)
     const expected = Object.keys(TABLE.functions).filter((n) => !byWalker.includes(n)).sort()
     expect(Object.keys(FN).sort()).toEqual(expected)
+    // ⛔ AND `BAR_FN` IS THE OTHER HALF OF THE SAME EQUALITY, both directions: a
+    // declared-but-unbound bar reader is a formula the builder offers and the
+    // chart cannot draw, and a bound-but-undeclared one is a callable outside
+    // the closed table. (`interpret.js` refuses this at IMPORT as well, which is
+    // where a wiring defect belongs; this is the rail that names it.)
+    expect(Object.keys(BAR_FN).sort()).toEqual([...BAR_READERS].sort())
+    for (const name of BAR_READERS) {
+      expect(typeof BAR_FN[name], `${name} declares reads:'bars' and is not callable`)
+        .toBe('function')
+      // …and it EVALUATES, so "declared and bound" cannot quietly mean "bound to
+      // something that refuses". The tree is built from the manifest's own
+      // arity, with a plausible instant for the one `int` slot the anchor form
+      // carries, so a third entry is exercised the day it lands.
+      const spec = TABLE.functions[name]
+      const args = spec.args.map(() => ({ type: 'num', value: BARS[1].t }))
+      const column = interpret({ type: 'call', name, args }, BARS, {})
+      expect(column.length, `${name} did not produce a bar-aligned column`).toBe(BARS.length)
+    }
     expect(Object.keys(FN).length).toBeGreaterThanOrEqual(11)      // non-vacuity
     for (const name of expected) {
       expect(typeof FN[name], `${name} is declared but not callable`).toBe('function')
     }
     // ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
     // EVALUATE, or "no implementation" would quietly mean "no behaviour".
-    for (const name of byWalker) {
+    for (const name of Object.keys(RECURRENCES)) {
       const spec = TABLE.functions[name]
       const rec = spec.recurrence
       const args = spec.args.map((kind, i) => (i === rec.warmup

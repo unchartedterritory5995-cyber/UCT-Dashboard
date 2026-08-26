@@ -178,6 +178,28 @@ export const RECURRENCES = Object.freeze(Object.fromEntries(
 export const RECURRENCE_BINDINGS = Object.freeze(
   [...new Set(Object.values(RECURRENCES).map((r) => r.binds))].sort())
 
+/** The declaration that says an entry is computed over the BAR ARRAY rather than
+ *  over the columns its arguments name. `closedTable.json::_functions_bar_readers`
+ *  argues it; this is the string both lanes match on. */
+export const BAR_READS = 'bars'
+
+/** Every function entry declaring `reads: 'bars'`, sorted.
+ *
+ *  ⭐ THE `recurrence` IDIOM, APPLIED TO THE OTHER THING A CALL CAN NEED.
+ *  `bindShipped` packs bars out of ARGUMENT COLUMNS and therefore fabricates `t`
+ *  as a bar index — which is, in its own comment's words, exactly why `vwap` was
+ *  refused for as long as this table has existed. An entry declaring this is
+ *  handed `interpret`'s own bar array instead, so its anchor is a real instant.
+ *
+ *  ⛔ DERIVED, NEVER LISTED. Both walkers ask "does this entry read the bars",
+ *  never "is this call `vwap`", so a third such entry needs no change in either
+ *  lane. `ast_table.bar_readers` is the same read on the same manifest. */
+export const BAR_READERS = Object.freeze(
+  Object.entries(TABLE.functions)
+    .filter(([, spec]) => spec && spec.reads === BAR_READS)
+    .map(([name]) => name)
+    .sort())
+
 /** Does this function read each argument at the bar it writes, and nowhere else?
  *
  *  ⭐ DERIVED FROM THE WINDOW DECLARATION, NEVER FROM A LIST OF NAMES. A hand-list

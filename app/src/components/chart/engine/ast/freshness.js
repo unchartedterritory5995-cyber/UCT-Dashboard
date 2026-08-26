@@ -84,6 +84,7 @@ function sections(opts) {
   const table = (opts && opts.table) || TABLE
   return {
     seriesNames: (table && table.series) || {},
+    functions: (table && table.functions) || {},
     // ⭐ THE CLOCK (tableVersion 2). It is READ HERE so a clock leaf is a
     // resolvable name rather than falling through to `unreadable` — which,
     // because this module fails closed, would have branded every formula
@@ -136,7 +137,7 @@ function declarationIsReadable(decl) {
  *  Re-deciding it here would be a second declaration of one refusal, which is
  *  the wrong-door defect this branch has found four separate times. */
 export function freshnessFor(tree, opts) {
-  const { seriesNames, clock, scalars, inputs } = sections(opts)
+  const { seriesNames, functions, clock, scalars, inputs } = sections(opts)
   let reasons = []
   const found = new Set()
   const cadences = new Set()
@@ -157,6 +158,36 @@ export function freshnessFor(tree, opts) {
     if ((node.type === 'op' || node.type === 'call') && !Array.isArray(node.args)) {
       unreadable = true
       reasons.push(`unreadable: a ${node.type} node carries an \`args\` array`)
+      continue
+    }
+    // ⭐⭐ A FUNCTION MAY DECLARE A CADENCE TOO, AND THIS IS WHERE IT IS READ.
+    // Every entry in this table is computed from the BARS, so the ordinary case
+    // is an entry with no `cadence` at all and nothing to say. `vwap`/`avwap`
+    // declare `cadence: 'live'` because the cross-lane contract fixes the field
+    // on functions, and a declared field nothing reads is an INERT KNOB — this
+    // lane has already shipped two of those this wave.
+    //
+    // ⛔ SO THE CLAIM IS CHECKED RATHER THAN DECORATIVE: `live` adds no ceiling
+    // (it says "this reads the bar it draws on", which is what the scalar branch
+    // below denies), any OTHER cadence makes the whole tree `as-of-snapshot`
+    // exactly as a scalar leaf does, and a cadence that is not a usable string is
+    // `unknown` — fail-closed, the stalest answer, never a quiet `live`.
+    if (node.type === 'call' && typeof node.name === 'string'
+        && own(functions, node.name)
+        && own(functions[node.name] || {}, 'cadence')) {
+      const cadence = functions[node.name].cadence
+      if (typeof cadence !== 'string' || !cadence) {
+        unreadable = true
+        reasons.push(
+          `unreadable: the function \`${node.name}\` declares a cadence this reader cannot resolve`)
+      } else if (cadence !== LIVE) {
+        cadences.add(cadence)
+        found.add(node.name)
+        reasons.push(
+          `\`${node.name}\` is rebuilt ${cadence} -- it is not read from the bar it draws on`)
+      } else {
+        reasons.push(`\`${node.name}\` reads the bar it draws on`)
+      }
       continue
     }
     if (node.type !== 'series') continue

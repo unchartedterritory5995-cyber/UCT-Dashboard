@@ -2294,11 +2294,37 @@
       "opts": {
         "tf": "M"
       }
+    },
+    {
+      "id": "vwap_session",
+      "source": "vwap()",
+      "why": "⛔⛔ THE ONE ACCUMULATOR, MEASURED ACROSS THE LANES. `vwap()` binds `indicators.js::computeVWAP` and `indicator_compute.compute_vwap_raw` -- the session VWAP the chart draws and the one the alert engine fires on -- so this digest is what stops a formula's VWAP and the product's VWAP from ever becoming two numbers. ⭐ IT IS ALSO THE UTC-MIDNIGHT REGRESSION FIXTURE: these 579 bars carry the Friday 20:00 ET print that IS 00:00 UTC the next day, and the retired UTC-day bucketing wiped the accumulator there -- a measured $14.45 at the following open. A revert to it moves this digest in BOTH lanes. ⭐ AND IT IS THE FIRST ZERO-ARGUMENT CASE IN THIS CORPUS, which is the whole reason the entry is declarable at all: with no argument columns to pack there is no fabricated bar-index `t`, so the binding reads the real instant",
+      "ast": {
+        "type": "call",
+        "name": "vwap",
+        "args": []
+      }
+    },
+    {
+      "id": "avwap_from_a_mid_series_instant",
+      "source": "avwap(1762189200)",
+      "why": "the same accumulator restarted at an INSTANT -- 2025-11-03 12:00 ET, the middle of this corpus's second ET session -- which is the only anchor a closed-table formula can spell, because the table has exactly two argument kinds and no string literal. ⛔ THE COLUMN IS BLANK BEFORE THE ANCHOR AND EXACT AFTER IT, never a partial accumulation of the bars that came first, so a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ The anchor is INSIDE the series on purpose: an anchor before the first bar is NOT COMPUTABLE by declaration, because 'the first bar at or after it' would be whichever bar the caller happened to fetch",
+      "ast": {
+        "type": "call",
+        "name": "avwap",
+        "args": [
+          {
+            "type": "num",
+            "value": 1762189200
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
   "_recurrence": "⭐ FIVE CASES PIN THE RECURRENCE, AND EACH PINS A DIFFERENT HALF OF IT. The bounded counter pins that the window RE-SEEDS -- a single forward pass reads 1,2,3... where the shipped one reads 12 -- the running maximum pins the scalar/column equality by being `highest(close, 20)` under another name, the sticky flag pins the ternary spine, the windowed case pins the pure/impure PARTITION and the composed lookback, and the offset case pins the line between shifting a finished column (legal) and reading the binding through a bar offset (refused). ⛔ THE BINDING IS SPELLED `self` HERE BECAUSE A CORPUS CASE IS DATA A HUMAN READS; every WALKER reads that name from `functions.accum.recurrence.binds` instead, which is why renaming it would move these five digests and nothing else.",
   "_indicators": "⭐ THE INDICATOR ROWS (Phase F). One case per newly declared function, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a function with no case is a function whose two lanes may already disagree with every gate green. Two rows are not a function at all -- `macd_signal_by_composition` and `stoch_d_by_composition` are the COMPOSITIONS `_functions_excluded` offers in place of the two entries it refuses, so a refusal that quietly stopped being survivable moves a digest. ⛔ THE SEVENTEEN EXISTING DIGESTS DO NOT MOVE, and that is a measurement rather than a hope: not one row here edits an existing tree, and the re-record was diffed against the previous log key by key.",
   "_allNaN": "A case that is NOT COMPUTABLE ON EVERY BAR, deliberately. The domain refusals (sqrt of a negative, log of zero, an overflow, a zero divisor) are the cases where the two languages natively disagree, so they are exactly the cases worth having -- and their correct column IS all-NaN. ⛔ The flag is per-case and opt-in so the rail keeps its teeth: an UNEXPECTED all-NaN column still fails, which is what it was written to catch.",
+  "_bar_readers": "⭐⭐ THE TWO BAR-READING ROWS. Every other case in this file is measured over columns; these two are measured over the BARS, `t` included, because their entries declare `reads: \"bars\"` -- and that declaration is the whole reason `vwap` stopped being refused (`closedTable.json::_functions_bar_readers`). ⛔ THEY ARE THE ONLY CASES HERE WHOSE ANSWER DEPENDS ON A TIMEZONE DATABASE RATHER THAN ON ARITHMETIC, which is what makes the cross-lane digest worth having: `Intl.DateTimeFormat` against `zoneinfo`, over a corpus that crosses a DST fallback, a weekend and the Friday 20:00 ET bar that is 00:00 UTC the next day. ⚠️ NEITHER CARRIES `opts`: a session is decided by the CALENDAR, so unlike the four timeframe booleans these answer the same column whatever timeframe the caller claims.",
   "_clock": "⭐ THE CLOCK ROWS (tableVersion 2). One case per declared clock name, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a clock entry with no case is a name whose two lanes may already disagree with every gate green. ⛔ THESE ARE THE ONLY CASES IN THIS FILE WHOSE ANSWER DOES NOT COME FROM A PRICE -- they come from a CALENDAR, which is a second implementation on each side (`Intl.DateTimeFormat` against `zoneinfo`) rather than one formula written twice. The four `opts`-bearing rows are also the first cases in this corpus to exercise `interpret`'s trailing `opts` argument at all; a clock boolean measured WITHOUT it is two lanes agreeing on an all-null column, which is a pass about nothing."
 }

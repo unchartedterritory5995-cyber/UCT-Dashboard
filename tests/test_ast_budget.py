@@ -216,8 +216,55 @@ def test_the_caps_have_headroom_over_everything_this_repo_ships():
         for cap, value in result["measured"].items():
             worst[cap] = max(worst[cap], value)
     for cap, cap_value in ast_budget.DEFAULT_BUDGET.items():
+        # ⭐⭐ ``maxLookback`` IS THE ONE CAP THE CORPUS IS SUPPOSED TO REACH,
+        # and that is a consequence of ruling O7 rather than a relaxation. The
+        # cap is DERIVED as ``max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)``,
+        # so a session-anchored entry does not approach it -- it IS it, by
+        # construction, at whatever number a session turns out to be. Demanding
+        # headroom there demands that the cap be bigger than the thing it was
+        # sized to hold. ⛔ EQUALITY IS STILL THE CEILING: one bar past refuses,
+        # and the case below measures exactly which shapes that costs.
+        if cap == "maxLookback":
+            assert worst[cap] <= cap_value, f"{cap}: the corpus is OVER the cap"
+            continue
         assert worst[cap] < cap_value, f"{cap}: the corpus already sits AT the cap"
+    assert worst["maxLookback"] == ast_budget.DEFAULT_BUDGET["maxLookback"], (
+        "no corpus case reaches the lookback cap -- the arm above is dead")
     assert len(CORPUS["cases"]) >= 17
+
+
+def test_a_session_anchored_call_SATURATES_the_lookback_budget():
+    """🔴 THE MEMBER-VISIBLE CONSEQUENCE OF RULING O7, MEASURED.
+
+    ``maxLookback`` was derived to hold exactly one ET session and ``vwap()``
+    declares exactly one ET session, so it uses the WHOLE budget and there is
+    nothing left for anything wrapped around it. Bare and in pointwise arithmetic
+    it is fine; ANY windowed or offset composition refuses ``budget:lookback``,
+    at the save door and at compute.
+
+    ⚠️ THIS IS NOT A BUG TO FIX HERE. The alternatives are a bigger cap (which
+    widens every other window AND the bar-offset ceiling with it -- they are one
+    number by design) or a session-anchored entry that UNDER-declares its window,
+    which ``_functions_warmup`` forbids. It is written down so the next lane
+    reads it instead of finding it in a member's screenshot.
+    """
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    vwap = {"type": "call", "name": "vwap", "args": []}
+    avwap = {"type": "call", "name": "avwap",
+             "args": [{"type": "num", "value": 1762189200}]}
+    for tree in (vwap, avwap,
+                 {"type": "op", "name": ">",
+                  "args": [{"type": "series", "name": "close"}, vwap]}):
+        assert ast_interpret.max_lookback(tree) == cap
+        assert ast_budget.budget_result(tree, None)["ok"]
+    for tree in ({"type": "call", "name": "sma",
+                  "args": [vwap, {"type": "num", "value": 20}]},
+                 {"type": "call", "name": "change", "args": [vwap]},
+                 {"type": "offset", "value": 1, "args": [vwap]}):
+        assert ast_interpret.max_lookback(tree) > cap
+        result = ast_budget.budget_result(tree, None)
+        assert not result["ok"]
+        assert result["guard"] == "budget:lookback", result
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

@@ -45,8 +45,8 @@ These match the structure used throughout ``api/services/bars_fetch.py``.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from math import sqrt
-from typing import Dict, List, Optional, Tuple
+from math import isfinite, sqrt
+from typing import Dict, List, Optional, Tuple, Union
 
 Number = float
 MaybeNum = Optional[float]
@@ -1234,7 +1234,14 @@ def _et_anchor_key(t: float, anchor: str, zone) -> str:
     return f"W{monday.year}-{monday.month}-{monday.day}"
 
 
-def compute_avwap_raw(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
+#: The single bucket key an INSTANT anchor uses. There is only ever one bucket: a
+#: bar is either past the anchor or not computable, so the key never changes once
+#: it is set and the reset fires exactly once, at the anchor bar.
+_ANCHORED = "anchored"
+
+
+def compute_avwap_raw(bars: List[dict],
+                      anchor: Union[str, int, float] = "session") -> List[MaybeNum]:
     """Anchored VWAP, unrounded. Mirrors ``computeAVWAP`` in indicators.js.
 
     The session VWAP's accumulator, restarted at a NAMED anchor.
@@ -1248,17 +1255,31 @@ def compute_avwap_raw(bars: List[dict], anchor: str = "session") -> List[MaybeNu
     ⚠️ ONLY THE CALENDAR ANCHORS TOUCH TIME AT ALL, so the two swing anchors are
     unaffected by ``AVWAP_MIN_INSTANT`` — a guard that fired on them would refuse
     a column it has no reason to doubt.
+
+    ⭐ A NUMBER IS AN INSTANT, AND IT IS THE ONE ANCHOR A CLOSED-TABLE FORMULA
+    CAN SPELL. ``closedTable.json`` has exactly two argument kinds, ``series``
+    and ``int``, and no string-literal node — so ``avwap``'s anchor reaches this
+    function as a unix-seconds epoch or not at all. It is a NEW anchor KIND
+    rather than a new accumulator: the loop, the typical price, the reset rule
+    and the unit guard are the ones the named anchors already use.
     """
     n = len(bars)
     if n == 0:
         return []
+    by_instant = (not isinstance(anchor, bool)) and isinstance(anchor, (int, float))
     # Fail CLOSED on an anchor the maths does not know. `defSchema` refuses an
     # out-of-vocabulary enum at registration; this is the second door, because
     # `params_json` on a stored alert row is user-supplied and unvalidated.
-    if anchor not in AVWAP_ANCHORS:
+    if not by_instant and anchor not in AVWAP_ANCHORS:
+        return [None] * n
+    # ⛔ AND THE UNIT GUARD APPLIES TO THE ANCHOR ITSELF, not only to the bars. A
+    # `YYYYMMDD` integer handed in as an instant resolves to 1970 and would
+    # anchor at bar zero — a plausible column, silently wrong, which is the exact
+    # shape `AVWAP_MIN_INSTANT` exists to refuse on the bar side.
+    if by_instant and (not isfinite(float(anchor)) or anchor < AVWAP_MIN_INSTANT):
         return [None] * n
 
-    by_price = anchor in ("swingHigh", "swingLow")
+    by_price = (not by_instant) and anchor in ("swingHigh", "swingLow")
     if not by_price:
         for bar in bars:
             t = bar.get("t")
@@ -1284,6 +1305,20 @@ def compute_avwap_raw(bars: List[dict], anchor: str = "session") -> List[MaybeNu
                 extreme = bar["l"]
                 swing_at = i
             key = swing_at
+        elif by_instant:
+            # ⛔ BEFORE THE ANCHOR IS NOT COMPUTABLE, NEVER A PARTIAL
+            # ACCUMULATION. A running total of the bars that came FIRST is a
+            # confident wrong number wearing a warm-up's clothes — the same
+            # refusal ``accum`` makes for bars with no seed to run from. Nothing
+            # is added and nothing is written, so the accumulator is still empty
+            # at the anchor bar and the reset below is the no-op it should be.
+            #
+            # ⚠️ NO HOUR MEMO HERE, deliberately: the key flips INSIDE an hour
+            # (at whichever bar first reaches the anchor), and the memo is only
+            # exact for buckets no finer than the UTC hour it is keyed on.
+            if bar["t"] < anchor:
+                continue
+            key = _ANCHORED
         else:
             hour = int(bar["t"] // 3600)
             if hour == memo_hour:

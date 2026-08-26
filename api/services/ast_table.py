@@ -325,6 +325,33 @@ def recurrence_bindings(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
     return tuple(sorted({r["binds"] for r in recurrences(manifest).values()}))
 
 
+#: The declaration that says an entry is computed over the BAR ARRAY rather than
+#: over the columns its arguments name. See ``closedTable.json``'s
+#: ``_functions_bar_readers``.
+BAR_READS = "bars"
+
+
+def bar_readers(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
+    """Every function entry declaring ``reads: "bars"``, sorted.
+
+    ⭐ THE ``recurrence`` IDIOM, APPLIED TO THE OTHER THING A CALL CAN NEED.
+    ``_bind_shipped`` packs bars out of ARGUMENT COLUMNS and therefore fabricates
+    ``t`` as a bar index — which is exactly why ``vwap`` was refused for as long
+    as this table has existed. An entry declaring this is handed ``interpret``'s
+    own bar array instead, so its anchor is a real instant.
+
+    ⛔ DERIVED, NEVER LISTED, and that is not tidiness: both walkers ask *"does
+    this entry read the bars"* rather than *"is this call ``vwap``"*, so a third
+    such entry needs no change in either lane. ``parse.js::BAR_READERS`` is the
+    same read on the same manifest — one declaration, two readings, no third
+    list.
+    """
+    m = manifest if manifest is not None else TABLE
+    return tuple(sorted(
+        name for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
+        if isinstance(spec, Mapping) and spec.get("reads") == BAR_READS))
+
+
 def is_pointwise(spec: Any) -> bool:
     """Does this function read each argument at the bar it writes, and nowhere
     else?

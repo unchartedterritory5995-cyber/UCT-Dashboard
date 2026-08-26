@@ -218,9 +218,17 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # that rides the existing `series` node, so no node type, no persisted key
     # and no `astHash` moved. The scalar half is untouched at 111, which is the
     # whole reason these are two assertions and not one total.
-    assert len(ast_table.bar_names()) == 83, len(ast_table.bar_names())
+    # ⭐ 83 -> 85 (2026-08-26): ``vwap()`` and ``avwap(anchorEpoch)``. Both bind
+    # the SHIPPED session accumulator rather than a private one, and both declare
+    # ``reads: "bars"`` -- the property that finally made ``vwap`` declarable
+    # after it sat in ``_functions_excluded`` since this table opened. What made
+    # it possible is that ``vwap()`` takes NO ARGUMENTS: ``_bind_shipped``
+    # fabricates ``t`` as a bar index precisely because it packs bars out of
+    # argument COLUMNS, so an entry with no columns to pack is handed the real
+    # bars. The scalar half is untouched at 111.
+    assert len(ast_table.bar_names()) == 85, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 194, f"the table declares {len(declared)} names, not 194"
+    assert len(declared) == 196, f"the table declares {len(declared)} names, not 196"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -283,16 +291,37 @@ def test_every_declared_FUNCTION_has_an_implementation_and_vice_versa():
     # nothing for `FN` to hold. An ignore-list here would be a second roster;
     # asking the table means a SECOND recurrent entry needs no edit, and an entry
     # that stopped declaring one lands red with its own name in the message.
-    by_walker = sorted(ast_table.recurrences())
+    # ⭐ AND A SECOND KIND, DERIVED THE SAME WAY (2026-08-26). An entry
+    # declaring ``reads: "bars"`` is handed ``interpret``'s own bar array rather
+    # than a pack of argument columns, so its implementation lives in
+    # ``_BAR_FN`` and not in ``FN`` -- the split is what lets ``vwap()`` read a
+    # real instant where ``_bind_shipped`` can only offer a bar index. Same rule:
+    # the roster is the MANIFEST's, so a third such entry needs no edit here.
+    bar_readers = sorted(ast_table.bar_readers())
+    by_walker = sorted(set(ast_table.recurrences()) | set(bar_readers))
     assert by_walker, "the exception must be non-empty or this rail widened for nothing"
+    assert bar_readers, "the bar-reading exception must be non-empty too"
     missing, extra = totality(ast_table.TABLE, ast_interpret.FN, "functions")
     assert missing == by_walker, f"declared but not implemented: {missing}"
     assert not extra, f"implemented but not declared: {extra}"
     assert sorted(ast_interpret.FN) == sorted(
         n for n in ast_table.TABLE["functions"] if n not in by_walker)
+    # ⛔ AND ``_BAR_FN`` IS THE OTHER HALF OF THE SAME EQUALITY, both
+    # directions. (``ast_interpret`` refuses a mismatch at IMPORT as well, which
+    # is where a wiring defect belongs; this is the rail that names it.)
+    assert sorted(ast_interpret._BAR_FN) == bar_readers
+    for name in bar_readers:
+        spec = ast_table.TABLE["functions"][name]
+        # …and it EVALUATES, so "no FN entry" cannot quietly mean "no
+        # behaviour". The tree is built from the manifest's own arity, with a
+        # plausible instant in the one ``int`` slot the anchor form carries.
+        args = [NUM(BARS[1]["t"]) for _ in spec["args"]]
+        col = run(CALL(name, *args))
+        assert len(col) == len(BARS), (
+            f"{name} declares reads:'bars' and produced nothing")
     # ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
     # EVALUATE, or "no implementation" would quietly mean "no behaviour".
-    for name in by_walker:
+    for name in sorted(ast_table.recurrences()):
         spec = ast_table.TABLE["functions"][name]
         rec = spec["recurrence"]
         args = [
@@ -354,7 +383,9 @@ def test_a_planted_manifest_entry_lands_RED():
         # legitimately "declared and not in FN", so leaving it in would make this
         # rail assert a list with a permanent resident — and the next entry that
         # went missing for a BAD reason would hide inside that expectation.
-        missing = [m for m in missing if m not in ast_table.recurrences()]
+        missing = [m for m in missing
+                   if m not in ast_table.recurrences()
+                   and m not in ast_table.bar_readers()]
         assert missing == [planted], (
             f"a planted {section} entry {planted!r} did NOT land red — the "
             f"totality rail is a hand-list, not a derivation (got {missing!r})")

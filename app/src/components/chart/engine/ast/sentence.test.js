@@ -167,6 +167,13 @@ const FORMS = [
   { kind: 'call', name: 'min', parts: ['the smaller of ', 0, ' and ', 1] },
   { kind: 'call', name: 'max', parts: ['the larger of ', 0, ' and ', 1] },
   { kind: 'call', name: 'crossOver', parts: [0, ' crossing above ', 1] },
+  // ⭐ THE ANCHORED VWAP (2026-08-26). Its sibling `vwap()` takes no arguments
+  // at all and therefore lives in `NULLARY_PHRASE` above rather than here — a
+  // form is matched by its argument chrome, and a row with no numeric part has
+  // no arity to read.
+  { kind: 'call',
+    name: 'avwap',
+    parts: ['the volume-weighted average price accumulated from the first bar at or after epoch ', 0] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
 
   // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
@@ -321,6 +328,28 @@ function matchForm(parts, s) {
 const NUMBER_WORD = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
 const INPUT_PREFIX = 'the input '
 
+/** phrase -> the NULLARY call it reads back to.
+ *
+ *  ⭐ A ZERO-ARGUMENT CALL HAS NO SLOTS, so it cannot be a `FORMS` row — those
+ *  are matched by their argument chrome and a form with no numeric part has no
+ *  arity to read. It is a whole-phrase lookup, exactly like `CLOCK_PHRASE`, and
+ *  it builds a `call` rather than a `series`.
+ *
+ *  ⛔ TYPED, like `RECURRENCE_PHRASE` and every `FORMS` row and for the same
+ *  reason: this reader is a DELIBERATE second authority written from the
+ *  manifest's words, so deriving it from `closedTable`'s `sentence` would make
+ *  the round trip agree by construction and prove nothing. A phrase re-worded in
+ *  the manifest without this line lands as `0 parses`. */
+const NULLARY_PHRASE = Object.freeze({
+  'the volume-weighted average price so far this session': 'vwap',
+})
+
+function readNullaryCall(s) {
+  if (!own(NULLARY_PHRASE, s)) return null
+  return { via: `call:${NULLARY_PHRASE[s]}`,
+           ast: { type: 'call', name: NULLARY_PHRASE[s], args: [] } }
+}
+
 function readLeaf(s) {
   if (s.startsWith(INPUT_PREFIX)) {
     const name = s.slice(INPUT_PREFIX.length)
@@ -378,6 +407,10 @@ function readOffsetSentence(s) {
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
+  {
+    const nullary = readNullaryCall(s)
+    if (nullary) found.push(nullary)
+  }
   try {
     const off = readOffsetSentence(s)
     if (off) found.push(off)
@@ -585,6 +618,14 @@ describe('the read-back is generated from the tree, and never written by a model
     for (const c of CORPUS.cases) {
       const s = sentenceFor(c.ast, {})
       const leaves = leavesOf(c.ast)
+      // ⛔ A ZERO-ARGUMENT CALL HAS NO LEAVES, AND THE EXEMPTION IS DERIVED FROM
+      // THE TREE rather than granted to a name: `vwap()` reads the bars
+      // themselves, so there is no operand for the sentence to say. Everything
+      // else must still carry one, and the floor below keeps the loop honest —
+      // an exemption that swallowed the whole corpus would be the vacuity this
+      // case was written against.
+      const nullary = c.ast.type === 'call' && Array.isArray(c.ast.args) && c.ast.args.length === 0
+      if (nullary) continue
       expect(leaves.length, `${c.id} has no leaves — the rail would be vacuous`).toBeGreaterThan(0)
       for (const leaf of leaves) {
         // ⭐ A RECURRENCE BINDING IS SAID, NOT NAMED, AND THE RAIL STAYS AS STRICT.
@@ -736,6 +777,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:adx',
       'function:atan',
       'function:atr',
+      'function:avwap',
       'function:cci',
       'function:change',
       'function:cos',
@@ -779,10 +821,11 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:stoch',
       'function:sum',
       'function:tan',
+      'function:vwap',
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(83)
+    expect(entries.length).toBe(85)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -792,7 +835,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(83)
+    expect(subjects.length).toBe(85)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1966,6 +2009,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
       'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_barindex', 'clock_isintraday',
       'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
+      // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
+      // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
+      // is declarable: with no argument columns to pack there is no fabricated
+      // bar-index `t`, so the binding reads the real instant.
+      'vwap_session', 'avwap_from_a_mid_series_instant',
     ])
   })
 
@@ -2008,7 +2056,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 83)
+    expect(sentences.length).toBe(CORPUS.cases.length + 85)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

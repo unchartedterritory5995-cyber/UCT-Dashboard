@@ -41,7 +41,7 @@ is a failing test rather than a discovery six months later.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Mapping, Optional, Set
 
 from api.services.ast_lint import TABLE, declared_inputs
 
@@ -95,6 +95,17 @@ def _sections(opts: Optional[Dict[str, Any]]):
     return (table.get("series") or {},
             table.get("scalars") or {},
             opts.get("inputs") or {})
+
+
+def _functions_section(opts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The manifest's ``functions`` section.
+
+    ⚠️ ITS OWN READER RATHER THAN A FOURTH ELEMENT OF ``_sections``, for the
+    same reason ``_clock_section`` is: three callers unpack that tuple by arity.
+    """
+    opts = opts or {}
+    table = opts.get("table") or TABLE
+    return table.get("functions") or {}
 
 
 def _clock_section(opts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -192,6 +203,7 @@ def freshness_for(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str,
     """
     series_names, scalars, inputs = _sections(opts)
     clock = _clock_section(opts)
+    functions = _functions_section(opts)
     reasons: List[str] = []
     found: Set[str] = set()
     cadences: Set[str] = set()
@@ -212,6 +224,39 @@ def freshness_for(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str,
         if kind in ("op", "call") and not isinstance(node.get("args"), list):
             unreadable = True
             reasons.append("unreadable: a %s node carries an `args` array" % kind)
+            continue
+        # ⭐⭐ A FUNCTION MAY DECLARE A CADENCE TOO, AND THIS IS WHERE IT IS
+        # READ. Every entry in this table is computed from the BARS, so the
+        # ordinary case is an entry with no ``cadence`` at all and nothing to
+        # say. ``vwap``/``avwap`` declare ``cadence: "live"`` because the
+        # cross-lane contract fixes the field on functions, and a declared field
+        # nothing reads is an INERT KNOB -- this lane has already shipped two of
+        # those this wave.
+        #
+        # ⛔ SO THE CLAIM IS CHECKED RATHER THAN DECORATIVE: ``live`` adds no
+        # ceiling (it says "this reads the bar it draws on", which is what the
+        # scalar branch below denies), any OTHER cadence makes the whole tree
+        # ``as-of-snapshot`` exactly as a scalar leaf does, and a cadence that is
+        # not a usable string is ``unknown`` -- fail-closed, the stalest answer,
+        # never a quiet ``live``.
+        if kind == "call":
+            fname = node.get("name")
+            spec = functions.get(fname) if isinstance(fname, str) else None
+            if isinstance(spec, Mapping) and "cadence" in spec:
+                cadence = spec["cadence"]
+                if not isinstance(cadence, str) or not cadence:
+                    unreadable = True
+                    reasons.append(
+                        "unreadable: the function `%s` declares a cadence this "
+                        "reader cannot resolve" % fname)
+                elif cadence != LIVE:
+                    cadences.add(cadence)
+                    found.add(fname)
+                    reasons.append(
+                        "`%s` is rebuilt %s -- it is not read from the bar it "
+                        "draws on" % (fname, cadence))
+                else:
+                    reasons.append("`%s` reads the bar it draws on" % fname)
             continue
         if kind != "series":
             continue

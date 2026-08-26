@@ -338,6 +338,15 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
     )
 
 
+#: The role names an ``int`` slot may carry that are NOT windows. ⛔ CLOSED, and
+#: kept to one entry on purpose: the note inside ``accum``'s own generic-set
+#: widening warns against "a vocabulary that grows one adjective at a time", and
+#: this is the same widening. ``anchor`` earned it because ``avwap``'s instant is
+#: inexpressible any other way — the table has two argument kinds and no string
+#: literal node.
+_INT_ROLES = frozenset({"anchor"})
+
+
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     """⭐ `args` SAYS A SLOT IS A SERIES; `argRoles` SAYS WHICH SERIES.
 
@@ -359,7 +368,13 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     for name, spec in functions.items():
         args = list(spec.get("args") or ())
         roles = list(spec.get("argRoles") or ())
-        if not roles:
+        # ⛔ A ZERO-ARGUMENT ENTRY HAS ZERO ROLES, AND THAT IS NOT THE SAME FACT
+        # AS "somebody forgot the key" (2026-08-26, `vwap()`). The two are told
+        # apart by asking whether the KEY IS PRESENT, not whether the list is
+        # truthy — an emptiness test conflated them, and would have reported a
+        # correct nullary entry as a translator hazard while a genuinely missing
+        # key on a 4-argument indicator reported the same words.
+        if "argRoles" not in spec:
             problems.append(f"{name}: no argRoles — a translator cannot place its arguments")
             continue
         if len(roles) != len(args):
@@ -371,16 +386,54 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
             if not isinstance(role, str) or not role:
                 problems.append(f"{name}: slot {i} has no role")
                 continue
-            # ⭐ THE TWO DESCRIPTIONS MUST AGREE ON WHICH SLOTS ARE WINDOWS. An
-            # `int` slot is a whole-number period and a `series` slot never is;
-            # a translator reads the roles to find the window, so the roles must
-            # not be able to point at the wrong one.
+            # ⭐ THE TWO DESCRIPTIONS MUST AGREE ON WHICH SLOTS ARE WINDOWS. A
+            # translator reads the roles to find the window, so a `series` slot
+            # must never claim to be one — that half is absolute.
             says_period = role.lower().endswith("period")
-            if (kind == "int") != says_period:
+            if kind != "int" and says_period:
                 problems.append(
-                    f"{name}: slot {i} is declared {kind!r} but its role is {role!r}"
-                )
+                    f"{name}: slot {i} is a series and its role {role!r} claims to be a window")
+            # ⚠️ AND AN `int` SLOT IS NOT ALWAYS A PERIOD ANY MORE. This read
+            # `(kind == "int") != says_period` until 2026-08-26, when
+            # `avwap(anchorEpoch)` landed: its `int` is an INSTANT, not a window,
+            # and the table has no other argument kind that can carry one (two
+            # kinds, `series` and `int`, and no string literal node). So the int
+            # roles are a CLOSED SET instead — the same treatment `seed`/`update`
+            # got when `accum` landed — and the window slots are PINNED below so
+            # `anchor` can never sit on one.
+            if kind == "int" and not says_period and role not in _INT_ROLES:
+                problems.append(
+                    f"{name}: slot {i} is an int whose role {role!r} is outside "
+                    f"{sorted(_INT_ROLES)} and does not name a period")
     assert not problems, problems
+
+    # ⛔ AND THE SLOT A WINDOW DECLARATION NAMES MUST BE A PERIOD ROLE. This is
+    # what keeps the closed set above from being a hole: `lookback`/`forward`
+    # spell `argN` (optionally `k*argN`), so the manifest itself says which slot
+    # IS the window, and a translator following the roles can never be sent to
+    # the anchor instead. DERIVED from the shipped grammar's own pattern, never a
+    # copy of it.
+    misdeclared = []
+    for name, spec in functions.items():
+        roles = list(spec.get("argRoles") or ())
+        for field in ("lookback", "forward"):
+            decl = spec.get(field)
+            if not isinstance(decl, str):
+                continue
+            m = ast_lint._ARG_REF.match(decl)
+            if not m:
+                continue                     # `session` names no slot at all
+            slot = int(m.group(2))
+            role = roles[slot] if slot < len(roles) else None
+            if not (isinstance(role, str) and role.lower().endswith("period")):
+                misdeclared.append(
+                    f"{name}: {field} names slot {slot}, whose role is {role!r} "
+                    "and must name a period")
+    assert not misdeclared, misdeclared
+    assert any(isinstance(s.get("lookback"), str)
+               and ast_lint._ARG_REF.match(s["lookback"])
+               for s in functions.values()), (
+        "no function declares an argument window — the pin above has no subject")
 
     # ⛔ AND THE ROLE NAMES ARE NOT FREE TEXT. Every `series` slot's role is
     # either a bar field this table declares or one of the two generic shapes

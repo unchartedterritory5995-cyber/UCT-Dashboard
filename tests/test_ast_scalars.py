@@ -643,11 +643,17 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     digests were re-recorded with them. The scalar half is untouched at 111, which is
     the whole point of the split: "which half moved" stays answerable at a glance.
     `tableVersion` went to 2 because `interpret` grew an ARGUMENT (`opts={tf}`), not
-    because the vocabulary grew."""
+    because the vocabulary grew.
+
+    ⭐ 83 -> 85 (2026-08-26): `vwap()` and `avwap(anchorEpoch)`, the first entries
+    in this table that read the BAR rather than a column their arguments name
+    (`reads: "bars"`). Both bind the SHIPPED session accumulator, so the digest
+    they owe the bar corpus is a cross-lane agreement about a TIMEZONE DATABASE
+    rather than about arithmetic. The scalar half is untouched at 111 again."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 83 and len(parts["scalar"]) == 111
+    assert len(parts["bar"]) == 85 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

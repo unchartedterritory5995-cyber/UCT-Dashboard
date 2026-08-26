@@ -173,9 +173,58 @@ describe('the three caps are a closed set, declared once', () => {
       }
     }
     for (const cap of Object.keys(DEFAULT_BUDGET)) {
+      // ⭐⭐ `maxLookback` IS THE ONE CAP THE CORPUS IS SUPPOSED TO REACH, and
+      // that is a consequence of ruling O7 rather than a relaxation. The cap is
+      // DERIVED as `max(NESTED_RECURRENCE_WARMUP, sessionMaxBars)`, so a
+      // session-anchored entry does not merely approach it — it IS it, by
+      // construction, at whatever number a session turns out to be. Demanding
+      // headroom there would demand that the cap be bigger than the thing it was
+      // sized to hold, which is a rail asking for its own subject to be wrong.
+      // ⛔ EQUALITY IS STILL THE CEILING: one bar past it refuses, and the case
+      // below measures exactly which shapes that costs.
+      if (cap === 'maxLookback') {
+        expect(worst[cap], `${cap}: the corpus is OVER the cap`)
+          .toBeLessThanOrEqual(DEFAULT_BUDGET[cap])
+        continue
+      }
       expect(worst[cap], `${cap}: the corpus already sits AT the cap`).toBeLessThan(DEFAULT_BUDGET[cap])
     }
+    // …and the equality is REAL rather than a widening nothing uses: some case
+    // in the committed corpus must actually sit at the lookback cap, or the arm
+    // above is an exemption granted to nobody.
+    expect(worst.maxLookback, 'no corpus case reaches the lookback cap — the arm above is dead')
+      .toBe(DEFAULT_BUDGET.maxLookback)
     expect(CORPUS.cases.length).toBeGreaterThanOrEqual(17)
+  })
+
+  it('⛔ A SESSION-ANCHORED CALL SATURATES THE LOOKBACK BUDGET — what that COSTS, by name', () => {
+    // 🔴 THE MEMBER-VISIBLE CONSEQUENCE OF RULING O7, MEASURED RATHER THAN
+    // DISCOVERED IN SUPPORT. `maxLookback` was derived to hold exactly one ET
+    // session and `vwap()` declares exactly one ET session — so it uses the
+    // WHOLE budget and there is nothing left for anything wrapped around it.
+    // Bare and in pointwise arithmetic it is fine; ANY windowed or offset
+    // composition refuses `budget:lookback`, at the save door and at compute.
+    //
+    // ⚠️ THIS IS NOT A BUG TO FIX HERE. The alternatives are a bigger cap (which
+    // widens every other window AND the bar-offset ceiling with it — they are
+    // one number by design) or a session-anchored entry that UNDER-declares its
+    // window, which `_functions_warmup` forbids. It is written down so the next
+    // lane reads it instead of finding it in a member's screenshot.
+    const usable = ['vwap()', 'avwap(1762189200)', 'close > vwap()',
+                    'vwap() - avwap(1762189200)']
+    for (const src of usable) {
+      const tree = parseFormula(src).ast
+      expect(maxLookback(tree), src).toBe(DEFAULT_BUDGET.maxLookback)
+      expect(checkBudget(tree, null).ok, `${src} must still be usable`).toBe(true)
+    }
+    const refused = ['sma(vwap(), 20)', 'change(vwap())', 'vwap()[1]']
+    for (const src of refused) {
+      const tree = parseFormula(src).ast
+      expect(maxLookback(tree), src).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
+      const r = checkBudget(tree, null)
+      expect(r.ok, `${src} unexpectedly fits`).toBe(false)
+      expect(r.guard, src).toBe('budget:lookback')
+    }
   })
 })
 

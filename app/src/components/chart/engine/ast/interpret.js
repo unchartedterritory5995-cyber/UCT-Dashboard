@@ -48,8 +48,8 @@
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
 import {
-  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE,
-  SESSION_LOOKBACK, SESSION_MAX_BARS,
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, isPointwise,
+  LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -74,7 +74,7 @@ import { assertBudget } from './budget.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock,
+  computeClock, computeVWAP, computeAVWAP,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -398,8 +398,15 @@ function finiteTailStart(cols, length) {
  *  `blank(bars)` writes `{time: b.t}` into every output point, and an
  *  `undefined` there is harmless only for as long as nobody looks — a bar index
  *  keeps that honest and costs nothing. ⛔ It is NOT the real timestamp, which
- *  is exactly why `vwap` is refused (`_functions_excluded`): a session anchor
- *  cannot be reconstructed from a column of prices.
+ *  is exactly why `vwap` WAS refused (`_functions_excluded`) for as long as this
+ *  table has existed: a session anchor cannot be reconstructed from a column of
+ *  prices.
+ *
+ *  ⭐ AND THAT IS WHY THE ANSWER WAS NOT A SPECIAL CASE HERE. An entry declaring
+ *  `reads: 'bars'` takes no series arguments, so it has nothing to pack; it is
+ *  handed `interpret`'s OWN bar array by `barColumn` below and reads the real
+ *  instant. This adapter is unchanged, and its fabricated `t` still means
+ *  exactly what it says.
  *
  *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
  *  returns either a bar-aligned array or `[]` (its "too short to compute
@@ -661,6 +668,105 @@ function ichimokuLine(h, l, c, tenkan, kijun, senkouB, key) {
   if (Math.max(tenkan, kijun) > senkouB) return outOfOrder(h.length)
   return bindShipped(HLC, [h, l, c], h.length,
     (bars) => computeIchimoku(bars, tenkan, kijun, senkouB)[key])
+}
+
+// --------------------------------------------------------------------------- //
+// the entries that read the BAR, not a column
+// --------------------------------------------------------------------------- //
+//
+// ⭐⭐ ONE SESSION ACCUMULATOR, TWO NAMES. `computeVWAP` is the ONLY session
+// VWAP on this lane — it is what the chart draws — and the bindings below pass
+// the bars straight to it. A formula's `vwap()` that disagreed with the VWAP the
+// chart draws would be the most legible instance this repo could ship of
+// `a second authority over one value`.
+//
+// ⛔ THE DISPATCH IS DERIVED FROM THE MANIFEST (`BAR_READERS`), never from a
+// name typed here, exactly as `RECURRENCES` is — see
+// `closedTable.json::_functions_bar_readers`. `BAR_FN`'s key set is asserted
+// against it in both directions by `interpret.test.js`, so a declared-but-unbound
+// entry fails by name instead of refusing inside the walker with a message about
+// the wrong thing.
+
+/** `vwap()` — the shipped session accumulator, untouched.
+ *
+ *  ⚠️ ITS LEADING PARTIAL SESSION IS INHERITED AND DELIBERATELY NOT TRIMMED. The
+ *  first ET day in a series may start after its true open, so those bars move if
+ *  the window moves. Trimming them HERE would fork this column away from the one
+ *  the chart draws, which is worse than the caveat; it belongs to `computeVWAP`
+ *  and to whoever changes it, in both lanes at once. */
+const barVwap = (bars) => computeVWAP(bars)
+
+/** `avwap(anchorEpoch)` — the same accumulator restarted at an INSTANT, and
+ *  bounded so that `lookback: 'session'` is a TRUE declaration.
+ *
+ *  ⛔ RULE 1 — THE ANCHOR'S BOUNDARY MUST BE VISIBLE. Some bar of the series must
+ *  fall strictly before the anchor. Otherwise "the first bar at or after the
+ *  anchor" is whichever bar the caller happened to fetch first, and the value
+ *  MOVES when the window moves — `lesson_a_derived_value_must_not_depend_on_the_
+ *  request`, the exact defect `_functions_recurrence` says `accum`'s re-seeded
+ *  window exists to prevent.
+ *
+ *  ⛔ RULE 2 — AND IT MAY NOT REACH PAST THE WINDOW IT DECLARES. A raw epoch
+ *  reaches back however far a member types, so `lookback: 'session'` would
+ *  UNDER-state it — the one direction `_functions_warmup` says a window
+ *  declaration may never take. Bars more than `SESSION_MAX_BARS` past the anchor
+ *  are NOT COMPUTABLE, so every bar this answers for was computed from inside
+ *  the window the manifest promises.
+ *
+ *  Both refusals are the ordinary warm-up bargain turned round, and both are
+ *  all-NaN rather than a short answer — a partial accumulation is a confident
+ *  wrong number wearing a warm-up's clothes. */
+function barAvwap(bars, args) {
+  const anchor = args[0]
+  if (!bars.length) return []
+  const first = bars[0] ? bars[0].t : undefined
+  if (!Number.isFinite(first) || !(anchor > first)) return []
+  const points = computeAVWAP(bars, anchor)
+  let ceiling = -1
+  for (let i = 0; i < bars.length; i++) {
+    if (Number.isFinite(bars[i].t) && bars[i].t >= anchor) { ceiling = i + SESSION_MAX_BARS; break }
+  }
+  if (ceiling < 0) return points
+  for (let i = ceiling + 1; i < points.length; i++) points[i].value = NaN
+  return points
+}
+
+/** name → `(bars, args) => points`. The key set is `BAR_READERS`'s.
+ *
+ *  ⚠️ EXPORTED FOR THE RAIL ONLY, like `POINTWISE_FOR_PARITY`. `interpret.test.js`
+ *  asserts this against `BAR_READERS` in both directions; nothing in the app
+ *  imports it. */
+export const BAR_FN = Object.freeze({ vwap: barVwap, avwap: barAvwap })
+
+// ⛔ A DECLARED-BUT-UNBOUND ENTRY IS A FORMULA THE BUILDER OFFERS AND THIS LANE
+// CANNOT DRAW; a bound-but-undeclared one is a callable outside the closed
+// table. Both are refused at import, where a wiring defect belongs, rather than
+// at the bar a member is looking at.
+{
+  const declared = [...BAR_READERS].sort().join(',')
+  const bound = Object.keys(BAR_FN).sort().join(',')
+  if (declared !== bound) {
+    throw new Error(
+      `closedTable.json declares reads:'bars' for [${declared}] and interpret.js `
+      + `binds [${bound}]`)
+  }
+}
+
+/** Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
+ *
+ *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL — the same contract
+ *  `bindShipped` states, against the same `[]` "there is nothing to say here"
+ *  signal both refusals above return. A short array padded from the left would
+ *  put a real value at the wrong bar. */
+function barColumn(name, bars, args, length) {
+  const out = nan(length)
+  const points = BAR_FN[name](bars, args)
+  if (!Array.isArray(points) || points.length !== length) return out
+  for (let i = 0; i < length; i++) {
+    const v = points[i] ? points[i].value : undefined
+    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+  }
+  return out
 }
 
 // --------------------------------------------------------------------------- //
@@ -1274,6 +1380,12 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
             ? windowLiteral(n, i)
             : toColumn(evalNode(n.args[i]), length))
         }
+        // ⭐ THE SECOND ARM THE MANIFEST DECIDES. An entry declaring
+        // `reads: 'bars'` is handed THESE bars — the real instants — and not a
+        // pack of argument columns whose `t` is a bar index. The question asked
+        // is "does this entry declare it", never "is this call `vwap`", so a
+        // third such entry needs no edit here.
+        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
         return FN[n.name](...args)
       }
       default:

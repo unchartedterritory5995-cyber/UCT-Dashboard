@@ -725,9 +725,14 @@ export function computeParabolicSAREvents(bars, step = 0.02, maxStep = 0.2) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * The anchors `computeAVWAP` accepts. Exported and frozen so the DEFINITION's
- * `enum` options and this function read ONE list — a second copy is how an
- * option a user can pick becomes an anchor the maths does not know.
+ * The NAMED anchors `computeAVWAP` accepts. Exported and frozen so the
+ * DEFINITION's `enum` options and this function read ONE list — a second copy is
+ * how an option a user can pick becomes an anchor the maths does not know.
+ *
+ * ⚠️ NOT THE WHOLE VOCABULARY SINCE 2026-08-26: `computeAVWAP` also accepts a
+ * NUMBER, read as a unix-seconds instant, because the closed table's `avwap`
+ * has no argument kind that can carry a name. This list stays the ENUM — what a
+ * definition may pick — and the numeric form has no picker.
  *
  * ⭐ AN `enum`, NOT A `time` (decision A3). Spec §3.1 reserves `time` and
  * `defSchema` fails closed on it, and click-to-anchor already ships as the
@@ -786,6 +791,12 @@ const ET_ANCHOR_PARTS = new Intl.DateTimeFormat('en-US', {
 
 const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 
+/** The single bucket key an INSTANT anchor uses. There is only ever one bucket:
+ *  a bar is either past the anchor or not computable, so the key never changes
+ *  once it is set and the reset in `computeAVWAP` fires exactly once, at the
+ *  anchor bar. */
+const ANCHORED = 'anchored'
+
 /** `{y, m, d, wd}` in `America/New_York` for a unix-seconds instant. */
 function etParts(t) {
   const parts = ET_ANCHOR_PARTS.formatToParts(new Date(t * 1000))
@@ -840,15 +851,28 @@ function etAnchorKey(t, anchor) {
  * doubt.
  *
  * @param {Array}  bars   `[{t,o,h,l,c,v}]`, `t` in UNIX SECONDS
- * @param {string} anchor one of `AVWAP_ANCHORS`
+ * @param {string|number} anchor one of `AVWAP_ANCHORS`, or a unix-seconds
+ *   INSTANT — see the numeric branch below
  * @returns {Array} `[{time, value}]`, NaN-padded, aligned to `bars`
  */
 export function computeAVWAP(bars, anchor = 'session') {
   if (!bars?.length) return []
+  // ⭐ A NUMBER IS AN INSTANT, AND IT IS THE ONE ANCHOR A CLOSED-TABLE FORMULA
+  // CAN SPELL. `closedTable.json` has exactly two argument kinds, `series` and
+  // `int`, and no string literal node — so `avwap`'s anchor reaches this
+  // function as a unix-seconds epoch or not at all. It is a NEW anchor KIND
+  // rather than a new accumulator: the loop, the typical price, the reset rule
+  // and the unit guard below are the ones the named anchors already use.
+  const byInstant = typeof anchor === 'number'
   // Fail CLOSED on an anchor the maths does not know. `defSchema` already
   // refuses an out-of-vocabulary enum value at registration, so this is the
   // second door: `params_json` on a stored alert row is user-supplied.
-  if (!AVWAP_ANCHORS.includes(anchor)) return blank(bars)
+  if (!byInstant && !AVWAP_ANCHORS.includes(anchor)) return blank(bars)
+  // ⛔ AND THE UNIT GUARD APPLIES TO THE ANCHOR ITSELF, not only to the bars.
+  // A `YYYYMMDD` integer handed in as an instant resolves to 1970 and would
+  // anchor at bar zero — a plausible line, silently wrong, which is the exact
+  // shape `AVWAP_MIN_INSTANT` exists to refuse on the bar side.
+  if (byInstant && (!Number.isFinite(anchor) || anchor < AVWAP_MIN_INSTANT)) return blank(bars)
 
   const byPrice = anchor === 'swingHigh' || anchor === 'swingLow'
   if (!byPrice) {
@@ -875,6 +899,18 @@ export function computeAVWAP(bars, anchor = 'session') {
         if (extreme === null || bar.h > extreme) { extreme = bar.h; swingAt = i }
       } else if (extreme === null || bar.l < extreme) { extreme = bar.l; swingAt = i }
       key = swingAt
+    } else if (byInstant) {
+      // ⛔ BEFORE THE ANCHOR IS NOT COMPUTABLE, NEVER A PARTIAL ACCUMULATION.
+      // A running total of the bars that came FIRST is a confident wrong number
+      // wearing a warm-up's clothes — the same refusal `accum` makes for bars
+      // that have no seed to run from. Nothing is added and nothing is written,
+      // so the accumulator is still empty at the anchor bar and the reset below
+      // is the no-op it should be.
+      if (bar.t < anchor) continue
+      key = ANCHORED
+      // ⚠️ NO HOUR MEMO HERE, deliberately: the key flips INSIDE an hour (at
+      // whichever bar first reaches the anchor), and the memo is only exact for
+      // buckets no finer than the UTC hour it is keyed on.
     } else {
       const hour = Math.floor(bar.t / 3600)
       if (hour === memoHour) {

@@ -49,7 +49,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
-    SERIES_SECTION, recurrences, recurrence_bindings, is_pointwise,
+    SERIES_SECTION, bar_readers, recurrences, recurrence_bindings, is_pointwise,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -72,6 +72,7 @@ from api.services.ast_table import (
 from api.services.indicator_compute import (
     compute_adx_raw,
     compute_atr_raw,
+    compute_avwap_raw,
     compute_cci_raw,
     compute_clock,
     compute_donchian_raw,
@@ -80,6 +81,7 @@ from api.services.indicator_compute import (
     compute_mfi_raw,
     compute_rsi_raw,
     compute_stoch_raw,
+    compute_vwap_raw,
     compute_williams_r_raw,
 )
 
@@ -731,8 +733,15 @@ def _bind_shipped(fields: Sequence[str], cols: Sequence[Sequence[float]],
 
     ⚠️ ``t`` IS SET AND NEVER READ BY ANY BOUND FUNCTION, exactly as in
     ``interpret.js::bindShipped``. It is a bar index, NOT the real timestamp --
-    which is precisely why ``vwap`` is refused (``_functions_excluded``): a
-    session anchor cannot be reconstructed from a column of prices.
+    which is precisely why ``vwap`` was refused (``_functions_excluded``) for as
+    long as this table has existed: a session anchor cannot be reconstructed from
+    a column of prices.
+
+    ⭐ AND THAT IS WHY THE ANSWER WAS NOT A SPECIAL CASE HERE. An entry declaring
+    ``reads: "bars"`` takes no series arguments, so it has nothing to pack; it is
+    handed ``interpret``'s OWN bar array by ``_bar_column`` below and reads the
+    real instant. This adapter is unchanged, and its fabricated ``t`` still means
+    exactly what it says.
 
     ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
     returns either a bar-aligned list or an all-``None`` one; the JS lane's
@@ -931,6 +940,120 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "ichimokuSpanB": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 3),   # noqa: E741
     "ichimokuChikou": lambda h, l, c, t, k, s: _ichimoku_line(h, l, c, t, k, s, 4),  # noqa: E741
 }
+
+
+# --------------------------------------------------------------------------- #
+# the entries that read the BAR, not a column
+# --------------------------------------------------------------------------- #
+#
+# ⭐⭐ ONE SESSION ACCUMULATOR, TWO NAMES. ``compute_vwap_raw`` is the ONLY
+# session-VWAP in this lane -- it is what ``indicator_alert_evaluator`` fires on
+# and what ``tests/fixtures/indicators`` pins against ``computeVWAP`` -- and the
+# bindings below pass the bars straight to it. A formula's ``vwap()`` that
+# disagreed with the VWAP the chart draws would be the most legible instance this
+# repo could ship of ``a second authority over one value``.
+#
+# ⛔ THE DISPATCH IS DERIVED FROM THE MANIFEST (``bar_readers``), never from a
+# name typed here, exactly as ``recurrences`` is -- see
+# ``closedTable.json::_functions_bar_readers``. ``_BAR_FN``'s key set is asserted
+# against it, both directions, so a declared-but-unbound entry fails by name
+# instead of refusing inside the walker with a message about the wrong thing.
+
+
+def _fn_vwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``vwap()`` -- the shipped session accumulator, untouched.
+
+    ⚠️ ITS LEADING PARTIAL SESSION IS INHERITED AND DELIBERATELY NOT TRIMMED.
+    The first ET day in a series may start after its true open, so those bars
+    move if the window moves. Trimming them HERE would fork this column away from
+    the one the chart draws, which is worse than the caveat; it belongs to
+    ``compute_vwap_raw`` and to whoever changes it, in both lanes at once.
+    """
+    return compute_vwap_raw(bars)
+
+
+def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``avwap(anchorEpoch)`` -- the same accumulator, restarted at an INSTANT,
+    and bounded so that ``lookback: "session"`` is a TRUE declaration.
+
+    ⛔ RULE 1 -- THE ANCHOR'S BOUNDARY MUST BE VISIBLE. Some bar of the series
+    must fall strictly before the anchor. Otherwise "the first bar at or after
+    the anchor" is whichever bar the caller happened to fetch first, and the
+    value MOVES when the window moves -- ``lesson_a_derived_value_must_not_
+    depend_on_the_request``, the exact defect ``_functions_recurrence`` says
+    ``accum``'s re-seeded window exists to prevent.
+
+    ⛔ RULE 2 -- AND IT MAY NOT REACH PAST THE WINDOW IT DECLARES. A raw epoch
+    reaches back however far a member types, so ``lookback: "session"`` would
+    UNDER-state it -- the one direction ``_functions_warmup`` says a window
+    declaration may never take. Bars more than ``SESSION_MAX_BARS`` past the
+    anchor are NOT COMPUTABLE, so every bar this answers for was computed from
+    inside the window the manifest promises.
+
+    Both refusals are the ordinary warm-up bargain turned round, and both are
+    all-``None`` rather than a short answer -- a partial accumulation is a
+    confident wrong number wearing a warm-up's clothes.
+    """
+    anchor = args[0]
+    if not bars:
+        return []
+    first = bars[0].get("t")
+    if isinstance(first, bool) or not isinstance(first, (int, float)):
+        return []
+    if not anchor > first:
+        return []
+    column = compute_avwap_raw(bars, anchor)
+    ceiling = None
+    for i, bar in enumerate(bars):
+        t = bar.get("t")
+        if isinstance(t, (int, float)) and not isinstance(t, bool) and t >= anchor:
+            ceiling = i + SESSION_MAX_BARS
+            break
+    if ceiling is None:
+        return column
+    for i in range(ceiling + 1, len(column)):
+        column[i] = None
+    return column
+
+
+def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
+                length: int) -> List[float]:
+    """Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
+
+    ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL -- the same contract
+    ``_bind_shipped`` states, against the same ``[]`` "there is nothing to say
+    here" signal both refusals above return. A short list padded from the left
+    would put a real value at the wrong bar.
+    """
+    out = _nan_col(length)
+    values = _BAR_FN[name](bars, args)
+    if not isinstance(values, list) or len(values) != length:
+        return out
+    for i in range(length):
+        v = values[i]
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            continue
+        out[i] = NAN if math.isnan(float(v)) else float(v)
+    return out
+
+
+#: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
+_BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
+    "vwap": _fn_vwap,
+    "avwap": _fn_avwap,
+}
+
+#: The declared set, read off the manifest. ``parse.js::BAR_READERS`` is the same
+#: read on the same declaration.
+BAR_READERS: tuple = bar_readers()
+
+if set(BAR_READERS) != set(_BAR_FN):
+    raise RuntimeError(
+        "closedTable.json declares reads:'bars' for "
+        f"{sorted(BAR_READERS)} and ast_interpret binds {sorted(_BAR_FN)}. A "
+        "declared-but-unbound entry is a formula the builder offers and this "
+        "lane cannot evaluate; a bound-but-undeclared one is a callable outside "
+        "the closed table.")
 
 
 # --------------------------------------------------------------------------- #
@@ -1547,6 +1670,13 @@ def interpret(ast: Any, bars: List[dict],
                     args.append(_window_literal(n, i))
                 else:
                     args.append(_to_column(eval_node(n["args"][i]), length))
+            # ⭐ THE SECOND ARM THE MANIFEST DECIDES. An entry declaring
+            # ``reads: "bars"`` is handed THESE bars -- the real instants -- and
+            # not a pack of argument columns whose ``t`` is a bar index. The
+            # question asked is "does this entry declare it", never "is this call
+            # ``vwap``", so a third such entry needs no edit here.
+            if n["name"] in _BAR_FN:
+                return _bar_column(n["name"], bars, args, length)
             return FN[n["name"]](*args)
         # ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. Written as a refusal rather
         # than a `return NaN` because a tree nobody authored must refuse, not draw

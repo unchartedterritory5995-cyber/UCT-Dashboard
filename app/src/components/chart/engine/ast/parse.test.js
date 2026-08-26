@@ -8,7 +8,8 @@ import path from 'node:path'
 // runs) but the order says out loud which module owns that configuration.
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
-  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE,
+  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK,
+  BAR_READS, BAR_READERS,
 } from './parse.js'
 import jsep from 'jsep'
 
@@ -414,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 50 functions and 111 scalars — 194 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 52 functions and 111 scalars — 196 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -443,7 +444,7 @@ describe('the manifest', () => {
     // per-bar body, which is the warm-up and what name the body reads its own
     // past through. That is why `tableVersion` below is STILL 1: every stored
     // `astHash` is unmoved, because the tree shape did not change.
-    expect(Object.keys(TABLE.functions)).toHaveLength(50)
+    expect(Object.keys(TABLE.functions)).toHaveLength(52)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -484,6 +485,15 @@ describe('the manifest', () => {
     // library — `candle_recent_bars_ago`, `avg_body`, `avg_range` — declared,
     // all `bars_asof` off the candle producer; the twelve TEXT labels beside
     // them refused in `_scalars_excluded`. The BAR half did not move.
+    // ⭐ 50 -> 52 IS `vwap()` AND `avwap(anchorEpoch)` (2026-08-26). Both bind
+    // the SHIPPED session accumulator (`computeVWAP` / `compute_vwap_raw`)
+    // rather than a private one, and both declare `reads: "bars"` — the
+    // property that finally made `vwap` declarable, after sitting in
+    // `_functions_excluded` since this table opened. What made it possible is
+    // that it takes NO arguments: `bindShipped` fabricates `t` as a bar index
+    // precisely because it packs bars out of argument COLUMNS, so an entry with
+    // no columns to pack is handed the real bars. Still no new node type and no
+    // new argument kind, so `tableVersion` is unmoved at 2.
     expect(Object.keys(TABLE.scalars)).toHaveLength(111)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
@@ -497,9 +507,11 @@ describe('the manifest', () => {
     // replay series exactly as `close` does, so the bar corpus owes each one a
     // case — thirteen were written and the frozen digests were re-recorded WITH
     // them (0 moved, 13 added).
-    expect(bar.size).toBe(83)
+    // ⭐ 83 -> 85 IS `vwap` AND `avwap`. The SCALAR half is untouched at 111,
+    // which is the whole reason these are two assertions and not one total.
+    expect(bar.size).toBe(85)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(194)
+    expect(declared.size).toBe(196)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
@@ -524,7 +536,15 @@ describe('the manifest', () => {
     // what two vocabularies cost.
     const bad = []
     for (const [name, spec] of Object.entries(TABLE.functions)) {
-      if (!Array.isArray(spec.args) || spec.args.length === 0) bad.push(`${name}: no args`)
+      if (!Array.isArray(spec.args)) bad.push(`${name}: no args`)
+      // ⛔ A NULLARY ENTRY IS LEGAL ONLY IF IT READS THE BARS, and that arm is
+      // DERIVED rather than an exemption for a name. A function with no
+      // arguments and no bar access is a constant wearing a call's chrome — the
+      // same number at every bar of every symbol — so the rule got STRICTER
+      // here rather than looser when `vwap()` landed.
+      else if (spec.args.length === 0 && spec.reads !== BAR_READS) {
+        bad.push(`${name}: no args and does not read the bars`)
+      }
       if (typeof spec.sentence !== 'string' || !spec.sentence) bad.push(`${name}: no sentence`)
       const lb = spec.lookback
       // ⛔ THE SHAPE IS READ OFF THE IMPLEMENTATION, NOT RESTATED HERE. This line
@@ -532,8 +552,16 @@ describe('the manifest', () => {
       // `2*arg3` (which is what let `adx` be declared) this rail failed a manifest
       // that was correct — a second authority over one grammar, inside the file
       // whose whole job is policing the manifest.
+      // ⭐⭐ AND `session` IS A THIRD FORM THAT NAMES NO ARGUMENT, checked
+      // BEFORE the regex exactly as all four shipped readers check it — the
+      // sentinel is IMPORTED, never the string 'session' typed here, because a
+      // fifth hand-written copy of this grammar is what branded ADX repainting.
+      // ⚰️ THIS ARM WAS VACUOUSLY GREEN from the day `session` shipped
+      // (W2a.3) until the day an entry carried it (W2a.4): the grammar had the
+      // form and no entry used it, so the rail measured nothing.
       const shape = typeof lb === 'string' ? LOOKBACK_RE.exec(lb) : null
-      const ok = (typeof lb === 'number' && lb >= 0)
+      const ok = lb === SESSION_LOOKBACK
+        || (typeof lb === 'number' && lb >= 0)
         || (!!shape && Number(shape[2]) < spec.args.length)
       if (!ok) bad.push(`${name}: lookback ${JSON.stringify(lb)} is neither a constant nor a real argument`)
       // Every `{n}` the sentence cites must be an argument that exists.
@@ -561,9 +589,22 @@ describe('the manifest', () => {
     // times a written argument, so `maxLookback` is still a TREE SUM and no
     // dataflow analysis appears. Derived from the implementation's own pattern.
     for (const spec of Object.values(TABLE.functions)) {
-      expect(typeof spec.lookback === 'number' || LOOKBACK_RE.test(spec.lookback),
+      // ⭐ `session` NAMES NO ARGUMENT AND IS STILL STATICALLY DECIDABLE — it
+      // resolves to `sessionMaxBars` off the manifest, so `maxLookback` is still
+      // a TREE SUM and no dataflow analysis appears. The sentinel is imported
+      // from the module that owns it.
+      expect(spec.lookback === SESSION_LOOKBACK
+        || typeof spec.lookback === 'number' || LOOKBACK_RE.test(spec.lookback),
         `lookback ${JSON.stringify(spec.lookback)} is not statically decidable`).toBe(true)
     }
+    // ⛔ AND THE BAR-READING ROSTER IS THE MANIFEST'S, NOT A LIST. `BAR_READERS`
+    // is that filter, so an entry that stops declaring `reads: 'bars'` — or a
+    // third that starts — moves this with no edit here.
+    expect([...BAR_READERS].sort()).toEqual(
+      Object.entries(TABLE.functions)
+        .filter(([, spec]) => spec.reads === BAR_READS).map(([n]) => n).sort())
+    expect(BAR_READERS.length, 'the bar-reading roster is empty — the filter measures nothing')
+      .toBeGreaterThan(0)
   })
 
   it('the table is FROZEN — a caller cannot edit the grammar at runtime', () => {
