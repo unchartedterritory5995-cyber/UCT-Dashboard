@@ -200,9 +200,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # that goes stale takes the real check down with it, so the two numbers move
     # with the manifest and the SPLIT is what makes "which half moved" answerable
     # at a glance. The bar half has not moved once across any scalar bump.
+    # ⭐ 108 -> 111 (2026-08-25): the three numerics of the 8/24 candle library
+    # (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared; the twelve
+    # TEXT labels beside them refused in `_scalars_excluded`. Bar half unmoved.
     assert len(ast_table.bar_names()) == 70, len(ast_table.bar_names())
-    assert len(ast_table.scalar_names()) == 108, len(ast_table.scalar_names())
-    assert len(declared) == 178, f"the table declares {len(declared)} names, not 178"
+    assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
+    assert len(declared) == 181, f"the table declares {len(declared)} names, not 181"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

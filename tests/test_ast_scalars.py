@@ -160,7 +160,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     grows.
     """
     columns = set(COLUMNS)
-    assert len(columns) == len(COLUMNS) == 185, (
+    assert len(columns) == len(COLUMNS) == 200, (
         f"snapshot_db declares {len(COLUMNS)} columns ({len(columns)} distinct); "
         "the partition below is a claim about that exact list")
     declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
@@ -193,7 +193,23 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # one re-decided columns the schema already had, so its total held and only
     # the split moved. Adding columns moves the total; promoting them moves the
     # split. Never both in one commit.
-    assert (len(declared), len(excluded)) == (108, 77)
+    # (108, 77) -> (111, 89) on 2026-08-25: the 8/24 CANDLE LIBRARY's fifteen
+    # columns, decided in one pass. ⚠️ The total above reads 185 -> 200 in the
+    # SAME commit, and that is not the "never both" case: the fifteen landed in
+    # `COLUMNS` on 8/24 with NO partition decision at all (this rail sat red for
+    # a day), so this is the decision made late for columns the schema already
+    # had — nothing is added here. Three numerics DECLARED:
+    # `candle_recent_bars_ago` (INT sessions since the most recent multi-bar
+    # pattern — a `_range` filter and the "Age" view column), `avg_body` and
+    # `avg_range` (the per-symbol levels the live tier reuses). All three are
+    # written by the shipped library (`candles.py`), so R8 is met on arrival,
+    # and all three ride `bars_asof` because that producer is what the as-of
+    # rail below reads. Twelve TEXT labels EXCLUDED (`candle_label`,
+    # `candle_matches`, `candle_trend`, `bar_character*`, `candle_recent*`,
+    # `candle_weekly*`, `candle_monthly*`) for `candle_type`'s reason: a
+    # classification is not a magnitude, and `candle_matches` is a
+    # delimiter-wrapped membership list the filter reads, not a number.
+    assert (len(declared), len(excluded)) == (111, 89)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -607,11 +623,18 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     reporting one omission -- and the corpus case ``adx_trend_strength`` was
     written in response. ⛔ THE FIX IS THE CORPUS CASE; MOVING THIS NUMBER IS
     ONLY THE ACKNOWLEDGEMENT. Bumping the literal alone would have left the
-    indicator unproven across the lanes and both rails quiet about it."""
+    indicator unproven across the lanes and both rails quiet about it.
+
+    ⭐ 108 -> 111 (2026-08-25): the three NUMERIC columns of the 8/24 candle
+    library — `candle_recent_bars_ago`, `avg_body`, `avg_range` — declared,
+    every one `bars_asof` off the `candles` producer the as-of rail above reads,
+    each with its own `scalars.json` case; the twelve TEXT labels beside them
+    EXCLUDED. The bar floor did not move — a scalar rides the `series` node, so
+    no astHash and no frozen digest moved, and `tableVersion` is still 1."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 108
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

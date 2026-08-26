@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 50 functions and 108 scalars — 178 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 50 functions and 111 scalars — 181 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -473,7 +473,11 @@ describe('the manifest', () => {
     // recorded unlock the VCP and Flat Base Breakout starters were refused for.
     // The BAR half did not move: a scalar rides the `series` node, so no
     // astHash and no frozen conformance digest moved.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(108)
+    // ⭐ 108 -> 111 (2026-08-25): the three NUMERIC columns of the 8/24 candle
+    // library — `candle_recent_bars_ago`, `avg_body`, `avg_range` — declared,
+    // all `bars_asof` off the candle producer; the twelve TEXT labels beside
+    // them refused in `_scalars_excluded`. The BAR half did not move.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(111)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
@@ -482,7 +486,7 @@ describe('the manifest', () => {
     // been keeping it out — its window is 2 x period and the table could not say so.
     expect(bar.size).toBe(70)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(178)
+    expect(declared.size).toBe(181)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the

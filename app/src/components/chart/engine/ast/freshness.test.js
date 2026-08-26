@@ -54,7 +54,10 @@ const BARS = Array.from({ length: 6 }, (_, i) => ({
 describe('the closed table declares scalars, and both lanes read the same one', () => {
   it('declares a fourth section whose entries carry a source, an as-of column, a cadence and a yield', () => {
     const names = Object.keys(TABLE.scalars)
-    expect(names.length).toBe(108)
+    // 108 -> 111 on 2026-08-25: the three NUMERIC columns of the 8/24 candle
+    // library (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared, all
+    // `bars_asof` off the candle producer. Mirrored in `tests/test_ast_scalars.py`.
+    expect(names.length).toBe(111)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -77,7 +80,12 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // this went red: the Python side was updated with the columns and this
     // one was not, so the JS lane failed on a table the Python lane had
     // already accepted. Change them together or not at all.
-    expect(Object.keys(excluded).length).toBe(77)
+    // 77 -> 89 on 2026-08-25: the 8/24 candle library's twelve TEXT labels
+    // (`candle_label`, `candle_matches`, `candle_trend`, `bar_character*`,
+    // `candle_recent*`, `candle_weekly*`, `candle_monthly*`) refused for
+    // `candle_type`'s reason — a classification is not a magnitude — while its
+    // three numerics were DECLARED (108 -> 111 above). Same Python mirror.
+    expect(Object.keys(excluded).length).toBe(89)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)
