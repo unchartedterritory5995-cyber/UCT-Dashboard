@@ -61,6 +61,14 @@ function deepFreeze(value) {
  */
 export const LOOKBACK_RE = /^(?:(\d+)\s*\*\s*)?arg(\d+)$/
 
+/** ⭐ THE ONE KEY GRAMMAR — input keys, plot keys, event keys, and the keys of
+ *  `compute.trees`. Identifier-shaped because they are ADDRESSED (`defId.plotKey`,
+ *  `$inputKey`); ASCII so the sorted order `trees.js` hashes in and Python's
+ *  `sorted()` agree byte for byte with no collation rule. Hoisted here, beside
+ *  `LOOKBACK_RE` and for the same reason: `defSchema.js` and `ast/trees.js` each
+ *  held a private copy, and this leaf is the module both already import. */
+export const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
+
 export const TABLE = deepFreeze(TABLE_JSON)
 
 /** The canonical node types, and there are no others.
