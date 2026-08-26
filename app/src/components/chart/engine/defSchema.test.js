@@ -1191,8 +1191,15 @@ describe('schema v2 — many trees, one hash', () => {
      *  directory rather than typed: a renderer added tomorrow is covered the day
      *  it lands. A behavioural test cannot prove the ABSENCE of a reader — a
      *  renderer that reads `plot.fill` and draws nothing yet renders nothing
-     *  different, and no DOM assertion anywhere can see it. */
-    const engineSources = () => [['', ENGINE], ['ast/', resolve(ENGINE, 'ast')]]
+     *  different, and no DOM assertion anywhere can see it.
+     *
+     *  ⭐ AND `chart/` IS SWEPT, NOT JUST `engine/`. Spec §6 calls W6's renderer
+     *  a SERIES PRIMITIVE, and this repo's existing series primitives
+     *  (`earningsBadgePrimitive.js`, `swingLabelsPrimitive.js`) live one
+     *  directory UP — so a W6 renderer authored where its siblings already live
+     *  would have left this probe green while reading the field. A rail that
+     *  cannot see the place the thing will actually be written is not a rail. */
+    const engineSources = () => [['', ENGINE], ['ast/', resolve(ENGINE, 'ast')], ['../', resolve(ENGINE, '..')]]
       .flatMap(([prefix, dir]) => readdirSync(dir)
         .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'defSchema.js')
         .map((f) => [prefix + f, readFileSync(resolve(dir, f), 'utf8')]))
@@ -1217,6 +1224,12 @@ describe('schema v2 — many trees, one hash', () => {
         'the probe shape matches nothing — it rotted').toBe(true)
       expect(FIELD_READ.test('col.fill(NaN)'), 'the Array method is not a field read').toBe(false)
       expect(engineSources().length, 'the derived file list is empty — readdir found nothing').toBeGreaterThan(10)
+      // ⛔ AND THE `chart/` SWEEP REACHES THE PRIMITIVES. A directory entry that
+      // resolved somewhere empty would add nothing and report nothing — the
+      // probe would read as widened while sweeping exactly what it did before.
+      expect(engineSources().map(([name]) => name),
+        'the sweep no longer reaches the existing series primitives — W6 could write its renderer beside them unseen',
+      ).toEqual(expect.arrayContaining(['../earningsBadgePrimitive.js', '../swingLabelsPrimitive.js']))
     })
 
     it('…and the schema CARRIES it — inert means "drawn by nobody", never "quietly dropped"', () => {
