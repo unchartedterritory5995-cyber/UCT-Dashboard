@@ -584,3 +584,138 @@ def prune(before_as_of: Any) -> dict:
     return {"before_as_of": horizon,
             "hits": max(removed_hits, 0),
             "coverage": max(removed_cov, 0)}
+
+
+# --------------------------------------------------------------------------- #
+# the LIVE side tables: one writer each, and the nightly tables untouched
+# --------------------------------------------------------------------------- #
+#
+# ⛔ NOTHING IN THIS SECTION WRITES `scan_hits`, `scan_coverage` OR
+# `screener_rows`, and nothing above it writes `scan_hits_live` or
+# `scan_live_cycles`. `tests/test_scan_live_sweep.py` reads that off this
+# module's AST (every SQL literal under every `execute*`), so the rule is a
+# measurement rather than a promise. The live sweep answers a DIFFERENT
+# question (this tick, the forming bar) from the nightly one (that session,
+# the closed bar); two sets answering different questions is fine — one table
+# holding both under one key is the second-authority defect.
+
+def _normalise_tick(as_of: Any) -> int:
+    """The live table keys the TICK (unix seconds) — the mirror image of
+    `_normalise_as_of`, which refuses an epoch. A YYYYMMDD here would file a
+    whole session's answer under one second of it, and never age out."""
+    n = ledger._normalize_bar_time(as_of)
+    if _AS_OF_MIN <= n <= _AS_OF_MAX or n <= 0:
+        raise ValueError(
+            f"as_of {as_of!r} normalises to {n}, a YYYYMMDD session date; the live "
+            "table keys the TICK (unix seconds) the snapshot was read at.")
+    return n
+
+
+def _live_key(def_hash: Any, tf: Any) -> tuple:
+    if not isinstance(def_hash, str) or not def_hash:
+        raise ValueError(f"def_hash must be a non-empty str, got {def_hash!r}")
+    return def_hash, _normalise_tf(tf)
+
+
+@contextlib.contextmanager
+def _one_transaction(conn):
+    """``BEGIN IMMEDIATE`` … ``COMMIT``, or ``ROLLBACK`` on the way out through an
+    exception — the two statements of a live write land together or not at all.
+
+    ⛔ EXPLICIT, NEVER THE DRIVER'S IMPLICIT BEGIN. ``snapshot_db.connect()``
+    leaves the connection on the driver's legacy transaction control today, where
+    the first DML opens a transaction by itself and a writer that never says
+    BEGIN is atomic by accident of another module's default. Under
+    ``autocommit=True`` no implicit transaction exists: the DELETE commits ALONE,
+    and a crash before the INSERT reads as "the market went quiet" for a cycle.
+    ``tests/test_scan_live_sweep.py`` runs the writer under BOTH modes.
+
+    ⚠️ COMMIT and ROLLBACK are issued as SQL, not ``conn.commit()`` /
+    ``conn.rollback()``: those two are documented no-ops under ``autocommit=True``,
+    so the Python-level calls would leave this transaction open until the
+    connection closed — and a close rolls back. A transaction already open on
+    entry (``autocommit=False`` keeps one open at all times) is joined, not
+    nested; SQLite refuses a BEGIN inside a BEGIN.
+    """
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield conn
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
+
+
+def upsert_live_hits(def_hash: str, tf: Any, rows: Iterable[Any], as_of: Any) -> int:
+    """Replace THIS definition's live set. ONE writer, ONE transaction: the DELETE
+    and the INSERT commit together or not at all (a crash between them would
+    read as 'the market went quiet' for five minutes)."""
+    h, code = _live_key(def_hash, tf)
+    tick = _normalise_tick(as_of)
+    cleaned: dict = {}
+    for r in rows or []:
+        sym = str(r.get("symbol") or "").strip().upper()
+        if not sym:
+            continue
+        cleaned[sym] = (r.get("value"), int(r.get("live_cols") or 0), r.get("src_price"))
+    _ensure()
+    with snapshot_db._WRITE_LOCK, contextlib.closing(snapshot_db.connect()) as conn, \
+            _one_transaction(conn):
+        conn.execute(f"DELETE FROM {LIVE_HITS_TABLE} WHERE def_hash=? AND tf=?", (h, code))
+        if cleaned:
+            conn.executemany(
+                f"INSERT INTO {LIVE_HITS_TABLE} (def_hash, tf, symbol, as_of, value, "
+                "live_cols, src_price) VALUES (?,?,?,?,?,?,?)",
+                [(h, code, s, tick, v, lc, sp) for s, (v, lc, sp) in sorted(cleaned.items())])
+    return len(cleaned)
+
+
+def live_hits(def_hash: str, tf: Any) -> list:
+    """This definition's live rows, sorted by symbol — every row, whatever its age.
+    Freshness is `hits_for`'s decision, not this read's."""
+    h, code = _live_key(def_hash, tf)
+    _ensure()
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        rows = conn.execute(
+            f"SELECT symbol, as_of, value, live_cols, src_price FROM {LIVE_HITS_TABLE} "
+            "WHERE def_hash=? AND tf=? ORDER BY symbol", (h, code)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def record_live_cycle(receipt: Mapping[str, Any], swept: Sequence[str]) -> None:
+    """The cycle receipt, ONE row per cycle, pruned to `LIVE_CYCLES_KEEP`.
+
+    `receipt["cycle_started"]` is stored as the int TICK (a missing or
+    YYYYMMDD value is refused by `_normalise_tick`); the receipt dict itself is
+    kept verbatim as JSON, so a caller may also carry an ISO copy under
+    `cycle_started_iso`."""
+    started = _normalise_tick(receipt.get("cycle_started"))
+    code = _normalise_tf(receipt.get("tf") or SCAN_JOIN_TF)
+    _ensure()
+    with snapshot_db._WRITE_LOCK, contextlib.closing(snapshot_db.connect()) as conn, \
+            _one_transaction(conn):
+        conn.execute(
+            f"INSERT OR REPLACE INTO {LIVE_CYCLES_TABLE} (cycle_started, tf, receipt_json, "
+            "swept_json) VALUES (?,?,?,?)",
+            (started, code, json.dumps(dict(receipt), sort_keys=True, default=str),
+             json.dumps(sorted(set(swept or [])))))
+        conn.execute(
+            f"DELETE FROM {LIVE_CYCLES_TABLE} WHERE cycle_started NOT IN "
+            f"(SELECT cycle_started FROM {LIVE_CYCLES_TABLE} ORDER BY cycle_started DESC LIMIT ?)",
+            (LIVE_CYCLES_KEEP,))
+
+
+def last_live_cycle(tf: Any = SCAN_JOIN_TF) -> Optional[dict]:
+    """The newest cycle receipt for this timeframe, or ``None`` — "no cycle has
+    ever run" is a real answer, distinct from a cycle that swept nothing."""
+    code = _normalise_tf(tf)
+    _ensure()
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        row = conn.execute(
+            f"SELECT cycle_started, tf, receipt_json, swept_json FROM {LIVE_CYCLES_TABLE} "
+            "WHERE tf=? ORDER BY cycle_started DESC LIMIT 1", (code,)).fetchone()
+    if row is None:
+        return None
+    return {"cycle_started": row["cycle_started"], "tf": row["tf"],
+            "receipt": json.loads(row["receipt_json"]), "swept": json.loads(row["swept_json"])}
