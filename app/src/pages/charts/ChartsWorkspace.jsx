@@ -2094,7 +2094,6 @@ export default function ChartsWorkspace() {
                           >
                             <UIcon name={meta.icon} size={14} gold={false} />
                             <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
-                            {meta.live && <span className={styles.wAddLive} aria-hidden="true" />}
                           </button>
                         )
                       })}

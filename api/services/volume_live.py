@@ -129,6 +129,14 @@ _MIN_INTRADAY_SURGE = 1.5    # below the high bar, require recent pace ≥ 1.5×
 # that the normal late-day volume ramp doesn't lift the whole board.
 _SURGE_BOOST_MIN = 2.5        # recent pace ≥ 2.5× the stock's OWN day pace (a real acceleration)…
 _SURGE_BOOST_MIN_RVOL = 2.0  # …AND recent rate ≥ 2× a NORMAL day (genuinely elevated, not just a dead morning)
+# COASTING cap — the other side of the boost. A name elevated-but-FLAT (an earnings name
+# trading heavy ALL day, surge_intraday ~1) has a high RVOL-vs-a-normal-day but is doing
+# nothing UNUSUAL right now. Its effective tier is capped so it doesn't scream "Very High"
+# for hours on stale earnings volume. The tier now weights the INTRADAY acceleration, not
+# just volume-vs-a-normal-day — so the bold tiers require the volume to be EXPANDING now.
+_COAST_SURGE = 1.5           # at/below this the name is coasting (elevated, not accelerating)…
+_COAST_TIER_CAP = 3.5        # …so its effective surge caps at ~T2 (Elevated), below the
+                             # extreme-bypass level — it shows its elevated volume but stays calm
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -701,11 +709,18 @@ def _eff_rvol(m: dict) -> float:
     RVOLs. The 2.5× gate keeps the routine late-day volume ramp from lifting everything."""
     rvol = m.get("rvol") or 0.0
     surge = m.get("surge_intraday")
-    # Only lift when the recent rate is GENUINELY elevated vs a normal day (rvol ≥ the boost
+    if surge is None:
+        return rvol   # freshly tracked — not enough history to judge acceleration yet
+    # Lift only when the recent rate is GENUINELY elevated vs a normal day (rvol ≥ the boost
     # floor) AND accelerating hard vs its own day — so a name whose morning was dead but is
     # merely trading NORMALLY now (low rvol, high surge) is not inflated into a fake surge.
-    if surge and surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
+    if surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
         return max(rvol, float(surge))
+    # COASTING — elevated but flat (surge ~1): cap the effective tier so an earnings name
+    # heavy all day doesn't read "Very High" on stale volume. The bold tiers require the
+    # volume to be EXPANDING now, not just high-vs-a-normal-day.
+    if surge < _COAST_SURGE:
+        return min(rvol, _COAST_TIER_CAP)
     return rvol
 
 

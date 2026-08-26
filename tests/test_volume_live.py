@@ -325,6 +325,27 @@ def test_megacap_sustained_surge_is_lit_bold_via_the_effective_rvol_boost():
     assert r["tier"] >= 3                 # → bold, lifted by the effective-RVOL boost (not buried T1)
 
 
+def test_an_earnings_name_heavy_but_flat_all_day_does_not_scream_very_high():
+    # ANF shape: heavy volume ALL day from earnings — RVOL vs a NORMAL day reads ~8× — but it's
+    # FLAT: recent pace ≈ its own day pace (surge_intraday ~1), nothing unusual intraday. It must
+    # NOT read "Very High" / light bold for hours on stale earnings volume; the bold tiers weight
+    # the intraday ACCELERATION, so elevated-and-flat is capped.
+    prev_vol = 5_000_000
+    B = 1112.0
+    A = 8 * prev_vol * 0.52 - 600 * B     # big morning offset → rvol_day ~8, elevated ALL day
+    seq = {}
+    for t in range(0, 601, 3):
+        px = 40.0 + 0.5 * (t / 600.0)     # a mild drift (+1.25% on the day), nothing sharp
+        seq[t] = {"AAA": {"min_av": A + B * t, "last_price": px, "prev_close": 40.0, "prev_vol": prev_vol}}
+    _feed(seq)
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert r is not None
+    assert r["rvol"] >= 6                 # its raw RVOL vs a normal day IS high (earnings)…
+    assert r["surge_intraday"] <= 1.2     # …but it's FLAT — not accelerating vs its own day
+    assert r["tier"] <= 2                 # → capped (Elevated at most), never a bold "Very High"
+    assert r["lit"] is False              # and not lit — nothing unusual is happening right now
+
+
 def test_a_dead_morning_name_trading_normally_now_is_not_boosted():
     # The boost's guard: a name whose morning was DEAD (rvol_day very low) but is merely trading
     # NORMALLY now has a high surge_intraday ratio — yet its recent rate is NOT elevated vs a
