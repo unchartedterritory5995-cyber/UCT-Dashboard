@@ -237,20 +237,31 @@ describe('the whole corpus, in one number', () => {
     // is this lane's own measured product property and must not move silently in
     // either direction.
     //
-    // ⭐ 3/24 translating, 14 columns, 3 saveable — W3.4, MEASURED.
+    // ⭐ 4/24 translating, 28 columns, 4 saveable — W3.5, MEASURED.
     // ⏳ W3.2 measured 0/24 and 11 columns; W3.3 held both while moving the
-    // walls. ⚠️⚠️ THE LANE BRIEF PREDICTED "0–1" FOR W3.4, ON THE REASONING THAT
-    // "every remaining file needs at least one table function". The real number
-    // is THREE, and the brief was wrong about its own task rather than the
-    // translator being generous: W3.4's specified tests demand `StDev`,
-    // `Highest` and `Average` resolve (its `:offset-literal` test is only
-    // reachable if `Average` translates at all), so the CALL-SHAPE MECHANISM had
-    // to land here — and with it the four rows those tests exercise.
-    // `12-scan-volume-2x`, `13-scan-52-week-high` and `14-scan-inside-bar` need
-    // nothing else. Nothing here was tuned toward the corpus: the four shapes
-    // are the ones this task's own rails name, and W3.5 still owns the map.
-    expect(translating, 'scripts that translate').toBe(3)
-    expect(columns, 'columns this engine computes').toBe(14)
+    // walls; W3.4 measured 3/24 and 14. ⚠️⚠️ THE LANE BRIEF PREDICTED "0–1" FOR
+    // W3.4, ON THE REASONING THAT "every remaining file needs at least one table
+    // function". The real number was THREE, because W3.4's specified tests demand
+    // `StDev`, `Highest` and `Average` resolve, so the CALL-SHAPE MECHANISM had
+    // to land there — and with it the four rows those tests exercise.
+    //
+    // ⭐ W3.5 ADDS EXACTLY THE ONE FILE THE BRIEF NAMED: `03-adx-dmi-lower`, the
+    // fourth script with no chrome statement. It needed `MovingAverage`'s enum
+    // dispatch, `TrueRange`'s expansion and `AbsValue` — and it needed a defect
+    // fixed that nothing before this task could reach: `input averageType =
+    // AverageType.WILDERS;` folded the constant's base to the input's own name
+    // and reported `thinkscript:cycle` on four published scripts.
+    //
+    // ⭐⭐ AND THE COLUMN COUNT DOUBLED WHILE THE SCRIPT COUNT MOVED BY ONE,
+    // WHICH IS THE HONEST SHAPE OF THIS TASK'S GAIN. `02`, `04`, `11` and `21`
+    // now compute EVERY column they offer and are held only by a chrome
+    // statement — the exact seam W3.6 picks up. Nothing here was tuned toward the
+    // corpus: every shape in the map is one thinkorswim publishes a formula for,
+    // and four names it does not (`RSI`, `SimpleMovingAvg`, `MovAvgExponential`,
+    // `RateOfChange`) were fetched and REFUSED rather than guessed, which is the
+    // number NOT going up.
+    expect(translating, 'scripts that translate').toBe(4)
+    expect(columns, 'columns this engine computes').toBe(28)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
@@ -320,15 +331,17 @@ describe('the whole corpus, in one number', () => {
   it('⭐ every script that translates is one a member could actually SAVE', () => {
     // ⛔ "IT TRANSLATED" AND "IT WORKS" ARE DIFFERENT CLAIMS. A formula can come
     // out of the translator and still be refused by the budget, the linter or
-    // the read-back. ⭐ THREE SCRIPTS CROSSED THAT LINE IN W3.4 and all three
-    // came out the far side of `canSaveFormula` — non-repainting, inside the
-    // lookback cap, saveable. `_blocked` below is the set that translated and
-    // could NOT be saved, and it is what this rail is really watching: a
-    // translator that starts emitting formulas the save door refuses has made
-    // the number go up and the product worse.
+    // the read-back. ⭐ FOUR SCRIPTS CROSS THAT LINE AT W3.5 and all four come
+    // out the far side of `canSaveFormula` — non-repainting, inside the lookback
+    // cap, saveable. `_blocked` below is the set that translated and could NOT be
+    // saved, and it is what this rail is really watching: a translator that
+    // starts emitting formulas the save door refuses has made the number go up
+    // and the product worse. ⭐ `03-adx-dmi-lower` is the new one, and it is the
+    // heaviest tree the door has passed — two Wilder averages over a true-range
+    // expansion, lookback 15, non-repainting.
     const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
     const translating = FILES.filter((f) => entry(f).translates)
-    expect(saveable.length).toBe(3)
+    expect(saveable.length).toBe(4)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
     // ⛔ NAMES, so a script that translates-but-cannot-save is reported as
     // itself rather than as an arithmetic disagreement between two counts.

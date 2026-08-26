@@ -18,9 +18,15 @@
 // function-level refusal it expected at W3.4 fires at W3.3 (every unmapped call
 // refuses at its name), and a hand-written paste already translates all the way
 // to a SAVEABLE column, so the bench can discriminate all three answers now.
-// ⏳ WHAT IS STILL NOT TRUE: no file in the committed CORPUS translates — every
-// one of the 24 needs a thinkorswim function this task maps none of. That number
-// lives in `thinkscript.corpus.test.js`, which is where coverage is held still.
+// ⛔⛔ AND THE SENTENCE THAT SAT HERE WAS FALSE WHEN IT WAS WRITTEN. It read
+// "WHAT IS STILL NOT TRUE: no file in the committed CORPUS translates — every
+// one of the 24 needs a thinkorswim function this task maps none of", in the
+// same commit whose own corpus fixture recorded THREE translating. Same defect
+// shape as the "thinkorswim does not publish a precedence table" alibi W3.4
+// shipped: a rationale for an absence, standing where a measurement belongs, in
+// the file a reader trusts to describe the tool. ⭐ The number is not restated
+// here at all now — it is a MEASUREMENT this file prints on every run and
+// `thinkscript.corpus.test.js` holds still. Read it there, or run this.
 
 import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'

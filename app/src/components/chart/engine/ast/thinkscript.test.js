@@ -20,12 +20,13 @@ import path from 'node:path'
 import {
   translateThinkScript, lexThinkScript, readStatements, ThinkScriptRefusal,
   TS_STATE_WARMUP, TS_CALL_SHAPES, TS_WORD_OPERATORS, TS_PRECEDENCE,
+  TS_UNCITED, argumentPlan,
   REFUSALS as TS, NOTES as TS_NOTES,
 } from './thinkscript.js'
 import { REFUSALS as PINE, printFormula } from './pine.js'
 import { PCF_REFUSALS as PCF } from './pcf.js'
 import { TABLE, parseFormula, astHash, REFUSALS as PARSE } from './parse.js'
-import { REFUSALS as INTERPRET } from './interpret.js'
+import { REFUSALS as INTERPRET, interpret } from './interpret.js'
 import { REFUSALS as BUDGET } from './budget.js'
 import { REFUSALS as SENTENCE } from './sentence.js'
 
@@ -398,13 +399,18 @@ describe('what the reader still refuses, and where it says so', () => {
   })
 
   it('a blank line and a `#` banner move a position without moving a column', () => {
-    const src = '\n# Mobius\n\n   plot x = Sum(close, 3);\n'
+    // ⚠️ THE CALL HERE WAS `Sum(close, 3)` UNTIL W3.5 MAPPED `Sum`. A position
+    // test needs a call that refuses, and one that refuses PERMANENTLY:
+    // `TTM_Squeeze` is proprietary and thinkorswim publishes no formula for it,
+    // so it can never be mapped out from under this. The columns are unchanged —
+    // both names begin at the same offset.
+    const src = '\n# Mobius\n\n   plot x = TTM_Squeeze(close, 3);\n'
     const out = translateThinkScript(src)
     const line = src.split('\n')[out.refusal.line - 1]
     expect(out.refusal.line).toBe(4)
     expect(out.refusal.column).toBe(13)
-    expect(out.refusal.token).toBe('Sum')
-    expect(line.slice(out.refusal.column - 1, out.refusal.column - 1 + 3)).toBe('Sum')
+    expect(out.refusal.token).toBe('TTM_Squeeze')
+    expect(line.slice(out.refusal.column - 1, out.refusal.column - 1 + 11)).toBe('TTM_Squeeze')
   })
 
   it('a pasted CRLF or CR script is read as the same lines an LF one is', () => {
@@ -416,23 +422,23 @@ describe('what the reader still refuses, and where it says so', () => {
     // committed corpus file is LF, so the corpus gate never exercises either and
     // this is the only place they are held. A member pasting out of a Windows
     // editor is the ordinary case, not the exotic one.
-    const crlf = translateThinkScript('  plot x = Sum(close, 3);\r\n')
+    const crlf = translateThinkScript('  plot x = TTM_Squeeze(close, 3);\r\n')
     expect(crlf.refusal.line).toBe(1)
     expect(crlf.refusal.column).toBe(12)
-    expect(crlf.refusal.token).toBe('Sum')
-    expect(crlf.refusal.excerpt).toBe('  plot x = Sum(close, 3);\n           ^')
+    expect(crlf.refusal.token).toBe('TTM_Squeeze')
+    expect(crlf.refusal.excerpt).toBe('  plot x = TTM_Squeeze(close, 3);\n           ^')
     expect(crlf.refusal.excerpt).not.toContain('\r')
 
     // A CR-only paste is three lines, so the refusal lands on the third —
     // unsplit, it would be one line and the caret would be 27 columns out.
-    const cr = translateThinkScript('\r\rplot x = Sum(close, 3);')
+    const cr = translateThinkScript('\r\rplot x = TTM_Squeeze(close, 3);')
     expect(cr.refusal.line).toBe(3)
     expect(cr.refusal.column).toBe(10)
-    expect(cr.refusal.token).toBe('Sum')
+    expect(cr.refusal.token).toBe('TTM_Squeeze')
   })
 
   it('`refusals` is the whole list and `refusal` is its first, both with excerpts', () => {
-    const out = translateThinkScript('plot x = Sum(close, 3);')
+    const out = translateThinkScript('plot x = TTM_Squeeze(close, 3);')
     expect(out.refusals).toEqual([out.refusal])
     expect(out.refusals[0].excerpt).toContain('^')
   })
@@ -1312,38 +1318,15 @@ describe('named arguments resolve by the DECLARED parameter order', () => {
 })
 
 describe('the CALL SHAPES this task maps, and the promise each one makes', () => {
-  it('⛔ every engine name a shape names is one the CLOSED TABLE declares', () => {
-    // ⭐ THE MODULE HEADER'S PROMISE, MADE MECHANICAL. "Every engine name this
-    // module emits is LOOKED UP in the table at translation time" — so a shape
-    // pointing at a function the table does not declare is a mistranslation
-    // waiting for the day someone re-partitions the table. W2a moved it to
-    // version 2 while this lane was mid-flight; this is what makes that safe.
-    const missing = Object.entries(TS_CALL_SHAPES)
-      .filter(([, s]) => !Object.prototype.hasOwnProperty.call(TABLE.functions, s.engine))
-      .map(([k, s]) => `${k} → ${s.engine}`)
-    expect(missing).toEqual([])
-    // non-vacuity: the sweep looked at a real, non-empty map
-    expect(Object.keys(TS_CALL_SHAPES).length).toBeGreaterThan(3)
-  })
-
-  it('⛔ every shape CITES the page it was read from, and fills the engine\'s arity', () => {
-    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
-      expect(typeof shape.cite, name).toBe('string')
-      expect(shape.cite.length, name).toBeGreaterThan(20)
-      // ⛔ THE PARAMS ARE THE ENGINE'S ARGUMENTS, ONE FOR ONE, for every shape
-      // this task maps. ⚠️ W3.5 maps `ATR(length)` onto `atr(high, low, close, n)`
-      // — four engine arguments from one thinkorswim parameter — and will need an
-      // explicit plan; this rail goes red the moment that lands, which is the
-      // notification, not a bug.
-      expect(shape.params.length, name).toBe(TABLE.functions[shape.engine].args.length)
-      expect(new Set(shape.params).size, `${name} declares a parameter twice`).toBe(shape.params.length)
-    }
-  })
-
-  it('the table is frozen, so a caller cannot map a function out from under a rail', () => {
-    expect(Object.isFrozen(TS_CALL_SHAPES)).toBe(true)
-  })
-
+  // ⚠️ THE ARITY RAIL THAT LIVED HERE HAS MOVED, AND IT MOVED BECAUSE IT WENT
+  // RED EXACTLY WHERE IT SAID IT WOULD. W3.4 asserted `shape.params.length ===
+  // TABLE.functions[shape.engine].args.length` and wrote beside it that
+  // `ATR(length)` → `atr(high, low, close, n)` would turn it red, and that the
+  // red was "the notification, not a bug". W3.5's answer is the explicit argument
+  // plan railed in `THE ARGUMENT PLAN` at the foot of this file — stronger in
+  // both directions than the one-for-one count, which could only ever have been
+  // satisfied by shapes that happened to line up. ⛔ It is NOT deleted: replacing
+  // a rail with a weaker one is how a notification gets silenced. Read it there.
   it('⛔ a call this task has NOT mapped still refuses at its own name', () => {
     // ⭐ THE WALL DID NOT DISAPPEAR, IT MOVED. `TTM_Squeeze` is proprietary and
     // thinkorswim publishes no formula for it, so it refuses here and will refuse
@@ -1373,5 +1356,842 @@ describe('the round trip is the proof that nothing half-translated', () => {
     // the other.
     expect(formulaOf('def a = Average(close, 50);\nplot scan = close > a;\n'))
       .toBe('close > sma(close, 50)')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────── //
+// W3.5 — THE FUNCTION MAP
+// ─────────────────────────────────────────────────────────────────────────── //
+//
+// ⛔⛔ EVERY `it` BELOW NAMES THE PAGE ITS IDENTITY CAME FROM, and that is the
+// acceptance criterion rather than decoration. W3.4's Critical was a comment
+// claiming the language "does not publish a precedence table" — it publishes a
+// twelve-level one — and that false sentence is WHY nobody looked. So each row
+// here quotes what was fetched (2026-08-26, toslc.thinkorswim.com), and where no
+// quote could be found the identity is REFUSED BY NAME instead of guessed.
+//
+// ⭐ AND EVERY MAPPING IS CHECKED NUMERICALLY IN BOTH DIRECTIONS in
+// `the maths, measured on real bars` at the foot of this file. A one-directional
+// test blesses the inverse bug: W3.4 shipped an enum defect whose `!=` form
+// failed the opposite way and passed every rail it had.
+
+/** The refusal a whole script came back with, or `null`. */
+const refusalOf = (src) => translateThinkScript(src).refusal
+
+describe('the function map — mapped ONLY where thinkorswim publishes the same maths', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+  const guard = (expr) => translateThinkScript(`plot p = ${expr};\n`).refusal.guard
+
+  // Functions/Tech-Analysis/Average — "Returns the average value of a set of data
+  // for the last `length` bars", formula `Sum(data, length) / length`, length 12.
+  it('Average → sma', () => expect(f('Average(close, 50)')).toBe('sma(close, 50)'))
+
+  // Functions/Math---Trig/Sum — "Returns the sum of values for the specified
+  // number of bars. The default value of `length` is `12`."
+  it('Sum → sum', () => expect(f('Sum(volume, 14)')).toBe('sum(volume, 14)'))
+
+  // Functions/Tech-Analysis/Highest & /Lowest — "the highest|lowest value of
+  // `data` for the last `length` bars"; length default 12.
+  it('Highest / Lowest → highest / lowest', () => {
+    expect(f('Highest(high, 52)')).toBe('highest(high, 52)')
+    expect(f('Lowest(low, 20)')).toBe('lowest(low, 20)')
+  })
+
+  // Functions/Statistical/StDev — the page reimplements itself as
+  // `Sqrt(Average(Sqr(data), length) - Sqr(Average(data, length)))`, divided by
+  // `length` both times, i.e. the POPULATION deviation — which is the divisor
+  // `closedTable.json::_functions_excluded.variance` declares for `stdev`.
+  it('StDev → stdev (both are the population divisor n)', () =>
+    expect(f('StDev(close, 20)')).toBe('stdev(close, 20)'))
+
+  // Functions/Tech-Analysis/WildersAverage — "the Wilder's Moving Average of
+  // `data` with a smoothing coefficient that equals `1/length`… The first value
+  // is calculated as the simple moving average and then all values are
+  // calculated as the exponential moving average." `_functions_smoothing` states
+  // OUR `rma` identically: alpha `1/n`, seed = the mean of the first full window.
+  it('WildersAverage → rma, and the seed matches too', () =>
+    expect(f('WildersAverage(close, 14)')).toBe('rma(close, 14)'))
+
+  // Functions/Tech-Analysis/ExpAverage — "α is a smoothing coefficient equal to
+  // `2/(length + 1)`", and "EMA1 = price1".
+  it('ExpAverage → ema, with the SEED difference recorded as a note', () => {
+    const out = translateThinkScript('plot p = ExpAverage(close, 12);\n')
+    expect(out.outputs[0].formula).toBe('ema(close, 12)')
+    // ⚠️ thinkorswim seeds on the FIRST PRICE; this engine seeds on the mean of
+    // the first full window (`_functions_smoothing`). Same alpha, different first
+    // window, converging — the identical relationship `_functions_atr_convention`
+    // already records against Pine. It is SAID, not hidden.
+    expect(out.ignored.some((n) => n.code === 'thinkscript:note-seed')).toBe(true)
+  })
+
+  it('⭐ the seed note is attached to the CALL, not to the script', () => {
+    // A script with no ExpAverage in it must not carry the note, or the note
+    // stops meaning anything and a member learns to skip the list.
+    expect(translateThinkScript('plot p = Average(close, 12);\n')
+      .ignored.some((n) => n.code === 'thinkscript:note-seed')).toBe(false)
+    // …and WildersAverage does NOT carry it: that one is exact on both sides.
+    expect(translateThinkScript('plot p = WildersAverage(close, 12);\n')
+      .ignored.some((n) => n.code === 'thinkscript:note-seed')).toBe(false)
+  })
+
+  // Functions/Math---Trig/AbsValue — "Returns the absolute value of an argument."
+  // /Sqrt — "Calculates the square root of an argument."
+  // /Sqr — "Calculates the square of an argument."  (an identity in `pow`)
+  // /Power — "the value of the first argument raised to the power of the second".
+  // /Log — "Returns the NATURAL logarithm of an argument."
+  // /Max, /Min — "Returns the greater|smaller of two values."
+  it('AbsValue / Sqrt / Sqr / Power / Log / Max / Min', () => {
+    expect(f('AbsValue(close - open)')).toBe('abs(close - open)')
+    expect(f('Sqrt(close)')).toBe('sqrt(close)')
+    expect(f('Sqr(close)')).toBe('pow(close, 2)')
+    expect(f('Power(close, 2)')).toBe('pow(close, 2)')
+    expect(f('Log(close)')).toBe('ln(close)')
+    expect(f('Max(close, open)')).toBe('max(close, open)')
+    expect(f('Min(close, open)')).toBe('min(close, open)')
+  })
+
+  // Functions/Math---Trig/IsNaN — "evaluates whether a specified parameter is not
+  // a number". `closedTable::_functions_na` — `na` "INSPECTS that state", yields
+  // bool.
+  it('IsNaN → na', () => expect(f('IsNaN(close)')).toBe('na(close)'))
+
+  // Functions/Math---Trig/Round — `numberOfDigits` DEFAULT VALUE 2 (read off the
+  // page's own Default-value column); this table's `round` is round-to-whole.
+  it('Round(x, 0) maps; ⛔ any other digit count refuses', () => {
+    expect(f('Round(close, 0)')).toBe('round(close)')
+    expect(guard('Round(close, 2)')).toBe('thinkscript:function')
+    // ⛔ AND THE BARE FORM REFUSES, which is the case that matters: the page's
+    // published default is TWO, so `Round(close)` is `Round(close, 2)` and is
+    // NOT this engine's `round`. Mapping it would round to a whole number while
+    // the member asked for two decimals — silent, and wrong on nearly every bar.
+    expect(guard('Round(close)')).toBe('thinkscript:function')
+  })
+})
+
+describe('MovingAverage — the enum dispatch, on thinkorswim`s own five constants', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  // Functions/Tech-Analysis/MovingAverage — `MovingAverage(int averageType,
+  // IDataHolder data, int length)`, "Available average types are: Simple,
+  // Exponential, Weighted, Wilder's, and Hull", `averageType` default
+  // `AverageType.Simple`, `length` default 12.
+  // Constants/AverageType lists the five arms: EXPONENTIAL HULL SIMPLE WEIGHTED
+  // WILDERS.
+  it('dispatches on the enum', () => {
+    expect(f('MovingAverage(AverageType.SIMPLE, close, 10)')).toBe('sma(close, 10)')
+    expect(f('MovingAverage(AverageType.EXPONENTIAL, close, 10)')).toBe('ema(close, 10)')
+    expect(f('MovingAverage(AverageType.WILDERS, close, 10)')).toBe('rma(close, 10)')
+    expect(f('MovingAverage(AverageType.WEIGHTED, close, 10)')).toBe('wma(close, 10)')
+  })
+
+  it('the PUBLISHED default is Simple, and the published length is 12', () => {
+    // ⚠️ `averageType` IS THE FIRST PARAMETER, so the default is reachable only
+    // by naming the others — `MovingAverage(close)` means averageType = close,
+    // which is what thinkorswim would read too, and it refuses below.
+    expect(f('MovingAverage(data = close)')).toBe('sma(close, 12)')
+    expect(f('MovingAverage(data = close, length = 20)')).toBe('sma(close, 20)')
+    expect(f('MovingAverage(AverageType.SIMPLE, close)')).toBe('sma(close, 12)')
+  })
+
+  it('⛔ HULL refuses — this engine declares no `hma`, MEASURED not assumed', () => {
+    const r = translateThinkScript('plot p = MovingAverage(AverageType.HULL, close, 10);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.message).toMatch(/HULL/i)
+    // ⭐ AND IT IS DERIVED: the day `hma` lands in the manifest this refusal must
+    // stop, with no edit in `thinkscript.js`. The arm maps to the NAME `hma`, and
+    // `engineCall`'s table lookup is what refuses.
+    expect(Object.keys(TABLE.functions)).not.toContain('hma')
+    expect(r.message).toContain('hma')
+  })
+
+  it('⭐ an averageType that is a FOLDED INPUT dispatches on the folded value', () => {
+    expect(translateThinkScript(
+      'input at = AverageType.WILDERS;\nplot p = MovingAverage(at, close, 5);\n')
+      .outputs[0].formula).toBe('rma(close, 5)')
+  })
+
+  it('⛔ an arm thinkorswim does not publish refuses, rather than falling back to Simple', () => {
+    // ⛔ THE FAILURE DIRECTION THAT MATTERS. Falling back to the default here
+    // would answer `sma` for a member who asked for something else — a chart that
+    // looks right and is wrong, which is the one outcome this door exists against.
+    const r = translateThinkScript('plot p = MovingAverage(AverageType.TRIANGULAR, close, 10);\n').refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
+  })
+
+  it('⛔ a value that is not an AverageType at all refuses', () => {
+    expect(translateThinkScript('plot p = MovingAverage(close, close, 10);\n').refusal.guard)
+      .toBe('thinkscript:enum-arm')
+    expect(translateThinkScript('input at = {default UseA, UseB};\nplot p = MovingAverage(at, close, 10);\n')
+      .refusal.guard).toBe('thinkscript:enum-arm')
+  })
+})
+
+describe('TrueRange — the page publishes its own reimplementation, and this emits THAT', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  // Functions/Tech-Analysis/TrueRange — `TrueRange(IDataHolder high, IDataHolder
+  // close, IDataHolder low)` — NOTE THE ORDER — and the page's own Example is
+  //   script TrueRangeTS { input high = high; input close = close; input low = low;
+  //     plot TrueRangeTS = Max(close[1], high) - Min(close[1], low); }
+  // followed by "The resulting plots coincide forming a single curve."
+  //
+  // ⛔ THAT SENTENCE IS THE CITATION, and it is why this emits the page's form
+  // rather than Pine's three-way `max(h - l, max(|h - c1|, |l - c1|))`. The brief
+  // asked for Pine's; the page publishes its own, node for node, and asserts the
+  // two curves coincide. Both were measured equal on the shared parity series
+  // (0 differing bars of 579) — see the numeric block — so this is a choice of
+  // which quotation to emit, not a change of maths.
+  it('⭐ expands to the page`s own formula, by role, in thinkorswim`s order (h, c, l)', () => {
+    expect(f('TrueRange(high, close, low)')).toBe('max(close[1], high) - min(close[1], low)')
+  })
+
+  it('⛔ the roles in another order are a DIFFERENT tree, and it says so', () => {
+    // The parameter names are POSITIONS, so a member who wrote them in Pine's
+    // order gets Pine's order translated literally rather than silently repaired.
+    expect(f('TrueRange(high, low, close)')).toBe('max(low[1], high) - min(low[1], close)')
+  })
+
+  it('named arguments reach the same tree in any written order', () => {
+    expect(f('TrueRange(low = low, high = high, close = close)'))
+      .toBe('max(close[1], high) - min(close[1], low)')
+  })
+
+  it('⛔ no parameter has a published default, so an incomplete call refuses', () => {
+    expect(translateThinkScript('plot p = TrueRange(high, close);\n').refusal.guard)
+      .toBe('thinkscript:arity')
+  })
+
+  it('⭐ the shared `close[1]` is ONE node, so the budget counts it once', () => {
+    const out = translateThinkScript('plot p = TrueRange(high, close, low);\n')
+    const t = out.outputs[0].ast
+    expect(t.args[0].args[0]).toBe(t.args[1].args[0])
+  })
+})
+
+describe('ATR — the study whose OWN description publishes both of its defaults', () => {
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  // Tech-Indicators/studies-library/A-B/ATR — "By default, the average true range
+  // is a 14-period Wilder's moving average of this value; both the period and the
+  // type of moving average can be customized using the study input parameters."
+  // `closedTable::_functions_atr_convention` proves OUR `atr` IS Wilder's to
+  // 5.4e-16 over 565 bars against an independent construction.
+  it('ATR → atr(high, low, close, n) — both defaults come off that sentence', () => {
+    expect(f('ATR(14)')).toBe('atr(high, low, close, 14)')
+    expect(f('ATR(length = 14)')).toBe('atr(high, low, close, 14)')
+    expect(f('ATR()')).toBe('atr(high, low, close, 14)')
+    expect(f('ATR(20)')).toBe('atr(high, low, close, 20)')
+  })
+
+  it('⛔ ATR asked for another averageType refuses rather than returning Wilder`s', () => {
+    const r = translateThinkScript('plot p = ATR(14, AverageType.SIMPLE);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.message).toMatch(/SIMPLE/i)
+    // …and the WILDERS spelling written out explicitly is the same call as the
+    // default, not a second answer.
+    expect(f('ATR(14, AverageType.WILDERS)')).toBe('atr(high, low, close, 14)')
+  })
+})
+
+describe('the refusals this map makes BY NAME, and why each one is a refusal', () => {
+  const guard = (expr) => translateThinkScript(`plot p = ${expr};\n`).refusal.guard
+
+  it('⛔ HighestAll / LowestAll refuse with the bounded-form sentence', () => {
+    // Functions/Tech-Analysis/HighestAll — "Returns the highest value of `data`
+    // for ALL BARS IN THE CHART". ⛔ That makes the answer depend on the request
+    // (`lesson_a_derived_value_must_not_depend_on_the_request`), which is the
+    // same reason `closedTable` excludes `obv`.
+    for (const call of ['HighestAll(high)', 'LowestAll(low)']) {
+      const r = translateThinkScript(`plot p = ${call};\n`).refusal
+      expect(r.guard, call).toBe('thinkscript:function')
+      expect(r.message, call).toMatch(/every bar|whole chart|how many bars/i)
+      expect(r.message, call).toMatch(/Highest\(|Lowest\(/)
+    }
+  })
+
+  it('⛔ Floor refuses — this engine declares no `floor` callable, measured', () => {
+    // Functions/Math---Trig/Floor — "Rounds a value down to the nearest integer".
+    // There is no `floor` in `closedTable.functions`, and `round` is round-to-
+    // whole (half away from zero), which is a DIFFERENT function on every value
+    // whose fraction is ≥ .5. Mapping it would be wrong on about half of all bars.
+    expect(guard('Floor(close)')).toBe('thinkscript:function')
+    expect(Object.keys(TABLE.functions)).not.toContain('floor')
+    expect(Object.keys(TABLE.functions)).not.toContain('ceil')
+  })
+
+  it('⛔⛔ RSI refuses BY NAME — the study page publishes NO default for `length` or `price`', () => {
+    // ⛔ THIS CORRECTS THE LANE BRIEF, and the correction is a measurement.
+    // The brief's reference table says `RSI(length=, price=)` → `rsi(price,
+    // length)`. Fetched 2026-08-26, the RSI study page's Input Parameters table
+    // has NO "Default value" column at all (unlike every thinkScript FUNCTIONS
+    // page, which does), and its description publishes defaults only for the
+    // over-bought level (70), the over-sold level (30) and the average type
+    // (Wilder's). `length` and `price` have none.
+    // ⇒ `RSI()` cannot be mapped without inventing 14 and `close`, and inventing
+    // semantics without a citation is the exact risk this door exists against.
+    const r = translateThinkScript('plot p = RSI() crosses above 30;\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.token).toBe('RSI')
+    // ⭐ AND THE CONTROL: the engine DOES declare `rsi`, so this is a refusal
+    // about a missing CITATION, never about a missing function.
+    expect(Object.keys(TABLE.functions)).toContain('rsi')
+  })
+
+  it('⛔ a call the manifest does NOT declare refuses at its own token', () => {
+    const r = translateThinkScript('plot p = InertiaAll(close);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.token).toBe('InertiaAll')
+    expect(r.column).toBe(10)
+  })
+
+  it('⛔ the wrong number of arguments refuses BY NAME, not by mis-mapping', () => {
+    expect(guard('Average(close, 5, 3)')).toBe('thinkscript:arity')
+    expect(guard('Sqrt(close, 2)')).toBe('thinkscript:arity')
+    expect(guard('Max(close)')).toBe('thinkscript:arity')
+  })
+
+  it('⛔ a length that is not a written whole number refuses', () => {
+    expect(guard('Average(close, high)')).toBe('thinkscript:window')
+    expect(guard('Sum(volume, high)')).toBe('thinkscript:window')
+  })
+})
+
+describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left red on purpose', () => {
+  // W3.4 asserted `shape.params.length === TABLE.functions[shape.engine].args
+  // .length` and said in its own comment that `ATR(length)` → `atr(high, low,
+  // close, n)` would turn it red, and that the red was "the notification, not a
+  // bug". The notification arrived — and not only for ATR: `MovingAverage` has
+  // three parameters for two engine arguments, `Round` two for one, `Sqr` one for
+  // two, `TrueRange` three for no single call at all.
+  //
+  // ⭐ SO THE PLAN IS DECLARED PER ENGINE ARGUMENT, AND CHECKED BOTH WAYS. A
+  // shape carries `args[]` — one entry per ENGINE argument, in engine order —
+  // where each entry is `{from: <a thinkorswim parameter>}`, `{series: <a bar
+  // field the engine declares and the thinkorswim call does not carry>}` or
+  // `{const: <a literal the identity requires>}`. Every thinkorswim parameter
+  // must then be accounted for exactly once: consumed by an `args` entry, listed
+  // in `gates` (checked but contributing no node), or listed in `unused` with the
+  // reason. Nothing may be silently dropped — a dropped parameter IS the silent
+  // mistranslation this rail exists to catch.
+
+  const enginesOf = (shape) => (shape.dispatch ? Object.values(shape.dispatch)
+    : shape.engine ? [shape.engine] : (shape.engines || []))
+
+  it('⛔ every engine name a shape names is one the CLOSED TABLE declares', () => {
+    const missing = []
+    for (const [k, s] of Object.entries(TS_CALL_SHAPES)) {
+      for (const e of enginesOf(s)) {
+        // ⭐ `hull → hma` is DELIBERATELY exempt: the arm names an engine the
+        // table has not declared yet, and the refusal is the table lookup itself.
+        if (s.pending && s.pending.includes(e)) continue
+        if (!Object.prototype.hasOwnProperty.call(TABLE.functions, e)) missing.push(`${k} → ${e}`)
+      }
+    }
+    expect(missing).toEqual([])
+    expect(Object.keys(TS_CALL_SHAPES).length).toBeGreaterThan(15)
+  })
+
+  it('⛔ every shape CITES the page it was read from', () => {
+    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
+      expect(typeof shape.cite, name).toBe('string')
+      expect(shape.cite.length, name).toBeGreaterThan(40)
+      expect(new Set(shape.params).size, `${name} declares a parameter twice`).toBe(shape.params.length)
+    }
+  })
+
+  it('⛔ every ENGINE argument is filled, and the plan agrees with the engine`s own argRoles', () => {
+    let checked = 0
+    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
+      if (shape.refuse) continue
+      if (shape.expand) {
+        // ⚠️ AN EXPANSION FILLS NO SINGLE ENGINE ARITY — `TrueRange` becomes a
+        // subtraction of two calls — so its plan is one entry per thinkorswim
+        // PARAMETER and every entry must be a `from`. Nothing is invented inside
+        // an expansion either: its engine names are checked above.
+        expect(argumentPlan(shape), `${name} is an expansion`).toBe(null)
+        expect(shape.args.map((a) => a.from), name).toEqual(shape.params)
+        checked += 1
+        continue
+      }
+      for (const engine of enginesOf(shape)) {
+        if (shape.pending && shape.pending.includes(engine)) continue
+        const spec = TABLE.functions[engine]
+        const plan = argumentPlan(shape)
+        expect(plan, `${name} has no argument plan`).not.toBe(null)
+        expect(plan.length, `${name} → ${engine}`).toBe(spec.args.length)
+        plan.forEach((a, i) => {
+          if (a.series === undefined) return
+          // ⭐ A SUPPLIED BAR FIELD IS CROSS-CHECKED AGAINST THE ENGINE'S OWN
+          // DECLARED ROLE, so `atr`'s (high, low, close) order is read off the
+          // table rather than retyped here. Swap two and this reds by name.
+          expect(Object.keys(TABLE.series), `${name}.args[${i}]`).toContain(a.series)
+          expect(spec.argRoles[i], `${name}.args[${i}] fills ${engine}`).toBe(a.series)
+        })
+        checked += 1
+      }
+    }
+    // non-vacuity: the sweep looked at real shapes, not at an empty map
+    expect(checked).toBeGreaterThan(15)
+  })
+
+  it('⭐ a recurrence`s POSITIONS come from the table, not from this file', () => {
+    // ⛔ `compoundvalue` declares `argsByRole`, and `argumentPlan` turns roles
+    // into indices through `closedTable.json::accum.recurrence`. Move the seed
+    // and the body in the manifest and the plan follows with no edit here.
+    const shape = TS_CALL_SHAPES.compoundvalue
+    const spec = TABLE.functions.accum
+    const plan = argumentPlan(shape)
+    expect(plan[spec.recurrence.seed]).toEqual({ from: 'historical data' })
+    expect(plan[spec.recurrence.body]).toEqual({ from: 'visible data' })
+    expect(plan[spec.recurrence.warmup]).toEqual({ const: TS_STATE_WARMUP })
+    // …and the CONTROL: a table whose recurrence names other slots produces
+    // another plan, so the indices above are not three constants in disguise.
+    const swapped = {
+      ...TABLE,
+      functions: {
+        ...TABLE.functions,
+        accum: { ...spec, recurrence: { ...spec.recurrence, seed: 1, body: 0 } },
+      },
+    }
+    expect(argumentPlan(shape, swapped)[0]).toEqual({ from: 'visible data' })
+  })
+
+  it('⛔ every thinkorswim PARAMETER is accounted for exactly once', () => {
+    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
+      if (shape.refuse) continue
+      const consumed = (argumentPlan(shape) || shape.args || [])
+        .filter((a) => a.from).map((a) => a.from)
+      const gated = Object.keys(shape.gates || {})
+      const unused = Object.keys(shape.unused || {})
+      const all = [...consumed, ...gated, ...unused]
+      expect(new Set(all).size, `${name} accounts for a parameter twice`).toBe(all.length)
+      expect([...all].sort(), `${name} leaves a parameter unaccounted for`)
+        .toEqual([...shape.params].sort())
+      // ⛔ AND AN IGNORED PARAMETER MUST SAY WHY, in a sentence long enough to be
+      // a reason rather than a shrug.
+      for (const [p, why] of Object.entries(shape.unused || {})) {
+        expect(typeof why, `${name}.unused.${p}`).toBe('string')
+        expect(why.length, `${name}.unused.${p}`).toBeGreaterThan(30)
+      }
+    }
+  })
+
+  it('⛔ every DEFAULT names a parameter the shape declares', () => {
+    for (const [name, shape] of Object.entries(TS_CALL_SHAPES)) {
+      for (const p of Object.keys(shape.defaults || {})) {
+        expect(shape.params, `${name} defaults an undeclared parameter ${p}`).toContain(p)
+      }
+    }
+  })
+
+  it('the table is frozen, so a caller cannot map a function out from under a rail', () => {
+    expect(Object.isFrozen(TS_CALL_SHAPES)).toBe(true)
+  })
+
+  it('⭐ THE MAP IS DERIVED: a function the MANIFEST gains is callable with no edit here', () => {
+    // ⛔⛔ THIS CORRECTS THE LANE BRIEF, WHICH ASKED FOR A NAME FALLBACK.
+    // `pine.js` maps any `ta.<name>` straight onto `TABLE.functions` and its own
+    // rail invents `ta.zigzaggery` to prove it. That is safe in Pine because the
+    // `ta.` namespace makes "this is an engine function" explicit. thinkScript
+    // has NO namespace, and the same trick here is a mistranslation machine:
+    // `MACD(12, 26, 9)` is thinkorswim's MACD study with fast 12 / slow 26 /
+    // signal 9, while this engine's `macd(series, int, int)` would read it as the
+    // MACD **of the number 12**. That parses, prints, round-trips and saves.
+    expect(translateThinkScript('plot p = MACD(12, 26, 9);\n').refusal.guard)
+      .toBe('thinkscript:function')
+    expect(Object.keys(TABLE.functions)).toContain('macd')
+
+    // ⭐ SO THE DERIVED CLAIM IS MADE THE SAFE WAY, AND IT IS STILL MEASURED: a
+    // MAPPED identity names a table KEY and looks it up at call time, so a
+    // manifest that gains `hma` makes `AverageType.HULL` translate with no edit
+    // in `thinkscript.js`.
+    const withHull = {
+      ...TABLE,
+      functions: {
+        ...TABLE.functions,
+        hma: {
+          args: ['series', 'int'], lookback: 'arg1', yields: 'num',
+          argRoles: ['source', 'period'], sentence: 'the {1}-bar Hull average of {0}',
+        },
+      },
+    }
+    const out = translateThinkScript(
+      'plot p = MovingAverage(AverageType.HULL, close, 9);\n', { table: withHull })
+    expect(out.ok).toBe(true)
+    expect(out.outputs[0].formula).toBe('hma(close, 9)')
+    // ⛔ …and the CONTROL: against the shipped manifest the same paste refuses,
+    // so the case above cannot pass for a translator that accepts every name.
+    expect(translateThinkScript('plot p = MovingAverage(AverageType.HULL, close, 9);\n')
+      .refusal.guard).toBe('thinkscript:function')
+  })
+
+  it('⛔ every name this task looked up and REFUSED is written down, with its reason', () => {
+    // ⭐ A REFUSAL NOBODY RECORDED GETS RE-LITIGATED AS AN OVERSIGHT. Each of
+    // these was fetched before it was refused, and each still refuses at its own
+    // token today.
+    expect(Object.keys(TS_UNCITED).length).toBeGreaterThan(5)
+    for (const [name, why] of Object.entries(TS_UNCITED)) {
+      expect(why.length, name).toBeGreaterThan(60)
+      expect(Object.keys(TS_CALL_SHAPES), `${name} is both mapped and refused`)
+        .not.toContain(name.toLowerCase())
+      const r = translateThinkScript(`plot p = ${name}(close, 5);\n`).refusal
+      expect(r.guard, name).toBe('thinkscript:function')
+      expect(r.token, name).toBe(name)
+    }
+  })
+
+  it('⛔ a call this task has NOT mapped still refuses at its own name', () => {
+    const r = translateThinkScript('plot p = TTM_Squeeze(close, 20);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.token).toBe('TTM_Squeeze')
+  })
+})
+
+describe('state — CompoundValue is the accumulator; a SEEDLESS recursion is not', () => {
+  const f = (src) => { const o = translateThinkScript(src); return o.outputs[o.selected].formula }
+
+  // Functions/Others/CompoundValue — `CompoundValue(int length, IDataHolder
+  // visible data, IDataHolder historical data)`, `length` default 1:
+  // "if a bar number is greater than `length` then the `visible data` value is
+  // returned, otherwise the `historical data` value is returned."
+  // ⇒ the historical value IS the seed and the visible one IS the update, which
+  // is exactly `accum(seed, update, warmup)`'s shape.
+  it('⭐ CompoundValue(1, hold-or-replace, seed) is the accumulator', () => {
+    expect(f('def c = CompoundValue(1, if close > open then close else c[1], 0);\nplot p = c;\n'))
+      .toBe(`accum(0, close > open ? close : self, ${TS_STATE_WARMUP})`)
+  })
+
+  it('🔴🔴 THE OFF-BY-ONE RAIL — inside x`s own update, `x[1]` IS `self`, tree for tree', () => {
+    // ⛔ thinkorswim counts from ONE here and this engine counts from ZERO. `x[1]`
+    // is the value x held on the PREVIOUS bar, which is exactly what `self`
+    // already is; `x[2]` is `self[1]`, and the mapping is `k - 1`. An off-by-one
+    // reads a bar too far back on EVERY bar and still draws a plausible line.
+    const spec = TABLE.functions.accum
+    const one = translateThinkScript(
+      'def y = CompoundValue(1, if close > open then close else y[1], 0);\nplot p = y;\n')
+    const body = one.outputs[0].ast.args[spec.recurrence.body]
+    expect(printFormula(body)).toBe(`close > open ? close : ${spec.recurrence.binds}`)
+    // ⭐ AND IT IS BARE `self`, NOT `self[0]` OR `self[1]` — tree for tree against
+    // what a bare self-reference is. Emit `k` instead of `k - 1` here and this
+    // whole script starts refusing, which is how the mutation is caught.
+    expect(astHash(body.args[2])).toBe(astHash(parseFormula(spec.recurrence.binds).ast))
+
+    // ⚠️⚠️ AND THE HONEST HALF: `x[2]` IS WRITTEN AS `self[1]` AND IS UNREACHABLE
+    // TODAY. `pine.js::forgetsItsSeed` — the ONE convergence rule, imported —
+    // answers NO for any body in which `self` appears under an offset, because it
+    // is conservative by construction. So a body reading two bars back refuses at
+    // the gate rather than reaching the `k - 1`. That is a REFUSAL, never a wrong
+    // column, and relaxing it belongs in `forgetsItsSeed` where both translators
+    // read it — not in a second copy here.
+    const two = translateThinkScript(
+      'def y = CompoundValue(2, if close > open then close else y[2], 0);\nplot p = y;\n')
+    expect(two.refusal.guard).toBe('thinkscript:state')
+  })
+
+  it('⭐ the accumulator`s positions come from the TABLE`s own `recurrence`, never typed', () => {
+    const spec = TABLE.functions.accum
+    const out = translateThinkScript(
+      'def c = CompoundValue(1, if close > open then close else c[1], 0);\nplot p = c;\n')
+    const call = out.outputs[0].ast
+    expect(call.type).toBe('call')
+    expect(call.name).toBe('accum')
+    expect(printFormula(call.args[spec.recurrence.seed])).toBe('0')
+    expect(call.args[spec.recurrence.warmup]).toEqual({ type: 'num', value: TS_STATE_WARMUP })
+    expect(printFormula(call.args[spec.recurrence.body])).toContain(spec.recurrence.binds)
+  })
+
+  it('⛔⛔ an update that never FORGETS its seed refuses — measured, not assumed', () => {
+    // 🔴 `accum` re-seeds a fixed number of bars back, so `self + volume` is a
+    // 250-bar ROLLING SUM, not a running total. Measured on the shared parity
+    // series: `accum(0, self + volume, 250)` matches a rolling 250-bar sum on
+    // 579 of 579 bars and differs from the true cumulative sum on 579 of 579.
+    // Translating thinkorswim's running total into it would be wrong on EVERY
+    // bar while drawing a perfectly plausible line.
+    // ⭐ THE GATE IS `pine.js::forgetsItsSeed`, IMPORTED — one rule, one owner.
+    // Two copies of a convergence rule is how two translators come to disagree
+    // about the same engine function.
+    const r = refusalOf('def v = CompoundValue(1, v[1] + volume, 0);\nplot p = v;\n')
+    expect(r.guard).toBe('thinkscript:state')
+    expect(r.message).toMatch(/rolling|forget/i)
+  })
+
+  it('⛔ the reference`s own Fibonacci example refuses, and that is CORRECT', () => {
+    // The CompoundValue page's example is `def x = CompoundValue(2, x[1] + x[2],
+    // 1);`. It never forgets its seed, so the bounded accumulator cannot hold it:
+    // measured, `accum(1, self + self[1], 250)` runs to 2.07e52 and flatlines.
+    expect(refusalOf('def x = CompoundValue(2, x[1] + x[2], 1);\nplot p = x;\n').guard)
+      .toBe('thinkscript:state')
+  })
+
+  it('⛔⛔ a SEEDLESS self-recursion refuses and names CompoundValue as the fix', () => {
+    // ⛔ THIS IS A RULING, AND IT IS MEASURED. thinkorswim leaves an
+    // uninitialised `x[1]` undefined on the first bars (tutorial ch.12), and this
+    // engine's not-computable is `0 / 0`. But a NaN seed is only harmless for an
+    // update that never READS self in the value it produces: measured,
+    // `accum(0 / 0, close < self ? high : low, 250)` equals the zero-seeded form
+    // on 0 of 579 bars' difference, while `accum(0 / 0, max(self, close), 250)`
+    // is NaN on EVERY bar. There is no seed this translator may invent, so it
+    // refuses and names the construct thinkorswim itself publishes for supplying
+    // one.
+    const r = refusalOf('def x = if close < x[1] then high else low;\nplot p = x;\n')
+    expect(r.guard).toBe('thinkscript:state')
+    expect(r.message).toMatch(/CompoundValue/)
+  })
+
+  it('⭐ two independent accumulators each own their own `self`', () => {
+    const out = translateThinkScript(
+      'def a = CompoundValue(1, if close > open then close else a[1], 0);\n'
+      + 'def b = CompoundValue(1, if low < high then low else b[1], 1);\n'
+      + 'plot p = a + b;\n')
+    expect(out.outputs[0].formula)
+      .toBe(`accum(0, close > open ? close : self, ${TS_STATE_WARMUP})`
+        + ` + accum(1, low < high ? low : self, ${TS_STATE_WARMUP})`)
+  })
+
+  it('⛔ `self` outside its own update is not reachable at all', () => {
+    // A member cannot type the accumulator's reserved name into a thinkScript
+    // paste and reach the engine's binding: `self` is not a thinkorswim name.
+    expect(refusalOf('plot p = self + 1;\n').guard).toBe('thinkscript:undefined')
+  })
+
+  it('⛔ a deep self-lag refuses at the GATE, and never reaches evaluation', () => {
+    // `interpret.js::MAX_SELF_LAG` is 4, so `self[5]` would be refused at
+    // EVALUATION — after a formula had already been offered to a member and
+    // saved. The convergence gate refuses it at TRANSLATION instead, which is the
+    // door a member is standing at.
+    const r = refusalOf(
+      'def x = CompoundValue(6, if close > open then close else x[6], 0);\nplot p = x;\n')
+    expect(r).not.toBe(null)
+    expect(r.guard).toBe('thinkscript:state')
+  })
+
+  it('⭐ the length argument is DECLARED unused, with the reason a member can read', () => {
+    // thinkorswim's `length` says how many leading bars use the historical value;
+    // this engine's warm-up is `accum`'s own, and the convergence gate above is
+    // what makes the difference invisible after warm-up. Recorded as a note.
+    const out = translateThinkScript(
+      'def c = CompoundValue(9, if close > open then close else c[1], 0);\nplot p = c;\n')
+    expect(out.outputs[0].formula).toBe(`accum(0, close > open ? close : self, ${TS_STATE_WARMUP})`)
+    expect(out.ignored.some((n) => n.code === 'thinkscript:note-warmup')).toBe(true)
+  })
+})
+
+describe('X21 — the constructed adversarial inputs the corpus is blind to', () => {
+  // ⛔⛔ THE CORPUS IS HONEST ABOUT WHAT IT MEASURES AND BLIND TO WHOLE CLASSES
+  // BESIDE IT. With either of W3.4's two mistranslations live, the corpus fixture
+  // printed byte-identical output. Ten handled grammar features have no corpus
+  // script that reaches them — `is true`/`is false` at published level 8 is an
+  // entire precedence rung, and the six long word-spellings' longest-match guard
+  // is reached by nothing. Every identity this task maps is exercised HERE,
+  // against those rungs, because that intersection is what nothing else tests.
+  const f = (expr) => translateThinkScript(`plot p = ${expr};\n`).outputs[0].formula
+
+  it('a mapped call under the LONGEST word-spelling parses as the long operator', () => {
+    expect(f('Average(close, 10) is greater than or equal to Average(close, 20)'))
+      .toBe('sma(close, 10) >= sma(close, 20)')
+    expect(f('Average(close, 10) is less than or equal to Average(close, 20)'))
+      .toBe('sma(close, 10) <= sma(close, 20)')
+    expect(f('Highest(high, 20) is not equal to Lowest(low, 20)'))
+      .toBe('highest(high, 20) != lowest(low, 20)')
+    // ⭐ AND THE SHORT PREFIXES STILL MEAN THEMSELVES beside the same calls.
+    expect(f('Average(close, 10) is greater than Average(close, 20)'))
+      .toBe('sma(close, 10) > sma(close, 20)')
+    expect(f('Average(close, 10) is less than Average(close, 20)'))
+      .toBe('sma(close, 10) < sma(close, 20)')
+    expect(f('Average(close, 10) is equal to Average(close, 20)'))
+      .toBe('sma(close, 10) == sma(close, 20)')
+    expect(f('Average(close, 10) equals Average(close, 20)'))
+      .toBe('sma(close, 10) == sma(close, 20)')
+  })
+
+  it('level 8 — `is true` / `is false` over a mapped call, on the published rung', () => {
+    expect(f('IsNaN(close) is true')).toBe('na(close)')
+    expect(f('IsNaN(close) is false')).toBe('!na(close)')
+    // ⭐ THE RUNG ITSELF: `is false` is LOOSER than `==` and TIGHTER than `and`,
+    // so this brackets one way and not the other. Nothing in the corpus reaches
+    // this, and an assumed tier would print the same text for both.
+    expect(f('Average(close, 5) == Average(close, 9) is false'))
+      .toBe('!(sma(close, 5) == sma(close, 9))')
+    expect(f('IsNaN(close) is false and close > open'))
+      .toBe('!na(close) && close > open')
+  })
+
+  it('a mapped call inside `within`, `between` and `crosses`', () => {
+    expect(f('Average(close, 10) crosses above Average(close, 20)'))
+      .toBe('crossOver(sma(close, 10), sma(close, 20))')
+    expect(f('close between Lowest(low, 20) and Highest(high, 20)'))
+      .toBe('close >= lowest(low, 20) && close <= highest(high, 20)')
+    expect(f('close > Average(close, 50) within 5 bars'))
+      .toBe('highest(close > sma(close, 50), 5) > 0')
+  })
+
+  it('a mapped call under a bar offset, and under negation', () => {
+    expect(f('Average(close, 10)[1] > Average(close, 10)'))
+      .toBe('sma(close, 10)[1] > sma(close, 10)')
+    expect(f('-AbsValue(close - open)')).toBe('-abs(close - open)')
+  })
+
+  it('⭐ nesting a mapped call inside another mapped call', () => {
+    expect(f('Average(TrueRange(high, close, low), 14)'))
+      .toBe('sma(max(close[1], high) - min(close[1], low), 14)')
+    expect(f('Highest(Average(close, 10), 20)')).toBe('highest(sma(close, 10), 20)')
+    expect(f('Sqrt(Sqr(close - open))')).toBe('sqrt(pow(close - open, 2))')
+  })
+
+  it('⛔ and the NEGATIVE direction of each: a near-miss spelling refuses', () => {
+    // ⛔ AN OVER-REFUSING GUARD ALSO "CLOSES" A FINDING. Each of these is a real
+    // thinkorswim name this map does NOT carry, so each must refuse at its own
+    // token while its neighbour above translates.
+    for (const [call, token] of [['AverageTrue(close, 5)', 'AverageTrue'],
+      ['HighestHigh(high, 5)', 'HighestHigh'], ['LogTen(close)', 'LogTen'],
+      ['MovingAvg(close, 5)', 'MovingAvg']]) {
+      const r = translateThinkScript(`plot p = ${call};\n`).refusal
+      expect(r.guard, call).toBe('thinkscript:function')
+      expect(r.token, call).toBe(token)
+    }
+  })
+})
+
+describe('the maths, measured on real bars — BOTH directions for every identity', () => {
+  // ⛔⛔ ONE DIRECTION BLESSES THE INVERSE BUG. W3.4's enum defect failed the
+  // opposite way in its `!=` form and passed every rail it had. So each case
+  // below asserts the translated column EQUALS the identity it claims to be AND
+  // DIFFERS from the nearest thing it could have been mistranslated into.
+  const ROOT = (() => {
+    let dir = process.cwd()
+    for (let i = 0; i < 8; i++) {
+      if (fs.existsSync(path.join(dir, 'app', 'src', 'components', 'StockChart.jsx'))) return dir
+      const up = path.dirname(dir)
+      if (up === dir) break
+      dir = up
+    }
+    throw new Error(`thinkscript.test: could not find the repo root from ${process.cwd()}`)
+  })()
+  const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'))
+  const CORPUS = readJson('tests/fixtures/ast/corpus.json')
+  const [barsRel, barsName] = CORPUS.bars.split('#')
+  const BARS = readJson(readJson(barsRel).fixtures[barsName].barsFrom).bars
+
+  /** A thinkScript expression, translated and then COMPUTED on the shared parity
+   *  series — the same tape the pixel gate, the alert replay and the Python
+   *  conformance lane all read. */
+  const columnOf = (thinkScript) => {
+    const out = translateThinkScript(`plot p = ${thinkScript};\n`)
+    expect(out.outputs[0].refusal, thinkScript).toBe(null)
+    return Array.from(interpret(parseFormula(out.outputs[0].formula).ast, BARS, {}))
+  }
+  const engineColumn = (formula) => Array.from(interpret(parseFormula(formula).ast, BARS, {}))
+
+  /** How many bars two columns disagree on, NaN-aware. */
+  const differing = (a, b) => {
+    let n = 0
+    for (let i = 0; i < a.length; i += 1) {
+      const x = a[i]
+      const y = b[i]
+      if (Number.isNaN(x) && Number.isNaN(y)) continue
+      if (Number.isNaN(x) !== Number.isNaN(y) || Math.abs(x - y) > 1e-9) n += 1
+    }
+    return n
+  }
+
+  it('the tape is real, so nothing below can pass by comparing two empty arrays', () => {
+    expect(BARS.length).toBeGreaterThan(400)
+  })
+
+  it('the four MovingAverage arms are four DIFFERENT columns', () => {
+    const arms = {
+      SIMPLE: 'sma(close, 10)', EXPONENTIAL: 'ema(close, 10)',
+      WILDERS: 'rma(close, 10)', WEIGHTED: 'wma(close, 10)',
+    }
+    const got = {}
+    for (const arm of Object.keys(arms)) {
+      got[arm] = columnOf(`MovingAverage(AverageType.${arm}, close, 10)`)
+      expect(differing(got[arm], engineColumn(arms[arm])), arm).toBe(0)
+    }
+    // ⛔ AND PAIRWISE DISTINCT, so "they all map to sma" could never pass.
+    const names = Object.keys(arms)
+    for (let i = 0; i < names.length; i += 1) {
+      for (let j = i + 1; j < names.length; j += 1) {
+        expect(differing(got[names[i]], got[names[j]]),
+          `${names[i]} vs ${names[j]}`).toBeGreaterThan(400)
+      }
+    }
+  })
+
+  it('TrueRange IS the true range — against an independent oracle, and it is not the bar range', () => {
+    const got = columnOf('TrueRange(high, close, low)')
+    const oracle = BARS.map((b, i) => (i === 0 ? NaN
+      : Math.max(b.h - b.l, Math.abs(b.h - BARS[i - 1].c), Math.abs(b.l - BARS[i - 1].c))))
+    expect(differing(got, oracle)).toBe(0)
+    // ⭐ AND THE FORM THE BRIEF ASKED FOR agrees with the page's own, which is
+    // what makes emitting the page's quotation a choice of wording, not of maths.
+    expect(differing(got, engineColumn(
+      'max(high - low, max(abs(high - close[1]), abs(low - close[1])))'))).toBe(0)
+    // ⛔ …and it is NOT simply the bar range. ⚠️ MEASURED AS A PROPERTY, NOT AS A
+    // COUNT: this parity series is a smooth intraday tape and the true range
+    // exceeds the bar range on only THREE of its 579 bars, so `>100` would fail
+    // for a correct mapping. The two facts that discriminate are that TR is never
+    // SMALLER than the bar range and is sometimes strictly larger.
+    const barRange = engineColumn('high - low')
+    expect(got.every((v, i) => Number.isNaN(v) || v >= barRange[i] - 1e-9)).toBe(true)
+    expect(got.filter((v, i) => !Number.isNaN(v) && v > barRange[i] + 1e-9).length)
+      .toBeGreaterThan(0)
+    expect(differing(got, barRange)).toBeGreaterThan(0)
+  })
+
+  it('ATR is Wilder`s — against an independent construction — and is NOT an SMA of TR', () => {
+    const got = columnOf('ATR(14)')
+    const tr = BARS.map((b, i) => (i === 0 ? NaN
+      : Math.max(b.h - b.l, Math.abs(b.h - BARS[i - 1].c), Math.abs(b.l - BARS[i - 1].c))))
+    const wilder = []
+    let seed = 0
+    for (let i = 0; i < BARS.length; i += 1) {
+      if (i < 14) { wilder.push(NaN); if (i >= 1) seed += tr[i]; continue }
+      if (i === 14) { seed += tr[i]; wilder.push(seed / 14); continue }
+      wilder.push(wilder[i - 1] + (tr[i] - wilder[i - 1]) / 14)
+    }
+    expect(differing(got, wilder)).toBe(0)
+    expect(differing(got, engineColumn('sma(max(close[1], high) - min(close[1], low), 14)')))
+      .toBeGreaterThan(400)
+  })
+
+  it('Log is the NATURAL log, and is measurably not the base-10 one', () => {
+    const got = columnOf('Log(close)')
+    expect(differing(got, engineColumn('ln(close)'))).toBe(0)
+    expect(differing(got, engineColumn('log10(close)'))).toBeGreaterThan(400)
+  })
+
+  it('Sqr is the square, Sqrt the root, and neither is the other', () => {
+    expect(differing(columnOf('Sqr(close)'), engineColumn('close * close'))).toBe(0)
+    expect(differing(columnOf('Sqrt(close)'), engineColumn('pow(close, 0.5)'))).toBe(0)
+    expect(differing(columnOf('Sqr(close)'), columnOf('Sqrt(close)'))).toBeGreaterThan(400)
+  })
+
+  it('Round(x, 0) rounds to a whole number, and is not the identity', () => {
+    const got = columnOf('Round(close, 0)')
+    expect(got.every((v) => Number.isNaN(v) || Number.isInteger(v))).toBe(true)
+    expect(differing(got, engineColumn('close'))).toBeGreaterThan(400)
+  })
+
+  it('Sum is the rolling sum, and is not the average of the same window', () => {
+    const got = columnOf('Sum(volume, 14)')
+    expect(differing(got, engineColumn('sma(volume, 14) * 14'))).toBe(0)
+    expect(differing(got, engineColumn('sma(volume, 14)'))).toBeGreaterThan(400)
+  })
+
+  it('CompoundValue holds its value — and the seed really is forgotten', () => {
+    const held = columnOf('0')  // touch the helper once with something trivial
+    expect(held.length).toBe(BARS.length)
+    const a = translateThinkScript(
+      'def c = CompoundValue(1, if close > open then close else c[1], 0);\nplot p = c;\n')
+    const b = translateThinkScript(
+      'def c = CompoundValue(1, if close > open then close else c[1], 999);\nplot p = c;\n')
+    const ca = engineColumn(a.outputs[a.selected].formula)
+    const cb = engineColumn(b.outputs[b.selected].formula)
+    // ⭐ TWO DIFFERENT SEEDS, ONE COLUMN — which is exactly what the convergence
+    // gate promises, and it is measured rather than argued.
+    expect(differing(ca, cb)).toBe(0)
+    // …and it is a real column, not all-NaN.
+    expect(ca.filter((v) => !Number.isNaN(v)).length).toBeGreaterThan(100)
   })
 })

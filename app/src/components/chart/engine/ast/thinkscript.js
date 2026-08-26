@@ -36,8 +36,9 @@
 // reading, not a quoted one, and the read-back says `crossing above` so a member
 // sees which function they got.
 //
-// ⏳ WHAT IT READS TODAY (W3.4): the LEXER, the STATEMENT READER and the
-// EXPRESSIONS. `declare`, `input`, `def`/`rec`, a forward declaration and its
+// ⏳ WHAT IT READS TODAY (W3.5): the LEXER, the STATEMENT READER, the
+// EXPRESSIONS and the FUNCTION MAP.
+// `declare`, `input`, `def`/`rec`, a forward declaration and its
 // later assignment, `plot` (quoted names included) and a bare condition all
 // read; the expression grammar is ONE binding-power loop over `TS_PRECEDENCE`
 // below — thinkorswim's OWN published 12-level operator table, copied row for
@@ -46,13 +47,18 @@
 // `if … then … else`, `[n]`, the `Double.*` constants, `between`,
 // `within N bars`, `crosses [above|below]` and `%`.
 //
-// ⏳ THE FUNCTION MAP ITSELF IS STILL W3.5's. What landed here is the call-shape
-// MECHANISM — thinkorswim's own parameter names, named arguments in any order,
-// documented defaults, arity and the window check — seeded with the four rows
-// (`Average`, `StDev`, `Highest`, `Lowest`) this task's own rails exercise,
-// because a named-argument guard with no declared parameter list to check
-// against is unimplementable. Every OTHER call still refuses
-// `thinkscript:function` AT ITS NAME rather than resolving to a neighbour.
+// ⭐ THE FUNCTION MAP LANDED IN W3.5 — `TS_CALL_SHAPES` below, one entry per
+// PUBLISHED identity, each carrying the quotation it was read from. With it come
+// `MovingAverage`'s enum dispatch, `TrueRange`'s published expansion, `ATR`'s
+// averaging convention and `CompoundValue` → the bounded accumulator. Every
+// OTHER call still refuses `thinkscript:function` AT ITS NAME rather than
+// resolving to a neighbour — INCLUDING names this engine has a function for.
+// `TS_UNCITED` records those by name with the reason, because
+// ⛔⛔ THERE IS NO NAME-COLLISION FALLBACK IN THIS DOOR, AND THAT IS A RULING.
+// `pine.js` maps any `ta.<name>` onto the table because Pine's namespace makes
+// it unambiguous; thinkScript has none, and `MACD(12, 26, 9)` — a study call
+// with fast 12 / slow 26 / signal 9 — would become the MACD OF THE NUMBER 12.
+// That parses, prints, round-trips and saves.
 // `thinkscript.corpus.test.js` pins where all 24 real published studies in
 // `tests/fixtures/thinkscript/` now land, so every later task's gain stays a
 // fact rather than a claim.
@@ -65,7 +71,7 @@
 //   * Tutorials — /center/reference/thinkScript/tutorials/{Basic,Advanced}/…
 
 import { TABLE, parseFormula, astHash } from './parse.js'
-import { printFormula, treeYieldsBool } from './pine.js'
+import { printFormula, treeYieldsBool, forgetsItsSeed } from './pine.js'
 
 /** guard → the sentence it always refuses with. CLOSED, and closed in two places
  *  that fail differently: `thinkscript.test.js` derives the guard strings from
@@ -166,6 +172,10 @@ export const NOTES = Object.freeze({
     'a chart placement is a drawing instruction, and a screened column has no chart to be placed on',
   'thinkscript:note-endash':
     'a dash pasted out of a web page was read as the minus sign it was written to be',
+  'thinkscript:note-seed':
+    'this average begins from a different first window than thinkorswim does, and the two converge',
+  'thinkscript:note-warmup':
+    'a value that carries forward restarts a fixed number of bars back rather than at the first bar ever drawn',
 })
 
 /** ⛔ THE ONE PLACE A GUARD ENTERS THIS DOOR. Reads `REFUSALS` rather than
@@ -1257,53 +1267,114 @@ function literalInteger(node) {
 
 const isEnum = (v) => !!v && v.ts === 'enum'
 
+/** ⭐⭐ thinkorswim's FIVE PUBLISHED AverageType constants, and the engine name
+ *  each one is an identity for. `Constants/AverageType` lists exactly
+ *  `EXPONENTIAL HULL SIMPLE WEIGHTED WILDERS` and says they are "the constants
+ *  used with MovingAverage function"; `Functions/Tech-Analysis/MovingAverage`
+ *  spells the same five as "Simple, Exponential, Weighted, Wilder's, and Hull".
+ *
+ *  ⭐ `hull → hma` IS DELIBERATE AND IS THE WHOLE DERIVED-MAP CLAIM. `hma` is
+ *  measured ABSENT from `closedTable.functions`, so the arm resolves to a NAME
+ *  the table lookup then refuses — which means the refusal is a fact about the
+ *  manifest, not a hard-coded "no". The day a manifest declares `hma`,
+ *  `MovingAverage(AverageType.HULL, …)` translates with no edit in this file,
+ *  and `thinkscript.test.js` proves that with an injected table.
+ *
+ *  ⛔ IT IS ONE OBJECT, READ TWICE. `MovingAverage` dispatches on it and `ATR`'s
+ *  averaging gate checks membership against it; a second list of the five arms
+ *  is the `lesson_a_second_authority_over_one_value` shape. */
+const TS_AVERAGE_TYPES = Object.freeze({
+  simple: 'sma',
+  exponential: 'ema',
+  weighted: 'wma',
+  wilders: 'rma',
+  hull: 'hma',
+})
+
+/** thinkorswim's `AverageType` written back the way a member typed it, for a
+ *  refusal sentence. ⛔ Derived from the arm, never a second spelling table. */
+const armText = (arm) => `AverageType.${String(arm).toUpperCase()}`
+
 /**
  * ⭐⭐ THE CALL SHAPES — a thinkorswim function, its OWN parameter names, and the
- * engine function it is an IDENTITY for.
+ * engine identity it stands for.
  *
  * ⛔ EVERY ROW IS A QUOTED IDENTITY, and `cite` is where the quote lives so it
- * travels with the row instead of ageing in a comment three screens up.
- * `thinkscript.test.js` reads both fields: it asserts every `engine` name is one
- * `closedTable.json` declares, and that every row carries a citation. A shape is
- * therefore never "the function I believe this is" — it is the function the
- * reference's own formula says it is, checked against the table that owns the
- * name.
+ * travels with the row instead of ageing in a comment three screens up. A shape
+ * is never "the function I believe this is" — it is the function the reference's
+ * own words say it is, checked against the table that owns the engine name.
+ * ⛔⛔ AND WHERE NO QUOTE COULD BE FOUND, THE NAME IS REFUSED RATHER THAN
+ * GUESSED. `RSI` is the worked example and it is recorded at `_uncited` below.
  *
- * ⏳ AND IT IS A SEED, NOT THE MAP. W3.5 owns the function map proper —
- * `ExpAverage` and `WildersAverage` with their seeding note, `MovingAverage`'s
- * enum dispatch, `TrueRange`'s role order, `RSI`/`ATR`'s averaging convention,
- * `Log` → `ln`, `Round`'s digit count, `HighestAll`'s refusal and
- * `CompoundValue` → `accum`. What lands HERE is the MECHANISM (named arguments,
- * arity, documented defaults, the window check) plus the four rows this task's
- * own rails exercise, because a named-argument guard with no declared parameter
- * list to check against is unimplementable and untestable.
+ * ⭐⭐ THE ARGUMENT PLAN — this is W3.5's answer to the arity rail W3.4 left
+ * deliberately red. A thinkorswim parameter list and an engine argument list are
+ * NOT the same length and there is no reason they should be: `ATR(length)` fills
+ * `atr(high, low, close, n)`, `MovingAverage(averageType, data, length)` fills
+ * `sma(data, length)`, `Round(number, numberOfDigits)` fills `round(number)`,
+ * `Sqr(value)` fills `pow(value, 2)`, and `TrueRange(high, close, low)` fills no
+ * single call at all. So the relationship is DECLARED instead of counted:
+ *
+ *   * `args[]` — ONE ENTRY PER ENGINE ARGUMENT, in the engine's own order. Each
+ *     is `{from: <a thinkorswim parameter>}`, `{series: <a bar field the engine
+ *     declares and the thinkorswim call does not carry>}`, or `{const: <a
+ *     literal the identity requires>}`.
+ *   * `gates{}` — a parameter that is CHECKED and contributes no node.
+ *   * `unused{}` — a parameter deliberately dropped, WITH THE REASON.
+ *
+ * ⛔ AND THE RAIL CHECKS BOTH DIRECTIONS: every engine argument is filled, every
+ * thinkorswim parameter is accounted for exactly once, and every `{series}` is
+ * cross-checked against the ENGINE'S OWN `argRoles` at that position — so
+ * `atr`'s (high, low, close) order is read off `closedTable.json` rather than
+ * retyped here. Swap two and the rail reds by name. A silently dropped parameter
+ * IS the mistranslation this replaces a bare count with.
  *
  * ⚠️ `defaults` CARRIES ONLY WHAT THE PAGE PUBLISHES, and a parameter with no
  * published default refuses `:arity` rather than being handed a number this
  * translator made up — a guessed default is invisible in the result, so the
- * member gets a window they never asked for and never see. `data` has no
- * default on any of these pages; `length` is 12 on all four.
+ * member gets a window they never asked for and never see.
+ *
+ * ⚠️⚠️ A PARAMETER WHOSE PUBLISHED NAME CONTAINS A SPACE CAN NEVER BE ADDRESSED
+ * BY NAME, and that is structural rather than a special case: the lexer cannot
+ * produce such an identifier, so `findIndex` never matches and the call refuses
+ * `:named-argument`. thinkorswim's own `Reserved-Words/reference` page shows the
+ * named form only for single-word inputs (`BollingerBandsSMA(price = open,
+ * displace = 0, length = 30)`), and the Studies-Library tables render multi-word
+ * inputs as UI labels ("over bought", "average type") whose real identifier
+ * spelling is NOT published anywhere this lane could fetch. Writing the label
+ * verbatim and letting it be unaddressable is the honest reading; inventing
+ * `over_bought` would be the guess.
  *
  * ⛔ W3.4 HAD `StDev` BACKWARDS AND THE SWEEP THEN CEMENTED IT. It shipped
  * `defaults: {}` on the claim that the page published none — the page its own
  * `cite` names reads "Default values: length: 12" — so `StDev(close)`
  * OVER-REFUSED. The mutation that "killed" a guessed 12 was therefore railing
  * the wrong reading in place, which is worse than the miss: a wrong answer with
- * a test around it stops being re-checked. Fixed in fix round 1, and the rail
- * re-aimed at a real case (`Average()` with no `data`).
+ * a test around it stops being re-checked.
  */
 export const TS_CALL_SHAPES = Object.freeze({
+  // ── the rolling reductions ────────────────────────────────────────────────
   average: {
     engine: 'sma',
     params: ['data', 'length'],
     defaults: { length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
     cite: 'Functions/Tech-Analysis/Average: "Returns the average value of a set of data '
       + 'for the last length bars", shown as Sum(data, length) / length; length default 12',
+  },
+  sum: {
+    engine: 'sum',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Math---Trig/Sum: "Returns the sum of values for the specified number '
+      + 'of bars. The default value of length is 12." — closedTable `sum` reads '
+      + '"the sum of {0} over the last {1} bars"',
   },
   stdev: {
     engine: 'stdev',
     params: ['data', 'length'],
     defaults: { length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
     cite: 'Functions/Statistical/StDev: reimplemented on the page itself as '
       + 'Sqrt(Average(Sqr(data), length) - Sqr(Average(data, length))) — divided by length, '
       + 'i.e. the POPULATION deviation, which is the divisor closedTable declares for stdev; '
@@ -1313,25 +1384,346 @@ export const TS_CALL_SHAPES = Object.freeze({
     engine: 'highest',
     params: ['data', 'length'],
     defaults: { length: 12 },
-    cite: 'Functions/Tech-Analysis/Highest: "the highest value of data for the last '
-      + 'length bars"; length default 12',
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Tech-Analysis/Highest: "Returns the highest value of data for the last '
+      + 'length bars"; Default value length 12',
   },
   lowest: {
     engine: 'lowest',
     params: ['data', 'length'],
     defaults: { length: 12 },
-    cite: 'Functions/Tech-Analysis/Lowest: "the lowest value of data for the last '
-      + 'length bars"; length default 12 — the same page row as Highest',
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Tech-Analysis/Lowest: "Returns the lowest value of data for the last '
+      + 'length bars"; Default value length 12 — the same page shape as Highest',
+  },
+
+  // ── the averages ──────────────────────────────────────────────────────────
+  expaverage: {
+    engine: 'ema',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
+    note: 'thinkscript:note-seed',
+    cite: 'Functions/Tech-Analysis/ExpAverage: "Returns the exponential moving average (EMA) '
+      + 'of data with length"; "alpha is a smoothing coefficient equal to 2/(length + 1)" '
+      + 'and "EMA1 = price1"; Default value length 12. SAME ALPHA as closedTable `ema`, '
+      + 'DIFFERENT SEED (ours is the mean of the first full window, `_functions_smoothing`) '
+      + '— carried as thinkscript:note-seed rather than hidden',
+  },
+  wildersaverage: {
+    engine: 'rma',
+    params: ['data', 'length'],
+    defaults: { length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Tech-Analysis/WildersAverage: "Returns the Wilder\'s Moving Average of '
+      + 'data with a smoothing coefficient that equals 1/length"; "The first value is '
+      + 'calculated as the simple moving average and then all values are calculated as the '
+      + 'exponential moving average"; Default value length 12. EXACT against closedTable '
+      + '`_functions_smoothing`: alpha 1/n, seed = the mean of the first full window',
+  },
+  movingaverage: {
+    dispatch: TS_AVERAGE_TYPES,
+    dispatchOn: 'averageType',
+    pending: ['hma'],
+    params: ['averageType', 'data', 'length'],
+    defaults: { averageType: { arm: 'simple' }, length: 12 },
+    args: [{ from: 'data' }, { from: 'length' }],
+    gates: { averageType: 'dispatch' },
+    cite: 'Functions/Tech-Analysis/MovingAverage: '
+      + 'MovingAverage(int averageType, IDataHolder data, int length); "Returns the average '
+      + 'value of specified type and length for a data set. Available average types are: '
+      + 'Simple, Exponential, Weighted, Wilder\'s, and Hull." Default values: averageType '
+      + 'AverageType.Simple, length 12. The five arms are Constants/AverageType\'s own list',
+  },
+
+  // ── the pointwise maths ───────────────────────────────────────────────────
+  absvalue: {
+    engine: 'abs',
+    params: ['value'],
+    args: [{ from: 'value' }],
+    cite: 'Functions/Math---Trig/AbsValue: "Returns the absolute value of an argument. If '
+      + 'the argument is positive, the argument is returned. If the argument is negative, '
+      + 'the negation of the argument is returned."',
+  },
+  sqrt: {
+    engine: 'sqrt',
+    params: ['value'],
+    args: [{ from: 'value' }],
+    cite: 'Functions/Math---Trig/Sqrt: "Calculates the square root of an argument."',
+  },
+  sqr: {
+    engine: 'pow',
+    params: ['value'],
+    args: [{ from: 'value' }, { const: 2 }],
+    cite: 'Functions/Math---Trig/Sqr: "Calculates the square of an argument." — an identity '
+      + 'in this table\'s own vocabulary (`pow` reads "{0} raised to the power {1}"), so it '
+      + 'needs no new engine name',
+  },
+  power: {
+    engine: 'pow',
+    params: ['number', 'power'],
+    args: [{ from: 'number' }, { from: 'power' }],
+    cite: 'Functions/Math---Trig/Power: Power(double number, double power); "Returns the '
+      + 'value of the first argument raised to the power of the second argument."',
+  },
+  log: {
+    engine: 'ln',
+    params: ['number'],
+    args: [{ from: 'number' }],
+    cite: 'Functions/Math---Trig/Log: "Returns the NATURAL logarithm of an argument." — so '
+      + 'this is closedTable `ln` ("the natural log of {0}") and never `log10`',
+  },
+  max: {
+    engine: 'max',
+    params: ['value1', 'value2'],
+    args: [{ from: 'value1' }, { from: 'value2' }],
+    cite: 'Functions/Math---Trig/Max: Max(double value1, double value2); "Returns the '
+      + 'greater of two values."',
+  },
+  min: {
+    engine: 'min',
+    params: ['value1', 'value2'],
+    args: [{ from: 'value1' }, { from: 'value2' }],
+    cite: 'Functions/Math---Trig/Min: Min(double value1, double value2); "Returns the '
+      + 'smaller of two values."',
+  },
+  isnan: {
+    engine: 'na',
+    params: ['value'],
+    args: [{ from: 'value' }],
+    cite: 'Functions/Math---Trig/IsNaN: IsNaN(double value); returns true if the parameter '
+      + 'is not a number and false otherwise — closedTable `na` yields bool and '
+      + '"INSPECTS that state" (`_functions_na`)',
+  },
+  round: {
+    engine: 'round',
+    params: ['number', 'numberOfDigits'],
+    defaults: { numberOfDigits: 2 },
+    args: [{ from: 'number' }],
+    gates: { numberOfDigits: 'zeroDigits' },
+    cite: 'Functions/Math---Trig/Round: Round(double number, int numberOfDigits); "Rounds a '
+      + 'number to a certain number of digits"; the page\'s Default-value column reads '
+      + 'numberOfDigits 2. This table\'s `round` is round-to-WHOLE (half away from zero, '
+      + '`_functions_rounding`), so ONLY an explicit 0 is the same function',
+  },
+
+  // ── the expansions ────────────────────────────────────────────────────────
+  truerange: {
+    expand: 'truerange',
+    engines: ['max', 'min'],
+    params: ['high', 'close', 'low'],
+    args: [{ from: 'high' }, { from: 'close' }, { from: 'low' }],
+    cite: 'Functions/Tech-Analysis/TrueRange: TrueRange(IDataHolder high, IDataHolder close, '
+      + 'IDataHolder low) — NOTE THE ORDER. The page\'s own Example reimplements it as '
+      + '`plot TrueRangeTS = Max(close[1], high) - Min(close[1], low);` beside the built-in '
+      + 'and states "The resulting plots coincide forming a single curve." That sentence is '
+      + 'the identity, so this emits the page\'s formula node for node',
+  },
+
+  // ── the one study whose OWN description publishes its defaults ────────────
+  atr: {
+    engine: 'atr',
+    params: ['length', 'average type'],
+    defaults: { length: 14, 'average type': { arm: 'wilders' } },
+    args: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { from: 'length' }],
+    gates: { 'average type': 'wildersOnly' },
+    cite: 'Tech-Indicators/studies-library/A-B/ATR: "By default, the average true range is a '
+      + '14-PERIOD WILDER\'S moving average of this value; both the period and the type of '
+      + 'moving average can be customized using the study input parameters." That one '
+      + 'sentence publishes BOTH defaults, which is why this study is mapped and the others '
+      + 'are not. The three bar fields are the study\'s own definition — "the difference '
+      + 'between the current high and the current low; ... the current high and the previous '
+      + 'close; ... the previous close and the current low" — not a member choice. '
+      + 'closedTable `_functions_atr_convention` proves our `atr` IS Wilder\'s to 5.4e-16',
+  },
+
+  // ── the accumulator ───────────────────────────────────────────────────────
+  compoundvalue: {
+    engine: 'accum',
+    recurrence: true,
+    params: ['length', 'visible data', 'historical data'],
+    defaults: { length: 1 },
+    // ⭐⭐ THE PLAN IS BY ROLE, NOT BY POSITION, and `argumentPlan` below turns it
+    // into positions using `closedTable.json::accum.recurrence` — which is the
+    // one place that says which slot is the seed, which is the body and which is
+    // the warm-up. Typing `args: [seed, body, warmup]` here would be a second
+    // authority over three indices the table already owns.
+    argsByRole: {
+      seed: { from: 'historical data' },
+      body: { from: 'visible data' },
+      warmup: { const: TS_STATE_WARMUP },
+    },
+    unused: {
+      length: 'thinkorswim counts how many LEADING BARS take the historical value; this '
+        + 'engine\'s accumulator re-seeds a fixed number of bars back instead, and the '
+        + 'convergence gate is what makes the difference invisible after warm-up. Recorded '
+        + 'as thinkscript:note-warmup rather than silently dropped.',
+    },
+    cite: 'Functions/Others/CompoundValue: CompoundValue(int length, IDataHolder visible '
+      + 'data, IDataHolder historical data), length default 1; "Calculates a compound value '
+      + 'according to following rule: if a bar number is greater than length then the '
+      + 'visible data value is returned, otherwise the historical data value is returned." '
+      + '=> the historical value IS the seed and the visible one IS the update, which is '
+      + 'closedTable `accum(seed, update, warmupPeriod)`\'s own shape',
+  },
+
+  // ── the published names that REFUSE, by name, with the reason ─────────────
+  highestall: {
+    params: ['data'],
+    refuse: {
+      guard: 'thinkscript:function',
+      message: 'HighestAll reads every bar in the chart, so its answer would change with how '
+        + 'many bars were fetched; write Highest(data, length) with the window you mean',
+    },
+    cite: 'Functions/Tech-Analysis/HighestAll: "Returns the highest value of data for ALL '
+      + 'BARS IN THE CHART." A value that depends on the request is the same exclusion '
+      + 'closedTable makes for `obv` (`lesson_a_derived_value_must_not_depend_on_the_request`)',
+  },
+  lowestall: {
+    params: ['data'],
+    refuse: {
+      guard: 'thinkscript:function',
+      message: 'LowestAll reads every bar in the chart, so its answer would change with how '
+        + 'many bars were fetched; write Lowest(data, length) with the window you mean',
+    },
+    cite: 'Functions/Tech-Analysis/LowestAll: the HighestAll page\'s companion — "for all '
+      + 'bars in the chart" — refused for the same reason',
+  },
+})
+
+/** ⛔⛔ THE NAMES THIS TASK LOOKED UP AND REFUSED TO MAP, AND WHY EACH ONE.
+ *
+ *  ⭐ THIS IS THE PRODUCT, NOT AN APOLOGY. "If you cannot find a citation for a
+ *  function's semantics, refuse it by name rather than guessing" is the rule this
+ *  door exists to keep, and a refusal nobody wrote down gets re-litigated as an
+ *  oversight. Every entry was FETCHED on 2026-08-26 before it was refused.
+ *
+ *  ⛔⛔ AND THERE IS NO NAME-COLLISION FALLBACK, DELIBERATELY. `pine.js` maps any
+ *  `ta.<name>` straight onto `TABLE.functions` because Pine's namespace makes
+ *  that unambiguous. thinkScript has no namespace, and the same trick here is a
+ *  mistranslation machine: `MACD(12, 26, 9)` is thinkorswim's MACD study with
+ *  fast 12 / slow 26 / signal 9, while this engine's `macd(series, int, int)`
+ *  would read it as the MACD **of the number 12** with periods 26 and 9. That
+ *  parses, prints, round-trips and saves — a plausible line that is not the
+ *  member's indicator. So a thinkorswim name reaches the engine only through a
+ *  CITED row above.
+ *
+ *  ⚠️ THE STRUCTURAL FACT BEHIND FOUR OF THESE: a thinkScript **Functions**
+ *  reference page carries a "Default value" column; a **Studies Library** page
+ *  does NOT (measured, 2026-08-26, on RSI / ATR / SimpleMovingAvg /
+ *  RateOfChange). So a study is mappable only where its own DESCRIPTION states
+ *  the missing defaults in prose, which is true of `ATR` and of none of these. */
+export const TS_UNCITED = Object.freeze({
+  RSI: 'the study page publishes no default for `length` or `price` — only over-bought 70, '
+    + 'over-sold 30 and "the Wilder\'s moving average is used" — so RSI() and RSI(14) could '
+    + 'only be mapped by inventing 14 and `close`. ⛔ THE LANE BRIEF ASSUMED OTHERWISE '
+    + '(`RSI(length=, price=)`); it was re-measured and the brief is wrong.',
+  SimpleMovingAvg: 'the study page publishes no default for `price`, `length` or `displace`, '
+    + 'and a non-zero `displace` SHIFTS the plot — dropping it would move every bar. '
+    + 'Members who want it can write Average(price, length), which IS mapped.',
+  MovAvgExponential: 'same page shape as SimpleMovingAvg, same missing `displace`. '
+    + 'ExpAverage(data, length) is the cited equivalent and IS mapped.',
+  RateOfChange: 'the study page publishes no defaults at all and its own description says '
+    + 'only "the percentage change of the security price relative to the price a specified '
+    + 'number of periods before" — which does not say whether the result is a ratio, a '
+    + 'percentage, or a difference. Three readings, no quote to pick between them.',
+  Floor: 'closedTable declares no `floor` and no `ceil`; `round` is round-to-whole, which is '
+    + 'a different function on every value whose fraction is at least one half.',
+  BollingerBands: 'a multi-plot study; a bare reference resolves to its FIRST declared plot '
+    + 'and this lane has no reading of which that is. W3.6 owns study references.',
+  TTM_Squeeze: 'proprietary; thinkorswim publishes no formula for it at all, so there is '
+    + 'nothing to be an identity FOR. It refuses here and in every later task.',
+})
+
+/**
+ * ⭐⭐ THE ARGUMENT PLAN, MATERIALISED — one entry per ENGINE argument, in the
+ * engine's own order. ONE function, read by the builder AND by the rail, so the
+ * plan a test checks is the plan the translator fills.
+ *
+ * ⛔ A RECURRENCE'S POSITIONS COME FROM THE TABLE. `accum`'s `recurrence` block
+ * names which argument index is the seed, which is the body and which is the
+ * warm-up; this reads those indices rather than restating them, which is why the
+ * shape declares `argsByRole` instead of an ordered array.
+ *
+ * ⚠️ AN EXPANSION HAS NO SINGLE ENGINE ARITY TO FILL — `TrueRange` becomes a
+ * subtraction of two calls — so its plan is one entry per thinkorswim PARAMETER
+ * and the rail checks it that way instead. Returns `null` there, which is the
+ * signal that it is a different kind of shape rather than a missing plan.
+ */
+export function argumentPlan(shape, table = TABLE) {
+  if (shape.refuse || shape.expand) return null
+  if (!shape.argsByRole) return shape.args
+  const spec = table.functions[shape.engine]
+  if (!spec || !spec.recurrence) return null
+  const out = new Array(spec.args.length).fill(null)
+  for (const [role, plan] of Object.entries(shape.argsByRole)) {
+    const i = spec.recurrence[role]
+    if (typeof i !== 'number') return null
+    out[i] = plan
+  }
+  return out.every((p) => p !== null) ? out : null
+}
+
+/** ⭐ A CALL THAT IS AN EXACT EXPANSION IN THE TABLE'S OWN VOCABULARY, rather
+ *  than one engine function. Keyed by the shape's `expand`, so a shape still
+ *  declares a plan and a rail can still read it — an expansion is not an escape
+ *  hatch out of the argument plan.
+ *
+ *  ⛔ EVERY ENGINE NAME INSIDE ONE STILL GOES THROUGH `engineCall`, which is the
+ *  module header's promise: the lookup happens at translation time. */
+const TS_EXPANSIONS = Object.freeze({
+  /** `TrueRange(high, close, low)` → `Max(close[1], high) - Min(close[1], low)`.
+   *
+   *  ⭐ THAT IS THE PAGE'S OWN FORMULA, and the page's own sentence is the
+   *  citation: it prints the manual reimplementation beside the built-in and says
+   *  *"The resulting plots coincide forming a single curve."* Pine's three-way
+   *  `max(h - l, max(|h - c1|, |l - c1|))` is the SAME column on a real bar (both
+   *  measured against an independent oracle: 0 differing bars of 579) — this
+   *  emits the one thinkorswim published, because a member reading their formula
+   *  back should see the shape their own reference prints.
+   *
+   *  ⚠️ `close[1]` IS ONE SHARED NODE. The budget counts DISTINCT subtrees, so
+   *  sharing costs nothing, and every walker in this engine reads trees rather
+   *  than mutating them — the same arrangement `between` already uses. */
+  truerange: (args, R, tok) => {
+    const [high, close, low] = args
+    // ⛔ `close[1][1]` AND `close[2]` ARE ONE COLUMN WITH TWO HASHES, so a member
+    // who already offset the close arm is refused HERE rather than being
+    // discovered by a failed round trip that could only name the output.
+    if (close.node && close.node.type === 'offset') {
+      throw refuse('thinkscript:offset-chained', close.tok || tok)
+    }
+    const prevClose = { type: 'offset', value: 1, args: [close.node] }
+    return cOp('-', [
+      R.engineCall('max', [{ node: prevClose, tok }, high], tok),
+      R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
   },
 })
 
 class Resolver {
-  constructor(env) {
+  constructor(env, table, notes) {
     this.env = env
+    /** ⭐ THE CLOSED TABLE THIS RUN READS. Injectable so the derived-map claim is
+     *  MEASURABLE rather than argued: a table that declares `hma` makes
+     *  `MovingAverage(AverageType.HULL, …)` translate with no edit in this file. */
+    this.table = table || TABLE
+    /** Where a per-call note lands (the seed difference, the warm-up). */
+    this.notes = notes || []
     this.memo = new Map()
     this.stack = []
     this.inputs = new Set()
     this.lagged = false
+    /** ⭐ THE NAME WHOSE ACCUMULATOR BODY IS BEING BUILT, or `null`. Inside it —
+     *  and ONLY inside it — `name[k]` is the accumulator's own `self`. Mirrors
+     *  `pine.js::buildingRecurrence`; outside, the same spelling means a bar
+     *  offset of a finished column, which is a different tree. */
+    this.buildingRecurrence = null
+  }
+
+  /** A note about the CALL, recorded once per occurrence. */
+  note(code, tok, detail) {
+    this.notes.push(noteValue(code, tok ? tok.line : null, tok ? tok.column : null, detail))
   }
 
   /** ⛔ A COMPILE-TIME VALUE IS NOT A COLUMN. An enum arm and a text literal are
@@ -1358,12 +1750,28 @@ class Resolver {
     if (this.stack.includes(k)) {
       // ⭐ TWO DIFFERENT FACTS, AND A MEMBER FIXES THEM DIFFERENTLY. A name that
       // reads its OWN PREVIOUS bar is carried state (`def ST = if close < ST[1]
-      // …`), which the bounded accumulator would hold and W3.6 will map; a name
-      // that reads itself at the SAME bar, or two names through each other, has
-      // no way in at all.
-      throw refuse(
-        this.stack[this.stack.length - 1] === k && this.lagged ? 'thinkscript:state' : 'thinkscript:cycle',
-        tok)
+      // …`); a name that reads itself at the SAME bar, or two names through each
+      // other, has no way in at all.
+      //
+      // ⛔⛔ A SEEDLESS RECURSION IS REFUSED, AND THAT IS A MEASURED RULING RATHER
+      // THAN A GAP. thinkorswim leaves an uninitialised `x[1]` undefined on the
+      // leading bars (tutorial ch.12: a study "using past offset will be
+      // initialized at a bar whose number is equal to the past offset value"),
+      // and this engine's not-computable is `0 / 0`. A NaN seed is harmless ONLY
+      // for an update that never reads `self` in the value it produces —
+      // measured on the shared parity series, `accum(0 / 0, close < self ? high :
+      // low, 250)` is identical to the zero-seeded form on all 579 bars, while
+      // `accum(0 / 0, max(self, close), 250)` is NaN on EVERY one. There is no
+      // seed this translator may invent, so it refuses and names the construct
+      // thinkorswim itself publishes for supplying one.
+      if (this.stack[this.stack.length - 1] === k && this.lagged) {
+        throw new ThinkScriptRefusal('thinkscript:state',
+          `${REFUSALS['thinkscript:state']} — \`${tok ? tok.value : k}\` reads its own `
+          + 'previous bar with nothing to start from; wrap it in '
+          + 'CompoundValue(length, thisExpression, startingValue) so it has a first value',
+          locate(tok))
+      }
+      throw refuse('thinkscript:cycle', tok)
     }
     const outerInputs = this.inputs
     const outerLag = this.lagged
@@ -1401,22 +1809,44 @@ class Resolver {
       if (rest === 'positive_infinity' || rest === 'negative_infinity') throw refuse('thinkscript:type', tok)
       throw refuse('thinkscript:builtin', tok)
     }
-    if (this.env.has(base)) {
-      const v = this.resolveBinding(base, tok)
-      if (isEnum(v)) {
-        // ⛔⛔ THE ARM MUST BE ONE THE INPUT DECLARED. `mode.UseZ` against
-        // `{default UseA, UseB}` used to sail through and then quietly decide a
-        // comparison, which is a mistranslation rather than a refusal.
-        if (!Array.isArray(v.arms) || !v.arms.some((a) => key(a) === rest)) {
-          throw refuse('thinkscript:enum-arm', tok)
-        }
-        return { ts: 'enum', family: v.family, arm: rest, arms: v.arms, tok }
+    // ⛔⛔ A MEMBER BINDING OWNS A DOTTED NAME ONLY WHEN IT IS A BRACES ENUM —
+    // THE ONLY BINDING KIND THAT HAS DOTTED ARMS AT ALL — AND THAT IS A FIX.
+    //
+    // 🔴 W3.5 EXPOSED THIS AND IT WAS A REAL DEFECT, NOT A NEW ONE. `input
+    // averageType = AverageType.WILDERS;` is the ordinary spelling — four of the
+    // 24 corpus scripts write it — and the base of that dotted constant folds to
+    // `averagetype`, which is the input's OWN name. The old rule resolved the
+    // binding, walked straight back into the binding being resolved, and reported
+    // `thinkscript:cycle` on a published, correct script. It was invisible until
+    // this task mapped `MovingAverage`, because nothing before it ever resolved
+    // the input.
+    //
+    // ⭐ THE RULE IS THE PLATFORM'S, NOT A PATCH. `AverageType` is a reserved
+    // CONSTANT namespace (`Constants/AverageType`: "the constants used with
+    // MovingAverage function"), and a member input never shadows one — exactly
+    // the precedence `Double` above already has, extended from one family to
+    // every family, with no list to keep. A braces input is the other mechanism
+    // and keeps its arms, so the undeclared-arm guard below is untouched.
+    const bound = this.env.get(base)
+    if (bound && bound.kind === 'enum') {
+      // ⛔⛔ THE ARM MUST BE ONE THE INPUT DECLARED. `mode.UseZ` against
+      // `{default UseA, UseB}` used to sail through and then quietly decide a
+      // comparison, which is a mistranslation rather than a refusal.
+      if (!Array.isArray(bound.arms) || !bound.arms.some((a) => key(a) === rest)) {
+        throw refuse('thinkscript:enum-arm', tok)
       }
-      throw refuse('thinkscript:builtin', tok)
+      return { ts: 'enum', family: bound.family, arm: rest, arms: bound.arms, tok }
     }
     // `Color.RED`, `AverageType.HULL`, `AggregationPeriod.DAY` — a symbolic
     // constant of thinkorswim's own, comparable with an enum input's arm and
     // refusable the moment it is asked to be a number.
+    //
+    // ⚠️ A NON-ENUM BINDING DOTTED READS AS ONE OF THESE NOW RATHER THAN
+    // REFUSING `:builtin` HERE, AND THE GUARD IS NOT LOST — it moves one step
+    // later, to `asNode`, which refuses `:builtin` for any enum asked to be a
+    // number. Same sentence, same token; the only case that changes is a
+    // COMPARISON of one, which refuses `:enum-arm` instead, and that is the more
+    // accurate of the two.
     return { ts: 'enum', family: base, arm: rest, tok }
   }
 
@@ -1428,7 +1858,7 @@ class Resolver {
     // writes `def open = open(period = …);` and then reads `OPEN` — the member's
     // binding is the one they meant.
     const engine = normaliseName(k)
-    if (has(TABLE.series, engine)) return cSeries(engine)
+    if (has(this.table.series, engine)) return cSeries(engine)
     if (TS_BUILTIN_PRICES.has(k)) throw refuse('thinkscript:builtin', tok)
     throw refuse('thinkscript:undefined', tok)
   }
@@ -1453,8 +1883,8 @@ class Resolver {
    *   token a refusal about it should point at
    */
   engineCall(name, args, tok) {
-    if (!has(TABLE.functions, name)) throw refuse('thinkscript:function', tok)
-    const spec = TABLE.functions[name]
+    if (!has(this.table.functions, name)) throw refuse('thinkscript:function', tok)
+    const spec = this.table.functions[name]
     if (args.length !== spec.args.length) throw refuse('thinkscript:arity', tok)
     return cCall(name, args.map((a, i) => {
       if (spec.args[i] === 'int'
@@ -1503,13 +1933,217 @@ class Resolver {
       k += 1
     }
 
-    const filled = slots.map((a, i) => {
-      if (a) return { node: this.asNode(this.resolve(a.value), a.value.tok || n.tok), tok: a.value.tok || n.tok }
-      const p = shape.params[i]
-      if (!has(shape.defaults, p)) throw refuse('thinkscript:arity', n.tok)
-      return { node: cNum(shape.defaults[p], n.tok), tok: n.tok }
+    // ⛔ EVERY PARAMETER IS PRESENT OR PUBLISHED-DEFAULTED, CHECKED BEFORE ANY OF
+    // THEM IS RESOLVED. Checking as we go would resolve the first argument of a
+    // call that is about to refuse for its third, which matters for a recurrence:
+    // resolving its body binds `self` and must not happen speculatively.
+    shape.params.forEach((p, i) => {
+      if (!slots[i] && !has(shape.defaults || {}, p)) throw refuse('thinkscript:arity', n.tok)
     })
-    return this.engineCall(shape.engine, filled, n.tok)
+
+    // ⛔ A REFUSED NAME REFUSES AFTER ITS ARGUMENTS ARE COUNTED, so the sentence a
+    // member reads is about the FUNCTION and not about how they spelled the call.
+    if (shape.refuse) {
+      throw new ThinkScriptRefusal(shape.refuse.guard,
+        `${REFUSALS[shape.refuse.guard]} — ${shape.refuse.message}`, locate(n.tok))
+    }
+
+    const port = this.callPort(shape, slots, n)
+    if (shape.note) this.note(shape.note, n.tok, `\`${n.name}\``)
+    if (shape.recurrence) return this.buildRecurrence(shape, port, n)
+
+    const engine = shape.dispatch ? this.dispatchEngine(shape, port, n) : shape.engine
+    const fill = (plan) => {
+      if (plan.from !== undefined) return port.node(plan.from)
+      if (plan.series !== undefined) return { node: cSeries(plan.series), tok: n.tok }
+      return { node: cNum(plan.const, n.tok), tok: n.tok }
+    }
+    this.runGates(shape, port, n, engine)
+    // ⚠️ THE GATES RUN BEFORE THE ARGUMENTS ARE FILLED, so a call refused for
+    // asking the wrong average never resolves the rest of its arguments — which
+    // matters because resolution records which member inputs a column folded.
+    if (shape.expand) return TS_EXPANSIONS[shape.expand](shape.args.map(fill), this, n.tok)
+    return this.engineCall(engine, argumentPlan(shape, this.table).map(fill), n.tok)
+  }
+
+  /**
+   * ⭐ THE ONE DOOR TO A CALL'S ARGUMENTS, memoised so each is resolved exactly
+   * once. Resolution has side effects — it records which member inputs a column
+   * folded, and for a recurrence body it binds `self` — so a parameter read twice
+   * is a parameter resolved twice, and that has been a real bug class in the
+   * sibling translator.
+   */
+  callPort(shape, slots, n) {
+    const seen = new Map()
+    const at = (p) => {
+      const s = slots[shape.params.indexOf(p)]
+      return (s && s.value && s.value.tok) || n.tok
+    }
+    const raw = (p) => {
+      if (seen.has(p)) return seen.get(p)
+      const s = slots[shape.params.indexOf(p)]
+      let v
+      if (s) {
+        v = this.resolve(s.value)
+      } else {
+        const d = shape.defaults[p]
+        // ⚠️ A PUBLISHED DEFAULT MAY BE AN ENUM ARM, NOT A NUMBER —
+        // `MovingAverage`'s is `AverageType.Simple`. It enters as the same kind of
+        // value the member would have written, so nothing downstream needs a
+        // second branch for "this one was defaulted".
+        v = (d && typeof d === 'object' && d.arm)
+          ? { ts: 'enum', family: 'averagetype', arm: d.arm, tok: n.tok }
+          : cNum(d, n.tok)
+      }
+      seen.set(p, v)
+      return v
+    }
+    return {
+      at,
+      raw,
+      written: (p) => !!slots[shape.params.indexOf(p)],
+      node: (p) => ({ node: this.asNode(raw(p), at(p)), tok: at(p) }),
+    }
+  }
+
+  /** The engine name an `averageType` arm resolves to.
+   *
+   *  ⛔ AN ARM THIS TABLE DOES NOT PUBLISH REFUSES; IT NEVER FALLS BACK TO THE
+   *  DEFAULT. Falling back would answer `sma` for a member who asked for
+   *  something else — a chart that looks right and is wrong, which is the one
+   *  outcome this door exists against. */
+  dispatchEngine(shape, port, n) {
+    const p = shape.dispatchOn
+    const v = port.raw(p)
+    if (!isEnum(v) || v.family !== 'averagetype' || !has(shape.dispatch, v.arm)) {
+      throw refuse('thinkscript:enum-arm', (v && v.tok) || port.at(p))
+    }
+    const engine = shape.dispatch[v.arm]
+    if (!has(this.table.functions, engine)) {
+      // ⭐ DERIVED, NOT HARD-CODED. The arm names an engine function; the TABLE
+      // is what says whether it exists. `AverageType.HULL` refuses today because
+      // no manifest declares `hma`, and stops refusing the day one does.
+      throw new ThinkScriptRefusal('thinkscript:function',
+        `${REFUSALS['thinkscript:function']} — ${armText(v.arm)} would need \`${engine}\`, `
+        + 'which this engine does not declare',
+        locate((v && v.tok) || port.at(p)))
+    }
+    return engine
+  }
+
+  /** The parameters that are CHECKED and contribute no node. */
+  runGates(shape, port, n, engine) {
+    for (const [p, kind] of Object.entries(shape.gates || {})) {
+      if (kind === 'dispatch') continue // consumed by dispatchEngine, above
+      if (kind === 'zeroDigits') {
+        // ⛔ thinkorswim's published default is TWO digits, so a bare `Round(x)`
+        // asks for two decimals and this table's `round` gives a whole number.
+        // Only a written 0 is the same function.
+        const digits = literalInteger(this.asNode(port.raw(p), port.at(p)))
+        if (digits !== 0) {
+          throw new ThinkScriptRefusal('thinkscript:function',
+            `${REFUSALS['thinkscript:function']} — this engine's \`${engine}\` rounds to a `
+            + 'whole number, and thinkorswim rounds to '
+            + `${digits === null ? 'a number of digits it cannot read here' : digits} `
+            + '(the published default is 2); write Round(x, 0) for the whole-number form',
+            locate(port.at(p)))
+        }
+        continue
+      }
+      if (kind === 'wildersOnly') {
+        const v = port.raw(p)
+        if (!isEnum(v) || v.family !== 'averagetype' || !has(TS_AVERAGE_TYPES, v.arm)) {
+          throw refuse('thinkscript:enum-arm', (v && v.tok) || port.at(p))
+        }
+        if (v.arm !== 'wilders') {
+          throw new ThinkScriptRefusal('thinkscript:function',
+            `${REFUSALS['thinkscript:function']} — this engine's \`${engine}\` is Wilder's `
+            + `average of the true range, and ${armText(v.arm)} asks for a different one`,
+            locate(v.tok || port.at(p)))
+        }
+        continue
+      }
+      /* istanbul ignore next — unreachable while the gate names are closed */
+      throw refuse('thinkscript:function', n.tok)
+    }
+  }
+
+  /**
+   * ⭐⭐ `CompoundValue` IS THE ENGINE'S BOUNDED ACCUMULATOR, AND THE GATE IS WHY
+   * THAT IS SAFE.
+   *
+   * The reference: *"if a bar number is greater than `length` then the visible
+   * data value is returned, otherwise the historical data value"* — so the
+   * historical arm IS the seed and the visible arm IS the per-bar update, which
+   * is `accum(seed, update, warmupPeriod)`'s own shape. The three POSITIONS come
+   * from `closedTable.json`'s `recurrence` block, never from a number typed here.
+   *
+   * 🔴🔴 AND AN UPDATE THAT NEVER FORGETS ITS SEED IS REFUSED. `accum` re-seeds a
+   * fixed number of bars back, deliberately, so a column cannot depend on where a
+   * fetch began. MEASURED on the shared parity series: `accum(0, self + volume,
+   * 250)` matches a rolling 250-bar sum on 579 of 579 bars and differs from the
+   * true cumulative sum on 579 of 579. Folding thinkorswim's running total into
+   * it would be wrong on EVERY bar while drawing a perfectly plausible line — so
+   * `forgetsItsSeed` is IMPORTED from `pine.js` and asked the same question the
+   * other translator asks. ⛔ Never a second copy: two convergence rules is how
+   * two translators come to disagree about one engine function.
+   */
+  buildRecurrence(shape, port, n) {
+    const spec = this.table.functions[shape.engine]
+    const plan = argumentPlan(shape, this.table)
+    if (!spec || !spec.recurrence || !plan) throw refuse('thinkscript:function', n.tok)
+
+    // ⛔ THE SEED RESOLVES WITH NO `self` IN SCOPE, AND FIRST. thinkorswim's
+    // historical arm is evaluated on the leading bars, where the value being
+    // defined does not exist yet, so a `self` reachable from it would be a cycle
+    // wearing a seed's clothes. The ORDER is what enforces that, and it is read
+    // off the plan's roles rather than assumed from the parameter order.
+    const seedPlan = shape.argsByRole.seed
+    const bodyPlan = shape.argsByRole.body
+    const seed = port.node(seedPlan.from)
+
+    const name = this.stack.length ? this.stack[this.stack.length - 1] : null
+    const outer = this.buildingRecurrence
+    this.buildingRecurrence = name
+    let body
+    try { body = port.node(bodyPlan.from) } finally { this.buildingRecurrence = outer }
+
+    if (!forgetsItsSeed(body.node, this.table)) {
+      throw new ThinkScriptRefusal('thinkscript:state',
+        `${REFUSALS['thinkscript:state']} — this update keeps building on its own previous `
+        + 'bar without ever forgetting where it started, and this engine\'s accumulator '
+        + 're-seeds a fixed number of bars back, so it would become a rolling window rather '
+        + 'than a running total',
+        locate(port.at(bodyPlan.from)))
+    }
+
+    this.note('thinkscript:note-warmup', n.tok, `\`${n.name}\``)
+    const built = { [seedPlan.from]: seed, [bodyPlan.from]: body }
+    const args = plan.map((p) => (p.from !== undefined
+      ? built[p.from] : { node: cNum(p.const, n.tok), tok: n.tok }))
+    return this.engineCall(shape.engine, args, n.tok)
+  }
+
+  /** `name[k]` INSIDE `name`'s OWN accumulator body — the lag it means, or `null`.
+   *
+   *  ⭐⭐ thinkorswim COUNTS FROM ONE HERE AND THIS ENGINE COUNTS FROM ZERO, and
+   *  getting it wrong would be silent. Inside `x`'s update, `x[1]` is the value
+   *  `x` held on the PREVIOUS bar — which is exactly what the accumulator's own
+   *  `self` already is. So `x[1]` is `self`, `x[2]` is `self[1]`, and the answer
+   *  is `k - 1`. Identical to `pine.js::selfOffsetLag`.
+   *
+   *  ⚠️ ONLY `k === 1` IS REACHABLE TODAY, AND THAT IS MEASURED, NOT ASSUMED.
+   *  `forgetsItsSeed` answers NO for any body in which `self` appears under an
+   *  offset (it is conservative by construction — an unrecognised shape is a
+   *  refusal), so a body containing `self[1]` never survives the gate. The `k - 1`
+   *  is written as arithmetic rather than as a `k === 1` special case so that it
+   *  is already right the day that gate is relaxed; what rails it TODAY is that
+   *  `x[1]` must produce bare `self` — write `k` instead of `k - 1` and a
+   *  published, correct script starts refusing. */
+  selfLagOf(n, k) {
+    if (!(k >= 1) || this.buildingRecurrence === null) return null
+    if (!n.base || n.base.e !== 'name') return null
+    return key(n.base.name) === this.buildingRecurrence ? k - 1 : null
   }
 
   binary(n) {
@@ -1626,6 +2260,19 @@ class Resolver {
         // tutorial says the study "will wait for a new quote"; a closed-bar
         // engine cannot, and the offset node has no slot for a negative value.
         if (k < 0) throw refuse('thinkscript:future-offset', n.index.tok || n.tok)
+        // ⭐⭐ `x[k]` INSIDE `x`'s OWN ACCUMULATOR BODY IS THE ACCUMULATOR'S `self`,
+        // and it is read BEFORE the base is resolved — resolving it would walk
+        // back into the binding being built and report a cycle. `binds` is read
+        // off the table's own `recurrence`, so this file never types `self`.
+        {
+          const lag = this.selfLagOf(n, k)
+          if (lag !== null) {
+            const spec = this.table.functions.accum
+            if (!spec || !spec.recurrence) throw refuse('thinkscript:state', n.tok)
+            const base = cSeries(spec.recurrence.binds)
+            return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
+          }
+        }
         this.lagged = k > 0
         let base
         try { base = this.asNode(this.resolve(n.base), n.tok) } finally { this.lagged = outerLag }
@@ -1719,8 +2366,10 @@ function chooseOutput(rows) {
  * over 24 real published studies, and a member's paste is arbitrary text.
  *
  * @param {string} source the pasted thinkScript
- * @param {object} [opts] reserved; `opts.table` becomes the closed-table
- *   injection point for the task that first maps a function.
+ * @param {object} [opts] `opts.table` injects a closed table in place of the
+ *   shipped manifest, which is what makes the derived-map claim MEASURABLE
+ *   rather than argued: a table that declares `hma` makes
+ *   `MovingAverage(AverageType.HULL, …)` translate with no edit in this file.
  * @returns {{
  *   ok: boolean,
  *   version: 'thinkscript',
@@ -1735,7 +2384,7 @@ function chooseOutput(rows) {
  * }}
  */
 export function translateThinkScript(source, opts = {}) {
-  void opts
+  const table = opts.table || TABLE
   const blank = {
     ok: false, version: 'thinkscript', declaration: null, title: null,
     outputs: [], selected: -1, refusal: null, refusals: [], ignored: [], folded: [],
@@ -1758,7 +2407,11 @@ export function translateThinkScript(source, opts = {}) {
     lines = sourceLines(source)
     const lexed = lexThinkScript(source)
     const program = readProgram(lexed)
-    const resolver = new Resolver(program.env)
+    // ⭐ THE CALL NOTES LAND IN THE SAME `ignored[]` THE STATEMENT READER WRITES
+    // TO, because `ImportBox` renders one list and a member reads one list. They
+    // are appended and the whole thing is re-sorted by position below, so a seed
+    // note on line 40 does not jump ahead of a `declare` note on line 1.
+    const resolver = new Resolver(program.env, table, program.ignored)
 
     const rows = program.outputs.map((o) => {
       resolver.inputs = new Set()
@@ -1785,6 +2438,21 @@ export function translateThinkScript(source, opts = {}) {
         return { ...site, formula: null, ast: null, inputsFolded: [], hidden: false, refusal: fromError(err) }
       }
     })
+
+    // ⛔ ONE NOTE PER PLACE, NOT PER RESOLUTION. A `def` reached from three plots
+    // resolves once (the resolver memoises bindings) but a call written twice on
+    // one line is two occurrences, and the same sentence repeated is how a member
+    // learns to skip the list. Deduped by code AND position, so two different
+    // ExpAverage calls on two lines still each say so.
+    const seenNote = new Set()
+    program.ignored = program.ignored
+      .filter((v) => {
+        const at = `${v.code}@${v.line}:${v.column}`
+        if (seenNote.has(at)) return false
+        seenNote.add(at)
+        return true
+      })
+      .sort((a, b) => (a.line - b.line) || (a.column - b.column))
 
     const usable = rows.filter((r) => r.refusal === null && !r.hidden)
     const refusals = [...program.hard, ...rows.filter((r) => r.refusal).map((r) => r.refusal)]
