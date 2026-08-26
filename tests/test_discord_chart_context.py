@@ -91,17 +91,16 @@ def test_context_line_never_raises_and_a_failed_part_only_loses_itself():
     assert cc.context_line("", today=TODAY, earnings_fn=boom, implied_fn=boom, catalyst_fn=boom) == ""
 
 
-def test_default_earnings_fetcher_picks_the_nearest_unreported_forward_quarter(monkeypatch):
+def test_default_earnings_fetcher_uses_the_cards_next_report_date_not_the_forward_rows(monkeypatch):
+    """Pod measurement 2026-08-25: the table's forward rows had report_date=None
+    for NVDA two days before its report; _next_report_date had it."""
     from api.services import earnings_table
-    monkeypatch.setattr(earnings_table, "get_earnings_table", lambda t: {"quarterly": [
-        {"label": "Q3 2026", "report_date": "2026-11-05", "eps_actual": 1.1},          # reported: skipped
-        {"label": "Q1 2027", "report_date": "2027-02-25", "eps_estimate": 1.4},        # further out
-        {"label": "Q4 2026", "report_date": "2026-11-19", "eps_estimate": 1.3},        # nearest unreported
-        {"label": "?", "report_date": None},
-    ]})
-    row = cc._next_earnings("NVDA", TODAY)
-    assert row["report_date"] == "2026-11-19" and row["eps_estimate"] == 1.3
-    monkeypatch.setattr(earnings_table, "get_earnings_table", lambda t: {"quarterly": []})
+    monkeypatch.setattr(earnings_table, "get_earnings_table", lambda t: pytest.fail("the forward rows are not the date source"))
+    monkeypatch.setattr(earnings_table, "_next_report_date", lambda t: "2026-11-19")
+    assert cc._next_earnings("NVDA", TODAY) == {"report_date": "2026-11-19"}
+    monkeypatch.setattr(earnings_table, "_next_report_date", lambda t: "2026-11-06")      # already reported
+    assert cc._next_earnings("NVDA", TODAY) is None
+    monkeypatch.setattr(earnings_table, "_next_report_date", lambda t: None)
     assert cc._next_earnings("NVDA", TODAY) is None
 
 

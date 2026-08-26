@@ -51,16 +51,17 @@ def today_et() -> _dt.date:
 # ── default fetchers (prod); tests inject their own ──────────────────────────
 
 def _next_earnings(ticker: str, today: _dt.date) -> Optional[dict]:
+    """The next scheduled report date - the fundamentals card's own lookup
+    (`earnings_table._next_report_date`: calendar-aware, cached, 0.03 s on the
+    pod), NOT the table's forward rows. Measured on the web pod 2026-08-25:
+    those rows carried report_date=None for NVDA two days before its report
+    (the nearest forward quarter fails the period-end sanity gate), while
+    _next_report_date answered 2026-08-26."""
     from api.services import earnings_table
-    table = earnings_table.get_earnings_table(ticker) or {}
-    best = None
-    for row in table.get("quarterly") or []:
-        d = _parse_date(row.get("report_date"))
-        if d is None or d < today or row.get("eps_actual") is not None:
-            continue
-        if best is None or d < best[0]:
-            best = (d, row)
-    return best[1] if best else None
+    d = _parse_date(earnings_table._next_report_date(ticker))
+    if d is None or d < today:
+        return None
+    return {"report_date": d.isoformat()}
 
 
 def _implied(ticker: str, report_date: str) -> Optional[dict]:
