@@ -16,6 +16,7 @@ import path from 'node:path'
 import { detectDialect, DIALECTS, READER_NAME } from './dialect.js'
 import { detectDialect as detectPcf } from './pcf.js'
 import PCF_CORPUS from '../../../../../../tests/fixtures/ast/pcf_corpus.json'
+import NATIVE_CORPUS from '../../../../../../tests/fixtures/ast/corpus.json'
 
 const dir = (p) => path.resolve(process.cwd(), p)
 const read = (d, f) => fs.readFileSync(path.join(d, f), 'utf8')
@@ -58,6 +59,20 @@ describe('every committed corpus detects as its own dialect', () => {
     for (const src of ['close > sma(close, 50)', 'rsi(close, 14) < 30 && close > 0',
       'accum(0, self + 1, 250)', 'crossOver(ema(close, 9), ema(close, 21))']) {
       expect(detectDialect(src), src).toBe('formula')
+    }
+  })
+
+  // ⛔ FOUR TYPED SNIPPETS ARE NOT THE PROMISE. "Nothing this product ever saved
+  // moves" is a claim about the WHOLE native vocabulary, and this module puts TWO
+  // new marker sets in front of the door every saved formula walks through — so
+  // the claim has to be measured against the committed native corpus, the same
+  // artifact `parse`/`interpret` are pinned on, and not against examples chosen
+  // by the person writing the markers. Measured 2026-08-25: 77 cases, 0 move.
+  it('every case in the committed NATIVE corpus still reads as formula', () => {
+    const cases = (NATIVE_CORPUS.cases || []).filter((c) => c && typeof c.source === 'string')
+    expect(cases.length, 'a corpus gate with no inputs is not a gate').toBeGreaterThan(50)
+    for (const c of cases) {
+      expect(detectDialect(c.source), `${c.id}: ${c.source}`).toBe('formula')
     }
   })
 })
