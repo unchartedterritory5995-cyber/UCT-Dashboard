@@ -689,6 +689,26 @@ def _warm_hot_tier_now() -> None:
         pass
 
 
+def _discord_chart_hot_warm() -> None:
+    """Re-render the charts members keep asking for, just before their cache
+    entry expires. A chart costs ~2.4 s of a shared Chromium and the same
+    handful of names get asked over and over in a 750-member server, so this is
+    what turns the common case into a cache hit. Bounded by the hot set itself
+    (a key nobody asked for recently stops being warmed) and by `limit`."""
+    log = logging.getLogger(__name__)
+    if os.environ.get("DISCORD_CHART_HOTWARM_ENABLED", "1").strip().lower() in ("0", "false", "off", ""):
+        return
+    try:
+        from api.services import discord_chart_house as house, discord_interactions as di
+        from api.routers import discord_interactions as rt
+        if not house.house_enabled():
+            return
+        di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
+                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote)
+    except Exception:
+        log.exception("[discord-chart] hot warm cycle failed")
+
+
 def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
     """Render one house chart shortly after boot so the FIRST Discord /chart
     after a deploy is not the cold one. Measured 2026-08-25: the first render
@@ -2467,6 +2487,10 @@ async def lifespan(app: FastAPI):
         readiness.register("dashboard")
         _start_dashboard_warm_background()
         _start_chart_renderer_warm_background()
+        # Keep the charts members actually ask for rendered ahead of demand.
+        _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=2,
+                           id="discord_chart_hot_warm", max_instances=1,
+                           coalesce=True, misfire_grace_time=60)
         _start_calendar_enrichment_warm_background()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "

@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
+from api.services import discord_chart_hotset as hotset
 from api.services import discord_chart_prefs as prefs_mod
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
@@ -1022,6 +1023,37 @@ def message_attachment_ids(interaction: dict) -> list:
     return [a["id"] for a in (msg.get("attachments") or []) if isinstance(a, dict) and a.get("id")]
 
 
+def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6) -> list:
+    """Re-render the charts members keep asking for, just before their cache
+    entry goes stale, so the next member gets a hit instead of a 2.4 s render.
+
+    Runs on a scheduler, off every request path. Never raises: a warm that fails
+    just means the next asker pays what they pay today. Returns the keys warmed
+    (for the log and the tests)."""
+    warmed = []
+    for key, req, prefs in hotset.due(png_cache.age_of, limit=limit):
+        try:
+            options = prefs_mod.render_options(prefs, req.tf)
+            if req.to:
+                options["to"] = req.to
+            compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
+            if req.breadth_name:
+                options["breadth"] = req.breadth_name
+            result = png_cache.single_flight(
+                key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn,
+                                           render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
+                                           slot_wait=MULTI_SLOT_WAIT_S),
+                ttl_s=png_cache.ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+            if result and result[0] == "ok":
+                warmed.append(key)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] hot warm failed %s: %s", key, e)
+    if warmed:
+        log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
+    return warmed
+
+
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
                   house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
@@ -1044,6 +1076,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
            + (":vs:" + "+".join(compare) if compare else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
+    hotset.record(key, req, prefs, png_cache.ttl_for(req.tf))
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
     headline = (req.display or req.ticker) + (f" vs {'/'.join(compare)}" if compare else "") + f" · {label}"
 

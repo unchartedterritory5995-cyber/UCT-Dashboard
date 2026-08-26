@@ -2279,3 +2279,49 @@ def test_the_warm_gate_is_one_slot_by_default_and_env_tunable(monkeypatch):
     for bad in ("0", "9", "", "lots"):
         monkeypatch.setenv("DISCORD_CHART_WARM_CONCURRENCY", bad)
         assert di.warm_slot_count() == 1
+
+
+def test_the_hot_warm_job_is_actually_wired_into_the_scheduler_and_kill_switchable(monkeypatch):
+    """A warmer nobody runs is not a warmer. Derive the wiring from main.py's AST
+    rather than trusting that an add_job call exists somewhere."""
+    import ast, pathlib
+    import api.main as m
+    src = pathlib.Path(m.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "add_job":
+            for kw in node.keywords:
+                if kw.arg == "id" and isinstance(kw.value, ast.Constant):
+                    ids.add(kw.value.value)
+    assert "discord_chart_hot_warm" in ids, sorted(ids)
+    assert hasattr(m, "_discord_chart_hot_warm")
+    # a non-vacuity control: the probe can see a job that exists…
+    assert "chart_health" in " ".join(ids) or len(ids) > 3
+    # …and the switch really switches
+    called = []
+    monkeypatch.setattr("api.services.discord_interactions.warm_hot_charts",
+                        lambda **k: called.append(k) or [])
+    # …and it stays silent when the house path is off, which is its own guard
+    from api.services import discord_chart_house as _house
+    monkeypatch.setattr(_house, "house_enabled", lambda: False)
+    m._discord_chart_hot_warm()
+    assert called == [], "warmed with no renderer configured"
+    monkeypatch.setattr(_house, "house_enabled", lambda: True)
+    monkeypatch.setenv("DISCORD_CHART_HOTWARM_ENABLED", "0")
+    m._discord_chart_hot_warm()
+    assert called == []
+    monkeypatch.setenv("DISCORD_CHART_HOTWARM_ENABLED", "1")
+    m._discord_chart_hot_warm()
+    assert len(called) == 1 and called[0]["house_fn"] is not None
+
+
+def test_every_chart_request_is_recorded_in_the_hot_set():
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p, discord_chart_hotset as hs
+    hs.clear_for_tests()
+    run_chart_job("1", "t", ChartRequest("HOTA", "D"), bars_fn=lambda *a: daily_bars(20),
+                  render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=_Edits(), prefs=dict(p.DEFAULTS))
+    keys = [k for k, _, _ in hs.snapshot()]
+    assert any(k.startswith("HOTA:D") for k in keys), keys
+    hs.clear_for_tests()
