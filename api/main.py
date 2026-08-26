@@ -6035,6 +6035,13 @@ app.include_router(volume_scan_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
+# ── ON-DEMAND SCAN (W4a, spec §5.5): `POST /api/scans/run` queues one saved
+# definition over ≤500 named symbols and `GET /api/scans/run/{job}` reads the
+# answer. Paid, per-handler-gated, per-member rate-limited, and WRITTEN NOWHERE.
+# ⛔ The router imports only the SERVICE; the ONE bounded request-path caller of
+# the sweep is `api/services/screener/scan_run.py::_run_job`, on its own worker.
+from api.routers import scan_run as scan_run_router
+app.include_router(scan_run_router.router)
 # ── SCREEN BACKTESTING (`/api/screener/backtest*`) — a NEW router file so
 # `screener.py` stays untouched: it is hot, heavily railed and carries a
 # route-count oracle that a feature edit must not perturb. Paid, not admin (it
