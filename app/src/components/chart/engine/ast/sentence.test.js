@@ -2014,6 +2014,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // is declarable: with no argument columns to pack there is no fabricated
       // bar-index `t`, so the binding reads the real instant.
       'vwap_session', 'avwap_from_a_mid_series_instant',
+      // ⛔ AND ONE REFUSAL ROW: the anchor is one second before the first bar,
+      // so `avwap` answers NOT COMPUTABLE rather than a column that would move
+      // when the caller's window moved.
+      'avwap_anchor_before_the_series_is_not_computable',
     ])
   })
 

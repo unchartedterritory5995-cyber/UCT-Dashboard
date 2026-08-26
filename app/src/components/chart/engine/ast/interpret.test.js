@@ -4,11 +4,13 @@ import path from 'node:path'
 
 import {
   parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, BAR_READERS,
+  SESSION_MAX_BARS,
 } from './parse.js'
 import {
   interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS,
   MAX_RECURRENCE_STEPS,
 } from './interpret.js'
+import { computeVWAP, computeAVWAP } from '../../indicators.js'
 import { DEFAULT_BUDGET } from './budget.js'
 
 /** The repo root, found by walking up — same helper `parse.test.js` uses, and it
@@ -1257,5 +1259,77 @@ describe('the node budget may only discount what the interpreter actually shares
     // chain collapsed to TWO distinct shapes — `nodeCount` answered 2. Silent
     // fallback = under-count = the one direction that stops a budget guarding.
     expect(SRC).toMatch(/throw new Error\('structuralMaps: a child was keyed after its parent/)
+  })
+})
+// ══════════════════════════════════════════════════════════════════════════════
+// `avwap`'s TWO DECLARED-WINDOW REFUSALS — THIS LANE'S HALF
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// ⛔ WRITTEN TWICE ON PURPOSE, here and in `tests/test_ast_vwap_parity.py`, the
+// same arrangement `outOfOrder` / `_functions_domain` already has. The
+// conformance corpus can only reach ONE of these two rules — it holds 579 bars
+// and the other needs a series longer than a session — so a single-lane rail
+// would leave the second free to drift, which is exactly the shape this lane has
+// already paid three fix rounds for.
+
+describe("`avwap`'s window is ENFORCED, not merely declared", () => {
+  const avwap = (epoch) => ({ type: 'call', name: 'avwap', args: [{ type: 'num', value: epoch }] })
+  const finite = (c) => [...c].filter((v) => Number.isFinite(v))
+
+  it('⛔ an anchor BEFORE the first bar is NOT COMPUTABLE, never request-dependent', () => {
+    // With the anchor before the series, "the first bar at or after it" is
+    // whichever bar the caller happened to fetch — so the value moves when the
+    // window moves. The control below is what makes this a measurement: the
+    // shipped accumulator, called directly, really does answer differently on
+    // two slices of the same tape.
+    const before = BARS[0].t - 1
+    expect(finite(interpret(avwap(before), BARS, {}))).toHaveLength(0)
+    // …and exactly ON the first bar is refused too: `t >= anchor` is satisfied by
+    // bar 0 whether or not earlier bars existed, so the boundary is not VISIBLE.
+    expect(finite(interpret(avwap(BARS[0].t), BARS, {}))).toHaveLength(0)
+
+    const full = computeAVWAP(BARS, before)
+    const short = computeAVWAP(BARS.slice(2), before)
+    expect(full[full.length - 1].value, 'the accumulator is not request-dependent on this fixture '
+      + '— the refusal above is defending against nothing')
+      .not.toBeCloseTo(short[short.length - 1].value, 9)
+
+    // NON-VACUITY: the same call with a VISIBLE boundary answers.
+    expect(finite(interpret(avwap(BARS[1].t), BARS, {})).length).toBeGreaterThan(0)
+  })
+
+  it('⛔ a bar past `sessionMaxBars` from the anchor is NOT COMPUTABLE', () => {
+    // ⭐ THE DECLARED PROPERTY IS MADE TRUE RATHER THAN ASSERTED. `sessionMaxBars`
+    // is far longer than any fixture in this file, which is why this case builds
+    // its own series: a ceiling that cannot be reached is not a ceiling.
+    const n = SESSION_MAX_BARS + 40
+    const bars = Array.from({ length: n }, (_, i) => ({
+      t: BARS[0].t + i * 300, o: 10, h: 11, l: 9, c: 10 + (i % 3), v: 100 + i,
+    }))
+    const anchor = bars[5].t
+    const column = interpret(avwap(anchor), bars, {})
+    expect(column).toHaveLength(n)
+    expect(Number.isFinite(column[4]), 'a bar BEFORE the anchor must not answer').toBe(false)
+    expect(Number.isFinite(column[5]), 'the anchor bar must answer').toBe(true)
+    const last = 5 + SESSION_MAX_BARS
+    expect(Number.isFinite(column[last]), 'the last bar INSIDE the window must answer').toBe(true)
+    expect(Number.isFinite(column[last + 1]), 'a bar PAST the window must not answer').toBe(false)
+    expect(finite(column.slice(last + 1))).toHaveLength(0)
+    // NON-VACUITY: the trim is real — the shipped accumulator on its own keeps
+    // answering all the way to the end, so this is a bound and not a coincidence.
+    const raw = computeAVWAP(bars, anchor)
+    expect(Number.isFinite(raw[raw.length - 1].value)).toBe(true)
+  })
+
+  it('⭐ and `vwap()` is the SHIPPED accumulator, bar for bar — not a second one', () => {
+    const got = interpret({ type: 'call', name: 'vwap', args: [] }, BARS, {})
+    const want = computeVWAP(BARS)
+    expect(got).toHaveLength(BARS.length)
+    for (let i = 0; i < BARS.length; i++) {
+      const w = want[i] && Number.isFinite(want[i].value) ? want[i].value : NaN
+      if (Number.isNaN(w)) expect(Number.isFinite(got[i]), String(i)).toBe(false)
+      else expect(got[i], String(i)).toBeCloseTo(w, 9)
+    }
+    expect(finite(got).length).toBeGreaterThan(0)
   })
 })

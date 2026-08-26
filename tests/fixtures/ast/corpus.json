@@ -2319,6 +2319,22 @@
           }
         ]
       }
+    },
+    {
+      "id": "avwap_anchor_before_the_series_is_not_computable",
+      "source": "avwap(1761897599)",
+      "why": "⛔ THE REQUEST-DEPENDENCE REFUSAL, MEASURED ACROSS THE LANES. The anchor is ONE SECOND before the corpus's first bar, so 'the first bar at or after it' would be whichever bar the caller happened to fetch first -- and the value at every bar would then move when the window moved, which is `lesson_a_derived_value_must_not_depend_on_the_request` and the exact defect `_functions_recurrence` says `accum`'s re-seeded window exists to prevent. Both lanes must answer NOT COMPUTABLE rather than a plausible column, and a lane that dropped the refusal produces finite rows -- which this case's `allNaN` flag turns into a named failure rather than a moved digest nobody can attribute. ⭐ IT IS THE ONLY ONE OF `avwap`'S TWO DECLARED-WINDOW REFUSALS A 579-BAR CORPUS CAN REACH: the other -- a bar more than `sessionMaxBars` past the anchor -- needs a series longer than a session, so it is railed per-lane in `tests/test_ast_vwap_parity.py` and `interpret.test.js` instead, twice on purpose.",
+      "ast": {
+        "type": "call",
+        "name": "avwap",
+        "args": [
+          {
+            "type": "num",
+            "value": 1761897599
+          }
+        ]
+      },
+      "allNaN": true
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
