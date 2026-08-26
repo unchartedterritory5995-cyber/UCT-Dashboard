@@ -53,7 +53,8 @@ vi.mock('../../components/screener/ScanResults', () => ({
   default: (props) => <div data-testid="scan-results-mock" data-payload={props.payload ? 'given' : 'none'} />,
 }))
 
-import ScreensManager, { SPY_WINDOW, NEW_SCAN_MODE } from './ScreensManager'
+import { DEFAULT_BUDGET } from '../../components/chart/engine/ast/budget'
+import ScreensManager, { SPY_WINDOW, SPY_WINDOW_BARS, NEW_SCAN_MODE } from './ScreensManager'
 
 beforeEach(() => {
   SheetSpy.mockClear(); refresh.mockClear()
@@ -157,12 +158,22 @@ describe('the concierge gets a bars window — the screener has no chart to take
     await waitFor(() => expect(sheetProps().bars).toEqual(bars))
   })
 
-  it('a refused bars read hands down null, and the door still opens', async () => {
+  // ⚰️ THIS CASE ONCE CARRIED A FALSE REASON (review round 1): that `[]` would
+  // reach the concierge as "computed and found nothing". It cannot —
+  // `ConciergeBox` sends `bars || []` and the server gates on `if bars`, so `[]`
+  // and `None` are the same thing there. What it really proves is this module's
+  // own contract: a failed read hands down NOTHING (falsy), so no fabricated
+  // empty window is put in front of the sheet or into SWR's cache — and the door
+  // still opens, which is the part a member would notice.
+  it('a refused bars read hands down no window at all, and the door still opens', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) })))
     mount(); openMenu()
     fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
     expect(await screen.findByTestId('builder-sheet-mock')).toBeInTheDocument()
-    await waitFor(() => expect(sheetProps().bars).toBeNull())
+    await waitFor(() => expect(sheetProps().bars).toBeFalsy())
+    // ⛔ AND SPECIFICALLY NOT `[]` — an empty array is TRUTHY, so this second
+    // assertion is what a fetcher returning `[]` would fail.
+    expect(Array.isArray(sheetProps().bars)).toBe(false)
   })
 })
 
@@ -203,22 +214,43 @@ describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
    *  also the product claim worth having: a mode you can enter and have no tab
    *  for, or a tab for a mode nothing enters, is a dead door either way. */
   function sheetModeSets() {
-    const set = new Set()
-    const cmp = new Set()
-    walk(parse(read('app/src/components/chart/builder/BuilderSheet.jsx')), (n) => {
-      if (n.type === 'CallExpression' && n.callee && n.callee.type === 'Identifier'
-          && n.callee.name === 'setBuildMode'
-          && n.arguments.length === 1 && n.arguments[0].type === 'Literal'
-          && typeof n.arguments[0].value === 'string') {
-        set.add(n.arguments[0].value)
-      }
-      if (n.type === 'BinaryExpression' && n.operator === '==='
-          && n.left.type === 'Identifier' && n.left.name === 'buildMode'
-          && n.right.type === 'Literal' && typeof n.right.value === 'string') {
-        cmp.add(n.right.value)
+    const tree = parse(read('app/src/components/chart/builder/BuilderSheet.jsx'))
+    // ⛔ NAMED CONSTANTS ARE RESOLVED, NOT IGNORED (review round 1). The sheet's
+    // edit rule moved behind `EDIT_MODE`, and a walk that only recognised string
+    // LITERALS would have quietly stopped seeing a real writer — the rail would
+    // still have passed, on a smaller set, which is the failure mode this whole
+    // describe exists to make impossible.
+    const consts = new Map()
+    walk(tree, (n) => {
+      if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier'
+          && n.init && n.init.type === 'Literal' && typeof n.init.value === 'string') {
+        consts.set(n.id.name, n.init.value)
       }
     })
-    return { set, cmp }
+    const str = (node) => {
+      if (!node) return null
+      if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+      if (node.type === 'Identifier' && consts.has(node.name)) return consts.get(node.name)
+      return null
+    }
+    const set = new Set()
+    const cmp = new Set()
+    walk(tree, (n) => {
+      if (n.type === 'CallExpression' && n.callee && n.callee.type === 'Identifier'
+          && n.callee.name === 'setBuildMode' && n.arguments.length === 1) {
+        const v = str(n.arguments[0])
+        if (v !== null) set.add(v)
+      }
+      if (n.type === 'BinaryExpression' && n.operator === '==='
+          && n.left.type === 'Identifier' && n.left.name === 'buildMode') {
+        const v = str(n.right)
+        if (v !== null) cmp.add(v)
+      }
+    })
+    // Every `*_MODE` the sheet declares — the rule constants the seed, the reset
+    // and `openForEdit` read instead of retyping a mode name.
+    const declared = new Map([...consts].filter(([k]) => /_MODE$/.test(k)))
+    return { set, cmp, declared }
   }
   const sheetModes = () => sheetModeSets().set
 
@@ -236,11 +268,49 @@ describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
     expect([...set].sort()).toEqual([...cmp].sort())
   })
 
+  it('⭐ and every `*_MODE` rule constant the sheet declares is one of them', () => {
+    // The sheet decides the opening door through named constants now, and a
+    // constant naming a mode with no tab is a door that opens onto nothing —
+    // invisible to the two set walks above, because nothing would ever have
+    // rendered it.
+    const { cmp, declared } = sheetModeSets()
+    expect(declared.size, 'no `*_MODE` constants found — this rail would pass on anything')
+      .toBeGreaterThanOrEqual(2)
+    expect([...declared].filter(([, v]) => !cmp.has(v))).toEqual([])
+  })
+
   it('NEW_SCAN_MODE is one of them', () => {
     expect([...sheetModes()]).toContain(NEW_SCAN_MODE)
   })
 
   it('and the rail is discriminating — a mode the sheet has no tab for is caught', () => {
     expect(sheetModes().has('conditions')).toBe(false)
+  })
+})
+
+// ─── ⭐ THE WINDOW IS THE BUDGET'S CEILING, NOT A NUMBER THIS FILE CHOSE ─────
+//
+// ⛔ A DOOR-DEPENDENT REFUSAL IS THE DEFECT THIS PINS SHUT. The concierge's
+// compute stage only fires `if bars`, and a tree with lookback L produces its
+// first value at bar L — so a window under `maxLookback + 1` makes THIS door
+// refuse `compute:empty` on a formula the budget permits and the chart's door
+// would accept. The window must therefore move when the ceiling moves, and
+// nothing but this pin can notice that it has not.
+//
+// ⚰️ The number was `400`, described in-file as "the budget's own `_MIN_BARS`
+// floor". `_MIN_BARS` is `scan_evaluator.py`'s — the SWEEP's base window — and
+// the budget's ceiling is 960, so the door was 560 bars short under a comment
+// naming the wrong module.
+describe('⭐ the concierge window is DERIVED from the budget', () => {
+  const barsParam = () => Number(new URL(SPY_WINDOW, 'https://x').searchParams.get('bars'))
+
+  it('the URL actually carries a bar count (not vacuous)', () => {
+    expect(Number.isInteger(barsParam())).toBe(true)
+    expect(barsParam()).toBe(SPY_WINDOW_BARS)
+  })
+
+  it('is at least the deepest warmup the budget PERMITS, plus the bar that yields a value', () => {
+    expect(DEFAULT_BUDGET.maxLookback).toBeGreaterThan(0)
+    expect(barsParam()).toBeGreaterThanOrEqual(DEFAULT_BUDGET.maxLookback + 1)
   })
 })

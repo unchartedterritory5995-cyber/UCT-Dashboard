@@ -221,14 +221,25 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     await user.click(await screen.findByRole('button', { name: `Edit ${SCREEN_NAME}` }))
 
     await screen.findByRole('dialog', {}, { timeout: 8000 })
-    // ⛔ THE SHEET'S OWN RULE WINS: `openForEdit` moves it to the Formula, and
-    // the screener does not override that with `NEW_SCAN_MODE`.
-    await waitFor(() => expect(screen.getByRole('tab', { name: /formula/i }))
-      .toHaveAttribute('aria-selected', 'true'))
+    // ⛔ THE SHEET'S OWN RULE WINS: an edit opens on the FORMULA, and the
+    // screener does not override that with `NEW_SCAN_MODE`.
+    //
+    // ⛔⛔ READ AT THE FIRST PAINT — NO `waitFor` (review round 1). This case
+    // used to retry until the tab settled, and retrying is exactly what makes a
+    // FRAME-FLASH invisible: with the mode decided only by `openForEdit` (a
+    // passive effect) this read is `false` and the settled read is `true`, so a
+    // member opening their own saved formula was shown the firm's starter
+    // gallery first. That is the same defect this file caught on the New-scan
+    // door, one layer down, hidden by the assertion's own patience.
+    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
     // The row's OWN source is what came back — `compute.source`, not a tree
     // re-printed into text.
-    expect(screen.getByDisplayValue(SCAN_SOURCE)).toBeInTheDocument()
+    expect(await screen.findByDisplayValue(SCAN_SOURCE)).toBeInTheDocument()
+    // …and it is STILL on the Formula once every effect has run. First paint and
+    // settled state are different questions; both are asked, on both doors.
+    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
     // And an edit writes nothing until the member says so.
     expect(writes()).toHaveLength(0)
   }, 30000)

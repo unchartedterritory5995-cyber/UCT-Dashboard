@@ -7,6 +7,7 @@ import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { scannableScreens, SCAN_TF, defaultSession } from '../../components/screener/scanSession'
 import ScanResults from '../../components/screener/ScanResults'
 import RunNowButton from '../../components/screener/RunNowButton'
+import { DEFAULT_BUDGET } from '../../components/chart/engine/ast/budget'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 
@@ -32,18 +33,49 @@ export const NEW_SCAN_MODE = 'picker'
 /** The bars the concierge computes a proposal against.
  *
  *  The chart hands `BuilderSheet` the window the member is looking at; the
- *  screener has no chart, so it hands the benchmark's last 400 daily bars.
+ *  screener has no chart, so it hands the benchmark's daily bars instead.
  *  ⭐ THIS IS NOT DECORATION: `definition_concierge._validate` runs its compute
  *  stage only `if bars`, so a door that handed none could never fire "the
  *  assistant's formula produces no value on the bars in view" — a proposal that
  *  computes nothing would arrive unrefused. A window makes that gate live here.
- *  400 is what the budget's own `_MIN_BARS` floor asks for. */
-export const SPY_WINDOW = '/api/bars/SPY?tf=D&bars=400'
+ *
+ *  ⛔ AND THE SIZE IS THE BUDGET'S OWN CEILING, NOT A NUMBER CHOSEN HERE.
+ *  `DEFAULT_BUDGET.maxLookback` is the deepest warmup any tree the budget
+ *  PERMITS can ask for, and a tree with lookback L produces its first value at
+ *  bar L — so `maxLookback + 1` is the tightest window in which every permitted
+ *  tree yields the one non-null value `_validate` looks for. Anything smaller
+ *  makes this door refuse `compute:empty` on proposals the budget allows, which
+ *  is a DOOR-DEPENDENT refusal: the same formula would be accepted from the
+ *  chart. `ScreensManager.door.test.jsx` pins the two together, so the window
+ *  moves when the ceiling does.
+ *
+ *  ⚰️ THIS SAID "400 is what the budget's own `_MIN_BARS` floor asks for" and
+ *  every clause of that was wrong (review round 1). `_MIN_BARS = 400` is
+ *  `scan_evaluator.py`'s — the SWEEP's base window, which the sweep then widens
+ *  per tree (`want = min(_MAX_BARS, max(_MIN_BARS, lookback + _MIN_BARS))`). The
+ *  budget's lookback ceiling is 960. So the number was a second authority
+ *  wearing another module's name, and it was 560 bars short.
+ *
+ *  ⛔ NO, IT SHOULD NOT TRACK THE SWEEP'S WIDENING, and it cannot: the sweep
+ *  widens per TREE, and this window is fetched when the sheet OPENS — before
+ *  there is a tree to measure. A fixed window big enough for any permitted tree
+ *  is the only shape available, and the budget's ceiling is that number. */
+export const SPY_WINDOW_BARS = DEFAULT_BUDGET.maxLookback + 1
+export const SPY_WINDOW = `/api/bars/SPY?tf=D&bars=${SPY_WINDOW_BARS}`
 
-/** ⛔ ERROR ≠ EMPTY, one door down: a refused bars read answers `null`, never
- *  `[]`. An empty ARRAY is a window with no bars in it, which the concierge
- *  would read as computed-and-found-nothing; `null` is "we have no window",
- *  which is what a 503 actually means. */
+/** A refused bars read answers `null`, never `[]` — the fetcher's contract is
+ *  "the window, or none", and `null` is what a 503 actually means.
+ *
+ *  ⚰️ AND THE REASON THIS ORIGINALLY GAVE WAS FICTION (review round 1). It
+ *  claimed `[]` would reach the concierge as "computed and found nothing".
+ *  Measured: `ConciergeBox.jsx` sends `bars: bars || []` and
+ *  `definition_concierge._validate` gates on `if bars`, so `[]` and `None` are
+ *  INDISTINGUISHABLE by the time they get there. The behaviour is still the one
+ *  worth having — a failed read must not put a fabricated empty window in SWR's
+ *  cache, where `data === null` (read finished, no window) and `data === []`
+ *  (read finished, market has no bars) are different facts to anyone who later
+ *  branches on it — but it protects THIS module's contract, not the server's
+ *  gate, and saying otherwise put a false instruction in the file. */
 const barsFetcher = (url) => fetch(url, { credentials: 'include' })
   .then((r) => (r.ok ? r.json() : null))
   .then((b) => (b && Array.isArray(b.bars) ? b.bars : null))

@@ -423,14 +423,19 @@ export default function RunNowButton({ defId, name, session, onResult, onClear =
               ⛔ RENDERED ONLY WHEN A PARENT CAN ACTUALLY TAKE IT BACK. A
               button that cleared this caption without clearing the payload
               would be the same lie with the labels swapped. */}
+          {/* ⛔ NO `aria-label` — THE VISIBLE TEXT *IS* THE NAME (review round 1,
+              WCAG 2.5.3 label-in-name). It carried `aria-label="Back to the
+              nightly results"` over the words "Back to nightly", so a member
+              using voice control said what they could read and nothing
+              happened. The label was the honest sentence and the visible text
+              was the abbreviation, so the abbreviation is what went. */}
           {onClear && (
             <button
               type="button"
               className={styles.restore}
-              aria-label="Back to the nightly results"
               onClick={() => { setDone(null); onClear() }}
             >
-              Back to nightly
+              Back to the nightly results
             </button>
           )}
         </p>

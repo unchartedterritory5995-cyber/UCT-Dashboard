@@ -573,6 +573,25 @@ describe('the way back out of an on-demand answer', () => {
     expect(screen.queryByRole('button', { name: RESTORE })).toBeNull()
   })
 
+  // ⭐ WCAG 2.5.3 LABEL-IN-NAME (review round 1). This button carried
+  // `aria-label="Back to the nightly results"` over the visible words "Back to
+  // nightly", so a member using voice control said what they could read and
+  // nothing happened. Asserted as a PROPERTY of the rendered node — the
+  // accessible name must contain the visible text — rather than by re-typing
+  // either string, because a test that spelled both would go green on any pair.
+  it('⭐ its accessible name CONTAINS its visible text', async () => {
+    render(<RunNowButton defId="u_0000000000aa" name="Above the 50" session="2026-08-21"
+      onResult={vi.fn()} onClear={vi.fn()} />)
+    await runToDone()
+    const [btn] = screen.getAllByRole('button')
+      .filter((b) => /nightly/i.test(b.textContent || ''))
+    expect(btn, 'no restore control on screen — this rail would pass on nothing').toBeTruthy()
+    const visible = (btn.textContent || '').trim().toLowerCase()
+    const accessible = (btn.getAttribute('aria-label') || btn.textContent || '').trim().toLowerCase()
+    expect(visible.length).toBeGreaterThan(0)
+    expect(accessible).toContain(visible)
+  })
+
   it('and a SECOND run re-offers it — the caption and its retraction move together', async () => {
     const onClear = vi.fn()
     render(<RunNowButton defId="u_0000000000aa" name="Above the 50" session="2026-08-21"
