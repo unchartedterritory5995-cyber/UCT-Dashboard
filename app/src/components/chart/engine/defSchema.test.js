@@ -1124,6 +1124,12 @@ describe('schema v2 — many trees, one hash', () => {
       const d = macdV2(); d.plots[3].fill = { with: 'macd' }
       expect(errs(d).join(' ')).toMatch(/plots\[3\]\.fill: an "hlines" plot returns no column/)
     })
+    it('hidden ON a guide is refused — an "hlines" plot computes nothing, so there is nothing to hide', () => {
+      // Keeps `hidden ⇒ data-bearing` true by construction, so the binder's
+      // pass-one skip (W1b.6) never needs a guide special case.
+      const d = macdV2(); d.plots[3].hidden = true
+      expect(errs(d).join(' ')).toMatch(/plots\[3\]\.hidden: an "hlines" plot is a guide/)
+    })
     it('fill must be {with: "<plotKey>"} — a bare string or an empty object is refused by shape', () => {
       const str = macdV2(); str.plots[0].fill = 'signal'
       expect(errs(str).join(' ')).toMatch(/plots\[0\]\.fill: expected \{with: "<plotKey>"\}/)

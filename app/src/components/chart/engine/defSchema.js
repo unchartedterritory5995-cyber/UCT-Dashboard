@@ -110,9 +110,9 @@ import { UNBOUNDED as FORWARD_UNBOUNDED } from './ast/lint'
 // COSTS THE PURITY CLAIM NOTHING EITHER: `assertTrees` and `treesHash` are pure
 // functions of a map of trees. Imported rather than re-derived because
 // `treesHash` is an IDENTITY the Python lane must reproduce byte for byte
-// (`user_definitions.trees_hash`, held to one pinned fixture string); a second
-// spelling of it here would be a second hash over one document — the defect
-// this repo names most.
+// (W1b.8's `user_definitions.trees_hash`, to be held to W1b.7's pinned fixture
+// string); a second spelling of it here would be a second hash over one
+// document — the defect this repo names most.
 import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 
 /** Schema major. A definition MUST declare exactly this to register. */
@@ -1488,6 +1488,15 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   if (plot.hidden !== undefined && typeof plot.hidden !== 'boolean') {
     errors.push(
       `${path}.hidden: expected true or false (a hidden plot is COMPUTED and never drawn), got ${fmt(plot.hidden)}`,
+    )
+  }
+  // And never on a guide: an `hlines` plot returns no column, so there is
+  // nothing to compute and nothing to hide. Keeping `hidden ⇒ data-bearing`
+  // true by construction is what lets the binder's pass-one skip be one line.
+  if (plot.hidden !== undefined && styleOk && plot.style === 'hlines') {
+    errors.push(
+      `${path}.hidden: an "hlines" plot is a guide — it returns no column, so there is nothing to ` +
+      `compute and nothing to hide; drop the plot instead of hiding it`,
     )
   }
 }
