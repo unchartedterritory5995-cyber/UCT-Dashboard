@@ -9,7 +9,7 @@
  * Lists live in the widget opts (persisted with the workspace layout). Styling rides the
  * same --nh-* / --menu-* tokens + UIcon glyphs as the rest of the widget (no emoji).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './VolumeScanWidget.module.css'
 
@@ -141,67 +141,37 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
   )
 }
 
-// ── Predictive add-ticker bar (bottom) ─────────────────────────────────────────
+// ── Add-ticker bar (bottom) ────────────────────────────────────────────────────
+// NO predictive dropdown by design: a suggestion menu that lags behind fast typing
+// used to submit the wrong ticker on Enter (type "IWM" quickly → "IAC" went in). This
+// takes EXACTLY what you typed and adds it verbatim on Enter — type as fast as you like.
 export function AddTickerBar({ list, helpers }) {
   const [q, setQ] = useState('')
-  const [results, setResults] = useState([])
-  const [hi, setHi] = useState(0)
-  const timer = useRef(null)
-  const wrapRef = useRef(null)
 
-  useEffect(() => {
-    if (!q.trim()) { setResults([]); return }
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(q.trim())}&limit=7`, { credentials: 'include' })
-        const d = r.ok ? await r.json() : null
-        setResults((d?.results || []).slice(0, 7)); setHi(0)
-      } catch { setResults([]) }
-    }, 140)
-    return () => timer.current && clearTimeout(timer.current)
-  }, [q])
-
-  useEffect(() => {
-    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setResults([]) }
-    document.addEventListener('mousedown', onDown, true)
-    return () => document.removeEventListener('mousedown', onDown, true)
-  }, [])
-
-  const add = (tk) => {
-    const s = (tk || q).trim().toUpperCase()
+  const add = () => {
+    const s = q.trim().toUpperCase()
     if (!s) return
     helpers.addSym(list.id, s)
-    setQ(''); setResults([]); setHi(0)
+    setQ('')
   }
   const onKey = (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
-    else if (e.key === 'Enter') { e.preventDefault(); add(results[hi]?.ticker) }
-    else if (e.key === 'Escape') { setQ(''); setResults([]) }
+    if (e.key === 'Enter') { e.preventDefault(); add() }
+    else if (e.key === 'Escape') { setQ('') }
   }
 
   return (
-    <div className={styles.addBar} ref={wrapRef}>
-      {results.length > 0 && (
-        <div className={styles.addSuggest}>
-          {results.map((r, i) => (
-            <button key={r.ticker} type="button"
-              className={`${styles.addSuggestItem} ${i === hi ? styles.addSuggestHi : ''}`}
-              onMouseEnter={() => setHi(i)} onMouseDown={(e) => { e.preventDefault(); add(r.ticker) }}>
-              <span className={styles.addSuggestSym}>{r.ticker}</span>
-              {r.name && <span className={styles.addSuggestName}>{r.name}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-      <UIcon name="search" size={12} gold={false} />
+    <div className={styles.addBar}>
+      <UIcon name="plus" size={12} gold={false} />
       <input
         className={styles.addInput}
         value={q}
         placeholder={`Add ticker to ${list.name}…`}
         onChange={e => setQ(e.target.value)}
         onKeyDown={onKey}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="characters"
+        spellCheck={false}
         aria-label="Add a ticker to this list"
       />
       <span className={styles.addCount}>{list.syms.length} name{list.syms.length === 1 ? '' : 's'}</span>
