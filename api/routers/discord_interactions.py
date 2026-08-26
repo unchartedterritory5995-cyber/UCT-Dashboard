@@ -176,6 +176,19 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                 req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
+        if kind == "chart" and itype == 3 and di.is_save_pick(interaction):
+            # "Save this chart's settings as my defaults" - writes the member's
+            # /chartsettings from the message's state; no re-render.
+            if not uid:
+                return _ephemeral("Could not tell who you are; try again from a server channel.")
+            try:
+                saved = prefs_mod.set_prefs(uid, **di.prefs_from_request(req))
+            except ValueError as e:
+                return _ephemeral(f"Not saved: {e}")
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] save-defaults failed for %s: %s", uid, e)
+                return _ephemeral("Settings are unavailable right now, try again in a minute.")
+            return _ephemeral("Saved as your defaults: " + prefs_mod.describe(saved))
         if kind == "activity":
             # "Open in Discord": remember what this channel is looking at, then let
             # Discord open the Activity (LAUNCH_ACTIVITY carries no parameters).

@@ -1571,3 +1571,80 @@ def test_every_custom_id_in_a_message_is_unique():
         for i in ids:                                    # and every one still parses to its chart
             values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
             assert di.parse_component({"data": {"custom_id": i, "values": values}}).ticker == req.ticker
+
+
+# ── a rejected control tree never costs the chart ──
+
+def test_edit_original_retries_without_components_when_discord_rejects_them_and_tells_the_member():
+    from api.services.discord_interactions import edit_original
+    seen = []
+    class R:
+        def __init__(self, ok, code=200, text=""):
+            self.is_success = ok; self.status_code = code; self.text = text
+    class C:
+        def patch(self, url, **kw):
+            seen.append(("patch", kw)); payload = json.loads(kw["data"]["payload_json"]) if "data" in kw else kw["json"]
+            return R(False, 400, '{"code": 50035, "errors": {"components": {}}}') if payload.get("components") else R(True)
+        def post(self, url, **kw):
+            seen.append(("post", kw)); return R(True)
+    comps = [{"type": 1, "components": [{"type": 2, "style": 1, "label": "D", "custom_id": "x"}]}]
+    assert edit_original("1", "t", content="X · Daily", png=b"PNG", filename="x.png", components=comps, client=C())
+    kinds = [k for k, _ in seen]
+    assert kinds == ["patch", "patch", "post"]                                  # rejected → retried bare → member told
+    assert json.loads(seen[1][1]["data"]["payload_json"])["components"] == []
+    assert "files[0]" in seen[1][1]["files"]                                    # the image still ships
+    assert seen[2][1]["json"]["flags"] == 64 and "re-run /chart" in seen[2][1]["json"]["content"]
+    # a 5xx is not a control-tree verdict: no retry, no message
+    seen.clear()
+    class C5:
+        def patch(self, url, **kw):
+            seen.append("patch"); return R(False, 502, "bad gateway")
+        def post(self, url, **kw):
+            seen.append("post"); return R(True)
+    assert not edit_original("1", "t", content="X", components=comps, client=C5())
+    assert seen == ["patch"]
+
+
+# ── "Save this chart's settings as my defaults" ──
+
+def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch):
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("a save must not render"))
+    rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi", style="line", theme="oled"),
+                               dict(p.DEFAULTS))
+    look = rows[3]["components"][0]
+    assert look["options"][0]["value"] == di.SAVE_VALUE and not look["options"][0].get("default")
+    click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4242"}},
+             "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
+    r = _post(client, sk, click).json()
+    assert r["type"] == 4 and r["data"]["flags"] == 64 and r["data"]["content"].startswith("Saved as your defaults")
+    saved = p.get_prefs("4242")
+    assert (saved["tf"], saved["mas"], saved["volume"], saved["zoom"], saved["indicators"], saved["style"], saved["theme"]) == \
+        ("W", "off", False, "1y", "rsi", "line", "oled")
+    assert saved["stats"] is True and saved["ext"] is False                    # untouched keys keep their values
+    assert di.parse_component({"data": {"custom_id": look["custom_id"], "values": ["save"]}}).ticker == "NVDA"
+    p.reset_prefs("4242")
+
+
+def test_renderer_warm_on_boot_renders_spy_once_when_the_house_path_is_on(monkeypatch):
+    import api.main as m
+    from api.services import discord_chart_house as house
+    calls = []
+    monkeypatch.setattr(house, "house_enabled", lambda: True)
+    monkeypatch.setattr(house, "render_house_chart", lambda sym, tf, stats, options=None, **k: calls.append((sym, tf)) or b"PNG")
+    m._start_chart_renderer_warm_background(delay_seconds=0)
+    import time
+    for _ in range(50):
+        if calls:
+            break
+        time.sleep(0.05)
+    assert calls == [("SPY", "D")]
+    calls.clear()
+    monkeypatch.setattr(house, "house_enabled", lambda: False)
+    m._start_chart_renderer_warm_background(delay_seconds=0)
+    time.sleep(0.3)
+    assert calls == []                                                          # inert without the renderer

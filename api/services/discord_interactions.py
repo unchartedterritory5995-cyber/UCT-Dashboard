@@ -196,6 +196,7 @@ def public_site_url() -> str:
 
 
 STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
+SAVE_VALUE = "save"              # the Look dropdown's "save these as my defaults" pick
 SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Calendar days one "Earlier"/"Later" step moves the window, per zoom.
@@ -288,6 +289,8 @@ def parse_component(interaction: dict) -> ChartRequest:
             if value not in prefs_mod.INDICATOR_CHOICES:
                 raise CommandError("Unknown indicator set.")
             return dataclasses.replace(req, indicators=value)
+        if value == SAVE_VALUE:
+            return req                                             # the router saves this state
         kind, _, choice = value.partition(":")
         if kind == "style" and choice in prefs_mod.STYLE_CHOICES:
             return dataclasses.replace(req, style=choice)
@@ -295,6 +298,24 @@ def parse_component(interaction: dict) -> ChartRequest:
             return dataclasses.replace(req, theme=choice)
         raise CommandError("Unknown look.")
     raise CommandError("Unknown button.")
+
+
+def is_save_pick(interaction: dict) -> bool:
+    """True when a Look dropdown pick is "save these as my defaults"."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
+    values = data.get("values") or []
+    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == SAVE_VALUE
+
+
+def prefs_from_request(req: ChartRequest) -> dict:
+    """The member-settable prefs a chart's state carries (what "save" writes)."""
+    out = {"tf": req.tf}
+    for key in ("mas", "volume", "zoom", "indicators", "style", "theme"):
+        v = getattr(req, key)
+        if v is not None:
+            out[key] = v
+    return out
 
 
 def pan_to(current_to: str | None, tf: str, zoom: str, direction: int, today: str | None = None) -> str | None:
@@ -326,7 +347,9 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
                "options": [{"label": f"Indicators: {label}", "value": v, "default": v == st["ind"]}
                            for v, label in prefs_mod.INDICATOR_CHOICES.items()]}
     look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
-                "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
+                "options": ([{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
+                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"}] +
+                            [{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
                              for v, label in prefs_mod.STYLE_CHOICES.items()] +
                             # ONE default per single-select (Discord: COMPONENT_TOO_MANY_DEFAULT_VALUES) -
                             # the style carries it; the theme is read off the image.
@@ -532,15 +555,27 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
         own = client is None
         c = client or httpx.Client(timeout=15.0)
         try:
-            payload: dict = {"content": content}
-            if components is not None:
-                payload["components"] = components
-            if png is not None:
-                payload["attachments"] = [{"id": 0, "filename": filename}]
-                r = c.patch(url, data={"payload_json": json.dumps(payload)},
-                            files={"files[0]": (filename, png, "image/png")})
-            else:
-                r = c.patch(url, json=payload)
+            def _send(comps):
+                payload: dict = {"content": content}
+                if comps is not None:
+                    payload["components"] = comps
+                if png is not None:
+                    payload["attachments"] = [{"id": 0, "filename": filename}]
+                    return c.patch(url, data={"payload_json": json.dumps(payload)},
+                                   files={"files[0]": (filename, png, "image/png")})
+                return c.patch(url, json=payload)
+            r = _send(components)
+            if not r.is_success and components is not None and 400 <= r.status_code < 500:
+                # Discord validates the whole control tree and refuses the edit as a
+                # unit; the member would sit on "thinking..." forever. The chart is
+                # the product - post it without the rows and say so.
+                log.warning("[discord-chart] edit_original HTTP %s with components: %s - retrying without them",
+                            r.status_code, r.text[:300])
+                r = _send([])
+                if r.is_success:
+                    c.post(url.rsplit("/messages/", 1)[0],
+                           json={"content": "Chart controls are unavailable on this one - re-run /chart to get them back.",
+                                 "flags": EPHEMERAL})
         finally:
             if own:
                 c.close()

@@ -689,6 +689,30 @@ def _warm_hot_tier_now() -> None:
         pass
 
 
+def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
+    """Render one house chart shortly after boot so the FIRST Discord /chart
+    after a deploy is not the cold one. Measured 2026-08-25: the first render
+    after every deploy took 20-40 s (Chromium launch + a cold bars pull) and
+    twice came back blank on attempt 1; every later render 2-3 s. Best-effort,
+    off the request path, inert without CHART_RENDERER_URL."""
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+        try:
+            from api.services import discord_chart_house as house
+            if not house.house_enabled():
+                return
+            png = house.render_house_chart("SPY", "D", None)
+            log.info("[chart-renderer-warm] SPY D %s", f"{len(png)} bytes" if png else "no image")
+        except Exception:
+            log.exception("[chart-renderer-warm] failed")
+
+    threading.Thread(target=_delayed, daemon=True, name="chart-renderer-warmer").start()
+
+
 def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
     """Spawn a daemon thread that warms the hot tier after `delay_seconds`."""
     import threading
@@ -2442,6 +2466,7 @@ async def lifespan(app: FastAPI):
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
+        _start_chart_renderer_warm_background()
         _start_calendar_enrichment_warm_background()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
