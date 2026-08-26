@@ -38,3 +38,60 @@ export const BUILDER_INPUTS = Object.freeze([
 export const BUILDER_INPUT_SCOPE = Object.freeze(
   declaredInputs({ inputs: BUILDER_INPUTS }),
 )
+
+// ─── THE CHROME A MULTI-PLOT DOCUMENT DECLARES ──────────────────────────────
+//
+// ⛔ ONE DERIVATION, TWO READERS, AND THEY MUST NOT DISAGREE. `buildDefinition`
+// writes `plots[].color = '$<key>'` and the SAME function decides what that key
+// is named; the sheet builds its member-input RESERVED set from it, so a member
+// cannot declare an input called `signalColor` beside a plot called `signal`.
+// A hand-typed `${row.key}Color` at either site is the second-authority defect
+// this repo names most often — the day the naming rule moves, one of the two
+// silently keeps the old spelling and the `$ref` resolves to nothing.
+
+/** Which two chrome inputs a plot row's colour and width resolve through.
+ *
+ *  ⭐ ROW 0 KEEPS `color`/`lineWidth`, and that is what makes a single-plot
+ *  document byte-identical to a schema-1 one. Later rows are named after their
+ *  plot — the `macd` native's own idiom (`macdColor`, `signalColor`).
+ *
+ *  ⚠️ It takes the ROW, not just its key, so the naming rule stays in one place
+ *  even if a later row ever needs more than the key to name its settings. */
+export function chromeInputKeys(row, index) {
+  const key = (row && typeof row.key === 'string') ? row.key : ''
+  if (index === 0) return { color: BUILDER_INPUTS[0].key, width: BUILDER_INPUTS[1].key }
+  return { color: `${key}Color`, width: `${key}Width` }
+}
+
+/** The chrome `inputs[]` for every plot row, in row order.
+ *
+ *  ⛔ THE ROW'S CHOSEN COLOUR AND WIDTH BECOME THE INPUT'S **DEFAULT**, INCLUDING
+ *  ROW 0's. `plots[].color` is `'$color'` — a REFERENCE — so the swatch on the
+ *  form has nowhere else to land: writing the literal into the plot would take
+ *  the value out of the settings dialog the member later tunes it in, and
+ *  writing it nowhere makes the swatch a control that does nothing. Row 0 was
+ *  the one that would have been dropped, because it is the only row whose two
+ *  inputs already existed.
+ *
+ *  ⛔ AND ROW 0's LABELS ARE THE SHIPPED ONES, UNTOUCHED (`Color` / `Line
+ *  width`). They are what the generated settings row says; renaming them to
+ *  match the later rows' `"<plot> colour"` pattern would move a string every
+ *  saved definition already carries. */
+export function chromeInputsFor(rows) {
+  const list = (Array.isArray(rows) && rows.length) ? rows : [{ key: BUILDER_INPUTS[0].key }]
+  const out = []
+  list.forEach((row, i) => {
+    const keys = chromeInputKeys(row, i)
+    const color = (row && typeof row.color === 'string' && row.color) ? row.color : BUILDER_INPUTS[0].default
+    const width = (row && Number.isFinite(row.width)) ? row.width : BUILDER_INPUTS[1].default
+    if (i === 0) {
+      out.push({ ...BUILDER_INPUTS[0], default: color })
+      out.push({ ...BUILDER_INPUTS[1], default: width })
+      return
+    }
+    const label = (row && (row.label || row.key)) || keys.color
+    out.push({ key: keys.color, type: 'color', label: `${label} colour`, default: color })
+    out.push({ key: keys.width, type: 'int', label: `${label} width`, default: width, min: 1, max: 4, step: 1 })
+  })
+  return out
+}
