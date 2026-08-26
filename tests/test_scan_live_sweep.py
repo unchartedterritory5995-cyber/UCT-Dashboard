@@ -2192,12 +2192,27 @@ def test_the_KEEP_bound_STILL_MEANS_what_its_own_comment_says(store, monkeypatch
         f"KEEP={scan_store.LIVE_CYCLES_KEEP} holds only "
         f"{scan_store.LIVE_CYCLES_KEEP / session_ticks:.2f} sessions at a "
         f"{scan_evaluator.live_interval_s()} s cadence, not the 1.5 it claims")
-    # ⛔ AND THE FLOOR CADENCE IS THE HARD CASE: at 30 s a session is 780 ticks and
-    # the bound holds a fifth of one. That is a REAL limit of this table and it is
-    # stated here rather than discovered later -- but it is bounded by the same
-    # constant, not by an overnight flood, which is the difference this fix buys.
-    monkeypatch.setenv("SCAN_LIVE_INTERVAL_S", "30")
-    assert _ticks_per(scan_evaluator.REGULAR_SESSION_LENGTH.total_seconds()) == 780
+    # ⛔ AND THE FLOOR CADENCE IS THE HARD CASE, stated here rather than discovered
+    # later. Ask for a cadence below the floor and `live_interval_s` clamps it; at
+    # that clamped rate a session runs to many times `LIVE_CYCLES_KEEP`, so the
+    # table holds only a FRACTION of one session. That is a real limit — but it is
+    # bounded by this constant rather than by an overnight flood, which is the
+    # difference the collapse buys, and it is the reason SCAN_LIVE_INTERVAL_S must
+    # never be lowered without raising the keep bound.
+    #
+    # ⛔ NOTHING HERE TYPES THE FLOOR OR THE TICK COUNT. An earlier draft asserted a
+    # literal 780, which is the retyped-constant defect in a test written to catch
+    # exactly that: both are read back from the module under test.
+    monkeypatch.setenv("SCAN_LIVE_INTERVAL_S", "1")          # below the floor
+    floor_ticks = _ticks_per(scan_evaluator.REGULAR_SESSION_LENGTH.total_seconds())
+    assert floor_ticks > session_ticks, (
+        "the floor cadence no longer yields more ticks per session than the "
+        "default one, so the paragraph above no longer describes anything")
+    held = scan_store.LIVE_CYCLES_KEEP / floor_ticks
+    assert held < 0.5, (
+        f"at the {scan_evaluator.live_interval_s()} s floor this table holds "
+        f"{held:.2f} of one session ({floor_ticks} ticks) -- if that is now "
+        "comfortable, LIVE_CYCLES_KEEP moved and this warning should be re-read")
 
 
 def test_the_COLLAPSING_reasons_are_a_SUBSET_of_the_words_a_cycle_can_actually_EMIT():
