@@ -1464,12 +1464,29 @@ export function detectDialect(source) {
  *  name resolves to `native` rather than throwing: a bad argument must not take
  *  a text box or a schema validator down. */
 export const READERS = Object.freeze({
-  // ⭐ W1b — the `let` PRE-PASS RUNS HERE, INSIDE THE ONE READ DOOR, so the text
+  // ⭐ W1b — the `let` PRE-PASS RUNS HERE, INSIDE THE READ DOOR, so the text
   // box, `defSchema`'s rule 2 and every save gate see the same inlined source.
   // A pre-pass applied at any one call site would let a `let` formula validate
   // in the builder and fail in the schema — a second authority over what a
   // source means. The refusal comes back in `parseFormula`'s tagged shape so
   // every existing caller reads it unchanged.
+  //
+  // ⚠️ "THE ONE READ DOOR" IS THE IDIOM, NOT A CENSUS. Three call sites reach
+  // `parseFormula` directly and therefore see NO pre-pass — measured 2026-08-26,
+  // and all three are correct as they are, so do not learn the wrong lesson from
+  // this comment and route them here: `criteria.js::fromSource` (no production
+  // importer — `CriteriaPicker` takes `vocabulary/fromAst/toSource/
+  // canonicalPicker`), `StarterLibrary.jsx` (OUR authored specs, not member
+  // text), and `pine.js::verifyRoundTrip` (reads back the translator's own
+  // printed output — a `let` there would mean the PRINTER emitted one).
+  // ⛔ A NEW SITE THAT READS **MEMBER** TEXT BELONGS HERE, not beside those.
+  //
+  // ⛔⛔ AND THIS DOOR PASSES NO INPUT SCOPE, SO IT CANNOT REFUSE `let:shadow`
+  // OVER A DECLARED INPUT. That is not a missing warning, it is a storable
+  // defect: a document declaring an input `period` and saying `let period = 5`
+  // parses here, satisfies `defSchema` rule 2, and SAVES WITH ITS KNOB INERT —
+  // the pre-pass rewrote every `period` away. The gate is the SAVE path handing
+  // `declaredInputs(def)` to `prepareSource` (W1b.5), never this default.
   native: (source) => {
     const pre = prepareSource(source)
     if (!pre.ok) return { ok: false, error: pre.error, guard: pre.guard }
