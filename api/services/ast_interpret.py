@@ -1363,18 +1363,22 @@ def interpret(ast: Any, bars: List[dict],
     # seeded only when it is used would let an input named ``hour`` shadow it on
     # every OTHER formula, silently.
     #
-    # ⛔ THE COST IS ~12% OF ONE ``interpret`` CALL AND IT IS **NOT FREE ON
-    # DAILY BARS**. Measured against this same module with the ``clock`` section
-    # removed (best-of-11 x 300, A/B/A/B/A/B): ``sma(close, 20)`` over 579
-    # five-minute bars 1.62 -> 1.85 ms, over 579 ``YYYYMMDD`` daily bars
-    # 1.37 -> 1.49 ms. ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT
-    # THE **SEEDING**: ``compute_clock`` still allocates thirteen ``[None] * n``
-    # columns and the loop below still maps over all thirteen, whichever branch
-    # the gate takes. An earlier note here read the daily case as FREE on the
-    # strength of a -0.07 ms delta -- noise standing in for a measurement, and a
-    # negative delta for purely ADDED work is the tell. The trade still holds,
-    # in the units that decide it: 3,700 symbols x ~0.15 ms is well under a
-    # second per nightly sweep.
+    # ⛔ THE COST IS TENS OF PERCENT OF ONE ``interpret`` CALL, ON **BOTH** BAR
+    # KINDS -- daily is NOT free. ⚠⚠ IT IS A RANGE AND IT IS WRITTEN AS ONE ON
+    # PURPOSE: four careful A/B runs against this same module with the ``clock``
+    # section removed read 9-38%, with per-configuration min..max spreads of
+    # 1.8-7.0 ms on consecutive runs. This box is noisy. A single figure here
+    # would invite the next engineer to read a 2x drift as a regression, so the
+    # ORDER is the claim and the direction is the finding.
+    #
+    # ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT THE **SEEDING**,
+    # which is why daily cannot be free: ``compute_clock`` allocates thirteen
+    # ``[None] * n`` columns BEFORE the gate and the loop below maps over all
+    # thirteen whichever branch it takes. An earlier note read the daily case as
+    # free on the strength of a -0.07 ms delta -- noise standing in for a
+    # measurement, and a NEGATIVE delta for purely ADDED work is the tell.
+    # The trade still holds in the units that decide it: even at the top of the
+    # range, 3,700 symbols is well under a second per nightly sweep.
     clock_cols = compute_clock(bars, (opts or {}).get("tf"))
     for name in TABLE.get(CLOCK_SECTION) or {}:
         col = clock_cols.get(name)

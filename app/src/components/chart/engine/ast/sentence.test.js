@@ -1868,6 +1868,69 @@ describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK —
   })
 })
 
+describe('yieldsOf reads EVERY vocabulary that rides the series node', () => {
+  // ⛔ THIS RAIL EXISTS BECAUSE THE ARM SHIPPED WITHOUT ONE. `yieldsOf`'s
+  // `series` case gained a `clock` lookup with closed table v2, and deleting it
+  // left the ENTIRE engine tree green — 2,793 passed either way.
+  // `lesson_built_tested_green_and_unreachable`, inside the commit that was
+  // itself fixing that defect class in four other branches.
+
+  it('⭐ a declared-bool clock leaf yields bool — and the arm that says so can be DELETED', () => {
+    const declared = Object.entries(TABLE.clock)
+    expect(declared.length).toBeGreaterThan(0)
+    const bools = declared.filter(([, spec]) => spec.yields === 'bool').map(([n]) => n)
+    const nums = declared.filter(([, spec]) => spec.yields !== 'bool').map(([n]) => n)
+    // ⚠️ BOTH HALVES MUST BE NON-EMPTY, or this passes on a section that
+    // declares one kind and the reader could be returning a constant.
+    expect(bools.length).toBeGreaterThan(0)
+    expect(nums.length).toBeGreaterThan(0)
+
+    for (const name of bools) {
+      expect(yieldsOf({ type: 'series', name }), `${name} is declared bool`).toBe('bool')
+    }
+    for (const name of nums) {
+      expect(yieldsOf({ type: 'series', name }), `${name} is a magnitude`).toBe('num')
+    }
+
+    // THE CONTROL: compile the SAME manifest without the clock section and the
+    // same declared-bool leaf falls to the `num` floor — which is exactly what
+    // deleting the arm produces, because the scalars map does not hold the name.
+    const without = compileRules({ ...TABLE, clock: {} })
+    for (const name of bools) {
+      expect(yieldsOf({ type: 'series', name }, without),
+        `${name} resolved bool off rules that do not declare it`).toBe('num')
+    }
+  })
+
+  it('⛔ and the clock is consulted BEFORE the scalars, so a shadowing name cannot flip the answer', () => {
+    // The order is `renderName`'s and `lint.js::astReach`'s. A name in both
+    // sections must answer with the CLOCK's declaration, or three readers
+    // disagree about one leaf depending on which map was walked second.
+    const shadowed = compileRules({
+      ...TABLE,
+      clock: { ...TABLE.clock, zzShadow: { lookback: 0, yields: 'bool', sentence: 'the planted clock value' } },
+      scalars: {
+        ...TABLE.scalars,
+        zzShadow: {
+          source: { store: 'zz', column: 'zzShadow' },
+          as_of: { column: 'zz_dated_by', grain: 'date' },
+          cadence: 'nightly', yields: 'num', sentence: 'the planted scalar',
+        },
+      },
+    })
+    expect(yieldsOf({ type: 'series', name: 'zzShadow' }, shadowed)).toBe('bool')
+  })
+
+  it('a scalar and a bar field still resolve exactly as they did', () => {
+    // ⚠️ THE REGRESSION HALF. Adding a vocabulary in front of the scalars must
+    // not change what a scalar or a price answers.
+    const boolScalar = Object.entries(TABLE.scalars).find(([, s2]) => s2.yields === 'bool')
+    expect(boolScalar, 'no bool scalar — the comparison would be vacuous').toBeTruthy()
+    expect(yieldsOf({ type: 'series', name: boolScalar[0] })).toBe('bool')
+    expect(yieldsOf({ type: 'series', name: 'close' })).toBe('num')
+  })
+})
+
 describe('the inversion rail — a sentence round-trips to the same maths', () => {
   it('the corpus is the subject, and its case LIST is the floor', () => {
     // ⚠️ `for (const c of CORPUS.cases)` asserts nothing over an empty corpus,

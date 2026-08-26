@@ -1103,17 +1103,21 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // name seeded only when it is used would let an input named `hour` shadow it
   // on every OTHER formula, silently.
   //
-  // ⛔ THE COST IS ~12% OF ONE `interpret` CALL AND IT IS **NOT FREE ON DAILY
-  // BARS**. Measured on the Python mirror against the same module with the
-  // `clock` section removed: `sma(close, 20)` over 579 five-minute bars
-  // 1.62 -> 1.85 ms, over 579 `YYYYMMDD` daily bars 1.37 -> 1.49 ms.
+  // ⛔ THE COST IS TENS OF PERCENT OF ONE `interpret` CALL, ON **BOTH** BAR
+  // KINDS -- daily is NOT free. ⚠⚠ A RANGE, DELIBERATELY: four careful A/B
+  // runs on the Python mirror (same module, `clock` section removed) read
+  // 9-38%, with per-configuration min..max spreads of 1.8-7.0 ms on
+  // consecutive runs. The box is noisy; a single figure would invite the next
+  // engineer to read a 2x drift as a regression.
+  //
   // ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT THE **SEEDING**:
-  // `computeClock` still allocates thirteen `Float64Array`s and still writes
-  // all thirteen, whichever branch the gate takes. On THIS lane the number
-  // that matters is allocation rather than time -- 13 columns x 5,000 bars x
-  // 8 B is ~507 KB transient per call at full history, which is GC churn on
-  // every repaint and the first thing to reach for (a lazy seed) if this ever
-  // shows up in a profile.
+  // `computeClock` allocates thirteen `Float64Array`s BEFORE the gate and
+  // writes all thirteen whichever branch it takes. ⭐ ON THIS LANE THE NUMBER
+  // THAT MATTERS IS ALLOCATION, NOT TIME, and that one IS exact because it is
+  // arithmetic rather than a stopwatch: 13 columns x 5,000 bars x 8 B = ~507 KB
+  // transient per call at full history -- GC churn on every repaint, and the
+  // reason a lazy seed is the first thing to reach for if this shows in a
+  // profile.
   {
     const cols = computeClock(bars, opts ? opts.tf : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
