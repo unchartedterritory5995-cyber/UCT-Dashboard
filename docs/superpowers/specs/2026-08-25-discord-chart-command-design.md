@@ -469,3 +469,36 @@ Four layers, all applied:
 Tests: `test_guild_allowed_is_the_two_uct_servers_by_default_and_env_overrides`,
 `test_endpoint_refuses_foreign_guild_dm_and_user_install_and_schedules_nothing`,
 and the `build_commands` test pins `GUILD_ONLY` on every command.
+
+
+## v6 — Launch-evening feedback round (2026-08-25, #main-chat)
+
+Harvested from the member server via the owner's session (the bot token can
+read only 3 of 71 channels — its role lacks VIEW_CHANNEL almost everywhere, so
+a bot-side sweep is blind; use the browser). 26 charts by 13 members between
+5:40 and 7:07 PM CT; 22 Daily, 1 Weekly, 1 five-minute; two failures.
+
+Shipped from it (all in `9876bebc3`…this commit):
+- **Per-member throttle** — `DISCORD_CHART_USER_RATE` (6/60). A member asked
+  for 5/day to stop "chart spam"; the owner ruled it "better than the
+  nonsense", so the limit protects the renderer, not the channel.
+- **Intraday zoom** — `INTRADAY_VISIBLE_BARS` (5→110, 15→90, 30→80) via the
+  page's `?bars=`; ~60% of a live intraday payload is extended hours.
+- **Per-call `mas` / `volume` options** on `/chart` and `/c`, layered over the
+  saved `/chartsettings` for that call only.
+- **Bars fetch retries once** (1.5 s) and the "No bars" reply says why it
+  might have missed. Cause of the two failures: a cold TQQQ 30-min pull that
+  served fine seconds later (the live API answered 200 in 2.9 s on re-test).
+- Six dead discord.py guild commands (`recall … status`) removed from UT —
+  they answered "Unknown command." to every member. Backup:
+  `uct_intelligence/discord_guild_commands_backup_2026-08-25.json`.
+
+Open, owner decisions:
+- A dedicated **#charts channel** (asked twice: Stef, manrav; "we just be
+  spamming the chat with charts all day").
+- **NNE-style scale squash** when SMA200 sits far from price: the overlay
+  participates in autoscale. Fix = a render-only flag that gives overlay
+  series `autoscaleInfoProvider: () => null` in StockChart; deferred because
+  StockChart is shared by the whole dashboard.
+- One-step `/TICKER` is impossible on Discord (a command needs a name);
+  `/c NVDA` + Enter is the floor.
