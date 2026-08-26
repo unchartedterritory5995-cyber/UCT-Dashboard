@@ -73,10 +73,19 @@ def require_push_secret(request: Request) -> None:
     ⚠️ ``compare_digest``, never ``==``: string equality returns on the first
     differing byte and leaks the prefix length by timing. Precedent:
     ``broker_sync.py`` L275, ``schwab_oauth_state.py`` L114.
+
+    ⛔ AND IT COMPARES BYTES, NOT ``str``. ``hmac.compare_digest`` RAISES
+    ``TypeError`` when either ``str`` carries a non-ASCII character — and an HTTP
+    header is bytes on the wire that Starlette decodes latin-1, so a caller
+    really can hand this a non-ASCII ``str``. The ``str`` form (which
+    ``broker_sync.py`` still uses) answers **500** to that request: a refusal
+    indistinguishable from an outage, on an unauthenticated path. Encoding both
+    sides first makes 401 the answer for every input.
     """
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+    if not expected or not hmac.compare_digest(
+            auth.encode("utf-8"), f"Bearer {expected}".encode("utf-8")):
         raise HTTPException(status_code=401, detail="worker credential required")
 
 

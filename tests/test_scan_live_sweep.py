@@ -2485,6 +2485,33 @@ def test_a_BLANK_push_secret_refuses_the_demand_route_rather_than_opening_it(
     assert c.get("/api/scans/demand", headers={"Authorization": "Bearer "}).status_code == 401
 
 
+def test_a_NON_ASCII_bearer_header_is_REFUSED_not_a_500(store, monkeypatch):
+    """⛔ FAIL CLOSED ON A HEADER THE COMPARISON CANNOT EVEN READ.
+    `hmac.compare_digest` REFUSES two `str`s when either carries a non-ASCII
+    character — it raises `TypeError`, which FastAPI turns into a 500. A gate
+    that answers "internal error" to a malformed credential is a gate whose
+    refusal is indistinguishable from an outage, and 500s on an unauthenticated
+    path are how a scanner finds a wall worth pushing on. Bytes compare cleanly,
+    so the answer is 401 for every input.
+    """
+    from api.routers import scan_live as live_mod
+
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    app = FastAPI()
+    app.include_router(live_mod.router)
+    c = TestClient(app, raise_server_exceptions=False)
+    # ⚠️ SENT AS RAW BYTES. An HTTP header is bytes on the wire and Starlette
+    # decodes it latin-1, so `request.headers` really can hand the gate a
+    # non-ASCII `str` — but httpx refuses to ASCII-encode one, so a test that
+    # passed a `str` here would fail in the CLIENT and prove nothing about the
+    # server.
+    r = c.get("/api/scans/demand",
+              headers={"Authorization": "Bearer sécret".encode("latin-1")})
+    assert r.status_code == 401, (
+        f"a non-ASCII bearer answered {r.status_code}; the comparison raised "
+        "instead of refusing")
+
+
 def test_a_FREE_member_is_refused_the_live_status(store):
     assert _live_client(FREE_USER).get("/api/scans/live-status").status_code == 402
 
