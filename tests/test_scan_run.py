@@ -7,9 +7,9 @@ with `mode='on-demand'`; the on-demand `def_hash` is therefore the nightly one b
 construction, and `tests/test_phase_e_acceptance.py` reads both off the artifact.
 
 ⭐ ONE PARAMETER, `mode`, DECIDES PERSISTENCE (controller ruling 8/25, replacing
-the brief's `persist=False`): `'nightly'` is byte-for-byte the sweep, `'live'` is
-RESERVED for W4b.3, `'on-demand'` writes nothing, and anything else is refused
-BEFORE a bar is read.
+the brief's `persist=False`): `'nightly'` is byte-for-byte the sweep, `'live'`
+writes `scan_hits_live` and NOTHING nightly (wired by W4b.3), `'on-demand'`
+writes nothing, and anything else is refused BEFORE a bar is read.
 
 ⛔ NOTHING IS TYPED THAT CAN BE DERIVED. The tree helpers, the bars fixture and
 the session are IMPORTED from `tests/test_scan_evaluator.py`; the gate set is
@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast as pyast
 import contextlib
+import datetime
 import pathlib
 import sqlite3
 import threading
@@ -140,32 +141,59 @@ def test_and_mode_nightly_is_the_UNCHANGED_default(store, bars):
     assert out["hit_rows"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
 
 
-def test_mode_live_is_RESERVED__and_TODAYS_NIGHTLY_PERSISTENCE_IS_PINNED(store, bars):
-    """🔴 PINNED SO LANE W4b.3 MUST CONSCIOUSLY CHANGE IT — the earlier version of
-    this test asserted only that the kwarg was accepted, which left the real
-    behaviour unrailed.
+#: The previous session, DERIVED from the same calendar the sweep delegates to —
+#: never typed, because "the day before SESSION" is a market fact, not arithmetic.
+PREV_SESSION = scan_evaluator.previous_session(SESSION)
+#: The tick the snapshot was read at: a unix SECOND, 10:42 ET on SESSION. ⛔ Not a
+#: YYYYMMDD — the live row's `as_of` is an instant and the store refuses the other
+#: encoding by name.
+LIVE_TICK = int(datetime.datetime(2026, 8, 7, 10, 42, tzinfo=scan_evaluator._ET).timestamp())
+#: `_daily_bars` closes at `start_close + n - 1`, so NVDA's last CONFIRMED close
+#: (the PREV bar) is 208.0 and INTC's is 68.0. The quotes below sit just above
+#: each, which is what keeps `live_tier`'s deviation gate open.
+LIVE_SNAPSHOT = {
+    "NVDA": {"last_price": 210.0, "prev_close": 208.0, "today_vol": 1_000_000,
+             "prev_vol": 2_000_000, "day_open": 208.5, "day_high": 210.4, "day_low": 208.1},
+    "INTC": {"last_price": 69.0, "prev_close": 68.0, "today_vol": 1_000_000,
+             "prev_vol": 2_000_000, "day_open": 68.2, "day_high": 69.1, "day_low": 68.0},
+}
 
-    TODAY `'live'` takes the NIGHTLY WRITE PATH: `persist = mode != "on-demand"`
-    is True for it, so it files `scan_hits` and `scan_coverage` under the nightly
-    key `(def_hash, tf, session)`. That is harmless while nothing passes `'live'`
-    and WRONG the moment the live sweep runs for real — live rows would overwrite
-    the nightly receipt silently, which is the exact failure the `mode` parameter
-    exists to prevent, and it was found independently from the store's side too
-    (W4b.1's AST rail).
 
-    ⛔ SO THE STATE OF PLAY IS ASSERTED, NOT THE INTENTION. Lane W4b.3 OWNS the
-    change: its live branch must write only `scan_hits_live`/`scan_live_cycles`
-    and extend the AST rail to `scan_evaluator` in the same commit. When it does,
-    THIS TEST GOES RED — and that red is the point. It cannot land quietly.
+def test_mode_live_writes_ONLY_the_LIVE_table__W4b3_TURNED_THIS_TEST_OVER(store, bars, monkeypatch):
+    """🔴 THE PREVIOUS VERSION OF THIS TEST PINNED THE OPPOSITE, ON PURPOSE.
+
+    Until lane W4b.3 landed, `persist = mode != "on-demand"` was True for `'live'`,
+    so a live run filed `scan_hits` and `scan_coverage` under the NIGHTLY key —
+    W4a's deliberate placeholder. This test asserted exactly that, so W4b.3 could
+    not turn it over quietly; when it wired the branch, this went RED, and that red
+    was the point.
+
+    ⛔ THE PROPERTY IS UNCHANGED AND IT IS STILL W4a's: `mode` is the ONE authority
+    over what a run writes. What changed is the answer for one of the three words.
+    A live run answers on a FORMING bar, and filing that into `scan_coverage` would
+    record it as the session's CLOSED-bar coverage — a second authority over what
+    this session's screen said.
+
+    ⭐ `_arm_writers` is the behavioural half: every nightly writer RAISES here, so
+    "it did not write" is proved by the run completing rather than by an absence.
     """
-    out = scan_evaluator.evaluate_one(DEFINITION, TF, universe=["NVDA", "INTC"], as_of=SESSION, mode="live")
-    assert out["mode"] == "live"
+    _arm_writers(monkeypatch)
+    out = scan_evaluator.evaluate_one(
+        DEFINITION, TF, universe=["NVDA", "INTC"], as_of=SESSION, mode="live",
+        snapshot=LIVE_SNAPSHOT, tick=LIVE_TICK, prev_session=PREV_SESSION)
+
+    assert out["mode"] == "live" and out["tick"] == LIVE_TICK
     assert out["evaluated"] == 2 and out["hits"] == ["NVDA"]
-    # ⚠️ W4b.3: these four lines are what your live branch must turn over.
-    assert out["persisted"] is True
-    assert scan_store.coverage(DEF_HASH, TF, SESSION) is not None
-    assert sorted(scan_store.hits(DEF_HASH, TF, SESSION)) == ["NVDA"]
-    assert out["hit_rows"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION}]
+    assert out["persisted"] is True and out["recorded"] == 0
+    # ⭐ the answer is the FORMING bar's: 210.0 is the snapshot's `last_price`,
+    # which is in no bar this store holds.
+    assert out["hit_rows"] == [{"symbol": "NVDA", "value": 1.0, "bar_time": SESSION,
+                                "live_cols": 5, "src_price": 210.0}]
+    live = scan_store.live_hits(DEF_HASH, TF)
+    assert [r["symbol"] for r in live] == ["NVDA"] and live[0]["as_of"] == LIVE_TICK
+    # …and the nightly tables read "nobody looked", which is the honest answer
+    assert scan_store.coverage(DEF_HASH, TF, SESSION) is None
+    assert scan_store.hits(DEF_HASH, TF, SESSION) == []
 
 
 def test_an_unknown_mode_is_refused_BEFORE_anything_is_read_or_written(store, bars, monkeypatch):

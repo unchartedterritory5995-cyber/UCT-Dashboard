@@ -143,14 +143,20 @@ log = logging.getLogger(__name__)
 
 #: Why a WHOLE RUN refused. Closed, like `scan_definition.GATES`, so a caller can
 #: branch on it and know the branch list is finite.
-RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe")
+#:
+#: ⭐ THE LAST TWO ARE THE LIVE MODE'S, AND BOTH ARE FACTS ABOUT THE WHOLE RUN
+#: rather than about any symbol: `tf` — the live sweep evaluates the daily
+#: timeframe only in Wave 1 — and `cadence`, a tree whose scalars declare a
+#: NIGHTLY ceiling, which no schedule can lift (`cadence_ceiling`).
+RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe",
+             "tf", "cadence")
 
 #: Why ONE symbol was tried and failed. Each is a fact about that symbol, and
 #: every one of them is re-runnable: fix the bars, rebuild the snapshot, run again.
 #:
 #:   no-live-quote -- the feed refused this symbol; `detail` carries one of
 #:                    `live_tier.SKIP_REASONS` VERBATIM rather than a second
-#:                    spelling of it. ⛔ THE SEVEN WORDS ARE NOT RE-TYPED HERE:
+#:                    spelling of it. ⛔ THAT TUPLE'S WORDS ARE NOT RE-TYPED HERE:
 #:                    that tuple is the declaration, this is a pointer to it, and
 #:                    `test_a_quote_the_live_tier_would_refuse_is_refused_HERE_
 #:                    with_ITS_reason` asserts the forwarded word is a MEMBER of
@@ -229,12 +235,24 @@ DEFAULT_TF = "D"
 #: rather than quietly behaving as one of these.
 #:
 #:   nightly    the sweep. Files `scan_hits`, `scan_coverage` and the rule record.
-#:   live       RESERVED — lane W4b.3 owns this branch (the 5-minute live sweep:
-#:              bar source + `scan_hits_live`). Until it lands, `live` runs and
-#:              persists exactly as `nightly` does.
+#:   live       the five-minute intraday cycle (spec §5.5, lane W4b.3). Evaluates
+#:              on the FORMING bar and writes `scan_hits_live` — and only that.
+#:              ⛔⛔ NEVER A NIGHTLY TABLE. A forming-bar answer filed into
+#:              `scan_coverage` would record it as that session's CLOSED-bar
+#:              coverage: a second authority over what this session's screen said,
+#:              which is the exact defect the two-table split exists to prevent.
+#:              The rail is `tests/test_scan_live_sweep.py::test_NO_function_
+#:              reachable_under_mode_LIVE_calls_a_NIGHTLY_WRITER`, whose offender
+#:              set is DERIVED from `scan_store`'s and `definition_record`'s own
+#:              table constants and which carries a planted-offender control.
 #:   on-demand  a member's run-now (W4a, spec §5.5): the SAME loop, the SAME four
 #:              outcomes, the SAME hash — and NOTHING written.
-EVALUATE_MODES = ("nightly", "live", "on-demand")
+MODES = ("nightly", "live", "on-demand")
+NIGHTLY, LIVE, ON_DEMAND = MODES
+
+#: The name lane W4a shipped, pointing at the SAME OBJECT rather than re-typed.
+#: Two tuples spelling one closed set is two things to keep true.
+EVALUATE_MODES = MODES
 
 #: ⏰ THE ONLY NUMBER THE BUDGET DECLARES — how long before the regular session
 #: opens the sweep must have stopped starting definitions. ⛔ THE OPEN ITSELF IS
@@ -664,10 +682,22 @@ LIVE_DROP_REASON = "no-live-quote"
 LIVE_NOT_COMPUTABLE_DETAIL = "live:forming-bar:"
 
 
-def live_bars_for(symbol: str, daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
+def live_bars_for(daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
                   session: int, prev_session: Optional[int] = None) -> dict:
     """The confirmed daily bars through `prev_session` PLUS today's forming bar
     built from the shared snapshot -- or a refusal that names its reason.
+
+    ⛔ THERE IS NO `symbol` PARAMETER, AND ITS ABSENCE IS THE POINT (controller
+    ruling, W4b.2 review). W4b.2 declared one, unused; the obvious "use" would have
+    been to hand the symbol back inside the refusal so the caller could file the
+    drop under it. But the only caller is `evaluate_one`'s `for sym in kept:` loop,
+    which holds `sym` on the line above the call and files the drop with it on the
+    line below (`_unanswered(sym, got["reason"], ...)`). Returning it would be a
+    SECOND AUTHORITY OVER ONE VALUE -- two names for one string, whose disagreement
+    would be invisible -- which is this repo's most repeated defect. So the
+    parameter is gone rather than left to rot, and
+    `test_a_symbol_the_SANITY_OWNER_refuses_is_a_DROP_that_NAMES_the_symbol_and_the_reason`
+    pins that the drop record carries the symbol and the owner's word regardless.
 
     ⛔ THE GATE IS `live_tier.sanity_reason`, REUSED, with the anchor SYNTHESISED
     from the bars themselves (`{price: the last confirmed close, bars_asof: the
@@ -1074,14 +1104,18 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
                  limits: Any = None,
-                 mode: str = "nightly") -> dict:
+                 mode: str = NIGHTLY,
+                 snapshot: Optional[Mapping[str, Any]] = None,
+                 tick: Optional[int] = None,
+                 prev_session: Optional[int] = None) -> dict:
     """Run one scan definition over the universe and STATE ITS OWN COVERAGE.
 
     Returns::
 
         {def_hash, rev, tf, as_of, freshness,
-         hits: [...], hit_rows: [{symbol, value, bar_time}],
-         cadence,
+         hits: [...], hit_rows: [{symbol, value, bar_time (+live_cols, src_price
+                                  under mode='live')}],
+         cadence, tick,
          evaluated, answered, dropped, not_computable,
          withheld, withheld_reason,
          dropped_symbols: [{ticker, reason, detail?}], dropped_listed, truncated,
@@ -1093,9 +1127,31 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     no `scan_coverage`, no rule record, and no ledger read either. A member's
     500-symbol run filed under the nightly key would overwrite the universe's
     receipt with a list's, and `coverage(...)` would then describe five names as
-    though they were the market. `mode` is the ONE authority over that
-    (`EVALUATE_MODES`); `'live'` is reserved for W4b.3 and persists as `nightly`
-    until that lane lands.
+    though they were the market. `mode` is the ONE authority over that (`MODES`).
+
+    🔴 `mode='live'` IS THE FIVE-MINUTE CYCLE (spec §5.5), AND IT IS THE SAME LOOP
+    WITH TWO DIFFERENCES, BOTH NAMED HERE.
+
+      1. THE BARS. Each symbol's confirmed history through `prev_session` plus
+         TODAY'S FORMING BAR, built by `live_bars_for` from the shared 30 s market
+         snapshot (`snapshot`, read ONCE per cycle by the caller and passed in).
+         A quote the sanity owner refuses is a `no-live-quote` DROP carrying
+         `live_tier`'s own word; a forming-bar FIELD the feed did not carry is
+         `not_computable` with detail `live:forming-bar:<field>` — per field,
+         because failing the whole bar over one of five would throw away four that
+         arrived.
+      2. THE WRITE. `scan_hits_live` and NOTHING ELSE — no `scan_hits`, no
+         `scan_coverage`, no rule record. ⛔⛔ A FORMING-BAR ANSWER FILED INTO
+         `scan_coverage` WOULD RECORD IT AS THAT SESSION'S CLOSED-BAR COVERAGE,
+         which is a second authority over what this session's screen said and the
+         exact defect the two-table split exists to prevent. `MODES` carries the
+         rail that keeps this true by AST.
+
+    ⛔ AND IT REFUSES A NIGHTLY-CEILING TREE BEFORE READING A BAR. `cadence_ceiling`
+    says whether re-running this tree can honestly say anything new; if it cannot,
+    running it every five minutes is a true number carrying a false implication.
+    `tick` (the unix second the snapshot was read at) is REQUIRED, never guessed:
+    it is the live row's `as_of`.
 
     ⚠️ `rev` IS READ OFF `definition['compute']['rev']` AND RETURNED. E-6's
     receipt is keyed on it; this function does not invent it and does not default
@@ -1109,13 +1165,10 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         indistinguishable from a quiet market, which is the one reading E-2's
         three-state design exists to keep impossible.
     """
-    if mode not in EVALUATE_MODES:
+    if mode not in MODES:
         raise ValueError(
-            f"mode {mode!r} is not one of {EVALUATE_MODES}. The set is closed on "
+            f"mode {mode!r} is not one of {MODES}. The set is closed on "
             "purpose: it is the one authority over what this run writes.")
-    # ⭐ DERIVED FROM `mode`, NEVER A SECOND FLAG. `'live'` is W4b.3's branch; until
-    # it lands, live persists exactly as nightly does.
-    persist = mode != "on-demand"
 
     if not isinstance(definition, dict) or not definition:
         raise ScanRunRefused(
@@ -1136,10 +1189,51 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
 
+    # ⭐ THE HONEST RE-RUN CADENCE, OFF THE TREE, COMPUTED ONCE. See
+    # `cadence_ceiling`: a scan naming any declared scalar is capped by that
+    # scalar's own declared cadence, because re-reading the nightly snapshot an
+    # hour later returns the same answer while implying new information.
+    cadence = cadence_ceiling(tree)
+
+    forming_fields: dict = {}
+    if mode == LIVE:
+        # ⚠️ FUNCTION-LOCAL, AND DELIBERATELY: `scan_volume` pulls `threading` and
+        # `massive` in at import, and the nightly sweep needs neither. The AST rail
+        # keys on the CALL (`scan_volume.<attr>`), not on the import site.
+        from api.services import scan_volume
+
+        # 🔴 THE CADENCE REFUSAL COMES FIRST — before the snapshot gate, before a
+        # single bar is read (1.9 µs a tree). A nightly-ceiling tree re-read five
+        # minutes later returns the SAME answer off the SAME 03:00 snapshot while
+        # implying new information arrived: a true number carrying a false
+        # implication, which is the failure `cadence_ceiling` exists to name.
+        if cadence and "nightly" in cadence.split("/"):
+            raise ScanRunRefused(
+                "cadence",
+                f"this tree's ceiling is {cadence!r}: re-reading the 03:00 "
+                "snapshot five minutes later returns the same answer while "
+                "implying new information. The live sweep evaluates bars-only "
+                "trees and trees whose every scalar declares a live cadence.")
+        if tick is None:
+            raise ValueError(
+                "mode='live' needs the tick the snapshot was read at. The live "
+                "row's `as_of` IS that tick; guessing one would file a "
+                "forming-bar answer under an instant nobody measured.")
+        # ⭐ WHICH FIELDS OF THE FORMING BAR THIS TREE READS, RESOLVED ONCE per
+        # definition rather than 3,742 times inside the loop. `_BAR_FIELD_OF` is
+        # the manifest's own series→bar-key declaration, never a local map.
+        forming_fields = {n: _BAR_FIELD_OF(n) for n in _forming_bar_series(tree)}
+
     # ⭐ THE GATE APPLIES WHERE ITS REASON APPLIES. A tree that names no declared
     # scalar reads nothing out of `screener_rows`, so a stale snapshot cannot make
     # its answer wrong -- and refusing it anyway would be a gate firing for a
     # reason that is not true, which teaches a reader to ignore the gate.
+    # ⚠️ UNREACHABLE UNDER `mode='live'` TODAY, and by construction rather than by
+    # luck: every declared scalar is `cadence: nightly`, so a tree with any
+    # `scalar_columns` at all has already been refused at `gate:cadence` above. It
+    # is left as `if scalar_columns` because THAT is the condition its reason
+    # depends on — the day a scalar declares a live cadence, the gate is right here
+    # waiting for it, with no edit.
     scalar_columns = _scalar_columns(spec["scalars"])
     snapshot_stamp = _assert_snapshot_is_current(session) if scalar_columns else None
 
@@ -1159,11 +1253,6 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # the sweep does, so it passes what `ast_freshness` said or every receipt in
     # the table reads `unknown`.
     freshness = ast_freshness.freshness_for(tree)["mode"]
-    # ⭐ AND THE HONEST RE-RUN CADENCE COMES OFF THE SAME TREE. See
-    # `cadence_ceiling`: a scan naming any declared scalar is capped by that
-    # scalar's own declared cadence, because re-reading the nightly snapshot an
-    # hour later returns the same answer while implying new information.
-    cadence = cadence_ceiling(tree)
 
     # `max_lookback` resolves every call on its way to a number, so a tree naming
     # a function the table does not declare refuses HERE — once, loudly — rather
@@ -1188,13 +1277,16 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
                          and rev >= 0) else None
-    if not persist:
-        # No rule record, and no ledger read to seed one — a run nobody files
-        # has nothing to resume from.
+    if mode != NIGHTLY:
+        # ⛔ THE FORWARD RECORD IS CLOSED-BAR ONLY. A live run answers on a FORMING
+        # bar — filing that as a bar's settled outcome would put a candle that is
+        # still moving into the record a backtest reads — and an on-demand run is
+        # nobody's receipt to file. Neither reads the ledger to seed one either: a
+        # run nobody files has nothing to resume from.
         record_rev = None
     tf_label = ledger._BARS_STORE_TF_KEYS.get(tf_code)
     throughs: dict = {}
-    if record_rev is not None and tf_label:
+    if mode == NIGHTLY and record_rev is not None and tf_label:
         throughs = definition_record.latest_through_by_symbol(
             def_hash, record_rev, tf_label)
 
@@ -1226,7 +1318,34 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 continue
 
             bars = _read_bars(sym, tf_code, want)
-            if not bars:
+            live_cols = 0
+            if mode == LIVE:
+                # ⭐ THE ONLY THING LIVE READS THAT NIGHTLY DOES NOT. The gate is
+                # `live_tier.sanity_reason`, reused — one sanity owner for the live
+                # tier and the live sweep, so the two can never disagree about
+                # whether a quote is usable.
+                got = live_bars_for(bars, scan_volume._snap_lookup(snapshot or {}, sym),
+                                    session=session, prev_session=prev_session)
+                if got["reason"]:
+                    # ⛔ THE SYMBOL IS THIS LOOP'S, THE REASON AND DETAIL ARE THE
+                    # OWNER'S. Neither half is composed here.
+                    _unanswered(sym, got["reason"], detail=got["detail"])
+                    dropped += 1
+                    continue
+                bars = got["bars"]
+                live_cols = got["live_cols"]
+                absent = sorted(n for n, f in forming_fields.items()
+                                if bars[-1].get(f) is None)
+                if absent:
+                    # ⛔ PER FIELD, NAMED, AND IN THE `not_computable` BUCKET. The
+                    # whole bar failing because one of five fields is pre-open would
+                    # throw away four that arrived, and "we could not compute it" is
+                    # not "something broke".
+                    _unanswered(sym, NOT_COMPUTABLE_REASON,
+                                detail=LIVE_NOT_COMPUTABLE_DETAIL + ",".join(absent))
+                    not_computable += 1
+                    continue
+            elif not bars:
                 _unanswered(sym, "no-bars")
                 dropped += 1
                 continue
@@ -1251,7 +1370,15 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 not_computable += 1
                 continue
 
-            column = ast_interpret.interpret(tree, bars, scalars=scalars)
+            # ⭐ `opts={"tf": tf_code}` IS THE CLOCK'S ONLY INPUT (tableVersion 2,
+            # lane W2a.2). Without it every clock name in every saved scan is
+            # permanently `not_computable` — `compute_clock` fails CLOSED on an
+            # absent tf rather than guessing `"D"`, which would make `isdaily` a
+            # confident 1 on a five-minute chart. ⛔ THE NORMALISED CODE, not the
+            # caller's spelling: `scan_store._TF_CODES` and
+            # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
+            column = ast_interpret.interpret(tree, bars, scalars=scalars,
+                                             opts={"tf": tf_code})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -1267,12 +1394,21 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             if float(value) != 0.0:              # `<ast> != 0`, E-A1
                 hits.append(sym)
                 # ⭐ THE VALUE AND THE BAR IT CAME FROM, beside the symbol. The
-                # sweep discards both; the on-demand door returns them, and W4c
-                # will store them on the hit row. Additive — `hits` is unchanged.
-                hit_rows.append({"symbol": sym, "value": float(value),
-                                 "bar_time": bars[index].get("t")})
+                # sweep discards both; the on-demand door returns them, and the
+                # live mode STORES them. Additive — `hits` is unchanged.
+                row = {"symbol": sym, "value": float(value),
+                       "bar_time": bars[index].get("t")}
+                if mode == LIVE:
+                    # ⭐ THE TWO FACTS ONLY A LIVE ROW HAS: how much of the forming
+                    # bar the feed carried, and the price the answer was computed
+                    # at. ⛔ ADDED ONLY HERE. A nightly row carrying `live_cols: 0`
+                    # would be a live-shaped fact about a closed bar, and a reader
+                    # cannot tell "no live columns" from "not a live row".
+                    row["live_cols"] = live_cols
+                    row["src_price"] = bars[index].get("c")
+                hit_rows.append(row)
 
-            if record_rev is not None and tf_label:
+            if mode == NIGHTLY and record_rev is not None and tf_label:
                 if sym not in throughs:
                     pending_record.append(
                         {"sym": sym, "first": session, "through": session,
@@ -1311,16 +1447,29 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # gets the withholding in their own envelope; the shared store keeps silence,
     # which reads correctly as `coverage(...) is None` — "nobody looked".
     # ⛔ AND AN ON-DEMAND RUN WRITES NOTHING AT ALL — `mode` in the docstring.
-    if persist and not history_withheld:
+    persisted = False
+    if mode == NIGHTLY and not history_withheld:
         scan_store.record_hits(def_hash, tf_code, session, hits)
         scan_store.record_coverage(
             def_hash, tf_code, session,
             evaluated=evaluated, answered=answered, dropped=dropped,
             not_computable=not_computable, dropped_symbols=unanswered,
             freshness=freshness)
+        persisted = True
+    elif mode == LIVE and not history_withheld:
+        # 🔴 THE LIVE SIDE TABLE AND NOTHING ELSE. `as_of` is the TICK, not the
+        # session: `upsert_live_hits` refuses a YYYYMMDD by name, because the two
+        # encodings answer two different questions and one of them silently
+        # poisons every later read.
+        scan_store.upsert_live_hits(def_hash, tf_code, hit_rows, as_of=tick)
+        # ⭐ THE DEMAND RING: symbols a definition just NAMED, so the worker's
+        # intraday prewarm ring can order its passes by what is actually being
+        # scanned. Bounded and per-process; losing it on a redeploy costs one pass.
+        scan_store.note_demand([r["symbol"] for r in hit_rows])
+        persisted = True
 
     recorded = record_refused = 0
-    if record_rev is not None and tf_label and pending_record:
+    if mode == NIGHTLY and record_rev is not None and tf_label and pending_record:
         recorded, record_refused = _write_rule_record(
             def_hash, record_rev, tf_label, pending_record)
 
@@ -1346,7 +1495,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         "record_refused": record_refused,
         "hit_rows": hit_rows,
         "mode": mode,
-        "persisted": bool(persist and not history_withheld),
+        "tick": tick,
+        "persisted": persisted,
     }
 
 
