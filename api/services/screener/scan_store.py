@@ -645,7 +645,11 @@ def _one_transaction(conn):
     try:
         yield conn
     except BaseException:
-        conn.execute("ROLLBACK")
+        # A ROLLBACK that fails is a dead connection; the `closing()` around this
+        # discards the open transaction anyway. The WRITE's exception is the one
+        # the caller must see, never the rollback's.
+        with contextlib.suppress(Exception):
+            conn.execute("ROLLBACK")
         raise
     conn.execute("COMMIT")
 
