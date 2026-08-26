@@ -570,9 +570,16 @@ def test_the_alias_pass_NAMES_THE_CALL_LINE_TOO_or_it_would_not_be_here():
     ⚠️ MEASURED IN FIX ROUND 1, AND IT IS THE REASON THIS TEST EXISTS: deleting
     the alias fixed-point entirely changed NOTHING that any `bool(...)` row above
     could see. With a mention-level walk the right-hand side `threading.Thread`
-    is already a hit, so `bool(sites)` was True either way and 19/19 rows stayed
-    green against a census with the block cut out. A block no test can watch fire
-    is not protection, it is decoration (`lesson_gate_that_cannot_fail`).
+    is already a hit, so `bool(sites)` was True either way and EVERY row above
+    stayed green against a census with the block cut out. A block no test can
+    watch fire is not protection, it is decoration
+    (`lesson_gate_that_cannot_fail`).
+    ⛔ AND THE ROW COUNT IS DELIBERATELY NOT WRITTEN HERE. The first draft of
+    this docstring said "19/19", which was the number of tests `-k` SELECTED
+    (the rows plus the rail above), not the number of rows — wrong by one, in
+    three places at once, and caught in re-review. The invariant is what matters
+    and it does not drift: no truthiness row can see this block, only the
+    assertion below can.
 
     So the claim is made where the block actually changes the answer — the SITE
     LIST. Line 2 binds the door and line 4 opens it, and *"the door is on line
