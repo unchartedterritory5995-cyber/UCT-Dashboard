@@ -27,8 +27,11 @@ E-A2/A3). The pool's `max_workers=1` IS the "one run at a time per pod" rail
 the brief named `_SINGLE_FLIGHT`; it is pinned by AST, not by convention.
 
 ⛔ BOUNDED, NEVER A UNIVERSE. Four bounds, each refusing BY NAME:
-  * `MAX_RUN_SYMBOLS`, checked on what was SENT and again after
-    list resolution — the walk itself is bounded too            → `gate:universe`
+  * `MAX_RUN_SYMBOLS`, on the DE-DUPED universe, whether it came
+    from a pasted array or a resolved list                      → `gate:universe`
+  * `HARD_SYMBOL_BOUND` (10x that), on the REQUEST — what this
+    door will walk at all; the unsized path stops one past it
+    rather than truncating                                      → `gate:universe`
   * one run in flight (queued or running) per MEMBER             → `gate:busy`
   * `MAX_PENDING_RUNS` in flight per POD                         → `gate:busy`
   * `MAX_RUN_SECONDS` on a run's own duration, and
@@ -97,7 +100,31 @@ log = logging.getLogger(__name__)
 
 #: ⛔ THE ONE NUMBER. The client's `RUN_SYMBOL_CAP` (W4a.4) is pinned EQUAL to
 #: this by a backend test that reads the JS constant, never restated by hand.
+#: ⭐ IT IS THE CAP ON THE **RUN**, and it is applied AFTER de-duplication — see
+#: `HARD_SYMBOL_BOUND` below for why that distinction is member-visible.
 MAX_RUN_SYMBOLS = 500
+
+#: 🔴 THE HARD SANITY BOUND — how many names this module will WALK AT ALL,
+#: which is a different question from how many it will RUN.
+#:
+#: ⛔ THE TWO WERE ONE NUMBER FOR A DAY, AND A MEMBER PAID FOR IT. Checking the
+#: cap on what was SENT refused a member who pasted a column out of a spreadsheet
+#: — 600 rows, 50 distinct tickers — `gate:universe` for a run of FIFTY symbols.
+#: The refusal named 600 and the cap 500, both true, and the sentence was still a
+#: lie: nothing was ever going to evaluate 600 symbols. So the cap moved back
+#: below the de-dupe, where it describes the RUN, and this bound took its place
+#: above it, where it describes the REQUEST.
+#:
+#: ⭐ 10x, AND THE MULTIPLE IS THE JUSTIFICATION. The input that motivated a
+#: pre-walk bound is one we cannot MEASURE (a generator); a sized list of 600 was
+#: never the hazard. A pasted column is duplicate-heavy BY NATURE — the same
+#: watchlist exported twice, a header row per page — so the room has to be an
+#: ORDER OF MAGNITUDE, not a few percent, or the regression comes straight back
+#: for the member who pasted 1,200 rows of 40 names. Above it we are no longer
+#: looking at a mistyped list, we are looking at a BODY: 5,000 strings is
+#: microseconds to refuse and megabytes to accept.
+HARD_BOUND_MULTIPLE = 10
+HARD_SYMBOL_BOUND = MAX_RUN_SYMBOLS * HARD_BOUND_MULTIPLE
 
 #: The tier a member reads on the result. `scan_store.hits_for` rows carry
 #: `'nightly'|'live'` (W4b); this is the third word, and it never reaches a table.
@@ -210,25 +237,51 @@ def _over_cap(count: Any, source: str) -> RunRefused:
         "Pick a shorter list — the nightly sweep already covers the whole universe")
 
 
+def _too_many_to_walk(count) -> RunRefused:
+    """THE ONE too-big-to-read sentence, shared by the sized pre-check and the
+    unsized walk-stop so one bound cannot be worded two ways.
+
+    ⛔ IT NAMES A DIFFERENT NUMBER FROM `_over_cap`, ON PURPOSE. This one is
+    about the REQUEST ("we did not read this"); that one is about the RUN ("we
+    read it, and it is still too many names"). A member who sees this has not hit
+    the run cap — they have sent something that is not a list of tickers, and
+    telling them the cap is 500 would send them off to delete duplicates that were
+    never the problem.
+    """
+    return RunRefused(
+        UNIVERSE_GATE,
+        f"{count} symbols in one request; this door reads at most "
+        f"{HARD_SYMBOL_BOUND} before it stops — {HARD_BOUND_MULTIPLE}x the "
+        f"{MAX_RUN_SYMBOLS}-symbol run cap, so duplicates are fine. That is a "
+        "body, not a list")
+
+
 def _clean_symbols(symbols: Optional[Sequence[Any]]) -> list:
     """Uppercased, de-duplicated, order-stable — the same normalisation
     `list_universe._finish` applies, because `ohlcv.ticker` is uppercase and a
     case mismatch would read as `no-bars` on a symbol we hold.
 
-    ⛔ AND THE WALK ITSELF IS BOUNDED. This runs on the REQUEST PATH in a module
-    whose whole thesis is "bounded, never a universe"; a loop over whatever
-    arrived — before any cap was consulted — is the one unbounded thing left in
-    it. `resolve_universe` refuses a SIZED body before calling here at all; this
-    guard is for one that cannot be measured (a generator), and it stops ONE PAST
-    the cap so an over-long input is REFUSED rather than silently truncated.
+    ⛔ AND THE WALK ITSELF IS BOUNDED — AT `HARD_SYMBOL_BOUND`, NOT AT THE CAP.
+    This runs on the REQUEST PATH in a module whose whole thesis is "bounded,
+    never a universe"; a loop over whatever arrived is the one unbounded thing
+    left in it. `resolve_universe` refuses a SIZED body past the hard bound before
+    calling here at all; this guard is for one that cannot be measured (a
+    generator), and it stops ONE PAST that bound so an unreadable input is REFUSED
+    rather than silently truncated.
+
+    ⛔ AND IT IS THE **HARD** BOUND BECAUSE THE DE-DUPE HAPPENS HERE. Stopping at
+    `MAX_RUN_SYMBOLS` would refuse 600 pasted rows carrying 50 distinct tickers
+    one line before this loop reduced them to 50 — the exact regression the ruling
+    of 8/25 undid on the sized path. A generator and a list carrying the same
+    names must resolve to the same universe, or the fix healed one door only.
     """
     seen: set = set()
     out: list = []
     walked = 0
     for raw in symbols or ():
         walked += 1
-        if walked > MAX_RUN_SYMBOLS + 1:
-            raise _over_cap(f"more than {MAX_RUN_SYMBOLS}", "symbols")
+        if walked > HARD_SYMBOL_BOUND + 1:
+            raise _too_many_to_walk(f"more than {HARD_SYMBOL_BOUND}")
         s = str(raw).strip().upper()
         if s and s not in seen:
             seen.add(s)
@@ -262,11 +315,15 @@ def resolve_universe(user_id: Any, *, symbols: Optional[Sequence[Any]] = None,
             raise BadRequest(
                 "symbols must be a list of tickers, not a string — iterated, "
                 f"{symbols!r:.40} would be one symbol per character")
-        # ⛔ THE CAP FIRST, THE WALK SECOND. Checking it after `_clean_symbols`
-        # meant the request path had already walked every name the caller sent.
+        # ⛔ TWO BOUNDS, TWO QUESTIONS, AND ONLY ONE OF THEM IS THE MEMBER'S CAP.
+        # This one refuses a body we will not READ (a sized input past the hard
+        # bound; the unsized case stops one past it inside `_clean_symbols`). The
+        # `MAX_RUN_SYMBOLS` cap is applied BELOW, after the de-dupe, on the
+        # universe that will actually be evaluated — 600 pasted rows carrying 50
+        # distinct tickers are a fifty-symbol run and are admitted as one.
         if symbols is not None and hasattr(symbols, "__len__") \
-                and len(symbols) > MAX_RUN_SYMBOLS:
-            raise _over_cap(len(symbols), "symbols")
+                and len(symbols) > HARD_SYMBOL_BOUND:
+            raise _too_many_to_walk(len(symbols))
         syms = _clean_symbols(symbols)
         source = {"source": "symbols", "label": None}
     requested = len(syms)
@@ -275,6 +332,8 @@ def resolve_universe(user_id: Any, *, symbols: Optional[Sequence[Any]] = None,
                          f"no symbols to run ({source['source']!r} resolved to nothing) — "
                          "an empty universe produces an empty hit list that is "
                          "indistinguishable from a quiet market")
+    # ⛔ THE MEMBER-FACING CAP, ON THE DE-DUPED UNIVERSE — so the count in the
+    # refusal is the count that was actually too big to run.
     if requested > MAX_RUN_SYMBOLS:
         raise _over_cap(requested, source["source"])
     return syms, {**source, "requested": requested}

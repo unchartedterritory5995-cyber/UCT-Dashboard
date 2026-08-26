@@ -329,6 +329,60 @@ def test_resolve_universe_REFUSES_over_the_cap_NAMING_the_count(lists):
     assert len(kept) == scan_run.MAX_RUN_SYMBOLS
 
 
+def test_600_pasted_tickers_of_which_50_are_UNIQUE_RUNS__the_cap_is_AFTER_dedup(lists):
+    """🔴 THE MEMBER-VISIBLE REGRESSION THIS UNDOES (controller ruling 8/25).
+
+    A fold-in moved the cap from post-dedup to PRE-dedup, so it was checked on
+    what was SENT: a member pasting a column out of a spreadsheet — 600 rows, 50
+    distinct names — was refused `gate:universe` for a run of FIFTY symbols. The
+    unbounded-walk concern that motivated the move is about an input we cannot
+    MEASURE, not about a sized list of 600, and the two are separated now:
+    `HARD_SYMBOL_BOUND` bounds the WALK, `MAX_RUN_SYMBOLS` bounds the RUN.
+
+    ⭐ AND BOTH DOORS AGREE. A sized list and a generator carrying the same names
+    resolve to the same 50 symbols — otherwise the fix would have healed the
+    measurable path and left the same lie on the other one.
+    """
+    from api.services.screener import scan_run
+    pasted = [f"S{i % 50:04d}" for i in range(600)]
+    assert len(pasted) == 600 and len(set(pasted)) == 50, "the fixture stopped being the case"
+
+    syms, receipt = scan_run.resolve_universe(ALICE, symbols=pasted)
+    assert len(syms) == 50
+    # ⛔ `requested` IS WHAT WILL BE RUN, not what was typed — the receipt must not
+    # claim 600 symbols were evaluated when 50 were.
+    assert receipt == {"source": "symbols", "label": None, "requested": 50}
+
+    from_generator, _ = scan_run.resolve_universe(ALICE, symbols=(s for s in pasted))
+    assert from_generator == syms
+
+
+def test_a_body_ABOVE_the_HARD_SANITY_BOUND_refuses_BY_NAME__the_WALK_stays_bounded(lists):
+    """The other half of the ruling: the walk is still bounded, one order of
+    magnitude ABOVE the member-facing cap.
+
+    ⭐ THE MULTIPLE IS DERIVED AND THE BOUND IS ON THE **BODY**, NOT THE RUN — so
+    the case here is a single name repeated past the bound. It would dedupe to
+    ONE symbol and is refused anyway, which is precisely what distinguishes "this
+    request is pathological" from "this run is too big".
+    """
+    from api.services.screener import scan_run
+    assert scan_run.HARD_SYMBOL_BOUND == scan_run.MAX_RUN_SYMBOLS * scan_run.HARD_BOUND_MULTIPLE
+    assert scan_run.HARD_SYMBOL_BOUND > scan_run.MAX_RUN_SYMBOLS
+
+    body = ["NVDA"] * (scan_run.HARD_SYMBOL_BOUND + 1)
+    with pytest.raises(scan_run.RunRefused) as exc:
+        scan_run.resolve_universe(ALICE, symbols=body)
+    assert exc.value.gate == scan_run.UNIVERSE_GATE
+    assert str(scan_run.HARD_SYMBOL_BOUND) in str(exc.value)
+    assert str(len(body)) in str(exc.value)
+
+    # the control: exactly AT the bound is walked, deduped, and RUN
+    kept, receipt = scan_run.resolve_universe(
+        ALICE, symbols=["NVDA"] * scan_run.HARD_SYMBOL_BOUND)
+    assert kept == ["NVDA"] and receipt["requested"] == 1
+
+
 def test_resolve_universe_bounds_the_WALK_TOO__an_UNSIZED_iterable_refuses(lists):
     """⛔ THE CAP USED TO BE CHECKED AFTER THE WALK. `_clean_symbols` ran over
     whatever arrived before any bound was consulted — an unbounded request-path
@@ -348,7 +402,10 @@ def test_resolve_universe_bounds_the_WALK_TOO__an_UNSIZED_iterable_refuses(lists
     with pytest.raises(scan_run.RunRefused) as exc:
         scan_run.resolve_universe(ALICE, symbols=_forever())
     assert exc.value.gate == scan_run.UNIVERSE_GATE
-    assert f"more than {scan_run.MAX_RUN_SYMBOLS}" in str(exc.value)
+    # ⛔ THE WALK'S BOUND IS THE HARD ONE, not the member-facing cap: a sized body
+    # of 600 with 50 unique names RUNS (test above), so a generator carrying the
+    # same names must too, or the fix healed one door and left the lie on the other.
+    assert f"more than {scan_run.HARD_SYMBOL_BOUND}" in str(exc.value)
     # the control: an unsized input UNDER the cap is admitted, walked to the end
     kept, _ = scan_run.resolve_universe(ALICE, symbols=(f"S{i:05d}" for i in range(3)))
     assert kept == ["S00000", "S00001", "S00002"]
