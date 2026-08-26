@@ -338,3 +338,20 @@ def test_WITHOUT_fstring_resolution_the_rail_would_pass_VACUOUSLY():
     naive = _writes_by_function(src, resolve=False)
     assert naive["upsert_live_hits"].tables == set() and naive["record_live_cycle"].tables == set()
     assert naive["record_hits"].tables == {"scan_hits"}, "plain literals it CAN read"
+
+
+# ═══ 5. demand: the store owns it — bounded, most-recent-first, per-process ═══
+
+def test_note_demand_is_BOUNDED_most_recent_first_and_uppercased(monkeypatch):
+    monkeypatch.setattr(scan_store, "_DEMAND", collections.OrderedDict())
+    monkeypatch.setattr(scan_store, "DEMAND_MAX", 3)
+    scan_store.note_demand(["aaa", "bbb"]); scan_store.note_demand(["ccc", "aaa"]); scan_store.note_demand(["ddd"])
+    assert scan_store.demand_recent() == ["DDD", "AAA", "CCC"]      # BBB evicted, AAA refreshed
+    assert scan_store.demand_recent(limit=1) == ["DDD"]
+
+
+def test_note_demand_IGNORES_blanks_and_a_zero_limit_is_an_empty_list(monkeypatch):
+    monkeypatch.setattr(scan_store, "_DEMAND", collections.OrderedDict())
+    scan_store.note_demand(["", None, "  eee ", "eee"])
+    assert scan_store.demand_recent() == ["EEE"]
+    assert scan_store.demand_recent(limit=0) == []

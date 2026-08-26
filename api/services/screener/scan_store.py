@@ -72,10 +72,12 @@ production and must not be a test's scratch space.
 """
 from __future__ import annotations
 
+import collections
 import contextlib
 import datetime
 import json
 import os
+import threading
 import time
 from collections.abc import Mapping as _MappingABC
 from typing import Any, Iterable, Mapping, Optional, Sequence
@@ -803,3 +805,43 @@ def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
         live["definition_swept"] = h in set(cycle["swept"])
         live["fresh_rows"] = len(fresh)
     return {"as_of": session, "rows": rows, "live": live}
+
+
+# --------------------------------------------------------------------------- #
+# demand: the symbols a member or a definition just NAMED (the ring's order)
+# --------------------------------------------------------------------------- #
+
+#: Most recent LAST in the dict (``demand_recent`` reverses it); bounded by
+#: ``DEMAND_MAX``. ⭐ THE STORE OWNS THIS, not the evaluator: the router-import
+#: rail forbids a route from reaching ``scan_evaluator``, and the run-now router
+#: is one of the two callers (the live sweep is the other).
+_DEMAND: "collections.OrderedDict[str, float]" = collections.OrderedDict()
+#: Request handlers run on the anyio threadpool. An ``OrderedDict`` iterated by
+#: one thread while another inserts is a ``RuntimeError``, not a stale answer.
+_DEMAND_LOCK = threading.Lock()
+
+
+def note_demand(symbols: Iterable[Any]) -> None:
+    """Symbols a member or a definition just NAMED, most recent last in the dict,
+    bounded. Per-process (the single-uvicorn web pod); the worker reads it over
+    ``GET /api/scans/demand``. Losing it on a redeploy costs the ring one pass of
+    cap-universe order, nothing else — which is why it is persisted nowhere."""
+    with _DEMAND_LOCK:
+        for s in symbols or []:
+            sym = str(s or "").strip().upper()
+            if not sym:
+                continue
+            _DEMAND.pop(sym, None)
+            _DEMAND[sym] = time.time()
+        while len(_DEMAND) > DEMAND_MAX:
+            _DEMAND.popitem(last=False)
+
+
+def demand_recent(limit: Optional[int] = None) -> list:
+    """The demand ring, MOST RECENT FIRST, at most ``limit`` symbols (default
+    ``DEMAND_MAX``, read at call time). ``[]`` is a real answer: nobody has named
+    anything since this process started."""
+    cap = DEMAND_MAX if limit is None else int(limit)
+    with _DEMAND_LOCK:
+        recent = list(reversed(_DEMAND))
+    return recent[:max(0, cap)]
