@@ -106,25 +106,30 @@ def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
     assert _row(volume_live.get_live(max_price=250, min_dollar=0)["rows"], "AAA") is None
 
 
-def test_sustained_recent_volume_is_the_primary_signal_and_rings():
-    # A name QUIET most of the session (low cumulative RVOL) that goes HEAVY and STAYS
-    # heavy for the last few minutes with a real move — the META-on-news shape. The
-    # SUSTAINED recent RVOL must light it BOLD (high tier) + ring, even though cumulative
-    # RVOL is still low. (Long history so the sustained window is measured, not the
-    # cumulative fallback.)
+def test_a_fresh_volume_spike_with_a_move_lights_bold_and_rings(monkeypatch):
+    # The core signal: a name trading quietly on its OWN recent baseline, then a sudden HEAVY
+    # volume spike + a real move — a breaking-news pop. The intraday SPIKE (recent volume vs its
+    # OWN recent norm) lights it BOLD + rings, regardless of RVOL-vs-previous-days.
+    monkeypatch.setattr(volume_live, "_PRICE_SECS", 120.0)
+    monkeypatch.setattr(volume_live, "_NOW_DOLLAR_SECS", 60.0)
+    prev_vol = 2_000_000
+    cf = volume_live._cumfrac(_NOW)
+    cv = prev_vol * cf * 0.5
     seq = {}
-    for t in range(0, 201):
-        cv = 278 * t                 # ~10× the normal per-second rate at 13:00, sustained
-        px = 100.0 + 0.1 * t         # a real, sustained climb
-        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 1_000_000}}
+    for t in range(0, 721, 3):            # ~12 min so vspike (its own trailing rate) is measured
+        if t < 630:
+            cv += (3000 / 60.0) * 3       # ~3K/min quiet baseline
+            px = 100.0
+        else:
+            cv += (30000 / 60.0) * 3      # ~30K/min spike (10×) in the last 90s
+            px = 100.0 + 1.5 * ((t - 630) / 90.0)   # a +1.5% pop
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": prev_vol}}
     _feed(seq)
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True
-    assert r["rvol_day"] < 1          # cumulative is LOW (quiet overall)…
-    assert r["rvol"] >= 6             # …but the SUSTAINED recent RVOL is high
-    assert r["surge_intraday"] > 1    # recent pace well ABOVE its own day pace (accelerating)
+    assert r["vspike"] >= 4           # recent volume ≥4× its OWN recent norm (the real spike)
     assert r["tier"] >= 4             # → bold (Very High / Extreme)
-    assert r["igniting"] is True      # sustained + accelerating + moving → the gold ring
+    assert r["igniting"] is True      # a live spike + move → the gold ring
 
 
 def test_normal_activity_reads_below_1x_and_is_not_lit():
@@ -138,21 +143,20 @@ def test_normal_activity_reads_below_1x_and_is_not_lit():
     assert volume_live.get_live(show_all=False, min_dollar=0)["rows"] == []
 
 
-def test_illiquid_now_window_is_filtered_by_the_dollar_floor(monkeypatch):
-    # A name that traded heavily EARLIER (high cumulative RVOL) but is dead NOW: its
-    # last-minute $-volume is ~0, so despite a high RVOL + a small tick it must drop.
+def test_a_name_dead_now_is_not_lit_no_matter_how_much_it_traded_earlier(monkeypatch):
+    # A name that traded heavily EARLIER but is dead NOW: no CURRENT volume spike, so it is NOT a
+    # signal — regardless of how high its cumulative/RVOL-vs-a-normal-day is. This is the core of
+    # the new model: only abnormal activity RIGHT NOW counts.
     monkeypatch.setattr(volume_live, "_universe_map", lambda: {"DEAD": "DEAD"})
     seq = {}
     for t in range(0, 46):
-        cv = 150_000 * t if t <= 20 else 3_000_000          # surges early, then FLAT (dead now)
-        px = 14.0 if t <= 35 else 14.0 + 0.01 * (t - 35)    # a tiny tick (passes the move gate)
+        cv = 150_000 * t if t <= 20 else 3_000_000          # surged EARLY, then FLAT (dead now)
+        px = 14.0 if t <= 35 else 14.0 + 0.01 * (t - 35)
         seq[t] = {"DEAD": {"min_av": cv, "last_price": px, "prev_close": 14.0, "prev_vol": 1_000_000}}
     _feed(seq)
-    lit = _row(volume_live.get_live(min_dollar=0)["rows"], "DEAD")
-    assert lit is not None and lit["rvol"] >= 2 and abs(lit["move"]) >= 0.25
-    assert lit["dvol"] < 15_000                             # ~nothing traded in the last minute
-    assert _row(volume_live.get_live()["rows"], "DEAD") is None            # default floor drops it
-    assert _row(volume_live.get_live(min_dollar=100_000)["rows"], "DEAD") is None
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "DEAD")
+    assert r is not None and r["lit"] is False              # no CURRENT spike → not lit
+    assert volume_live.get_live(min_dollar=0)["rows"] == []
 
 
 def test_tradability_floor_excludes_cheap_and_illiquid_names():
@@ -208,17 +212,16 @@ def test_scans_only_the_top_liquid_names(monkeypatch):
     assert _row(rows, "SMALL") is None
 
 
-def test_min_rvol_and_min_move_filters_are_honored():
+def test_a_volume_spike_without_a_move_does_not_light():
+    # SIZE + MOVE together. A fresh volume spike with NO price move (absorption / a print) is not a
+    # breaking-news signal — the scanner wants an abnormal MOVE with the abnormal volume.
     seq = {}
     for t in range(0, 46):
-        px = 10.0 if t <= 36 else 10.0 + 0.005 * (t - 36)   # a small move, below the catch bars
-        seq[t] = {"AAA": {"min_av": 60_000 * t, "last_price": px, "prev_close": 10.0, "prev_vol": 1_000_000}}
-    _feed(seq)
-    # min_rvol / min_move gate the SUSTAINED path. A high min_rvol excludes the name (its move is
-    # below the instant/expansion catch bars, so there's no backdoor); a high min_move excludes it.
-    assert volume_live.get_live(min_rvol=999, min_dollar=0)["rows"] == []
-    assert _row(volume_live.get_live(min_rvol=2, min_dollar=0)["rows"], "AAA") is not None
-    assert volume_live.get_live(min_move=999, min_dollar=0)["rows"] == []
+        cv = 60_000 * t if t <= 35 else 60_000 * 35 + 400_000 * (t - 35)   # a fresh volume spike…
+        seq[t] = {"AAA": {"min_av": cv, "last_price": 50.0, "prev_close": 50.0, "prev_vol": 1_000_000}}
+    _feed(seq)                                                              # …but the price is FLAT
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is False
 
 
 def test_custom_list_scans_only_requested_and_bypasses_the_liquidity_floor():
@@ -255,20 +258,26 @@ def test_price_sharpness_tells_a_sudden_expansion_from_a_smooth_grind():
     assert s_sharp > s_smooth * 2                      # unmistakably sharper
 
 
-def test_a_smooth_grind_on_big_volume_shades_but_does_not_flash():
-    # ANF: elevated volume on a smooth ~45° intraday trend — no sudden range expansion.
-    # It must SHADE a tier colour (the volume is real) but NOT flash white.
+def test_a_steady_volume_grind_is_not_a_spike_and_does_not_light(monkeypatch):
+    # A smooth ~45° trend on STEADY (even elevated) volume — recent volume ≈ its own trailing rate,
+    # so vspike ~1: NO current spike. It must NOT light, no matter that it's up on the day and
+    # trading well above a normal day. The scanner is for sudden spikes, not steady trends — this
+    # is the BHVN / ANF elevated-flat class.
+    monkeypatch.setattr(volume_live, "_PRICE_SECS", 120.0)
+    monkeypatch.setattr(volume_live, "_NOW_DOLLAR_SECS", 60.0)
+    prev_vol = 3_000_000
+    cf = volume_live._cumfrac(_NOW)
+    cv = prev_vol * cf
     seq = {}
-    for t in range(0, 201):
-        cv = 278 * t                        # sustained ~10× pace → high recent RVOL (t5)
-        px = 100.0 + 0.03 * t               # a steady climb: each minute ~alike → not sharp
-        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 1_000_000}}
+    for t in range(0, 721, 3):
+        cv += (20000 / 60.0) * 3            # a STEADY ~20K/min all along (elevated but constant)
+        px = 100.0 + 3.0 * (t / 720.0)      # a smooth climb +3%
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": prev_vol}}
     _feed(seq)
-    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
-    assert r is not None and r["lit"] is True
-    assert r["tier"] >= 4                    # shaded bright (extreme volume)…
-    assert r["sharpness"] is not None and r["sharpness"] < volume_live._SHARP_MIN
-    assert r["flash"] is False               # …but NO white flash — it's a smooth grind
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert r is not None
+    assert r["vspike"] is not None and r["vspike"] < 2   # recent ≈ its own trailing → NOT a spike
+    assert r["lit"] is False                              # steady grind → not lit
 
 
 def test_a_sharp_move_on_big_volume_flashes_white():
@@ -303,28 +312,6 @@ def test_custom_list_tracks_an_etf_outside_the_universe_map(monkeypatch):
     assert r["rvol"] == pytest.approx(1.04, abs=0.1)   # ~2.7M traded vs ~2.6M expected by 13:00
 
 
-def test_megacap_sustained_surge_is_lit_bold_via_the_effective_rvol_boost():
-    # INTC shape: a MEGACAP (huge prev_vol) whose day was quiet-ish, then a SUSTAINED recent
-    # volume surge with a real move. Its RVOL vs a NORMAL day reads only ~3× (a megacap's huge
-    # baseline dilutes it) — it would be buried at T1 and missing from view. The hard intraday
-    # acceleration (recent pace ≫ its own day pace) lifts its EFFECTIVE tier so it LIGHTS BOLD.
-    prev_vol = 40_000_000
-    base = prev_vol * 0.52 * 0.7        # quiet-ish day → rvol_day < 1
-    recent_add = 4_000_000
-    cv0 = base - recent_add
-    seq = {}
-    for t in range(0, 601, 3):
-        cv = cv0 + recent_add * (t / 600.0)          # sustained recent accumulation
-        px = 87.0 + 1.0 * (t / 600.0)                # a real climb (prev_close 87 → +1.1% on day)
-        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 87.0, "prev_vol": prev_vol}}
-    _feed(seq)
-    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
-    assert r is not None and r["lit"] is True
-    assert r["rvol_day"] < 1              # a quiet-ish day overall (megacap RVOL under-reads)…
-    assert r["surge_intraday"] >= 2.5     # …but a hard recent acceleration vs its OWN day pace
-    assert r["tier"] >= 3                 # → bold, lifted by the effective-RVOL boost (not buried T1)
-
-
 def test_an_earnings_name_heavy_but_flat_all_day_does_not_scream_very_high():
     # ANF shape: heavy volume ALL day from earnings — RVOL vs a NORMAL day reads ~8× — but it's
     # FLAT: recent pace ≈ its own day pace (surge_intraday ~1), nothing unusual intraday. It must
@@ -346,38 +333,30 @@ def test_an_earnings_name_heavy_but_flat_all_day_does_not_scream_very_high():
     assert r["lit"] is False              # and not lit — nothing unusual is happening right now
 
 
-def test_a_strong_mover_breaking_out_on_a_volume_burst_is_lit_bold_not_suppressed(monkeypatch):
-    # NET shape: elevated ALL day (surge ~1, so the coasting cap alone would suppress it) and
-    # grinding UP, then a fresh candle that is its biggest volume of the day + a real fast move —
-    # a breakout happening NOW. This must LIGHT BOLD (size + price move together), not sit unlit
-    # like a flat coaster. Its ÷own-pace burst ratio is diluted (active all day), so the catch
-    # keys off the ABSOLUTE burst + the fast move.
-    # This one runs a realistic ~10-min timeline, so use the real move/burst windows (the short
-    # synthetic tests shrink them to 10s).
+def test_a_breakout_spike_fires_even_on_a_name_already_elevated_all_day(monkeypatch):
+    # NET shape: ELEVATED but STEADY volume all day + grinding up, then a fresh candle that is its
+    # biggest volume of the day + a real move — a breakout NOW. The spike vs its OWN (already-
+    # elevated) recent baseline still fires: being active all day doesn't hide the fresh spike.
     monkeypatch.setattr(volume_live, "_PRICE_SECS", 120.0)
     monkeypatch.setattr(volume_live, "_NOW_DOLLAR_SECS", 60.0)
     prev_vol = 4_000_000
     cf = volume_live._cumfrac(_NOW)
-    cr = volume_live._cumrate(_NOW)
-    base = cr * prev_vol * 2.0                         # ~2× a normal day's per-second rate
-    cv = 2 * prev_vol * cf - base * 600
+    cv = prev_vol * cf
     seq = {}
-    for t in range(0, 601, 3):
-        if t < 585:
-            cv += base * 3
-            px = 277.0 + 12.0 * (t / 585.0)            # steady climb +4.3%
+    for t in range(0, 721, 3):
+        if t < 630:
+            cv += (10000 / 60.0) * 3          # ~10K/min ELEVATED but steady baseline all day
+            px = 277.0 + 10.0 * (t / 630.0)   # steady climb
         else:
-            cv += base * 3 * 8                         # the highest-volume candle of the day
-            px = 289.0 + 0.8 * ((t - 585) / 15.0)      # a fast pop on top (the breakout)
+            cv += (60000 / 60.0) * 3          # ~60K/min — the highest-volume candle (6× its baseline)
+            px = 287.0 + 2.0 * ((t - 630) / 90.0)   # a fast pop (the breakout)
         seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 277.0, "prev_vol": prev_vol}}
     _feed(seq)
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True
-    assert r["surge_intraday"] <= 1.5     # elevated all day at ~flat pace (a coaster by that gate)…
-    assert r["burst"] >= 3                 # …but a genuine fresh volume burst right now…
-    assert r["move"] >= 1                  # …and a real fast move (size + price together)
-    assert r["tier"] >= 3                  # → lit BOLD, not suppressed by the coasting cap
-    assert r["igniting"] is True           # and igniting, so it ranks near the top
+    assert r["vspike"] >= 3               # a spike vs its OWN already-elevated recent baseline
+    assert r["move"] >= 0.6               # …with a real fast move
+    assert r["tier"] >= 3 and r["igniting"] is True
 
 
 def test_a_megacap_volume_spike_vs_its_own_norm_is_caught_even_when_the_normal_day_burst_is_diluted(monkeypatch):
@@ -449,16 +428,14 @@ def test_a_flagged_name_holds_then_eases_down_through_the_tiers_then_drops():
     # LINGERS on the scanner and its tier eases DOWN (T4→T3→T2→…) as the volume normalizes, so a
     # 1-second pop stays visible for ~1-2 min — instead of blinking out. Then it drops.
     st = {}
-    spike = {"move": 2.0, "pct": 2.0, "burst": 8.0, "vspike": 6.0, "sharpness": 5.0,
-             "surge_intraday": 1.2, "rvol": 3.0, "burst_intraday": 3.0}
+    spike = {"move": 2.0, "pct": 2.0, "burst": 8.0, "vspike": 6.0, "sharpness": 5.0, "dvol": 500_000}
     volume_live._apply_hold(st, spike, 0.0)          # the spike: bold + latched
     peak = spike["eff"]
     assert spike["held"] is True
     assert volume_live._rvol_tier(peak) >= 4         # T4/T5 — bold
 
     # the live surge FADES (volume + fast move gone), but the hold lingers and DECAYS
-    quiet = {"move": 0.0, "pct": 2.0, "burst": 1.0, "vspike": 1.0, "sharpness": 0.0,
-             "surge_intraday": 1.0, "rvol": 1.0, "burst_intraday": 1.0}
+    quiet = {"move": 0.0, "pct": 2.0, "burst": 1.0, "vspike": 1.0, "sharpness": 0.0, "dvol": 500_000}
     q1 = dict(quiet)
     volume_live._apply_hold(st, q1, 45.0)            # ~45s later
     assert q1["held"] is True                         # still on the scanner…

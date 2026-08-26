@@ -159,6 +159,17 @@ _EFF_DECAY_TAU = 75.0        # decay time constant (s): a T4 (~8) eases to T1 (~
 _HOLD_SECS = 120.0           # max time a flagged name lingers after its LAST genuine signal
 _HOLD_LIT_FLOOR = 2.0        # …while its decayed strength is still ≥ this (≈ still in T1); then it drops
 
+# ── THE SIGNAL — what this scanner actually ranks on ──────────────────────────
+# The ONLY thing that matters: an ABNORMAL VOLUME SPIKE + an ABNORMAL MOVE, right NOW, vs the
+# stock's OWN recent intraday activity. NOT "most RVOL vs previous days" — an earnings name heavy
+# ALL day, or a name below its own recent volume, is NOT a signal no matter how high its RVOL vs a
+# normal day is. The tier is the SPIKE MAGNITUDE (vspike = recent volume ÷ its own trailing rate),
+# gated by a real move; _rvol_tier maps it (≥3→T2, ≥4→T3, ≥6→T4, ≥10→T5).
+_SPIKE_FLOOR = 2.0           # recent volume ≥2× the stock's OWN recent norm to count as a spike (→T1)…
+_LIVE_MIN_MOVE = 0.6         # …AND a real fast move (last ~2 min ≥0.6%); a smaller move counts only
+                             # if it's a genuinely SHARP sudden expansion (a vertical candle — INTC)
+_MIN_SPIKE_DOLLAR = 50_000   # ≥ $50k traded in the recent window — drops illiquid "50× of nothing" spikes
+
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
 # cumulative while its last 10 min is ~12×); this tracks the sustained intensity, so a real
@@ -641,42 +652,17 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         limit = 100
 
     def _is_lit(m):
-        # Best of both, gated by real $ flow:
-        #  • SUSTAINED — a genuinely EXTREME level (show even if plateaued) OR a real pickup
-        #    that is ACCELERATING vs the stock's OWN day pace (surge_intraday). NOT a name
-        #    merely elevated-and-flat, coasting on yesterday's earnings volume (SMTC/SCHW
-        #    read ~3× vs a normal day but ~1× vs their own pace). The surge gate only
-        #    applies once we have that reading; a freshly-tracked mover isn't held back.
-        #  • INSTANT SURGE — a genuine explosion right now (big burst + a real fast move),
-        #    caught the SECOND it happens. HIGH bars keep modest blips on quiet names out.
-        # A "move" = the last ~2 min OR up big on the day (robust when the 2-min window is
-        # momentarily flat — the pre-market news shape).
-        # HELD — flagged recently (a real signal) → linger on the scanner while it decays through
-        # the tiers, even after the live volume/move has faded. This is what keeps a 1-second pop
-        # visible for ~1-2 min so you can see the ticker.
-        if m.get("held"):
-            return True
-        if m.get("dvol", 0) < mnd:
-            return False
-        moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
-        surge = m.get("surge_intraday")
-        accelerating_ok = surge is None or surge >= _MIN_INTRADAY_SURGE
-        eff = _eff(m)        # decayed HELD strength (raw when no hold applies)
-        sustained = moved and (
-            eff >= _SUSTAINED_HIGH_RVOL
-            or (eff >= mnr and accelerating_ok)
-        )
-        return sustained or _instant_surge(m) or _expansion_breakout(m)
+        # LIT = an abnormal volume SPIKE + move happening now (a live signal), OR still lingering
+        # from one in the last ~1-2 min (the hold, so a 1-second pop stays visible). Both are
+        # captured by the `held` flag set in _apply_hold — which is purely the intraday spike (vs
+        # the stock's OWN recent volume) + a real move, NEVER RVOL-vs-previous-days. So an earnings
+        # name heavy-but-flat all day, or a name below its own recent volume, is NOT lit.
+        return bool(m.get("held"))
 
     def _igniting(m):
-        # The gold ring = a GENUINE surge happening NOW — an instant explosion (a vertical
-        # candle towering over the stock's own day pace, like CRCL / INTC), OR a heavy name
-        # ACCELERATING (not just plateaued) with a real move. NOT a held/decaying row (the ring
-        # fades once the live surge stops, while the row lingers), never a coasting flat name.
-        surge = m.get("surge_intraday")
-        accelerating = (_eff(m) >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
-                        and (surge is None or surge >= _MIN_INTRADAY_SURGE))
-        return accelerating or _instant_surge(m) or _expansion_breakout(m)
+        # The gold ring = a GENUINE live spike right now (abnormal volume + move + real $). It
+        # FADES once the live surge stops, while the row lingers (held) and eases down the tiers.
+        return _signal(m)
 
     def _score(m):
         # Rank by the (held) EFFECTIVE surge strength, weighted by the move — so a flagged name
@@ -762,89 +748,37 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     }
 
 
-def _eff_rvol(m: dict) -> float:
-    """Effective surge strength used for the tier + ranking + the sustained-lit test.
+def _live_strength(m: dict) -> float:
+    """The ONE thing this scanner ranks + tiers on: how ABNORMAL is the stock's activity RIGHT NOW.
 
-    Normally the sustained RVOL (vs a NORMAL day). BUT a name accelerating hard vs its OWN
-    day pace (surge_intraday ≥ _SURGE_BOOST_MIN) is lifted toward that acceleration — so a
-    megacap whose huge baseline makes a real surge read only ~2-3× vs a normal day still
-    tiers bold and ranks up (the INTC shape), instead of being buried by absolute small-cap
-    RVOLs. The 2.5× gate keeps the routine late-day volume ramp from lifting everything."""
-    rvol = m.get("rvol") or 0.0
-    surge = m.get("surge_intraday")
-    if surge is None:
-        base = rvol   # freshly tracked — not enough history to judge acceleration yet
-    # Lift only when the recent rate is GENUINELY elevated vs a normal day (rvol ≥ the boost
-    # floor) AND accelerating hard vs its own day — so a name whose morning was dead but is
-    # merely trading NORMALLY now (low rvol, high surge) is not inflated into a fake surge.
-    elif surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
-        base = max(rvol, float(surge))
-    # COASTING — elevated but flat (surge ~1): cap the effective tier so an earnings name
-    # heavy all day doesn't read "Very High" on stale volume. The bold tiers require the
-    # volume to be EXPANDING now, not just high-vs-a-normal-day.
-    elif surge < _COAST_SURGE:
-        base = min(rvol, _COAST_TIER_CAP)
-    else:
-        base = rvol
-    # A fresh volume SPIKE + move breakout drives the tier too (its spike magnitude), so a strong
-    # mover reads bold even when its sustained rvol is modest or coast-capped (NET/ARM). Gated by
-    # the breakout (spike + real move), so a flat grind isn't lifted.
-    if _expansion_breakout(m):
-        base = max(base, m.get("burst") or 0.0, m.get("vspike") or 0.0)
-    return base
-
-
-def _expansion_breakout(m: dict) -> bool:
-    """SIZE + PRICE MOVE together, right now — the core catch. A clear volume SPIKE — recent
-    volume ≥ _SPIKE_MULT× the stock's OWN trailing rate (how a trader eyeballs it: 6-8K/min →
-    30K/min), which catches a MEGACAP whose spike reads only ~2-3× vs a normal day (ARM), OR a
-    big absolute burst vs the normal-for-now rate — AND a real fast move. Catches a strong mover
-    breaking out on its highest-volume candle (ARM/NET/NTNX), which the coasting gate would
-    otherwise suppress. A flat/fading name (no fast move) or a merely-elevated one (no spike)
-    does NOT qualify. A smaller move still counts if it's a genuinely SHARP sudden expansion
-    (a vertical candle — INTC)."""
-    spike = (m.get("vspike") or 0.0) >= _SPIKE_MULT or (m.get("burst") or 0.0) >= _EXPANSION_BURST
-    if not spike:
-        return False
+    A volume SPIKE vs its OWN recent intraday baseline (vspike = recent volume ÷ its own trailing
+    ~10-min rate) — how a trader eyeballs it — GATED by a real move. This scanner is for immediate
+    breaking-news moves, NOT "most RVOL vs previous days": an earnings name heavy-but-flat all day,
+    or a name trading BELOW its own recent volume, reads 0 no matter how high its RVOL vs a normal
+    day is. Returns the spike magnitude (→ the tier via _rvol_tier: ≥3 T2, ≥4 T3, ≥6 T4, ≥10 T5) or
+    0 (unremarkable → unlit). Falls back to the normal-for-now burst only until vspike has history."""
+    vspike = m.get("vspike")
+    spike = vspike if vspike is not None else (m.get("burst") or 0.0)
+    if spike < _SPIKE_FLOOR:
+        return 0.0
     move = abs(m.get("move") or 0.0)
-    if move >= _EXPANSION_MOVE:
-        return True
     sharp = m.get("sharpness")
-    return sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE
-
-
-def _instant_surge(m: dict) -> bool:
-    """A genuine explosion RIGHT NOW: a big burst vs the stock's own day pace, AND either a
-    fast % move OR a sudden ATR-style range expansion (a vertical candle on the burst — the
-    INTC / CRCL shape). The range-expansion arm catches low-ADR megacaps whose sharp move is
-    real but under the 1% instant floor."""
-    if (m.get("burst_intraday") or 0.0) < _INSTANT_SURGE:
-        return False
-    move = abs(m.get("move") or 0.0)
-    if move >= _SURGE_MOVE:
-        return True
-    sharp = m.get("sharpness")
-    return sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE
+    moving = move >= _LIVE_MIN_MOVE or (sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE)
+    return float(spike) if moving else 0.0
 
 
 def _eff(m: dict) -> float:
-    """The effective surge strength used for the tier / rank / lit — the DECAYED HELD value once
-    the tick has applied the hold (so a flagged name eases down through the tiers as its volume
-    fades), else the raw computation."""
+    """The effective strength used for the tier / rank / lit — the DECAYED HELD value once the tick
+    has applied the hold (so a flagged name eases down through the tiers as its volume normalizes),
+    else the live strength."""
     held = m.get("eff")
-    return held if held is not None else _eff_rvol(m)
+    return held if held is not None else _live_strength(m)
 
 
 def _signal(m: dict) -> bool:
-    """Param-independent 'a genuine signal fired right now' — the trigger that LATCHES the hold.
-    A fresh catch (instant / expansion) OR a strong ACCELERATING sustained surge. Excludes a
-    coasting elevated name (no catch, not accelerating), so a flat earnings name is never held."""
-    if _instant_surge(m) or _expansion_breakout(m):
-        return True
-    surge = m.get("surge_intraday")
-    acc = surge is None or surge >= _MIN_INTRADAY_SURGE
-    moved = abs(m.get("move") or 0.0) >= _DEFAULT_MIN_MOVE or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
-    return bool(moved and acc and _eff_rvol(m) >= _SUSTAINED_HIGH_RVOL)
+    """A genuine LIVE signal right now — an abnormal volume spike + move with real $ traded (the
+    illiquid-'50× of nothing' filter). Latches the hold and drives the igniting ring."""
+    return _live_strength(m) >= _SPIKE_FLOOR and (m.get("dvol") or 0) >= _MIN_SPIKE_DOLLAR
 
 
 def _apply_hold(st: dict, m: dict, t: float) -> None:
@@ -855,7 +789,7 @@ def _apply_hold(st: dict, m: dict, t: float) -> None:
     decayed strength is still above the T1 floor. Mutates m in place (sets `eff` + `held`)."""
     if not m:
         return
-    raw = _eff_rvol(m)
+    raw = _live_strength(m)
     prev = st.get("eff_hold", 0.0)
     prev_t = st.get("eff_hold_t", t)
     dt = t - prev_t if t > prev_t else 0.0
@@ -882,13 +816,11 @@ def _rvol_tier(rvol: float) -> int:
 
 
 def _tier(m: dict) -> int:
-    """Colour tier by EFFECTIVE surge strength — how significant/extreme the surge is
-    (5 = Extreme … 1 = Notable). Boldness tracks the effective RVOL (sustained volume, lifted
-    by a hard intraday acceleration for megacaps — see _eff_rvol) so a genuine sustained push
-    gets the loud colours while weak/marginal prints stay calm. A 1-minute burst does NOT by
-    itself inflate the tier — a fresh ignition is surfaced by the row's `igniting` pulse + its
-    rank. UCT-palette ramp: faint green → gold → hot red. Uses the DECAYED HELD strength, so a
-    flagged name eases down T4→T3→T2→T1 as its volume normalizes rather than blinking out."""
+    """Colour tier by the CURRENT abnormality — the intraday volume SPIKE (vs the stock's own
+    recent volume) + move, via _live_strength (NOT RVOL-vs-previous-days). 5 = Extreme … 1 =
+    Notable. Uses the DECAYED HELD strength, so a flagged name eases down T4→T3→T2→T1 as its
+    volume normalizes rather than blinking out; a name with no current spike reads T1/unlit no
+    matter how much it traded earlier. UCT-palette ramp: faint green → gold → hot red."""
     return _rvol_tier(_eff(m))
 
 
