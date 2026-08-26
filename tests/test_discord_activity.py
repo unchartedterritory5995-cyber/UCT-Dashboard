@@ -29,16 +29,16 @@ def test_handoff_store_keeps_the_newest_per_channel_and_expires():
 def test_open_in_discord_button_only_in_activity_guilds_and_it_launches(monkeypatch):
     from api.services import discord_interactions as di
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "1524909611054792786")
+    last = lambda rows: rows[-1]["components"]  # noqa: E731
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS), guild_id="1524909611054792786")
-    labels = [b["label"] for b in rows[1]["components"]]
-    assert labels[-1] == "Open in Discord" and rows[1]["components"][-1]["custom_id"] == "activity|NVDA|D|house|1"
+    assert last(rows)[-1]["label"] == "Open in Discord" and last(rows)[-1]["custom_id"] == "activity|NVDA|D|house|1"
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS), guild_id="882293203485720596")
-    assert "Open in Discord" not in [b["label"] for b in rows[1]["components"]]   # members' server: not until verified
+    assert "Open in Discord" not in [b["label"] for b in last(rows)]   # members' server: not until verified
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS))
-    assert "Open in Discord" not in [b["label"] for b in rows[1]["components"]]
+    assert "Open in Discord" not in [b["label"] for b in last(rows)]
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS), guild_id="1524909611054792786")
-    assert "Open in Discord" not in [b["label"] for b in rows[1]["components"]]   # blank = nowhere
+    assert "Open in Discord" not in [b["label"] for b in last(rows)]   # blank = nowhere
     assert di.component_kind({"data": {"custom_id": "activity|NVDA|D|house|1"}}) == "activity"
     assert di.component_kind({"data": {"custom_id": "chart|NVDA|D|house|1"}}) == "chart"
     with pytest.raises(di.CommandError):
@@ -84,7 +84,7 @@ def test_chart_reply_components_carry_the_guild_so_the_launch_button_can_be_scop
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: seen.update(k) or "ok")
     assert _post(client, sk, _interaction("NVDA")).json() == {"type": 5}
     rows = seen["components_fn"](di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS))
-    assert rows[1]["components"][-1]["label"] == "Open in Discord"
+    assert rows[-1]["components"][-1]["label"] == "Open in Discord"
 
 
 def test_launch_command_is_an_admin_only_entry_point_registered_only_on_request():

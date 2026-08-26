@@ -1313,27 +1313,65 @@ def test_house_url_carries_preset_and_engine_instances():
 def test_chart_components_reflect_the_image_and_round_trip_through_parse_component(monkeypatch):
     from api.services import discord_interactions as di
     monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
+    monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
     rows = di.chart_components(di.ChartRequest("NVDA", "15"), {**di.prefs_mod.DEFAULTS})
-    assert len(rows) == 2 and all(r["type"] == 1 for r in rows)
+    assert len(rows) == 5 and all(r["type"] == 1 for r in rows)               # Discord's ceiling, all used
     tfs = rows[0]["components"]
     assert [b["label"] for b in tfs] == ["D", "W", "60m", "15m", "5m"]
     assert [b["style"] for b in tfs] == [2, 2, 2, 1, 2]                    # the active timeframe is primary
-    assert all(len(b["custom_id"]) <= 100 for b in tfs)
-    # every timeframe button parses back to that timeframe with the SAME style state
-    for b, (tf, _) in zip(tfs, di.BUTTON_TFS):
+    assert all(len(b["custom_id"]) <= 100 for r in rows for b in r["components"] if "custom_id" in b)
+    for b, (tf, _) in zip(tfs, di.BUTTON_TFS):                              # every tf button parses back with the SAME style state
         req = di.parse_component({"data": {"custom_id": b["custom_id"]}})
-        assert (req.ticker, req.tf, req.mas, req.volume) == ("NVDA", tf, "house", True)
-    mas_btn, vol_btn, link = rows[1]["components"]
-    assert mas_btn["label"] == "MAs off" and di.parse_component({"data": {"custom_id": mas_btn["custom_id"]}}).mas == "off"
-    assert vol_btn["label"] == "Volume off" and di.parse_component({"data": {"custom_id": vol_btn["custom_id"]}}).volume is False
-    assert link["style"] == 5 and link["url"] == "https://uctintelligence.com/research/NVDA" and "custom_id" not in link
-    # the toggles read the state the image actually has (a call with MAs off shows "MAs on")
+        assert (req.ticker, req.tf, req.mas, req.volume, req.zoom, req.indicators, req.style, req.theme, req.to) == \
+            ("NVDA", tf, "house", True, "auto", "none", "candles", "house", None)
+    zoom_sel, ind_sel, look_sel = (rows[i]["components"][0] for i in (1, 2, 3))
+    assert zoom_sel["type"] == 3 and [o["value"] for o in zoom_sel["options"]] == ["auto", "1d", "2d", "5d", "10d"]   # intraday zooms
+    assert ind_sel["type"] == 3 and [o["value"] for o in ind_sel["options"]] == ["none", "rsi", "macd", "rsi+macd"]
+    assert look_sel["type"] == 3 and look_sel["options"][0]["value"] == "style:candles" and look_sel["options"][0]["default"]
+    assert any(o["value"] == "theme:oled" for o in look_sel["options"])
+    # a pick applies ONE field over the state the select carried
+    picked = di.parse_component({"data": {"custom_id": zoom_sel["custom_id"], "values": ["5d"]}})
+    assert (picked.zoom, picked.tf, picked.mas) == ("5d", "15", "house")
+    picked = di.parse_component({"data": {"custom_id": ind_sel["custom_id"], "values": ["rsi+macd"]}})
+    assert picked.indicators == "rsi+macd"
+    picked = di.parse_component({"data": {"custom_id": look_sel["custom_id"], "values": ["theme:oled"]}})
+    assert picked.theme == "oled" and picked.style == "candles"
+    picked = di.parse_component({"data": {"custom_id": look_sel["custom_id"], "values": ["style:line"]}})
+    assert picked.style == "line" and picked.theme == "house"
+    row5 = rows[4]["components"]
+    assert [b["label"] for b in row5] == ["MAs: House", "Volume off", "Open interactive \u2197"]   # intraday: no pan
+    assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).mas == "10-20-50"    # MAs cycle house -> 10/20/50 -> off
+    assert di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}}).volume is False
+    assert row5[2]["style"] == 5 and row5[2]["url"] == "https://uctintelligence.com/research/NVDA"
+    # daily: pan buttons, Later disabled while live, Earlier steps back a window
     rows = di.chart_components(di.ChartRequest("NVDA", "D", mas="off", volume=False), {**di.prefs_mod.DEFAULTS})
-    mas_btn, vol_btn, _ = rows[1]["components"]
-    assert mas_btn["label"] == "MAs on" and vol_btn["label"] == "Volume on"
-    for bad in ("", "chart|NVDA|D|house", "chart|NV DA|D|house|1", "chart|NVDA|2|house|1", "chart|NVDA|D|sma|1", "other|NVDA|D|house|1"):
+    row5 = rows[4]["components"]
+    assert [b["label"] for b in row5] == ["\u25c0 Earlier", "Later \u25b6", "MAs: off", "Volume on", "Open interactive \u2197"]
+    assert row5[1]["disabled"] is True
+    earlier = di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}})
+    assert earlier.to is not None and earlier.tf == "D"
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", to="2026-05-15"), {**di.prefs_mod.DEFAULTS})
+    row5 = rows[4]["components"]
+    assert row5[1].get("disabled") is False
+    assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).to < "2026-05-15"
+    later = di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}})
+    assert later.to is None or later.to > "2026-05-15"
+    assert [o["default"] for o in rows[1]["components"][0]["options"]][0] is True                  # daily zoom list, auto selected
+    for bad in ("", "chart|NVDA|D|house", "chart|NV DA|D|house|1", "chart|NVDA|2|house|1", "chart|NVDA|D|sma|1", "other|NVDA|D|house|1",
+                "c2|NVDA|D|house|1|9y|none|candles|house|", "c2|NVDA|D|house|1|auto|none|candles|house|2026-13-01x"):
         with pytest.raises(di.CommandError):
             di.parse_component({"data": {"custom_id": bad}})
+    assert di.parse_component({"data": {"custom_id": "chart|NVDA|W|off|0"}}) == di.ChartRequest("NVDA", "W", mas="off", volume=False)   # legacy ids
+
+
+def test_pan_to_steps_a_window_and_returns_to_live():
+    from api.services.discord_interactions import pan_to
+    assert pan_to(None, "D", "auto", -1, today="2026-08-25") == "2026-05-22"
+    assert pan_to("2026-05-22", "D", "auto", -1, today="2026-08-25") == "2026-02-16"
+    assert pan_to("2026-05-22", "D", "auto", +1, today="2026-08-25") is None      # lands on/after today -> live
+    assert pan_to("2026-02-16", "D", "auto", +1, today="2026-08-25") == "2026-05-22"
+    assert pan_to(None, "W", "1y", -1, today="2026-08-25") == "2025-08-24"
+    assert pan_to(None, "D", "1m", -1, today="2026-08-25") == "2026-07-25"
 
 
 def test_endpoint_button_click_updates_in_place_and_reschedules_with_components(monkeypatch):
@@ -1349,7 +1387,7 @@ def test_endpoint_button_click_updates_in_place_and_reschedules_with_components(
     r = _post(client, sk, click)
     assert r.json() == {"type": 6}                                          # DEFERRED_UPDATE_MESSAGE: same message, no loading state
     (app_id, token, req), kw = scheduled[-1]
-    assert (app_id, token, req) == ("123", "tok", di.ChartRequest("NVDA", "W", mas="off", volume=True))
+    assert (app_id, token, req.ticker, req.tf, req.mas, req.volume) == ("123", "tok", "NVDA", "W", "off", True)
     unwrap = lambda f: getattr(f, "func", f)   # noqa: E731 — the router binds the guild with functools.partial
     assert unwrap(kw["components_fn"]) is di.chart_components and kw["prefs"]["mas"] == "off"
     # a slash command also gets the buttons now

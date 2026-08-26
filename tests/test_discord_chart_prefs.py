@@ -56,7 +56,7 @@ def test_describe_is_one_readable_line():
 def test_render_options_for_defaults_touch_nothing():
     from api.services import discord_chart_prefs as p
     opts = p.render_options(p.DEFAULTS)
-    assert opts == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None}
+    assert opts == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None, "bars": None}
     assert p.style_signature(p.DEFAULTS) == "default"
 
 
@@ -174,7 +174,7 @@ def test_run_chart_job_passes_prefs_render_options_to_the_house_renderer_and_key
     seen.clear()
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=lambda *a: _daily(), render_fn=lambda *a, **k: b"",
                          edit_fn=edits, house_fn=house_fn) == "ok"
-    assert seen[-1] == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None}
+    assert seen[-1] == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None, "bars": None}
 
 
 def test_fallback_renderer_honours_mas_and_volume_flags():
@@ -295,3 +295,15 @@ def test_settings_command_exposes_the_v8_options_and_chart_takes_style_and_theme
     inter["data"]["options"][1]["value"] = "renko"
     with pytest.raises(CommandError):
         parse_chart_command(inter)
+
+
+def test_zoom_maps_to_visible_bars_per_timeframe():
+    from api.services import discord_chart_prefs as p
+    assert p.zoom_bars("auto", "D") is None and p.zoom_bars("3m", "D") == 65 and p.zoom_bars("1y", "W") == 52
+    assert p.zoom_bars("5d", "5") == 390 and p.zoom_bars("5d", "5", ext=True) == 975 and p.zoom_bars("1d", "60") == 7
+    assert p.zoom_bars("3m", "5") is None and p.zoom_bars("5d", "D") is None          # a mismatch reads as auto
+    assert p.render_options({**p.DEFAULTS, "zoom": "6m"}, "D")["bars"] == 130
+    assert p.render_options({**p.DEFAULTS, "zoom": "6m"}, "15")["bars"] is None
+    assert set(p.zoom_choices("D")) == {"auto", "1m", "3m", "6m", "1y", "2y"} and set(p.zoom_choices("15")) == {"auto", "1d", "2d", "5d", "10d"}
+    with pytest.raises(ValueError):
+        p.set_prefs("z", zoom="9y")

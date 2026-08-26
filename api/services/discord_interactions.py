@@ -6,6 +6,7 @@ verifies + parses with these and schedules `run_chart_job`; the local tool
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
@@ -114,12 +115,16 @@ class ChartRequest:
     daily_only: bool = False     # breadth pseudo-tickers: the series is daily-basis, no intraday
     display: str | None = None   # what the reply calls it (breadth: "UCTA5 · % of Stocks Above 5-Day MA")
     breadth_name: str | None = None  # set for a breadth metric: the page paints it the way the app does
+    zoom: str | None = None      # per-call visible window (prefs key)
+    indicators: str | None = None  # per-call lower-pane indicators (prefs key)
+    to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
         without MAs or volume" without touching saved settings)."""
         return {k: v for k, v in (("mas", self.mas), ("volume", self.volume),
-                                  ("style", self.style), ("theme", self.theme)) if v is not None}
+                                  ("style", self.style), ("theme", self.theme),
+                                  ("zoom", self.zoom), ("indicators", self.indicators)) if v is not None}
 
 
 def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, body: bytes) -> bool:
@@ -190,53 +195,160 @@ def public_site_url() -> str:
     return (os.environ.get("CHART_RENDER_BASE_URL") or "https://uctintelligence.com").rstrip("/")
 
 
-def component_id(ticker: str, tf: str, mas: str, volume: bool) -> str:
-    return f"{COMPONENT_PREFIX}|{ticker}|{tf}|{mas}|{1 if volume else 0}"
+STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
+SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Calendar days one "Earlier"/"Later" step moves the window, per zoom.
+_PAN_DAYS_D = {"auto": 95, "1m": 31, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
+_PAN_DAYS_W = {"auto": 366, "1m": 35, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
+_MA_CYCLE = ("house", "10-20-50", "off")
+
+
+def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
+    """What THIS image shows: the request's explicit choices over the member's prefs."""
+    p = {**prefs_mod.DEFAULTS, **(prefs or {})}
+    return {
+        "ticker": req.ticker, "tf": req.tf,
+        "mas": req.mas if req.mas is not None else p["mas"],
+        "vol": req.volume if req.volume is not None else bool(p["volume"]),
+        "zoom": req.zoom if req.zoom is not None else p["zoom"],
+        "ind": req.indicators if req.indicators is not None else p["indicators"],
+        "style": req.style if req.style is not None else p["style"],
+        "theme": req.theme if req.theme is not None else p["theme"],
+        "to": req.to or "",
+    }
+
+
+def _encode(st: dict) -> str:
+    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
+                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or ""])
+
+
+def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
+    st = {"ticker": ticker, "tf": tf, "mas": mas, "vol": bool(volume),
+          "zoom": rest.get("zoom", "auto"), "ind": rest.get("ind", "none"),
+          "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", "")}
+    return _encode(st)
+
+
+def _request_from_state(parts: list) -> ChartRequest:
+    _, ticker, tf, mas, vol, zoom, ind, style, theme, to = parts
+    ticker = ticker.strip().upper()
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1")
+          and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
+          and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
+          and (to == "" or _DATE_RE.match(to)))
+    if not ok:
+        raise CommandError("Unknown button.")
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"), zoom=zoom, indicators=ind,
+                        style=style, theme=theme, to=to or None)
 
 
 def component_kind(interaction: dict) -> str:
     """'chart' (re-render in place) or 'activity' (launch the Activity)."""
     cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
     head = cid.split("|", 1)[0]
-    if head in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
-        return head
+    if head == ACTIVITY_PREFIX:
+        return "activity"
+    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK):
+        return "chart"
     raise CommandError("Unknown button.")
 
 
 def parse_component(interaction: dict) -> ChartRequest:
-    """A button click -> the chart it asks for. Only our own custom_ids parse;
-    anything else is a CommandError (an unknown button is not a chart)."""
-    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    """A button click or a dropdown pick -> the chart it asks for. Only our own
+    custom_ids parse; anything else is a CommandError (an unknown control is
+    not a chart). Legacy 5-part `chart|…` ids (messages sent before the
+    dropdowns) still parse."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
     parts = cid.split("|")
-    if len(parts) != 5 or parts[0] not in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
-        raise CommandError("Unknown button.")
-    _, ticker, tf, mas, vol = parts
-    ticker = ticker.strip().upper()
-    if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
-        raise CommandError("Unknown button.")
-    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
+    head = parts[0]
+    if head in (COMPONENT_PREFIX, ACTIVITY_PREFIX) and len(parts) == 5:
+        _, ticker, tf, mas, vol = parts
+        ticker = ticker.strip().upper()
+        if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
+            raise CommandError("Unknown button.")
+        return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
+    if head == STATE_PREFIX and len(parts) == 10:
+        return _request_from_state(parts)
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) == 11:
+        req = _request_from_state(parts[1:])
+        values = data.get("values") or []
+        value = str(values[0]) if values else ""
+        if head == SELECT_ZOOM:
+            if value not in prefs_mod.ZOOM_CHOICES:
+                raise CommandError("Unknown zoom.")
+            return dataclasses.replace(req, zoom=value, to=None)     # a new window starts from live
+        if head == SELECT_IND:
+            if value not in prefs_mod.INDICATOR_CHOICES:
+                raise CommandError("Unknown indicator set.")
+            return dataclasses.replace(req, indicators=value)
+        kind, _, choice = value.partition(":")
+        if kind == "style" and choice in prefs_mod.STYLE_CHOICES:
+            return dataclasses.replace(req, style=choice)
+        if kind == "theme" and choice in prefs_mod.THEME_CHOICES:
+            return dataclasses.replace(req, theme=choice)
+        raise CommandError("Unknown look.")
+    raise CommandError("Unknown button.")
+
+
+def pan_to(current_to: str | None, tf: str, zoom: str, direction: int, today: str | None = None) -> str | None:
+    """The end date one step earlier (-1) or later (+1); None = back to live."""
+    import datetime as _dt
+    days = (_PAN_DAYS_W if tf == "W" else _PAN_DAYS_D).get(zoom, 95)
+    today_d = _dt.date.fromisoformat(today) if today else _dt.date.today()
+    base = _dt.date.fromisoformat(current_to) if current_to else today_d
+    nxt = base + _dt.timedelta(days=days * direction)
+    if nxt >= today_d:
+        return None
+    return nxt.isoformat()
 
 
 def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str | None = None) -> list:
-    """The two action rows under a chart, reflecting what THIS image shows."""
-    p = {**prefs_mod.DEFAULTS, **(prefs or {})}
-    mas = req.mas if req.mas is not None else p["mas"]
-    vol = req.volume if req.volume is not None else bool(p["volume"])
+    """The rows under a chart, reflecting what THIS image shows. Five rows is
+    Discord's ceiling: timeframes · Zoom · Indicators · Look · pan/MAs/volume."""
+    st = _state_of(req, prefs)
+    sid = lambda **changes: _encode({**st, **changes})  # noqa: E731
     tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
-    tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == req.tf else _STYLE_SECONDARY, "label": label,
-            "custom_id": component_id(req.ticker, tf, mas, vol)} for tf, label in tf_choices]
-    toggles = [
-        {"type": 2, "style": _STYLE_SECONDARY, "label": "MAs off" if mas != "off" else "MAs on",
-         "custom_id": component_id(req.ticker, req.tf, "off" if mas != "off" else "house", vol)},
-        {"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if vol else "Volume on",
-         "custom_id": component_id(req.ticker, req.tf, mas, not vol)},
-        {"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
-         "url": f"{public_site_url()}/research/{req.ticker}"},
-    ]
+    tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
+            "custom_id": sid(tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+           for tf, label in tf_choices]
+    zooms = prefs_mod.zoom_choices(st["tf"])
+    zoom_now = st["zoom"] if st["zoom"] in zooms else "auto"
+    zoom_sel = {"type": 3, "custom_id": f"{SELECT_ZOOM}|{sid()}", "placeholder": "Zoom",
+                "options": [{"label": f"Zoom: {label}", "value": v, "default": v == zoom_now} for v, label in zooms.items()]}
+    ind_sel = {"type": 3, "custom_id": f"{SELECT_IND}|{sid()}", "placeholder": "Indicators",
+               "options": [{"label": f"Indicators: {label}", "value": v, "default": v == st["ind"]}
+                           for v, label in prefs_mod.INDICATOR_CHOICES.items()]}
+    look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
+                "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
+                             for v, label in prefs_mod.STYLE_CHOICES.items()] +
+                            [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": v == st["theme"]}
+                             for v, label in prefs_mod.THEME_CHOICES.items()])}
+    ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
+    ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
+    can_pan = st["tf"] in ("D", "W")
+    earlier = pan_to(st["to"] or None, st["tf"], zoom_now, -1)
+    later = pan_to(st["to"] or None, st["tf"], zoom_now, +1) if st["to"] else None
+    row5 = []
+    if can_pan:
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "\u25c0 Earlier", "custom_id": sid(to=earlier or "")})
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Later \u25b6", "custom_id": sid(to=later or ""),
+                     "disabled": not st["to"]})
+    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid(mas=ma_next)})
+    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
+                 "custom_id": sid(vol=not st["vol"])})
     if guild_id and str(guild_id) in activity_guilds():
-        toggles.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
-                        "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{mas}|{1 if vol else 0}"})
-    return [{"type": 1, "components": tfs}, {"type": 1, "components": toggles}]
+        # The (parked) Activity: in an activity guild the last slot launches it instead of linking out.
+        row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
+                     "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{st['mas']}|{1 if st['vol'] else 0}"})
+    else:
+        row5.append({"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
+                     "url": f"{public_site_url()}/research/{req.ticker}"})
+    return [{"type": 1, "components": tfs}, {"type": 1, "components": [zoom_sel]},
+            {"type": 1, "components": [ind_sel]}, {"type": 1, "components": [look_sel]},
+            {"type": 1, "components": row5}]
 
 
 def parse_autocomplete(interaction: dict) -> str:
@@ -318,6 +430,7 @@ def build_settings_command() -> dict:
                 {"name": "style", "type": 3, "required": False, "description": "Chart style", "choices": ch(prefs_mod.STYLE_CHOICES)},
                 {"name": "scale", "type": 3, "required": False, "description": "Price scale", "choices": ch(prefs_mod.SCALE_CHOICES)},
                 {"name": "indicators", "type": 3, "required": False, "description": "Lower-pane indicators", "choices": ch(prefs_mod.INDICATOR_CHOICES)},
+                {"name": "zoom", "type": 3, "required": False, "description": "Visible window (months/years on D/W, days intraday)", "choices": ch(prefs_mod.ZOOM_CHOICES)},
                 {"name": "volume", "type": 5, "required": False, "description": "Show the volume pane"},
                 {"name": "grid", "type": 5, "required": False, "description": "Show the grid"},
                 {"name": "watermark", "type": 5, "required": False, "description": "Show the ticker/company watermark"},
@@ -447,8 +560,10 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
          `render_fn`. An unknown symbol therefore never pays for a render."""
     label = TF_LABEL[req.tf]
     prefs = prefs or {}
-    options = prefs_mod.render_options(prefs)
-    key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+    options = prefs_mod.render_options(prefs, req.tf)
+    if req.to:
+        options["to"] = req.to
+    key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}

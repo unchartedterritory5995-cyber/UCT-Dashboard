@@ -223,6 +223,10 @@ export default function ChartRender() {
   // unless the member chose a style), and a blank volume pane (vol is 0 for a %).
   const breadthParam = sp.get('breadth') === '1'
   const breadthName = breadthParam ? (sp.get('bname') || '').slice(0, 80) : ''
+  // ?to=YYYY-MM-DD — the Discord chart's "Earlier" panning: hide every bar
+  // after that day and frame the window ending there (StockChart replayCutoff;
+  // the bars API serves a pre-cutoff window fast). Absent = live, unchanged.
+  const toParam = (() => { const v = sp.get('to') || ''; return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null })()
   const extParam = sp.get('ext')
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
@@ -739,6 +743,7 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
+            {...(toParam ? { replayCutoff: toParam } : {})}
             {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}

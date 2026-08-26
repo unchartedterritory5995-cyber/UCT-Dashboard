@@ -103,7 +103,7 @@ def _b64url(obj) -> str:
 
 
 DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None,
-                   "breadth": None}
+                   "breadth": None, "bars": None, "to": None}
 
 # Visible bars for intraday renders. The page's own default zoom counts
 # pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
@@ -130,6 +130,13 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["ext"] = 1 if opts["ext"] else 0
         if tf in INTRADAY_VISIBLE_BARS:
             params["bars"] = INTRADAY_VISIBLE_BARS[tf]
+    if opts.get("bars"):
+        params["bars"] = int(opts["bars"])          # an explicit zoom beats the intraday default
+    if opts.get("to"):
+        # "Earlier" panning: the page hides every bar after this day and frames
+        # the window ending there (StockChart replayCutoff; the bars API serves
+        # a pre-cutoff window fast from SQLite).
+        params["to"] = str(opts["to"])
     if token:
         params["token"] = token
     if show_stats:

@@ -53,11 +53,38 @@ INDICATOR_CHOICES = {
     "macd": "MACD (12/26/9)",
     "rsi+macd": "RSI + MACD",
 }
+# Zoom = the visible window. Daily/weekly speak in months and years, intraday
+# in sessions; a stored choice that does not fit the timeframe reads as auto.
+ZOOM_CHOICES_DW = {"auto": "Auto", "1m": "1 month", "3m": "3 months", "6m": "6 months", "1y": "1 year", "2y": "2 years"}
+ZOOM_CHOICES_INTRADAY = {"auto": "Auto", "1d": "1 day", "2d": "2 days", "5d": "5 days", "10d": "10 days"}
+ZOOM_CHOICES = {**ZOOM_CHOICES_DW, **ZOOM_CHOICES_INTRADAY}
+_ZOOM_BARS_D = {"1m": 22, "3m": 65, "6m": 130, "1y": 252, "2y": 504}
+_ZOOM_BARS_W = {"1m": 5, "3m": 13, "6m": 26, "1y": 52, "2y": 104}
+_RTH_BARS_PER_DAY = {"5": 78, "15": 26, "30": 13, "60": 7}
+_ZOOM_DAYS = {"1d": 1, "2d": 2, "5d": 5, "10d": 10}
+
+
+def zoom_choices(tf: str) -> dict:
+    return ZOOM_CHOICES_DW if tf in ("D", "W", "M") else ZOOM_CHOICES_INTRADAY
+
+
+def zoom_bars(zoom: str, tf: str, ext: bool = False):
+    """Visible bars for a zoom on a timeframe, or None for auto / a mismatch."""
+    if tf == "D":
+        return _ZOOM_BARS_D.get(zoom)
+    if tf == "W":
+        return _ZOOM_BARS_W.get(zoom)
+    if tf in _RTH_BARS_PER_DAY and zoom in _ZOOM_DAYS:
+        per_day = _RTH_BARS_PER_DAY[tf] * (2.5 if ext else 1.0)
+        return int(round(_ZOOM_DAYS[zoom] * per_day))
+    return None
+
+
 _CHOICE_KEYS = {"mas": MA_CHOICES, "theme": THEME_CHOICES, "style": STYLE_CHOICES,
-                "scale": SCALE_CHOICES, "indicators": INDICATOR_CHOICES}
+                "scale": SCALE_CHOICES, "indicators": INDICATOR_CHOICES, "zoom": ZOOM_CHOICES}
 DEFAULTS = {"tf": "D", "mas": "house", "volume": True, "ext": False, "stats": True,
             "theme": "house", "style": "candles", "scale": "linear", "grid": True, "watermark": True,
-            "indicators": "none"}
+            "indicators": "none", "zoom": "auto"}
 _BOOL_KEYS = ("volume", "ext", "stats", "grid", "watermark")
 
 # Engine indicator instances, in the shape `instances.js::validateInstance`
@@ -184,12 +211,14 @@ def describe(prefs: dict) -> str:
             f"Volume {onoff('volume')} · Pre/post-market candles {onoff('ext')} · Stats strip {onoff('stats')} · "
             f"Theme: {THEME_CHOICES.get(p['theme'], p['theme'])} · Style: {STYLE_CHOICES.get(p['style'], p['style'])} · "
             f"Scale: {SCALE_CHOICES.get(p['scale'], p['scale'])} · Grid {onoff('grid')} · Watermark {onoff('watermark')} · "
-            f"Indicators: {INDICATOR_CHOICES.get(p['indicators'], p['indicators'])}")
+            f"Indicators: {INDICATOR_CHOICES.get(p['indicators'], p['indicators'])} · "
+            f"Zoom: {ZOOM_CHOICES.get(p['zoom'], p['zoom'])}")
 
 
-def render_options(prefs: dict) -> dict:
+def render_options(prefs: dict, tf: str = "D") -> dict:
     """What the house URL needs: a partial chart-settings override (or None),
-    and the ext / stats switches."""
+    the ext / stats switches, the preset, the engine instances, and the
+    visible-bars window for the zoom on THIS timeframe."""
     p = {**DEFAULTS, **(prefs or {})}
     ind: dict = {}
     if p["mas"] == "off":
@@ -210,7 +239,8 @@ def render_options(prefs: dict) -> dict:
         ind["watermark"] = {"visible": False}
     return {"indicators": ind or None, "ext": bool(p["ext"]), "stats": bool(p["stats"]),
             "preset": p["theme"] if p["theme"] != "house" else None,
-            "instances": _instances_for(p["indicators"]) if p["indicators"] != "none" else None}
+            "instances": _instances_for(p["indicators"]) if p["indicators"] != "none" else None,
+            "bars": zoom_bars(p["zoom"], tf, bool(p["ext"]))}
 
 
 def style_signature(prefs: dict) -> str:
