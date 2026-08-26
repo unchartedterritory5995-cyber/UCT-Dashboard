@@ -295,7 +295,8 @@
 @container (max-width: 380px) { .filter { display: none; } }
 @container (max-width: 300px) {
   .toolbar { gap: 5px; padding: 0 6px; }
-  .live { font-size: 0; gap: 0; }     /* keep only the pulse dot */
+  /* Keep the LIVE label visible even when thin (the filters already dropped out above,
+     so there's room) — it's the "is this feed live" cue. */
   .scopeSelect { max-width: 74px; }
   .scopeValue { max-width: 96px; }
 }

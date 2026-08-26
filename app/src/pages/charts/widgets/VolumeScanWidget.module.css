@@ -82,13 +82,15 @@
    t1–t4 are deep, desaturated blocks with BLACK text (low contrast → they recede), and
    ONLY t5 (Extreme, 10×+) is a bright, saturated red with white text + a glow — so the
    eye is drawn only to the extremes. ──────── */
-.t1 { background: #202a24; }   /* Notable   2–3×  — near-unlit, barely there */
-.t2 { background: #243a2b; }   /* Elevated  3–4×  — very dark, only sort of noticeable */
-.t3 { background: #2b5138; }   /* High      4–6×  — dark green, a touch more present */
-.t4 { background: #b8973f; }   /* Very High 6–10× — gold: the jump — starts to catch the eye */
-.t5 {                          /* Extreme   10×+  — the ONLY bright tier */
-  background: var(--ut-red-bright);
-  box-shadow: inset 0 0 0 1px var(--ut-red), 0 0 11px rgba(242, 75, 66, 0.5);
+/* Opacity ramp of ONE signal colour — each tier up is more opaque, so the strength of the
+   volume signal reads at a glance: t1 barely there → t5 the brightest, loudest alert. */
+.t1 { background: rgba(48, 165, 90, 0.13); }   /* Notable   2–3×  — barely there */
+.t2 { background: rgba(48, 165, 90, 0.27); }   /* Elevated  3–4×  */
+.t3 { background: rgba(48, 165, 90, 0.45); }   /* High      4–6×  */
+.t4 { background: rgba(48, 165, 90, 0.67); }   /* Very High 6–10× */
+.t5 {                                          /* Extreme   10×+  — brightest + a glow */
+  background: rgba(48, 165, 90, 0.92);
+  box-shadow: 0 0 11px rgba(48, 165, 90, 0.45);
 }
 /* Text: white on every lit tier — reads cleanly on the dark muted fills, and the
    Extreme (t5) still pops via its bright red fill + glow. */
