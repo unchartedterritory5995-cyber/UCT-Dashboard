@@ -115,7 +115,16 @@ export const FORMULA_DEBOUNCE_MS = 250
  *            measured: object|null, dialect: string}}
  */
 export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
-  const read = readFormulaSource(source, dialect)
+  // ⛔⛔ THE SCOPE GOES TO THE READ DOOR TOO, NOT ONLY TO THE LINTER AND THE
+  // READ-BACK (W1b.5). `readFormulaSource` hands it to `letPrepass.prepareSource`,
+  // whose docblock warns that ABSENT IS NOT EMPTY: without it a binding could
+  // shadow a DECLARED input, the pre-pass would rewrite every use of that name
+  // away, and the document would SAVE with its knob inert. `editor/completions.js`
+  // was already handing the scope in, so the completion popup refused text this
+  // gate accepted — one grammar, two readings, and the stricter one could not
+  // stop a save. This function is the one place that knows the scope on the
+  // authoring path, so it is the one place that can close it.
+  const read = readFormulaSource(source, dialect, inputs)
   const blank = {
     source: typeof source === 'string' ? source : '',
     ok: false, ast: null, guard: null, error: null,
@@ -133,15 +142,19 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
     // Neither is re-derived here — the editor reads what the door said, and
     // `editor/diagnostics.js` turns whichever of the two is present into a range.
     //
-    // ⚠️ A `let:*` REFUSAL REACHES HERE WITH NEITHER. `prepareSource` names a
-    // line, a column AND a token, and `pcf.js::READERS.native` keeps only the
-    // guard and the sentence — so there is nothing to forward. `diagnostics.js`
-    // recovers the position by asking the SAME door again rather than this file
-    // widening another lane's reader; the note is here so the absence reads as
-    // measured rather than forgotten.
+    // ⭐ AND A `let:*` REFUSAL NOW REACHES HERE WITH A LINE AND A COLUMN.
+    // `prepareSource` always named them; `pcf.js::READERS.native` used to keep
+    // only the guard and the sentence, so there was nothing to forward and
+    // `diagnostics.js` recovered the position by asking the same door again.
+    // W1b.5 widened the reader (the hand-back W1a.4's report asked for), so the
+    // position rides on the refusal and `diagnostics.js`'s path 2 places it —
+    // which is the ONLY path open for an input-shadow refusal, because that
+    // recovery deliberately asks without a scope and so cannot see one.
     return {
       ...blank, guard: parsed.guard || 'parser', error: parsed.error,
       ...(Number.isInteger(parsed.index) ? { index: parsed.index } : {}),
+      ...(Number.isInteger(parsed.line) && Number.isInteger(parsed.column)
+        ? { line: parsed.line, column: parsed.column } : {}),
       ...(typeof parsed.token === 'string' && parsed.token ? { token: parsed.token } : {}),
     }
   }
@@ -284,6 +297,16 @@ function msg(err) {
  *                                definition actually declares.
  * @param {string}   [dialect]    `'auto'` (the default) lets the source decide;
  *                                `'native'` or `'pcf'` forces one reader.
+ * @param {string}   [label]      what this box is CALLED — the visible `<label>`
+ *                                and the `aria-label`, which are one string on
+ *                                purpose.
+ *
+ *   ⛔ ONE PROP, TWO SITES, BECAUSE A SECOND FIELD MUST NOT BE A SECOND
+ *   "FORMULA". The component already took an `inputId` so two of it could
+ *   coexist, and then hard-coded the word `Formula` in both places — so the
+ *   moment W1b.5's Plots editor rendered a field per plot, `getByLabelText`
+ *   (and a screen reader) saw N controls with one name and no way to say which
+ *   plot each belonged to. The default keeps every existing caller byte-identical.
  */
 export default function FormulaField({
   value,
@@ -295,6 +318,7 @@ export default function FormulaField({
   autoFocus = false,
   inputs = undefined,
   dialect = 'auto',
+  label = 'Formula',
 }) {
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
@@ -330,7 +354,7 @@ export default function FormulaField({
 
   return (
     <div className={styles.fieldWrap}>
-      <label className={styles.label} htmlFor={inputId}>Formula</label>
+      <label className={styles.label} htmlFor={inputId}>{label}</label>
       <textarea
         id={inputId}
         ref={inputRef}
@@ -344,7 +368,7 @@ export default function FormulaField({
         autoComplete="off"
         rows={2}
         placeholder="sma(close, 20)"
-        aria-label="Formula"
+        aria-label={label}
         aria-invalid={refused || undefined}
         aria-describedby={refused ? `${inputId}-error` : undefined}
         value={value}
