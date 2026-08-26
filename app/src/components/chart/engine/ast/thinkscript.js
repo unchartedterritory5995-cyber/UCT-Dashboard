@@ -39,8 +39,9 @@
 // ⏳ WHAT IT READS TODAY (W3.4): the LEXER, the STATEMENT READER and the
 // EXPRESSIONS. `declare`, `input`, `def`/`rec`, a forward declaration and its
 // later assignment, `plot` (quoted names included) and a bare condition all
-// read; the expression grammar is ONE binding-power loop over the `BP` ladder
-// below, covering numbers, the five bar fields, the arithmetic and comparison
+// read; the expression grammar is ONE binding-power loop over `TS_PRECEDENCE`
+// below — thinkorswim's OWN published 12-level operator table, copied row for
+// row — covering numbers, the five bar fields, the arithmetic and comparison
 // operators in BOTH their symbol and their word spellings, `and`/`or`/`not`,
 // `if … then … else`, `[n]`, the `Double.*` constants, `between`,
 // `within N bars`, `crosses [above|below]` and `%`.
@@ -582,69 +583,102 @@ const NOT_AN_ATOM = Object.freeze(new Set([
   'case', 'switch', 'do', 'to', 'with', 'while', 'default',
 ]))
 
-/** ⭐⭐ THE PRECEDENCE, LOOSEST FIRST, AND IT IS THE ONLY COPY. thinkorswim's
- *  reference publishes the operator ROSTER (its Arithmetic / Comparison /
- *  Logical / Conditional pages, all fetched 2026-08-26) and does NOT publish a
- *  precedence table, so this ladder is the conventional one every C-family
- *  language uses — stated HERE, in one place, rather than living implicitly in a
- *  recursive-descent chain nobody can read.
+/** ⭐⭐ THE PRECEDENCE, COPIED FROM thinkorswim's OWN PUBLISHED TABLE — level by
+ *  level, spelling by spelling, so a later reader can hold this beside the page
+ *  and check it row for row.
  *
- *  ⛔⛔ AND THE PARSER READS IT. W3.3 shipped the chain
- *  (`parseOr → parseAnd → parseWithin → parseComparison → parseAdditive → …`),
- *  which encodes exactly this ladder in the SHAPE of its call graph. Writing the
- *  table beside that chain would have created the defect this repo names as its
- *  most repeated — a second authority over one value — where the readable copy
- *  and the executed copy drift and the drift is silent. So the chain was
- *  replaced by ONE binding-power loop that reads this table: change a number
- *  here and the grammar changes, or nothing does.
+ *      SOURCE: /center/reference/thinkScript/Operators/Operator-Precedence.html
+ *      fetched 2026-08-26. **Level 1 binds TIGHTEST, level 12 LOOSEST.**
  *
- *  ⚠️ THREE RULINGS IN THIS LADDER ARE MEASURED RATHER THAN CONVENTIONAL:
+ *      1   [] ; from
+ *      2   !
+ *      3   * ; / ; %
+ *      4   + (string concatenation)
+ *      5   + (addition) ; -
+ *      6   < ; is less than ; > ; is greater than ; <= ; is less than or equal
+ *          to ; >= ; is greater than or equal to ; crosses above ; crosses
+ *          below ; crosses
+ *      7   == ; equals ; is equal to ; != ; <> ; is not equal to
+ *      8   is true ; is false
+ *      9   and ; &&
+ *      10  or
+ *      11  if
+ *      12  within
  *
- *  1. `between` and `crosses` SIT WITH THE COMPARISONS, because the reference's
- *     own Comparison Operators page lists `between`, `crosses`, `crosses above`
- *     and `crosses below` as ROWS OF THAT TABLE, beside `>` and `is greater
- *     than`. The lane brief put `between` on a looser tier of its own; that
- *     would be this translator inventing a level the platform does not document.
- *     Same-tier and left-associative hands `between` the comparison already
- *     built, which is the reading the brief wanted from the looser tier anyway.
+ *  ⛔⛔ W3.4 SHIPPED A LADDER IT INVENTED, AND THE SENTENCE THAT SAID SO IS WHY
+ *  NOBODY CHECKED. It read: "thinkorswim's reference publishes the operator
+ *  ROSTER … and does NOT publish a precedence table, so this ladder is the
+ *  conventional one every C-family language uses". **That was false**, and a
+ *  false premise recorded as the reason for a decision is how the decision never
+ *  gets revisited. Two real defects lived under it:
+ *    * `within` was given a rung TIGHTER than `and`. The page makes it level 12,
+ *      the LOOSEST operator in the language, so
+ *      `high < high[1] and low > low[1] within 3 bars` emitted
+ *      `high < high[1] && highest(low > low[1], 3) > 0` — 53 of 158 bars wrong,
+ *      passing both the round trip and the save door. A chart that looks right
+ *      and is wrong.
+ *    * Relational and equality were collapsed onto ONE rung, so
+ *      `close == open < high` grouped as `(close == open) < high` where the page
+ *      gives levels 6 and 7 and therefore `close == (open < high)` — 74 of 160
+ *      bars wrong.
+ *  ⭐ THE LESSON IS NARROWER THAN "CHECK THE DOCS": the `between` row HAD been
+ *  researched against the Comparison Operators page in the same task, and the
+ *  ladder underneath it was never re-checked against the same source. Correcting
+ *  one row of a table is not correcting the table.
  *
- *  2. `within` MUST NEVER BIND TIGHTER THAN COMPARISON, and it is the one place
- *     this ladder departs from the operator pages — because `within` is not on
- *     them. It is a RESERVED WORD whose left operand is a CONDITION ("true at
- *     least one time for the given number of bars"), so
- *     `close > open within 3 bars` can only mean `(close > open) within 3 bars`;
- *     bound tighter it would take `open` as its condition and leave the `>`
- *     dangling.
- *     ⚠️ THE RUNG ITSELF IS NOT LOAD-BEARING AND THE SWEEP PROVED IT. Moving
- *     `within` from 25 to 30 — onto the comparison tier — changes NOTHING any
- *     rail can see, because the loop is left-associative: at either rung
- *     `within` is handed the comparison that has already been built. Moving it
- *     to 35, above comparison, reds three tests. So the ruling is the BOUNDARY
- *     (`<= 30`), not the number, and 25 is a readable rung on the correct side
- *     of it rather than a measured value. Recorded because a comment claiming a
- *     difference no test can see is the defect this file keeps warning about.
+ *  ⛔⛔ AND THE PARSER READS THIS, which is the other half. W3.3 shipped a
+ *  recursive-descent chain (`parseOr → parseAnd → parseWithin → parseComparison
+ *  → parseAdditive → …`) that encoded a ladder in the SHAPE of its call graph;
+ *  a table written beside such a chain is a second authority over one value, and
+ *  the drift between them is silent. One binding-power loop reads this map:
+ *  change a level here and the grammar changes, or nothing does.
  *
- *  3. UNARY AND POSTFIX CARRY NO NUMBER HERE, deliberately. The brief listed
- *     `UNARY_BP` and `POSTFIX_BP` constants, but `parseUnary` and `parsePostfix`
- *     below sit at FIXED positions in the grammar — binding tighter than every
- *     binary operator is what their position IS — so a number for them would be
- *     read by nothing. An unread constant beside the code that decides the same
- *     thing is the same second authority as an unread ladder. `pine.js`'s
- *     printer declares its own `UNARY_BP`/`POSTFIX_BP` because its PRINTER
- *     genuinely compares them; nothing here does. */
-const BP = Object.freeze({
-  '||': 10,
-  '&&': 20,
-  'within': 25,
-  '==': 30, '!=': 30, '<': 30, '>': 30, '<=': 30, '>=': 30,
-  'between': 30, 'crosses': 30,
-  '+': 40, '-': 40,
-  '*': 50, '/': 50, '%': 50,
+ *  ⚠️ `between` IS THE ONE ROW THAT IS NOT ON THE PAGE'S TABLE, and it is marked
+ *  here rather than blended in. The page gives it a PROSE bound only —
+ *  *"Operator `between` has precedence lower than addition or subtraction but
+ *  higher than the conditional operator"* — which pins it to levels 6..10. It is
+ *  placed at 6 because the Comparison Operators page lists it as a row of the
+ *  comparison table beside `>=` and `crosses`, and the precedence table puts
+ *  that whole relational group at 6. ⛔ The choice inside 6..10 is observable in
+ *  exactly one shape, `a == b between c and d`, which no fixture and no
+ *  reference example writes; if thinkorswim ever publishes the row, this is the
+ *  single line to change.
+ *
+ *  ⚠️ LEVELS 1, 2 AND 4 ARE PRESENT ON THE PAGE AND ABSENT FROM THIS MAP, for
+ *  two different reasons that are worth keeping apart. `[]` (1) and `!` (2) ARE
+ *  implemented — as postfix and prefix forms in `parsePostfix`/`parseUnary`,
+ *  whose position in the grammar IS "tighter than every infix operator" — so a
+ *  number for them would be read by nothing, which is the same unread-constant
+ *  defect one level down. Level 4, `+` as string concatenation, is not
+ *  implemented at all: a screened column holds a number. */
+export const TS_PRECEDENCE = Object.freeze({
+  '*': 3, '/': 3, '%': 3,
+  '+': 5, '-': 5,
+  '<': 6, 'is less than': 6, '>': 6, 'is greater than': 6,
+  '<=': 6, 'is less than or equal to': 6, '>=': 6, 'is greater than or equal to': 6,
+  'crosses above': 6, 'crosses below': 6, 'crosses': 6,
+  'between': 6, // ⚠️ prose-bounded to 6..10, not a row — see the note above
+  '==': 7, 'equals': 7, 'is equal to': 7, '!=': 7, '<>': 7, 'is not equal to': 7,
+  'is true': 8, 'is false': 8,
+  'and': 9, '&&': 9,
+  'or': 10, '||': 10, // ⚠️ `||` is not published; see the lexer's note on the pair
+  'if': 11,
+  'within': 12,
 })
+
+/** A published LEVEL as this loop's binding power. ⛔ LOOSER MUST BE SMALLER,
+ *  because `parseBinary` stops on `bp < minBp`, and the page numbers run the
+ *  other way — so the conversion is a negation, done HERE and once, which is
+ *  what lets the map above stay byte-comparable with the page. */
+const bpOfLevel = (level) => -level
 
 /** The symbol an operator is CANONICALLY spelled with. `<>` is thinkScript's
  *  other spelling of `!=` (`10-rsi-laguerre` writes it), and folding it here
- *  means the tree, the printer and `BP` only ever see one of the two. */
+ *  means the tree and the printer only ever see one of the two.
+ *  ⛔ THE FOLD HAPPENS **AFTER** THE LEVEL LOOKUP, NOT BEFORE. `<>` is its own
+ *  row of the published precedence table; asking that table for a folded
+ *  spelling would be asking it for a row it does not have, and the day the two
+ *  spellings sit on different rows the fold would silently answer for both. */
 const CMP = Object.freeze({ '==': '==', '!=': '!=', '<>': '!=', '>': '>', '<': '<', '>=': '>=', '<=': '<=' })
 
 /** ⭐ THE WORD SPELLINGS ARE THE SYMBOL SPELLINGS. thinkorswim's Comparison
@@ -701,15 +735,13 @@ export const TS_WORD_OPERATORS = Object.freeze([
   { words: ['within'], kind: 'within', op: 'within' },
 ])
 
-/** The binding power an infix entry answers to — ONE lookup, so `is greater
- *  than` and `>` can never end up on different rungs. ⚠️ `is true` / `is false`
- *  take no right operand, so they answer to the COMPARISON tier they are
- *  documented beside rather than to a rung of their own. */
-function bpOf(entry) {
-  if (entry.kind === 'cross') return BP.crosses
-  if (entry.kind === 'postfix') return BP['==']
-  return BP[entry.op]
-}
+/** The binding power a word entry answers to, looked up BY ITS OWN PHRASE.
+ *  ⭐ THAT IS THE WHOLE POINT: `is greater than` and `>` are separate rows of
+ *  the published table at the same level, so reading each spelling's own row
+ *  makes the code's ladder the page's ladder rather than a summary of it — and
+ *  `is true` gets level 8 instead of being assumed onto a neighbouring tier,
+ *  which is how it was wrong before. */
+const bpOf = (entry) => bpOfLevel(TS_PRECEDENCE[entry.words.join(' ')])
 
 const cursorOf = (toks) => ({ toks, i: 0 })
 const peek = (c, k = 0) => c.toks[c.i + k] || null
@@ -729,8 +761,12 @@ function infixAt(c) {
   const t = peek(c)
   if (!t) return null
   if (t.kind === 'punct') {
+    // ⭐ THE LEVEL IS LOOKED UP BY THE SPELLING THE MEMBER WROTE, and only THEN
+    // is the spelling folded to canonical. `<>` is its own row of the published
+    // table; folding first would ask that table for a row it does not have.
+    if (!has(TS_PRECEDENCE, t.value)) return null
     const op = has(CMP, t.value) ? CMP[t.value] : t.value
-    return has(BP, op) ? { entry: { kind: 'binary', op }, bp: BP[op], tok: t, length: 1 } : null
+    return { entry: { kind: 'binary', op }, bp: bpOfLevel(TS_PRECEDENCE[t.value]), tok: t, length: 1 }
   }
   if (t.kind !== 'ident') return null
   let best = null
@@ -746,17 +782,19 @@ function infixAt(c) {
 /**
  * One expression, read at a binding power.
  *
- * ⭐ ONE LOOP, DRIVEN BY `BP` ABOVE. Everything about precedence lives in that
- * table; this function only knows "looser than what I was called at means stop".
- * The left-associativity of every tier is the `+ 1` on the recursive call.
+ * ⭐ ONE LOOP, DRIVEN BY `TS_PRECEDENCE` ABOVE. Everything about precedence
+ * lives in that map; this function only knows "looser than what I was called at
+ * means stop". The left-associativity of every tier is the `+ 1` on the
+ * recursive call — one step TIGHTER, since a published level negates.
  *
  * ⚠️ `if … then … else …` IS A PREFIX FORM HERE, not an infix ternary, which is
  * how thinkScript writes it — so it is read by `parseExpression` below, at the
- * front of a value, and its `else` arm re-enters there. That is what makes
- * `if a then 1 else if b then -1 else 0` nest to the right without a rung.
+ * front of a value. `seed` is how that form re-enters this loop afterwards:
+ * `if` is level 11 and `within` is 12, so a finished conditional can still be
+ * the OPERAND of a `within` that follows it.
  */
-function parseBinary(c, minBp) {
-  let left = parseUnary(c)
+function parseBinary(c, minBp, seed) {
+  let left = seed === undefined ? parseUnary(c) : seed
   for (;;) {
     const found = infixAt(c)
     if (!found || found.bp < minBp) return left
@@ -804,18 +842,43 @@ function parseBinary(c, minBp) {
   }
 }
 
+/** The loosest rung there is — where a whole expression starts. Derived from the
+ *  published map rather than typed, so the day thinkorswim publishes a level 13
+ *  nothing here has to remember to move. */
+const LOOSEST_BP = bpOfLevel(Math.max(...Object.values(TS_PRECEDENCE)))
+
+/**
+ * A value at a binding power — the conditional's prefix form, or a plain
+ * expression.
+ *
+ * ⭐ ONE DISPATCH, USED IN BOTH PLACES A VALUE CAN BEGIN, which is what makes
+ * `else if … then … else …` nest to the right: the `else` arm re-enters HERE,
+ * so it may itself open a conditional. Calling `parseBinary` directly for the
+ * arm reads `if` as an atom, and `if` is not one — the arm then refuses
+ * `:syntax` on `if a then 1 else if b then -1 else 0`, which is correct
+ * thinkScript. Measured in fix round 1.
+ */
+function parseValue(c, minBp) {
+  if (!isWordTok(peek(c), 'if')) return parseBinary(c, minBp)
+  const tok = take(c)
+  const cond = parseExpression(c)
+  if (!isWordTok(peek(c), 'then')) throw syntaxAt(c, peek(c))
+  take(c)
+  const a = parseExpression(c)
+  if (!isWordTok(peek(c), 'else')) throw syntaxAt(c, peek(c))
+  take(c)
+  // ⭐ THE `else` ARM IS READ AT `if`'s OWN LEVEL (11), NOT AT THE LOOSEST.
+  // Everything tighter than the conditional belongs to the arm — `or` is 10, so
+  // `else 0 or volume > 0` is one arm — while `within`, the only thing LOOSER at
+  // 12, must stay outside and take the whole conditional. Read at the loosest, a
+  // window would silently cover one branch of a member's `if … then … else …`
+  // instead of the answer it computes.
+  const otherwise = parseValue(c, bpOfLevel(TS_PRECEDENCE.if))
+  return parseBinary(c, minBp, { e: 'if', cond, then: a, otherwise, tok })
+}
+
 function parseExpression(c) {
-  if (isWordTok(peek(c), 'if')) {
-    const tok = take(c)
-    const cond = parseExpression(c)
-    if (!isWordTok(peek(c), 'then')) throw syntaxAt(c, peek(c))
-    take(c)
-    const a = parseExpression(c)
-    if (!isWordTok(peek(c), 'else')) throw syntaxAt(c, peek(c))
-    take(c)
-    return { e: 'if', cond, then: a, otherwise: parseExpression(c), tok }
-  }
-  return parseBinary(c, 0)
+  return parseValue(c, LOOSEST_BP)
 }
 
 function parseUnary(c) {
@@ -1194,12 +1257,19 @@ const isEnum = (v) => !!v && v.ts === 'enum'
  * own rails exercise, because a named-argument guard with no declared parameter
  * list to check against is unimplementable and untestable.
  *
- * ⚠️ `defaults` IS DELIBERATELY SPARSE, AND THE ASYMMETRY IS THE POINT. The
- * reference publishes `length` default 12 for `Average` and for
- * `Highest`/`Lowest`; it publishes none for `StDev` on the page this lane
- * quoted, so `StDev(close)` refuses `:arity` rather than being handed a 12 this
- * translator made up. A guessed default is invisible in the result — the member
- * gets a deviation they never asked for and never see.
+ * ⚠️ `defaults` CARRIES ONLY WHAT THE PAGE PUBLISHES, and a parameter with no
+ * published default refuses `:arity` rather than being handed a number this
+ * translator made up — a guessed default is invisible in the result, so the
+ * member gets a window they never asked for and never see. `data` has no
+ * default on any of these pages; `length` is 12 on all four.
+ *
+ * ⛔ W3.4 HAD `StDev` BACKWARDS AND THE SWEEP THEN CEMENTED IT. It shipped
+ * `defaults: {}` on the claim that the page published none — the page its own
+ * `cite` names reads "Default values: length: 12" — so `StDev(close)`
+ * OVER-REFUSED. The mutation that "killed" a guessed 12 was therefore railing
+ * the wrong reading in place, which is worse than the miss: a wrong answer with
+ * a test around it stops being re-checked. Fixed in fix round 1, and the rail
+ * re-aimed at a real case (`Average()` with no `data`).
  */
 export const TS_CALL_SHAPES = Object.freeze({
   average: {
@@ -1212,10 +1282,11 @@ export const TS_CALL_SHAPES = Object.freeze({
   stdev: {
     engine: 'stdev',
     params: ['data', 'length'],
-    defaults: {},
+    defaults: { length: 12 },
     cite: 'Functions/Statistical/StDev: reimplemented on the page itself as '
       + 'Sqrt(Average(Sqr(data), length) - Sqr(Average(data, length))) — divided by length, '
-      + 'i.e. the POPULATION deviation, which is the divisor closedTable declares for stdev',
+      + 'i.e. the POPULATION deviation, which is the divisor closedTable declares for stdev; '
+      + '"Default values: length: 12" on the same page',
   },
   highest: {
     engine: 'highest',

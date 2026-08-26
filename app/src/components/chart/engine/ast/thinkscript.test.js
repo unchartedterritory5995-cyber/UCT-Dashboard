@@ -19,7 +19,8 @@ import path from 'node:path'
 
 import {
   translateThinkScript, lexThinkScript, readStatements, ThinkScriptRefusal,
-  TS_STATE_WARMUP, TS_CALL_SHAPES, TS_WORD_OPERATORS, REFUSALS as TS, NOTES as TS_NOTES,
+  TS_STATE_WARMUP, TS_CALL_SHAPES, TS_WORD_OPERATORS, TS_PRECEDENCE,
+  REFUSALS as TS, NOTES as TS_NOTES,
 } from './thinkscript.js'
 import { REFUSALS as PINE, printFormula } from './pine.js'
 import { PCF_REFUSALS as PCF } from './pcf.js'
@@ -978,7 +979,10 @@ describe('precedence, per the thinkScript reference', () => {
     // reference's Comparison Operators page (fetched 2026-08-26) lists `between`,
     // `crosses`, `crosses above` and `crosses below` as ROWS OF THE COMPARISON
     // TABLE — so they are comparisons, and a separate tier would be this
-    // translator's invention. Same-tier and left-associative gives the reading
+    // translator's invention. ⚠️ `between` is also the ONE operator the
+    // precedence page gives no row to, bounding it in prose only to levels
+    // 6..10; `thinkscript.js` marks it as the single inferred rung and says
+    // where the inference comes from. Same-tier and left-associative gives the reading
     // the phrase needs anyway: the left operand is whatever comparison has been
     // built so far, which is the same operand the brief's looser tier hands it.
     //
@@ -1002,24 +1006,86 @@ describe('precedence, per the thinkScript reference', () => {
     expect(f('close > open within 1 bars')).toBe('highest(close > open, 1) > 0')
   })
 
-  it('⭐ …and `within` must never bind TIGHTER than comparison — its operand is a CONDITION', () => {
-    // ⚠️ THE BOUNDARY IS THE MEASUREMENT, NOT THE RUNG. `within` is a RESERVED
-    // WORD, not a row of the comparison table, and its left operand is a
-    // CONDITION — so `close > open within 3 bars` can only mean
-    // `(close > open) within 3 bars`. Bound TIGHTER it would take `open` as its
-    // condition and leave the `>` dangling, and these two assertions red.
+  it('⛔⛔ `within` IS THE LOOSEST OPERATOR IN THE LANGUAGE — level 12, looser than `and`', () => {
+    // ⛔⛔ THE DEFECT THIS TEST EXISTS FOR, AND IT SHIPPED. W3.4 put `within` on
+    // a rung of its own TIGHTER than `and`, on the stated premise that
+    // thinkorswim "does not publish a precedence table". IT DOES — level 12,
+    // the loosest row on it — and at the wrong rung this is what a member got:
     //
-    // ⛔ WHAT THIS TEST DOES **NOT** MEASURE, said out loud because the sweep
-    // measured it: moving `within` from its own rung (25) onto the comparison
-    // tier (30) changes nothing here and nothing anywhere — the loop is
-    // left-associative, so at either rung `within` is handed the comparison
-    // already built. Only a move ABOVE comparison is observable. The earlier
-    // draft of this comment claimed the 25-vs-30 asymmetry was load-bearing; it
-    // is not, and a comment asserting a difference no rail can see is exactly
-    // the second-authority defect this lane keeps paying for.
+    //   plot p = high < high[1] and low > low[1] within 3 bars;
+    //     emitted  high < high[1] && highest(low > low[1], 3) > 0
+    //     correct  highest(high < high[1] && low > low[1], 3) > 0
+    //     → 53 of 158 bars disagree, and BOTH pass the round trip and the save
+    //       door. A chart that looks right and is wrong: the one outcome this
+    //       translator exists to prevent.
+    //
+    // ⭐ That is `14-scan-inside-bar` written the natural one-line way, which is
+    // why the corpus could not see it — the fixture spells the condition as a
+    // `def` on its own line.
+    expect(f('high < high[1] and low > low[1] within 3 bars'))
+      .toBe('highest(high < high[1] && low > low[1], 3) > 0')
+    expect(f('close > open or volume > 0 within 5 bars'))
+      .toBe('highest(close > open || volume > 0, 5) > 0')
+    // …and the plain shapes still read the way they always did.
     expect(f('close > open within 3 bars')).toBe('highest(close > open, 3) > 0')
+    // ⭐ THE TRAILING `bars` IS WHAT CLOSES THE COUNT, so an `and` AFTER the
+    // phrase still joins the whole thing rather than being swallowed into it.
     expect(f('close > open within 2 bars and volume > 0'))
       .toBe('highest(close > open, 2) > 0 && volume > 0')
+  })
+
+  it('⛔ EQUALITY IS LOOSER THAN RELATIONAL — the page gives them levels 7 and 6, not one tier', () => {
+    // ⛔ W3.4 COLLAPSED THEM ONTO ONE RUNG, so `close == open < high` grouped as
+    // `(close == open) < high`; the published table binds `<` tighter, giving
+    // `close == (open < high)` — 74 of 160 bars disagree. ⭐ The two groupings
+    // PRINT DIFFERENTLY (`printFormula` parenthesises the looser child), so the
+    // text alone tells them apart.
+    expect(f('close == open < high')).toBe('close == open < high')
+    expect(f('close != open >= low')).toBe('close != open >= low')
+    // …and the control: the other grouping is a DIFFERENT string, so the two
+    // assertions above cannot both be satisfied by a reader that ignores tiers.
+    expect(f('(close == open) < high')).toBe('(close == open) < high')
+  })
+
+  it('⭐ `if` is level 11 and `within` is 12, so an `else` arm stops before `within`', () => {
+    // The one place the ternary's own rung is observable: `within` is LOOSER
+    // than `if`, so it takes the whole conditional rather than just the `else`
+    // branch. Read the other way the window would silently cover one arm.
+    expect(f('if close > open then 1 else 0 within 2 bars'))
+      .toBe('highest(close > open ? 1 : 0, 2) > 0')
+    // …while `or` (10) is TIGHTER than `if` (11) and so belongs to the arm.
+    expect(f('if close > open then 1 else 0 or volume > 0'))
+      .toBe('close > open ? 1 : 0 || volume > 0')
+  })
+
+  it('⛔ every operator this reader parses has a PUBLISHED level — no rung is invented', () => {
+    // ⭐ DERIVED, NOT TYPED BESIDE THE LADDER. `TS_PRECEDENCE` is copied from
+    // thinkorswim's own Operator-Precedence page; this asserts that every word
+    // phrase the reader matches and every symbol it lexes as an operator has a
+    // row there, so an operator can never again be given a rung somebody made
+    // up. ⚠️ `between` is the ONE exception and is declared as such in the
+    // source: the page bounds it in prose and gives it no row.
+    for (const entry of TS_WORD_OPERATORS) {
+      const phrase = entry.words.join(' ')
+      expect(Object.prototype.hasOwnProperty.call(TS_PRECEDENCE, phrase), phrase).toBe(true)
+      expect(TS_PRECEDENCE[phrase], phrase).toBeGreaterThanOrEqual(1)
+      expect(TS_PRECEDENCE[phrase], phrase).toBeLessThanOrEqual(12)
+    }
+    for (const sym of ['*', '/', '%', '+', '-', '<', '>', '<=', '>=',
+      '==', '!=', '<>', '&&', '||']) {
+      expect(Object.prototype.hasOwnProperty.call(TS_PRECEDENCE, sym), sym).toBe(true)
+    }
+    // ⭐ AND THE PAGE'S OWN ORDERING, spot-checked where this lane got it wrong:
+    // relational binds tighter than equality, equality than the logical words,
+    // and `within` is the loosest thing in the language.
+    expect(TS_PRECEDENCE['<']).toBeLessThan(TS_PRECEDENCE['=='])
+    expect(TS_PRECEDENCE['==']).toBeLessThan(TS_PRECEDENCE['is true'])
+    expect(TS_PRECEDENCE['is true']).toBeLessThan(TS_PRECEDENCE.and)
+    expect(TS_PRECEDENCE.and).toBeLessThan(TS_PRECEDENCE.or)
+    expect(TS_PRECEDENCE.or).toBeLessThan(TS_PRECEDENCE.if)
+    expect(TS_PRECEDENCE.if).toBeLessThan(TS_PRECEDENCE.within)
+    expect(Math.max(...Object.values(TS_PRECEDENCE))).toBe(TS_PRECEDENCE.within)
+    expect(Object.isFrozen(TS_PRECEDENCE)).toBe(true)
   })
 
   it('⛔ every row of the word-operator table is REACHABLE, and parses as ITSELF', () => {
@@ -1160,19 +1226,27 @@ describe('named arguments resolve by the DECLARED parameter order', () => {
     expect(r.token).toBe('Average')
   })
 
-  it('⭐ a DOCUMENTED default fills a missing argument; an UNDOCUMENTED one refuses', () => {
-    // ⛔ THE ASYMMETRY IS DELIBERATE AND IT IS THE WHOLE POINT. The reference
-    // publishes `length` default 12 for `Average` and for `Highest`/`Lowest`; it
-    // publishes no default for `StDev` on the page this lane quoted. A translator
-    // that guessed 12 for `StDev` would ship a member a 12-bar deviation they
-    // never asked for and never see — a chart that looks right and is wrong.
+  it('⭐ a DOCUMENTED default fills a missing argument; a parameter with NONE refuses', () => {
+    // ⛔ A GUESSED DEFAULT IS INVISIBLE IN THE RESULT — the member gets a window
+    // they never asked for and never see — so a parameter only fills from a
+    // number the reference actually publishes.
+    // ⚠️⚠️ AND W3.4 HAD THIS BACKWARDS FOR `StDev`. It shipped `defaults: {}` on
+    // the claim that the page published none, so `StDev(close)` OVER-REFUSED
+    // `:arity`; the page its own `cite` names reads "Default values: length: 12".
+    // Worse than the miss: the mutation sweep then railed the wrong reading in
+    // place, which is how a wrong answer stops being re-checked. Fix round 1.
     expect(translateThinkScript('plot p = Average(close);\n').outputs[0].formula)
       .toBe('sma(close, 12)')
     expect(translateThinkScript('plot p = Highest(high);\n').outputs[0].formula)
       .toBe('highest(high, 12)')
-    const r = translateThinkScript('plot p = StDev(close);\n').refusal
+    expect(translateThinkScript('plot p = StDev(close);\n').outputs[0].formula)
+      .toBe('stdev(close, 12)')
+    // ⭐ AND THE OTHER DIRECTION, which is now a REAL case rather than a wrong
+    // one: `data` has no published default on any of these pages, so a call that
+    // omits it refuses at the call rather than inventing a series.
+    const r = translateThinkScript('plot p = Average();\n').refusal
     expect(r.guard).toBe('thinkscript:arity')
-    expect(r.token).toBe('StDev')
+    expect(r.token).toBe('Average')
   })
 
   it('⛔ a length that is not a written whole number refuses AT THE LENGTH', () => {
