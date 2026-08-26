@@ -346,12 +346,31 @@ def _concurrency_doors() -> dict:
     two-worker pool clean. What is asked here instead is a question the stdlib
     answers: which `threading` attributes are `Thread` subclasses, which
     `_thread` attributes start one, and which `concurrent.futures` attributes
-    are `Executor`s. A door CPython adds is covered the day it lands, and no
-    name below is one somebody had to remember.
+    are `Executor`s. A door CPython adds to those three is covered the day it
+    lands, and no name in them is one somebody had to remember.
+
+    ⚠️ THE `asyncio` ARM IS THE EXCEPTION AND IS TYPED, because asyncio offers
+    no structural predicate — `to_thread` is a coroutine function, not a class,
+    so there is no `issubclass` question to ask. It is declared here rather than
+    left out: this repo runs ONE uvicorn loop with a 64-slot shared threadpool,
+    so `asyncio.to_thread` is a live door, not a hypothetical one. Every typed
+    name is checked against the module below, so a typo or a stdlib removal goes
+    RED here instead of silently becoming a hole the census cannot see.
+    ⛔ `run_in_executor` is deliberately ABSENT: it is a method on a loop OBJECT,
+    not a module attribute, so no import binding reaches it — it is named in
+    `_spawn_sites`' blind-spot list instead of pretended at here.
     """
     import _thread                      # the low-level door underneath threading
+    import asyncio                      # ⚠️ the typed arm — see above
     import concurrent.futures as _cf    # the pool door that never says "Thread"
+    _async_doors = frozenset({
+        "to_thread", "run_coroutine_threadsafe", "create_task", "ensure_future"})
+    missing = sorted(n for n in _async_doors if not hasattr(asyncio, n))
+    assert not missing, (
+        f"the typed asyncio door list names {missing}, which asyncio does not "
+        f"have — a door list that cannot be reached is a hole, not a guard")
     return {
+        "asyncio": _async_doors,
         "threading": frozenset(
             n for n in dir(threading)
             if isinstance(getattr(threading, n), type)
@@ -367,14 +386,31 @@ def _concurrency_doors() -> dict:
 def _spawn_sites(src: str) -> list:
     """`[(lineno, the text as written)]` for every door THIS source opens.
 
-    ⛔ THE BINDINGS ARE RESOLVED OUT OF THE SOURCE'S OWN IMPORTS, because every
-    way to hide a spawn from a literal name match is one line long:
-    `import threading as th`, `from threading import Thread as T`, and
+    ⛔ THE BINDINGS ARE RESOLVED OUT OF THE SOURCE'S OWN IMPORTS **AND ITS
+    ALIAS ASSIGNMENTS**, because several ways to hide a spawn from a literal
+    name match are each one line long: `import threading as th`,
+    `from threading import Thread as T`, `T = threading.Thread`, and
     `class _Flusher(threading.Thread)` — which is not even a `Call`. A census
-    keyed on the strings `"threading.Thread"`/`"Thread"` misses all three, and
+    keyed on the strings `"threading.Thread"`/`"Thread"` misses all of them, and
     red-flags a local class that happens to be named `Thread`, so it is wrong in
     both directions. That is why the parametrized control below carries a row
     for each shape rather than describing them.
+
+    ⭐ SO A **MENTION** IS A HIT, NOT ONLY A CALL. Flagging every resolved
+    reference — callee, base class, assigned value, or argument — is what lets
+    `T = threading.Thread` and `functools.partial(threading.Thread, …)` be
+    covered by ONE rule instead of a growing list of call shapes. The cost is
+    that `isinstance(x, threading.Thread)` counts too; that is accepted on
+    purpose and has its own control row, because a module forbidden to start a
+    thread has no business type-checking for one either.
+
+    🔴 WHAT THIS DOES **NOT** SEE — said here so nobody reads more coverage into
+    it than exists, which is the whole defect this census was built to avoid:
+      · a call on a runtime OBJECT, where no import binding reaches the receiver
+        — `loop.run_in_executor(...)`, `pool.submit(...)`, `executor.map(...)`;
+      · dynamic dispatch — `getattr(threading, "Thread")`,
+        `importlib.import_module("threading")`;
+      · a door in a module this one merely CALLS (see the rail's own scope note).
     """
     doors = _concurrency_doors()
     tree = ast.parse(src)
@@ -409,15 +445,29 @@ def _spawn_sites(src: str) -> list:
         mod = ".".join(segs)
         return f"{mod}.{attr}" if attr in doors.get(mod, ()) else None
 
+    # ⭐ ALIAS ASSIGNMENTS, TO A FIXED POINT. `T = threading.Thread` is one line
+    # and no `ImportFrom` node sees it; `U = T` on the next line is the same
+    # evasion twice, and `ast.walk` is not source order — so this repeats until
+    # nothing new resolves rather than trusting the traversal to be in sequence.
+    while True:
+        grew = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            named = _door_named(node.value)
+            if not named:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id not in direct:
+                    direct[target.id] = named
+                    grew = True
+        if not grew:
+            break
+
     hits: set = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            if _door_named(node.func):
-                hits.add((node.lineno,
-                          _dotted(node.func) or getattr(node.func, "id", "?")))
-        elif isinstance(node, ast.ClassDef):
-            if any(_door_named(b) for b in node.bases):
-                hits.add((node.lineno, f"class {node.name}(...)"))
+        if isinstance(node, (ast.Name, ast.Attribute)) and _door_named(node):
+            hits.add((node.lineno, _dotted(node) or "?"))
     return sorted(hits)
 
 
@@ -478,6 +528,27 @@ def test_this_module_STARTS_NO_THREAD_so_no_write_can_outlive_its_fixture():
     ("from threading import Lock\n_L = Lock()\n", False),
     # prose and a string are not code
     ("# threading.Thread is never started here\nX = 'threading.Thread'\n", False),
+    # ── fix round 1: three shapes the CALLEE-ONLY census walked straight past,
+    #    each reproduced standalone before it was covered ──────────────────
+    # ⛔ F1: a module-level ALIAS ASSIGNMENT. One line, and `from X import Y`
+    #    never sees it, so a callee-only census resolves `T` to nothing.
+    ("import threading\nT = threading.Thread\ndef f():\n    T(target=f).start()\n",
+     True),
+    # ⛔ F3: DEFERRED construction — the door is an ARGUMENT, never a callee.
+    ("import functools, threading\n"
+     "MK = functools.partial(threading.Thread, daemon=True)\n", True),
+    # ⛔ F2: asyncio was an undeclared door CLASS, and it is not hypothetical
+    #    here — this repo runs one uvicorn loop with a 64-slot shared pool.
+    ("import asyncio\nasync def f():\n    await asyncio.to_thread(g)\n", True),
+    ("import asyncio\n"
+     "def f(c, loop):\n    asyncio.run_coroutine_threadsafe(c, loop)\n", True),
+    # …and the asyncio arm is a DOOR list, not a module ban: awaiting is fine
+    ("import asyncio\nasync def f():\n    await asyncio.sleep(0)\n", False),
+    # ⭐ DECLARED, NOT ACCIDENTAL: a MENTION is a hit. A module forbidden to
+    #    start a thread has no business type-checking for one either, and
+    #    accepting this row is what lets F1 and F3 be covered by one rule.
+    ("import threading\ndef f(x):\n    return isinstance(x, threading.Thread)\n",
+     True),
 ])
 def test_the_spawn_census_SEES_every_alias_shape_and_IGNORES_the_namesake(
         source, expected):
@@ -491,6 +562,30 @@ def test_the_spawn_census_SEES_every_alias_shape_and_IGNORES_the_namesake(
     for a wrong census in BOTH directions, not merely a blind one.
     """
     assert bool(_spawn_sites(source)) is expected
+
+
+def test_the_alias_pass_NAMES_THE_CALL_LINE_TOO_or_it_would_not_be_here():
+    """⛔ THE ALIAS FIXED-POINT EARNS ITS PLACE ON THE SITE LIST, OR NOWHERE.
+
+    ⚠️ MEASURED IN FIX ROUND 1, AND IT IS THE REASON THIS TEST EXISTS: deleting
+    the alias fixed-point entirely changed NOTHING that any `bool(...)` row above
+    could see. With a mention-level walk the right-hand side `threading.Thread`
+    is already a hit, so `bool(sites)` was True either way and 19/19 rows stayed
+    green against a census with the block cut out. A block no test can watch fire
+    is not protection, it is decoration (`lesson_gate_that_cannot_fail`).
+
+    So the claim is made where the block actually changes the answer — the SITE
+    LIST. Line 2 binds the door and line 4 opens it, and *"the door is on line
+    2"* is a materially worse bug report than both, especially when the two are
+    two hundred lines apart in a real module.
+    """
+    src = ("import threading\n"
+           "T = threading.Thread\n"
+           "def f():\n"
+           "    T(target=f).start()\n")
+    assert _spawn_sites(src) == [(2, "T"), (2, "threading.Thread"), (4, "T")], (
+        "the alias fixed-point stopped resolving `T`, so the census now names "
+        "only the line that BINDS the door and not the line that opens it")
 
 
 
