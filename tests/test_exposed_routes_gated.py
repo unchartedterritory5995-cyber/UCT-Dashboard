@@ -109,7 +109,15 @@ GATED: dict[tuple[str, str], str] = {
     ("POST", "/api/scans/run"): "paid",
     ("GET", "/api/scans/run/{job}"): "paid",
     ("POST", "/api/admin/patterns/{detection_id}/review"): "admin",
-    ("POST", "/api/patterns/{detection_id}/feedback"): "session",
+    # ⚰️ CLAIMED "session" UNTIL 2026-08-26 AND THE APP HAS CARRIED `require_paid`
+    # SINCE 2026-08-09. Corrected against the handler, not against this table:
+    # `api/routers/patterns.py::post_feedback` takes `Depends(require_paid)` and
+    # says why in-file — the row it writes lands in the corpus that trains the
+    # engine, and the detections it grades are paid reads, so the write follows
+    # the read. The stale claim was not inert: every "is this route paid" sweep
+    # in this file keys off the CLASS, so a paid route filed under `session` was
+    # silently excluded from `test_a_FREE_member_is_refused_on_the_PAID_routes`.
+    ("POST", "/api/patterns/{detection_id}/feedback"): "paid",
     # ── P1: proprietary output, was anonymous ────────────────────────────────
     ("GET", "/api/flow/data"): "flow_user",
     ("GET", "/api/flow/indexes-data"): "flow_user",
@@ -285,6 +293,39 @@ def _dep_objects(route) -> set:
     return objs
 
 
+# ── the gate ladder: ONE declaration, read two ways ──────────────────────────
+#
+# ⭐ THE CLASS VOCABULARY IS WRITTEN HERE AND NOWHERE ELSE. `_klass_of` is BUILT
+# from this tuple, and the strength comparison READS it — so "what a route can
+# report" and "what a row may claim" are the same list by construction. A second
+# hand-typed copy of these names is how a claim and the check on it drift apart
+# (`lesson_a_second_authority_over_one_value`, this repo's most repeated defect).
+#
+# ⛔ AND THE ORDER IS NOT AN OPINION. Strength here means WHO THE GATE LETS IN,
+# spelled in the three callers this file already declares: a gate that admits
+# fewer of them is stronger. `test_the_gate_ladder_MEASURES_who_each_gate_admits`
+# CALLS the real gate objects and fails if any row below disagrees with what the
+# running app does — so this cannot quietly become a typed lie about the doors.
+#
+# The two `flow_*` classes are the flow family's own mirror of the same two
+# doors (`require_flow_user` = any real account, `require_flow_admin` = an
+# operator). They are deliberately EQUAL in strength to their non-flow twins
+# rather than ranked above or below them: inventing an order between two gates
+# nobody has compared is exactly the fiction this comment is warning about.
+_GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
+    # class          how the SERVED APP reports it            who the gate admits
+    ("session",    lambda n, o: get_current_user in o,     frozenset({"free", "paid", "admin"})),
+    ("flow_user",  lambda n, o: "require_flow_user" in n,  frozenset({"free", "paid", "admin"})),
+    ("paid",       lambda n, o: "require_paid" in n,       frozenset({"paid", "admin"})),
+    ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
+    ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
+)
+
+#: Derived off the ladder, never retyped beside it.
+GATE_CLASSES = frozenset(klass for klass, _, _ in _GATE_LADDER)
+_ADMITS: dict[str, frozenset] = {klass: adm for klass, _, adm in _GATE_LADDER}
+
+
 def _klass_of(route) -> set[str]:
     """The classes this route satisfies, by IDENTITY where identity is shared.
 
@@ -293,21 +334,53 @@ def _klass_of(route) -> set[str]:
     compare against — for that one class the name is the identity, and
     `test_every_require_paid_gate_is_a_REAL_paid_check` proves each such function
     actually consults `is_paid_user` rather than merely being called that.
+
+    ⚠️ THIS RETURNS EVERY CLASS THE ROUTE SATISFIES, NOT ITS GATE. `require_paid`
+    nests `get_current_user`, so a paid route reports `session` as well — which
+    is true, and is precisely why a claim may not be checked with `in`. See
+    `_claim_is_satisfied`.
     """
-    names = _dep_names(route)
-    objs = _dep_objects(route)
-    out = set()
-    if "require_paid" in names:
-        out.add("paid")
-    if require_admin in objs:
-        out.add("admin")
-    if "require_flow_admin" in names:
-        out.add("flow_admin")
-    if "require_flow_user" in names:
-        out.add("flow_user")
-    if get_current_user in objs:
-        out.add("session")
-    return out
+    names, objs = _dep_names(route), _dep_objects(route)
+    return {klass for klass, reports, _ in _GATE_LADDER if reports(names, objs)}
+
+
+def _strongest(found: set[str]) -> set[str]:
+    """The strongest classes in `found` — strongest = admits the FEWEST callers.
+
+    Returns a SET, not a winner. Two classes can be genuinely equal (`admin` and
+    `flow_admin` are one door reached two ways), and breaking that tie would be
+    an ordering nobody measured. An ungated route has no strongest class at all.
+    """
+    if not found:
+        return set()
+    fewest = min(len(_ADMITS[klass]) for klass in found)
+    return {klass for klass in found if len(_ADMITS[klass]) == fewest}
+
+
+def _claim_is_satisfied(expected: str, found: set[str]) -> bool:
+    """⭐ A ROW'S CLAIM MUST NAME THE STRONGEST GATE ITS ROUTE CARRIES.
+
+    ⛔ `expected in found` IS NOT ENOUGH, AND THAT IS THE BUG THIS REPLACES.
+    `_klass_of` reports every class a route satisfies and `require_paid` nests
+    `get_current_user`, so every paid route also reports `session`. A "paid"
+    claim rewritten to "session" was therefore satisfied by the weaker gate
+    sitting underneath it, and the door could then be opened with the audit
+    still green. Measured, 2026-08-26 — both mutations passed; the controls in
+    section 2b are that reproduction, kept.
+
+    Equality against the strongest class forbids both directions at once:
+
+      * a claim can never be met by a WEAKER gate than it names — the security
+        half, and the one the whole file exists for;
+      * and a claim can never UNDERSTATE the gate the app really carries, which
+        is what makes the DOWNGRADE ITSELF go red, rather than the deletion that
+        would follow it. Catching only the deletion is too late: the downgrade
+        is the commit that makes the deletion invisible.
+
+    It is deliberately NOT "expected == the one strongest class": equal-strength
+    classes exist (see `_strongest`), and either name is an honest claim.
+    """
+    return expected in _strongest(found)
 
 
 def _request_for(route, key, *, with_body: bool):
@@ -434,9 +507,244 @@ def test_every_gated_route_carries_its_gate_in_the_DEPENDENCY_TREE(app, key):
     route = _table(app)[key]
     expected = GATED[key]
     found = _klass_of(route)
-    assert expected in found, (
-        f"{key[0]} {key[1]} was gated as {expected!r} and the app reports "
-        f"{sorted(found) or 'NO GATE AT ALL'} — this route is open again")
+    strongest = _strongest(found)
+
+    # ⛔ THE TWO FAILURES ARE DIFFERENT FACTS AND THE FIX IS DIFFERENT, so they
+    # are told apart here. A red that reads ambiguously gets "fixed" by editing
+    # the claim to match whatever the app now does — which, in the OPEN case, is
+    # the regression signing its own permission slip.
+    if not _claim_is_satisfied(expected, found):
+        if not strongest:
+            raise AssertionError(
+                f"{key[0]} {key[1]} was gated as {expected!r} and the app "
+                "reports NO GATE AT ALL — this route is open again. Restore the "
+                "gate; do NOT relabel the row.")
+        weaker = len(_ADMITS[expected]) < min(len(_ADMITS[k]) for k in strongest)
+        raise AssertionError(
+            f"{key[0]} {key[1]} was gated as {expected!r} and the strongest gate "
+            f"the app actually carries is {sorted(strongest)} "
+            f"(it reports {sorted(found)}).\n"
+            + ("⚠️ THE ROUTE IS WEAKER THAN ITS CLAIM — the gate this row "
+               "promises is gone and something more permissive is standing in "
+               "for it. Restore the gate. Do NOT relabel the row to match: that "
+               "is the regression writing its own permission slip.\n"
+               if weaker else
+               "⚠️ THE ROW UNDERSTATES THE ROUTE — the app enforces MORE than "
+               "this table claims. Harmless to a caller today, and not harmless "
+               "here: every sweep in this file selects rows BY CLASS, so a paid "
+               "route filed as 'session' is quietly dropped from the free-member "
+               "refusal check. Correct the row UPWARD to what the handler does.\n"))
+
+
+# ── 2b. ⭐ THE CONTROL ON THE STRUCTURAL ASSERTION ITSELF ────────────────────
+#
+# 🔴 MEASURED, 2026-08-26 — the defect these two exist to make impossible.
+# The assertion above used to read `expected in found`, and `_klass_of` returns
+# EVERY class a route satisfies. A `paid` route also satisfies `session`, so:
+#
+#   1. edit `POST /api/scans/run`'s claim from "paid" to "session" → 90 passed;
+#   2. THEN delete `require_paid` from the handler as well          → 90 passed.
+#
+# Restoring the claim proved the door had genuinely opened: a free member got
+# 422, not 402. A paid, member-facing route could be made free-reachable and the
+# repo's standing gate audit could not tell. The two tests below are that
+# reproduction, kept — one for each half, because a test that only catches the
+# TABLE edit does not catch the half that opens the door.
+
+def test_a_DOWNGRADED_CLAIM_cannot_be_satisfied_by_the_weaker_gate_underneath(app):
+    """🔴 HALF ONE: the table edit.
+
+    `require_paid` nests `get_current_user`, so every paid route also reports
+    `session` — which is exactly what let a "paid" claim be quietly rewritten to
+    "session" and stay green. A claim must name the STRONGEST gate the route
+    carries, so the weaker class sitting underneath can never stand in for it.
+
+    ⛔ DERIVED, never typed: the route is whichever paid row actually reports
+    both classes, so a rename cannot turn this into a test of nothing.
+    """
+    table = _table(app)
+    both = [k for k, v in sorted(GATED.items())
+            if v == "paid" and {"paid", "session"} <= _klass_of(table[k])]
+    assert both, (
+        "no paid row reports `session` underneath its `paid` — the nesting this "
+        "test exists to defend against has changed shape; re-derive it")
+
+    for key in both:
+        found = _klass_of(table[key])
+        assert _claim_is_satisfied("paid", found), (
+            f"{key} carries paid and the honest claim was rejected: {sorted(found)}")
+        assert not _claim_is_satisfied("session", found), (
+            f"{key[0]} {key[1]} reports {sorted(found)} and a claim of 'session' "
+            "was ACCEPTED — a paid route can be downgraded to session in this "
+            "table and the audit stays green. That is the whole defect.")
+
+
+def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app):
+    """🔴 HALF TWO, AND THE ONE THAT MATTERS — the door, not the label.
+
+    A table edit is a diff a human can see in review. This is the mutation that
+    actually opens the route: `require_paid` is stripped off the SERVED app's
+    own `route.dependant` — the same object the assertion reads — while the row
+    still claims `paid`. EVERY paid row is cut in turn, not one sampled name, so
+    a router that grew a different gate shape cannot slip past.
+
+    ⭐ AND IT CARRIES ITS OWN NON-VACUITY CONTROL. On some routes the cut leaves
+    nothing behind, and "NO GATE AT ALL" would fail any check ever written. The
+    dangerous shape is the other one: a sibling dependency still resolves the
+    session, so the route stays perfectly reachable by any free account and
+    merely stops being PAID — `POST /api/scans/run` keeps its rate-limit
+    dependency exactly that way. At least one route must be of that shape, or
+    this test is passing for the easy reason and proving far less than it reads.
+
+    ⚠️ RESTORED IN A `finally`, AND THE RESTORE IS ASSERTED. The `app` fixture is
+    module-scoped: a leaked mutation would poison every assertion after this one,
+    and a silent restore failure would read as a pass.
+    """
+    table = _table(app)
+    cut_anything, still_reachable = [], []
+
+    for key, expected in sorted(GATED.items()):
+        if expected != "paid":
+            continue
+        route = table[key]
+        idx = next((i for i, d in enumerate(route.dependant.dependencies)
+                    if getattr(d.call, "__name__", "") == "require_paid"), None)
+        if idx is None:
+            continue
+        original = list(route.dependant.dependencies)
+        try:
+            route.dependant.dependencies = [d for j, d in enumerate(original) if j != idx]
+            opened = _klass_of(route)
+            assert not _claim_is_satisfied("paid", opened), (
+                f"{key[0]} {key[1]} had `require_paid` DELETED from its handler "
+                f"and the app now reports {sorted(opened) or 'NO GATE AT ALL'} — "
+                "yet the row still claiming 'paid' was satisfied. A paid, "
+                "member-facing route can be opened to any free registration and "
+                "this audit does not notice. That is the whole point of the file.")
+        finally:
+            route.dependant.dependencies = original
+
+        assert _claim_is_satisfied("paid", _klass_of(route)), (
+            f"{key[0]} {key[1]} did not come back after the mutation — every "
+            "assertion after this one is running against a damaged app")
+
+        cut_anything.append(key)
+        if opened:
+            still_reachable.append((key, sorted(opened)))
+
+    assert len(cut_anything) >= 8, (
+        f"only {len(cut_anything)} paid rows carry `require_paid` as a direct "
+        "dependency — the walk is not reaching the gates it claims to cut")
+    assert still_reachable, (
+        "every paid route lost ALL its classes when `require_paid` was cut, so "
+        "this test only ever proves that 'no gate' fails — it never exercises "
+        "the shape it exists for: a route still reachable by a logged-in free "
+        "member that simply is not paid any more")
+
+
+def test_a_LEGITIMATELY_session_gated_route_still_passes(app):
+    """…and the strength rule is not simply "reject more".
+
+    The free tier is gated on identity, not payment, ON PURPOSE. A rule that
+    made `session` unclaimable would be satisfied by closing the top of the
+    funnel — so the rows that really are session-only must still pass, and the
+    control is that they carry `session` and nothing stronger.
+    """
+    table = _table(app)
+    session_rows = [k for k, v in sorted(GATED.items()) if v == "session"]
+    assert session_rows, "no session-gated row left to control on"
+    for key in session_rows:
+        found = _klass_of(table[key])
+        assert _claim_is_satisfied("session", found), (
+            f"{key[0]} {key[1]} claims 'session' and reports {sorted(found)} — "
+            "a legitimately session-gated route was rejected")
+
+
+def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
+    """⭐ THE CONTROL ON THE STRENGTH ORDER, SO IT IS NOT A TYPED OPINION.
+
+    `_GATE_LADDER` ranks a class by who its gate lets in. That is a claim about
+    RUNNING CODE, and a strength table nobody checked is just a comment that the
+    whole audit now leans on — so each gate object is CALLED with this file's
+    three declared callers, and the admitted set must be exactly what the ladder
+    says. Get this wrong and every row ranked against it rests on a wrong number
+    while reading as measured.
+
+    ⚠️ FOUR OF THE FIVE ARE CALLED HERE, AND SAYING WHICH IS THE POINT.
+    `get_current_user` takes a `Request` and reads a cookie, so `session`'s
+    breadth is not callable in this shape; it is measured BEHAVIOURALLY instead —
+    `test_the_FREE_TIER_still_reads_the_morning_wire` drives a free member
+    through a session-gated route and requires 200, and the paid sweep covers
+    the rest. An unmeasured row quietly skipped inside a table like this one
+    reads exactly like a measured one, which is why it is named rather than
+    omitted (`lesson_a_green_suite_does_not_mean_a_true_number`).
+    """
+    from fastapi import HTTPException
+    import api.flow_admin_auth as fa
+
+    callers = {"free": FREE_USER, "paid": PAID_USER, "admin": ADMIN_USER}
+    measured: dict[str, set[str]] = {}
+
+    def _admits(invoke) -> set[str]:
+        out = set()
+        for name, user in callers.items():
+            try:
+                if invoke(user) is not None:
+                    out.add(name)
+            except HTTPException:
+                pass
+        return out
+
+    # `require_admin` is ONE shared object — identity, so call it directly.
+    measured["admin"] = _admits(lambda u: require_admin(dict(u)))
+
+    # `require_paid` is defined PER ROUTER by design, so every copy reachable
+    # from a paid row is measured and they must all admit the same callers —
+    # one router quietly admitting free members is the shape this catches.
+    paid_gates = {d for key, klass in GATED.items() if klass == "paid"
+                  for d in _dep_objects(_table(app)[key])
+                  if getattr(d, "__name__", "") == "require_paid"}
+    assert paid_gates, "no require_paid object is reachable from the paid rows"
+    seen = {frozenset(_admits(lambda u, g=g: g(dict(u)))) for g in paid_gates}
+    assert len(seen) == 1, (
+        "the per-router `require_paid` copies do not admit the same callers: "
+        f"{[sorted(x) for x in seen]} — one of them is not the gate the others are")
+    measured["paid"] = set(next(iter(seen)))
+
+    # The flow family reads the cookie ITSELF, so the session lookup is patched
+    # on `flow_admin_auth`'s own name — a patch on `auth_service` would reach
+    # nothing (`lesson_from_import_severs_a_module_from_its_guards`).
+    def _flow_admits(gate) -> set[str]:
+        out = set()
+        for name, user in callers.items():
+            monkeypatch.setattr(fa, "validate_session", lambda _c, _u=user: dict(_u))
+            try:
+                if gate(uct_session="test-session") is not None:
+                    out.add(name)
+            except HTTPException:
+                pass
+        return out
+
+    measured["flow_user"] = _flow_admits(fa.require_flow_user)
+    measured["flow_admin"] = _flow_admits(fa.require_flow_admin)
+
+    for klass, admitted in sorted(measured.items()):
+        assert admitted == set(_ADMITS[klass]), (
+            f"the ladder says {klass!r} admits {sorted(_ADMITS[klass])}; the "
+            f"running gate admits {sorted(admitted)}. The strength order is a "
+            "typed opinion, not a measurement, and every claim ranked against "
+            "it is resting on the wrong number")
+
+    # …and the ordering the whole strength rule turns on falls straight out of
+    # the numbers above rather than being asserted as an opinion beside them.
+    assert len(_ADMITS["admin"]) < len(_ADMITS["paid"]) < len(_ADMITS["session"]), (
+        f"admin > paid > session is what `_claim_is_satisfied` rests on: {_ADMITS}")
+
+    # A claim can only mean something if the ladder can actually produce it.
+    unknown = sorted(set(GATED.values()) - GATE_CLASSES)
+    assert not unknown, (
+        f"{unknown} are claimed in the gate table and `_klass_of` can never "
+        "report them, so those rows can never be satisfied by any real gate")
 
 
 def test_every_require_paid_gate_is_a_REAL_paid_check(app):
