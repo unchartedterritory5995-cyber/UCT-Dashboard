@@ -49,10 +49,11 @@ describe('VolumeScanWidget', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
     expect(screen.getByText('SYMBOL')).toBeInTheDocument()
-    expect(screen.queryByText('VOL SURGE')).not.toBeInTheDocument()   // renamed → RVOL
-    expect(screen.getAllByText(/RVOL/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('SIGNAL')).toBeInTheDocument()       // tier column, not raw RVOL
     expect(screen.getByText('SMCI')).toBeInTheDocument()
-    expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
+    expect(screen.getByText('Extreme')).toBeInTheDocument()      // SMCI (tier 5) → T5 · Extreme
+    expect(screen.getByText('High')).toBeInTheDocument()         // PLUG (tier 3) → T3 · High
+    expect(screen.queryByText('11.4×')).not.toBeInTheDocument()  // raw multiple no longer shown
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
     expect(screen.getByLabelText(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })

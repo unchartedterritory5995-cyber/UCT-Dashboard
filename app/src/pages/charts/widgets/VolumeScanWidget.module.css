@@ -77,6 +77,15 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* Signal cell = tier CODE (T1–T5) + NAME (Notable…Extreme). Both inherit the .surge
+   colour, so the per-tier white ramp + unlit dim below apply to them unchanged. */
+.tierCode { font-weight: 800; letter-spacing: 0.3px; }
+.tierName { font-weight: 600; }
+.tierName::before { content: " - "; font-weight: 400; opacity: 0.6; }
+/* Thin widget: drop the word, keep the code so the two columns stay tight. */
+@container (max-width: 215px) {
+  .tierName { display: none; }
+}
 
 /* ── Lit rows fill by RVOL tier. Deliberately MUTED for everything but the extreme:
    t1–t4 are deep, desaturated blocks with BLACK text (low contrast → they recede), and

@@ -36,6 +36,11 @@ const fetcher = (url) =>
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
+// The signal column shows the surge TIER (not a raw RVOL multiple) — this is a
+// composite-signal scanner, not a plain relative-volume list. Rows still RANK by the
+// underlying sustained RVOL; the tier is what's shown. T1 Notable → T5 Extreme.
+const TIER_NAME = { 1: 'Notable', 2: 'Elevated', 3: 'High', 4: 'Very High', 5: 'Extreme' }
+
 function fmtTime(iso) {
   if (!iso) return ''
   try {
@@ -107,7 +112,14 @@ function Row({ e, onPick, logos, onContext }) {
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
         <span className={styles.sym}>{e.sym}</span>
       </span>
-      <span className={styles.surge}>{e.pending ? '…' : `${e.rvol}×`}</span>
+      <span className={styles.surge}>
+        {e.pending ? '…' : (
+          <>
+            <span className={styles.tierCode}>T{e.tier || 1}</span>
+            <span className={styles.tierName}>{TIER_NAME[e.tier || 1] || ''}</span>
+          </>
+        )}
+      </span>
     </button>
   )
 }
@@ -278,7 +290,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           <div className={chrome.rows} role="list">
             <div className={`${chrome.sideHead} ${styles.head}`}>
               <span className={styles.headSym}>SYMBOL</span>
-              <span className={styles.headSurge}>RVOL</span>
+              <span className={styles.headSurge}>SIGNAL</span>
             </div>
             {customEmpty ? (
               <div className={styles.none}>This list is empty — add tickers below to start scanning it.</div>
