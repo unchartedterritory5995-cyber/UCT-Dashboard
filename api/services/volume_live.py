@@ -182,6 +182,9 @@ _thread = None
 _top_set: set | None = None
 _top_built = 0.0
 
+# Provider symbols currently subscribed to bar_stream (owner="volume") for the A.* push.
+_subscribed_provs: set = set()
+
 
 def _now_et() -> datetime:
     return datetime.now(_ET) if _ET else datetime.utcnow()
@@ -193,6 +196,13 @@ def enabled() -> bool:
 
 def _demo() -> bool:
     return os.environ.get("VOLUME_DEMO", "0") == "1"
+
+
+def _push_enabled() -> bool:
+    """Instant push: drive min.av/price from the Massive A.* per-second aggregate feed
+    (via bar_stream's shared on_bar) so metrics refresh in ~1s instead of the ~2.5s REST
+    poll. Dark by default; the REST poll stays the authority for tracking + baselines."""
+    return os.environ.get("VOLUME_PUSH_ENABLED", "0") == "1"
 
 
 def _tick_seconds() -> float:
@@ -545,7 +555,86 @@ def status() -> dict:
             "asof": _state["asof"],
             "last_error": _state["last_error"],
             "tick_seconds": _tick_seconds(),
+            "push_enabled": _push_enabled(),
+            "push_subscribed": len(_subscribed_provs),
         }
+
+
+def on_aggregate(sym: str, payload: dict, kind: str) -> None:
+    """Instant push from the Massive A.* (per-second aggregate) feed, via bar_stream's
+    shared on_bar. Refreshes ONE tracked symbol's accumulated volume + price and
+    recomputes its metric in ~1s — instead of waiting for the ~2.5s REST poll. Runs on
+    the WS thread, so it must be quick and NEVER raise (a shared callback). The REST poll
+    stays the authority for tracking, prev-day baselines, and the top-N universe; this
+    only refreshes symbols the poll already tracks."""
+    if not _push_enabled() or kind not in ("A", "AM"):
+        return
+    try:
+        if not isinstance(payload, dict):
+            return
+        av = payload.get("av")            # today's ACCUMULATED volume (authoritative)
+        price = payload.get("c")          # aggregate close = latest traded price
+        if (not isinstance(av, (int, float)) or av <= 0
+                or not isinstance(price, (int, float)) or price <= 0):
+            return
+        app = _universe_map().get(sym)
+        if app is None:
+            return
+        now = _now_et()
+        if _active_window(now) == "closed":
+            return
+        cumfrac = _cumfrac(now)
+        cum_rate = _cumrate(now)
+        t = _time.time()
+        with _lock:
+            st = _state["syms"].get(app)
+            if st is None or st.get("prev_vol") is None:
+                return   # only the poll creates + baselines a symbol
+            hist = st["hist"]
+            if hist and av < hist[-1][1]:            # counter dropped (day/provider roll) → reset
+                hist.clear()
+            if not hist or (t - st["last_add"]) >= _MIN_SAMPLE_GAP:
+                hist.append((t, int(av), float(price)))
+                st["last_add"] = t
+            else:
+                hist[-1] = (t, int(av), float(price))   # refresh the developing point in place
+            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
+    except Exception:
+        pass   # a shared callback — never break the bars feed
+
+
+def _sync_push_subscriptions() -> None:
+    """Keep bar_stream subscribed to the scanner's tracked universe (owner="volume") so
+    the A.* per-second aggregates flow for it. No-op unless the push is enabled; when it
+    is turned OFF, drops any subscriptions we hold (clean rollback)."""
+    global _subscribed_provs
+    try:
+        from api.services import bar_stream
+    except Exception:
+        return
+    if not _push_enabled():
+        if _subscribed_provs:
+            try:
+                bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+            except Exception:
+                pass
+            _subscribed_provs = set()
+        return
+    top = _top_set
+    if not top:
+        return
+    app_to_prov = {app: prov for prov, app in _universe_map().items()}
+    want = {app_to_prov[a] for a in top if a in app_to_prov}
+    new = want - _subscribed_provs
+    gone = _subscribed_provs - want
+    try:
+        if new:
+            bar_stream.subscribe_symbols(sorted(new), owner="volume")
+        if gone:
+            bar_stream.unsubscribe_symbols(sorted(gone), owner="volume")
+    except Exception:
+        return
+    _subscribed_provs = want
 
 
 def _tick() -> None:
@@ -565,6 +654,7 @@ def _tick() -> None:
             _tick_once(snap, window, today, now, sample_t)
             with _lock:
                 _state["last_error"] = None
+    _sync_push_subscriptions()
 
 
 def _run_forever() -> None:
@@ -592,5 +682,12 @@ def start() -> None:
 
 
 def stop() -> None:
-    global _running
+    global _running, _subscribed_provs
     _running = False
+    if _subscribed_provs:
+        try:
+            from api.services import bar_stream
+            bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+        except Exception:
+            pass
+        _subscribed_provs = set()

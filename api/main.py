@@ -3430,13 +3430,24 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
-        from api.services import bar_stream, bar_broadcaster
+        from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
             on_last_unsubscribe=bar_stream.unsubscribe_symbols_one,
         )
-        bar_stream.start_stream(on_bar=bb.push_aggregate)
-        print("[startup] Bar stream thread started (Massive WS -> BarBroadcaster, AM+A channels)")
+
+        def _on_bar(sym, payload, kind):
+            # BarBroadcaster (charts) ALWAYS runs first + unguarded, exactly as before.
+            bb.push_aggregate(sym, payload, kind)
+            # Volume Surge instant push is a defensive add-on gated by VOLUME_PUSH_ENABLED
+            # — it can never break the bars feed (no-op unless the flag is on).
+            try:
+                volume_live.on_aggregate(sym, payload, kind)
+            except Exception:
+                pass
+
+        bar_stream.start_stream(on_bar=_on_bar)
+        print("[startup] Bar stream thread started (Massive WS -> BarBroadcaster + volume push, AM+A channels)")
 
     def _build_deep_cache():
         if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":

@@ -229,3 +229,37 @@ def test_min_rvol_and_min_move_filters_are_honored():
 def test_closed_window_serves_no_rows():
     volume_live._tick_once({}, "closed", "2026-08-25", _NOW, 0.0)
     assert volume_live.get_live()["rows"] == []
+
+
+def test_push_aggregate_refreshes_a_tracked_symbol(monkeypatch):
+    # The instant A.* push refreshes ONE tracked symbol's volume + price in ~1s, between
+    # the slower REST polls. Gated by VOLUME_PUSH_ENABLED; inert when off.
+    monkeypatch.setenv("VOLUME_PUSH_ENABLED", "1")
+    monkeypatch.setattr(volume_live, "_now_et", lambda: _NOW)
+    monkeypatch.setattr(volume_live, "_active_window", lambda now=None: "rth")
+
+    class _FT:
+        def time(self):
+            return 46.0
+    monkeypatch.setattr(volume_live, "_time", _FT())
+
+    # The REST poll tracks AAA + sets its prev-day baseline (cv ~2.7M by 13:00).
+    seq = {t: {"AAA": {"min_av": 60_000 * t, "last_price": 10.0,
+                       "prev_close": 10.0, "prev_vol": 1_000_000}} for t in range(0, 46)}
+    _feed(seq)
+    before = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert before is not None
+
+    # A per-second A push: accumulated volume jumps + price ticks up. bar_stream delivers
+    # the bar dict directly as the payload (av = accumulated day volume, c = last price).
+    volume_live.on_aggregate("AAA", {"av": 5_000_000, "c": 10.5, "v": 100_000}, "A")
+    after = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert after is not None
+    assert after["price"] == pytest.approx(10.5)      # price refreshed by the push
+    assert after["rvol"] > before["rvol"]             # accumulated volume jumped → RVOL rose
+
+    # Flag OFF → the push is inert (no refresh).
+    monkeypatch.setenv("VOLUME_PUSH_ENABLED", "0")
+    volume_live.on_aggregate("AAA", {"av": 9_000_000, "c": 12.0, "v": 1}, "A")
+    still = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert still["price"] == pytest.approx(10.5)      # unchanged with the push off
