@@ -116,6 +116,21 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     expect(within(row).getByText(def.meta.description)).toBeTruthy()
   })
 
+  it('⛔ B12 rail — a member\'s own formula wears "Your formula", never the tier badge (fixed 7d036c4ec)', () => {
+    const [def] = install(memberFormula('20-bar average'))
+    // The CONTROL: the definition IS premium-tier (`buildDefinition` routes this
+    // schema-1 shape to `legacyDefinition`, in BuilderSheet.jsx, which sets
+    // `meta.tier: 'premium'`), so the badge's absence below is a decision the
+    // dialog makes, not a missing field.
+    expect(def.meta.tier).toBe('premium')
+    open()
+    const row = screen.getByRole('option', { name: /20-bar average/ })
+    expect(within(row).getByText('Your formula')).toBeTruthy()
+    expect(within(row).queryByText(/^premium$/i),
+      'the tier badge is on the member\'s own row — beside "Your formula", "Premium" reads as "you cannot use this"')
+      .toBeNull()
+  })
+
   it('⛔ CONTROL — the OTHER direction: a shipped definition is still there, and the counts add up', () => {
     // A widening that dropped the shipped rows would satisfy the case above and
     // be a far worse regression than the one being fixed.
