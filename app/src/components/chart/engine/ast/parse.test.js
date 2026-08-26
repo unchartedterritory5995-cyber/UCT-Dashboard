@@ -414,8 +414,15 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 50 functions and 111 scalars — 181 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 50 functions and 111 scalars — 194 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
+    // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
+    // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
+    // four timeframe booleans — that a formula may spell. They ride the EXISTING
+    // `series` node, so `NODE_TYPES` is unmoved and every stored `astHash` is
+    // unmoved with it; what is new is that `interpret` has an argument it did
+    // not have. See the `tableVersion` assertion at the end of this case.
+    expect(Object.keys(TABLE.clock)).toHaveLength(13)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
     // legs, stoch, cci, williamsR, mfi, the three Donchian lines and the five
@@ -479,20 +486,35 @@ describe('the manifest', () => {
     // them refused in `_scalars_excluded`. The BAR half did not move.
     expect(Object.keys(TABLE.scalars)).toHaveLength(111)
     const bar = new Set([
-      ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
+      ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
+      ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
     // `adx` took the bar half to 70 (2026-08-11): the `lookback` grammar grew a
     // whole multiple of an argument (`2*arg3`), which is the ONLY thing that had
     // been keeping it out — its window is 2 x period and the table could not say so.
-    expect(bar.size).toBe(70)
+    // ⭐ 70 -> 83 IS THE `clock` SECTION, and it is the first time the BAR half
+    // moved for something that is not a function. A clock value varies down the
+    // replay series exactly as `close` does, so the bar corpus owes each one a
+    // case — thirteen were written and the frozen digests were re-recorded WITH
+    // them (0 moved, 13 added).
+    expect(bar.size).toBe(83)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(181)
-    // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
-    // — the four node types and the keys a persisted tree may carry — and Phase
-    // E widened the VOCABULARY without touching either: a scalar rides the
-    // existing `series` node, so every stored `astHash` is unmoved. Bumping it
-    // would say a stored tree needs re-reading, which is false.
-    expect(TABLE.tableVersion).toBe(1)
+    expect(declared.size).toBe(194)
+    // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
+    // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
+    // for Phase E that was exactly "the node types and the keys a persisted tree
+    // may carry": 54 scalars widened the VOCABULARY, rode the existing `series`
+    // node, moved no `astHash`, and bumping it would have said a stored tree
+    // needed re-reading, which was false. ⛔ THE `clock` SECTION IS DIFFERENT IN
+    // KIND, AND THE DIFFERENCE IS NOT THAT IT IS BIGGER. A tree naming
+    // `isintraday` cannot be answered from the tree and the bars alone — the
+    // caller has to say what timeframe this is, through `interpret`'s new
+    // optional trailing `opts` (`{tf}`) on BOTH lanes. A v1 reader handed a v2
+    // tree is not merely meeting a name it could learn; it is missing an
+    // ARGUMENT nobody asked it for. That is what the version now says. Every
+    // stored `astHash` is still unmoved, which is why this is a 2 and not a
+    // migration.
+    expect(TABLE.tableVersion).toBe(2)
   })
 
   it('every function declares a lookback and a read-back sentence', () => {
