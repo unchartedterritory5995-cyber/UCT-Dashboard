@@ -146,35 +146,40 @@ test('every workspace action a member needs is still reachable from the toolbar'
   // dropdown without removing any; that regrouping is a layout decision and must
   // not be able to fail this file. Losing one outright still must.
   for (const name of [
-    /add widget/i, /merge widgets/i, /new layout/i, /open layout/i,
+    // Adding a widget is now the WIDGETS menu's iconified chip grid — a representative
+    // chip (Volume Surge) being reachable proves the add affordance survived.
+    /volume surge/i, /merge widgets/i, /new layout/i, /open layout/i,
     /save layout/i, /multi chart/i, /pop out layout/i,
   ]) {
     expect(toolbarButton(name), `the toolbar no longer reaches ${name}`).toBeTruthy()
   }
 })
 
-// Open the Widget Catalog from the toolbar and return its widget CARDS (each card's
-// title is "Add <label>", which isolates them from the pills / close / search).
-function openCatalogCards() {
-  clickToolbar(/add widget/i)
-  const dialog = document.querySelector('[role="dialog"][aria-label="Add a widget"]')
-  expect(dialog, 'the Add Widget action should open the Widget Catalog').toBeTruthy()
-  return [...dialog.querySelectorAll('button')].filter(b => (b.getAttribute('title') || '').startsWith('Add '))
+// Open the anchored WIDGETS quick-add menu and return its widget CHIPS — the buttons the
+// menu reveals in the header, minus the Merge action (discovered as a set difference so no
+// widget type is hard-coded).
+function openWidgetChips() {
+  const header = document.querySelector('header')
+  const before = new Set(header.querySelectorAll('button'))
+  const trigger = [...header.querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+  expect(trigger, 'the toolbar has no WIDGETS menu').toBeTruthy()
+  act(() => { trigger.click() })
+  return [...header.querySelectorAll('button')].filter(b => !before.has(b) && !/merge/i.test(b.textContent))
 }
 
-test('a widget can be added to the board from the catalog', () => {
+test('a widget can be added to the board from the WIDGETS menu', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
   expect(onBoard()).toBe(0)
 
-  const cards = openCatalogCards()
-  expect(cards.length, 'the catalog offered nothing to add').toBeGreaterThan(0)
+  const chips = openWidgetChips()
+  expect(chips.length, 'the WIDGETS menu offered nothing to add').toBeGreaterThan(0)
   // On an EMPTY board the widget fits in empty space with no adjustment, so smart
-  // placement commits it IMMEDIATELY (no ghost). Assert the CAPABILITY — a catalog
-  // card puts a widget on the board — rather than naming a type.
-  act(() => { cards[0].click() })
-  expect(onBoard(), 'clicking a catalog card should add a widget').toBe(1)
+  // placement commits it IMMEDIATELY (no ghost). Assert the CAPABILITY — a chip puts a
+  // widget on the board — rather than naming a type.
+  act(() => { chips[0].click() })
+  expect(onBoard(), 'clicking a widget chip should add a widget').toBe(1)
 })
 
 test('ghost preview appears only when a widget must be adjusted — Cancel adds nothing', () => {
@@ -185,9 +190,9 @@ test('ghost preview appears only when a widget must be adjusted — Cancel adds 
   expect(onBoard()).toBe(1) // the seeded chart
   const btnByText = (t) => [...document.querySelectorAll('button')].find(b => b.textContent === t)
 
-  // Pick a widget from the catalog — the full board forces an adjustment → the ghost appears.
-  const cards = openCatalogCards()
-  act(() => { cards[0].click() })
+  // Pick a widget chip — the full board forces an adjustment → the ghost appears.
+  const chips = openWidgetChips()
+  act(() => { chips[0].click() })
   expect(btnByText('Place'), 'adding to a full board should preview via ghost').toBeTruthy()
   expect(btnByText('Cancel')).toBeTruthy()
   expect(onBoard(), 'ghost preview must not commit the widget').toBe(1) // still just the chart
