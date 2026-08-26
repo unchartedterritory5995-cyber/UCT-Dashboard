@@ -25,17 +25,21 @@ import { FRESHNESS_MODES } from './freshness'
  *  KEY_RE (module-private there; an input key and a plot key share one alphabet). */
 const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
 
-/** @returns {string[]} the plot keys, SORTED — the order every consumer must use. */
+/** @returns {string[]} the plot keys, SORTED — the order every consumer must use.
+ *
+ *  Refusals are labelled by FIELD PATH (`compute.trees`), not by this function's
+ *  name: `defSchema.validateTrees` pushes them verbatim, and a member reads where
+ *  to look rather than which helper looked. */
 export function assertTrees(trees) {
   if (!trees || typeof trees !== 'object' || Array.isArray(trees)) {
     throw new Error(
-      `treesHash: expected an object of plotKey → canonical tree, got ${
+      `compute.trees: expected an object of plotKey → canonical tree, got ${
         trees === null ? 'null' : Array.isArray(trees) ? 'an array' : typeof trees}`)
   }
   const keys = Object.keys(trees).sort()
-  if (!keys.length) throw new Error('treesHash: an empty trees map names no plot')
+  if (!keys.length) throw new Error('compute.trees: an empty trees map names no plot')
   for (const k of keys) {
-    if (!KEY_RE.test(k)) throw new Error(`treesHash: ${JSON.stringify(k)} is not a legal plot key (${KEY_RE})`)
+    if (!KEY_RE.test(k)) throw new Error(`compute.trees: ${JSON.stringify(k)} is not a legal plot key (${KEY_RE})`)
   }
   return keys
 }
@@ -46,7 +50,7 @@ export function treesHash(trees) {
   const pairs = keys.map((k) => {
     let h
     try { h = astHash(trees[k]) } catch (err) {
-      throw new Error(`treesHash: compute.trees.${k} — ${err && err.message ? err.message : String(err)}`)
+      throw new Error(`compute.trees.${k}: ${err && err.message ? err.message : String(err)}`)
     }
     return `${JSON.stringify(k)}:${h}`
   })

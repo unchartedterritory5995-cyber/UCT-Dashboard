@@ -2,11 +2,14 @@ import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
   SUBSTITUTABLE_PLOT_FIELDS, EVENT_COLUMN_DOMAIN, isEventColumnValue,
-  SUPPORTED_KINDS, COMPUTE_KINDS,
+  SUPPORTED_KINDS, COMPUTE_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES,
 } from './defSchema'
 // ⭐ THE ONE PARSER, IMPORTED BY THE TEST FOR THE SAME REASON THE SCHEMA IMPORTS
 // IT: an `ast` fixture built any other way is a second grammar (D-A1).
 import { parseFormula, astHash } from './ast/parse'
+// ⭐ AND THE ONE MULTI-TREE HASH, for the same reason: a fixture that typed its
+// own `treesHash` would be comparing its copy of the definition to itself.
+import { treesHash, assertTrees } from './ast/trees'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -927,5 +930,242 @@ describe('the `ast` lane — the AST is what runs, the source is what the user e
     expect(r.ok, JSON.stringify(r.errors)).toBe(true)
     expect(r.def.compute.ast).toBeUndefined()
     expect(r.def.compute.source).toBeUndefined()
+  })
+})
+
+// ─── schema v2 — many trees, one hash (spec §5.1, lane W1b task 2) ──────────
+// The twelve cases below are the brief's, verbatim. The nested block after them
+// is this task's: the holes those twelve leave open, each named at the field.
+describe('schema v2 — many trees, one hash', () => {
+  const astDef = (source) => {
+    const ast = parseFormula(source).ast
+    return {
+      schemaVersion: 1, id: 'u_0123456789ab', version: 1,
+      compute: { kind: 'ast', fn: astHash(ast), rev: 1, ast, source },
+      meta: { name: 'Mine', tier: 'premium', repaint: 'non-repainting', freshness: 'live' },
+      placement: { target: 'pane', pane: { height: 0.15 } },
+      inputs: [{ key: 'color', type: 'color', label: 'Color', default: '#c9a84c' }],
+      plots: [{ key: 'value', label: 'Value', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }],
+    }
+  }
+  const SRC = {
+    macd: 'ema(close, 12) - ema(close, 26)',
+    signal: 'ema(ema(close, 12) - ema(close, 26), 9)',
+    hist: '(ema(close, 12) - ema(close, 26)) - ema(ema(close, 12) - ema(close, 26), 9)',
+  }
+  const macdV2 = () => {
+    const trees = Object.fromEntries(Object.entries(SRC).map(([k, s]) => [k, parseFormula(s).ast]))
+    const d = astDef(SRC.hist)
+    d.compute = { ...d.compute, ast: trees.hist, fn: astHash(trees.hist), source: SRC.hist,
+      trees, treesHash: treesHash(trees), scanPlot: 'hist', sources: { ...SRC } }
+    d.plots = [
+      { key: 'macd', label: 'MACD', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 4 } },
+      { key: 'signal', label: 'Signal', style: 'line', color: '$color', width: 1, role: 'secondary', legend: { decimals: 4 } },
+      { key: 'hist', label: 'Histogram', style: 'histogram', color: '$color', role: 'secondary', legend: { hide: true } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed' },
+    ]
+    return d
+  }
+
+  it('⛔ RAIL — a single-tree document is BYTE-IDENTICAL to today: no v2 key on the way out, `fn` unchanged', () => {
+    const r = validateDefinition(astDef('sma(close, 20)'))
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(Object.keys(r.def.compute).sort()).toEqual(['ast', 'fn', 'kind', 'rev', 'source'])
+    expect(r.def.compute.fn).toBe(astHash(parseFormula('sma(close, 20)').ast))
+  })
+  it('🔴 accepts a 3-tree MACD whose `ast` IS `trees[scanPlot]`, and `fn` is STILL astHash(ast)', () => {
+    const d = macdV2()
+    const r = validateDefinition(d)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.def.compute.fn).toBe(astHash(d.compute.trees.hist))
+    expect(r.def.compute.treesHash).toBe(treesHash(d.compute.trees))
+  })
+  it('compute.ast must BE trees[scanPlot] — a stale alias is refused by name', () => {
+    const d = macdV2(); d.compute.ast = d.compute.trees.macd; d.compute.fn = astHash(d.compute.ast); d.compute.source = SRC.macd
+    expect(errs(d).join(' ')).toMatch(/compute\.ast: must BE compute\.trees\.hist/)
+  })
+  it('scanPlot must name a tree', () => {
+    const d = macdV2(); d.compute.scanPlot = 'nope'
+    expect(errs(d).join(' ')).toMatch(/compute\.scanPlot/)
+  })
+  it('treesHash is CHECKED, never trusted', () => {
+    const d = macdV2(); d.compute.treesHash = `sha256:${'0'.repeat(64)}`
+    expect(errs(d).join(' ')).toMatch(/compute\.treesHash: expected/)
+  })
+  it('every tree must be canonical, and the error names the plot', () => {
+    const d = macdV2(); d.compute.trees.signal = { type: 'Literal', value: 1 }
+    expect(errs(d).join(' ')).toMatch(/compute\.trees\.signal/)
+  })
+  it('the data-bearing plots and the trees are ONE key set, in both directions', () => {
+    const missing = macdV2(); missing.plots = missing.plots.filter((p) => p.key !== 'signal')
+    expect(errs(missing).join(' ')).toMatch(/compute\.trees\.signal: names no data-bearing plot/)
+    const extra = macdV2(); extra.plots.push({ key: 'fourth', style: 'line', color: '$color' })
+    expect(errs(extra).join(' ')).toMatch(/plots: data-bearing plot "fourth" has no tree/)
+  })
+  it('sources: each parses to its tree, and sources[scanPlot] is compute.source', () => {
+    const wrong = macdV2(); wrong.compute.sources.macd = 'ema(close, 5)'
+    expect(errs(wrong).join(' ')).toMatch(/compute\.sources\.macd does not parse to compute\.trees\.macd/)
+    const split = macdV2(); split.compute.sources.hist = 'sma(close, 3)'
+    expect(errs(split).join(' ')).toMatch(/compute\.sources\.hist/)
+  })
+  it('v2 keys beside NO trees are refused by name — a single-tree document stays schema-1 shaped', () => {
+    const d = astDef('sma(close, 20)'); d.compute.scanPlot = 'value'
+    expect(errs(d).join(' ')).toMatch(/compute\.scanPlot: only a multi-tree document/)
+  })
+  it('fill.with names ANOTHER data plot — never itself, never a guide, never nothing', () => {
+    const good = macdV2(); good.plots[0].fill = { with: 'signal' }
+    expect(ok(good).plots[0].fill).toEqual({ with: 'signal' })
+    const self = macdV2(); self.plots[0].fill = { with: 'macd' }
+    expect(errs(self).join(' ')).toMatch(/plots\[0\]\.fill\.with: "macd" is this plot's own key/)
+    const guide = macdV2(); guide.plots[0].fill = { with: 'zero' }
+    expect(errs(guide).join(' ')).toMatch(/plots\[0\]\.fill\.with: "zero" is an "hlines" plot/)
+    const nope = macdV2(); nope.plots[0].fill = { with: 'nope' }
+    expect(errs(nope).join(' ')).toMatch(/plots\[0\]\.fill\.with: "nope" names no declared plot/)
+  })
+  it('hidden is a boolean', () => {
+    const d = macdV2(); d.plots[2].hidden = 'yes'
+    expect(errs(d).join(' ')).toMatch(/plots\[2\]\.hidden: expected true or false/)
+    const h = macdV2(); h.plots[2].hidden = true
+    expect(ok(h).plots[2].hidden).toBe(true)
+  })
+  it('`cross` is SCHEMA-RESERVED — refused with the later-phase sentence, never coerced to a neighbour', () => {
+    const d = macdV2(); d.plots[0].style = 'cross'
+    expect(errs(d).join(' ')).toMatch(/plots\[0\]\.style: plot style "cross" is SCHEMA-RESERVED/)
+  })
+
+  // ─── beyond the brief: the holes the twelve above leave open ──────────────
+  describe('beyond the brief — the rails around the rails', () => {
+    it('the v2 output CARRIES the four v2 keys, and the v1 output carries NO defaulted plot field — the byte-identical rail is not vacuous', () => {
+      // Half one: a v2 document CHANGES the compute key set. Without this the
+      // RAIL above would pass against a validator that dropped v2 on the floor.
+      const v2 = validateDefinition(macdV2())
+      expect(v2.ok, JSON.stringify(v2.errors)).toBe(true)
+      expect(Object.keys(v2.def.compute).sort())
+        .toEqual(['ast', 'fn', 'kind', 'rev', 'scanPlot', 'source', 'sources', 'trees', 'treesHash'])
+      expect(v2.def.compute.scanPlot).toBe('hist')
+      expect(v2.def.compute.sources).toEqual(SRC)
+      // Half two: a v1 plot gains no `hidden: false` / `fill: null` on the way
+      // out. A normalising default here is exactly what "byte-identical" forbids.
+      const v1 = validateDefinition(astDef('sma(close, 20)'))
+      expect(Object.keys(v1.def.plots[0]).sort())
+        .toEqual(['$refs', 'color', 'key', 'label', 'legend', 'role', 'style', 'width'])
+    })
+    it('a ONE-tree trees map is refused by name — one tree IS compute.ast, and a single-tree document has exactly ONE shape', () => {
+      const d = astDef('sma(close, 20)')
+      d.compute.trees = { value: d.compute.ast }
+      d.compute.treesHash = treesHash(d.compute.trees)
+      d.compute.scanPlot = 'value'
+      d.compute.sources = { value: d.compute.source }
+      expect(errs(d).join(' ')).toMatch(/compute\.trees: one tree is compute\.ast/)
+    })
+    it('trees: null is NOT "absent" — refused by name, never silently carried', () => {
+      const d = macdV2(); d.compute.trees = null
+      expect(errs(d).join(' ')).toMatch(/compute\.trees: expected an object of plotKey/)
+    })
+    it('trees: an array, or an illegal key, is refused under the compute.trees field path', () => {
+      const arr = macdV2(); arr.compute.trees = [arr.compute.ast]
+      expect(errs(arr).join(' ')).toMatch(/compute\.trees: expected an object of plotKey → canonical tree, got an array/)
+      const bad = macdV2(); bad.compute.trees = { ...bad.compute.trees, 'a.b': bad.compute.ast }
+      expect(errs(bad).join(' ')).toMatch(/compute\.trees: "a\.b" is not a legal plot key/)
+    })
+    it('treesHash is REQUIRED on a multi-tree document — absent reads as "got undefined", never as "trusted"', () => {
+      const d = macdV2(); delete d.compute.treesHash
+      expect(errs(d).join(' ')).toMatch(/compute\.treesHash: expected "sha256:[0-9a-f]{64}".*got undefined/)
+    })
+    it('scanPlot is REQUIRED on a multi-tree document — there is no "default the first plot"', () => {
+      const d = macdV2(); delete d.compute.scanPlot
+      expect(errs(d).join(' ')).toMatch(/compute\.scanPlot: must name one key of compute\.trees \(hist, macd, signal\).*got undefined/)
+    })
+    it('sources is REQUIRED on a multi-tree document, and COMPLETE — a tree with no source text can never be reopened', () => {
+      const none = macdV2(); delete none.compute.sources
+      expect(errs(none).join(' ')).toMatch(/compute\.sources: a multi-tree document must carry the source text of EVERY tree/)
+      const partial = macdV2(); delete partial.compute.sources.signal
+      expect(errs(partial).join(' ')).toMatch(/compute\.sources\.signal: missing/)
+      const extra = macdV2(); extra.compute.sources.ghost = 'close'
+      expect(errs(extra).join(' ')).toMatch(/compute\.sources\.ghost: names no tree/)
+      const notText = macdV2(); notText.compute.sources.macd = 42
+      expect(errs(notText).join(' ')).toMatch(/compute\.sources\.macd: expected the source text/)
+    })
+    it('a scan source that does not parse STILL reports the tree errors — the tree check runs before that return', () => {
+      const d = macdV2()
+      d.compute.source = 'ema(close, 12'; d.compute.sources.hist = d.compute.source; d.compute.scanPlot = 'nope'
+      const e = errs(d).join(' ')
+      expect(e).toMatch(/compute\.source does not parse/)
+      expect(e).toMatch(/compute\.scanPlot/)
+    })
+    it('v2 keys on a NON-ast kind are refused by name — a native names a function, it computes no trees', () => {
+      const d = rsiDef(); d.compute.trees = { rsi: parseFormula('close').ast }
+      expect(errs(d).join(' ')).toMatch(/compute\.trees: only an "ast" definition/)
+      const s = rsiDef(); s.compute.scanPlot = 'rsi'
+      expect(errs(s).join(' ')).toMatch(/compute\.scanPlot: only an "ast" definition/)
+    })
+    it('a HIDDEN plot is still DATA-BEARING — it needs a tree, and its tree needs it (A1\'s 0/1 scan plot)', () => {
+      const d = macdV2()
+      d.plots.push({ key: 'hist_up', style: 'line', color: '$color', hidden: true })
+      expect(errs(d).join(' ')).toMatch(/plots: data-bearing plot "hist_up" has no tree/)
+      const src = `(${SRC.hist}) > 0`
+      d.compute.trees.hist_up = parseFormula(src).ast
+      d.compute.treesHash = treesHash(d.compute.trees)
+      d.compute.sources.hist_up = src
+      const r = validateDefinition(d)
+      expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+      expect(r.def.plots[4].hidden).toBe(true)
+    })
+    it('fill.with may name a HIDDEN plot — hidden is computed, so the second edge exists', () => {
+      const d = macdV2()
+      d.plots.push({ key: 'ref', style: 'line', color: '$color', hidden: true })
+      d.compute.trees.ref = parseFormula('ema(close, 50)').ast
+      d.compute.treesHash = treesHash(d.compute.trees)
+      d.compute.sources.ref = 'ema(close, 50)'
+      d.plots[0].fill = { with: 'ref' }
+      expect(ok(d).plots[0].fill).toEqual({ with: 'ref' })
+    })
+    it('fill declared ON a guide is refused — an "hlines" plot has no column, so there is no edge to fill FROM', () => {
+      const d = macdV2(); d.plots[3].fill = { with: 'macd' }
+      expect(errs(d).join(' ')).toMatch(/plots\[3\]\.fill: an "hlines" plot returns no column/)
+    })
+    it('fill must be {with: "<plotKey>"} — a bare string or an empty object is refused by shape', () => {
+      const str = macdV2(); str.plots[0].fill = 'signal'
+      expect(errs(str).join(' ')).toMatch(/plots\[0\]\.fill: expected \{with: "<plotKey>"\}/)
+      const empty = macdV2(); empty.plots[0].fill = {}
+      expect(errs(empty).join(' ')).toMatch(/plots\[0\]\.fill: expected \{with: "<plotKey>"\}/)
+    })
+    it('`cross` is RESERVED and NOT buildable — the two lists disagree on purpose', () => {
+      expect(RESERVED_PLOT_STYLES).toContain('cross')
+      expect(PLOT_STYLES).not.toContain('cross')
+    })
+  })
+
+  // ─── ONE key grammar ───────────────────────────────────────────────────────
+  // `defSchema.js` and `ast/trees.js` each held a private copy of the plot-key
+  // regex (W1b.1's review). The grammar now lives in `ast/parse.js` beside
+  // `LOOKBACK_RE` — the leaf both already import — and these two cases are what
+  // make that load-bearing: a re-typed copy that drifts fails here BY NAME.
+  //
+  // The import is DYNAMIC on purpose: the day the export is missing, the
+  // assertion below says so, instead of this whole file refusing to load and
+  // taking a hundred unrelated cases down with it.
+  describe('⛔ ONE key grammar — parse.js owns KEY_RE; defSchema and trees derive from it', () => {
+    const PROBES = ['a', 'A', 'macd', 'Z9', 'abc_1', 'hist_up',
+      '1a', 'a.b', 'a-b', 'a b', '_a', '$a', '', 'é', 'a\n', 'ema(close)']
+    it('the grammar is EXPORTED from the leaf both modules import — never a private copy', async () => {
+      const parse = await import('./ast/parse')
+      expect(parse.KEY_RE, 'ast/parse.js exports KEY_RE beside LOOKBACK_RE').toBeInstanceOf(RegExp)
+      // the probe list carries both halves, so a regex that accepted everything
+      // (or nothing) could not pass the agreement case below vacuously
+      expect(PROBES.filter((k) => parse.KEY_RE.test(k))).toEqual(['a', 'A', 'macd', 'Z9', 'abc_1', 'hist_up'])
+    })
+    it('defSchema (a plot key) and trees (a tree key) accept and reject the SAME keys, and both agree with parse.js', async () => {
+      const { KEY_RE } = await import('./ast/parse')
+      for (const k of PROBES) {
+        const d = astDef('sma(close, 20)'); d.plots[0].key = k
+        const r = validateDefinition(d)
+        const schemaAccepts = r.ok || !r.errors.some((e) => e.startsWith('plots[0].key'))
+        let treesAccepts = true
+        try { assertTrees({ [k]: d.compute.ast }) } catch { treesAccepts = false }
+        expect(schemaAccepts, `defSchema on ${JSON.stringify(k)}`).toBe(KEY_RE.test(k))
+        expect(treesAccepts, `trees on ${JSON.stringify(k)}`).toBe(KEY_RE.test(k))
+      }
+    })
   })
 })
