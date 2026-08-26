@@ -6,6 +6,7 @@ verifies + parses with these and schedules `run_chart_job`; the local tool
 """
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import logging
@@ -45,6 +46,47 @@ def render_slot_count(default: int = 4) -> int:
 # told to retry rather than queue behind a cold Massive fetch.
 RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
 BARS_RETRY_DELAY_S = 1.5
+
+# ── the bars-warm gate ──────────────────────────────────────────────────────
+# Every chart pulls its symbol's bars before rendering, and that WRITES to the
+# bars store. The web pod runs a 2 s SQLite busy_timeout BY DESIGN (CLAUDE.md:
+# a longer one compounds with the retry loop and saturates the anyio pool), so
+# simultaneous cold fetches lose the race: `sqlite3.OperationalError: database
+# is locked`. The loser reports "no bars" for a perfectly good ticker, and -
+# worse - the PAGE's own /api/bars call inside the renderer can lose it too,
+# which paints a blank chart (measured 2026-08-26: AKAM twice, ANET, HPE).
+#
+# This gate costs the common case NOTHING: a symbol already in the store
+# returns in ~0 ms, so it holds the slot for ~0 ms. Only genuinely cold fetches
+# queue - which is exactly when serialising them is what keeps both of them
+# alive. A member never blocks forever: the acquire has a timeout and proceeds
+# regardless, because a contended fetch still beats no chart at all.
+BARS_WARM_TIMEOUT_S = 30.0
+
+
+def warm_slot_count(default: int = 1) -> int:
+    raw = os.environ.get("DISCORD_CHART_WARM_CONCURRENCY", "")
+    try:
+        n = int(raw)
+        return n if 1 <= n <= 8 else default
+    except (TypeError, ValueError):
+        return default
+
+
+BARS_WARM_SLOTS = threading.BoundedSemaphore(warm_slot_count())
+
+
+@contextlib.contextmanager
+def bars_warm_gate(timeout: float = BARS_WARM_TIMEOUT_S):
+    """Hold a bars-fetch slot, or give up waiting and fetch anyway."""
+    got = BARS_WARM_SLOTS.acquire(timeout=timeout)
+    if not got:
+        log.warning("[discord-chart] bars warm gate timed out after %.0fs; fetching anyway", timeout)
+    try:
+        yield got
+    finally:
+        if got:
+            BARS_WARM_SLOTS.release()
 # What the /r/chart page's StockChart asks /api/bars for, on every timeframe.
 # The job warms that exact request in-process before the house render so the
 # page's own fetch hits the web pod's memory cache (0.2-0.35 s) instead of the
@@ -778,7 +820,8 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         # served seconds after.
         for attempt in (0, 1):
             try:
-                bars = bars_fn(req.ticker, tf, n) or None
+                with bars_warm_gate():          # one cold fetch at a time (see the gate)
+                    bars = bars_fn(req.ticker, tf, n) or None
             except Exception as e:  # noqa: BLE001
                 log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
                 bars = None
@@ -821,7 +864,8 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
             for other in compare:
                 # the page fetches each comparison symbol too; warm those as well
                 try:
-                    bars_fn(other, req.tf, _house.COMPARE_FETCH_BARS)
+                    with bars_warm_gate():
+                        bars_fn(other, req.tf, _house.COMPARE_FETCH_BARS)
                 except Exception as e:  # noqa: BLE001
                     log.warning("[discord-chart] compare warm failed %s: %s", other, e)
             house_opts = dict(options)
@@ -900,7 +944,8 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         wants.append((req.tf, deep))
         for tf, n in wants:
             try:
-                bars_fn(req.ticker, tf, n)
+                with bars_warm_gate():
+                    bars_fn(req.ticker, tf, n)
             except Exception as e:  # noqa: BLE001 — produce_chart retries and judges
                 log.warning("[discord-chart] multi warm %s %s: %s", req.ticker, tf, e)
 

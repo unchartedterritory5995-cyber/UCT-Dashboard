@@ -2209,3 +2209,68 @@ def test_a_charts_set_fetches_every_symbols_bars_before_it_renders_anything():
     first_render = next(i for i, (kind, _) in enumerate(order) if kind == "render")
     warmed = {sym for kind, sym in order[:first_render] if kind == "bars"}
     assert warmed == {"SEQA", "SEQB", "SEQC"}, f"a render started before every symbol had bars: {order}"
+
+
+# ── the bars-warm gate: cold fetches never overlap, warm ones never queue ──
+
+def test_two_charts_never_fetch_bars_at_the_same_time_but_renders_still_overlap():
+    """Simultaneous cold fetches lose the SQLite race (web's busy_timeout is 2s
+    by design): one reports 'no bars' for a good ticker, and the PAGE's own
+    /api/bars can lose it too, which paints a blank. Fetches are gated; the
+    renders they feed are not."""
+    import threading, time as _t
+    from api.services.discord_interactions import produce_chart, ChartRequest
+    from api.services import discord_chart_prefs as p
+    lock = threading.Lock()
+    fetch_live, fetch_peak = [0], [0]
+    render_live, render_peak = [0], [0]
+    def bars_fn(ticker, tf, n):
+        with lock:
+            fetch_live[0] += 1; fetch_peak[0] = max(fetch_peak[0], fetch_live[0])
+        _t.sleep(0.04)                 # a fetch is short; a render is not (measured: 0.0-0.6s vs ~2s)
+        with lock:
+            fetch_live[0] -= 1
+        return daily_bars(30)
+    def house_fn(ticker, tf, stats, opts):
+        with lock:
+            render_live[0] += 1; render_peak[0] = max(render_peak[0], render_live[0])
+        _t.sleep(0.30)
+        with lock:
+            render_live[0] -= 1
+        return PNG_MAGIC + ticker.encode()
+    def one(sym):
+        produce_chart(ChartRequest(sym, "D"), p.render_options(dict(p.DEFAULTS), "D"), dict(p.DEFAULTS),
+                      bars_fn=bars_fn, render_fn=lambda *a, **k: PNG_MAGIC, house_fn=house_fn, slot_wait=20)
+    threads = [threading.Thread(target=one, args=(f"GATE{i}",)) for i in range(4)]
+    for t_ in threads: t_.start()
+    for t_ in threads: t_.join()
+    assert fetch_peak[0] == 1, f"{fetch_peak[0]} bars fetches overlapped — the gate is not holding"
+    assert render_peak[0] > 1, "the renders serialised too; only the FETCH should be gated"
+
+
+def test_the_warm_gate_gives_up_waiting_rather_than_stranding_a_member(monkeypatch):
+    """A contended fetch still beats no chart: the gate has a timeout and
+    proceeds without the slot."""
+    from api.services import discord_interactions as di
+    di.BARS_WARM_SLOTS.acquire()                      # hold the only slot
+    try:
+        t0 = __import__("time").time()
+        with di.bars_warm_gate(timeout=0.2) as got:
+            assert got is False                        # never got the slot…
+        assert __import__("time").time() - t0 < 2      # …and did not hang on it
+    finally:
+        di.BARS_WARM_SLOTS.release()
+    # released cleanly: the next caller gets it immediately
+    with di.bars_warm_gate(timeout=0.2) as got:
+        assert got is True
+
+
+def test_the_warm_gate_is_one_slot_by_default_and_env_tunable(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.delenv("DISCORD_CHART_WARM_CONCURRENCY", raising=False)
+    assert di.warm_slot_count() == 1
+    monkeypatch.setenv("DISCORD_CHART_WARM_CONCURRENCY", "3")
+    assert di.warm_slot_count() == 3
+    for bad in ("0", "9", "", "lots"):
+        monkeypatch.setenv("DISCORD_CHART_WARM_CONCURRENCY", bad)
+        assert di.warm_slot_count() == 1
