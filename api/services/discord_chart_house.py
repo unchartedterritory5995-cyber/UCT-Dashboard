@@ -102,7 +102,7 @@ def _b64url(obj) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None}
+DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None}
 
 # Visible bars for intraday renders. The page's own default zoom counts
 # pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
@@ -135,6 +135,10 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["stats"] = _b64url(stats)
     if opts.get("indicators"):
         params["indicators"] = _b64url(opts["indicators"])
+    if opts.get("preset"):
+        params["preset"] = str(opts["preset"])          # one of the app's own theme presets
+    if opts.get("instances"):
+        params["instances"] = _b64url(opts["instances"])  # engine indicator instances (RSI, MACD)
     tag = opts.get("exttag")
     if tag:
         # The live pre/post-market print as the orange right-axis chip (see

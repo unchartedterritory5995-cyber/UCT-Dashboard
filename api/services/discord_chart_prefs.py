@@ -27,8 +27,55 @@ MA_CHOICES = {
 # (8/25): the pre/post-market print shows as the orange Pre/Post price chip on
 # the right axis instead, like the Charts widget - candles for it squashed a
 # session into a strip of flat overnight bars.
-DEFAULTS = {"tf": "D", "mas": "house", "volume": True, "ext": False, "stats": True}
-_BOOL_KEYS = ("volume", "ext", "stats")
+# Everything below maps onto something the /r/chart page ALREADY honours: a
+# preset (`?preset=`), a partial chart-settings override (`?indicators=`), or
+# engine indicator instances (`?instances=`). Nothing here teaches the chart a
+# new trick; it only lets a member pick among the app's own.
+THEME_CHOICES = {
+    "house": "House (the owner's theme)",
+    "classic": "Classic Dark",
+    "oled": "OLED Black",
+    "tradingview": "TradingView",
+    "light": "Light",
+}
+STYLE_CHOICES = {
+    "candles": "Candles",
+    "hollow": "Hollow candles",
+    "bars": "OHLC bars",
+    "line": "Line",
+    "area": "Area",
+    "heikin": "Heikin-Ashi",
+}
+SCALE_CHOICES = {"linear": "Linear", "log": "Log"}
+INDICATOR_CHOICES = {
+    "none": "None",
+    "rsi": "RSI (14)",
+    "macd": "MACD (12/26/9)",
+    "rsi+macd": "RSI + MACD",
+}
+_CHOICE_KEYS = {"mas": MA_CHOICES, "theme": THEME_CHOICES, "style": STYLE_CHOICES,
+                "scale": SCALE_CHOICES, "indicators": INDICATOR_CHOICES}
+DEFAULTS = {"tf": "D", "mas": "house", "volume": True, "ext": False, "stats": True,
+            "theme": "house", "style": "candles", "scale": "linear", "grid": True, "watermark": True,
+            "indicators": "none"}
+_BOOL_KEYS = ("volume", "ext", "stats", "grid", "watermark")
+
+# Engine indicator instances, in the shape `instances.js::validateInstance`
+# accepts (instanceId in the user namespace, defId = the registry id, declared
+# inputs only). Defaults are the registry's own (nativeRegistry.js).
+_INSTANCES = {
+    "rsi": {"instanceId": "inst:rsi:1", "defId": "rsi", "inputs": {"period": 14}, "hidden": False},
+    "macd": {"instanceId": "inst:macd:1", "defId": "macd",
+             "inputs": {"fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9}, "hidden": False},
+}
+
+
+def _instances_for(choice: str):
+    out = []
+    for k in str(choice or "").split("+"):
+        if k in _INSTANCES:
+            inst = dict(_INSTANCES[k]); inst["inputs"] = dict(inst["inputs"]); out.append(inst)
+    return out or None
 
 # Complete overlay slots (the page's override merge replaces the array as a
 # whole). Colours follow the dashboard's own overlay palette.
@@ -80,9 +127,9 @@ def _validate(changes: dict) -> dict:
             if v not in TF_LABEL:
                 raise ValueError("tf must be one of " + ", ".join(TF_LABEL))
             out[k] = v
-        elif k == "mas":
-            if v not in MA_CHOICES:
-                raise ValueError("mas must be one of " + ", ".join(MA_CHOICES))
+        elif k in _CHOICE_KEYS:
+            if v not in _CHOICE_KEYS[k]:
+                raise ValueError(f"{k} must be one of " + ", ".join(_CHOICE_KEYS[k]))
             out[k] = v
         elif k in _BOOL_KEYS:
             if not isinstance(v, bool):
@@ -132,9 +179,12 @@ def reset_prefs(user_id: str) -> dict:
 
 def describe(prefs: dict) -> str:
     p = {**DEFAULTS, **(prefs or {})}
+    onoff = lambda k: "on" if p[k] else "off"  # noqa: E731
     return (f"Timeframe {TF_LABEL.get(p['tf'], p['tf'])} · MAs: {MA_CHOICES.get(p['mas'], p['mas'])} · "
-            f"Volume {'on' if p['volume'] else 'off'} · Pre/post-market candles {'on' if p['ext'] else 'off'} · "
-            f"Stats strip {'on' if p['stats'] else 'off'}")
+            f"Volume {onoff('volume')} · Pre/post-market candles {onoff('ext')} · Stats strip {onoff('stats')} · "
+            f"Theme: {THEME_CHOICES.get(p['theme'], p['theme'])} · Style: {STYLE_CHOICES.get(p['style'], p['style'])} · "
+            f"Scale: {SCALE_CHOICES.get(p['scale'], p['scale'])} · Grid {onoff('grid')} · Watermark {onoff('watermark')} · "
+            f"Indicators: {INDICATOR_CHOICES.get(p['indicators'], p['indicators'])}")
 
 
 def render_options(prefs: dict) -> dict:
@@ -148,12 +198,24 @@ def render_options(prefs: dict) -> dict:
         ind["overlays"] = [dict(o) for o in _SMA_10_20_50]
     if not p["volume"]:
         ind["volume"] = {"visible": False}
-    return {"indicators": ind or None, "ext": bool(p["ext"]), "stats": bool(p["stats"])}
+    if p["style"] == "heikin":
+        ind["heikinAshi"] = True
+    elif p["style"] != "candles":
+        ind["chartType"] = p["style"]
+    if p["scale"] == "log":
+        ind["logScale"] = True
+    if not p["grid"]:
+        ind["grid"] = {"visible": False}
+    if not p["watermark"]:
+        ind["watermark"] = {"visible": False}
+    return {"indicators": ind or None, "ext": bool(p["ext"]), "stats": bool(p["stats"]),
+            "preset": p["theme"] if p["theme"] != "house" else None,
+            "instances": _instances_for(p["indicators"]) if p["indicators"] != "none" else None}
 
 
 def style_signature(prefs: dict) -> str:
     """Short, stable key for the render-affecting prefs (never the timeframe)."""
     p = {**DEFAULTS, **(prefs or {})}
-    if p["mas"] == DEFAULTS["mas"] and all(p[k] == DEFAULTS[k] for k in _BOOL_KEYS):
+    if all(p[k] == DEFAULTS[k] for k in DEFAULTS if k != "tf"):
         return "default"
-    return f"mas={p['mas']},vol={int(p['volume'])},ext={int(p['ext'])},stats={int(p['stats'])}"
+    return ",".join(f"{k}={int(p[k]) if isinstance(p[k], bool) else p[k]}" for k in sorted(DEFAULTS) if k != "tf")

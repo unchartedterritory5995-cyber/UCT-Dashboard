@@ -56,7 +56,7 @@ def test_describe_is_one_readable_line():
 def test_render_options_for_defaults_touch_nothing():
     from api.services import discord_chart_prefs as p
     opts = p.render_options(p.DEFAULTS)
-    assert opts == {"indicators": None, "ext": False, "stats": True}
+    assert opts == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None}
     assert p.style_signature(p.DEFAULTS) == "default"
 
 
@@ -92,7 +92,8 @@ def test_build_commands_has_chart_alias_and_settings_subcommands():
     subs = {o["name"]: o for o in cmds["chartsettings"]["options"]}
     assert set(subs) == {"show", "set", "reset"} and all(o["type"] == 1 for o in subs.values())
     setopts = {o["name"]: o for o in subs["set"]["options"]}
-    assert set(setopts) == {"tf", "mas", "volume", "ext", "stats"}
+    from api.services import discord_chart_prefs as _p
+    assert set(setopts) == set(_p.DEFAULTS)                                # every pref settable, none invented
     assert {c["value"] for c in setopts["mas"]["choices"]} == {"house", "10-20-50", "off"}
     assert setopts["volume"]["type"] == 5 and setopts["ext"]["type"] == 5 and setopts["stats"]["type"] == 5  # BOOLEAN
     assert all(not o.get("required") for o in setopts.values())
@@ -173,7 +174,7 @@ def test_run_chart_job_passes_prefs_render_options_to_the_house_renderer_and_key
     seen.clear()
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=lambda *a: _daily(), render_fn=lambda *a, **k: b"",
                          edit_fn=edits, house_fn=house_fn) == "ok"
-    assert seen[-1] == {"indicators": None, "ext": False, "stats": True}
+    assert seen[-1] == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None}
 
 
 def test_fallback_renderer_honours_mas_and_volume_flags():
@@ -243,3 +244,54 @@ def test_endpoint_settings_round_trip_and_chart_uses_saved_default_tf(monkeypatc
     r = _post(client, sk, settings("reset"))
     assert r.json()["data"]["content"].startswith("Reset to defaults")
     assert p.get_prefs("424242") == p.DEFAULTS
+
+
+# ── v8: theme / style / scale / grid / watermark / indicators ──
+
+def test_v8_settings_validate_render_and_sign():
+    from api.services import discord_chart_prefs as p
+    p.reset_connection_for_tests()
+    saved = p.set_prefs("v8", theme="oled", style="heikin", scale="log", grid=False, watermark=False, indicators="rsi+macd")
+    assert {k: saved[k] for k in ("theme", "style", "scale", "grid", "watermark", "indicators")} == {
+        "theme": "oled", "style": "heikin", "scale": "log", "grid": False, "watermark": False, "indicators": "rsi+macd"}
+    opts = p.render_options(saved)
+    assert opts["preset"] == "oled"
+    assert opts["indicators"] == {"heikinAshi": True, "logScale": True, "grid": {"visible": False}, "watermark": {"visible": False}}
+    assert [i["defId"] for i in opts["instances"]] == ["rsi", "macd"]
+    assert opts["instances"][0] == {"instanceId": "inst:rsi:1", "defId": "rsi", "inputs": {"period": 14}, "hidden": False}
+    assert opts["instances"][1]["inputs"] == {"fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9}
+    assert p.render_options({**p.DEFAULTS, "style": "line"})["indicators"] == {"chartType": "line"}
+    assert p.render_options({**p.DEFAULTS, "indicators": "macd"})["instances"][0]["defId"] == "macd"
+    # every render-affecting key reaches the cache signature; tf never does
+    sig = p.style_signature(saved)
+    assert "theme=oled" in sig and "style=heikin" in sig and "scale=log" in sig and "grid=0" in sig and "watermark=0" in sig
+    assert "indicators=rsi+macd" in sig and "tf=" not in sig
+    assert p.style_signature({**p.DEFAULTS, "tf": "15"}) == "default"
+    for bad in ({"theme": "neon"}, {"style": "renko"}, {"scale": "sqrt"}, {"indicators": "rsi+stoch"}, {"grid": "no"}):
+        with pytest.raises(ValueError):
+            p.set_prefs("v8b", **bad)
+    d = p.describe(saved)
+    assert "OLED Black" in d and "Heikin-Ashi" in d and "Log" in d and "Grid off" in d and "Watermark off" in d and "RSI + MACD" in d
+    p.reset_prefs("v8")
+
+
+def test_settings_command_exposes_the_v8_options_and_chart_takes_style_and_theme():
+    from api.services.discord_interactions import build_settings_command, build_chart_command, parse_chart_command, ChartRequest, CommandError
+    from api.services import discord_chart_prefs as p
+    subs = {o["name"]: o for o in build_settings_command()["options"]}
+    setopts = {o["name"]: o for o in subs["set"]["options"]}
+    assert set(setopts) == set(p.DEFAULTS)                                   # every pref is settable, none invented
+    for k, choices in (("theme", p.THEME_CHOICES), ("style", p.STYLE_CHOICES), ("scale", p.SCALE_CHOICES), ("indicators", p.INDICATOR_CHOICES)):
+        assert {c["value"] for c in setopts[k]["choices"]} == set(choices)
+    assert all(setopts[k]["type"] == 5 for k in ("grid", "watermark"))
+    assert all(len(o["description"]) <= 100 for o in setopts.values())
+    chart = {o["name"]: o for o in build_chart_command()["options"]}
+    assert {c["value"] for c in chart["style"]["choices"]} == set(p.STYLE_CHOICES)
+    assert {c["value"] for c in chart["theme"]["choices"]} == set(p.THEME_CHOICES)
+    inter = {"type": 2, "data": {"name": "c", "options": [{"name": "ticker", "type": 3, "value": "nvda"},
+                                                             {"name": "style", "type": 3, "value": "line"}, {"name": "theme", "type": 3, "value": "light"}]}}
+    req = parse_chart_command(inter)
+    assert req == ChartRequest("NVDA", "D", style="line", theme="light") and req.overrides() == {"style": "line", "theme": "light"}
+    inter["data"]["options"][1]["value"] = "renko"
+    with pytest.raises(CommandError):
+        parse_chart_command(inter)

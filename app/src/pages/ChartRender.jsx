@@ -49,7 +49,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
-import { mergeSettingsOverride } from '../components/chart/chartDefaults'
+import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
@@ -254,6 +254,21 @@ export default function ChartRender() {
   //            instance of a FLIPPED definition has been drawn regardless of the
   //            flag since Flip B, and all four are flipped.
   const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
+  // ?preset=oled — one of the app's own theme presets (chartDefaults.PRESETS),
+  // applied as its DELTA from CHART_DEFAULTS so it restyles without wiping the
+  // owner's unrelated settings; an explicit ?indicators= still wins on top.
+  const presetParam = sp.get('preset') || ''
+  const presetDelta = useMemo(() => {
+    const preset = Object.prototype.hasOwnProperty.call(PRESETS, presetParam) ? PRESETS[presetParam] : null
+    if (!preset || !preset.settings) return null
+    const delta = {}
+    for (const [k, v] of Object.entries(preset.settings)) {
+      if (k === 'preset') continue
+      if (JSON.stringify(v) !== JSON.stringify(CHART_DEFAULTS[k])) delta[k] = v
+    }
+    delta.preset = presetParam
+    return delta
+  }, [presetParam])
   const instancesParam = useMemo(() => decodeInstancesParam(sp.get('instances')), [sp])
   //   ?userdefs=<base64url JSON array>  USER DEFINITION DOCUMENTS, installed into
   //            the registry before `StockChart` below renders. ⛔ A `useMemo`, NOT
@@ -339,8 +354,9 @@ export default function ChartRender() {
   // merges `indicatorInstances` by instanceId (never wholesale), so this adds the
   // engine's instances without disturbing anything the settings blob said.
   const csOverride = useMemo(() => {
-    if (!ownerSettings && !indicatorsParam && !instancesParam) return null
+    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta) return null
     let out = ownerSettings
+    if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {
       // ⚠️ `engineEnabled: true` stood beside this key until B5 Task 4. It was the
@@ -351,7 +367,7 @@ export default function ChartRender() {
       })
     }
     return out
-  }, [ownerSettings, indicatorsParam, instancesParam])
+  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam])
 
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk

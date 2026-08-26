@@ -109,11 +109,14 @@ class ChartRequest:
     tf: str
     mas: str | None = None       # per-call override of the member's MA preference
     volume: bool | None = None   # per-call override of the member's volume preference
+    style: str | None = None     # per-call chart style (candles/hollow/bars/line/area/heikin)
+    theme: str | None = None     # per-call theme preset
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
         without MAs or volume" without touching saved settings)."""
-        return {k: v for k, v in (("mas", self.mas), ("volume", self.volume)) if v is not None}
+        return {k: v for k, v in (("mas", self.mas), ("volume", self.volume),
+                                  ("style", self.style), ("theme", self.theme)) if v is not None}
 
 
 def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, body: bytes) -> bool:
@@ -144,7 +147,14 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
     volume = opts.get("volume")
     if volume is not None and not isinstance(volume, bool):
         raise CommandError("volume must be true or false.")
-    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=volume)
+    style = opts.get("style")
+    if style is not None and str(style) not in prefs_mod.STYLE_CHOICES:
+        raise CommandError("style must be one of: " + ", ".join(prefs_mod.STYLE_CHOICES) + ".")
+    theme = opts.get("theme")
+    if theme is not None and str(theme) not in prefs_mod.THEME_CHOICES:
+        raise CommandError("theme must be one of: " + ", ".join(prefs_mod.THEME_CHOICES) + ".")
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=volume,
+                        style=None if style is None else str(style), theme=None if theme is None else str(theme))
 
 
 CHART_COMMAND_NAMES = ("chart", "c")
@@ -172,7 +182,7 @@ def parse_settings_command(interaction: dict) -> tuple:
     changes = {o.get("name"): o.get("value") for o in (subs[0].get("options") or []) if isinstance(o, dict)}
     changes = {k: v for k, v in changes.items() if k in prefs_mod.DEFAULTS and v is not None}
     if not changes:
-        raise CommandError("Nothing to set. Pick at least one option (tf, mas, volume, ext, stats).")
+        raise CommandError("Nothing to set. Pick at least one option (" + ", ".join(prefs_mod.DEFAULTS) + ").")
     return "set", changes
 
 
@@ -191,6 +201,10 @@ def build_chart_command() -> dict:
              "choices": [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]},
             {"name": "volume", "description": "Volume pane for THIS chart only (True/False)", "type": 5,
              "required": False},
+            {"name": "style", "description": "Chart style for THIS chart only", "type": 3, "required": False,
+             "choices": [{"name": label, "value": value} for value, label in prefs_mod.STYLE_CHOICES.items()]},
+            {"name": "theme", "description": "Theme for THIS chart only", "type": 3, "required": False,
+             "choices": [{"name": label, "value": value} for value, label in prefs_mod.THEME_CHOICES.items()]},
         ],
     }
 
@@ -203,18 +217,23 @@ def build_alias_command() -> dict:
 
 def build_settings_command() -> dict:
     """`/chartsettings show|set|reset` - per-user defaults for /chart."""
-    tf_choices = [{"name": label, "value": value} for value, label in TF_LABEL.items()]
-    ma_choices = [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]
+    ch = lambda d: [{"name": label, "value": value} for value, label in d.items()]  # noqa: E731
     return {
         "name": SETTINGS_COMMAND, "type": 1,
-        "description": "Your personal /chart defaults (timeframe, moving averages, volume, pre/post-market, stats)",
+        "description": "Your personal /chart defaults: timeframe, MAs, theme, style, scale, indicators, volume, grid…",
         "options": [
             {"name": "show", "type": 1, "description": "Show your current /chart settings"},
             {"name": "set", "type": 1, "description": "Change one or more settings", "options": [
-                {"name": "tf", "type": 3, "required": False, "description": "Default timeframe", "choices": tf_choices},
-                {"name": "mas", "type": 3, "required": False, "description": "Moving averages", "choices": ma_choices},
+                {"name": "tf", "type": 3, "required": False, "description": "Default timeframe", "choices": ch(TF_LABEL)},
+                {"name": "mas", "type": 3, "required": False, "description": "Moving averages", "choices": ch(prefs_mod.MA_CHOICES)},
+                {"name": "theme", "type": 3, "required": False, "description": "Theme preset", "choices": ch(prefs_mod.THEME_CHOICES)},
+                {"name": "style", "type": 3, "required": False, "description": "Chart style", "choices": ch(prefs_mod.STYLE_CHOICES)},
+                {"name": "scale", "type": 3, "required": False, "description": "Price scale", "choices": ch(prefs_mod.SCALE_CHOICES)},
+                {"name": "indicators", "type": 3, "required": False, "description": "Lower-pane indicators", "choices": ch(prefs_mod.INDICATOR_CHOICES)},
                 {"name": "volume", "type": 5, "required": False, "description": "Show the volume pane"},
-                {"name": "ext", "type": 5, "required": False, "description": "Pre/post-market candles on intraday charts"},
+                {"name": "grid", "type": 5, "required": False, "description": "Show the grid"},
+                {"name": "watermark", "type": 5, "required": False, "description": "Show the ticker/company watermark"},
+                {"name": "ext", "type": 5, "required": False, "description": "Extended-hours candles on intraday charts (the Pre/Post price chip always shows)"},
                 {"name": "stats", "type": 5, "required": False, "description": "Show the stats strip (OHLC, gap, 52w, RVOL, ADR)"},
             ]},
             {"name": "reset", "type": 1, "description": "Back to the defaults"},

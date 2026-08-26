@@ -1126,7 +1126,7 @@ def test_chart_command_options_expose_mas_and_volume_and_house_description():
     from api.services.discord_interactions import build_chart_command
     cmd = build_chart_command()
     opts = {o["name"]: o for o in cmd["options"]}
-    assert set(opts) == {"ticker", "tf", "mas", "volume"}
+    assert set(opts) == {"ticker", "tf", "mas", "volume", "style", "theme"}
     assert {c["value"] for c in opts["mas"]["choices"]} == {"house", "10-20-50", "off"}
     assert opts["volume"]["type"] == 5 and not opts["volume"].get("required")
     assert "EMA 9/20" in cmd["description"] and "10/20/50 SMA" not in cmd["description"]
@@ -1292,3 +1292,17 @@ def test_ext_session_words_are_the_feeds_own(monkeypatch):
     assert words == {"pre_market", "regular", "post_market"}
     for w in words - {"regular"}:
         assert EXT_SESSION_WORD[w] in ("pre", "post")
+
+
+def test_house_url_carries_preset_and_engine_instances():
+    from api.services import discord_chart_house as house
+    from urllib.parse import urlparse, parse_qs
+    import base64, json
+    inst = [{"instanceId": "inst:rsi:1", "defId": "rsi", "inputs": {"period": 14}, "hidden": False}]
+    q = parse_qs(urlparse(house.build_render_url("NVDA", "D", None, base_url="https://x", token="t",
+                                                  options={"preset": "oled", "instances": inst})).query)
+    assert q["preset"] == ["oled"]
+    raw = q["instances"][0]
+    assert json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))) == inst
+    q = parse_qs(urlparse(house.build_render_url("NVDA", "D", None, base_url="https://x", token="t")).query)
+    assert "preset" not in q and "instances" not in q
