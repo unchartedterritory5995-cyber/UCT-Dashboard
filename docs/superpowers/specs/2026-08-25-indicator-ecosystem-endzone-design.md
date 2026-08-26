@@ -22,7 +22,7 @@ scans on a member's own script, and evidence.
 | A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash |
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token | `pine.community.test.js` snapshot, pinned both directions |
-| A4 | Paste the 24-script **thinkScript** corpus: ≥ 70 % translate; chrome calls listed as ignored lines, never dropped | `thinkscript.corpus.test.js` snapshot |
+| A4 | Paste the 24-script **thinkScript** corpus: **15/24 (62.5 %) in Wave 1**, rising to **19/24 (79 %) once W2b lands `tf`/`sym`**; chrome calls listed as ignored lines, never dropped | `thinkscript.corpus.test.js` snapshot, pinned both directions |
 | A5 | TC2000: **66/71** Worden spellings read; MS/TSV/non-Wilder RSI refuse by name with the reason | `pcf.vocabulary.test.js` EXPECTED table |
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
 | A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 |
@@ -42,6 +42,20 @@ scans on a member's own script, and evidence.
 - Evidence: `api/services/screener/backtest.py` (833 lines, pure, baseline REQUIRED, fill-at-open) and `api/routers/backtest.py` + `backtest_engine.simulate` + 4 strategy templates — **both paid-gated and reachable from no UI**. `candle_backtest.py` holds the date-matched base rate.
 - Live precedent: `screener/live_tier.py` — a side table, one writer, LEFT-JOIN overlay, zero new provider calls (the 30 s `full_market_snapshot`), per-row provenance. The nightly sweep's whole compute measured **42.4 s**.
 - Known reds/landmines: colour change not live (8/15, unfixed) · `computeVWAP` buckets sessions by UTC day · `test_definition_record.py` red on the shared-root guard · legend compact mode hides the settings door · two settings systems (MAs vs indicators).
+
+### A4 amended 2026-08-26 — the measured ceiling, not an aspiration
+
+The original ≥ 70 % was written before the corpus was measured. Nine of the 24 scripts
+refuse for reasons that are **correct**, not missing work: `thinkscript:aggregation`
+(files 06, 09, 22 — secondary aggregation costs THREE files, not one), `:symbol` (08),
+`:time` (15, 23), `:fold` (18), `:strategy` (21), `:account` (24). Wave 1's honest
+ceiling is therefore **15/24**; `tf`/`sym` (W2b) convert the aggregation and symbol
+refusals, taking it to **19/24**. `:fold`, `:strategy` and `:account` are permanent
+by-design refusals in the same sense as Pine's four.
+
+⛔ A number a lane cannot reach is not a target — it is a lie the lane has to explain
+later. The snapshot is pinned in BOTH directions at the measured figure, so a gain
+cannot hide a regression and neither can a lowered bar.
 
 ## 3. Owner decisions, 2026-08-25 (standing — do not re-litigate)
 
