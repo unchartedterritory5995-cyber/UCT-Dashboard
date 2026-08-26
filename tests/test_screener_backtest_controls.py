@@ -413,9 +413,41 @@ def test_thirty_signals_on_ONE_date_are_ONE_cell_and_the_receipt_says_so():
     assert spread.same_day["n_cells"] == 30
 
 
-def test_the_two_null_reasons_are_NAMED_and_the_precedence_matches_the_number():
-    """⛔ NAMED, NOT INFERRED. The two states call for OPPOSITE actions: below the
-    floor, widen the window; wholly-occupied, widening will not help."""
+def test_the_FLOOR_and_the_AVERAGING_are_SEPARABLE_ports_and_the_note_says_so():
+    """⭐ THE COMMENT THE OWNER READS AT THE WAVE CLOSE, deciding whether this
+    engine should gain a `min_cells` floor — so it has to keep the two halves
+    apart. Porting the owner's FLOOR (refusing under MIN_DATES cells) would
+    change what `min_signals` means for every existing horizon: it withholds
+    rates this engine publishes today. Porting only the AVERAGING (a per-CELL
+    mean instead of a per-OBSERVATION one) moves ONE number and no floor.
+
+    MEASURED, not read off prose: the expression that sets `below_floor` names
+    `strat` and `min_signals` and nothing the same-day control produces, so
+    clustering the average cannot reach it. The run above is the behavioural
+    half — one cell and thirty cells, same floor verdict."""
+    src = inspect.getsource(bt.run_backtest)
+    m = re.search(r"^\s*below = (.+)$", src, re.M)
+    assert m, "run_backtest no longer sets `below` the way this rail reads it"
+    assert m.group(1).strip() == "len(strat) < min_signals", m.group(1)
+
+    note = " ".join(inspect.getsource(bt._same_day_excess).split())
+    assert "Porting the clustering itself would change what" not in note, (
+        "the not-ported note still fuses the two ports, so the half that moves "
+        "no floor reads as invasive as the half that changes every horizon")
+    for clause in ("min_cells", "FLOOR", "AVERAGING"):
+        assert clause in note, f"the not-ported note no longer names: {clause}"
+
+
+def test_the_three_null_reasons_are_NAMED_and_the_precedence_matches_the_number():
+    """⛔ NAMED, NOT INFERRED. The three states call for DIFFERENT actions: below
+    the floor, widen the window; wholly-occupied, widening will not help — loosen
+    the screen; nothing measurable, neither lever helps, the tape carries no
+    same-day move to match on.
+
+    ⭐ AND THE CLOSED SET IS CLOSED IN BOTH DIRECTIONS. Every reason these
+    fixtures produce is in the tuple AND every name in the tuple is produced by
+    one of them, so a name can neither be returned without being declared nor
+    declared without a state that reaches it."""
     cells = {("d1", 5): [4, 4 * 2.0]}
     obs = [(("d1", 5), 3.0)]
     ok = bt._same_day_excess(obs, cells, withheld=False)
@@ -429,15 +461,69 @@ def test_the_two_null_reasons_are_NAMED_and_the_precedence_matches_the_number():
                               withheld=False)
     assert own["n_matched"] == 0 and own["n_cells"] == 0
     assert own["excess_null_reason"] == "no_unoccupied_cell"
+    # ...and its counter says NONE of its observations lacked a cell, which is
+    # the fact that separates it from the state below.
+    assert own["n_unmatched"] == 1 and own["n_unmatched_unmeasurable"] == 0
 
-    for r in (floor, own):
+    # ⛔ THE STATE THE SECOND NAME WAS LYING ABOUT: not one observation had a
+    # measurable same-day move, so NO cell was occupied — "loosen the screen" is
+    # advice about a problem this member does not have.
+    none = bt._same_day_excess([(None, 3.0), (None, 1.0)], cells, withheld=False)
+    assert none["n_matched"] == 0 and none["n_cells"] == 0
+    assert none["n_unmatched"] == none["n_unmatched_unmeasurable"] == 2
+    assert none["excess_null_reason"] == "no_measurable_cell"
+
+    # ⭐ MIXED: one of each. `no_unoccupied_cell` stays TRUE OF ITS OWN STATE —
+    # every observation that HAD a cell wholly occupied it — and the counter is
+    # what tells a reader the other one never had one at all.
+    mixed = bt._same_day_excess([(("d9", 1), 3.0), (None, 1.0)],
+                                {("d9", 1): [1, 3.0]}, withheld=False)
+    assert mixed["excess_null_reason"] == "no_unoccupied_cell"
+    assert mixed["n_unmatched"] == 2 and mixed["n_unmatched_unmeasurable"] == 1
+
+    for r in (floor, own, none, mixed):
         assert r["excess_null_reason"] in bt.SAME_DAY_NULL_REASONS
         assert r["excess_pct_winsorised"] is None
+    assert {r["excess_null_reason"] for r in (floor, own, none)} == set(
+        bt.SAME_DAY_NULL_REASONS), (
+        "a declared reason no state reaches, or a state with no declared reason")
     # the reason can never disagree with the number: one expression owns both,
     # and `below_floor` wins because it withholds the rate whatever matching found
     both = bt._same_day_excess([(("d9", 1), 3.0)], {("d9", 1): [1, 3.0]},
                                withheld=True)
     assert both["excess_null_reason"] == "below_floor"
+
+
+def test_a_tape_with_NO_measurable_move_is_not_told_to_loosen_the_screen():
+    """🔴 THE WRONG SENTENCE A MEMBER READS, THROUGH THE WHOLE ENGINE. A screen
+    that fires on every bar of a zero-range tape matched nothing — and the reason
+    it used to give (`no_unoccupied_cell`, whose advice is "this screen WAS its
+    own cell on every date it fired, so loosen it") describes a state that never
+    happened: not one cell was occupied, because not one was measurable.
+
+    ⭐ THE CONTROL IS THE SAME TREE, THE SAME FLOOR AND THE SAME HORIZON OVER A
+    TAPE THAT MOVES: there every signal DOES land in a measurable cell and finds
+    it wholly its own, so the OLD name comes back and its counter reads zero. The
+    reason follows the tape, not the door — which is what a name that is advice
+    has to do."""
+    r = bt.run_backtest(ALWAYS, ["FLAT"], day(2), day(39),
+                        bars_for=reader({"FLAT": flat(n=40)}), min_signals=1,
+                        horizons=(5,)).horizons[0]
+    sd = r.same_day
+    assert r.strategy.n > 0                                   # it DID fire
+    assert sd["n_matched"] == 0 and sd["n_cells"] == 0
+    assert sd["n_unmatched"] == sd["n_unmatched_unmeasurable"] == r.strategy.n
+    assert sd["excess_null_reason"] == "no_measurable_cell"
+    assert sd["excess_pct_winsorised"] is None
+
+    moved = bt.run_backtest(ALWAYS, ["AAA", "BBB"], day(2), day(39),
+                            bars_for=reader({"AAA": path(200.0),
+                                             "BBB": path(50.0)}),
+                            min_signals=1, horizons=(5,)).horizons[0]
+    md = moved.same_day
+    assert md["n_matched"] == 0 and md["n_unmatched"] == moved.strategy.n
+    assert md["n_unmatched_unmeasurable"] == 0        # every one HAD a cell
+    assert md["excess_null_reason"] == "no_unoccupied_cell"
 
 
 def test_a_NON_null_excess_survives_to_dict_and_the_basis_names_its_conditioning():
@@ -477,10 +563,35 @@ def test_an_EMPTY_same_day_serialises_as_empty_and_not_as_absent():
     assert bt.HorizonResult(**kw).to_dict()["same_day"] is None
 
 
+def test_an_inverted_bars_true_range_is_UNDERSTATED_and_never_NEGATIVE():
+    """🔴 THE MECHANISM THE GUARD'S COMMENT STATES, MEASURED RATHER THAN ASSERTED.
+    ``TR = max(h-l, |h-pc|, |l-pc|)`` has TWO ABSOLUTE terms, so it cannot come
+    out negative: on an inverted bar the ``h-l`` term goes negative, the max
+    collapses onto the gap terms, and TR is UNDERSTATED. The conclusion the guard
+    rests on is unchanged — a deflated lagged ATR inflates every |z| measured
+    against it — but the reason it gave was false, and a false mechanism in a
+    comment is what the next engineer reasons from.
+
+    ⛔ THE SOURCE IS READ, NOT TRUSTED: the sentence lives in the shipped file and
+    that is where it has to be right."""
+    h, l, pc = 100.0, 105.0, 102.0                     # inverted: h < l
+    tr = max(h - l, abs(h - pc), abs(l - pc))
+    assert tr == pytest.approx(3.0) and tr > 0         # NOT negative...
+    fixed = max(l - h, abs(l - pc), abs(h - pc))       # the same bar, h/l swapped
+    assert fixed == pytest.approx(5.0) and tr < fixed  # ...and UNDERSTATED
+    src = inspect.getsource(bt._move_buckets)
+    assert "understated" in src.lower(), (
+        "the h >= l guard no longer says WHY an inverted bar is skipped")
+    assert "NEGATIVE" not in src, (
+        "the guard still claims an inverted bar's true range is negative; "
+        f"measured, it is {tr} — understated against {fixed}, never below zero")
+
+
 def test_an_inverted_bar_is_not_bucketed_the_owners_h_ge_l_check_reaches_here():
     """`candle_backtest._usable` refuses `h < l`. An inverted bar's true range is
-    NEGATIVE, which would pull the lagged ATR down and inflate every |z| measured
-    against it — moving real bars into buckets they do not belong in."""
+    UNDERSTATED (see the test above), which would pull the lagged ATR down and
+    inflate every |z| measured against it — moving real bars into buckets they do
+    not belong in."""
     good = path(200.0, n=20)
     bad = [dict(b) for b in good]
     bad[8]["h"], bad[8]["l"] = bad[8]["l"], bad[8]["h"]        # invert ONE bar
