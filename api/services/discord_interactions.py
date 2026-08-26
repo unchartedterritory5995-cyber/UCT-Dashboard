@@ -347,14 +347,15 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
                "options": [{"label": f"Indicators: {label}", "value": v, "default": v == st["ind"]}
                            for v, label in prefs_mod.INDICATOR_CHOICES.items()]}
     look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
-                "options": ([{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
-                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"}] +
-                            [{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
+                "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
                              for v, label in prefs_mod.STYLE_CHOICES.items()] +
                             # ONE default per single-select (Discord: COMPONENT_TOO_MANY_DEFAULT_VALUES) -
                             # the style carries it; the theme is read off the image.
                             [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": False}
-                             for v, label in prefs_mod.THEME_CHOICES.items()])}
+                             for v, label in prefs_mod.THEME_CHOICES.items()] +
+                            # last, so the first option stays the chart's own style
+                            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
+                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"}])}
     ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
     ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
     can_pan = st["tf"] in ("D", "W")

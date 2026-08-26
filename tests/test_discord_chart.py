@@ -1617,7 +1617,7 @@ def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch
     rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi", style="line", theme="oled"),
                                dict(p.DEFAULTS))
     look = rows[3]["components"][0]
-    assert look["options"][0]["value"] == di.SAVE_VALUE and not look["options"][0].get("default")
+    assert look["options"][-1]["value"] == di.SAVE_VALUE and not look["options"][-1].get("default")
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4242"}},
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
     r = _post(client, sk, click).json()
