@@ -69,6 +69,35 @@ def test_sonnet_5_pricing_known():
     assert cost_guard.estimate_cost("claude-sonnet-5", 0, 1_000_000) == 15.0
 
 
+def test_opus_5_is_priced_BY_NAME_not_by_the_fallback(caplog):
+    """⛔ THE FALLBACK RATE IS ALSO $5/$25 (the priciest known is Opus-class), so a
+    price-only assertion is green with or WITHOUT the entry and measures nothing.
+    Worse, the usual "a bogus id must not price the same as the real one" probe is
+    VACUOUS here for the same reason: both come back $30.00. Two things do
+    distinguish the paths — the table itself, and the guard's own warning."""
+    import logging
+    from api.services.catalyst import cost_guard
+
+    # (1) structural: the id is a KEY of the table, asked OF the table.
+    assert "claude-opus-5" in cost_guard._PRICING, (
+        "claude-opus-5 has no _PRICING entry — the caps would run on the fallback")
+
+    # (2) behavioural: the guard took the named path, and it says so.
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        cost = cost_guard.estimate_cost("claude-opus-5", 1_000_000, 1_000_000)
+    assert cost == pytest.approx(30.0, rel=1e-3)          # $5 in + $25 out
+    assert not [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
+        "claude-opus-5 was priced by the FALLBACK — add it to _PRICING")
+
+    # (3) the control: the probe CAN fail. A bogus id prices to the same $30.00
+    #     and is still distinguishable, which is the whole point of using the log.
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        bogus = cost_guard.estimate_cost("claude-made-up-9", 1_000_000, 1_000_000)
+    assert bogus == pytest.approx(30.0, rel=1e-3), "the fallback rate moved — reread this test"
+    assert [r for r in caplog.records if "unknown model pricing" in r.getMessage()]
+
+
 def test_record_adds_web_search_fees(monkeypatch):
     from api.services.catalyst import cost_guard, store
     logged = {}

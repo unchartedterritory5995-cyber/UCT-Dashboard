@@ -18,8 +18,8 @@ would be satisfied by a pipeline that refuses everything.
 
 ⛔ NO LIVE MODEL CALLS. The boundary that is stubbed is the CLIENT
 (`engine._get_anthropic_client`), not `_call_model` — so the real request kwargs,
-the real tool-use extraction, the real temperature retry and the real token
-accounting all run. Stubbing `_call_model` would have hidden every one of them
+the real tool-use extraction, the real request kwargs (which carry NO sampling
+parameter — Claude 5 400s on one) and the real token accounting all run. Stubbing `_call_model` would have hidden every one of them
 (`lesson_injected_dependency_hides_the_fetch`: 996 green tests shipped a feature
 that ran in 0 of 24 charts because every test handed in a fake).
 """
@@ -29,6 +29,7 @@ import ast as pyast
 import importlib
 import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -2080,14 +2081,46 @@ def test_the_repair_call_is_ALSO_metered_and_the_cap_is_rechecked(concierge, mod
     assert concierge.spend_for(USER) == pytest.approx(logged["total_cost_usd"])
 
 
-def test_the_model_is_priced_by_the_guard_and_an_unknown_id_is_NEVER_free(concierge):
+def test_the_model_is_priced_by_the_guard_BY_NAME_and_an_unknown_id_is_NEVER_free(
+        concierge, caplog):
     """⚠️ THE UNKNOWN-MODEL RULE IS LOAD-BEARING and it belongs to `cost_guard`, so
-    it is asserted against `cost_guard` — not re-implemented here."""
+    it is asserted against `cost_guard` — not re-implemented here.
+
+    ⛔ `estimate_cost(MODEL, …) > 0` was the old pin and it COULD NOT FAIL: the
+    fallback rate is the priciest KNOWN one, so an id with no entry also returns
+    > 0. The guard's own warning is what says the model was priced BY NAME.
+
+    ⭐ THE ID IS READ OFF `concierge.MODEL`, never retyped — a test that spelled
+    the model id a second time would go green against a table that had drifted."""
     from api.services.catalyst import cost_guard
-    assert cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0) > 0, (
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        priced = cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0)
+    assert priced > 0
+    assert not [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
         f"{concierge.MODEL} has no pricing entry — the cap would run on the "
         "fallback rate rather than on the real one")
-    assert cost_guard.estimate_cost("zz-not-a-model", 1_000_000, 0) > 0
+    assert concierge.MODEL in cost_guard._PRICING
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        assert cost_guard.estimate_cost("zz-not-a-model", 1_000_000, 0) > 0
+    assert [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
+        "the control did not fire — this probe cannot tell the two paths apart")
+
+
+def test_the_DEFAULT_model_is_the_contracts_user_facing_model(concierge):
+    """The lane contract, 'Repo rules': `claude-opus-5` for anything user-facing.
+
+    ⭐ READ OFF THE SOURCE DEFAULT, not the environment — a box with
+    `CONCIERGE_MODEL` set would otherwise be testing the box. This is the one
+    place the id is legitimately spelled out: it IS the claim."""
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    defaults = [node.args[1].value for node in pyast.walk(pyast.parse(src))
+                if isinstance(node, pyast.Call) and isinstance(node.func, pyast.Attribute)
+                and node.func.attr == "get" and len(node.args) == 2
+                and isinstance(node.args[0], pyast.Constant)
+                and node.args[0].value == "CONCIERGE_MODEL"]
+    assert defaults == ["claude-opus-5"]
 
 
 def test_a_transport_failure_is_a_REFUSAL_and_never_an_exception(concierge, model):
@@ -2097,18 +2130,28 @@ def test_a_transport_failure_is_a_REFUSAL_and_never_an_exception(concierge, mode
     assert "ast" not in res
 
 
-def test_the_temperature_retry_is_the_SHIPPED_idiom(concierge, model):
-    """⚠️ NEWER MODELS REJECT `temperature` AS DEPRECATED and the shipped call pops
-    it and retries once. Reproduced here because a concierge that died on that 400
-    would be dead the day the default model id moves."""
-    class Fussy(FakeClient):
-        def create(self, **kwargs):
-            self.calls.append(kwargs)
-            if "temperature" in kwargs:
-                raise RuntimeError("temperature: unsupported parameter")
-            return tool_use(windowed(20))
+def test_a_sampling_PARAMETER_IS_NEVER_SENT_so_a_proposal_is_ONE_round_trip(concierge):
+    """⛔ CLAUDE 5 MODELS 400 ON `temperature`/`top_p`/`top_k` — sampling params were
+    REMOVED, not deprecated. The old idiom sent `temperature=0` and popped it on the
+    error, so EVERY proposal paid TWO HTTP round-trips: a 400, then the real call.
+    (Measured elsewhere in this repo — `ai_search_personal.py` carries "NO
+    temperature (Sonnet tier 400s)".) The parameter is simply not sent.
 
-    client = Fussy([])
+    ⭐ THE FAKE REFUSES A SAMPLING PARAM THE WAY THE API DOES, so the CALL COUNT is
+    the measurement rather than the absence of a dict key. A version that still
+    sends one is TWO calls here; a version that sends one and drops the retry never
+    gets an answer at all (`ok` goes False). Both fail, and for the right reason."""
+    class Api400OnSampling(FakeClient):
+        _SAMPLING = ("temperature", "top_p", "top_k")
+
+        def create(self, **kwargs):
+            bad = [k for k in self._SAMPLING if k in kwargs]
+            if bad:
+                self.calls.append(kwargs)
+                raise RuntimeError(f"Unsupported parameter: {bad[0]} (400)")
+            return super().create(**kwargs)
+
+    client = Api400OnSampling([tool_use(windowed(20))])
     import api.services.engine as engine_mod
     original = engine_mod._get_anthropic_client
     engine_mod._get_anthropic_client = lambda: client
@@ -2116,9 +2159,26 @@ def test_the_temperature_retry_is_the_SHIPPED_idiom(concierge, model):
         res = concierge.propose("average it", user_id=USER, bars=bars())
     finally:
         engine_mod._get_anthropic_client = original
+
     assert res["ok"] is True
-    assert len(client.calls) == 2
-    assert "temperature" in client.calls[0] and "temperature" not in client.calls[1]
+    assert len(client.calls) == 1, (
+        "a sampling parameter is still being sent — the 400 and the pop-and-retry "
+        "are two HTTP round-trips on every single proposal")
+    leaked = set(client.calls[0]) & set(Api400OnSampling._SAMPLING)
+    assert not leaked, sorted(leaked)
+
+
+def test_the_ceiling_covers_THINKING_PLUS_the_tool_call(concierge):
+    """⚠️ `max_tokens` CAPS THINKING AND OUTPUT TOGETHER, and Opus 5 thinks by
+    default when `thinking` is omitted. The tool call itself is a formula TREE —
+    the largest tree the firm ships as a starter serialises to under 500 bytes —
+    so the ceiling is almost entirely thinking headroom, and 1200 (sized for a
+    tool call ALONE) would truncate a thought into a repair call and a refusal.
+
+    ⛔ NOT A COST LEVER (`lesson_a_token_ceiling_is_not_a_cost_lever`): tokens are
+    billed as GENERATED, and spend is bounded by `cost_guard` plus the per-user
+    cap. Pinned as a FLOOR, not an equality, so raising it later is not a red."""
+    assert concierge.MAX_TOKENS >= 8192
 
 
 # ═══ 8. NO SECOND VALIDATION PATH, AND NOTHING IS STORED ═══════════════════

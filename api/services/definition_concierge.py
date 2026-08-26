@@ -86,11 +86,16 @@ _ET = ZoneInfo("America/New_York")
 #: at the priciest known rate -- never $0, because a $0 estimate makes every cap
 #: unenforceable. Both readings keep the cap enforced; the named one keeps it
 #: honest.
-MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-sonnet-5")
+MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-opus-5")
 
-#: Enough for a tree, nowhere near enough for an essay. The tool call is the only
-#: output that matters and a tree over this table is small.
-MAX_TOKENS: int = 1200
+#: A ceiling on THINKING PLUS the tool call. Opus 5 thinks by default when
+#: ``thinking`` is omitted and ``max_tokens`` caps both, so 1200 — sized for the
+#: tool call ALONE — would truncate a thought mid-tree into a repair call and a
+#: refusal. The call itself stays small (the largest starter tree the firm ships
+#: serialises to under 500 bytes), so nearly all of this is thinking headroom.
+#: ⛔ A TRUNCATION GUARD, NOT A COST LEVER: tokens are billed as GENERATED, and
+#: the spend is bounded by ``cost_guard`` and by the per-user cap below.
+MAX_TOKENS: int = 8192
 
 #: ⭐ ONE GENERATE, ONE REPAIR. Not "retry until clean" -- see the header.
 MAX_MODEL_CALLS: int = 2
@@ -1280,29 +1285,26 @@ def _call_model(messages: List[dict], briefing: str = "") -> Tuple[Any, int, int
     Both are resolved here, against files, so the model is TOLD rather than
     asked to guess.
 
-    ⚠️ THE TEMPERATURE RETRY IS THE SHIPPED IDIOM: newer models reject
-    ``temperature`` as deprecated, and on that specific error the parameter is
-    popped and the call retried once so any model id stays usable.
+    ⛔ NO SAMPLING PARAMETER. Claude 5 models REMOVED ``temperature``/``top_p``/
+    ``top_k`` — they answer 400. This call used to send ``temperature=0`` and pop
+    it on that error, which made every proposal TWO HTTP round-trips: the 400, then
+    the real call. Sending nothing is the same determinism for one round-trip, and
+    it leaves no pop-and-retry branch that no longer has a way to fire.
+
+    ⛔ ``thinking``/``output_config`` ARE DELIBERATELY ABSENT. Opus 5 thinks by
+    default, which is what ``MAX_TOKENS`` is now sized for; naming either one would
+    400 the moment ``CONCIERGE_MODEL`` pointed at a model that does not take it.
     """
     from api.services.engine import _get_anthropic_client
     client = _get_anthropic_client()
-    kwargs = dict(
+    msg = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
-        temperature=0,
         system=SYSTEM_PROMPT + vocabulary_text() + briefing,
         tools=[anthropic_tool()],
         tool_choice={"type": "tool", "name": TOOL_NAME},
         messages=messages,
     )
-    try:
-        msg = client.messages.create(**kwargs)
-    except Exception as exc:                       # noqa: BLE001 -- rethrown below
-        if "temperature" in str(exc).lower():
-            kwargs.pop("temperature", None)
-            msg = client.messages.create(**kwargs)
-        else:
-            raise
     usage = getattr(msg, "usage", None)
     return msg, int(getattr(usage, "input_tokens", 0) or 0), \
         int(getattr(usage, "output_tokens", 0) or 0)
