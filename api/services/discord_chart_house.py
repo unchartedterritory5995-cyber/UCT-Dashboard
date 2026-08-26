@@ -102,7 +102,8 @@ def _b64url(obj) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None}
+DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None,
+                   "breadth": None}
 
 # Visible bars for intraday renders. The page's own default zoom counts
 # pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
@@ -139,6 +140,13 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["preset"] = str(opts["preset"])          # one of the app's own theme presets
     if opts.get("instances"):
         params["instances"] = _b64url(opts["instances"])  # engine indicator instances (RSI, MACD)
+    if opts.get("breadth"):
+        # A UCT breadth metric. The page then mirrors the app's ChartPane breadth
+        # treatment (symbol + metric name watermark, single-ink line, blank volume
+        # pane) - the bot already resolved the record, so the page needs no fetch
+        # and there is no catalog race before the capture.
+        params["breadth"] = 1
+        params["bname"] = str(opts["breadth"])[:80]
     tag = opts.get("exttag")
     if tag:
         # The live pre/post-market print as the orange right-axis chip (see

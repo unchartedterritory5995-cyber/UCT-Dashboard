@@ -113,6 +113,7 @@ class ChartRequest:
     theme: str | None = None     # per-call theme preset
     daily_only: bool = False     # breadth pseudo-tickers: the series is daily-basis, no intraday
     display: str | None = None   # what the reply calls it (breadth: "UCTA5 · % of Stocks Above 5-Day MA")
+    breadth_name: str | None = None  # set for a breadth metric: the page paints it the way the app does
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -452,6 +453,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                     if req.tf != "D":
                         warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
                     house_opts = dict(options)
+                    if req.breadth_name:
+                        house_opts["breadth"] = req.breadth_name
                     if quote_fn is not None:
                         # The live pre/post-market print -> the orange Pre/Post chip on the
                         # right axis (never a candle). Best-effort: no quote, no chip.

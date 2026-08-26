@@ -104,8 +104,15 @@ def breadth_adjust(req, prefs: dict):
         meta = bs.SYMBOLS.get(req.ticker.upper()) or {}
         name = meta.get("name") or ""
         req = dataclasses.replace(req, tf="W" if req.tf == "W" else "D", daily_only=True,
-                                  display=f"{req.ticker} · {name}" if name else req.ticker)
-        return req, {**prefs, "stats": False, "ext": False, "volume": False}   # a % series has no volume
+                                  display=f"{req.ticker} · {name}" if name else req.ticker,
+                                  breadth_name=name or req.ticker)
+        out = {**prefs, "stats": False, "ext": False}
+        # The app's Charts widget draws breadth as a LINE (ChartPane's breadth
+        # Line/Candles toggle, the owner's setting) - a percentage reads as a line,
+        # not as candles. A member who asks for a style explicitly still gets it.
+        if req.style is None:
+            out["style"] = "line"
+        return req, out
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] breadth check failed %s: %s", getattr(req, "ticker", "?"), e)
         return req, prefs

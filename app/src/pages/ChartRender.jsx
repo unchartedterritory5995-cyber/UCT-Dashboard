@@ -214,6 +214,15 @@ export default function ChartRender() {
   //            the note next to `hidePriceLine` below for the measurement that
   //            put it here. Absent = today's behavior exactly.
   const barsOverride = (() => { const v = parseInt(sp.get('bars') || '', 10); return Number.isFinite(v) && v > 0 ? Math.min(1200, v) : null })()
+  // ?breadth=1&bname=<metric name> — a UCT breadth pseudo-ticker (UCTA50 …). The
+  // caller (the Discord bot) resolved the record server-side and stamps it here,
+  // so this page paints exactly what ChartPane paints for breadth without a
+  // catalog fetch that could race the capture: symbol + metric name watermark,
+  // the single canvas-contrasting line ink (StockChart `breadthLine`, a no-op
+  // unless the chart type is 'line' - the bot sends chartType 'line' for breadth
+  // unless the member chose a style), and a blank volume pane (vol is 0 for a %).
+  const breadthParam = sp.get('breadth') === '1'
+  const breadthName = breadthParam ? (sp.get('bname') || '').slice(0, 80) : ''
   const extParam = sp.get('ext')
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
@@ -730,6 +739,7 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
+            {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}
             barsOverride={fixtureBars}

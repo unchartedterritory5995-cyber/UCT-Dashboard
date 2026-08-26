@@ -1434,7 +1434,12 @@ def test_breadth_adjust_makes_the_daily_basis_explicit_and_names_the_metric():
     assert bs.is_breadth_symbol("UCTA5") and not bs.is_breadth_symbol("NVDA")
     req, prefs = breadth_adjust(di.ChartRequest("UCTA5", "15"), {**p.DEFAULTS, "stats": True, "ext": True})
     assert req.tf == "D" and req.daily_only and req.display == "UCTA5 · " + bs.SYMBOLS["UCTA5"]["name"]
-    assert prefs["stats"] is False and prefs["ext"] is False and prefs["volume"] is False
+    assert req.breadth_name == bs.SYMBOLS["UCTA5"]["name"]
+    assert prefs["stats"] is False and prefs["ext"] is False
+    assert prefs["style"] == "line"                                          # the app draws breadth as a line
+    assert prefs["volume"] is True                                           # pane stays; the page blanks it
+    req, prefs = breadth_adjust(di.ChartRequest("UCTA5", "D", style="candles"), dict(p.DEFAULTS))
+    assert prefs["style"] == "candles"                                       # an explicit ask still wins
     req, _ = breadth_adjust(di.ChartRequest("UCTA5", "W"), dict(p.DEFAULTS))
     assert req.tf == "W"                                                    # weekly stays weekly
     req, prefs = breadth_adjust(di.ChartRequest("NVDA", "15"), {**p.DEFAULTS, "stats": True})
@@ -1472,3 +1477,24 @@ def test_job_titles_the_reply_with_the_display_name():
                            bars_fn=lambda t, tf, n: daily, render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn,
                            house_fn=lambda *a: b"HOUSE", prefs={**di.prefs_mod.DEFAULTS, "stats": False})
     assert out == "ok" and edits[-1] == "UCTA5 · % of Stocks Above 5-Day MA · Daily"
+
+
+def test_house_url_and_job_stamp_the_breadth_record_for_the_page():
+    from api.services import discord_chart_house as house, discord_interactions as di
+    from api.services import discord_chart_cache as cc
+    from urllib.parse import urlparse, parse_qs
+    q = parse_qs(urlparse(house.build_render_url("UCTA50", "D", None, base_url="https://x", token="t",
+                                                  options={"breadth": "% of Stocks Above 50-Day MA"})).query)
+    assert q["breadth"] == ["1"] and q["bname"] == ["% of Stocks Above 50-Day MA"]
+    assert "breadth" not in parse_qs(urlparse(house.build_render_url("NVDA", "D", None, base_url="https://x", token="t")).query)
+    cc.clear()
+    import datetime as _dt
+    daily = [{"t": (_dt.date(2025, 1, 1) + _dt.timedelta(days=i)).isoformat(), "o": 50, "h": 55, "l": 45, "c": 52.8, "v": 0}
+             for i in range(300)]
+    got = {}
+    def house_fn(ticker, tf, stats, options):
+        got.update(options); return b"HOUSE"
+    di.run_chart_job("1", "tok", di.ChartRequest("UCTA50", "D", daily_only=True, breadth_name="% of Stocks Above 50-Day MA"),
+                     bars_fn=lambda t, tf, n: daily, render_fn=lambda *a, **k: b"MPL",
+                     edit_fn=lambda *a, **k: None, house_fn=house_fn, prefs={**di.prefs_mod.DEFAULTS, "style": "line", "stats": False})
+    assert got["breadth"] == "% of Stocks Above 50-Day MA" and got["indicators"] == {"chartType": "line"}
