@@ -71,6 +71,7 @@ from api.services.ast_table import (
 # equality with the JS lane, which does not round at all.
 from api.services.indicator_compute import (
     compute_adx_raw,
+    AVWAP_MIN_INSTANT,
     compute_atr_raw,
     compute_avwap_raw,
     compute_cci_raw,
@@ -990,17 +991,42 @@ def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     anchor are NOT COMPUTABLE, so every bar this answers for was computed from
     inside the window the manifest promises.
 
-    Both refusals are the ordinary warm-up bargain turned round, and both are
-    all-``None`` rather than a short answer -- a partial accumulation is a
-    confident wrong number wearing a warm-up's clothes.
+    Both are the ordinary warm-up bargain turned round. ⚠️ THEY ARE NOT THE SAME
+    SHAPE, and saying so matters: RULE 1 refuses the WHOLE COLUMN (nothing about
+    this series can be answered), while RULE 2 blanks only the TAIL past the
+    declared window and leaves every bar inside it exact. Neither ever returns a
+    partial accumulation, which would be a confident wrong number wearing a
+    warm-up's clothes.
     """
     anchor = args[0]
+    # ⛔ A SUB-1990 ANCHOR IS A UNIT ERROR IN THE TREE, AND IT IS REFUSED BY NAME
+    # AT THE TOKEN. ``avwap(20250101)`` is the store's daily key spelled as an
+    # instant; it resolves to 1970 and is wrong for EVERY symbol, on every
+    # timeframe, forever -- a formula defect, not a per-symbol data condition,
+    # and this lane's rule for a formula defect is a named refusal rather than a
+    # quiet column. ``resolve:window`` already owns "this ``int`` argument is not
+    # a value this slot can take".
+    #
+    # ⚠️ THE OTHER REFUSAL BELOW IS DELIBERATELY *NOT* NAMED, and the asymmetry
+    # is the point: "no bar precedes the anchor" is true of ONE SYMBOL'S HISTORY,
+    # not of the tree. Refusing it by name would make one short-history symbol
+    # reject a formula that is correct for the rest of the universe.
+    if isinstance(anchor, (int, float)) and not isinstance(anchor, bool)             and anchor < AVWAP_MIN_INSTANT:
+        _refuse("resolve:window",
+                f"— avwap argument 0 is {anchor}, which is not a unix-second "
+                f"instant (the floor is {AVWAP_MIN_INSTANT}, 1990-01-01). A "
+                "date-shaped key like 20250101 read as seconds anchors in 1970.")
     if not bars:
         return []
     first = bars[0].get("t")
     if isinstance(first, bool) or not isinstance(first, (int, float)):
         return []
-    if not anchor > first:
+    # ⭐ ``>=``, NOT ``>``. An anchor EXACTLY on the first bar is well-defined:
+    # any wider fetch adds only bars with ``t < bars[0]["t"]``, and those are
+    # strictly before the anchor, so they are excluded from the accumulation
+    # whatever the window is. Refusing it was a NARROW OVER-REFUSAL -- corrected
+    # 2026-08-26.
+    if not anchor >= first:
         return []
     column = compute_avwap_raw(bars, anchor)
     ceiling = None
@@ -1187,6 +1213,37 @@ def _flatten(root: Any) -> List[dict]:
                 stack.append(arg)
     order.reverse()          # a reversed pre-order puts every child before its parent
     return order
+
+
+def session_anchored_in(ast: Any) -> tuple:
+    """Every call in a tree whose entry declares ``lookback: "session"``, sorted.
+
+    ⭐ EXPORTED FOR THE MESSAGE, NOT FOR A DECISION. ``ast_budget`` refuses on
+    the NUMBER, exactly as it always has; this only lets the refusal say WHY the
+    formula a member types first -- ``crossOver(close, vwap())`` -- is one bar
+    over. A session-anchored call spends the WHOLE lookback budget by
+    construction (the cap is derived to hold one session), so anything wrapped
+    around it is over by the width of the wrapper.
+
+    ⛔ IT NAMES, IT DOES NOT EXEMPT.
+    """
+    found = set()
+    stack = [ast]
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, dict):
+            continue
+        name = node.get("name")
+        if node.get("type") == "call" and isinstance(name, str)                 and name in functions                 and functions[name].get("lookback") == SESSION_LOOKBACK:
+            found.add(name)
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return tuple(sorted(found))
 
 
 def _fn_spec(name: Any) -> Mapping[str, Any]:

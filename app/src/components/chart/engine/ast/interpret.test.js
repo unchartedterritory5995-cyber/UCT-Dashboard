@@ -1284,9 +1284,21 @@ describe("`avwap`'s window is ENFORCED, not merely declared", () => {
     // two slices of the same tape.
     const before = BARS[0].t - 1
     expect(finite(interpret(avwap(before), BARS, {}))).toHaveLength(0)
-    // …and exactly ON the first bar is refused too: `t >= anchor` is satisfied by
-    // bar 0 whether or not earlier bars existed, so the boundary is not VISIBLE.
-    expect(finite(interpret(avwap(BARS[0].t), BARS, {}))).toHaveLength(0)
+    // ⭐ …BUT EXACTLY ON THE FIRST BAR IS COMPUTABLE, and this case read the other
+    // way until 2026-08-26. It was a NARROW OVER-REFUSAL: a wider fetch can only
+    // add bars with `t < BARS[0].t`, and every one of those is STRICTLY before an
+    // anchor equal to `BARS[0].t`, so none of them can enter the accumulation.
+    // The answer does not depend on the request, so refusing it withheld a
+    // well-defined column.
+    expect(finite(interpret(avwap(BARS[0].t), BARS, {})).length).toBeGreaterThan(0)
+    // …and the accumulation really does START at bar 0, which is what "the
+    // anchor selects the first bar" means: bar 0's value is its own typical
+    // price. One second LATER excludes bar 0 and is a different column, which is
+    // the control proving the boundary is where it is claimed to be.
+    const onFirst = interpret(avwap(BARS[0].t), BARS, {})
+    const tp0 = (BARS[0].h + BARS[0].l + BARS[0].c) / 3
+    expect(onFirst[0]).toBeCloseTo(tp0, 12)
+    expect(interpret(avwap(BARS[0].t + 1), BARS, {})[0]).not.toBeCloseTo(tp0, 12)
 
     const full = computeAVWAP(BARS, before)
     const short = computeAVWAP(BARS.slice(2), before)

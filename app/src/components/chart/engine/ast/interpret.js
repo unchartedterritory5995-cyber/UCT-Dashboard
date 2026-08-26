@@ -74,7 +74,7 @@ import { assertBudget } from './budget.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP,
+  computeClock, computeVWAP, computeAVWAP, AVWAP_MIN_INSTANT,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -713,14 +713,41 @@ const barVwap = (bars) => computeVWAP(bars)
  *  are NOT COMPUTABLE, so every bar this answers for was computed from inside
  *  the window the manifest promises.
  *
- *  Both refusals are the ordinary warm-up bargain turned round, and both are
- *  all-NaN rather than a short answer — a partial accumulation is a confident
- *  wrong number wearing a warm-up's clothes. */
+ *  Both are the ordinary warm-up bargain turned round. ⚠️ THEY ARE NOT THE SAME
+ *  SHAPE, and saying so matters: RULE 1 refuses the WHOLE COLUMN (nothing about
+ *  this series can be answered), while RULE 2 blanks only the TAIL past the
+ *  declared window and leaves every bar inside it exact. Neither ever returns a
+ *  partial accumulation, which would be a confident wrong number wearing a
+ *  warm-up's clothes. */
 function barAvwap(bars, args) {
   const anchor = args[0]
+  // ⛔ A SUB-1990 ANCHOR IS A UNIT ERROR IN THE TREE, AND IT IS REFUSED BY NAME
+  // AT THE TOKEN. `avwap(20250101)` is the store's daily key spelled as an
+  // instant; it resolves to 1970 and is wrong for EVERY symbol, on every
+  // timeframe, forever — so it is a formula defect and not a per-symbol data
+  // condition, and this lane's rule for a formula defect is a named refusal
+  // rather than a quiet column. `resolve:window` is the guard that already owns
+  // "this `int` argument is not a value this slot can take".
+  //
+  // ⚠️ THE OTHER REFUSAL BELOW IS DELIBERATELY *NOT* NAMED, and that asymmetry
+  // is the whole point: "no bar precedes the anchor" is true of ONE SYMBOL'S
+  // HISTORY, not of the tree. Refusing it by name would make one short-history
+  // symbol reject a formula that is correct for the rest of the universe —
+  // exactly what `_scalars_node` means by "declared but not known for this
+  // symbol is a HOLE, not `resolve:name`".
+  if (typeof anchor === 'number' && anchor < AVWAP_MIN_INSTANT) {
+    refuse('resolve:window',
+      `— avwap argument 0 is ${anchor}, which is not a unix-second instant `
+      + `(the floor is ${AVWAP_MIN_INSTANT}, 1990-01-01). A date-shaped key like `
+      + '20250101 read as seconds anchors in 1970.')
+  }
   if (!bars.length) return []
   const first = bars[0] ? bars[0].t : undefined
-  if (!Number.isFinite(first) || !(anchor > first)) return []
+  // ⭐ `>=`, NOT `>`. An anchor EXACTLY on the first bar is well-defined: any
+  // wider fetch adds only bars with `t < bars[0].t`, and those are strictly
+  // before the anchor, so they are excluded from the accumulation whatever the
+  // window is. Refusing it was a NARROW OVER-REFUSAL — corrected 2026-08-26.
+  if (!Number.isFinite(first) || !(anchor >= first)) return []
   const points = computeAVWAP(bars, anchor)
   let ceiling = -1
   for (let i = 0; i < bars.length; i++) {
@@ -863,6 +890,35 @@ function assertNode(node) {
     refuse('interpret:node',
       `unknown node type ${JSON.stringify(node.type)} — legal types are ${NODE_TYPES.join(', ')}`)
   }
+}
+
+/** Every call in a tree whose entry declares `lookback: 'session'`, sorted.
+ *
+ *  ⭐ EXPORTED FOR THE MESSAGE, NOT FOR A DECISION. `budget.js` refuses on the
+ *  NUMBER, exactly as it always has; this only lets the refusal say WHY a
+ *  formula a member will type first — `crossOver(close, vwap())` — measures 961
+ *  against a cap of 960. A session-anchored call spends the WHOLE lookback
+ *  budget by construction (the cap is derived to hold one session), so anything
+ *  wrapped around it is over by the width of the wrapper, and the bare number
+ *  reads like an arbitrary rejection.
+ *
+ *  ⛔ IT NAMES, IT DOES NOT EXEMPT. Nothing here changes which trees are
+ *  admitted. */
+export function sessionAnchoredIn(ast) {
+  const found = new Set()
+  const stack = [ast]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (Array.isArray(n)) { stack.push(...n); continue }
+    if (n.type === 'call' && typeof n.name === 'string'
+        && own(TABLE.functions, n.name)
+        && TABLE.functions[n.name].lookback === SESSION_LOOKBACK) {
+      found.add(n.name)
+    }
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return [...found].sort()
 }
 
 /** The declared spec for a called name, or `resolve:function`. */

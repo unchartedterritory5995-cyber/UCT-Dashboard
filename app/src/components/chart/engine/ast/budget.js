@@ -48,7 +48,7 @@
 // two edges, same call-time resolution, different mechanism — stated here so
 // nobody reads the asymmetry as two different designs.
 
-import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
+import { maxLookback, nodeCount, sessionAnchoredIn, TableRefusal } from './interpret.js'
 // ⭐ THE CAP READS THE SESSION CONSTANT FROM THE TABLE'S OWN READER, not from a
 // digit of its own — see `DEFAULT_BUDGET`. `parse.js` is already in this module's
 // graph through `interpret.js`, so this adds no reach: it names what was implicit.
@@ -294,6 +294,36 @@ export function effectiveBudget(stored) {
  *  @returns {{ok: true, caps: object, measured: object}
  *          | {ok: false, guard: string, error: string, caps: object, measured: object}}
  */
+/** The half-sentence that turns a number into a reason, for the one case where
+ *  the number alone reads as an arbitrary rejection.
+ *
+ *  🔴 THE MEASURED CASE. `crossOver(close, vwap())` is the formula a member
+ *  will type first, and it measures ONE BAR over the cap — because the cap is
+ *  DERIVED to hold exactly one trading session and a session-anchored call
+ *  spends all of it. `sma(vwap(), 20)`, `change(vwap())`, `highest(vwap(), 2)`
+ *  and `vwap()[1]` are the same story. Without this clause the member reads two
+ *  bare numbers one apart and has no way to know that the fix is not a smaller
+ *  window.
+ *
+ *  ⛔ IT CHANGES NO VERDICT. The refusal is decided by the number, above; this
+ *  is the sentence after the dash. And it is DERIVED — `sessionAnchoredIn` reads
+ *  the manifest, so a third session-anchored entry names itself here on the day
+ *  it lands, and this module still spells `session` nowhere. */
+function whyOverBudget(key, ast) {
+  // ⛔ NO `try` HERE, AND THAT IS A RAIL RATHER THAN A PREFERENCE: this module
+  // may not contain one at all, because a caught `RangeError` is one line from
+  // being dressed up as a budget refusal. It needs none — `MEASURE[key](ast)`
+  // has already walked this tree above, so anything malformed enough to throw
+  // has thrown before this line is reached.
+  if (key !== 'maxLookback') return ''
+  const names = sessionAnchoredIn(ast)
+  if (!names.length) return ''
+  const list = names.map((n) => `\`${n}()\``).join(' and ')
+  return `. ${list} reaches back one whole trading session, which is the entire `
+    + 'lookback budget — so it can be compared and combined, but nothing can be '
+    + 'wrapped around it (no moving average of it, no bar offset on it)'
+}
+
 export function checkBudget(ast, budget) {
   const caps = effectiveBudget(budget)
   const measured = {}
@@ -305,7 +335,8 @@ export function checkBudget(ast, budget) {
       return {
         ok: false,
         guard,
-        error: `${REFUSALS[guard]} — this formula measures ${value} and the cap is ${caps[key]}`,
+        error: `${REFUSALS[guard]} — this formula measures ${value} and the cap is ${caps[key]}`
+          + whyOverBudget(key, ast),
         caps,
         measured,
       }

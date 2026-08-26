@@ -251,10 +251,22 @@ def test_an_anchor_BEFORE_the_first_bar_is_NOT_COMPUTABLE_rather_than_request_de
         "the shipped accumulator answers the same number on both slices, so this "
         "corpus cannot show the request-dependence the refusal exists for")
 
-    # …and an anchor exactly ON the first bar is still refused: `t >= anchor` is
-    # satisfied by bar 0 whether or not earlier bars existed, so the boundary is
-    # not VISIBLE and the same ambiguity applies.
-    assert all(v is None for v in ast_interpret.interpret(_avwap(bars[0]["t"]), bars))
+    # ⭐ …BUT AN ANCHOR EXACTLY ON THE FIRST BAR IS COMPUTABLE, and this case read
+    # the other way until 2026-08-26. It was a NARROW OVER-REFUSAL: a wider fetch
+    # can only add bars with `t < bars[0]["t"]`, and every one of those is
+    # STRICTLY before an anchor equal to it, so none can enter the accumulation.
+    # The answer does not depend on the request, so refusing it withheld a
+    # well-defined column.
+    on_first = ast_interpret.interpret(_avwap(bars[0]["t"]), bars)
+    assert any(v is not None for v in on_first)
+    # …and the accumulation really does START at bar 0, which is what "the anchor
+    # selects the first bar" means: bar 0's value is its own typical price. One
+    # second LATER excludes bar 0 and is a different column -- the control that
+    # proves the boundary sits where it is claimed to.
+    tp0 = (bars[0]["h"] + bars[0]["l"] + bars[0]["c"]) / 3.0
+    assert _close(on_first[0], tp0)
+    later = ast_interpret.interpret(_avwap(bars[0]["t"] + 1), bars)
+    assert later[0] is None or not _close(later[0], tp0)
 
 
 def test_avwap_STOPS_at_the_window_it_DECLARES(bars):
@@ -474,3 +486,101 @@ def test_the_scan_lane_LAUNDERS_a_vwap_hole_into_a_confident_answer():
     computed = ai.interpret(VWAP, live, opts={"tf": "5"})
     assert any(v is not None for v in computed), computed
     assert set(ai.interpret(gt, live, opts={"tf": "5"})) != {0.0}
+
+
+# --------------------------------------------------------------------------- #
+# the two guards the FIRST mutation sweep could not kill
+# --------------------------------------------------------------------------- #
+
+def test_the_CONSUMERS_bar_reader_roster_is_derived_at_IMPORT_not_hand_listed():
+    r"""🔴 A SWEEP SURVIVOR, AND IT IS THE JS LANE'S J5 IN THE OTHER LANE.
+
+    ``ast_table.bar_readers(manifest)`` takes a manifest and is already railed
+    against a planted one. Its CONSUMER had no such seam: replacing
+    ``BAR_READERS = bar_readers()`` with the literal ``("avwap", "vwap")``
+    produces the same tuple today and SURVIVED every suite. The JS twin was
+    fixed by exporting a pure reader; the Python reader was already pure, so
+    what was missing is a rail on the ASSIGNMENT itself.
+
+    ⛔ STRUCTURAL, READ WITH AN AST, AND EMPHATICALLY NOT `importlib.reload`.
+    The first draft of this case reloaded ``ast_interpret`` under a planted
+    manifest. It worked, and it POISONED THE SESSION: a reload rebinds
+    ``TableRefusal`` to a NEW class object while every module that imported it
+    earlier keeps the old one, so ``issubclass(ast_budget.BudgetExceeded,
+    ast_interpret.TableRefusal)`` became False and SEVEN unrelated tests in
+    ``test_ast_budget.py`` and ``test_ast_interpret.py`` went red -- but only
+    when this file was collected FIRST. Measured both orders: without this file
+    128 passed, with it 7 failed. Seven lanes run pytest from the repo root, so
+    that is not a local mess, it is other lanes' suites reddening on collection
+    order. The same instrument ``AVWAP_MIN_INSTANT`` already uses is the right
+    one here: assert the RHS is a CALL to the reader, never a literal.
+    """
+    import ast as pyast
+    import pathlib
+
+    from api.services import ast_table
+
+    tree = pyast.parse(pathlib.Path(ast_interpret.__file__).read_bytes().decode("utf-8"))
+    assigned = {}
+    for node in tree.body:
+        if isinstance(node, pyast.AnnAssign) and isinstance(node.target, pyast.Name):
+            assigned[node.target.id] = node.value
+        elif isinstance(node, pyast.Assign) and len(node.targets) == 1                 and isinstance(node.targets[0], pyast.Name):
+            assigned[node.targets[0].id] = node.value
+    assert "BAR_READERS" in assigned, (
+        "BAR_READERS is no longer a module-level assignment, so this rail checks "
+        "nothing")
+    rhs = assigned["BAR_READERS"]
+    assert isinstance(rhs, pyast.Call) and isinstance(rhs.func, pyast.Name)         and rhs.func.id == "bar_readers", (
+            "ast_interpret.BAR_READERS is assigned "
+            f"{pyast.dump(rhs)[:90]} instead of a call to the manifest reader "
+            "`bar_readers`. A tuple that happens to be right today is the "
+            "hand-list this rail exists to catch.")
+
+    # THE CONTROL: the detector distinguishes two shapes rather than accepting
+    # everything -- a literal RHS is what the mutation looked like.
+    planted = pyast.parse('BAR_READERS = ("avwap", "vwap")' + chr(10)).body[0].value
+    assert not (isinstance(planted, pyast.Call)), "the control is not a literal"
+
+    # …and the value agrees with the reader today, so the shape rail above is
+    # not standing in for a number nobody checked.
+    assert tuple(ast_interpret.BAR_READERS) == tuple(ast_table.bar_readers())
+    assert set(ast_interpret.BAR_READERS) == {"vwap", "avwap"}, ast_interpret.BAR_READERS
+
+
+def test_the_vwap_BINDING_NAMES_the_shipped_accumulator_in_its_own_SOURCE():
+    r"""\u2b50\u2b50 "ONE ACCUMULATOR" PROVED BY THE SOURCE, BECAUSE NO VALUE CAN PROVE IT.
+
+    A sweep found that rebinding ``vwap()`` to ``compute_avwap_raw(bars,
+    "session")`` SURVIVES in both lanes — and it should, because the two are
+    documented to be the same column bar for bar. That makes it an EQUIVALENT
+    MUTANT: no fixture can tell them apart, so "one accumulator" was true by
+    reading and by nothing else.
+
+    \u26d4 SO THE RAIL IS STRUCTURAL, read with an AST rather than a grep (which on
+    this repo has twice counted prose in a comment as a call site): the binding
+    for ``vwap`` must CALL ``compute_vwap_raw`` by name. The equivalence is real
+    today and would stop being real the moment either function grew an argument
+    or a rule the other did not.
+    """
+    import ast as pyast
+    import inspect
+
+    tree = pyast.parse(inspect.getsource(ast_interpret._fn_vwap))
+    called = {n.func.id for n in pyast.walk(tree)
+              if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
+    assert called == {"compute_vwap_raw"}, (
+        f"_fn_vwap calls {sorted(called)}; the session VWAP has exactly one owner "
+        "in this lane and the binding must name it")
+
+    tree = pyast.parse(inspect.getsource(ast_interpret._fn_avwap))
+    called = {n.func.id for n in pyast.walk(tree)
+              if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
+    assert "compute_avwap_raw" in called, sorted(called)
+
+    # THE CONTROL: the detector really can see a different callee, so the
+    # assertion above is not satisfied by an AST walk that returns nothing.
+    other = pyast.parse("def f(bars, args):\n    return compute_avwap_raw(bars, 'session')\n")
+    seen = {n.func.id for n in pyast.walk(other)
+            if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
+    assert seen == {"compute_avwap_raw"}

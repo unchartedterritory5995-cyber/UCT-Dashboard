@@ -42,7 +42,7 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 from api.services.ast_interpret import (
-    SESSION_MAX_BARS, TableRefusal, max_lookback, node_count,
+    SESSION_MAX_BARS, TableRefusal, max_lookback, node_count, session_anchored_in,
 )
 
 # --------------------------------------------------------------------------- #
@@ -271,6 +271,35 @@ def effective_budget(stored: Optional[Mapping[str, Any]]) -> Dict[str, int]:
 # the check
 # --------------------------------------------------------------------------- #
 
+def _why_over_budget(key: str, ast: Any) -> str:
+    """The half-sentence that turns a number into a reason, for the one case
+    where the number alone reads as an arbitrary rejection.
+
+    🔴 THE MEASURED CASE. ``crossOver(close, vwap())`` is the formula a member
+    types first, and it measures ONE BAR over the cap -- because the cap is
+    DERIVED to hold exactly one trading session and a session-anchored call
+    spends all of it. ``sma(vwap(), 20)``, ``change(vwap())``,
+    ``highest(vwap(), 2)`` and ``vwap()[1]`` are the same story. Without this
+    clause the member reads two bare numbers one apart and has no way to know
+    that the fix is not a smaller window.
+
+    ⛔ IT CHANGES NO VERDICT -- the refusal is decided by the number, above.
+    And it is DERIVED: ``session_anchored_in`` reads the manifest, so a third
+    session-anchored entry names itself here on the day it lands, and this
+    module still spells ``session`` nowhere.
+    """
+    if key != "maxLookback":
+        return ""
+    names = session_anchored_in(ast)
+    if not names:
+        return ""
+    listed = " and ".join("`%s()`" % n for n in names)
+    return (". %s reaches back one whole trading session, which is the entire "
+            "lookback budget — so it can be compared and combined, but nothing "
+            "can be wrapped around it (no moving average of it, no bar offset "
+            "on it)" % listed)
+
+
 def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     """Measure a tree against its budget and RETURN the verdict.
 
@@ -283,7 +312,7 @@ def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[
     caps = effective_budget(budget)
     measured: Dict[str, int] = {}
     for key in CAP_ORDER:
-        value = _MEASURE[key](ast)
+        value = _MEASURE[key](ast)  # noqa: E501 - see _why_over_budget below
         measured[key] = value
         if value > caps[key]:
             guard = CAP_GUARD[key]
@@ -291,7 +320,8 @@ def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[
                 "ok": False,
                 "guard": guard,
                 "error": (f"{REFUSALS[guard]} — this formula measures {value} "
-                          f"and the cap is {caps[key]}"),
+                          f"and the cap is {caps[key]}"
+                          + _why_over_budget(key, ast)),
                 "caps": caps,
                 "measured": measured,
             }
