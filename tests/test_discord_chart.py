@@ -1350,10 +1350,11 @@ def test_endpoint_button_click_updates_in_place_and_reschedules_with_components(
     assert r.json() == {"type": 6}                                          # DEFERRED_UPDATE_MESSAGE: same message, no loading state
     (app_id, token, req), kw = scheduled[-1]
     assert (app_id, token, req) == ("123", "tok", di.ChartRequest("NVDA", "W", mas="off", volume=True))
-    assert kw["components_fn"] is di.chart_components and kw["prefs"]["mas"] == "off"
+    unwrap = lambda f: getattr(f, "func", f)   # noqa: E731 — the router binds the guild with functools.partial
+    assert unwrap(kw["components_fn"]) is di.chart_components and kw["prefs"]["mas"] == "off"
     # a slash command also gets the buttons now
     r = _post(client, sk, _interaction("AMD"))
-    assert r.json() == {"type": 5} and scheduled[-1][1]["components_fn"] is di.chart_components
+    assert r.json() == {"type": 5} and unwrap(scheduled[-1][1]["components_fn"]) is di.chart_components
     # an unknown button is not a chart
     r = _post(client, sk, {**click, "data": {"custom_id": "poll|vote|1", "component_type": 2}})
     assert r.json() == {"type": 4, "data": {"content": "Unknown button.", "flags": 64}}

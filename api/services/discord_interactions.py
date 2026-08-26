@@ -171,8 +171,19 @@ SETTINGS_COMMAND = "chartsettings"
 # DEFERRED_UPDATE_MESSAGE (6) and the job PATCHes the same message with the new
 # image, so the chart re-renders IN PLACE. custom_id carries the full state.
 COMPONENT_PREFIX = "chart"
+ACTIVITY_PREFIX = "activity"     # the "Open in Discord" button: same state, launches the Activity
+LAUNCH_COMMAND = "launch"        # the Entry Point command (type 4) the App Launcher shows
 BUTTON_TFS = (("D", "D"), ("W", "W"), ("60", "60m"), ("15", "15m"), ("5", "5m"))
 _STYLE_PRIMARY, _STYLE_SECONDARY, _STYLE_LINK = 1, 2, 5
+
+
+def activity_guilds() -> frozenset:
+    """Where the "Open in Discord" button shows. An UNVERIFIED Activity launches
+    only for the app's developers/testers and only in servers under 25 members,
+    so until Discord verifies it the button is offered only in the dev server
+    (DISCORD_ACTIVITY_GUILDS, comma-separated; blank = nowhere)."""
+    raw = os.environ.get("DISCORD_ACTIVITY_GUILDS", "")
+    return frozenset(x.strip() for x in raw.split(",") if x.strip())
 
 
 def public_site_url() -> str:
@@ -183,12 +194,21 @@ def component_id(ticker: str, tf: str, mas: str, volume: bool) -> str:
     return f"{COMPONENT_PREFIX}|{ticker}|{tf}|{mas}|{1 if volume else 0}"
 
 
+def component_kind(interaction: dict) -> str:
+    """'chart' (re-render in place) or 'activity' (launch the Activity)."""
+    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    head = cid.split("|", 1)[0]
+    if head in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
+        return head
+    raise CommandError("Unknown button.")
+
+
 def parse_component(interaction: dict) -> ChartRequest:
     """A button click -> the chart it asks for. Only our own custom_ids parse;
     anything else is a CommandError (an unknown button is not a chart)."""
     cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
     parts = cid.split("|")
-    if len(parts) != 5 or parts[0] != COMPONENT_PREFIX:
+    if len(parts) != 5 or parts[0] not in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
         raise CommandError("Unknown button.")
     _, ticker, tf, mas, vol = parts
     ticker = ticker.strip().upper()
@@ -197,7 +217,7 @@ def parse_component(interaction: dict) -> ChartRequest:
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
 
 
-def chart_components(req: ChartRequest, prefs: dict | None = None) -> list:
+def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str | None = None) -> list:
     """The two action rows under a chart, reflecting what THIS image shows."""
     p = {**prefs_mod.DEFAULTS, **(prefs or {})}
     mas = req.mas if req.mas is not None else p["mas"]
@@ -213,6 +233,9 @@ def chart_components(req: ChartRequest, prefs: dict | None = None) -> list:
         {"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
          "url": f"{public_site_url()}/research/{req.ticker}"},
     ]
+    if guild_id and str(guild_id) in activity_guilds():
+        toggles.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
+                        "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{mas}|{1 if vol else 0}"})
     return [{"type": 1, "components": tfs}, {"type": 1, "components": toggles}]
 
 
@@ -350,9 +373,25 @@ def guild_allowed(interaction: dict, allowed: frozenset | None = None) -> bool:
 GUILD_ONLY = {"integration_types": [0], "contexts": [0]}
 
 
-def build_commands() -> list:
-    """Every application command this bot registers (one authority)."""
-    return [dict(c, **GUILD_ONLY) for c in (build_chart_command(), build_alias_command(), build_settings_command())]
+def build_launch_command() -> dict:
+    """The Entry Point command (type 4). Enabling Activities auto-creates one
+    named "Launch" with Discord handling the launch; ours uses APP_HANDLER so
+    the endpoint answers LAUNCH_ACTIVITY itself, and it is ADMIN-ONLY until
+    Discord verifies the Activity (an unverified one refuses members anyway).
+    A bulk PUT overwrites every command, so this must ride along or it is gone."""
+    return {"name": LAUNCH_COMMAND, "type": 4, "handler": 1,
+            "description": "Open the interactive UCT chart",
+            "default_member_permissions": "8"}
+
+
+def build_commands(activity: bool = False) -> list:
+    """Every application command this bot registers (one authority).
+    `activity=True` adds the Entry Point command (only valid once Activities
+    are enabled on the app)."""
+    cmds = [build_chart_command(), build_alias_command(), build_settings_command()]
+    if activity:
+        cmds.append(build_launch_command())
+    return [dict(c, **GUILD_ONLY) for c in cmds]
 
 
 def attachment_name(ticker: str, tf: str, last_t) -> str:

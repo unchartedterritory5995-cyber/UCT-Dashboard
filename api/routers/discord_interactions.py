@@ -8,6 +8,7 @@ dark rather than trusting anything unsigned.
 from __future__ import annotations
 
 import dataclasses
+import functools
 import json
 import logging
 import os
@@ -15,6 +16,7 @@ import os
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
+from api.services import discord_activity_handoff as handoff
 from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
@@ -158,16 +160,28 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             return _autocomplete([])
         q = di.parse_autocomplete(interaction)
         return _autocomplete(fetch_ticker_choices(q) if q else [])
+    if itype == 2 and name == di.LAUNCH_COMMAND:
+        # The Entry Point command (App Launcher). The Activity page reads the
+        # channel's newest handoff itself; nothing to record here.
+        return {"type": 12}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         try:
             if itype == 3:
+                kind = di.component_kind(interaction)
                 req = di.parse_component(interaction)          # a button under a chart
             else:
+                kind = "chart"
                 req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
+        if kind == "activity":
+            # "Open in Discord": remember what this channel is looking at, then let
+            # Discord open the Activity (LAUNCH_ACTIVITY carries no parameters).
+            handoff.record(str(interaction.get("channel_id") or ""), user_id=uid, ticker=req.ticker, tf=req.tf,
+                           prefs={**prefs, **req.overrides()})
+            return {"type": 12}
         wait = di.user_rate_check(uid)
         if wait:
             return _ephemeral(di.throttle_message(wait))
@@ -180,7 +194,8 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         background.add_task(di.run_chart_job, app_id, token, req,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
-                            prefs=prefs, quote_fn=fetch_ext_quote, components_fn=di.chart_components)
+                            prefs=prefs, quote_fn=fetch_ext_quote,
+                            components_fn=functools.partial(di.chart_components, guild_id=str(interaction.get("guild_id") or "")))
         # A button click updates the message it sits on (no loading state, no new
         # message); a slash command gets the deferred "thinking..." reply.
         return {"type": 6} if itype == 3 else {"type": 5}
@@ -219,3 +234,14 @@ def _settings_reply(interaction: dict) -> str:
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] settings failed for %s: %s", uid, e)
         return "Settings are unavailable right now, try again in a minute."
+
+
+@router.get("/api/discord/activity/handoff")
+def activity_handoff(channel_id: str = ""):
+    """What the Discord Activity in `channel_id` should open: the channel's
+    newest "Open in Discord" click within the TTL, else nothing. Public and
+    harmless - a ticker and a timeframe - and the Activity page has no session."""
+    entry = handoff.latest(channel_id) if channel_id else None
+    if not entry:
+        return {"ticker": None, "tf": None, "prefs": None}
+    return {"ticker": entry["ticker"], "tf": entry["tf"], "prefs": entry.get("prefs") or None}

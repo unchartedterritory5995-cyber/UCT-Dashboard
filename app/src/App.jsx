@@ -86,6 +86,7 @@ const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalA
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
 const ChartRender = lazy(() => import('./pages/ChartRender'))
+const DiscordActivity = lazy(() => import('./pages/DiscordActivity'))
 const CatalystsRender = lazy(() => import('./pages/CatalystsRender'))
 const CalendarRender = lazy(() => import('./pages/CalendarRender'))
 const InternalsRender = lazy(() => import('./pages/InternalsRender'))
@@ -229,7 +230,7 @@ export default function App() {
             landing page must see it immediately, not a 9-second brand film. */}
         {![
           '/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy',
-          '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets',
+          '/r/chart', '/r/activity', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets',
           '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ',
           '/r/earncards', '/r/earnresults', '/r/movers',
           // Pre-launch, "/" is the COMING SOON holding page — same reasoning as
@@ -323,6 +324,9 @@ export default function App() {
                 for a ticker with entry/stop/target lines; /api/bars is public so
                 no session is needed. */}
             <Route path="/r/chart" element={<ChartRender />} />
+            {/* The Discord Activity: the interactive chart inside Discord, loaded
+                through Discord's proxy in an iframe. Logged out like /r/chart. */}
+            <Route path="/r/activity" element={<DiscordActivity />} />
             <Route path="/r/catalysts" element={<CatalystsRender />} />
             <Route path="/r/calendar" element={<CalendarRender />} />
             <Route path="/r/internals" element={<InternalsRender />} />
