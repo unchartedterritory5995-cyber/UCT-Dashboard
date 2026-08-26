@@ -42,6 +42,7 @@ def render_slot_count(default: int = 4) -> int:
 # Bounded so a burst can never pin the API's threadpool; extra callers are
 # told to retry rather than queue behind a cold Massive fetch.
 RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
+BARS_RETRY_DELAY_S = 1.5
 
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
 # slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
@@ -100,6 +101,13 @@ class CommandError(ValueError):
 class ChartRequest:
     ticker: str
     tf: str
+    mas: str | None = None       # per-call override of the member's MA preference
+    volume: bool | None = None   # per-call override of the member's volume preference
+
+    def overrides(self) -> dict:
+        """The prefs this one call overrides (member request: "/chart APP
+        without MAs or volume" without touching saved settings)."""
+        return {k: v for k, v in (("mas", self.mas), ("volume", self.volume)) if v is not None}
 
 
 def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, body: bytes) -> bool:
@@ -122,7 +130,15 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
     tf = str(opts.get("tf") or default_tf or "D")
     if tf not in WINDOW:
         raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
-    return ChartRequest(ticker=ticker, tf=tf)
+    mas = opts.get("mas")
+    if mas is not None:
+        mas = str(mas)
+        if mas not in prefs_mod.MA_CHOICES:
+            raise CommandError("mas must be one of: " + ", ".join(prefs_mod.MA_CHOICES) + ".")
+    volume = opts.get("volume")
+    if volume is not None and not isinstance(volume, bool):
+        raise CommandError("volume must be true or false.")
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=volume)
 
 
 CHART_COMMAND_NAMES = ("chart", "c")
@@ -159,11 +175,16 @@ def build_chart_command() -> dict:
     return {
         "name": "chart",
         "type": 1,  # CHAT_INPUT
-        "description": "Render a clean chart: candles, volume, 10/20/50 SMA",
+        "description": "House chart image: candles, volume, EMA 9/20 + SMA 50/200. Defaults: /chartsettings",
         "options": [
             {"name": "ticker", "description": "Ticker symbol, e.g. NVDA", "type": 3, "required": True},
-            {"name": "tf", "description": "Timeframe (default Daily)", "type": 3, "required": False,
+            {"name": "tf", "description": "Timeframe (default: your /chartsettings, else Daily)", "type": 3,
+             "required": False,
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
+            {"name": "mas", "description": "Moving averages for THIS chart only", "type": 3, "required": False,
+             "choices": [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]},
+            {"name": "volume", "description": "Volume pane for THIS chart only (True/False)", "type": 5,
+             "required": False},
         ],
     }
 
@@ -302,11 +323,20 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             return "ok"
 
         def _fetch(tf, n):
-            try:
-                return bars_fn(req.ticker, tf, n) or None
-            except Exception as e:  # noqa: BLE001
-                log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
-                return None
+            # One retry after a short pause: a cold intraday pull can miss once
+            # (provider timeout, a fetch-on-miss still landing) and answer fine
+            # a second later - two members hit "No bars" on a symbol the feed
+            # served seconds after.
+            for attempt in (0, 1):
+                try:
+                    bars = bars_fn(req.ticker, tf, n) or None
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
+                    bars = None
+                if bars or attempt:
+                    return bars
+                time.sleep(BARS_RETRY_DELAY_S)
+            return None
 
         def produce():
             if not RENDER_SLOTS.acquire(blocking=False):
@@ -355,7 +385,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":
-            edit_fn(app_id, token, content=f"No bars for {req.ticker} ({label}).")
+            edit_fn(app_id, token, content=(f"No bars for {req.ticker} ({label}). Unknown ticker, or the feed is "
+                                            "still catching up on it - try again in a minute."))
         else:
             edit_fn(app_id, token, content="Chart failed, try again.")
         return outcome

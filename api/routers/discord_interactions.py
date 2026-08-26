@@ -85,6 +85,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         wait = di.user_rate_check(uid)
         if wait:
             return _ephemeral(di.throttle_message(wait))
+        prefs = {**prefs, **req.overrides()}   # this call only; saved settings untouched
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
         token = str(interaction.get("token") or "")
         if not app_id or not token:

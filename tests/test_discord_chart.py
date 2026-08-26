@@ -61,6 +61,12 @@ PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
 @pytest.fixture(autouse=True)
+def _no_bars_retry_delay(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.setattr(di, "BARS_RETRY_DELAY_S", 0)
+
+
+@pytest.fixture(autouse=True)
 def _clear_png_cache():
     try:
         from api.services import discord_chart_cache as cc
@@ -186,7 +192,7 @@ def test_build_chart_command_derives_choices_from_tf_label():
     from api.services.discord_interactions import build_chart_command
     cmd = build_chart_command()
     assert cmd["name"] == "chart" and cmd["type"] == 1
-    ticker, tf = cmd["options"]
+    ticker, tf = cmd["options"][:2]          # mas + volume follow (their own test)
     assert ticker["name"] == "ticker" and ticker["required"] is True and ticker["type"] == 3
     assert tf["name"] == "tf" and tf["required"] is False
     assert [(c["name"], c["value"]) for c in tf["choices"]] == [(v, k) for k, v in TF_LABEL.items()]
@@ -271,7 +277,7 @@ def test_run_chart_job_no_bars_render_failure_and_bars_exception():
     edits = _Edits()
     assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "60"),
                          bars_fn=lambda *a: None, render_fn=lambda *a, **k: b"", edit_fn=edits) == "no_bars"
-    assert edits.calls[-1]["content"] == "No bars for ZZZZQ (60 min)." and edits.calls[-1]["png"] is None
+    assert edits.calls[-1]["content"].startswith("No bars for ZZZZQ (60 min).") and edits.calls[-1]["png"] is None
 
     assert run_chart_job("1", "t", ChartRequest("SPY", "D"),
                          bars_fn=lambda *a: [], render_fn=lambda *a, **k: b"", edit_fn=edits) == "no_bars"
@@ -1075,3 +1081,78 @@ def test_endpoint_throttles_a_member_after_the_allowance_and_schedules_nothing_e
     # a different member still renders; settings commands are never throttled
     other = dict(_interaction("NVDA"), member={"user": {"id": "778"}})
     assert _post(client, sk, other).json() == {"type": 5}
+
+
+# ── member asks from #main-chat, 8/25 ──
+
+def test_parse_chart_command_takes_per_call_mas_and_volume_overrides():
+    from api.services.discord_interactions import parse_chart_command, CommandError, ChartRequest
+    base = _interaction("APP")
+    base["data"]["options"] += [{"name": "mas", "type": 3, "value": "off"}, {"name": "volume", "type": 5, "value": False}]
+    req = parse_chart_command(base)
+    assert req == ChartRequest("APP", "D", mas="off", volume=False)
+    assert req.overrides() == {"mas": "off", "volume": False}
+    assert parse_chart_command(_interaction("APP")).overrides() == {}      # nothing given -> nothing overridden
+    bad = _interaction("APP"); bad["data"]["options"].append({"name": "mas", "type": 3, "value": "50-200"})
+    with pytest.raises(CommandError):
+        parse_chart_command(bad)
+
+
+def test_endpoint_applies_per_call_overrides_on_top_of_saved_prefs_without_saving(monkeypatch):
+    from api.services import discord_chart_prefs as p, discord_interactions as di
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    p.set_prefs("9001", tf="15", mas="10-20-50")
+    seen = {}
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: seen.update(k) or "ok")
+    payload = dict(_interaction("APP"), member={"user": {"id": "9001"}})
+    payload["data"]["options"] += [{"name": "mas", "type": 3, "value": "off"}, {"name": "volume", "type": 5, "value": False}]
+    assert _post(client, sk, payload).json() == {"type": 5}
+    assert seen["prefs"]["mas"] == "off" and seen["prefs"]["volume"] is False
+    assert seen["prefs"]["tf"] == "15"                                       # saved default tf still applies
+    assert p.get_prefs("9001")["mas"] == "10-20-50" and p.get_prefs("9001")["volume"] is True   # nothing saved
+
+
+def test_chart_command_options_expose_mas_and_volume_and_house_description():
+    from api.services.discord_interactions import build_chart_command
+    cmd = build_chart_command()
+    opts = {o["name"]: o for o in cmd["options"]}
+    assert set(opts) == {"ticker", "tf", "mas", "volume"}
+    assert {c["value"] for c in opts["mas"]["choices"]} == {"house", "10-20-50", "off"}
+    assert opts["volume"]["type"] == 5 and not opts["volume"].get("required")
+    assert "EMA 9/20" in cmd["description"] and "10/20/50 SMA" not in cmd["description"]
+    assert len(cmd["description"]) <= 100 and all(len(o["description"]) <= 100 for o in cmd["options"])
+
+
+def test_house_url_pins_a_readable_intraday_window():
+    from api.services import discord_chart_house as house
+    from urllib.parse import urlparse, parse_qs
+    def q(tf):
+        return parse_qs(urlparse(house.build_render_url("NVDA", tf, None, base_url="https://x", token="t")).query)
+    assert q("5")["bars"] == ["110"] and q("15")["bars"] == ["90"] and q("30")["bars"] == ["80"]
+    assert "bars" not in q("60") and "bars" not in q("D") and "bars" not in q("W")   # page defaults stay
+
+
+def test_job_retries_a_failed_bars_fetch_once_before_saying_no_bars(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.setattr(di, "BARS_RETRY_DELAY_S", 0)
+    calls = []
+    daily = [{"t": 1700000000 + i * 86400, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(300)]
+    def bars_fn(ticker, tf, n):
+        calls.append(tf)
+        if tf == "D":
+            return daily
+        return None if calls.count("30") == 1 else daily[:100]     # first intraday pull misses, second lands
+    edits = []
+    def edit_fn(app_id, token, *, content, png=None, filename=None):
+        edits.append((content, png is not None))
+    render_fn = lambda ticker, tf, bars, **kw: b"PNG"
+    out = di.run_chart_job("1", "tok", di.ChartRequest("TQQQ", "30"), bars_fn=bars_fn, render_fn=render_fn, edit_fn=edit_fn)
+    assert out == "ok" and calls.count("30") == 2 and edits[-1] == ("TQQQ \u00b7 30 min", True)
+    # and when it misses twice, the reply says why it might have, not just "No bars"
+    calls.clear()
+    out = di.run_chart_job("1", "tok", di.ChartRequest("ZZZZ", "30"),
+                           bars_fn=lambda t, tf, n: daily if tf == "D" else None, render_fn=render_fn, edit_fn=edit_fn)
+    assert out == "no_bars" and "try again in a minute" in edits[-1][0]

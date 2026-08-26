@@ -96,6 +96,15 @@ def _b64url(obj) -> str:
 
 DEFAULT_OPTIONS = {"indicators": None, "ext": True, "stats": True}
 
+# Visible bars for intraday renders. The page's own default zoom counts
+# pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
+# extended hours, so the default squeezed a session's candles into a strip of
+# flat overnight bars (member: "intraday charts need to be readjusted"). With
+# extended hours on, 110 five-minute bars = ~9h = the pre-market plus the whole
+# regular session; 90 fifteen-minute bars = ~1.4 extended days; 80 thirty-minute
+# bars = ~2.5. Hourly keeps the page's own default (65 bars, about 4 days).
+INTRADAY_VISIBLE_BARS = {"5": 110, "15": 90, "30": 80}
+
 
 def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, token: str,
                      options: dict | None = None) -> str:
@@ -110,6 +119,8 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         # widget's Extended-hours switch. Explicit rather than inherited so a
         # bot chart never depends on whatever the saved setting happens to be.
         params["ext"] = 1 if opts["ext"] else 0
+        if tf in INTRADAY_VISIBLE_BARS:
+            params["bars"] = INTRADAY_VISIBLE_BARS[tf]
     if token:
         params["token"] = token
     if show_stats:
