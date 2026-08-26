@@ -21,7 +21,12 @@
 //                  binding (both DERIVED from the manifest, never listed here)
 //                  or like a declared input
 //   let:undefined  a binding used before it is bound, or bound to itself
-import { TABLE, KEY_RE, RECURRENCE_BINDINGS } from './parse'
+// ⚠️ THE EXTENSION IS LOAD-BEARING, not style. `tests/test_scan_definition.py`
+// boots these modules in RAW NODE (`await import(pathToFileURL(…))`), where an
+// extensionless specifier is `ERR_MODULE_NOT_FOUND` rather than a resolution —
+// and this module is now one hop from `pcf.js`, the one read door a lane would
+// boot to check a stored `compute.source` across lanes.
+import { TABLE, KEY_RE, RECURRENCE_BINDINGS } from './parse.js'
 
 export const LET_GUARDS = Object.freeze(['let:syntax', 'let:shadow', 'let:undefined'])
 

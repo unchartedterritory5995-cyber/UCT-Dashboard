@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 // ⭐ THE ONE PARSER AND THE ONE HASH, imported by the test for the same reason
 // the module imports them: a tree built any other way is a second grammar (D-A1),
 // and a hash typed here would be comparing this file's copy to itself.
-import { parseFormula, astHash, TABLE, KEY_RE, RECURRENCE_BINDINGS } from './parse'
-import { prepareSource, LET_GUARDS } from './letPrepass'
-import { readFormulaSource, detectDialect } from './pcf'
-import { validateDefinition } from '../defSchema'
+import { parseFormula, astHash, TABLE, KEY_RE, RECURRENCE_BINDINGS } from './parse.js'
+import { prepareSource, LET_GUARDS } from './letPrepass.js'
+import { readFormulaSource, detectDialect } from './pcf.js'
+import { validateDefinition } from '../defSchema.js'
 
 const LET_MACD = [
   'let fast = ema(close, 12)',
