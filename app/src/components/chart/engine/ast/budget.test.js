@@ -241,11 +241,19 @@ describe('the three caps are a closed set, declared once', () => {
     // ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL. A node-budget refusal, and a
     // lookback refusal with no session-anchored call in it, say nothing about
     // sessions — otherwise the clause is decoration rather than a reason.
-    const deepOffset = parseFormula(`close[${DEFAULT_BUDGET.maxLookback + 1}]`).ast
-    const plain = checkBudget(deepOffset, null)
-    expect(plain.ok).toBe(false)
-    expect(plain.guard).toBe('budget:lookback')
-    expect(plain.error).not.toMatch(/trading session/)
+    // ⛔ THE CONTROL CARRIES A CALL, and that is what makes it a control. A
+    // first version used `close[cap+1]` — no call at all — and a mutation that
+    // matched EVERY call rather than the session-anchored ones SURVIVED it in
+    // both lanes. `sma` is over the cap here and names no session, so a filter
+    // that stopped reading `lookback` would spell `sma()` in this message.
+    for (const src of [`sma(close, ${DEFAULT_BUDGET.maxLookback + 1})`,
+                       `close[${DEFAULT_BUDGET.maxLookback + 1}]`]) {
+      const plain = checkBudget(parseFormula(src).ast, null)
+      expect(plain.ok, src).toBe(false)
+      expect(plain.guard, src).toBe('budget:lookback')
+      expect(plain.error, src).not.toMatch(/trading session/)
+      expect(plain.error, src).not.toMatch(/sma\(\)/)
+    }
   })
 })
 

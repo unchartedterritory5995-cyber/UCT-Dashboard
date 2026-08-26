@@ -281,10 +281,18 @@ def test_a_session_anchored_call_SATURATES_the_lookback_budget():
     # ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL: a lookback refusal with no
     # session-anchored call in it says nothing about sessions, or the clause is
     # decoration rather than a reason.
-    deep = {"type": "offset", "value": cap + 1, "args": [close]}
-    plain = ast_budget.budget_result(deep, None)
-    assert not plain["ok"] and plain["guard"] == "budget:lookback"
-    assert "trading session" not in plain["error"], plain["error"]
+    # ⛔ ONE CONTROL CARRIES A CALL, and that is what makes it a control. The
+    # first version used only the bar offset -- no call at all -- and a mutation
+    # matching EVERY call rather than the session-anchored ones SURVIVED it in
+    # both lanes. ``sma`` is over the cap here and names no session, so a filter
+    # that stopped reading ``lookback`` would spell ``sma()`` in this message.
+    for tree in ({"type": "call", "name": "sma",
+                  "args": [close, {"type": "num", "value": cap + 1}]},
+                 {"type": "offset", "value": cap + 1, "args": [close]}):
+        plain = ast_budget.budget_result(tree, None)
+        assert not plain["ok"] and plain["guard"] == "budget:lookback"
+        assert "trading session" not in plain["error"], plain["error"]
+        assert "sma()" not in plain["error"], plain["error"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

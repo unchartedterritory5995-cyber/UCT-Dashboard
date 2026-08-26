@@ -1011,7 +1011,8 @@ def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     # is the point: "no bar precedes the anchor" is true of ONE SYMBOL'S HISTORY,
     # not of the tree. Refusing it by name would make one short-history symbol
     # reject a formula that is correct for the rest of the universe.
-    if isinstance(anchor, (int, float)) and not isinstance(anchor, bool)             and anchor < AVWAP_MIN_INSTANT:
+    if (isinstance(anchor, (int, float)) and not isinstance(anchor, bool)
+            and anchor < AVWAP_MIN_INSTANT):
         _refuse("resolve:window",
                 f"— avwap argument 0 is {anchor}, which is not a unix-second "
                 f"instant (the floor is {AVWAP_MIN_INSTANT}, 1990-01-01). A "
