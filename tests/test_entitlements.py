@@ -808,7 +808,20 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
 #: rejects it. The lane brief predicted "3 after both lanes merge"; the census
 #: says 2. If a future task moves a store read INTO that router, this constant
 #: moves with it — read the failure's path list, never a forecast.
-EXPECTED_DEFINITION_RESULT_ROUTES = 2
+#: ⭐ 2026-08-26 — 2 → 4, AND THE COUNT IS THE SMALLEST PART OF THE EDIT. W4a's
+#: `POST /api/scans/run` and `GET /api/scans/run/{job}` were passing this census
+#: VACUOUSLY: the cheap prefilter cleared the router (the word `scan_evaluator`
+#: appears three times in its own PROSE), so the router really was imported and
+#: AST-walked — and then `_serves_definition_results` resolved its one
+#: `api.services.screener.*` alias against `RESULT_STORES`, matched no key, and
+#: answered False for BOTH handlers. The census yielded two paths and neither was
+#: the route that computes and hands back hits. Bumping a number would have made
+#: that WORSE: a census that counts correctly today and still cannot see the
+#: route is the same defect wearing a bigger number. So the fix is the
+#: `scan_run` entry below, and the assertion that MATTERS is
+#: `test_the_census_SEES_every_route_that_hands_back_definition_RESULTS`, which
+#: names the paths.
+EXPECTED_DEFINITION_RESULT_ROUTES = 4
 
 #: The modules that OWN definition results. ⚠️ Each is checked to EXIST and to
 #: expose its read door below, so a rename empties the census LOUDLY instead of
@@ -818,7 +831,30 @@ RESULT_STORES = {
     "api.services.screener.scan_store": ("hits", "coverage", "join_clause"),
     "api.services.screener.scan_evaluator": ("evaluate_one", "run_sweep"),
     "api.services.definition_record": ("latest_evaluation",),
+    # ⭐ W4a's on-demand run. It does not READ a stored result — it COMPUTES one
+    # (through `scan_evaluator.evaluate_one` on a single-worker pool) and hands it
+    # back, which is the same thing to a member and the same thing to a toolkit.
+    # Two doors, and the difference between them is load-bearing: see
+    # `READBACK_DOORS`.
+    "api.services.screener.scan_run": ("submit_run", "job_status"),
 }
+
+#: ⛔ THE DOORS THAT ONLY HAND BACK AN ANSWER SOMEBODY ELSE ALREADY PRODUCED.
+#:
+#: The rule this file enforces is that a definition-result surface is
+#: entitlement-checked. For every producing door that means `Depends(
+#: limits_dependency)` ON THE ROUTE — that is where the caller's plan is read and
+#: handed to the evaluation. For a read-back door it does NOT: `scan_run`'s poll
+#: returns the hits of a job that was queued under the SUBMIT's toolkit, so
+#: re-reading the plan when the answer is handed back would be a second authority
+#: over one number, and a dependency declared there and never used would read as
+#: protection while protecting nothing.
+#:
+#: ⛔ SO A READ-BACK ROUTE IS NOT EXEMPT, IT IS PAIRED: the census still has to
+#: SEE it, and `test_EVERY_definition_results_route_is_covered_by_the_DERIVED_
+#: census` asserts that a covered PRODUCING route exists in the same module.
+#: An unpaired read-back is a hit list handed out under no plan at all.
+READBACK_DOORS = {"api.services.screener.scan_run.job_status"}
 
 
 def _dotted(func) -> str:
@@ -899,6 +935,60 @@ def _serves_definition_results(source: str, func_name: str, pkg: str) -> bool:
     return False
 
 
+def _doors_reached(source: str, func_name: str, pkg: str) -> set:
+    """The NAMED result-store doors this handler reaches, dotted.
+
+    ⚠️ RECOGNITION AND CLASSIFICATION ARE SEPARATE QUESTIONS AND ARE ANSWERED
+    SEPARATELY. `_serves_definition_results` decides whether a route is a
+    definition-result surface at all, and it is deliberately BLUNT: binding a
+    store module counts, because from there any door is one attribute away. This
+    answers the narrower "which doors", and it is used for ONE thing — telling a
+    producing route from a read-back one.
+
+    ⛔ AN EMPTY ANSWER MEANS "COULD NOT TELL", AND THE COVERAGE RULE READS THAT AS
+    PRODUCING. A handler this cannot resolve is therefore held to the STRICT rule,
+    so a future shape this walk does not understand fails loudly rather than
+    slipping into the lenient half.
+    """
+    try:
+        tree = pyast.parse(source)
+    except SyntaxError:                                      # pragma: no cover
+        return set()
+    inside, handler = set(), None
+    for fn in pyast.walk(tree):
+        if isinstance(fn, (pyast.FunctionDef, pyast.AsyncFunctionDef)):
+            if fn.name == func_name and handler is None:
+                handler = fn
+            for n in pyast.walk(fn):
+                inside.add(id(n))
+    if handler is None:
+        return set()
+    top = [n for n in pyast.walk(tree)
+           if isinstance(n, (pyast.Import, pyast.ImportFrom)) and id(n) not in inside]
+    aliases = _alias_map(top, pkg)
+    aliases.update(_alias_map(
+        [n for n in pyast.walk(handler)
+         if isinstance(n, (pyast.Import, pyast.ImportFrom))], pkg))
+
+    out = set()
+    for local, target in aliases.items():
+        # a door imported BY NAME (`from ...scan_run import job_status`)
+        if "." in target:
+            head, attr = target.rsplit(".", 1)
+            if attr in RESULT_STORES.get(head, ()) and any(
+                    isinstance(n, pyast.Name) and n.id == local
+                    for n in pyast.walk(handler)):
+                out.add(target)
+        # a door reached THROUGH the module object (`scan_run.job_status(...)`)
+        for node in pyast.walk(handler):
+            if (isinstance(node, pyast.Attribute)
+                    and isinstance(node.value, pyast.Name)
+                    and node.value.id == local
+                    and node.attr in RESULT_STORES.get(target, ())):
+                out.add(f"{target}.{node.attr}")
+    return out
+
+
 def _mounted_router_modules() -> set:
     """Every `api.routers.X` whose `.router` reaches `include_router` in `main.py`.
 
@@ -936,8 +1026,32 @@ def _mounted_router_modules() -> set:
     return out
 
 
+def _result_routes_in(source: str, router) -> list:
+    """``(route, doors)`` for one router — the census's per-router step, EXTRACTED.
+
+    ⭐ EXTRACTED SO A CONTROL CAN DRIVE THE REAL DECISION. Everything that decides
+    whether a route is covered lives here: the cheap prefilter, the AST detector
+    and the door resolution. `test_the_census_would_CATCH_a_planted_UNGATED_route`
+    feeds this a router built in the test and its own source, so the control
+    exercises the shipped code path rather than a re-implementation of it — which
+    is what a census this file already got wrong once is owed.
+    """
+    if not any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES):
+        return []                          # cheap prefilter; the AST decides below
+    out = []
+    for route in getattr(router, "routes", []):
+        endpoint = getattr(route, "endpoint", None)
+        if endpoint is None or not getattr(route, "methods", None):
+            continue
+        name = getattr(endpoint, "__name__", "")
+        if name and _serves_definition_results(source, name, "api.routers"):
+            out.append((route, _doors_reached(source, name, "api.routers")))
+    return out
+
+
 def _definition_result_routes() -> list:
-    """Every MOUNTED route whose handler reads the definition-result store.
+    """Every MOUNTED route whose handler reads the definition-result store, as
+    ``(route, doors)``.
 
     ⛔ DERIVED, NEVER TYPED — twice over. The router modules come off the
     directory; "is it mounted" comes off an AST walk of `main.py`; and the routes
@@ -962,16 +1076,10 @@ def _definition_result_routes() -> list:
             continue
         source = path.read_text(encoding="utf-8")
         if not any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES):
-            continue                       # cheap prefilter; the AST decides below
-        import importlib
+            continue                       # cheap prefilter, repeated here so an
+        import importlib                   # unmatched router is never IMPORTED
         module = importlib.import_module(module_name)
-        for route in getattr(module.router, "routes", []):
-            endpoint = getattr(route, "endpoint", None)
-            if endpoint is None or not getattr(route, "methods", None):
-                continue
-            name = getattr(endpoint, "__name__", "")
-            if name and _serves_definition_results(source, name, "api.routers"):
-                out.append(route)
+        out.extend(_result_routes_in(source, module.router))
     return out
 
 
@@ -997,7 +1105,7 @@ def test_the_census_SEES_every_route_that_hands_back_definition_RESULTS():
     functions of the run service a request may reach, and the census resolves
     which of them each handler actually names.
     """
-    paths = {r.path for r in _definition_result_routes()}
+    paths = {r.path for r, _ in _definition_result_routes()}
     assert "/api/scans/run" in paths, (
         "the on-demand run route is not in the definition-results census: "
         f"{sorted(paths)}")
@@ -1009,16 +1117,109 @@ def test_the_census_SEES_every_route_that_hands_back_definition_RESULTS():
 def test_EVERY_definition_results_route_is_covered_by_the_DERIVED_census():
     """A route that serves DEFINITION RESULTS must carry the entitlement, and the
     count of those is asserted too — so a further route lands covered rather than
-    riding in. ⛔ THE INTEGER LIVES IN THIS FILE'S CONSTANT."""
+    riding in. ⛔ THE INTEGER LIVES IN THIS FILE'S CONSTANT.
+
+    ⭐ TWO RULES SINCE 2026-08-26, BECAUSE THERE ARE NOW TWO SHAPES. A route that
+    reaches a PRODUCING door reads the caller's plan itself. A route that reaches
+    only a `READBACK_DOORS` entry hands back an answer already produced under that
+    plan, and is required to be PAIRED with a covered producing route in the same
+    module — never simply skipped. ⛔ AND "COULD NOT TELL WHICH DOOR" IS TREATED AS
+    PRODUCING (`_doors_reached` returning empty), so the lenient half is reachable
+    only by a resolution that actually succeeded.
+    """
     routes = _definition_result_routes()
     assert len(routes) == EXPECTED_DEFINITION_RESULT_ROUTES, (
         "the set of routes serving definition results changed: "
-        + str(sorted(r.path for r in routes))
+        + str(sorted(r.path for r, _ in routes))
         + ". Update EXPECTED_DEFINITION_RESULT_ROUTES DELIBERATELY, and give the "
           "new route `Depends(limits_dependency)` — a whole-market scan result is "
           "the thing a toolkit sells.")
-    for route in routes:
+
+    producing = [(r, d) for r, d in routes if not d or (d - READBACK_DOORS)]
+    readback = [(r, d) for r, d in routes if d and not (d - READBACK_DOORS)]
+    assert producing, (
+        "every definition-result route resolved to a read-back door — the strict "
+        "half of this rule is exercising nothing")
+
+    for route, _ in producing:
         assert ent.limits_dependency in _dependency_calls(route), route.path
+
+    covered = {door.rsplit(".", 1)[0] for route, doors in producing
+               if ent.limits_dependency in _dependency_calls(route)
+               for door in doors}
+    for route, doors in readback:
+        modules = {d.rsplit(".", 1)[0] for d in doors}
+        assert modules <= covered, (
+            f"{route.path} hands back definition results from {sorted(modules)} "
+            "and no route that PRODUCES them under the caller's toolkit is "
+            "covered — the hits were computed under no plan at all")
+
+
+def test_the_census_would_CATCH_a_planted_UNGATED_definition_result_route():
+    """⭐ THE CONTROL, AND IT DRIVES THE SHIPPED DECISION, NOT A COPY OF IT.
+
+    ⛔ A CENSUS THAT COUNTS CORRECTLY TODAY IS NOT A CENSUS. This one yielded a
+    plausible number for weeks while structurally unable to SEE `POST
+    /api/scans/run`; nothing went red, because the only thing being asserted was
+    a count that happened to match. So a route is PLANTED here — a real
+    `APIRouter` with real dependencies, and the source text the walk reads —
+    and pushed through `_result_routes_in`, which is the same function the census
+    itself calls per router. Three claims:
+
+      1. the planted UNGATED route is RECOGNISED (prefilter → AST → door), and
+      2. the coverage rule REPORTS it, and
+      3. the same route WITH `Depends(limits_dependency)` is recognised and
+         reported clean — so #2 is the gate answering, not the walk failing.
+    """
+    from fastapi import APIRouter
+
+    source = (
+        "from fastapi import APIRouter, Depends\n"
+        "from api.services.screener import scan_run\n"
+        "router = APIRouter()\n"
+        "@router.get('/api/planted/ungated')\n"
+        "def planted_ungated(user=Depends(get_current_user_with_plan)):\n"
+        "    return scan_run.submit_run(user['id'], 'd1')\n"
+        "@router.get('/api/planted/gated')\n"
+        "def planted_gated(limits=Depends(limits_dependency)):\n"
+        "    return scan_run.submit_run('u', 'd1')\n")
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/ungated")
+    def planted_ungated(user=Depends(get_current_user_with_plan)):  # pragma: no cover
+        return {}
+
+    @planted.get("/api/planted/gated")
+    def planted_gated(limits=Depends(ent.limits_dependency)):       # pragma: no cover
+        return {}
+
+    found = dict(
+        (r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert set(found) == {"/api/planted/ungated", "/api/planted/gated"}, (
+        f"the census did not RECOGNISE a planted definition-result route: {found}")
+    assert all(d == {"api.services.screener.scan_run.submit_run"}
+               for d in found.values()), found
+
+    uncovered = sorted(r.path for r, doors in _result_routes_in(source, planted)
+                       if (not doors or (doors - READBACK_DOORS))
+                       and ent.limits_dependency not in _dependency_calls(r))
+    assert uncovered == ["/api/planted/ungated"], (
+        "the coverage rule did not report the planted ungated route (or reported "
+        f"the gated one too): {uncovered}")
+
+
+def test_the_census_prefilter_does_not_DROP_a_router_before_the_AST_sees_it():
+    """⚠️ THE OTHER HALF OF THE PLANT. `_result_routes_in` opens with a raw
+    substring test, and a router it drops is never parsed, never imported and
+    never counted — a whole class of route that would be invisible without ever
+    failing anything. It is checked against the routers that really carry these
+    surfaces, and shown to still DROP one that carries none.
+    """
+    for name in ("scan_run", "scan_results", "definition_record"):
+        source = (ROUTERS / f"{name}.py").read_text(encoding="utf-8")
+        assert any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES), name
+    assert not _result_routes_in("router = None\nSTORE = 'nothing here'\n", None)
 
 
 # ─── and the SAME route, driven ───────────────────────────────────────────────
