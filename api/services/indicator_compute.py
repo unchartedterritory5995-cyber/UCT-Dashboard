@@ -1310,6 +1310,158 @@ def compute_avwap(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
     return _round_series(compute_avwap_raw(bars, anchor), 4)
 
 
+# ─── THE BAR CLOCK — the closed table's ``clock`` section ─────────────────────
+#
+# ⭐ THE PYTHON SIBLING OF ``indicators.js::computeClock``, and it lives HERE for
+# the same reason every other compute in this file does: ``ast_interpret`` owns
+# no maths, so a private calendar there would be a second authority over values
+# the two lanes are required to agree on at 1e-9.
+#
+# ⚠️ NO ``compute_clock`` DELIVERY WRAPPER, DELIBERATELY. The rounding layer at
+# the top of this module exists because two live consumers compare indicator
+# values against user thresholds; a calendar field is an integer already and
+# rounding it would be a wrapper that cannot change anything, which is exactly
+# the kind of ceremony a reader later mistakes for a meaningful boundary.
+
+#: The timeframe codes this platform ships, and the ones that are intraday.
+#:
+#: ⛔ ANYTHING ELSE IS NOT CLASSIFIED, IT IS REFUSED — see the same two lists in
+#: ``indicators.js``, which cannot import the manifest (``interpret.test.js``
+#: pins it as a leaf with no imports at all), so the codes are literals in each
+#: lane. That is a hand copy and the only honest answer to a hand copy is to
+#: MEASURE it: ``tests/fixtures/ast/clock_parity.json``'s ``tf_booleans`` block
+#: probes every code and five NON-codes through both lanes.
+CLOCK_INTRADAY_TFS = ("1", "5", "15", "30", "60")
+CLOCK_TIMEFRAMES = CLOCK_INTRADAY_TFS + ("D", "W", "M")
+
+#: The eight columns that read the bar's ``t`` — and therefore the eight the
+#: unit gate refuses together.
+CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
+                      "hour", "minute", "sessionfirst")
+
+#: Every column ``compute_clock`` produces. The CLOSED TABLE is the authority
+#: over which of these names a formula may spell; this module is the authority
+#: over what each one MEANS, and ``ast_interpret`` raises by name when the two
+#: disagree.
+CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
+                                      "isweekly", "ismonthly")
+
+
+def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[MaybeNum]]:
+    """The clock columns for a bar series, aligned to ``bars``.
+
+    Mirrors ``computeClock`` in ``indicators.js``, value for value.
+
+    ``time`` is the bar's own ``t`` IN UNIX SECONDS — this platform's unit
+    everywhere a bar carries one — and NOT Pine's milliseconds.
+
+    ``dayofweek`` is 1 on Sunday through 7 on Saturday, which IS Pine's
+    convention (``dayofweek.sunday == 1``) and deliberately not
+    ``datetime.weekday()``'s 0=Monday. The table's whole import story is Pine,
+    and two conventions for one name is the defect ``williams_r`` /
+    ``williamsR`` already cost this repo once.
+
+    ⛔ THE UNIT GATE IS ``compute_vwap_raw``'S, AND IT IS PARTIAL ON PURPOSE.
+    ``bars_sqlite`` stores daily/weekly/monthly ``t`` as ``YYYYMMDD`` INTS and
+    ``indicator_alert_evaluator`` passes them through, and ``20250101`` read as
+    unix seconds is 1970-08-23. So a series that is not in seconds refuses the
+    eight time-derived columns, all-or-nothing — a per-bar skip would leave the
+    survivors in one ET day, which IS the shape being refused — and leaves
+    ``barindex`` and the four timeframe booleans alone, because those read no
+    ``t`` at all and a guard firing on them would refuse a column it has no
+    reason to doubt.
+
+    ⛔ AND AN ABSENT ``tf`` FAILS CLOSED, NEVER TO A DEFAULT. A guessed ``"D"``
+    makes ``isdaily`` a confident 1 on a 5-minute chart, which is a wrong answer
+    wearing a right one's clothes; ``None`` is "nobody told me".
+    """
+    n = len(bars)
+    cols: Dict[str, List[MaybeNum]] = {name: [None] * n for name in CLOCK_COLUMNS}
+    if n == 0:
+        return cols
+
+    # The timeframe half reads no bar, so it is decided ONCE and written flat.
+    # ``known`` is a MEMBERSHIP TEST over the declared codes, never a parse.
+    known = tf in CLOCK_TIMEFRAMES
+    for name, code in (("isintraday", None), ("isdaily", "D"),
+                       ("isweekly", "W"), ("ismonthly", "M")):
+        if not known:
+            continue
+        hit = (tf in CLOCK_INTRADAY_TFS) if code is None else (tf == code)
+        cols[name] = [1.0 if hit else 0.0] * n
+
+    # ``barindex`` is the loop counter and nothing else. It is here rather than
+    # in ``ast_interpret`` so the clock has ONE owner: a second place that knew
+    # what bar number a bar is would be a second authority over a compared value.
+    cols["barindex"] = [float(i) for i in range(n)]
+
+    # THE UNIT GATE — before ``_et_zone()``, so a refused series costs no tz
+    # lookup, and before any accumulation so the answer is all-or-nothing.
+    for bar in bars:
+        t = bar.get("t") if isinstance(bar, dict) else None
+        if isinstance(t, bool) or not isinstance(t, (int, float)) or t < VWAP_MIN_INSTANT:
+            return cols
+
+    zone = _et_zone()
+    time_col: List[MaybeNum] = [None] * n
+    year: List[MaybeNum] = [None] * n
+    month: List[MaybeNum] = [None] * n
+    dom: List[MaybeNum] = [None] * n
+    dow: List[MaybeNum] = [None] * n
+    hour: List[MaybeNum] = [None] * n
+    minute: List[MaybeNum] = [None] * n
+    first: List[MaybeNum] = [None] * n
+
+    # One-entry memo on the UTC hour, exactly as ``compute_vwap_raw`` does and
+    # EXACT for the same reason: every ``America/New_York`` offset is a whole
+    # number of hours and every transition lands on a whole UTC hour, so no ET
+    # field down to the hour can change inside one UTC hour. ⚠️ THE MINUTE IS
+    # NOT IN THE MEMO — it changes inside the hour by definition — so it is
+    # derived from the instant in hand rather than formatted.
+    memo_hour = None
+    memo = None
+    prev_day = -1
+    for i, bar in enumerate(bars):
+        t = bar["t"]
+        utc_hour = int(t // 3600)
+        if utc_hour == memo_hour:
+            y, mo, d, wd, h = memo
+        else:
+            dt = datetime.fromtimestamp(t, zone)
+            # ``isoweekday()`` is 1=Monday..7=Sunday; Pine's day is
+            # 1=Sunday..7=Saturday, so Sunday's 7 wraps to 1 and every other day
+            # shifts up by one. Written as ``% 7 + 1`` so there is no table.
+            y, mo, d, wd, h = (dt.year, dt.month, dt.day,
+                               dt.isoweekday() % 7 + 1, dt.hour)
+            memo_hour = utc_hour
+            memo = (y, mo, d, wd, h)
+        time_col[i] = float(t)
+        year[i] = float(y)
+        month[i] = float(mo)
+        dom[i] = float(d)
+        dow[i] = float(wd)
+        hour[i] = float(h)
+        # ET minutes ARE UTC minutes: every ET offset is a whole number of
+        # hours. Derived rather than formatted, which keeps the memo exact.
+        minute[i] = float(int((t - utc_hour * 3600) // 60))
+        # The ET calendar day as ONE number, so the comparison is numeric and no
+        # string key is built per bar. ``sessionfirst`` is 1 on the first bar of
+        # the series by construction: no previous bar means no previous day.
+        day = y * 10000 + mo * 100 + d
+        first[i] = 0.0 if day == prev_day else 1.0
+        prev_day = day
+
+    cols["time"] = time_col
+    cols["year"] = year
+    cols["month"] = month
+    cols["dayofmonth"] = dom
+    cols["dayofweek"] = dow
+    cols["hour"] = hour
+    cols["minute"] = minute
+    cols["sessionfirst"] = first
+    return cols
+
+
 def compute_atr_bands_raw(
     bars: List[dict],
     period: int = 14,

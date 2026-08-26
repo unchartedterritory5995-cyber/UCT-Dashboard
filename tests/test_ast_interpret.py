@@ -112,10 +112,13 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         "operators": {"@@": {"arity": 2}},
         "functions": {"zzz_probe_fn": {"args": ["series"], "lookback": 3,
                                        "sentence": "probe {0}"}},
-        # ⭐ THE FOURTH SECTION IS PART OF THE SHAPE, so the probe carries one:
-        # `load_manifest` refuses a manifest missing any of the four, and a probe
-        # that skipped this one would be proving the reader reads a document the
-        # product could never ship.
+        # ⭐ EVERY DECLARED SECTION IS PART OF THE SHAPE, so the probe carries
+        # one of each: `load_manifest` refuses a manifest missing ANY section in
+        # `ast_table.SECTIONS`, and a probe that skipped one would be proving the
+        # reader reads a document the product could never ship. The `clock`
+        # entry joined them with tableVersion 2.
+        "clock": {"zzz_probe_clock": {
+            "lookback": 0, "yields": "num", "sentence": "the probe clock value"}},
         "scalars": {"zzz_probe_scalar": {
             "source": {"store": "zzz_store", "column": "zzz_probe_scalar"},
             "as_of": {"column": "zzz_dated_by", "grain": "date"},
@@ -128,9 +131,14 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         got = ast_table.load_manifest(tmp)
         assert set(got["functions"]) == {"zzz_probe_fn"}
         assert ast_table.declared_names(got) == {
-            "zzz_probe_series", "@@", "zzz_probe_fn", "zzz_probe_scalar"}
+            "zzz_probe_series", "zzz_probe_clock", "@@", "zzz_probe_fn",
+            "zzz_probe_scalar"}
+        # ⭐ AND THE CLOCK IS INSIDE THE BAR FLOOR, NOT BESIDE IT. A clock value
+        # varies down the replay series exactly as `close` does, so a bar-corpus
+        # case can measure it and the bar corpus therefore OWES it one.
         assert ast_table.bar_names(got) == {
-            "zzz_probe_series", "@@", "zzz_probe_fn"}
+            "zzz_probe_series", "zzz_probe_clock", "@@", "zzz_probe_fn"}
+        assert ast_table.clock_names(got) == {"zzz_probe_clock"}
         assert ast_table.series_field("zzz_probe_series", got) == "zzz"
         assert ast_table.scalar_as_of("zzz_probe_scalar", got)["column"] == "zzz_dated_by"
         assert ast_table.yields_of("zzz_probe_scalar", got) == "num"
@@ -203,9 +211,16 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # ⭐ 108 -> 111 (2026-08-25): the three numerics of the 8/24 candle library
     # (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared; the twelve
     # TEXT labels beside them refused in `_scalars_excluded`. Bar half unmoved.
-    assert len(ast_table.bar_names()) == 70, len(ast_table.bar_names())
+    # ⭐ 70 -> 83 IS THE `clock` SECTION (tableVersion 2, 2026-08-26) AND IT IS
+    # THE FIRST TIME THE BAR HALF MOVED FOR SOMETHING THAT IS NOT A FUNCTION.
+    # Thirteen bar-clock values -- the seven ET wall-clock fields, `sessionfirst`,
+    # `barindex` and the four timeframe booleans -- declared as a FIFTH section
+    # that rides the existing `series` node, so no node type, no persisted key
+    # and no `astHash` moved. The scalar half is untouched at 111, which is the
+    # whole reason these are two assertions and not one total.
+    assert len(ast_table.bar_names()) == 83, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 181, f"the table declares {len(declared)} names, not 181"
+    assert len(declared) == 194, f"the table declares {len(declared)} names, not 194"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

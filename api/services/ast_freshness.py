@@ -97,6 +97,19 @@ def _sections(opts: Optional[Dict[str, Any]]):
             opts.get("inputs") or {})
 
 
+def _clock_section(opts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The manifest's ``clock`` section (tableVersion 2).
+
+    ⚠️ ITS OWN READER RATHER THAN A FOURTH ELEMENT OF ``_sections``. Three
+    callers unpack that tuple by arity; widening it would make this additive
+    change a breaking one for two functions that have nothing to say about the
+    clock.
+    """
+    opts = opts or {}
+    table = opts.get("table") or TABLE
+    return table.get("clock") or {}
+
+
 def scalars_in(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Set[str]:
     """The TABLE-DECLARED SCALARS this tree names.
 
@@ -178,6 +191,7 @@ def freshness_for(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str,
     the wrong-door defect this branch has found four separate times.
     """
     series_names, scalars, inputs = _sections(opts)
+    clock = _clock_section(opts)
     reasons: List[str] = []
     found: Set[str] = set()
     cadences: Set[str] = set()
@@ -203,6 +217,15 @@ def freshness_for(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str,
             continue
         name = node.get("name")
         if isinstance(name, str) and name in series_names:
+            continue
+        # ⭐ A CLOCK LEAF IS ``live``, AND IT IS THE SAME ``continue`` A PRICE
+        # FIELD GETS -- not a widening of the scalar branch. ``hour`` is read off
+        # the bar being drawn, exactly as ``close`` is: it carries no cadence,
+        # nothing dates it, and it is a DIFFERENT number at every bar. The scalar
+        # branch below is about a value identical at every bar and up to a day
+        # old; folding the clock into it would brand every intraday session
+        # filter ``as-of-snapshot`` and tell a member a live signal is stale.
+        if isinstance(name, str) and name in clock:
             continue
         if isinstance(name, str) and name in scalars:
             decl = scalars[name]

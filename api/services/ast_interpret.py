@@ -48,8 +48,8 @@ import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
-    TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION, SERIES_SECTION,
-    recurrences, recurrence_bindings, is_pointwise,
+    TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
+    SERIES_SECTION, recurrences, recurrence_bindings, is_pointwise,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -61,7 +61,10 @@ from api.services.ast_table import (
 # implementation and a second authority over one value.
 # ``closedTable.json::_functions_indicators`` records the decision.
 #
-# ⚠️ THE `_raw` FORMS, ALWAYS. The delivery wrappers round (2dp for RSI, 4dp for
+# ⚠️ THE `_raw` FORMS, ALWAYS -- except ``compute_clock``, which HAS no delivery
+# wrapper because a calendar field is an integer already and a rounding layer
+# that cannot change anything is ceremony a later reader mistakes for a boundary.
+# The delivery wrappers round (2dp for RSI, 4dp for
 # ATR ...) because two live consumers compare those numbers against user
 # thresholds; a formula composes values and then compares, so rounding here would
 # put a half-ulp step inside every expression -- and it would break the 1e-9
@@ -70,6 +73,7 @@ from api.services.indicator_compute import (
     compute_adx_raw,
     compute_atr_raw,
     compute_cci_raw,
+    compute_clock,
     compute_donchian_raw,
     compute_ichimoku_raw,
     compute_macd_raw,
@@ -1261,7 +1265,8 @@ def node_count(ast: Any) -> int:
 def interpret(ast: Any, bars: List[dict],
               inputs: Optional[Mapping[str, Any]] = None,
               budget: Optional[Mapping[str, Any]] = None,
-              scalars: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
+              scalars: Optional[Mapping[str, Any]] = None,
+              opts: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
     """Evaluate a canonical AST over bars → one aligned column of ``len(bars)``.
 
     :param ast:    a canonical tree (``parse.js::canonicalise``'s output)
@@ -1273,11 +1278,25 @@ def interpret(ast: Any, bars: List[dict],
     :param scalars: this SYMBOL's values for the table's declared scalars. Every
                    declared name is seeded whether or not it appears here; an
                    absent or unusable value seeds a NaN column.
+    :param opts:   what the CALLER knows that the tree and the bars do not.
+                   Today that is one key, ``tf`` — the timeframe these bars are
+                   — and the clock's four timeframe booleans are its only
+                   readers.
     :returns:      a list exactly ``len(bars)`` long, ``None`` where not computable
 
     Raises ``TableRefusal`` for anything the table refuses. Everything else — a
     ``RecursionError`` from a tree deep enough to exhaust the stack, say — is NOT
     a refusal and must never be caught and relabelled as one.
+
+    ⭐⭐ ``opts`` IS OPTIONAL AND TRAILING, AND IT IS THE WHOLE tableVersion-2
+    INTERFACE CHANGE. Every caller written before it is unaffected — the
+    signature is the cross-lane interface and the JS lane grew the SAME sixth
+    argument on the same day. ⛔ AND ITS ABSENCE FAILS CLOSED: with no ``tf``,
+    ``isintraday`` and its three siblings are NOT COMPUTABLE, never 0 and never
+    a guessed default. A caller that has a timeframe and drops it therefore
+    produces a visibly unanswered column rather than a confident wrong one,
+    which is what makes the two threading hand-backs (``nativeRegistry.js`` and
+    ``scan_evaluator.py``) safe to land separately from this.
     """
     # ⚠️ IMPORTED HERE RATHER THAN AT MODULE LEVEL, AND IT IS THE CYCLE, NOT A
     # STYLE. ``ast_budget`` imports THIS module's ``max_lookback`` / ``node_count``
@@ -1324,6 +1343,40 @@ def interpret(ast: Any, bars: List[dict],
             col[i] = _number(v) if _is_number(v) else NAN
         scope[name] = col
 
+    # ⭐ THE CLOCK (tableVersion 2). Seeded from ``compute_clock`` exactly the
+    # way the indicator functions bind to ``compute_rsi_raw``: not one line of
+    # calendar arithmetic lives in this file, because a private one would be a
+    # second authority over values the two lanes are held equal on at 1e-9.
+    #
+    # ⛔ THE MANIFEST DECIDES WHICH NAMES EXIST; ``compute_clock`` DECIDES WHAT
+    # EACH ONE MEANS; A DISAGREEMENT RAISES BY NAME. Seeding a NaN column for a
+    # declared name the maths has no column for would be a clock that reads "not
+    # computable" on every bar of every symbol forever, with nothing red
+    # anywhere — the exact silence this table's floors exist to break. A
+    # ``ValueError`` because it is a WIRING defect (somebody edited the manifest
+    # without the maths), not a formula the table refuses.
+    #
+    # ⚠️ COMPUTED EAGERLY, LIKE THE SERIES COLUMNS, AND THAT COSTS SOMETHING
+    # HONEST: thirteen columns per call, for a formula that may name none of
+    # them. It is not made conditional on the tree because ``scope`` is also
+    # what the shadow check reads and what ``resolve:name`` lists — a clock name
+    # seeded only when it is used would let an input named ``hour`` shadow it on
+    # every OTHER formula, silently. The bounded cost is real: the unit gate
+    # short-circuits before any zone work (which is the daily/scan case), and
+    # the wall-clock path memoises on the UTC hour.
+    clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+    for name in TABLE.get(CLOCK_SECTION) or {}:
+        col = clock_cols.get(name)
+        if col is None:
+            raise ValueError(
+                f"interpret: the table declares the clock name {name!r} and "
+                f"`indicator_compute.compute_clock` produces no such column "
+                f"(it produces {', '.join(sorted(clock_cols))}). The manifest is "
+                "the authority over WHICH clock names exist and the maths over "
+                "what each MEANS; seeding NaN here would make a declared name "
+                "read `not computable` on every bar forever.")
+        scope[name] = [NAN if v is None else float(v) for v in col]
+
     # ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
     # RESOLVES — an absent value seeds a NaN column, exactly like a bar with a
     # missing field ("a missing field is NOT a price of zero; it is a bar we
@@ -1361,6 +1414,7 @@ def interpret(ast: Any, bars: List[dict],
             raise ValueError(
                 f"interpret: the input {name!r} shadows a table name. The table "
                 f"declares {_declared(TABLE[SERIES_SECTION])}, "
+                f"{_declared(TABLE.get(CLOCK_SECTION) or {})}, "
                 f"{_declared(TABLE[FUNCTIONS_SECTION])} and "
                 f"{_declared(TABLE[SCALARS_SECTION])}.")
         # Only finite numbers are seeded. An input that is a callable, an object

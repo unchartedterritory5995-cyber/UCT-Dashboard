@@ -13,6 +13,19 @@
     "atr_of_hlc": "4dddeefee0023120fd6aaea12111274fbb937a673f6369817419650c26a45b4c",
     "bounds_inclusive": "a3320dbb6668317a3f8b83120bdf5349450ef54e9fb86388b7ec2e4ec4ffac81",
     "cci_20": "b6e6a56d07f2b75e50b4fa941a963bfac25fad7ae6a304f0ddc6392602cf449a",
+    "clock_barindex": "f1dbb6b765ce566e3e03f7c6c80339efdb4549bd4a44928197f6d1d131e5ea00",
+    "clock_dayofmonth": "a725bf5320a7298d0a4a0c7a15b9c49a4a24eb08191987598d56734403b4c884",
+    "clock_dayofweek": "3955bfdf1510f7cde167f3fb708d2a64e7e55035882ed8d05db2bb4514e6335c",
+    "clock_hour": "f99c89de215797eb4e6d510d67e98c645f3512ff3ed36aeb43cbcb30cdf7a071",
+    "clock_isdaily": "eed10dc491eec8aef9111252bcbdb7c0caafb2d67e4053b977dd383741abcfb2",
+    "clock_isintraday": "8066825b8feea0ebdf3d5135f61f66f967978aa08fd64cba4a517620114c4042",
+    "clock_ismonthly": "d1cdf2ba3d5b3eb5bb3559d14454043e642fdc266ffe836fef4c5f86c5e0cf8b",
+    "clock_isweekly": "f8b6ce33ce51c01849cdc2edc666f70cef9c92cd3d127281cd265855abcafd5f",
+    "clock_minute": "06ad0e0e5119693b42780e173b897f98fd5e7e0bf6ff90df35ab2950b57e5730",
+    "clock_month": "55e80a80e9245f11a2fa7da809a5808c5798fc97a7591a4da3273cb7998292b7",
+    "clock_sessionfirst": "b1a195b9230f2ed1c9a3607da3f39a1a9d2e8e81e731c92d536917220facd022",
+    "clock_time": "345f7e86f9d90db218792c1453a5df3af94a8e14c25e52184ef145270c949cc1",
+    "clock_year": "2ec75d79aa3f15a113cad8ab6c14ca8d1a11a8f17274ce6ff59244d0b96fa48d",
     "compare_with_nan": "545c9512dc4c9f4d628c46d3e023067596f8eb50f174a72bac8e8951eaa7c8c4",
     "cos_of_close": "c8e179e08c4ce6530d8270b417e93d05578fcc4a328ff8985788bbc1176dd41a",
     "cross": "5eb2c225179737b4c8b7e631d0c7eee4f3db7033a93af6dbf7190bdaf40da53e",
@@ -120,6 +133,28 @@
       "proof": "The tool's own reconciliation printed `vs the previous log: 0 MOVED [], 22 added, 0 removed`, read off the committed log rather than eyeballed as a diff (`python tools/ast_conformance.py --record --force`; printed non-vacuity line: `non-vacuity : 40059 finite of 44583 rows, every case non-empty, 70 table entries covered`).",
       "what_moved": "0 moved, 22 added, 0 removed",
       "why": "backlog: 22 corpus cases added without recording by cb81c15d4 (pure-math), 22c96a2f1 (sum/dev), 6e44c8b01 (adx_trend_strength) -- recorded here, NOT a Wave 5 change. Recording required exempting the 6 declared-allNaN domain-error cases (the pure-math block's sqrt/ln/exp/pow/mod/sinh domain-error cases -- sqrt_of_a_negative, ln_of_zero, exp_overflow, pow_fractional_of_negative, mod_by_zero, sinh_overflow) from the recorder's own vacuity guard in tools/ast_conformance.py, which could not previously tell a DECLARED all-NaN case (both lanes correctly agreeing on a domain error) from a SILENTLY blind one; a converse check was added alongside it -- a declared-allNaN case that produces any finite row now refuses by name."
+    },
+    {
+      "at_head": "39cd60789f8fbec2c738ab34ba522df92dda0f18",
+      "what_moved": "NOTHING MOVED. 0 of the 77 pre-existing digests changed, 0 were dropped, and 13 were added, so the log went 77 -> 90 per-ast digests over the SAME 579 bars at the same 1e-9. `bars`, `bar_count` and `rel_tol` are byte-identical. That is the load-bearing half of this entry: the `clock` section added a FIFTH manifest section and a sixth `interpret` argument and touched no existing evaluation path — it added no node type, so every stored `astHash` is unmoved, and the new `opts` argument is optional and trailing, so all 77 existing cases are evaluated byte-identically to before. An unmoved digest set is the only evidence of that anybody can re-run.",
+      "added": [
+        "clock_barindex",
+        "clock_dayofmonth",
+        "clock_dayofweek",
+        "clock_hour",
+        "clock_isdaily",
+        "clock_isintraday",
+        "clock_ismonthly",
+        "clock_isweekly",
+        "clock_minute",
+        "clock_month",
+        "clock_sessionfirst",
+        "clock_time",
+        "clock_year"
+      ],
+      "moved": [],
+      "why": "tableVersion 2: the `clock` section — 13 bar-clock values a formula may spell (`time`, `year`, `month`, `dayofmonth`, `dayofweek`, `hour`, `minute`, `sessionfirst`, `barindex`, `isintraday`, `isdaily`, `isweekly`, `ismonthly`), one bar-corpus case each because `assert_corpus_covers_the_table` derives its floor from the manifest and a clock entry with no case is a name whose two lanes may already disagree with every gate green. ⛔ THESE ARE THE FIRST CASES IN THIS LOG WHOSE ANSWER DOES NOT COME FROM A PRICE. Every other row is one formula written twice; these are two independent readers of the IANA database (`Intl.DateTimeFormat` against `zoneinfo`), which is a class of disagreement no arithmetic case could ever surface — and the 579-bar series crosses the end of US DST (Fri 2025-10-31 EDT → Mon 2025-11-03 EST) and a weekend, so `clock_hour` and `clock_sessionfirst` are red for a lane holding one offset captured at import. The four timeframe booleans carry the new `opts` key (`{tf: '5'|'D'|'W'|'M'}`), read for BOTH lanes by the single `tools/ast_conformance.case_opts` — measured WITHOUT it they would be two lanes agreeing perfectly on an all-null column, a pass about nothing.",
+      "proof": "The tool's own reconciliation printed `vs the previous log: 0 MOVED [], 13 added, 0 removed`, read off the committed log rather than eyeballed as a diff (`python tools/ast_conformance.py --record --force`; printed non-vacuity line: `non-vacuity : 47586 finite of 52110 rows, every case non-empty, 83 table entries covered`). `--check` is green afterwards at 90 asts x 579 bars."
     }
   ]
 }

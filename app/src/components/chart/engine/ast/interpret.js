@@ -71,6 +71,7 @@ import { assertBudget } from './budget.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
+  computeClock,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -1023,12 +1024,26 @@ export function nodeCount(ast) {
  *  @param {object} [scalars] this SYMBOL's values for the table's declared
  *                  scalars. Every declared name is seeded whether or not it
  *                  appears here; an absent or unusable value seeds NaN.
+ *  @param {object} [opts] what the CALLER knows that the tree and the bars do
+ *                  not. Today that is one key, `tf` — the timeframe these bars
+ *                  are — and the clock's four timeframe booleans are its only
+ *                  readers.
  *  @returns {Float64Array} exactly `bars.length` long, NaN-padded
  *
  *  Throws `TableRefusal` for anything the table refuses. Everything else — a
  *  `RangeError` from a tree deep enough to overflow the stack, say — is NOT a
- *  refusal and must never be caught and relabelled as one; see the header. */
-export function interpret(ast, bars, inputs, budget, scalars) {
+ *  refusal and must never be caught and relabelled as one; see the header.
+ *
+ *  ⭐⭐ `opts` IS OPTIONAL AND TRAILING, AND IT IS THE WHOLE tableVersion-2
+ *  INTERFACE CHANGE. Every caller written before it is unaffected — the
+ *  signature is the cross-lane interface and `ast_interpret.interpret` grew the
+ *  SAME trailing argument on the same day. ⛔ AND ITS ABSENCE FAILS CLOSED:
+ *  with no `tf`, `isintraday` and its three siblings are NOT COMPUTABLE, never
+ *  0 and never a guessed default. A caller that HAS a timeframe and drops it
+ *  therefore produces a visibly unanswered column rather than a confident wrong
+ *  one, which is what makes the two threading hand-backs (`nativeRegistry.js`
+ *  and `scan_evaluator.py`) safe to land separately from this. */
+export function interpret(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
@@ -1066,6 +1081,45 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     scope[name] = col
   }
 
+  // ⭐ THE CLOCK (tableVersion 2). Seeded from `computeClock` exactly the way
+  // the indicator functions bind to `computeRSI`: not one line of calendar
+  // arithmetic lives in this file, and it CANNOT — `interpret.test.js` bans
+  // `Date` and `Intl` here by an AST scan over this module's own source and
+  // widens the allowlist for `indicators.js` only. A private calendar would
+  // either break that proof or force it to be widened, and a purity claim that
+  // widens whenever something needs a clock is not a purity claim.
+  //
+  // ⛔ THE MANIFEST DECIDES WHICH NAMES EXIST; `computeClock` DECIDES WHAT EACH
+  // ONE MEANS; A DISAGREEMENT THROWS BY NAME. Seeding a NaN column for a
+  // declared name the maths has no column for would be a clock reading "not
+  // computable" on every bar of every symbol forever with nothing red anywhere.
+  // A plain `Error`, because it is a WIRING defect — somebody edited the
+  // manifest without the maths — not a formula the table refuses.
+  //
+  // ⚠️ COMPUTED EAGERLY, LIKE THE SERIES COLUMNS, AND THAT COSTS SOMETHING
+  // HONEST: thirteen columns per call, for a formula that may name none of
+  // them. It is deliberately NOT made conditional on the tree, because `scope`
+  // is also what the shadow check reads and what `resolve:name` lists — a clock
+  // name seeded only when it is used would let an input named `hour` shadow it
+  // on every OTHER formula, silently. The cost is bounded: the unit gate
+  // short-circuits before any zone work (the daily/scan case) and the
+  // wall-clock path memoises on the UTC hour.
+  {
+    const cols = computeClock(bars, opts ? opts.tf : undefined)
+    for (const name of Object.keys(TABLE.clock || {})) {
+      const col = cols[name]
+      if (!col) {
+        throw new Error(
+          `interpret: the table declares the clock name ${JSON.stringify(name)} and `
+          + '`indicators.js::computeClock` produces no such column (it produces '
+          + `${Object.keys(cols).sort().join(', ')}). The manifest is the authority over `
+          + 'WHICH clock names exist and the maths over what each MEANS; seeding NaN here '
+          + 'would make a declared name read `not computable` on every bar forever.')
+      }
+      scope[name] = col
+    }
+  }
+
   // ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
   // RESOLVES — an absent value seeds NaN, exactly like a bar with a missing
   // field. That is what separates "declared but not known for this symbol" (a
@@ -1100,8 +1154,8 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       // formula on that definition means.
       throw new Error(
         `interpret: the input ${JSON.stringify(name)} shadows a table name. `
-        + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.functions)} `
-        + `and ${declared(TABLE.scalars)}.`)
+        + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.clock || {})}, `
+        + `${declared(TABLE.functions)} and ${declared(TABLE.scalars)}.`)
     }
     // Only finite numbers are seeded. An input that is a function, an object or
     // a string is NOT a name this table can resolve, and leaving it out makes

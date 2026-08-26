@@ -297,6 +297,10 @@ export function astReach(ast, opts = {}) {
    *  series. The freshness question this module does NOT answer is asked by
    *  `freshness.js` over this same section. */
   const scalarNames = (table && table.scalars) || {}
+  /** ⭐ THE CLOCK (tableVersion 2), read from the SAME manifest. A clock leaf is
+   *  a property of the bar it draws on — the calendar moment it sits at — so it
+   *  reaches neither backwards nor forwards. */
+  const clockNames = (table && table.clock) || {}
   /** `opts.inputs` — the definition's declared inputs, BY NAME. The same shape
    *  `sentence.js::explainSentence` already takes and the same shape `interpret`
    *  takes; only the KEYS are read here (see `declaredInputs`). `lintDefinition`
@@ -373,6 +377,21 @@ export function astReach(ast, opts = {}) {
         // throws on outright; what this must never do is let the ANSWER depend
         // on which map was consulted second.
         if (own(seriesNames, node.name)) {
+          reachOf.set(node, { back: 0, forward: 0 })
+          break
+        }
+        if (own(clockNames, node.name)) {
+          // ⭐ A CLOCK LEAF, AND ITS ZERO IS A DIFFERENT FACT FROM A SCALAR'S.
+          // A scalar is (0, 0) because it is ONE number for the whole column; a
+          // clock value is (0, 0) because it is THIS bar's own — `hour` changes
+          // every bar and still reads no other one. Both are non-repainting and
+          // the reasons do not transfer, which is why this is its own branch
+          // rather than a widening of the scalar test.
+          //
+          // ⛔ AND UNLIKE A SCALAR, THERE IS NO SECOND VERDICT TO ASK FOR. The
+          // freshness gate exists because a scalar's zero hides a day-old value;
+          // a clock leaf is read off the bar being drawn, so `freshness.js`
+          // answers `live` and this zero is the whole truth.
           reachOf.set(node, { back: 0, forward: 0 })
           break
         }

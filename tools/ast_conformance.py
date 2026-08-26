@@ -312,6 +312,33 @@ def case_inputs(case: Any) -> dict:
     return dict(inputs) if isinstance(inputs, dict) else {}
 
 
+def case_opts(case: Any) -> dict:
+    """What the CALLER knows that the tree and the bars do not, for ONE case --
+    read ONCE, for BOTH lanes. `case_inputs`'s sibling, and for the same reason.
+
+    ⭐⭐ IT EXISTS BECAUSE tableVersion 2 GAVE `interpret` AN ARGUMENT THE TREE
+    CANNOT SUPPLY. `isintraday` is answerable only if somebody says what
+    timeframe these bars are; with no `opts` it is NOT COMPUTABLE, on purpose and
+    in both lanes. A clock-boolean case measured with no `opts` would therefore
+    be two lanes agreeing perfectly on an all-null column -- a pass that proves
+    the fail-closed path and NOTHING about the maths.
+
+    ⛔ ONE READER, SO THE TWO LANES CANNOT BE HANDED DIFFERENT TIMEFRAMES. Both
+    lanes call THIS function on the SAME case object; there is deliberately no
+    second parameter through which a caller could pass one map to node and
+    another to Python. A cross-lane equality taken over two different timeframes
+    is an equality about nothing and would read exactly like agreement -- and on
+    the clock booleans it would produce all-1s against all-0s, which at least
+    fails loudly, but on a future `opts` key it might not.
+
+    ⛔ AND A MISSING OR MALFORMED `opts` IS `{}`, NEVER an error: every case
+    written before this key declares none, and `interpret(ast, bars, {}, …, {})`
+    is byte-identical for them.
+    """
+    opts = case.get("opts") if isinstance(case, dict) else None
+    return dict(opts) if isinstance(opts, dict) else {}
+
+
 def corpus_bars(doc: Optional[dict] = None) -> list[dict]:
     """The frozen bars the corpus is measured against.
 
@@ -391,8 +418,16 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
     declared = ast_table.bar_names(manifest)
     assert declared == (set(manifest["functions"])
                         | set(manifest["operators"])
-                        | set(manifest["series"])), (
-        "the BAR floor is no longer the three bar sections of the manifest. "
+                        | set(manifest["series"])
+                        # ⚠️ `.get`, LIKE `ast_table.bar_names` ITSELF. Several
+                        # rails hand this a synthetic manifest built before the
+                        # clock section existed, and `bar_names` reads every
+                        # section with `.get(...) or {}` for exactly that reason.
+                        # A `KeyError` here would make those probes unwritable
+                        # while proving nothing extra: the equality's job is to
+                        # catch a WIDENED `bar_names`, and it still does.
+                        | set(manifest.get("clock") or {})), (
+        "the BAR floor is no longer the bar sections of the manifest. "
         f"`ast_table.bar_names` returned {sorted(declared)}. A floor that grew a "
         "section grew every corpus case that has to cover it, and the 17 frozen "
         "digests move with it."
@@ -614,10 +649,14 @@ if (typeof interpret !== 'function') {
 // ⛔ `c.inputs` IS PASSED, AND IT IS THE SAME OBJECT THE PYTHON LANE READS OFF
 // THE SAME CASE (`case_inputs`). A lane evaluated with no inputs while the other
 // had them would be an equality over two different formulas.
+// ⛔ AND SO IS `c.opts` (tableVersion 2), read by the SAME `case_opts`. The two
+// middle arguments are `undefined` on purpose: this driver has never had a
+// budget or a scalar map to pass, and spelling them `{}` would quietly turn "no
+// budget, so the default applies" into "an empty budget blob".
 const out = {}
 for (const c of payload.cases) {
   out[c.id] = Array.from(
-    interpret(c.ast, payload.bars, c.inputs || {}),
+    interpret(c.ast, payload.bars, c.inputs || {}, undefined, undefined, c.opts || {}),
     (v) => (v === null || v === undefined || Number.isNaN(v) ? null : v))
 }
 process.stdout.write(JSON.stringify({ ok: true, columns: out }))
@@ -863,7 +902,8 @@ def run_js(cases: list[dict], bars: list[dict]) -> dict:
 
     payload = {"interpreter": JS_INTERPRET_PATH, "bars": bars,
                "cases": [{"id": c["id"], "ast": c["ast"],
-                          "inputs": case_inputs(c)} for c in cases]}
+                          "inputs": case_inputs(c),
+                          "opts": case_opts(c)} for c in cases]}
     return _node_run(_JS_DRIVER, payload)["columns"]
 
 
@@ -917,7 +957,7 @@ def run_py(cases: list[dict], bars: list[dict]) -> dict:
         # ⛔ `case_inputs`, THE SAME READER THE JS LANE'S PAYLOAD IS BUILT WITH.
         # See its docstring: two lanes evaluated with two input maps agree about
         # nothing and report it as agreement.
-        col = interpret(case["ast"], bars, case_inputs(case))
+        col = interpret(case["ast"], bars, case_inputs(case), opts=case_opts(case))
         out[case["id"]] = [None if (v is None or (isinstance(v, float) and math.isnan(v)))
                            else v for v in col]
     return out

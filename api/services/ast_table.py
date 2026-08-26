@@ -47,8 +47,9 @@ MANIFEST_PATH: pathlib.Path = (
 )
 
 #: The section keys of the manifest. STRUCTURE, not vocabulary — these name the
-#: four dictionaries, never an entry inside one.
+#: dictionaries, never an entry inside one.
 SERIES_SECTION = "series"
+CLOCK_SECTION = "clock"
 OPERATORS_SECTION = "operators"
 FUNCTIONS_SECTION = "functions"
 SCALARS_SECTION = "scalars"
@@ -57,8 +58,16 @@ SCALARS_SECTION = "scalars"
 #: partition identity; see ``excluded_columns``.
 EXCLUDED_KEY = "_scalars_excluded"
 
-#: ⭐ THE THREE SECTIONS A BAR-CORPUS CASE CAN EXERCISE — see ``bar_names``.
-BAR_SECTIONS = (SERIES_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
+#: ⭐ THE SECTIONS A BAR-CORPUS CASE CAN EXERCISE — see ``bar_names``.
+#:
+#: ⭐ ``clock`` IS ONE OF THEM (tableVersion 2). A clock value is a property of
+#: the BAR — the calendar moment it sits at — so it varies down the replay
+#: series exactly as ``close`` does and a bar-corpus case measures it the same
+#: way. That is the whole test for this tuple: a scalar is one number per SYMBOL
+#: and has nothing to say about a 579-bar series, which is why it has its own
+#: floor against its own fixture; a clock column has something to say about
+#: every bar of it.
+BAR_SECTIONS = (SERIES_SECTION, CLOCK_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
 
 #: Every section that declares a NAME a formula may spell.
 SECTIONS = BAR_SECTIONS + (SCALARS_SECTION,)
@@ -155,6 +164,21 @@ def scalar_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
     """Every per-symbol name the table declares."""
     m = manifest if manifest is not None else TABLE
     return set(m.get(SCALARS_SECTION) or {})
+
+
+def clock_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """Every bar-clock name the table declares.
+
+    ⭐ A SUBSET OF ``bar_names``, NOT A THIRD FLOOR. The clock rides the
+    ``series`` node and varies per bar, so the bar corpus already owes it a case
+    and ``assert_the_two_floors_partition_the_table`` already covers it. This
+    accessor exists so a reader that has to treat a clock leaf DIFFERENTLY — the
+    two interpreters seeding it from ``compute_clock`` rather than from a bar
+    field, the two linters resolving it to reach (0, 0) — can ask the manifest
+    which names those are instead of carrying a list.
+    """
+    m = manifest if manifest is not None else TABLE
+    return set(m.get(CLOCK_SECTION) or {})
 
 
 def series_field(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:

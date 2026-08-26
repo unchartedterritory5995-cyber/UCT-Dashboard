@@ -630,11 +630,24 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     every one `bars_asof` off the `candles` producer the as-of rail above reads,
     each with its own `scalars.json` case; the twelve TEXT labels beside them
     EXCLUDED. The bar floor did not move — a scalar rides the `series` node, so
-    no astHash and no frozen digest moved, and `tableVersion` is still 1."""
+    no astHash and no frozen digest moved, and `tableVersion` was still 1.
+
+    ⭐ 70 -> 83 ON 2026-08-26 WITH THE `clock` SECTION (tableVersion 2), AND IT IS
+    THE BAR HALF THAT MOVED THIS TIME — the first move for something that is not a
+    function. Thirteen bar-clock values (the seven ET wall-clock fields,
+    `sessionfirst`, `barindex` and the four timeframe booleans) are a FIFTH manifest
+    section that still rides the `series` node, so no node type and no persisted key
+    changed and every stored `astHash` is unmoved. They sit inside the BAR floor
+    because a clock value varies down the replay series exactly as `close` does, so
+    the bar corpus OWES each one a case — thirteen were written and the frozen
+    digests were re-recorded with them. The scalar half is untouched at 111, which is
+    the whole point of the split: "which half moved" stays answerable at a glance.
+    `tableVersion` went to 2 because `interpret` grew an ARGUMENT (`opts={tf}`), not
+    because the vocabulary grew."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 111
+    assert len(parts["bar"]) == 83 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

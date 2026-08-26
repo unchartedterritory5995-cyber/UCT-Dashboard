@@ -969,3 +969,182 @@ export function computeRSLine(bars, benchmarkBars) {
   }
   return result
 }
+
+// ─── THE BAR CLOCK — the closed table's `clock` section, computed HERE ────────
+//
+// ⭐⭐ IT LIVES IN THIS FILE FOR A MEASURED REASON, NOT A STYLISTIC ONE.
+// `interpret.test.js` BANS `Date` and `Intl` inside `interpret.js` and
+// `budget.js` by an AST scan over their own source, and widens the allowlist for
+// exactly one module: this one (`WIDENED_BY = ['Date', 'Intl']`, for `etDayKey`).
+// So the wall-clock fields cannot be computed where they are consumed — they are
+// computed here and BOUND there, exactly the way `rsi` is. Writing them into
+// `interpret.js` would either break that proof or force it to be widened, and a
+// purity claim that widens whenever something needs a clock is not one.
+//
+// ⚠️ THE ET ZONE IS RESOLVED PER INSTANT from the IANA database, never from one
+// offset captured at import — see `etDayKey`'s header for the full argument.
+// This function's fixture (`tests/fixtures/ast/clock_parity.json`) spans the
+// 2025-11-02 EDT→EST fallback and a weekend precisely so that is MEASURED.
+
+/** ET calendar parts INCLUDING the wall clock — what `etParts` has plus hour.
+ *  A THIRD formatter rather than a widening of `ET_ANCHOR_PARTS`, because
+ *  `etAnchorKey` reads that one on every AVWAP bar and two fields it never uses
+ *  are cost with no reader.
+ *
+ *  `hourCycle: 'h23'` because `hour12: false` in `en-US` renders midnight as the
+ *  string `24` — a documented ICU behaviour `intraday5m.test.js` already works
+ *  around with `% 24`. The cycle is declared instead, and the `% 24` is kept
+ *  below as the belt: a host whose ICU predates `hourCycle` would otherwise put
+ *  a 24 into a column this table declares as 0..23. */
+const ET_CLOCK_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
+  hour: '2-digit', hourCycle: 'h23',
+})
+
+/** The timeframe codes this platform ships, and the ones that are intraday.
+ *
+ *  ⛔ ANYTHING ELSE IS NOT CLASSIFIED, IT IS REFUSED. A custom 3-minute chart is
+ *  genuinely intraday, but `tf` is a string that reaches here from a stored
+ *  definition and from a widget's saved options, and guessing from its SHAPE
+ *  ("it parses as a number, so it must be minutes") is how a `2D` or a `1H`
+ *  spelling silently becomes an intraday claim. An unrecognised code makes the
+ *  four booleans NaN — the same answer an ABSENT `tf` gets, and never a
+ *  confident 0, which would read as "no, this is not intraday". */
+const CLOCK_INTRADAY_TFS = ['1', '5', '15', '30', '60']
+const CLOCK_TIMEFRAMES = [...CLOCK_INTRADAY_TFS, 'D', 'W', 'M']
+
+/** The eight columns that read the bar's `t`, and therefore the eight the unit
+ *  gate below refuses together. Derived from nothing: it IS the partition, and
+ *  `computeClock` reads it in both directions so the two halves cannot drift. */
+const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
+  'hour', 'minute', 'sessionfirst']
+
+/** Every column `computeClock` produces.
+ *
+ *  ⚠️ THE CLOSED TABLE IS THE AUTHORITY OVER WHICH OF THESE NAMES A FORMULA MAY
+ *  SPELL; this is the authority over what each one MEANS. `interpret` seeds the
+ *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
+ *  bundle has no column for — a declared name quietly seeded NaN would be a
+ *  clock that reads "not computable" forever, on every bar, silently. */
+export const CLOCK_COLUMNS = Object.freeze([
+  ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
+])
+
+/**
+ * The clock columns for a bar series, aligned to `bars`.
+ *
+ * `time` is the bar's own `t` IN UNIX SECONDS — this platform's unit everywhere
+ * a bar carries one — and NOT Pine's milliseconds. The manifest's sentence says
+ * so, because a member comparing `time` against a number read off a Pine script
+ * would otherwise be out by a factor of a thousand with nothing to see.
+ *
+ * `dayofweek` is 1 on Sunday through 7 on Saturday, which IS Pine's convention
+ * (`dayofweek.sunday == 1`) and deliberately not `Date`'s 0..6. The table's whole
+ * import story is Pine, and two off-by-one conventions for one name is the defect
+ * `williams_r` / `williamsR` already cost this repo once.
+ *
+ * ⛔ THE UNIT GATE IS `computeVWAP`'S, AND IT IS PARTIAL ON PURPOSE.
+ * `bars_sqlite` stores daily/weekly/monthly `t` as `YYYYMMDD` INTS, and
+ * `20250101` read as unix seconds is 1970-08-23 — so a series that is not in
+ * seconds must not be answered for. It refuses the EIGHT time-derived columns
+ * all-or-nothing (a per-bar skip leaves the survivors in one ET day, which is
+ * the shape being refused) and it leaves `barindex` and the four timeframe
+ * booleans alone: those read no `t` at all, and a guard firing on them would
+ * refuse a column it has no reason to doubt. `computeAVWAP` draws the same line
+ * between its calendar anchors and its swing ones, for the same reason.
+ *
+ * ⛔ AND AN ABSENT `tf` FAILS CLOSED, NEVER TO A DEFAULT. A guessed `'D'` makes
+ * `isdaily` a confident 1 on a 5-minute chart, which is a wrong answer wearing a
+ * right one's clothes. NaN is "nobody told me", which every consumer of this
+ * table already knows how to render.
+ *
+ * @param {Array}  bars `[{t,o,h,l,c,v}]`, `t` in UNIX SECONDS
+ * @param {string} [tf] one of `1 5 15 30 60 D W M`; absent or unknown ⇒ the four
+ *                      timeframe booleans are NaN
+ * @returns {object} `{<name>: Float64Array}` — one entry per `CLOCK_COLUMNS`
+ */
+export function computeClock(bars, tf) {
+  const length = bars && bars.length ? bars.length : 0
+  const cols = {}
+  for (const name of CLOCK_COLUMNS) cols[name] = new Float64Array(length)
+  if (!length) return cols
+
+  // The timeframe half reads no bar at all, so it is decided ONCE and written
+  // flat. `known` is a membership test over the declared codes — never a parse.
+  const known = CLOCK_TIMEFRAMES.includes(tf)
+  cols.isintraday.fill(known ? (CLOCK_INTRADAY_TFS.includes(tf) ? 1 : 0) : NA)
+  cols.isdaily.fill(known ? (tf === 'D' ? 1 : 0) : NA)
+  cols.isweekly.fill(known ? (tf === 'W' ? 1 : 0) : NA)
+  cols.ismonthly.fill(known ? (tf === 'M' ? 1 : 0) : NA)
+
+  // `barindex` is the loop counter and nothing else. It is HERE rather than in
+  // `interpret` so the clock has ONE owner: a second place that knew what bar
+  // number a bar is would be a second authority over a value both lanes compare.
+  for (let i = 0; i < length; i++) cols.barindex[i] = i
+
+  // THE UNIT GATE — before any formatter work, so a refused series costs none.
+  let instants = true
+  for (let i = 0; i < length; i++) {
+    const t = bars[i] ? bars[i].t : undefined
+    if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) { instants = false; break }
+  }
+  if (!instants) {
+    for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
+    return cols
+  }
+
+  // One-entry memo on the UTC hour, exactly as `computeVWAP` does and EXACT for
+  // the same reason: every `America/New_York` offset is a whole number of hours
+  // and every transition lands on a whole UTC hour, so no ET field down to the
+  // hour can change inside one UTC hour. Bars arrive ascending, so consecutive
+  // bars hit it. ⚠️ THE MINUTE IS NOT IN THE MEMO — it changes inside the hour by
+  // definition — so it is derived from the instant in hand rather than formatted.
+  let memoHour = null
+  let memoParts = null
+  let prevDay = -1
+  for (let i = 0; i < length; i++) {
+    const t = bars[i].t
+    const utcHour = Math.floor(t / 3600)
+    let p
+    if (utcHour === memoHour) {
+      p = memoParts
+    } else {
+      p = etClockParts(t)
+      memoHour = utcHour
+      memoParts = p
+    }
+    cols.time[i] = t
+    cols.year[i] = p.y
+    cols.month[i] = p.m
+    cols.dayofmonth[i] = p.d
+    cols.dayofweek[i] = p.wd + 1
+    cols.hour[i] = p.h
+    // ET minutes ARE UTC minutes: every ET offset is a whole number of hours.
+    // Derived rather than formatted, which is what keeps the memo above exact.
+    cols.minute[i] = Math.floor((t - utcHour * 3600) / 60)
+    // The ET calendar day as ONE number, so the comparison below is numeric and
+    // no string key has to be built per bar. `sessionfirst` is 1 on the first
+    // bar of the series by construction: no previous bar means no previous day.
+    const day = p.y * 10000 + p.m * 100 + p.d
+    cols.sessionfirst[i] = day === prevDay ? 0 : 1
+    prevDay = day
+  }
+  return cols
+}
+
+/** `{y, m, d, wd, h}` in `America/New_York` for a unix-seconds instant, where
+ *  `wd` is 0=Sun..6=Sat — the RAW index; `computeClock` is what shifts it onto
+ *  Pine's 1-based day, in one place. */
+function etClockParts(t) {
+  const parts = ET_CLOCK_PARTS.formatToParts(new Date(t * 1000))
+  let y = 0, m = 0, d = 0, wd = 0, h = 0
+  for (const p of parts) {
+    if (p.type === 'year') y = Number(p.value)
+    else if (p.type === 'month') m = Number(p.value)
+    else if (p.type === 'day') d = Number(p.value)
+    else if (p.type === 'weekday') wd = WEEKDAY_INDEX[p.value] ?? 0
+    else if (p.type === 'hour') h = Number(p.value) % 24
+  }
+  return { y, m, d, wd, h }
+}

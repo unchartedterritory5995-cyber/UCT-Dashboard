@@ -786,7 +786,12 @@ describe('the arithmetic, against hand-computed values', () => {
     const broken = []
     for (const c of CORPUS.cases) {
       try {
-        const out = interpret(c.ast, BARS, {})
+        // ⛔ `c.opts` IS PASSED, AND IT IS THE SAME KEY `tools/ast_conformance.py`
+        // READS OFF THE SAME CASE (`case_opts`). The four clock-boolean cases are
+        // NOT COMPUTABLE without a timeframe, by design — evaluating them with no
+        // `opts` here would land every one of them in `broken` as "entirely NaN"
+        // for a reason that is the fail-closed path working, not a defect.
+        const out = interpret(c.ast, BARS, {}, undefined, undefined, c.opts || {})
         if (out.length !== BARS.length) broken.push(`${c.id}: length ${out.length}`)
         // ⛔ AN ALL-NaN COLUMN IS STILL A FAILURE *UNLESS THE CASE DECLARES IT*.
         // The domain-refusal cases (sqrt of a negative, log of zero, an overflow,

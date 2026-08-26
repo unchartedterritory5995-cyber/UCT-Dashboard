@@ -102,6 +102,29 @@ const RECURRENCE_PHRASE = Object.freeze({
 const RECURRENCE_SAYS = Object.freeze(Object.fromEntries(
   Object.entries(RECURRENCE_PHRASE).map(([phrase, bind]) => [bind, phrase])))
 
+/** phrase -> the clock name it reads back to (tableVersion 2).
+ *
+ *  ⭐ READ FROM THE MANIFEST, AND THAT IS NOT THE TAUTOLOGY `RECURRENCE_PHRASE`
+ *  WARNS ABOUT. That map is typed because its phrase is `sentence.js`'s OWN
+ *  wording — deriving it from the module under test would make the round trip
+ *  circular. A clock phrase is not the module's: it is a declared `sentence` in
+ *  `closedTable.json`, DATA both lanes read, exactly like the binding NAME
+ *  `RECURRENCE_PHRASE` itself reads from the manifest. Typing these thirteen
+ *  sentences here would be a hand copy of the table — the one thing this suite
+ *  exists to forbid — and it would go stale the first time a wording is
+ *  clarified.
+ *
+ *  ⛔ MATCHED WHOLE in `readLeaf`, like the recurrence phrase and for the same
+ *  reason: a prefix match would let "the calendar year ... plus 1" read as a leaf
+ *  and swallow its own operator. */
+const CLOCK_PHRASE = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE.clock || {}).map(([name, spec]) => [spec.sentence, name])))
+
+/** name -> the phrase the walker says for it. DERIVED from the map above rather
+ *  than read a second time, for the same reason `RECURRENCE_SAYS` is. */
+const CLOCK_SAYS = Object.freeze(Object.fromEntries(
+  Object.entries(CLOCK_PHRASE).map(([phrase, name]) => [name, phrase])))
+
 /** Each form is a chunk list: strings are literal chrome, numbers are argument
  *  positions. The order below is DECLARED rather than incidental — a phrase that
  *  is a prefix of another (`is greater than` inside `is greater than or equal
@@ -311,6 +334,11 @@ function readLeaf(s) {
   // prefix match would let "the running value so far plus 1" read as a leaf and
   // swallow its own operator.
   if (own(RECURRENCE_PHRASE, s)) return { type: 'series', name: RECURRENCE_PHRASE[s] }
+  // ⭐ A CLOCK VALUE IS A LEAF THAT IS SAID RATHER THAN NAMED. `hour` reads back
+  // as the manifest's own sentence — a member cannot check `dayofweek` against
+  // the maths without being told Sunday is 1 — so the inverse is a whole-phrase
+  // lookup, not a token match.
+  if (own(CLOCK_PHRASE, s)) return { type: 'series', name: CLOCK_PHRASE[s] }
   if (NUMBER_WORD.test(s)) {
     const value = Number(s)
     if (!Number.isFinite(value)) throw new Error(`not a finite number: ${s}`)
@@ -406,6 +434,12 @@ function treesForTheWholeTable(table) {
   for (const name of Object.keys(table.series).sort()) {
     out.push({ entry: `series:${name}`, ast: { type: 'series', name } })
   }
+  // ⭐ THE CLOCK RIDES THE SAME NODE, so the totality proof covers it with the
+  // same one-line shape — and a fourteenth clock entry lands here on the day it
+  // is declared, with no edit to this file.
+  for (const name of Object.keys(table.clock || {}).sort()) {
+    out.push({ entry: `clock:${name}`, ast: { type: 'series', name } })
+  }
   for (const name of Object.keys(table.operators).sort()) {
     const arity = table.operators[name].arity
     const args = []
@@ -469,6 +503,11 @@ function predictTrace(node, at = '$') {
     // the wrong reason, which is the one outcome an attribution rail must not
     // have. The name is read from the manifest, never typed.
     if (RECURRENCE_BINDINGS.includes(node.name)) return [{ path: at, rule: 'series:recurrence' }]
+    // ⭐ A FOURTH ORIGIN (tableVersion 2): a clock value rides the same node and
+    // is resolved from its OWN manifest section, between the bar fields and the
+    // definition's inputs — the order `renderName` and `lint.js::astReach` both
+    // use. Read from the manifest, never typed.
+    if (own(TABLE.clock || {}, node.name)) return [{ path: at, rule: 'series:clock' }]
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
   }
   if (node.type === 'offset') {
@@ -557,7 +596,10 @@ describe('the read-back is generated from the tree, and never written by a model
         // ⛔ AND IT IS NOT AN EXEMPTION. Dropping the leaf from this loop would
         // let a walker that rendered `self` as NOTHING pass, which is exactly the
         // clause-dropping defect the rail exists to catch.
-        const said = RECURRENCE_SAYS[leaf] || leaf
+        // ⭐ AND A CLOCK VALUE IS SAID, NOT NAMED, FOR THE SAME REASON — the
+        // demanded string is the manifest's declared sentence, so the rail keeps
+        // its full strength: a walker rendering `hour` as NOTHING still fails.
+        const said = RECURRENCE_SAYS[leaf] || CLOCK_SAYS[leaf] || leaf
         expect(s, `${c.id}: the read-back never says ${said}`).toContain(said)
       }
     }
@@ -657,6 +699,23 @@ describe('totality over the closed table — derived from the manifest, never ha
       'series:low',
       'series:open',
       'series:volume',
+      // ⭐ THE CLOCK (tableVersion 2), and the list is why thirteen bar-clock
+      // values arriving reads as a decision rather than as a count somebody
+      // adjusted. They sit between the bar fields and the operators because
+      // `treesForTheWholeTable` walks the manifest's sections in that order.
+      'clock:barindex',
+      'clock:dayofmonth',
+      'clock:dayofweek',
+      'clock:hour',
+      'clock:isdaily',
+      'clock:isintraday',
+      'clock:ismonthly',
+      'clock:isweekly',
+      'clock:minute',
+      'clock:month',
+      'clock:sessionfirst',
+      'clock:time',
+      'clock:year',
       'operator:!',
       'operator:!=',
       'operator:&&',
@@ -723,7 +782,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(70)
+    expect(entries.length).toBe(83)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -733,7 +792,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(70)
+    expect(subjects.length).toBe(83)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1086,12 +1145,18 @@ function probeSectionShape(tree) {
 describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () => {
   it('every COMPILED section has a rail row, and a FIFTH section could not arrive silently', () => {
     // ⛔ THE ROWS ARE DERIVED FROM THE COMPILED OBJECT, so a section the probe
-    // never walks has no row at all rather than an empty one. The four names
-    // below are a FLOOR and they are deliberately typed: the day a fifth section
-    // is compiled this case goes red and somebody has to look at the probe,
-    // which is the failure direction the whole task exists to buy.
+    // never walks has no row at all rather than an empty one. The names below are
+    // a FLOOR and they are deliberately typed: the day a NEW section is compiled
+    // this case goes red and somebody has to look at the probe, which is the
+    // failure direction the whole task exists to buy.
+    //
+    // ⭐ IT ALREADY DID ITS JOB ONCE. `clock` arrived with tableVersion 2 and
+    // this line went red naming it, which is what sent somebody to `probeTree` —
+    // where the `default: return null` arm would have reported all thirteen clock
+    // entries as gaps rather than letting the section arrive silently green.
+    // Adding the name here is the ACKNOWLEDGEMENT; teaching the probe was the fix.
     const sections = Object.keys(SENTENCE_RULES).filter((k) => k !== 'gaps')
-    expect(sections.slice().sort()).toEqual(['functions', 'operators', 'scalars', 'series'])
+    expect(sections.slice().sort()).toEqual(['clock', 'functions', 'operators', 'scalars', 'series'])
     const gaps = coverageGaps()
     expect(Object.keys(gaps).slice().sort())
       .toEqual([...sections, 'placeholders'].sort())
@@ -1413,7 +1478,15 @@ describe('the logical chrome drops `!= 0` when every operand already yields bool
     for (const op of Object.keys(OPERATOR_SENTENCE_CONDITIONS).sort()) {
       expect(TABLE.operators[op].arity, `${op} is not binary`).toBe(2)
       for (const { entry, ast: tree } of treesForTheWholeTable(TABLE)) {
-        if (entry.startsWith('series:')) continue
+        // ⛔ A LEAF SUBJECT IS SKIPPED, AND THE TEST IS ON THE TREE RATHER THAN
+        // ON THE ENTRY LABEL. `parts` below brackets the subject
+        // unconditionally, but `renderArg` brackets a composite argument ONLY —
+        // a leaf fills the slot bare — so `want` would carry parentheses `said`
+        // correctly does not, and every leaf would read as a wrong form. That
+        // was already true of the five bar fields; asking the TREE rather than
+        // the label is what kept it true when the `clock` section landed
+        // thirteen more leaves under a different prefix.
+        if (tree.type === 'series') continue
         const outer = { type: 'op', name: op, args: [tree, { type: 'series', name: BOOL_PARTNER }] }
         const bool = oracleYields(tree) === 'bool'
         const parts = [`(${sentenceFor(tree, {})})`, partnerSaid]
@@ -1821,6 +1894,15 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // is a cross-lane obligation, so one appearing must be a deliberate edit
       // rather than something that arrives with a fixture nobody read.
       'dev_is_not_stdev', 'adx_trend_strength',
+      // ⭐ THE THIRTEEN CLOCK CASES (tableVersion 2, 2026-08-26) — one per
+      // declared `clock` entry, because `assert_corpus_covers_the_table` derives
+      // its floor from the manifest. They are the only cases in this corpus whose
+      // answer comes from a CALENDAR rather than a price, so they are the only
+      // ones where the two lanes are two readers of the IANA database rather than
+      // one formula written twice.
+      'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
+      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_barindex', 'clock_isintraday',
+      'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
     ])
   })
 
@@ -1863,7 +1945,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 70)
+    expect(sentences.length).toBe(CORPUS.cases.length + 83)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

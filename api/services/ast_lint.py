@@ -283,6 +283,9 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
     #: the freshness question it does NOT answer is asked by ``ast_freshness``
     #: over this same section.
     scalar_names = table.get("scalars") or {}
+    #: ⭐ THE CLOCK (tableVersion 2), read from the SAME manifest. A clock leaf is
+    #: a property of the bar it draws on, so it reaches neither way.
+    clock_names = table.get("clock") or {}
     #: ⭐ ``opts["inputs"]`` -- the definition's declared inputs, BY NAME. The same
     #: shape ``sentence.js::explainSentence`` already takes and the same shape
     #: ``interpret`` takes; only the KEYS are read here (see ``declared_inputs``).
@@ -322,6 +325,19 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # defect ``interpret`` raises on outright; what this must never do is
             # let the ANSWER depend on which map was consulted second.
             if isinstance(name, str) and name in series_names:
+                reach_of[id(node)] = (0, 0)
+            elif isinstance(name, str) and name in clock_names:
+                # ⭐ A CLOCK LEAF, AND ITS ZERO IS A DIFFERENT FACT FROM A
+                # SCALAR'S. A scalar is (0, 0) because it is ONE number for the
+                # whole column; a clock value is (0, 0) because it is THIS bar's
+                # own -- `hour` changes every bar and still reads no other one.
+                # Both are non-repainting and the reasons do not transfer, which
+                # is why this is its own branch rather than a widened scalar test.
+                #
+                # ⛔ AND UNLIKE A SCALAR, THERE IS NO SECOND VERDICT TO ASK FOR.
+                # ``ast_freshness`` exists because a scalar's zero hides a
+                # day-old value; a clock leaf is read off the bar being drawn, so
+                # it answers ``live`` and this zero is the whole truth.
                 reach_of[id(node)] = (0, 0)
             elif isinstance(name, str) and name in scalar_names:
                 # ⭐ A TABLE-DECLARED SCALAR, AND IT IS THE SAME (0, 0) AS A

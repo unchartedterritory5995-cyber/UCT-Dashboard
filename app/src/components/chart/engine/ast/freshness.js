@@ -84,6 +84,11 @@ function sections(opts) {
   const table = (opts && opts.table) || TABLE
   return {
     seriesNames: (table && table.series) || {},
+    // ⭐ THE CLOCK (tableVersion 2). It is READ HERE so a clock leaf is a
+    // resolvable name rather than falling through to `unreadable` — which,
+    // because this module fails closed, would have branded every formula
+    // containing `hour` **unknown** the day the section landed, quietly.
+    clock: (table && table.clock) || {},
     scalars: (table && table.scalars) || {},
     inputs: (opts && opts.inputs) || {},
   }
@@ -131,7 +136,7 @@ function declarationIsReadable(decl) {
  *  Re-deciding it here would be a second declaration of one refusal, which is
  *  the wrong-door defect this branch has found four separate times. */
 export function freshnessFor(tree, opts) {
-  const { seriesNames, scalars, inputs } = sections(opts)
+  const { seriesNames, clock, scalars, inputs } = sections(opts)
   let reasons = []
   const found = new Set()
   const cadences = new Set()
@@ -157,6 +162,14 @@ export function freshnessFor(tree, opts) {
     if (node.type !== 'series') continue
     const name = node.name
     if (typeof name === 'string' && own(seriesNames, name)) continue
+    // ⭐ A CLOCK LEAF IS `live`, AND IT IS THE SAME `continue` A PRICE FIELD
+    // GETS — not a widening of the scalar branch. `hour` is read off the bar
+    // being drawn, exactly as `close` is: it carries no cadence, nothing dates
+    // it, and it is a DIFFERENT number at every bar. The scalar branch below is
+    // about a value that is identical at every bar and up to a day old; folding
+    // the clock into it would brand every intraday session filter
+    // `as-of-snapshot` and tell a member a live signal is stale.
+    if (typeof name === 'string' && own(clock, name)) continue
     if (typeof name === 'string' && own(scalars, name)) {
       const decl = scalars[name]
       if (!declarationIsReadable(decl)) {
