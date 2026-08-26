@@ -129,6 +129,16 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     expect(within(row).queryByText(/^premium$/i),
       'the tier badge is on the member\'s own row — beside "Your formula", "Premium" reads as "you cannot use this"')
       .toBeNull()
+    // ⭐ THE OTHER HALF OF THE GUARD, IN THE SAME CASE. Absence-only coverage
+    // would also pass a "fix" that blanket-hides the tier badge for every row,
+    // member and shipped alike — which would defeat the badge's actual job.
+    // `rsLine` (`nativeRegistry.js`'s RS_LINE_RAW) is a real SHIPPED, NON-member
+    // definition carrying `tier: 'premium'` for cause (`/api/signature/columns`
+    // declares `Depends(require_paid)` — see the definition's own comment), so
+    // its badge must still render. `indicatorCatalog.test.js` pins `d.meta.tier`
+    // for it but never touches the DOM — this is that render-side half.
+    const rsLineRow = screen.getByRole('option', { name: /Relative Strength Line/ })
+    expect(within(rsLineRow).getByText('premium')).toBeTruthy()
   })
 
   it('⛔ CONTROL — the OTHER direction: a shipped definition is still there, and the counts add up', () => {
