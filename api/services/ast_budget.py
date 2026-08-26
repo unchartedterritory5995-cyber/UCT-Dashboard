@@ -83,6 +83,16 @@ from api.services.ast_interpret import (
 #: move. The three numbers are asserted EQUAL to the JS lane's, read out of
 #: ``budget.js`` rather than re-typed.
 #:
+#: ⚠️ THE LOOKBACK CAP IS ALSO THE CEILING ON A BAR OFFSET, AND THERE IS NO SECOND
+#: NUMBER -- ``max_lookback`` counts an offset node as ``value + child``, so
+#: ``close[600]`` and ``sma(close, 600)`` are the same 600 bars of warmup meeting
+#: the same cap. SO RAISING IT TO HOLD A SESSION RAISED THE OFFSET CEILING WITH
+#: IT, by design rather than as an uncosted side effect: ``close[<one session>]``
+#: is now well-formed and one bar past the cap still refuses. Stated so the next
+#: reader does not discover a second moved ceiling by surprise -- nothing else
+#: widens: ``DEFAULT_BUDGET`` has no non-test consumer outside this module and its
+#: JS twin, and ``effective_budget`` still clamps a stored budget DOWNWARD only.
+#:
 #: ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. ``maxSeriesRefs`` counts
 #: OCCURRENCES, not distinct names: the closed table declares FIVE series, so a
 #: distinct-name count could never exceed 8 and ``budget:series`` would be a latch

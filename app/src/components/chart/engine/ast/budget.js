@@ -97,6 +97,15 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  because `effectiveBudget` clamps DOWNWARD ONLY, a stored blob cannot raise
  *  it — the offset ceiling is unforgeable for the same reason the others are.
  *
+ *  ⚠️ SO RAISING THIS CAP TO HOLD A SESSION RAISED THE BAR-OFFSET CEILING WITH
+ *  IT, from the old warmup to one session, and that is BY DESIGN rather than a
+ *  side effect nobody costed: it is the same number, and the paragraph above is
+ *  the reason there is only one. `close[<one session>]` is now well-formed and
+ *  `close[<one session> + 1]` still refuses. Stated here so the next reader does
+ *  not discover a second moved ceiling by surprise — nothing else widens:
+ *  `DEFAULT_BUDGET` has no non-test consumer outside this module and its Python
+ *  twin, and `effectiveBudget` still clamps a stored budget DOWNWARD only.
+ *
  *  ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. `maxSeriesRefs` counts
  *  OCCURRENCES, not distinct names, and that is forced rather than stylistic:
  *  the closed table declares FIVE series, so a distinct-name count could never

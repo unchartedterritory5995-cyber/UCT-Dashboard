@@ -101,7 +101,11 @@ def test_every_reader_resolves_a_MULTIPLIED_window_to_the_same_number():
     assert ast_lint.max_lookback(tree) == 28
     assert ast_lint.lint_repaint(tree)["mode"] == "non-repainting", (
         "the repaint linter cannot bound a multiplied window, so it brands a "
-        "correct indicator `repaints` — and `canSaveFormula` refuses that")
+        "correct indicator `repaints` — which `definition_concierge` refuses "
+        "outright (`lint:repaint`) and `user_definitions.lint_verdict` STORES, "
+        "leaving an alert that saved in the browser and can never arm. "
+        "⛔ NOT `canSaveFormula`: that is the browser's gate on the browser's "
+        "linter, and it would have permitted the save")
 
 
 @pytest.mark.parametrize("name,spec", sorted(FUNCTIONS.items()))

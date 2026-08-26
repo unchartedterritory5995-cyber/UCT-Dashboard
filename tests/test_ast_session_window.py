@@ -288,7 +288,25 @@ def test_the_python_linter_reads_a_MULTIPLIED_window_like_every_other_reader():
     FIFTH — `ast_lint._ARG_REF` — and it still read the narrow form, so the Python
     repaint linter answered `repaints` for `adx(high, low, close, 14)` with the
     reason *"declares a window this linter cannot bound"*, while the JS lane and
-    both interpreters answered 28. `canSaveFormula` refuses `repaints` outright.
+    both interpreters answered 28.
+
+    ⛔⛔ AND THE DOOR IT REFUSED AT IS NOT `canSaveFormula`, WHICH THIS CASE
+    ORIGINALLY NAMED. That is `FormulaField.jsx:271` — the BROWSER's gate reading
+    the BROWSER's linter, which was already fixed — so it would have answered
+    `non-repainting` and PERMITTED the save. Crediting it was the "refused by a
+    different door" mistake `budget.js` records three prior instances of on this
+    branch, committed the fourth time inside the fix for it.
+
+    The doors that actually read THIS lane's verdict, and what each did:
+      * `definition_concierge.py:2075` refuses outright (`lint:repaint`);
+      * `user_definitions.lint_verdict` STORES the mode — the worse path, because
+        the browser lints the same formula `non-repainting` and saves it happily
+        while this lane writes `repaints` into the row;
+      * `alert_user_series._gate_repaint` reads that STORED mode and deliberately
+        does NOT recompute, so the alert could never arm and fixing the linter does
+        not heal a row already written — saved-and-unable-to-fire, which is the B5
+        shape `test_ast_budget` names in its own words;
+      * `starter_library.py:365` publishes it as the starter's badge.
     """
     tree = _call("adx", {"type": "series", "name": "high"},
                  {"type": "series", "name": "low"}, SER, _num(14))
@@ -384,6 +402,41 @@ def test_the_cap_is_DERIVED_from_the_session_constant_and_never_typed():
         "refuse the nested-recurrence family the 2026-08-22 move admitted")
     assert "Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)" in js_src, (
         "budget.js no longer reads as 'the larger of the two families it holds'")
+
+
+def test_the_FLOOR_arm_is_live_when_a_session_is_shorter_than_it():
+    """⭐ THE BEHAVIOURAL HALF OF THE `max`, AND THE CONSTRAINT I DECLARED IMPOSSIBLE.
+
+    The fix-round-1 report said the floor arm was railed only STRUCTURALLY — that
+    it "cannot be proved by a value change until a session is ever shorter than
+    550". That was honest about what had been built and WRONG as a constraint: the
+    session constant is a module attribute and the budget resolves its cap at
+    import, so a reload under a shortened session is the whole experiment.
+
+    With a 100-bar session the cap must fall back to the nested-recurrence floor,
+    NOT to 100 — because the accum-in-accum family (250 + 250 + ATR's 22 + 1 = 524)
+    still has to be admitted. A cap of `SESSION_MAX_BARS` alone would refuse every
+    trailing stop on this platform the moment somebody corrected the session.
+    """
+    import importlib
+    real = ast_interpret.SESSION_MAX_BARS
+    try:
+        ast_interpret.SESSION_MAX_BARS = 100
+        reloaded = importlib.reload(ast_budget)
+        assert reloaded.DEFAULT_BUDGET["maxLookback"] == reloaded.NESTED_RECURRENCE_WARMUP, (
+            "with a short session the cap collapsed to the session instead of "
+            "holding the floor — the nested-recurrence family would be refused")
+        # ⭐ AND THE FAMILY THE FLOOR EXISTS FOR IS STILL ADMITTED, measured rather
+        # than inferred from the number.
+        deep = {"type": "offset", "value": 524, "args": [SER]}
+        reloaded.check_budget(deep)          # must NOT raise
+    finally:
+        # ⛔ RESTORE BOTH, IN ORDER. A leaked short session would make every other
+        # case in this file measure a budget nobody ships.
+        ast_interpret.SESSION_MAX_BARS = real
+        importlib.reload(ast_budget)
+    assert ast_budget.DEFAULT_BUDGET["maxLookback"] == max(
+        ast_budget.NESTED_RECURRENCE_WARMUP, real)
 
 
 def test_the_budget_holds_no_READER_of_a_lookback_declaration():

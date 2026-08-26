@@ -160,8 +160,25 @@ if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
 #           'reasons': ['unanalysable: `adx` declares a window this linter cannot bound']}
 #     ast_interpret.max_lookback(same tree)  -> 28
 #
-# and `canSaveFormula` refuses `repaints` outright, so the server lane branded a
-# correct, non-repainting indicator unsaveable.
+# ⛔⛔ AND THE DOOR THIS REFUSED AT IS NOT THE ONE THIS COMMENT FIRST NAMED.
+# It credited `canSaveFormula` -- which is `FormulaField.jsx:271`, the BROWSER's
+# gate reading the BROWSER's linter, and `lint.js` had already been fixed. That
+# door would have answered `non-repainting` and PERMITTED the save. Naming it was
+# the 'refused by a different door' mistake `budget.js` records three prior
+# instances of on this branch -- committed, the fourth time, inside the fix for it.
+#
+# The doors that actually read THIS verdict, measured 2026-08-26:
+#   * `definition_concierge.py:2075` -- `raise _Refused("lint:repaint", ...)` when the
+#     mode is not `non-repainting`. An AI-composed ADX definition was refused outright.
+#   * `user_definitions.lint_verdict` -- STORES `{plotKey: mode}` from `lint_definition`.
+#     This is the worse path: the BROWSER lints the same formula `non-repainting` and
+#     saves it happily, and THIS lane writes `repaints` into the row.
+#   * `alert_user_series._gate_repaint` -- reads that STORED mode, and is deliberately
+#     NOT a recompute, so the alert could never arm AND fixing the linter does not heal
+#     a row already written. Saved-and-unable-to-fire is the B5 shape
+#     `test_ast_budget` names: *"an alert naming a JS-only indicator could be STORED
+#     and could never FIRE"*.
+#   * `starter_library.py:365` -- publishes the badge, so a starter would advertise it.
 #
 # ⛔ IT MIRRORS `parse.js::LOOKBACK_RE` AND `ast_interpret._LOOKBACK_RE`, and the
 # three are held equal by `tests/test_ast_lookback_parity.py` -- which now reads
