@@ -52,7 +52,12 @@ _MIN_BODY_STDDEV = 6.0
 # measured need; the renderer screenshots whatever it has when the predicate
 # times out, and the pixel judge below decides, so a slow-but-fine chart is not
 # lost - it is judged sooner.
-_ATTEMPTS = ((300, 15000), (3000, 45000))
+# Attempt 2's ceiling was 45 s. Measured 2026-08-26 with bars warm, a healthy
+# render is 2.4-7.3 s even at 4-6 concurrent, so 45 s only ever bought waiting
+# on a chart that had already failed - and a blank costs BOTH ceilings before a
+# member sees anything (15 + 45 = a full minute). 25 s is >3x the slowest
+# healthy render observed under load.
+_ATTEMPTS = ((300, 15000), (3000, 25000))
 
 
 def house_ready_js(sym: str) -> str:

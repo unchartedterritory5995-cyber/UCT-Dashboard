@@ -720,7 +720,12 @@ def test_house_render_posts_to_the_renderer_and_returns_png_or_none(monkeypatch)
     # healthy chart is never cut off - and a chart that will never settle is
     # judged in 15 s instead of 30 before the long retry.
     assert body["ready_timeout_ms"] == hs._ATTEMPTS[0][1] <= 20000
-    assert hs._ATTEMPTS[-1][1] >= 45000
+    # the retry is more patient than the first look, and both are sized off the
+    # measured render (2.4-7.3s under 4-6x concurrency) rather than a round number
+    SLOWEST_HEALTHY_MS = 7300          # measured 2026-08-26 at 4-6x concurrency, bars warm
+    assert hs._ATTEMPTS[0][1] >= 2 * SLOWEST_HEALTHY_MS      # a good chart is never cut off
+    assert hs._ATTEMPTS[-1][1] >= 3 * SLOWEST_HEALTHY_MS     # the retry is more patient still
+    assert sum(a[1] for a in hs._ATTEMPTS) <= 45000, "a blank must not cost a member a full minute"
 
     def failing(request):
         return httpx.Response(502, json={"detail": "render failed"})
