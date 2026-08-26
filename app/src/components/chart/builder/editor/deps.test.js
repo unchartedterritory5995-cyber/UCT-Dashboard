@@ -12,11 +12,13 @@
 // grow for members who never open the builder. The size gate on that lazy chunk
 // is Task W1a.6.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import { EditorState } from '@codemirror/state'
-
-const PKG = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../../package.json'), 'utf8'))
+// The artifact, read through Vite's resolver the way `rendererPin.test.js` reads
+// the lightweight-charts pin. Not `fs` + `__dirname` (a `no-undef` to this repo's
+// browser-only eslint globals) and not `import.meta.url` (NOT a `file:` URL under
+// this vitest transform — `fileURLToPath` throws "The URL must be of scheme file";
+// see the ruling in `IndicatorSettingsDialog.test.jsx`).
+import PKG from '../../../../../package.json'
 
 /** Spec §5.4's list, exactly — the declaration this rail pins the artifact against. */
 const EDITOR_DEPS = Object.freeze([
