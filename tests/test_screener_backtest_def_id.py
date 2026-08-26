@@ -157,6 +157,10 @@ def test_a_def_id_with_no_window_gets_the_WIDEST_window_under_the_ceiling_and_sa
     frm = int(body["window"]["from"].replace("-", ""))
     warmup = 3    # sma(close, 3)
     assert 2 * bt.bars_wanted(frm, 20240628, warmup, 20) <= 800
+    # ⚠️ THE CLOCK IS READ BEFORE THE DIGEST, NOT INSIDE IT: the same body asked
+    # twice in one session is the same job, so a derived window still dedupes.
+    assert client.post("/api/screener/backtest",
+                       json={"def_id": DEF_ID}).json()["job"] == body["job"]
     # CONTROL: an explicit window is NOT derived and is not annotated
     explicit = client.post("/api/screener/backtest", json={"def_id": DEF_ID, **WINDOW}).json()
     assert "window_request" not in explicit

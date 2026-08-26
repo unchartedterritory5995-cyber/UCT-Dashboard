@@ -35,8 +35,17 @@ already uses. ⛔ **NO NEW PROVIDER PATH**: every bar comes from ``bars_sqlite``
 off the 2026-07-01 fan-out.
 
 ⛔ THE JOB ID IS A DIGEST OF THE REQUEST, NOT A UUID. Same inputs, same id, same
-receipt — no clock and no RNG anywhere on this path, which is what makes "run it
-twice, get the same answer" checkable instead of aspirational.
+receipt — no RNG anywhere on this path, which is what makes "run it twice, get
+the same answer" checkable instead of aspirational.
+
+⚠️ AND THE ONE CLOCK READ IS NAMED RATHER THAN DENIED. This block used to say
+"no clock ANYWHERE on this path", and a ``def_id`` body that omits ``from``/``to``
+is asking for *"as of today"*: its window is derived from
+``bars_fetch._expected_latest_session_yyyymmdd()`` BEFORE the digest is taken, so
+two such requests agree within a session and move to a new window when the
+session does — which is the answer that body asked for. Every other body reaches
+the digest with a window it stated itself, and the ENGINE never reads a clock at
+all (it is handed literal dates).
 
 ⛔ THIS FILE OWNS NO NUMBER THE ENGINE OWNS. ``_envelope`` REFUSES to write a key
 the receipt already carries, so "the route says 812 symbols, the receipt says 806"
