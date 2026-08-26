@@ -66,8 +66,31 @@ def test_unusual_cumulative_volume_with_a_move_is_lit_and_tiered():
     _feed(seq)
     aaa = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert aaa is not None and aaa["lit"] is True
-    assert 4.5 <= aaa["rvol"] <= 6 and aaa["tier"] == 3    # ~5.2× → High tier
+    assert 4.5 <= aaa["rvol"] <= 6                          # cumulative ~5.2×
+    assert aaa["tier"] >= 3 and aaa["burst"] > 0           # tier = hotter of RVOL / burst
     assert aaa["move"] > 1 and aaa["dir"] == "up"
+
+
+def test_burst_rvol_lights_a_fresh_ignition_that_cumulative_rvol_misses():
+    # A name QUIET all day (cumulative RVOL well below 1×, so the cumulative gate
+    # would never light it) that IGNITES in the last window: a small volume spike vs
+    # the near-nothing typically traded per minute at 13:00 → a high burst. This is
+    # the fast mover cumulative RVOL is structurally slow to catch.
+    seq = {}
+    for t in range(0, 46):
+        cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a fresh spike
+        px = 50.0 if t <= 35 else 50.0 + 0.03 * (t - 35)        # +0.6% move on the spike
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 50.0, "prev_vol": 1_000_000}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["rvol"] < 2                     # cumulative RVOL alone would NOT have lit it
+    assert 4 <= r["burst"] <= 6              # the burst caught the ignition
+    assert r["igniting"] is True and r["move"] >= 0.5 and r["dir"] == "up"
+    assert r["tier"] == 3                    # max(rvol_tier=1, burst_tier(~5)=3)
+    # It's the burst PATH that lit it: raise both gates → gone; raise only rvol → stays.
+    assert _row(volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"], "AAA") is None
+    assert _row(volume_live.get_live(min_rvol=999, min_burst=3, min_dollar=0)["rows"], "AAA") is not None
 
 
 def test_normal_activity_reads_below_1x_and_is_not_lit():
@@ -157,7 +180,11 @@ def test_min_rvol_and_min_move_filters_are_honored():
         px = 10.0 if t <= 36 else 10.0 + 0.15 * (t - 36)
         seq[t] = {"AAA": {"min_av": 60_000 * t, "last_price": px, "prev_close": 10.0, "prev_vol": 1_000_000}}
     _feed(seq)
-    assert volume_live.get_live(min_rvol=999, min_dollar=0)["rows"] == []
+    # Cumulative-RVOL gate alone no longer clears the board — burst is an independent
+    # surge path (this synthetic feed sustains a high rate → high burst); BOTH must be
+    # raised to exclude the name. The move gate is AND, so it still filters alone.
+    assert volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"] == []
+    assert _row(volume_live.get_live(min_rvol=999, min_burst=1, min_dollar=0)["rows"], "AAA") is not None
     assert _row(volume_live.get_live(min_rvol=2, min_dollar=0)["rows"], "AAA") is not None
     assert volume_live.get_live(min_move=999, min_dollar=0)["rows"] == []
 

@@ -85,17 +85,24 @@ function SurgeFlash({ lit }) {
 // in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
 // each price tick the row flashes. Clicking charts the ticker.
 function Row({ e, onPick, logos }) {
-  const cls = e.lit ? `${styles.lit} ${styles['t' + (e.tier || 1)]}` : styles.unlit
+  // "Igniting now" = a fresh volume burst WITH a real move (server flag). A lit
+  // igniter gets a persistent pulse ring, distinct from the one-shot surge flash —
+  // the "this is moving fast RIGHT NOW" cue, on top of its (hotter) tier colour.
+  const igniting = e.lit && e.igniting
+  const cls = e.lit
+    ? `${styles.lit} ${styles['t' + (e.tier || 1)]}${igniting ? ` ${styles.igniting}` : ''}`
+    : styles.unlit
   return (
     <button
       type="button"
       role="listitem"
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
-      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`}
+      title={`${e.sym} — ${e.rvol}× relative volume${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <TickFlash price={e.price} dir={e.dir} />
       <SurgeFlash lit={e.lit} />
+      {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
         <span className={styles.sym}>{e.sym}</span>
@@ -147,6 +154,7 @@ function FilterBox({ label, ariaLabel, value, placeholder, min, step, onCommit }
 export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
   const minRvol = Number(opts?.minRvol) || 2
+  const minBurst = opts?.minBurst == null ? 3 : Number(opts.minBurst)
   const minMove = opts?.minMove == null ? 0.25 : Number(opts.minMove)
   // Min $-volume traded in the last minute, in $thousands. Undefined = let the
   // server pick a session-aware default (thinner for pre/post).
@@ -158,6 +166,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
   const commitRvol = useCallback((v) => onOptsChange?.({ ...opts, minRvol: v }), [opts, onOptsChange])
+  const commitBurst = useCallback((v) => onOptsChange?.({ ...opts, minBurst: v }), [opts, onOptsChange])
   const commitMove = useCallback((v) => onOptsChange?.({ ...opts, minMove: v }), [opts, onOptsChange])
   const commitDollar = useCallback((v) => onOptsChange?.({ ...opts, minDollarK: v }), [opts, onOptsChange])
   const toggleLogos = useCallback((v) => onOptsChange?.({ ...opts, showLogos: v }), [opts, onOptsChange])
@@ -181,8 +190,8 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
 
   const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
     ? `&min_dollar=${Math.round(minDollarK * 1000)}` : ''
-  // Show the whole top-N universe (ranked by RVOL); the criteria only decide colour.
-  const url = `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_move=${minMove}${dollarQ}`
+  // Show the whole top-N universe (ranked by surge); the criteria only decide colour.
+  const url = `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_burst=${minBurst}&min_move=${minMove}${dollarQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
@@ -220,6 +229,8 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
         <span className={chrome.spacer} />
         <FilterBox label="RVOL≥" ariaLabel="Minimum relative volume" value={opts?.minRvol}
           placeholder="2" min={1} step={0.5} onCommit={commitRvol} />
+        <FilterBox label="Burst≥" ariaLabel="Minimum burst relative volume" value={opts?.minBurst}
+          placeholder="3" min={1} step={0.5} onCommit={commitBurst} />
         <FilterBox label="Δ%≥" ariaLabel="Minimum move percent" value={opts?.minMove}
           placeholder="0.25" min={0} step={0.25} onCommit={commitMove} />
         <FilterBox label="$K≥" ariaLabel="Minimum dollar volume per minute (thousands)"

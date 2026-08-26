@@ -137,6 +137,26 @@
   .surgeFlash { animation: none; }
 }
 
+/* "Igniting now": a PERSISTENT pulsing ring on a lit row whose volume is bursting
+   AND price is moving — the "look up, this is moving fast right now" state, distinct
+   from the one-shot surge flash. A thin inset ring so it never covers the text. */
+.ignite {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 6px rgba(255, 255, 255, 0.35);
+  animation: volIgnite 1.05s ease-in-out infinite;
+}
+@keyframes volIgnite {
+  0%, 100% { opacity: 0.22; }
+  50%      { opacity: 0.92; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ignite { animation: none; opacity: 0.7; }
+}
+
 .none {
   padding: 22px 16px;
   text-align: center;

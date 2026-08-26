@@ -70,6 +70,16 @@ _DEFAULT_MIN_MOVE = 0.25       # % over the price window — the dark-pool / dri
 _DEFAULT_MIN_DOLLAR_RTH = 50_000
 _DEFAULT_MIN_DOLLAR_EXT = 15_000
 
+# Burst RVOL — the recent-window volume RATE vs the rate a name TYPICALLY trades at
+# this time of day (prev_vol × the cumulative curve's slope). Cumulative RVOL dilutes
+# a fresh spike into the whole day and lags worst late in the session; burst reads the
+# ignition directly. It co-drives the colour tier AND a discovery path for `lit`, so a
+# fast mover surfaces before its cumulative RVOL catches up.
+_BURST_CAP = 50.0            # clamp a fresh spike measured against a near-zero expected
+_DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent rate ≥ 3× typical-for-now)
+_IGNITE_BURST = 4.0          # "igniting now" cue: a strong burst…
+_IGNITE_MOVE = 0.5           # …AND a real price move (the look-up-now signal)
+
 _DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
 _TOP_TTL = 3600.0             # rebuild the top-liquid set hourly
 
@@ -109,6 +119,22 @@ def _cumfrac(now: datetime) -> float:
             m0, f0 = _CUM_CURVE[i - 1]
             return f0 + (f1 - f0) * (m - m0) / (m1 - m0)
     return _CUM_CURVE[-1][1]
+
+
+def _cumrate(now: datetime) -> float:
+    """Expected fraction of a normal day's volume traded PER SECOND at `now` (ET) —
+    the slope of the cumulative curve. This is the baseline rate a burst is measured
+    against (burst = actual recent rate / this). Flat (0.0) outside 4:00 AM–8:00 PM,
+    where the curve's endpoints hold and a "rate" has no meaning."""
+    m = now.hour * 60 + now.minute + now.second / 60.0
+    if m <= _CUM_CURVE[0][0] or m >= _CUM_CURVE[-1][0]:
+        return 0.0
+    for i in range(1, len(_CUM_CURVE)):
+        m1, f1 = _CUM_CURVE[i]
+        if m <= m1:
+            m0, f0 = _CUM_CURVE[i - 1]
+            return (f1 - f0) / (m1 - m0) / 60.0   # fraction-per-minute → per-second
+    return 0.0
 
 
 # ── Session state (guarded by _lock) ──────────────────────────────────────────
@@ -185,9 +211,10 @@ def _at_or_after(hist, target_t):
     return None
 
 
-def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
+def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     """Turn one symbol's rolling (t, cum_vol, px) history + the day's expected-so-far
-    fraction into the served metrics, or None when it can't be rated. Pure."""
+    fraction (and its per-second slope `cum_rate`) into the served metrics, or None
+    when it can't be rated. Pure."""
     if not hist:
         return None
     t_now, cv_now, px_now = hist[-1]
@@ -208,7 +235,19 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
 
     # $ actually traded in the last ~minute (the illiquid-noise gate).
     a = _at_or_after(hist, t_now - _NOW_DOLLAR_SECS)
-    now_dollar = max(0.0, cv_now - a[1]) * px_now if a is not None else 0.0
+    recent_vol = max(0.0, cv_now - a[1]) if a is not None else 0.0
+    now_dollar = recent_vol * px_now if a is not None else 0.0
+
+    # Burst RVOL — the recent-window volume rate vs the rate this name TYPICALLY
+    # trades at this time of day (prev_vol × cum_rate). Reuses the now-window sample
+    # `a`, so it shares the "last minute" span; expected scales with the real elapsed
+    # window. Cumulative RVOL lags a fresh ignition — this reads it directly.
+    burst = 0.0
+    if a is not None and cum_rate > 0:
+        win = max(1.0, t_now - a[0])
+        expected_recent = prev_vol * cum_rate * win
+        if expected_recent > 0:
+            burst = min(_BURST_CAP, recent_vol / expected_recent)
 
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
@@ -217,6 +256,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
         "price": round(float(px_now), 4),
         "pct": round(pct, 2) if pct is not None else None,
         "rvol": round(rvol, 2),
+        "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
     }
@@ -260,6 +300,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
     etf = _etf_set()
     is_rth = window == "rth"
     cumfrac = _cumfrac(now)
+    cum_rate = _cumrate(now)
     # Scan only the N most-liquid names (rebuilt hourly from the snapshot).
     global _top_set, _top_built
     if _top_set is None or (sample_t - _top_built) >= _TOP_TTL:
@@ -305,7 +346,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
                 hist.append((sample_t, int(cv), float(price)))
                 st["last_add"] = sample_t
 
-            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac)
+            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
 
         _state["asof"] = now_iso
         _state["ticks"] += 1
@@ -313,7 +354,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 
 def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
              min_rvol: float = None, min_move: float = None, min_liq: float = None,
-             min_dollar: float = None, show_all: bool = False) -> dict:
+             min_dollar: float = None, min_burst: float = None,
+             show_all: bool = False) -> dict:
     """Relative-volume leaderboard for the endpoint.
 
     Two modes:
@@ -340,18 +382,26 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         mnd = min_dollar
     else:
         mnd = _DEFAULT_MIN_DOLLAR_RTH if window == "rth" else _DEFAULT_MIN_DOLLAR_EXT
+    mnb = _DEFAULT_MIN_BURST if min_burst is None else min_burst
     try:
         limit = max(1, min(int(limit), 300))
     except (TypeError, ValueError):
         limit = 100
 
     def _is_lit(m):
-        return (m["rvol"] >= mnr and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd)
+        # A name surges either way: unusually HEAVY all day (cumulative RVOL) OR
+        # IGNITING now (burst) — the burst path is what surfaces a fast mover before
+        # its cumulative RVOL catches up. Both still require a real move + $ flow.
+        surging = (m["rvol"] >= mnr) or (m.get("burst", 0.0) >= mnb)
+        return surging and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd
+
+    def _surge_mag(m):
+        return max(m["rvol"], m.get("burst", 0.0))
 
     def _score(m):
         mw = abs(m["move"]) / 0.5
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
-        return m["rvol"] * mw
+        return _surge_mag(m) * mw
 
     with _lock:
         asof = _state["asof"]
@@ -370,24 +420,29 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Lit (criteria-meeting) names first — each group by RVOL — so coloured
-        # signals lead and greyed illiquid spikes sink to the bottom.
-        rows.sort(key=lambda r: (r[2], r[1]["rvol"]), reverse=True)
+        # Lit (criteria-meeting) names first — each group by surge magnitude (the
+        # hotter of heaviness and ignition) — so coloured signals lead and greyed
+        # illiquid spikes sink to the bottom.
+        rows.sort(key=lambda r: (r[2], _surge_mag(r[1])), reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
     lit_total = sum(1 for _s, _m, lit in rows if lit)
     out = []
     for sym, m, lit in rows[:limit]:
+        burst = m.get("burst", 0.0)
         out.append({
             "sym": sym,
             "price": round(m["price"], 2),
             "pct": m["pct"],
             "rvol": m["rvol"],
+            "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",
             "dvol": m.get("dvol", 0),
-            "tier": _tier(m["rvol"]),
+            "tier": _tier(m),
             "lit": lit,
+            # "Igniting now" — a strong burst AND a real move: the look-up-now cue.
+            "igniting": bool(burst >= _IGNITE_BURST and abs(m["move"]) >= _IGNITE_MOVE),
         })
     return {
         "window": window,             # rth | pre | post | closed
@@ -399,14 +454,13 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         "shown": len(out),
         "universe_top": _top_n(),
         "filters": {"min_price": mnp, "max_price": mxp, "min_liq": mnl,
-                    "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd},
+                    "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd,
+                    "min_burst": mnb},
         "rows": out,
     }
 
 
-def _tier(rvol: float) -> int:
-    """Colour tier by relative volume: 5 = hottest (Extreme) … 1 = Notable.
-    (TC2000-style filled blocks: blue → teal → green → amber → hot-orange.)"""
+def _rvol_tier(rvol: float) -> int:
     if rvol >= 10:
         return 5   # Extreme
     if rvol >= 6:
@@ -415,7 +469,29 @@ def _tier(rvol: float) -> int:
         return 3   # High
     if rvol >= 3:
         return 2   # Elevated
-    return 1       # Notable (the lit floor, rvol >= min_rvol)
+    return 1
+
+
+def _burst_tier(burst: float) -> int:
+    # burst = recent rate ÷ typical-for-now rate; a violent ignition reaches the top.
+    if burst >= 12:
+        return 5
+    if burst >= 8:
+        return 4
+    if burst >= 5:
+        return 3
+    if burst >= 3:
+        return 2
+    return 1
+
+
+def _tier(m: dict) -> int:
+    """Colour tier — the HOTTER of cumulative heaviness (all-day RVOL) and fresh
+    ignition (burst). A big fast move lights hot the instant volume ignites, before
+    cumulative RVOL catches up; a name heavy all day still shows via its RVOL.
+    5 = hottest (Extreme) … 1 = Notable. (TC2000-style ramp: blue → teal → green →
+    amber → hot-orange.)"""
+    return max(_rvol_tier(m["rvol"]), _burst_tier(m.get("burst", 0.0)))
 
 
 def status() -> dict:

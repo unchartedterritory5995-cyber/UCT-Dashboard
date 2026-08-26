@@ -20,9 +20,9 @@ const LIVE = {
   total: 2,           // 2 names MEET the criteria (lit)…
   shown: 3,           // …but all 3 top-N names are shown
   rows: [
-    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, move: 5.2, dir: 'up', score: 28.5, tier: 4, lit: true },
-    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, move: -3.1, dir: 'down', score: 11.1, tier: 2, lit: true },
-    { sym: 'AAPL', price: 224.5, pct: 0.2, rvol: 1.2, move: 0.1, dir: 'up', score: 0.5, tier: 1, lit: false },
+    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, burst: 9.2, move: 5.2, dir: 'up', score: 28.5, tier: 5, lit: true, igniting: true },
+    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, burst: 3.1, move: -3.1, dir: 'down', score: 11.1, tier: 3, lit: true, igniting: false },
+    { sym: 'AAPL', price: 224.5, pct: 0.2, rvol: 1.2, burst: 0.6, move: 0.1, dir: 'up', score: 0.5, tier: 1, lit: false, igniting: false },
   ],
 }
 
@@ -43,6 +43,24 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByText('11.4×')).toBeInTheDocument()       // RVOL block
     expect(screen.getByText('AAPL')).toBeInTheDocument()        // an unlit name is still listed…
     expect(screen.getByTitle(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
+  })
+
+  it('flags an igniting name (burst + move) with the burst in its tooltip', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByTitle(/SMCI.*9\.2× burst.*igniting now/)).toBeInTheDocument()
+    // PLUG is lit but not igniting — no "igniting now" in its tooltip.
+    expect(screen.getByTitle(/^PLUG —/).title).not.toMatch(/igniting now/)
+  })
+
+  it('editing the Burst filter persists through onOptsChange', () => {
+    swr.mockReturnValue({ data: LIVE })
+    const onOptsChange = vi.fn()
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
+    const input = screen.getByLabelText('Minimum burst relative volume')
+    fireEvent.change(input, { target: { value: '5' } })
+    fireEvent.blur(input)
+    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minBurst: 5 }))
   })
 
   it('hides company logos by default, and shows them when showLogos is on', () => {
@@ -75,6 +93,7 @@ describe('VolumeScanWidget', () => {
     render(<VolumeScanWidget color="A" opts={{ minRvol: 3, minMove: 0.5 }} onOptsChange={() => {}} />)
     expect(swr.mock.calls[0][0]).toContain('show_all=1')
     expect(swr.mock.calls[0][0]).toContain('min_rvol=3')
+    expect(swr.mock.calls[0][0]).toContain('min_burst=3')   // default burst gate
     expect(swr.mock.calls[0][0]).toContain('min_move=0.5')
   })
 
