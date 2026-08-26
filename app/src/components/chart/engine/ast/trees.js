@@ -11,8 +11,12 @@
 // would need a second `stableStringify`, which `parse.js` keeps private on
 // purpose. So the map is hashed THROUGH `astHash`: each tree's hash is that
 // tree's canonical form, and the sorted `"key":hash` pairs are the canonical
-// form of the map. `api/services/user_definitions.trees_hash` mirrors it byte
-// for byte and `tests/fixtures/ast/multi_tree_parity.json` pins ONE string.
+// form of the map. The Python lane (W1b.8, `user_definitions.trees_hash`) MUST
+// reproduce it byte for byte, and `tests/fixtures/ast/multi_tree_parity.json`
+// (W1b.7) is the ONE pinned string both lanes are held to. Two facts that
+// mirror needs: each pair carries `astHash`'s full `'sha256:<hex>'` value (the
+// prefix is INSIDE the hashed text), and KEY_RE keeps keys ASCII, so the JS
+// sort and Python's `sorted()` agree without a collation rule.
 import { astHash, sha256Hex } from './parse'
 import { REPAINT_MODES } from './lint'
 import { FRESHNESS_MODES } from './freshness'
