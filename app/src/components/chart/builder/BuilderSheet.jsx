@@ -470,6 +470,30 @@ export class BuilderBoundary extends Component {
   }
 }
 
+// ── WHICH DOOR A FRESHLY-OPENED SHEET LANDS ON (W4a) ───────────────────────
+//
+// ⛔ ONE RULE, THREE READERS, AND THAT IS WHY IT IS A FUNCTION. `buildMode` is
+// written at open by the `useState` SEED (before the first paint) and by the
+// `[open]` RESET (on every later open of the same mounted sheet) — two writers
+// that cannot be collapsed, because one runs before paint and the other on a
+// prop change. What must not be duplicated is the DECISION, so the decision
+// lives here and both call it.
+//
+// ⚰️ THE EDIT DOOR WAS LEFT OUT OF THIS ONCE, AND IT COST A FRAME. The first
+// version of this hand-back seeded from `initialMode` alone, so opening a saved
+// formula seeded `'library'` and `openForEdit`'s own `setBuildMode` — a PASSIVE
+// effect — landed after paint: a member opening their own work was shown the
+// firm's starter gallery first. The New-scan door had exactly this defect and
+// exactly this fix; the edit door simply was not asked the same question.
+const DEFAULT_MODE = 'library'
+/** ⛔ AN EDIT OPENS ON THE FORMULA. A member editing their OWN definition has no
+ *  use for a gallery of starters above it, and leaving one there invites a click
+ *  that replaces their work. Spelled once; `openForEdit` reads the same name. */
+const EDIT_MODE = 'formula'
+const openingMode = (editRow, initialMode) => (
+  editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
+)
+
 /**
  * ⭐ `initialMode` / `editRow` (W4a HAND-BACK) — the two things a SECOND opener
  * needs to say. The chart toolbar passes neither and behaves exactly as before.
@@ -720,14 +744,14 @@ export default function BuilderSheet({
   // formula they already own has no use for starters above their own work, so
   // `openForEdit` moves the sheet to Formula. `BuilderSheet.starters.test.jsx`
   // holds both halves.
-  // ⛔ W4a — SEEDED FROM `initialMode` TOO, not merely reset to it. The chart
-  // keeps ONE sheet mounted and toggles `open`; the screener mounts a fresh one
-  // per click, so its first paint happens before any effect runs. `useEffect` is
-  // passive — it fires AFTER that paint — so a seed of `'library'` would show the
-  // library for a frame and then switch. One value, one source, both times it is
-  // written. (`Screener.door.test.jsx` is what measured this; the prop-level
-  // test could not see it, because a mock has no tabs to be on the wrong one of.)
-  const [buildMode, setBuildMode] = useState(() => initialMode || 'library')
+  // ⛔ W4a — SEEDED FROM THE RULE, not merely reset to it. The chart keeps ONE
+  // sheet mounted and toggles `open`; the screener mounts a fresh one per click,
+  // so its first paint happens before any effect runs. `useEffect` is passive —
+  // it fires AFTER that paint — so a seed that ignored the caller would show the
+  // wrong tab for a frame and then switch. (`Screener.door.test.jsx` measured
+  // this, twice; the prop-level test could see neither, because a mock has no
+  // tabs to be on the wrong one of.)
+  const [buildMode, setBuildMode] = useState(() => openingMode(editRow, initialMode))
   const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
@@ -739,25 +763,24 @@ export default function BuilderSheet({
     if (!open) return
     setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    // ⛔ W4a — THE OPENING MODE IS DECIDED HERE AND NOWHERE ELSE. It used to
-    // be the literal `'library'`, and the screener's door (which wants the
-    // Conditions picker) was written as a SECOND effect setting it again
-    // afterwards. That is a second writer over one value, and it is visible:
-    // both are passive effects, so the sheet PAINTS on the library and then
-    // switches — `Screener.door.test.jsx` caught the flash on the real page
-    // while the prop-level test was green. `initialMode` is null for the
-    // chart's door, which is what keeps `'library'` the default it has always
-    // been.
-    setEditing(null); setBuildMode(initialMode || 'library'); setPickerNote(null)
+    // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
+    // used to be the literal `'library'`, and the screener's door was written as
+    // a SECOND effect setting it again afterwards. That is a second writer over
+    // one value, and it is VISIBLE: both are passive effects, so the sheet
+    // paints on the library and then switches. Both props are null for the
+    // chart's door, which is what keeps the Library the default it has been.
+    setEditing(null); setBuildMode(openingMode(editRow, initialMode)); setPickerNote(null)
     // ⛔ THE PLOTS RESET TOO. A sheet reopened with the previous formula's second
     // plot still in it would offer a Save whose document names a tree the box no
     // longer shows — the same reason `source` and `name` are cleared here.
     resetPlots()
-    // ⚠️ `initialMode` IS A DEPENDENCY, which means changing it re-runs the
-    // whole reset. That is correct — a sheet re-aimed at a different door is
-    // a new formula — and it is safe because the value is a STRING compared
-    // by value, not an object rebuilt per render.
-  }, [open, initialMode, resetPlots])
+    // ⚠️ BOTH OPENING PROPS ARE DEPENDENCIES, which means changing either
+    // re-runs the whole reset. That is correct — a sheet re-aimed at a different
+    // door, or at a different row, is a new formula — and `editRow` is why the
+    // warning on that prop matters: a string compares by value, an object
+    // compares by identity, so a row rebuilt inline per render would empty this
+    // form on every parent render.
+  }, [open, editRow, initialMode, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -882,11 +905,11 @@ export default function BuilderSheet({
     // it would be the scope from the FIRST render — empty of the very inputs the
     // stored definition declares.
     setResult(evaluateFormula(restored[0].source, scope))
-    // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
-    // because a member with nothing in the box is helped by worked examples; a
-    // member editing their OWN definition is not, and leaving a gallery of
-    // starters above their work invites a click that replaces it.
-    setBuildMode('formula')
+    // ⛔ AND THE SHEET MOVES TO THE FORMULA — the SAME `EDIT_MODE` the seed and
+    // the open-reset read, because this is the same rule arriving by a different
+    // route: `openForEdit` is also called for a row that shows up while the
+    // sheet is already open, when no seed is going to run again.
+    setBuildMode(EDIT_MODE)
     setPickerNote(null)
   }, [resetPlots])
 
