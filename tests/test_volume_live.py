@@ -121,8 +121,9 @@ def test_sustained_recent_volume_is_the_primary_signal_and_rings():
     assert r is not None and r["lit"] is True
     assert r["rvol_day"] < 1          # cumulative is LOW (quiet overall)…
     assert r["rvol"] >= 6             # …but the SUSTAINED recent RVOL is high
+    assert r["surge_intraday"] > 1    # recent pace well ABOVE its own day pace (accelerating)
     assert r["tier"] >= 4             # → bold (Very High / Extreme)
-    assert r["igniting"] is True      # sustained + moving → the gold ring
+    assert r["igniting"] is True      # sustained + accelerating + moving → the gold ring
 
 
 def test_normal_activity_reads_below_1x_and_is_not_lit():

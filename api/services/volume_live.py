@@ -99,6 +99,12 @@ _IGNITE_MOVE = 0.75          # …AND a real, fast price move
 # a real fast move together) so modest blips on quiet names don't flicker in.
 _SURGE_BURST = 8.0           # recent 60-sec rate ≥ 8× typical-for-now…
 _SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min window)
+# Intraday-surge gate — a name below the "extreme level" bar must be ACCELERATING vs its
+# OWN day pace to light (not merely elevated-and-flat). `surge_intraday` = recent pace ÷
+# day pace; an earnings name coasting on yesterday's volume (SMTC/SCHW) reads ~1 and is
+# excluded, while a genuine fresh surge reads well above 1.
+_SUSTAINED_HIGH_RVOL = 6.0   # at/above this vs a normal day, show it even if plateaued (if moving)
+_MIN_INTRADAY_SURGE = 1.5    # below the high bar, require recent pace ≥ 1.5× the day pace
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -303,6 +309,14 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
             svol = min(_RVOL_CAP, max(0.0, cv_now - ss[1]) / exp_sustain) if exp_sustain > 0 else 0.0
     rvol = svol if svol is not None else rvol_day
 
+    # Intraday surge = recent pace vs the stock's OWN day-so-far pace (svol ÷ cumulative).
+    # >1 = accelerating (a fresh pickup); ~1 = coasting at its day pace; <1 = decelerating.
+    # This separates a genuine surge from a name that's merely ELEVATED-and-flat — an
+    # earnings name coasting on yesterday's heavy volume reads ~3× vs a normal day but ~1×
+    # vs its own pace, so it should NOT light. None until the sustained window is built
+    # (a freshly-tracked mover isn't held back — the gate is skipped while unknown).
+    surge_intraday = round(svol / rvol_day, 2) if (svol is not None and rvol_day > 0) else None
+
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
         pct = (px_now - prev_close) / prev_close * 100.0
@@ -311,6 +325,7 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
         "pct": round(pct, 2) if pct is not None else None,
         "rvol": round(rvol, 2),          # PRIMARY: sustained recent rate (cumulative fallback)
         "rvol_day": round(rvol_day, 2),  # cumulative-on-the-day (context)
+        "surge_intraday": surge_intraday,  # recent pace ÷ own day pace (>1 accelerating, <1 fading)
         "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
@@ -445,26 +460,36 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
 
     def _is_lit(m):
         # Best of both, gated by real $ flow:
-        #  • SUSTAINED — heavy sustained volume (the smooth ~10-min rvol) + a real move.
-        #    Stays lit until volume dies down; no flicker.
+        #  • SUSTAINED — a genuinely EXTREME level (show even if plateaued) OR a real pickup
+        #    that is ACCELERATING vs the stock's OWN day pace (surge_intraday). NOT a name
+        #    merely elevated-and-flat, coasting on yesterday's earnings volume (SMTC/SCHW
+        #    read ~3× vs a normal day but ~1× vs their own pace). The surge gate only
+        #    applies once we have that reading; a freshly-tracked mover isn't held back.
         #  • INSTANT SURGE — a genuine explosion right now (big burst + a real fast move),
-        #    caught the SECOND it happens, no waiting for the sustained window. The HIGH
-        #    bars keep modest blips on quiet names out (they were the flicker).
-        # A "move" for the sustained path = the last ~2 min OR up big on the day (robust
-        # when the 2-min window is momentarily flat — the pre-market news shape).
+        #    caught the SECOND it happens. HIGH bars keep modest blips on quiet names out.
+        # A "move" = the last ~2 min OR up big on the day (robust when the 2-min window is
+        # momentarily flat — the pre-market news shape).
         if m.get("dvol", 0) < mnd:
             return False
         moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
-        sustained = m["rvol"] >= mnr and moved
+        surge = m.get("surge_intraday")
+        accelerating_ok = surge is None or surge >= _MIN_INTRADAY_SURGE
+        sustained = moved and (
+            m["rvol"] >= _SUSTAINED_HIGH_RVOL
+            or (m["rvol"] >= mnr and accelerating_ok)
+        )
         instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
         return sustained or instant
 
     def _igniting(m):
-        # The gold ring = a GENUINE fast move happening NOW — sustained-heavy (t4+) with a
-        # move, OR a big instant surge. Never a modest blip.
-        sustained_hot = m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+        # The gold ring = a GENUINE surge happening NOW — a big instant burst, OR a heavy
+        # name that is ACCELERATING (not just plateaued) with a real move. Never a coasting
+        # elevated-and-flat name.
+        surge = m.get("surge_intraday")
+        accelerating = (m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+                        and (surge is None or surge >= _MIN_INTRADAY_SURGE))
         instant = m.get("burst", 0.0) >= _SURGE_BURST and abs(m["move"]) >= _SURGE_MOVE
-        return sustained_hot or instant
+        return accelerating or instant
 
     def _score(m):
         # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
@@ -508,6 +533,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "pct": m["pct"],
             "rvol": m["rvol"],
             "rvol_day": m.get("rvol_day"),
+            "surge_intraday": m.get("surge_intraday"),
             "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",
