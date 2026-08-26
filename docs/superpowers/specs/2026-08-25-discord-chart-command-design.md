@@ -631,3 +631,26 @@ check + app review; unrelated to Public Bot). Path: build the Activity page
 (the app's real StockChart in a slim route), test in the dev server (<25
 members) with App Testers, submit for verification. Until then the buttons are
 the interactive layer and `Open interactive ↗` is the real chart.
+
+
+## v9b — Breadth metrics are LINES (2026-08-25, ~20:35 CT)
+
+Owner: "they render a line chart in the charts widget vs candles for the
+breadth charts. Important distinction for charting breadth metrics."
+`ChartPane.jsx` has a breadth Line/Candles quick-toggle (localStorage
+`uct.charts.breadthLine`, the owner's is on) whose whole effect is
+`settingsOverride.chartType = 'line'`, plus StockChart props `breadthLine`
+(single canvas-contrasting ink), `watermark = sym` + `watermarkName = metric
+name`, `blankVolume` (pane kept, empty), `liveUpdates: false`.
+
+The bot mirrors all of it: `breadth_adjust` defaults `style` to `line` (an
+explicit per-call style still wins) and stamps `breadth_name`; the job passes
+it as `options["breadth"]`; `build_render_url` emits `?breadth=1&bname=`;
+`ChartRender` passes `breadthLine / blankVolume / watermark / watermarkName`.
+The record is stamped by the caller, never fetched by the page — the
+`useBreadthSymbols` hook resolves asynchronously and does not notify on its
+failure path, so gating the capture on it would have been a race or a hang.
+`volume: False` from v9 is gone: the pane is blank, like the app's.
+
+Primary server: **Uncharted Territory** (members + owners); the UCT
+Intelligence server is the test bench only.
