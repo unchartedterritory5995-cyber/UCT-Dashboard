@@ -1524,6 +1524,82 @@ describe('MovingAverage — the enum dispatch, on thinkorswim`s own five constan
     expect(translateThinkScript('input at = {default UseA, UseB};\nplot p = MovingAverage(at, close, 10);\n')
       .refusal.guard).toBe('thinkscript:enum-arm')
   })
+
+  it('🔴🔴 A BRACES INPUT WHOSE ARM IS SPELLED LIKE AN AverageType IS STILL NOT ONE', () => {
+    // ⛔⛔ THE MUTATION SWEEP FOUND THIS GAP AND NOTHING ELSE COULD HAVE.
+    // Deleting the constant-FAMILY check survived the whole suite, because every
+    // case above is caught one step later by the ARM check: `close` is not an
+    // enum at all, and `{default UseA, UseB}` has arms no dispatch row names. The
+    // one input that separates the two rules is a braces enum whose default arm
+    // happens to be SPELLED like one of thinkorswim's five constants — and there
+    // the arm check waves it through while the family check refuses it.
+    //
+    // ⭐ REFUSING IS THE ANSWER, NOT A LIMITATION. `MovingAverage`'s first
+    // parameter is declared `int averageType` and "accepts AverageType constants
+    // as value" (Functions/Tech-Analysis/MovingAverage). A member's `{default
+    // SIMPLE, EXPONENTIAL}` is a string-choice input, a different type, and this
+    // translator has no quotation saying the platform coerces one to the other.
+    // Answering `sma` for it would be inventing semantics.
+    for (const arm of ['SIMPLE', 'EXPONENTIAL', 'WILDERS', 'WEIGHTED']) {
+      const out = translateThinkScript(
+        `input at = {default ${arm}, Other};\nplot p = MovingAverage(at, close, 10);\n`)
+      expect(out.refusal.guard, arm).toBe('thinkscript:enum-arm')
+    }
+    // ⭐ AND THE CONTROL, so this cannot pass for a translator that refuses every
+    // MovingAverage: the real constant, one line apart, still translates.
+    expect(translateThinkScript('plot p = MovingAverage(AverageType.SIMPLE, close, 10);\n')
+      .outputs[0].formula).toBe('sma(close, 10)')
+  })
+})
+
+describe('the seed note follows the ENGINE, not the spelling that reached it', () => {
+  // 🔴🔴 THE MUTATION SWEEP'S SECOND FINDING, AND THIS ONE WAS A REAL MISS RATHER
+  // THAN AN UNRAILED GUARD. The note began life as a field on the `ExpAverage`
+  // ROW, so `ExpAverage(close, 12)` disclosed the seed difference and
+  // `MovingAverage(AverageType.EXPONENTIAL, close, 12)` — the same `ema`, the
+  // same difference — disclosed nothing. `02-macd-lookback-cross-watchlist` is
+  // published with exactly that spelling.
+  const notes = (src) => translateThinkScript(src).ignored.map((n) => n.code)
+
+  it('⭐ BOTH spellings of an exponential average carry it', () => {
+    expect(notes('plot p = ExpAverage(close, 12);\n')).toContain('thinkscript:note-seed')
+    expect(notes('plot p = MovingAverage(AverageType.EXPONENTIAL, close, 12);\n'))
+      .toContain('thinkscript:note-seed')
+    expect(notes('input at = AverageType.EXPONENTIAL;\nplot p = MovingAverage(at, close, 12);\n'))
+      .toContain('thinkscript:note-seed')
+  })
+
+  it('⛔ and the four exact identities do NOT — a note on everything is a note on nothing', () => {
+    for (const src of ['plot p = Average(close, 12);\n',
+      'plot p = WildersAverage(close, 12);\n',
+      'plot p = MovingAverage(AverageType.SIMPLE, close, 12);\n',
+      'plot p = MovingAverage(AverageType.WILDERS, close, 12);\n',
+      'plot p = MovingAverage(AverageType.WEIGHTED, close, 12);\n',
+      'plot p = ATR(14);\n']) {
+      expect(notes(src), src).not.toContain('thinkscript:note-seed')
+    }
+  })
+
+  it('⛔ a call that REFUSES says nothing about a seed it never reached', () => {
+    // The note is emitted after the call is built, so `MovingAverage(HULL, …)`
+    // — which refuses at the table lookup — leaves no sentence behind about an
+    // average the member is not getting.
+    expect(notes('plot p = MovingAverage(AverageType.HULL, close, 12);\n'))
+      .not.toContain('thinkscript:note-seed')
+  })
+
+  it('⭐ the notes come out in SOURCE ORDER, though they are produced in two passes', () => {
+    // ⛔ THE LEXER'S AND `declare`'s NOTES ARE SORTED WHILE THE STATEMENTS ARE
+    // READ; a call note comes out of RESOLUTION, which happens afterwards. This
+    // input puts the resolution note FIRST in the source and the lexer note last,
+    // so append-order and source-order disagree — which is the only shape that
+    // can tell the re-sort from its absence.
+    const src = 'plot a = ExpAverage(close, 12);\nplot b = close > open;\nplot c = close – open;\n'
+    const out = translateThinkScript(src)
+    expect(out.ignored.map((n) => n.code))
+      .toEqual(['thinkscript:note-seed', 'thinkscript:note-endash'])
+    expect(out.ignored.map((n) => n.line)).toEqual([1, 3])
+  })
 })
 
 describe('TrueRange — the page publishes its own reimplementation, and this emits THAT', () => {

@@ -1296,6 +1296,32 @@ const TS_AVERAGE_TYPES = Object.freeze({
 const armText = (arm) => `AverageType.${String(arm).toUpperCase()}`
 
 /**
+ * ⭐⭐ A NOTE THAT IS A FACT ABOUT AN ENGINE FUNCTION IS KEYED ON THE ENGINE
+ * FUNCTION, NOT ON THE THINKORSWIM SPELLING THAT REACHED IT.
+ *
+ * 🔴 W3.5's MUTATION SWEEP FOUND THIS, AND IT WAS A REAL MISS. The seed note
+ * started life on the `ExpAverage` row, so `ExpAverage(close, 12)` said the seed
+ * differs and `MovingAverage(AverageType.EXPONENTIAL, close, 12)` — the SAME
+ * `ema`, the same difference — said nothing. `02-macd-lookback-cross-watchlist`
+ * is published with exactly that spelling, so a member pasting the commonest
+ * MACD script in the corpus would have been told nothing at all. Two spellings,
+ * one identity, one note: keyed here, consulted once the engine is CHOSEN, so a
+ * route added later cannot arrive without it.
+ *
+ * ⚠️ ONLY `ema` IS LISTED, AND THE OTHER FOUR ARMS ARE DELIBERATE ABSENCES.
+ * `sma` and `wma` are finite windows with nothing to seed; `rma` is EXACT
+ * against `WildersAverage`'s published "the first value is calculated as the
+ * simple moving average" (`closedTable::_functions_smoothing` states ours the
+ * same way); `atr` matches an independent Wilder construction to 5.4e-16
+ * INCLUDING its seed (`_functions_atr_convention`). A note on those would be
+ * noise, and a member who learns to skip the list stops reading the one that
+ * matters.
+ */
+const TS_NOTE_BY_ENGINE = Object.freeze({
+  ema: 'thinkscript:note-seed',
+})
+
+/**
  * ⭐⭐ THE CALL SHAPES — a thinkorswim function, its OWN parameter names, and the
  * engine identity it stands for.
  *
@@ -1403,7 +1429,6 @@ export const TS_CALL_SHAPES = Object.freeze({
     params: ['data', 'length'],
     defaults: { length: 12 },
     args: [{ from: 'data' }, { from: 'length' }],
-    note: 'thinkscript:note-seed',
     cite: 'Functions/Tech-Analysis/ExpAverage: "Returns the exponential moving average (EMA) '
       + 'of data with length"; "alpha is a smoothing coefficient equal to 2/(length + 1)" '
       + 'and "EMA1 = price1"; Default value length 12. SAME ALPHA as closedTable `ema`, '
@@ -1949,7 +1974,6 @@ class Resolver {
     }
 
     const port = this.callPort(shape, slots, n)
-    if (shape.note) this.note(shape.note, n.tok, `\`${n.name}\``)
     if (shape.recurrence) return this.buildRecurrence(shape, port, n)
 
     const engine = shape.dispatch ? this.dispatchEngine(shape, port, n) : shape.engine
@@ -1958,12 +1982,19 @@ class Resolver {
       if (plan.series !== undefined) return { node: cSeries(plan.series), tok: n.tok }
       return { node: cNum(plan.const, n.tok), tok: n.tok }
     }
-    this.runGates(shape, port, n, engine)
     // ⚠️ THE GATES RUN BEFORE THE ARGUMENTS ARE FILLED, so a call refused for
     // asking the wrong average never resolves the rest of its arguments — which
     // matters because resolution records which member inputs a column folded.
-    if (shape.expand) return TS_EXPANSIONS[shape.expand](shape.args.map(fill), this, n.tok)
-    return this.engineCall(engine, argumentPlan(shape, this.table).map(fill), n.tok)
+    this.runGates(shape, port, n, engine)
+    const built = shape.expand
+      ? TS_EXPANSIONS[shape.expand](shape.args.map(fill), this, n.tok)
+      : this.engineCall(engine, argumentPlan(shape, this.table).map(fill), n.tok)
+    // ⭐ THE NOTE FOLLOWS THE ENGINE, NOT THE SPELLING — see `TS_NOTE_BY_ENGINE`.
+    // ⛔ AND IT IS EMITTED LAST, AFTER THE CALL IS BUILT. Anything above this
+    // line can still refuse, and a note about a seed the member never reached is
+    // a sentence attached to a column that does not exist.
+    if (has(TS_NOTE_BY_ENGINE, engine)) this.note(TS_NOTE_BY_ENGINE[engine], n.tok, `\`${n.name}\``)
+    return built
   }
 
   /**
@@ -2439,20 +2470,26 @@ export function translateThinkScript(source, opts = {}) {
       }
     })
 
-    // ⛔ ONE NOTE PER PLACE, NOT PER RESOLUTION. A `def` reached from three plots
-    // resolves once (the resolver memoises bindings) but a call written twice on
-    // one line is two occurrences, and the same sentence repeated is how a member
-    // learns to skip the list. Deduped by code AND position, so two different
-    // ExpAverage calls on two lines still each say so.
-    const seenNote = new Set()
-    program.ignored = program.ignored
-      .filter((v) => {
-        const at = `${v.code}@${v.line}:${v.column}`
-        if (seenNote.has(at)) return false
-        seenNote.add(at)
-        return true
-      })
-      .sort((a, b) => (a.line - b.line) || (a.column - b.column))
+    // ⛔ RE-SORTED, BECAUSE THE CALL NOTES ARRIVE AFTER `readProgram` HAS ALREADY
+    // SORTED. The lexer's notes and the `declare` notes are ordered while the
+    // statements are read; a seed note comes out of RESOLUTION, which happens
+    // afterwards and in output order rather than in source order. Appending
+    // without this puts an `ExpAverage` on line 1 below an en-dash on line 3, and
+    // `ImportBox` renders the list in the order it is given.
+    //
+    // ⚠️ A DEDUPE SAT HERE AND THE MUTATION SWEEP PROVED IT COULD NEVER FIRE.
+    // Removing it changed no test and no corpus byte, so the honest question was
+    // whether a duplicate is producible AT ALL — measured across six constructed
+    // shapes (two calls on two lines, two on ONE line, a `def` read by three
+    // plots, two accumulators, a shadowed plot resolving inline), and it is not:
+    // each call site has its own token, so its own line and column, and the
+    // resolver's binding memo means a `def` is resolved once however many outputs
+    // read it. Dead defence at a chokepoint is worth keeping when nothing else
+    // can catch the mistake it watches (`refusalValue`'s `assertDeclared` above
+    // is exactly that, and is kept and disclosed). This was not that: it guarded
+    // a duplicate the structure already prevents. Deleted, with the measurement,
+    // rather than left standing behind a paragraph.
+    program.ignored = program.ignored.sort((a, b) => (a.line - b.line) || (a.column - b.column))
 
     const usable = rows.filter((r) => r.refusal === null && !r.hidden)
     const refusals = [...program.hard, ...rows.filter((r) => r.refusal).map((r) => r.refusal)]

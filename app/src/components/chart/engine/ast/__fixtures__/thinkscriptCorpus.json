@@ -28,7 +28,10 @@
     "usable": 1,
     "selectedFormula": null,
     "ignoredLines": [
-      4
+      4,
+      13,
+      13,
+      14
     ],
     "folded": [
       "lookback=5",
@@ -173,8 +176,7 @@
     "usable": 3,
     "selectedFormula": null,
     "ignoredLines": [
-      4,
-      25
+      4
     ],
     "folded": [
       "benchmark=SPY",
