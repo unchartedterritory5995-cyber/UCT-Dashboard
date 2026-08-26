@@ -2209,8 +2209,35 @@ def test_the_COLLAPSING_reasons_are_a_SUBSET_of_the_words_a_cycle_can_actually_E
     WRITER's policy and `scan_store` cannot import the evaluator without a cycle —
     so this is the only place the relationship can be asserted.
     """
+    # ⛔ NON-EMPTY FIRST, OR THE SUBSET BELOW IS VACUOUS: `set() <= anything` is True,
+    # so an emptied policy would sail through this rail reading as protection. An
+    # EMPTY authority is not one -- measured: emptying the tuple leaves this test
+    # GREEN and is caught only by the behavioural rails above.
+    assert scan_store.LIVE_COLLAPSING_REASONS, (
+        "the collapse policy is empty -- nothing collapses and the overnight flood "
+        "is back")
     assert set(scan_store.LIVE_COLLAPSING_REASONS) <= set(scan_evaluator.LIVE_SKIP_REASONS)
     # ⛔ AND `disabled` IS NOT AMONG THEM: it is never recorded at all
     # (`record=False`), so collapsing it would be a rule about rows that cannot
     # exist -- and reading it here would suggest they do.
     assert "disabled" not in scan_store.LIVE_COLLAPSING_REASONS
+
+
+def test_the_FIRST_closed_tick_after_the_bell_does_NOT_eat_the_sessions_LAST_receipt(store):
+    """🔴 THE 16:00 TRANSITION, WHICH HAPPENS EVERY SINGLE DAY. The session's final
+    real receipt is written at 15:55 and the very next tick answers `closed`. The
+    collapse must look at what the PREVIOUS row actually says, not merely at "there
+    is a row behind me" — a version that skipped that check would silently eat the
+    closing receipt of every session, which is the single most interesting row in
+    the table.
+    """
+    base, step = 1_800_000_000, scan_evaluator.live_interval_s()
+    _file(base)                                          # 15:50, a real cycle
+    _file(base + step)                                   # 15:55, the session's last
+    _file(base + 2 * step, skipped="closed")             # 16:00, the bell
+
+    rows = _cycle_rows(store)
+    kinds = [json.loads(r["receipt_json"]).get("skipped_reason") for r in rows]
+    assert kinds == ["closed", None, None], kinds
+    assert rows[1]["cycle_started"] == base + step, (
+        "the closing tick swallowed the session's final real receipt")
