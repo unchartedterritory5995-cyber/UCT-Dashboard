@@ -304,6 +304,45 @@ def _receipt_key(job: str) -> str:
     return f"screen_backtest::{job}"
 
 
+#: ⛔⛔ THE PER-CALLER FACTS — the keys that describe WHO ASKED rather than WHAT
+#: WAS COMPUTED. ``job_id`` is a digest of the request and deliberately excludes
+#: the caller, so everything stored under it is served to whoever polls it; a key
+#: in this tuple therefore may NEVER travel in the shared entry. Declared ONCE and
+#: read by both halves of the split — the door that builds the entry and the door
+#: that serves it — because two lists of "what is private here" is how one of them
+#: stops matching the other.
+PER_CALLER_KEYS: tuple = ("definition", "window_request")
+
+#: The same rule one level down. ``universe_request`` is mostly shared — ``kind``,
+#: ``matched`` and ``truncated`` describe the symbol list the digest already keys
+#: on — but it also names the member's OWN saved screen, and ``screen_name`` is
+#: FREE TEXT A MEMBER TYPED, which is strictly worse than an opaque id: there is
+#: no shape it has to have and no way to un-read it.
+PER_CALLER_UNIVERSE_KEYS: tuple = ("screen_id", "screen_name")
+
+
+def _shared_only(payload: dict) -> dict:
+    """``payload`` with every per-caller fact removed.
+
+    ⛔ THIS IS THE GUARANTEE, AND THE MERGE ON THE WAY OUT IS NOT. A route that
+    only merged the caller's own facts OVER a cached payload would still hand a
+    stale entry's ``definition`` to a caller who has none of their own —
+    ``{**cached, **{}}`` is ``cached``. So the read door SUBTRACTS, and the answer
+    is true of any entry it is handed, including one written by an older pod.
+
+    ⚠️ NOTHING IS MUTATED. The cached object belongs to the cache; both levels are
+    rebuilt into new dicts.
+    """
+    if not isinstance(payload, dict):                          # pragma: no cover
+        return payload
+    out = {k: v for k, v in payload.items() if k not in PER_CALLER_KEYS}
+    universe = out.get("universe_request")
+    if isinstance(universe, dict):
+        out["universe_request"] = {k: v for k, v in universe.items()
+                                   if k not in PER_CALLER_UNIVERSE_KEYS}
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # the request
 # --------------------------------------------------------------------------- #
@@ -778,8 +817,17 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
 
 
 def _stored(job: str) -> Optional[dict]:
+    """The cached receipt for ``job``, WITH every per-caller fact subtracted.
+
+    ⛔ THE STRIP IS HERE BECAUSE THIS IS THE ONE READ DOOR — ``status_for`` (the
+    poll), ``_submit`` (the background dedupe) and the inline path all come
+    through it, so one subtraction covers every way a shared entry reaches a
+    caller. The WRITE side builds the entry clean already (`extras` carries only
+    the shared half); this is what makes that true of entries this process did not
+    write.
+    """
     hit = _cache().get(_receipt_key(job))
-    return hit if isinstance(hit, dict) else None
+    return _shared_only(hit) if isinstance(hit, dict) else None
 
 
 def status_for(job: str) -> dict:
@@ -864,14 +912,22 @@ def run_screen_backtest(body: BacktestRequest,
     carries no tree, so there is nothing there to derive it from. Poll answers
     have it once they are ``ready``.
 
-    ⛔ ``definition{def_id, version, rev}`` IS THE CALLER'S OWN AND IS NOT SHARED.
-    It rides on the answer THIS member's request produces — the synchronous
-    receipt and the ``?background=1`` acknowledgement — and is deliberately absent
-    from the cached entry, so a ``ready`` poll of a job another member started
-    never names their saved row. ``def_hash`` is the shareable identity: it is a
-    digest of the maths, identical by construction for identical maths. A surface
-    that needs to say WHICH definition this is about echoes the ``def_id`` it
-    posted; it already holds it.
+    ⛔ THE PER-CALLER FACTS ARE NOT SHARED — ``definition{def_id, version, rev}``,
+    ``window_request``, and ``universe_request``'s ``screen_id``/``screen_name``
+    (``PER_CALLER_KEYS`` / ``PER_CALLER_UNIVERSE_KEYS``). They ride on the answer
+    THIS member's request produces — the synchronous receipt and the
+    ``?background=1`` acknowledgement — and are absent from the cached entry, so a
+    ``ready`` poll of a job another member started names neither their saved row
+    nor their private screen. ``def_hash`` is the shareable identity: a digest of
+    the maths, identical by construction for identical maths. A surface that needs
+    to say WHICH definition this is about echoes the ``def_id`` it posted.
+
+    ⚠️ SO A ``ready`` POLL CARRIES THE RECEIPT AND THE SHARED HALF ONLY. That is
+    the honest shape — the poll has no caller to speak for — and the consumer
+    already holds what it asked with. ``universe_request``'s ``kind``, ``matched``
+    and ``truncated`` DO survive on the poll: they describe the symbol list the
+    job id already keys on, and ``truncated`` is an honest-none disclosure that
+    must not go missing.
     """
     tree, definition = _tree_of(body, user.get("id"))
     tf = _tf(body.tf)
@@ -999,8 +1055,6 @@ def run_screen_backtest(body: BacktestRequest,
         # below for the half that is not like this.
         "def_hash": _hash_of(tree),
     }
-    if window_request:
-        asked["window_request"] = window_request
 
     # ⛔⛔ PER-CALLER, AND THEREFORE NEVER WRITTEN INTO THE SHARED ENTRY.
     # (Controller ruling, 2026-08-26.) `job_id` is a digest of the REQUEST —
@@ -1021,20 +1075,30 @@ def run_screen_backtest(body: BacktestRequest,
     # the caller's own answer — a surface that wants to say WHICH of the member's
     # definitions produced this already knows: it is the `def_id` it posted.
     #
-    # 🔴 SCOPE, STATED SO NOBODY READS THIS AS FINISHED. `universe_request` is
-    # STILL in the shared entry and still carries `screen_id` + `screen_name` for
-    # a saved-screen body, and `screen_name` is free text a member typed. Measured
-    # 2026-08-26 on this branch: member A backtesting their screen 7 over
-    # [AAA, BBB] and member B backtesting THEIR screen 12 over the same two names
-    # collide on one job id, and B is served `{"screen_id": 7, "screen_name":
-    # "A's PRIVATE momentum list"}`. It is the older shape of the same defect —
-    # the ruling names it as the precedent and pins only `definition{def_id,
-    # version, rev}` — so it is left for the controller to rule on rather than
-    # widened into here. ⚠️ It is NOT live today: `SCREEN_BACKTEST_ENABLED` is
-    # unset in production, so this router is not in the route table at all. The
-    # day that flag flips, this line is the thing to have already answered. The
-    # remedy is this same `mine` split, not a wider cache key.
-    mine = {"definition": definition} if definition else {}
+    # ⭐ AND THE OLDER SHAPE OF THE SAME DEFECT IS IN HERE TOO (ruled in on review,
+    # 2026-08-26). `universe_request` named the member's own SAVED SCREEN, and
+    # `screen_name` is free text a member typed. Measured before the fix: member A
+    # over their screen 7 and member B over THEIR screen 12, both resolving to
+    # [AAA, BBB], collide on one job id and B was served
+    # `{"screen_id": 7, "screen_name": "A's PRIVATE momentum list"}` — so B was
+    # shown A's private data AND misinformed about B's own request, because B's
+    # own `screen_id` had been replaced. `kind`/`matched`/`truncated` stay shared:
+    # they describe the symbol list the digest already keys on.
+    #
+    # ⚠️ `window_request` IS IN HERE FOR A WEAKER REASON AND IT IS STILL A REASON.
+    # It carries no identity, but it describes how THIS request's window was
+    # arrived at — so a member who typed their dates by hand was being told
+    # `derived: true` off an entry another member's omitted window had written.
+    mine: dict = {}
+    if definition:
+        mine["definition"] = definition
+    if window_request:
+        mine["window_request"] = window_request
+    # ⛔ THE CALLER'S OWN BLOCK, WHOLE — not merely the private half. The shared
+    # entry keeps `{kind, matched, truncated}`, and this hands THIS member the
+    # provenance of the request THEY made, so a collision cannot restate any part
+    # of it. It is the same dict `_universe_for` built; `extras` gets the subset.
+    mine["universe_request"] = universe
 
     extras = {
         "job": job,
@@ -1047,7 +1111,11 @@ def run_screen_backtest(body: BacktestRequest,
         # receipt, because the engine is handed bars and never asks what timeframe
         # they are, so this route is its only writer.
         "tf": tf,
-        "universe_request": universe,
+        # ⛔ THE SHARED HALF ONLY — the private half rides on `mine` above. The
+        # subset is DERIVED from `PER_CALLER_UNIVERSE_KEYS` rather than rebuilt by
+        # hand, so the two doors cannot disagree about what "private" means.
+        "universe_request": {k: v for k, v in universe.items()
+                             if k not in PER_CALLER_UNIVERSE_KEYS},
         **asked,
     }
 

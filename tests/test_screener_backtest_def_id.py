@@ -22,6 +22,7 @@ from api.middleware.auth_middleware import get_current_user, get_current_user_wi
 from api.routers import screener_backtest as bt
 from api.services import bars_fetch, bars_sqlite
 from api.services import user_definitions as defs
+from api.services.screener import query as scr_query
 from api.services.screener import saved_screens as scr_saved
 from api.services.screener import snapshot_builder
 
@@ -423,6 +424,144 @@ def _two_members(monkeypatch, universe=("AAA", "BBB")):
         return TestClient(app)
 
     return client(PAID), client(OTHER)
+
+
+#: Two members' OWN saved screens, each private to its owner, that resolve to the
+#: SAME symbol list — so a backtest over either collides on one content key.
+#: ⛔ `screen_name` IS FREE TEXT A MEMBER TYPED, which is why it is worse than a
+#: `def_id`: there is no shape it has to have and no way to un-read it.
+A_SCREEN, B_SCREEN = 7, 12
+A_SCREEN_NAME = "A's PRIVATE momentum list (secret)"
+B_SCREEN_NAME = "B's own list"
+
+
+def _two_members_with_saved_screens(monkeypatch, universe=("AAA", "BBB")):
+    """The same collision, reached through the SAVED-SCREEN door instead."""
+    screens = {(A_SCREEN, "paid1"): {"name": A_SCREEN_NAME, "spec": {}},
+               (B_SCREEN, "paid2"): {"name": B_SCREEN_NAME, "spec": {}}}
+    monkeypatch.setattr(scr_saved, "get",
+                        lambda sid, user_id: screens.get((int(sid), str(user_id))))
+    monkeypatch.setattr(
+        scr_query, "run_scan",
+        lambda spec: {"rows": [{"ticker": t} for t in universe],
+                      "total": len(universe)})
+    return _two_members(monkeypatch, universe=universe)
+
+
+def test_a_SECOND_member_is_not_told_the_FIRSTS_saved_screen_nor_MISINFORMED_about_their_own(monkeypatch):
+    """⛔⛔ THE OLDER SHAPE OF THE SAME DEFECT, CLOSED. `universe_request` rode in
+    the SHARED entry carrying `screen_id` and `screen_name` — a private id and a
+    string a member typed. Two failures in one, and the second is the one that is
+    easy to miss: B is not merely SHOWN A's screen, B's own `screen_id` is
+    REPLACED by A's, so B is misinformed about their own request.
+    """
+    a_client, b_client = _two_members_with_saved_screens(monkeypatch)
+
+    a = a_client.post("/api/screener/backtest",
+                      json={"def_id": DEF_ID, "universe": A_SCREEN, **WINDOW}).json()
+    assert a["universe_request"]["screen_id"] == A_SCREEN, a["universe_request"]
+    assert a["universe_request"]["screen_name"] == A_SCREEN_NAME
+
+    b = b_client.post("/api/screener/backtest",
+                      json={"def_id": OTHER_DEF_ID, "universe": B_SCREEN, **WINDOW}).json()
+
+    # ⛔ THE NON-VACUITY CONTROL: one content key, two members, two screens.
+    assert a["job"] == b["job"], (a["job"], b["job"])
+
+    # B is named by B's own request, and A's private half is nowhere in it
+    assert b["universe_request"]["screen_id"] == B_SCREEN, b["universe_request"]
+    assert b["universe_request"]["screen_name"] == B_SCREEN_NAME
+    assert A_SCREEN_NAME not in json.dumps(b), b
+    # ...including the NUMERIC id, which is the half the first report understated
+    assert f'"screen_id": {A_SCREEN}' not in json.dumps(b), b["universe_request"]
+
+    # the shared half survives untouched — it is the honest-none disclosure
+    assert b["universe_request"]["kind"] == "saved-screen"
+    assert b["universe_request"]["truncated"] is False
+
+
+def test_the_STORED_entry_carries_NEITHER_definition_NOR_screen_identity(monkeypatch):
+    """The entry AT REST, read past the serve door — the raw cache, not `_stored`."""
+    a_client, b_client = _two_members_with_saved_screens(monkeypatch)
+    a = a_client.post("/api/screener/backtest",
+                      json={"def_id": DEF_ID, "universe": A_SCREEN, **WINDOW}).json()
+
+    raw = bt._cache().get(bt._receipt_key(a["job"]))
+    assert isinstance(raw, dict), "nothing was cached — this test would pass vacuously"
+    assert raw["def_hash"] == defs.ast_hash(BAR_TREE)     # CONTROL: it IS the receipt
+    assert "definition" not in raw, raw
+    assert set(raw["universe_request"]) == {"kind", "matched", "truncated"}, raw["universe_request"]
+    assert A_SCREEN_NAME not in json.dumps(raw), raw
+
+    # and the POLL, which is all a background caller ever reads back
+    polled = b_client.get(f"/api/screener/backtest/{a['job']}").json()
+    assert polled["status"] == "ready", polled
+    assert A_SCREEN_NAME not in json.dumps(polled), polled
+    assert "screen_id" not in json.dumps(polled), polled
+
+
+def test_a_STALE_entry_written_before_the_split_cannot_leak_through_the_read_door(monkeypatch):
+    """⛔ THE MERGE IS NOT THE GUARANTEE — THE READ DOOR IS.
+
+    `{**cached, **mine}` can only OVERWRITE, so a caller whose own `mine` is empty
+    (an `ast` body, no saved screen) merging over an entry written by an older pod
+    would receive that entry's per-caller fields verbatim. The receipt cache is
+    in-process and resets on redeploy, so this is unreachable today — which is
+    exactly why it needs a rail rather than a sentence. The entry is planted
+    directly, past `_record`, because `_record` is the half that is already clean.
+    """
+    a_client, _ = _two_members_with_saved_screens(monkeypatch)
+    probe = a_client.post("/api/screener/backtest",
+                          json={"def_id": DEF_ID, "universe": A_SCREEN, **WINDOW}).json()
+    job = probe["job"]
+
+    stale = {**bt._cache().get(bt._receipt_key(job)),
+             "definition": {"def_id": DEF_ID, "version": 3, "rev": 2},
+             "window_request": {"derived": True, "rule": "...", "bound": "cap",
+                                "cap": 1, "max_days": 1},
+             "universe_request": {"kind": "saved-screen", "screen_id": A_SCREEN,
+                                  "screen_name": A_SCREEN_NAME, "matched": 2,
+                                  "truncated": False}}
+    bt._cache().set(bt._receipt_key(job), stale, bt.RECEIPT_TTL)
+    assert "definition" in bt._cache().get(bt._receipt_key(job)), "the plant did not land"
+
+    served = bt.status_for(job)
+    assert served["status"] == "ready", served
+    assert served["def_hash"] == defs.ast_hash(BAR_TREE)   # CONTROL: still the receipt
+    assert "definition" not in served, served
+    assert "window_request" not in served, served
+    assert A_SCREEN_NAME not in json.dumps(served), served
+    assert served["universe_request"]["kind"] == "saved-screen"   # the shared half stays
+
+
+def test_a_window_a_member_TYPED_is_never_annotated_with_another_members_DERIVATION(monkeypatch):
+    """⚠️ PROVENANCE, NOT IDENTITY, AND CLOSED BY THE SAME SPLIT. `window_request`
+    describes how THIS request's window was arrived at. Member A omitting the
+    window and member B typing exactly the dates A's derivation produced land on
+    one content key, and B was being told `derived: true` about a window B typed
+    out by hand."""
+    monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd",
+                        lambda now=None: 20240628)
+    a_client, b_client = _two_members(monkeypatch)
+
+    a = a_client.post("/api/screener/backtest", json={"def_id": DEF_ID}).json()
+    assert a["window_request"]["derived"] is True, a          # CONTROL: A really derived
+    typed = {"from": a["window"]["from"], "to": a["window"]["to"]}
+
+    b = b_client.post("/api/screener/backtest",
+                      json={"def_id": OTHER_DEF_ID, **typed}).json()
+    assert b["job"] == a["job"], (b["job"], a["job"])         # the collision, again
+    assert "window_request" not in b, b
+
+    # ⛔ AND THE ENTRY AT REST CARRIES NONE OF THEM — the set is READ off the
+    # module's own declaration, never retyped here. The read door subtracts on the
+    # way out, so a payload assertion alone stays green while the WRITE side quietly
+    # files a per-caller fact in the shared entry; this is the half that sees it.
+    raw = bt._cache().get(bt._receipt_key(a["job"]))
+    assert isinstance(raw, dict), "nothing was cached — this would pass vacuously"
+    assert raw["def_hash"] == defs.ast_hash(BAR_TREE)          # CONTROL: it IS the receipt
+    assert bt.PER_CALLER_KEYS, "the module declares no per-caller keys — this probe is vacuous"
+    assert [k for k in bt.PER_CALLER_KEYS if k in raw] == [], raw.keys()
 
 
 def test_a_SECOND_member_on_the_same_content_key_gets_NO_TRACE_of_the_firsts_definition(monkeypatch):
