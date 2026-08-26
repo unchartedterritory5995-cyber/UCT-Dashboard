@@ -35,8 +35,9 @@ import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
+import WidgetCatalog from './WidgetCatalog'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups } from '../../widgets/registry'
+import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -243,7 +244,6 @@ function splitToSide(widgets, defaults, candidate) {
 // menu; it stays registered so docked instances render).
 const WIDGET_TYPES = WORKSPACE_MENU_TYPES
 const WIDGET_LABELS = labelMap('menu')
-const WIDGET_MENU_GROUPS = menuGroups('workspace')   // add-menu, grouped by category
 const HEADER_LABELS = labelMap('header')   // shown on the smart-placement ghost
 
 function parseLayout(raw) {
@@ -1853,6 +1853,7 @@ export default function ChartsWorkspace() {
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
   const [widgetsMenuOpen, setWidgetsMenuOpen] = useState(false)
   const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
+  const [catalogOpen, setCatalogOpen] = useState(false)   // the Widget Catalog gallery
   const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
   const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
@@ -1937,6 +1938,12 @@ export default function ChartsWorkspace() {
   // position is still there to dock back into.
   const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
+  // How many of each type are already on the board — a subtle count badge in the catalog.
+  const widgetTypeCounts = useMemo(() => {
+    const m = new Map()
+    for (const w of layout.widgets) m.set(w.type, (m.get(w.type) || 0) + 1)
+    return m
+  }, [layout.widgets])
   // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
   // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
   const floatingWidgets = layout.widgets.filter(w => floatingWidgetIds.includes(w.id) && !poppedWidgetIds.includes(w.id))
@@ -2064,6 +2071,12 @@ export default function ChartsWorkspace() {
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        <WidgetCatalog
+          open={catalogOpen}
+          onClose={() => setCatalogOpen(false)}
+          onAdd={(t) => { setCatalogOpen(false); handleAddWidget(t) }}
+          onBoard={widgetTypeCounts}
+        />
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
@@ -2076,36 +2089,20 @@ export default function ChartsWorkspace() {
             >Widgets ▾</button>
             {widgetsMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
-                {widgetsSub === 'add' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub(null)}>‹ Back</button>
-                  <div className={styles.menuDivider} />
-                  <div className={styles.addMenuScroll}>
-                    {WIDGET_MENU_GROUPS.map(group => (
-                      <div key={group.key} className={styles.addMenuGroup}>
-                        <div className={styles.addMenuGroupLabel}>{group.label}</div>
-                        {group.items.map(t => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={styles.addMenuItem}
-                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
-                          >{WIDGET_LABELS[t]}</button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </>) : (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub('add')}>＋ Add Widget ▸</button>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-                    onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
-                    title={merged
-                      ? 'Unlock the board and restore widget borders'
-                      : 'Lock the board in place, remove all borders, and blend every widget together'}
-                  >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
-                </>)}
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  onClick={() => { setCatalogOpen(true); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
+                >＋ Add Widget…</button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
+                  title={merged
+                    ? 'Unlock the board and restore widget borders'
+                    : 'Lock the board in place, remove all borders, and blend every widget together'}
+                >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
               </div>
             )}
           </div>

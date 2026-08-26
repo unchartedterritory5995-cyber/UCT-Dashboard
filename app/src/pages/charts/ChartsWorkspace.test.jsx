@@ -153,30 +153,28 @@ test('every workspace action a member needs is still reachable from the toolbar'
   }
 })
 
-test('a widget can be added to the board from the toolbar', () => {
+// Open the Widget Catalog from the toolbar and return its widget CARDS (each card's
+// title is "Add <label>", which isolates them from the pills / close / search).
+function openCatalogCards() {
+  clickToolbar(/add widget/i)
+  const dialog = document.querySelector('[role="dialog"][aria-label="Add a widget"]')
+  expect(dialog, 'the Add Widget action should open the Widget Catalog').toBeTruthy()
+  return [...dialog.querySelectorAll('button')].filter(b => (b.getAttribute('title') || '').startsWith('Add '))
+}
+
+test('a widget can be added to the board from the catalog', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
   expect(onBoard()).toBe(0)
 
-  // Captured with every menu closed, so "what a menu revealed" is a set difference
-  // rather than a hard-coded list of widget names.
-  const rootButtons = new Set(document.querySelector('header').querySelectorAll('button'))
-  const widgetChoices = () => {
-    clickToolbar(/add widget/i)
-    return [...document.querySelector('header').querySelectorAll('button')].filter(b => !rootButtons.has(b))
-  }
-
-  const offered = widgetChoices()
-  expect(offered.length, 'Add Widget offered nothing to add').toBeGreaterThan(0)
+  const cards = openCatalogCards()
+  expect(cards.length, 'the catalog offered nothing to add').toBeGreaterThan(0)
   // On an EMPTY board the widget fits in empty space with no adjustment, so smart
-  // placement commits it IMMEDIATELY (no ghost). This asserts the CAPABILITY — some
-  // offered choice puts a widget on the board — instead of naming a type.
-  for (let i = 0; i < offered.length && onBoard() === 0; i++) {
-    const choices = widgetChoices()
-    act(() => { choices[i].click() })
-  }
-  expect(onBoard(), 'no choice under Add Widget reached the board').toBe(1)
+  // placement commits it IMMEDIATELY (no ghost). Assert the CAPABILITY — a catalog
+  // card puts a widget on the board — rather than naming a type.
+  act(() => { cards[0].click() })
+  expect(onBoard(), 'clicking a catalog card should add a widget').toBe(1)
 })
 
 test('ghost preview appears only when a widget must be adjusted — Cancel adds nothing', () => {
@@ -185,22 +183,12 @@ test('ghost preview appears only when a widget must be adjusted — Cancel adds 
   renderWS()
   const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
   expect(onBoard()).toBe(1) // the seeded chart
-  const rootButtons = new Set(document.querySelector('header').querySelectorAll('button'))
-  const openMenu = () => {
-    clickToolbar(/add widget/i)
-    return [...document.querySelector('header').querySelectorAll('button')].filter(b => !rootButtons.has(b))
-  }
   const btnByText = (t) => [...document.querySelectorAll('button')].find(b => b.textContent === t)
 
-  // Pick some widget choice — the full board forces an adjustment → the ghost appears.
-  const offered = openMenu()
-  let ghostShown = false
-  for (let i = 0; i < offered.length && !ghostShown; i++) {
-    const choices = openMenu()
-    act(() => { choices[i].click() })
-    if (btnByText('Place')) ghostShown = true
-  }
-  expect(ghostShown, 'adding to a full board should preview via ghost').toBe(true)
+  // Pick a widget from the catalog — the full board forces an adjustment → the ghost appears.
+  const cards = openCatalogCards()
+  act(() => { cards[0].click() })
+  expect(btnByText('Place'), 'adding to a full board should preview via ghost').toBeTruthy()
   expect(btnByText('Cancel')).toBeTruthy()
   expect(onBoard(), 'ghost preview must not commit the widget').toBe(1) // still just the chart
 

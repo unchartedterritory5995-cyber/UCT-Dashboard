@@ -20,6 +20,8 @@ import {
   JOURNAL_MENU_TYPES,
   THEME_FOLLOW_TYPES,
   WIDGET_CATEGORIES,
+  WIDGET_CATALOG,
+  catalogMeta,
   menuGroups,
   labelMap,
   normalizeParams,
@@ -125,6 +127,22 @@ describe('widget registry — metadata pins', () => {
 
   it('every type except chart follows the app theme when uncustomized', () => {
     expect([...THEME_FOLLOW_TYPES].sort()).toEqual(IDS.filter(id => id !== 'chart').sort())
+  })
+
+  it('every workspace-menu widget has a catalog card (icon + blurb) so the gallery is never blank', () => {
+    for (const id of WORKSPACE_MENU_TYPES) {
+      const c = WIDGET_CATALOG[id]
+      expect(c, `${id} is missing a WIDGET_CATALOG entry`).toBeTruthy()
+      expect(typeof c.icon === 'string' && c.icon.length > 0, `${id}.icon`).toBe(true)
+      expect(typeof c.blurb === 'string' && c.blurb.length > 0, `${id}.blurb`).toBe(true)
+      if (c.live !== undefined) expect(typeof c.live, `${id}.live`).toBe('boolean')
+    }
+    // No catalog cards for ids that aren't in the workspace add-menu (e.g. periodsort).
+    for (const id of Object.keys(WIDGET_CATALOG)) {
+      expect(WORKSPACE_MENU_TYPES, `catalog has a card for non-menu id '${id}'`).toContain(id)
+    }
+    // catalogMeta never returns undefined (safe fallback for unknown ids).
+    expect(catalogMeta('nope')).toEqual({ icon: 'sparkle', blurb: '' })
   })
 
   it('every add-menu widget lands in exactly one category (no strays, no dupes)', () => {
