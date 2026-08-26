@@ -270,6 +270,51 @@ EVALUATE_MODES = MODES
 #: to be wrong in the safe direction.
 SWEEP_STOP_BEFORE_OPEN = datetime.timedelta(minutes=30)
 
+#: ⏰ THE REGULAR SESSION'S LENGTH, DECLARED ONCE — the live cycle's window is
+#: `market_open_et(day)` (DERIVED from the bars store's own anchor) through that
+#: open PLUS this, half-open at both ends.
+#:
+#: ⚠️ THE REPO ALREADY TYPES 16:00 IN TWO PLACES — `massive._detect_session` and
+#: `bars_fetch._is_market_open` — and neither is called here, because each reads
+#: its OWN clock and this module has exactly one (`_now_et`). Two clocks would put
+#: a cycle inside the session by one and outside it by the other at the boundary
+#: minute. `test_the_live_window_AGREES_with_bars_fetch_is_market_open_at_BOTH_
+#: boundaries` drives the other one's clock to the same four instants and demands
+#: the same answer, so the three stay consistent without a second authority.
+REGULAR_SESSION_LENGTH = datetime.timedelta(hours=6, minutes=30)
+
+#: ⭐ THE MEASURED WORST CASE FOR ONE DEFINITION, ROUNDED UP. 42.4 s of compute
+#: for `close > sma(close,50)` over 3,742 symbols on this box, contended (module
+#: header). The live mode writes no rule record, so the audit's 19-26 s of
+#: first-sweep writes do not apply — 60 s is ~1.4x, which is the right shape of
+#: margin for a bound whose job is to be wrong in the safe direction.
+#: ⛔ IT IS SUBTRACTED FROM THE INTERVAL, NEVER ADDED TO A DEADLINE: the check is
+#: BETWEEN definitions, so a cycle overruns by at most one definition and the
+#: next tick must still find the slot free.
+LIVE_DEFINITION_WORST_CASE_S = 60
+
+#: Why a whole LIVE CYCLE did not sweep everything it was handed. ⛔ ITS OWN WORD,
+#: NOT `UNSWEPT_REASON`: "we ran out of the five-minute interval" and "we ran out
+#: of night" are different facts fixed by different actions, and one word for both
+#: would hide which bound fired.
+LIVE_UNSWEPT_REASON = "budget:live-interval"
+
+#: Every word a live cycle can answer `skipped_reason` with. Closed, like
+#: `RUN_GATES`: a caller branches on it, and a status surface that met a seventh
+#: word would have nothing to say about it.
+#:
+#:   disabled         the flag is off — and the cycle touched NO store to say so.
+#:   closed           outside the regular session (weekend, holiday, after hours).
+#:   build_in_flight  the 03:00 snapshot builder holds its lock; we stop BETWEEN
+#:                    definitions rather than contend with it.
+#:   no-definitions   nobody has a live scan. Not an error.
+#:   no-universe      the universe read came back empty — never sweep zero symbols
+#:                    and file the result.
+#:   budget           the wall clock ran out; the ones we did not reach are NAMED
+#:                    and lead the next cycle.
+LIVE_SKIP_REASONS = ("disabled", "closed", "build_in_flight", "no-definitions",
+                     "no-universe", "budget")
+
 #: The exchange's clock. Every ET instant in this module comes from here.
 _ET = ZoneInfo("America/New_York")
 
@@ -420,6 +465,69 @@ def sweep_deadline(now: Optional[datetime.datetime] = None) -> datetime.datetime
     """
     now = now or _now_et()
     return market_open_et(now.date()) - SWEEP_STOP_BEFORE_OPEN
+
+
+def live_enabled() -> bool:
+    """`SCAN_LIVE_SWEEP_ENABLED`, default OFF, READ PER CALL.
+
+    ⭐ THE LIVE TIER'S IDIOM, AND THE REASON IS ROLLBACK: unset the variable and
+    the NEXT TICK answers `disabled` — no deploy, no rebuild, no code change. A
+    module-level capture would make the rollback need a restart, which is the one
+    thing you cannot count on having time for.
+    """
+    return os.environ.get("SCAN_LIVE_SWEEP_ENABLED", "0") == "1"
+
+
+def live_interval_s() -> int:
+    """The live cadence in seconds (`SCAN_LIVE_INTERVAL_S`, default 300).
+
+    Read at REGISTRATION by `main.py` — changing it needs a restart, the live
+    tier's documented trade — and again per cycle, because the BUDGET is derived
+    from it and a receipt should describe the interval it actually ran under.
+
+    ⛔ FLOORED AT 30 s. Below that the cycle spends more time starting than
+    sweeping and the snapshot itself is only 30 s fresh, so a smaller number buys
+    nothing and costs the pod everything. An unparseable value falls back rather
+    than raising: a scheduled job that dies on a typo'd env var is an outage.
+    """
+    try:
+        return max(30, int(float(os.environ.get("SCAN_LIVE_INTERVAL_S", "") or 300)))
+    except ValueError:
+        return 300
+
+
+def _live_cycle_budget_s() -> int:
+    """How long a cycle may keep STARTING definitions: the interval minus ONE
+    worst-case definition. Positive by construction while the floor above (30 s)
+    stays over `LIVE_DEFINITION_WORST_CASE_S`… which it does not — so the caller
+    treats a non-positive budget as "sweep one and stop", which the between-
+    definitions check already does on its own."""
+    return live_interval_s() - LIVE_DEFINITION_WORST_CASE_S
+
+
+def _live_session_state(now: datetime.datetime) -> Optional[str]:
+    """``None`` inside the regular session of a trading day, else ``"closed"``.
+
+    ⛔ BOTH ENDS ARE DERIVED. The open is `market_open_et` — the bars store's own
+    session anchor, the same one `sweep_deadline` reads — and the close is that
+    plus `REGULAR_SESSION_LENGTH`. Nothing here types 09:30 or 16:00.
+
+    ⛔ AND THE TRADING-DAY TEST IS THE BARS STORE'S HOLIDAY TABLE, not a second
+    calendar of this module's own: `market_open_et` answers 09:30 on a Saturday
+    (correctly — it is the clock-time open, not a session test), so the weekend
+    and the NYSE holiday walk have to be asked separately, and they are asked of
+    the module that already owns them.
+
+    ⚠️ HALF-OPEN: `open <= now < close`. A cycle firing AT 16:00 would read a
+    forming bar the exchange has already settled and file it as live.
+    """
+    from api.services import bars_fetch
+    if now.weekday() >= 5 or bars_fetch._is_nyse_holiday(int(now.strftime("%Y%m%d"))):
+        return "closed"
+    open_at = market_open_et(now.date())
+    if now < open_at or now >= open_at + REGULAR_SESSION_LENGTH:
+        return "closed"
+    return None
 
 
 def _assert_snapshot_is_current(as_of: int) -> str:

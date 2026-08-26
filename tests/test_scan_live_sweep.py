@@ -1221,3 +1221,137 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     assert [k.value for k in opts.keys] == ["tf"]
     assert isinstance(opts.values[0], pyast.Name) and opts.values[0].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
+
+# ═══ 11. the live cycle's rails: the window, the budget, the flag ════════════
+#
+# ⛔ EVERY NUMBER HERE IS DERIVED OR MEASURED, AND THE ONE THAT IS TYPED SAYS WHAT
+# IT MEASURES. The session OPEN comes off the bars store's own anchor; the CLOSE is
+# the open plus a declared session LENGTH; the budget is the interval minus ONE
+# worst-case definition.
+
+
+def _at(y, m, d, hh, mm):
+    return datetime.datetime(y, m, d, hh, mm, tzinfo=scan_evaluator._ET)
+
+
+@pytest.mark.parametrize("when, state", [
+    (_at(2026, 8, 26, 9, 29), "closed"),          # one minute before the open
+    (_at(2026, 8, 26, 9, 30), None),              # the open itself: INSIDE
+    (_at(2026, 8, 26, 15, 59), None),             # one minute before the close
+    (_at(2026, 8, 26, 16, 0), "closed"),          # the close itself: OUTSIDE
+    (_at(2026, 8, 29, 11, 0), "closed"),          # a Saturday
+    (_at(2026, 9, 7, 11, 0), "closed"),           # Labor Day
+])
+def test_the_live_window_is_the_REGULAR_SESSION_derived_from_the_bars_stores_open(when, state):
+    """⛔ HALF-OPEN AT BOTH ENDS: `open <= t < close`. A cycle that fired AT the
+    close would read a forming bar the exchange has already settled."""
+    assert scan_evaluator._live_session_state(when) == state
+
+
+def test_the_live_window_AGREES_with_bars_fetch_is_market_open_at_BOTH_boundaries(monkeypatch):
+    """⭐ THE THIRD COPY PROBLEM, MEASURED INSTEAD OF ASSERTED. `massive._detect_session`
+    and `bars_fetch._is_market_open` both TYPE 16:00; this module derives the open
+    and adds a declared session LENGTH. They are not called from here because each
+    reads its OWN clock — so this drives the other one's clock to the same four
+    instants and demands the same answer."""
+    from api.services import bars_fetch
+    for when in (_at(2026, 8, 26, 9, 29), _at(2026, 8, 26, 9, 30),
+                 _at(2026, 8, 26, 15, 59), _at(2026, 8, 26, 16, 0)):
+        class _Frozen(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return when.astimezone(tz) if tz else when.replace(tzinfo=None)
+        monkeypatch.setattr(bars_fetch, "datetime", _Frozen)
+        assert (scan_evaluator._live_session_state(when) is None) == bars_fetch._is_market_open(), when
+
+
+def test_the_BUDGET_is_the_interval_MINUS_ONE_worst_case_definition_and_it_is_POSITIVE(monkeypatch):
+    """🔴 THE SAME ARGUMENT AS THE NIGHTLY DEADLINE, ONE GRAIN SMALLER. The check is
+    between definitions, so a cycle can overrun by at most ONE definition — and the
+    number that bounds it is the MEASURED worst case, not a round one."""
+    monkeypatch.delenv("SCAN_LIVE_INTERVAL_S", raising=False)
+    assert scan_evaluator.live_interval_s() == 300
+    assert scan_evaluator._live_cycle_budget_s() == 300 - scan_evaluator.LIVE_DEFINITION_WORST_CASE_S
+    assert scan_evaluator._live_cycle_budget_s() > 0
+    assert scan_evaluator.LIVE_DEFINITION_WORST_CASE_S >= 42.4 * 1.2, (
+        "the margin no longer covers the measured worst case (42.4 s of compute for "
+        "one definition over 3,742 symbols on this box, contended)")
+
+
+def test_the_live_row_OUTLIVES_the_next_cycle_or_the_overlay_would_go_DARK_between_ticks(monkeypatch):
+    """⛔ TWO MODULES, ONE CONSTRAINT, AND IT IS ASSERTED RATHER THAN REMEMBERED.
+    `scan_store.live_max_age_s()` decides when a live row is served as nightly; this
+    module decides how often a new one is written. If the age ever fell below one
+    interval, every row would die before its replacement arrived and the overlay
+    would flicker off with nothing red anywhere."""
+    monkeypatch.delenv("SCAN_LIVE_INTERVAL_S", raising=False)
+    monkeypatch.delenv("SCAN_LIVE_MAX_AGE_S", raising=False)
+    assert scan_store.live_max_age_s() >= 2 * scan_evaluator.live_interval_s()
+
+
+@pytest.mark.parametrize("raw, seconds", [
+    (None, 300), ("", 300), ("60", 60), ("600", 600),
+    ("5", 30),                       # floored: a 5 s cadence is a self-inflicted outage
+    ("banana", 300),                 # unparseable falls back, never crashes the job
+])
+def test_the_interval_is_read_from_the_env_with_a_FLOOR_and_a_fallback(monkeypatch, raw, seconds):
+    if raw is None:
+        monkeypatch.delenv("SCAN_LIVE_INTERVAL_S", raising=False)
+    else:
+        monkeypatch.setenv("SCAN_LIVE_INTERVAL_S", raw)
+    assert scan_evaluator.live_interval_s() == seconds
+
+
+def test_the_FLAG_is_OFF_by_default_and_read_PER_CALL(monkeypatch):
+    """⭐ THE LIVE TIER'S IDIOM: rollback is UNSETTING AN ENV VAR, and the next tick
+    answers `disabled`. Read per call, never captured at import, or a rollback would
+    need a deploy."""
+    monkeypatch.delenv("SCAN_LIVE_SWEEP_ENABLED", raising=False)
+    assert scan_evaluator.live_enabled() is False
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    assert scan_evaluator.live_enabled() is True
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "0")
+    assert scan_evaluator.live_enabled() is False
+
+
+def test_the_flag_is_NOT_captured_at_import__BY_AST():
+    """The structural half: `live_enabled` reads `os.environ` in its own body. A
+    module-level capture would make the two behavioural cases above pass on the
+    import order of the test session rather than on the code."""
+    fn = _function_node("live_enabled")
+    reads = [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)
+             and getattr(n.func, "attr", None) == "get"
+             and pyast.unparse(n.func.value).endswith("environ")]
+    assert len(reads) == 1, "live_enabled does not read os.environ in its own body"
+
+
+def test_the_LIVE_SKIP_REASONS_are_a_CLOSED_set_a_caller_can_branch_on():
+    """Every word a cycle can answer `skipped_reason` with, declared once. ⚠️ pinned
+    by MEMBERSHIP, never by length — a seventh reason is a ruling, not a red."""
+    for word in ("disabled", "closed", "build_in_flight", "no-definitions",
+                 "no-universe", "budget"):
+        assert word in scan_evaluator.LIVE_SKIP_REASONS, word
+    assert scan_evaluator.LIVE_UNSWEPT_REASON == "budget:live-interval"
+    assert scan_evaluator.LIVE_UNSWEPT_REASON != scan_evaluator.UNSWEPT_REASON, (
+        "the live budget and the nightly market-open budget are DIFFERENT facts "
+        "fixed by DIFFERENT actions — one word for both would hide which one fired")
+
+
+def test_the_SESSION_LENGTH_is_declared_ONCE_and_the_close_is_DERIVED_from_the_open():
+    """⛔ 16:00 IS NOT TYPED HERE. The open comes off `market_open_et` (the bars
+    store's own anchor) and the close is that plus `REGULAR_SESSION_LENGTH`, so an
+    exchange-hours change moves both with no edit in this file."""
+    assert scan_evaluator.REGULAR_SESSION_LENGTH == datetime.timedelta(hours=6, minutes=30)
+    day = datetime.date(2026, 8, 26)
+    opened = scan_evaluator.market_open_et(day)
+    assert opened.hour == 9 and opened.minute == 30
+    closes = opened + scan_evaluator.REGULAR_SESSION_LENGTH
+    assert (closes.hour, closes.minute) == (16, 0)
+    src = pathlib.Path(scan_evaluator.__file__).read_text(encoding="utf-8")
+    fn = _function_node("_live_session_state")
+    literals = {n.value for n in pyast.walk(fn)
+                if isinstance(n, pyast.Constant) and isinstance(n.value, int)}
+    assert not ({16, 1600, 930, 9} & literals), (
+        f"_live_session_state types a session boundary ({sorted(literals)}) — it "
+        "must derive both ends")
+    assert src.count("REGULAR_SESSION_LENGTH = ") == 1
