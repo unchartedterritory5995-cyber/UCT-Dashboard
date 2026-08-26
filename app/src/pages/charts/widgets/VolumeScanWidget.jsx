@@ -101,7 +101,7 @@ function Row({ e, onPick, logos }) {
       role="listitem"
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
-      title={`${e.sym} — ${e.rvol}× relative volume${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
+      title={`${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <TickFlash price={e.price} dir={e.dir} />
       <SurgeFlash lit={e.lit} tier={e.tier || 1} />

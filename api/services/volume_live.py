@@ -55,7 +55,8 @@ _log = logging.getLogger(__name__)
 _DEFAULT_TICK_SECONDS = 2.5
 _PRICE_SECS = 120.0       # price-move window (the move the volume is driving)
 _NOW_DOLLAR_SECS = 60.0   # window for "meaningful $ traded lately" (the noise gate)
-_HIST_SECS = 180.0        # keep ~3 min of (t, cum_vol, price) history per name
+_HIST_SECS = 720.0        # keep ~12 min of (t, cum_vol, price) history per name (covers
+                          # the sustained-volume window below)
 _MIN_SAMPLE_GAP = 3.0     # downsample history writes (bounds memory vs the tick rate)
 _RVOL_CAP = 100.0         # clamp RVOL so an early-session near-zero expected can't blow up
 _MIN_EXPECTED_FRAC = 0.002  # floor on cumulative_fraction so expected() is never ~0
@@ -70,7 +71,10 @@ _DEFAULT_MIN_PRICE = 1.0
 _DEFAULT_MAX_PRICE = 20000.0
 _DEFAULT_MIN_LIQ = 100_000     # prev-day volume (shares) — the "avg vol > 100k" floor
 _DEFAULT_MIN_RVOL = 2.0
-_DEFAULT_MIN_MOVE = 0.25       # % over the price window — the dark-pool / drift gate
+_DEFAULT_MIN_MOVE = 0.25       # % over the ~2-min price window — the dark-pool / drift gate
+_DEFAULT_MIN_DAY_MOVE = 1.0    # a clear |% vs prev close| ALSO clears the move gate — a name
+                               # up big on the day WITH real volume is a move even if the
+                               # 2-min window is momentarily flat (the pre-market news shape)
 # The "50× of nothing" guard: session-aware $-volume traded in the last ~minute.
 _DEFAULT_MIN_DOLLAR_RTH = 50_000
 _DEFAULT_MIN_DOLLAR_EXT = 15_000
@@ -83,9 +87,22 @@ _DEFAULT_MIN_DOLLAR_EXT = 15_000
 # colour tier. The tier tracks cumulative RVOL, so a burst on a quiet name lights and
 # pulses yet stays calm/dim; the loud colours are reserved for genuinely heavy volume.
 _BURST_CAP = 50.0            # clamp a fresh spike measured against a near-zero expected
-_DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent rate ≥ 3× typical-for-now)
-_IGNITE_BURST = 5.0          # "igniting now" cue: a STRONG burst…
-_IGNITE_MOVE = 0.75          # …AND a real, fast price move (the look-up-now signal)
+_DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent 60-sec rate ≥ 3× typical-for-now)
+# "Igniting now" pulse (the gold ring) — keyed off SUSTAINED volume, NOT the 60-sec burst:
+# a 60-sec blip on a quiet name reads as a huge burst (tiny expected) and would ring a
+# nothing-name (AEM at 0.12×) while a real sustained mover (META) that isn't spiking in
+# THIS 60 sec would not. Ring only genuinely-heavy sustained names that are moving fast.
+_IGNITE_RVOL = 4.0           # SUSTAINED RVOL genuinely high (≥ High tier)…
+_IGNITE_MOVE = 0.75          # …AND a real, fast price move
+
+# Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
+# Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
+# cumulative while its last 10 min is ~12×); this tracks the sustained intensity, so a real
+# news move lights BOLD and stays lit + ranked until the volume actually dies back down.
+# Drives the colour tier, the ranking, and the displayed RVOL; cumulative is kept as
+# `rvol_day` for context.
+_SUSTAIN_SECS = 600.0        # ~10-min sustained window
+_SUSTAIN_MIN_WIN = 120.0     # need ≥2 min of history before it's trusted (else cumulative)
 
 _DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
 _TOP_TTL = 3600.0             # rebuild the top-liquid set hourly
@@ -230,9 +247,10 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     if not isinstance(prev_vol, (int, float)) or prev_vol <= 0:
         return None   # no historical volume baseline → can't compute RVOL
 
-    # RVOL = today's cumulative volume / typical cumulative-by-now.
+    # Cumulative RVOL = today's cumulative volume / typical cumulative-by-now (context only;
+    # the PRIMARY `rvol` below is the sustained recent rate).
     expected = prev_vol * max(cumfrac, _MIN_EXPECTED_FRAC)
-    rvol = min(_RVOL_CAP, cv_now / expected) if expected > 0 else 0.0
+    rvol_day = min(_RVOL_CAP, cv_now / expected) if expected > 0 else 0.0
 
     # Price move over the ~2-min window (the move the volume is driving).
     move = 0.0
@@ -256,13 +274,28 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
         if expected_recent > 0:
             burst = min(_BURST_CAP, recent_vol / expected_recent)
 
+    # Sustained relative volume (the PRIMARY signal) — the recent ~10-min volume rate vs
+    # the rate typically traded now. RISES while volume stays heavy and DECAYS when it
+    # dies, so a real news move reads high and STAYS high until the volume fades — unlike
+    # cumulative RVOL, which the quiet early session dilutes. Falls back to cumulative
+    # until a name has enough history to measure the sustained window.
+    svol = None
+    ss = _at_or_after(hist, t_now - _SUSTAIN_SECS)
+    if ss is not None and cum_rate > 0:
+        swin = t_now - ss[0]
+        if swin >= _SUSTAIN_MIN_WIN:
+            exp_sustain = prev_vol * cum_rate * swin
+            svol = min(_RVOL_CAP, max(0.0, cv_now - ss[1]) / exp_sustain) if exp_sustain > 0 else 0.0
+    rvol = svol if svol is not None else rvol_day
+
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
         pct = (px_now - prev_close) / prev_close * 100.0
     return {
         "price": round(float(px_now), 4),
         "pct": round(pct, 2) if pct is not None else None,
-        "rvol": round(rvol, 2),
+        "rvol": round(rvol, 2),          # PRIMARY: sustained recent rate (cumulative fallback)
+        "rvol_day": round(rvol_day, 2),  # cumulative-on-the-day (context)
         "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
@@ -396,15 +429,18 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         limit = 100
 
     def _is_lit(m):
-        # A name surges either way: unusually HEAVY all day (cumulative RVOL) OR
-        # IGNITING now (burst) — the burst path is what surfaces a fast mover before
-        # its cumulative RVOL catches up. Both still require a real move + $ flow.
+        # A name surges either way: heavy SUSTAINED volume (primary rvol) OR a fresh
+        # 60-sec burst (surfaces a mover before the sustained window fills). It counts as
+        # a "move" if it moved in the last ~2 min OR is up big on the day (the pre-market
+        # news shape, robust when the 2-min window is momentarily flat). Plus real $ flow.
         surging = (m["rvol"] >= mnr) or (m.get("burst", 0.0) >= mnb)
-        return surging and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd
+        moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
+        return surging and moved and m.get("dvol", 0) >= mnd
 
     def _igniting(m):
-        # A genuine fast move — a STRONG burst AND a real move (not a marginal blip).
-        return m.get("burst", 0.0) >= _IGNITE_BURST and abs(m["move"]) >= _IGNITE_MOVE
+        # A genuine fast move — strong SUSTAINED volume (not a 60-sec blip on a quiet
+        # name) AND a real move. This earns the gold ring + a top spot.
+        return m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
 
     def _score(m):
         # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
@@ -431,11 +467,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Lit first; then GENUINE fast movers (igniting) jump to the very top so a fresh
-        # news burst (a META-class gap) surfaces immediately even before its cumulative
-        # RVOL catches up; then by cumulative RVOL (loud/heavy names), burst as a
-        # tiebreak. Marginal bursts (not igniting) sit calmly below by their RVOL.
-        rows.sort(key=lambda r: (r[2], _igniting(r[1]), r[1]["rvol"], r[1].get("burst", 0.0)),
+        # Sustained volume LEADS: highest sustained RVOL at the top, so a name with
+        # sustained huge volume STAYS at the top until it dies down. Igniting + burst
+        # break ties so a fresh fast mover still surfaces among equals.
+        rows.sort(key=lambda r: (r[2], r[1]["rvol"], _igniting(r[1]), r[1].get("burst", 0.0)),
                   reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
@@ -448,6 +483,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             "price": round(m["price"], 2),
             "pct": m["pct"],
             "rvol": m["rvol"],
+            "rvol_day": m.get("rvol_day"),
             "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",

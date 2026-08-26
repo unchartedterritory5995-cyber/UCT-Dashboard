@@ -20,9 +20,9 @@ const LIVE = {
   total: 2,           // 2 names MEET the criteria (lit)…
   shown: 3,           // …but all 3 top-N names are shown
   rows: [
-    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, burst: 9.2, move: 5.2, dir: 'up', score: 28.5, tier: 5, lit: true, igniting: true },
-    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, burst: 3.1, move: -3.1, dir: 'down', score: 11.1, tier: 3, lit: true, igniting: false },
-    { sym: 'AAPL', price: 224.5, pct: 0.2, rvol: 1.2, burst: 0.6, move: 0.1, dir: 'up', score: 0.5, tier: 1, lit: false, igniting: false },
+    { sym: 'SMCI', price: 42.18, pct: 8.1, rvol: 11.4, rvol_day: 4.2, burst: 9.2, move: 5.2, dir: 'up', score: 28.5, tier: 5, lit: true, igniting: true },
+    { sym: 'PLUG', price: 3.05, pct: -6.2, rvol: 4.3, rvol_day: 3.1, burst: 3.1, move: -3.1, dir: 'down', score: 11.1, tier: 3, lit: true, igniting: false },
+    { sym: 'AAPL', price: 224.5, pct: 0.2, rvol: 1.2, rvol_day: 1.1, burst: 0.6, move: 0.1, dir: 'up', score: 0.5, tier: 1, lit: false, igniting: false },
   ],
 }
 

@@ -84,10 +84,10 @@ def test_burst_rvol_lights_a_fresh_ignition_that_cumulative_rvol_misses():
     _feed(seq)
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True
-    assert r["rvol"] < 2                     # cumulative RVOL alone would NOT have lit it
-    assert 4 <= r["burst"] <= 6              # the burst caught the ignition
-    assert r["igniting"] is True and r["move"] >= 0.75 and r["dir"] == "up"
-    assert r["tier"] == 1                    # colour stays CALM (dim) — burst does NOT inflate the tier
+    assert r["rvol"] < 2                     # sustained/cumulative RVOL alone would NOT light it
+    assert 4 <= r["burst"] <= 6              # the 60-sec burst caught it (discovery path)
+    assert r["igniting"] is False            # …but a 60-sec burst alone does NOT ring…
+    assert r["tier"] == 1                    # …and the colour stays CALM (dim) until volume sustains
     # It's the burst PATH that lit it: raise both gates → gone; raise only rvol → stays.
     assert _row(volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"], "AAA") is None
     assert _row(volume_live.get_live(min_rvol=999, min_burst=3, min_dollar=0)["rows"], "AAA") is not None
@@ -105,10 +105,29 @@ def test_high_priced_megacap_on_news_is_surfaced_not_price_capped():
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True          # surfaced (not filtered by price)
     assert r["price"] > 250                             # a megacap the old cap excluded
-    assert r["burst"] >= 5 and r["igniting"] is True    # the news burst caught it
-    assert r["move"] >= 0.75
+    assert r["burst"] >= 5                              # the news burst caught it
     # The price band is still a real filter: an explicit low cap still excludes it.
     assert _row(volume_live.get_live(max_price=250, min_dollar=0)["rows"], "AAA") is None
+
+
+def test_sustained_recent_volume_is_the_primary_signal_and_rings():
+    # A name QUIET most of the session (low cumulative RVOL) that goes HEAVY and STAYS
+    # heavy for the last few minutes with a real move — the META-on-news shape. The
+    # SUSTAINED recent RVOL must light it BOLD (high tier) + ring, even though cumulative
+    # RVOL is still low. (Long history so the sustained window is measured, not the
+    # cumulative fallback.)
+    seq = {}
+    for t in range(0, 201):
+        cv = 278 * t                 # ~10× the normal per-second rate at 13:00, sustained
+        px = 100.0 + 0.1 * t         # a real, sustained climb
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 100.0, "prev_vol": 1_000_000}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["rvol_day"] < 1          # cumulative is LOW (quiet overall)…
+    assert r["rvol"] >= 6             # …but the SUSTAINED recent RVOL is high
+    assert r["tier"] >= 4             # → bold (Very High / Extreme)
+    assert r["igniting"] is True      # sustained + moving → the gold ring
 
 
 def test_normal_activity_reads_below_1x_and_is_not_lit():
@@ -195,7 +214,7 @@ def test_scans_only_the_top_liquid_names(monkeypatch):
 def test_min_rvol_and_min_move_filters_are_honored():
     seq = {}
     for t in range(0, 46):
-        px = 10.0 if t <= 36 else 10.0 + 0.15 * (t - 36)
+        px = 10.0 if t <= 36 else 10.0 + 0.008 * (t - 36)   # a small move (no big day-move)
         seq[t] = {"AAA": {"min_av": 60_000 * t, "last_price": px, "prev_close": 10.0, "prev_vol": 1_000_000}}
     _feed(seq)
     # Cumulative-RVOL gate alone no longer clears the board — burst is an independent
