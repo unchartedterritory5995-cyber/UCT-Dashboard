@@ -369,7 +369,7 @@ def _theme_holdings() -> dict:
     except Exception:
         _log.exception("[nhnl] theme holdings build failed")
     c["map"] = m
-    c["built_at"] = now
+    c["built_at"] = now if m else 0.0   # don't let an empty (not-ready) build stick for the TTL
     return m
 
 
@@ -451,7 +451,9 @@ def _build_group_map(now: float) -> dict:
     except Exception:
         _log.exception("[nhnl] theme map build failed")
     c["map"] = m
-    c["built_at"] = now
+    # A failed/empty build (e.g. industry_map not seeded yet at boot) must NOT stick for the
+    # full TTL — retry on the next call so the background warm fills in as soon as it's ready.
+    c["built_at"] = now if m else 0.0
     return m
 
 
@@ -1019,6 +1021,15 @@ def _tick() -> None:
             _tick_once(snap, window, today, now)
             with _lock:
                 _state["last_error"] = None
+    # Keep the scope groupings WARM so Sector / Industry / Theme are instant the first time
+    # a user selects them — built here on the accumulator thread, never lazily on the request
+    # path. Both are ~1h TTL-cached (cheap after the first build); the hourly rebuild also
+    # lands here, off the request path.
+    try:
+        _group_map()
+        _theme_holdings()
+    except Exception:
+        _log.debug("[nhnl] scope warm failed", exc_info=True)
     try:
         _manage_print_set()
     except Exception:
