@@ -642,11 +642,25 @@ def test_a_pre_open_quote_carries_NO_ohl_and_live_cols_says_so():
 def test_the_per_field_refusal_word_is_NAMESPACED_and_names_the_FIELD_that_is_MISSING():
     """The detail W4b.3 reports is `live:forming-bar:<field>` — namespaced into the
     lane contract's closed-set idiom, and it names the field so a member reading a
-    short screen learns WHICH input the feed did not carry, never just "no"."""
+    short screen learns WHICH input the feed did not carry, never just "no".
+
+    ⛔ THE `<field>` HALF IS A MANIFEST SERIES NAME, NEVER A TYPED LIST: every name
+    `_forming_bar_series` can return composes into its OWN distinct word, so a
+    sixth series is covered with no edit here. ⚠️ `split(":")[-1]` is the assert
+    that carries this test — a prefix that lost its trailing separator would fuse
+    into `live:forming-barhigh`, which `startswith`/`endswith` would both wave
+    through while a member read a field name that does not exist.
+    """
     assert scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL == "live:forming-bar:"
-    for name in ("open", "high", "low"):
-        detail = scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL + name
-        assert detail.startswith("live:") and detail.endswith(name)
+    names = sorted(ast_freshness._sections(None)[0])
+    assert names, "the manifest declares no series — this test would be vacuous"
+    details = {n: scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL + n for n in names}
+    assert len(set(details.values())) == len(names), "two fields sharing one word"
+    assert all(d.startswith("live:") for d in details.values())
+    assert all(d.split(":")[-1] == n for n, d in details.items()), details
+    # and the names really are the ones the reach analysis hands the caller
+    assert scan_evaluator._forming_bar_series(_series("high")) == {"high"}
+    assert details["high"] == "live:forming-bar:high"
 
 
 def test_no_live_quote_is_IN_the_closed_DROP_REASONS_set_beside_the_others():
