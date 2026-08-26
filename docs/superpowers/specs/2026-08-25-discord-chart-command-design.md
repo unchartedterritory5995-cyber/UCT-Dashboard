@@ -502,3 +502,28 @@ Open, owner decisions:
   StockChart is shared by the whole dashboard.
 - One-step `/TICKER` is impossible on Discord (a command needs a name);
   `/c NVDA` + Enter is the floor.
+
+
+## v6b — Readiness waits for bars, not pixels (2026-08-25, ~19:30 CT)
+
+The first 5-minute render after the v6 deploy shipped the mplfinance fallback.
+Web log: `house render body BLANK for NVDA 5 (attempt 1)` and `(attempt 2)`;
+the renderer answered 200 both times. Measured cause: the page's StockChart
+fetches 5,000 bars on every timeframe, and on 5-minute that is a 330–360 KB
+payload served in **7.4 s (NVDA), 8.3 s (MRNA), 19.8 s (AMD) cold** vs
+0.2–0.35 s warm. Both ready branches — the page's held-still `__chartReady`
+and the renderer's 32×18 colour-signature check — are satisfied by an EMPTY
+chart: header + watermark already give colour variety, and nothing moves while
+the fetch is in flight. `?bars=` was innocent (AMD 30-min with `bars=80`
+rendered as a house image with the intended window).
+
+Contract now: `ChartRender` publishes `window.__chartBarsReady` from
+StockChart's existing first-bars latch (`onBarsReady`, once per mount, also on
+a fatal error so the pixel judge still runs), reset at **render time** per
+(sym, tf) — an effect would run after the child's mount effect and wipe the
+latch (the vitest caught exactly that). `house_ready_js` refuses until the flag
+is true, before either branch; `HOUSE_READY_JS` carries the same gate.
+
+Still true: a cold intraday render costs the bars API's cold path (7–20 s)
+before the ~2 s render; the deferred reply covers it. Warming that path is a
+bars-API concern, not the bot's.
