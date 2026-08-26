@@ -79,9 +79,16 @@ function Row({ e, onPick, logos, onContext }) {
   // igniter gets a persistent pulse ring, distinct from the one-shot surge flash —
   // the "this is moving fast RIGHT NOW" cue, on top of its (hotter) tier colour.
   const igniting = e.lit && e.igniting
-  const cls = e.lit
-    ? `${styles.lit} ${styles['t' + (e.tier || 1)]}${igniting ? ` ${styles.igniting}` : ''}`
-    : styles.unlit
+  // `pending` = a name just added to a custom list, shown INSTANTLY before its first
+  // server reading lands (placeholder row so the add feels immediate).
+  const cls = e.pending
+    ? styles.unlit
+    : e.lit
+      ? `${styles.lit} ${styles['t' + (e.tier || 1)]}${igniting ? ` ${styles.igniting}` : ''}`
+      : styles.unlit
+  const title = e.pending
+    ? `${e.sym} — added to your list (waiting for the first reading)`
+    : `${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`
   return (
     <button
       type="button"
@@ -89,55 +96,16 @@ function Row({ e, onPick, logos, onContext }) {
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
       onContextMenu={onContext ? (ev) => onContext(ev, e.sym) : undefined}
-      title={`${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
+      title={title}
     >
-      <SurgeFlash flash={e.flash} />
+      {!e.pending && <SurgeFlash flash={e.flash} />}
       {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
         <span className={styles.sym}>{e.sym}</span>
       </span>
-      <span className={styles.surge}>{e.rvol}×</span>
+      <span className={styles.surge}>{e.pending ? '…' : `${e.rvol}×`}</span>
     </button>
-  )
-}
-
-// Debounced numeric filter box (types instantly to local state, commits after a
-// pause / on blur / Enter — keeps the fetch key off the keystroke path).
-function FilterBox({ label, ariaLabel, value, placeholder, min, step, onCommit }) {
-  const [text, setText] = useState(value == null ? '' : String(value))
-  const timer = useRef(null)
-  const inputRef = useRef(null)
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) setText(value == null ? '' : String(value))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
-  const commit = (raw) => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null }
-    const n = raw === '' ? min : Number(raw)
-    onCommit(Number.isFinite(n) ? Math.max(min, n) : min)
-  }
-  const schedule = (raw) => {
-    setText(raw)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => commit(raw), 350)
-  }
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
-  return (
-    <label className={chrome.filter}>
-      <span className={chrome.filterLbl}>{label}</span>
-      <input
-        ref={inputRef}
-        type="number" min={min} step={step || 1} inputMode="decimal"
-        className={chrome.filterInput}
-        value={text}
-        placeholder={placeholder}
-        onChange={(e) => schedule(e.target.value)}
-        onBlur={() => commit(text)}
-        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-        aria-label={ariaLabel}
-      />
-    </label>
   )
 }
 
@@ -155,10 +123,6 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const onPick = useCallback((sym) => {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
-  const commitRvol = useCallback((v) => onOptsChange?.({ ...opts, minRvol: v }), [opts, onOptsChange])
-  const commitBurst = useCallback((v) => onOptsChange?.({ ...opts, minBurst: v }), [opts, onOptsChange])
-  const commitMove = useCallback((v) => onOptsChange?.({ ...opts, minMove: v }), [opts, onOptsChange])
-  const commitDollar = useCallback((v) => onOptsChange?.({ ...opts, minDollarK: v }), [opts, onOptsChange])
   const toggleLogos = useCallback((v) => onOptsChange?.({ ...opts, showLogos: v }), [opts, onOptsChange])
 
   // Appearance settings — same per-widget model + ⚙ panel as the NH/NL scanner.
@@ -189,16 +153,20 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
   const customEmpty = !!(activeList && activeList.syms.length === 0)
   const [ctxMenu, setCtxMenu] = useState(null)   // {sym,x,y} right-click "remove from list" menu
+  const ctxRef = useRef(null)
   const onRowContext = useCallback((ev, sym) => {
     ev.preventDefault()
     setCtxMenu({ sym, x: ev.clientX, y: ev.clientY })
   }, [])
   useEffect(() => {
     if (!ctxMenu) return
-    const close = () => setCtxMenu(null)
-    document.addEventListener('mousedown', close, true)
-    document.addEventListener('wheel', close, true)
-    return () => { document.removeEventListener('mousedown', close, true); document.removeEventListener('wheel', close, true) }
+    // Ignore mousedowns INSIDE the menu — otherwise this capture-phase close fires
+    // before the menu button's own handler, so "Remove" would never run (the bug).
+    const onDown = (ev) => { if (ctxRef.current && ctxRef.current.contains(ev.target)) return; setCtxMenu(null) }
+    const onWheel = () => setCtxMenu(null)
+    document.addEventListener('mousedown', onDown, true)
+    document.addEventListener('wheel', onWheel, true)
+    return () => { document.removeEventListener('mousedown', onDown, true); document.removeEventListener('wheel', onWheel, true) }
   }, [ctxMenu])
 
   const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
@@ -217,7 +185,18 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   })
 
   const rows = data?.rows || []
-  const total = data?.total ?? rows.length
+  // For a custom list, drive the visible rows off the LIST itself so add/remove is
+  // instant: keep the server-ranked rows that are still on the list, then append any
+  // just-added names as pending placeholders (filled in on the next ~2s poll).
+  const displayRows = useMemo(() => {
+    if (!activeList) return rows
+    const want = activeList.syms
+    const wantSet = new Set(want)
+    const present = rows.filter(r => wantSet.has(r.sym))
+    const presentSet = new Set(present.map(r => r.sym))
+    const pending = want.filter(s => !presentSet.has(s)).map(s => ({ sym: s, rvol: null, lit: false, pending: true }))
+    return [...present, ...pending]
+  }, [rows, activeList])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
@@ -238,21 +217,17 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           onToggleLogos={toggleLogos}
         />
       )}
+      {/* Toolbar: LIVE + time on the left, gear on the right, the scope pill CENTERED
+          between two flex spacers — so it sits mid-toolbar when wide and packs back
+          toward LIVE as the widget narrows. */}
       <div className={chrome.toolbar}>
         <span className={`${chrome.live} ${isActive ? chrome.liveOn : ''}`}>
           <span className={chrome.dot} aria-hidden="true" />{stamp}
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtTime(data.asof)} ET</span>}
+        <span className={chrome.spacer} />
         <ScopeControl lists={lists} activeId={activeListId} helpers={listHelpers} themeVars={panelThemeVars} />
         <span className={chrome.spacer} />
-        <FilterBox label="RVOL≥" ariaLabel="Minimum relative volume" value={opts?.minRvol}
-          placeholder="2" min={1} step={0.5} onCommit={commitRvol} />
-        <FilterBox label="Burst≥" ariaLabel="Minimum burst relative volume" value={opts?.minBurst}
-          placeholder="3" min={1} step={0.5} onCommit={commitBurst} />
-        <FilterBox label="Δ%≥" ariaLabel="Minimum move percent" value={opts?.minMove}
-          placeholder="0.25" min={0} step={0.25} onCommit={commitMove} />
-        <FilterBox label="$K≥" ariaLabel="Minimum dollar volume per minute (thousands)"
-          value={opts?.minDollarK} placeholder="auto" min={0} step={10} onCommit={commitDollar} />
         <button
           ref={gearRef}
           type="button"
@@ -281,12 +256,12 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
             </div>
             {customEmpty ? (
               <div className={styles.none}>This list is empty — add tickers below to start scanning it.</div>
-            ) : rows.length === 0 ? (
+            ) : displayRows.length === 0 ? (
               <div className={styles.none}>
                 {activeList ? 'Warming up your list…' : 'Warming up… (baselines build over the first minute)'}
               </div>
             ) : (
-              rows.map((e) => (
+              displayRows.map((e) => (
                 <Row key={e.sym} e={e} onPick={onPick} logos={showLogos}
                   onContext={activeList ? onRowContext : undefined} />
               ))
@@ -297,7 +272,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
       )}
 
       {ctxMenu && activeList && (
-        <div className={styles.rowMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} role="menu">
+        <div ref={ctxRef} className={styles.rowMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} role="menu">
           <div className={styles.rowMenuHead}>{ctxMenu.sym}</div>
           <button type="button" className={styles.rowMenuItem}
             onMouseDown={(ev) => { ev.preventDefault(); listHelpers.removeSym(activeListId, ctxMenu.sym); setCtxMenu(null) }}>

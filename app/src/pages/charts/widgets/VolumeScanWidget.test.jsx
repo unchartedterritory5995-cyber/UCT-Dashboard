@@ -52,14 +52,33 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByTitle(/^PLUG —/).title).not.toMatch(/igniting now/)
   })
 
-  it('editing the Burst filter persists through onOptsChange', () => {
+  it('no longer renders the RVOL / Burst / Δ% / $K filter boxes', () => {
+    swr.mockReturnValue({ data: LIVE })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.queryByLabelText('Minimum burst relative volume')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Minimum relative volume')).not.toBeInTheDocument()
+  })
+
+  it('shows a just-added custom-list ticker INSTANTLY as a pending row', () => {
+    // The list holds NVDA but the poll has not returned it yet — it must still show at
+    // once (a placeholder), so adding a ticker feels immediate.
+    swr.mockReturnValue({ data: { window: 'rth', asof: TS, rows: [] } })
+    const list = { id: 'l1', name: 'Mine', syms: ['NVDA'] }
+    render(<VolumeScanWidget color="A" opts={{ volLists: [list], volActive: 'l1' }} onOptsChange={() => {}} />)
+    expect(screen.getByText('NVDA')).toBeInTheDocument()
+    expect(screen.getByTitle(/NVDA — added to your list/)).toBeInTheDocument()
+  })
+
+  it('right-clicking a custom-list row opens a Remove menu that calls onOptsChange', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
-    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
-    const input = screen.getByLabelText('Minimum burst relative volume')
-    fireEvent.change(input, { target: { value: '5' } })
-    fireEvent.blur(input)
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minBurst: 5 }))
+    const list = { id: 'l1', name: 'Mine', syms: ['SMCI', 'PLUG', 'AAPL'] }
+    render(<VolumeScanWidget color="A" opts={{ volLists: [list], volActive: 'l1' }} onOptsChange={onOptsChange} />)
+    fireEvent.contextMenu(screen.getByTitle(/^SMCI —/))
+    const remove = screen.getByText(/Remove from Mine/)
+    fireEvent.mouseDown(remove)   // the bug was: this never fired removeSym
+    expect(onOptsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ volLists: [expect.objectContaining({ syms: ['PLUG', 'AAPL'] })] }))
   })
 
   it('hides company logos by default, and shows them when showLogos is on', () => {
@@ -75,16 +94,6 @@ describe('VolumeScanWidget', () => {
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
     fireEvent.click(screen.getByTitle(/^SMCI —/))
     expect(setGroupSym).toHaveBeenCalledWith('A', 'SMCI')
-  })
-
-  it('editing the RVOL filter persists through onOptsChange (committed on blur)', () => {
-    swr.mockReturnValue({ data: LIVE })
-    const onOptsChange = vi.fn()
-    render(<VolumeScanWidget color="A" opts={{ minMove: 0.25 }} onOptsChange={onOptsChange} />)
-    const input = screen.getByLabelText('Minimum relative volume')
-    fireEvent.change(input, { target: { value: '5' } })
-    fireEvent.blur(input)
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minRvol: 5, minMove: 0.25 }))
   })
 
   it('the live poll URL requests the whole universe and carries the persisted filters', () => {

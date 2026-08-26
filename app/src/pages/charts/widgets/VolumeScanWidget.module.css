@@ -92,14 +92,14 @@
   background: rgba(48, 165, 90, 0.92);
   box-shadow: 0 0 11px rgba(48, 165, 90, 0.45);
 }
-/* Text brightness ramps with the tier too — t1 just a touch above the unlit grey,
-   climbing to the brightest pure-white at t5 — so the RVOL reading itself signals
-   strength alongside the fill. */
-.t1 .sym, .t1 .surge { color: rgba(255, 255, 255, 0.68); }
-.t2 .sym, .t2 .surge { color: rgba(255, 255, 255, 0.78); }
-.t3 .sym, .t3 .surge { color: rgba(255, 255, 255, 0.87); }
-.t4 .sym, .t4 .surge { color: rgba(255, 255, 255, 0.94); }
-.t5 .sym, .t5 .surge { color: #fff; }
+/* ONLY the RVOL reading brightens with the tier — t1 just above the unlit grey,
+   climbing to pure white at t5 — so the number itself signals strength. The SYMBOL
+   stays one consistent colour across every tier (it must never change by tier). */
+.t1 .surge { color: rgba(255, 255, 255, 0.68); }
+.t2 .surge { color: rgba(255, 255, 255, 0.78); }
+.t3 .surge { color: rgba(255, 255, 255, 0.87); }
+.t4 .surge { color: rgba(255, 255, 255, 0.94); }
+.t5 .surge { color: #fff; }
 .lit:hover { filter: brightness(1.08); }
 
 /* Unlit rows: dark, with a dimmed RVOL so the full ranking is still readable. */
@@ -170,17 +170,19 @@
    like a premium, native part of the widget. ═══════════════════════════════════════════ */
 
 .scopeWrap { position: relative; flex: 0 1 auto; min-width: 0; }
+/* Ghost pill — transparent so it blends into the toolbar (no dark "void" block behind
+   the list name); just a hairline border, gold-tinted when a custom list is active. */
 .scopeBtn {
   display: flex; align-items: center; gap: 5px;
   max-width: 148px; height: 22px; padding: 0 7px;
-  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.12)));
+  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.14)));
   border-radius: 6px;
-  background: var(--menu-input-bg, var(--nh-elev, var(--bg-elevated, #16191f)));
+  background: transparent;
   color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
   font-family: var(--font-sans); font-size: 11px; font-weight: 600;
   cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s;
 }
-.scopeBtn:hover { border-color: var(--ut-gold); }
+.scopeBtn:hover { border-color: var(--ut-gold); background: rgba(255, 255, 255, 0.04); }
 .scopeBtnCustom { border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); color: var(--ut-gold); }
 .scopeLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
