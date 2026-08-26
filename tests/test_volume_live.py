@@ -303,6 +303,48 @@ def test_custom_list_tracks_an_etf_outside_the_universe_map(monkeypatch):
     assert r["rvol"] == pytest.approx(1.04, abs=0.1)   # ~2.7M traded vs ~2.6M expected by 13:00
 
 
+def test_megacap_sustained_surge_is_lit_bold_via_the_effective_rvol_boost():
+    # INTC shape: a MEGACAP (huge prev_vol) whose day was quiet-ish, then a SUSTAINED recent
+    # volume surge with a real move. Its RVOL vs a NORMAL day reads only ~3× (a megacap's huge
+    # baseline dilutes it) — it would be buried at T1 and missing from view. The hard intraday
+    # acceleration (recent pace ≫ its own day pace) lifts its EFFECTIVE tier so it LIGHTS BOLD.
+    prev_vol = 40_000_000
+    base = prev_vol * 0.52 * 0.7        # quiet-ish day → rvol_day < 1
+    recent_add = 4_000_000
+    cv0 = base - recent_add
+    seq = {}
+    for t in range(0, 601, 3):
+        cv = cv0 + recent_add * (t / 600.0)          # sustained recent accumulation
+        px = 87.0 + 1.0 * (t / 600.0)                # a real climb (prev_close 87 → +1.1% on day)
+        seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 87.0, "prev_vol": prev_vol}}
+    _feed(seq)
+    r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
+    assert r is not None and r["lit"] is True
+    assert r["rvol_day"] < 1              # a quiet-ish day overall (megacap RVOL under-reads)…
+    assert r["surge_intraday"] >= 2.5     # …but a hard recent acceleration vs its OWN day pace
+    assert r["tier"] >= 3                 # → bold, lifted by the effective-RVOL boost (not buried T1)
+
+
+def test_a_dead_morning_name_trading_normally_now_is_not_boosted():
+    # The boost's guard: a name whose morning was DEAD (rvol_day very low) but is merely trading
+    # NORMALLY now has a high surge_intraday ratio — yet its recent rate is NOT elevated vs a
+    # normal day, so it must NOT be inflated into a fake surge.
+    prev_vol = 40_000_000
+    base = prev_vol * 0.52 * 0.3         # a dead morning → rvol_day ~0.3
+    recent_add = 700_000                 # recent rate only ~normal (rvol ~1)
+    cv0 = base - recent_add
+    seq = {}
+    for t in range(0, 601, 3):
+        cv = cv0 + recent_add * (t / 600.0)
+        seq[t] = {"AAA": {"min_av": cv, "last_price": 87.0, "prev_close": 87.0, "prev_vol": prev_vol}}
+    _feed(seq)
+    r = _row(volume_live.get_live(show_all=True, min_dollar=0)["rows"], "AAA")
+    assert r is not None
+    assert r["surge_intraday"] >= 2.5     # the RATIO is high (dead morning)…
+    assert r["rvol"] < 2                   # …but the recent rate is not elevated
+    assert r["tier"] == 1 and r["lit"] is False   # not boosted, not lit
+
+
 def test_register_custom_syms_keeps_them_active():
     volume_live.register_custom_syms({"NVDA", "TSLA"})
     active = volume_live._custom_active()

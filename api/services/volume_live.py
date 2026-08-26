@@ -108,12 +108,27 @@ _SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min w
 # SHARP move flashes white.
 _SHARP_MIN = 2.5            # recent move ≥ 2.5× the stock's own recent 1-min moves…
 _FLASH_MOVE = 1.0           # …AND a real move (≥ 1%)
+# A SHARP range-expansion candle (a sudden vertical move on a volume burst — the INTC /
+# CRCL shape) is the catch even when the raw % move is small: a low-ADR megacap making a
+# genuine sharp push moves less in % terms than a small-cap, so the 1% instant floor would
+# miss it. When sharpness ≥ _SHARP_MIN AND the burst is big, only this smaller move is
+# required — the expansion IS the signal.
+_SHARP_SURGE_MOVE = 0.4
 # Intraday-surge gate — a name below the "extreme level" bar must be ACCELERATING vs its
 # OWN day pace to light (not merely elevated-and-flat). `surge_intraday` = recent pace ÷
 # day pace; an earnings name coasting on yesterday's volume (SMTC/SCHW) reads ~1 and is
 # excluded, while a genuine fresh surge reads well above 1.
 _SUSTAINED_HIGH_RVOL = 6.0   # at/above this vs a normal day, show it even if plateaued (if moving)
 _MIN_INTRADAY_SURGE = 1.5    # below the high bar, require recent pace ≥ 1.5× the day pace
+# MEGACAP surge lift. RVOL is measured vs a NORMAL day, so a megacap (INTC trades ~40M/day)
+# making a genuine sustained surge still reads only ~2-3× and gets buried under small-caps at
+# 10×. When a name is accelerating HARD vs its OWN day pace (surge_intraday, recent rate ÷
+# day-average rate) — well beyond the routine into-the-close pickup — its effective surge
+# strength is lifted toward that acceleration, so a real megacap push (INTC) tiers bold and
+# ranks to the top and STAYS there while the volume is sustained. Gated high enough (2.5×)
+# that the normal late-day volume ramp doesn't lift the whole board.
+_SURGE_BOOST_MIN = 2.5        # recent pace ≥ 2.5× the stock's OWN day pace (a real acceleration)…
+_SURGE_BOOST_MIN_RVOL = 2.0  # …AND recent rate ≥ 2× a NORMAL day (genuinely elevated, not just a dead morning)
 
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
@@ -576,30 +591,29 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         moved = abs(m["move"]) >= mnm or abs(m.get("pct") or 0.0) >= _DEFAULT_MIN_DAY_MOVE
         surge = m.get("surge_intraday")
         accelerating_ok = surge is None or surge >= _MIN_INTRADAY_SURGE
+        eff = _eff_rvol(m)   # sustained RVOL, lifted by a hard intraday acceleration (megacaps)
         sustained = moved and (
-            m["rvol"] >= _SUSTAINED_HIGH_RVOL
-            or (m["rvol"] >= mnr and accelerating_ok)
+            eff >= _SUSTAINED_HIGH_RVOL
+            or (eff >= mnr and accelerating_ok)
         )
-        instant = m.get("burst_intraday", 0.0) >= _INSTANT_SURGE and abs(m["move"]) >= _SURGE_MOVE
-        return sustained or instant
+        return sustained or _instant_surge(m)
 
     def _igniting(m):
-        # The gold ring = a GENUINE surge happening NOW — an instant explosion (recent minute
-        # towering over the stock's own day pace, like CRCL), OR a heavy name ACCELERATING
-        # (not just plateaued) with a real move. Never a coasting elevated-and-flat name.
+        # The gold ring = a GENUINE surge happening NOW — an instant explosion (a vertical
+        # candle towering over the stock's own day pace, like CRCL / INTC), OR a heavy name
+        # ACCELERATING (not just plateaued) with a real move. Never a coasting flat name.
         surge = m.get("surge_intraday")
-        accelerating = (m["rvol"] >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
+        accelerating = (_eff_rvol(m) >= _IGNITE_RVOL and abs(m["move"]) >= _IGNITE_MOVE
                         and (surge is None or surge >= _MIN_INTRADAY_SURGE))
-        instant = m.get("burst_intraday", 0.0) >= _INSTANT_SURGE and abs(m["move"]) >= _SURGE_MOVE
-        return accelerating or instant
+        return accelerating or _instant_surge(m)
 
     def _score(m):
-        # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
-        # move. Burst LIGHTS + PULSES a fresh mover but does not inflate its rank, so
-        # the loud heavy names lead and marginal bursts don't crowd the top.
+        # Rank by EFFECTIVE surge strength (what the colour reflects), weighted by the move.
+        # Burst LIGHTS + PULSES a fresh mover but does not inflate its rank, so the loud heavy
+        # names lead and marginal bursts don't crowd the top.
         mw = abs(m["move"]) / 0.5
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
-        return m["rvol"] * mw
+        return _eff_rvol(m) * mw
 
     with _lock:
         asof = _state["asof"]
@@ -624,7 +638,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         # Genuine surges LEAD: igniting names (a big instant surge OR sustained-heavy +
         # move) sit at the very top so a fresh explosion surfaces the second it happens;
         # then by sustained RVOL so heavy names stay near the top until they die down.
-        rows.sort(key=lambda r: (r[2], _igniting(r[1]), r[1]["rvol"], r[1].get("burst", 0.0)),
+        rows.sort(key=lambda r: (r[2], _igniting(r[1]), _eff_rvol(r[1]), r[1].get("burst", 0.0)),
                   reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
@@ -638,7 +652,9 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         # NOT a smooth grind at elevated volume. Big-volume names still shade a colour
         # (the tier), but only a sharp move flashes.
         big_vol = tier >= 4 or m.get("burst_intraday", 0.0) >= _INSTANT_SURGE
-        flash = bool(lit and big_vol and abs(m["move"]) >= _FLASH_MOVE
+        # Sharpness is the true discriminator: a sudden range expansion flashes even at a
+        # smaller % move (INTC-shape), while a smooth grind (ANF, sharpness ~1) never does.
+        flash = bool(lit and big_vol and abs(m["move"]) >= _SHARP_SURGE_MOVE
                      and sharp is not None and sharp >= _SHARP_MIN)
         out.append({
             "sym": sym,
@@ -675,6 +691,38 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
     }
 
 
+def _eff_rvol(m: dict) -> float:
+    """Effective surge strength used for the tier + ranking + the sustained-lit test.
+
+    Normally the sustained RVOL (vs a NORMAL day). BUT a name accelerating hard vs its OWN
+    day pace (surge_intraday ≥ _SURGE_BOOST_MIN) is lifted toward that acceleration — so a
+    megacap whose huge baseline makes a real surge read only ~2-3× vs a normal day still
+    tiers bold and ranks up (the INTC shape), instead of being buried by absolute small-cap
+    RVOLs. The 2.5× gate keeps the routine late-day volume ramp from lifting everything."""
+    rvol = m.get("rvol") or 0.0
+    surge = m.get("surge_intraday")
+    # Only lift when the recent rate is GENUINELY elevated vs a normal day (rvol ≥ the boost
+    # floor) AND accelerating hard vs its own day — so a name whose morning was dead but is
+    # merely trading NORMALLY now (low rvol, high surge) is not inflated into a fake surge.
+    if surge and surge >= _SURGE_BOOST_MIN and rvol >= _SURGE_BOOST_MIN_RVOL:
+        return max(rvol, float(surge))
+    return rvol
+
+
+def _instant_surge(m: dict) -> bool:
+    """A genuine explosion RIGHT NOW: a big burst vs the stock's own day pace, AND either a
+    fast % move OR a sudden ATR-style range expansion (a vertical candle on the burst — the
+    INTC / CRCL shape). The range-expansion arm catches low-ADR megacaps whose sharp move is
+    real but under the 1% instant floor."""
+    if (m.get("burst_intraday") or 0.0) < _INSTANT_SURGE:
+        return False
+    move = abs(m.get("move") or 0.0)
+    if move >= _SURGE_MOVE:
+        return True
+    sharp = m.get("sharpness")
+    return sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE
+
+
 def _rvol_tier(rvol: float) -> int:
     if rvol >= 10:
         return 5   # Extreme
@@ -688,13 +736,13 @@ def _rvol_tier(rvol: float) -> int:
 
 
 def _tier(m: dict) -> int:
-    """Colour tier by CUMULATIVE relative volume — how significant/extreme the volume
-    is (5 = Extreme … 1 = Notable). Boldness tracks RVOL so weak/marginal prints stay
-    calm and only genuinely heavy volume gets the loud colours. Burst does NOT inflate
-    the tier — a 1-minute blip on a quiet name must not scream; a fresh ignition is
-    surfaced by the row's `igniting` pulse + its rank, not a bold fill. UCT-palette
-    ramp: faint green → gold → hot red."""
-    return _rvol_tier(m["rvol"])
+    """Colour tier by EFFECTIVE surge strength — how significant/extreme the surge is
+    (5 = Extreme … 1 = Notable). Boldness tracks the effective RVOL (sustained volume, lifted
+    by a hard intraday acceleration for megacaps — see _eff_rvol) so a genuine sustained push
+    gets the loud colours while weak/marginal prints stay calm. A 1-minute burst does NOT by
+    itself inflate the tier — a fresh ignition is surfaced by the row's `igniting` pulse + its
+    rank. UCT-palette ramp: faint green → gold → hot red."""
+    return _rvol_tier(_eff_rvol(m))
 
 
 def status() -> dict:
