@@ -285,6 +285,24 @@ def test_a_sharp_move_on_big_volume_flashes_white():
     assert r["flash"] is True                 # big volume + a SUDDEN sharp move → white flash
 
 
+def test_custom_list_tracks_an_etf_outside_the_universe_map(monkeypatch):
+    # USO / SOXL / UVXY class: a liquid ETF that is NOT in the breadth universe map and is
+    # flagged as an ETF (so the stocks-only gate would drop it). Putting it on a custom list
+    # must still give it a reading — the tick loop otherwise only visits the universe map,
+    # so these names stayed stuck on "…" forever.
+    monkeypatch.setattr(volume_live, "_etf_set", lambda: {"USO"})
+    volume_live.register_custom_syms({"USO"})
+    seq = {}
+    for t in range(0, 46):
+        px = 80.0 if t <= 36 else 80.0 + 0.2 * (t - 36)
+        seq[t] = {"USO": {"min_av": 60_000 * t, "last_price": px, "prev_close": 80.0, "prev_vol": 5_000_000}}
+    _feed(seq)
+    out = volume_live.get_live(show_all=True, min_dollar=0, syms=["USO"])
+    r = _row(out["rows"], "USO")
+    assert r is not None and r["rvol"] is not None    # got a real reading (not stuck pending)
+    assert r["rvol"] == pytest.approx(1.04, abs=0.1)   # ~2.7M traded vs ~2.6M expected by 13:00
+
+
 def test_register_custom_syms_keeps_them_active():
     volume_live.register_custom_syms({"NVDA", "TSLA"})
     active = volume_live._custom_active()

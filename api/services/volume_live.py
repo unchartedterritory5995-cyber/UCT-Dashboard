@@ -450,12 +450,33 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
             _top_built = sample_t
     top = _top_set
     custom = _custom_active()
+    # Custom-list names that aren't in the standard breadth universe map (ETFs, leveraged/
+    # inverse funds like USO/SOXL/UVXY, any liquid ticker the user adds) must still be
+    # visited — the loop otherwise only iterates the top-N stock universe, so those names
+    # would never get a reading. Map each such name to its provider symbol (== the app sym
+    # for anything without a class dot).
+    iter_map = prov_map
+    if custom:
+        tracked_apps = set(prov_map.values())
+        extra = {}
+        for app in custom:
+            if app in tracked_apps:
+                continue
+            prov = app
+            try:
+                from api.services import massive
+                prov = massive.to_polygon_symbol(app)
+            except Exception:
+                prov = app
+            extra[prov] = app
+        if extra:
+            iter_map = {**prov_map, **extra}
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
         syms = _state["syms"]
 
-        for prov, app in prov_map.items():
+        for prov, app in iter_map.items():
             in_custom = app in custom
             if app in etf and not in_custom:    # stocks only, UNLESS the user put it on a list
                 continue

@@ -7,7 +7,18 @@ const swr = vi.fn()
 vi.mock('../../../hooks/useMobileSWR', () => ({ default: (...a) => swr(...a) }))
 const setGroupSym = vi.fn()
 vi.mock('../WorkspaceContext', () => ({ useWorkspace: () => ({ setGroupSym }) }))
-vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (_v, d) => d }))
+// Account preferences (where custom lists now live). `mockPrefs` is injectable per test;
+// parsePref mirrors the real one so a stored list round-trips.
+let mockPrefs = {}
+const setPref = vi.fn()
+vi.mock('../../../hooks/usePreferences', () => ({
+  default: () => ({ prefs: mockPrefs, setPref, setPrefMerged: vi.fn() }),
+  parsePref: (raw, fb) => {
+    if (raw == null) return fb
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return fb }
+  },
+}))
 // Stub the logo (real one fetches + sets timers) so we can assert on/off cleanly.
 vi.mock('../../../components/CompanyLogo', () => ({ default: ({ sym }) => <i data-logo={sym} /> }))
 
@@ -29,6 +40,8 @@ const LIVE = {
 beforeEach(() => {
   swr.mockReset()
   setGroupSym.mockReset()
+  setPref.mockReset()
+  mockPrefs = {}
 })
 
 describe('VolumeScanWidget', () => {
@@ -63,22 +76,32 @@ describe('VolumeScanWidget', () => {
     // The list holds NVDA but the poll has not returned it yet — it must still show at
     // once (a placeholder), so adding a ticker feels immediate.
     swr.mockReturnValue({ data: { window: 'rth', asof: TS, rows: [] } })
-    const list = { id: 'l1', name: 'Mine', syms: ['NVDA'] }
-    render(<VolumeScanWidget color="A" opts={{ volLists: [list], volActive: 'l1' }} onOptsChange={() => {}} />)
+    mockPrefs = { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Mine', syms: ['NVDA'] }]) }
+    render(<VolumeScanWidget color="A" opts={{ volActive: 'l1' }} onOptsChange={() => {}} />)
     expect(screen.getByText('NVDA')).toBeInTheDocument()
     expect(screen.getByTitle(/NVDA — added to your list/)).toBeInTheDocument()
   })
 
-  it('right-clicking a custom-list row opens a Remove menu that calls onOptsChange', () => {
+  it('right-clicking a custom-list row removes the ticker from the ACCOUNT list', () => {
     swr.mockReturnValue({ data: LIVE })
-    const onOptsChange = vi.fn()
-    const list = { id: 'l1', name: 'Mine', syms: ['SMCI', 'PLUG', 'AAPL'] }
-    render(<VolumeScanWidget color="A" opts={{ volLists: [list], volActive: 'l1' }} onOptsChange={onOptsChange} />)
+    mockPrefs = { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Mine', syms: ['SMCI', 'PLUG', 'AAPL'] }]) }
+    render(<VolumeScanWidget color="A" opts={{ volActive: 'l1' }} onOptsChange={() => {}} />)
     fireEvent.contextMenu(screen.getByTitle(/^SMCI —/))
     const remove = screen.getByText(/Remove from Mine/)
     fireEvent.mouseDown(remove)   // the bug was: this never fired removeSym
-    expect(onOptsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ volLists: [expect.objectContaining({ syms: ['PLUG', 'AAPL'] })] }))
+    // Lists persist on the account (not per-widget opts) so they survive close/reopen.
+    expect(setPref).toHaveBeenCalledWith('volume_scan_lists',
+      [expect.objectContaining({ syms: ['PLUG', 'AAPL'] })])
+  })
+
+  it('a custom list persists on the account preference, not per-widget opts', () => {
+    // Regression for "made a list, closed the widget, list was gone": creating/editing a
+    // list must write the account pref (`volume_scan_lists`), which is layout-independent.
+    swr.mockReturnValue({ data: { window: 'rth', asof: TS, rows: [] } })
+    mockPrefs = { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Watch', syms: ['NVDA'] }]) }
+    render(<VolumeScanWidget color="A" opts={{ volActive: 'l1' }} onOptsChange={() => {}} />)
+    // A brand-new widget with EMPTY opts still shows the saved list's contents.
+    expect(screen.getByText('NVDA')).toBeInTheDocument()
   })
 
   it('hides company logos by default, and shows them when showLogos is on', () => {

@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useWorkspace } from '../WorkspaceContext'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -142,15 +143,38 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  // ── Custom scan lists (persisted in opts) — scan ONLY the user's names, else the
-  // top-1,000 liquid universe. ─────────────────────────────────────────────────────
-  const lists = Array.isArray(opts?.volLists) ? opts.volLists : []
+  // ── Custom scan lists — scan ONLY the user's names, else the top-1,000 liquid
+  // universe. The LIST DEFINITIONS live on the user's ACCOUNT (preference
+  // `volume_scan_lists`), so they persist across every layout + widget instance until
+  // deleted — NOT in per-widget opts (which vanish when a widget is closed). Only the
+  // per-widget ACTIVE selection stays in opts, so two widgets can watch different lists.
+  const { prefs, setPref } = usePreferences()
+  const lists = useMemo(() => {
+    const arr = parsePref(prefs?.volume_scan_lists, [])
+    return Array.isArray(arr) ? arr : []
+  }, [prefs?.volume_scan_lists])
   const activeListId = opts?.volActive || null
   const activeList = useMemo(() => lists.find(l => l.id === activeListId) || null, [lists, activeListId])
   const commitLists = useCallback(
-    (nextLists, nextActiveId) => onOptsChange?.({ ...opts, volLists: nextLists, volActive: nextActiveId ?? null }),
-    [opts, onOptsChange])
+    (nextLists, nextActiveId) => {
+      setPref('volume_scan_lists', nextLists)                       // account-wide, durable
+      onOptsChange?.({ ...opts, volActive: nextActiveId ?? null })  // per-widget selection
+    },
+    [setPref, opts, onOptsChange])
   const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
+  // One-time migration: lists used to live per-widget in opts.volLists — move any still
+  // there up to the account so a pre-existing list isn't lost on the next widget close.
+  const migratedRef = useRef(false)
+  useEffect(() => {
+    if (migratedRef.current) return
+    const legacy = Array.isArray(opts?.volLists) ? opts.volLists : []
+    const acct = parsePref(prefs?.volume_scan_lists, null)
+    if (legacy.length && !Array.isArray(acct)) {
+      migratedRef.current = true
+      setPref('volume_scan_lists', legacy)
+      onOptsChange?.({ ...opts, volLists: undefined })   // drop the stale per-widget copy
+    }
+  }, [opts, prefs?.volume_scan_lists, setPref, onOptsChange])
   const customEmpty = !!(activeList && activeList.syms.length === 0)
   const [ctxMenu, setCtxMenu] = useState(null)   // {sym,x,y} right-click "remove from list" menu
   const ctxRef = useRef(null)
