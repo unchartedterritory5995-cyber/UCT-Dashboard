@@ -1537,3 +1537,21 @@ def test_house_url_and_job_stamp_the_breadth_record_for_the_page():
                      bars_fn=lambda t, tf, n: daily, render_fn=lambda *a, **k: b"MPL",
                      edit_fn=lambda *a, **k: None, house_fn=house_fn, prefs={**di.prefs_mod.DEFAULTS, "style": "line", "stats": False})
     assert got["breadth"] == "% of Stocks Above 50-Day MA" and got["indicators"] == {"chartType": "line"}
+
+
+def test_every_dropdown_obeys_discords_select_rules():
+    """8/25: the Look select carried TWO defaults (style + theme) and Discord
+    refused the whole edit with COMPONENT_TOO_MANY_DEFAULT_VALUES - the chart
+    sat on 'thinking...' forever. One default per single-select, <= 25 options,
+    labels <= 100 chars, custom_id <= 100 chars."""
+    from api.services import discord_interactions as di
+    for req in (di.ChartRequest("NVDA", "D"), di.ChartRequest("NVDA", "15", style="line", theme="oled", zoom="5d", indicators="macd"),
+                di.ChartRequest("UCTA5", "W", daily_only=True, to="2026-05-01")):
+        for row in di.chart_components(req, dict(di.prefs_mod.DEFAULTS)):
+            for comp in row["components"]:
+                if comp["type"] != 3:
+                    continue
+                assert 1 <= len(comp["options"]) <= 25
+                assert sum(1 for o in comp["options"] if o.get("default")) <= 1, comp["custom_id"]
+                assert all(len(o["label"]) <= 100 and len(o["value"]) <= 100 for o in comp["options"])
+                assert len(comp["custom_id"]) <= 100

@@ -324,7 +324,9 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
                 "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
                              for v, label in prefs_mod.STYLE_CHOICES.items()] +
-                            [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": v == st["theme"]}
+                            # ONE default per single-select (Discord: COMPONENT_TOO_MANY_DEFAULT_VALUES) -
+                            # the style carries it; the theme is read off the image.
+                            [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": False}
                              for v, label in prefs_mod.THEME_CHOICES.items()])}
     ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
     ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
