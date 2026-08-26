@@ -132,7 +132,8 @@ from api.services.ast_table import TABLE, SERIES_SECTION
 # from the first the day either moved. `_clip` is private there on purpose — it
 # is one number's rule — and this module names that dependency rather than
 # copying the two lines.
-from api.services.screener.candle_backtest import WINSOR_PCT, _clip as winsorise
+from api.services.screener.candle_backtest import (
+    MOVE_BUCKETS, WINSOR_PCT, _clip as winsorise, move_bucket)
 
 BarsFor = Callable[[str], Optional[Sequence[Mapping[str, Any]]]]
 
@@ -244,13 +245,17 @@ class HorizonResult:
     baseline: Stats
     below_floor: bool
     coverage: Dict[str, int]
+    #: The same-day-move control (W5a.2). Optional so a `HorizonResult` built by
+    #: hand in a test is still constructible; the engine always fills it.
+    same_day: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {"horizon": self.horizon,
                 "strategy": self.strategy.to_dict(),
                 "baseline": self.baseline.to_dict(),
                 "below_floor": self.below_floor,
-                "coverage": dict(self.coverage)}
+                "coverage": dict(self.coverage),
+                "same_day": dict(self.same_day) if self.same_day else None}
 
 
 @dataclass(frozen=True)
@@ -369,6 +374,18 @@ def _method_block(*, warmup: int, min_signals: int,
         # module so the payload cannot say 50 while the rule says something else.
         "winsorised": True,
         "winsor_pct": WINSOR_PCT,
+        # ⭐ THE SECOND CONTROL, AND IT IS NOT THE FILL. `fill: next_bar_open` is
+        # `candle_backtest`'s BID-ASK BOUNCE control; this is its DATE+MOVE
+        # matching, which is what stopped every bearish label there reading
+        # positive. The bucket EDGES are read off that module so the payload
+        # cannot describe a partition the code does not use.
+        "same_day_control": True,
+        "same_day_buckets_atr": list(MOVE_BUCKETS),
+        "atr_bars": ATR_BARS,
+        "same_day_basis": ("each signal observation minus the mean winsorised "
+                           "return of every answered bar on the same date in the "
+                           "same ATR-scaled same-day-move bucket; a cell the "
+                           "signals wholly occupy is unmatched, never zero"),
     }
 
 
@@ -478,6 +495,79 @@ def _finite_number(v: Any) -> bool:
     return math.isfinite(float(v))
 
 
+#: The lagged true-range window behind the same-day-move bucket, in bars.
+#: ⚠️ `candle_backtest.scan_ticker` carries this as an inline literal
+#: (`if len(trs) > 14`) and naming it there is W0's file, so it is named HERE
+#: and `test_the_atr_window_is_the_candle_modules_own_number` reads that source
+#: to pin the two equal. Move both or neither.
+ATR_BARS = 14
+
+
+def _move_buckets(bars: Sequence[Mapping[str, Any]]) -> List[Optional[int]]:
+    """Per bar, its same-day-move bucket — or ``None`` when it cannot be measured.
+
+    ⭐ THE CONTROL `candle_backtest` FOUND IT NEEDED, PORTED NOT PARAPHRASED: the
+    bar's day return in units of a LAGGED ATR (the ``ATR_BARS`` sessions BEFORE
+    it — including the bar itself contaminates the control with the thing it is
+    controlling for), bucketed by ``MOVE_BUCKETS``. ``None`` for the first bar
+    (no previous close), for a bar with no true range on file yet, for a hole,
+    and for a zero-ATR tape: an unmeasurable move is DROPPED from matching and
+    COUNTED as unmatched, never pooled with moves it may not resemble.
+    """
+    out: List[Optional[int]] = []
+    trs: List[float] = []
+    for i, bar in enumerate(bars):
+        prev = bars[i - 1] if i > 0 else None
+        h, l, c = bar.get("h"), bar.get("l"), bar.get("c")
+        pc = prev.get("c") if prev is not None else None
+        usable = (all(_finite_number(v) for v in (h, l, c, pc))
+                  and float(c) > 0 and float(pc) > 0)
+        if not usable:
+            # ⛔ A bar with no measurable range still advances the tape; the TR
+            # window is NOT extended past it, so the next bar's ATR is measured
+            # on whatever real ranges preceded it.
+            out.append(None)
+            continue
+        atr_pct = (sum(trs) / len(trs)) / float(c) * 100.0 if trs else 0.0
+        day_ret = (float(c) - float(pc)) / float(pc) * 100.0
+        out.append(move_bucket(day_ret, atr_pct))
+        trs.append(max(float(h) - float(l), abs(float(h) - float(pc)),
+                       abs(float(l) - float(pc))))
+        if len(trs) > ATR_BARS:
+            del trs[0]
+    return out
+
+
+def _same_day_excess(strat_obs: Sequence[Tuple[Optional[Tuple[str, int]], float]],
+                     cells: Mapping[Tuple[str, int], List[float]], *,
+                     withheld: bool) -> Dict[str, Any]:
+    """Each signal observation against the mean WINSORISED return of every
+    answered bar on the SAME DATE in the SAME bucket.
+
+    ⛔ A CELL THE SIGNALS WHOLLY OCCUPY MEASURES NOTHING ABOUT THEM — the base
+    rate would be the signals' own mean and the excess identically zero, which
+    would drag every average toward 0 and understate a real effect. Such
+    observations are counted UNMATCHED (`candle_backtest.summarize` drops the
+    same cells). ``excess_pct_winsorised`` is ``None`` below the floor or with
+    nothing matched: rule 5, a NULL is never a zero.
+    """
+    signals_in: Dict[Tuple[str, int], int] = {}
+    for cell, _ in strat_obs:
+        if cell is not None:
+            signals_in[cell] = signals_in.get(cell, 0) + 1
+    excess: List[float] = []
+    unmatched = 0
+    for cell, r in strat_obs:
+        acc = cells.get(cell) if cell is not None else None
+        if acc is None or acc[0] <= signals_in.get(cell, 0):
+            unmatched += 1
+            continue
+        excess.append(winsorise(r) - acc[1] / acc[0])
+    n = len(excess)
+    return {"n_matched": n, "n_unmatched": unmatched,
+            "excess_pct_winsorised": None if withheld or n == 0 else sum(excess) / n}
+
+
 def _stats(returns: Sequence[float], *, withheld: bool) -> Stats:
     """Summarise one arm. ⛔ THE RATE IS WITHHELD, THE COUNT NEVER IS (rule 5)."""
     n = len(returns)
@@ -507,12 +597,15 @@ class _SymbolScan:
     signal_rows: List[int] = None          # bar indices where the screen was true
     answered_rows: List[int] = None        # bar indices the screen answered at all
     dates: Tuple[str, ...] = ()
+    buckets: List[Optional[int]] = None     # per bar, aligned to `bars`; None = unmeasurable
 
     def __post_init__(self) -> None:
         if self.signal_rows is None:
             self.signal_rows = []
         if self.answered_rows is None:
             self.answered_rows = []
+        if self.buckets is None:
+            self.buckets = []
 
 
 def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
@@ -556,6 +649,11 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
     # it only for a tree that is a bare series.
     blocked = _unanswerable_bars(bars, fields, warmup)
     scan = _SymbolScan()
+    # ⭐ THE BUCKET IS A PROPERTY OF THE BAR, NOT OF THE SIGNAL, so it is
+    # measured over the WHOLE tape in this one pass — the same pass that decides
+    # which bars are answerable. Computing it later, over a filtered list, would
+    # shorten the lagged-ATR window and change the bucket a bar belongs to.
+    scan.buckets = _move_buckets(bars)
     dates: List[str] = []
     prev: Optional[str] = None
     for i, bar in enumerate(bars):
@@ -796,6 +894,11 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     for h in horizons:
         strat: List[float] = []
         base: List[float] = []
+        # (date, bucket) -> [n, sum of winsorised returns] over EVERY answered
+        # bar, signal or not — the same population the pooled baseline reads,
+        # cut one axis finer.
+        cells: Dict[Tuple[str, int], List[float]] = {}
+        strat_obs: List[Tuple[Optional[Tuple[str, int]], float]] = []
         no_room = bad_price = 0
         for _, bars, scan in scans:
             signal_at = set(scan.signal_rows)
@@ -813,8 +916,17 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                 # computing it in this same loop is what makes the two numbers
                 # describe identical bars by construction rather than by care.
                 base.append(r)
+                b = scan.buckets[i] if i < len(scan.buckets) else None
+                cell = None if b is None else (bar_date(bars[i]), b)
+                if cell is not None:
+                    acc = cells.get(cell)
+                    if acc is None:
+                        acc = cells[cell] = [0, 0.0]
+                    acc[0] += 1
+                    acc[1] += winsorise(r)
                 if i in signal_at:
                     strat.append(r)
+                    strat_obs.append((cell, r))
         _assert_closes(f"horizon {h}", coverage["bars_answered"],
                        {"evaluated": len(base), "no_forward_room": no_room,
                         "unusable_fill_price": bad_price})
@@ -826,7 +938,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
             below_floor=below,
             coverage={"evaluated": len(base), "signals": len(strat),
                       "no_forward_room": no_room,
-                      "unusable_fill_price": bad_price}))
+                      "unusable_fill_price": bad_price},
+            same_day=_same_day_excess(strat_obs, cells, withheld=below)))
 
     # ── rule 5, at the whole-window grain ─────────────────────────────────── #
     if all(r.below_floor for r in results):

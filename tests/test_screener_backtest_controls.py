@@ -191,3 +191,186 @@ def test_the_purity_rail_goes_red_when_a_forbidden_import_is_planted():
     assert _imports_of(planted_imports) - ALLOWED_IMPORTS == {"time", "datetime"}
     planted_tokens = src + "\n" + "\n".join(banned) + "\n"
     assert sorted(_tokens_found(planted_tokens, banned)) == sorted(banned)
+
+
+# ─── 3 · the same-day-move control ──────────────────────────────────────────
+#
+# `candle_backtest` measured the confound: matched on date alone, every bearish
+# label read POSITIVE and every bullish one NEGATIVE — short-term mean reversion,
+# not the shape. The remedy is a base rate matched on (date, same-day move in
+# lagged-ATR units). The screen engine's baseline is POOLED (every answered bar
+# over the window), so a screen keyed off a big move measures the bounce. This
+# section adds the matched comparison BESIDE the pooled one, never instead.
+
+PATTERN = (8.0, -3.0, 1.0, 6.0, -4.0, -5.0, 2.0, -4.0)   # day returns, %, cycled
+
+
+def path(start: float, n: int = 60):
+    """Closes following PATTERN from `start`; opens = the previous close, so the
+    next-open fill is the close the signal was read at.
+
+    ⛔ SCALE-FREE BY CONSTRUCTION, and `bars()` is NOT used because its ±1
+    high/low offsets are absolute: a 200-dollar and a 50-dollar tape would get
+    different true ranges, different ATR%, and could land in different buckets.
+    Here high/low are ±0.5% of price, so two tapes whose `start` differ by a
+    power of two have BIT-IDENTICAL day returns, ATR%, buckets and forward
+    returns (scaling by 2^k is exact in binary floating point) — which is what
+    makes the matched excess computable by hand."""
+    closes = [start]
+    for i in range(1, n):
+        closes.append(closes[-1] * (1 + PATTERN[i % len(PATTERN)] / 100.0))
+    out = []
+    for i, c in enumerate(closes):
+        o = closes[i - 1] if i else c
+        out.append({"t": day(i), "o": o, "h": max(o, c) * 1.005,
+                    "l": min(o, c) * 0.995, "c": c, "v": 1000.0})
+    return out
+
+
+def flat(px: float = 50.0, n: int = 60):
+    """A tape that never moves: o = h = l = c. Zero true range, so its
+    same-day move is UNMEASURABLE (bucket `None`) and it joins no cell — but it
+    is answered on every bar, so it sits in the POOLED baseline with a forward
+    return of exactly 0."""
+    return [{"t": day(i), "o": px, "h": px, "l": px, "c": px, "v": 1000.0}
+            for i in range(n)]
+
+
+def opens_ramped(tape, first: float = 20.0, per_bar: float = 1.02):
+    """A COPY of `tape` whose OPENS are a constant-growth ramp and whose
+    ``t``/``h``/``l``/``c`` are untouched.
+
+    ⭐ THE PERTURBATION THAT ISOLATES ONE HALF OF THE CELL. `_move_buckets`
+    reads ``h``, ``l``, ``c`` and the previous ``c`` and NEVER ``o``, while
+    `_forward_return` reads ONLY ``o``. So this moves a peer's forward return
+    while leaving its (date, bucket) bit-identical — same cell, same membership,
+    same counts, a different base rate. ⚠️ The opens are deliberately detached
+    from the bar's own high/low: that is not a tape, it is a scalpel, and the
+    isolation is the whole point of the control.
+
+    Every bar's forward return over ``h`` bars is then exactly
+    ``(per_bar ** h - 1) * 100`` — a constant, so the matched excess it produces
+    is arithmetic rather than an empirical accident."""
+    out = []
+    for i, bar in enumerate(tape):
+        b = dict(bar)
+        b["o"] = first * (per_bar ** i)
+        out.append(b)
+    return out
+
+
+#: Fires on every bar of a symbol priced above 100 and never on one below —
+#: so a 50-dollar twin of a 200-dollar name is the matched CONTROL: same move,
+#: same day, same bucket, not a signal.
+ABOVE_100 = OP(">", SER("close"), NUM(100))
+
+
+def test_move_buckets_are_lagged_and_scale_free():
+    a, c = path(200.0), path(50.0)
+    assert bt._move_buckets(a)[2:] == bt._move_buckets(c)[2:]
+    # bar 0 has no previous close; bar 1 has no true range on file yet
+    assert bt._move_buckets(a)[0] is None and bt._move_buckets(a)[1] is None
+    assert all(b is not None for b in bt._move_buckets(a)[2:])
+    # CONTROL: a zero-range tape has zero ATR — UNMEASURABLE, never bucket 0
+    assert all(b is None for b in bt._move_buckets(flat(n=20)))
+
+
+def test_a_signal_that_did_what_its_own_move_peers_did_has_ZERO_matched_excess_while_the_pooled_arms_differ():
+    """AAA/BBB (signals) and CCC (their 50-dollar twin, never a signal) move
+    identically every day, so each signal's cell holds a non-signal peer with
+    the SAME forward return: the matched excess is exactly zero. DDD is flat and
+    drags the POOLED baseline away from the strategy — the comparison the pooled
+    arms make is real, and it is a different question from the matched one."""
+    b = {"AAA": path(200.0), "BBB": path(200.0), "CCC": path(50.0), "DDD": flat()}
+    r = bt.run_backtest(ABOVE_100, ["AAA", "BBB", "CCC", "DDD"], day(2), day(59),
+                        bars_for=reader(b), min_signals=1, horizons=(5,))
+    hz = r.horizons[0]
+    sd = hz.same_day
+    assert sd["n_matched"] > 0 and sd["n_unmatched"] == 0
+    assert sd["n_matched"] + sd["n_unmatched"] == hz.strategy.n
+    assert sd["excess_pct_winsorised"] == pytest.approx(0.0, abs=1e-9)
+    assert hz.strategy.avg_pct != pytest.approx(hz.baseline.avg_pct)
+
+
+def test_CONTROL_moving_only_the_peers_forward_return_moves_the_matched_excess_off_zero():
+    """⭐ THE DISCRIMINATING HALF, because a fixture that reads 0.0 both with and
+    WITHOUT its perturbation has measured nothing (lane contract). The peer's
+    opens are ramped and NOTHING else changes: same dates, same buckets, same
+    cells, same membership, same counts — and the matched excess leaves 0.
+
+    The arithmetic is closed-form. Each cell holds two signals at the winsorised
+    return `w` and one peer at the constant `K = (1.02**5 - 1) * 100`, so every
+    signal's excess is `w - (2w + K)/3 = (w - K)/3` and the reported mean is
+    `(mean(w) - K) / 3`."""
+    peer = opens_ramped(path(50.0))
+    # the perturbation touched the RETURN and not the CELL: prove it, do not
+    # assume it — the buckets are bit-identical to the untouched twin's.
+    assert bt._move_buckets(peer) == bt._move_buckets(path(50.0))
+
+    def run(ccc):
+        b = {"AAA": path(200.0), "BBB": path(200.0), "CCC": ccc, "DDD": flat()}
+        return bt.run_backtest(ABOVE_100, ["AAA", "BBB", "CCC", "DDD"],
+                               day(2), day(59), bars_for=reader(b),
+                               min_signals=1, horizons=(5,)).horizons[0]
+
+    zero, moved = run(path(50.0)), run(peer)
+    # the cells did not move: identical matched/unmatched counts on both runs
+    assert zero.same_day["n_matched"] == moved.same_day["n_matched"] > 0
+    assert zero.same_day["n_unmatched"] == moved.same_day["n_unmatched"] == 0
+    assert zero.strategy.n == moved.strategy.n
+    # ...and the number did
+    assert zero.same_day["excess_pct_winsorised"] == pytest.approx(0.0, abs=1e-9)
+    k = (1.02 ** 5 - 1) * 100.0
+    assert moved.same_day["excess_pct_winsorised"] == pytest.approx(
+        (moved.strategy.avg_pct_winsorised - k) / 3.0)
+    assert moved.same_day["excess_pct_winsorised"] < -1.0
+
+
+def test_the_control_a_screen_that_IS_the_whole_cell_measures_nothing_about_itself():
+    """Without CCC nothing else moved that much on those days: every signal cell
+    is wholly signals, the base rate would be the signals' own mean and the
+    excess identically zero — so it is counted UNMATCHED, never reported as 0."""
+    b = {"AAA": path(200.0), "BBB": path(200.0), "DDD": flat()}
+    r = bt.run_backtest(ABOVE_100, ["AAA", "BBB", "DDD"], day(2), day(59),
+                        bars_for=reader(b), min_signals=1, horizons=(5,))
+    hz = r.horizons[0]
+    assert hz.same_day["n_matched"] == 0
+    assert hz.same_day["n_unmatched"] == hz.strategy.n
+    assert hz.same_day["excess_pct_winsorised"] is None
+
+
+def test_same_day_excess_is_a_per_observation_excess_over_the_cells_winsorised_mean():
+    cells = {("d1", 5): [4, 4 * 2.0]}                     # 4 answered bars, mean +2.0
+    obs = [(("d1", 5), 3.0), (("d1", 5), 1.0), (None, 9.0)]
+    out = bt._same_day_excess(obs, cells, withheld=False)
+    assert out["n_matched"] == 2 and out["n_unmatched"] == 1
+    assert out["excess_pct_winsorised"] == pytest.approx(0.0)
+    # CONTROL 1: the clip reaches the observation — a +300% signal counts as +50
+    out = bt._same_day_excess([(("d1", 5), 300.0)], cells, withheld=False)
+    assert out["excess_pct_winsorised"] == pytest.approx(cb.WINSOR_PCT - 2.0)
+    # CONTROL 2: below the floor the counts survive and the number is withheld
+    out = bt._same_day_excess(obs, cells, withheld=True)
+    assert out["n_matched"] == 2 and out["excess_pct_winsorised"] is None
+
+
+def test_the_method_block_names_the_control_and_the_buckets_are_the_candle_modules():
+    r = bt.run_backtest(ALWAYS, ["AAA"], day(2), day(59),
+                        bars_for=reader({"AAA": path(200.0)}), min_signals=1,
+                        horizons=(5,))
+    d = r.to_dict()
+    m = d["method"]
+    assert m["same_day_control"] is True
+    assert m["same_day_buckets_atr"] == list(cb.MOVE_BUCKETS)
+    assert m["atr_bars"] == bt.ATR_BARS
+    sd = d["horizons"][0]["same_day"]
+    assert sd["n_matched"] + sd["n_unmatched"] == r.horizons[0].strategy.n
+
+
+def test_the_atr_window_is_the_candle_modules_own_number():
+    """`candle_backtest.scan_ticker` carries the window as an inline literal;
+    naming it there is W0's file. Read the artifact rather than retype it."""
+    src = inspect.getsource(cb.scan_ticker)
+    m = re.search(r"if len\(trs\) > (\d+):", src)
+    assert m, ("candle_backtest.scan_ticker no longer bounds its true-range "
+               "window the way this rail reads it — re-derive, do not retype")
+    assert int(m.group(1)) == bt.ATR_BARS
