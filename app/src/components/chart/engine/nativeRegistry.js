@@ -1828,7 +1828,7 @@ export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 // An `ast` definition is a USER's formula: it arrives from the builder or the
 // concierge, through `validateUserDefinitions`, and is INSTALLED per session by
 // `installUserDefinitions` below. The shipped manifest (`registrySizes.js`,
-// `SHIPPED_DEF_IDS.ast = []`) is the ONE declaration that this build ships none;
+// `SHIPPED_DEF_IDS.ast`) is the ONE declaration that this build ships none;
 // `idsByLane(listDefinitions())` proves it by partition. (W0.3 retired the
 // frozen-empty `AST_DEFS` that used to stand here as a second authority.)
 
@@ -2014,14 +2014,14 @@ export function getDefinition(defId) {
 /**
  * @returns {object[]} every registered definition — BOTH LANES.
  *
- * ⭐ 16 NATIVE + 1 SERVER + 0 AST = 17 (Phase C Task 13; the third lane joined at
- * Phase D Task 8 and is empty). This used to be `[...NATIVE_DEFS]`, and the
- * union is the one line Task 14 handed back. A caller that wants only the
- * natives asks `NATIVE_DEFS`; a caller enumerating "what indicators exist" must
- * see every lane that HAS members, because a definition invisible to this list
- * is invisible to the catalog, the settings migration and the alert addressing
- * alike. The ast lane has none to spread — W0.3 retired its frozen-empty array,
- * and `SHIPPED_DEF_IDS.ast` is the one place that claim is now declared.
+ * ⭐ THE UNION IS THE ONE LINE TASK 14 HANDED BACK — this used to be
+ * `[...NATIVE_DEFS]` (Phase C Task 13; the ast lane joined at Phase D Task 8).
+ * A caller that wants only the natives asks `NATIVE_DEFS`; a caller enumerating
+ * "what indicators exist" must see every lane that HAS members, because a
+ * definition invisible to this list is invisible to the catalog, the settings
+ * migration and the alert addressing alike. The ast lane has none to spread —
+ * W0.3 retired its frozen-empty array, and `SHIPPED_DEF_IDS.ast` is the one
+ * place that claim is now declared.
  *
  * ⛔ AND THE NUMBER IS NOT WRITTEN DOWN HERE. `registrySizes.js` holds the one
  * hand-written manifest of what ships, by lane, by name; a count typed into a
