@@ -233,20 +233,54 @@ export function useInstalledUserDefinitions() {
   }
 }
 
-/** Soft-delete. The store appends a TOMBSTONE version rather than removing
- *  rows, so a `defId@version` pin still resolves afterwards. */
+/**
+ * Soft-delete. The store appends a TOMBSTONE version rather than removing
+ * rows, so a `defId@version` pin still resolves afterwards.
+ *
+ * ⛔ IT ANSWERS THE STORE'S REFUSAL, NOT A BOOLEAN — and that is what makes a
+ * caller able to say WHY. ⚰️ It used to `return r.ok`, which threw away every
+ * sentence the store had just written: `"Not found"` for a definition that is
+ * not yours, `require_paid`'s own 402 line for a lapsed plan. A surface handed a
+ * boolean cannot honour this file's rule that the store's refusal sentence is
+ * never rewritten here — it can only invent one, which is the second vocabulary
+ * the header above forbids. `saveUserDefinition` has had this shape all along.
+ *
+ * ⚠️ THE REVALIDATION FIRES ON A REFUSAL TOO, deliberately and as before: a
+ * request that was ANSWERED — even with a no — means the client's picture of
+ * what exists is now a guess, and re-reading the store is how the row a member
+ * still sees stays the store's claim rather than ours. Only a request that never
+ * left (the `catch`) skips it, because nothing can have changed.
+ *
+ * @returns {Promise<{ok: true} | {ok: false, error: string}>} — never null, on
+ *          any branch; `error` is a NON-EMPTY string whenever `ok` is false,
+ *          because a caller rendering it verbatim renders an empty alert
+ *          otherwise, and a refusal a member cannot read is one they did not get.
+ */
 export async function deleteUserDefinition(defId) {
+  let r
   try {
-    const r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, {
       method: 'DELETE',
       credentials: 'include',
     })
-    mutate(USER_DEFINITIONS_KEY)
-    // K3: a deleted definition may have been the last scannable one — same
-    // revalidation as the save path above.
-    mutate(META_KEY)
-    return r.ok
   } catch {
-    return false
+    // ⛔ A TRANSPORT FAILURE AND A REFUSAL NEED DIFFERENT WORDS — the save door's
+    // rule, one function up, for the same reason: one is "try again", the other
+    // is "this cannot be done".
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
+  mutate(USER_DEFINITIONS_KEY)
+  // K3: a deleted definition may have been the last scannable one — same
+  // revalidation as the save path above.
+  mutate(META_KEY)
+  if (r.ok) return { ok: true }
+  let detail = ''
+  try {
+    const body = await r.json()
+    // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING — FastAPI answers a
+    // schema-invalid request with `detail: [{loc, msg, type}, …]`, and
+    // interpolating that shows a member "[object Object]".
+    if (typeof body?.detail === 'string') detail = body.detail
+  } catch { /* not JSON — an HTML error page, or an empty body */ }
+  return { ok: false, error: detail || `The server refused to delete this formula (${r.status}).` }
 }
