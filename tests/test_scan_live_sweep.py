@@ -1422,6 +1422,22 @@ def test_a_LIVE_cycle_writes_live_hits_a_receipt_row_and_the_receipt_CLOSES(
     assert scan_store.live_hits(cyc["swept"][0], "D")[0]["as_of"] == r["tick"]
 
 
+def test_run_sweep_REFUSES_the_on_demand_mode_by_NAME_rather_than_sweeping(store):
+    """⛔ SELF-REVIEW: `run_sweep` now takes `mode`, and `MODES` has THREE words —
+    so a gate that cannot fire is not a gate. `'on-demand'` is a property of ONE
+    definition's run, not of a sweep: a sweep that wrote nothing would leave no
+    receipt for anyone to read, and silently behaving as `nightly` would file a
+    member's list under the universe's key. The refusal NAMES the door to use."""
+    with pytest.raises(ValueError, match="evaluate_one"):
+        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"],
+                                 mode="on-demand")
+    with pytest.raises(ValueError, match="persist"):
+        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"],
+                                 mode="persist")
+    assert set(scan_evaluator.MODES) == {"nightly", "live", "on-demand"}, (
+        "a fourth mode arrived and run_sweep's dispatch has not ruled on it")
+
+
 def test_the_cadence_refusal_happens_in_PHASE_ONE_before_any_bar_is_read(
         store, bars, live_clock, feed, monkeypatch):
     """⭐ 1.9 µs a tree, before the loop. A nightly-ceiling definition never
