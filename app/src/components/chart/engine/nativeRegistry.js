@@ -1133,7 +1133,7 @@ function astPlotKey(def) {
  * as "computed nothing" is the wrong-door defect this phase has now found four
  * times. A refusal must reach the caller as the refusal it is.
  */
-function astColumnsFor(def, bars, inputs) {
+function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   if (keys.length !== 1) {
     throw new Error(
@@ -1143,7 +1143,23 @@ function astColumnsFor(def, bars, inputs) {
       `key nothing ever fills.`,
     )
   }
-  return { [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget) }
+  // ⭐ `ctx.tf` IS THREADED (closed table v2). `computeFor` has had the timeframe
+  // all along and dropped it here, which was harmless while the table held
+  // nothing that needed one. It now holds four: `isintraday`, `isdaily`,
+  // `isweekly` and `ismonthly` are answerable ONLY from what the caller knows,
+  // and `interpret` fails them CLOSED (not-computable) when nobody says. So the
+  // cost of not passing it is not a crash — it is a member's session filter that
+  // silently never fires, which is the quietest failure this lane has.
+  //
+  // ⚠️ `undefined` FOR BUDGET'S NEIGHBOURS, NOT `{}`. `scalars` is genuinely
+  // absent on the chart lane (a chart draws one symbol's bars; the scalar map is
+  // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
+  // into "an empty scalar map was", which seeds every declared scalar NaN by a
+  // different route and reads identically at the call site.
+  return {
+    [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget,
+      undefined, { tf: ctx && ctx.tf }),
+  }
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */
@@ -1252,7 +1268,7 @@ export function computeFor(def, bars, inputs, ctx) {
   // for a native that lost its function and wrong for a definition that never
   // had one.
   if (def?.compute?.kind === 'ast') {
-    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs))
+    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
