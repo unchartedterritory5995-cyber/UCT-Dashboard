@@ -227,6 +227,15 @@ describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
         consts.set(n.id.name, n.init.value)
       }
     })
+    // ⚠️ AND THIS RESOLVER IS A DECLARED EQUIVALENT MUTANT TODAY (fix round 1,
+    // N11 — measured, survived, not papered over). Every mode reachable through
+    // a named constant is ALSO passed as a bare literal by its own tab's
+    // `onClick`, so removing the resolution changes neither set and no case can
+    // fail for it. It is kept because the day a mode is entered ONLY through a
+    // constant — which is the direction this file is already moving — a
+    // literal-only walk reports a SMALLER set and the equality above passes on
+    // it. I did not manufacture a rail for it: the only discriminating test
+    // would assert about a sheet that does not exist yet.
     const str = (node) => {
       if (!node) return null
       if (node.type === 'Literal' && typeof node.value === 'string') return node.value

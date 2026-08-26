@@ -83,6 +83,24 @@ const DEF_ROW = Object.freeze({
   repaint: DEFINITION.meta.repaint, created_at: '2026-08-21T04:00:00Z',
 })
 
+/** ⭐ A SCANNABLE ROW STORED WITHOUT ITS SOURCE TEXT — the one shape in which
+ *  the sheet's opening mode is decided by NOTHING BUT the seed and the reset.
+ *  `openForEdit` refuses a row with no `compute.source` and returns BEFORE its
+ *  own `setBuildMode`, so if `openingMode` did not know about `editRow` the tab
+ *  would be wrong at first paint AND still wrong at settle. See the case. */
+const NO_SOURCE_ID = 'u_9d1f0c4a7b22'
+const NO_SOURCE_NAME = 'Stored without its text'
+const NO_SOURCE_ROW = Object.freeze({
+  def_id: NO_SOURCE_ID, version: 1, rev: 1, ast_hash: DEF_HASH,
+  definition: {
+    ...DEFINITION,
+    id: NO_SOURCE_ID,
+    meta: { ...DEFINITION.meta, name: NO_SOURCE_NAME },
+    compute: { kind: 'ast', fn: DEF_HASH, rev: 1, ast: AST },
+  },
+  repaint: DEFINITION.meta.repaint, created_at: '2026-08-21T04:00:00Z',
+})
+
 /** A receipt whose arithmetic CLOSES — `CoverageLine` refuses one that does not. */
 const receipt = ({ answered, dropped, not_computable: nc, ...rest }) => ({
   evaluated: answered + dropped + nc, answered, dropped, not_computable: nc,
@@ -113,7 +131,7 @@ beforeEach(async () => {
   // never appear, which is a property of the test harness and not of the
   // product. Isolation comes from emptying the real cache instead.
   await mutate(() => true, undefined, { revalidate: false })
-  H.defs = { definitions: [DEF_ROW] }
+  H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW] }
   H.requests = []
   clearUserDefinitions()
   vi.stubGlobal('fetch', vi.fn((url, init = {}) => {
@@ -133,7 +151,7 @@ beforeEach(async () => {
         definition: { ...body.definition, id: NEW_DEF_ID },
         repaint: body.definition.meta.repaint, created_at: '2026-08-21T05:00:00Z',
       }
-      H.defs = { definitions: [DEF_ROW, row] }
+      H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW, row] }
       return json(row)
     }
     if (u.startsWith(USER_DEFINITIONS_KEY)) return json(H.defs)
@@ -224,24 +242,52 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     // ⛔ THE SHEET'S OWN RULE WINS: an edit opens on the FORMULA, and the
     // screener does not override that with `NEW_SCAN_MODE`.
     //
-    // ⛔⛔ READ AT THE FIRST PAINT — NO `waitFor` (review round 1). This case
-    // used to retry until the tab settled, and retrying is exactly what makes a
-    // FRAME-FLASH invisible: with the mode decided only by `openForEdit` (a
-    // passive effect) this read is `false` and the settled read is `true`, so a
-    // member opening their own saved formula was shown the firm's starter
-    // gallery first. That is the same defect this file caught on the New-scan
-    // door, one layer down, hidden by the assertion's own patience.
-    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
+    // ⛔ THE SETTLED STATE, which is what this case can honestly measure. A
+    // first-paint read HERE is ORDER-DEPENDENT and I shipped one for a round:
+    // measured, it reds when this file runs alone (the lazy chunk is cold, so
+    // `findByRole` resolves between commit and passive-effect flush) and passes
+    // when the New-scan case above has already warmed the chunk (the whole
+    // mount then lands inside one `act`). A rail that is only sometimes able to
+    // see the defect is the defect this file exists to prevent. The first-paint
+    // claim lives in the case BELOW, where nothing can repair the mode.
+    await waitFor(() => expect(screen.getByRole('tab', { name: /formula/i }))
+      .toHaveAttribute('aria-selected', 'true'))
     expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
     // The row's OWN source is what came back — `compute.source`, not a tree
     // re-printed into text.
     expect(await screen.findByDisplayValue(SCAN_SOURCE)).toBeInTheDocument()
-    // …and it is STILL on the Formula once every effect has run. First paint and
-    // settled state are different questions; both are asked, on both doors.
-    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
     // And an edit writes nothing until the member says so.
     expect(writes()).toHaveLength(0)
+  }, 30000)
+
+  // ─── ⭐ THE SEED, MEASURED WHERE NO EFFECT CAN REPAIR IT ──────────────────
+  //
+  // ⛔ THE EDIT DOOR IS DECIDED TWICE, AND ONLY ONE OF THE TWO IS EASY TO SEE.
+  // `openForEdit` moves the sheet to the Formula, so a seed that knew nothing
+  // about `editRow` still SETTLED on the right tab — it merely painted the
+  // firm's starter gallery first. Every ordinary case is blind to that.
+  //
+  // ⭐ A ROW STORED WITHOUT ITS SOURCE TEXT IS THE DISCRIMINATOR. `openForEdit`
+  // refuses it and returns BEFORE its own `setBuildMode`, so the opening mode is
+  // whatever `openingMode` decided at mount and NOTHING repairs it. Measured:
+  // dropping `editRow` from that rule reds this case whether the file runs alone
+  // or after the case above, which is exactly what the first-paint read could
+  // not promise.
+  it('⭐ a row stored WITHOUT its source still opens on the Formula — the seed knew, and nothing else could have', async () => {
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await openMenu(user)
+    await user.click(await screen.findByRole('button', { name: `Edit ${NO_SOURCE_NAME}` }))
+
+    await screen.findByRole('dialog', {}, { timeout: 8000 })
+    // the sheet's own refusal, verbatim — proof `openForEdit` took the early
+    // return and therefore never touched the mode
+    expect(await screen.findByText(
+      'This formula was stored without its source text, so it cannot be edited here.',
+    )).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
   }, 30000)
 })
 
