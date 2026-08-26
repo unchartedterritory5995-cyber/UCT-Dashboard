@@ -1088,6 +1088,22 @@ def test_the_symbols_array_has_a_CEILING_derived_from_the_services_HARD_bound(st
     assert at.status_code == 400 and at.json()["detail"].startswith("[gate:universe]")
 
 
+def test_each_SYMBOL_is_bounded_too__an_array_ceiling_alone_bounds_nothing(store, bars, defs):
+    """⛔ 5,000 STRINGS OF UNBOUNDED LENGTH IS AN UNBOUNDED BODY. `def_id` and
+    `list_id` on this same model already carry lengths; the array was the one that
+    did not, and it is the only field a member can send five thousand of."""
+    from api.routers import scan_run as mod
+    over = _post(ALICE_USER, symbols=["N" * (mod.MAX_SYMBOL_CHARS + 1)])
+    assert over.status_code == 422
+    # the control: at the bound it is ADMITTED and answered honestly as a drop —
+    # this is a bound on the BODY, never a validation of tickers
+    at = _post(ALICE_USER, symbols=["N" * mod.MAX_SYMBOL_CHARS])
+    assert at.status_code == 202, at.text
+    body = _poll(ALICE_USER, at.json()["job"])
+    assert body["state"] == "done"
+    assert [d["reason"] for d in body["coverage"]["dropped_symbols"]] == ["no-bars"]
+
+
 def test_a_list_the_member_OWNS_runs_and_another_members_list_is_refused_BY_NAME(
         store, bars, defs, lists):
     ok = _post(ALICE_USER, list_id="wl:4b9b2122-ddc")

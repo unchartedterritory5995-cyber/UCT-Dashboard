@@ -75,7 +75,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import ORJSONResponse as JSONResponse
@@ -95,6 +95,10 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+#: The longest string this door will accept as a symbol. See `RunIn`.
+MAX_SYMBOL_CHARS = 32
+
+
 class RunIn(BaseModel):
     """The request, bounded at the door.
 
@@ -105,10 +109,17 @@ class RunIn(BaseModel):
     — and one ABOVE it would admit a body the service has already said it will not
     walk. The member-facing cap (`MAX_RUN_SYMBOLS`) is applied AFTER de-duplication
     inside the service, so its refusal can name the count that was really too big.
+
+    ⛔ AND EACH ENTRY IS BOUNDED TOO, or the array ceiling bounds nothing: five
+    thousand strings of unbounded length is an unbounded body, and every other
+    string on this model already carries a length. `MAX_SYMBOL_CHARS` is NOT a
+    validation of tickers — a typo is answered honestly as `no-bars` and always
+    should be; it is a bound on the BODY, set where no spelling of a symbol
+    reaches it (the longest exchange-qualified form is about half of it).
     """
 
     def_id: str = Field(..., min_length=1, max_length=64)
-    symbols: Optional[list[str]] = Field(
+    symbols: Optional[list[Annotated[str, Field(max_length=MAX_SYMBOL_CHARS)]]] = Field(
         default=None, max_length=scan_run.HARD_SYMBOL_BOUND)
     list_id: Optional[str] = Field(default=None, max_length=128)
     tf: str = Field(default="D", min_length=1, max_length=8)
