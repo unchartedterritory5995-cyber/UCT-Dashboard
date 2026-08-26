@@ -863,6 +863,15 @@ def run_screen_backtest(body: BacktestRequest,
     ``GET /api/screener/backtest/{job}``: a job id is a digest of the request and
     carries no tree, so there is nothing there to derive it from. Poll answers
     have it once they are ``ready``.
+
+    ⛔ ``definition{def_id, version, rev}`` IS THE CALLER'S OWN AND IS NOT SHARED.
+    It rides on the answer THIS member's request produces — the synchronous
+    receipt and the ``?background=1`` acknowledgement — and is deliberately absent
+    from the cached entry, so a ``ready`` poll of a job another member started
+    never names their saved row. ``def_hash`` is the shareable identity: it is a
+    digest of the maths, identical by construction for identical maths. A surface
+    that needs to say WHICH definition this is about echoes the ``def_id`` it
+    posted; it already holds it.
     """
     tree, definition = _tree_of(body, user.get("id"))
     tf = _tf(body.tf)
@@ -983,12 +992,49 @@ def run_screen_backtest(body: BacktestRequest,
         # definition it asked about and refuses a receipt for any other. DERIVED
         # from the tree, never the store's `ast_hash` column: the column describes
         # the row, this describes what the engine was handed.
+        #
+        # ⭐ AND IT IS THE ONE IDENTITY THAT MAY BE SHARED, BY CONSTRUCTION. It is
+        # a digest of the tree, so two members running identical maths compute the
+        # identical string — there is nothing of either member in it. See `mine`
+        # below for the half that is not like this.
         "def_hash": _hash_of(tree),
     }
-    if definition:
-        asked["definition"] = definition
     if window_request:
         asked["window_request"] = window_request
+
+    # ⛔⛔ PER-CALLER, AND THEREFORE NEVER WRITTEN INTO THE SHARED ENTRY.
+    # (Controller ruling, 2026-08-26.) `job_id` is a digest of the REQUEST —
+    # tree, symbols, tf, window, horizons — and deliberately does NOT include the
+    # caller, so two members whose maths is identical cost the pod ONE sweep.
+    # Everything stored under that id is therefore served to whoever polls it, and
+    # `definition{def_id, version, rev}` describes a saved row belonging to
+    # whichever member happened to run it first: two members who saved the same
+    # starter screen collide on one entry and the second was being handed the
+    # first's `def_id`. Measured, not theorised —
+    # `test_a_SECOND_member_on_the_same_content_key_gets_NO_TRACE_of_the_firsts_definition`
+    # reproduced it before this split existed.
+    #
+    # ⛔ THE FIX IS NOT A WIDER CACHE KEY. Adding the caller to `job_id` would
+    # make identical maths cost a full backtest per member and destroy the
+    # content-keyed contract this door was built on. The fix is that the shared
+    # entry carries only content-derived facts and the caller's own facts ride on
+    # the caller's own answer — a surface that wants to say WHICH of the member's
+    # definitions produced this already knows: it is the `def_id` it posted.
+    #
+    # 🔴 SCOPE, STATED SO NOBODY READS THIS AS FINISHED. `universe_request` is
+    # STILL in the shared entry and still carries `screen_id` + `screen_name` for
+    # a saved-screen body, and `screen_name` is free text a member typed. Measured
+    # 2026-08-26 on this branch: member A backtesting their screen 7 over
+    # [AAA, BBB] and member B backtesting THEIR screen 12 over the same two names
+    # collide on one job id, and B is served `{"screen_id": 7, "screen_name":
+    # "A's PRIVATE momentum list"}`. It is the older shape of the same defect —
+    # the ruling names it as the precedent and pins only `definition{def_id,
+    # version, rev}` — so it is left for the controller to rule on rather than
+    # widened into here. ⚠️ It is NOT live today: `SCREEN_BACKTEST_ENABLED` is
+    # unset in production, so this router is not in the route table at all. The
+    # day that flag flips, this line is the thing to have already answered. The
+    # remedy is this same `mine` split, not a wider cache key.
+    mine = {"definition": definition} if definition else {}
 
     extras = {
         "job": job,
@@ -1013,11 +1059,14 @@ def run_screen_backtest(body: BacktestRequest,
         return _envelope(receipt, extras)
 
     if background:
-        # ⛔ THE STORED PAYLOAD WINS ON A COLLISION, AND NOTHING IS MUTATED.
+        # ⛔ THE STORED PAYLOAD WINS OVER `asked`, AND NOTHING IS MUTATED.
         # `_submit` may hand back a receipt already in the cache; that dict is the
         # cache's own object, so it is merged INTO a new one rather than written
-        # to, and its own keys outrank these.
-        return {**asked, **_submit(job, _run)}
+        # to, and its own keys outrank these. ⛔ `mine` GOES LAST because it is the
+        # only part of this answer the cache can never speak for: a shared entry
+        # written by another member must not name this one, and (since the split
+        # above) holds no `definition` to collide with in the first place.
+        return {**asked, **_submit(job, _run), **mine}
 
     if len(symbols) > INLINE_MAX_SYMBOLS:
         # ⛔ THE BOUND, QUOTED. Not a silent truncation and not a slow 504: the
@@ -1029,12 +1078,16 @@ def run_screen_backtest(body: BacktestRequest,
                     "with ?background=1 and poll "
                     "GET /api/screener/backtest/{job} for the receipt."))
 
+    # ⛔ THE CACHE ENTRY IS SHARED; THE ANSWER IS THIS MEMBER'S. Both spellings
+    # merge `mine` onto a NEW dict — the cached object is never written to, and
+    # the freshly-run one is recorded BEFORE the merge so nothing per-caller can
+    # reach the entry a later poll by somebody else will read.
     cached = _stored(job)
     if cached is not None:
-        return cached
+        return {**cached, **mine}
     out = _run()
     _record(job, out)
-    return out
+    return {**out, **mine}
 
 
 @router.get("/api/screener/backtest/{job}")

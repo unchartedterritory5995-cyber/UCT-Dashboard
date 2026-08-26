@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
+import json
 import threading
 
 import pytest
@@ -368,3 +369,133 @@ def test_an_EMPTY_universe_does_not_outrank_a_window_the_member_typed_wrong(monk
     # CONTROL: with a window it can parse, the empty universe IS the answer
     ok = client.post("/api/screener/backtest", json={"ast": BAR_TREE, **WINDOW})
     assert ok.status_code == 503, ok.text[:200]
+
+
+# ─── the SHARED cache entry, and who it may name ─────────────────────────────
+#
+# ⛔⛔ `job_id` IS CONTENT-KEYED AND DOES NOT INCLUDE THE CALLER — deliberately, so
+# two members whose maths is identical cost the pod ONE sweep. That is the whole
+# point of the digest, and widening the key to "fix" what follows would silently
+# make identical work cost twice. The consequence is that everything stored under
+# a job id is served to WHOEVER polls it, so a per-caller fact in there is a
+# cross-member disclosure: `definition{def_id, version, rev}` describes a saved
+# row belonging to the member who happened to run it first.
+#
+# The controller's ruling (2026-08-26): strip the per-caller fields from the
+# SHARED entry and keep `def_hash`, which is derived from the maths and therefore
+# identical by construction. A surface that wants to say WHICH of the member's
+# definitions produced a result echoes the `def_id` it asked with — it already
+# holds it, and this route hands it back on that member's OWN answer.
+
+OTHER = {"id": "paid2", "role": "member", "plan": "pro"}
+OTHER_DEF_ID = "u_fedcba987654"
+
+
+def _two_members(monkeypatch, universe=("AAA", "BBB")):
+    """Two clients, two members, ONE tree — so the content key COLLIDES.
+
+    ⛔ THE COLLISION IS THE TEST. Each member's own definition carries the SAME
+    `compute.ast` under a DIFFERENT `def_id`/`version`/`rev`, which is exactly the
+    "two members ran the same starter screen" case, and the assertion below that
+    the two jobs are the same id is what stops this file passing vacuously.
+    """
+    rows = {
+        ("paid1", DEF_ID): row_for(BAR_TREE, rev=2, version=3),
+        ("paid2", OTHER_DEF_ID): {
+            **row_for(BAR_TREE, rev=7, version=9), "def_id": OTHER_DEF_ID},
+    }
+
+    def get(user_id, def_id, version=None):
+        row = rows.get((str(user_id), def_id))
+        return dict(row) if row else None
+
+    monkeypatch.setattr(defs, "get", get)
+    monkeypatch.setattr(snapshot_builder, "_load_universe", lambda: list(universe))
+    bars = _store_rows()
+    monkeypatch.setattr(bars_sqlite, "get_bars_before",
+                        lambda sym, tf, want, to_key: list(bars)[:want])
+
+    def client(user):
+        app = FastAPI()
+        app.include_router(bt.router)
+        app.dependency_overrides[get_current_user] = lambda: dict(user)
+        app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
+        return TestClient(app)
+
+    return client(PAID), client(OTHER)
+
+
+def test_a_SECOND_member_on_the_same_content_key_gets_NO_TRACE_of_the_firsts_definition(monkeypatch):
+    """⛔ THE CROSS-MEMBER RAIL. One caller cannot fail for this reason.
+
+    Member A runs their saved definition; member B runs THEIR OWN definition of
+    the same maths and lands on A's cached receipt. B must be told `def_hash` (the
+    maths, shared by construction) and B's OWN `def_id`/`version`/`rev` — never
+    A's.
+    """
+    a_client, b_client = _two_members(monkeypatch)
+
+    a = a_client.post("/api/screener/backtest", json={"def_id": DEF_ID, **WINDOW})
+    assert a.status_code == 200, a.text[:300]
+    a_body = a.json()
+    assert a_body["definition"] == {"def_id": DEF_ID, "version": 3, "rev": 2}
+
+    b = b_client.post("/api/screener/backtest", json={"def_id": OTHER_DEF_ID, **WINDOW})
+    assert b.status_code == 200, b.text[:300]
+    b_body = b.json()
+
+    # ⛔ THE NON-VACUITY CONTROL: they really did collide on ONE cache entry. If
+    # the ids differed, B would have run their own backtest and this file would
+    # be asserting nothing about sharing at all.
+    assert a_body["job"] == b_body["job"], (a_body["job"], b_body["job"])
+
+    # the maths is shared, so the hash is — that is the field the ruling KEEPS
+    assert b_body["def_hash"] == a_body["def_hash"] == defs.ast_hash(BAR_TREE)
+
+    # ⛔ AND B IS NAMED BY B'S OWN ROW, with no residue of A's anywhere in the
+    # payload — not in `definition`, not in any other key a later edit adds.
+    assert b_body["definition"] == {"def_id": OTHER_DEF_ID, "version": 9, "rev": 7}
+    assert DEF_ID not in json.dumps(b_body), b_body
+
+
+def test_the_STORED_entry_itself_carries_no_per_caller_identity(monkeypatch):
+    """⛔ THE PIN IS ON THE ENTRY, NOT ON ONE RESPONSE SHAPE.
+
+    The route merges the caller's own `definition` onto its own answer, so a
+    payload assertion alone would still pass if the cache held A's row and the
+    merge simply overwrote it — and the POLL (`GET /api/screener/backtest/{job}`)
+    has no caller facts to merge, so it would hand A's row straight to B. This
+    reads the cache entry the poll serves.
+    """
+    a_client, b_client = _two_members(monkeypatch)
+    a_body = a_client.post("/api/screener/backtest",
+                           json={"def_id": DEF_ID, **WINDOW}).json()
+    job = a_body["job"]
+
+    stored = bt._stored(job)
+    assert stored is not None, "nothing was cached — this test would pass vacuously"
+    assert stored["def_hash"] == defs.ast_hash(BAR_TREE)   # CONTROL: the entry IS the receipt
+    assert "definition" not in stored, stored
+    assert DEF_ID not in json.dumps(stored), stored
+
+    # and the poll, which is the only thing a background caller ever reads back
+    polled = b_client.get(f"/api/screener/backtest/{job}").json()
+    assert polled["status"] == "ready", polled
+    assert DEF_ID not in json.dumps(polled), polled
+
+
+def test_a_BACKGROUND_second_member_is_not_named_by_the_firsts_queued_receipt(monkeypatch):
+    """The Evidence tab's own path: `?background=1`, then poll. A cached receipt
+    handed back through `_submit` is the cache's own object, and B's ack must
+    carry B's row and none of A's."""
+    a_client, b_client = _two_members(monkeypatch)
+    a_body = a_client.post("/api/screener/backtest",
+                           json={"def_id": DEF_ID, **WINDOW}).json()
+
+    b_ack = b_client.post("/api/screener/backtest?background=1",
+                          json={"def_id": OTHER_DEF_ID, **WINDOW}).json()
+    assert b_ack["job"] == a_body["job"], (b_ack, a_body["job"])
+    assert b_ack["status"] == "ready"                     # A's receipt was already cached
+    assert b_ack["definition"] == {"def_id": OTHER_DEF_ID, "version": 9, "rev": 7}
+    assert b_ack["def_hash"] == defs.ast_hash(BAR_TREE)
+    assert DEF_ID not in json.dumps(b_ack), b_ack
