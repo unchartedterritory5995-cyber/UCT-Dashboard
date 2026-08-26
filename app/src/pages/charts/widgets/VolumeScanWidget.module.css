@@ -78,25 +78,23 @@
   white-space: nowrap;
 }
 
-/* ── Lit rows fill by CUMULATIVE-RVOL tier — a CALM → LOUD ramp in the UCT palette so
-   weak/marginal prints recede and only genuinely heavy volume grabs the eye. Low tiers
-   are faint green tints with light text ("barely lit"); High is solid green; Very High
-   is bold gold; Extreme is a loud, glowing red — the only tier that screams. ──────── */
-.t1 { background: var(--ut-green-dim); }                 /* Notable   2–3× — barely lit */
-.t2 { background: var(--ut-green-glow); }                /* Elevated  3–4× — dim green   */
-.t3 { background: var(--ut-green); }                     /* High      4–6× — solid green */
-.t4 { background: var(--ut-gold); }                      /* Very High 6–10× — bold gold  */
-.t5 {                                                    /* Extreme   10×+ — loud, hot   */
+/* ── Lit rows fill by RVOL tier. Deliberately MUTED for everything but the extreme:
+   t1–t4 are deep, desaturated blocks with BLACK text (low contrast → they recede), and
+   ONLY t5 (Extreme, 10×+) is a bright, saturated red with white text + a glow — so the
+   eye is drawn only to the extremes. ──────── */
+.t1 { background: #47614e; }   /* Notable   2–3×  — muted deep green */
+.t2 { background: #43744f; }   /* Elevated  3–4×  — muted green      */
+.t3 { background: #3f8752; }   /* High      4–6×  — muted green      */
+.t4 { background: #b8973f; }   /* Very High 6–10× — muted deep gold  */
+.t5 {                          /* Extreme   10×+  — the ONLY bright tier */
   background: var(--ut-red-bright);
-  box-shadow: inset 0 0 0 1px var(--ut-red), 0 0 11px rgba(242, 75, 66, 0.45);
+  box-shadow: inset 0 0 0 1px var(--ut-red), 0 0 11px rgba(242, 75, 66, 0.5);
 }
-/* Text: dim tiers keep light text (calm); bold tiers flip to dark ink / white so the
-   loud fills read cleanly. */
-.t1 .sym, .t2 .sym, .t3 .sym {
-  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright)))); }
-.t1 .surge, .t2 .surge {
-  color: var(--nh-sym, var(--wl-sym, var(--text-bright))); opacity: 0.82; }
-.t3 .surge { color: var(--text-bright, #f5f7fa); }
+/* Text: BLACK on every lit tier so the muted blocks stay calm — only the Extreme (t5)
+   uses white, so it (and only it) pops. */
+.t1 .sym, .t1 .surge,
+.t2 .sym, .t2 .surge,
+.t3 .sym, .t3 .surge,
 .t4 .sym, .t4 .surge { color: #0c0c0f; }
 .t5 .sym, .t5 .surge { color: #fff; }
 .lit:hover { filter: brightness(1.08); }
