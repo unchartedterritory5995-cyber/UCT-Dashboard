@@ -1128,6 +1128,22 @@ function astPlotKey(def) {
 }
 
 /**
+ * The definition's tree MAP, or `null` for the single-tree (pre-W1b) shape.
+ *
+ * ⛔ ONE PREDICATE, TWO CALLERS, ON PURPOSE. `astColumnsFor` and
+ * `validateAstLane` both branch on "does this document carry trees", and they
+ * must branch identically or a document could validate down one shape and
+ * compute down the other — the second-authority-over-one-value defect this repo
+ * names most often. Anything that is not a plain object is `null` here and takes
+ * the single-tree path in BOTH; `defSchema.validateTrees` is what refuses the
+ * malformed map by name, and it runs first.
+ */
+function astTrees(def) {
+  const trees = def && def.compute && def.compute.trees
+  return (trees && typeof trees === 'object' && !Array.isArray(trees)) ? trees : null
+}
+
+/**
  * Compute an `ast` definition: ONE TREE, ONE COLUMN — as many of each as the
  * document declares.
  *
@@ -1150,7 +1166,7 @@ function astPlotKey(def) {
  */
 function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
-  const trees = def && def.compute && def.compute.trees
+  const trees = astTrees(def)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -1165,7 +1181,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // "computes ONE column" throw below has always existed), and handing
   // `interpret` an `undefined` tree would surface as a parse-shaped error about
   // a node, blaming the formula for a document defect.
-  if (trees && typeof trees === 'object') {
+  if (trees) {
     const out = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
@@ -1581,8 +1597,7 @@ export const AST_LANE_TIER = 'premium'
 function validateAstLane(def) {
   const errors = []
   const dataPlots = astPlotKey(def)
-  const rawTrees = def.compute.trees
-  const trees = (rawTrees && typeof rawTrees === 'object' && !Array.isArray(rawTrees)) ? rawTrees : null
+  const trees = astTrees(def)
 
   // ⭐⭐ GATE 1, W1b: ONE FORMULA IS ONE SERIES — **PER TREE**. A document
   // carrying `compute.trees` names a tree per plot, so N data plots are exactly
