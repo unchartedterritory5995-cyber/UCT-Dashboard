@@ -1608,8 +1608,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     }
 
 
-def _resume_order(entries: Sequence[tuple], tf_code: str,
-                  as_of: int) -> list:
+def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
+                  swept_last_time: Optional[Any] = None) -> list:
     """The sweep's order, with the LAST run's tail at the FRONT.
 
     🔴 A BUDGET THAT ALWAYS CUTS AT THE SAME POINT STARVES THE SAME DEFINITIONS
@@ -1630,7 +1630,18 @@ def _resume_order(entries: Sequence[tuple], tf_code: str,
     definition was swept last time, this is the identity. It must never sort,
     sample or shuffle beyond the one bit it is entitled to — `apply_symbol_cap`
     refuses the same thing for the same reason ("the order is the caller's").
+
+    ⭐ `swept_last_time` IS THE LIVE CYCLE'S ARTIFACT, AND IT REPLACES THE PROBE
+    RATHER THAN JOINING IT. The nightly sweep's artifact is a `scan_coverage` row
+    for the PREVIOUS SESSION; a five-minute cycle has no session-grained receipt to
+    read, so it hands in a predicate over the LAST CYCLE'S OWN `swept` list -- the
+    thing it does write. When it does, the previous-session probe is not consulted
+    at all: two answers to "was this reached last time" is exactly the second
+    authority this function's one bit of ordering cannot afford.
     """
+    if swept_last_time is not None:
+        return sorted(entries, key=lambda item: 1 if swept_last_time(item[0]) else 0)
+
     prev = previous_session(as_of)
     if prev is None:
         return list(entries)
@@ -1646,10 +1657,103 @@ def _resume_order(entries: Sequence[tuple], tf_code: str,
     return sorted(entries, key=_swept_last_time)
 
 
+def _resolve_entries(definitions: Sequence[Any]) -> tuple:
+    """PHASE 1 -- resolve every definition to its maths, BEFORE sweeping any.
+
+    Returns `(entries, refused, duplicate, refusals)`, where `entries` is
+    `[(def_hash, definition)]` DEDUPED BY HASH.
+
+    ⭐ Validation only (microseconds), and it buys three things the inline shape
+    could not: a malformed definition is refused before the pod spends a minute on
+    someone else's, duplicates become COUNTABLE instead of silently skipped, and
+    the ones a clock never reaches can be NAMED without doing work after the
+    deadline.
+
+    ⭐ DEFINITIONS ARE DEDUPED BY `def_hash`. Two members who typed the same
+    formula have the same maths, share one result set and cost the pod ONE sweep --
+    the property that makes the store member-independent, and the only place in
+    this file where the number of MEMBERS could ever have leaked in.
+
+    ⛔ SHARED BY BOTH MODES ON PURPOSE. A second copy of this loop for the live
+    cycle would be a second answer to "is this definition scannable", and the two
+    would agree on the day it was written.
+    """
+    seen: set = set()
+    entries: list = []
+    refused = duplicate = 0
+    refusals: list = []
+    for definition in definitions:
+        try:
+            handle = scan_definition.assert_scannable(definition)["def_hash"]
+        except scan_definition.ScanRefused as exc:
+            refused += 1
+            refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
+            continue
+        except Exception as exc:                             # noqa: BLE001
+            refused += 1
+            refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
+            continue
+        if handle in seen:
+            duplicate += 1
+            continue
+        seen.add(handle)
+        entries.append((handle, definition))
+    return entries, refused, duplicate, refusals
+
+
+def _sweep_entries(entries: Sequence[tuple], *, evaluate: Any, stop_reason: Any,
+                   on_result: Any) -> tuple:
+    """PHASE 2 -- sweep each entry under a stop condition CHECKED BETWEEN THEM.
+
+    Returns `(swept, unswept, refused, refusals, stopped)`: the handles swept, the
+    handles never started, the count and list of refusals raised by `evaluate`, and
+    the word `stop_reason()` answered with (or `None`).
+
+    ⛔ THE STOP IS CHECKED BETWEEN DEFINITIONS, NEVER INSIDE ONE. A mid-definition
+    abort would leave a receipt describing a partial universe as a complete one --
+    the "quiet market" reading the three-state coverage design exists to keep
+    impossible -- so the worst-case overrun is exactly ONE definition and both
+    modes size their margin for it.
+
+    ⛔ AND `on_result` RECEIVES EACH ENVELOPE AS IT IS PRODUCED rather than this
+    function returning a list of them. The nightly sweep can hand in 500
+    definitions over a 3,742-symbol universe; retaining every envelope so a caller
+    can sum it afterwards would hold every hit list of every definition in memory
+    at once for counts that are three integers.
+    """
+    swept: list = []
+    unswept: list = []
+    refused = 0
+    refusals: list = []
+    stopped = None
+    for position, (handle, definition) in enumerate(entries):
+        stopped = stop_reason()
+        if stopped:
+            unswept = [h for h, _ in entries[position:]]
+            break
+        try:
+            out = evaluate(definition)
+        except ScanRunRefused as exc:
+            refused += 1
+            refusals.append({"def_hash": handle, "gate": exc.gate,
+                             "detail": exc.detail[:200]})
+            continue
+        except Exception as exc:                             # noqa: BLE001
+            refused += 1
+            refusals.append({"def_hash": handle, "gate": "not-scannable",
+                             "detail": f"{type(exc).__name__}: {exc}"[:200]})
+            log.exception("[scan] sweep failed for %s", handle[:15])
+            continue
+        swept.append(handle)
+        on_result(out)
+    return swept, unswept, refused, refusals, stopped
+
+
 def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
               universe: Optional[Sequence[str]] = None,
               as_of: Optional[Any] = None,
-              deadline: Optional[datetime.datetime] = None) -> Optional[dict]:
+              deadline: Optional[datetime.datetime] = None,
+              mode: str = NIGHTLY) -> Optional[dict]:
     """Sweep every definition once, WITHIN A WALL-CLOCK BUDGET. ``None`` when the
     run could not proceed at all.
 
@@ -1682,7 +1786,24 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     ``definitions == swept + refused + duplicate + unswept``. Without that
     identity a sweep that dropped definitions on the floor would look exactly like
     a sweep that had fewer to do.
+
+    ⭐ `mode='live'` IS A SECOND MODE OF THIS FUNCTION, NOT A SECOND FUNCTION.
+    Phase 1 (`_resolve_entries`) and phase 2 (`_sweep_entries`) are SHARED; what
+    differs is the receipt, the stop condition and what gets written -- see
+    `_run_live_cycle`. A copy would be a second answer to "is this definition
+    scannable" and a second budget rail to keep true.
     """
+    if mode not in MODES:
+        raise ValueError(f"mode {mode!r} is not one of {MODES}.")
+    if mode == LIVE:
+        return _run_live_cycle(list(definitions or []), tf, universe=universe,
+                               deadline=deadline)
+    if mode == ON_DEMAND:
+        raise ValueError(
+            "mode='on-demand' is a property of ONE definition's run, not of a "
+            "sweep: `evaluate_one(..., mode='on-demand')` is the door (W4a). A "
+            "sweep that wrote nothing would leave no receipt for anyone to read.")
+
     definitions = list(definitions or [])
     if not definitions:
         log.warning("[scan] sweep asked for 0 definitions -- nothing to run")
@@ -1703,59 +1824,29 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
         deadline = sweep_deadline(started)
 
     # ⭐ PHASE 1 -- RESOLVE EVERY DEFINITION TO ITS MATHS, BEFORE SWEEPING ANY.
-    # It is validation only (microseconds), and it buys three things the old
-    # inline shape could not have: a malformed definition is refused before the
-    # pod spends a minute on someone else's, the duplicates become COUNTABLE
-    # instead of silently skipped, and the ones the clock never reaches can be
-    # NAMED without doing any work after the deadline.
-    seen: set = set()
-    entries: list = []
-    refused = duplicate = 0
-    refusals: list = []
-    for definition in definitions:
-        try:
-            handle = scan_definition.assert_scannable(definition)["def_hash"]
-        except scan_definition.ScanRefused as exc:
-            refused += 1
-            refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
-            continue
-        except Exception as exc:                             # noqa: BLE001
-            refused += 1
-            refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
-            continue
-        if handle in seen:
-            duplicate += 1
-            continue
-        seen.add(handle)
-        entries.append((handle, definition))
+    entries, refused, duplicate, refusals = _resolve_entries(definitions)
+    seen = {handle for handle, _ in entries}
 
     entries = _resume_order(entries, tf_code, session)
 
     # ⭐ PHASE 2 -- SWEEP UNDER THE CLOCK.
-    swept = hit_rows = recorded = 0
-    unswept: list = []
-    stopped_early = False
-    for position, (handle, definition) in enumerate(entries):
-        if _now_et() >= deadline:
-            stopped_early = True
-            unswept = [h for h, _ in entries[position:]]
-            break
-        try:
-            out = evaluate_one(definition, tf, universe=universe, as_of=session)
-        except ScanRunRefused as exc:
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": exc.gate,
-                             "detail": exc.detail[:200]})
-            continue
-        except Exception as exc:                             # noqa: BLE001
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": "not-scannable",
-                             "detail": f"{type(exc).__name__}: {exc}"[:200]})
-            log.exception("[scan] sweep failed for %s", handle[:15])
-            continue
-        swept += 1
-        hit_rows += len(out["hits"])
-        recorded += out["recorded"]
+    totals = {"hits": 0, "recorded": 0}
+
+    def _tally(out) -> None:
+        totals["hits"] += len(out["hits"])
+        totals["recorded"] += out["recorded"]
+
+    swept_handles, unswept, refused2, refusals2, stopped = _sweep_entries(
+        entries,
+        evaluate=lambda definition: evaluate_one(
+            definition, tf, universe=universe, as_of=session),
+        stop_reason=lambda: UNSWEPT_REASON if _now_et() >= deadline else None,
+        on_result=_tally)
+    swept = len(swept_handles)
+    refused += refused2
+    refusals += refusals2
+    stopped_early = stopped is not None
+    hit_rows, recorded = totals["hits"], totals["recorded"]
 
     _assert_sweep_closes(handed=len(definitions), swept=swept, refused=refused,
                          duplicate=duplicate, unswept=len(unswept))
@@ -1793,6 +1884,213 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
             "stopped_early": stopped_early,
             "deadline": deadline.isoformat(),
             "elapsed_seconds": elapsed}
+
+
+# --------------------------------------------------------------------------- #
+# the LIVE cycle (spec 5.5) -- the same two phases, a different receipt, a
+# different stop condition, and a different table
+# --------------------------------------------------------------------------- #
+
+def _blank_live_receipt(**seed) -> dict:
+    """EVERY key a live receipt can carry, on EVERY cycle, whatever stopped it.
+
+    ⛔ THE LIVE TIER'S `_blank_receipt` IDIOM, AND THE REASON IS THE READER. A
+    status surface that had to branch on which keys exist would read a missing key
+    as a zero, and a `disabled` cycle and a swept one would disagree about what a
+    receipt IS. So the shape is declared once here and the cycle only ever
+    OVERWRITES entries in it.
+    """
+    receipt = {
+        "cycle_started": None, "cycle_started_iso": None, "cycle_seconds": None,
+        "session": None, "tf": None, "tick": None,
+        "enabled": False, "interval_s": None, "budget_s": None, "deadline": None,
+        "definitions": 0, "distinct": 0, "swept": 0, "refused": 0, "duplicate": 0,
+        "unswept": 0, "unswept_definitions": [], "unswept_reason": None,
+        "evaluated": 0, "answered": 0, "dropped": 0, "not_computable": 0, "hits": 0,
+        "refusals": [], "feed_symbols": 0, "skipped_reason": None,
+    }
+    receipt.update(seed)
+    return receipt
+
+
+def _finish_live(receipt: dict, started: datetime.datetime, *,
+                 skipped: Optional[str] = None, swept: Sequence[str] = (),
+                 record: bool = True) -> dict:
+    """Close the receipt, LOG IT, and file it -- unless there is nothing to file.
+
+    ⛔ A `disabled` CYCLE TOUCHES NO STORE. A receipt row every five minutes for a
+    feature nobody turned on is a table filling up with the word "disabled", and
+    the first thing a reader would learn from it is to stop reading it.
+
+    ⚠️ `closed` IS RECORDED WHERE `disabled` IS NOT, and the difference is the
+    question each answers. "The flag is off" is knowable from the environment; "the
+    last cycle ran and the market was shut" is only knowable from the artifact, and
+    a status surface that could not tell that from "nothing has run since the
+    deploy" would report a dead scheduler as a quiet evening.
+    """
+    if skipped is not None and skipped not in LIVE_SKIP_REASONS:
+        raise ValueError(
+            f"{skipped!r} is not one of this cycle's skip reasons "
+            f"{LIVE_SKIP_REASONS}. The set is closed: a caller branches on it.")
+    receipt["skipped_reason"] = skipped
+    receipt["cycle_seconds"] = (_now_et() - started).total_seconds()
+    line = ("[scan-live] cycle %s tf=%s session=%s definitions=%s distinct=%s "
+            "swept=%s refused=%s duplicate=%s unswept=%s evaluated=%s answered=%s "
+            "dropped=%s not_computable=%s hits=%s feed=%s %.1fs skipped=%s")
+    args = (receipt["cycle_started"], receipt["tf"], receipt["session"],
+            receipt["definitions"], receipt["distinct"], receipt["swept"],
+            receipt["refused"], receipt["duplicate"], receipt["unswept"],
+            receipt["evaluated"], receipt["answered"], receipt["dropped"],
+            receipt["not_computable"], receipt["hits"], receipt["feed_symbols"],
+            receipt["cycle_seconds"], skipped)
+    # ⛔ A FEED BLACKOUT READS AS A QUIET MARKET OTHERWISE: every symbol refused or
+    # not computable is a WARNING, because "we looked at 3,742 names and answered
+    # none" is not the same fact as "nothing matched".
+    if skipped in ("budget", "build_in_flight") or (
+            receipt["evaluated"] > 0 and receipt["answered"] == 0):
+        log.warning(line, *args)
+    else:
+        log.info(line, *args)
+    if record:
+        scan_store.record_live_cycle(receipt, swept)
+    return receipt
+
+
+def _run_live_cycle(definitions: Sequence[Any], tf: str, *,
+                    universe: Optional[Sequence[str]] = None,
+                    deadline: Optional[datetime.datetime] = None) -> dict:
+    """ONE five-minute cycle: bars-only definitions over the forming bar, written
+    to `scan_hits_live`, with the cycle's own receipt row beside it.
+
+    ⛔ IT NEVER RETURNS `None`. The nightly sweep does, because a half-night must
+    leave no receipt at all; a cycle ALWAYS answers with a receipt naming why it
+    did what it did, because the next thing to read it is a five-minute-old status
+    surface that has to tell "the flag is off" from "the scheduler is dead".
+
+    ⏰ IT READS THE CLOCK FOUR TIMES ON A TWO-DEFINITION RUN -- `started`, once
+    before each definition, and once in `_finish_live` -- and the wall-clock test
+    feeds exactly that many ticks, so a fifth read anywhere is a StopIteration
+    there rather than a silently looser budget.
+    """
+    from api.services import scan_volume
+
+    started = _now_et()
+    tick = int(started.timestamp())
+    receipt = _blank_live_receipt(
+        cycle_started=tick, cycle_started_iso=started.isoformat(), tf=None,
+        definitions=len(definitions), enabled=live_enabled(),
+        interval_s=live_interval_s(), budget_s=_live_cycle_budget_s())
+
+    if not live_enabled():
+        # ⛔ FIRST, AND IT WRITES NOTHING -- not even to say it did nothing.
+        return _finish_live(receipt, started, skipped="disabled", record=False)
+
+    tf_code = scan_store._normalise_tf(tf)
+    receipt["tf"] = tf_code
+    if tf_code != DEFAULT_TF:
+        raise ScanRunRefused(
+            "tf",
+            f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1; intraday "
+            "timeframes arrive with the prewarm ring's MEASURED per-symbol cost "
+            f"(spec 5.5), never assumed. Got {tf_code!r}.")
+
+    state = _live_session_state(started)
+    if state:
+        return _finish_live(receipt, started, skipped=state)
+    if not definitions:
+        return _finish_live(receipt, started, skipped="no-definitions")
+    if universe is None:
+        universe = snapshot_builder._load_universe()
+    if not universe:
+        # ⛔ NEVER SWEEP ZERO SYMBOLS AND FILE THE RESULT: an empty hit list is
+        # indistinguishable from a quiet market.
+        return _finish_live(receipt, started, skipped="no-universe")
+
+    session = int(started.strftime("%Y%m%d"))
+    prev = previous_session(session)
+    receipt["session"] = session
+    receipt["tick"] = tick
+    if deadline is None:
+        deadline = started + datetime.timedelta(seconds=_live_cycle_budget_s())
+    receipt["deadline"] = deadline.isoformat()
+
+    entries, refused, duplicate, refusals = _resolve_entries(definitions)
+    receipt["distinct"] = len(entries)
+
+    # ⭐ THE CADENCE SELECTION, IN PHASE 1 (1.9 us a tree, before any bar is read).
+    # A nightly-ceiling tree is counted `refused` under `gate:cadence` so the
+    # arithmetic still closes, and it never reaches `evaluate_one` -- which refuses
+    # it the same way for a direct caller, so the two doors give one answer.
+    eligible = []
+    for handle, definition in entries:
+        ceiling = cadence_ceiling(definition["compute"].get("ast"))
+        if ceiling and "nightly" in ceiling.split("/"):
+            refused += 1
+            refusals.append({"def_hash": handle, "gate": "cadence",
+                             "detail": f"ceiling {ceiling!r}"})
+            continue
+        eligible.append((handle, definition))
+    entries = eligible
+
+    last = scan_store.last_live_cycle(tf_code)
+    reached = set(last["swept"]) if last else set()
+    entries = _resume_order(entries, tf_code, session,
+                            swept_last_time=lambda handle: handle in reached)
+
+    # ⭐ ONCE PER CYCLE, NEVER PER DEFINITION. ~10k names behind a 30 s cache: a
+    # per-definition read would make a 100-definition cycle a hundred trips for one
+    # answer, and each definition would answer off a slightly different market.
+    snapshot = scan_volume.full_market_snapshot() or {}
+    receipt["feed_symbols"] = len(snapshot)
+
+    totals = {"evaluated": 0, "answered": 0, "dropped": 0, "not_computable": 0,
+              "hits": 0}
+
+    def _tally(out) -> None:
+        for key in ("evaluated", "answered", "dropped", "not_computable"):
+            totals[key] += out[key]
+        totals["hits"] += len(out["hits"])
+
+    def _stop() -> Optional[str]:
+        # ⛔ THE BUDGET FIRST. Both are true stops; the budget is the one whose
+        # unswept definitions lead the NEXT cycle, so it must not be masked by a
+        # build that happens to start in the same instant.
+        if _now_et() >= deadline:
+            return "budget"
+        # ⛔ PROBED, NEVER HELD. A four-minute hold on `_BUILD_LOCK` would starve
+        # the live TIER's own 60 s cadence, which refuses on `build_in_flight`.
+        if snapshot_builder.build_in_flight():
+            return "build_in_flight"
+        return None
+
+    swept, unswept, refused2, refusals2, stopped = _sweep_entries(
+        entries,
+        evaluate=lambda definition: evaluate_one(
+            definition, tf_code, universe=universe, as_of=session, mode=LIVE,
+            snapshot=snapshot, tick=tick, prev_session=prev),
+        stop_reason=_stop, on_result=_tally)
+
+    receipt.update(
+        swept=len(swept), refused=refused + refused2, duplicate=duplicate,
+        unswept=len(unswept), unswept_definitions=unswept[:_DROPPED_LISTED_MAX],
+        unswept_reason=LIVE_UNSWEPT_REASON if stopped == "budget" else None,
+        refusals=refusals + refusals2, **totals)
+    _assert_sweep_closes(handed=len(definitions), swept=len(swept),
+                         refused=refused + refused2, duplicate=duplicate,
+                         unswept=len(unswept))
+    return _finish_live(receipt, started, skipped=stopped, swept=swept)
+
+
+def note_demand(symbols: Sequence[Any]) -> None:
+    """Symbols a member or a definition just NAMED, forwarded to the ring's OWNER.
+
+    ⭐ A THIN DELEGATE AND NOTHING ELSE. The lane contract names
+    `scan_evaluator.note_demand`, but the ring itself lives on `scan_store` because
+    the off-request-path rail forbids a ROUTER importing anything from this module
+    -- and W4a's run-now door has to be able to note demand too. A second ring here
+    would be a second answer to "what did somebody just ask about".
+    """
+    scan_store.note_demand(symbols)
 
 
 def definitions_to_sweep() -> list:
@@ -1866,6 +2164,45 @@ def sweep_job() -> None:
             "because they failed. They lead the next run.",
             receipt.get("unswept"), receipt["distinct"],
             receipt.get("unswept_reason"), receipt.get("deadline"))
+
+
+def live_sweep_job() -> None:
+    """The SCHEDULED entry point for the five-minute cycle.
+
+    ⛔ THE FLAG IS CHECKED HERE FIRST, BEFORE `definitions_to_sweep()`. That is the
+    only member-shaped read in this file -- it opens the definitions store -- and a
+    dark job doing it every five minutes through the session is a cost nobody asked
+    for. `run_sweep` re-checks the flag per call, so the two cannot disagree; this
+    one is about not paying for a feature that is off.
+
+    ⛔ AND THE RETURN VALUE IS COUNTED, NEVER TRUSTED
+    (`lesson_scheduler_job_return_value_goes_nowhere`): APScheduler discards what a
+    job returns and silence reads as success. The success criterion is the
+    ARTIFACT -- the cycle receipt row, READ BACK out of the store.
+    """
+    if not live_enabled():
+        return
+    try:
+        definitions = definitions_to_sweep()
+    except Exception as exc:                                 # noqa: BLE001
+        log.exception("[scan-live] could not read the definitions to sweep: %s", exc)
+        return
+    receipt = run_sweep(definitions, mode=LIVE)
+    # THE ARTIFACT, NOT THE CALL.
+    filed = scan_store.last_live_cycle(receipt.get("tf") or DEFAULT_TF)
+    log.info("[scan-live] receipts read back: cycle=%s swept=%s hits=%s answered=%s",
+             (filed or {}).get("cycle_started"), len(((filed or {}).get("swept") or [])),
+             ((filed or {}).get("receipt") or {}).get("hits"),
+             ((filed or {}).get("receipt") or {}).get("answered"))
+    # ⛔ THE SHORTFALL IS EXPLAINED IN THE SAME BREATH AS THE COUNT, or the count is
+    # a mystery: "swept 40 of 90" beside nothing else reads as 50 silent failures.
+    if receipt.get("unswept"):
+        log.warning(
+            "[scan-live] %s of %s definitions were NOT reached (%s, deadline %s) -- "
+            "NOT because they failed. They lead the next cycle.",
+            receipt.get("unswept"), receipt.get("distinct"),
+            receipt.get("unswept_reason") or receipt.get("skipped_reason"),
+            receipt.get("deadline"))
 
 
 def enabled() -> bool:

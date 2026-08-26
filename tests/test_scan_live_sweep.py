@@ -1355,3 +1355,354 @@ def test_the_SESSION_LENGTH_is_declared_ONCE_and_the_close_is_DERIVED_from_the_o
         f"_live_session_state types a session boundary ({sorted(literals)}) — it "
         "must derive both ends")
     assert src.count("REGULAR_SESSION_LENGTH = ") == 1
+
+# ═══ 12. the CYCLE: run_sweep(mode='live') behind its rails ══════════════════
+
+#: 10:42 ET on SESSION — inside the regular session, so the window gate is open
+#: and every test below is measuring the rail it names rather than the clock.
+CYCLE_AT = _at(2026, 8, 26, 10, 42)
+
+
+@pytest.fixture
+def live_clock(monkeypatch):
+    """⏰ ONE CLOCK, FROZEN. `scan_evaluator._now_et` is the module's only clock
+    read (`test_the_module_reads_ONE_clock`), which is what makes freezing it here
+    honest rather than half-faked."""
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: CYCLE_AT)
+    return CYCLE_AT
+
+
+@pytest.fixture
+def feed(monkeypatch):
+    """The shared 30 s market snapshot, stubbed at its accessor — the live tier's
+    `_feed` idiom. ⛔ NOT at `massive`: the sweep's contract is that it reads the
+    SHARED accessor and nothing else, and stubbing lower would let a direct
+    provider call slip through unnoticed."""
+    from api.services import scan_volume
+    calls = []
+    monkeypatch.setattr(scan_volume, "full_market_snapshot",
+                        lambda: (calls.append(1), dict(SNAP))[1])
+    return calls
+
+
+def _defs():
+    """Two DISTINCT bars-only definitions. `close < 0` answers for every symbol
+    and hits none of them, which is what makes it a clean second definition."""
+    return (_definition(PRICE_TREE, def_id="u_00000000000a"),
+            _definition(_op("<", _series("close"), _num(0)), def_id="u_00000000000b"))
+
+
+def _hash(definition):
+    return scan_definition.assert_scannable(definition)["def_hash"]
+
+
+def test_a_LIVE_cycle_writes_live_hits_a_receipt_row_and_the_receipt_CLOSES(
+        store, bars, live_clock, feed, monkeypatch):
+    """🔴 THE CYCLE'S OWN ARITHMETIC, ASSERTED BY THE FUNCTION AND AGAIN HERE:
+    `definitions == swept + refused + duplicate + unswept`. Without it a cycle that
+    dropped definitions on the floor would look exactly like a cycle with fewer to
+    do."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    live, scalar = _definition(PRICE_TREE), _definition(SCALAR_TREE, def_id="u_00000000000b")
+
+    r = scan_evaluator.run_sweep([live, scalar], "D", universe=["AAA"], mode="live")
+
+    assert r["skipped_reason"] is None and r["session"] == SESSION and r["tf"] == "D"
+    assert r["definitions"] == 2 and r["swept"] == 1 and r["refused"] == 1
+    assert r["refusals"][0]["gate"] == "cadence", r["refusals"]
+    assert r["refusals"][0]["def_hash"] == _hash(scalar)
+    assert r["evaluated"] == 1 and r["answered"] == 1 and r["hits"] == 1
+    assert r["definitions"] == r["swept"] + r["refused"] + r["duplicate"] + r["unswept"]
+    assert set(r) >= {"cycle_started", "cycle_seconds", "definitions", "evaluated",
+                      "answered", "skipped_reason"}
+    cyc = scan_store.last_live_cycle("D")
+    assert cyc["swept"] == [_hash(live)]
+    assert cyc["receipt"]["answered"] == 1
+    assert scan_store.live_hits(cyc["swept"][0], "D")[0]["as_of"] == r["tick"]
+
+
+def test_the_cadence_refusal_happens_in_PHASE_ONE_before_any_bar_is_read(
+        store, bars, live_clock, feed, monkeypatch):
+    """⭐ 1.9 µs a tree, before the loop. A nightly-ceiling definition never
+    reaches `evaluate_one` in a cycle — but `evaluate_one` refuses it the same way
+    for a direct caller, so the two doors give one answer."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "get_bars",
+                        lambda *a, **k: pytest.fail("a bar was read for a refused definition"))
+    r = scan_evaluator.run_sweep([_definition(SCALAR_TREE)], "D", universe=["AAA"], mode="live")
+    assert r["refused"] == 1 and r["swept"] == 0 and r["evaluated"] == 0
+
+
+def test_the_flag_OFF_answers_disabled_and_TOUCHES_NO_STORE(
+        store, bars, live_clock, feed, monkeypatch):
+    """⛔ A DARK CYCLE WRITES NOTHING AT ALL — not even its own receipt. A receipt
+    row per five minutes for a feature nobody turned on is a table filling with the
+    word 'disabled'."""
+    monkeypatch.delenv("SCAN_LIVE_SWEEP_ENABLED", raising=False)
+    r = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    assert r["skipped_reason"] == "disabled" and r["definitions"] == 1
+    assert scan_store.last_live_cycle("D") is None
+    assert feed == [], "a disabled cycle read the market"
+
+
+def test_OUTSIDE_the_session_the_cycle_answers_closed_AND_RECORDS_that(
+        store, bars, feed, monkeypatch):
+    """⚠️ `closed` IS RECORDED WHERE `disabled` IS NOT, and the difference is the
+    question each answers. "The flag is off" is knowable from the env; "the last
+    cycle ran and the market was shut" is only knowable from the artifact, and a
+    status surface that could not tell that from "nothing has run since the deploy"
+    would report a dead scheduler as a quiet evening."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: _at(2026, 8, 26, 16, 5))
+    r = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    assert r["skipped_reason"] == "closed"
+    assert scan_store.last_live_cycle("D")["receipt"]["skipped_reason"] == "closed"
+    assert feed == [], "the market was read outside the session"
+
+
+def test_a_tf_other_than_D_is_REFUSED_BY_NAME_in_wave_1(store, live_clock, monkeypatch):
+    """Wave 1 is daily-only: intraday timeframes arrive with the prewarm ring's
+    MEASURED coverage (spec §5.5), not before it."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    with pytest.raises(scan_evaluator.ScanRunRefused, match=r"\[gate:tf\]"):
+        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "W", universe=["AAA"], mode="live")
+
+
+def test_the_WALL_CLOCK_RAIL_stops_STARTING_definitions_past_the_budget_and_NAMES_them(
+        store, bars, feed, monkeypatch):
+    """🔴 CHECKED BETWEEN DEFINITIONS, NEVER INSIDE ONE. A mid-definition abort
+    would leave a live set describing a partial universe as a complete one.
+
+    ⏰ THE TICK LIST IS EXACTLY AS LONG AS THE READS THIS CYCLE IS ENTITLED TO:
+    `started`, one `_stop()` before each of the two definitions, and one in
+    `_finish_live`. A fifth read is a StopIteration here, on purpose — the module's
+    one-clock property is what makes that a rail rather than a trap.
+    """
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    ticks = iter([CYCLE_AT,                       # started
+                  CYCLE_AT,                       # _stop() before the first
+                  _at(2026, 8, 26, 10, 47),       # _stop() before the second: BLOWN
+                  _at(2026, 8, 26, 10, 47)])      # _finish_live
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: next(ticks))
+    first, second = _defs()
+    r = scan_evaluator.run_sweep([first, second], "D", universe=["AAA"], mode="live")
+    assert r["swept"] == 1 and r["unswept"] == 1 and r["skipped_reason"] == "budget"
+    assert r["unswept_definitions"] == [_hash(second)]
+    assert r["unswept_reason"] == scan_evaluator.LIVE_UNSWEPT_REASON
+
+
+def test_the_budget_CONTROL_a_normal_cycle_reaches_EVERYONE(
+        store, bars, live_clock, feed, monkeypatch):
+    """The control the budget test needs: with the clock standing still the same
+    two definitions are both swept, so the test above is measuring the CLOCK and
+    not some other failure."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    r = scan_evaluator.run_sweep(list(_defs()), "D", universe=["AAA"], mode="live")
+    assert r["swept"] == 2 and r["unswept"] == 0 and r["skipped_reason"] is None
+
+
+def test_FAIRNESS_the_definition_the_LAST_cycle_never_reached_LEADS_this_one(
+        store, bars, live_clock, feed, monkeypatch):
+    """🔴 A BUDGET THAT ALWAYS CUTS AT THE SAME POINT STARVES THE SAME DEFINITIONS
+    FOREVER, and each cycle's receipt would look like a healthy partial.
+
+    ⭐ THE RESUME POINT IS THE ARTIFACT — the LAST CYCLE'S OWN `swept` LIST, not a
+    cursor and not a coverage row. The nightly sweep reads `scan_coverage` for the
+    PREVIOUS SESSION; a five-minute cycle has no such session-grained receipt, so
+    it reads the thing it does write.
+    """
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    a, b = _defs()
+    ha, hb = _hash(a), _hash(b)
+    scan_store.record_live_cycle({"cycle_started": TICK26 - 300, "tf": "D"}, [ha])
+    order = []
+    real = scan_evaluator.evaluate_one
+    monkeypatch.setattr(scan_evaluator, "evaluate_one",
+                        lambda d, *args, **kw: (order.append(d["id"]), real(d, *args, **kw))[1])
+    scan_evaluator.run_sweep([a, b], "D", universe=["AAA"], mode="live")
+    assert order == ["u_00000000000b", "u_00000000000a"], (
+        "the definition the last cycle never reached must lead this one")
+    # the control: with NO previous cycle the caller's order survives untouched
+    order.clear()
+    scan_evaluator.run_sweep([a, b], "D", universe=["AAA"], mode="live")
+    assert order == ["u_00000000000a", "u_00000000000b"], (
+        "the last cycle reached BOTH, so this one is the identity — a sort that "
+        "reordered anyway would be shuffling, not fairness")
+
+
+def test_a_BUILD_IN_FLIGHT_stops_the_cycle_between_definitions_WITHOUT_taking_the_lock(
+        store, bars, live_clock, feed, monkeypatch):
+    """⛔ THE CYCLE NEVER HOLDS `_BUILD_LOCK`. A four-minute hold would starve the
+    live tier's own 60 s cadence, which refuses on `build_in_flight`. So this
+    PROBES it (`build_in_flight()` is the read-only accessor) between definitions
+    and stops."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    assert snapshot_builder._BUILD_LOCK.acquire(blocking=False)
+    try:
+        r = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    finally:
+        snapshot_builder._BUILD_LOCK.release()
+    assert r["skipped_reason"] == "build_in_flight" and r["swept"] == 0 and r["unswept"] == 1
+    assert r["unswept_reason"] is None, "this is not the BUDGET — a different fact, a different fix"
+
+
+def _build_lock_touches(source: str) -> set:
+    """Every place this source REACHES the builder's lock, by AST.
+
+    ⛔ AN AST, NEVER A SUBSTRING. `"_BUILD_LOCK" in src` reads the COMMENT that
+    explains why the lock is not taken as though it were the taking, so the
+    honest-prose version of this module and the offending version are the same
+    string to it — a probe that cannot tell an explanation from a call.
+    """
+    tree = pyast.parse(source)
+    return {pyast.unparse(n) for n in pyast.walk(tree)
+            if (isinstance(n, pyast.Attribute) and n.attr == "_BUILD_LOCK")
+            or (isinstance(n, pyast.Name) and n.id == "_BUILD_LOCK")}
+
+
+def test_the_cycle_TAKES_no_build_lock__BY_AST():
+    """The structural half of the test above: presence of `build_in_flight` is not
+    absence of `_BUILD_LOCK`. Nothing in this module may reach the lock at all —
+    it probes the read-only accessor and stops, because a four-minute hold would
+    starve the live TIER's own 60 s cadence."""
+    src = pathlib.Path(scan_evaluator.__file__).read_text(encoding="utf-8")
+    assert _build_lock_touches(src) == set(), (
+        f"the evaluator reaches for the builder's lock: {_build_lock_touches(src)}")
+    # the control: the probe DOES see a taking, so the assert above is not blind
+    assert _build_lock_touches(
+        "def cycle():\n    with snapshot_builder._BUILD_LOCK:\n        pass\n")
+    tree = pyast.parse(src)
+    reads = {n.func.attr for n in pyast.walk(tree) if isinstance(n, pyast.Call)
+             and isinstance(n.func, pyast.Attribute)
+             and getattr(n.func.value, "id", None) == "snapshot_builder"}
+    assert "build_in_flight" in reads and "run_build" not in reads, reads
+
+
+def test_an_EMPTY_universe_or_NO_definitions_is_its_OWN_word_never_an_empty_sweep(
+        store, bars, live_clock, feed, monkeypatch):
+    """⛔ NEVER SWEEP ZERO SYMBOLS AND FILE THE RESULT: an empty hit list is
+    indistinguishable from a quiet market."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    assert scan_evaluator.run_sweep([], "D", universe=["AAA"],
+                                    mode="live")["skipped_reason"] == "no-definitions"
+    assert scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=[],
+                                    mode="live")["skipped_reason"] == "no-universe"
+    for word in ("no-definitions", "no-universe"):
+        assert word in scan_evaluator.LIVE_SKIP_REASONS
+
+
+def test_EVERY_cycle_returns_the_SAME_KEY_SET_whatever_stopped_it(
+        store, bars, live_clock, feed, monkeypatch):
+    """⛔ THE LIVE TIER'S `_blank_receipt` IDIOM. A status surface that had to
+    branch on which keys exist would report a missing key as a zero — and a
+    disabled cycle and a swept one would disagree about what a receipt IS."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    full = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    monkeypatch.delenv("SCAN_LIVE_SWEEP_ENABLED", raising=False)
+    dark = scan_evaluator.run_sweep([_definition(PRICE_TREE)], "D", universe=["AAA"], mode="live")
+    assert set(full) == set(dark), set(full) ^ set(dark)
+    required = {"cycle_started", "cycle_seconds", "definitions", "evaluated", "answered",
+                "skipped_reason", "session", "tf", "tick", "distinct", "swept", "refused",
+                "duplicate", "unswept", "unswept_definitions", "hits", "dropped",
+                "not_computable", "interval_s", "budget_s", "deadline", "refusals", "enabled"}
+    assert required <= set(full), sorted(required - set(full))
+    assert full["enabled"] is True and dark["enabled"] is False
+
+
+def test_the_ONLY_market_read_is_the_SHARED_snapshot_accessor__BY_AST():
+    """⛔ NO PROVIDER CALL LIVES IN THIS MODULE. The shipped probe from the live
+    tier's own suite, plus the narrower statement that the only `scan_volume`
+    functions reached are the shared snapshot and its symbol lookup."""
+    src = pathlib.Path(scan_evaluator.__file__).read_text(encoding="utf-8")
+    from tests.test_screener_live_tier import _fetcher_probe
+    assert _fetcher_probe(src) == []
+    tree = pyast.parse(src)
+    reads = {n.func.attr for n in pyast.walk(tree) if isinstance(n, pyast.Call)
+             and isinstance(n.func, pyast.Attribute)
+             and getattr(n.func.value, "id", None) == "scan_volume"}
+    assert reads == {"full_market_snapshot", "_snap_lookup"}, reads
+
+
+def test_the_snapshot_is_read_ONCE_per_cycle_NEVER_per_definition(
+        store, bars, live_clock, feed, monkeypatch):
+    """⭐ ONE READ PER CYCLE. `full_market_snapshot` is ~10k names behind a 30 s
+    cache; calling it per definition would make a 100-definition cycle a hundred
+    trips through that door for one answer, and every definition in the cycle would
+    be answering off a slightly different market."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    scan_evaluator.run_sweep(list(_defs()), "D", universe=["AAA"], mode="live")
+    assert feed == [1]
+
+
+def test_the_NIGHTLY_sweep_is_UNCHANGED_by_the_refactor(store, bars, clock_nightly):
+    """The regression control for factoring phase 1 and the loop into helpers: the
+    nightly receipt is the same shape, with the same keys, and still files coverage."""
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 7))
+    a, b = _defs()
+    r = scan_evaluator.run_sweep([a, b, a], "D", universe=["AAA"], as_of=20260807)
+    assert r["definitions"] == 3 and r["distinct"] == 2 and r["duplicate"] == 1
+    assert r["swept"] == 2 and r["unswept"] == 0 and r["stopped_early"] is False
+    assert r["hits"] == 1 and r["as_of"] == 20260807
+    assert scan_store.coverage(_hash(a), "D", 20260807) is not None
+    assert scan_store.last_live_cycle("D") is None, "the nightly sweep wrote a live receipt"
+
+
+@pytest.fixture
+def clock_nightly(monkeypatch):
+    """The nightly sweep's own frozen clock — its scheduled hour on the session the
+    shared bars fixtures use, DERIVED from the constants rather than typed."""
+    frozen = datetime.datetime(2026, 8, 7, scan_evaluator.SWEEP_HOUR_ET,
+                               scan_evaluator.SWEEP_MINUTE_ET, tzinfo=scan_evaluator._ET)
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: frozen)
+    return frozen
+
+
+# ═══ 13. `live_sweep_job`: the scheduler's door, and it reads the ARTIFACT ════
+
+def test_live_sweep_job_reads_the_ARTIFACT_back_and_EXPLAINS_a_budget_shortfall(
+        store, bars, live_clock, feed, monkeypatch, caplog):
+    """⛔ THE RETURN VALUE IS COUNTED, NEVER TRUSTED — APScheduler discards it and
+    silence reads as success. The success criterion is the RECEIPT ROW, read back
+    out of the store."""
+    monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
+    bars["AAA"] = _daily_bars(60, end=datetime.date(2026, 8, 25))
+    monkeypatch.setattr(scan_evaluator, "definitions_to_sweep", lambda: [_definition(PRICE_TREE)])
+    monkeypatch.setattr(snapshot_builder, "_load_universe", lambda: ["AAA"])
+    with caplog.at_level("INFO"):
+        scan_evaluator.live_sweep_job()
+    assert any("[scan-live] receipts read back" in r.message for r in caplog.records), (
+        [r.message for r in caplog.records])
+    assert scan_store.last_live_cycle("D")["receipt"]["answered"] == 1
+
+
+def test_a_DARK_live_job_does_not_even_READ_the_definitions(store, monkeypatch):
+    """⛔ THE FLAG IS CHECKED FIRST, BEFORE `definitions_to_sweep` — that is the
+    only member-shaped read in the file (it opens the definitions store), and a
+    dark job doing it every five minutes is a cost nobody asked for."""
+    monkeypatch.delenv("SCAN_LIVE_SWEEP_ENABLED", raising=False)
+    monkeypatch.setattr(scan_evaluator, "definitions_to_sweep",
+                        lambda: pytest.fail("a dark job read the definitions store"))
+    scan_evaluator.live_sweep_job()
+
+
+def test_note_demand_on_the_evaluator_DELEGATES_to_the_store(monkeypatch):
+    """⭐ A THIN DELEGATE, NOT A SECOND RING. The contract names
+    `scan_evaluator.note_demand`; the OWNER is `scan_store`, because the
+    router-import rail forbids a route reaching this module at all."""
+    seen = []
+    monkeypatch.setattr(scan_store, "note_demand", lambda syms: seen.append(list(syms)))
+    scan_evaluator.note_demand(["aaa"])
+    assert seen == [["aaa"]]
+    fn = _function_node("note_demand")
+    calls = [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)]
+    assert len(calls) == 1 and getattr(calls[0].func, "attr", None) == "note_demand", (
+        "note_demand does more than delegate — a second ring is a second answer to "
+        "'what did somebody just ask about'")
