@@ -41,7 +41,8 @@ _WEB_SEARCH_USD_EACH = 0.01
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """USD cost for one call. Returns 0 if model unknown."""
+    """USD cost for one call. An UNKNOWN model is priced at the priciest KNOWN
+    rate and logged — never $0, which would make every cap unenforceable."""
     # Tolerate dated model aliases like claude-haiku-4-5-20251001
     base = model.rsplit("-", 1)[0] if model.count("-") >= 3 else model
     rates = _PRICING.get(model) or _PRICING.get(base)

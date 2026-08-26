@@ -100,9 +100,48 @@ MAX_TOKENS: int = 8192
 #: ⭐ ONE GENERATE, ONE REPAIR. Not "retry until clean" -- see the header.
 MAX_MODEL_CALLS: int = 2
 
+#: ⛔ HTTP ATTEMPTS PER MODEL CALL, AND THE REASON IS THE LEDGER, NOT LATENCY.
+#: A call that TIMES OUT has already generated (and been billed for) tokens, but
+#: returns no ``usage``, so ``cost_guard.record`` below never sees them. The SDK
+#: default of 2 retries makes that up to THREE billed attempts the ledger counts
+#: as zero -- and, because the 60 s timeout is PER ATTEMPT, up to 180 s of wall
+#: clock. At 1200 tokens a timeout was barely reachable; at 8192 with default
+#: adaptive thinking it is not. 0 retries = exactly one attempt off the ledger.
+#:
+#: ⛔ THE TIMEOUT IS NOT THE LEVER HERE. ``desk_session_insights`` buys headroom
+#: with ``with_options(timeout=300)``, but that runs on a SCHEDULER thread. This
+#: is the REQUEST PATH, where an unbounded external call pins one of the single
+#: web pod's 64 shared anyio workers -- the 2026-07-01 outage class, and the
+#: reason `tests/test_llm_timeout_census.py` exists. The shared client's 60 s
+#: stays; only the attempt COUNT moves.
+#:
+#: The trade: a transient 429/503 is no longer retried for free. It also is not
+#: BILLED (nothing generated), and a member's own retry is ledgered and
+#: cap-checked -- which an SDK retry is not.
+MAX_HTTP_RETRIES: int = 0
+
 #: The per-user daily cap, ON TOP OF ``cost_guard``'s global one. The global cap
 #: protects the bill; this one protects one account from spending everyone
 #: else's.
+#:
+#: ⚠️ RE-DERIVE THIS WHENEVER THE MODEL OR THE CEILING MOVES — W0.4 moved BOTH
+#: and the cap was inherited, not rechecked. Measured 2026-08-26 against the real
+#: ``estimate_cost`` and the real prompt (SYSTEM_PROMPT + ``vocabulary_text()`` +
+#: the tool JSON = 17,724 chars ≈ 4.4k input tokens):
+#:
+#:   before  claude-sonnet-5 @ 1200  ->  $0.0313/call, $0.063 worst case (2 calls)
+#:   after   claude-opus-5   @ 8192  ->  $0.2270/call, $0.454 worst case (2 calls)
+#:
+#: Price is 1.67× on BOTH legs and the ceiling is 6.83×, so a worst-case proposal
+#: is 7.25× dearer: it now costs 60% of one member's daily allowance, and $0.75
+#: admits ~1.7 of them where it admitted ~12. The VALUE below is the owner's call
+#: and is unchanged here; this note exists so the next reader sees the arithmetic
+#: rather than inheriting it a second time.
+#:
+#: ⛔ AND IT IS A FLOOR TEST, NOT A RESERVATION. The loop head asks whether spend
+#: ALREADY EXCEEDS the cap, so a member at $0.74 may still start a proposal that
+#: lands them at $1.19 — 159% of the cap. That overshoot was $0.80 before this
+#: change. Nothing here reserves the cost of the call it is about to authorise.
 def _user_cap_usd() -> float:
     return float(os.environ.get("CONCIERGE_USER_CAP_DAILY", "0.75"))
 
@@ -1296,7 +1335,10 @@ def _call_model(messages: List[dict], briefing: str = "") -> Tuple[Any, int, int
     400 the moment ``CONCIERGE_MODEL`` pointed at a model that does not take it.
     """
     from api.services.engine import _get_anthropic_client
-    client = _get_anthropic_client()
+    # ``with_options`` returns a configured copy; the shared client's bounded
+    # timeout is preserved (see MAX_HTTP_RETRIES for why the count, not the
+    # clock, is what moves).
+    client = _get_anthropic_client().with_options(max_retries=MAX_HTTP_RETRIES)
     msg = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,

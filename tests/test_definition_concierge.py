@@ -17,9 +17,10 @@ therefore does two runs: one with the gate, one with that gate ALONE removed, an
 would be satisfied by a pipeline that refuses everything.
 
 ⛔ NO LIVE MODEL CALLS. The boundary that is stubbed is the CLIENT
-(`engine._get_anthropic_client`), not `_call_model` — so the real request kwargs,
-the real tool-use extraction, the real request kwargs (which carry NO sampling
-parameter — Claude 5 400s on one) and the real token accounting all run. Stubbing `_call_model` would have hidden every one of them
+(`engine._get_anthropic_client`), not `_call_model` — so the real request kwargs
+(which carry NO sampling parameter: Claude 5 400s on one), the real client
+options, the real tool-use extraction and the real token accounting all run.
+Stubbing `_call_model` would have hidden every one of them
 (`lesson_injected_dependency_hides_the_fetch`: 996 green tests shipped a feature
 that ran in 0 of 24 charts because every test handed in a fake).
 """
@@ -97,7 +98,16 @@ class FakeClient:
     def __init__(self, answers: List[Any]) -> None:
         self.answers = list(answers)
         self.calls: List[dict] = []
+        self.options: Dict[str, Any] = {}
         self.messages = self
+
+    def with_options(self, **opts):
+        """The real client returns a configured copy; the fake RECORDS the
+        options and returns itself, so a caller that stops configuring one is
+        visible as an EMPTY dict rather than as silently-default behaviour.
+        """
+        self.options.update(opts)
+        return self
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
@@ -2082,7 +2092,7 @@ def test_the_repair_call_is_ALSO_metered_and_the_cap_is_rechecked(concierge, mod
 
 
 def test_the_model_is_priced_by_the_guard_BY_NAME_and_an_unknown_id_is_NEVER_free(
-        concierge, caplog):
+        concierge, caplog, monkeypatch):
     """⚠️ THE UNKNOWN-MODEL RULE IS LOAD-BEARING and it belongs to `cost_guard`, so
     it is asserted against `cost_guard` — not re-implemented here.
 
@@ -2099,13 +2109,22 @@ def test_the_model_is_priced_by_the_guard_BY_NAME_and_an_unknown_id_is_NEVER_fre
     assert not [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
         f"{concierge.MODEL} has no pricing entry — the cap would run on the "
         "fallback rate rather than on the real one")
-    assert concierge.MODEL in cost_guard._PRICING
-
     caplog.clear()
     with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
         assert cost_guard.estimate_cost("zz-not-a-model", 1_000_000, 0) > 0
     assert [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
         "the control did not fire — this probe cannot tell the two paths apart")
+
+    # ⭐ AND THE ENTRY KEYED BY THIS ID IS THE ONE THE LOOKUP REACHES. `MODEL in
+    # _PRICING` was the old structural half and it is STRICTER than the guard: a
+    # dated alias (`claude-opus-5-20260601`) is priced by name through its base id
+    # yet is not a key, so membership would red a correctly-priced model. Planting
+    # a rate and watching the price MOVE asks the question the guard answers — and
+    # membership could never answer it anyway, being satisfied by an entry the
+    # lookup never reaches.
+    monkeypatch.setitem(cost_guard._PRICING, concierge.MODEL,
+                        {"input": 999.0, "output": 999.0})
+    assert cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0) == pytest.approx(999.0)
 
 
 def test_the_DEFAULT_model_is_the_contracts_user_facing_model(concierge):
@@ -2166,6 +2185,47 @@ def test_a_sampling_PARAMETER_IS_NEVER_SENT_so_a_proposal_is_ONE_round_trip(conc
         "are two HTTP round-trips on every single proposal")
     leaked = set(client.calls[0]) & set(Api400OnSampling._SAMPLING)
     assert not leaked, sorted(leaked)
+
+    # ⭐ AND THE KNOBS REACH THE WIRE. `MAX_TOKENS >= 8192` is a claim about a
+    # CONSTANT; this is the claim the task actually makes — that the ceiling the
+    # module states is the ceiling the request carries. Raise the constant, hard-
+    # code a number at the call site, and only this line goes red
+    # (`lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage`).
+    assert client.calls[0]["max_tokens"] == concierge.MAX_TOKENS
+    assert client.calls[0]["model"] == concierge.MODEL
+
+
+def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
+        concierge, model):
+    """⛔ A TIMED-OUT CALL IS BILLED AND INVISIBLE. Tokens are billed as GENERATED,
+    but a timeout returns no ``usage``, so `cost_guard.record` never sees them and
+    the daily caps count the attempt as ZERO. The SDK retries twice by default,
+    which makes that up to THREE billed-and-invisible attempts per model call.
+
+    ⭐ HALF ONE, THE HAZARD, MEASURED: a failed attempt really does leave the
+    ledger at $0. That is what makes the attempt COUNT the thing worth bounding.
+
+    ⭐ HALF TWO, THE BOUND, PINNED AT THE WIRE and derived from the constant — a
+    caller that stops configuring the client records an empty options dict.
+
+    ⚠️ WHAT THIS CANNOT DO, STATED: the SDK's retry loop lives BELOW
+    `messages.create`, so this fake cannot make it run. The rail asserts the
+    option reaches the client, not that the SDK honours it; honouring it is the
+    SDK's own contract.
+    """
+    client = model([RuntimeError("Request timed out.")])
+    res = concierge.propose("average it", user_id=USER, bars=bars())
+    assert res["ok"] is False and res["gate"] == "model:transport"
+    assert concierge.spend_for(USER) == 0.0, (
+        "the hazard is gone — reread this test: a failed attempt used to be "
+        "invisible to the ledger, which is the reason attempts are bounded")
+
+    assert client.options.get("max_retries") == concierge.MAX_HTTP_RETRIES, (
+        f"the concierge configured {client.options!r} — the retry bound never "
+        "reached the client")
+    assert concierge.MAX_HTTP_RETRIES == 0, (
+        "more than one HTTP attempt per model call means more than one billed "
+        "attempt the ledger cannot see")
 
 
 def test_the_ceiling_covers_THINKING_PLUS_the_tool_call(concierge):
