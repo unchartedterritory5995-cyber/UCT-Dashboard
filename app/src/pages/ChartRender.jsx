@@ -529,10 +529,24 @@ export default function ChartRender() {
   // the parent's, so an effect here would wipe a latch StockChart had already
   // flipped. The write is idempotent per (sym, tf) and this page is a one-shot
   // export, so the render-time side effect is the correct order, not a shortcut.
-  const barsKey = `${sym}|${tf}`
+  // With `?compare=`, the overlays are a SECOND fetch StockChart makes on its
+  // own; the first-bars latch says nothing about them. Measured 2026-08-25: a
+  // compare render captured on the base latch alone showed the % scale and no
+  // lines. So readiness = base bars AND (no comparisons OR overlays drawn).
+  const barsKey = `${sym}|${tf}|${compareSyms.join(',')}`
   const barsKeyRef = useRef(null)
-  if (barsKeyRef.current !== barsKey) { barsKeyRef.current = barsKey; window.__chartBarsReady = false }
-  const onBarsReady = () => { window.__chartBarsReady = true }
+  const readyPartsRef = useRef({ bars: false, comparisons: false })
+  if (barsKeyRef.current !== barsKey) {
+    barsKeyRef.current = barsKey
+    readyPartsRef.current = { bars: false, comparisons: false }
+    window.__chartBarsReady = false
+  }
+  const publishBarsReady = () => {
+    const r = readyPartsRef.current
+    window.__chartBarsReady = r.bars && (compareSyms.length === 0 || r.comparisons)
+  }
+  const onBarsReady = () => { readyPartsRef.current.bars = true; publishBarsReady() }
+  const onComparisonsReady = () => { readyPartsRef.current.comparisons = true; publishBarsReady() }
 
   useEffect(() => {
     window.__chartReady = false
@@ -769,6 +783,7 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
+            onComparisonsReady={onComparisonsReady}
             {...(toParam ? { replayCutoff: toParam } : {})}
             {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}
             forceExtendedHours={forceExt}
