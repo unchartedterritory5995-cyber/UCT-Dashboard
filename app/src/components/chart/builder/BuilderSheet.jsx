@@ -472,6 +472,7 @@ export class BuilderBoundary extends Component {
 
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  initialMode = null, editRow = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
@@ -861,6 +862,41 @@ export default function BuilderSheet({
     // plot left behind would be a tree in a document whose box shows nothing.
     resetPlots()
   }, [resetPlots])
+
+  // ── W4a HAND-BACK: the `/screener` door's two ways in ─────────────────────
+  //
+  // The chart toolbar opens this sheet one way and lets it choose its own mode.
+  // The screener opens the SAME sheet for a different reason — a member there is
+  // authoring a SCREEN — so it names the door it wants. Two additive props, no
+  // new state: `initialMode` is applied on top of the open-reset, and `editRow`
+  // runs the sheet's own `openForEdit`.
+  //
+  // ⛔ DECLARED AFTER THE `[open]` RESET AND AFTER `openForEdit`, ON PURPOSE.
+  // Effects run in declaration order, so the reset (which sets `library`) lands
+  // first and this decides the mode on top of it. Move this above the reset and
+  // the screener's door silently opens on the Library.
+  //
+  // ⛔ A ROW TO EDIT WINS, and it does not merely win the tie — `openForEdit`
+  // ends by moving the sheet to Formula itself, which is the sheet's own rule
+  // (a member editing their own work is not helped by a gallery of starters
+  // above it). A caller that passed both would be overridden by that rule
+  // anyway; returning early says so instead of leaving it to ordering.
+  //
+  // ⛔ AND `initialMode` IS NOT VALIDATED HERE. A typed list of modes beside the
+  // tabs that own them is a second authority: the one written for this task read
+  // `library | picker | formula` and had already missed `pine`, so it would have
+  // silently ignored a mode this sheet does have. The caller names a door;
+  // `ScreensManager.door.test.jsx` derives the real set off this file's AST and
+  // fails if the name is not one of them.
+  //
+  // ⚠️ `editRow` MUST BE HELD IN THE CALLER'S STATE (a stable identity), never
+  // built inline, or this re-opens the row on every parent render and throws
+  // away whatever the member has typed since.
+  useEffect(() => {
+    if (!open) return
+    if (editRow) { openForEdit(editRow); return }
+    if (initialMode) setBuildMode(initialMode)
+  }, [open, editRow, initialMode, openForEdit])
 
   // A new evaluation invalidates an acknowledgement of the OLD one. Carrying it
   // forward would let a user acknowledge a bounded forward reference and then
