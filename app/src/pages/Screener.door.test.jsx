@@ -176,6 +176,12 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
     // …and the concierge got a window, from the screener's own default.
     await waitFor(() => expect(H.requests.some((r) => r.url === SPY_WINDOW)).toBe(true))
+    // ⭐ AND IT IS STILL ON CONDITIONS ONCE EVERY EFFECT HAS RUN. The check above
+    // reads the FIRST PAINT; this one reads the settled sheet, and they are
+    // different questions. Measured: with the open-reset writing a literal
+    // `'library'` the first assertion passed and the member was bounced to the
+    // Library a frame later, with nothing red.
+    expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'true')
 
     // A savable formula the way a member gets one without typing: the library.
     await user.click(screen.getByRole('tab', { name: /library/i }))

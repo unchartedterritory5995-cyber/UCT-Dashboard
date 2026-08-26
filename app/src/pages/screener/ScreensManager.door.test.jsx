@@ -191,20 +191,36 @@ describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
     for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, visit)
   }
 
-  /** Every mode `BuilderSheet` can be put into — every string literal handed to
-   *  `setBuildMode(...)`, taken off its AST. */
-  function sheetModes() {
-    const out = new Set()
+  /** TWO INDEPENDENT DERIVATIONS OF ONE SET, off `BuilderSheet.jsx`'s AST:
+   *   `set` — every string handed to `setBuildMode(...)`  (what can be ENTERED)
+   *   `cmp` — every string compared to `buildMode` with `===` (what is RENDERED)
+   *
+   *  ⭐ THEY MUST BE EQUAL, and requiring that is what makes this rail hard to
+   *  fool. A single walk can be loosened until it matches almost anything and
+   *  a containment check still passes (measured: mutating the callee-name test
+   *  to `true` survived a containment-only version of this rail). Two walks that
+   *  have to AGREE cannot both be loosened by one edit — and the equality is
+   *  also the product claim worth having: a mode you can enter and have no tab
+   *  for, or a tab for a mode nothing enters, is a dead door either way. */
+  function sheetModeSets() {
+    const set = new Set()
+    const cmp = new Set()
     walk(parse(read('app/src/components/chart/builder/BuilderSheet.jsx')), (n) => {
       if (n.type === 'CallExpression' && n.callee && n.callee.type === 'Identifier'
           && n.callee.name === 'setBuildMode'
           && n.arguments.length === 1 && n.arguments[0].type === 'Literal'
           && typeof n.arguments[0].value === 'string') {
-        out.add(n.arguments[0].value)
+        set.add(n.arguments[0].value)
+      }
+      if (n.type === 'BinaryExpression' && n.operator === '==='
+          && n.left.type === 'Identifier' && n.left.name === 'buildMode'
+          && n.right.type === 'Literal' && typeof n.right.value === 'string') {
+        cmp.add(n.right.value)
       }
     })
-    return out
+    return { set, cmp }
   }
+  const sheetModes = () => sheetModeSets().set
 
   it('the walk sees a real mode set (not vacuous)', () => {
     const modes = sheetModes()
@@ -213,6 +229,11 @@ describe('⭐ `initialMode` names a mode BuilderSheet actually has', () => {
     // The measured fourth door. If Pine is ever removed, this line is what says
     // so — rather than a guard quietly narrowing without anybody noticing.
     expect(modes.has('pine')).toBe(true)
+  })
+
+  it('⭐ what can be ENTERED and what is RENDERED are the same set', () => {
+    const { set, cmp } = sheetModeSets()
+    expect([...set].sort()).toEqual([...cmp].sort())
   })
 
   it('NEW_SCAN_MODE is one of them', () => {
