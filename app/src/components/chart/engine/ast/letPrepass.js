@@ -46,6 +46,14 @@
 // place. A CALLER PLACING A DIAGNOSTIC ON A `let` SOURCE MUST NOT USE A RAW
 // PARSER OFFSET: map the offset to a line in `source`, add `lineOffset`, and
 // mark the whole line — or mark the expression region as a whole.
+// ⚠️ AND KEEPING THEM IS NOT FREE IN EVERY DIRECTION — say it accurately.
+// It is free for the TREE and for the HASH: measured, `(2) +\n\n1`, `(2) +\n1`
+// and `(2) + 1` all canonicalise and hash identically, so no `def_hash` moves on
+// account of a gap. It is NOT free for the CHARACTER offset — every kept newline
+// pushes the reported character further from the one the member typed. That cost
+// is inside the one this header already names (the offset indexes the inlined
+// string, never the member's text); it is not a second, and it is the trade the
+// paragraph above takes deliberately, because the LINE is what a mark needs.
 //
 // ⚠️ THE `.js` EXTENSION BELOW IS LOAD-BEARING, not style. `tools/ast_conformance.py`
 // boots these modules in RAW NODE and its `_JS_JSON_HOOK` shims `.json` ONLY —

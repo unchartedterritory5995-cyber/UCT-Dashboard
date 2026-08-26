@@ -155,7 +155,24 @@ describe('⛔⛔ THE ONE REAL COST — a parser offset stops indexing the member
     // substitution changes the length of the text before the error, so no
     // offset survives it. The fix is `lineOffset` below, plus the header's
     // instruction that a caller must not place a mark from a raw offset.
-    expect(reported, 'the offset no longer points at the typo').not.toBe(authored)
+    //
+    // ⛔ `+ 1` BECAUSE THE TWO NUMBERS ARE COUNTED FROM DIFFERENT PLACES, and
+    // without it this case could not fail for the reason it exists. The parser
+    // reports 1-BASED ("character 36"); `lastIndexOf` is 0-BASED (63). Comparing
+    // them raw asserted `36 !== 63`, which is true of any two unequal numbers —
+    // and would have stayed true if the offset were ever CORRECTED to 64, so the
+    // case would have gone on passing while its own name says the offset no
+    // longer points at the typo. The correct-offset value is what it must differ
+    // from, and that value is `authored + 1`.
+    // …and the 1-based claim is MEASURED, not assumed: the same typo in a source
+    // with no `let` line at all reports `its own 0-based index + 1`. Without this
+    // control the `+ 1` above would be a hand-typed convention, which is exactly
+    // the kind of number that goes stale beside the code that owns it.
+    const plain = 'close - sma('
+    const plainReported = Number(/character (\d+)/.exec(readFormulaSource(plain).result.error)[1])
+    expect(plainReported, 'the parser is not 1-based — re-derive the +1 above')
+      .toBe(plain.lastIndexOf('(') + 1)
+    expect(reported, 'the offset no longer points at the typo').not.toBe(authored + 1)
     expect(reported, 'it indexes the inlined text').toBeLessThanOrEqual(prepareSource(TYPO).source.length)
   })
 
