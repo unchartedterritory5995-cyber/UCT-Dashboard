@@ -5,7 +5,8 @@ import ast as pyast, collections, contextlib, datetime, json, pathlib, re, sqlit
 from zoneinfo import ZoneInfo
 import pytest
 from api.services import ast_freshness, scan_definition, user_definitions
-from api.services.screener import scan_evaluator, scan_store, snapshot_builder, snapshot_db
+from api.services.screener import (live_tier, scan_evaluator, scan_store, snapshot_builder,
+                                   snapshot_db)
 from tests.test_scan_evaluator import (_series, _num, _op, _definition, _daily_bars, _function_node,
                                        PRICE_TREE, SCALAR_TREE, _FakeScheduler)
 
@@ -603,10 +604,21 @@ def test_a_store_bar_NEWER_than_the_previous_session_is_REPLACED_by_the_snapshot
 def test_a_quote_the_live_tier_would_refuse_is_refused_HERE_with_ITS_reason(quote, reason, detail):
     """⛔ ONE SANITY OWNER. Every word in `detail` is `live_tier`'s own, so the live
     tier and the live sweep can never disagree about whether a quote is usable —
-    and a fifth gate added there is honoured here with no edit in this lane."""
+    and a NEW gate added there is honoured here with no edit in this lane.
+
+    ⚠️ THE SUBSET ASSERT IS WHAT MAKES THAT CLAIM MEASURED RATHER THAN STATED. The
+    four cases below are hand-typed words; on their own they would pass just as
+    well against a hand-written copy of `live_tier`'s rules. Asserting the
+    forwarded word is a MEMBER of the declared closed tuple is what ties this
+    module's `detail` vocabulary to the owner's — and it is the assert that goes
+    red if this lane ever starts composing a reason of its own.
+    """
     bars = _bars(60, end=datetime.date(2026, 8, 25))
     out = scan_evaluator.live_bars_for("AAA", bars, quote, session=SESSION, prev_session=PREV)
     assert (out["bars"], out["reason"], out["detail"]) == ([], reason, detail)
+    assert {out["detail"]} <= set(live_tier.SKIP_REASONS), (
+        f"{out['detail']!r} is not one of the sanity owner's OWN words — this lane "
+        f"has grown a second vocabulary")
 
 
 def test_the_gate_IS_live_tiers_sanity_reason_by_AST_not_a_second_copy():
@@ -616,6 +628,35 @@ def test_the_gate_IS_live_tiers_sanity_reason_by_AST_not_a_second_copy():
     fn = _function_node("live_bars_for")
     calls = {getattr(n.func, "attr", None) for n in pyast.walk(fn) if isinstance(n, pyast.Call)}
     assert "sanity_reason" in calls
+
+
+def test_sanity_reason_is_the_ONLY_gate_no_SECOND_RULE_BESIDE_it():
+    """⛔ THE CONSTRAINT IS "NO SECOND SANITY RULE", AND PRESENCE CANNOT SAY THAT.
+    The test above proves `sanity_reason` is CALLED; a hand-written rule added
+    BESIDE it — `if quote["prev_vol"] < 1000: return refused` — passes that test
+    and all four behaviour cases, and is exactly the defect the pair exists to
+    prevent. So this pins the SHAPE of the refusal: there is exactly ONE
+    `no-live-quote` return in the function, and the `detail` it forwards is a bare
+    NAME bound exactly once, by the `sanity_reason` call itself. A second rule
+    needs either a second refusal or a composed detail, and either one reds this.
+    """
+    fn = _function_node("live_bars_for")
+    refusals = [n for n in pyast.walk(fn)
+                if isinstance(n, pyast.Return) and isinstance(n.value, pyast.Dict)
+                and any(isinstance(v, pyast.Name) and v.id == "LIVE_DROP_REASON"
+                        for v in n.value.values)]
+    assert len(refusals) == 1, (
+        f"{len(refusals)} `no-live-quote` returns in live_bars_for — a second sanity rule?")
+    fields = dict(zip([getattr(k, "value", None) for k in refusals[0].value.keys],
+                      refusals[0].value.values))
+    detail = fields["detail"]
+    assert isinstance(detail, pyast.Name), (
+        "the refusal's `detail` is COMPOSED here rather than forwarded — the sanity "
+        "owner's word is the only thing that may appear there")
+    binds = [a for a in pyast.walk(fn) if isinstance(a, pyast.Assign)
+             and any(isinstance(t, pyast.Name) and t.id == detail.id for t in a.targets)]
+    assert len(binds) == 1, f"`{detail.id}` is assigned {len(binds)} times, not once"
+    assert isinstance(binds[0].value, pyast.Call)         and getattr(binds[0].value.func, "attr", None) == "sanity_reason",         f"`{detail.id}` is not bound by the sanity_reason call"
 
 
 def test_stale_daily_bars_are_a_DROP_before_any_quote_is_looked_at():
@@ -628,15 +669,28 @@ def test_stale_daily_bars_are_a_DROP_before_any_quote_is_looked_at():
     assert scan_evaluator.live_bars_for("AAA", [], QUOTE, session=SESSION, prev_session=PREV)["reason"] == "no-bars"
 
 
-def test_a_pre_open_quote_carries_NO_ohl_and_live_cols_says_so():
-    """⛔ PRE-OPEN THE FEED RETURNS 0 FOR o/h/l AND `massive._px` EMITS None. The
-    bar is still usable — `c` and `v` are real — so the refusal is PER FIELD:
-    `live_cols` says how many of the five arrived, and a tree reading `high` on
-    the forming bar is what W4b.3 turns into `live:forming-bar:high`."""
+def test_a_quote_MISSING_its_OHL_still_yields_a_bar_and_live_cols_SAYS_WHICH_ARRIVED():
+    """A quote that HAS TRADED (`today_vol` > 0) but whose `o/h/l` the feed did not
+    carry. The bar is still usable — `c` and `v` are real — so the refusal is PER
+    FIELD: `live_cols` says how many of the five arrived, and a tree reading `high`
+    on the forming bar is what W4b.3 turns into `live:forming-bar:high`.
+
+    ⚠️ THIS IS NOT THE PRE-OPEN SHAPE, AND IT USED TO CLAIM IT WAS. Genuine
+    pre-open out of `massive.get_full_market_snapshot` is `today_vol=0` WITH
+    `day_open=None`, and it never reaches this code at all — `sanity_reason`
+    refuses it `not_traded`, which is the case the parametrisation one test up
+    already pins. What survives to build a bar with no o/h/l is a DEGRADED FEED
+    ROW, which is precisely the shape per-field refusal exists for.
+    """
     bars = _bars(60, end=datetime.date(2026, 8, 25))
     q = dict(QUOTE, day_open=None, day_high=None, day_low=None)
+    assert q["today_vol"] > 0, "the control: this quote TRADED — pre-open is the case above"
     out = scan_evaluator.live_bars_for("AAA", bars, q, session=SESSION, prev_session=PREV)
     assert out["live_cols"] == 2 and out["bars"][-1]["h"] is None
+    # ⛔ and the floor is 2, not 1: `v` is an int and counts even at 0 (see `_f`).
+    zero_vol = dict(q, today_vol=0, day_open=69.5)
+    assert scan_evaluator.live_bars_for(
+        "AAA", bars, zero_vol, session=SESSION, prev_session=PREV)["live_cols"] == 3
 
 
 def test_the_per_field_refusal_word_is_NAMESPACED_and_names_the_FIELD_that_is_MISSING():
@@ -646,10 +700,17 @@ def test_the_per_field_refusal_word_is_NAMESPACED_and_names_the_FIELD_that_is_MI
 
     ⛔ THE `<field>` HALF IS A MANIFEST SERIES NAME, NEVER A TYPED LIST: every name
     `_forming_bar_series` can return composes into its OWN distinct word, so a
-    sixth series is covered with no edit here. ⚠️ `split(":")[-1]` is the assert
-    that carries this test — a prefix that lost its trailing separator would fuse
-    into `live:forming-barhigh`, which `startswith`/`endswith` would both wave
-    through while a member read a field name that does not exist.
+    sixth series is covered with no edit here.
+
+    ⚠️ WHAT CARRIES THIS TEST IS THE EXACT-EQUALITY PIN ON THE FIRST LINE, not the
+    `split(":")` below it. An earlier version of this docstring claimed the
+    opposite and was wrong: with the constant pinned to its literal, a prefix that
+    lost its trailing separator reds that first assert before any derived one runs,
+    and the asserts underneath compose a dict FROM the very constant just pinned —
+    there is no second producer for them to disagree with, so they cannot fail
+    independently today. They are kept because they DOCUMENT the composition rule
+    and would become load-bearing the day the prefix is computed rather than
+    literal; they are not, and were never, an independent check.
     """
     assert scan_evaluator.LIVE_NOT_COMPUTABLE_DETAIL == "live:forming-bar:"
     names = sorted(ast_freshness._sections(None)[0])

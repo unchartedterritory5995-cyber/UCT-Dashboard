@@ -148,12 +148,14 @@ RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe")
 #: Why ONE symbol was tried and failed. Each is a fact about that symbol, and
 #: every one of them is re-runnable: fix the bars, rebuild the snapshot, run again.
 #:
-#:   no-live-quote -- the feed refused this symbol; `detail` carries the live
-#:                    tier's OWN word (`no_feed`/`not_traded`/`no_price`/
-#:                    `no_prev_close`/`bad_anchor`/`stale_anchor`/
-#:                    `insane_deviation`) rather than a second spelling of it,
-#:                    and it is re-runnable NEXT TICK -- five minutes, not
-#:                    tonight, which is what makes it a drop and not a refusal.
+#:   no-live-quote -- the feed refused this symbol; `detail` carries one of
+#:                    `live_tier.SKIP_REASONS` VERBATIM rather than a second
+#:                    spelling of it. ⛔ THE SEVEN WORDS ARE NOT RE-TYPED HERE:
+#:                    that tuple is the declaration, this is a pointer to it, and
+#:                    `test_a_quote_the_live_tier_would_refuse_is_refused_HERE_
+#:                    with_ITS_reason` asserts the forwarded word is a MEMBER of
+#:                    it. Re-runnable NEXT TICK -- five minutes, not tonight,
+#:                    which is what makes it a drop and not a refusal.
 DROP_REASONS = ("no-bars", "stale-bars", "no-screener-row", "refused", "no-live-quote")
 
 #: ⛔ ITS OWN BUCKET, controller resolution 5. "We could not compute it at the last
@@ -561,8 +563,25 @@ def _forming_bar_series(tree: Any) -> set:
     ⛔ DERIVED FROM THE MANIFEST'S ``series`` SECTION, NEVER BY REGEX AND NEVER BY
     HAND. A declared SCALAR rides the very same ``{"type": "series"}`` node —
     ``market_cap`` is one — and it is not a bar field; membership in the section
-    is what tells the two apart. Iterative, like ``ast_freshness._walk``: the
+    is what tells the two apart. Clock entries (tableVersion 2) ride it too and
+    are likewise absent from that section, which is correct: they are not fields
+    the forming bar can be missing. Iterative, like ``ast_freshness._walk``: the
     escape corpus carries an 8,001-node tree.
+
+    ⛔ ``isinstance(name, str)`` IS CHECKED, exactly as ``ast_freshness.scalars_in``
+    and ``series_in`` check it. This reads PERSISTED trees, which are user data
+    that never went through ``canonicalise``, and no upstream reader refuses a
+    non-string name: ``scalars_in`` returns an empty set for it, ``max_lookback``
+    returns 0. So ``{"type": "series", "name": {...}}`` reaches here, and without
+    the guard ``in`` raises ``TypeError: unhashable type`` — a RAISE, not a
+    refusal by name, from a module whose whole contract is to refuse by name.
+
+    ⚠️ CONSERVATIVE AT ONE ARGUMENT INDEX, DELIBERATELY. ``accum``'s SEED argument
+    is evaluated at bar ``i - warmup``, not at ``i``, so ``accum(close, self+1,
+    250)`` does not truly read ``close`` on the forming bar and this walk reports
+    it anyway — the accumulated sum decides everywhere EXCEPT there. The error is
+    in the safe direction: a caller refuses a field it could in fact have
+    computed, and never computes on a field the feed did not carry.
     """
     series_names = ast_freshness._sections(None)[0]
     found: set = set()
@@ -573,8 +592,9 @@ def _forming_bar_series(tree: Any) -> set:
             continue
         kind = node.get("type")
         if kind == "series":
-            if off == 0 and node.get("name") in series_names:
-                found.add(node["name"])
+            name = node.get("name")
+            if off == 0 and isinstance(name, str) and name in series_names:
+                found.add(name)
             continue
         if kind == "offset":
             child = (node.get("args") or [None])[0]
@@ -656,11 +676,24 @@ def live_bars_for(symbol: str, daily_bars: Sequence[Mapping[str, Any]], quote: A
     the live tier and the live sweep answer "is this quote usable" with one
     function, and a gate added there is honoured here with no edit in this file.
 
-    A forming bar's `o/h/l` are the feed's `day_open/day_high/day_low` (`None`
-    pre-open -- `massive._px` emits `None` for the provider's 0, because a 0 there
-    would sort and filter as a real price of zero), `c` is `last_price`, `v` is
-    `today_vol`; `live_cols` counts the fields that arrived, which is what lets a
-    caller refuse PER FIELD instead of throwing the whole bar away.
+    A forming bar's `o/h/l` are the feed's `day_open/day_high/day_low` -- `None`
+    when the feed did not carry them, because `massive._px` maps the provider's 0
+    to `None` (a 0 there would sort and filter as a real price of zero). `c` is
+    `last_price` and is never `None`: `sanity_reason` has already refused a
+    non-positive one. `live_cols` counts the fields that arrived, which is what
+    lets a caller refuse PER FIELD instead of throwing the whole bar away.
+
+    ⛔⛔ `volume` IS THE ONE FIELD THAT CAN NEVER BE PER-FIELD-REFUSED, AND A
+    CALLER MUST KNOW THAT. `v` is `int(today_vol or 0)` -- an int, ALWAYS, never
+    `None` -- so a consumer deriving "which fields are missing" from
+    `forming[field] is None` (the only signal handed out here) can never emit
+    `live:forming-bar:volume`, even though `_forming_bar_series` can and does
+    return `volume`. The distinction was already gone upstream: `massive.py`
+    collapses an absent volume to 0 in the parse, so by the time a quote reaches
+    this function "no volume yet" and "zero shares traded" are one value. This is
+    the last place that could have separated them and it cannot. ⇒ a tree reading
+    `volume` at offset 0 computes on a 0 the feed may never have carried, and
+    `live_cols` therefore has a FLOOR OF 2 (`c` and `v`) rather than a floor of 1.
 
     ⚠️ ANY STORE BAR NEWER THAN `prev_session` IS DROPPED. The store can already
     hold a partial candle for today (`bars_prewarm` writes one mid-session); the
@@ -689,6 +722,13 @@ def live_bars_for(symbol: str, daily_bars: Sequence[Mapping[str, Any]], quote: A
         # ⛔ `isinstance(v, bool)` IS CHECKED: `isinstance(True, int)` is True and
         # `float(True)` is 1.0, which would read as a real price of one dollar.
         return None if v is None or isinstance(v, bool) else (float(v) if float(v) > 0 else None)
+
+    # ⛔ THE ASYMMETRY BELOW IS DELIBERATE — DO NOT "FIX" IT. `o/h/l` map a 0 to
+    # `None` (absent); `v` floors at an int and may legitimately BE 0. Volume
+    # genuinely starts at 0 and accumulates, so "0 shares so far" is a TRUE
+    # measurement of a session in progress, whereas a price of 0 is never true of
+    # anything. Making `v` `None` at 0 would refuse every symbol in the first
+    # seconds of the session for a value that was correct.
 
     forming = {"t": int(session), "o": _f(quote.get("day_open")), "h": _f(quote.get("day_high")),
                "l": _f(quote.get("day_low")), "c": float(quote["last_price"]),
