@@ -184,22 +184,36 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         background.add_task(di.run_multi_chart_job, app_id, token, items,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
-                            quote_fn=fetch_ext_quote)
+                            quote_fn=fetch_ext_quote, components_fn=di.multi_components)
         return {"type": 5}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
         try:
             if itype == 3:
                 kind = di.component_kind(interaction)
+                if kind == "charts":                            # a /charts timeframe button
+                    reqs = di.parse_multi_component(interaction)
+                    for _ in reqs:
+                        wait = di.user_rate_check(uid)
+                        if wait:
+                            return _ephemeral(di.throttle_message(wait))
+                    if not app_id or not token:
+                        return _ephemeral("Discord did not supply a reply token.")
+                    background.add_task(di.run_multi_chart_job, app_id, token,
+                                        [breadth_adjust(q, dict(prefs)) for q in reqs],
+                                        bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                                        house_fn=house.render_house_chart if house.house_enabled() else None,
+                                        quote_fn=fetch_ext_quote, components_fn=di.multi_components)
+                    return {"type": 6}
                 req = di.parse_component(interaction)          # a button under a chart
             else:
                 kind = "chart"
                 req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
-        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
-        token = str(interaction.get("token") or "")
         if kind == "chart" and itype == 3 and di.is_save_pick(interaction):
             # "Save this chart's settings as my defaults" - writes the member's
             # /chartsettings from the message's state; no re-render.

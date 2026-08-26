@@ -1819,6 +1819,7 @@ def test_multi_chart_job_posts_every_chart_in_order_names_the_misses_and_reuses_
     assert rendered == ["MLTA", "MLTB"]
     sent = calls[-1]
     assert sent["content"] == "MLTA · MLTB · Daily\nSkipped: ZZZZQ (no bars)"
+    assert "components" not in sent            # no components_fn passed here
     assert [fn.split("_")[0] for _, fn in sent["pngs"]] == ["MLTA", "MLTB"]          # order asked, misses out
     assert all(png.startswith(PNG_MAGIC) for png, _ in sent["pngs"])
     # second call: both hits, nothing re-rendered
@@ -1867,7 +1868,7 @@ def test_endpoint_charts_defers_schedules_the_multi_job_and_counts_every_chart_a
     assert r == {"type": 5}
     items, kw = seen[-1]
     assert [req.ticker for req, _ in items] == ["NVDA", "AMD"] and all(isinstance(p, dict) for _, p in items)
-    assert kw["edit_fn"] is rt.di.edit_original and "components_fn" not in kw
+    assert kw["edit_fn"] is rt.di.edit_original and kw["components_fn"] is rt.di.multi_components
     # two charts used 2 of 3; a further two-chart call does not fit
     r = _post(client, sk, body).json()
     assert r["type"] == 4 and r["data"]["flags"] == 64 and r["data"]["content"].startswith("Slow down")
@@ -2014,3 +2015,97 @@ def test_followup_ephemeral_posts_privately_and_never_raises():
     class Boom:
         def post(self, *a, **k): raise RuntimeError("network")
     assert followup_ephemeral("123", "tok", "x", client=Boom()) is False
+
+
+# ── /charts: one timeframe row for the whole set, and concurrent renders ──
+
+def test_the_charts_row_flips_every_symbol_and_round_trips_through_its_button():
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    reqs = [di.ChartRequest(t, "D") for t in ("NVDA", "AMD", "AVGO")]
+    rows = di.multi_components([(q, dict(p.DEFAULTS)) for q in reqs])
+    assert len(rows) == 1                                        # exactly one row
+    ids = [c["custom_id"] for c in rows[0]["components"]]
+    assert len(ids) == len(set(ids)) and all(len(i) <= di.CUSTOM_ID_MAX for i in ids)
+    labels = [c["label"] for c in rows[0]["components"]]
+    assert labels == [l for _, l in di.BUTTON_TFS]
+    active = [c for c in rows[0]["components"] if c["style"] == di._STYLE_PRIMARY]
+    assert len(active) == 1 and active[0]["label"] == "D"        # the timeframe shown
+    back = di.parse_multi_component({"data": {"custom_id": [i for i, c in zip(ids, rows[0]["components"]) if c["label"] == "W"][0]}})
+    assert [q.ticker for q in back] == ["NVDA", "AMD", "AVGO"] and {q.tf for q in back} == {"W"}
+    # a breadth set offers only the timeframes it has
+    b = di.multi_components([(di.ChartRequest("UCTA5", "D", daily_only=True), dict(p.DEFAULTS))])
+    assert [c["label"] for c in b[0]["components"]] == ["D", "W"]
+    # rubbish never parses
+    for bad in ("m2|NVDA|2h", "m2|NVDA", "m2||D", "m2|A+B+C+D+E|D", "m2|NV DA|D", "c2|NVDA|D"):
+        with pytest.raises(di.CommandError):
+            di.parse_multi_component({"data": {"custom_id": bad}})
+
+
+def test_a_charts_set_renders_concurrently_and_waits_for_a_slot_instead_of_reporting_busy(monkeypatch):
+    """Four charts of ONE request compete for the same render slots. Sequential
+    they cost 4x one chart; grabbing slots non-blocking they would report three
+    of themselves 'busy'."""
+    import threading, time as _t
+    from api.services.discord_interactions import run_multi_chart_job, ChartRequest, RENDER_SLOTS
+    from api.services import discord_chart_prefs as p
+    live, peak = [0], [0]
+    lock = threading.Lock()
+    def house_fn(ticker, tf, stats, opts):
+        with lock:
+            live[0] += 1; peak[0] = max(peak[0], live[0])
+        _t.sleep(0.25)
+        with lock:
+            live[0] -= 1
+        return PNG_MAGIC + ticker.encode()
+    calls = []
+    items = [(ChartRequest(t, "D"), dict(p.DEFAULTS)) for t in ("CNCA", "CNCB", "CNCC", "CNCD")]
+    t0 = _t.time()
+    assert run_multi_chart_job("1", "t", items, bars_fn=lambda *a: daily_bars(20),
+                               render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=lambda a, b, **k: calls.append(k) or True,
+                               house_fn=house_fn, components_fn=lambda it: []) == "ok"
+    elapsed = _t.time() - t0
+    assert peak[0] > 1, "the charts of one request rendered one after another"
+    assert elapsed < 0.9, f"4 x 0.25s took {elapsed:.2f}s — not concurrent"
+    assert [fn.split("_")[0] for _, fn in calls[-1]["pngs"]] == ["CNCA", "CNCB", "CNCC", "CNCD"]   # order asked
+    # every slot returned
+    got = [RENDER_SLOTS.acquire(blocking=False) for _ in range(4)]
+    assert all(got), "a render slot leaked"
+    for _ in got:
+        RENDER_SLOTS.release()
+
+
+def test_endpoint_charts_button_reruns_the_set_and_updates_the_same_message(monkeypatch):
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "20/60")
+    client, rt = _app_client()
+    seen = []
+    monkeypatch.setattr(rt.di, "run_multi_chart_job", lambda app_id, token, items, **k: seen.append((items, k)) or "ok")
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("a /charts button is not a single chart"))
+    rows = di.multi_components([(di.ChartRequest(t, "D"), dict(p.DEFAULTS)) for t in ("NVDA", "AMD")])
+    weekly = [c for c in rows[0]["components"] if c["label"] == "W"][0]
+    click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "5150"}},
+             "message": {"id": "m1", "content": "NVDA · AMD · Daily"},
+             "data": {"custom_id": weekly["custom_id"], "component_type": 2}}
+    r = _post(client, sk, click).json()
+    assert r == {"type": 6}                                    # edits the message it sits on
+    items, kw = seen[-1]
+    assert [q.ticker for q, _ in items] == ["NVDA", "AMD"] and {q.tf for q, _ in items} == {"W"}
+    assert kw["components_fn"] is rt.di.multi_components       # the row comes back with the new charts
+
+
+def test_the_charts_row_fits_the_id_limit_by_construction_and_the_backstop_still_works():
+    """The /charts id carries only symbols + timeframe, so no real request can
+    approach 100 characters — DERIVED here rather than asserted in a comment.
+    The length backstop in multi_components cannot fire on real input, so it is
+    exercised directly: an untested branch is not protection."""
+    from api.services import discord_interactions as di
+    worst = [(di.ChartRequest("A" * 12, "D"), None) for _ in range(di.MULTI_MAX)]
+    ids = [c["custom_id"] for c in di.multi_components(worst)[0]["components"]]
+    assert ids and max(len(i) for i in ids) <= di.CUSTOM_ID_MAX
+    assert max(len(i) for i in ids) < 70, "the row is close to the limit; re-derive before raising MULTI_MAX"
+    # the backstop: only reachable by construction, never by parse_multi_component
+    absurd = [(di.ChartRequest("B" * 12, "D"), None)] * 12
+    assert di.multi_components(absurd) == []

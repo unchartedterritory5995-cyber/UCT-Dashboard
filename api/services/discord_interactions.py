@@ -14,6 +14,7 @@ import re
 import threading
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
@@ -347,6 +348,8 @@ def component_kind(interaction: dict) -> str:
     head = cid.split("|", 1)[0]
     if head == ACTIVITY_PREFIX:
         return "activity"
+    if head == MULTI_PREFIX:
+        return "charts"
     if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK):
         return "chart"
     raise CommandError("Unknown button.")
@@ -471,6 +474,52 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     return [{"type": 1, "components": tfs}, {"type": 1, "components": [zoom_sel]},
             {"type": 1, "components": [ind_sel]}, {"type": 1, "components": [look_sel]},
             {"type": 1, "components": row5}]
+
+
+MULTI_PREFIX = "m2"              # /charts timeframe row: m2|SYM+SYM+SYM|tf
+
+
+def multi_components(items: list, guild_id: str | None = None) -> list:
+    """ONE row under a /charts reply: the timeframes, applied to the whole set.
+    Four charts' individual state does not fit a control, but the set's shared
+    timeframe does.
+
+    The id carries only the symbols and the timeframe, so the WORST case a real
+    request can reach is MULTI_MAX 12-character tickers = 56 characters, well
+    inside Discord's 100 (`test_the_charts_row_fits_the_id_limit_by_construction`
+    derives that rather than trusting this sentence). The length check below is
+    therefore a BACKSTOP, not a live gate - it earns its line the day MULTI_MAX
+    or the ticker length grows, and it is exercised directly by that same test
+    so it is not an untested branch."""
+    reqs = [it[0] if isinstance(it, tuple) else it for it in items]
+    if not reqs:
+        return []
+    syms = "+".join(r.ticker for r in reqs)
+    tf_now = reqs[0].tf
+    daily_only = any(r.daily_only for r in reqs)
+    choices = [(tf, label) for tf, label in BUTTON_TFS if not daily_only or tf in ("D", "W")]
+    row = []
+    for tf, label in choices:
+        cid = f"{MULTI_PREFIX}|{syms}|{tf}"
+        if len(cid) > CUSTOM_ID_MAX:
+            return []
+        row.append({"type": 2, "style": _STYLE_PRIMARY if tf == tf_now else _STYLE_SECONDARY,
+                    "label": label, "custom_id": cid})
+    return [{"type": 1, "components": row}] if row else []
+
+
+def parse_multi_component(interaction: dict) -> list:
+    """A /charts timeframe button -> the same symbols at the new timeframe."""
+    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    parts = cid.split("|")
+    if len(parts) != 3 or parts[0] != MULTI_PREFIX:
+        raise CommandError("Unknown button.")
+    tickers = [t for t in parts[1].split("+") if t]
+    if not tickers or len(tickers) > MULTI_MAX or parts[2] not in WINDOW:
+        raise CommandError("Unknown button.")
+    if any(not _TICKER_RE.match(t) for t in tickers):
+        raise CommandError("Unknown button.")
+    return [ChartRequest(ticker=t, tf=parts[2]) for t in tickers]
 
 
 def parse_autocomplete(interaction: dict) -> str:
@@ -711,9 +760,15 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
-                  bars_fn, render_fn, house_fn=None, quote_fn=None) -> tuple:
+                  bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0) -> tuple:
     """ONE chart: (outcome, png, filename). outcome = ok | busy | no_bars |
     render_failed. Takes a render slot for the duration; never raises.
+
+    `slot_wait` seconds to WAIT for a slot instead of answering "busy". A
+    single /chart answers immediately (0.0): the member is watching one reply
+    and a fast "try again" beats a spinner. The charts of ONE /charts request
+    compete with each other for the same slots, so they wait - otherwise asking
+    for four charts would report three of them busy.
     Daily bars first (stats + "does this symbol exist") → the house render →
     only if that yields nothing, the timeframe's bars → the mplfinance fallback."""
     def _fetch(tf, n):
@@ -732,7 +787,8 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
             time.sleep(BARS_RETRY_DELAY_S)
         return None
 
-    if not RENDER_SLOTS.acquire(blocking=False):
+    got = RENDER_SLOTS.acquire(timeout=slot_wait) if slot_wait > 0 else RENDER_SLOTS.acquire(blocking=False)
+    if not got:
         return ("busy", None, None)
     try:
         if req.tf == "D":
@@ -785,29 +841,43 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         RENDER_SLOTS.release()
 
 
+MULTI_SLOT_WAIT_S = 25.0         # how long one chart of a /charts set waits for a render slot
+
+
 def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render_fn, edit_fn,
-                        house_fn=None, quote_fn=None) -> str:
+                        house_fn=None, quote_fn=None, components_fn=None) -> str:
     """/charts A B C: one message, one attachment per symbol, in the order
     asked. `items` = [(ChartRequest, prefs), ...] (prefs per chart: a breadth
-    symbol has its own). No controls (the state of four charts does not fit a
-    button); a symbol that fails is named, never silently dropped. Returns
-    ok | no_bars | error."""
+    symbol has its own). A symbol that fails is named, never silently dropped.
+    `components_fn(items) -> rows` adds the timeframe row. Returns
+    ok | no_bars | error.
+
+    The charts are produced CONCURRENTLY (bounded by the same RENDER_SLOTS the
+    single command uses, waited for rather than skipped) - four charts should
+    cost about one chart's wall clock, not four."""
+    def _one(item):
+        req, prefs = item
+        prefs = {**prefs_mod.DEFAULTS, **(prefs or {})}
+        options = prefs_mod.render_options(prefs, req.tf)
+        key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+        hit = png_cache.get(key)
+        if hit:
+            return (req, "ok", hit[0], hit[1])
+        r = png_cache.single_flight(
+            key, lambda: produce_chart(req, options, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                       house_fn=house_fn, quote_fn=quote_fn, slot_wait=MULTI_SLOT_WAIT_S),
+            ttl_s=png_cache.ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+        return (req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None)
+
     try:
-        results = []
-        for req, prefs in items:
-            prefs = {**prefs_mod.DEFAULTS, **(prefs or {})}
-            options = prefs_mod.render_options(prefs, req.tf)
-            key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
-            hit = png_cache.get(key)
-            if hit:
-                results.append((req, "ok", hit[0], hit[1]))
-                continue
-            r = png_cache.single_flight(
-                key, lambda req=req, options=options, prefs=prefs: produce_chart(
-                    req, options, prefs, bars_fn=bars_fn, render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn),
-                ttl_s=png_cache.ttl_for(req.tf),
-                cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
-            results.append((req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None))
+        if len(items) < 2:
+            results = [_one(it) for it in items]
+        else:
+            # ex.map keeps the order asked, which the reply and the attachment
+            # list both depend on.
+            with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
+                results = list(ex.map(_one, items))
         label = TF_LABEL[items[0][0].tf]
         oks = [(png, fn) for _, o, png, fn in results if o == "ok"]
         why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
@@ -818,7 +888,8 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o == "ok") + f" · {label}"
         if skipped:
             content += "\nSkipped: " + ", ".join(skipped)
-        edit_fn(app_id, token, content=content, pngs=oks)
+        extra = {"components": components_fn(items)} if components_fn is not None else {}
+        edit_fn(app_id, token, content=content, pngs=oks, **extra)
         return "ok"
     except Exception:  # noqa: BLE001
         log.exception("[discord-chart] multi job failed")
