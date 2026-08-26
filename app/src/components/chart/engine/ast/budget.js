@@ -49,6 +49,10 @@
 // nobody reads the asymmetry as two different designs.
 
 import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
+// ⭐ THE CAP READS THE SESSION CONSTANT FROM THE TABLE'S OWN READER, not from a
+// digit of its own — see `DEFAULT_BUDGET`. `parse.js` is already in this module's
+// graph through `interpret.js`, so this adds no reach: it names what was implicit.
+import { SESSION_MAX_BARS } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the caps
@@ -61,21 +65,18 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  *                     past anything a human composes and far short of anything
  *                     that blocks a frame at the 5,000-bar cap. Measured: the
  *                     whole committed AST corpus tops out at NINE nodes.
- *  maxLookback 550  — the chart holds 5,000 bars on every timeframe, and a
- *                     550-bar warmup still leaves 89% of a full window drawable.
- *                     Above that the user sees a mostly-empty pane and reads it
- *                     as broken. Measured: the corpus tops out at 524.
- *                     ⚠️ 500 UNTIL 2026-08-22, and the move is recorded rather
+ *  maxLookback      — the chart holds 5,000 bars on every timeframe, and the
+ *                     warmup a formula may ask for is capped so the user is not
+ *                     left reading a mostly-empty pane as broken. ⭐⭐ IT IS
+ *                     DERIVED, NOT TYPED: `Math.max(NESTED_RECURRENCE_WARMUP,
+ *                     SESSION_MAX_BARS)` — the larger of the two families it has
+ *                     to hold. See both constants below.
+ *                     ⚠️ 500 UNTIL 2026-08-22, and that move is recorded rather
  *                     than smoothed over: a NESTED recurrence legitimately needs
  *                     TWO warmups. Script 10's trailing stop is `accum` inside
  *                     `accum` — the outer needs the inner correct across its own
  *                     250-bar window — so 250 + 250 + ATR's 22 + 1 = 524, and the
  *                     old cap refused the whole trailing-stop family by 24 bars.
- *                     ⛔ The UX rule did NOT change, only the number it yields:
- *                     90% became 89%, which is half a percent of one pane against
- *                     every SuperTrend-shaped script a member can paste. If this
- *                     ever needs to move again, move it for a reason of the same
- *                     kind — never to make one script pass.
  *  maxSeriesRefs 8  — spec §5's perf budget is ≤60 series and ≤8 panes per
  *                     chart; eight base-series reads inside ONE definition is
  *                     already the whole pane budget's worth of data in a single
@@ -102,9 +103,40 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  *  exceed 8 and `budget:series` would be a latch nothing can trip — the exact
  *  shape of `lesson_gate_that_cannot_fail`.
  */
+/** The nested-recurrence family's warmup — the driver the lookback cap had
+ *  BEFORE a session had to fit inside it, kept and named rather than deleted.
+ *  `accum` inside `accum` needs TWO warmups: 250 + 250 + ATR's 22 + 1 = 524,
+ *  rounded up.
+ *
+ *  ⛔ IT IS STILL LOAD-BEARING. If a corrected session were ever SHORTER than
+ *  this, dropping it would silently refuse the whole trailing-stop family the
+ *  2026-08-22 move was made to admit. `Math.max` is what keeps both promises. */
+const NESTED_RECURRENCE_WARMUP = 550
+
+/** ⭐⭐ THE LOOKBACK CAP — DERIVED FROM THE LARGER OF THE TWO FAMILIES IT HOLDS,
+ *  AND NEVER TYPED. Controller ruling O7, 2026-08-26.
+ *
+ *  ⛔ WHY IT MOVED, so the next reader does not see a raised budget and assume
+ *  somebody was making a script pass. `lookback: 'session'` bounds to one ET
+ *  calendar day (`closedTable.json::sessionMaxBars`), which is LONGER than
+ *  `NESTED_RECURRENCE_WARMUP`. Under the old cap every session-anchored call
+ *  refused `budget:lookback` at the save door and at compute — the declared
+ *  grammar shipped unusable, which is worse than the depth it costs. The note
+ *  above forbids moving this *"to make one script pass"*, and that prohibition
+ *  is right; this is not one script but an entire declared grammar the spec
+ *  requires, and the number comes from this engine's own definition of a session
+ *  rather than being chosen to fit. That is the distinction the note protects.
+ *
+ *  📏 THE MEASURED COST, at the site rather than only in a report: on the
+ *  5,000-bar window the chart holds, a 550-bar warmup left **89%** drawable and
+ *  one session leaves **81%**. Eight points of one pane, against a grammar that
+ *  otherwise cannot be used at all. Reversible in one constant.
+ *
+ *  ⚠️ THE UX RULE DID NOT CHANGE, only the number it yields — the same sentence
+ *  the 500 → 550 move was recorded with. */
 export const DEFAULT_BUDGET = Object.freeze({
   maxNodes: 128,
-  maxLookback: 550,
+  maxLookback: Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS),
   maxSeriesRefs: 8,
 })
 

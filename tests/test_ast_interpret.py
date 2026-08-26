@@ -1109,12 +1109,22 @@ def test_the_offset_ceiling_IS_the_existing_lookback_budget():
     arrangement in which they cannot drift apart. And `effective_budget` clamps
     DOWNWARD ONLY, so a stored blob cannot raise it.
     """
+    from api.services import ast_budget as _ab
+    _cap = _ab.DEFAULT_BUDGET["maxLookback"]
     assert ast_interpret.max_lookback(OFF(100000, SER("close"))) == 100000
     with pytest.raises(ast_interpret.TableRefusal) as exc:
         run(OFF(100000, SER("close")))
     assert exc.value.guard == "budget:lookback"
+    # ⚰️ THIS WAS `OFF(400) + sma(…, 200)` — a hand-typed 600 chosen to clear a cap
+    # of 550. When the cap moved to hold one ET session the pair stopped tripping
+    # it and this line went GREEN while measuring nothing, which is the very
+    # second-authority defect the note below already records one boundary later.
+    # The offset and the window are now derived FROM the cap, and each half is
+    # asserted to be UNDER it so the composition is what refuses.
+    _off, _win = _cap - 100, 200
+    assert _off + _win > _cap and _off <= _cap and _win <= _cap
     with pytest.raises(ast_interpret.TableRefusal) as deep:
-        run(CALL("sma", OFF(400, SER("close")), NUM(200)))
+        run(CALL("sma", OFF(_off, SER("close")), NUM(_win)))
     assert deep.value.guard == "budget:lookback"
     # ⛔ THE BOUNDARY IS DERIVED, NOT TYPED. This read `499`/`501` against a
     # hard-typed 500 until 2026-08-23, when the JS lane raised the cap to 550

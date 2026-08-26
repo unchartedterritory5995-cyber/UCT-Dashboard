@@ -132,18 +132,56 @@ def test_the_two_lanes_hold_THE_SAME_THREE_NUMBERS_read_not_retyped():
     exact shape of the B5 defect where an alert naming a JS-only indicator could
     be STORED and could never FIRE.
 
-    The JS source is parsed with a narrow regex over its ``DEFAULT_BUDGET``
-    literal rather than executed, because this lane has no JS runtime — and the
-    parse is asserted NON-VACUOUS first, so a regex that stopped matching cannot
-    read as agreement.
+    The JS source is parsed rather than executed, because this lane has no JS
+    runtime — and the parse is asserted NON-VACUOUS first (every cap key resolved),
+    so a regex that stopped matching cannot read as agreement.
+
+    ⭐ ONE CAP IS AN EXPRESSION, NOT A DIGIT. ``maxLookback`` is
+    ``Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)`` in both lanes
+    (controller ruling O7) — a literal there would be two numbers that must agree,
+    typed in two places. So this resolves the named constants out of the JS source
+    and out of the shared manifest and evaluates the same expression. ⛔ The
+    resolution is DECLARED per name: an unrecognised name leaves the key
+    unresolved, which the totality check below turns into a failure rather than a
+    silent skip.
     """
     import re
     src = io.open(_JS_BUDGET, encoding="utf-8").read().replace("\r\n", "\n")
     block = re.search(r"export const DEFAULT_BUDGET = Object\.freeze\(\{(.*?)\}\)",
                       src, re.S)
     assert block, "budget.js no longer declares DEFAULT_BUDGET in the shape this reads"
-    found = {k: int(v) for k, v in re.findall(r"(\w+)\s*:\s*(\d+)", block.group(1))}
+
+    def _js_const(name):
+        m = re.search(rf"const {name} = (\d+)\b", src)
+        assert m, f"budget.js declares no `const {name}` this probe can resolve"
+        return int(m.group(1))
+
+    names = {
+        "NESTED_RECURRENCE_WARMUP": lambda: _js_const("NESTED_RECURRENCE_WARMUP"),
+        "SESSION_MAX_BARS": lambda: ast_interpret.SESSION_MAX_BARS,
+    }
+
+    found = {}
+    # ⚠️ LINE-ANCHORED, not comma-split: `Math.max(a, b)` CONTAINS a comma, and a
+    # `[^,]+` expression capture silently truncated it to `Math.max(a` — resolving
+    # nothing for that key. The totality assertion below is what surfaced it.
+    for line in block.group(1).split("\n"):
+        m_kv = re.match(r"\s*(\w+)\s*:\s*(.+?),\s*$", line)
+        if not m_kv:
+            continue
+        key, expr = m_kv.group(1), m_kv.group(2).strip()
+        if expr.isdigit():
+            found[key] = int(expr)
+            continue
+        m = re.fullmatch(r"Math\.max\((\w+),\s*(\w+)\)", expr)
+        if m and m.group(1) in names and m.group(2) in names:
+            found[key] = max(names[m.group(1)](), names[m.group(2)]())
+
     assert found, "the DEFAULT_BUDGET block parsed to NOTHING — a vacuous agreement"
+    assert set(found) == set(ast_budget.DEFAULT_BUDGET), (
+        "a cap in budget.js resolved to nothing this probe understands, so the "
+        f"agreement below would silently skip it: resolved={sorted(found)} "
+        f"declared={sorted(ast_budget.DEFAULT_BUDGET)}")
     assert found == dict(ast_budget.DEFAULT_BUDGET), (
         f"the lanes disagree about the caps: js={found} py={dict(ast_budget.DEFAULT_BUDGET)}")
 
@@ -249,14 +287,25 @@ def test_each_cap_admits_AT_the_boundary_and_refuses_ONE_over_it(cap, guard):
 
 
 def test_the_lookback_budget_is_a_TREE_SUM_not_the_largest_single_argument():
-    """``sma(sma(close, 300), 300)`` looks back 600 bars, not 300. A budget that
-    read the largest argument would admit a formula needing more history than the
-    chart holds — and a column that is NaN for its whole visible range is a line
-    the user cannot see and cannot debug."""
-    inner = CALL("sma", SER("close"), NUM(300))
-    assert ast_interpret.max_lookback(CALL("sma", inner, NUM(300))) == 600
+    """``sma(sma(close, n), n)`` looks back 2n bars, not n. A budget that read the
+    largest argument would admit a formula needing more history than the chart
+    holds — and a column that is NaN for its whole visible range is a line the
+    user cannot see and cannot debug.
+
+    ⚰️ THE WINDOW WAS THE LITERAL 300, chosen so 600 cleared a cap of 550. When the
+    cap moved to hold one ET session, 600 stopped tripping it and this case went
+    GREEN while measuring nothing — a hand-typed number beside the cap it was
+    derived from, which is the defect this whole file exists to refuse. ``n`` now
+    comes FROM the cap, so the pair straddles it wherever it sits.
+    """
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    n = -(-(cap + 1) // 2)                 # ceil((cap + 1) / 2)
+    assert 2 * n > cap, "the nested pair must exceed the cap"
+    assert n <= cap, "…and one leg alone must not"
+    inner = CALL("sma", SER("close"), NUM(n))
+    assert ast_interpret.max_lookback(CALL("sma", inner, NUM(n))) == 2 * n
     assert ast_budget.budget_result(inner, None)["ok"] is True
-    assert ast_budget.budget_result(CALL("sma", inner, NUM(300)), None)["guard"] == "budget:lookback"
+    assert ast_budget.budget_result(CALL("sma", inner, NUM(n)), None)["guard"] == "budget:lookback"
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

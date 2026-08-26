@@ -299,50 +299,89 @@ def test_the_python_linter_reads_a_MULTIPLIED_window_like_every_other_reader():
 
 
 # --------------------------------------------------------------------------- #
-# 🔴 THE COLLISION THIS NUMBER MAKES VISIBLE — pinned, not hidden
+# ⭐ THE CAP HOLDS ONE SESSION — AND IS DERIVED FROM IT, NOT TYPED TO MATCH IT
 # --------------------------------------------------------------------------- #
 
-def test_a_session_window_does_not_fit_the_lookback_budget_and_that_is_DECLARED():
-    """🔴 A MEASURED PRODUCT CONSTRAINT, NOT A BUG IN THIS NUMBER.
+def test_the_lookback_cap_HOLDS_at_least_one_session():
+    """⭐ CONTROLLER RULING O7 (2026-08-26). A grammar that always refuses is not
+    a shipped grammar.
 
-    One extended ET session is 960 one-minute bars; ``DEFAULT_BUDGET.maxLookback``
-    is 550. So a tree calling a ``lookback: "session"`` function refuses
-    ``budget:lookback``, at the save door and at compute. The brief's 390 hid this
-    by declaring a window shorter than the maths reads — which is not a fix, it is
-    the defect wearing the fix's clothes.
+    One extended ET session is longer than the cap the budget carried
+    (``NESTED_RECURRENCE_WARMUP``), so before this ruling a tree calling a
+    ``lookback: "session"`` function refused ``budget:lookback`` at the save door
+    AND at compute — the declared grammar could never be used. The cap now holds
+    at least one whole session.
 
-    This case exists so the collision cannot be rediscovered by a member: it is a
-    ruling the owner of the cap has to make (raise it to hold one session, or
-    state that session-anchored functions do not ship on 1-minute bars). When that
-    ruling lands, THIS TEST IS THE ONE TO EDIT — and it names both numbers, so the
-    edit cannot be made without seeing them.
+    ⛔ THE CAP WAS NOT MOVED "TO MAKE ONE SCRIPT PASS", which its own note
+    forbids. It was moved for a reason of the same KIND as the last move: a whole
+    declared grammar the spec requires, with the number derived from this
+    engine's own definition of a session rather than chosen to fit.
     """
     cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
-    assert ast_lint.SESSION_MAX_BARS > cap, (
-        f"the session window ({ast_lint.SESSION_MAX_BARS}) now fits the lookback "
-        f"budget ({cap}). If the cap was raised deliberately, delete this case and "
-        "say so in the record; if the session was SHRUNK into agreement, read this "
-        "file's header — 390 is the regular-hours session, not this engine's.")
+    assert cap >= ast_lint.SESSION_MAX_BARS, (
+        f"the lookback budget ({cap}) is smaller than one session "
+        f"({ast_lint.SESSION_MAX_BARS}), so every session-anchored call refuses "
+        "`budget:lookback` and the grammar ships unusable")
 
-    # …and the refusal that will arrive, through the same cap, on the one shape
-    # that can reach `max_lookback` with a session-sized window today.
-    too_far = {"type": "offset", "value": ast_lint.SESSION_MAX_BARS, "args": [SER]}
-    assert ast_interpret.max_lookback(too_far) == ast_lint.SESSION_MAX_BARS
+    # …and the refusal is really gone, measured through the same cap on the one
+    # shape that can reach `max_lookback` with a session-sized window today.
+    session_deep = {"type": "offset", "value": ast_lint.SESSION_MAX_BARS, "args": [SER]}
+    assert ast_interpret.max_lookback(session_deep) == ast_lint.SESSION_MAX_BARS
+    ast_budget.check_budget(session_deep)          # must NOT raise
+
+    # ⛔ THE CAP IS STILL A GUARD, NOT A LATCH. One bar past it still refuses —
+    # `lesson_gate_that_cannot_fail` is what this line is against.
+    too_deep = {"type": "offset", "value": cap + 1, "args": [SER]}
     with pytest.raises(ast_budget.BudgetExceeded) as exc:
-        ast_budget.check_budget(too_far)
+        ast_budget.check_budget(too_deep)
     assert exc.value.guard == ast_budget.CAP_GUARD["maxLookback"]
 
 
-def test_the_budget_INHERITS_the_session_bound_and_holds_no_reader_of_its_own():
-    """⭐ THE POINT OF THIS CASE IS THE ABSENCE OF A CHANGE.
+def test_the_cap_is_DERIVED_from_the_session_constant_and_never_typed():
+    """⛔⛔ THE BINDING CONDITION OF THE RULING, AND THE REASON FOR IT.
 
-    ``ast_budget`` learned nothing about ``session``: it thresholds
-    ``max_lookback``, and ``max_lookback`` learned it once, in ``ast_interpret``.
-    A ``session`` arm added there would be the second authority over one window
-    that this engine keeps paying for — and it would be invisible, because it
-    would agree with the first one on the day it was written.
+    Two numbers that must agree, typed in two places, is this repo's most
+    repeated defect — and it would be a poor thing to introduce in the very
+    change that removed the FIFTH hand-written copy of the lookback grammar. The
+    cap is ``max(<the nested-recurrence floor>, <one session>)``, so if the
+    session constant ever moves the cap follows on its own.
+
+    ⚠️ THE `max` IS LOAD-BEARING IN BOTH DIRECTIONS. If a corrected session were
+    ever SHORTER than the floor, dropping the floor would silently refuse the
+    nested-recurrence family this cap was raised for in the first place (measured
+    at 524 bars: `accum` inside `accum`, 250 + 250 + ATR's 22 + 1).
+    """
+    floor = ast_budget.NESTED_RECURRENCE_WARMUP
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    # Recomputed from the manifest READ HERE, not from the module's constant, so
+    # a typed literal that happens to match today goes red the day the table moves.
+    assert cap == max(floor, TABLE["sessionMaxBars"])
+    assert floor >= 524, (
+        "the nested-recurrence floor no longer holds the family it was derived "
+        "for: `accum` inside `accum` is 250 + 250 + ATR's 22 + 1")
+
+    # ⛔ AND NEITHER LANE MAY SPELL THE CAP AS A LITERAL. A source scan, because
+    # an equality test cannot tell a derivation from a coincidence.
+    py_src = io.open(pathlib.Path(ast_budget.__file__), encoding="utf-8").read()
+    js_src = io.open(JS_DIR / "budget.js", encoding="utf-8").read()
+    for label, src in (("ast_budget.py", py_src), ("budget.js", js_src)):
+        assert not re.search(rf"(?<![\d.]){cap}(?![\d.])", src), (
+            f"{label} spells the lookback cap as the literal {cap} instead of "
+            "deriving it from the session constant — two numbers that must agree, "
+            "typed in two places")
+
+
+def test_the_budget_holds_no_READER_of_a_lookback_declaration():
+    """⭐ THE DISTINCTION THE RULING TURNS ON, AND IT IS NARROW.
+
+    The budget MAY read the session constant — its CAP is derived from it. What
+    it must never hold is a second READER of a ``lookback`` declaration: the
+    thing that turns ``"session"`` into a number is ``max_lookback``, once, and a
+    ``session`` arm inside the budget would be the second authority over one
+    window that this engine keeps paying for.
     """
     src = io.open(pathlib.Path(ast_budget.__file__), encoding="utf-8").read()
-    assert "session" not in src, (
-        "ast_budget.py names the session window itself instead of inheriting it "
-        "from the measurement it thresholds")
+    for reader in ('get("lookback")', '["lookback"]', "SESSION_LOOKBACK"):
+        assert reader not in src, (
+            f"ast_budget.py resolves a lookback declaration itself ({reader}) "
+            "instead of thresholding the measurement that already does")

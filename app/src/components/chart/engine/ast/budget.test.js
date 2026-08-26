@@ -242,14 +242,23 @@ describe('a budget is checked at REGISTRATION and again at COMPUTE', () => {
   })
 
   it('the lookback budget is a TREE SUM, not the largest single argument', () => {
-    // `sma(sma(close, 300), 300)` looks back 600 bars, not 300. A budget that read
-    // the largest argument would admit a formula that needs more history than the
+    // `sma(sma(close, n), n)` looks back 2n bars, not n. A budget that read the
+    // largest argument would admit a formula that needs more history than the
     // chart holds — and a column that is NaN for its whole visible range is a line
     // the user cannot see and cannot debug.
-    expect(maxLookback(parseFormula('sma(sma(close, 300), 300)').ast)).toBe(600)
-    // …and the budget REFUSES it, while neither 300 alone comes near the cap.
-    expect(checkBudget(parseFormula('sma(close, 300)').ast, null).ok).toBe(true)
-    expect(checkBudget(parseFormula('sma(sma(close, 300), 300)').ast, null))
+    //
+    // ⚰️ THE WINDOW WAS THE LITERAL 300, CHOSEN SO 600 CLEARED A CAP OF 550. When
+    // the cap moved to hold one session, 600 stopped tripping it and this case
+    // went green while measuring nothing — a hand-typed number beside the cap it
+    // was derived from. `n` is now derived FROM the cap, so the pair straddles it
+    // wherever it sits.
+    const cap = DEFAULT_BUDGET.maxLookback
+    const n = Math.ceil((cap + 1) / 2)
+    expect(2 * n).toBeGreaterThan(cap)      // the nest must exceed it…
+    expect(n).toBeLessThanOrEqual(cap)      // …and one leg alone must not.
+    expect(maxLookback(parseFormula(`sma(sma(close, ${n}), ${n})`).ast)).toBe(2 * n)
+    expect(checkBudget(parseFormula(`sma(close, ${n})`).ast, null).ok).toBe(true)
+    expect(checkBudget(parseFormula(`sma(sma(close, ${n}), ${n})`).ast, null))
       .toMatchObject({ ok: false, guard: 'budget:lookback' })
   })
 })
@@ -553,41 +562,67 @@ function generated(spec) {
 // --------------------------------------------------------------------------- //
 
 describe('the `session` lookback and the lookback cap', () => {
-  it('the budget inherits the session bound through the SHARED maxLookback — there is no second reader', () => {
-    // ⭐ THE POINT OF THIS CASE IS THE ABSENCE OF A CHANGE. `budget.js` learned
-    // nothing about `session`: it thresholds `maxLookback`, and `maxLookback`
-    // learned it once, in `interpret.js`. A `session` arm added HERE would be the
-    // second authority over one window that this whole engine keeps paying for.
-    const src = readSource('budget.js')
-    expect(src.includes('session'),
-      'budget.js names the session window itself instead of inheriting it from the ' +
-      'measurement it thresholds').toBe(false)
+  it('⭐ the cap HOLDS at least one session — the ruling that made the grammar usable', () => {
+    // ⭐ CONTROLLER RULING O7 (2026-08-26). One extended ET session is longer than
+    // the nested-recurrence warmup the cap used to be, so before this every
+    // `lookback: "session"` call refused `budget:lookback` at the save door AND at
+    // compute — a declared grammar that shipped unusable.
+    //
+    // ⛔ THE CAP WAS NOT MOVED "TO MAKE ONE SCRIPT PASS", which the note above it
+    // forbids. It moved for a reason of the same KIND as the 500 → 550 move: a
+    // whole declared grammar the spec requires, with the number derived from this
+    // engine's own definition of a session rather than chosen to fit.
+    expect(DEFAULT_BUDGET.maxLookback).toBeGreaterThanOrEqual(SESSION_MAX_BARS)
+
+    // …and the refusal is really gone, measured through the same cap on the one
+    // shape that can reach `maxLookback` with a session-sized window today.
+    const sessionDeep = { type: 'offset', value: SESSION_MAX_BARS, args: [{ type: 'series', name: 'close' }] }
+    expect(maxLookback(sessionDeep)).toBe(SESSION_MAX_BARS)
+    expect(checkBudget(sessionDeep, undefined).ok).toBe(true)
+
+    // ⛔ AND THE CAP IS STILL A GUARD, NOT A LATCH. One bar past it still refuses —
+    // `lesson_gate_that_cannot_fail` is what this line is against.
+    const tooDeep = { type: 'offset', value: DEFAULT_BUDGET.maxLookback + 1, args: [{ type: 'series', name: 'close' }] }
+    expect(checkBudget(tooDeep, undefined)).toMatchObject({ ok: false, guard: CAP_GUARD.maxLookback })
+    let guard = null
+    try { assertBudget(tooDeep, undefined) } catch (err) { guard = err.guard }
+    expect(guard, 'the SAFETY half must refuse it too, not just the UX half').toBe(CAP_GUARD.maxLookback)
   })
 
-  it('🔴 one ET session is LONGER than the lookback budget allows — a ruling, not a bug', () => {
-    // One extended ET session is 960 one-minute bars (04:00–20:00 ET); the cap is
-    // 550. So a tree calling a `lookback: "session"` function refuses
-    // `budget:lookback` — at the save door and at compute.
-    //
-    // ⛔ THE FIX IS NOT TO DECLARE A SHORTER WINDOW. A regular-hours 390 would
-    // slip under the cap by claiming the maths reads 570 fewer bars than it does,
-    // which is `_functions_warmup`'s one forbidden direction and the
-    // `sessionfirst lookback: 0` defect one task on.
-    //
-    // ⚠️ WHEN THE CAP'S OWNER RULES, THIS IS THE CASE TO EDIT — and it names both
-    // numbers, so the edit cannot be made without seeing them.
-    expect(SESSION_MAX_BARS).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
+  it('⛔⛔ the cap is DERIVED from the session constant, never typed to match it', () => {
+    // The binding condition of the ruling. Two numbers that must agree, typed in
+    // two places, is this repo's most repeated defect — and it would be a poor
+    // thing to introduce in the change that removed the FIFTH hand-written copy of
+    // the lookback grammar.
+    const src = readSource('budget.js')
+    const cap = DEFAULT_BUDGET.maxLookback
+    expect(new RegExp(`(?<![\\d.])${cap}(?![\\d.])`).test(src),
+      `budget.js spells the lookback cap as the literal ${cap} instead of deriving it ` +
+      'from the session constant',
+    ).toBe(false)
+    expect(src.includes('Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)'),
+      'the cap no longer reads as "the larger of the two families it holds"').toBe(true)
 
-    // …and the refusal that will arrive, measured through the same cap, on the
-    // one shape that can reach `maxLookback` with a session-sized window today.
-    const tooFar = { type: 'offset', value: SESSION_MAX_BARS, args: [{ type: 'series', name: 'close' }] }
-    expect(maxLookback(tooFar)).toBe(SESSION_MAX_BARS)
-    const result = checkBudget(tooFar, undefined)
-    expect([result.ok, result.guard]).toEqual([false, CAP_GUARD.maxLookback])
-    // …and the SAFETY half throws the same guard, so the refusal is not merely a
-    // UX string a compute path could walk past.
-    let guard = null
-    try { assertBudget(tooFar, undefined) } catch (err) { guard = err.guard }
-    expect(guard).toBe(CAP_GUARD.maxLookback)
+    // ⚠️ THE `Math.max` IS LOAD-BEARING IN BOTH DIRECTIONS. If a corrected session
+    // were ever SHORTER than the floor, dropping the floor would silently refuse
+    // the nested-recurrence family the 2026-08-22 move was made to admit.
+    const floor = Number(/const NESTED_RECURRENCE_WARMUP = (\d+)/.exec(src)?.[1])
+    expect(Number.isInteger(floor)).toBe(true)
+    expect(floor).toBeGreaterThanOrEqual(524)   // accum-in-accum: 250 + 250 + ATR's 22 + 1
+    expect(cap).toBe(Math.max(floor, SESSION_MAX_BARS))
+  })
+
+  it('the budget holds no READER of a lookback declaration — it thresholds the measurement', () => {
+    // ⭐ THE DISTINCTION THE RULING TURNS ON, AND IT IS NARROW. The budget MAY read
+    // the session CONSTANT — its cap is derived from it. What it must never hold is
+    // a second READER of a `lookback` declaration: the thing that turns `'session'`
+    // into a number is `maxLookback`, once, in `interpret.js`.
+    const src = readSource('budget.js')
+    for (const reader of ['spec.lookback', 'SESSION_LOOKBACK']) {
+      expect(src.includes(reader),
+        `budget.js resolves a lookback declaration itself (${reader}) instead of ` +
+        'thresholding the measurement that already does',
+      ).toBe(false)
+    }
   })
 })

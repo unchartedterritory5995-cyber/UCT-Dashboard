@@ -954,7 +954,12 @@ describe('the interpreter is PURE', () => {
     expect(budgetSrc.length).toBeGreaterThan(2000)
     const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))
     expect(budgetScan.findings, 'budget.js reached something outside pure arithmetic').toEqual([])
-    expect(budgetScan.imports).toEqual(['./interpret.js'])
+    // ⭐ `./parse.js` IS THE SAME EDGE `interpret.js` ALREADY DECLARES ABOVE, not a
+    // new module in the closure: the budget's lookback cap is derived from the
+    // session constant, and that constant is GRAMMAR, so it lives with the table
+    // where both the interpreter and the repaint linter can see it. Admitting an
+    // edge to a module already inside the scanned set widens nothing.
+    expect(budgetScan.imports.sort()).toEqual(['./interpret.js', './parse.js'])
 
     // ─── AND THE THIRD EDGE, ADDED BY PHASE F, MEASURED THE SAME WAY ────────
     //
@@ -1101,9 +1106,21 @@ describe('the bounded backward offset, evaluated', () => {
     try { col('close[100000]') } catch (e) { err = e }
     expect(err).toBeInstanceOf(TableRefusal)
     expect(err.guard).toBe('budget:lookback')
-    // and a deep tree is still bounded through the offset
+    // and a deep tree is still bounded through the offset.
+    //
+    // ⚰️ THE PAIR WAS `close[400]` + a 200 window — a hand-typed 600 chosen to
+    // clear a cap of 550. When the cap moved to hold one ET session the pair
+    // stopped tripping it and this line went GREEN while measuring nothing, which
+    // is the identical defect the note below already records one boundary later.
+    // Both halves are derived from the cap now, and each is asserted UNDER it so
+    // the COMPOSITION is what refuses.
+    const capForDeep = DEFAULT_BUDGET.maxLookback
+    const off = capForDeep - 100
+    const win = 200
+    expect(off + win).toBeGreaterThan(capForDeep)
+    expect(Math.max(off, win)).toBeLessThanOrEqual(capForDeep)
     let deep = null
-    try { col('sma(close[400], 200)') } catch (e) { deep = e }
+    try { col(`sma(close[${off}], ${win})`) } catch (e) { deep = e }
     expect(deep?.guard).toBe('budget:lookback')
     // ⛔ THE BOUNDARY IS DERIVED FROM THE CAP, NOT RETYPED BESIDE IT. This read
     // `close[499]` / `close[501]` against a hard-coded 500, so when the cap moved
