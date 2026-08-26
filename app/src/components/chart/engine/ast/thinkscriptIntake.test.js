@@ -12,16 +12,15 @@
 // below run on EVERY invocation, so an inbox verdict is never reported by a
 // bench that has stopped being able to tell one answer from another.
 //
-// ⏳ AND THE CONTROLS SAY WHAT THEY CAN HONESTLY SAY TODAY, WHICH IS NOT WHAT
-// THIS BENCH WILL EVENTUALLY ASSERT. The brief for this task specified two
-// controls — "a script this engine handles reports as translating, with a
-// saveable column" and "…and one it cannot reports `thinkscript:function` at
-// `HighestAll`" — and NEITHER can pass at W3.2: nothing translates yet, and no
-// function-level refusal exists until W3.4. Committing them would have shipped a
-// RED test file and called it a rail. What the bench can genuinely discriminate
-// today is a NAMED, POSITIONED refusal from the empty-source answer, and that is
-// what is asserted. ⭐ THE BRIEF'S TWO CONTROLS ARE THE W3.5 REPLACEMENT — swap
-// them in the moment the first script translates, and delete the `⏳` marker.
+// ✅ AND THE TWO CONTROLS W3.2 DEFERRED ARE IN. That task's header said they
+// "are the W3.5 replacement — swap them in the moment the first script
+// translates", and it was WRONG ABOUT THE TIMING IN BOTH DIRECTIONS: the
+// function-level refusal it expected at W3.4 fires at W3.3 (every unmapped call
+// refuses at its name), and a hand-written paste already translates all the way
+// to a SAVEABLE column, so the bench can discriminate all three answers now.
+// ⏳ WHAT IS STILL NOT TRUE: no file in the committed CORPUS translates — every
+// one of the 24 needs a thinkorswim function this task maps none of. That number
+// lives in `thinkscript.corpus.test.js`, which is where coverage is held still.
 
 import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -37,7 +36,7 @@ const FIXTURE = path.resolve(process.cwd(), 'src/components/chart/engine/ast/__f
 /** The `_`-prefixed roll-ups the generator writes beside the per-script entries.
  *  Declared HERE, where they are produced, so the corpus rail can split them off
  *  by prefix without a second copy of the list. */
-const ROLLUP_KEYS = ['_blocked', '_columns', '_guardsFired', '_saveable', '_translating']
+const ROLLUP_KEYS = ['_atLineOne', '_blocked', '_columns', '_guardsFired', '_saveable', '_translating']
 
 export function diagnose(source) {
   let out
@@ -74,6 +73,20 @@ export function diagnose(source) {
 }
 
 describe('the thinkScript intake bench can tell one answer from another', () => {
+  it('⭐ a script this engine handles reports as TRANSLATING, with a saveable column', () => {
+    // ⛔ THE CONTROL THAT MAKES THE OTHERS MEAN SOMETHING. Without a paste that
+    // gets all the way through, "it refused" is the only verdict the bench has
+    // ever produced and nobody can tell a working bench from a stuck one.
+    const d = diagnose('input len = 20;\ndef hi = Highest(high, 3);\nplot scan = close > open;\n')
+    expect(d.threw, 'the bench must never report a throw').toBe(undefined)
+    expect(d.translates).toBe(true)
+    expect(d.selectedFormula).toBe('close > open')
+    expect(d.folded).toEqual(['len=20'])
+    expect(d.downstream.ok).toBe(true)
+    expect(d.downstream.saveable).toBe(true)
+    expect(d.refusal).toBe(null)
+  })
+
   it('a paste it cannot read reports the GUARD, the LINE and the TOKEN, not just "no"', () => {
     // ⛔ The half that matters. "It refused" is satisfiable by a bench that
     // refuses everything at line 1 with no token; naming the token AT its column
@@ -81,10 +94,10 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
     const d = diagnose('def a = Average(close, 50);\nplot scan = close > a;\n')
     expect(d.threw, 'the bench must never report a throw').toBe(undefined)
     expect(d.translates).toBe(false)
-    expect(d.refusal.guard).toBe('thinkscript:unsupported')
+    expect(d.refusal.guard).toBe('thinkscript:function')
     expect(typeof d.refusal.line).toBe('number')
-    expect(d.refusal.token).toBe('def')
-    expect(d.refusal.column).toBe(1)
+    expect(d.refusal.token).toBe('Average')
+    expect(d.refusal.column).toBe(9)
   })
 
   it('…and an empty paste is a DIFFERENT named answer, so the bench is not one-note', () => {
@@ -98,12 +111,13 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
   })
 
   it('the report shape is complete even with nothing to report', () => {
-    const d = diagnose('plot x = close;')
+    const d = diagnose('plot x = Average(close, 50);')
     for (const k of ['translates', 'outputs', 'usable', 'selectedFormula', 'ignoredLines',
       'folded', 'perOutputRefusals', 'refusal', 'downstream']) {
       expect(Object.prototype.hasOwnProperty.call(d, k), k).toBe(true)
     }
     expect(d.downstream, 'no column selected, so no downstream verdict to report').toBe(null)
+    expect(d.perOutputRefusals).toEqual({ 'thinkscript:function': 1 })
   })
 })
 
@@ -121,6 +135,10 @@ describe('the committed corpus', () => {
     out._columns = files.reduce((n, f) => n + out[f].usable, 0)
     out._saveable = files.filter((f) => out[f].downstream && out[f].downstream.ok).length
     out._blocked = files.filter((f) => out[f].translates && !(out[f].downstream && out[f].downstream.ok))
+    // ⭐ WHICH SCRIPTS STILL REFUSE AT THE VERY TOP. W3.2 had all 24 here; the
+    // corpus rail compares this against a LIVE RUN, so a hand-edited fixture and
+    // a regressed reader fail differently.
+    out._atLineOne = files.filter((f) => out[f].refusal && out[f].refusal.line === 1 && out[f].refusal.column === 1)
     out._guardsFired = [...fired].sort()
     // eslint-disable-next-line no-console
     console.log(`\n[thinkscript corpus] ${out._translating}/${files.length} translate, ${out._columns} columns, ${out._saveable} saveable`)

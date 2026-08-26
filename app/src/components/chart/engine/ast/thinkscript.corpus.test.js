@@ -235,14 +235,60 @@ describe('the whole corpus, in one number', () => {
     // is this lane's own measured product property and must not move silently in
     // either direction.
     //
-    // ⭐ 0/24, 0 columns, 0 saveable — W3.2, the measured starting line.
+    // ⭐ 0/24 translating, 11 columns, 0 saveable — W3.3, MEASURED.
+    // ⏳ Still 0 translating, and that is the predicted number, not a
+    // disappointment: every one of these 24 needs at least one thinkorswim
+    // FUNCTION, and this task maps none of them. What moved is the wall — see
+    // `the walls have moved` below — and the eleven columns are the plots inside
+    // otherwise-blocked studies that this reader can already compute end to end.
     expect(translating, 'scripts that translate').toBe(0)
-    expect(columns, 'columns this engine computes').toBe(0)
+    expect(columns, 'columns this engine computes').toBe(11)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
     expect(SNAPSHOT._translating, 'fixture roll-up disagrees with its own entries').toBe(translating)
     expect(SNAPSHOT._columns, 'fixture roll-up disagrees with its own entries').toBe(columns)
+  })
+
+  it('⭐⭐ the walls have MOVED OFF LINE 1 — a translator that refuses everything at the top has measured nothing', () => {
+    // ⛔ COMPUTED BY RUNNING THE TRANSLATOR, NOT READ OFF THE SNAPSHOT. The lane
+    // brief specified `FILES.filter(f => SNAPSHOT[f].refusal.line === 1 …)`
+    // compared against `SNAPSHOT._atLineOne`, and BOTH SIDES OF THAT COMPARISON
+    // REGENERATE TOGETHER — it is satisfied by any translator at all, including
+    // the W3.2 skeleton that refused all 24 at line 1. The literals below cannot
+    // be regenerated past, which is the whole point of typing them here.
+    const at = (f) => translateThinkScript(read(f)).refusal || {}
+    const atLineOne = FILES.filter((f) => at(f).line === 1 && at(f).column === 1)
+    expect(atLineOne, 'W3.2 had all 24 here').toEqual([])
+
+    // ⚠️ A FLOOR, NOT THE MEASURED NUMBER. W3.3 measured NINETEEN of the 24
+    // refusing at a thinkorswim FUNCTION NAME; the floor is the brief's 8 so
+    // that W3.4 and W3.5, whose whole job is to MAP those functions and move
+    // files off this guard, are not reddened for succeeding. The exact set is
+    // held still by the per-file assertions above, where a change names the
+    // script it happened to.
+    const atAFunction = FILES.filter((f) => at(f).guard === 'thinkscript:function')
+    expect(atAFunction.length).toBeGreaterThanOrEqual(8)
+
+    // …and the fixture's own roll-up agrees with the run, which is the DIFFERENT
+    // failure: a hand-edited snapshot.
+    expect(SNAPSHOT._atLineOne, 'fixture roll-up disagrees with a live run').toEqual(atLineOne)
+  })
+
+  it('⭐⭐ …and NOT ONE of them refuses `thinkscript:syntax` — every file here is real, running thinkScript', () => {
+    // ⛔⛔ THE DURABLE HALF, AND THE ONE THIS LANE EXISTS FOR. Every fixture in
+    // this directory was published and runs on thinkorswim, so a `:syntax`
+    // refusal is never a fact about the member's script — it is this reader
+    // mis-parsing valid code and then blaming the member for it, at a position
+    // they cannot act on. It found two while W3.3 was being built: `bar` read as
+    // a reserved word when `23` binds it as a variable, and a `fold` loop
+    // reported as an unfinished statement instead of as a fold. NAMES, not a
+    // count, so the next one says which script.
+    const bad = FILES.filter((f) => {
+      const r = translateThinkScript(read(f)).refusal
+      return !!r && r.guard === 'thinkscript:syntax'
+    })
+    expect(bad, 'published thinkScript refused for a syntax this reader got wrong').toEqual([])
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {

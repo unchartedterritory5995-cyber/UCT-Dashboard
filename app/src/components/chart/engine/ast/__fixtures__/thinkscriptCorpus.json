@@ -1,393 +1,548 @@
 {
   "01-supertrend-mobius.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "AtrMult=1.0",
+      "nATR=4",
+      "AvgType=AverageType.HULL",
+      "PaintBars=yes"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:state": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:state",
+      "line": 11,
+      "column": 21,
+      "token": "ST"
     },
     "downstream": null
   },
   "02-macd-lookback-cross-watchlist.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      4
+    ],
+    "folded": [
+      "lookback=5",
+      "fastLength=12",
+      "slowLength=26",
+      "MACDLength=9",
+      "averageType=AverageType.EXPONENTIAL",
+      "showBreakoutSignals=no"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 19,
+      "column": 21,
+      "token": "highest"
     },
     "downstream": null
   },
   "03-adx-dmi-lower.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 3,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      1
+    ],
+    "folded": [
+      "length=14",
+      "averageType=AverageType.WILDERS"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "declare"
+      "guard": "thinkscript:function",
+      "line": 13,
+      "column": 20,
+      "token": "MovingAverage"
     },
     "downstream": null
   },
   "04-rsi-with-rate-of-change.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 6,
+    "usable": 3,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      6
+    ],
+    "folded": [
+      "length=14",
+      "over_Bought=70",
+      "over_Sold=30",
+      "src=close",
+      "averageType=AverageType.WILDERS",
+      "showBreakoutSignals=no",
+      "price_ROC=close"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
+      "guard": "thinkscript:statement",
+      "line": 17,
       "column": 1,
-      "token": "#"
+      "token": "assert"
     },
     "downstream": null
   },
   "05-bollinger-rsi-buy-arrow.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      1
+    ],
+    "folded": [
+      "bbw_threshold=0.3",
+      "BB_Length=30",
+      "RSI_Length=14",
+      "RSI_Threshold=25"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "declare"
+      "guard": "thinkscript:function",
+      "line": 11,
+      "column": 22,
+      "token": "BollingerBands"
     },
     "downstream": null
   },
   "06-vwap-rejection.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 3,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "numDevDn=-2.0",
+      "numDevUp=2.0",
+      "timeFrame=DAY",
+      "distance=0.50"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:undefined": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
+      "guard": "thinkscript:statement",
+      "line": 18,
       "column": 1,
-      "token": "#"
+      "token": "assert"
     },
     "downstream": null
   },
   "07-ttm-squeeze-watchlist.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "price=close",
+      "length=20",
+      "nK=1.5",
+      "nBB=2.0",
+      "alertLine=1.0"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 11,
+      "column": 19,
+      "token": "TTM_Squeeze"
     },
     "downstream": null
   },
   "08-relative-strength-zscore-vs-spy.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 6,
+    "usable": 3,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      4
+    ],
+    "folded": [
+      "benchmark=SPY",
+      "zLength=126",
+      "fastLen=10",
+      "slowLen=30",
+      "signalLen=9"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 18,
+      "column": 12,
+      "token": "StDev"
     },
     "downstream": null
   },
   "09-above-average-price-volume.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "def"
+      "guard": "thinkscript:function",
+      "line": 8,
+      "column": 15,
+      "token": "SimpleMovingAvg"
     },
     "downstream": null
   },
   "10-rsi-laguerre-fractal-energy.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 7,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      6,
+      19,
+      22,
+      25,
+      28,
+      59
+    ],
+    "folded": [
+      "nFE=8",
+      "AlertOn=no",
+      "Glength=13",
+      "betaDev=8",
+      "data=close"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:undefined": 1,
+      "thinkscript:function": 6
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 55,
+      "column": 14,
+      "token": "Log"
     },
     "downstream": null
   },
   "11-money-flow-index-mobile.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 5,
+    "usable": 2,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "length=14",
+      "overbought=74",
+      "oversold=26"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 10,
+      "column": 25,
+      "token": "Sum"
     },
     "downstream": null
   },
   "12-scan-volume-2x-avg-price-up-5pct.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
+      "guard": "thinkscript:function",
       "line": 1,
-      "column": 1,
-      "token": "def"
+      "column": 14,
+      "token": "Average"
     },
     "downstream": null
   },
   "13-scan-52-week-high.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
+      "guard": "thinkscript:function",
       "line": 1,
-      "column": 1,
-      "token": "Def"
+      "column": 14,
+      "token": "Highest"
     },
     "downstream": null
   },
   "14-scan-inside-bar.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 6,
+      "column": 22,
+      "token": "within"
     },
     "downstream": null
   },
   "15-scan-premarket-gap-up.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 8,
+      "column": 13,
+      "token": "getTime"
     },
     "downstream": null
   },
   "16-scan-rsi-crosses-30-70.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
+      "guard": "thinkscript:function",
       "line": 1,
-      "column": 1,
-      "token": "RSI"
+      "column": 7,
+      "token": "crosses"
     },
     "downstream": null
   },
   "17-compoundvalue-vs-manual-fibonacci.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 2,
+    "usable": 1,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      1
+    ],
+    "folded": [
+      "mode=UseCompoundValue"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "declare"
+      "guard": "thinkscript:function",
+      "line": 9,
+      "column": 9,
+      "token": "CompoundValue"
     },
     "downstream": null
   },
   "18-fold-up-down-points-ratio.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
+    "ignoredLines": [
+      7
+    ],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:undefined": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:fold",
+      "line": 9,
+      "column": 18,
+      "token": "fold"
     },
     "downstream": null
   },
   "19-consecutive-bars-above-ema-count.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 1,
     "usable": 0,
     "selectedFormula": null,
-    "ignoredLines": [],
+    "ignoredLines": [
+      1
+    ],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 1
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "declare"
+      "guard": "thinkscript:function",
+      "line": 5,
+      "column": 18,
+      "token": "CompoundValue"
     },
     "downstream": null
   },
   "20-roc-stdev-lower-switch.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 3,
+    "usable": 1,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      7
+    ],
+    "folded": [
+      "lengthROC=14",
+      "priceSource=CLOSE",
+      "lengthStDev=200",
+      "multiplier=2.0"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 2
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
+      "guard": "thinkscript:statement",
+      "line": 21,
       "column": 1,
-      "token": "#"
+      "token": "Assert"
     },
     "downstream": null
   },
   "21-strategy-ma-crossover-addorder.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 4,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "price=close",
+      "fastLength=9",
+      "slowLength=21",
+      "averageType=AverageType.SIMPLE"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 4
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "input"
+      "guard": "thinkscript:function",
+      "line": 6,
+      "column": 15,
+      "token": "MovingAverage"
     },
     "downstream": null
   },
   "22-average-daily-range-zones.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 4,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "folded": [
+      "aggregationPeriod=AggregationPeriod.DAY"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 4
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 6,
+      "column": 12,
+      "token": "open"
     },
     "downstream": null
   },
   "23-previous-day-high-low-mean.ts": {
     "translates": false,
-    "outputs": 0,
+    "outputs": 3,
     "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [],
     "folded": [],
-    "perOutputRefusals": {},
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 6,
+      "column": 11,
+      "token": "barNumber"
     },
     "downstream": null
   },
   "24-position-capital-efficiency.ts": {
     "translates": false,
-    "outputs": 0,
-    "usable": 0,
+    "outputs": 4,
+    "usable": 1,
     "selectedFormula": null,
-    "ignoredLines": [],
-    "folded": [],
-    "perOutputRefusals": {},
+    "ignoredLines": [
+      5
+    ],
+    "folded": [
+      "AverageInvestedCapitalColor=LIGHT_GRAY",
+      "TotalProfitColor=LIGHT_GRAY",
+      "TimeAdjustedReturnColor=LIGHT_GRAY"
+    ],
+    "perOutputRefusals": {
+      "thinkscript:function": 3
+    },
     "refusal": {
-      "guard": "thinkscript:unsupported",
-      "line": 1,
-      "column": 1,
-      "token": "#"
+      "guard": "thinkscript:function",
+      "line": 13,
+      "column": 16,
+      "token": "GetQuantity"
     },
     "downstream": null
   },
   "_translating": 0,
-  "_columns": 0,
+  "_columns": 11,
   "_saveable": 0,
   "_blocked": [],
+  "_atLineOne": [],
   "_guardsFired": [
-    "thinkscript:unsupported"
+    "thinkscript:block",
+    "thinkscript:fold",
+    "thinkscript:function",
+    "thinkscript:state",
+    "thinkscript:statement",
+    "thinkscript:undefined"
   ]
 }
