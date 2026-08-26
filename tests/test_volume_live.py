@@ -67,7 +67,7 @@ def test_unusual_cumulative_volume_with_a_move_is_lit_and_tiered():
     aaa = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert aaa is not None and aaa["lit"] is True
     assert 4.5 <= aaa["rvol"] <= 6                          # cumulative ~5.2×
-    assert aaa["tier"] >= 3 and aaa["burst"] > 0           # tier = hotter of RVOL / burst
+    assert aaa["tier"] == 3 and aaa["burst"] > 0           # tier tracks cumulative RVOL (High)
     assert aaa["move"] > 1 and aaa["dir"] == "up"
 
 
@@ -79,15 +79,15 @@ def test_burst_rvol_lights_a_fresh_ignition_that_cumulative_rvol_misses():
     seq = {}
     for t in range(0, 46):
         cv = 200_000 if t <= 35 else 200_000 + 150 * (t - 35)   # flat, then a fresh spike
-        px = 50.0 if t <= 35 else 50.0 + 0.03 * (t - 35)        # +0.6% move on the spike
+        px = 50.0 if t <= 35 else 50.0 + 0.045 * (t - 35)       # +0.9% fast move on the spike
         seq[t] = {"AAA": {"min_av": cv, "last_price": px, "prev_close": 50.0, "prev_vol": 1_000_000}}
     _feed(seq)
     r = _row(volume_live.get_live(min_dollar=0)["rows"], "AAA")
     assert r is not None and r["lit"] is True
     assert r["rvol"] < 2                     # cumulative RVOL alone would NOT have lit it
     assert 4 <= r["burst"] <= 6              # the burst caught the ignition
-    assert r["igniting"] is True and r["move"] >= 0.5 and r["dir"] == "up"
-    assert r["tier"] == 3                    # max(rvol_tier=1, burst_tier(~5)=3)
+    assert r["igniting"] is True and r["move"] >= 0.75 and r["dir"] == "up"
+    assert r["tier"] == 1                    # colour stays CALM (dim) — burst does NOT inflate the tier
     # It's the burst PATH that lit it: raise both gates → gone; raise only rvol → stays.
     assert _row(volume_live.get_live(min_rvol=999, min_burst=999, min_dollar=0)["rows"], "AAA") is None
     assert _row(volume_live.get_live(min_rvol=999, min_burst=3, min_dollar=0)["rows"], "AAA") is not None

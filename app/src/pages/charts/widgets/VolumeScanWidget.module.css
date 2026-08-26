@@ -78,16 +78,28 @@
   white-space: nowrap;
 }
 
-/* ── Lit rows: the WHOLE row fills with its relative-volume tier colour, dark ink.
-   A TC2000-style intensity ramp: blue → teal → green → amber → hot-orange. ──────── */
-.lit .sym,
-.lit .surge { color: #0c0c0f; }
-.t1 { background: #4a9eef; }   /* Notable   (2–3×)  */
-.t2 { background: #2ec4b6; }   /* Elevated  (3–4×)  */
-.t3 { background: #58c94b; }   /* High      (4–6×)  */
-.t4 { background: #ffc21f; }   /* Very High (6–10×) */
-.t5 { background: #ff7a1a; }   /* Extreme   (10×+)  */
-.lit:hover { filter: brightness(1.07); }
+/* ── Lit rows fill by CUMULATIVE-RVOL tier — a CALM → LOUD ramp in the UCT palette so
+   weak/marginal prints recede and only genuinely heavy volume grabs the eye. Low tiers
+   are faint green tints with light text ("barely lit"); High is solid green; Very High
+   is bold gold; Extreme is a loud, glowing red — the only tier that screams. ──────── */
+.t1 { background: var(--ut-green-dim); }                 /* Notable   2–3× — barely lit */
+.t2 { background: var(--ut-green-glow); }                /* Elevated  3–4× — dim green   */
+.t3 { background: var(--ut-green); }                     /* High      4–6× — solid green */
+.t4 { background: var(--ut-gold); }                      /* Very High 6–10× — bold gold  */
+.t5 {                                                    /* Extreme   10×+ — loud, hot   */
+  background: var(--ut-red-bright);
+  box-shadow: inset 0 0 0 1px var(--ut-red), 0 0 11px rgba(242, 75, 66, 0.45);
+}
+/* Text: dim tiers keep light text (calm); bold tiers flip to dark ink / white so the
+   loud fills read cleanly. */
+.t1 .sym, .t2 .sym, .t3 .sym {
+  color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright)))); }
+.t1 .surge, .t2 .surge {
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright))); opacity: 0.82; }
+.t3 .surge { color: var(--text-bright, #f5f7fa); }
+.t4 .sym, .t4 .surge { color: #0c0c0f; }
+.t5 .sym, .t5 .surge { color: #fff; }
+.lit:hover { filter: brightness(1.08); }
 
 /* Unlit rows: dark, with a dimmed RVOL so the full ranking is still readable. */
 .unlit .sym { color: var(--nh-sym, var(--wl-sym, var(--widget-text-strong, var(--text-bright)))); }
@@ -146,15 +158,15 @@
   z-index: 1;
   pointer-events: none;
   border-radius: 2px;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 6px rgba(255, 255, 255, 0.35);
-  animation: volIgnite 1.05s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1.5px var(--ut-gold-bright, #e9cd77);
+  animation: volIgnite 1.3s ease-in-out infinite;
 }
 @keyframes volIgnite {
-  0%, 100% { opacity: 0.22; }
-  50%      { opacity: 0.92; }
+  0%, 100% { opacity: 0.16; }
+  50%      { opacity: 0.58; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ignite { animation: none; opacity: 0.7; }
+  .ignite { animation: none; opacity: 0.5; }
 }
 
 .none {

@@ -73,12 +73,14 @@ _DEFAULT_MIN_DOLLAR_EXT = 15_000
 # Burst RVOL — the recent-window volume RATE vs the rate a name TYPICALLY trades at
 # this time of day (prev_vol × the cumulative curve's slope). Cumulative RVOL dilutes
 # a fresh spike into the whole day and lags worst late in the session; burst reads the
-# ignition directly. It co-drives the colour tier AND a discovery path for `lit`, so a
-# fast mover surfaces before its cumulative RVOL catches up.
+# ignition directly. Burst DRIVES a discovery path for `lit` (surface a fast mover
+# before its cumulative RVOL catches up) + the "igniting" pulse cue — but NOT the
+# colour tier. The tier tracks cumulative RVOL, so a burst on a quiet name lights and
+# pulses yet stays calm/dim; the loud colours are reserved for genuinely heavy volume.
 _BURST_CAP = 50.0            # clamp a fresh spike measured against a near-zero expected
 _DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent rate ≥ 3× typical-for-now)
-_IGNITE_BURST = 4.0          # "igniting now" cue: a strong burst…
-_IGNITE_MOVE = 0.5           # …AND a real price move (the look-up-now signal)
+_IGNITE_BURST = 5.0          # "igniting now" cue: a STRONG burst…
+_IGNITE_MOVE = 0.75          # …AND a real, fast price move (the look-up-now signal)
 
 _DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
 _TOP_TTL = 3600.0             # rebuild the top-liquid set hourly
@@ -395,13 +397,13 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         surging = (m["rvol"] >= mnr) or (m.get("burst", 0.0) >= mnb)
         return surging and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd
 
-    def _surge_mag(m):
-        return max(m["rvol"], m.get("burst", 0.0))
-
     def _score(m):
+        # Rank by cumulative RVOL magnitude (what the colour reflects), weighted by the
+        # move. Burst LIGHTS + PULSES a fresh mover but does not inflate its rank, so
+        # the loud heavy names lead and marginal bursts don't crowd the top.
         mw = abs(m["move"]) / 0.5
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
-        return _surge_mag(m) * mw
+        return m["rvol"] * mw
 
     with _lock:
         asof = _state["asof"]
@@ -420,10 +422,10 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Lit (criteria-meeting) names first — each group by surge magnitude (the
-        # hotter of heaviness and ignition) — so coloured signals lead and greyed
-        # illiquid spikes sink to the bottom.
-        rows.sort(key=lambda r: (r[2], _surge_mag(r[1])), reverse=True)
+        # Lit first, then by cumulative RVOL (the loud/significant names lead), burst as
+        # a tiebreak so a fresh igniter still ranks among its peers. Keeps the bold
+        # high-RVOL rows at the top and the dim marginal bursts below them.
+        rows.sort(key=lambda r: (r[2], r[1]["rvol"], r[1].get("burst", 0.0)), reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
     lit_total = sum(1 for _s, _m, lit in rows if lit)
@@ -469,29 +471,17 @@ def _rvol_tier(rvol: float) -> int:
         return 3   # High
     if rvol >= 3:
         return 2   # Elevated
-    return 1
-
-
-def _burst_tier(burst: float) -> int:
-    # burst = recent rate ÷ typical-for-now rate; a violent ignition reaches the top.
-    if burst >= 12:
-        return 5
-    if burst >= 8:
-        return 4
-    if burst >= 5:
-        return 3
-    if burst >= 3:
-        return 2
-    return 1
+    return 1       # Notable (2–3×, or burst-lit)
 
 
 def _tier(m: dict) -> int:
-    """Colour tier — the HOTTER of cumulative heaviness (all-day RVOL) and fresh
-    ignition (burst). A big fast move lights hot the instant volume ignites, before
-    cumulative RVOL catches up; a name heavy all day still shows via its RVOL.
-    5 = hottest (Extreme) … 1 = Notable. (TC2000-style ramp: blue → teal → green →
-    amber → hot-orange.)"""
-    return max(_rvol_tier(m["rvol"]), _burst_tier(m.get("burst", 0.0)))
+    """Colour tier by CUMULATIVE relative volume — how significant/extreme the volume
+    is (5 = Extreme … 1 = Notable). Boldness tracks RVOL so weak/marginal prints stay
+    calm and only genuinely heavy volume gets the loud colours. Burst does NOT inflate
+    the tier — a 1-minute blip on a quiet name must not scream; a fresh ignition is
+    surfaced by the row's `igniting` pulse + its rank, not a bold fill. UCT-palette
+    ramp: faint green → gold → hot red."""
+    return _rvol_tier(m["rvol"])
 
 
 def status() -> dict:
