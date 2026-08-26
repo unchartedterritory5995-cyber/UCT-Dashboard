@@ -747,7 +747,10 @@ def test_house_render_is_skipped_when_unconfigured(monkeypatch):
     assert hs.render_house_chart("NVDA", "D", {}) is None
 
 
-def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance():
+def test_run_chart_job_prefers_the_house_render_and_falls_back_to_mplfinance(monkeypatch):
+    # this pins the HOUSE path's own sequence; the fast preview is separately
+    # tested and would add an edit and a fetch in front of it
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "0")
     from api.services.discord_interactions import run_chart_job, ChartRequest
     calls = {"house": [], "mpl": []}
 
@@ -939,7 +942,10 @@ def test_run_chart_job_serves_a_cache_hit_without_fetching_anything():
     assert edits.calls[-1]["content"] == "NVDA · Daily"
 
 
-def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reused_by_the_fallback():
+def test_run_chart_job_fetch_order_daily_first_then_the_pages_intraday_warm_reused_by_the_fallback(monkeypatch):
+    # this pins the HOUSE path's own sequence; the fast preview is separately
+    # tested and would add an edit and a fetch in front of it
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "0")
     from api.services import discord_chart_cache as cc
     from api.services.discord_interactions import run_chart_job, ChartRequest
     from api.services.discord_chart_render import STATS_DAILY_BARS, bars_to_request
@@ -1199,10 +1205,13 @@ def test_house_ready_js_refuses_until_the_page_has_bars():
     assert "__chartBarsReady === true" in HOUSE_READY_JS
 
 
-def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_them_for_fallback():
+def test_job_warms_the_pages_intraday_bars_before_the_house_render_and_reuses_them_for_fallback(monkeypatch):
     """The /r/chart page fetches its own bars; cold, that took 7-20 s on
     5-minute data and timed out the renderer's first attempt. The job warms that
     exact request in-process first (Daily is already fetched for the stats)."""
+    # this pins the HOUSE path's own sequence; the fast preview is separately
+    # tested and would add an edit and a fetch in front of it
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "0")
     from api.services import discord_interactions as di
     daily = [{"t": 1700000000 + i * 86400, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(300)]
     intra = [{"t": 1700000000 + i * 300, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(5000)]
@@ -1467,7 +1476,10 @@ def test_edit_original_sends_components_in_the_payload_when_given():
     assert "components" not in seen[-1]["json"]                              # None = leave the message's rows alone
 
 
-def test_job_hands_components_to_the_edit_when_a_components_fn_is_given():
+def test_job_hands_components_to_the_edit_when_a_components_fn_is_given(monkeypatch):
+    # this pins the HOUSE path's own sequence; the fast preview is separately
+    # tested and would add an edit and a fetch in front of it
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "0")
     from api.services import discord_interactions as di
     from api.services import discord_chart_cache as cc
     cc.clear()
@@ -2325,3 +2337,66 @@ def test_every_chart_request_is_recorded_in_the_hot_set():
     keys = [k for k, _, _ in hs.snapshot()]
     assert any(k.startswith("HOTA:D") for k in keys), keys
     hs.clear_for_tests()
+
+
+# ── fast first: a chart in ~0.3s, upgraded to the house image ──
+
+def test_a_cache_miss_posts_the_fast_chart_first_then_upgrades_it_to_the_house_image(monkeypatch):
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p, discord_chart_cache as cc
+    cc.clear()
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "1")
+    sent = []
+    edit = lambda a, b, **k: sent.append((k.get("png"), k.get("content"))) or True  # noqa: E731
+    assert run_chart_job("1", "t", ChartRequest("FSTA", "D"), bars_fn=lambda *a: daily_bars(30),
+                         render_fn=lambda *a, **k: PNG_MAGIC + b"fast", edit_fn=edit,
+                         house_fn=lambda *a, **k: PNG_MAGIC + b"house", prefs=dict(p.DEFAULTS)) == "ok"
+    assert [png for png, _ in sent] == [PNG_MAGIC + b"fast", PNG_MAGIC + b"house"]   # fast, then upgraded
+    assert all(c == "FSTA · Daily" for _, c in sent)                                 # same headline throughout
+    # the cached chart is the HOUSE one, so the next member never sees the fast look
+    hit = cc.get("FSTA:D:" + p.style_signature(dict(p.DEFAULTS)))
+    assert hit and hit[0] == PNG_MAGIC + b"house"
+    cc.clear()
+
+
+def test_the_fast_chart_is_a_floor_when_the_house_render_is_busy_or_fails(monkeypatch):
+    """A member who already has a chart must never have it replaced by an apology."""
+    from api.services.discord_interactions import run_chart_job, ChartRequest, RENDER_SLOTS
+    from api.services import discord_chart_prefs as p, discord_chart_cache as cc
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "1")
+    for slot in range(RENDER_SLOTS._initial_value):
+        RENDER_SLOTS.acquire()                      # every render slot taken
+    try:
+        cc.clear()
+        sent = []
+        out = run_chart_job("1", "t", ChartRequest("FSTB", "D"), bars_fn=lambda *a: daily_bars(30),
+                            render_fn=lambda *a, **k: PNG_MAGIC + b"fast",
+                            edit_fn=lambda a, b, **k: sent.append(k) or True,
+                            house_fn=lambda *a, **k: PNG_MAGIC, prefs=dict(p.DEFAULTS))
+        assert out == "ok"
+        assert len(sent) == 1 and sent[0]["png"] == PNG_MAGIC + b"fast"
+        assert "Busy" not in str(sent[0].get("content"))
+    finally:
+        for _ in range(RENDER_SLOTS._initial_value):
+            RENDER_SLOTS.release()
+        cc.clear()
+
+
+def test_no_preview_when_there_are_no_bars_or_the_flag_is_off(monkeypatch):
+    from api.services.discord_interactions import run_chart_job, ChartRequest
+    from api.services import discord_chart_prefs as p, discord_chart_cache as cc
+    cc.clear()
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "1")
+    sent = []
+    assert run_chart_job("1", "t", ChartRequest("ZZZZQ", "D"), bars_fn=lambda *a: None,
+                         render_fn=lambda *a, **k: PNG_MAGIC, edit_fn=lambda a, b, **k: sent.append(k) or True,
+                         house_fn=lambda *a, **k: PNG_MAGIC, prefs=dict(p.DEFAULTS)) == "no_bars"
+    assert len(sent) == 1 and sent[0].get("png") is None and "No bars" in sent[0]["content"]
+    # flag off = exactly the old behaviour, one edit with the house image
+    cc.clear(); sent.clear()
+    monkeypatch.setenv("DISCORD_CHART_FAST_FIRST", "0")
+    run_chart_job("1", "t", ChartRequest("FSTC", "D"), bars_fn=lambda *a: daily_bars(30),
+                  render_fn=lambda *a, **k: PNG_MAGIC + b"fast", edit_fn=lambda a, b, **k: sent.append(k) or True,
+                  house_fn=lambda *a, **k: PNG_MAGIC + b"house", prefs=dict(p.DEFAULTS))
+    assert [k["png"] for k in sent] == [PNG_MAGIC + b"house"]
+    cc.clear()
