@@ -229,7 +229,7 @@ def test_endpoint_settings_round_trip_and_chart_uses_saved_default_tf(monkeypatc
 
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None, components_fn=None):
         scheduled.append((req, prefs))
         return "ok"
     monkeypatch.setattr(rt.di, "run_chart_job", fake_job)

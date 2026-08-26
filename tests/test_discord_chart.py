@@ -377,7 +377,7 @@ def test_endpoint_defers_and_schedules_job_for_valid_chart(monkeypatch):
     client, rt = _app_client()
     scheduled = []
 
-    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None):
+    def fake_job(app_id, token, req, *, bars_fn, render_fn, edit_fn, house_fn=None, prefs=None, quote_fn=None, components_fn=None):
         scheduled.append((app_id, token, req, bars_fn, render_fn, edit_fn))
         assert house_fn is None  # CHART_RENDERER_URL is unset in tests → mplfinance only
         from api.services import discord_chart_prefs as p
@@ -1306,3 +1306,120 @@ def test_house_url_carries_preset_and_engine_instances():
     assert json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))) == inst
     q = parse_qs(urlparse(house.build_render_url("NVDA", "D", None, base_url="https://x", token="t")).query)
     assert "preset" not in q and "instances" not in q
+
+
+# ── buttons under every chart + ticker autocomplete (member asks, 8/25) ──
+
+def test_chart_components_reflect_the_image_and_round_trip_through_parse_component(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
+    rows = di.chart_components(di.ChartRequest("NVDA", "15"), {**di.prefs_mod.DEFAULTS})
+    assert len(rows) == 2 and all(r["type"] == 1 for r in rows)
+    tfs = rows[0]["components"]
+    assert [b["label"] for b in tfs] == ["D", "W", "60m", "15m", "5m"]
+    assert [b["style"] for b in tfs] == [2, 2, 2, 1, 2]                    # the active timeframe is primary
+    assert all(len(b["custom_id"]) <= 100 for b in tfs)
+    # every timeframe button parses back to that timeframe with the SAME style state
+    for b, (tf, _) in zip(tfs, di.BUTTON_TFS):
+        req = di.parse_component({"data": {"custom_id": b["custom_id"]}})
+        assert (req.ticker, req.tf, req.mas, req.volume) == ("NVDA", tf, "house", True)
+    mas_btn, vol_btn, link = rows[1]["components"]
+    assert mas_btn["label"] == "MAs off" and di.parse_component({"data": {"custom_id": mas_btn["custom_id"]}}).mas == "off"
+    assert vol_btn["label"] == "Volume off" and di.parse_component({"data": {"custom_id": vol_btn["custom_id"]}}).volume is False
+    assert link["style"] == 5 and link["url"] == "https://uctintelligence.com/research/NVDA" and "custom_id" not in link
+    # the toggles read the state the image actually has (a call with MAs off shows "MAs on")
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", mas="off", volume=False), {**di.prefs_mod.DEFAULTS})
+    mas_btn, vol_btn, _ = rows[1]["components"]
+    assert mas_btn["label"] == "MAs on" and vol_btn["label"] == "Volume on"
+    for bad in ("", "chart|NVDA|D|house", "chart|NV DA|D|house|1", "chart|NVDA|2|house|1", "chart|NVDA|D|sma|1", "other|NVDA|D|house|1"):
+        with pytest.raises(di.CommandError):
+            di.parse_component({"data": {"custom_id": bad}})
+
+
+def test_endpoint_button_click_updates_in_place_and_reschedules_with_components(monkeypatch):
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    scheduled = []
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: scheduled.append((a, k)) or "ok")
+    click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "55"}},
+             "data": {"custom_id": di.component_id("NVDA", "W", "off", True), "component_type": 2}}
+    r = _post(client, sk, click)
+    assert r.json() == {"type": 6}                                          # DEFERRED_UPDATE_MESSAGE: same message, no loading state
+    (app_id, token, req), kw = scheduled[-1]
+    assert (app_id, token, req) == ("123", "tok", di.ChartRequest("NVDA", "W", mas="off", volume=True))
+    assert kw["components_fn"] is di.chart_components and kw["prefs"]["mas"] == "off"
+    # a slash command also gets the buttons now
+    r = _post(client, sk, _interaction("AMD"))
+    assert r.json() == {"type": 5} and scheduled[-1][1]["components_fn"] is di.chart_components
+    # an unknown button is not a chart
+    r = _post(client, sk, {**click, "data": {"custom_id": "poll|vote|1", "component_type": 2}})
+    assert r.json() == {"type": 4, "data": {"content": "Unknown button.", "flags": 64}}
+    # and a click from a foreign server is refused like anything else
+    r = _post(client, sk, {**click, "guild_id": "999"})
+    assert r.json()["data"]["content"] == di.NOT_ALLOWED_MESSAGE
+
+
+def test_endpoint_autocomplete_answers_choices_and_only_choices(monkeypatch):
+    from api.services import discord_interactions as di
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    monkeypatch.setattr(rt, "fetch_ticker_choices", lambda q, limit=10: [{"name": f"{q}DA - NVIDIA Corp", "value": f"{q}DA"}])
+    ac = {"type": 4, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
+          "data": {"name": "chart", "options": [{"name": "ticker", "type": 3, "value": "nv", "focused": True}]}}
+    assert _post(client, sk, ac).json() == {"type": 8, "data": {"choices": [{"name": "NVDA - NVIDIA Corp", "value": "NVDA"}]}}
+    empty = {**ac, "data": {"name": "chart", "options": [{"name": "ticker", "type": 3, "value": "", "focused": True}]}}
+    assert _post(client, sk, empty).json() == {"type": 8, "data": {"choices": []}}
+    # a foreign server gets EMPTY choices, never an ephemeral message (Discord rejects anything but type 8 here)
+    assert _post(client, sk, {**ac, "guild_id": "999"}).json() == {"type": 8, "data": {"choices": []}}
+    from api.services.discord_interactions import build_chart_command
+    assert build_chart_command()["options"][0]["autocomplete"] is True
+
+
+def test_fetch_ticker_choices_uses_the_dashboards_search_and_never_raises(monkeypatch):
+    from api.routers import discord_interactions as rt, ticker_search as ts
+    monkeypatch.setattr(ts, "ticker_search", lambda q, limit: {"results": [{"ticker": "NVDA", "name": "NVIDIA Corp"}, {"ticker": "NVAX", "name": None}]})
+    assert rt.fetch_ticker_choices("NV") == [{"name": "NVDA - NVIDIA Corp", "value": "NVDA"}, {"name": "NVAX", "value": "NVAX"}]
+    def boom(q, limit):
+        raise RuntimeError("universe missing")
+    monkeypatch.setattr(ts, "ticker_search", boom)
+    assert rt.fetch_ticker_choices("NV") == []
+
+
+def test_edit_original_sends_components_in_the_payload_when_given():
+    from api.services.discord_interactions import edit_original
+    seen = []
+    class R:
+        is_success = True; status_code = 200; text = ""
+    class C:
+        def patch(self, url, **kw):
+            seen.append(kw); return R()
+    comps = [{"type": 1, "components": [{"type": 2, "style": 1, "label": "D", "custom_id": "chart|X|D|house|1"}]}]
+    assert edit_original("1", "t", content="X · Daily", png=b"PNG", filename="x.png", components=comps, client=C())
+    assert json.loads(seen[-1]["data"]["payload_json"])["components"] == comps
+    assert edit_original("1", "t", content="Busy", components=comps, client=C())
+    assert seen[-1]["json"]["components"] == comps
+    assert edit_original("1", "t", content="Busy", client=C())
+    assert "components" not in seen[-1]["json"]                              # None = leave the message's rows alone
+
+
+def test_job_hands_components_to_the_edit_when_a_components_fn_is_given():
+    from api.services import discord_interactions as di
+    from api.services import discord_chart_cache as cc
+    cc.clear()
+    daily = [{"t": 1700000000 + i * 86400, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100} for i in range(300)]
+    edits = []
+    def edit_fn(app_id, token, *, content, png=None, filename=None, components=None):
+        edits.append(components)
+    out = di.run_chart_job("1", "tok", di.ChartRequest("SPY", "D"), bars_fn=lambda t, tf, n: daily,
+                           render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn, house_fn=lambda *a: b"HOUSE",
+                           components_fn=di.chart_components)
+    assert out == "ok" and edits[-1][0]["components"][0]["label"] == "D"
+    # cache hit path carries them too
+    di.run_chart_job("1", "tok", di.ChartRequest("SPY", "D"), bars_fn=lambda t, tf, n: daily,
+                     render_fn=lambda *a, **k: b"MPL", edit_fn=edit_fn, house_fn=lambda *a: b"HOUSE",
+                     components_fn=di.chart_components)
+    assert edits[-1] is not None and len(edits) == 2

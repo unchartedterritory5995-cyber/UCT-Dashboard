@@ -160,6 +160,66 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
 CHART_COMMAND_NAMES = ("chart", "c")
 SETTINGS_COMMAND = "chartsettings"
 
+# ── Buttons under every chart ────────────────────────────────────────────────
+# Members asked "how do I change the timeframe?" in chat on launch night. The
+# reply carries two rows: the timeframes (active one blurple) and MAs / Volume
+# toggles, plus a link to the interactive chart on the site. A click is a
+# MESSAGE_COMPONENT interaction (type 3); the endpoint answers
+# DEFERRED_UPDATE_MESSAGE (6) and the job PATCHes the same message with the new
+# image, so the chart re-renders IN PLACE. custom_id carries the full state.
+COMPONENT_PREFIX = "chart"
+BUTTON_TFS = (("D", "D"), ("W", "W"), ("60", "60m"), ("15", "15m"), ("5", "5m"))
+_STYLE_PRIMARY, _STYLE_SECONDARY, _STYLE_LINK = 1, 2, 5
+
+
+def public_site_url() -> str:
+    return (os.environ.get("CHART_RENDER_BASE_URL") or "https://uctintelligence.com").rstrip("/")
+
+
+def component_id(ticker: str, tf: str, mas: str, volume: bool) -> str:
+    return f"{COMPONENT_PREFIX}|{ticker}|{tf}|{mas}|{1 if volume else 0}"
+
+
+def parse_component(interaction: dict) -> ChartRequest:
+    """A button click -> the chart it asks for. Only our own custom_ids parse;
+    anything else is a CommandError (an unknown button is not a chart)."""
+    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    parts = cid.split("|")
+    if len(parts) != 5 or parts[0] != COMPONENT_PREFIX:
+        raise CommandError("Unknown button.")
+    _, ticker, tf, mas, vol = parts
+    ticker = ticker.strip().upper()
+    if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
+        raise CommandError("Unknown button.")
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
+
+
+def chart_components(req: ChartRequest, prefs: dict | None = None) -> list:
+    """The two action rows under a chart, reflecting what THIS image shows."""
+    p = {**prefs_mod.DEFAULTS, **(prefs or {})}
+    mas = req.mas if req.mas is not None else p["mas"]
+    vol = req.volume if req.volume is not None else bool(p["volume"])
+    tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == req.tf else _STYLE_SECONDARY, "label": label,
+            "custom_id": component_id(req.ticker, tf, mas, vol)} for tf, label in BUTTON_TFS]
+    toggles = [
+        {"type": 2, "style": _STYLE_SECONDARY, "label": "MAs off" if mas != "off" else "MAs on",
+         "custom_id": component_id(req.ticker, req.tf, "off" if mas != "off" else "house", vol)},
+        {"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if vol else "Volume on",
+         "custom_id": component_id(req.ticker, req.tf, mas, not vol)},
+        {"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
+         "url": f"{public_site_url()}/research/{req.ticker}"},
+    ]
+    return [{"type": 1, "components": tfs}, {"type": 1, "components": toggles}]
+
+
+def parse_autocomplete(interaction: dict) -> str:
+    """The text the member has typed into the focused option (ticker), uppercased."""
+    data = interaction.get("data") or {}
+    for o in data.get("options") or []:
+        if isinstance(o, dict) and o.get("focused"):
+            return str(o.get("value") or "").strip().upper()[:10]
+    return ""
+
 
 def interaction_user_id(interaction: dict) -> str:
     """Discord user id: `member.user.id` in a guild, `user.id` in a DM."""
@@ -193,7 +253,8 @@ def build_chart_command() -> dict:
         "type": 1,  # CHAT_INPUT
         "description": "House chart image: candles, volume, EMA 9/20 + SMA 50/200. Defaults: /chartsettings",
         "options": [
-            {"name": "ticker", "description": "Ticker symbol, e.g. NVDA", "type": 3, "required": True},
+            {"name": "ticker", "description": "Ticker symbol, e.g. NVDA", "type": 3, "required": True,
+             "autocomplete": True},
             {"name": "tf", "description": "Timeframe (default: your /chartsettings, else Daily)", "type": 3,
              "required": False,
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
@@ -298,21 +359,26 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
 
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
-                  filename: str | None = None, client=None) -> bool:
-    """PATCH the deferred reply. With `png`, multipart (payload_json + files[0]);
-    without, JSON. Returns True on 2xx. Never raises."""
+                  filename: str | None = None, components: list | None = None, client=None) -> bool:
+    """PATCH the deferred reply (or, for a button click, the message the button
+    is on). With `png`, multipart (payload_json + files[0]); without, JSON.
+    `components` = the button rows to show under it; None leaves the message's
+    existing rows alone. Returns True on 2xx. Never raises."""
     url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
     try:
         import httpx
         own = client is None
         c = client or httpx.Client(timeout=15.0)
         try:
+            payload: dict = {"content": content}
+            if components is not None:
+                payload["components"] = components
             if png is not None:
-                payload = {"content": content, "attachments": [{"id": 0, "filename": filename}]}
+                payload["attachments"] = [{"id": 0, "filename": filename}]
                 r = c.patch(url, data={"payload_json": json.dumps(payload)},
                             files={"files[0]": (filename, png, "image/png")})
             else:
-                r = c.patch(url, json={"content": content})
+                r = c.patch(url, json=payload)
         finally:
             if own:
                 c.close()
@@ -325,7 +391,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None, prefs=None, quote_fn=None) -> str:
+                  house_fn=None, prefs=None, quote_fn=None, components_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -340,11 +406,14 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     prefs = prefs or {}
     options = prefs_mod.render_options(prefs)
     key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+    # Buttons only when the caller wants them (the slash command and button
+    # clicks do; older callers and tests keep the plain edit).
+    extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
     try:
         hit = png_cache.get(key)
         if hit:
             png, filename = hit
-            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png, filename=filename)
+            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=png, filename=filename, **extra)
             return "ok"
 
         def _fetch(tf, n):
@@ -417,7 +486,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
         outcome = result[0] if result else "render_failed"
         if outcome == "ok":
-            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=result[1], filename=result[2])
+            edit_fn(app_id, token, content=f"{req.ticker} · {label}", png=result[1], filename=result[2], **extra)
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":

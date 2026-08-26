@@ -68,6 +68,31 @@ def fetch_ext_quote(ticker: str):
     return None
 
 
+def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
+    """Autocomplete choices from the dashboard's own ticker search (exact >
+    prefix > substring over cap_universe, names from the meta cache). Called
+    in-process; every arg passed explicitly because the route's Query defaults
+    only resolve over HTTP. Never raises - no choices is a valid answer."""
+    try:
+        from api.routers import ticker_search as ts
+        rows = (ts.ticker_search(q=q, limit=limit) or {}).get("results") or []
+        out = []
+        for row in rows:
+            t = str(row.get("ticker") or "")
+            if not t:
+                continue
+            name = row.get("name")
+            out.append({"name": (f"{t} - {name}" if name else t)[:100], "value": t})
+        return out[:25]
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] ticker autocomplete failed %r: %s", q, e)
+        return []
+
+
+def _autocomplete(choices: list) -> dict:
+    return {"type": 8, "data": {"choices": choices}}
+
+
 def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
@@ -96,13 +121,22 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         log.warning("discord interaction refused: guild=%s context=%s owners=%s",
                     interaction.get("guild_id"), interaction.get("context"),
                     interaction.get("authorizing_integration_owners"))
-        return _ephemeral(di.NOT_ALLOWED_MESSAGE)
+        # An autocomplete interaction may ONLY be answered with choices (type 8).
+        return _autocomplete([]) if itype == 4 else _ephemeral(di.NOT_ALLOWED_MESSAGE)
     name = (interaction.get("data") or {}).get("name")
-    if itype == 2 and name in di.CHART_COMMAND_NAMES:
+    if itype == 4:
+        if name not in di.CHART_COMMAND_NAMES:
+            return _autocomplete([])
+        q = di.parse_autocomplete(interaction)
+        return _autocomplete(fetch_ticker_choices(q) if q else [])
+    if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         try:
-            req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
+            if itype == 3:
+                req = di.parse_component(interaction)          # a button under a chart
+            else:
+                req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
         except di.CommandError as e:
             return _ephemeral(str(e))
         wait = di.user_rate_check(uid)
@@ -116,8 +150,10 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         background.add_task(di.run_chart_job, app_id, token, req,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
-                            prefs=prefs, quote_fn=fetch_ext_quote)
-        return {"type": 5}
+                            prefs=prefs, quote_fn=fetch_ext_quote, components_fn=di.chart_components)
+        # A button click updates the message it sits on (no loading state, no new
+        # message); a slash command gets the deferred "thinking..." reply.
+        return {"type": 6} if itype == 3 else {"type": 5}
     if itype == 2 and name == di.SETTINGS_COMMAND:
         return _ephemeral(_settings_reply(interaction))
     return _ephemeral("Unknown command.")
