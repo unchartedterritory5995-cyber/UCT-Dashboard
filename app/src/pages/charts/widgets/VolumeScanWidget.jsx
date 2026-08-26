@@ -66,16 +66,19 @@ function TickFlash({ price, dir }) {
   return <span key={k} className={`${styles.tick} ${dir === 'up' ? styles.tickUp : styles.tickDown}`} aria-hidden="true" />
 }
 
-// New-surge alert: a stronger triple-pulse flash the moment a row CROSSES into a
-// surge (unlit → lit) — the "something just ignited, look up" cue. Only fires on the
-// transition (a name already lit when it first renders never flashes).
-function SurgeFlash({ lit }) {
-  const prev = useRef(lit)
+// Extreme-surge alert: a white triple-pulse the moment a row crosses into an EXTREME
+// tier (t4 Very High / t5 Extreme) — reserved for the big signals so the white flash
+// stays rare and meaningful. Lower tiers get their colour + the gold igniting pulse,
+// but no white flash. Only fires on the transition INTO extreme; a row already extreme
+// on first render (or climbing within the lower tiers) never flashes.
+function SurgeFlash({ lit, tier }) {
+  const wasExtreme = useRef(lit && tier >= 4)
   const [k, setK] = useState(0)
   useEffect(() => {
-    if (lit && !prev.current) setK((x) => x + 1)
-    prev.current = lit
-  }, [lit])
+    const isExtreme = lit && tier >= 4
+    if (isExtreme && !wasExtreme.current) setK((x) => x + 1)
+    wasExtreme.current = isExtreme
+  }, [lit, tier])
   if (k === 0) return null
   return <span key={k} className={styles.surgeFlash} aria-hidden="true" />
 }
@@ -101,7 +104,7 @@ function Row({ e, onPick, logos }) {
       title={`${e.sym} — ${e.rvol}× relative volume${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`}
     >
       <TickFlash price={e.price} dir={e.dir} />
-      <SurgeFlash lit={e.lit} />
+      <SurgeFlash lit={e.lit} tier={e.tier || 1} />
       {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
