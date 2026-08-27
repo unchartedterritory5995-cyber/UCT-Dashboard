@@ -109,8 +109,22 @@ billing.
 `ast_interpret.unresolved_scalars(tree, row)` is called and the symbol is DROPPED
 FROM EVALUATION BEFORE `interpret` ever sees it, because E-1 measured that
 `interpret(market_cap > 1e9)` on a symbol with **no market cap returns `0.0`, not
-`None`** -- `_cmp` answers 0 against NaN, and that rule is pinned by 17 frozen
-conformance digests, so it is not changing. Without this call *"failed the filter"*
+`None`** -- `_cmp` answers 0 against NaN, and that rule is pinned by the frozen
+cross-lane conformance digests.
+
+⚠ THE COST OF CHANGING IT IS MEASURED, NOT FEARED, AND THE OLD NUMBER HERE
+WAS WRONG. This sentence used to read "17 frozen conformance digests, so it is
+not changing". The log holds far more than 17, and only a handful actually move
+if `_cmp` propagates NaN -- a fraction of one percent of rows, and the visible
+change is exactly the warm-up prefix. The count is deliberately not restated
+here: re-derive it from `tests/fixtures/ast/conformance_log.json` before
+quoting a cost. A wrong cost estimate that discourages a cheap fix is its own
+defect class.
+
+⛔ The rule still stands, for a better reason than the number: `_cmp` answering
+0 against NaN is CORRECT for a bar warm-up (the crossing did not happen), and
+the member-facing hole it opened at the leaf is closed by asking the question
+BEFORE evaluating (`unresolved_inputs`), not by changing what a warm-up means. Without this call *"failed the filter"*
 and *"we had no data"* are the same value at the top of the tree, and at universe
 scale that is a screen silently dropping symbols and looking like a quiet market.
 """
@@ -1487,7 +1501,7 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # 🔴 THE HOLE IS ASKED ABOUT BEFORE IT IS EATEN. `_cmp` answers 0
             # against NaN, so `market_cap > 1e9` on a symbol with no market cap
             # is a confident False rather than a hole -- measured by E-1 and
-            # pinned by 17 frozen conformance digests, so the fix is HERE and not
+            # pinned by the frozen conformance digests, so the fix is HERE and not
             # in the comparison.
             #
             # ⭐ AND THE QUESTION IS `unresolved_INPUTS`, NOT `unresolved_scalars`.
