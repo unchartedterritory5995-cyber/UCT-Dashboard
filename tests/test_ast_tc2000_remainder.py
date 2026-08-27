@@ -87,6 +87,7 @@ from __future__ import annotations
 
 import math
 import pathlib
+import re
 import sys
 
 import pytest
@@ -340,6 +341,62 @@ def test_bop_matches_the_composition_even_on_a_bar_whose_RANGE_IS_ZERO():
     assert sum(1 for v in declared if v is not None) >= 2
 
 
+def test_bop_over_a_zero_range_bar_is_a_HOLE_and_not_a_CONFIDENT_EXTREME():
+    """⛔⛔ THE MUTATION SWEEP SAID THE COLLAPSE WAS UNTESTED, AND IT WAS RIGHT
+    TWICE OVER -- once per lane. Deleting `_finite_or_nan` from `_fn_bop` (and
+    `Number.isFinite` from `barBop`) changes NOTHING in the column the case above
+    compares: at the interpret boundary `_to_column` collapses a non-finite to NaN
+    on its way out, so `bop(3)` prints the identical `None` with the guard and
+    without it. Both mutants survived that equality for exactly that reason.
+
+    ⭐ THE COMPARISON HAPPENS FIRST. `1/0` is `+Infinity`, and `_cmp` compares it
+    as a REAL NUMBER larger than every threshold, so `bop(n) > 0` answers a
+    confident TRUE on a bar nobody can compute. Measured on `DEGENERATE`:
+    `[0,0,1,0,0,0,1,1]` becomes `[0,0,1,1,1,1,1,1]` -- three bars flip. BOP is
+    bounded -1..+1 and `+1` means "buyers took the whole bar", so the defect
+    prints the strongest reading this indicator has, on a hole.
+
+    ⚠️ This is X23 with the sign of the error reversed. There a NaN launders to
+    0.0 and a screen goes confidently FALSE; here the guard is what PUTS the NaN
+    there, and without it the screen goes confidently TRUE. Both are a member
+    acting on a number that does not exist -- which is why the guard has to be
+    asserted through the comparison door rather than the column door.
+    """
+    gt = ast_interpret.interpret(
+        OP(">", CALL("bop", NUM(3)), NUM(0)), DEGENERATE, {})
+    # bars 3, 4 and 5 are the three windows that touch the malformed bar.
+    assert [at(gt, i) for i in (3, 4, 5)] == [0.0, 0.0, 0.0], gt
+    # ...and the case is not vacuous: the bars that CAN be computed still answer 1.
+    assert at(gt, 2) == 1.0 and at(gt, 6) == 1.0, gt
+    # ⛔ AND IT IS NOT MERELY "NEVER TRUE": the mirrored reading must not fire
+    # either, or a guard that pinned the column to a constant would pass this.
+    lt = ast_interpret.interpret(
+        OP("<", CALL("bop", NUM(3)), NUM(0)), DEGENERATE, {})
+    assert [at(lt, i) for i in (3, 4, 5)] == [0.0, 0.0, 0.0], lt
+
+
+@pytest.mark.skipif(not ac.js_lane_available(), reason="no node")
+def test_the_JS_lane_holds_the_SAME_zero_range_bar_open():
+    """🪞 RAIL THE MIRROR, NOT JUST THE LANE. `barBop`'s `Number.isFinite` is a
+    SEPARATE line of code from `_fn_bop`'s `_finite_or_nan`, and the sweep killed
+    neither: the conformance corpus is 579 bars of real market data, where `high
+    == low` with a non-zero body cannot occur, so 103 asts x 579 bars say nothing
+    about this seam. Deleting the JS guard alone leaves every Python test green.
+    """
+    cases = [{"id": "bop_gt", "ast": OP(">", CALL("bop", NUM(3)), NUM(0))},
+             {"id": "bop_raw", "ast": CALL("bop", NUM(3))}]
+    js = ac.run_js(cases, DEGENERATE)
+    assert [js["bop_gt"][i] for i in (3, 4, 5)] == [0, 0, 0], js["bop_gt"]
+    assert js["bop_gt"][2] == 1 and js["bop_gt"][6] == 1, js["bop_gt"]
+    # and the raw column agrees with Python bar for bar, holes included
+    py = ast_interpret.interpret(CALL("bop", NUM(3)), DEGENERATE, {})
+    for i in range(len(DEGENERATE)):
+        a, b = at(py, i), js["bop_raw"][i]
+        assert (a is None) == (b is None), (i, a, b)
+        if a is not None:
+            assert a == pytest.approx(b, rel=1e-9), (i, a, b)
+
+
 # ═══════════════════════════════════════════════════════════════════════════ #
 # 3. THE TWO REFUSALS — by name, with a reason true of the input
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -355,8 +412,31 @@ def test_stochWorden_is_NOT_declared_and_the_reason_is_the_RANK():
     low = reason.lower()
     for phrase in ("rank", "100/n-1", "ascending"):
         assert phrase in low, (phrase, reason[:200])
-    # ⭐ AND IT NAMES WHAT WOULD UNBLOCK IT, countably.
-    assert "rank(" in low, reason[:200]
+
+    # ⭐ AND IT NAMES WHAT WOULD UNBLOCK IT, COUNTABLY -- EXTRACTED, NOT SPOT-CHECKED.
+    # ⚰️ This read `assert "rank(" in low`, and the mutation sweep walked straight
+    # through it: the reason names `rank(close, x)` again in the REWRITE two clauses
+    # later, so deleting the sentence that ASKS FOR THE ENTRY -- the only half a
+    # member could act on -- left the test green. A substring check on prose asks
+    # whether a word occurs SOMEWHERE; what matters here is that a particular
+    # CLAUSE exists, so the clause is parsed instead.
+    asked = UNBLOCKER.findall(reason)
+    assert len(asked) == 1, (
+        f"a refusal names exactly ONE countable unblocker; found {len(asked)}: "
+        f"{asked}. {reason[:160]}")
+    name, args = asked[0]
+    # it asks for something this table does NOT have -- otherwise it is stale
+    assert name not in ast_table.TABLE["functions"], (
+        f"`{name}` is already declared, so this refusal is out of date")
+    assert args.strip(), f"`{name}()` names no arguments, so it is not a signature"
+    # ...and the rewrite it promises USES that entry, in vocabulary this table owns.
+    rewrite = reason[reason.index("becomes"):]
+    assert name + "(" in rewrite, rewrite[:200]
+    declared_in_rewrite = sorted(
+        f for f in ast_table.TABLE["functions"] if f + "(" in rewrite)
+    assert declared_in_rewrite, (
+        "the rewrite names no function this table declares, so it is a wish "
+        f"rather than a recipe: {rewrite[:200]}")
 
 
 def test_the_obv_SPELLING_is_refused_for_a_reason_true_of_ITS_input():
@@ -396,6 +476,14 @@ NEVER_READ = {
         "where the fetch started — the exact ground `_functions_excluded.obv` "
         "refuses on. `obvN(n)` is the bounded quantity, not this one.",
 }
+
+#: ⭐ A REFUSAL'S UNBLOCKER, AS A SHAPE RATHER THAN A SUBSTRING: the word
+#: `declare` followed by a backticked CALL SIGNATURE. "Name what would unblock it"
+#: is this branch's standing rule for a close judgement call, and the rule is only
+#: worth anything if the artifact can be ASKED whether it obeyed -- a reason that
+#: dead-ends ("simply unmappable") matches nothing here, which is the whole point.
+UNBLOCKER = re.compile(r"declare[ ]+`([A-Za-z_][A-Za-z0-9_]*)[(]([^`]*)[)]`")
+
 
 #: ⚠️ REACHABLE, AND NOT IN THIS TASK. Two moving averages this table does not
 #: declare. Named so the remaining path to A5's number is a list rather than a gap.

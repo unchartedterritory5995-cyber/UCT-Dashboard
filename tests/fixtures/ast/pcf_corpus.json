@@ -351,6 +351,14 @@
       "source": "AROONUP25 > 70",
       "native": "aroonUp(25) > 70",
       "note": "was refused as \"an indicator family this table does not declare\" until W2a.7 declared `aroonUp`/`aroonDown` on task 5's `highestbars`/`lowestbars`."
+    },
+    {
+      "id": "aroon_down",
+      "cite": "help-indicator-templates",
+      "what": "AROONDOWNx.z -- the OTHER leg, and not a duplicate of `aroon`. ⛔ IT EXISTS BECAUSE THE MUTATION SWEEP PROVED THE FIRST ROW DID NOT COVER IT: pointing `AROONDOWN` at `aroonUp` is a one-word edit yielding a perfectly plausible 0-100 column off the wrong field, and with only an `AROONUP` row in this corpus it stayed green. The two legs read DIFFERENT fields through OPPOSITE comparisons, so this row is the only place the mapping's DIRECTION is pinned.",
+      "source": "AROONDOWN25 < 30",
+      "native": "aroonDown(25) < 30",
+      "note": "`< 30` rather than `> 70` on purpose: an Aroon-Down reading is the mirror of an Aroon-Up one, so a row that asked the SAME question of both legs would still pass with the two columns swapped."
     }
   ],
   "refused": [
