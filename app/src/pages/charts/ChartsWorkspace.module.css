@@ -1378,6 +1378,34 @@
       placeholder while resizing + gold "L" marks in all four corners. ── */
 .rzHandle { position: absolute; z-index: 6; touch-action: none; }
 
+/* Merged-mode drag grip for a STANDALONE widget (its header chrome is hidden). Sits
+   top-center so it clears the four corner resize marks; hover-reveal so the seamless
+   look is undisturbed until you go to move it. */
+.mergedGrip {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 15px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: var(--text-muted, #8c8674);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 78%, transparent);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+:global(.react-grid-item):hover .mergedGrip { opacity: 0.8; }
+.mergedGrip:hover { opacity: 1; color: var(--ut-gold, #c9a84c); }
+.mergedGrip:active { cursor: grabbing; }
+
 /* Gold "L" corner grab marks (mirrors the old .react-resizable-handle::after). */
 .rzCorner::after {
   content: '';

@@ -17,6 +17,7 @@ import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings,
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
+import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -1981,6 +1982,19 @@ export default function ChartsWorkspace() {
     // auto-measurement.
     const GridComp = widthOverride > 0 ? Responsive : ResponsiveGridLayout
     const widthProps = widthOverride > 0 ? { width: widthOverride } : {}
+    // In MERGED mode the board is locked EXCEPT the seam drags. A widget that shares
+    // NO edge with any other (standalone) has no seam, so it's safe to drag/resize it
+    // freely like unmerged — that can't clash with the seam feature (which only ever
+    // touches shared-edge widgets). Compute the set of seam-member ids; a standalone
+    // widget is any merged widget not in it.
+    const seamMembers = merged ? (() => {
+      const { vertical, horizontal } = computeSeams(widgets, GRID_COLS, FIXED_ROWS)
+      const s = new Set()
+      for (const v of vertical) { v.leftIds.forEach(id => s.add(id)); v.rightIds.forEach(id => s.add(id)) }
+      for (const hh of horizontal) { hh.topIds.forEach(id => s.add(id)); hh.bottomIds.forEach(id => s.add(id)) }
+      return s
+    })() : null
+    const isStandalone = (id) => merged && !!seamMembers && !seamMembers.has(id)
     return (
     <GridComp
       className={`layout${resizingId ? ' charts-resizing' : ''}`}
@@ -1991,6 +2005,9 @@ export default function ChartsWorkspace() {
           return {
             i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
             minW: defaults.minW || 4, minH: defaults.minH || 3,
+            // Per-item override: a standalone widget stays draggable in merged mode
+            // (via its own grip below); everything else inherits the grid default.
+            ...(isStandalone(w.id) ? { isDraggable: true } : {}),
           }
         }),
       }}
@@ -2059,10 +2076,20 @@ export default function ChartsWorkspace() {
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
               onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
-            {/* Custom resize handles (main board only) — drive layout state
-                directly so a neighbour shrinks live as you drag an edge into it.
-                8 handles: 4 edges + 4 corners (corners carry the gold "L" mark). */}
-            {!merged && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
+            {/* Merged mode: a STANDALONE widget (no shared edge) gets a small drag grip
+                so it can be moved even though the header chrome is hidden. Carries the
+                RGL draggableHandle class; per-item isDraggable (above) re-enables drag. */}
+            {isStandalone(w.id) && (
+              <div
+                className={`${styles.mergedGrip} charts-widget-drag-handle`}
+                title="Drag to move"
+                aria-label="Drag to move widget"
+              >⠿</div>
+            )}
+            {/* Custom resize handles — main board when unmerged, OR a standalone widget
+                in merged mode. Drive layout state directly so a neighbour shrinks live
+                as you drag an edge into it. 8 handles: 4 edges + 4 corners. */}
+            {(!merged || isStandalone(w.id)) && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
               <div
                 key={dir}
                 onPointerDown={(e) => h.onStartResize(e, w, dir)}
