@@ -343,6 +343,12 @@ export function repackAroundMoved(widgets, movedId, rect, cols = GRID_COLS, rows
   const moved0 = widgets.find(w => w.id === movedId)
   if (!moved0) return widgets
   const moved = clampOne({ ...moved0, x: rect.x, y: rect.y, w: rect.w, h: rect.h }, cols, rows)
+  // AUTO-SHRINK the dropped widget so it fits BELOW whatever it was dropped under,
+  // instead of getting stuck: the board is height-locked, so a tall widget dragged
+  // low simply caps its height to the rows left beneath its top. A normal drop (it
+  // already fits) is untouched — this only bites when y sits near the bottom.
+  const movedMinH = (WIDGET_DEFAULTS[moved.type] || {}).minH || 3
+  moved.h = Math.max(movedMinH, Math.min(moved.h, rows - moved.y))
 
   // Cell-occupancy grid. Seed it with the moved widget; everything else fits around it.
   const occ = Array.from({ length: rows }, () => new Array(cols).fill(false))
@@ -1992,7 +1998,11 @@ export default function ChartsWorkspace() {
       cols={COLS}
       rowHeight={rowHeightOverride ?? rowHeight}
       maxRows={FIXED_ROWS}
-      isBounded={true}
+      /* NOT bounded: a bounded drag caps a widget's top at (rows - its height), so a
+         tall widget can't be dragged down UNDER another one on the height-locked board
+         (it gets stuck). Unbounded lets the top go low; handleDragStop → repackAroundMoved
+         then clamps it on-grid and auto-shrinks it to the rows left beneath the drop. */
+      isBounded={false}
       onLayoutChange={h.onLayoutChange}
       onDragStart={h.onDragStart}
       onDragStop={h.onDragStop}
