@@ -1089,7 +1089,18 @@ def list_accounts(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     legacy single-settings users into a Default account on first call."""
     # Make sure the user's default account exists (idempotent migration)
     accounts_service.get_or_migrate_default_account(user["id"])
-    return {"accounts": accounts_service.list_accounts(user["id"])}
+    accounts = accounts_service.list_accounts(user["id"])
+    # Live cash for broker-linked accounts: the stored broker_cash is only as
+    # fresh as the last balance sync, while the fills rail moves the served
+    # book within minutes — annotate the derived cash so the hero's net-liq
+    # never mixes a stale cash with live positions (the 2026-08-26 $21k-on-a-
+    # $10.7k-account incident). Best-effort: failure serves the plain list.
+    try:
+        from api.services.journal_two.broker import live_cash
+        live_cash.annotate_accounts(user["id"], accounts)
+    except Exception:
+        pass
+    return {"accounts": accounts}
 
 
 @router.post("/accounts")

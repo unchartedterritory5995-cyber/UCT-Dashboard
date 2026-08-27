@@ -12,7 +12,7 @@
  * from the already-computed portfolioAggregates. Renders null for non-broker.
  */
 import { useMemo, useRef, useState } from 'react'
-import { money, moneySigned, percent, extendedSessionSplit } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, extendedSessionSplit, effectiveBrokerCash } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
 import useAnimatedNumber from '../../../hooks/useAnimatedNumber'
@@ -112,6 +112,10 @@ export default function BrokerAccountHero({
   // null for them, but ungated hooks were still firing the whole intraday
   // bar fan-out on manual books).
   const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
+  // Live-derived cash (stored cash carried forward over post-sync fills) —
+  // every consumer below pairs cash with LIVE position values, so all of them
+  // must use the same vintage-consistent figure.
+  const brokerCash = effectiveBrokerCash(account)
   // Daily equity curve across ALL brokers for the multi-day ranges; for 1D we
   // reconstruct an intraday curve from each holding's bars (still fetch a light
   // perf window so endEquity/fallbacks stay available).
@@ -119,7 +123,7 @@ export default function BrokerAccountHero({
     null, isIntraday ? '1W' : range.period, { portfolio: true },
   )
   const { series: intradaySeries, loading: intraLoading } = useIntradayEquityCurve({
-    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0,
+    positions, prices, optionMarketValue, cash: brokerCash ?? 0,
     enabled: isIntraday && isBroker,
   })
 
@@ -177,14 +181,14 @@ export default function BrokerAccountHero({
   )
   const extSplit = useMemo(
     () => extendedSessionSplit(positions, prices, {
-      cash: account?.brokerCash ?? 0, optionMarketValue, todayIso,
+      cash: brokerCash ?? 0, optionMarketValue, todayIso,
     }),
-    [positions, prices, account?.brokerCash, optionMarketValue, todayIso],
+    [positions, prices, brokerCash, optionMarketValue, todayIso],
   )
 
   if (!isBroker) return null
 
-  const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
+  const marginUsed = brokerCash != null && brokerCash < 0 ? -brokerCash : 0
   const curveColor = model && !model.up ? 'var(--loss, #e74c3c)' : 'var(--gain, #3cb868)'
 
   // Scrub state → what the headline shows.
@@ -357,7 +361,7 @@ export default function BrokerAccountHero({
       <div className={styles.strip}>
         <Metric label="Open P&L" value={moneySigned(aggregates?.unrealized ?? 0)}
                 tone={(aggregates?.unrealized ?? 0) >= 0 ? 'pos' : 'neg'} />
-        {account.brokerCash != null && <Metric label="Cash" value={money(account.brokerCash)} />}
+        {brokerCash != null && <Metric label="Cash" value={money(brokerCash)} />}
         {account.brokerBuyingPower != null && <Metric label="Buying Power" value={money(account.brokerBuyingPower)} />}
         <Metric label="Margin Used" value={money(marginUsed)} tone={marginUsed > 0 ? 'neg' : undefined} />
         <Metric label="Invested"
