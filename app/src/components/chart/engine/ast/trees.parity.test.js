@@ -103,4 +103,40 @@ describe('multi_tree_parity.json — the fixture IS the parser\'s output, and th
     // comfortably more than 200 finite bars; this is the number, not a guess.
     expect(finite).toBeGreaterThan(200)
   })
+
+  it('⛔ THE `>` BOUNDARY, EXERCISED: a FLAT series puts `hist` exactly ON 0, and `hist_up` reads 0', () => {
+    // ⛔ THE SEAM THE SINE SERIES CANNOT REACH. Measured over those 300 bars,
+    // `hist` lands on exactly 0 ZERO times (9 sign changes; closest approach
+    // |hist| ≈ 4.7e-3), so the identity above never once evaluates the one place
+    // `hist_up` can be subtly wrong — `>` against `>=`. An untested boundary in a
+    // comparison is a seam this branch has been bitten by twice, so it is
+    // REACHED here rather than disclaimed: on a flat series `ema(close, 12)` and
+    // `ema(close, 26)` are the same number, so `macd`, `signal` and `hist` are
+    // exactly 0 on every post-warmup bar and the comparison sits ON the boundary.
+    //
+    // ⭐ AND THE CASE CAN DISTINGUISH, which is the half a boundary test usually
+    // skips: the `>=` control is the same operand against the same literal and it
+    // reads 1 exactly where `hist_up` reads 0. Without it this case would be
+    // green under EITHER operator and prove nothing
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    //
+    // ⭐ THE PYTHON LANE ASSERTS THE SAME BOUNDARY ON THE SAME SERIES
+    // (`tests/test_ast_multi_tree_parity.py`), through `compare_lanes`, because a
+    // comparison operator is mirrored code and a rail in one lane leaves the twin
+    // free to answer `>=`.
+    const flat = Array.from({ length: 60 }, (_, i) => (
+      { t: 1761897600 + i * 300, o: 100, h: 100, l: 100, c: 100, v: 100000 }))
+    const run = (tree) => [...interpret(tree, flat, {}, undefined, {})]
+    const h = run(fx.trees.hist)
+    const u = run(fx.trees.hist_up)
+    const ge = run({ type: 'op', name: '>=', args: [fx.trees.hist, { type: 'num', value: 0 }] })
+    let onTheBoundary = 0
+    for (let i = 0; i < flat.length; i++) {
+      if (h[i] !== 0) continue                 // NaN warmup and non-zero alike
+      onTheBoundary += 1
+      expect(u[i], `bar ${i}: hist is exactly 0 and hist_up did not read 0 — the tree compares >=, not >`).toBe(0)
+      expect(ge[i], `bar ${i}: the >= control did not read 1, so this case cannot tell the operators apart`).toBe(1)
+    }
+    expect(onTheBoundary, 'no bar landed on hist === 0 — this case proves nothing').toBeGreaterThan(0)
+  })
 })

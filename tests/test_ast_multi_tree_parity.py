@@ -216,6 +216,50 @@ def test_the_lanes_agree_on_a_tree_that_is_NOT_COMPUTABLE_on_every_bar():
     assert js["cmp"] == py["cmp"]                  # …and the browser reads it the same way
 
 
+def test_BOTH_LANES_put_the_SAME_SIDE_of_the_boundary_on_hist_up():
+    """⛔ THE `>` BOUNDARY, REACHED RATHER THAN DISCLAIMED — AND IN BOTH LANES.
+
+    Over the corpus (and over the JS lane's own 300-bar sine series) `hist` never
+    lands on exactly 0, so `hist_up`'s one subtle failure mode -- comparing `>=`
+    where the source says `>` -- is invisible to every other case in this file.
+    A FLAT series reaches it: with every close equal, `ema(close, 12)` and
+    `ema(close, 26)` are the same number, so `macd`, `signal` and `hist` are
+    exactly 0 on every post-warmup bar and the comparison sits ON the boundary.
+
+    ⭐ AND THE CASE CAN DISTINGUISH. The `ge` tree is the same operand against
+    the same literal under `>=`, and it reads 1 exactly where `hist_up` reads 0.
+    Without that control this case would be green under EITHER operator and prove
+    nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    ⭐ AND THE SUBJECT IS BOTH LANES. `trees.parity.test.js` exercises the same
+    boundary on the same series; here the two lanes are additionally COMPARED on
+    it, so a Python `>=` (or a JS one) is a difference rather than a private
+    opinion.
+    """
+    fx = _fixture()
+    bars = [{"t": 1761897600 + i * 300, "o": 100.0, "h": 100.0, "l": 100.0,
+             "c": 100.0, "v": 100000} for i in range(60)]
+    ge = {"type": "op", "name": ">=",
+          "args": [fx["trees"]["hist"], {"type": "num", "value": 0}]}
+    trees = {"hist": fx["trees"]["hist"], "hist_up": fx["trees"]["hist_up"], "ge": ge}
+    cases = [{"id": k, "ast": t, "inputs": {}} for k, t in trees.items()]
+    js = ac.run_js(cases, bars)
+    py = {k: [_nullish(v) for v in col]
+          for k, col in ast_interpret.interpret_trees(trees, bars).items()}
+    res = ac.compare_lanes(js, py)
+    assert res["compared"] == 3 * len(bars)
+    assert res["differences"] == [], res["differences"][:5]
+
+    on_boundary = [i for i, v in enumerate(py["hist"]) if v == 0.0]
+    assert on_boundary, "no bar landed on hist == 0 — this case proves nothing"
+    assert [py["hist_up"][i] for i in on_boundary] == [0.0] * len(on_boundary), (
+        "hist is exactly 0 and this lane read hist_up as true — it compares >=, not >")
+    assert [js["hist_up"][i] for i in on_boundary] == [0.0] * len(on_boundary), (
+        "hist is exactly 0 and the BROWSER read hist_up as true")
+    assert [py["ge"][i] for i in on_boundary] == [1.0] * len(on_boundary), (
+        "the >= control did not read 1 — this case cannot tell the operators apart")
+
+
 # ─── the hash ────────────────────────────────────────────────────────────────
 
 def test_the_fixture_hash_is_the_one_BOTH_LANES_produce():
