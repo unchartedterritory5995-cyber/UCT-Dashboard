@@ -105,7 +105,12 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
     const d = diagnose('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n')
     expect(d.threw, 'the bench must never report a throw').toBe(undefined)
     expect(d.translates).toBe(false)
-    expect(d.refusal.guard).toBe('thinkscript:function')
+    // ⏳ THE GUARD MOVED IN W3.6 AND THE PROBE STAYS. `TTM_Squeeze` is still a
+    // wall the function map will not move — thinkorswim publishes no formula for
+    // it at all — but it is now refused as a STUDY REFERENCE rather than as an
+    // unknown function, which is the truer sentence: this engine has plenty of
+    // functions, what it has no citation for is that study.
+    expect(d.refusal.guard).toBe('thinkscript:study-ref')
     expect(typeof d.refusal.line).toBe('number')
     expect(d.refusal.token).toBe('TTM_Squeeze')
     expect(d.refusal.column).toBe(9)
@@ -128,7 +133,7 @@ describe('the thinkScript intake bench can tell one answer from another', () => 
       expect(Object.prototype.hasOwnProperty.call(d, k), k).toBe(true)
     }
     expect(d.downstream, 'no column selected, so no downstream verdict to report').toBe(null)
-    expect(d.perOutputRefusals).toEqual({ 'thinkscript:function': 1 })
+    expect(d.perOutputRefusals).toEqual({ 'thinkscript:study-ref': 1 })
   })
 })
 

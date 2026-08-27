@@ -53,3 +53,92 @@ Several files straddle buckets on purpose (06 and 10 carry `alert`/`Alert`, 08 u
 
 Reversing the decision to commit third-party code costs one command: delete this directory
 and re-fetch from the URLs in `SOURCES.md` if it is ever needed again.
+
+---
+
+## ⛔⛔ THE STUDY-DEFAULT MEASUREMENT (W3.6, fetched 2026-08-26)
+
+Four of these fixtures call a thinkorswim **study** rather than a thinkScript
+**function**, and whether each one can be translated turns on a single structural
+fact about Schwab's own documentation. It was measured, not assumed, and it is
+recorded here because **a default this lane cannot quote is a default this lane
+does not use** — and because the next person to look at `RSI()` will otherwise
+re-derive it from scratch.
+
+### The structural fact
+
+| page family | Input Parameters table columns |
+|---|---|
+| `thinkScript/Functions/**` | `Parameter` · **`Default value`** · `Description` |
+| `Tech-Indicators/studies-library/**` | `Parameter` · `Description` — **no Default column, anywhere** |
+
+So a study's defaults exist only where its own prose states them. `ATR` is the
+control that makes this a rule rather than an excuse: it IS mapped, out of the
+same library, because its description publishes both of its missing defaults in
+one sentence — *"By default, the average true range is a 14-period Wilder's
+moving average of this value."* None of the four below has such a sentence.
+
+### The four, verbatim
+
+**`studies-library/R-S/RSI`** — used by `16-scan-rsi-crosses-30-70` (`RSI()`,
+no arguments at all) and by `05-bollinger-rsi-buy-arrow`
+(`RSI(length = RSI_Length)`).
+Rows: `length` · `over bought` · `over sold` · `price` · `average type` ·
+`show breakout signals`. Description publishes *"with default values of 30 for
+the oversold level and 70 for the overbought"* — **and nothing for `length` or
+`price`.**
+⇒ **UNCITED.** `RSI()` could only be mapped by inventing `14` and `close`.
+Refuses `thinkscript:study-ref`, naming `RSI(length = 14, price = close)` as the
+form to write. ⭐ `closedTable` *does* declare `rsi`, so this refusal is about a
+missing citation and never about a missing function.
+
+**`studies-library/A-B/BollingerBands`** — used by `05-bollinger-rsi-buy-arrow`
+(`BollingerBands(length = BB_Length).LowerBand`).
+Rows: `price` · `displace` · `length` · `num dev dn` · `num dev up` ·
+`average type`. Description publishes the multiplier only — *"two lines plotted,
+by default, two standard deviations above and below a moving average"* — and
+lists the average types (*"simple, exponential, weighted, Wilder's, or Hull"*)
+**without picking one**.
+⇒ **UNCITED** on `price` and `average type`; the `2` is quotable and the average
+the bands are drawn around is not. Refuses, naming
+`sma(close, 20) - 2 * stdev(close, 20)` as the band to write directly.
+⚠️ Recorded because a later task needs it: its plots are declared **MidLine,
+LowerBand, UpperBand in that order**, so a bare reference resolves to `MidLine`
+per `Reserved-Words/reference` (*"the first declared in the source code"*).
+
+**`studies-library/M-N/MovAvgExponential`** — used by
+`19-consecutive-bars-above-ema-count` (`MovAvgExponential("length" = 21)."AvgExp"`).
+Rows: `price` · `length` · `displace` · plus signal toggles. No Default column;
+`displace` is *"The displacement of the EMA study, in bars. Positive values
+signify backward displacement."* Plots: **AvgExp, UpSignal, DownSignal.**
+⇒ **UNCITED** on `price`, and `displace` would shift every bar of the plot.
+Refuses, naming `ExpAverage(close, 21)` — which IS mapped, from the Functions
+library, whose page publishes `length: 12`.
+
+**`studies-library/R-S/RateOfChange`** — used by `20-roc-stdev-lower-switch`
+(`RateOfChange(price = dataPrice, length = lengthROC)`).
+Rows: `length` · `color norm length` · `price`. No Default column.
+Description: *"The Rate Of Change (ROC) is an oscillator calculating the
+**percentage change** of the security price relative to the price a specified
+number of periods before."* Plots: **ROC** and **ZeroLine** (*"Zero level"*).
+⇒ **MAPPED — and this corrects W3.5.** That task recorded ROC as unmappable
+because *"the description does not say whether the result is a ratio, a
+percentage or a difference — three readings, no quote to pick between them"*,
+and the W3.5 review CONFIRMED the correction. **The quote it printed says
+"percentage change."** The sentence that settles the question was inside the
+sentence claiming it was unsettleable, and it survived a task, a mutation sweep
+and a review, because everything downstream re-read the claim instead of
+re-reading the page. Percentage change relative to an earlier value is
+`(new − old) / old × 100`; the page's own `ZeroLine` plot corroborates it by
+ruling out the `new / old × 100` spelling, which is centred on 100.
+⛔ Its **defaults** are still uncited, so nothing is defaulted: `RateOfChange(14)`
+refuses and names the parameter it is missing. `20` translates because it happens
+to supply both explicitly.
+
+### The habit this cost
+
+An **over-refusal is invisible**. A wrong "no" has no red test, no wrong column
+and no complaint — only a recorded reason nobody re-reads. It is the one defect
+class this lane's own thesis (*a refusal is always safer than a mistranslation*)
+makes structurally hard to see, and the only defence is to **re-derive the
+citation rather than the conclusion.**

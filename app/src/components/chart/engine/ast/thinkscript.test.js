@@ -69,13 +69,15 @@ const OTHER_DOORS = [['pine', PINE], ['pcf', PCF], ['parse', PARSE],
  *  map". They are here because the map's MECHANISM landed with the expressions;
  *  the map itself is still W3.5's. */
 const REACHABLE = [
+  'thinkscript:account', 'thinkscript:aggregation',
   'thinkscript:arity', 'thinkscript:block', 'thinkscript:builtin', 'thinkscript:character',
   'thinkscript:cycle', 'thinkscript:empty', 'thinkscript:enum-arm', 'thinkscript:fold',
   'thinkscript:function', 'thinkscript:future-offset', 'thinkscript:input-kind',
   'thinkscript:named-argument', 'thinkscript:no-output',
   'thinkscript:offset-chained', 'thinkscript:offset-literal', 'thinkscript:state',
-  'thinkscript:statement', 'thinkscript:study-ref', 'thinkscript:syntax',
-  'thinkscript:type', 'thinkscript:undefined', 'thinkscript:window',
+  'thinkscript:statement', 'thinkscript:strategy', 'thinkscript:study-ref',
+  'thinkscript:symbol', 'thinkscript:syntax',
+  'thinkscript:time', 'thinkscript:type', 'thinkscript:undefined', 'thinkscript:window',
 ]
 
 /** The sentence for a guard, read from the one authority rather than retyped —
@@ -214,6 +216,24 @@ describe('the refusal vocabulary', () => {
       'def x = fold i = 0 to 8 with p do p + close;\nplot q = x;',
       'input mode = {default UseA, UseB};\nplot p = if mode == mode.UseZ then close else open;',
       'plot p = reference RSI("length" = 14)."RSI";',
+      // ⏳ THREE PROBES MOVED IN W3.6 AND EVERY ONE OF THEM HAD TO — each was
+      // measuring a wall this task deliberately took down, so leaving them would
+      // have kept a guard in this set while nothing reached it any more.
+      //   * `:statement` was `AddLabel(…)`, which is now CHROME and listed;
+      //     an unrecognised statement-level call still refuses.
+      //   * `:function` was `TTM_Squeeze(…)`, now a `:study-ref`; a name with no
+      //     shape and no study page still refuses `:function`.
+      //   * `:block` was the `if … { y = 1 } else { y = 2 }` shape, which now
+      //     READS as a ternary; a block assigning two DIFFERENT names does not.
+      'Frobnicate(close, 1);\nplot p = close > 0;',
+      'plot p = Inertia(close, 20);',
+      'def y;\ndef z;\nif close > open then { y = 1; } else { z = 2; }\nplot p = close;',
+      // W3.6 — the five constructs that are outside a screen's world.
+      'def b = close(symbol = "SPY");\nplot p = close / b;',
+      'plot p = high(period = AggregationPeriod.DAY);',
+      'plot p = GetQuantity();',
+      'plot p = GetTime() > 0;',
+      'plot f = Average(close, 9);\naddOrder(OrderType.BUY_TO_OPEN, close > f);',
     ]) {
       for (const r of translateThinkScript(src).refusals) reached.add(r.guard)
     }
@@ -261,9 +281,11 @@ describe('the refusal vocabulary', () => {
     const table = /export const REFUSALS = Object\.freeze\(\{[\s\S]*?\n\}\)/.exec(src)
     const code = src.replace(table[0], '')
     const inCode = new Set([...code.matchAll(/'(thinkscript:[a-z-]+)'/g)].map((m) => m[1]))
+    // ⏳ W3.6 EMPTIED THIS SET DOWN TO ONE. `:aggregation` `:symbol` `:time`
+    // `:strategy` `:account` were the five it was waiting on and all five are
+    // now written AND reachable, which is what moves them into `REACHABLE`
+    // above rather than merely out of here.
     expect(Object.keys(TS).filter((g) => !inCode.has(g)).sort()).toEqual([
-      'thinkscript:account', 'thinkscript:aggregation',
-      'thinkscript:strategy', 'thinkscript:symbol', 'thinkscript:time',
       'thinkscript:unsupported',
     ])
     // ⛔ THE THREE SETS PARTITION THE TABLE — no guard in two of them, none in
@@ -370,12 +392,16 @@ describe('what the reader still refuses, and where it says so', () => {
   it('a script whose function this task has not mapped refuses, by name', () => {
     const out = translateThinkScript('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n')
     expect(out.ok).toBe(false)
-    expect(out.refusal.guard).toBe('thinkscript:function')
-    expect(out.refusal.message).toBe(TS['thinkscript:function'])
+    // ⏳ THE GUARD MOVED IN W3.6: a STUDY with no published formula is refused as
+    // a study reference, not as an unknown function. `:function` would have said
+    // "this engine declares no function for that call", which is false of every
+    // study name this door refuses — the missing thing is a citation.
+    expect(out.refusal.guard).toBe('thinkscript:study-ref')
+    expect(out.refusal.message).toMatch(/publishes no formula for the TTM Squeeze/)
     // ⚠️ THE OUTPUT ROW IS STILL OFFERED, carrying its own refusal — the member
     // is told WHICH of their plots failed, not that "the script" failed.
     expect(out.outputs).toHaveLength(1)
-    expect(out.outputs[0].refusal.guard).toBe('thinkscript:function')
+    expect(out.outputs[0].refusal.guard).toBe('thinkscript:study-ref')
     expect(out.outputs[0].formula).toBe(null)
   })
 
@@ -449,12 +475,23 @@ describe('what the reader still refuses, and where it says so', () => {
     // is found afterwards, when the plot is resolved. Sorting by production
     // order would report the chrome on line 9 ahead of the function on line 2 —
     // and the function is the thing the member has to fix.
+    // ⏳ THE CHROME HALF OF THIS PROBE BECAME A NOTE IN W3.6, so the ordering is
+    // now shown against a statement-level call this door does NOT recognise —
+    // still produced while walking the source, still sorted behind the line-1
+    // refusal found later, during resolution.
     const out = translateThinkScript(
-      'def a = TTM_Squeeze(close, 20);\nplot p = a > 0;\nAddLabel(yes, "x", Color.RED);\n')
+      'def a = TTM_Squeeze(close, 20);\nplot p = a > 0;\nFrobnicate(1);\n')
     expect(out.refusals.map((r) => [r.line, r.guard])).toEqual([
-      [1, 'thinkscript:function'],
+      [1, 'thinkscript:study-ref'],
       [3, 'thinkscript:statement'],
     ])
+    // ⭐ AND THE CHROME LINE IS LISTED, NOT REFUSED — it appears in `ignored`,
+    // which is the whole of what W3.6 changed about it.
+    const withChrome = translateThinkScript(
+      'def a = TTM_Squeeze(close, 20);\nplot p = a > 0;\nAddLabel(yes, "x", Color.RED);\n')
+    expect(withChrome.refusals.map((r) => r.guard)).toEqual(['thinkscript:study-ref'])
+    expect(withChrome.ignored.map((n) => [n.line, n.code]))
+      .toEqual([[3, 'thinkscript:note-chrome']])
   })
 })
 
@@ -816,24 +853,56 @@ describe('declare, input, def and plot', () => {
     expect(out.outputs[out.selected].formula).toBe('close - open')
   })
 
-  it('⛔ a bare CALL is chrome, not an output — `AddLabel(…)` answers with no value to screen on', () => {
+  it('⭐ a bare CALL is CHROME — `AddLabel(…)` is LISTED with its line, never a column and never dropped', () => {
     // ⛔ THE ONE RULE THAT KEEPS `assert(…)`, `AddCloud(…)` AND
-    // `signal.AssignValueColor(…)` FROM BECOMING COLUMNS. W3.6 turns this subset
-    // into `ignored`; today it refuses, and it refuses at the call.
+    // `signal.AssignValueColor(…)` FROM BECOMING COLUMNS. W3.5 refused them; W3.6
+    // lists them, which is what A4 asks for — "chrome calls listed as ignored
+    // lines, NEVER dropped". The script now translates AROUND the chrome.
     const out = translateThinkScript('plot p = close > open;\nAddLabel(yes, "hi", Color.RED);\n')
     expect(out.outputs).toHaveLength(1)
-    const r = out.refusals.find((x) => x.guard === 'thinkscript:statement')
-    expect(r.line).toBe(2)
-    expect(r.column).toBe(1)
-    expect(r.token).toBe('AddLabel')
-    expect(out.ok, 'a statement this translator cannot read refuses the whole script').toBe(false)
+    expect(out.ok, 'chrome no longer blocks a script that is otherwise readable').toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close > open')
+    const n = out.ignored.find((x) => x.code === 'thinkscript:note-chrome')
+    expect(n.line).toBe(2)
+    expect(n.column).toBe(1)
+    expect(n.token).toBe('AddLabel')
+    // ⛔ AND IT SAYS WHAT THE LINE DOES — one sentence per KIND. A generic
+    // sentence repeated for every chrome line is a list a member learns to skip.
+    expect(n.message).toMatch(/puts a text label on the chart/)
+    // ⛔ A STATEMENT-LEVEL CALL THIS DOOR DOES NOT RECOGNISE IS STILL A REFUSAL.
+    // "skip anything that looks like chrome" would silently drop a line that
+    // might have been the member's column.
+    const unknown = translateThinkScript('plot p = close > open;\nFrobnicate(1);\n')
+    expect(unknown.ok).toBe(false)
+    expect(unknown.refusal.guard).toBe('thinkscript:statement')
+    expect(unknown.refusal.token).toBe('Frobnicate')
+    // 🔴🔴 AND THE METHOD FORM TOO — THE SWEEP FOUND THIS ONE. `chromeOf` has TWO
+    // returns, one per shape, and only the bare one was railed: a mutation that
+    // swallowed every unrecognised METHOD suffix as chrome survived the whole
+    // suite. `p.Frobnicate(…)` is a line this door has never seen, and quietly
+    // skipping it is precisely the "silently swallowing a chrome statement"
+    // failure A4 names — invisible in the corpus count, because the script would
+    // translate.
+    const unknownMethod = translateThinkScript('plot p = close > open;\np.Frobnicate(1);\n')
+    expect(unknownMethod.ok).toBe(false)
+    expect(unknownMethod.refusal.guard).toBe('thinkscript:statement')
   })
 
-  it('⛔ a multi-statement block refuses as a block, naming the word that opened it', () => {
-    const r = translateThinkScript('def y;\nif close > open then {\n  y = 1;\n} else {\n  y = 2;\n}\nplot p = y;\n').refusal
+  it('⛔ a block this reader cannot fold refuses as a block, naming the word that opened it', () => {
+    // ⏳ THE PROBE MOVED IN W3.6 AND HAD TO: `if … { y = 1 } else { y = 2 }` now
+    // READS as a ternary. What still refuses is a block that is a PROGRAM — two
+    // branches assigning two different names is not one expression, and picking
+    // one of them would answer about a script the member did not write.
+    const r = translateThinkScript('def y;\ndef z;\nif close > open then {\n  y = 1;\n} else {\n  z = 2;\n}\nplot p = y;\n').refusal
     expect(r.guard).toBe('thinkscript:block')
-    expect(r.line).toBe(2)
+    expect(r.line).toBe(3)
     expect(r.token).toBe('if')
+  })
+
+  it('⭐ …and the block that DOES fold is a ternary, tree for tree', () => {
+    const out = translateThinkScript('def y;\nif close > open then {\n  y = 1;\n} else {\n  y = -1;\n}\nplot p = y;\n')
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close > open ? 1 : -1')
   })
 
   it('⛔ a script with nothing to read refuses `no-output`', () => {
@@ -847,8 +916,11 @@ describe('declare, input, def and plot', () => {
     // `TTM_Squeeze` is proprietary — thinkorswim publishes no formula for it — so
     // the honest answer stays the token and the reason, never a neighbouring
     // function that happens to be in the table.
+    // ⏳ AND IT MOVED AGAIN IN W3.6 — to `:study-ref`, which is the truer
+    // sentence: this engine declares plenty of functions, what it has no
+    // citation for is that STUDY.
     const r = translateThinkScript('def a = TTM_Squeeze(close, 20);\nplot scan = close > a;\n').refusal
-    expect(r.guard).toBe('thinkscript:function')
+    expect(r.guard).toBe('thinkscript:study-ref')
     expect(r.line).toBe(1)
     expect(r.column).toBe(9)
     expect(r.token).toBe('TTM_Squeeze')
@@ -1332,7 +1404,7 @@ describe('the CALL SHAPES this task maps, and the promise each one makes', () =>
     // thinkorswim publishes no formula for it, so it refuses here and will refuse
     // in every later task too.
     const r = translateThinkScript('plot p = TTM_Squeeze(close, 20);\n').refusal
-    expect(r.guard).toBe('thinkscript:function')
+    expect(r.guard).toBe('thinkscript:study-ref')
     expect(r.token).toBe('TTM_Squeeze')
   })
 })
@@ -1903,8 +1975,13 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     // (Wilder's). `length` and `price` have none.
     // ⇒ `RSI()` cannot be mapped without inventing 14 and `close`, and inventing
     // semantics without a citation is the exact risk this door exists against.
+    // ⏳ W3.6 GAVE IT ITS OWN GUARD. `:function` said "this engine declares no
+    // function for that call", which is FALSE — `closedTable` declares `rsi`.
+    // `:study-ref` says the true thing, and the message names the explicit form
+    // to write instead, so the member can act on it in one edit.
     const r = translateThinkScript('plot p = RSI() crosses above 30;\n').refusal
-    expect(r.guard).toBe('thinkscript:function')
+    expect(r.guard).toBe('thinkscript:study-ref')
+    expect(r.message).toMatch(/RSI\(length = 14, price = close\)/)
     expect(r.token).toBe('RSI')
     // ⭐ AND THE CONTROL: the engine DOES declare `rsi`, so this is a refusal
     // about a missing CITATION, never about a missing function.
@@ -1983,7 +2060,19 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
         // PARAMETER and every entry must be a `from`. Nothing is invented inside
         // an expansion either: its engine names are checked above.
         expect(argumentPlan(shape), `${name} is an expansion`).toBe(null)
-        expect(shape.args.map((a) => a.from), name).toEqual(shape.params)
+        // ⛔ EVERY ENTRY IS A `from`, AND EVERY PARAMETER IS STILL ACCOUNTED FOR —
+        // but an expansion may DROP one, so the check is set-equality against
+        // args+gates+unused rather than a positional match against `params`.
+        // ⭐ THIS RAIL CAUGHT A REAL DEFECT: `RateOfChange`'s shape listed two
+        // `args` for three published parameters, because the third — `color norm
+        // length`, which scales a colour gradient and changes no value — is
+        // `unused`. A positional compare would have forced it into the args and
+        // put a node in the tree for a parameter that contributes none.
+        for (const a of shape.args) expect(a.from, `${name} expansion arg`).toBeTruthy()
+        const covered = [...shape.args.map((a) => a.from),
+          ...Object.keys(shape.gates || {}), ...Object.keys(shape.unused || {})]
+        expect(new Set(covered).size, `${name} accounts for a parameter twice`).toBe(covered.length)
+        expect([...covered].sort(), name).toEqual([...shape.params].sort())
         checked += 1
         continue
       }
@@ -2103,7 +2192,16 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
     // ⭐ A REFUSAL NOBODY RECORDED GETS RE-LITIGATED AS AN OVERSIGHT. Each of
     // these was fetched before it was refused, and each still refuses at its own
     // token today.
-    expect(Object.keys(TS_UNCITED).length).toBeGreaterThan(5)
+    // ⏳ W3.6 SHRANK THIS LIST BY MOVING THE STUDIES INTO CITED ROWS. `RSI`,
+    // `SimpleMovingAvg`, `MovAvgExponential`, `BollingerBands` and `TTM_Squeeze`
+    // now each carry their own `cite` and their own refusal sentence ON the shape,
+    // so the page they were read from travels WITH the refusal instead of living
+    // in a second list — and `RateOfChange` left because it is now MAPPED. What
+    // stays here is the one name that is not a study and has no shape at all.
+    // ⛔ THE FLOOR IS THEREFORE 1, NOT 5, AND THAT IS NOT A WEAKENING: the
+    // per-shape rails below check the citation on all 22 rows, which is a wider
+    // net than this list ever was.
+    expect(Object.keys(TS_UNCITED).length).toBeGreaterThan(0)
     for (const [name, why] of Object.entries(TS_UNCITED)) {
       expect(why.length, name).toBeGreaterThan(60)
       expect(Object.keys(TS_CALL_SHAPES), `${name} is both mapped and refused`)
@@ -2112,11 +2210,20 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
       expect(r.guard, name).toBe('thinkscript:function')
       expect(r.token, name).toBe(name)
     }
+    // ⛔ AND THE STUDIES THAT LEFT MUST STILL REFUSE BY NAME — moving a refusal
+    // into a shape row is exactly how one could quietly stop refusing.
+    for (const name of ['RSI', 'SimpleMovingAvg', 'MovAvgExponential',
+      'BollingerBands', 'TTM_Squeeze']) {
+      const r = translateThinkScript(`plot p = ${name}(close, 5);\n`).refusal
+      expect(r.guard, name).toBe('thinkscript:study-ref')
+      expect(r.token, name).toBe(name)
+      expect(r.message.length, name).toBeGreaterThan(80)
+    }
   })
 
   it('⛔ a call this task has NOT mapped still refuses at its own name', () => {
     const r = translateThinkScript('plot p = TTM_Squeeze(close, 20);\n').refusal
-    expect(r.guard).toBe('thinkscript:function')
+    expect(r.guard).toBe('thinkscript:study-ref')
     expect(r.token).toBe('TTM_Squeeze')
   })
 })
@@ -2472,5 +2579,487 @@ describe('the maths, measured on real bars — BOTH directions for every identit
     expect(differing(ca, cb)).toBe(0)
     // …and it is a real column, not all-NaN.
     expect(ca.filter((v) => !Number.isNaN(v)).length).toBeGreaterThan(100)
+  })
+})
+
+describe('⭐⭐ A4 — the lines a screen does not read are LISTED, never dropped', () => {
+  const src = `declare lower;
+input length = 14;
+def a = Average(close, length);
+plot Sig = close > a;
+Sig.SetDefaultColor(Color.GREEN);
+Sig.SetPaintingStrategy(PaintingStrategy.BOOLEAN_ARROW_UP);
+Sig.SetLineWeight(3);
+Sig.AssignValueColor(if Sig then Color.GREEN else Color.RED);
+Sig.SetStyle(Curve.SHORT_DASH);
+Sig.HideTitle();
+Sig.HideBubble();
+AssignBackgroundColor(if Sig then Color.GREEN else Color.RED);
+AssignPriceColor(Color.CURRENT);
+AddCloud(a, close, Color.GREEN, Color.RED);
+AddLabel(yes, "hi", Color.YELLOW);
+AddChartBubble(Sig, high, "x");
+AddVerticalLine(Sig, "v", Color.CYAN);
+Alert(Sig, " ", Alert.BAR, Sound.Bell);
+Assert(length > 0, "positive");
+`
+
+  it('every chrome line is ignored WITH ITS NUMBER, and the script still translates', () => {
+    const out = translateThinkScript(src)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close > sma(close, 14)')
+    // ⛔ BY LINE NUMBER, NEVER BY COUNT. "we ignored fifteen lines" is satisfied
+    // by ignoring the wrong fifteen; the member has to be able to look at the
+    // line this door skipped. Line 1 is the `declare` note.
+    expect(out.ignored.map((n) => n.line))
+      .toEqual([1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+    for (const n of out.ignored) expect(typeof n.message).toBe('string')
+  })
+
+  it('⛔ a chrome call is not silently DELETED — each KIND says what it does', () => {
+    const out = translateThinkScript(src)
+    const at = (line) => out.ignored.find((n) => n.line === line).message
+    expect(at(14)).toMatch(/shades the area between two plots/)
+    expect(at(15)).toMatch(/puts a text label on the chart/)
+    expect(at(18)).toMatch(/raises an alert/)
+    expect(at(19)).toMatch(/checks an input and stops the study/)
+    expect(at(5)).toMatch(/sets the colour this plot is drawn in/)
+    expect(at(7)).toMatch(/how thick the line is drawn/)
+    // ⛔ AND THE SENTENCES ARE NOT ALL THE SAME. One generic sentence repeated
+    // eighteen times is a list a member learns to skip — which is how a dropped
+    // line would go unnoticed.
+    const chrome = out.ignored.filter((n) => n.code === 'thinkscript:note-chrome')
+    expect(new Set(chrome.map((n) => n.message)).size).toBeGreaterThan(9)
+    // ⛔ EVERY ONE CARRIES THE TOKEN THE MEMBER WROTE, so the Import box can
+    // point AT the line rather than describing it.
+    for (const n of chrome) expect(typeof n.token, JSON.stringify(n)).toBe('string')
+    expect(chrome.find((n) => n.line === 8).token).toBe('Sig.AssignValueColor')
+  })
+
+  it('⛔ chrome ARGUMENTS are never resolved — skipping a line means skipping what is in it', () => {
+    // `RSI.AssignValueColor(if RSI > x then RSI.color("OverBought") else …)` is
+    // corpus 04 line 43, and it is full of things this grammar has no node for.
+    // Resolving them would turn a line we are deliberately skipping into a
+    // refusal — the script would die on decoration.
+    const out = translateThinkScript(
+      'plot p = close > open;\np.AssignValueColor(if p then p.color("Nope") else GetColor(5));\n')
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.ignored.some((n) => n.code === 'thinkscript:note-chrome')).toBe(true)
+  })
+
+  it('⛔ the chrome match is CASE-INSENSITIVE and survives a space before the dot', () => {
+    // Measured in the corpus: `02` writes `AssignBackgroundCOlor`, `05` writes
+    // `setPaintingStrategy`, `11` writes `UpArrow .SetPaintingStrategy`.
+    for (const line of ['AssignBackgroundCOlor(Color.RED);', 'p.setPaintingStrategy(x);',
+      'p .SetLineWeight(5);', 'ADDLABEL(yes, "x");']) {
+      const out = translateThinkScript(`plot p = close > open;\n${line}\n`)
+      expect(out.ok, line).toBe(true)
+      expect(out.ignored.some((n) => n.code === 'thinkscript:note-chrome'), line).toBe(true)
+    }
+  })
+})
+
+describe('⛔⛔ the constructs that are OUTSIDE A SCREEN`S WORLD block the whole script', () => {
+  const r = (s) => translateThinkScript(s).refusal
+
+  it('AggregationPeriod through a bar-field call → :aggregation at the argument', () => {
+    const x = r('plot s = high(period = AggregationPeriod.DAY);\n')
+    expect(x.guard).toBe('thinkscript:aggregation')
+    expect(x.message).toMatch(/another timeframe/)
+  })
+
+  it('close(symbol = …) → :symbol, and it names what to do instead', () => {
+    const x = r('def b = close(symbol = "SPY");\nplot s = close / b;\n')
+    expect(x.guard).toBe('thinkscript:symbol')
+    expect(x.message).toMatch(/needs a second column, not a second symbol/)
+  })
+
+  it('addOrder → :strategy, blocking the script even though the plots translate', () => {
+    const out = translateThinkScript(
+      'plot fast = Average(close, 9);\naddOrder(OrderType.BUY_TO_OPEN, close > fast);\n')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('thinkscript:strategy')
+    expect(out.refusal.line).toBe(2)
+    // ⭐ …and it STILL SAYS what it understood, so the member can see the door
+    // was open right up to the order.
+    expect(out.outputs[0].formula).toBe('sma(close, 9)')
+  })
+
+  it('GetQuantity/GetAveragePrice/GetOpenPL → :account, each saying it is about YOUR account', () => {
+    for (const call of ['GetQuantity()', 'GetAveragePrice()', 'GetOpenPL()']) {
+      const x = r(`plot s = ${call};\n`)
+      expect(x.guard, call).toBe('thinkscript:account')
+      expect(x.message, call).toMatch(/your account/i)
+    }
+  })
+
+  it('the clock functions → :time', () => {
+    for (const call of ['GetTime()', 'GetYYYYMMDD()', 'RegularTradingStart(20260825)',
+      'RegularTradingEnd(20260825)', 'SecondsFromTime(930)']) {
+      expect(r(`plot s = ${call} > 0;\n`).guard, call).toBe('thinkscript:time')
+    }
+  })
+
+  it('fold → :fold', () => {
+    expect(r('def s = fold i = 0 to 8 with p do p + close[i];\nplot x = s;\n').guard)
+      .toBe('thinkscript:fold')
+  })
+
+  it('🔴🔴 A HARD GUARD BLOCKS FROM INSIDE ONE PLOT, NOT ONLY AT STATEMENT LEVEL', () => {
+    // ⛔⛔ THIS IS THE FAILURE W3.6 NEARLY SHIPPED. With chrome listed, a script
+    // whose OTHER plots translate would report as a working screen while the
+    // `close(symbol=…)` comparison — the whole subject — was reduced to one
+    // refused column among several. The corpus number would have called it
+    // PROGRESS.
+    const out = translateThinkScript(
+      'def b = close(symbol = "SPY");\nplot ok = close > open;\nplot rs = close / b;\n')
+    expect(out.ok, 'a script that reaches for another symbol is not a screen').toBe(false)
+    expect(out.refusal.guard).toBe('thinkscript:symbol')
+    // ⭐ AND THE CONTROL: the same script WITHOUT the foreign symbol translates,
+    // so this cannot pass for a door that refuses everything.
+    expect(translateThinkScript('plot ok = close > open;\nplot rs = close / open;\n').ok).toBe(true)
+  })
+
+  it('⛔ a column that never varies with the bar is NOT a screen', () => {
+    // 🔴 MEASURED: `20-roc-stdev-lower-switch` offered `ZeroLine = 0` and
+    // `17-compoundvalue` offered `FibonacciNumbers2 = 0 / 0` as their
+    // translations once chrome stopped blocking them. Both are perfectly
+    // translated and screen nothing.
+    expect(translateThinkScript('plot z = 0;\n').ok).toBe(false)
+    expect(translateThinkScript('plot n = Double.NaN;\n').ok).toBe(false)
+    expect(translateThinkScript('plot k = 3 * 4 + 1;\n').ok, 'arithmetic on constants is constant')
+      .toBe(false)
+    // ⭐ AND A CONSTANT BESIDE A REAL COLUMN DOES NOT BLOCK — it just is not the
+    // one selected.
+    const out = translateThinkScript('plot z = 0;\nplot real = close > open;\n')
+    expect(out.ok).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close > open')
+  })
+})
+
+describe('⭐ switch/case over a folded enum input is ONE arm', () => {
+  it('the arm the input selects becomes the column, and the fold is recorded', () => {
+    const out = translateThinkScript(`input priceSource = {default CLOSE, OPEN, HIGH, LOW};
+def dataPrice;
+switch (priceSource) {
+case OPEN:
+    dataPrice = open;
+case HIGH:
+    dataPrice = high;
+case CLOSE:
+    dataPrice = close;
+}
+plot p = dataPrice > 0;
+`)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close > 0')
+    expect(out.folded).toEqual([expect.objectContaining({ name: 'priceSource', folded: 'CLOSE' })])
+  })
+
+  it('⛔ a `case` naming an arm the input does not declare refuses at that arm', () => {
+    // A typo in a dead arm would otherwise be unreachable and silent — the same
+    // undeclared-arm rule `resolveDotted` already keeps.
+    const out = translateThinkScript(`input mode = {default A, B};
+def x;
+switch (mode) {
+case A:
+    x = close;
+case Z:
+    x = open;
+}
+plot p = x > 0;
+`)
+    expect(out.refusal.guard).toBe('thinkscript:enum-arm')
+  })
+
+  it('⛔ a switch on something that is NOT a frozen enum input is a real switch, and refuses', () => {
+    const out = translateThinkScript(`def s = close;
+def x;
+switch (s) {
+case A:
+    x = close;
+}
+plot p = x > 0;
+`)
+    expect(out.refusal.guard).toBe('thinkscript:block')
+  })
+
+  it('🔴 a block may only FILL a name already declared — the sweep found this unrailed', () => {
+    // ⛔ `def dataPrice;` then the block is the published shape. A block that
+    // INVENTS its binding is a different statement, and accepting one would let
+    // it quietly shadow a name the script already uses for something else — a
+    // wrong column with no refusal anywhere. Nothing exercised the guard until a
+    // mutation deleted it and the whole suite stayed green.
+    const noDecl = translateThinkScript(`input mode = {default A, B};
+switch (mode) {
+case A:
+    fresh = close;
+}
+plot p = fresh > 0;
+`)
+    expect(noDecl.ok).toBe(false)
+    const ifNoDecl = translateThinkScript(
+      'if close > open then {\n  brandNew = 1;\n} else {\n  brandNew = -1;\n}\nplot p = brandNew;\n')
+    expect(ifNoDecl.ok).toBe(false)
+    expect(ifNoDecl.refusal.guard).toBe('thinkscript:block')
+    // ⛔ AND A NAME ALREADY BOUND TO A VALUE IS NOT A FORWARD DECLARATION — a
+    // block must not overwrite one.
+    const bound = translateThinkScript(
+      'def taken = close;\nif close > open then {\n  taken = 1;\n} else {\n  taken = -1;\n}\nplot p = taken;\n')
+    expect(bound.ok).toBe(false)
+    // ⭐ THE CONTROL: the declared form still reads.
+    expect(translateThinkScript(
+      'def y;\nif close > open then {\n  y = 1;\n} else {\n  y = -1;\n}\nplot p = y;\n')
+      .outputs[0].formula).toBe('close > open ? 1 : -1')
+  })
+})
+
+describe('⭐ Cos/Sin/Tan/Exp — ruling D, and the units are the measurement', () => {
+  const f = (e) => translateThinkScript(`plot p = ${e};\n`).outputs[0].formula
+
+  it('all four map to the engine names the manifest declares', () => {
+    expect(f('Cos(close)')).toBe('cos(close)')
+    expect(f('Sin(close)')).toBe('sin(close)')
+    expect(f('Tan(close)')).toBe('tan(close)')
+    expect(f('Exp(close)')).toBe('exp(close)')
+  })
+
+  it('⛔ RADIANS, not degrees — measured, because a units error is invisible in the output', () => {
+    // Every page's parameter row reads "Defines angle (in radians)". A degrees
+    // reading would be wrong on every bar and draw a perfectly plausible curve.
+    const ONE_BAR = [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 }]
+    const at = (expr) => {
+      const out = translateThinkScript(`plot p = ${expr};\n`)
+      expect(out.outputs[0].refusal, expr).toBe(null)
+      return Array.from(interpret(parseFormula(out.outputs[0].formula).ast, ONE_BAR, {}))[0]
+    }
+    expect(at('Cos(0)')).toBeCloseTo(1, 12)
+    expect(at('Cos(Double.Pi)')).toBeCloseTo(-1, 12)
+    expect(at('Sin(0)')).toBeCloseTo(0, 12)
+    // ⛔ AND THE DEGREES READING IS RULED OUT: cos(180°) would be −1 only if the
+    // argument were degrees; here 180 radians is ~0.598.
+    expect(at('Cos(180)')).toBeCloseTo(Math.cos(180), 12)
+    expect(at('Cos(180)')).not.toBeCloseTo(-1, 3)
+    // Exp is e^x — the page proves it with its own Example identity.
+    expect(at('Exp(1)')).toBeCloseTo(Math.E, 12)
+  })
+
+  it('⛔ each one CITES the page it was read from', () => {
+    for (const k of ['cos', 'sin', 'tan', 'exp']) {
+      expect(TS_CALL_SHAPES[k].cite).toMatch(/Functions\/Math---Trig/)
+    }
+    for (const k of ['cos', 'sin', 'tan']) {
+      expect(TS_CALL_SHAPES[k].cite, k).toMatch(/RADIANS/)
+    }
+  })
+})
+
+describe('⭐ RateOfChange — the maths is cited and the DEFAULTS are not', () => {
+  const f = (e) => translateThinkScript(`plot p = ${e};\n`).outputs[0].formula
+  const r = (e) => translateThinkScript(`plot p = ${e};\n`).refusal
+  // A hand-built tape whose last close is exactly 10% above the one before it, so
+  // the two candidate spellings differ by a number this test can name.
+  const ROC_BARS = [
+    { t: 1, o: 100, h: 100, l: 100, c: 100, v: 1 },
+    { t: 2, o: 110, h: 110, l: 110, c: 110, v: 1 },
+  ]
+
+  it('both parameters supplied → the published percentage-change form', () => {
+    expect(f('RateOfChange(price = close, length = 14)'))
+      .toBe('(close / close[14] - 1) * 100')
+    expect(f('RateOfChange(14, 5, high)')).toBe('(high / high[14] - 1) * 100')
+  })
+
+  it('⛔ …and it is the PERCENTAGE-CHANGE form, not the ratio one — measured on real bars', () => {
+    // The page says "percentage change … relative to the price a specified
+    // number of periods before", and declares a `ZeroLine` plot ("Zero level").
+    // The other candidate spelling, `price / price[n] * 100`, is centred on 100
+    // and would draw a plausible line exactly 100 away on every bar.
+    const col = (formula) => Array.from(interpret(parseFormula(formula).ast, ROC_BARS, {}))
+    const got = col(f('RateOfChange(price = close, length = 1)'))
+    const ratio = col('close / close[1] * 100')
+    const last = got.length - 1
+    expect(got[last]).toBeCloseTo((110 / 100 - 1) * 100, 9)
+    expect(ratio[last]).toBeCloseTo(110, 9)
+    expect(Math.abs(got[last] - ratio[last])).toBeCloseTo(100, 9)
+  })
+
+  it('🔴 a MISSING default is refused, not invented — the sweep found this unrailed', () => {
+    // ⛔⛔ THE RULE THIS WHOLE TASK TURNS ON: the Studies-Library page has no
+    // Default value column, so `price` and `length` have no published default and
+    // this door may not supply one. A mutation that added `defaults: {price: …}`
+    // survived the entire suite — the maths being citable had been railed and the
+    // defaults being UNcitable had not.
+    expect(r('RateOfChange(14)').guard).toBe('thinkscript:arity')
+    expect(r('RateOfChange(14)').message).toMatch(/`price` has no value/)
+    expect(r('RateOfChange()').guard).toBe('thinkscript:arity')
+    expect(r('RateOfChange(price = close)').message).toMatch(/`length` has no value/)
+    expect(TS_CALL_SHAPES.rateofchange.defaults).toBeUndefined()
+  })
+
+  it('⛔ the colour-gradient parameter is dropped WITH ITS REASON, never silently', () => {
+    const why = TS_CALL_SHAPES.rateofchange.unused['color norm length']
+    expect(why).toMatch(/colour gradient|color gradient/i)
+    expect(why.length).toBeGreaterThan(30)
+  })
+})
+
+describe('⭐⭐ engineCall`s arity check was reported DEAD — it was UNEXERCISED', () => {
+  // ⛔ THE TWO ARE NOT THE SAME THING, and the difference decides whether the
+  // line gets deleted or railed. A re-reviewer's harness probe flagged
+  // `engineCall`'s `args.length !== spec.args.length` as unreachable, on the
+  // reasoning that the argument-plan rail already pins every shape's plan to the
+  // manifest's arity. That is true for shapes — and THREE call paths reach
+  // `engineCall` with a hand-built argument array and NO plan at all, where this
+  // is the only check that exists.
+  const bend = (name, args) => ({
+    ...TABLE,
+    functions: { ...TABLE.functions, [name]: { ...TABLE.functions[name], args } },
+  })
+
+  it('the three hand-built paths are guarded by it, and by nothing else', () => {
+    // ⭐ Each refuses AT THE thinkorswim TOKEN the member wrote, not at the
+    // engine name they never typed.
+    const within = translateThinkScript('plot p = close > 5 within 3 bars;\n',
+      { table: bend('highest', ['series', 'int', 'int']) }).refusal
+    expect(within.guard).toBe('thinkscript:arity')
+    expect(within.token).toBe('within')
+
+    const crosses = translateThinkScript('plot p = close crosses above open;\n',
+      { table: bend('crossOver', ['series', 'series', 'int']) }).refusal
+    expect(crosses.guard).toBe('thinkscript:arity')
+    expect(crosses.token).toBe('crosses')
+
+    const pct = translateThinkScript('plot p = close % 3 > 0;\n',
+      { table: bend('mod', ['series', 'series', 'int']) }).refusal
+    expect(pct.guard).toBe('thinkscript:arity')
+    expect(pct.token).toBe('%')
+  })
+
+  it('…and it catches a SHAPE disagreeing with the manifest, at translation time', () => {
+    // `argumentPlan` builds from the SHAPE; `spec` comes from the MANIFEST. This
+    // is what stops the two drifting into a malformed call that only the parser
+    // would notice, and only after it had been offered to a member.
+    const r = translateThinkScript('plot p = Average(close, 10);\n',
+      { table: bend('sma', ['series', 'int', 'int']) }).refusal
+    expect(r.guard).toBe('thinkscript:arity')
+    expect(r.token).toBe('Average')
+  })
+
+  it('⭐ AND THE CONTROLS — all four translate against the shipped manifest', () => {
+    // Without these the block above passes for a translator that refuses every
+    // one of these constructs outright.
+    const f = (e) => translateThinkScript(`plot p = ${e};\n`).outputs[0].formula
+    expect(f('close > 5 within 3 bars')).toBe('highest(close > 5, 3) > 0')
+    expect(f('close crosses above open')).toBe('crossOver(close, open)')
+    expect(f('close % 3 > 0')).toBe('mod(close, 3) > 0')
+    expect(f('Average(close, 10)')).toBe('sma(close, 10)')
+  })
+})
+
+describe('⛔⛔ X30 — the standing rail against a name-collision fallback', () => {
+  it('MACD(12, 26, 9) refuses AT ITS NAME, and this is the rail a later lane must not delete', () => {
+    // ⛔⛔ THIS IS `thinkscript.test.js:1875-1877`'s obligation, restated where
+    // W3.6 can be held to it. `pine.js` maps any `ta.<name>` onto the table
+    // because Pine's namespace makes that unambiguous. thinkScript has NO
+    // namespace: copy that trick here and `MACD(12, 26, 9)` — the commonest
+    // indicator call in the language — becomes the MACD OF THE NUMBER 12, with
+    // periods 26 and 9. Measured in the W3.5 review: it parses, prints,
+    // round-trips by astHash, evaluates, and `canSaveFormula` returns TRUE.
+    // A saved chart of something else, with no refusal anywhere.
+    const r = translateThinkScript('plot p = MACD(12, 26, 9);\n').refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.token).toBe('MACD')
+    // ⭐ THE HAZARD IS REAL, WHICH IS WHY THE RAIL IS: the engine DOES declare
+    // `macd`, and its first argument IS a series slot a bare number fills.
+    expect(Object.keys(TABLE.functions)).toContain('macd')
+    expect(TABLE.functions.macd.args[0]).toBe('series')
+    // ⛔ AND THE SAME FOR EVERY OTHER STUDY NAME THE ENGINE HAPPENS TO DECLARE.
+    // These are the collisions a fallback would open, one per engine function
+    // whose thinkorswim namesake takes different arguments.
+    for (const name of ['MFI', 'ADX', 'CCI', 'Stoch', 'WilliamsR']) {
+      const x = translateThinkScript(`plot p = ${name}(14);\n`).refusal
+      expect(x, name).not.toBe(null)
+      expect(['thinkscript:function', 'thinkscript:study-ref'], name).toContain(x.guard)
+    }
+  })
+})
+
+describe('⭐ X21 — the grammar rungs no corpus fixture reaches, now over CHROME and STUDY doors', () => {
+  const f = (e) => translateThinkScript(`plot p = ${e};\n`).outputs[0].formula
+
+  it('the published level-8 rung, discriminated in BOTH directions', () => {
+    // ⛔ `is true`/`is false` sit at level 8 of thinkorswim's own 12-level table —
+    // LOOSER than `==` and TIGHTER than `and`. An assumed tier prints the same
+    // text for both of these and this test is the only thing that can tell.
+    expect(f('Average(close, 5) == Average(close, 9) is false'))
+      .toBe('!(sma(close, 5) == sma(close, 9))')
+    expect(f('IsNaN(close) is false and close > open')).toBe('!na(close) && close > open')
+  })
+
+  it('the six long word-spellings, each with its short prefix one line away', () => {
+    expect(f('Average(close, 10) is greater than or equal to Average(close, 20)'))
+      .toBe('sma(close, 10) >= sma(close, 20)')
+    expect(f('Average(close, 10) is greater than Average(close, 20)'))
+      .toBe('sma(close, 10) > sma(close, 20)')
+    expect(f('Average(close, 10) is less than or equal to Average(close, 20)'))
+      .toBe('sma(close, 10) <= sma(close, 20)')
+    expect(f('Average(close, 10) is less than Average(close, 20)'))
+      .toBe('sma(close, 10) < sma(close, 20)')
+    expect(f('Average(close, 10) is not equal to Average(close, 20)'))
+      .toBe('sma(close, 10) != sma(close, 20)')
+    expect(f('Average(close, 10) is equal to Average(close, 20)'))
+      .toBe('sma(close, 10) == sma(close, 20)')
+  })
+
+  it('⭐ the rungs SURVIVE a chrome line and a folded switch — the doors W3.6 opened', () => {
+    // ⛔ THE CORPUS STILL REACHES NONE OF THIS. Every fixture that is published
+    // with `is greater than` refuses earlier, on a study name. So the only way
+    // these rungs are exercised beside the constructs this task added is here.
+    const out = translateThinkScript(`input src = {default CLOSE, OPEN};
+def px;
+switch (src) {
+case OPEN:
+    px = open;
+case CLOSE:
+    px = close;
+}
+plot sig = Average(px, 10) is greater than or equal to Average(px, 20);
+sig.SetDefaultColor(Color.GREEN);
+AddLabel(yes, "x");
+`)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('sma(close, 10) >= sma(close, 20)')
+    expect(out.ignored.filter((n) => n.code === 'thinkscript:note-chrome')).toHaveLength(2)
+  })
+
+  it('⭐ …and inside the block reader, where a ternary arm carries a rung', () => {
+    const out = translateThinkScript(`def y;
+if IsNaN(close) is false then {
+  y = Average(close, 5);
+} else {
+  y = Average(close, 9);
+}
+plot p = y;
+`)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula)
+      .toBe('!na(close) ? sma(close, 5) : sma(close, 9)')
+  })
+
+  it('⛔ the over-refusal direction — near-miss spellings refuse at their OWN token', () => {
+    // A guard that refuses everything also "closes" a finding.
+    for (const [name, call] of [['AverageTrue', 'AverageTrue(close, 10)'],
+      ['LogTen', 'LogTen(close)'], ['CoSine', 'CoSine(close)'],
+      ['Exponent', 'Exponent(close)']]) {
+      const r = translateThinkScript(`plot p = ${call};\n`).refusal
+      expect(r.guard, name).toBe('thinkscript:function')
+      expect(r.token, name).toBe(name)
+    }
+    // ⭐ AND THEIR NEIGHBOURS TRANSLATE, so this is not a door that says no to
+    // everything shaped like a call.
+    expect(f('Log(close)')).toBe('ln(close)')
+    expect(f('Cos(close)')).toBe('cos(close)')
+    expect(f('Exp(close)')).toBe('exp(close)')
   })
 })

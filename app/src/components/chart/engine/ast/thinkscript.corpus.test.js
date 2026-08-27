@@ -18,11 +18,19 @@
 // NOTHING; all 24 refused `thinkscript:unsupported` at their first token. That
 // was not a placeholder — it was the MEASURED starting line, pinned in both
 // directions, so every later task's gain is a fact rather than a claim. W3.3
-// held the number at 0 and moved the walls off line 1; W3.4 measures **3/24, 14
-// columns, 3 saveable**. The spec's ≥70% for this lane was amended to the
-// measured Wave-1 ceiling of 15/24 (19/24 once `tf`/`sym` land) because 70% was
-// proven unreachable; nine of these scripts refuse by Wave-1 DESIGN and are
-// named in the lane brief.
+// held the number at 0 and moved the walls off line 1; W3.4 measured 3/24, W3.5
+// 4/24, and **W3.6 measures 8/24, 30 columns, 8 saveable**. The spec's ≥70% for
+// this lane was amended to the measured Wave-1 ceiling of 15/24 (19/24 once
+// `tf`/`sym` land) because 70% was proven unreachable; nine of these scripts
+// refuse by Wave-1 DESIGN and are named in the lane brief.
+//
+// ⛔⛔ AND THE NUMBER IS NOT THE GATE — W3.6 PRODUCED 11 BEFORE IT PRODUCED 8.
+// Three scripts translated into something that was not themselves: two offered
+// their unrelated plots while the foreign symbol / account read that IS the
+// script sat as one refused column, and two offered a constant (`0`, `0 / 0`)
+// as the column. A count cannot see any of that. `TS_HARD_GUARDS` and
+// `readsTheBar` are what took them back out, and the per-script assertions above
+// are what make the remaining eight mean something.
 //
 // ⚠️ THIS FILE MOVES WHEN `closedTable.json` MOVES, AND THAT IS CORRECT. When it
 // goes red naming a script, that is the notification, not a flake.
@@ -252,16 +260,23 @@ describe('the whole corpus, in one number', () => {
     // AverageType.WILDERS;` folded the constant's base to the input's own name
     // and reported `thinkscript:cycle` on four published scripts.
     //
-    // ⭐⭐ AND THE COLUMN COUNT DOUBLED WHILE THE SCRIPT COUNT MOVED BY ONE,
-    // WHICH IS THE HONEST SHAPE OF THIS TASK'S GAIN. `02`, `04`, `11` and `21`
-    // now compute EVERY column they offer and are held only by a chrome
-    // statement — the exact seam W3.6 picks up. Nothing here was tuned toward the
-    // corpus: every shape in the map is one thinkorswim publishes a formula for,
-    // and four names it does not (`RSI`, `SimpleMovingAvg`, `MovAvgExponential`,
-    // `RateOfChange`) were fetched and REFUSED rather than guessed, which is the
-    // number NOT going up.
-    expect(translating, 'scripts that translate').toBe(4)
-    expect(columns, 'columns this engine computes').toBe(28)
+    // ⭐⭐ W3.6: 4 → 8, AND THE NUMBER IS SMALLER THAN THE ONE THE WORK FIRST
+    // PRODUCED, WHICH IS THE POINT. Listing chrome as ignored lines moved SEVEN
+    // scripts at once — and three of them were FALSE GAINS this task then had to
+    // refuse again:
+    //   * `08-relative-strength-zscore-vs-spy` and `24-position-capital-efficiency`
+    //     translated on their OTHER plots while `close(symbol = "SPY")` and
+    //     `GetQuantity()` — the entire subject of each script — sat as one refused
+    //     column among several. `TS_HARD_GUARDS` blocks them now.
+    //   * `20` and `17` offered `ZeroLine = 0` and `FibonacciNumbers2 = 0 / 0`:
+    //     perfectly translated columns that screen nothing. `readsTheBar` rules
+    //     them out; `20` came back on its own merits once `RateOfChange` mapped.
+    // ⛔ ALL THREE WOULD HAVE READ AS PROGRESS HERE. A corpus count cannot see a
+    // script that translated into something other than itself.
+    // ⭐ The eight that remain each compute EVERY column they offer — asserted
+    // below, and the reason this is a gain rather than a number.
+    expect(translating, 'scripts that translate').toBe(8)
+    expect(columns, 'columns this engine computes').toBe(30)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
@@ -293,7 +308,15 @@ describe('the whole corpus, in one number', () => {
     // files off this guard, are not reddened for succeeding. The exact set is
     // held still by the per-file assertions above, where a change names the
     // script it happened to.
-    const atAFunction = FILES.filter((f) => at(f).guard === 'thinkscript:function')
+    // ⏳ W3.6 SPLIT THIS GUARD AND THE FLOOR HAD TO MOVE WITH IT. Five study
+    // names left `:function` for `:study-ref` (the truer sentence — the engine
+    // HAS `rsi`/`sma`/`ema`; what it lacks is a published default), and the
+    // chrome/deferred work moved others onto `:symbol`/`:account`/`:time`/
+    // `:aggregation`. The floor is now over the UNION of "refused at a
+    // thinkorswim NAME", which is the thing this rail was ever measuring.
+    const NAME_GUARDS = ['thinkscript:function', 'thinkscript:study-ref',
+      'thinkscript:account', 'thinkscript:time']
+    const atAFunction = FILES.filter((f) => NAME_GUARDS.includes(at(f).guard))
     expect(atAFunction.length).toBeGreaterThanOrEqual(8)
 
     // …and the fixture's own roll-up agrees with the run, which is the DIFFERENT
@@ -341,7 +364,7 @@ describe('the whole corpus, in one number', () => {
     // expansion, lookback 15, non-repainting.
     const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
     const translating = FILES.filter((f) => entry(f).translates)
-    expect(saveable.length).toBe(4)
+    expect(saveable.length).toBe(8)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
     // ⛔ NAMES, so a script that translates-but-cannot-save is reported as
     // itself rather than as an arithmetic disagreement between two counts.

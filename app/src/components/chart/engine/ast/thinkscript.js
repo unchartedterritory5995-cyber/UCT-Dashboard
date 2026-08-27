@@ -184,6 +184,19 @@ export const NOTES = Object.freeze({
     'this average begins from a different first window than thinkorswim does, and the two converge',
   'thinkscript:note-warmup':
     'a value that carries forward restarts a fixed number of bars back rather than at the first bar ever drawn',
+  // ⭐⭐ A4's WORDING IS "chrome calls listed as ignored lines, NEVER DROPPED", and
+  // this sentence is the half every chrome line shares. The KIND-specific half is
+  // appended per entry from `TS_CHROME_*` below, because a generic sentence
+  // repeated eighteen times is a list a member learns to skip — and a silently
+  // swallowed chrome line would be invisible in the corpus count, which is
+  // exactly the failure this lane exists to prevent.
+  // ⚠️ THE `note-` PREFIX IS A CONTRACT, NOT A NAMING HABIT. This was written
+  // `thinkscript:chrome` and the vocabulary rail caught it: the prefix is what
+  // lets the source sweep tell a note from a guard WITHOUT a second hand-typed
+  // list of which is which, so a note that skips it quietly costs the sweep its
+  // discriminator. Renamed rather than weakening the rail.
+  'thinkscript:note-chrome':
+    'this line draws on a chart and produces no value a screen can read, so it is listed here and skipped',
 })
 
 /** ⛔ THE ONE PLACE A GUARD ENTERS THIS DOOR. Reads `REFUSALS` rather than
@@ -323,9 +336,18 @@ function byPosition(a, b) {
 
 /** A note value — the shape `ignored[]` carries. Same positional keys a refusal
  *  carries, because `ImportBox` renders both in one list. */
-function noteValue(code, line, column, detail) {
+function noteValue(code, line, column, detail, extra) {
   assertNote(code)
-  return { code, message: detail ? `${NOTES[code]} (${detail})` : NOTES[code], line, column }
+  return {
+    code,
+    message: detail ? `${NOTES[code]} (${detail})` : NOTES[code],
+    line,
+    column,
+    // ⭐ A CHROME NOTE CARRIES ITS TOKEN AND ITS OFFSET, because the Import box has
+    // to be able to point AT the line it skipped. Every other note is positional
+    // only, so this is optional rather than a shape every caller must fill.
+    ...(extra || {}),
+  }
 }
 
 // --------------------------------------------------------------------------- //
@@ -1106,15 +1128,372 @@ function defaultText(rest, text) {
   return text.slice(first.index, last.index + last.text.length).trim()
 }
 
+/**
+ * ⭐⭐ CHROME — THE LINES THAT DRAW, AND THE SENTENCE EACH ONE GETS.
+ *
+ * ⛔⛔ A4 SAYS "chrome calls listed as ignored lines, NEVER DROPPED". Swallowing
+ * one silently would gain a script in the corpus count and be INVISIBLE there,
+ * which is the exact failure this lane exists to prevent. Every entry below
+ * produces a `thinkscript:note-chrome` note carrying its LINE, its COLUMN, its
+ * source OFFSET and the TOKEN as the member wrote it, so the Import box can
+ * point at the line it skipped.
+ *
+ * ⛔ ONE SENTENCE PER KIND, NEVER A GENERIC ONE. A colour, a line weight and an
+ * alert are three different things to be told, and eighteen copies of one
+ * sentence is a list a member learns to skip.
+ *
+ * ⭐ THE SET IS DERIVED FROM THE CORPUS, NOT TYPED FROM MEMORY (W3.6 step 1).
+ * Every statement-level call in `tests/fixtures/thinkscript/*.ts` was extracted
+ * and folded, giving exactly these method suffixes — `assignvaluecolor
+ * definecolor hide hidebubble hidetitle setdefaultcolor sethiding setlineweight
+ * setpaintingstrategy setstyle` — and these bare calls: `addchartbubble addcloud
+ * addlabel addverticalline alert assert assignbackgroundcolor assignpricecolor`.
+ * The remaining statement-level names the probe found are NOT chrome and are
+ * handled elsewhere: `addorder` (a HARD `:strategy` refusal — an order is not
+ * decoration), `if`/`switch` (statement keywords) and `rsi` (a study reference).
+ *
+ * ⚠️ TWO ENTRIES ARE PUBLISHED RATHER THAN OBSERVED, and they are marked: the
+ * corpus never writes bare `DefineColor(…)` or bare `SetHiding(…)`, only the
+ * `.`-suffixed forms. They are the same instruction addressed to the study
+ * instead of to one plot, and are included so a paste that uses them is listed
+ * rather than refused. Nothing else was added on a hunch.
+ *
+ * ⛔ CHROME'S ARGUMENTS ARE NEVER RESOLVED. `RSI.AssignValueColor(if RSI >
+ * over_Bought then RSI.color("OverBought") else …)` (corpus 04) is full of
+ * things this grammar has no node for — `.color(…)`, `GetColor(5)`,
+ * `Color.DARK_GRAY` — and resolving them would turn a line we are deliberately
+ * skipping into a refusal. Skipping a line means skipping what is inside it.
+ */
+/**
+ * ⛔⛔ THE GUARDS THAT BLOCK THE WHOLE SCRIPT, AND WHY THEY HAVE TO.
+ *
+ * 🔴🔴 MEASURED, AND IT NEARLY SHIPPED THE OTHER WAY. When W3.6's chrome work
+ * first landed, the corpus jumped 4 → 9 translating — and TWO of the five gains
+ * were `08-relative-strength-zscore-vs-spy` and `24-position-capital-efficiency`.
+ * Both had been blocked only by a chrome line. With the chrome listed, each
+ * script's OTHER plots translated and the script reported as a working screen,
+ * while the `close(symbol = "SPY")` comparison and the `GetQuantity()` position
+ * size — THE ENTIRE SUBJECT OF EACH SCRIPT — were quietly reduced to one refused
+ * column among several. A member would have got a "relative strength vs SPY"
+ * screen with no SPY in it. ⛔ THAT IS A SILENT MISTRANSLATION BY OMISSION, and
+ * it would have shown up in the corpus count as PROGRESS.
+ *
+ * ⭐ THE LINE IS NOT "hard to compute" — IT IS "outside a screen's world". A
+ * screen answers a question about ONE symbol, on ONE timeframe, from price and
+ * volume. A script that reaches for another symbol, another aggregation, the
+ * clock, the account, or an order is not a screen with a gap in it; it is a
+ * different kind of document, and offering a subset of its plots answers about
+ * something the member did not paste. That is the same ruling `translateThinkScript`
+ * already makes for an unread statement, reached from the other side.
+ *
+ * ⚠️ AND THE LINE IS DRAWN DELIBERATELY NARROW. `:state`, `:fold` and `:function`
+ * are NOT here: those are columns this engine cannot express, in a script whose
+ * remaining columns are still honestly that script's own. Widening this set to
+ * them would refuse a great deal that is fine.
+ */
+export const TS_HARD_GUARDS = Object.freeze([
+  'thinkscript:symbol',
+  'thinkscript:aggregation',
+  'thinkscript:time',
+  'thinkscript:account',
+  'thinkscript:strategy',
+])
+
+/** ⛔⛔ A STATEMENT-LEVEL CALL THAT IS NOT DECORATION. These sit beside chrome in
+ *  the reader and are checked FIRST, because getting the order wrong would list
+ *  a trade instruction as something skipped. Each refuses at its own token with
+ *  a reason a member can act on; `addorder` blocks the whole script. */
+const TS_DEFERRED_STATEMENTS = Object.freeze({
+  addorder: {
+    guard: 'thinkscript:strategy',
+    why: 'this places an order, which is a strategy instruction rather than a study value; '
+      + 'a screen answers a question about a bar and has no position to open or close. The '
+      + 'plots above it were read and are shown, but the script as a whole is not a screen',
+  },
+})
+
+/** ⛔ THE CALLS THIS ENGINE REFUSES BY NAME BECAUSE OF WHAT THEY READ, not
+ *  because of how hard they are. Every one blocks the script (`TS_HARD_GUARDS`).
+ *  ⚠️ `gettime` is refused even though W2a's `clock` section now declares a
+ *  `time`: thinkorswim publishes no unit for `GetTime()` on the page this lane
+ *  could fetch, and a milliseconds-vs-seconds guess is invisible in the output.
+ *  The message says what it is waiting for, which is a citation, not a release. */
+const TS_DEFERRED_CALLS = Object.freeze({
+  gettime: { guard: 'thinkscript:time',
+    why: 'this reads the clock, and a screen answers from the bar rather than from the time '
+      + 'of day; the unit thinkorswim measures it in is not published on its own page, so '
+      + 'this door will not guess one' },
+  getyyyymmdd: { guard: 'thinkscript:time', why: 'this reads the calendar date of the bar' },
+  regulartradingstart: { guard: 'thinkscript:time',
+    why: 'this is the session open as a clock time, and a screen has no session boundary to '
+      + 'compare a bar against' },
+  regulartradingend: { guard: 'thinkscript:time',
+    why: 'this is the session close as a clock time, and a screen has no session boundary to '
+      + 'compare a bar against' },
+  secondsfromtime: { guard: 'thinkscript:time', why: 'this measures a bar against a clock time' },
+  secondstilltime: { guard: 'thinkscript:time', why: 'this measures a bar against a clock time' },
+  daysfromdate: { guard: 'thinkscript:time', why: 'this counts days from a calendar date' },
+  getdayofweek: { guard: 'thinkscript:time', why: 'this reads which weekday the bar fell on' },
+  getquantity: { guard: 'thinkscript:account',
+    why: 'this reads how many shares YOU hold, which is a fact about your account rather '
+      + 'than about the symbol, and a screen has to mean the same thing for everyone' },
+  getaverageprice: { guard: 'thinkscript:account',
+    why: 'this reads the price YOU paid, which is a fact about your account rather than '
+      + 'about the symbol' },
+  getopenpl: { guard: 'thinkscript:account',
+    why: 'this reads YOUR open profit and loss, which is a fact about your account rather '
+      + 'than about the symbol' },
+  entryprice: { guard: 'thinkscript:account',
+    why: 'this reads the price YOUR position was opened at' },
+  fpl: { guard: 'thinkscript:account', why: 'this reads YOUR floating profit and loss' },
+})
+
+/** ⛔ A BAR FIELD CALLED AS A FUNCTION is thinkorswim asking for that field from
+ *  ANOTHER series — `close(symbol = "SPY")`, `high(period = AggregationPeriod.DAY)`.
+ *  ⭐ The field set is READ FROM THE MANIFEST, never typed here, so a manifest
+ *  that gains a bar field gets the same treatment with no edit. */
+const TS_SERIES_ARG_GUARDS = Object.freeze({
+  symbol: { guard: 'thinkscript:symbol',
+    why: 'this asks for another symbol\'s prices, and a screen answers about the one symbol '
+      + 'it is run on; a comparison against a benchmark needs a second column, not a second '
+      + 'symbol inside this one' },
+  period: { guard: 'thinkscript:aggregation',
+    why: 'this asks for another timeframe\'s bars, and a screen answers on the timeframe it '
+      + 'is run on' },
+  aggregationperiod: { guard: 'thinkscript:aggregation',
+    why: 'this asks for another timeframe\'s bars, and a screen answers on the timeframe it '
+      + 'is run on' },
+})
+
+const TS_CHROME_METHODS = Object.freeze({
+  setdefaultcolor: 'sets the colour this plot is drawn in',
+  assignvaluecolor: 'colours the plot bar by bar from a value',
+  assignbackgroundcolor: 'colours the chart background behind the plot',
+  definecolor: 'names a colour this study can refer to later',
+  color: 'reads back one of the colours this study named',
+  setpaintingstrategy: 'chooses how the plot is drawn — arrows, points, a histogram',
+  setlineweight: 'sets how thick the line is drawn',
+  setstyle: 'sets the line style — dashed, dotted, solid',
+  hidetitle: 'hides the plot`s name in the chart title',
+  hidebubble: 'hides the plot`s bubble on the chart',
+  hide: 'hides the plot from the chart',
+  sethiding: 'hides the plot from the chart when a condition holds',
+})
+const TS_CHROME_CALLS = Object.freeze({
+  addlabel: 'puts a text label on the chart',
+  addchartbubble: 'puts a bubble on the chart',
+  addcloud: 'shades the area between two plots',
+  addverticalline: 'draws a vertical line on the chart',
+  alert: 'raises an alert, which a screen has nowhere to deliver',
+  assert: 'checks an input and stops the study — a screen has no study to stop',
+  assignbackgroundcolor: 'colours the chart background',
+  assignpricecolor: 'colours the price bars themselves',
+  definecolor: 'names a colour this study can refer to later',
+  sethiding: 'hides a plot from the chart when a condition holds',
+  hidepricebars: 'hides the price bars themselves',
+})
+
+/** The chrome sentence for a parsed statement-level call, or `null`.
+ *
+ *  ⛔⛔ THE SUFFIX IS TAKEN FROM THE NAME, NOT FROM `call.base`, AND THAT IS
+ *  MEASURED. This lexer emits a DOTTED IDENTIFIER AS ONE TOKEN — which is why
+ *  `resolveDotted` splits `tok.value` on `.` rather than walking a base node — so
+ *  `signal.AssignValueColor(…)` parses as a call whose `name` is the whole
+ *  `signal.AssignValueColor` and whose `base` is NULL. Reading `call.base` here
+ *  listed the bare `AssignBackgroundColor` on corpus `02` line 24 and left the
+ *  method form on line 23 refusing, which is how this was caught: the corpus
+ *  moved by nothing while the chrome count moved by one.
+ *
+ *  ⛔ Matched CASE-INSENSITIVELY, and the corpus is why that is not a nicety:
+ *  `02` writes `AssignBackgroundCOlor`, `11` writes `UpArrow .SetPaintingStrategy`
+ *  with a space before the dot, and `05` writes `setPaintingStrategy`. All three
+ *  run on thinkorswim. */
+function chromeOf(call) {
+  const dot = String(call.name).lastIndexOf('.')
+  if (dot < 0 && !call.base) {
+    const bare = TS_CHROME_CALLS[key(call.name)]
+    return bare === undefined ? null : bare
+  }
+  const suffix = dot < 0 ? call.name : String(call.name).slice(dot + 1)
+  const what = TS_CHROME_METHODS[key(suffix)]
+  return what === undefined ? null : what
+}
+
+/** The call written the way the member wrote it, for the note's `token`. */
+function chromeToken(call) {
+  if (!call.base) return call.name
+  const base = call.base.e === 'name' ? call.base.name : null
+  return base ? `${base}.${call.name}` : call.name
+}
+
+/** The `{ … }` run at `i`, as `[bodyTokens, indexAfter]`, or `null`. */
+function braceBody(toks, i) {
+  if (!isPunctTok(toks[i], '{')) return null
+  let depth = 0
+  for (let j = i; j < toks.length; j += 1) {
+    if (isPunctTok(toks[j], '{')) depth += 1
+    else if (isPunctTok(toks[j], '}')) {
+      depth -= 1
+      if (depth === 0) return [toks.slice(i + 1, j), j + 1]
+    }
+  }
+  return null
+}
+
+/** A block body that is exactly `<name> = <expression> ;` — the only shape this
+ *  reader accepts. Returns `{ name, expr }` or `null`.
+ *  ⛔ ANY OTHER BODY IS REFUSED, NOT GUESSED. A body assigning two names, or
+ *  calling something, is a program where this engine stores one expression, and
+ *  picking one of its statements would answer about a different script. */
+function blockAssignment(body) {
+  if (body.length < 3) return null
+  const nameTok = body[0]
+  if (nameTok.kind !== 'ident' && nameTok.kind !== 'string') return null
+  if (!isPunctTok(body[1], '=')) return null
+  const rest = body.slice(2)
+  // ⛔ ONE statement only: a `;` that is not the last token means two.
+  const semis = rest.filter((t, i) => isPunctTok(t, ';') && i !== rest.length - 1)
+  if (semis.length) return null
+  const exprToks = isPunctTok(rest[rest.length - 1], ';') ? rest.slice(0, -1) : rest
+  if (!exprToks.length) return null
+  return { name: nameOf(nameTok), nameTok, expr: parseWhole(exprToks) }
+}
+
+/**
+ * ⭐⭐ AN `if`/`switch` BLOCK THAT FILLS ONE FORWARD-DECLARED NAME IS ONE
+ * EXPRESSION — and that is the whole of what this reader accepts.
+ *
+ * thinkorswim's tutorials write a conditional column two ways: as an `if … then
+ * … else` EXPRESSION, and as a `def x;` followed by an `if … { x = a; } else { x
+ * = b; }` BLOCK. They mean the same column, so this reads the second into the
+ * first. `10-rsi-laguerre` and `17-compoundvalue` both use it.
+ *
+ * ⭐ A `switch` OVER A FOLDED ENUM INPUT IS ONE ARM. Once the input is frozen,
+ * every other arm is dead code — the same ruling `pine.js` makes for a `switch`
+ * on a fixed subject — so the arm the input selects becomes the expression and
+ * the fold is recorded where a member can see which one they got.
+ *
+ * ⛔ AND IT RETURNS `false` RATHER THAN GUESSING. Anything that is not exactly
+ * "one forward-declared name, assigned once per branch" falls through to
+ * `thinkscript:block`, which names the word that opened the block. A block that
+ * assigns two different names, or whose branches assign different names, is a
+ * program; refusing it is the honest answer and the member can see where.
+ */
+function readAssignmentBlock(toks, ctx, kind) {
+  const head = toks[0]
+  const branches = []          // [{ when: tokens|null, assign }]
+  let subject = null
+
+  if (kind === 'if') {
+    let i = 1
+    const thenAt = toks.findIndex((t, j) => j > 0 && isWordTok(t, 'then'))
+    if (thenAt < 0) return false
+    const cond = toks.slice(i, thenAt)
+    const consequent = braceBody(toks, thenAt + 1)
+    if (!consequent) return false
+    const a = blockAssignment(consequent[0])
+    if (!a) return false
+    i = consequent[1]
+    if (!isWordTok(toks[i], 'else')) return false
+    // ⚠️ `else if` is a block of its own and is NOT unrolled here: one more
+    // branch is one more place to get an arm wrong silently, and nothing in the
+    // corpus needs it. It refuses `:block` at the `if` that opened it.
+    const alternate = braceBody(toks, i + 1)
+    if (!alternate) return false
+    const b = blockAssignment(alternate[0])
+    if (!b) return false
+    if (alternate[1] !== toks.length) return false
+    if (key(a.name) !== key(b.name)) return false
+    branches.push({ when: cond, assign: a }, { when: null, assign: b })
+  } else {
+    // switch (<subject>) { case ARM: name = expr; … [default: name = expr;] }
+    if (!isPunctTok(toks[1], '(')) return false
+    let depth = 0
+    let close = -1
+    for (let j = 1; j < toks.length; j += 1) {
+      if (isPunctTok(toks[j], '(')) depth += 1
+      else if (isPunctTok(toks[j], ')')) { depth -= 1; if (depth === 0) { close = j; break } }
+    }
+    if (close < 0) return false
+    subject = toks.slice(2, close)
+    if (subject.length !== 1 || subject[0].kind !== 'ident') return false
+    const body = braceBody(toks, close + 1)
+    if (!body || body[1] !== toks.length) return false
+    const inner = body[0]
+    const starts = []
+    for (let j = 0; j < inner.length; j += 1) {
+      if (isWordTok(inner[j], 'case') || isWordTok(inner[j], 'default')) starts.push(j)
+    }
+    if (!starts.length) return false
+    for (let s = 0; s < starts.length; s += 1) {
+      const from = starts[s]
+      const to = s + 1 < starts.length ? starts[s + 1] : inner.length
+      const isDefault = isWordTok(inner[from], 'default')
+      const colon = inner.findIndex((t, j) => j > from && j < to && isPunctTok(t, ':'))
+      if (colon < 0) return false
+      const arm = isDefault ? null : inner.slice(from + 1, colon)
+      if (!isDefault && (arm.length !== 1 || arm[0].kind !== 'ident')) return false
+      const assign = blockAssignment(inner.slice(colon + 1, to))
+      if (!assign) return false
+      branches.push({ when: isDefault ? null : arm[0], assign })
+    }
+    const first = branches[0].assign.name
+    if (branches.some((b) => key(b.assign.name) !== key(first))) return false
+  }
+
+  const name = branches[0].assign.name
+  const prior = ctx.env.get(key(name))
+  // ⛔ IT MUST FILL A NAME ALREADY DECLARED. `def dataPrice;` then the block is
+  // the published shape; a block that invents a binding is a different statement
+  // and is not this reader's to accept.
+  if (!prior || prior.kind !== 'forward') return false
+
+  if (kind === 'switch') {
+    // ⭐ THE SUBJECT MUST BE A FOLDED ENUM INPUT, and the arm it selects is the
+    // column. Anything else — a number, a series, an unfrozen name — is a
+    // genuine runtime switch and refuses.
+    const bound = ctx.env.get(key(subject[0].value))
+    if (!bound || bound.kind !== 'enum' || !Array.isArray(bound.arms)) return false
+    const chosen = branches.find((b) => b.when && key(b.when.value) === key(bound.arm))
+      || branches.find((b) => b.when === null)
+    if (!chosen) return false
+    // ⛔ AND EVERY ARM MUST BE ONE THE INPUT DECLARES. A `case` naming something
+    // the input has no choice for is a typo that would otherwise be silently
+    // unreachable — the same undeclared-arm rule `resolveDotted` keeps.
+    for (const b of branches) {
+      if (b.when && !bound.arms.some((x) => key(x) === key(b.when.value))) {
+        throw refuse('thinkscript:enum-arm', b.when)
+      }
+    }
+    ctx.env.set(key(name), { kind: 'def', expr: chosen.assign.expr, tok: prior.tok })
+    return true
+  }
+
+  const [ifBranch, elseBranch] = branches
+  ctx.env.set(key(name), {
+    kind: 'def',
+    tok: prior.tok,
+    expr: {
+      e: 'if',
+      cond: parseWhole(ifBranch.when),
+      then: ifBranch.assign.expr,
+      otherwise: elseBranch.assign.expr,
+      tok: head,
+    },
+  })
+  return true
+}
+
 /** Read one statement into the program under construction.
  *
  * ⛔ ONE RULE DECIDES WHAT A BARE EXPRESSION IS, AND IT IS THE RULE THAT KEEPS
  * `AddLabel(…)` FROM BECOMING A COLUMN: a statement that is nothing but a CALL
- * answers with no value to screen on — it draws, alerts, orders or asserts — so
- * it refuses `thinkscript:statement` at the call. Anything else bare IS the
- * output, which is what `16-scan-rsi-crosses-30-70` needs: it has no `plot`, no
- * `def` and no `;` at all. ⏳ W3.6 reclassifies the chrome subset into
- * `ignored[]`; refusing it is this task's honest answer, not its final one. */
+ * answers with no value to screen on — it draws, alerts, orders or asserts. If
+ * it is CHROME it is listed in `ignored[]` with its line and its own sentence;
+ * if it is not, it still refuses `thinkscript:statement` at the call, because a
+ * statement-shaped call this lane has never seen is not something to skip
+ * quietly. Anything else bare IS the output, which is what
+ * `16-scan-rsi-crosses-30-70` needs: it has no `plot`, no `def` and no `;`. */
 function readStatement(toks, ctx) {
   const head = toks[0]
   const k = head.kind === 'ident' ? key(head.value) : null
@@ -1201,6 +1580,8 @@ function readStatement(toks, ctx) {
     return
   }
 
+  if ((k === 'if' || k === 'switch') && readAssignmentBlock(toks, ctx, k)) return
+
   if (k === 'if' || k === 'switch' || k === 'script') {
     // ⛔ A BLOCK ASSIGNS ONE NAME FROM SEVERAL STATEMENTS. This engine stores a
     // single expression per column, so the shape has nowhere to go — and saying
@@ -1220,7 +1601,23 @@ function readStatement(toks, ctx) {
   }
 
   const expr = parseWhole(toks)
-  if (expr.e === 'call') throw refuse('thinkscript:statement', expr.tok)
+  if (expr.e === 'call') {
+    // ⛔ THE DEFERRED CONSTRUCTS COME FIRST, because they are not decoration.
+    // `addOrder` is a trade instruction: it refuses HARD and blocks the whole
+    // script even though the plots above it translate perfectly well — a study
+    // whose order line we did not read is a study we have not finished reading.
+    const deferred = TS_DEFERRED_STATEMENTS[key(expr.name)]
+    if (deferred) {
+      throw new ThinkScriptRefusal(deferred.guard,
+        `${REFUSALS[deferred.guard]} — ${deferred.why}`, locate(expr.tok))
+    }
+    const what = chromeOf(expr)
+    if (what === null) throw refuse('thinkscript:statement', expr.tok)
+    ctx.ignored.push(noteValue('thinkscript:note-chrome', expr.tok.line, expr.tok.column,
+      `\`${chromeToken(expr)}\` ${what}`,
+      { index: expr.tok.index, token: chromeToken(expr) }))
+    return
+  }
   ctx.outputs.push({ kind: 'condition', title: null, name: null, tok: head, nameTok: head, expr })
 }
 
@@ -1576,6 +1973,50 @@ export const TS_CALL_SHAPES = Object.freeze({
     cite: 'Functions/Math---Trig/Log: "Returns the NATURAL logarithm of an argument." — so '
       + 'this is closedTable `ln` ("the natural log of {0}") and never `log10`',
   },
+  // ── the pointwise transcendentals (W3.6, ruling D) ────────────────────────
+  // ⛔ "Cheap to map" was not the licence — the citation is. Each page was
+  // fetched 2026-08-26 and each names its own argument's UNITS, which is the one
+  // thing that could have been silently wrong here: a degrees-vs-radians reading
+  // is invisible in the output and wrong on every bar. `closedTable` declares all
+  // four, and the numeric block asserts cos(0)=1 and cos(π)=−1, which is what
+  // makes "radians" a measurement rather than a shared assumption.
+  cos: {
+    engine: 'cos',
+    params: ['angle'],
+    args: [{ from: 'angle' }],
+    cite: 'Functions/Math---Trig/Cos: Cos(double angle); "Returns the trigonometric cosine '
+      + 'of an angle." The parameter row reads "Defines angle (IN RADIANS) whose cosine is '
+      + 'calculated", and no default is published (the column shows "—"), which matches '
+      + 'closedTable `cos` ("the cosine of {0}", lookback 0)',
+  },
+  sin: {
+    engine: 'sin',
+    params: ['angle'],
+    args: [{ from: 'angle' }],
+    cite: 'Functions/Math---Trig/Sin: Sin(double angle); "Returns the trigonometric sine of '
+      + 'an angle."; "Defines angle (IN RADIANS) whose sine is calculated"; no default '
+      + 'published — closedTable `sin` ("the sine of {0}", lookback 0)',
+  },
+  tan: {
+    engine: 'tan',
+    params: ['angle'],
+    args: [{ from: 'angle' }],
+    cite: 'Functions/Math---Trig/Tan: Tan(double angle); "Returns the trigonometric tangent '
+      + 'of an angle."; "Defines angle (IN RADIANS) whose tangent is calculated"; no default '
+      + 'published — closedTable `tan` ("the tangent of {0}", lookback 0)',
+  },
+  exp: {
+    engine: 'exp',
+    params: ['number'],
+    args: [{ from: 'number' }],
+    cite: 'Functions/Math---Trig/Exp: Exp(double number); "Returns the exponential value of '
+      + 'a number."; "Defines number whose exponential value is returned"; no default. '
+      + '⭐ THE BASE IS PUBLISHED AS AN IDENTITY, not inferred: the page\'s own Example puts '
+      + 'Exp(x) beside Power(Double.E, x) and states "The results of the calculations are '
+      + 'equal" — the same kind of published identity TrueRange\'s "the resulting plots '
+      + 'coincide" gives. closedTable `exp` reads "e raised to {0}"',
+  },
+
   max: {
     engine: 'max',
     params: ['value1', 'value2'],
@@ -1670,6 +2111,118 @@ export const TS_CALL_SHAPES = Object.freeze({
       + 'closedTable `accum(seed, update, warmupPeriod)`\'s own shape',
   },
 
+  // ⭐ THE ONE STUDY IN THIS GROUP WHOSE MATHS IS PUBLISHED IN WORDS. Its
+  // DEFAULTS still are not, so nothing here is defaulted and a partial call
+  // refuses naming the parameter it is missing. See `TS_EXPANSIONS.rateofchange`
+  // for the citation and for what it corrects.
+  rateofchange: {
+    expand: 'rateofchange',
+    engines: [],
+    params: ['length', 'color norm length', 'price'],
+    args: [{ from: 'length' }, { from: 'price' }],
+    unused: {
+      'color norm length': 'thinkorswim uses this only to scale the COLOUR GRADIENT the '
+        + 'study is drawn with ("The number of bars used to calculate the color gradient"), '
+        + 'which changes no value; a screen has no gradient to scale.',
+    },
+    cite: 'Tech-Indicators/studies-library/R-S/RateOfChange: "The Rate Of Change (ROC) is an '
+      + 'oscillator calculating the PERCENTAGE CHANGE of the security price relative to the '
+      + 'price a specified number of periods before." Input Parameters is `Parameter | '
+      + 'Description` (length, color norm length, price) with NO Default value column, so '
+      + 'neither `length` nor `price` is defaulted here. Plots are ROC and ZeroLine ("Zero '
+      + 'level") — the zero line is why the percentage-change form is the published one and '
+      + 'the ratio form is not',
+  },
+
+  // ── the STUDY references, and what the Studies-Library pages actually publish ──
+  //
+  // ⛔⛔ MEASURED 2026-08-26, AND THE MEASUREMENT DECIDED ALL OF THEM. Every
+  // thinkScript **Functions** page carries `Parameter | Default value |
+  // Description`. Every **Studies-Library** page carries `Parameter |
+  // Description` and NOTHING ELSE — there is no Default column anywhere in the
+  // library. So a study's defaults exist only where its prose happens to state
+  // them, and for these four it does not.
+  //
+  // ⭐ `ATR` IS THE CONTROL THAT MAKES THIS A RULE RATHER THAN A SHRUG: it is
+  // mapped, from the same library, because ITS description publishes both of its
+  // missing defaults in one sentence ("a 14-period Wilder's moving average").
+  // These four have no such sentence, so the number would have to be invented —
+  // and an invented window is invisible in the result. The member is told exactly
+  // which default is missing and exactly what to write instead, which costs them
+  // one edit and costs them nothing they cannot see.
+  rsi: {
+    params: [],
+    refuse: {
+      guard: 'thinkscript:study-ref',
+      message: 'thinkorswim publishes no default `length` or `price` for the RSI study — its '
+        + 'Input Parameters table has only Parameter and Description columns, and its '
+        + 'description states defaults only for the overbought (70) and oversold (30) levels '
+        + '— so state them: RSI(length = 14, price = close)',
+    },
+    cite: 'Tech-Indicators/studies-library/R-S/RSI: Input Parameters is `Parameter | '
+      + 'Description` with rows length, over bought, over sold, price, average type, show '
+      + 'breakout signals. NO Default value column. The description publishes "with default '
+      + 'values of 30 for the oversold level and 70 for the overbought" and nothing for '
+      + 'length or price. ⭐ closedTable DOES declare `rsi`, so this refusal is about a '
+      + 'missing CITATION and never about a missing function',
+  },
+  bollingerbands: {
+    params: [],
+    refuse: {
+      guard: 'thinkscript:study-ref',
+      message: 'thinkorswim publishes no default `price` or `average type` for the Bollinger '
+        + 'Bands study, so which average the bands are drawn around is not something this '
+        + 'door can know; the two standard deviations ARE published, so write the band you '
+        + 'mean directly — sma(close, 20) - 2 * stdev(close, 20) for the lower band',
+    },
+    cite: 'Tech-Indicators/studies-library/A-B/BollingerBands: Input Parameters is `Parameter '
+      + '| Description` (rows: price, displace, length, num dev dn, num dev up, average '
+      + 'type), NO Default value column. The description publishes the multiplier only — '
+      + '"two lines plotted, BY DEFAULT, two standard deviations above and below a moving '
+      + 'average" — and names the average types without picking one. ⚠️ Its plots are '
+      + 'declared MidLine, LowerBand, UpperBand IN THAT ORDER, so a bare reference would be '
+      + 'MidLine per Reserved-Words/reference ("the first declared in the source code"); '
+      + 'recorded because it is the fact a later task needs, not because it rescues this one',
+  },
+  movavgexponential: {
+    params: [],
+    refuse: {
+      guard: 'thinkscript:study-ref',
+      message: 'thinkorswim publishes no default `price` for the MovAvgExponential study, and '
+        + 'its `displace` input shifts every bar of the plot with no published default '
+        + 'either; write the average directly instead — ExpAverage(close, 21)',
+    },
+    cite: 'Tech-Indicators/studies-library/M-N/MovAvgExponential: `Parameter | Description`, '
+      + 'NO Default value column; rows include `displace` — "The displacement of the EMA '
+      + 'study, in bars. Positive values signify backward displacement." Plots are AvgExp, '
+      + 'UpSignal, DownSignal in that order. ⭐ `ExpAverage` IS mapped, from the FUNCTIONS '
+      + 'library, whose page does publish length 12 — same maths, cited page',
+  },
+  simplemovingavg: {
+    params: [],
+    refuse: {
+      guard: 'thinkscript:study-ref',
+      message: 'thinkorswim publishes no default `price`, `length` or `displace` for the '
+        + 'SimpleMovingAvg study, and a non-zero `displace` shifts every bar of the plot; '
+        + 'write the average directly instead — Average(close, 20)',
+    },
+    cite: 'Tech-Indicators/studies-library/R-S/SimpleMovingAvg: `Parameter | Description`, NO '
+      + 'Default value column; rows price, length, displace, show breakout signals. '
+      + '`displace`: "The displacement of the SMA study, in bars." ⭐ `Average` IS mapped '
+      + 'from the Functions library, which publishes length 12',
+  },
+  ttm_squeeze: {
+    params: [],
+    refuse: {
+      guard: 'thinkscript:study-ref',
+      message: 'thinkorswim publishes no formula for the TTM Squeeze study at all, so there '
+        + 'is nothing to translate it into — this door will not reconstruct a proprietary '
+        + 'indicator from its description',
+    },
+    cite: 'Tech-Indicators/studies-library/S-T/TTM_Squeeze: proprietary; the page describes '
+      + 'what the study shows and publishes no calculation',
+  },
+
   // ── the published names that REFUSE, by name, with the reason ─────────────
   highestall: {
     params: ['data'],
@@ -1717,26 +2270,39 @@ export const TS_CALL_SHAPES = Object.freeze({
  *  RateOfChange). So a study is mappable only where its own DESCRIPTION states
  *  the missing defaults in prose, which is true of `ATR` and of none of these. */
 export const TS_UNCITED = Object.freeze({
-  RSI: 'the study page publishes no default for `length` or `price` — only over-bought 70, '
-    + 'over-sold 30 and "the Wilder\'s moving average is used" — so RSI() and RSI(14) could '
-    + 'only be mapped by inventing 14 and `close`. ⛔ THE LANE BRIEF ASSUMED OTHERWISE '
-    + '(`RSI(length=, price=)`); it was re-measured and the brief is wrong.',
-  SimpleMovingAvg: 'the study page publishes no default for `price`, `length` or `displace`, '
-    + 'and a non-zero `displace` SHIFTS the plot — dropping it would move every bar. '
-    + 'Members who want it can write Average(price, length), which IS mapped.',
-  MovAvgExponential: 'same page shape as SimpleMovingAvg, same missing `displace`. '
-    + 'ExpAverage(data, length) is the cited equivalent and IS mapped.',
-  RateOfChange: 'the study page publishes no defaults at all and its own description says '
-    + 'only "the percentage change of the security price relative to the price a specified '
-    + 'number of periods before" — which does not say whether the result is a ratio, a '
-    + 'percentage, or a difference. Three readings, no quote to pick between them.',
   Floor: 'closedTable declares no `floor` and no `ceil`; `round` is round-to-whole, which is '
     + 'a different function on every value whose fraction is at least one half.',
-  BollingerBands: 'a multi-plot study; a bare reference resolves to its FIRST declared plot '
-    + 'and this lane has no reading of which that is. W3.6 owns study references.',
-  TTM_Squeeze: 'proprietary; thinkorswim publishes no formula for it at all, so there is '
-    + 'nothing to be an identity FOR. It refuses here and in every later task.',
 })
+
+/**
+ * 🔴🔴 W3.6 MOVED THE STUDY NAMES OUT OF `TS_UNCITED` AND INTO CITED ROWS ABOVE,
+ * AND ONE OF THEM WAS A REFUSAL THIS FILE HAD GOT WRONG.
+ *
+ * `RSI`, `SimpleMovingAvg`, `MovAvgExponential`, `BollingerBands` and
+ * `TTM_Squeeze` now each have a `TS_CALL_SHAPES` row carrying its own `cite` and
+ * its own refusal sentence, so the page it was read from travels with the
+ * refusal instead of living in a second list. Their guard moved from
+ * `:function` — which said "this engine declares no function for that call",
+ * false for every one of them, since `rsi`, `sma` and `ema` are all declared —
+ * to `:study-ref`, which says what is actually missing: a published default.
+ *
+ * ⛔⛔ AND `RateOfChange` IS NOW MAPPED, WHICH MEANS THIS FILE HELD A FALSE
+ * REFUSAL FOR A WHOLE TASK. Its entry read: *"its own description says only 'the
+ * percentage change of the security price relative to the price a specified
+ * number of periods before' — which does not say whether the result is a ratio,
+ * a percentage, or a difference. Three readings, no quote to pick between
+ * them."* ⭐ THE QUOTE IT PRINTS SAYS "PERCENTAGE CHANGE". The sentence that
+ * decides the question was sitting inside the sentence claiming the question was
+ * undecidable, and it survived a task, a mutation sweep and a review — because
+ * everything after it re-read the claim instead of re-reading the page. W3.6
+ * re-fetched and it took one line to see.
+ *
+ * ⚠️ THE HABIT THIS COSTS: an over-refusal is cheap for a member (one paste) and
+ * expensive for this door, because nothing ever fails on it. A wrong "no" has no
+ * red test, no wrong column and no complaint — only a reason nobody re-reads. It
+ * is the one defect class this lane's own thesis makes invisible, and the only
+ * defence is to re-derive the citation rather than the conclusion.
+ */
 
 /**
  * ⭐⭐ THE ARGUMENT PLAN, MATERIALISED — one entry per ENGINE argument, in the
@@ -1800,6 +2366,43 @@ const TS_EXPANSIONS = Object.freeze({
     return cOp('-', [
       R.engineCall('max', [{ node: prevClose, tok }, high], tok),
       R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
+  },
+
+  /** `RateOfChange(price, length)` → `(price / price[length] - 1) * 100`.
+   *
+   *  ⭐⭐ THE FORMULA IS PUBLISHED IN WORDS AND THIS CORRECTS W3.5. That task
+   *  recorded ROC as unmappable because *"the description does not say whether
+   *  the result is a ratio, a percentage or a difference — three readings, no
+   *  quote to pick between them"*, and the W3.5 review CONFIRMED that correction.
+   *  Both were wrong, and re-fetching the page rather than re-reading the claim
+   *  is what found it (2026-08-26): the description's first sentence is *"an
+   *  oscillator calculating the PERCENTAGE CHANGE of the security price relative
+   *  to the price a specified number of periods before."* Percentage change of a
+   *  value relative to an earlier one is `(new − old) / old × 100`, which leaves
+   *  no reading to choose between.
+   *
+   *  ⭐ AND THE PAGE CORROBORATES ITSELF: it declares a second plot, `ZeroLine` —
+   *  *"Zero level"* — so the oscillator is centred on ZERO. That rules out the
+   *  other candidate spelling, `price / price[length] × 100`, which is centred on
+   *  100 and would draw a plausible line 100 away from the right one on every
+   *  bar. The numeric block asserts both directions against it.
+   *
+   *  ⛔ NEITHER `price` NOR `length` IS DEFAULTED, because the Studies-Library
+   *  page has no Default value column. A bare `RateOfChange(14)` therefore
+   *  refuses and names the parameter it is missing — the maths being citable does
+   *  not make the defaults citable. */
+  rateofchange: (args, R, tok) => {
+    const [length, price] = args
+    const n = literalInteger(length.node)
+    if (n === null || n < 1) throw refuse('thinkscript:window', length.tok || tok)
+    if (price.node && price.node.type === 'offset') {
+      throw refuse('thinkscript:offset-chained', price.tok || tok)
+    }
+    const before = { type: 'offset', value: n, args: [price.node] }
+    return cOp('*', [
+      cOp('-', [cOp('/', [price.node, before]), { type: 'num', value: 1 }]),
+      { type: 'num', value: 100 },
     ])
   },
 })
@@ -1999,6 +2602,20 @@ class Resolver {
   engineCall(name, args, tok) {
     if (!has(this.table.functions, name)) throw refuse('thinkscript:function', tok)
     const spec = this.table.functions[name]
+    // ⭐⭐ THIS LINE WAS REPORTED AS A DEAD BRANCH, AND IT IS NOT — IT WAS
+    // UNEXERCISED, WHICH IS A DIFFERENT THING AND THE RAIL IS THE FIX.
+    // The argument-plan rail guarantees `plan.length === spec.args.length` for
+    // every SHAPE, so nothing a member types can trip it through that door. But
+    // three call paths reach `engineCall` with a HAND-BUILT argument array and no
+    // plan at all — `within N bars` → `highest`, `crosses [above|below]` →
+    // `crossOver`/`crossUnder`, and `%` → `mod` — and for those this is the only
+    // check there is. MEASURED by injecting a table whose `highest` takes three
+    // arguments: `close > 5 within 3 bars` refuses `:arity` AT `within`, and the
+    // same for `crosses` and `%`. The shipped shapes reach it too, because
+    // `argumentPlan` builds from the SHAPE while `spec` comes from the MANIFEST —
+    // so this is what catches the two disagreeing at TRANSLATION time rather than
+    // printing a malformed call for the parser to choke on later.
+    // ⛔ Deleting it would leave the three hand-built paths unguarded entirely.
     if (args.length !== spec.args.length) throw refuse('thinkscript:arity', tok)
     return cCall(name, args.map((a, i) => {
       if (spec.args[i] === 'int'
@@ -2032,6 +2649,27 @@ class Resolver {
    * other and quietly breaks the corpus file that needs them different. Both
    * halves are pinned by test (W3.5 review, minor #9).
    */
+  /** `close(symbol = …)` / `high(period = …)` — a bar field asked for from
+   *  another series. Returns the refusal to throw, or `null`.
+   *
+   *  ⛔ THE FIELD SET COMES FROM `table.series`, so this can never disagree with
+   *  what the engine actually declares as a bar field. The ARGUMENT is what
+   *  decides which refusal: `symbol` and `period` are different questions and
+   *  get different sentences, pointed at the argument the member wrote. */
+  foreignSeriesCall(n) {
+    if (n.base) return null
+    if (!has(this.table.series, normaliseName(key(n.name)))) return null
+    for (const a of n.args || []) {
+      if (a.name == null) continue
+      const rule = TS_SERIES_ARG_GUARDS[key(a.name)]
+      if (rule) {
+        return new ThinkScriptRefusal(rule.guard,
+          `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+      }
+    }
+    return null
+  }
+
   resolveCall(n) {
     // A method's receiver refuses at ITS OWN token first, so
     // `BollingerBands(length = X).LowerBand` names `BollingerBands`; and a method
@@ -2039,6 +2677,17 @@ class Resolver {
     if (n.base) {
       this.resolve(n.base)
       throw refuse('thinkscript:function', n.tok)
+    }
+    // ⛔⛔ WHAT IT READS IS CHECKED BEFORE WHETHER WE CAN COMPUTE IT. A bar field
+    // called as a function is thinkorswim reaching for ANOTHER series — another
+    // symbol or another timeframe — and naming that is far more use to a member
+    // than "this engine declares no function for that call".
+    const foreign = this.foreignSeriesCall(n)
+    if (foreign) throw foreign
+    const deferredCall = TS_DEFERRED_CALLS[key(n.name)]
+    if (deferredCall) {
+      throw new ThinkScriptRefusal(deferredCall.guard,
+        `${REFUSALS[deferredCall.guard]} — ${deferredCall.why}`, locate(n.tok))
     }
     const shape = TS_CALL_SHAPES[key(n.name)]
     if (!shape) throw refuse('thinkscript:function', n.tok)
@@ -2051,6 +2700,17 @@ class Resolver {
     // slot-filling failure) and the sentence now names which collision happened.
     const twice = (p, tok) => new ThinkScriptRefusal('thinkscript:arity',
       `${REFUSALS['thinkscript:arity']} — two of them land on \`${p}\``, locate(tok))
+    // ⛔ A REFUSED NAME REFUSES BEFORE ITS ARGUMENTS ARE READ, so the sentence a
+    // member gets is about the FUNCTION and never about how they spelled the
+    // call. `RSI(length = RSI_Length)` must be told that the study publishes no
+    // default `price` — not that `length` is an argument name it does not know,
+    // which is what a slot-filling pass answers first for a row that declares no
+    // parameters at all.
+    if (shape.refuse) {
+      throw new ThinkScriptRefusal(shape.refuse.guard,
+        `${REFUSALS[shape.refuse.guard]} — ${shape.refuse.message}`, locate(n.tok))
+    }
+
     const slots = new Array(shape.params.length).fill(null)
     for (const a of n.args) {
       if (a.name == null) continue
@@ -2095,7 +2755,13 @@ class Resolver {
       // ⛔ A MISSING PARAMETER IS NOT A MISCOUNT EITHER — it names the parameter,
       // and says the reason no default filled it, because `defaults` carries ONLY
       // what the reference publishes.
-      if (!slots[i] && !has(shape.defaults || {}, p)) {
+      // ⚠️ A PARAMETER IN `unused` IS NOT REQUIRED, and leaving that out cost a
+      // corpus script: `RateOfChange(price = …, length = …)` refused `:arity`
+      // because the study's third parameter — `color norm length`, which scales a
+      // COLOUR GRADIENT and changes no value — was neither supplied nor
+      // defaulted. A parameter this door has already written down as
+      // contributing nothing cannot also be one it demands.
+      if (!slots[i] && !has(shape.defaults || {}, p) && !has(shape.unused || {}, p)) {
         throw new ThinkScriptRefusal('thinkscript:arity',
           `${REFUSALS['thinkscript:arity']} — \`${p}\` has no value, and thinkorswim `
           + 'publishes no default for it',
@@ -2103,12 +2769,6 @@ class Resolver {
       }
     })
 
-    // ⛔ A REFUSED NAME REFUSES AFTER ITS ARGUMENTS ARE COUNTED, so the sentence a
-    // member reads is about the FUNCTION and not about how they spelled the call.
-    if (shape.refuse) {
-      throw new ThinkScriptRefusal(shape.refuse.guard,
-        `${REFUSALS[shape.refuse.guard]} — ${shape.refuse.message}`, locate(n.tok))
-    }
 
     const port = this.callPort(shape, slots, n)
     if (shape.recurrence) return this.buildRecurrence(shape, port, n)
@@ -2544,8 +3204,34 @@ function verifyRoundTrip(formula, ast, tok) {
 /** Which column is offered first. A `plot` that yields a truth is a scan; a
  *  bare condition IS one by construction. ⭐ `treeYieldsBool` is IMPORTED from
  *  `pine.js` rather than re-decided here — one `yields` reader for the engine. */
+/**
+ * 🔴🔴 DOES THIS COLUMN DEPEND ON THE BAR AT ALL?
+ *
+ * ⛔⛔ MEASURED IN W3.6, AND IT IS THE SAME DEFECT AS THE HARD GUARDS, ONE LEVEL
+ * DEEPER. With chrome listed, two more corpus scripts reported as working
+ * screens on a column that cannot screen anything:
+ *   * `20-roc-stdev-lower-switch` offered **`ZeroLine = 0`** — the decorative
+ *     zero line — while both of its real plots refused;
+ *   * `17-compoundvalue-vs-manual-fibonacci` offered **`FibonacciNumbers2 = 0 / 0`**
+ *     — not-a-number on every bar — while its Fibonacci plot refused.
+ * Both would have counted as PROGRESS in the corpus number, and a member would
+ * have pasted a study and been handed a horizontal line.
+ *
+ * ⭐ THE RULE IS NOT "not a literal": it is "reads the bar". A tree built only
+ * from numbers is the same value on every bar however much arithmetic is piled
+ * on it, so this asks whether ANY leaf reads a series — which is exactly the
+ * question "is there a column here" means. Derived by walking the tree, so a
+ * node type added later is covered by the descent it already has.
+ */
+function readsTheBar(node) {
+  if (!node || typeof node !== 'object') return false
+  if (node.type === 'series') return true
+  return (node.args || []).some(readsTheBar)
+}
+
 function chooseOutput(rows) {
-  const usable = rows.map((r, i) => i).filter((i) => rows[i].refusal === null && !rows[i].hidden)
+  const usable = rows.map((r, i) => i)
+    .filter((i) => rows[i].refusal === null && !rows[i].hidden && readsTheBar(rows[i].ast))
   if (!usable.length) return -1
   const boolish = usable.find((i) => {
     if (rows[i].kind === 'condition') return true
@@ -2670,7 +3356,11 @@ export function translateThinkScript(source, opts = {}) {
       // ⛔ RE-SORTED, and this half is REACHABLE and railed — see below.
       .sort((a, b) => (a.line - b.line) || (a.column - b.column))
 
-    const usable = rows.filter((r) => r.refusal === null && !r.hidden)
+    // ⛔ "USABLE" MEANS A COLUMN A SCREEN CAN ANSWER FROM — see `readsTheBar`. A
+    // plot that is a constant translated perfectly and screens nothing, and
+    // counting it made two corpus scripts report as working on a zero line and on
+    // an all-NaN column.
+    const usable = rows.filter((r) => r.refusal === null && !r.hidden && readsTheBar(r.ast))
     const refusals = [...program.hard, ...rows.filter((r) => r.refusal).map((r) => r.refusal)]
       .sort(byPosition)
 
@@ -2692,7 +3382,14 @@ export function translateThinkScript(source, opts = {}) {
     // whose plots are perfectly good Pine. A study whose `AddLabel` line was not
     // read is a study we have not finished reading, and offering one of its plots
     // as "your scan" is answering about a different document than the one pasted.
+    // ⛔⛔ A HARD GUARD BLOCKS FROM WHEREVER IT WAS RAISED, INCLUDING FROM INSIDE
+    // ONE PLOT. See `TS_HARD_GUARDS`: `08` and `24` both reported as working
+    // screens the moment a chrome line stopped blocking them, with the SPY
+    // comparison and the position size reduced to one refused column among
+    // several. A guard that only blocks when it happens to be raised at statement
+    // level is a guard that stops working as the rest of the door improves.
     const blocked = program.hard.length > 0
+      || rows.some((r) => r.refusal && TS_HARD_GUARDS.includes(r.refusal.guard))
     return {
       ok: usable.length > 0 && !blocked,
       version: 'thinkscript',
