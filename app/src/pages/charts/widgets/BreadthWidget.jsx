@@ -181,43 +181,62 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
   )
 }
 
-// ── Ratio Bars: one split gauge per pair. The down side IS the track (a single
-// absolutely-positioned up-fill sits over it), so both halves are always the
-// exact same height — no taller-red artifact. Title is centered above; the
-// winning % sits top-right; raw counts + labels sit below, left/right. ──
+// ── Ratio Bars: a stacked set of premium gauge CARDS, one per bull/bear pair.
+// Each card: centered title, winning % top-right, a glossy split pill (green vs
+// red, gloss gradient + a soft 50% midpoint tick + a crisp seam), then the raw
+// counts + labels. The pill's down side is the bar background with a single
+// absolutely-positioned up-fill over it, so both halves are always identical
+// height. Live-only pairs with no reading yet (outside RTH) render a calm
+// "awaiting session" card instead of vanishing — so the set never looks empty. ──
+function ratioGloss(base) {
+  // A top-down white gloss over the base hue gives the flat fill some depth.
+  return `linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.04) 45%, rgba(0,0,0,0.10) 100%), ${base}`
+}
 function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
   const bars = RATIO_PAIRS.map(p => {
     const u = ratioRow?.[p.up]
     const d = ratioRow?.[p.dn]
-    if (u == null && d == null) return null
+    const has = !(u == null && d == null)
     const uu = Math.max(0, Number(u) || 0)
     const dd = Math.max(0, Number(d) || 0)
     const tot = uu + dd
     const upPct = tot > 0 ? (uu / tot) * 100 : 50
     const bullWins = uu >= dd
-    const pct = tot > 0 ? Math.round(bullWins ? upPct : 100 - upPct) : null
-    return { ...p, uu, dd, upPct, bullWins, pct }
-  }).filter(Boolean)
-
-  if (!bars.length) {
-    return <div className={styles.hint}>No ratio readings yet.</div>
-  }
+    const pct = has && tot > 0 ? Math.round(bullWins ? upPct : 100 - upPct) : null
+    return { ...p, has, uu, dd, upPct, bullWins, pct }
+  })
   return (
     <div className={styles.ratioWrap}>
       {bars.map(b => (
-        <div key={b.key} className={styles.ratioRow}>
+        <div key={b.key} className={`${styles.ratioCard}${b.has ? '' : ' ' + styles.ratioCardEmpty}`}>
           <div className={styles.ratioHead}>
             <span className={styles.ratioLabel} style={textColor ? { color: textColor } : undefined}>{b.label}</span>
-            {b.pct != null && (
-              <span className={styles.ratioPct} style={{ color: b.bullWins ? upColor : dnColor }}>{b.pct}%</span>
-            )}
+            <span
+              className={styles.ratioPct}
+              style={b.pct != null ? { color: b.bullWins ? upColor : dnColor } : undefined}
+            >{b.pct != null ? `${b.pct}%` : '—'}</span>
           </div>
-          <div className={styles.ratioBar} style={{ background: dnColor }}>
-            <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: upColor }} />
+          <div
+            className={styles.ratioBar}
+            style={b.has ? { background: ratioGloss(dnColor) } : undefined}
+          >
+            {b.has && (
+              <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: ratioGloss(upColor) }} />
+            )}
+            <span className={styles.ratioMid} aria-hidden="true" />
           </div>
           <div className={styles.ratioFoot}>
-            <span className={styles.ratioFootUp} style={{ color: upColor }}>{b.uu.toLocaleString()} {b.upLabel}</span>
-            <span className={styles.ratioFootDn} style={{ color: dnColor }}>{b.dd.toLocaleString()} {b.dnLabel}</span>
+            {b.has ? (
+              <>
+                <span style={{ color: upColor }}>{b.uu.toLocaleString()} {b.upLabel}</span>
+                <span style={{ color: dnColor }}>{b.dd.toLocaleString()} {b.dnLabel}</span>
+              </>
+            ) : (
+              <>
+                <span className={styles.ratioFootMuted}>{b.upLabel}</span>
+                <span className={styles.ratioFootMuted}>{b.dnLabel}</span>
+              </>
+            )}
           </div>
         </div>
       ))}

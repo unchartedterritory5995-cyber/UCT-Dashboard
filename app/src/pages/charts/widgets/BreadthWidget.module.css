@@ -191,13 +191,26 @@
   .hmTileVal { font-size: 13px; }
 }
 
-/* ── Ratio Bars view — split bull/bear gauges (title centered above) ── */
-.ratioWrap { display: flex; flex-direction: column; gap: 18px; padding: 6px 4px 4px; }
-.ratioRow { display: flex; flex-direction: column; gap: 6px; }
-/* Header: title centered across the full width; winning % pinned top-right. */
-.ratioHead { position: relative; display: flex; align-items: baseline; justify-content: center; min-height: 15px; }
+/* ── Ratio Bars view — premium gauge CARDS ── */
+.ratioWrap { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
+/* Each pair is a subtle raised card so the set reads as a designed panel, not a
+   couple of bars floating in a void. */
+.ratioCard {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 14px 11px;
+  border-radius: 11px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
+  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.07));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.ratioCardEmpty { opacity: 0.55; }
+/* Header: title centered across the card; winning % pinned top-right. */
+.ratioHead { position: relative; display: flex; align-items: baseline; justify-content: center; min-height: 16px; }
 .ratioLabel {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2px;
   text-align: center;
@@ -208,36 +221,53 @@
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  color: var(--bw-text-dim, var(--text-muted));
 }
-/* The bar's own background IS the down side; a single up-fill overlays it, so
-   the two halves are guaranteed identical height. */
+/* Glossy split pill. Down side = the bar's own (glossed) background; a single
+   up-fill overlays it, so both halves are always the same height. A soft inset
+   shadow gives the track depth; the up-fill casts a crisp seam onto the down. */
 .ratioBar {
   position: relative;
-  height: 18px;
-  border-radius: 5px;
+  height: 11px;
+  border-radius: 999px;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: var(--bw-elev, rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 .ratioFillUp {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  transition: width 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.4);
+  transition: width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Faint 50% reference tick — anchors the eye to the midpoint. */
+.ratioMid {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateX(-0.5px);
+  z-index: 1;
+  pointer-events: none;
 }
 .ratioFoot {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.2px;
   font-variant-numeric: tabular-nums;
 }
-.ratioFootDn { text-align: right; }
+.ratioFoot > span:last-child { text-align: right; }
+.ratioFootMuted { color: var(--bw-text-dim, var(--text-muted)); opacity: 0.75; }
 
 /* ── Header row ("Breadth Monitor" · ＋ · ⚙) — same 34px rhythm as .bar so the
    bottom divider still lands on the chart widget's gridline beside it. ── */
