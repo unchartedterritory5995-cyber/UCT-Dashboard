@@ -192,13 +192,12 @@ def test_tf_reads_the_LAST_CLOSED_higher_timeframe_bar_never_the_forming_one():
 
 - [ ] **Step 8: Run both suites and commit.**
 
-### ⛔⛔ MEASURED 2026-08-27 — WHAT A NEW NODE TYPE ACTUALLY COSTS IN THIS ENGINE
+### ✅ LANDED 2026-08-27 — AND WHAT A NEW NODE TYPE ACTUALLY COSTS IN THIS ENGINE
 
-`tf` was built end-to-end and then PARKED one layer short. The patch is real and
-kept at `scratchpad/w2b_tf_complete.patch` (700 lines, 8 files). This is the layer
-list it uncovered, and it is the single most useful output of the attempt — the
-plan estimated "two lanes plus corpus cases" and the truth is **eight layers**,
-each enforced by a rail that refuses to let the previous one ship alone.
+`tf` is LANDED, both lanes, green. It was parked one layer short first, and the
+layer list below is the single most useful thing the work produced: the plan
+estimated "two lanes plus corpus cases" and the truth is **ELEVEN layers**, each
+enforced by a rail that refuses to let the previous one ship alone.
 
 | # | layer | file | state |
 |---|---|---|---|
@@ -210,7 +209,9 @@ each enforced by a rail that refuses to let the previous one ship alone.
 | 6 | JS evaluator + roster + guard + resampler mirror | `interpret.js` | ✅ |
 | 7 | **parser surface** — `tf(close, 'W')` | `parse.js` | ✅ |
 | 8 | conformance corpus cases | `tests/fixtures/ast/corpus.json` | ✅ (4 cases) |
-| 9 | **English read-back: writer AND independent reader** | `sentence.js` + `sentence.test.js` | ❌ **the park** |
+| 9 | **English read-back: writer AND independent reader** | `sentence.js` + `sentence.test.js` | ✅ **done** — `… on the weekly timeframe` |
+| 10 | purity: NO `Date` in the interpreter | `interpret.js` | ✅ integer civil-date arithmetic |
+| 11 | four count/prose floors + the manifest's own roster | 4 files | ✅ |
 
 ⭐ THE ORDER IS FORCED, AND THAT IS THE DESIGN WORKING. Each rail refuses the
 step before it:
@@ -228,7 +229,20 @@ step before it:
 layer or it is not present at all, and that is why the work parked whole rather
 than shipping half.
 
-#### Why layer 9 is a DESIGN task and not more typing
+#### Layer 9 was a DESIGN task, and here is the decision that settled it
+
+**The form is a SUFFIX: `<child> on the weekly timeframe`.** Chosen to match
+`renderOffset`'s `<child> N bars ago`, because a higher-timeframe read changes
+*where the value comes from*, never what the child says — so the child's own
+sentence stays intact and the chrome is appended. `(close > open) on the weekly
+timeframe` reads exactly as it computes.
+
+⭐ Unambiguity is MEASURED, not asserted: `the grammar is UNAMBIGUOUS — exactly
+one form reads each sentence` proves no other production also reads it, and the
+disjointness rail proves neither new refusal message contains or is contained by
+any of the other 33.
+
+#### Why it was a design task and not more typing
 
 `sentenceToAst` is `readSentence`, and `readSentence` is **hand-written inside
 `sentence.test.js`** — an independent reader-oracle, deliberately not shared with
@@ -260,6 +274,36 @@ The parked patch implements exactly that mirror, including an ISO-week key with
 the Thursday rule, because ISO puts a week in the year that owns its Thursday —
 get it wrong and the two lanes misalign by a period at every year boundary, once
 a year, silently, in a number a member trades on.
+
+### ⭐⭐ MEASURED 2026-08-27 — WHY WIRING `request.security` MOVED NEITHER CORPUS
+
+`request.security(syminfo.tickerid, '<TF>', expr)` → `tf` is DONE and tested
+(`pine.security.test.js`, 8 cases). **A2 stayed 12/21 and A3 stayed 10/30**, and
+that is a measurement worth more than the wiring.
+
+Of the **13** community scripts that call `security`, **none** is the plain shape:
+
+| blocker | scripts | what it actually needs |
+|---|---|---|
+| `lookahead=barmerge.lookahead_on` | **4** — 11, 14, 22, 30 | **`tf_live`** (forming HTF bar, `preview-repaints`) |
+| a VARIABLE timeframe (`res`, `htf`, `tf2`, bound to `input.timeframe`) | ~6 | string-constant folding in the translator |
+| another SYMBOL (`benchmark`, `'SPY'`, a `tickerid` alias) | ~3 | **`sym`** node (Task 4) |
+| `barstate.*` inside the expression | ≥1 (script 23) | out of scope — request-dependent by construction |
+
+⛔⛔ **THE `lookahead_on` FOUR ARE THE INTERESTING GROUP, AND THEY MUST NOT BE
+TAKEN QUIETLY.** Our `tf` is `lookahead_off` + `[1]`: the last CLOSED higher-
+timeframe bar. `lookahead_on` asks for the bar the base bar is INSIDE — the
+future, mid-week. Translating it as if it were `off` would turn a look-ahead
+script into a look-behind one; it would backtest beautifully and be wrong, which
+is the silent mistranslation this whole door exists against. The carve-out
+refuses them by name, and the honest way to take them is `tf_live` — a real
+feature with a `preview-repaints` badge, not a shortcut.
+
+⚠️ **AND THE CHEAPEST OF THE THREE IS NOT A NODE.** String-constant folding
+(a variable bound to `input.timeframe("W")` reading as the literal `"W"`) is
+translator-local: no new node type, so none of the eleven layers. It is the first
+thing to do here, and it is worth re-measuring immediately after — the ~6 scripts
+in that row are the largest single group.
 
 ### Task 3: The scan lane's `tf` gate — `D | W | M` only
 

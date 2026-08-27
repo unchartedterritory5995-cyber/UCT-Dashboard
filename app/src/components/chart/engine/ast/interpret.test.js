@@ -738,7 +738,13 @@ describe('the refusals', () => {
       // fires for whatever the manifest declares rather than for `macd`.
       'resolve:domain': () => interpret(outOfDomainCall(), BARS, {}),
       'interpret:node': () => interpret({ type: 'member', name: 'x', args: [] }, BARS, {}),
-      'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
+      // ⭐ A CODE THE LADDER DOES NOT DECLARE. The other reachable shape — a
+      // timeframe at or BELOW the base — needs `opts.tf`, which this table's
+      // runner does not pass; this one fires from the tree alone.
+      'interpret:timeframe': () => interpret(
+        { type: 'tf', value: 'fortnightly', args: [{ type: 'series', name: 'close' }] },
+        BARS, {}),
+    'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
       // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative
       // offset is refused at the parse door, so the only way this guard is ever
       // reached is a STORED tree — which is exactly the input it exists for.

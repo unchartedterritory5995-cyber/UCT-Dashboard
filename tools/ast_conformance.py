@@ -146,7 +146,7 @@ REL_TOL = 1e-9
 #: `parse.js` produces for `EXPR[N]`. `test_ast_conformance.py` derives the same
 #: set from every `type` in the committed corpus, so a name added here without a
 #: corpus case lands RED rather than reading as coverage.
-CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset")
+CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset", "tf")
 
 #: LANE-NATIVE ESCAPE PROBES -- the control that keeps "it errored" from reading
 #: as "it was safe". The must-refuse corpus names JS reaches (`toString`,

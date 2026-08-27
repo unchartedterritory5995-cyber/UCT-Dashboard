@@ -145,7 +145,7 @@ export const SESSION_MAX_BARS = (() => {
  *  walker in both lanes already descends `node.args`, so the child is reached
  *  by machinery that already exists and a walker that forgets `offset` gets the
  *  child's contribution rather than silently dropping the subtree. */
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'])
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -321,6 +321,9 @@ export const REFUSALS = Object.freeze({
     'there is nothing here to compute',
   'canonicalise:operator':
     'the parser produced a symbol this grammar never declared',
+  'canonicalise:timeframe':
+    'a higher-timeframe read is tf(<expression>, \'<TF>\') \u2014 two arguments, the second '
+    + 'a quoted timeframe',
   'canonicalise:node':
     'the parser produced a construct with no canonical form',
 })
@@ -590,8 +593,35 @@ function convert(node) {
     }
     case 'ConditionalExpression':
       return op(TERNARY, [convert(node.test), convert(node.consequent), convert(node.alternate)])
-    case 'CallExpression':
+    case 'CallExpression': {
+      // \u2b50 `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
+      // HIGHER TIMEFRAME, and the timeframe is a FIELD on the node rather than a
+      // child expression \u2014 the same shape rule `offset` follows for its bar
+      // count. A shape with no slot for an expression cannot hold one, so a
+      // timeframe can never be computed at runtime and `max_lookback` stays a
+      // tree sum over a bounded thing.
+      //
+      // \u26d4 IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
+      // alternative \u2014 inventing punctuation \u2014 would put a second grammar in a
+      // language whose whole claim is that it has one. The string literal is
+      // legal HERE and nowhere else: `convert` still refuses every other string,
+      // so the table stays closed and this is the single declared exception.
+      if (node.callee && node.callee.name === 'tf') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:timeframe')
+        const code = args[1]
+        if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
+          return refuse('canonicalise:timeframe')
+        }
+        // \u26a0\ufe0f WHICH timeframes are legal is `interpret`'s question, not this
+        // one's. The parser decides SHAPE; the table decides meaning, and
+        // `interpret:timeframe` names an unserveable code at its own door with
+        // the ladder listed. Validating it twice would be two authorities on one
+        // vocabulary, and the parser's copy would be the one that goes stale.
+        return { type: 'tf', value: code.value, args: [convert(args[0])] }
+      }
       return call(node.callee.name, (node.arguments || []).map(convert))
+    }
     case 'MemberExpression': {
       // The whole-tree scan already refused every illegal member and every
       // illegal offset, so this arm only ever sees a legal one. It re-asks
@@ -712,6 +742,11 @@ const CANONICAL_KEYS = Object.freeze({
   // and giving it a name would open a second spelling of the same tree and
   // move every persisted `astHash` for nothing.
   offset: ['type', 'value', 'args'],
+  // ⚠️ NO `name` HERE EITHER, and for the same reason: the TIMEFRAME is the
+  // node. A `tf` whose code could be an expression would make `max_lookback`
+  // unbounded and a scan un-terminating; keeping it a field is what keeps the
+  // scan lane total.
+  tf: ['type', 'value', 'args'],
 })
 
 /** The tree really is one of the four shapes, with exactly its own keys.
