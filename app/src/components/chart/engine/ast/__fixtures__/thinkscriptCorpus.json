@@ -30,7 +30,6 @@
     "ignoredLines": [
       4,
       13,
-      13,
       14
     ],
     "folded": [
@@ -370,8 +369,8 @@
     "refusal": {
       "guard": "thinkscript:state",
       "line": 9,
-      "column": 31,
-      "token": "+"
+      "column": 33,
+      "token": "x"
     },
     "downstream": null
   },

@@ -1552,6 +1552,204 @@ describe('MovingAverage — the enum dispatch, on thinkorswim`s own five constan
   })
 })
 
+describe('🔴🔴 THE SENTENCE, NOT ONLY THE GUARD — three mistakes must not share one reason', () => {
+  // ⛔⛔ THIS IS THE W3.5 REVIEW'S FINDING AND IT IS THE HABIT, NOT A ONE-OFF.
+  // Every rail above asserted `guard` and every guard was RIGHT; the words were
+  // wrong for two of the three cases that reach `requireAverageType`, and a rail
+  // that reads the guard alone can never see that. A member told "this is not one
+  // of the choices the thinkorswim input declares" about an input that DOES
+  // declare it will go and fix the input — the one thing that was never wrong.
+  const msg = (src) => translateThinkScript(src).refusal.message
+
+  it('⛔ the sentence quotes what the MEMBER wrote, not the folded spelling', () => {
+    // ⛔ `family`/`arm` are `key()`-folded because thinkorswim matches
+    // case-insensitively. Quoting them back writes `color.RED` at somebody who
+    // typed `Color.RED` — a reason that does not match the line it is about.
+    expect(msg('plot p = MovingAverage(Color.RED, close, 10);\n')).toContain('`Color.RED`')
+    expect(msg('plot p = MovingAverage(Color.RED, close, 10);\n')).not.toContain('`color.RED`')
+    expect(msg('input MyType = {default A, B};\nplot p = MovingAverage(MyType, close, 10);\n'))
+      .toContain('`MyType`')
+  })
+
+  it('⛔ a braces input is refused for being the WRONG KIND, and is not told its arm is unknown', () => {
+    const m = msg('input at = {default SIMPLE, EXPONENTIAL};\nplot p = MovingAverage(at, close, 10);\n')
+    // ⭐ THE OLD SENTENCE IS THE ONE THING IT MUST NOT SAY: SIMPLE *is* one of
+    // this input's choices, so a reason claiming otherwise contradicts line 1.
+    expect(m).not.toMatch(/not one of the choices the thinkorswim input declares$/)
+    expect(m).toMatch(/`at` is an input with its own list of choices/)
+    expect(m).toMatch(/different kind of value/)
+    // …and it names what to write instead, derived from the dispatch map itself.
+    expect(m).toMatch(/AverageType\.SIMPLE/)
+    expect(m).toMatch(/AverageType\.WILDERS/)
+  })
+
+  it('⛔ a value that is no enum at all gets its OWN sentence', () => {
+    const m = msg('plot p = MovingAverage(close, close, 10);\n')
+    expect(m).toMatch(/a value rather than one of them/)
+    expect(m).toMatch(/AverageType\.EXPONENTIAL/)
+  })
+
+  it('⛔ an undeclared CONSTANT gets its own sentence, naming the arm the member wrote', () => {
+    const m = msg('plot p = MovingAverage(AverageType.TRIANGULAR, close, 10);\n')
+    expect(m).toMatch(/AverageType\.TRIANGULAR is not one of the average types/)
+  })
+
+  it('⛔ a constant of ANOTHER family is named as that family, not as an input', () => {
+    const m = msg('plot p = MovingAverage(Color.RED, close, 10);\n')
+    expect(m).toMatch(/is a color constant, not an AverageType one/i)
+    expect(m, 'a constant is not an input and must not be called one')
+      .not.toMatch(/its own list of choices/)
+  })
+
+  it('⭐ the three sentences are PAIRWISE DIFFERENT — one reason for three mistakes is the defect', () => {
+    const all = [
+      msg('input at = {default SIMPLE, EXPONENTIAL};\nplot p = MovingAverage(at, close, 10);\n'),
+      msg('plot p = MovingAverage(close, close, 10);\n'),
+      msg('plot p = MovingAverage(AverageType.TRIANGULAR, close, 10);\n'),
+      msg('plot p = MovingAverage(Color.RED, close, 10);\n'),
+    ]
+    expect(new Set(all).size).toBe(all.length)
+  })
+
+  it('⭐ ATR`s gate reads the SAME sentence source — one rule, two callers', () => {
+    // ⛔ `requireAverageType` is one function because two call sites ask the same
+    // question. A second copy of the sentence is how the two come to disagree.
+    expect(msg('input at = {default WILDERS, Other};\nplot p = ATR(14, at);\n'))
+      .toMatch(/`at` is an input with its own list of choices/)
+  })
+
+  it('🔴🔴 the CONVERGENCE refusal states this engine`s limit, never a false fact about the formula', () => {
+    // ⛔⛔ IT USED TO READ "this update keeps building on its own previous bar
+    // without ever forgetting where it started" — and that is FALSE for a
+    // consecutive-bar counter, which forgets on every reset. The shape is
+    // published: `19-consecutive-bars-above-ema-count`. `forgetsItsSeed` is
+    // conservative BY CONSTRUCTION, so the honest cause is that this engine cannot
+    // SEE that it forgets, never that it does not.
+    const counter = msg(
+      'def c = CompoundValue(1, if close > open then c[1] + 1 else 0, 0);\nplot p = c;\n')
+    expect(counter, 'the false claim must not come back')
+      .not.toMatch(/without ever forgetting where it started/)
+    expect(counter).toMatch(/cannot tell that this one does/)
+    // …and it names the shape that DOES work, so the refusal is actionable.
+    expect(counter).toMatch(/if <condition> then <newValue> else <name>\[1\]/)
+    // ⭐ THE CONTROL: the shape it names really does translate, one line away —
+    // otherwise the message would be advice that leads nowhere.
+    expect(translateThinkScript(
+      'def c = CompoundValue(1, if close > open then close else c[1], 0);\nplot p = c;\n')
+      .outputs[0].formula).toBe(`accum(0, close > open ? close : self, ${TS_STATE_WARMUP})`)
+    // ⛔ AND A RUNNING TOTAL — which genuinely never forgets — gets the same
+    // honest sentence rather than a second, differently-wrong one.
+    expect(msg('def v = CompoundValue(1, v[1] + volume, 0);\nplot p = v;\n'))
+      .toMatch(/rolling window over the last \d+ bars/)
+  })
+
+  it('🔴🔴 a DEEPER self-lag refuses at its own token — `self[k]` is deleted, not banked', () => {
+    // ⛔ `selfLagOf` returned `k - 1`, so `x[2]` became `self[1]`. That arithmetic
+    // was UNREACHABLE (`forgetsItsSeed` answers NO for any body where `self` sits
+    // under an offset) and unreachable code reads as capability. Deleted; a deeper
+    // read now refuses BY NAME at the token the member wrote.
+    const r = refusalOf('def x = CompoundValue(2, x[1] + x[2], 1);\nplot p = x;\n')
+    expect(r.guard).toBe('thinkscript:state')
+    expect(r.token, 'it points at the read, not at the operator beside it').toBe('x')
+    expect(r.message).toMatch(/can only be read one bar back, and this reads 2 bars back/)
+    // ⭐ THE CONTROL, so this cannot pass for a translator that refuses every
+    // recurrence: one bar back is still bare `self`, tree for tree.
+    const one = translateThinkScript(
+      'def y = CompoundValue(1, if close > open then close else y[1], 0);\nplot p = y;\n')
+    const spec = TABLE.functions.accum
+    expect(printFormula(one.outputs[0].ast.args[spec.recurrence.body]))
+      .toBe(`close > open ? close : ${spec.recurrence.binds}`)
+  })
+
+  it('⭐⭐ a MULTI-WORD parameter IS addressable — quoted — and every gate is reachable through it', () => {
+    // ⛔⛔ THE DOCBLOCK CLAIMED THIS WAS IMPOSSIBLE and it is a working door.
+    // `ATR`'s second parameter is published as `average type`, with a space. The
+    // BARE spelling breaks the statement reader; the QUOTED one is a single token
+    // that `key()` matches against the declared label.
+    expect(translateThinkScript(
+      'plot p = ATR(length = 14, "average type" = AverageType.WILDERS);\n')
+      .outputs[0].formula).toBe('atr(high, low, close, 14)')
+    // ⛔ AND THE GATE STILL RUNS THROUGH IT — a door that bypassed the averaging
+    // check would be the silent mistranslation this whole lane exists against.
+    const r = refusalOf('plot p = ATR(length = 14, "average type" = AverageType.SIMPLE);\n')
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.message).toMatch(/AverageType\.SIMPLE asks for a different one/)
+    // ⚠️ THE BARE SPELLING, PINNED AS WHAT IT ACTUALLY IS. The comment used to say
+    // it refuses `:named-argument`; the statement reader breaks first, so that
+    // guard never fires for it.
+    expect(refusalOf('plot p = ATR(length = 14, average type = AverageType.SIMPLE);\n').guard)
+      .toBe('thinkscript:syntax')
+    // ⭐ and an unknown quoted name still refuses as a named argument, so the
+    // quoted path is not a hole that swallows anything.
+    expect(refusalOf('plot p = ATR(length = 14, "zzz" = 99);\n').guard)
+      .toBe('thinkscript:named-argument')
+    // ⛔⛔ AND THE HALF THE SWEEP FOUND UNTESTED. An argument NAME is matched
+    // case-insensitively, like every other thinkorswim identifier — the published
+    // pages spell parameters lower-case and members do not. Nothing exercised it,
+    // so a mutation that dropped the folding survived the whole suite.
+    expect(translateThinkScript('plot p = Average(DATA = close, LENGTH = 10);\n')
+      .outputs[0].formula).toBe('sma(close, 10)')
+    expect(translateThinkScript(
+      'plot p = ATR(Length = 14, "Average Type" = AverageType.WILDERS);\n')
+      .outputs[0].formula).toBe('atr(high, low, close, 14)')
+  })
+
+  it('⭐ one call written twice on a line says its sentence ONCE; two DIFFERENT calls both speak', () => {
+    const notes = (src) => translateThinkScript(src).ignored
+    // ⛔ The dedupe deleted in the sweep was keyed on code@line:COLUMN and could
+    // never fire — every call site has its own column. The key that DOES fire is
+    // the SENTENCE, which already carries the call name.
+    expect(notes('plot p = ExpAverage(ExpAverage(close, 12), 12);\n')
+      .filter((n) => n.code === 'thinkscript:note-seed')).toHaveLength(1)
+    // ⭐ …and it must not silence a DIFFERENT call that happens to share the line
+    // and the code — the member is told which call each note is about.
+    expect(notes(
+      'plot p = ExpAverage(close, 12) + MovingAverage(AverageType.EXPONENTIAL, close, 12);\n')
+      .filter((n) => n.code === 'thinkscript:note-seed')).toHaveLength(2)
+    // ⭐ …nor the same call on ANOTHER line.
+    expect(notes('plot a = ExpAverage(close, 12);\nplot b = ExpAverage(close, 20);\n')
+      .filter((n) => n.code === 'thinkscript:note-seed')).toHaveLength(2)
+  })
+
+  it('⭐ the two resolvers disagree ON PURPOSE, and both halves are pinned', () => {
+    // ⛔ AN UNSTATED ASYMMETRY BETWEEN TWO RESOLVERS IS HOW A THIRD AUTHORITY GETS
+    // BORN. thinkScript has two namespaces: a `def` names a VALUE and shadows a bar
+    // field; a function name belongs to the platform and a script cannot redefine
+    // one. Make them agree and the corpus file that needs them different breaks.
+    expect(translateThinkScript('def high = low;\nplot p = Highest(high, 10);\n')
+      .outputs[0].formula, 'a member binding shadows a bar field').toBe('highest(low, 10)')
+    expect(translateThinkScript('def Average = 5;\nplot p = Average(close, 10);\n')
+      .outputs[0].formula, 'a member binding does NOT shadow a function name')
+      .toBe('sma(close, 10)')
+  })
+
+  it('⛔ and a SLOT FILLED TWICE no longer claims the argument COUNT was wrong', () => {
+    // Measured in the review: `Average(data = close, 10)` hands exactly two
+    // arguments to a two-parameter function and was told it had handed "a
+    // different number of arguments than it takes". They would count them, find
+    // two, and be stuck.
+    const m = msg('plot p = Average(data = close, 10);\n')
+    expect(m).toMatch(/`data` was already given by name/)
+    expect(m).toMatch(/name this one too, or write them all in order/)
+    const dup = msg('plot p = Average(data = close, data = open);\n')
+    expect(dup).toMatch(/two of them land on `data`/)
+    // ⭐ AND A GENUINE COUNT ERROR STILL SAYS THE COUNT, so this is not a rename —
+    // counting arguments is the right advice for exactly this case and no other.
+    const many = msg('plot p = Average(close, 5, 3);\n')
+    expect(many).toMatch(/Average takes 2 \(data, length\) and was handed 3/)
+    // ⛔ …and a MISSING parameter names the parameter rather than a count.
+    expect(msg('plot p = Power(close);\n'))
+      .toMatch(/`power` has no value, and thinkorswim publishes no default for it/)
+    // ⛔⛔ THE SHARED PREFIX MUST BE TRUE OF ALL OF THEM. It read "was handed a
+    // different number of arguments than it takes" while three of the four cases
+    // had handed exactly the declared number.
+    for (const m of [many, dup, msg('plot p = Average(data = close, 10);\n'),
+      msg('plot p = Power(close);\n')]) {
+      expect(m).not.toMatch(/handed a different number of arguments than it takes/)
+    }
+  })
+})
+
 describe('the seed note follows the ENGINE, not the spelling that reached it', () => {
   // 🔴🔴 THE MUTATION SWEEP'S SECOND FINDING, AND THIS ONE WAS A REAL MISS RATHER
   // THAN AN UNRAILED GUARD. The note began life as a field on the `ExpAverage`
@@ -1979,8 +2177,13 @@ describe('state — CompoundValue is the accumulator; a SEEDLESS recursion is no
   it('⛔⛔ an update that never FORGETS its seed refuses — measured, not assumed', () => {
     // 🔴 `accum` re-seeds a fixed number of bars back, so `self + volume` is a
     // 250-bar ROLLING SUM, not a running total. Measured on the shared parity
-    // series: `accum(0, self + volume, 250)` matches a rolling 250-bar sum on
-    // 579 of 579 bars and differs from the true cumulative sum on 579 of 579.
+    // series (579 bars): `accum(0, self + volume, 250)` agrees with a rolling
+    // 250-bar sum on all 329 bars where both are defined and differs on exactly
+    // one — bar 249, a one-bar warm-up offset, 578 of 579 overall — and differs
+    // from the true cumulative sum on 579 of 579.
+    // ⚠️ THIS READ "579 of 579" FOR BOTH and the W3.5 review re-derived it. The
+    // same wrong number stood in `thinkscript.js` too: two agreeing copies of a
+    // count read as corroboration, which is why neither was checked.
     // Translating thinkorswim's running total into it would be wrong on EVERY
     // bar while drawing a perfectly plausible line.
     // ⭐ THE GATE IS `pine.js::forgetsItsSeed`, IMPORTED — one rule, one owner.

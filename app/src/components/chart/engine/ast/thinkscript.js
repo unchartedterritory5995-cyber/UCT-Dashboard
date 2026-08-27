@@ -99,8 +99,16 @@ export const REFUSALS = Object.freeze({
     'this thinkorswim name has no home in this engine grammar',
   'thinkscript:function':
     'this engine declares no function for that thinkorswim call',
+  // ⛔ THE SENTENCE HAS TO BE TRUE OF EVERY CASE THAT CARRIES IT. This read "was
+  // handed a different number of arguments than it takes" and FOUR different
+  // failures reach it — a real count error, a missing parameter with no published
+  // default, a named argument written twice, and a positional landing on a slot a
+  // name already took. For the last three the member had handed EXACTLY the
+  // declared number, so the sentence told them to go and count arguments that were
+  // already right (W3.5 review). Each case now appends its own reason; this line is
+  // only the half they all share.
   'thinkscript:arity':
-    'that thinkorswim call was handed a different number of arguments than it takes',
+    'that thinkorswim call\'s arguments do not fill the parameters it declares',
   'thinkscript:window':
     'a length here has to be a written whole number before a screen can budget it',
   'thinkscript:named-argument':
@@ -1295,6 +1303,62 @@ const TS_AVERAGE_TYPES = Object.freeze({
  *  refusal sentence. ⛔ Derived from the arm, never a second spelling table. */
 const armText = (arm) => `AverageType.${String(arm).toUpperCase()}`
 
+/** The choices a member may write, spelled their way. ⛔ Derived from the caller's
+ *  own dispatch map, so it can never list an arm the dispatch does not accept. */
+const armChoices = (choices) => Object.keys(choices).map(armText).join(', ')
+
+/**
+ * ⛔⛔ WHY THIS ARGUMENT IS NOT AN `AverageType`, IN THE MEMBER'S OWN TERMS —
+ * AND IT IS ONE FUNCTION BECAUSE TWO CALLERS ASK IT.
+ *
+ * 🔴🔴 THE W3.5 REVIEW FOUND THIS AND NOTHING ELSE WOULD HAVE. Three different
+ * member mistakes reached one `refuse('thinkscript:enum-arm', …)` and therefore
+ * one sentence — *"this is not one of the choices the thinkorswim input
+ * declares"* — which is true for exactly one of them. A member who wrote
+ * `input at = {default SIMPLE, EXPONENTIAL};` was told SIMPLE is not one of
+ * their input's choices when it plainly IS one, and there was no way to learn
+ * the real cause: a braces input is a different KIND of value from an
+ * `AverageType` constant, however it is spelled.
+ *
+ * ⛔ A REFUSAL THAT CONTRADICTS THE MEMBER'S OWN LINE IS WORSE THAN A VAGUE ONE.
+ * They go and fix the thing the sentence named, which was never wrong. The guard
+ * was right all three times; only the words were wrong — which is why the rails
+ * in `thinkscript.test.js` now assert the SENTENCE and not only the guard.
+ *
+ * @param {*} v the resolved value in the averaging slot
+ * @param {object} tok the token a refusal about it should point at
+ * @param {object} choices the CALLER's own arm→engine map (never a second list)
+ */
+function requireAverageType(v, tok, choices) {
+  const say = (why) => new ThinkScriptRefusal('thinkscript:enum-arm',
+    `${REFUSALS['thinkscript:enum-arm']} — ${why}`, locate(tok))
+  if (!isEnum(v)) {
+    throw say('this slot takes one of thinkorswim\'s AverageType constants and this is a '
+      + `value rather than one of them; write ${armChoices(choices)}`)
+  }
+  if (v.family !== 'averagetype') {
+    // ⛔ AN INPUT'S ARM AND A CONSTANT ARE DIFFERENT KINDS, AND THE SENTENCE SAYS
+    // WHICH ONE ARRIVED. A braces input carries its declared `arms`; a dotted
+    // constant of another family does not.
+    // ⛔ ECHO THE MEMBER'S OWN SPELLING, NEVER THE FOLDED ONE. `family`/`arm` are
+    // `key()`-folded (thinkorswim matches case-insensitively), so quoting them
+    // back writes `color.RED` at somebody who typed `Color.RED` — a sentence that
+    // does not match the line it is about, which is the whole defect this round
+    // is fixing. The token is what they wrote.
+    const written = (v.tok && v.tok.value) || `${v.family}.${v.arm}`
+    throw say(Array.isArray(v.arms)
+      ? `\`${written}\` is an input with its own list of choices, which is a different kind `
+        + 'of value from an AverageType constant even when a choice is spelled the same way; '
+        + `write ${armChoices(choices)} here instead`
+      : `\`${written}\` is a ${v.family} constant, not an AverageType one; `
+        + `write ${armChoices(choices)} here`)
+  }
+  if (!has(choices, v.arm)) {
+    throw say(`${armText(v.arm)} is not one of the average types thinkorswim publishes `
+      + `(${armChoices(choices)})`)
+  }
+}
+
 /**
  * ⭐⭐ A NOTE THAT IS A FACT ABOUT AN ENGINE FUNCTION IS KEYED ON THE ENGINE
  * FUNCTION, NOT ON THE THINKORSWIM SPELLING THAT REACHED IT.
@@ -1359,16 +1423,30 @@ const TS_NOTE_BY_ENGINE = Object.freeze({
  * translator made up — a guessed default is invisible in the result, so the
  * member gets a window they never asked for and never see.
  *
- * ⚠️⚠️ A PARAMETER WHOSE PUBLISHED NAME CONTAINS A SPACE CAN NEVER BE ADDRESSED
- * BY NAME, and that is structural rather than a special case: the lexer cannot
- * produce such an identifier, so `findIndex` never matches and the call refuses
- * `:named-argument`. thinkorswim's own `Reserved-Words/reference` page shows the
- * named form only for single-word inputs (`BollingerBandsSMA(price = open,
- * displace = 0, length = 30)`), and the Studies-Library tables render multi-word
- * inputs as UI labels ("over bought", "average type") whose real identifier
- * spelling is NOT published anywhere this lane could fetch. Writing the label
- * verbatim and letting it be unaddressable is the honest reading; inventing
- * `over_bought` would be the guess.
+ * ⚠️⚠️ A PARAMETER WHOSE PUBLISHED NAME CONTAINS A SPACE — `average type`,
+ * `visible data`, `historical data`, `over bought`. The Studies-Library tables
+ * render these as UI labels and the real identifier spelling is NOT published
+ * anywhere this lane could fetch, so the label is written verbatim and inventing
+ * `average_type` would be the guess. ⛔ WHAT A MEMBER ACTUALLY MEETS, MEASURED
+ * RATHER THAN REASONED — this paragraph used to claim such a parameter "can
+ * never be addressed by name … the lexer cannot produce such an identifier, so
+ * `findIndex` never matches and the call refuses `:named-argument`", and BOTH
+ * halves were wrong (W3.5 review):
+ *   * BARE — `ATR(length = 14, average type = AverageType.SIMPLE)` refuses
+ *     `thinkscript:syntax` AT `type`. The statement reader breaks on the second
+ *     word; `findIndex` is never reached, so the guard named above never fires.
+ *   * QUOTED — `ATR(length = 14, "average type" = AverageType.WILDERS)` WORKS.
+ *     A string literal is one token, `key()` matches the declared label, and the
+ *     argument lands in its slot: the call answers `atr(high, low, close, 14)`,
+ *     and the SIMPLE spelling refuses at the averaging gate exactly as the
+ *     positional form does. Every gate is reachable through it.
+ * ⭐ SO IT IS A DOOR, AND IT IS RAILED (`thinkscript.test.js`). An untested
+ * working door is one edit away from being an untested broken one, and a comment
+ * explaining why something was impossible is how nobody looks again. thinkorswim's
+ * own `Reserved-Words/reference` page shows the named form only for single-word
+ * inputs (`BollingerBandsSMA(price = open, displace = 0, length = 30)`), so the
+ * quoted spelling is this engine's reading and is said out loud rather than
+ * assumed.
  *
  * ⛔ W3.4 HAD `StDev` BACKWARDS AND THE SWEEP THEN CEMENTED IT. It shipped
  * `defaults: {}` on the claim that the page published none — the page its own
@@ -1903,6 +1981,17 @@ class Resolver {
    * refusing there would name the badge. ⚠️ A negative literal is `u-` of a
    * positive one, so it is not a `num` node either and lands here too.
    *
+   * ⛔ AND WHAT THIS CHECK DELIBERATELY DOES NOT DO IS ENFORCE A MINIMUM.
+   * `Average(close, 0)` translates to `sma(close, 0)` and is then refused by
+   * `interpret.js` — *"argument 1 must be a whole number of at least 1"* — at the
+   * SAVE door rather than at the thinkorswim token, so it lands in the corpus's
+   * `_blocked` set (measured, W3.5 review, minor #7). That is the honest seam:
+   * the lower bound of the `int` kind is the ENGINE's declaration and lives with
+   * the engine. Restating "at least 1" here would put a second authority on one
+   * value, and the day the engine's bound moved the two would disagree silently —
+   * the defect this repo repeats most. A refusal either way; only its address
+   * differs, and W3.7's box is where a blocked column is shown.
+   *
    * @param {string} name the ENGINE function
    * @param {Array<{node: object, tok: object}>} args resolved, each with the
    *   token a refusal about it should point at
@@ -1929,6 +2018,19 @@ class Resolver {
    * refusal anywhere — because it quietly slides the positional past the slot it
    * was written for. The two rules differ ONLY on that collision, which is
    * exactly the case worth refusing.
+   *
+   * ⛔⛔ A CALL NAME IS LOOKED UP IN THE MAP AND NEVER IN `env`, AND THAT IS A
+   * DECISION RATHER THAN AN OVERSIGHT. `resolveName` does the opposite — a
+   * member's binding SHADOWS an engine series, which `22-average-daily-range`
+   * depends on (`def open = open(period = …);` then a read of `OPEN`). The two
+   * resolvers disagree because thinkScript has two namespaces: a `def` names a
+   * VALUE and can shadow a bar field, while a function name belongs to the
+   * platform and a script cannot redefine one. So `def Average = 5;` followed by
+   * `Average(close, 10)` is `sma(close, 10)`, the binding untouched and unread.
+   * ⚠️ WRITTEN DOWN HERE BECAUSE AN UNSTATED ASYMMETRY BETWEEN TWO RESOLVERS IS
+   * HOW A THIRD AUTHORITY GETS BORN — the next reader "fixes" one to match the
+   * other and quietly breaks the corpus file that needs them different. Both
+   * halves are pinned by test (W3.5 review, minor #9).
    */
   resolveCall(n) {
     // A method's receiver refuses at ITS OWN token first, so
@@ -1941,19 +2043,46 @@ class Resolver {
     const shape = TS_CALL_SHAPES[key(n.name)]
     if (!shape) throw refuse('thinkscript:function', n.tok)
 
+    // ⛔ A SLOT FILLED TWICE IS NOT A WRONG ARGUMENT COUNT, AND NO LONGER SAYS IT
+    // IS. Both collisions below used the bare `:arity` sentence — "handed a
+    // different number of arguments than it takes" — while the member had handed
+    // exactly the declared number; they would count their arguments, find them
+    // right, and be stuck (W3.5 review). The guard stays `:arity` (it is one
+    // slot-filling failure) and the sentence now names which collision happened.
+    const twice = (p, tok) => new ThinkScriptRefusal('thinkscript:arity',
+      `${REFUSALS['thinkscript:arity']} — two of them land on \`${p}\``, locate(tok))
     const slots = new Array(shape.params.length).fill(null)
     for (const a of n.args) {
       if (a.name == null) continue
       const i = shape.params.findIndex((p) => key(p) === key(a.name))
       if (i === -1) throw refuse('thinkscript:named-argument', a.nameTok || n.tok)
-      if (slots[i]) throw refuse('thinkscript:arity', a.nameTok || n.tok)
+      if (slots[i]) throw twice(shape.params[i], a.nameTok || n.tok)
       slots[i] = a
     }
     let k = 0
     for (const a of n.args) {
       if (a.name != null) continue
-      if (k >= slots.length) throw refuse('thinkscript:arity', n.tok)
-      if (slots[k]) throw refuse('thinkscript:arity', a.value.tok || n.tok)
+      if (k >= slots.length) {
+        // ⛔ THE REAL COUNT ERROR — and it says the count, because this is the one
+        // case where counting arguments is the right thing for a member to do.
+        throw new ThinkScriptRefusal('thinkscript:arity',
+          `${REFUSALS['thinkscript:arity']} — ${n.name} takes `
+          + `${shape.params.length} (${shape.params.join(', ')}) and was handed `
+          + `${n.args.length}`,
+          locate(n.tok))
+      }
+      if (slots[k]) {
+        // ⛔ A POSITIONAL AFTER A NAMED ONE. The k-th positional fills the k-th
+        // parameter, so once a name has taken that slot the positional has
+        // nowhere to go — and sliding it to the next free slot is how
+        // `Average(close, data = open)` would silently become `sma(open, close)`.
+        throw new ThinkScriptRefusal('thinkscript:arity',
+          `${REFUSALS['thinkscript:arity']} — \`${shape.params[k]}\` was already given by `
+          + 'name, and a value written by position fills the slot at its own place rather '
+          + 'than moving along to the next free one; name this one too, or write them all '
+          + 'in order',
+          locate(a.value.tok || n.tok))
+      }
       slots[k] = a
       k += 1
     }
@@ -1963,7 +2092,15 @@ class Resolver {
     // call that is about to refuse for its third, which matters for a recurrence:
     // resolving its body binds `self` and must not happen speculatively.
     shape.params.forEach((p, i) => {
-      if (!slots[i] && !has(shape.defaults || {}, p)) throw refuse('thinkscript:arity', n.tok)
+      // ⛔ A MISSING PARAMETER IS NOT A MISCOUNT EITHER — it names the parameter,
+      // and says the reason no default filled it, because `defaults` carries ONLY
+      // what the reference publishes.
+      if (!slots[i] && !has(shape.defaults || {}, p)) {
+        throw new ThinkScriptRefusal('thinkscript:arity',
+          `${REFUSALS['thinkscript:arity']} — \`${p}\` has no value, and thinkorswim `
+          + 'publishes no default for it',
+          locate(n.tok))
+      }
     })
 
     // ⛔ A REFUSED NAME REFUSES AFTER ITS ARGUMENTS ARE COUNTED, so the sentence a
@@ -2046,9 +2183,11 @@ class Resolver {
   dispatchEngine(shape, port, n) {
     const p = shape.dispatchOn
     const v = port.raw(p)
-    if (!isEnum(v) || v.family !== 'averagetype' || !has(shape.dispatch, v.arm)) {
-      throw refuse('thinkscript:enum-arm', (v && v.tok) || port.at(p))
-    }
+    // ⛔ THE SENTENCE IS `requireAverageType`'s, not this call site's — one place
+    // says why, so `MovingAverage`'s dispatch and `ATR`'s gate cannot come to
+    // disagree about the same question. The CHOICES come from this shape's own
+    // dispatch map, so a refusal can never name an arm this call would reject.
+    requireAverageType(v, (v && v.tok) || port.at(p), shape.dispatch)
     const engine = shape.dispatch[v.arm]
     if (!has(this.table.functions, engine)) {
       // ⭐ DERIVED, NOT HARD-CODED. The arm names an engine function; the TABLE
@@ -2083,9 +2222,7 @@ class Resolver {
       }
       if (kind === 'wildersOnly') {
         const v = port.raw(p)
-        if (!isEnum(v) || v.family !== 'averagetype' || !has(TS_AVERAGE_TYPES, v.arm)) {
-          throw refuse('thinkscript:enum-arm', (v && v.tok) || port.at(p))
-        }
+        requireAverageType(v, (v && v.tok) || port.at(p), TS_AVERAGE_TYPES)
         if (v.arm !== 'wilders') {
           throw new ThinkScriptRefusal('thinkscript:function',
             `${REFUSALS['thinkscript:function']} — this engine's \`${engine}\` is Wilder's `
@@ -2111,10 +2248,14 @@ class Resolver {
    *
    * 🔴🔴 AND AN UPDATE THAT NEVER FORGETS ITS SEED IS REFUSED. `accum` re-seeds a
    * fixed number of bars back, deliberately, so a column cannot depend on where a
-   * fetch began. MEASURED on the shared parity series: `accum(0, self + volume,
-   * 250)` matches a rolling 250-bar sum on 579 of 579 bars and differs from the
-   * true cumulative sum on 579 of 579. Folding thinkorswim's running total into
-   * it would be wrong on EVERY bar while drawing a perfectly plausible line — so
+   * fetch began. MEASURED on the shared parity series (579 bars): `accum(0, self
+   * + volume, 250)` agrees with a rolling 250-bar sum on all 329 bars where both
+   * are defined and differs from it on exactly ONE — bar 249, a one-bar warm-up
+   * offset, 578 of 579 overall — while differing from the true cumulative sum on
+   * 579 of 579. ⚠️ The count here read "579 of 579" for both until the W3.5
+   * review re-derived it; two agreeing copies of a number read as corroboration.
+   * Folding thinkorswim's running total into it would be wrong on EVERY bar
+   * while drawing a perfectly plausible line — so
    * `forgetsItsSeed` is IMPORTED from `pine.js` and asked the same question the
    * other translator asks. ⛔ Never a second copy: two convergence rules is how
    * two translators come to disagree about one engine function.
@@ -2140,11 +2281,27 @@ class Resolver {
     try { body = port.node(bodyPlan.from) } finally { this.buildingRecurrence = outer }
 
     if (!forgetsItsSeed(body.node, this.table)) {
+      // 🔴🔴 THE SENTENCE IS ABOUT THIS ENGINE'S LIMIT, NOT ABOUT THE MEMBER'S
+      // FORMULA — AND THAT IS A CORRECTION. It used to read "this update keeps
+      // building on its own previous bar without ever forgetting where it
+      // started", which is FALSE for `if <cond> then <name>[1] + 1 else 0`: a
+      // consecutive-bar counter forgets its seed on every reset, and
+      // `19-consecutive-bars-above-ema-count` is published with exactly that
+      // shape. `forgetsItsSeed` is conservative BY CONSTRUCTION — an
+      // unrecognised shape answers NO — so the honest cause is that this engine
+      // cannot SEE that the update forgets, never that the update does not.
+      // ⛔ A refusal that states a false fact about a member's own line sends
+      // them to fix something that was never wrong. Rail: the sentence, not just
+      // the guard.
       throw new ThinkScriptRefusal('thinkscript:state',
-        `${REFUSALS['thinkscript:state']} — this update keeps building on its own previous `
-        + 'bar without ever forgetting where it started, and this engine\'s accumulator '
-        + 're-seeds a fixed number of bars back, so it would become a rolling window rather '
-        + 'than a running total',
+        `${REFUSALS['thinkscript:state']} — this engine's accumulator re-seeds a fixed number `
+        + 'of bars back rather than running from the first bar ever drawn, so it can only '
+        + 'carry an update that stops depending on the value it started from, and it cannot '
+        + 'tell that this one does. A value REPLACED outright on some bars — '
+        + '`if <condition> then <newValue> else <name>[1]` — is the shape it can carry; a '
+        + 'running total that only ever adds to itself is not, and would come out as a '
+        + 'rolling window over the last '
+        + `${TS_STATE_WARMUP} bars instead`,
         locate(port.at(bodyPlan.from)))
     }
 
@@ -2160,21 +2317,32 @@ class Resolver {
    *  ⭐⭐ thinkorswim COUNTS FROM ONE HERE AND THIS ENGINE COUNTS FROM ZERO, and
    *  getting it wrong would be silent. Inside `x`'s update, `x[1]` is the value
    *  `x` held on the PREVIOUS bar — which is exactly what the accumulator's own
-   *  `self` already is. So `x[1]` is `self`, `x[2]` is `self[1]`, and the answer
-   *  is `k - 1`. Identical to `pine.js::selfOffsetLag`.
+   *  `self` already is. So `x[1]` IS bare `self`, and that is the whole mapping.
+   *  Write `k` where the `0` is and a published, correct script starts refusing,
+   *  which is how the off-by-one is caught.
    *
-   *  ⚠️ ONLY `k === 1` IS REACHABLE TODAY, AND THAT IS MEASURED, NOT ASSUMED.
-   *  `forgetsItsSeed` answers NO for any body in which `self` appears under an
-   *  offset (it is conservative by construction — an unrecognised shape is a
-   *  refusal), so a body containing `self[1]` never survives the gate. The `k - 1`
-   *  is written as arithmetic rather than as a `k === 1` special case so that it
-   *  is already right the day that gate is relaxed; what rails it TODAY is that
-   *  `x[1]` must produce bare `self` — write `k` instead of `k - 1` and a
-   *  published, correct script starts refusing. */
+   *  ⛔⛔ A DEEPER LAG REFUSES; IT IS NOT MAPPED. This returned `k - 1` — so
+   *  `x[2]` became `self[1]` — and that arithmetic was UNREACHABLE: `forgetsItsSeed`
+   *  is conservative by construction and answers NO for any body in which `self`
+   *  appears under an offset, so nothing it produced ever survived the gate.
+   *  Unreachable code reads as capability. The next engineer builds on it or
+   *  cites it, and a recurrence path that becomes reachable through a later gate
+   *  change would ship having never been exercised on a single bar. Deleted per
+   *  the W3.5 review ruling; what would bring it back is a relaxation of
+   *  `pine.js::forgetsItsSeed` — where BOTH translators read it — and that
+   *  relaxation is where the mapping belongs, with its own numeric argument. */
   selfLagOf(n, k) {
     if (!(k >= 1) || this.buildingRecurrence === null) return null
     if (!n.base || n.base.e !== 'name') return null
-    return key(n.base.name) === this.buildingRecurrence ? k - 1 : null
+    if (key(n.base.name) !== this.buildingRecurrence) return null
+    if (k > 1) {
+      throw new ThinkScriptRefusal('thinkscript:state',
+        `${REFUSALS['thinkscript:state']} — inside its own definition \`${n.base.name}\` can `
+        + 'only be read one bar back, and this reads '
+        + `${k} bars back`,
+        locate(n.tok || (n.base && n.base.tok)))
+    }
+    return 0
   }
 
   binary(n) {
@@ -2477,19 +2645,30 @@ export function translateThinkScript(source, opts = {}) {
     // without this puts an `ExpAverage` on line 1 below an en-dash on line 3, and
     // `ImportBox` renders the list in the order it is given.
     //
-    // ⚠️ A DEDUPE SAT HERE AND THE MUTATION SWEEP PROVED IT COULD NEVER FIRE.
-    // Removing it changed no test and no corpus byte, so the honest question was
-    // whether a duplicate is producible AT ALL — measured across six constructed
-    // shapes (two calls on two lines, two on ONE line, a `def` read by three
-    // plots, two accumulators, a shadowed plot resolving inline), and it is not:
-    // each call site has its own token, so its own line and column, and the
-    // resolver's binding memo means a `def` is resolved once however many outputs
-    // read it. Dead defence at a chokepoint is worth keeping when nothing else
-    // can catch the mistake it watches (`refusalValue`'s `assertDeclared` above
-    // is exactly that, and is kept and disclosed). This was not that: it guarded
-    // a duplicate the structure already prevents. Deleted, with the measurement,
-    // rather than left standing behind a paragraph.
-    program.ignored = program.ignored.sort((a, b) => (a.line - b.line) || (a.column - b.column))
+    // ⚠️ A DEDUPE SAT HERE KEYED `code@line:COLUMN` AND THE MUTATION SWEEP PROVED
+    // IT COULD NEVER FIRE — every call site has its own token, so its own column,
+    // and the resolver's binding memo means a `def` is resolved once however many
+    // outputs read it. It was deleted with that measurement rather than left
+    // standing behind a paragraph.
+    //
+    // ⭐ THE W3.5 REVIEW THEN FOUND THE KEY THAT DOES FIRE. `ExpAverage(ExpAverage
+    // (close, 12), 12)` is two seed notes on ONE line, and `02-macd-lookback-cross
+    // -watchlist` prints `ignoredLines [4, 13, 13, 14]` for exactly that reason.
+    // ⛔ THE KEY IS THE SENTENCE, NOT THE POSITION: `message` already carries the
+    // call name (`noteValue` folds the detail into it), so two `ExpAverage` calls
+    // on one line collapse to one sentence while `ExpAverage(…) + MovingAverage(
+    // AverageType.EXPONENTIAL, …)` on that same line keeps BOTH — the member is
+    // told which call each note is about, and never told the same thing twice.
+    const saidHere = new Set()
+    program.ignored = program.ignored
+      .filter((v) => {
+        const at = [v.code, v.message, v.line].join('|')
+        if (saidHere.has(at)) return false
+        saidHere.add(at)
+        return true
+      })
+      // ⛔ RE-SORTED, and this half is REACHABLE and railed — see below.
+      .sort((a, b) => (a.line - b.line) || (a.column - b.column))
 
     const usable = rows.filter((r) => r.refusal === null && !r.hidden)
     const refusals = [...program.hard, ...rows.filter((r) => r.refusal).map((r) => r.refusal)]
