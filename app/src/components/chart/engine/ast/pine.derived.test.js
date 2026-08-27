@@ -149,6 +149,12 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // — NOT `ta.` NAMES IN PINE AT ALL (they live in `math.*`), so `ta.x` is a
     //   spelling no real script contains. Resolving is harmless; refusing them
     //   would be inventing a rule about a name Pine does not have.
+    //
+    //   ⛔ NO COUNT IS WRITTEN IN THIS COMMENT. It said "nine are `math.*`" and
+    //   the real number is FOURTEEN — a count in prose beside a list that is
+    //   asserted elsewhere is the stale-width shape in miniature, and this repo
+    //   has now paid for that shape five times. The group is DERIVED below
+    //   instead, off these reasons, so it cannot drift from the list it counts.
     abs: 'math.abs', sqrt: 'math.sqrt', ln: 'math.log', log10: 'math.log10',
     exp: 'math.exp', sign: 'math.sign', round: 'math.round',
     min: 'math.min', max: 'math.max',
@@ -187,6 +193,20 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // NON-VACUITY: the sweep really exercised the table and really saw doors.
     expect(Object.keys(TABLE.functions).length).toBeGreaterThanOrEqual(50)
     expect(open.length).toBeGreaterThanOrEqual(30)
+
+    // ⭐ AND THE GROUPS ARE DERIVED FROM THE REASONS, NOT COUNTED BY HAND. The
+    // `math.*` half is the largest and the least interesting — those are names
+    // Pine does not put under `ta.` at all — so it is the half most likely to be
+    // described wrongly in a comment. Measured here so the description cannot be.
+    const mathOnly = vetted.filter((n) => TA_VETTED[n].startsWith('math.'))
+    expect(mathOnly.length, 'the `math.*` group')
+      .toBe(vetted.length - vetted.filter((n) => !TA_VETTED[n].startsWith('math.')).length)
+    expect(mathOnly.length).toBeGreaterThan(10)
+    // …and every vetted entry carries a REASON, so none can be waved through by
+    // being added to the list with an empty string.
+    for (const n of vetted) {
+      expect(TA_VETTED[n].length, `${n} is vetted with no reason`).toBeGreaterThan(4)
+    }
   })
 
   it('⛔ …and the two SIGN-FLIP doors are REFUSED, with an ACTIONABLE reason', () => {

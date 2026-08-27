@@ -160,9 +160,8 @@ def test_barssince_answers_a_HIT_it_can_see_however_short_the_fetch():
     itself, so the number is already final. The withheld case is the SENTINEL,
     which is a claim about bars nobody read.
     """
-    col = run(CALL("barssince", IS_UP, NUM(10)))
-    assert at(col, 0) == 0, at(col, 0)
-    wider = ast_interpret.interpret(CALL("barssince", IS_UP, NUM(10)), BARS, {})
+    wider = run(CALL("barssince", IS_UP, NUM(10)))
+    assert at(wider, 0) == 0, at(wider, 0)
     narrow = ast_interpret.interpret(CALL("barssince", IS_UP, NUM(10)), BARS[:40], {})
     # …and every bar the SHORT fetch answers, the long one answers identically.
     answered = [i for i in range(40) if at(narrow, i) is not None]
@@ -487,11 +486,21 @@ JS_RULINGS = [
       (28, None), (36, None), (37, 10), (39, 10), (40, 0)],
      "a sentinel counted across bars the engine could not read"),
     # ⚰️ BARS 28 AND 32 ARE HERE BECAUSE THIS ROW SURVIVED A MUTATION WITHOUT
-    # THEM. Deleting `held = NaN` from the JS NaN branch leaves the carry alive
-    # across the hole, and the bars where that SHOWS are exactly the ones just
-    # after it closes, while `since` is still under the window (28..32). Bars 20,
-    # 37 and 40 all read identically with the reset deleted — a sampled column
-    # tests the bars you happened to pick, so pick the ones that separate.
+    # THEM — and the mutation is the WHOLE NaN BRANCH, not either half of it.
+    # Measured, all three, on this fixture:
+    #
+    #   delete `held = NaN` alone   -> EQUIVALENT MUTANT (0 differing bars)
+    #   delete `since = null` alone -> EQUIVALENT MUTANT (0 differing bars)
+    #   delete the WHOLE branch     -> 30 bars differ, first at 28 (1015.0 vs NaN)
+    #
+    # ⭐ THE TWO ASSIGNMENTS ARE ONLY LOAD-BEARING AS A PAIR, and the reason is
+    # worth stating because it is what makes each half look deletable: `held` is
+    # READ only where `since is not None`, and `since` becomes non-None only
+    # through the paired `since, held = 0, src[i]`. Drop one and the other still
+    # closes the door. So the rail must kill the pair, and the bars where the
+    # pair SHOWS are the ones just after the hole closes while `since` is still
+    # under the window — 28..32. Bars 20, 37 and 40 read identically either way:
+    # a sampled column tests the bars you happened to pick.
     ("js_valuewhen_across_an_INTERIOR_hole",
      CALL("valuewhen", HOLE_COND, SER("volume"), NUM(10)), "HOLE",
      [(0, 1000.0), (4, 1000.0), (19, 1015.0), (20, None),
@@ -970,6 +979,11 @@ def test_the_declared_lookback_is_an_UPPER_BOUND_on_the_warm_up_each_one_takes()
     # ⛔ THE PROBES MUST COVER THE DERIVED ROSTER, not a private list: a sixth
     # bounded-state entry lands here as a named gap rather than as silence.
     assert sorted(probes) == bounded_state_names(), sorted(probes)
+    # ⚠️ ONE `interpret` PER PROBE, RECORDED. The `loose` check below used to
+    # re-evaluate the tree inside its own generator — twice per INDEX, so a
+    # 260-bar column cost hundreds of interpretations and carried an unused `v`
+    # from an `enumerate` it only wanted the index of.
+    first_finite = {}
     for name, (ast, bars) in probes.items():
         declared = ast_interpret.max_lookback(ast)
         assert declared == n, (name, declared)
@@ -977,13 +991,12 @@ def test_the_declared_lookback_is_an_UPPER_BOUND_on_the_warm_up_each_one_takes()
         first = next((i for i in range(len(col)) if at(col, i) is not None), None)
         assert first is not None, name
         assert first <= ceiling, (name, first, declared, ceiling)
+        first_finite[name] = first
     # ⛔ AND FOUR OF THE FIVE ARE TIGHTER THAN THE CEILING — `obvN` is the only one
     # in the `period + 1` class, so a rail that let ALL of them slip a bar would be
     # excusing four entries for one entry's reason.
-    loose = [name for name, (ast, bars) in probes.items()
-             if next(i for i, v in enumerate(ast_interpret.interpret(ast, bars, {}))
-                     if at(ast_interpret.interpret(ast, bars, {}), i) is not None) == ceiling]
-    assert loose == ["obvN"], loose
+    loose = sorted(k for k, v in first_finite.items() if v == ceiling)
+    assert loose == ["obvN"], (loose, first_finite)
     # …and the manifest SAYS SO, so the shortfall is declared rather than inherited
     # silently. `_functions_warmup` is a hand-written list; `obvN` is on it.
     warmup = ast_table.TABLE["_functions_warmup"]

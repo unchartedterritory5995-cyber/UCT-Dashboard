@@ -333,8 +333,16 @@ def test_both_entries_declare_the_session_window_and_READ_THE_BARS(bars):
     session_readers = {n for n in ast_table.bar_readers()
                        if fns_all[n]["lookback"] == "session"}
     assert session_readers == {"vwap", "avwap"}, sorted(session_readers)
-    assert set(ast_table.bar_readers()) - session_readers == {"obvN"}, (
-        sorted(ast_table.bar_readers()))
+    # ⛔ AND THE NARROWING IS NON-VACUOUS — A FLOOR, NOT A SECOND ROSTER. This
+    # asserted `- session_readers == {"obvN"}`, which swapped one hand list for
+    # another and rots on the NEXT bar reader exactly as the first one did. What
+    # has to be true is that the subset above is a real narrowing: some declared
+    # bar reader is NOT session-anchored, or `session_readers` is just
+    # `bar_readers()` under a longer name and this case proves nothing new.
+    # WHICH names those are is `bar_readers`' answer, and its own case's subject.
+    assert set(ast_table.bar_readers()) - session_readers, (
+        "every bar reader is session-anchored, so the subset above is not a "
+        "narrowing at all: " + str(sorted(ast_table.bar_readers())))
 
 
 def test_the_bar_reader_set_is_DERIVED_from_the_manifest_not_listed(bars):

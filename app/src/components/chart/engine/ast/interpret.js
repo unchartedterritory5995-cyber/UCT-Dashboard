@@ -229,14 +229,6 @@ function windowExtreme(series, lo, hi, better) {
   return best
 }
 
-/** POPULATION standard deviation — divisor `n`, not `n - 1`.
- *
- *  ⚠️ NAMED OUT LOUD BECAUSE THE CORPUS SAYS IT IS INVISIBLE OTHERWISE: a
- *  population/sample disagreement between the lanes has the same tree, the same
- *  column length and the same NaN pad, and shows up only in the number. This
- *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
- *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
- *  Bollinger definition draws. The Python lane must use the same divisor. */
 /** WHICH BAR holds the window's extreme, as an offset back from `hi`.
  *
  *  ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
@@ -363,6 +355,20 @@ function windowMeanAbsDev(series, lo, hi) {
   return total / (hi - lo + 1)
 }
 
+// ⚰️ THIS DOCSTRING SAT ABOVE `windowSum` AT HEAD, AND W2a.5's
+// `windowArgExtreme` LANDED BETWEEN THE TWO — leaving a pair of stacked
+// `/** … */` blocks describing neither of the functions under them. Moved to
+// its subject rather than re-stacked: a docstring one function away from what
+// it describes is the same claim-about-the-wrong-mechanism defect as a wrong
+// comment, and this one names a DIVISOR the two lanes are held equal on.
+/** POPULATION standard deviation — divisor `n`, not `n - 1`.
+ *
+ *  ⚠️ NAMED OUT LOUD BECAUSE THE CORPUS SAYS IT IS INVISIBLE OTHERWISE: a
+ *  population/sample disagreement between the lanes has the same tree, the same
+ *  column length and the same NaN pad, and shows up only in the number. This
+ *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
+ *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
+ *  Bollinger definition draws. The Python lane must use the same divisor. */
 function windowStdev(series, lo, hi) {
   const avg = windowMean(series, lo, hi)
   let sq = 0
