@@ -1205,6 +1205,33 @@ def attachment_refused_note(body: str) -> str:
     return ""
 
 
+def fetch_original(app_id: str, token: str, client=None) -> dict | None:
+    """The deferred reply AS IT STANDS NOW, or None if it cannot be read.
+
+    A background heal is about to overwrite a message it posted a minute or two
+    ago, and in between the member may have pressed a timeframe or opened the
+    controls. None means "could not confirm" - callers must treat that as a
+    refusal to overwrite, never as permission. Never raises."""
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
+    try:
+        import httpx
+        own = client is None
+        c = client or httpx.Client(timeout=15.0)
+        try:
+            r = c.get(url)
+            if not r.is_success:
+                log.warning("[discord-chart] read-back HTTP %s: %s", r.status_code, r.text[:160])
+                return None
+            body = r.json()
+            return body if isinstance(body, dict) else None
+        finally:
+            if own:
+                c.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] read-back failed: %s", e)
+        return None
+
+
 def followup_ephemeral(app_id: str, token: str, content: str, client=None) -> bool:
     """POST a private follow-up to an interaction the app has already answered.
     Used after an UPDATE_MESSAGE (type 7) response, which carries no room for a
@@ -1301,6 +1328,94 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
     if warmed:
         log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
     return warmed
+
+
+# A stand-in went out because the house renderer had nothing to give. The
+# usual reason is a deploy swap: measured 2026-08-27, a pod 22 s old fails every
+# attempt and the same symbols render in 4.1 s once it is serving. So look again
+# twice - once inside a typical swap, once well past it - and quietly upgrade the
+# member's message when the real chart is available. Both windows only ever run
+# after a member has ALREADY been given a chart, so nobody is waiting on them.
+SELF_HEAL_DELAYS_S = (45.0, 120.0)
+# Heals are bounded: during a deploy every request in the window wants one, and
+# they all compete for the same two render slots as live members. Two at a time
+# is enough - single_flight collapses same-key work anyway, and the 60 s
+# fallback TTL already means the NEXT member gets a real chart regardless.
+_HEAL_SLOTS = threading.BoundedSemaphore(2)
+
+
+def self_heal_enabled() -> bool:
+    """Whether a delivered stand-in is quietly replaced by the house chart when
+    the renderer comes back. Off = the member keeps the stand-in (the behaviour
+    before 2026-08-27); the 60 s fallback TTL is unaffected either way."""
+    return os.environ.get("DISCORD_CHART_SELF_HEAL", "1").strip().lower() not in ("0", "false", "off", "")
+
+
+def heal_stand_in(app_id: str, token: str, req: ChartRequest, headline: str, *, produce,
+                  edit_fn, fetch_fn=None, delays=None, sleep_fn=None) -> str:
+    """Look again for the house chart and, if the member's message is still the
+    one we posted, swap the stand-in for it. Returns what happened:
+    healed | moved | unverified | edit_failed | gave_up.
+
+    ⛔ IT MUST NEVER CLOBBER A MESSAGE THE MEMBER HAS MOVED ON FROM. A minute is
+    long enough to press W or open the controls, and re-writing the daily chart
+    over that would look like the bot fighting them. So the reply is read back
+    first: anything that is not still our headline is left exactly as it is, and
+    a read-back that FAILS counts as "cannot confirm" - the stand-in stays.
+    ⛔ It also sends NO components: the rows on the message are whatever the
+    member is looking at now (they may have opened the controls), and
+    `edit_original` leaves rows alone only when it is not given any."""
+    sleep = sleep_fn or time.sleep
+    fetch = fetch_fn if fetch_fn is not None else fetch_original
+    # read the module value at CALL time, not def time: a default argument bound
+    # at import freezes the tunable, and the first thing anyone wants to change
+    # about a retry schedule is the schedule
+    for delay in (SELF_HEAL_DELAYS_S if delays is None else delays):
+        sleep(delay)
+        try:
+            result = produce()
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] heal render failed %s %s: %s", req.ticker, req.tf, e)
+            continue
+        if not result or result[0] != "ok":
+            continue                      # still degraded - the next window may catch it
+        msg = fetch(app_id, token)
+        if not isinstance(msg, dict):
+            return "unverified"
+        content = str(msg.get("content") or "")
+        if not content.startswith(headline):
+            return "moved"                # the member changed the chart; it is theirs now
+        try:
+            edit_fn(app_id, token, content=content, png=result[1], filename=result[2])
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] heal edit failed %s: %s", req.ticker, e)
+            return "edit_failed"
+        return "healed"
+    return "gave_up"
+
+
+def schedule_stand_in_heal(app_id: str, token: str, req: ChartRequest, headline: str, *,
+                           produce, edit_fn, spawn=None) -> bool:
+    """Run `heal_stand_in` on a daemon thread. False when it was not started -
+    switched off, or both heal slots busy - which is not a failure: the member
+    already has a chart and the next request gets a real one."""
+    if not self_heal_enabled():
+        return False
+    if not _HEAL_SLOTS.acquire(blocking=False):
+        log.info("[discord-chart] %s %s: heal slots busy, leaving the stand-in", req.ticker, req.tf)
+        return False
+
+    def _run():
+        try:
+            out = heal_stand_in(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
+            log.info("[discord-chart] %s %s: stand-in heal %s", req.ticker, req.tf, out)
+        except Exception:  # noqa: BLE001
+            log.exception("[discord-chart] heal crashed %s %s", req.ticker, req.tf)
+        finally:
+            _HEAL_SLOTS.release()
+
+    (spawn or (lambda fn: threading.Thread(target=fn, name="chart-heal", daemon=True).start()))(_run)
+    return True
 
 
 def fast_first_enabled() -> bool:
@@ -1462,6 +1577,10 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                 # log, because a run of these means the renderer needs looking at.
                 log.info("[discord-chart] %s %s: stand-in delivered, house render empty",
                          req.ticker, req.tf)
+                # …and look again shortly: the usual cause is a deploy swap that
+                # is over within a couple of minutes, and the member should end
+                # up with the house chart without having to ask twice.
+                schedule_stand_in_heal(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
             return "ok"
         elif previewed and outcome in ("busy", "render_failed"):
             # The member already HAS a chart. Replacing it with an apology would

@@ -70,6 +70,23 @@ def _no_bars_retry_delay(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_background_heal(monkeypatch):
+    """A delivered stand-in schedules a background heal in production. Left on
+    here, every test that makes the house renderer return None would spawn a
+    daemon thread that sleeps 45s and then makes REAL Discord calls after the
+    test has finished. Tests that are about the heal drive it directly or turn
+    it back on themselves."""
+    monkeypatch.setenv("DISCORD_CHART_SELF_HEAL", "0")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_heal_slots(monkeypatch):
+    import threading
+    from api.services import discord_interactions as di
+    monkeypatch.setattr(di, "_HEAL_SLOTS", threading.BoundedSemaphore(2))
+
+
+@pytest.fixture(autouse=True)
 def _clear_png_cache():
     try:
         from api.services import discord_chart_cache as cc
@@ -2870,4 +2887,147 @@ def test_a_deploy_blip_does_not_serve_the_stand_in_to_the_next_member(monkeypatc
     assert di.run_chart_job("1", "t", di.ChartRequest("SPCX", "D"), **common) == "ok"
     assert edits[-1].endswith(b"house"), "the next member must not be served the cached stand-in"
     assert stored[-1][2] == cache.ttl_for("D")
+
+
+# ── the stand-in upgrades itself once the renderer is back ──
+
+def _heal_kit(headline="SPCX · Daily", content=None, results=None):
+    """produce()/edit_fn/fetch_fn triple for heal_stand_in, plus the edit log."""
+    edits = []
+    seq = list(results if results is not None else [("ok", PNG_MAGIC + b"house", "SPCX_D.png")])
+
+    def produce():
+        return seq.pop(0) if seq else ("fallback", PNG_MAGIC + b"mpl", "SPCX_D.png")
+
+    def edit_fn(app_id, token, **kw):
+        edits.append(kw); return {"id": "m1"}
+
+    def fetch_fn(app_id, token):
+        return {"id": "m1", "content": headline if content is None else content}
+
+    return produce, edit_fn, fetch_fn, edits
+
+
+def test_a_stand_in_is_replaced_once_the_renderer_is_back():
+    """The member asked during a deploy and got the plain chart. A minute later
+    the pod is serving again - they should end up with the house chart without
+    having to ask twice."""
+    from api.services import discord_interactions as di
+    produce, edit_fn, fetch_fn, edits = _heal_kit()
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                           produce=produce, edit_fn=edit_fn, fetch_fn=fetch_fn, sleep_fn=lambda s: None)
+    assert out == "healed"
+    assert len(edits) == 1 and edits[0]["png"].endswith(b"house")
+    # ⛔ no components: the rows on that message are whatever the member is
+    # looking at NOW - they may have opened the controls since.
+    assert "components" not in edits[0]
+    assert edits[0]["content"] == "SPCX · Daily"
+
+
+def test_the_heal_keeps_the_context_line_the_first_edit_added():
+    """The context line is edited in as `headline\ncontext`. A heal that wrote
+    the bare headline back would silently delete it."""
+    from api.services import discord_interactions as di
+    body = "SPCX · Daily\nEarnings in 3 days · implied ±8.1%"
+    produce, edit_fn, fetch_fn, edits = _heal_kit(content=body)
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                           produce=produce, edit_fn=edit_fn, fetch_fn=fetch_fn, sleep_fn=lambda s: None)
+    assert out == "healed" and edits[0]["content"] == body
+
+
+def test_the_heal_never_clobbers_a_chart_the_member_moved_on_from():
+    """A minute is long enough to press W. Re-writing the daily chart over that
+    would look like the bot fighting them."""
+    from api.services import discord_interactions as di
+    produce, edit_fn, fetch_fn, edits = _heal_kit(content="SPCX · Weekly")
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                           produce=produce, edit_fn=edit_fn, fetch_fn=fetch_fn, sleep_fn=lambda s: None)
+    assert out == "moved" and edits == [], "the member's chart is theirs"
+
+
+def test_a_read_back_it_cannot_do_counts_as_a_refusal_not_permission():
+    """If we cannot confirm the message is still ours, we do not overwrite it.
+    The cost of skipping is a stand-in; the cost of guessing wrong is undoing a
+    member's click."""
+    from api.services import discord_interactions as di
+    for cannot_read in (lambda a, b: None, lambda a, b: False, lambda a, b: "not a message"):
+        produce, edit_fn, _, edits = _heal_kit()      # a fresh house chart each time
+        out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                               produce=produce, edit_fn=edit_fn, fetch_fn=cannot_read, sleep_fn=lambda s: None)
+        assert out == "unverified" and edits == []
+
+
+def test_the_heal_tries_each_window_then_gives_up_quietly():
+    """A deploy can outlast the first look. It gets a second one - and if the
+    renderer is genuinely down, it stops rather than editing forever."""
+    from api.services import discord_interactions as di
+    slept, tries = [], []
+
+    def produce():
+        tries.append(1)
+        return ("ok", PNG_MAGIC + b"house", "f.png") if len(tries) == 2 else ("fallback", PNG_MAGIC, "f.png")
+
+    _, edit_fn, fetch_fn, edits = _heal_kit()
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily", produce=produce,
+                           edit_fn=edit_fn, fetch_fn=fetch_fn, sleep_fn=slept.append)
+    assert out == "healed" and len(tries) == 2 and slept == list(di.SELF_HEAL_DELAYS_S)
+    assert len(edits) == 1 and edits[0]["png"].endswith(b"house")
+
+    # never recovers -> exactly len(delays) attempts, no edit, no exception
+    down, edits2 = [], []
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                           produce=lambda: down.append(1) or ("fallback", PNG_MAGIC, "f.png"),
+                           edit_fn=lambda *a, **k: edits2.append(k), fetch_fn=fetch_fn, sleep_fn=lambda s: None)
+    assert out == "gave_up" and len(down) == len(di.SELF_HEAL_DELAYS_S) and edits2 == []
+    # a renderer that RAISES is the same story, not a crash
+    out = di.heal_stand_in("1", "tok", di.ChartRequest("SPCX", "D"), "SPCX · Daily",
+                           produce=lambda: (_ for _ in ()).throw(RuntimeError("renderer down")),
+                           edit_fn=edit_fn, fetch_fn=fetch_fn, sleep_fn=lambda s: None)
+    assert out == "gave_up"
+
+
+def test_only_a_stand_in_schedules_a_heal_and_the_switch_turns_it_off(monkeypatch):
+    """A house chart has nothing to heal, and the whole thing is one env var
+    away from the pre-2026-08-27 behaviour."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    from api.services import discord_chart_cache as cache
+    cache.clear(); di.reset_rate_for_tests()
+    monkeypatch.setattr(cache, "put", lambda *a, **k: None)
+    scheduled = []
+    monkeypatch.setattr(di, "schedule_stand_in_heal",
+                        lambda *a, **k: scheduled.append(a[2].ticker) or True)
+    healthy = {"ok": True}
+    common = dict(bars_fn=lambda *a: daily_bars(30), render_fn=lambda *a, **k: PNG_MAGIC + b"mpl",
+                  edit_fn=lambda *a, **k: {"id": "m"}, prefs=dict(p.DEFAULTS),
+                  house_fn=lambda *a, **k: (PNG_MAGIC + b"house") if healthy["ok"] else None)
+    assert di.run_chart_job("1", "t1", di.ChartRequest("HOUS", "D"), **common) == "ok"
+    assert scheduled == [], "a house chart has nothing to heal"
+    healthy["ok"] = False
+    assert di.run_chart_job("1", "t2", di.ChartRequest("STND", "D"), **common) == "ok"
+    assert scheduled == ["STND"]
+
+
+def test_the_heal_is_bounded_and_runs_off_the_reply_path(monkeypatch):
+    """It must not block the member's reply, and a deploy - where EVERY request
+    in the window wants one - must not spawn heals without limit."""
+    from api.services import discord_interactions as di
+    monkeypatch.setenv("DISCORD_CHART_SELF_HEAL", "1")     # the autouse fixture turns it off
+    monkeypatch.setattr(di, "SELF_HEAL_DELAYS_S", ())       # …and no real waiting in a test
+    spawned = []
+    args = dict(produce=lambda: ("ok", PNG_MAGIC, "f.png"), edit_fn=lambda *a, **k: True,
+                spawn=lambda fn: spawned.append(fn))
+    started = [di.schedule_stand_in_heal("1", "t", di.ChartRequest(f"S{i}", "D"), "h", **args)
+               for i in range(4)]
+    assert started[0] and started[1], "the first heals start"
+    assert not any(started[2:]), "…and the rest are declined rather than piling up"
+    assert len(spawned) == 2
+    # nothing ran on the caller's thread - the reply was never waiting on it
+    for fn in spawned:
+        fn()                      # releasing the slots as it goes
+    assert di.schedule_stand_in_heal("1", "t", di.ChartRequest("AFTER", "D"), "h", **args)
+
+    monkeypatch.setenv("DISCORD_CHART_SELF_HEAL", "0")
+    spawned.clear()
+    assert di.schedule_stand_in_heal("1", "t", di.ChartRequest("OFF", "D"), "h", **args) is False
+    assert spawned == []
 
