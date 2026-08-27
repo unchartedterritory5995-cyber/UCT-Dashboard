@@ -79,3 +79,58 @@ def test_the_reachability_probe_can_actually_fail():
         reachable |= set(v["columns"])
     assert "rugpull_score" not in reachable
     assert "ticker" in reachable
+
+
+# ─── X34: a def must be RENDERABLE, not merely present ───────────────────────
+
+def _column_def_bodies():
+    """`{key: body}` for every `COLUMN_DEFS` entry, body = text up to the next
+    top-level key.
+
+    ⚠️ Regex over source, like `_column_def_keys` beside it, and for the same
+    reason: this is a Python test asserting a fact about a JS module, and
+    importing it would need a JS runtime in the backend suite.
+    """
+    src = open("app/src/pages/screener/columnDefs.js", encoding="utf-8").read()
+    body = src.split("export const COLUMN_DEFS = {", 1)[1]
+    parts = re.split(r"^  (\w+): \{", body, flags=re.M)
+    return {parts[i]: parts[i + 1] for i in range(1, len(parts) - 1, 2)}
+
+
+def _renderable(entry_body: str) -> bool:
+    """A def a member can actually be shown: it names a formatter and a label."""
+    head = entry_body.split("\n  }", 1)[0]
+    return "fmt:" in head and "label:" in head
+
+
+def test_every_column_def_is_RENDERABLE_not_merely_PRESENT():
+    """⛔ THE KEY EXISTING IS NOT THE COLUMN WORKING.
+
+    X34, measured 2026-08-26: a `candle_recent_status: {}` stub satisfied every
+    check in this file AND 76 frontend tests, and would then CRASH the live
+    grid. `VirtualResults.jsx:141` reads `COLUMN_DEFS[c] || {fmt…}` — a
+    truthy `{}` never takes the fallback — so `def.fmt(val, row)` at :148 raises
+    `TypeError: def.fmt is not a function`. The member gets a broken grid; the
+    suite stays green.
+
+    ⭐ The gap was a rail asserting the cheap half of its own question. Presence
+    is what a regex can see; renderability is what a member experiences. Assert
+    the second.
+    """
+    bad = sorted(k for k, v in _column_def_bodies().items() if not _renderable(v))
+    assert not bad, (
+        "these column defs exist but cannot be rendered — each needs a `fmt` "
+        f"and a `label`, or the grid throws when the column is shown: {bad}")
+
+
+def test_the_renderability_check_can_actually_SAY_NO():
+    """⛔ NON-VACUITY. A checker that returns True unconditionally reads exactly
+    like a clean bill of health — this branch has already paid for a sweep whose
+    mutations silently did nothing and a census that could read too little.
+    """
+    assert _renderable("    label: 'X', fmt: v => v,\n  }")
+    assert not _renderable("\n  }")                       # the `{}` stub itself
+    assert not _renderable("    label: 'X',\n  }")        # label, no formatter
+    assert not _renderable("    fmt: v => v,\n  }")       # formatter, no label
+    # …and it is reading the real file, not an empty parse.
+    assert len(_column_def_bodies()) >= 150
