@@ -118,7 +118,8 @@ def effective_cash(
     cash carried forward over post-balance-sync fills. Passthrough (adjustment
     0) whenever the derivation can't be done honestly."""
     base = _num(stored_cash)
-    out = {"cash": base, "adjustment": 0.0, "fills": 0}
+    out = {"cash": base, "adjustment": 0.0, "fills": 0,
+           "buyCost": 0.0, "sellProceeds": 0.0}
     synced = _ts(balance_synced_at)
     if base is None or synced is None:
         return out
@@ -148,6 +149,7 @@ def effective_cash(
 
     adjustment = 0.0
     fills = 0
+    buy_cost = sell_proceeds = 0.0
     for row in rows:
         occurred = _ts(row["occurred_at"])
         if occurred is None or occurred <= synced:
@@ -161,10 +163,16 @@ def effective_cash(
             continue
         adjustment += effect
         fills += 1
+        if effect < 0:
+            buy_cost += -effect
+        else:
+            sell_proceeds += effect
 
     out["cash"] = round(base + adjustment, 2)
     out["adjustment"] = round(adjustment, 2)
     out["fills"] = fills
+    out["buyCost"] = round(buy_cost, 2)
+    out["sellProceeds"] = round(sell_proceeds, 2)
     return out
 
 
