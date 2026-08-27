@@ -1344,11 +1344,21 @@ def _fn_aroon_down(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     """Balance of Power -- the ``n``-bar mean of ``(close - open) / (high - low)``.
 
-    ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED IN
-    ``closedTable.json::_functions_compositions``: it has a PUBLISHED IDENTITY
-    under its own name, its window is a single declarable argument, and it reuses
-    the shipped rolling mean -- so unlike ``variance`` there is no second average
-    that could drift from the one ``sma`` uses.
+    ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED HERE.
+    ⚰️ This cited a manifest key named ``_functions_compositions`` and NO SUCH KEY
+    HAS EVER EXISTED -- one ruling, three comments in two lanes, all pointing at a
+    manifest that never carried it, so the criterion lived only in a commit
+    message. The manifest owns the NEGATIVE half in
+    ``closedTable.json::_functions_excluded`` (``variance``, ``hl2``, ``bbMiddle``:
+    already expressible, so declaring one would compute a second copy of a number
+    this table already has). The POSITIVE half belongs at the implementation, and
+    that is here: ``bop`` earns an entry because it has a PUBLISHED IDENTITY under
+    its own name, its window is a single declarable argument, and it reuses the
+    shipped rolling mean -- so unlike ``variance`` there is no second average that
+    could drift from the one ``sma`` uses.
+    ⛔ ``tests/test_closed_table_citations.py`` now resolves every
+    ``closedTable.json::<key>`` written in source against the manifest, so the next
+    dangling citation fails by file AND key instead of standing for a month.
 
     ⛔ THE RATIO IS BUILT THROUGH THE SAME TWO SEAMS THE OPERATOR PATH USES --
     ``_binary_div`` for IEEE division and the finite-or-NaN collapse ``_to_column``

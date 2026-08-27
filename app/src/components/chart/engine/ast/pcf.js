@@ -202,8 +202,14 @@ export const PCF_FUSED = Object.freeze({
   // The Worden syntax page publishes `AROONUP(x, z)` with x=Period and z=Offset and
   // NO formula at all, so the maths is cited to StockChart's published definition:
   // `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. This table's `aroonUp`
-  // holds it; see `closedTable.json::_functions_compositions` for why a composition
-  // with a published identity is declared rather than expanded here.
+  // holds it. ⚰️ THIS SENT THE READER TO A MANIFEST KEY NAMED
+  // `_functions_compositions` FOR WHY A COMPOSITION IS DECLARED RATHER THAN
+  // EXPANDED, AND NO SUCH KEY HAS EVER EXISTED (the dead spelling is written
+  // WITHOUT the `<manifest>::` prefix here on purpose — with it, this comment
+  // would be the very dangling citation `test_closed_table_citations.py` now
+  // fails on) — the ruling is stated at the implementation (`interpret.js::barBop`,
+  // `ast_interpret._fn_bop`), and its mirror-image half — the compositions this
+  // table REFUSES to declare — is `closedTable.json::_functions_excluded`.
   AROONUP:   { spelling: 'AROONUP<period>[.<offset>]',   fn: 'aroonUp',   series: [], params: ['period', 'offset'] },
   AROONDOWN: { spelling: 'AROONDOWN<period>[.<offset>]', fn: 'aroonDown', series: [], params: ['period', 'offset'] },
   // ⭐ BOP POINTS AT THE TABLE ENTRY NOW, AND THAT IS THE WHOLE REASON `bop` WAS

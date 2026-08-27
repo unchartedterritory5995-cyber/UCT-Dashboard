@@ -1013,11 +1013,21 @@ const barAroonDown = (bars, args) => aroonCol(bars, args[0], 'l', false)
 
 /** Balance of Power — the `n`-bar mean of `(close - open) / (high - low)`.
  *
- *  ⭐ DECLARED THOUGH IT IS A COMPOSITION, and the criterion is stated in
- *  `closedTable.json::_functions_compositions`: a PUBLISHED IDENTITY under its
- *  own name, a window that is one declarable argument, and an implementation
- *  that reuses the shipped rolling mean — so unlike `variance` there is no
- *  second average to drift from the one `sma` uses.
+ *  ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED HERE.
+ *  ⚰️ This cited a manifest key named `_functions_compositions` and NO SUCH KEY
+ *  HAS EVER EXISTED — one ruling, three comments in two lanes, all pointing at a
+ *  manifest that never carried it, so the criterion lived only in a commit
+ *  message. The manifest owns the NEGATIVE half in
+ *  `closedTable.json::_functions_excluded` (`variance`, `hl2`, `bbMiddle`:
+ *  already expressible, so declaring one would compute a second copy of a number
+ *  this table already has). The POSITIVE half belongs at the implementation, and
+ *  that is here: `bop` earns an entry because it has a PUBLISHED IDENTITY under
+ *  its own name, its window is one declarable argument, and it reuses the shipped
+ *  rolling mean — so unlike `variance` there is no second average to drift from
+ *  the one `sma` uses.
+ *  ⛔ `tests/test_closed_table_citations.py` now resolves every
+ *  `closedTable.json::<key>` written in source against the manifest, so the next
+ *  dangling citation fails by file AND key instead of standing for a month.
  *
  *  ⛔ THE RATIO GOES THROUGH THE SAME SEAM THE OPERATOR PATH USES (IEEE division,
  *  then the finite-or-NaN collapse), so a zero-range bar answers exactly what
