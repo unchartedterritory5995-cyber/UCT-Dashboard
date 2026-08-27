@@ -294,14 +294,20 @@ describe('🔴 many plots, one hash', () => {
   })
 
   it('⛔ the badge the DOCUMENT carries is the WORST row’s, not plot 1’s', () => {
-    // ⚠️ PINNED ON THE PURE FUNCTION, AND THE REASON IS MEASURED: every
-    // table-legal tree is `non-repainting` today (`lint.js`'s declared property —
-    // every shipped `lookback` is >= 0 or `argK`), so the sheet CANNOT produce a
-    // document whose rows disagree, and a mutation that replaced the aggregation
-    // with `rows[0].mode` passed the whole suite. The day the manifest declares a
-    // negative lookback, `validateAstLane` re-measures the badge as the WORST of
-    // the trees and refuses a disagreement in both directions — so a sheet that
-    // wrote plot 1's badge would build a document its own Save door rejects.
+    // ⚠️ PINNED ON THE PURE FUNCTION — still the right rail for the DOCUMENT's
+    // own aggregation, hand-built rather than typed so it cannot depend on
+    // whether today's table happens to offer a repainting formula.
+    //
+    // 🔴 FIX ROUND 1 CORRECTION: the comment that used to sit here claimed *"every
+    // table-legal tree is `non-repainting` today… so the sheet CANNOT produce a
+    // document whose rows disagree."* MEASURED FALSE. `closedTable.json` declares
+    // `forward: "arg4"` on `ichimokuChikou`, and a LITERAL-argument call —
+    // `ichimokuChikou(high, low, close, 9, 26, 52)`, which parses, budgets and
+    // interprets cleanly through the real `evaluateFormula` — lints to
+    // `preview-repaints` with `forward: 26`. Two rows CAN disagree today, through
+    // the sheet's own real doors, not merely by construction here. See the
+    // BuilderSheet.jsx-driving cases below for the member-visible consequence
+    // (Important #3, fix round 1) and the report for the full measurement.
     const ev = evaluateFormula('sma(close, 20)', BUILDER_INPUT_SCOPE)
     const row = (key, mode) => ({
       key, label: '', source: 'sma(close, 20)', ast: ev.ast, mode,
@@ -321,6 +327,110 @@ describe('🔴 many plots, one hash', () => {
       ast: ev.ast, mode: 'non-repainting', readback: ev.readback,
       plots: [row('value', 'non-repainting'), row('second', 'non-repainting')],
     }).meta.repaint).toBe('non-repainting')
+  })
+
+  // ── FIX ROUND 1, IMPORTANT #3 — ONE `acknowledged` FLAG SERVED EVERY ROW ──
+  //
+  // ⛔⛔ THESE DRIVE THE REAL SHEET WITH A REAL REPAINTING FORMULA, NOT A HAND-
+  // BUILT DOCUMENT. `ichimokuChikou(high, low, close, tenkan, kijun, senkouB)`
+  // declares `forward: "arg4"` in `closedTable.json` — a LITERAL `kijun` makes
+  // that a finite, known forward reach, so the tree lints `preview-repaints`
+  // through the sheet's own real `evaluateFormula`, budget walk and four-bar
+  // interpret probe. The corpus does not need to be hand-built for this: the
+  // closed table already contains a function that disagrees with itself across
+  // two calls with two different literal periods.
+  it('🔴 the badge TEXT is the worst row’s reason too, and that row’s own ack — not plot 1’s', async () => {
+    mount(); await flush()
+    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await addPlot(2, 'chikou', 'ichimokuChikou(high, low, close, 9, 26, 52)')
+
+    // ⛔⛔ THE BUG: this used to read `result.verdict.reasons` — PLOT 1's OWN,
+    // unconditionally — while `data-mode` (and the badge's colour) already came
+    // from `worstVerdict`, plot 2's. A warning-coloured badge captioned with
+    // plot 1's `non-repainting` explanation is a caption stating something
+    // false beside a correctly-coloured badge.
+    const badge = screen.getByTestId('repaint-badge')
+    expect(badge).toHaveAttribute('data-mode', 'preview-repaints')
+    expect(badge.textContent).toMatch(/26 bars ahead/)
+    expect(badge.textContent).not.toMatch(/at or before its own index/)
+
+    // Plot 1 is clean — non-repainting — so it needs no acknowledgement, and
+    // (the other half of the same bug) it must not show one captioned "0 more
+    // bar(s)" on the strength of a DIFFERENT row's claim.
+    expect(screen.queryByTestId('repaint-ack')).toBeNull()
+
+    // Plot 2 carries its OWN control, inline in its own row, with its OWN
+    // number — not the sheet-wide flag every row used to share.
+    const ack2 = screen.getByTestId('repaint-ack-2')
+    expect(ack2.closest('label').textContent).toMatch(/26 more bar\(s\)/)
+    expect(ack2.checked).toBe(false)
+
+    await set(screen.getByLabelText(/^Name/i), 'Chikou')
+    expect(screen.getByRole('button', { name: /^Sav/ })).toBeDisabled()
+    await click(ack2)
+    expect(screen.getByRole('button', { name: /^Sav/ })).not.toBeDisabled()
+    await save('Chikou')
+    const doc = sent()
+    expect(doc.meta.repaint).toBe('preview-repaints')
+    expect(validateUserDefinitions([doc]).errors).toEqual([])
+  })
+
+  it('🔴 …and TWO rows with DIFFERING preview-repaints claims each need their OWN tick', async () => {
+    // ⭐⭐ THE CENTRAL CASE. Both rows are `preview-repaints`, but for DIFFERENT
+    // reasons — 26 bars vs 52. Before this fix, `canSaveFormula(r.result,
+    // acknowledged)` read the SAME shared flag for every row, so ticking the
+    // ONE box on screen (captioned with whichever row `worstVerdict` happened to
+    // surface) silently blessed BOTH claims — the member could acknowledge "26"
+    // and save "52" under that tick. `M9` in the pure-function case above could
+    // never discriminate this, because a hand-typed `mode` string cannot exercise
+    // the SHEET's flag-per-row wiring at all — only driving the component with
+    // two REAL differing verdicts can.
+    mount(); await flush()
+    await type(screen.getByLabelText('Formula'), 'ichimokuChikou(high, low, close, 9, 26, 52)')
+    await addPlot(2, 'chikou52', 'ichimokuChikou(high, low, close, 9, 52, 104)')
+    await set(screen.getByLabelText(/^Name/i), 'Two Chikous')
+
+    const ack1 = screen.getByTestId('repaint-ack')
+    const ack2 = screen.getByTestId('repaint-ack-2')
+    expect(ack1.closest('label').textContent).toMatch(/26 more bar\(s\)/)
+    expect(ack2.closest('label').textContent).toMatch(/52 more bar\(s\)/)
+
+    expect(screen.getByRole('button', { name: /^Sav/ })).toBeDisabled()
+    await click(ack1)
+    // ⛔⛔ THE RAIL. Acknowledging row 1's 26-bar claim must NOT also clear row
+    // 2's DIFFERENT 52-bar claim the member has not read a sentence for.
+    expect(screen.getByRole('button', { name: /^Sav/ }),
+      'ticking ONE row’s box must not silently authorize a DIFFERENT row’s claim')
+      .toBeDisabled()
+    await click(ack2)
+    expect(screen.getByRole('button', { name: /^Sav/ })).not.toBeDisabled()
+    await save('Two Chikous')
+    const doc = sent()
+    expect(doc.meta.repaint).toBe('preview-repaints')
+    expect(validateUserDefinitions([doc]).errors).toEqual([])
+  })
+
+  it('⛔ re-evaluating a row invalidates ONLY that row’s acknowledgement', async () => {
+    // The old single flag was invalidated by plot 1's OWN new evaluation
+    // (`handleEvaluated`) and by nothing else — a second row's edit left a
+    // STALE acknowledgement standing for a claim that had just changed. Each
+    // row must now invalidate its own and leave its sibling’s alone, in BOTH
+    // directions.
+    mount(); await flush()
+    await type(screen.getByLabelText('Formula'), 'ichimokuChikou(high, low, close, 9, 26, 52)')
+    await addPlot(2, 'chikou52', 'ichimokuChikou(high, low, close, 9, 52, 104)')
+    await click(screen.getByTestId('repaint-ack'))
+    await click(screen.getByTestId('repaint-ack-2'))
+    await set(screen.getByLabelText(/^Name/i), 'x')
+    expect(screen.getByRole('button', { name: /^Sav/ })).not.toBeDisabled()
+
+    // Retype plot 2's formula — a different, still-repainting window.
+    await type(screen.getByLabelText('Formula for plot 2'), 'ichimokuChikou(high, low, close, 9, 60, 120)')
+    expect(screen.getByTestId('repaint-ack-2').checked,
+      'plot 2’s OWN re-evaluation must clear plot 2’s OWN tick').toBe(false)
+    expect(screen.getByTestId('repaint-ack').checked,
+      'and must leave plot 1’s untouched').toBe(true)
+    expect(screen.getByRole('button', { name: /^Sav/ })).toBeDisabled()
   })
 
   it('⛔ removing a row ABOVE the scan keeps the scan on the row the member picked', async () => {

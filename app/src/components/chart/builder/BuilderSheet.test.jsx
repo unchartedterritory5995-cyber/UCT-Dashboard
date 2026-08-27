@@ -1169,6 +1169,26 @@ describe('🔴 closing with unsaved work asks first', () => {
     expect(screen.queryByTestId('discard-confirm')).toBeNull()
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('🔴 recolouring plot 1 with the FORMULA BOX untouched is dirty too (FIX ROUND 1, MINOR 5)', async () => {
+    // ⛔⛔ `dirty` used to OR only `source`/`name`/an extra row's source, so a
+    // member who only touched plot 1's swatch — with the formula box still
+    // empty — tripped none of the three and lost the recolour with no prompt,
+    // the very loss this gate exists to prevent, one field over. Same for the
+    // width, the Hide toggle, the label, Overlay placement and a typed level —
+    // this one case stands for all of them because `isUntouchedRow` is the
+    // single predicate that covers every one of plot 1's chrome fields at once.
+    const onClose = vi.fn()
+    mount({ onClose })
+    fireEvent.change(screen.getByLabelText('Plot 1 colour'), { target: { value: '#ff0000' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    expect(screen.getByTestId('discard-confirm'),
+      'a recoloured plot 1 must not close silently even with an empty formula box').toBeTruthy()
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })
 
 // ─── DELETE ASKS FIRST ───────────────────────────────────────────────────────
