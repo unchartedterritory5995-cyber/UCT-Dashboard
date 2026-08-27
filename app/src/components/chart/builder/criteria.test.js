@@ -761,6 +761,15 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     const v = vocabulary(planted)
     expect(VOCAB.flags.has('uct_planted_clock_flag')).toBe(false)
     expect(v.flags.has('uct_planted_clock_flag')).toBe(true)
+    // ⛔ …AND ITS LABEL IS THE PLANT'S OWN SENTENCE — READ, not written. Without
+    // this line, "a clock flag's label comes from the manifest" rested on
+    // `manifestLabel` plus the stray-word loop over the SHIPPED table, and
+    // neither can tell a label that is READ from one that merely happens to
+    // match. The scalar case proves it with a plant; the newest section did not.
+    // Compared against the PLANTED declaration rather than a retyped string: a
+    // literal here would be the second authority the label case exists to avoid.
+    expect(v.flags.get('uct_planted_clock_flag').label)
+      .toBe(planted.clock.uct_planted_clock_flag.sentence)
     const res = fromAst({ type: 'series', name: 'uct_planted_clock_flag' }, v)
     expect(res.ok, res.reason).toBe(true)
     expect(res.group.children[0]).toEqual({ kind: 'flag', name: 'uct_planted_clock_flag' })
