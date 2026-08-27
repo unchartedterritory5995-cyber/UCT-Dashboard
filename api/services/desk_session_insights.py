@@ -800,6 +800,36 @@ def refresh_creative_cover(v: dict, ins: dict, youtube=None) -> bool:
         return False
 
 
+def refresh_description(v: dict, ins: dict, youtube=None) -> bool:
+    """Patch real per-session chapters into the YouTube description once the
+    transcript-derived chapters land (the upload-time description is static —
+    see desk_daily_session._compose_description for why). Only under
+    DESK_SESSION_DESCRIPTION_CHAPTERS (needs YT_OAUTH_REFRESH_TOKEN rescoped
+    to youtube.force-ssl; the upload-only scope 403s on videos.update). ANY
+    failure leaves the upload-time description untouched. Returns True iff
+    the description was patched. Never raises."""
+    try:
+        from api.services import desk_daily_session as dds
+        if not dds.chapters_description_enabled():
+            return False
+        youtube_id = (v.get("youtube_id") or "").strip()
+        from api.services import desk_creative
+        parsed = desk_creative.parse_session_title(v.get("title") or "")
+        chapters = ins.get("chapters") or []
+        if not youtube_id or not parsed or not chapters:
+            return False
+        show, _date_text = parsed
+        description = dds.compose_description_with_chapters(show, chapters)
+        if youtube is None:
+            from api.services.youtube_client import YouTubeClient
+            youtube = YouTubeClient()
+        youtube.update_description(youtube_id, description)
+        return True
+    except Exception as e:  # noqa: BLE001 — cosmetic, never blocks insights
+        print(f"[session-insights] description refresh failed (non-fatal): {e}")
+        return False
+
+
 def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
@@ -918,12 +948,14 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
             # runs once per video, so the refresh can't loop). Non-fatal —
             # the publish-time cover stays on any failure.
             cover_refreshed = refresh_creative_cover(v, ins)
+            description_refreshed = refresh_description(v, ins)
             has_chapters = True
             results.append({"id": vid, "action": "generated", "source": source,
                             "chapters": len(ins["chapters"]),
                             "tickers": len(ins["ticker_moments"]),
                             "poster": poster_ok,
-                            "cover_refreshed": cover_refreshed})
+                            "cover_refreshed": cover_refreshed,
+                            "description_refreshed": description_refreshed})
 
     # Clean up the Zoom recording once we've captured insights — or once
     # we've waited long enough that the transcript clearly isn't coming.

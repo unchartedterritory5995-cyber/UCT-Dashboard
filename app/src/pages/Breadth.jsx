@@ -14,6 +14,7 @@ import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
+import DailyOverview from './breadth/DailyOverview'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
@@ -803,7 +804,7 @@ const phaseClass = (phase, styles) => {
 const BREADTH_TAB_ITEMS = [
   { key: 'breadth', label: 'Monitor' },
   { key: 'heatmap', label: 'Views' },
-  { key: 'overview', label: 'Overview' },
+  { key: 'overview', label: 'Daily' },
   { key: 'cot', label: 'COT Data' },
   { key: 'charts', label: 'Data Charts' },
 ]
@@ -884,7 +885,7 @@ export default function Breadth() {
   // Intraday breadth sits ON TOP of the stored history, never in place of it.
   // The backend withholds the live read the moment the 4:15 collector writes
   // today's row, so an estimate never sits beside the number it estimated.
-  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' })
+  const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' || activeTab === 'overview' })
   const rows = useMemo(
     () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
     [liveBreadth.row, storedRows],
@@ -942,8 +943,11 @@ export default function Breadth() {
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </PageHeader>
         <div className={styles.overviewBody}>
+          <DailyOverview rows={rows} live={liveBreadth} cols={COLS}
+                         phaseClassFn={phaseClass} onDrill={openDrill} />
           <MarketBreadth />
         </div>
+        {drill && <DrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />}
       </div>
     )
   }

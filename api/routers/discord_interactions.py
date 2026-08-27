@@ -81,6 +81,19 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         from api.routers import ticker_search as ts
         rows = (ts.ticker_search(q=q, limit=limit) or {}).get("results") or []
         out = []
+        # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
+        # so — the autocomplete is where a member would find out.
+        try:
+            from api.services import breadth_symbols as bs
+            needle = (q or "").strip().upper()
+            for symbol, meta in (bs.SYMBOLS or {}).items():
+                nm = str((meta or {}).get("name") or "")
+                if needle and (symbol.startswith(needle) or needle in nm.upper() or needle in ("BREADTH", "UCT")):
+                    out.append({"name": f"{symbol} - {nm}"[:100] if nm else symbol, "value": symbol})
+                if len(out) >= 5:
+                    break
+        except Exception as e:  # noqa: BLE001 — breadth is a bonus, never the reason autocomplete fails
+            log.debug("[discord-chart] breadth autocomplete skipped: %s", e)
         for row in rows:
             t = str(row.get("ticker") or "")
             if not t:
@@ -211,9 +224,34 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                 req = di.parse_component(interaction)          # a button under a chart
             else:
                 kind = "chart"
-                req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
+                reqs = di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))
+                if len(reqs) > 1:               # /chart NVDA AMD AVGO — one door, one message
+                    for _ in reqs:
+                        wait = di.user_rate_check(uid)
+                        if wait:
+                            return _ephemeral(di.throttle_message(wait))
+                    if not app_id or not token:
+                        return _ephemeral("Discord did not supply a reply token.")
+                    background.add_task(di.run_multi_chart_job, app_id, token,
+                                        [breadth_adjust(q, dict(prefs)) for q in reqs],
+                                        bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                                        house_fn=house.render_house_chart if house.house_enabled() else None,
+                                        quote_fn=fetch_ext_quote, components_fn=di.multi_components)
+                    return {"type": 5}
+                req = reqs[0]
         except di.CommandError as e:
             return _ephemeral(str(e))
+        if kind == "chart" and itype == 3 and di.is_help_pick(interaction):
+            # "How these controls work" — answer privately and put the dropdown
+            # back where it was (a select keeps showing whatever was picked).
+            data: dict = {"components": di.chart_components(req, prefs, guild_id=str(interaction.get("guild_id") or "")),
+                          "content": str((interaction.get("message") or {}).get("content") or "")}
+            att = di.message_attachment_ids(interaction)
+            if att:
+                data["attachments"] = [{"id": i} for i in att]
+            if app_id and token:
+                background.add_task(di.followup_ephemeral, app_id, token, di.chart_help_text())
+            return {"type": 7, "data": data}
         if kind == "chart" and itype == 3 and di.is_save_pick(interaction):
             # "Save this chart's settings as my defaults" - writes the member's
             # /chartsettings from the message's state; no re-render.

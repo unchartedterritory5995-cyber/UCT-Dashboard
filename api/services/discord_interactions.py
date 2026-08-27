@@ -221,6 +221,56 @@ def parse_compare(raw, base: str) -> tuple | None:
     return tuple(syms) or None
 
 
+def parse_chart_requests(interaction: dict, default_tf: str = "D") -> list:
+    """`/chart NVDA` -> one chart; `/chart NVDA AMD AVGO` -> the set.
+
+    One door instead of two. `/charts` existed only because the ticker field
+    took a single name, which also put a second "chart"-prefixed row in
+    Discord's picker (and the picker ranked `/chartsettings reset` above it).
+    Typing several names is how a member discovers the multi-chart reply."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    tickers: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(opts.get("ticker") or "").strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"'{tok}' is not a ticker (letters/digits, e.g. NVDA, BRK.B).")
+        if tok not in tickers:
+            tickers.append(tok)
+    if not tickers:
+        raise CommandError("Give me a ticker, e.g. /chart NVDA - or several: /chart NVDA AMD AVGO.")
+    if len(tickers) > MULTI_MAX:
+        raise CommandError(f"Up to {MULTI_MAX} tickers at once.")
+    tf = str(opts.get("tf") or default_tf or "D")
+    if tf not in WINDOW:
+        raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
+    compare = parse_compare(opts.get("compare"), tickers[0])
+    if compare and len(tickers) > 1:
+        raise CommandError("compare: works with one ticker at a time - /chart NVDA compare:SPY QQQ.")
+    # The per-call look overrides are no longer advertised (they live on the
+    # dropdowns under every chart and in /chartsettings), but a client holding
+    # the older command definition may still send them, so they still parse.
+    mas = opts.get("mas")
+    if mas is not None and str(mas) not in prefs_mod.MA_CHOICES:
+        raise CommandError("mas must be one of: " + ", ".join(prefs_mod.MA_CHOICES) + ".")
+    volume = opts.get("volume")
+    if volume is not None and not isinstance(volume, bool):
+        raise CommandError("volume must be true or false.")
+    style = opts.get("style")
+    if style is not None and str(style) not in prefs_mod.STYLE_CHOICES:
+        raise CommandError("style must be one of: " + ", ".join(prefs_mod.STYLE_CHOICES) + ".")
+    theme = opts.get("theme")
+    if theme is not None and str(theme) not in prefs_mod.THEME_CHOICES:
+        raise CommandError("theme must be one of: " + ", ".join(prefs_mod.THEME_CHOICES) + ".")
+    return [ChartRequest(ticker=t, tf=tf, mas=None if mas is None else str(mas), volume=volume,
+                         style=None if style is None else str(style),
+                         theme=None if theme is None else str(theme),
+                         compare=compare if len(tickers) == 1 else None)
+            for t in tickers]
+
+
 def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartRequest:
     data = interaction.get("data") or {}
     opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
@@ -307,6 +357,7 @@ def public_site_url() -> str:
 
 STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
 SAVE_VALUE = "save"              # the Look dropdown's "save these as my defaults" pick
+HELP_VALUE = "help"              # …and its "how do these work?" pick
 SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Calendar days one "Earlier"/"Later" step moves the window, per zoom.
@@ -427,8 +478,8 @@ def parse_component(interaction: dict) -> ChartRequest:
             if value not in prefs_mod.INDICATOR_CHOICES:
                 raise CommandError("Unknown indicator set.")
             return dataclasses.replace(req, indicators=value)
-        if value == SAVE_VALUE:
-            return req                                             # the router saves this state
+        if value in (SAVE_VALUE, HELP_VALUE):
+            return req                          # the router saves this state, or explains it
         kind, _, choice = value.partition(":")
         if kind == "style" and choice in prefs_mod.STYLE_CHOICES:
             return dataclasses.replace(req, style=choice)
@@ -436,6 +487,35 @@ def parse_component(interaction: dict) -> ChartRequest:
             return dataclasses.replace(req, theme=choice)
         raise CommandError("Unknown look.")
     raise CommandError("Unknown button.")
+
+
+def chart_help_text() -> str:
+    """The cheatsheet behind the Look dropdown's "?" - everything the command
+    can do that a member would otherwise have to be told about."""
+    return "\n".join([
+        "**The chart you're looking at**",
+        "\u2022 The five buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
+        "\u2022 **Zoom** sets how much history is in frame. **Indicators** adds RSI or MACD underneath.",
+        "\u2022 **Look** changes the candle style or the theme - and saves the whole lot as your defaults.",
+        "",
+        "**Typing it**",
+        "\u2022 `/chart NVDA` - one chart. `/c NVDA` is the short form.",
+        "\u2022 `/chart NVDA AMD AVGO` - up to four at once, in one message.",
+        "\u2022 `/chart NVDA compare:SPY QQQ` - overlays them as % lines against NVDA.",
+        "\u2022 `/chart NVDA tf:5` - five-minute chart (also 15m, 60m, W).",
+        "\u2022 Breadth reads as a chart too: `/chart UCTA5`, `/chart UCTA50`.",
+        "",
+        "**Your defaults**",
+        "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
+    ])
+
+
+def is_help_pick(interaction: dict) -> bool:
+    """True when a Look dropdown pick is "how do these work?"."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
+    values = data.get("values") or []
+    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == HELP_VALUE
 
 
 def is_save_pick(interaction: dict) -> bool:
@@ -493,7 +573,9 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
                              for v, label in prefs_mod.THEME_CHOICES.items()] +
                             # last, so the first option stays the chart's own style
                             [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
-                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"}])}
+                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
+                             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
+                              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])}
     ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
     ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
     can_pan = st["tf"] in ("D", "W")
@@ -582,20 +664,23 @@ def interaction_user_id(interaction: dict) -> str:
 
 
 def parse_settings_command(interaction: dict) -> tuple:
+    """(action, changes) from either shape: the flat command, or the retired
+    `show|set|reset` subcommands a stale client may still send."""
     """/chartsettings show|set|reset -> ("show"|"set"|"reset", {changes})."""
     data = interaction.get("data") or {}
-    subs = [o for o in (data.get("options") or []) if isinstance(o, dict) and o.get("type") == 1]
-    if not subs:
-        raise CommandError("Use /chartsettings show, set or reset.")
-    sub = str(subs[0].get("name") or "")
-    if sub in ("show", "reset"):
-        return sub, {}
-    if sub != "set":
-        raise CommandError("Use /chartsettings show, set or reset.")
-    changes = {o.get("name"): o.get("value") for o in (subs[0].get("options") or []) if isinstance(o, dict)}
-    changes = {k: v for k, v in changes.items() if k in prefs_mod.DEFAULTS and v is not None}
+    opts = data.get("options") or []
+    subs = [o for o in opts if isinstance(o, dict) and o.get("type") == 1]
+    if subs:                                   # the retired show|set|reset shape
+        sub = str(subs[0].get("name") or "")
+        if sub in ("show", "reset"):
+            return sub, {}
+        opts = subs[0].get("options") or []
+    given = {o.get("name"): o.get("value") for o in opts if isinstance(o, dict)}
+    if given.pop("reset", None) is True:
+        return "reset", {}
+    changes = {k: v for k, v in given.items() if k in prefs_mod.DEFAULTS and v is not None}
     if not changes:
-        raise CommandError("Nothing to set. Pick at least one option (" + ", ".join(prefs_mod.DEFAULTS) + ").")
+        return "show", {}                      # bare /chartsettings = show me what I have
     return "set", changes
 
 
@@ -606,21 +691,13 @@ def build_chart_command() -> dict:
         "type": 1,  # CHAT_INPUT
         "description": "House chart image: candles, volume, EMA 9/20 + SMA 50/200. Defaults: /chartsettings",
         "options": [
-            {"name": "ticker", "description": "Ticker symbol, e.g. NVDA", "type": 3, "required": True,
+            {"name": "ticker", "description": "Ticker - or several for a set: NVDA AMD AVGO", "type": 3, "required": True,
              "autocomplete": True},
             {"name": "tf", "description": "Timeframe (default: your /chartsettings, else Daily)", "type": 3,
              "required": False,
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
             {"name": "compare", "description": "Overlay up to 3 symbols as % lines, e.g. SPY QQQ", "type": 3,
              "required": False},
-            {"name": "mas", "description": "Moving averages for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]},
-            {"name": "volume", "description": "Volume pane for THIS chart only (True/False)", "type": 5,
-             "required": False},
-            {"name": "style", "description": "Chart style for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.STYLE_CHOICES.items()]},
-            {"name": "theme", "description": "Theme for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.THEME_CHOICES.items()]},
         ],
     }
 
@@ -646,14 +723,16 @@ def build_alias_command() -> dict:
 
 
 def build_settings_command() -> dict:
-    """`/chartsettings show|set|reset` - per-user defaults for /chart."""
+    """`/chartsettings` - per-user defaults for /chart.
+
+    FLAT, not `show|set|reset`: three subcommands meant three rows in Discord's
+    picker for one idea, and they ranked above `/chart` itself. Nothing given
+    shows your settings, an option sets it, `reset` puts it back."""
     ch = lambda d: [{"name": label, "value": value} for value, label in d.items()]  # noqa: E731
     return {
         "name": SETTINGS_COMMAND, "type": 1,
-        "description": "Your personal /chart defaults: timeframe, MAs, theme, style, scale, indicators, volume, grid…",
-        "options": [
-            {"name": "show", "type": 1, "description": "Show your current /chart settings"},
-            {"name": "set", "type": 1, "description": "Change one or more settings", "options": [
+        "description": "Your /chart defaults - run it bare to see them, or set any of: timeframe, theme, style, zoom…",
+        "options": ([
                 {"name": "tf", "type": 3, "required": False, "description": "Default timeframe", "choices": ch(TF_LABEL)},
                 {"name": "mas", "type": 3, "required": False, "description": "Moving averages", "choices": ch(prefs_mod.MA_CHOICES)},
                 {"name": "theme", "type": 3, "required": False, "description": "Theme preset", "choices": ch(prefs_mod.THEME_CHOICES)},
@@ -666,9 +745,8 @@ def build_settings_command() -> dict:
                 {"name": "watermark", "type": 5, "required": False, "description": "Show the ticker/company watermark"},
                 {"name": "ext", "type": 5, "required": False, "description": "Extended-hours candles on intraday charts (the Pre/Post price chip always shows)"},
                 {"name": "stats", "type": 5, "required": False, "description": "Show the stats strip (OHLC, gap, 52w, RVOL, ADR)"},
-            ]},
-            {"name": "reset", "type": 1, "description": "Back to the defaults"},
-        ],
+                {"name": "reset", "type": 5, "required": False, "description": "Put every setting back to the house defaults"},
+        ]),
     }
 
 
@@ -731,7 +809,10 @@ def build_commands(activity: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
     are enabled on the app)."""
-    cmds = [build_chart_command(), build_alias_command(), build_charts_command(), build_settings_command()]
+    # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
+    # door. Its handler stays for a deploy cycle so a client holding the older
+    # command set does not get an error.
+    cmds = [build_chart_command(), build_alias_command(), build_settings_command()]
     if activity:
         cmds.append(build_launch_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
