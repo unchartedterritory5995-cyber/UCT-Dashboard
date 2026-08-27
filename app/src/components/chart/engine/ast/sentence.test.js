@@ -1255,7 +1255,7 @@ function probeSectionShape(tree) {
   return { declarators, init, forOfOverIt, literalLists }
 }
 
-describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () => {
+describe('the coverage rail is the WALKER\'s answer in EVERY section', () => {
   it('every COMPILED section has a rail row, and a FIFTH section could not arrive silently', () => {
     // ⛔ THE ROWS ARE DERIVED FROM THE COMPILED OBJECT, so a section the probe
     // never walks has no row at all rather than an empty one. The names below are
@@ -1307,6 +1307,36 @@ describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () =>
     expect(coverageGaps(clean, OPERATOR_SENTENCE).series).toEqual([])
     expect(explainSentence({ type: 'series', name: 'zzz_planted_field' }, {},
       compileRules(clean, OPERATOR_SENTENCE)).text).toBe('zzz_planted_field')
+  })
+
+  it('🔴 POSITIVE CONTROL — CLOCK: a DECLARED phrase the walker refuses is NAMED, every one — PROVING IT BITES', () => {
+    // ⛔ WITHOUT THIS, `coverageGaps().clock` BEING EMPTY IS THE WEAKEST POSSIBLE
+    // ASSERTION — it passes vacuously if the rail looks at nothing. Series has
+    // its unsayable-name control above, scalars and functions have theirs
+    // (`scalarTrees` / this same describe block below); clock — the newest
+    // section, tableVersion 2 — had no positive control naming a MISSING
+    // sentence at all until this task closed the gap. Derived over the declared
+    // section, so a fourteenth clock value is covered the day it lands.
+    const declared = Object.keys(TABLE.clock)
+    expect(declared.length).toBeGreaterThanOrEqual(13)
+    for (const name of declared) {
+      const table = clone(TABLE)
+      delete table.clock[name].sentence
+      expect(coverageGaps(table, OPERATOR_SENTENCE).clock,
+        `${name} lost its sentence and the rail said nothing`).toEqual([name])
+      const rules = compileRules(table, OPERATOR_SENTENCE)
+      let caught = null
+      try { explainSentence({ type: 'series', name }, {}, rules) } catch (e) { caught = e }
+      expect(caught, name).toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, name).toBe('sentence:no-template')
+      expect(caught.message, name).toContain(JSON.stringify(name))
+    }
+    // …AND THE CONTROL, IN THE SAME TEST: `coverageGaps()` against the REAL,
+    // unmodified table is still clean — restored, not merely never-mutated,
+    // because every iteration above mutated a FRESH clone and never touched
+    // the shared `TABLE`. Without this the loop above could be reporting
+    // everything, or the module could be caching a mutated compile.
+    expect(coverageGaps().clock).toEqual([])
   })
 
   it('🔴 POSITIVE CONTROL — OPERATORS: a DECLARED phrase the walker refuses is NAMED, all fifteen', () => {
