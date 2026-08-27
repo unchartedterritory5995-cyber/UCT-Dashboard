@@ -13,7 +13,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, tagAppTheme } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -788,13 +788,16 @@ export default function ChartsWorkspace() {
     const chart = chartsTheme === 'sunrise'
       ? '#eaf1fa'
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
-    const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null) ?? themeTrackerDefaultsForTheme(prefs.theme))
+    // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
+    // (--widget-canvas) follows the current app theme instead of a stale-themed pref —
+    // otherwise a widget whose body follows graphite gets a white header/border.
+    const tt = mergeThemeTrackerSettings(resolveGlobalPrefSettings(parsePref(prefs.theme_tracker_settings, null), prefs.theme, themeTrackerDefaultsForTheme))
     const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
-    const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null) ?? fundamentalsDefaultsForTheme(prefs.theme))
+    const fw = mergeFundamentalsSettings(resolveGlobalPrefSettings(parsePref(prefs.fundamentals_settings, null), prefs.theme, fundamentalsDefaultsForTheme))
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
-    const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
+    const bw = mergeBreadthWidgetSettings(resolveGlobalPrefSettings(parsePref(prefs.breadth_widget_settings, null), prefs.theme, breadthDefaultsForTheme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
-    const ais = mergeBasicWidgetSettings(parsePref(prefs.aisearch_settings, null) ?? basicDefaultsForTheme(prefs.theme))
+    const ais = mergeBasicWidgetSettings(resolveGlobalPrefSettings(parsePref(prefs.aisearch_settings, null), prefs.theme, basicDefaultsForTheme))
     const aisearch = ais.bgMode === 'gradient' ? (ais.bgGradient?.top || ais.bg) : ais.bg
     // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
     // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
