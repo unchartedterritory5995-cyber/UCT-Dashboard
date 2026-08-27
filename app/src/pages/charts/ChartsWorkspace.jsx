@@ -11,6 +11,7 @@ import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watc
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
+import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
 import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
@@ -821,6 +822,8 @@ export default function ChartsWorkspace() {
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
     const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
+    const ais = mergeBasicWidgetSettings(parsePref(prefs.aisearch_settings, null) ?? basicDefaultsForTheme(prefs.theme))
+    const aisearch = ais.bgMode === 'gradient' ? (ais.bgGradient?.top || ais.bg) : ais.bg
     // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
     // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
     // type-level canvas so it falls through to the app-theme --bg (OLED-black /
@@ -829,6 +832,7 @@ export default function ChartsWorkspace() {
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
+    const aisCustom = ais.bgMode === 'gradient' || String(ais.bg).toLowerCase() !== BASIC_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -838,9 +842,10 @@ export default function ChartsWorkspace() {
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
+      ...(aisCustom ? { aisearch: entry(aisearch) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
+  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.aisearch_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,

@@ -78,14 +78,15 @@
 }
 .tab:hover { color: var(--wl-text-strong, var(--text-bright, #e0dac8)); }
 .tab svg { opacity: 0.85; }
-/* Active tab = the family standard: flat gold-tint fill + a thin gold border
-   (matching Breadth's .pillOn / Themes' .periodTabActive), not a gradient+ring. */
+/* Active tab = the family standard: flat accent-tint fill + a thin accent border.
+   Follows the app theme's accent (gold on gold themes, the theme's accent otherwise)
+   rather than always gold, so it reads on every theme. */
 .tabActive {
-  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
-  color: var(--ut-gold, #dcbb5e);
+  background: color-mix(in srgb, var(--accent, var(--ut-gold)) 12%, transparent);
+  color: var(--accent, var(--ut-gold, #dcbb5e));
   border-color: var(--accent, var(--ut-gold));
 }
-.tabActive:hover { color: var(--ut-gold, #dcbb5e); }
+.tabActive:hover { color: var(--accent, var(--ut-gold, #dcbb5e)); }
 
 .searchWrap {
   display: flex;
