@@ -1653,16 +1653,17 @@ def test_a_PLANTED_clock_value_RENDERS_and_a_DELETED_sentence_is_REFUSED_BY_NAME
     """
     CLOCK = ast_table.CLOCK_SECTION
 
-    # ⚠️ THE NAMES ARE BUILT HERE RATHER THAN BY `_named`, AND THAT IS NOT A
-    # STYLE CHOICE. This module defines `_named` TWICE at top level -- the gap
-    # reporter, and a much later `_entries_for(concierge, text, lexicon=None)` -- so
-    # every call resolves to the LAST one and `_named(gaps)` raises
-    # `TypeError: _named() missing 1 required positional argument: 'text'`
-    # instead of printing the entry that broke. A failure sentence that raises
-    # is a rail with no sentence (`lesson_rail_the_sentence_not_just_the_guard`),
-    # and the same trap is live in the neighbouring cases' messages; it is
-    # reported rather than renamed here because this file is shared with a lane
-    # that is editing it.
+    # FIXED 2026-08-27. This module used to define `_named` TWICE at top
+    # level -- the gap reporter above, and a much later
+    # `_named(concierge, text, lexicon=None)` -- so EVERY call resolved to the
+    # LAST one and `_named(gaps)` raised `TypeError: _named() missing 1
+    # required positional argument: 'text'` instead of printing the entry that
+    # broke. The guard still FIRED; its SENTENCE died
+    # (`lesson_rail_the_sentence_not_just_the_guard`), which is why this file
+    # showed 82 passed the whole time -- a rail's message only ever executes on
+    # the day it fails, so nothing tests it. The later function is now
+    # `_entries_for`. The names below are still built locally because this
+    # block reports per SECTION, which the shared reporter above does not do.
     def report(gaps_by_section):
         rows = [f"{section} ({len(names)}): {', '.join(names)}"
                 for section, names in sorted(gaps_by_section.items()) if names]
