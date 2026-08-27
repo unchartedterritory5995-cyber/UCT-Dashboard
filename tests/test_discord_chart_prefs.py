@@ -82,16 +82,18 @@ def test_render_options_hide_mas_and_volume_via_positional_overlays():
 def test_build_commands_has_chart_alias_and_settings_subcommands():
     from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
     cmds = {c["name"]: c for c in build_commands()}
-    assert set(cmds) == {"chart", "c", "charts", "chartsettings"}
+    assert set(cmds) == {"chart", "c", "chartsettings"}          # three doors, three picker rows
     assert cmds["chart"] == dict(build_chart_command(), **GUILD_ONLY)
     # every registered command is GUILD_INSTALL-only and usable only inside a guild —
     # never a user install that could carry /chart into any server or DM
     assert GUILD_ONLY == {"integration_types": [0], "contexts": [0]}
     assert all(c["integration_types"] == [0] and c["contexts"] == [0] for c in cmds.values())
     assert cmds["c"]["options"] == cmds["chart"]["options"]
-    subs = {o["name"]: o for o in cmds["chartsettings"]["options"]}
-    assert set(subs) == {"show", "set", "reset"} and all(o["type"] == 1 for o in subs.values())
-    setopts = {o["name"]: o for o in subs["set"]["options"]}
+    # FLAT, not show|set|reset: three subcommands were three picker rows for one
+    # idea, and they ranked above /chart itself.
+    setopts = {o["name"]: o for o in cmds["chartsettings"]["options"]}
+    assert not any(o["type"] == 1 for o in setopts.values())
+    assert setopts.pop("reset")["type"] == 5
     from api.services import discord_chart_prefs as _p
     assert set(setopts) == set(_p.DEFAULTS)                                # every pref settable, none invented
     assert {c["value"] for c in setopts["mas"]["choices"]} == {"house", "10-20-50", "off"}
@@ -110,17 +112,23 @@ def test_parse_chart_command_accepts_alias_and_applies_default_tf():
 
 def test_parse_settings_command():
     from api.services.discord_interactions import parse_settings_command, CommandError
-    def inter(sub, opts=None):
+    def flat(**opts):
+        return {"type": 2, "data": {"name": "chartsettings",
+                                    "options": [{"name": k, "value": v} for k, v in opts.items()]}}
+    def inter(sub, opts=None):     # the retired shape a stale client may still send
         return {"type": 2, "data": {"name": "chartsettings", "options": [
             {"name": sub, "type": 1, "options": [{"name": k, "value": v} for k, v in (opts or {}).items()]}]}}
+    assert parse_settings_command(flat()) == ("show", {})               # bare = show me what I have
+    assert parse_settings_command(flat(reset=True)) == ("reset", {})
+    assert parse_settings_command(flat(mas="off", tf="5")) == ("set", {"mas": "off", "tf": "5"})
     assert parse_settings_command(inter("show")) == ("show", {})
     assert parse_settings_command(inter("reset")) == ("reset", {})
     assert parse_settings_command(inter("set", {"mas": "off", "volume": False, "tf": "5"})) == \
         ("set", {"mas": "off", "volume": False, "tf": "5"})
-    with pytest.raises(CommandError):
-        parse_settings_command(inter("set"))                       # nothing to set
-    with pytest.raises(CommandError):
-        parse_settings_command({"type": 2, "data": {"name": "chartsettings", "options": []}})
+    # An empty command is no longer an error: with the subcommands gone, bare
+    # /chartsettings is the natural way to ask "what are my settings?"
+    assert parse_settings_command(inter("set")) == ("show", {})
+    assert parse_settings_command({"type": 2, "data": {"name": "chartsettings", "options": []}}) == ("show", {})
 
 
 def test_interaction_user_id_from_guild_or_dm():
@@ -225,7 +233,7 @@ def test_endpoint_settings_round_trip_and_chart_uses_saved_default_tf(monkeypatc
     assert p.get_prefs("424242") == {**p.DEFAULTS, "tf": "15", "mas": "off", "volume": False}
 
     r = _post(client, sk, settings("set", {}))
-    assert "Nothing to set" in r.json()["data"]["content"]
+    assert "Your /chart settings:" in r.json()["data"]["content"]   # bare = show, not an error
 
     scheduled = []
 
@@ -278,16 +286,17 @@ def test_v8_settings_validate_render_and_sign():
 def test_settings_command_exposes_the_v8_options_and_chart_takes_style_and_theme():
     from api.services.discord_interactions import build_settings_command, build_chart_command, parse_chart_command, ChartRequest, CommandError
     from api.services import discord_chart_prefs as p
-    subs = {o["name"]: o for o in build_settings_command()["options"]}
-    setopts = {o["name"]: o for o in subs["set"]["options"]}
+    setopts = {o["name"]: o for o in build_settings_command()["options"]}
+    assert setopts.pop("reset")["type"] == 5
     assert set(setopts) == set(p.DEFAULTS)                                   # every pref is settable, none invented
     for k, choices in (("theme", p.THEME_CHOICES), ("style", p.STYLE_CHOICES), ("scale", p.SCALE_CHOICES), ("indicators", p.INDICATOR_CHOICES)):
         assert {c["value"] for c in setopts[k]["choices"]} == set(choices)
     assert all(setopts[k]["type"] == 5 for k in ("grid", "watermark"))
     assert all(len(o["description"]) <= 100 for o in setopts.values())
+    # style/theme are no longer slash options — they live on the Look dropdown
+    # under every chart and as saved defaults here.
     chart = {o["name"]: o for o in build_chart_command()["options"]}
-    assert {c["value"] for c in chart["style"]["choices"]} == set(p.STYLE_CHOICES)
-    assert {c["value"] for c in chart["theme"]["choices"]} == set(p.THEME_CHOICES)
+    assert "style" not in chart and "theme" not in chart
     inter = {"type": 2, "data": {"name": "c", "options": [{"name": "ticker", "type": 3, "value": "nvda"},
                                                              {"name": "style", "type": 3, "value": "line"}, {"name": "theme", "type": 3, "value": "light"}]}}
     req = parse_chart_command(inter)
