@@ -96,8 +96,8 @@
   color: var(--wl-price, var(--text-bright));
   padding-left: 6px;
 }
-.up { color: var(--wl-up, #1ae51a); }
-.down { color: var(--wl-down, #ff3b47); }
+.up { color: var(--wl-up, var(--ut-green-bright)); }
+.down { color: var(--wl-down, var(--ut-red-bright)); }
 .ratio { color: var(--wl-accent, var(--ut-gold)); }
 .msg {
   padding: 26px 14px;

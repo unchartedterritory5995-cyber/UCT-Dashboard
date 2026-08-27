@@ -11,10 +11,10 @@ export const PROFILE_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // headings / body text color
-  upColor: '#1ae51a',                               // positive performance (YTD gain / range)
-  downColor: '#ff5b5b',                             // negative performance
+  upColor: '#34d17c',                               // positive performance (YTD gain / range)
+  downColor: '#f24b42',                             // negative performance
   surpUpColor: '#6a7bff',                           // positive earnings surprise %
-  surpDownColor: '#ff5b5b',                         // negative earnings surprise %
+  surpDownColor: '#f24b42',                         // negative earnings surprise %
   headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'
 }

@@ -11,8 +11,8 @@ export const NEWS_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // event title / ticker text color
-  upColor: '#1ae51a',                               // up % / up-direction accent
-  downColor: '#ff5b5b',                             // down % / down-direction accent
+  upColor: '#34d17c',                               // up % / up-direction accent
+  downColor: '#f24b42',                             // down % / down-direction accent
   headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'
 }

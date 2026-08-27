@@ -16,8 +16,8 @@ export const ALERTS_WIDGET_DEFAULTS = {
   bgGradient: { top: '#1c130a', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // primary text (ticker / condition)
   textSize: 'm',                                    // 's' | 'm' | 'l'
-  aboveColor: '#1ae51a',                            // "cross above" accent + meter
-  belowColor: '#ff5b5b',                            // "cross below" accent + meter
+  aboveColor: '#34d17c',                            // "cross above" accent + meter
+  belowColor: '#f24b42',                            // "cross below" accent + meter
 }
 
 // Seed values for an UNCUSTOMIZED widget on the LIGHT app theme: white canvas +

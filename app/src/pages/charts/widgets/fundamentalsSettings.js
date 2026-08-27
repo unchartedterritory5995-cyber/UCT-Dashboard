@@ -22,8 +22,8 @@ export const FUNDAMENTALS_DEFAULTS = {
   textColor: '#e0dac8',
 
   // % change colors (default = the widget's current candle-matched green/red).
-  upColor: '#1ae51a',
-  downColor: '#c41f2d',
+  upColor: '#34d17c',
+  downColor: '#f24b42',
 }
 
 // Seed values for an UNCUSTOMIZED widget on the LIGHT app theme (white canvas +
