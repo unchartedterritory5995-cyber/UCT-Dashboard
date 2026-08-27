@@ -2585,6 +2585,34 @@ def interpret_trees(trees: Any, bars: List[dict], *,
     :returns: ``{plotKey: column}``, one entry per key, each exactly ``len(bars)``
               long — insertion-ordered by SORTED key, which is the order
               ``trees.js::assertTrees`` returns and the order every consumer uses.
+
+    🔴 NO PRODUCTION CALLER TODAY — MEASURED, AND SAID HERE RATHER THAN ONLY IN
+    A REPORT. Grepped across ``api/``, ``tools/`` and ``app/src``: the only callers
+    are ``tests/test_ast_multi_tree_parity.py`` and
+    ``tests/test_user_definitions_v2.py``. A public function with no caller and no
+    explanation is indistinguishable from dead code
+    (``lesson_built_tested_green_and_unreachable``), so this paragraph is the
+    explanation and it is kept honest by naming a specific caller-to-be rather than
+    a vague future.
+
+    ⭐ WHAT IT IS: the PYTHON HALF OF A MIRRORED PAIR. ``nativeRegistry.astColumnsFor``
+    is the JS half and it is fully wired — it is what a member's chart runs for
+    every plot of a multi-tree definition. This side exists so the two lanes can be
+    held to one answer for a WHOLE DOCUMENT rather than one tree at a time, which is
+    what ``tests/test_ast_multi_tree_parity.py`` does with it today against the
+    shared ``tests/fixtures/ast/multi_tree_parity.json``.
+
+    ⛔ AND THE CALLER IT IS FOR IS NAMED, WITH THE GAP IT WOULD CLOSE.
+    ``alert_user_series._gate_cross_lane`` is the admission door that proves the two
+    lanes agree at 1e-9 before an alert may ever fire, and it calls
+    ``cross_lane_report(compute.get("ast"), ...)`` — the SCAN tree, ALONE. An alert
+    armed on ``u_<id>.macd`` of a multi-plot document is therefore admitted on a
+    proof taken against a tree it does not evaluate: ``_make_value_fn`` runs
+    ``compute.trees["macd"]`` and nothing has ever compared THAT column across the
+    lanes. Threading this function (or its per-key equivalent) into that gate is the
+    wiring this exists for. It is deliberately NOT done here: widening an admission
+    gate can refuse definitions that pass today, so it is a ruling with its own
+    rails, not a fix-round edit.
     """
     if not isinstance(trees, Mapping) or not trees:
         raise TypeError(
