@@ -62,9 +62,11 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.middleware.auth_middleware import (  # noqa: E402
+    PAID_PLANS,
     get_current_user,
     get_current_user_with_plan,
     require_admin,
+    require_plan,
 )
 
 # ── the gate table ───────────────────────────────────────────────────────────
@@ -228,6 +230,23 @@ PATH_PARAM_SAMPLES = {
     "job": "no-such-job",
     # ⛔ NOT AN INTEGER, ON PURPOSE — see `test_the_destructive_purge_route…`.
     "keep_days": "not-an-int",
+    # ── the factory-gated surface (section 9) ──────────────────────────
+    # ⛔ IDS THAT BELONG TO NOBODY, ON PURPOSE. FOUR of those routes are a PUT
+    # or a DELETE, and `lesson_never_probe_a_mutating_endpoint_to_test_auth` is
+    # about exactly this: the probe is safe only WHILE the gate works. Two
+    # independent things make it safe here — the refusal lands on the
+    # dependency before any handler runs (asserted, with a spy, in section 9),
+    # and every id below matches no record, so a handler that DID run would
+    # find nothing to mutate.
+    "broker_account_id": "no-such-broker-account",
+    "flag_id": "no-such-dup-flag",
+    "source_id": "no-such-note-source",
+    # …and a REAL provider name. `{provider}` sits at the same depth as the
+    # literal segment `sources`, so a placeholder like "x" is fine but the one
+    # value that must never be used is `sources` itself — it would route the
+    # probe at a different handler than the one being graded and the sweep
+    # would report on a route it never touched.
+    "provider": "roam",
 }
 
 #: Required query params, same self-policing rule.
@@ -306,6 +325,68 @@ def _dep_objects(route) -> set:
     return objs
 
 
+# ── door 3: a gate with NO NAME AT THE CALL SITE ─────────────────────────
+#
+# 🔴 `require_plan` IS A FACTORY. `broker_sync.py` and `note_sync.py` each call
+# it ONCE at module scope — `_paid = require_plan(list(PAID_PLANS))` — so every use
+# site reads `Depends(_paid)`: a local module variable, with no gate name in it,
+# whose `__name__` is `"checker"`. Twelve member-facing routes carry it, and they
+# are not small ones: refreshing broker accounts, editing and deleting broker
+# connections, and creating, syncing, editing and deleting note sources.
+#
+# ⛔ THE `paid` RUNG MATCHED THE STRING `"require_paid"`, SO IT COULD NOT SEE ONE
+# OF THEM. That is this file's THIRD blind spot of a single shape, reached through
+# a third door:
+#
+#   * door 1 — a claim DOWNGRADE: a `paid` route re-filed as `session` (`505153a9f`);
+#   * door 2 — a gate function ABSENT from the ladder (`require_push_secret`);
+#   * door 3 — a gate with no name at the call site at all, which is the one that
+#     cannot be fixed by adding a row to a table, because there is no name to add.
+#
+# ⭐ SO THE FACTORY IS ASKED WHAT ITS PRODUCT LOOKS LIKE, AND THE PRODUCT IS ASKED
+# WHAT IT WAS BUILT WITH. Neither is typed here: the qualname comes from CALLING
+# `require_plan` at import, and the plan list is read off the closure the factory
+# closed over. Renaming the inner `checker` moves both at once instead of silently
+# unhooking the reader — and a gate built with a plan list that admits a FREE
+# member is refused a `paid` classification rather than being swept in with the
+# rest, which `test_every_require_plan_gate_in_the_served_app_is_a_REAL_paid_check`
+# then fails on BY NAME.
+_PLAN_CHECKER_QUALNAME = require_plan([]).__qualname__
+
+
+def _plan_gate_allows(dep) -> frozenset | None:
+    """The plan set `dep` was BUILT with, or None if it is not a `require_plan`
+    product.
+
+    An EMPTY set means "it is one, and its plan list could not be read" — which
+    section 9 fails on by name rather than reading as "this gate admits nobody",
+    because a gate nobody can describe is not a gate anybody has checked.
+    """
+    if getattr(dep, "__qualname__", None) != _PLAN_CHECKER_QUALNAME:
+        return None
+    freevars = getattr(getattr(dep, "__code__", None), "co_freevars", ())
+    for name, cell in zip(freevars, dep.__closure__ or ()):
+        if name == "allowed_plans":
+            try:
+                return frozenset(cell.cell_contents)
+            except (TypeError, ValueError):
+                return frozenset()
+    return frozenset()
+
+
+def _plan_gates(objs) -> set:
+    """Every `require_plan(...)` product in a set of dependency objects."""
+    return {d for d in objs if _plan_gate_allows(d) is not None}
+
+
+def _is_paid_plan_gated(objs) -> bool:
+    """True when one of these dependencies was built by `require_plan` with a
+    plan list that admits PAID PLANS ONLY — the same door `require_paid` opens,
+    reached through a factory."""
+    return any(bool(allowed) and allowed <= PAID_PLANS
+               for allowed in (_plan_gate_allows(d) for d in objs))
+
+
 # ── the gate ladder: ONE declaration, read two ways ──────────────────────────
 #
 # ⭐ THE CLASS VOCABULARY IS WRITTEN HERE AND NOWHERE ELSE. `_klass_of` is BUILT
@@ -329,7 +410,15 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # class          how the SERVED APP reports it            who the gate admits
     ("session",    lambda n, o: get_current_user in o,     frozenset({"free", "paid", "admin"})),
     ("flow_user",  lambda n, o: "require_flow_user" in n,  frozenset({"free", "paid", "admin"})),
-    ("paid",       lambda n, o: "require_paid" in n,       frozenset({"paid", "admin"})),
+    # ⭐ TWO SPELLINGS OF ONE DOOR, AND THEY WERE COMPARED RATHER THAN ASSUMED
+    # ALIKE. `require_paid` is a per-router FUNCTION; a `require_plan(list(
+    # PAID_PLANS))` product is the same check reached through a FACTORY, with no
+    # name at the call site (see `_plan_gate_allows` above). Both admit exactly a
+    # paid member and an admin — measured, both families, by
+    # `test_the_gate_ladder_MEASURES_who_each_gate_admits`, which is what makes
+    # this ONE rung a finding instead of a resemblance.
+    ("paid",       lambda n, o: "require_paid" in n or _is_paid_plan_gated(o),
+                                                           frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
     ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
     # ⭐ 2026-08-26 — THE MACHINE DOOR, AND IT ADMITS NO HUMAN ACCOUNT AT ALL.
@@ -374,6 +463,25 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # claim satisfies them and a downgrade is invisible — plus
     # `require_article_reader` (5), which reports NOTHING AT ALL, exactly the
     # shape this rung was added to fix. That is queued as owner ruling O11.
+    #
+    # ✅ ONE OF THE FIVE IS NOW CLOSED (W9d.1, 2026-08-26): `require_plan(...)`
+    # — the 12 broker/note-sync routes — reports `paid` through the `paid` rung
+    # above, is counted by `PAID_SURFACE_FLOOR`, and is driven with a free member
+    # in section 9. It was the hardest of the five and the reason is worth
+    # keeping: the other four are FUNCTIONS with names a table can hold, and this
+    # one had no name at the call site at all.
+    #
+    # ⛔ THE OTHER FOUR ARE STILL BLIND, AND THE COUNTS BELOW ARE STILL LIVE.
+    # RE-MEASURED 2026-08-26 off `api.main:app`, unchanged: `requires_voice_access`
+    # 54 · `require_community` 37 · `require_chat` 21 · `require_article_reader` 5.
+    # — 117 routes whose real entitlement check this ladder still cannot report,
+    # so a `session` claim would satisfy any of them. Closing each one is the same
+    # two-line move made here (a rung predicate + an admit-set measured in
+    # `test_the_gate_ladder_MEASURES_who_each_gate_admits`) and it is owner ruling
+    # O11, not a test edit to make quietly: it changes what claims those routes
+    # can carry. ⭐ A census that NAMES its blind spots is the fix; one that looks
+    # complete is the defect — which is why this paragraph gets shorter by one
+    # family at a time and never disappears.
     ("worker",     lambda n, o: "require_push_secret" in n, frozenset()),
 )
 
@@ -745,7 +853,19 @@ def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app)
 #: 174 of the 1,130 routes that expose a dependency tree carry `require_paid`.
 #: This is a RATCHET, not a fact about the table — see the test below for the
 #: only two correct responses to it going red.
-PAID_SURFACE_FLOOR = 174
+#:
+#: ⭐ RAISED 174 → 186 (W9d.1, 2026-08-26) — AND THAT IS THE POINT OF THE FIX,
+#: not a side effect of it. The `paid` rung can now see the 12 routes gated by
+#: `require_plan(list(PAID_PLANS))`, so deleting `_paid` from `broker_sync.py`
+#: or `note_sync.py` drops this count by 6 and reds this ratchet. Before today
+#: that deletion moved NO number in this file at all.
+#:
+#: ⚠️ 186 IS 174 + 12, DELIBERATELY, AND NOT THE 187 MEASURED TODAY. The extra
+#: route is another lane's in-flight paid surface on this branch; pinning it
+#: would make this ratchet go red on that lane's revert, for a reason that has
+#: nothing to do with a lost gate. A ratchet that cries wolf gets lowered, and a
+#: floor that has been lowered once to clear a red is not a floor any more.
+PAID_SURFACE_FLOOR = 186
 
 
 def test_the_PAID_SURFACE_of_the_served_app_has_not_SHRUNK(app):
@@ -870,10 +990,29 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
                   for d in _dep_objects(_table(app)[key])
                   if getattr(d, "__name__", "") == "require_paid"}
     assert paid_gates, "no require_paid object is reachable from the paid rows"
-    seen = {frozenset(_admits(lambda u, g=g: g(dict(u)))) for g in paid_gates}
+
+    # ⭐ AND THE SECOND SPELLING OF THE SAME RUNG, OR IT IS RANKED ON HALF ITS
+    # DOORS. A `require_plan(list(PAID_PLANS))` product now reports `paid`, so
+    # its admit-set has to be measured HERE too. Collected from the SERVED APP
+    # rather than from `GATED` on purpose: those 12 routes are not in the table,
+    # and being invisible to the table is the exact defect this rung was widened
+    # to fix — sourcing them from it would inherit the blindness.
+    factory_gates = {d for r in _table(app).values()
+                     if getattr(r, "dependant", None) is not None
+                     for d in _plan_gates(_dep_objects(r))}
+    assert factory_gates, (
+        "no `require_plan(...)` product is reachable from the served app — the "
+        "factory half of the `paid` rung is ranked on nothing, and section 9 "
+        "would be driving an empty route set while reading as a clean sweep")
+
+    seen = {frozenset(_admits(lambda u, g=g: g(dict(u))))
+            for g in paid_gates | factory_gates}
     assert len(seen) == 1, (
-        "the per-router `require_paid` copies do not admit the same callers: "
-        f"{[sorted(x) for x in seen]} — one of them is not the gate the others are")
+        "the paid gates do not all admit the same callers: "
+        f"{[sorted(x) for x in seen]} — one of them is not the gate the others "
+        "are. Either a per-router `require_paid` copy drifted, or a "
+        "`require_plan(...)` gate was built with a different plan list and is "
+        "being ranked as if it opened the same door.")
     measured["paid"] = set(next(iter(seen)))
 
     # The flow family reads the cookie ITSELF, so the session lookup is patched
@@ -1299,3 +1438,364 @@ def test_the_AI_DOOR_ITSELF_enforces_the_bound_not_just_the_helper(
     assert seen[3] == 429, (
         f"the fourth call past a cap of 3 answered {seen[3]}, not 429 — the "
         "handler is not charging the caller, so the AI door is unbounded again")
+
+
+# ── 9. ⭐ THE FACTORY-PRODUCED GATE: 12 ROUTES WITH NO GATE NAME AT ALL ───────
+#
+# 🔴 WHAT WAS TRUE UNTIL THIS SECTION EXISTED — MEASURED, ONE MUTATION AT A
+# TIME, 2026-08-26: `require_plan` is a factory, called once per router at module
+# scope, so the 12 routes it gates read `Depends(_paid)` and carry no gate NAME
+# anywhere the ladder could match. Each gate was swapped for `get_current_user`
+# in turn (the DANGEROUS shape: the route stays reachable by any free account and
+# merely stops being paid) and the whole suite for that router re-run. FOUR of the
+# twelve reddened NOTHING:
+#
+#   POST   /api/j2/broker/accounts/refresh
+#   PUT    /api/j2/broker/accounts/{broker_account_id}
+#   DELETE /api/j2/broker/connections
+#   PUT    /api/j2/notes/connectors/sources/{source_id}
+#
+# — re-syncing a brokerage, and editing or deleting a brokerage connection or a
+# note source, every one of them free-reachable with the whole suite still green.
+# The other eight were caught by `tests/test_broker_router.py` (3) and
+# `tests/test_note_sync_router.py` (5), which is why this section drives all
+# twelve rather than the four: a rail that covers only today's gap is the same
+# hand-list, one iteration later.
+#
+# ⛔ SO THE ROUTE SET IS DERIVED FROM THE APP, NEVER LISTED. A hand-written list
+# covers the routes that existed the day it was typed, which is the shape the
+# gap above has: the covered routes are the ones a test was written BESIDE, and
+# the uncovered ones are whatever the router grew afterwards.
+# `tests/test_nhnl_router.py` already says it out loud — "a hand-listed test
+# would leave the next route uncovered the day someone adds it". Everything
+# below reads `_plan_gates(...)` off the served app instead, so a thirteenth
+# route — in these two routers or in a third that adopts the idiom tomorrow — is
+# covered with no edit here.
+
+
+def _plan_gated_keys(app) -> list:
+    """Every `(method, path)` on the SERVED APP whose dependency tree carries a
+    `require_plan(...)` product. DERIVED — see the section note above."""
+    return sorted(k for k, r in _table(app).items()
+                  if getattr(r, "dependant", None) is not None
+                  and _plan_gates(_dep_objects(r)))
+
+
+#: 🔴 THE FACTORY-GATED SURFACE, PINNED — same ratchet rule as
+#: `PAID_SURFACE_FLOOR`. Measured 2026-08-26: 12 routes, 6 in `broker_sync.py`
+#: and 6 in `note_sync.py`.
+#:
+#: ⭐ THIS NUMBER IS THE WHOLE DIFFERENCE BETWEEN A SWEEP AND A CLEAN BILL OF
+#: HEALTH. A derivation that silently resolved to ZERO routes — a renamed inner
+#: `checker`, a router unmounted, a walk that stopped reaching nested
+#: dependants — drives nothing, asserts nothing, and reports PASSED. Every test
+#: below counts what it actually drove and compares it to this.
+PLAN_GATED_FLOOR = 12
+
+#: A route on one of the SAME routers that is deliberately NOT plan-gated —
+#: `broker_sync.py`'s own docstring says status is readable by any logged-in user
+#: so the upsell can render. It is the control for the handler spy below: an
+#: apparatus that never records anything cannot prove that nothing ran.
+PLAN_GATE_SPY_CONTROL = ("GET", "/api/j2/broker/status")
+
+
+def test_the_census_can_SEE_a_gate_that_has_no_name_at_the_call_site(app):
+    """⭐ THE FIX ITSELF: `_klass_of` now reports `paid` for a factory gate.
+
+    Before this, `Depends(_paid)` reported `session` at best — so a `session`
+    claim would have satisfied any of these 12 routes and a downgrade would have
+    been invisible, which is door 1 of this file's history reached through door 3.
+
+    ⛔ AND THE READER MUST BE ABLE TO SAY *NOT* A PLAN GATE. A detector that
+    answered "gated" about everything would satisfy the loop below while proving
+    nothing, so the complement is asserted too: every other route on the app must
+    report no paid-plan gate, and the complement must be large enough that the
+    claim means something (`test_the_gate_reader_can_report_UNGATED`, same shape).
+    """
+    table = _table(app)
+    keys = _plan_gated_keys(app)
+    assert len(keys) >= PLAN_GATED_FLOOR, (
+        f"the derivation found {len(keys)} factory-gated routes, floor "
+        f"{PLAN_GATED_FLOOR}. Either a `require_plan` gate was deleted from a "
+        "handler — restore it — or the reader stopped resolving the factory's "
+        "product and every sweep in this section is now driving fewer routes "
+        "than it claims to cover.")
+
+    for key in keys:
+        found = _klass_of(table[key])
+        assert _claim_is_satisfied("paid", found), (
+            f"{key[0]} {key[1]} carries `require_plan(list(PAID_PLANS))` and the "
+            f"census reports {sorted(found) or 'NO GATE AT ALL'}. A `paid` claim "
+            "cannot be made for it, and a `session` claim would be accepted — the "
+            "gate is invisible to this audit again.")
+
+    reads_false = [k for k, r in table.items()
+                   if getattr(r, "dependant", None) is not None
+                   and k not in set(keys)
+                   and not _is_paid_plan_gated(_dep_objects(r))]
+    assert len(reads_false) >= 1000, (
+        f"only {len(reads_false)} routes read as NOT plan-gated — the reader is "
+        "answering 'paid plan gate' about most of the app, so the loop above is "
+        "satisfied by a detector that cannot say no")
+
+
+def test_DELETING_the_FACTORY_gate_reds_the_paid_class_it_reports(app):
+    """🔴 THE MUTATION, ALWAYS ARMED — the door, not the label.
+
+    `test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid`
+    cuts by the NAME `require_paid`, which is precisely the name these 12 routes
+    do not have, so it walks straight past them. This is that control for door 3:
+    the factory gate is stripped off the SERVED app's own `route.dependant` — the
+    same object `_klass_of` reads — and the route must stop reporting `paid`.
+
+    ⚠️ RESTORED IN A `finally`, AND THE RESTORE IS ASSERTED. The `app` fixture is
+    module-scoped; a leaked cut would poison every assertion after this one and a
+    silent restore failure would read as a pass.
+    """
+    table = _table(app)
+    cut = []
+    for key in _plan_gated_keys(app):
+        route = table[key]
+        idx = next((i for i, d in enumerate(route.dependant.dependencies)
+                    if _plan_gate_allows(d.call) is not None), None)
+        if idx is None:
+            continue
+        original = list(route.dependant.dependencies)
+        try:
+            route.dependant.dependencies = [d for j, d in enumerate(original)
+                                            if j != idx]
+            opened = _klass_of(route)
+            assert not _claim_is_satisfied("paid", opened), (
+                f"{key[0]} {key[1]} had its `require_plan` gate DELETED and the "
+                f"app still reports {sorted(opened)} as strong as paid. A paid, "
+                "member-facing route can be opened to any free registration and "
+                "this census does not notice — which is the state it was in "
+                "before this section existed.")
+        finally:
+            route.dependant.dependencies = original
+        assert _claim_is_satisfied("paid", _klass_of(route)), (
+            f"{key[0]} {key[1]} did not come back after the mutation — every "
+            "assertion after this one is running against a damaged app")
+        cut.append(key)
+
+    assert len(cut) >= PLAN_GATED_FLOOR, (
+        f"only {len(cut)} factory-gated routes carry the gate as a DIRECT "
+        f"dependency (floor {PLAN_GATED_FLOOR}) — the cut is not reaching the "
+        "gates it claims to delete, so this control is grading a smaller surface "
+        "than it reports")
+
+
+def test_a_FREE_member_is_refused_on_every_FACTORY_gated_route(
+        app, monkeypatch, clean_overrides):
+    """⭐ THE DELIVERABLE: all 12, driven, as a free member.
+
+    ⛔ 403, NOT 402, AND THE DIFFERENCE IS MEASURED NOT ASSUMED. `require_paid`
+    raises 402 "payment required"; `require_plan`'s checker raises 403 "Upgrade
+    required". Both are refusals and `REFUSALS` holds both — but this asserts the
+    exact code, because "some refusal happened" is also what a 401 from a broken
+    session lookup looks like, and that would pass while proving the PLAN check
+    never ran at all.
+
+    ⚠️ NO BODY IS SENT, AND THAT IS THE WHOLE IDIOM (see `BODY_SAMPLES`).
+    Dependencies are solved BEFORE `request_params_to_args`, so a gated route
+    answers its refusal whatever the body is, while an UNGATED one answers 422 —
+    which is how a deleted gate is caught rather than hidden behind a happy path.
+    `test_the_no_body_probe_would_have_SEEN_a_deleted_factory_gate` is the control
+    that keeps that sentence a measurement.
+    """
+    client = _client(app, FREE_USER, monkeypatch)
+    table = _table(app)
+    keys = _plan_gated_keys(app)
+    driven = 0
+    for key in keys:
+        url, kwargs = _request_for(table[key], key, with_body=False)
+        resp = client.request(key[0], url, **kwargs)
+        assert resp.status_code == 403, (
+            f"{key[0]} {key[1]} answered a FREE member {resp.status_code} — "
+            f"{resp.text[:200]}")
+        driven += 1
+
+    assert driven == len(keys) >= PLAN_GATED_FLOOR, (
+        f"drove {driven} of {len(keys)} factory-gated routes against a floor of "
+        f"{PLAN_GATED_FLOOR}. A sweep that drives nothing passes silently; this "
+        "is the arithmetic that stops it reading as a clean bill of health.")
+
+
+def test_the_FACTORY_gated_refusal_happens_at_the_DEPENDENCY_and_NO_HANDLER_RUNS(
+        app, monkeypatch, clean_overrides):
+    """⛔ `lesson_never_probe_a_mutating_endpoint_to_test_auth`, ANSWERED.
+
+    Two of these are a PUT and two a DELETE. Firing them at a real handler is
+    safe only WHILE the gate works — and "while the gate works" is the very thing
+    under test, so it cannot be the assumption the safety rests on. This proves
+    the refusal lands BEFORE the handler: every one of the 12 endpoint functions
+    is wrapped in a spy, the free sweep is run again, and not one of them may be
+    entered. Nothing can have mutated, because nothing ran.
+
+    ⭐ AND THE SPY CARRIES ITS OWN CONTROL. "Zero handlers ran" is also what a spy
+    that was never installed reports, so the same apparatus is pointed at a route
+    on the SAME router that is deliberately open to any logged-in member
+    (`PLAN_GATE_SPY_CONTROL`) and must record THAT one running. An empty list is
+    only evidence when the list can be seen filling up.
+
+    ⚠️ `route.dependant.call` is what `run_endpoint_function` invokes, and the
+    request handler reads it at call time — so wrapping it after the app is built
+    is what makes this observable at all. Restored in a `finally`, on a
+    module-scoped app, and the restore is asserted.
+    """
+    table = _table(app)
+    keys = _plan_gated_keys(app)
+    assert PLAN_GATE_SPY_CONTROL in table, (
+        f"{PLAN_GATE_SPY_CONTROL} is not mounted — the spy's own control is gone "
+        "and 'no handler ran' would be unfalsifiable")
+    assert PLAN_GATE_SPY_CONTROL not in set(keys), (
+        f"{PLAN_GATE_SPY_CONTROL} is plan-gated now, so it can no longer serve as "
+        "the control for the spy: it would refuse too, and an empty spy log would "
+        "prove nothing")
+
+    ran = []
+    originals = []
+    for key in list(keys) + [PLAN_GATE_SPY_CONTROL]:
+        route = table[key]
+        original = route.dependant.call
+        originals.append((route, original))
+
+        def _spy(*a, _orig=original, _key=key, **kw):
+            ran.append(_key)
+            return _orig(*a, **kw)
+
+        route.dependant.call = _spy
+
+    try:
+        client = _client(app, FREE_USER, monkeypatch)
+        for key in keys:
+            url, kwargs = _request_for(table[key], key, with_body=False)
+            resp = client.request(key[0], url, **kwargs)
+            assert resp.status_code == 403, (
+                f"{key[0]} {key[1]} answered a FREE member {resp.status_code}")
+        assert not ran, (
+            f"a free member's refused request ENTERED {sorted(set(ran))}. The "
+            "refusal is happening after the handler, not at the dependency — a "
+            "PUT or a DELETE among these has already touched member data by the "
+            "time the 403 is written.")
+
+        control_url, control_kwargs = _request_for(
+            table[PLAN_GATE_SPY_CONTROL], PLAN_GATE_SPY_CONTROL, with_body=False)
+        client.request(PLAN_GATE_SPY_CONTROL[0], control_url, **control_kwargs)
+        assert PLAN_GATE_SPY_CONTROL in ran, (
+            f"the spy did not record {PLAN_GATE_SPY_CONTROL} even though that "
+            "route is open to any logged-in member. The spy is not installed, so "
+            "the empty log above is what this harness returns no matter what the "
+            "handlers do.")
+    finally:
+        for route, original in originals:
+            route.dependant.call = original
+
+    for route, original in originals:
+        assert route.dependant.call is original, (
+            "an endpoint spy was not removed — every test after this one is "
+            "running against a wrapped app")
+
+
+def test_the_no_body_probe_would_have_SEEN_a_deleted_factory_gate():
+    """⛔ THE CONTROL ON THE IDIOM, NOT ON THE ROUTES.
+
+    The sweep above sends NO BODY and asserts 403. That only means anything if an
+    UNGATED route would have answered something else — otherwise "gated" and
+    "open" are indistinguishable and the whole section is measuring the absence of
+    a body. Two twin routes are built here, identical but for the gate, and driven
+    the same way: the gated one refuses at the dependency, the ungated one gets as
+    far as validating the body it never received.
+
+    ⭐ The gate is the REAL `require_plan(list(PAID_PLANS))` product, built by the
+    same factory the two routers call — not a stand-in, so this cannot keep
+    passing after the factory's behaviour changes.
+    """
+    from fastapi import Depends, FastAPI
+    from pydantic import BaseModel
+
+    class _Body(BaseModel):
+        value: str
+
+    gate = require_plan(list(PAID_PLANS))
+    twin = FastAPI()
+
+    @twin.put("/gated/{item_id}")
+    def _gated(item_id: str, body: _Body, user: dict = Depends(gate)):
+        return {"ran": "gated"}
+
+    @twin.put("/ungated/{item_id}")
+    def _ungated(item_id: str, body: _Body):
+        return {"ran": "ungated"}
+
+    twin.dependency_overrides[get_current_user_with_plan] = lambda: dict(FREE_USER)
+    client = TestClient(twin, raise_server_exceptions=False)
+
+    gated = client.put("/gated/no-such-item")
+    assert gated.status_code == 403, (
+        f"the twin GATED route answered {gated.status_code} to a free member with "
+        f"no body — {gated.text[:200]}")
+
+    ungated = client.put("/ungated/no-such-item")
+    assert ungated.status_code == 422, (
+        f"the twin UNGATED route answered {ungated.status_code} to the SAME "
+        "no-body request. If an ungated route refuses too then 403 on the 12 "
+        "routes above is not evidence of a gate, and this whole section is "
+        "measuring the missing body instead.")
+    assert ungated.status_code not in REFUSALS
+
+
+def test_every_require_plan_gate_in_the_served_app_is_a_REAL_paid_check(app):
+    """⛔ "BUILT BY `require_plan`" IS NOT "CHECKS FOR PAYMENT".
+
+    The `paid` rung classifies a factory gate by the plan list it was CONSTRUCTED
+    with. That is a claim about a closure, so every distinct gate object reachable
+    from the served app is CALLED here: a free member must be refused 403, and a
+    paid member and an admin must both get through. Per copy, measured — the same
+    contract `test_every_require_paid_gate_is_a_REAL_paid_check` holds the
+    function-shaped half of this rung to.
+
+    ⭐ AND THIS IS THE ROT CONTROL ON THE CLASSIFICATION. `require_plan` is a
+    general factory: nothing stops a future caller building one over a list that
+    admits a free plan. Such a gate must FAIL HERE BY NAME rather than be swept in
+    with the paid ones — a census that quietly mis-files a gate is worse than one
+    that cannot see it, because the mis-filing looks like coverage.
+
+    ⚠️ ONE DELIBERATE DIFFERENCE FROM THE `require_paid` CONTRACT, NAMED SO IT IS
+    A DECISION AND NOT A GAP: that test asserts every router refuses with a
+    DISTINCT sentence, so a locked-out member can tell which surface said no. Both
+    factory gates answer the same "Upgrade required", because both are the same
+    `require_plan` closure over the same plan list — there is one sentence by
+    construction. It is asserted as a constant below rather than left unmentioned.
+    """
+    from fastapi import HTTPException
+
+    gates = {d for r in _table(app).values()
+             if getattr(r, "dependant", None) is not None
+             for d in _plan_gates(_dep_objects(r))}
+    assert len(gates) >= 2, (
+        f"only {len(gates)} distinct `require_plan` gate objects are reachable "
+        "from the served app; `broker_sync.py` and `note_sync.py` each build "
+        "their own, so the walk is not reaching both routers")
+
+    for gate in sorted(gates, key=id):
+        allowed = _plan_gate_allows(gate)
+        assert allowed, (
+            "a `require_plan` gate is reachable whose plan list could not be read "
+            "off its closure. It is being classified `paid` on a guess — read the "
+            "factory in `api/middleware/auth_middleware.py` and fix the reader.")
+        assert allowed <= PAID_PLANS, (
+            f"a `require_plan` gate admits {sorted(allowed)}, which is not a "
+            f"subset of PAID_PLANS ({sorted(PAID_PLANS)}). The `paid` rung would "
+            "report it as a paid door, and a `paid` claim on its routes would be "
+            "satisfied by a gate that lets a free member in.")
+
+        with pytest.raises(HTTPException) as exc:
+            gate(dict(FREE_USER))
+        assert exc.value.status_code == 403, (gate, exc.value.status_code)
+        assert exc.value.detail == "Upgrade required", (
+            f"the factory gate refuses with {exc.value.detail!r}; this section "
+            "asserts 403 by exact code and the sentence is part of the same "
+            "contract — re-measure the refusal before changing either")
+        assert gate(dict(PAID_USER)) is not None
+        assert gate(dict(ADMIN_USER)) is not None
