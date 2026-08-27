@@ -111,7 +111,9 @@ describe('EvidenceTab has exactly two doors and both open the same module', () =
 
   it('CONTROL: the walk is not vacuous — it also finds the files that TEST the module', () => {
     const { tests } = importersOfTarget()
-    expect(tests.length).toBeGreaterThanOrEqual(2)
+    // ⚠️ NO FLOOR ASSERTION HERE. `>= 2` is satisfied by the two NAMED checks
+    // below and is mutable to `>= 0` without any test noticing (measured: it
+    // survived the W5a.7 sweep). A control that cannot fail is decoration.
     expect(tests.some((p) => path.basename(p) === 'EvidenceTab.test.jsx')).toBe(true)
     expect(tests.some((p) => path.basename(p) === 'ScanResults.evidence.test.jsx')).toBe(true)
   })

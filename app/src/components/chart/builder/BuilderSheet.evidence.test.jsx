@@ -130,6 +130,23 @@ describe('BuilderSheet — the Evidence tab', () => {
     expect(screen.queryByTestId('evidence-tab')).toBeNull()
     expect(tab(/formula/i)).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('CONTROL: leaving edit mode from ANOTHER tab leaves that tab alone', async () => {
+    // ⛔ THE MODE RESET IS SCOPED TO THE EVIDENCE DOOR, and before this case that
+    // was only a COMMENT. `cancelEdit` never touched `buildMode` at all until
+    // W5a.7, so a blanket `setBuildMode(EDIT_MODE)` would silently change another
+    // lane's behaviour for every member who clicks "New formula" from Conditions.
+    H.rows = [storedRow()]
+    mount(); await flush()
+    await clickEdit()
+    await act(async () => { fireEvent.click(tab(/conditions/i)) })
+    await flush()
+    expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'true')
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New formula' })) })
+    await flush()
+    expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'true')
+    expect(tab(/evidence/i)).toBeNull()
+  })
 })
 
 // ⭐ THE RECEIPT IS THE SAVED DEFINITION'S, AND THE PANEL SAYS SO WHEN THAT
