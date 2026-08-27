@@ -1478,16 +1478,52 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 dropped += 1
                 continue
 
+            # ⭐ THE ORDER IS DELIBERATE: THE SPECIFIC ANSWER FIRST. On a daily
+            # sweep a tree naming `vwap()` fails BOTH questions -- the entry is
+            # unresolvable on daily bars AND `lookback: "session"` asks for 960
+            # of them -- and "no value for vwap" is the one a member can act on,
+            # while "900 bars short" points at history that would not help.
             scalars = _scalars_for(row, scalar_columns)
             # 🔴 THE HOLE IS ASKED ABOUT BEFORE IT IS EATEN. `_cmp` answers 0
             # against NaN, so `market_cap > 1e9` on a symbol with no market cap
             # is a confident False rather than a hole -- measured by E-1 and
             # pinned by 17 frozen conformance digests, so the fix is HERE and not
             # in the comparison.
-            missing = ast_interpret.unresolved_scalars(tree, scalars)
+            #
+            # ⭐ AND THE QUESTION IS `unresolved_INPUTS`, NOT `unresolved_scalars`.
+            # A scalar is one of TWO kinds of input a tree can name that the
+            # comparison launders. The other is a BAR READER (`reads: "bars"` in
+            # `closedTable.json`), whose preconditions are properties of the BARS
+            # and are therefore invisible to both the scalar question and the
+            # history question above: `close > vwap()` on this sweep's daily bars
+            # answered 0.0 for EVERY symbol at full reported coverage, and
+            # `!(close > vwap())` answered 1.0 for every symbol -- a screen that
+            # silently returns NOTHING, and one that silently returns THE ENTIRE
+            # UNIVERSE. `index` and `opts` are passed because the pre-pass must
+            # evaluate the entry at the SAME bar and under the SAME clock the
+            # answer will be read from, or it is asking about a different bar.
+            missing = ast_interpret.unresolved_inputs(
+                tree, scalars, bars, index, opts={"tf": tf_code})
             if missing:
                 _unanswered(sym, NOT_COMPUTABLE_REASON,
                             detail="no value for " + ", ".join(missing))
+                not_computable += 1
+                continue
+
+            # 🔴 THE HISTORY AXIS, ASKED PER SYMBOL. `want` bars were REQUESTED;
+            # this symbol's store may hold fewer, and then every windowed name in
+            # the tree is a hole at the bar below -- which the comparison eats
+            # exactly as it eats a missing scalar. `unresolved_lookback`'s own
+            # docstring was written for this ("`close > sma(close, 300)` on 200
+            # bars -> 200 x 0.0, a confident 'no'") and until W9a.1 the sweep --
+            # its intended consumer -- never called it.
+            # ⛔ NOT `no-bars`. A drop says "we tried and failed; re-run it";
+            # a symbol that has not lived long enough cannot be fixed by re-running.
+            short = ast_interpret.unresolved_lookback(tree, bars)
+            if short:
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=f"{len(bars)} bars of history, "
+                                   f"{short} short of the {lookback} this tree reads")
                 not_computable += 1
                 continue
 

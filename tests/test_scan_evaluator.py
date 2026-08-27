@@ -354,11 +354,37 @@ def test_a_MISSING_SCALAR_is_asked_about_BEFORE_the_comparison_eats_it(store, ba
 def test_the_unresolved_scalar_CALL_is_on_the_sweep_path__BY_AST():
     """⛔ THE POSITIVE CONTROL FOR THE ABOVE IS STRUCTURAL. A behavioural test
     passes just as happily if the hole never occurs in the fixture; this one goes
-    red the moment the call is deleted."""
+    red the moment the call is deleted.
+
+    ⭐ THE SWEEP NOW ASKS THE WIDER QUESTION (W9a.1 / X23). A scalar is one of
+    THREE kinds of input the comparison launders, and each has its own owner:
+
+      * `unresolved_inputs`   -- the declared SCALARS (it calls
+                                 `unresolved_scalars`, asserted below so the
+                                 original question cannot be lost inside the
+                                 wider one) **and** the BAR READERS, the entries
+                                 declaring `reads: "bars"` in `closedTable.json`,
+                                 whose preconditions are properties of the bars;
+      * `unresolved_lookback` -- the HISTORY, for a symbol whose store holds
+                                 fewer bars than the tree declares it reads.
+
+    All three end in `not_computable`, named. See
+    `tests/test_scan_not_computable_inputs.py` for the behaviour.
+    """
     fn = _function_node("evaluate_one")
     attrs = {n.func.attr for n in pyast.walk(fn)
              if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Attribute)}
-    assert "unresolved_scalars" in attrs
+    assert "unresolved_inputs" in attrs
+    assert "unresolved_lookback" in attrs
+
+    # ⭐ AND THE SCALAR QUESTION SURVIVES INSIDE THE WIDER ONE. Without this the
+    # rail above would go green on an `unresolved_inputs` that quietly stopped
+    # asking about scalars at all -- the wider question is only wider if it still
+    # contains the narrow one.
+    inner = pyast.parse(inspect.getsource(ast_interpret.unresolved_inputs))
+    called = {n.func.id for n in pyast.walk(inner)
+              if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
+    assert "unresolved_scalars" in called
 
 
 # ═══ 4. FOUR outcomes — withheld is not dropped ═════════════════════════════

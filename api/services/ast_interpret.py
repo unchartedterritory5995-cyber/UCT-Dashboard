@@ -1436,6 +1436,93 @@ def unresolved_scalars(ast: Any,
     return out
 
 
+def unresolved_inputs(ast: Any,
+                      scalars: Optional[Mapping[str, Any]] = None,
+                      bars: Optional[List[dict]] = None,
+                      index: Optional[int] = None,
+                      opts: Optional[Mapping[str, Any]] = None) -> List[str]:
+    """Every declared INPUT this tree names that has no usable value HERE.
+
+    🔴 THE SAME QUESTION ``unresolved_scalars`` ASKS, ON THE AXIS IT CANNOT
+    SEE. That function asks *"which declared SCALARS does this tree name that have
+    no value on this row?"* -- and a scalar is only one of the two kinds of input
+    a tree can name that the walker will silently turn into a confident answer.
+    The other is a **bar reader**: an entry declaring ``reads: "bars"``, which is
+    handed ``interpret``'s own bar array rather than columns packed out of its
+    arguments, and whose preconditions are therefore properties of THE BARS.
+
+    ⭐ WHY EXACTLY THAT SET, AND WHY IT IS DERIVED. Every other entry in the table
+    is handed evaluated COLUMNS, so its holes come either from its arguments --
+    ``unresolved_scalars`` -- or from its declared ``lookback`` --
+    ``unresolved_lookback``, one axis over. A ``reads: "bars"`` entry answers from
+    a property NEITHER of those can express: ``vwap()`` refuses the whole column
+    when a bar's ``t`` is not a real instant (``VWAP_MIN_INSTANT``), and
+    ``avwap(anchor)`` refuses it when no bar precedes the anchor and blanks the
+    tail past ``SESSION_MAX_BARS``. So the set is ``BAR_READERS`` -- read off
+    ``closedTable.json`` by ``ast_table.bar_readers``, exactly as the walker's own
+    dispatch is -- and a third such entry is covered the day it lands, with no
+    edit here and none in the rail.
+
+    ⛔ AND THE VERDICT IS THE BINDING'S, NOT A SECOND COPY OF ITS RULES. This
+    asks the entry by EVALUATING IT -- the same ``interpret`` the sweep is about
+    to run -- and reports it unresolved when the value at the bar the caller will
+    read is not a finite number. Restating ``VWAP_MIN_INSTANT`` or ``avwap``'s two
+    refusals here would be a second authority over one value: the rules would then
+    live in two places and the first thing to diverge would be the one this
+    function exists to catch.
+
+    🔴 MEASURED, WHICH IS WHY THIS IS A FUNCTION AND NOT A COMMENT. On bars
+    built exactly as ``scan_evaluator._read_bars`` builds them for ``tf="D"`` --
+    the store's ``ts`` is a ``YYYYMMDD`` int, so the unit gate refuses::
+
+        interpret(vwap())                  -> [None, ...]   the honest hole
+        interpret(close > vwap())          -> [0.0, ...]    a confident NO
+        interpret(!(close > vwap()))       -> [1.0, ...]    a confident YES
+
+    ⛔ BOTH POLARITIES, AND THAT IS THE WHOLE DEFECT. The screen returns NOTHING
+    at full reported coverage, or THE ENTIRE UNIVERSE at full reported coverage,
+    and ``scan_evaluator``'s own ``math.isfinite`` test never fires because ``0.0``
+    and ``1.0`` are perfectly finite. Tracked as X23.
+
+    ⚠️ ``bars is None`` ASKS THE SCALAR HALF ONLY, and says so rather than
+    pretending the bar half was clean. A caller that has bars and does not pass
+    them gets a question that cannot fail, which is why
+    ``tests/test_scan_not_computable_inputs.py`` rails the sweep's call site by
+    AST rather than trusting the signature.
+
+    ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN -- inherited from
+    ``unresolved_scalars`` and still TRUE after this widening. Its consumer is the
+    server-side universe sweep, which owes a member a coverage receipt; a browser
+    evaluates ONE symbol, holds its own bars, and DRAWS a hole as a gap in the
+    line. There is no receipt to protect there, so a mirrored JS export would be
+    a callable nothing calls.
+
+    Returns the manifest's own order -- scalars first, then bar readers -- so the
+    list is stable and a member's detail line reads the same way every night.
+    """
+    out = list(unresolved_scalars(ast, scalars))
+    if bars is None:
+        return out
+    calls: Dict[str, List[dict]] = {}
+    for node in _flatten(ast):
+        if node["type"] == "call" and node.get("name") in BAR_READERS:
+            calls.setdefault(node["name"], []).append(node)
+    for name in BAR_READERS:
+        for node in calls.get(name, ()):
+            column = interpret(node, bars, opts=opts)
+            if index is None:
+                usable = any(_is_number(v) and math.isfinite(float(v))
+                             for v in column)
+            else:
+                v = (column[index]
+                     if -len(column) <= index < len(column) else None)
+                usable = _is_number(v) and math.isfinite(float(v))
+            if not usable:
+                out.append(name)
+                break
+    return out
+
+
 def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     """How many bars SHORT this series is of what the tree declares it reads.
     ``0`` means the history is sufficient.
