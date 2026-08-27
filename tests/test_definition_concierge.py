@@ -1536,7 +1536,7 @@ def _diff(left: Mapping[str, List[str]], right: Mapping[str, List[str]]) -> Dict
     return out
 
 
-def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_named(concierge):
+def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_entries_for(concierge):
     """⛔ TOTALITY, MEASURED BY RENDERING, WITH THE SECTION LIST READ OFF THE
     MANIFEST. Not "is a phrase declared?" — that question is what let a whole
     section ride unreported. Every declared entry's minimal tree is walked, and a
@@ -1655,7 +1655,7 @@ def test_a_PLANTED_clock_value_RENDERS_and_a_DELETED_sentence_is_REFUSED_BY_NAME
 
     # ⚠️ THE NAMES ARE BUILT HERE RATHER THAN BY `_named`, AND THAT IS NOT A
     # STYLE CHOICE. This module defines `_named` TWICE at top level -- the gap
-    # reporter, and a much later `_named(concierge, text, lexicon=None)` -- so
+    # reporter, and a much later `_entries_for(concierge, text, lexicon=None)` -- so
     # every call resolves to the LAST one and `_named(gaps)` raises
     # `TypeError: _named() missing 1 required positional argument: 'text'`
     # instead of printing the entry that broke. A failure sentence that raises
@@ -2920,7 +2920,7 @@ def test_the_ROUTE_carries_the_KIND_and_defaults_to_the_PIPELINES_own(
 # the source rail is carried and WIDENED (section 10e).
 
 
-def _named(concierge, text: str, lexicon=None):
+def _entries_for(concierge, text: str, lexicon=None):
     """What the door reads out of one phrase: `(kind, key)` pairs, in order."""
     lex = lexicon if lexicon is not None else concierge.LEXICON
     return [(m["kind"], m["key"]) for m in concierge._matches(text, lex)]
@@ -2995,27 +2995,27 @@ def test_EVERY_declared_name_is_REACHABLE_by_its_OWN_name_and_by_the_MANIFESTS_p
         "fewer declarations carry typeable English than there are scalars; the "
         "phrase half of this rail is measuring almost nothing")
     missed = {name: gloss for name, gloss in phrases.items()
-              if (concierge.TABLE_ENTRY, name) not in _named(concierge, gloss)}
+              if (concierge.TABLE_ENTRY, name) not in _entries_for(concierge, gloss)}
     assert not missed, (
         f"the manifest's own English does not reach {sorted(missed)}")
 
     # ⛔ THE CONTROL, AND IT IS WHAT MAKES THIS A DERIVATION RATHER THAN A LUCKY
     # HAND-LIST: a name the manifest has never heard of reaches nothing, and a
     # PLANTED one reaches everything with no edit to the module or to this rail.
-    assert _named(concierge, "zzNotAColumnAnywhere") == []
+    assert _entries_for(concierge, "zzNotAColumnAnywhere") == []
     planted = _clone_table()
     planted[ast_table.SCALARS_SECTION]["zz_planted_column"] = {
         "sentence": "the planted widget ratio", "cadence": "nightly"}
     lex = concierge.build_lexicon(planted)
-    assert _named(concierge, "zz_planted_column", lex) == \
+    assert _entries_for(concierge, "zz_planted_column", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")]
-    assert _named(concierge, "the planted widget ratio", lex) == \
+    assert _entries_for(concierge, "the planted widget ratio", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")]
-    assert _named(concierge, "zz planted columns", lex) == \
+    assert _entries_for(concierge, "zz planted columns", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")], (
             "the planted column is reachable only in its exact spelling — the "
             "morphology is not running over the manifest's own entries")
-    assert _named(concierge, "zz_planted_column") == [], (
+    assert _entries_for(concierge, "zz_planted_column") == [], (
         "the plant reached the SHIPPED lexicon, so the control proves nothing")
 
 
@@ -3055,7 +3055,7 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
 
     checked = 0
     for word in grounded:
-        assert _named(concierge, word) == [(concierge.CONCEPT_ENTRY, word)], (
+        assert _entries_for(concierge, word) == [(concierge.CONCEPT_ENTRY, word)], (
             f"the firm's own word {word!r} does not ground as itself")
         last = word.split()[-1]
         target = concierge.stem(last)[0]
@@ -3064,7 +3064,7 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
                 continue                    # the rules genuinely cannot undo it
             variant = " ".join(word.split()[:-1] + [form])
             checked += 1
-            assert _named(concierge, variant) == [(concierge.CONCEPT_ENTRY, word)], (
+            assert _entries_for(concierge, variant) == [(concierge.CONCEPT_ENTRY, word)], (
                 f"{variant!r} is an inflection of the firm's word {word!r} and "
                 "this door cannot read it")
     assert checked >= len(grounded), (
@@ -3081,13 +3081,13 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
         for suffix in ("s", "ing", "ship"):
             if concierge.stem(root + suffix)[0] != root:
                 continue
-            assert _named(concierge, root + suffix) == \
+            assert _entries_for(concierge, root + suffix) == \
                 [(concierge.CONCEPT_ENTRY, word)], f"{root + suffix!r} -> nothing"
 
     # ⛔ AND IT DOES NOT WIDEN INTO NONSENSE. A word that stems somewhere else is
     # still nothing, which keeps "either the firm defined it or it did not" true
     # one layer down.
-    assert _named(concierge, "zzleaderish") == []
+    assert _entries_for(concierge, "zzleaderish") == []
 
 
 def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
@@ -3105,9 +3105,9 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
         "door would have to guess between them")
 
     # …and the near-miss the distance rule exists for resolves each way.
-    assert _named(concierge, "highest") == [(concierge.TABLE_ENTRY, "highest")]
-    assert _named(concierge, "high") == [(concierge.TABLE_ENTRY, "high")]
-    assert _named(concierge, "highs") == [(concierge.TABLE_ENTRY, "high")]
+    assert _entries_for(concierge, "highest") == [(concierge.TABLE_ENTRY, "highest")]
+    assert _entries_for(concierge, "high") == [(concierge.TABLE_ENTRY, "high")]
+    assert _entries_for(concierge, "highs") == [(concierge.TABLE_ENTRY, "high")]
 
     # ⭐ AND AN INFLECTIONAL NEAR-MISS IS NOT A TIE — the distance rule separates
     # it, and calling it one would drop two perfectly readable words. Planted, so
@@ -3117,8 +3117,8 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
         near[ast_table.SCALARS_SECTION][name] = {"cadence": "nightly"}
     lex = concierge.build_lexicon(near)
     assert lex["collisions"] == {}, lex["collisions"]
-    assert _named(concierge, "zzwidget", lex) == [(concierge.TABLE_ENTRY, "zzwidget")]
-    assert _named(concierge, "zzwidgets", lex) == [(concierge.TABLE_ENTRY, "zzwidgets")]
+    assert _entries_for(concierge, "zzwidget", lex) == [(concierge.TABLE_ENTRY, "zzwidget")]
+    assert _entries_for(concierge, "zzwidgets", lex) == [(concierge.TABLE_ENTRY, "zzwidgets")]
 
     # ⛔ THE PLANT: two columns declaring the SAME English. Nothing separates
     # them, so neither may win.
@@ -3130,10 +3130,10 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
     assert [sorted(v) for v in tied["collisions"].values()] == \
         [[(concierge.TABLE_ENTRY, "zz_twin_a"), (concierge.TABLE_ENTRY, "zz_twin_b")]], (
             f"the reported ties are {tied['collisions']}, not the planted one")
-    assert _named(concierge, "zz twin phrase", tied) == [], (
+    assert _entries_for(concierge, "zz twin phrase", tied) == [], (
         "a phrase two columns both declare was arbitrated rather than refused")
     # …and each column's own NAME still resolves, because that is not tied.
-    assert _named(concierge, "zz_twin_a", tied) == [(concierge.TABLE_ENTRY, "zz_twin_a")]
+    assert _entries_for(concierge, "zz_twin_a", tied) == [(concierge.TABLE_ENTRY, "zz_twin_a")]
 
 
 # ── 10b. a refused word refuses its CLAUSE, and nothing more ────────────────
@@ -3304,7 +3304,7 @@ def test_a_column_the_table_DELIBERATELY_LACKS_is_NAMED_and_the_rest_STILL_DRAFT
 
     # ⭐ TOTALITY: every column the manifest says it lacks answers to its own name.
     unreachable = [name for name in excluded
-                   if [(concierge.EXCLUDED_ENTRY, name)] != _named(concierge, name)]
+                   if [(concierge.EXCLUDED_ENTRY, name)] != _entries_for(concierge, name)]
     assert not unreachable, (
         f"the table declares it cannot carry {unreachable} and says so to nobody")
 
@@ -3333,7 +3333,7 @@ def test_a_column_the_table_DELIBERATELY_LACKS_is_NAMED_and_the_rest_STILL_DRAFT
                  == concierge.stem(n)[0] and (n + "s") not in excluded]
     assert inflected, "no excluded column inflects, so this half proves nothing"
     for word in inflected:
-        assert _named(concierge, word) == [], (
+        assert _entries_for(concierge, word) == [], (
             f"{word!r} raised a can't-do notice for a column the member did not "
             "actually name")
 
