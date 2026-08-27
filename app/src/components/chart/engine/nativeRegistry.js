@@ -2174,6 +2174,18 @@ export function clearUserDefinitions() {
   _generation += 1
 }
 
+/** Forget ONE installed user definition — the editor's live preview when the
+ *  sheet closes or the draft stops evaluating (W1a hand-back, additive).
+ *  ⚠️ NOT a save-path door: a stored definition is replaced by re-install, never
+ *  uninstalled, because an instance on a chart still names its id.
+ *  @returns {boolean} whether anything was forgotten */
+export function uninstallUserDefinition(defId) {
+  if (!_userById.has(defId)) return false
+  _userById.delete(defId)
+  _generation += 1
+  return true
+}
+
 /** @returns {object[]} the user definitions installed in THIS session. */
 export function listUserDefinitions() {
   return [..._userById.values()]
