@@ -1128,3 +1128,39 @@ exactly.
 The tension worth naming: for ~2 s a member is looking at a chart that does not
 have the house styling. That is the trade the owner took knowingly — nobody
 waiting beats everybody waiting for the right-looking picture.
+
+### v18 — the stand-in earns its place, and the roster finally seeds (2026-08-26, ~15:30 CT)
+
+Owner asked whether the speed was worth the risk. Comparing the two images the
+member actually receives settled it: they do not merely look different, they
+**say different things** — SMA 10/20/50 against the house EMA 9/20 + SMA 50/200,
+no extended-hours price chip, no earnings markers, a six-month window against
+three. In a trading room, a member who acts on the stand-in or screenshots it
+into a discussion has used a chart that is not the house standard — and with the
+warmer in place that risk lands precisely on the cold, unfamiliar tickers where
+it matters most.
+
+**So the house image gets first refusal.** The stand-in appears only when the
+house render would otherwise be a WAIT (> `DISCORD_CHART_FAST_AFTER_S`, 3 s) or
+an ERROR (busy, failed). Verified live: ROKU 2.7 s and PINS 2.54 s each showed
+ONE chart, the right one; SNAP took longer and got the stand-in at 3.59 s with
+the house image replacing it at 4.57 s. Nobody is handed an apology, and the
+common case never shows two charts.
+
+**And warm hard when it is cheap.** Keeping 24 charts warm costs ~6 % of the
+renderer overnight (15-minute TTL) versus ~44 % in live hours (2-minute TTL), so
+the roster is 24 when quiet and 10 when live. The cycle also runs every minute
+rather than every two: with a 120 s live TTL a two-minute cycle let warmed
+entries expire between passes, warming nothing that lasted.
+
+**⛔ The roster seed had been a silent no-op since the hour it shipped.** The
+warm cycle's hot set only ever held charts someone had just asked for. Cause:
+it called `engine.get_movers()`, which does not exist — movers live in
+`api.services.massive` — and because both sources sat in ONE try block, the
+AttributeError killed the leadership read too, before `seed_roster` was ever
+reached. Flag on, job scheduled, job running, nothing seeded: the exact failure
+shape this repo keeps rediscovering, caught only by looking at what the hot set
+actually contained. The sources are read independently now, from the modules
+that own them, and a successful seed logs its count so "seeded nothing" can
+never again look like "seeded quietly". Verified: 24 names seeded, 8 warmed per
+cycle, 16 cached after two.

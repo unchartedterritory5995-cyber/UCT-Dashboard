@@ -159,6 +159,49 @@ def _compose_description(title_prefix: str) -> str:
     return f"{title_prefix} — full session replay.{_LINKS_FOOTER}"
 
 
+def chapters_description_enabled() -> bool:
+    return os.environ.get("DESK_SESSION_DESCRIPTION_CHAPTERS", "").strip().lower() in ("1", "true", "yes")
+
+
+def _format_chapter_timestamp(seconds) -> str:
+    h, rem = divmod(max(0, int(seconds)), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _chapters_block(chapters: list[dict] | None) -> str:
+    """A YouTube-native chapter list built from REAL transcript timestamps
+    (desk_session_insights — never invented, see _compose_description for
+    why nothing content-specific ships at upload time). YouTube requires the
+    first entry at 0:00 (prepended here if the real data doesn't start
+    there) and consecutive entries >=10s apart, or it silently refuses to
+    render any of them as clickable chapters."""
+    entries = sorted(
+        ({"t": int(c.get("t") or 0), "title": str(c.get("title") or "").strip()}
+         for c in (chapters or []) if str(c.get("title") or "").strip()),
+        key=lambda c: c["t"])
+    if not entries:
+        return ""
+    kept = [] if entries[0]["t"] == 0 else [{"t": 0, "title": "Start of Session"}]
+    for e in entries:
+        if kept and e["t"] - kept[-1]["t"] < 10:
+            continue
+        kept.append(e)
+    return "\n".join(f"{_format_chapter_timestamp(c['t'])} {c['title']}" for c in kept)
+
+
+def compose_description_with_chapters(title_prefix: str, chapters: list[dict] | None) -> str:
+    """Same shape as _compose_description, plus a real per-session chapter
+    list once the transcript-derived chapters exist (see
+    desk_session_insights.refresh_description) — never composed at upload
+    time, when nothing about the session is known yet."""
+    header = f"{title_prefix} — full session replay."
+    chap_block = _chapters_block(chapters)
+    if chap_block:
+        header += f"\n\n⏱️ Chapters:\n{chap_block}"
+    return header + _LINKS_FOOTER
+
+
 def _session_date_text(started_at_iso: str | None, *, now: datetime | None = None) -> str:
     """ET date as 'June 24, 2026' — shared by the title and the thumbnail."""
     dt = _to_et(started_at_iso, now=now)
