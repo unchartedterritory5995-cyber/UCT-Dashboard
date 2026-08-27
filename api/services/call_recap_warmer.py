@@ -52,8 +52,18 @@ def _user_symbols() -> set[str]:
     """
     syms: set[str] = set()
     try:
+        import contextlib
+
         from api.services import auth_db
-        with auth_db.get_conn() as c:
+        # X24 (2026-08-26): this said `auth_db.get_conn()`, which has never
+        # existed (`get_connection` is the only public door), so the
+        # AttributeError fell into the `except` below and this warmer never
+        # once read a watchlist, a tag, or an open position. One of THREE
+        # copies in three spellings; railed by
+        # `tests/test_auth_db_names_are_real.py`.
+        # `closing(...)` because a bare `with` on a sqlite3 connection manages
+        # the TRANSACTION, not the handle -- it would leak the connection.
+        with contextlib.closing(auth_db.get_connection()) as c:
             for table, col in (("watchlist_items", "sym"), ("ticker_tags", "sym")):
                 try:
                     for (s,) in c.execute(f"SELECT DISTINCT {col} FROM {table}"):

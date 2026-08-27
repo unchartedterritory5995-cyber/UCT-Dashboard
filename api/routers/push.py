@@ -226,7 +226,14 @@ def export_journal_for_brain(
 
     from api.services.journal_two import trades as j2_trades
     from api.services.journal_two import accounts as j2_accounts
-    from api.services.auth_service import get_auth_connection
+    # X33 (2026-08-26): this said `from api.services.auth_service import
+    # get_auth_connection` -- a name that has NEVER existed there. There is no
+    # try/except around it, so `GET /api/push/journal-export` raised ImportError
+    # and answered 500 on EVERY call. `auth_db.get_connection()` is the only
+    # public door to auth.db (fresh handle, row_factory=Row, PRAGMAs applied).
+    # Found by `tests/test_cross_module_imports_resolve.py`, which derives the
+    # question from each target module instead of grepping for a name.
+    from api.services.auth_db import get_connection as get_auth_connection
     from datetime import date, timedelta, datetime
 
     # Resolve user_id
