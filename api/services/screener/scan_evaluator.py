@@ -1492,11 +1492,19 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 dropped += 1
                 continue
 
-            # ⭐ THE ORDER IS DELIBERATE: THE SPECIFIC ANSWER FIRST. On a daily
-            # sweep a tree naming `vwap()` fails BOTH questions -- the entry is
-            # unresolvable on daily bars AND `lookback: "session"` asks for 960
-            # of them -- and "no value for vwap" is the one a member can act on,
-            # while "900 bars short" points at history that would not help.
+            # ⭐ THE ORDER IS DELIBERATE: THE SPECIFIC ANSWER FIRST. A tree can
+            # fail BOTH questions below -- a `vwap()` tree on a symbol holding
+            # fewer than `sessionMaxBars` daily bars is unresolvable on daily bars
+            # AND short of the 960 `lookback: "session"` declares -- and then
+            # "no value for vwap" is the one a member can act on, while "900 bars
+            # short" points at history that would not help.
+            # ⚠️ NOT ALWAYS BOTH, AND THE RAIL ASSERTS THE COUNTER-EXAMPLE.
+            # `want` is `lookback + _MIN_BARS` = 1,360 here, and a real daily
+            # store holds thousands, so on the ordinary symbol the history
+            # question passes cleanly and ONLY the input question fires --
+            # `test_a_screen_over_a_BAR_READER_is_NOT_COMPUTABLE_and_NAMES_IT`
+            # runs on 1,000 bars and asserts `unresolved_lookback == 0` first,
+            # precisely so it cannot pass on the wrong axis.
             scalars = _scalars_for(row, scalar_columns)
             # 🔴 THE HOLE IS ASKED ABOUT BEFORE IT IS EATEN. `_cmp` answers 0
             # against NaN, so `market_cap > 1e9` on a symbol with no market cap
@@ -1509,13 +1517,19 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # comparison launders. The other is a BAR READER (`reads: "bars"` in
             # `closedTable.json`), whose preconditions are properties of the BARS
             # and are therefore invisible to both the scalar question and the
-            # history question above: `close > vwap()` on this sweep's daily bars
+            # history question BELOW: `close > vwap()` on this sweep's daily bars
             # answered 0.0 for EVERY symbol at full reported coverage, and
             # `!(close > vwap())` answered 1.0 for every symbol -- a screen that
             # silently returns NOTHING, and one that silently returns THE ENTIRE
-            # UNIVERSE. `index` and `opts` are passed because the pre-pass must
-            # evaluate the entry at the SAME bar and under the SAME clock the
-            # answer will be read from, or it is asking about a different bar.
+            # UNIVERSE. `index`, `scalars` and `opts` are all passed because the
+            # pre-pass must evaluate the entry at the SAME bar, under the SAME
+            # clock and with the SAME row the answer will be computed from, or it
+            # is asking about something else.
+            # ⛔ IT IS NOT A COMPLETE QUESTION AND `unresolved_inputs` SAYS SO:
+            # a DECLARED domain error (`closedTable.json::_functions_domain` --
+            # `macd(close, 26, 12)`, the transposed Ichimoku periods) is still
+            # laundered here, deliberately, because it is a fact about the FORMULA
+            # rather than about this row and belongs at the save door.
             missing = ast_interpret.unresolved_inputs(
                 tree, scalars, bars, index, opts={"tf": tf_code})
             if missing:

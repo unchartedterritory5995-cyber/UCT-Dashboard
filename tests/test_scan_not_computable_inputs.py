@@ -8,8 +8,8 @@ visible at the LEAF and invisible one node up — so the design does not change 
 comparison, it asks a question BEFORE evaluating. `unresolved_scalars` is that
 question on the SCALAR axis and it has been asked since E-1.
 
-⛔ IT WAS THE ONLY AXIS ASKED ABOUT, AND THERE ARE THREE. Measured on this branch,
-on bars built exactly as `scan_evaluator._read_bars` builds them:
+⛔ IT WAS THE ONLY AXIS ASKED ABOUT, AND THREE ARE NOW ASKED. Measured on this
+branch, on bars built exactly as `scan_evaluator._read_bars` builds them:
 
     close > vwap()              -> [0.0 x N]   a confident NO  for every symbol
     !(close > vwap())           -> [1.0 x N]   a confident YES for every symbol
@@ -22,6 +22,12 @@ market is quiet, or is handed the whole board, and the receipt agrees with both.
 defect has two faces and a rail on one is half a rail. `>` returns nothing; `!`
 and `||` return everything, which is the face that puts 3,700 rows in front of a
 trader.
+
+⛔ AND THREE IS NOT "ALL". `test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_
+that_is_NOT_this_functions_job` pins the surface these questions deliberately do
+NOT cover -- a declared all-NaN argument domain (`macd(close, 26, 12)`) -- and
+goes RED the day the save door closes it. That test, not this paragraph, is what
+keeps the claim honest.
 
 ⭐ THE SUBJECT OF THE DERIVED RAIL IS `closedTable.json`, NEVER A LIST TYPED HERE.
 The NaN-capable set this file sweeps is *"every entry declaring `reads: 'bars'`"*
@@ -487,6 +493,104 @@ def test_cmp_COLLAPSES_and_logical_PROPAGATES__and_the_honest_one_is_reachable()
     assert ast_interpret.unresolved_inputs(direct, {}, unmet, -1) == ["vwap"]
 
 
+def test_an_OFFSET_above_a_bar_reader_is_asked_about_THE_BAR_IT_ACTUALLY_READS():
+    """⭐ ``vwap()[3]`` READS THE BAR THREE BACK, AND THE QUESTION FOLLOWS IT.
+
+    The pre-pass asks about the bar the sweep will READ. An offset above the call
+    moves that bar, so asking at the caller's index would be asking about a
+    different bar than the walker answers from -- the exact defect threading
+    ``index`` and ``opts`` through exists to avoid, one axis over.
+
+    ⚠️ NOT REACHABLE THROUGH TODAY'S TABLE, AND RAILED ANYWAY. A
+    ``lookback: "session"`` entry cannot be wrapped in an offset at all (the
+    budget cap IS ``sessionMaxBars``), and for a windowed entry the history
+    question happens to cover exactly the offsets that matter. Two unrelated
+    guards overlapping the hole is correct BY LUCK, and the first anchored entry
+    with a small declared lookback breaks both -- so the question is made right
+    here rather than left resting on them.
+    """
+    bars = _bars_from_rows(_daily_rows(n=200))
+    inner = lambda: _call("obvN", _num(20))          # noqa: E731 - a fresh node
+    off = lambda k, c: {"type": "offset", "value": k, "args": [c]}  # noqa: E731
+
+    if "obvN" not in ast_interpret.BAR_READERS:      # pragma: no cover
+        pytest.skip("no windowed bar reader is declared to offset")
+
+    # The bar the offset reads is INSIDE the warm-up, so it is a hole …
+    assert ast_interpret.interpret(off(199, inner()), bars)[-1] is None
+    deep = _op(">", _series("close"), off(199, inner()))
+    assert ast_interpret.interpret(deep, bars)[-1] == 0.0, "not laundered any more"
+    assert ast_interpret.unresolved_inputs(deep, {}, bars, -1) == ["obvN"], (
+        "the pre-pass read the CALLER's bar instead of the bar the offset "
+        "actually reads, and answered about a value the sweep will never see")
+
+    # … and the CONTROL: an offset that lands clear of the warm-up must NOT be
+    # refused, or the fix is an over-refusal. ⛔ THE CONTROL IS ON THE ENTRY'S OWN
+    # COLUMN, not on the comparison: `close > obvN(...)` is legitimately 0.0 here
+    # (a price is not above a volume total), and reading that as "a hole" would
+    # be this file's own defect committed inside its control.
+    assert ast_interpret.interpret(off(45, inner()), bars)[-1] is not None
+    shallow = _op(">", _series("close"), off(45, inner()))
+    assert ast_interpret.unresolved_inputs(shallow, {}, bars, -1) == []
+
+    # A bar BEFORE the series starts is a hole too, never a skipped question.
+    past = _op(">", _series("close"), off(400, inner()))
+    assert ast_interpret.unresolved_inputs(past, {}, bars, -1) == ["obvN"]
+
+
+def test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_functions_job():
+    """⛔⛔ THE GAP THESE THREE QUESTIONS DO NOT CLOSE, PINNED AS A TEST RATHER
+    THAN PROMISED IN A PARAGRAPH.
+
+    `closedTable.json::_functions_domain` declares TWO entries whose argument
+    domain the `int` kind cannot express, and both walkers answer an ALL-NaN
+    COLUMN for them rather than raising. `macd` is the one a member reaches by
+    accident: the conventional spelling is `macd(close, 12, 26)` and transposing
+    the two periods is a keystroke away.
+
+    ⛔ THE COMPARISON THEN LAUNDERS IT, EXACTLY AS X23 DESCRIBES, ON A SCREEN THE
+    SAVE DOOR ACCEPTS. None of the three per-row questions can see it: the tree
+    names no scalar, names no bar reader, and `max_lookback` is satisfied.
+
+    ⚠️ AND IT IS DELIBERATELY NOT FIXED HERE. `slow < fast` is a fact about the
+    FORMULA -- true on every bar, for every symbol, forever -- not about this row,
+    so it belongs at the save door / the resolve pass. `_fn_avwap` already draws
+    that exact line: its sub-1990 anchor is refused BY NAME (`resolve:window`)
+    while "no bar precedes the anchor" is left a quiet per-row column, *"and the
+    asymmetry is the point"*. A per-row check carrying a whole-formula decision
+    would pay for it 3,742 times a night.
+
+    ⭐ THIS TEST IS THE ROT CONTROL FOR THAT DISCLAIMER. `unresolved_inputs`'
+    docstring and `scan_evaluator`'s comment both say the gap exists. Prose that
+    declares itself correct is still prose -- so the day the save door closes it,
+    THIS GOES RED and names itself, and whoever lands that fix deletes this test
+    on purpose instead of leaving two files making a stale claim.
+    """
+    bars = _bars_from_rows(_daily_rows(n=400))
+    bad = _call("macd", _series("close"), _num(26), _num(12))   # fast > slow
+    tree = _op(">", _series("close"), bad)
+
+    # The manifest DECLARES this, so the case is not an accident of the walker.
+    domain = _manifest()["_functions_domain"]
+    assert "macd" in domain and "NaN" in domain, (
+        "`_functions_domain` no longer declares an all-NaN argument domain; the "
+        "premise of this test is gone")
+
+    assert all(v is None for v in ast_interpret.interpret(bad, bars)), (
+        "macd(close, 26, 12) no longer produces an all-NaN column")
+    assert set(ast_interpret.interpret(tree, bars)) == {0.0}
+    assert set(ast_interpret.interpret(_op("!", tree), bars)) == {1.0}
+
+    # ⛔ THE POINT: every per-row question is clean, and the save door says yes.
+    assert ast_interpret.unresolved_inputs(tree, {}, bars, -1) == []
+    assert ast_interpret.unresolved_lookback(tree, bars) == 0
+    assert scan_definition.assert_scannable(_definition(tree))["yields"] == "bool", (
+        "the save door now refuses a transposed macd — X23's last face is CLOSED. "
+        "Delete this test deliberately and drop the disclaimer from "
+        "`unresolved_inputs` and from `scan_evaluator`, which both still say the "
+        "gap is open.")
+
+
 # ═══ 5. the premise, and the declarations this file makes ═══════════════════
 
 def test_the_PREMISE_this_file_rests_on_is_ASSERTED_not_assumed():
@@ -558,3 +662,31 @@ def test_the_WIDER_QUESTION_still_CONTAINS_the_narrow_one__BY_AST():
     assert "vwap" not in body and "avwap" not in body, (
         "the NaN-capable set is hand-listed rather than derived from "
         "closedTable.json")
+
+    # ⭐ THE SUBTREE IS EVALUATED IN THE SWEEP'S OWN ENVIRONMENT — STRUCTURALLY,
+    # BECAUSE NOTHING BEHAVIOURAL CAN SEE IT YET. The pre-pass must run the entry
+    # under the SAME row, the SAME clock and at the SAME bar the answer will be
+    # read from, or it is answering about something else. Dropping `scalars` was
+    # a real defect in the first cut of this function and a mutation sweep SAW
+    # NOTHING: no declared bar reader takes a `series` argument today
+    # (`vwap: []`, `avwap: ["int"]`, `obvN: ["int"]`), so no scalar can reach one
+    # and every behavioural rail stayed green.
+    # ⛔ THAT IS PRECISELY WHY IT IS PINNED HERE. The docstring promises a third
+    # entry is "covered the day it lands"; the first one that accepts a series
+    # would report a false `not_computable` naming itself whenever a member's
+    # argument names a scalar, and a promise nothing can red on is not a promise.
+    call = next(n for n in pyast.walk(pyast.parse(inspect.getsource(
+        ast_interpret.unresolved_inputs)))
+        if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)
+        and n.func.id == "interpret")
+    threaded = {kw.arg for kw in call.keywords}
+    assert "scalars" in threaded and "opts" in threaded, (
+        "the pre-pass evaluates the bar-reader subtree in a DIFFERENT "
+        f"environment than the sweep will ({sorted(threaded)}) — it is asking "
+        "about a different value than the one the member's answer comes from")
+
+    # …and the bar it asks about follows the offsets on the path to the call.
+    src_body = inspect.getsource(ast_interpret.unresolved_inputs)
+    assert "index - back" in src_body, (
+        "the pre-pass asks about the CALLER's bar rather than the bar an "
+        "offset above the call actually reads")

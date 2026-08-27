@@ -1611,6 +1611,60 @@ def unresolved_scalars(ast: Any,
     return out
 
 
+def _usable_at(column: List[MaybeNum], at: int) -> bool:
+    """Is there a real number at ``at``? An out-of-range bar is NOT usable.
+
+    ⛔ OUT OF RANGE IS A HOLE, NEVER A SKIP. ``close > vwap()[900]`` on 400 bars
+    reads a bar that does not exist; answering "usable" there is the confident-0
+    the whole pre-pass exists to refuse, one index further left.
+    """
+    if not (-len(column) <= at < len(column)):
+        return False
+    v = column[at]
+    return _is_number(v) and math.isfinite(float(v))
+
+
+def _bar_reader_reads(ast: Any) -> Dict[str, List[tuple]]:
+    """name -> [(call node, {bars of backward offset above it})].
+
+    ⭐ THE OFFSETS ON THE PATH, NOT JUST THE NODE. ``vwap()[3]`` reads the bar
+    THREE BACK from the one the caller names, so a pre-pass that asked about the
+    caller's bar would be asking about a different bar than the walker answers
+    from -- the exact defect ``index`` and ``opts`` are threaded through to avoid,
+    one axis over. The set is a SET because one node may be reached at two depths
+    (``vwap()[1] > vwap()[5]`` where the parser shares the subtree), and every
+    position it is read at has to be answerable.
+
+    ⚠️ NOT REACHABLE TODAY, AND WRITTEN ANYWAY. Two unrelated guards happen to
+    cover it: a ``lookback: "session"`` entry cannot be wrapped in an offset at
+    all (``budget.maxLookback`` is ``sessionMaxBars``, so ``avwap()[40]`` refuses
+    ``budget:lookback``), and for a windowed entry ``unresolved_lookback`` is
+    non-zero exactly while the offset bar is inside the warm-up prefix. A guard
+    that is correct because two other guards happen to overlap it is correct by
+    luck, and the first anchored entry with a small declared lookback breaks both.
+
+    ⛔ ITERATIVE, for the same reason ``node_count`` is: this runs BEFORE the
+    walker and must not need the walker to be safe first.
+    """
+    reads: Dict[str, List[tuple]] = {}
+    seen: Dict[int, set] = {}
+    stack: List[tuple] = [(ast, 0)]
+    while stack:
+        node, back = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        if kind == "call" and node.get("name") in BAR_READERS:
+            if id(node) not in seen:
+                seen[id(node)] = set()
+                reads.setdefault(node["name"], []).append((node, seen[id(node)]))
+            seen[id(node)].add(back)
+        deeper = back + (_offset_bars(node) if kind == "offset" else 0)
+        for arg in node.get("args") or ():
+            stack.append((arg, deeper))
+    return reads
+
+
 def unresolved_inputs(ast: Any,
                       scalars: Optional[Mapping[str, Any]] = None,
                       bars: Optional[List[dict]] = None,
@@ -1626,17 +1680,47 @@ def unresolved_inputs(ast: Any,
     handed ``interpret``'s own bar array rather than columns packed out of its
     arguments, and whose preconditions are therefore properties of THE BARS.
 
-    ⭐ WHY EXACTLY THAT SET, AND WHY IT IS DERIVED. Every other entry in the table
-    is handed evaluated COLUMNS, so its holes come either from its arguments --
-    ``unresolved_scalars`` -- or from its declared ``lookback`` --
-    ``unresolved_lookback``, one axis over. A ``reads: "bars"`` entry answers from
-    a property NEITHER of those can express: ``vwap()`` refuses the whole column
-    when a bar's ``t`` is not a real instant (``VWAP_MIN_INSTANT``), and
-    ``avwap(anchor)`` refuses it when no bar precedes the anchor and blanks the
-    tail past ``SESSION_MAX_BARS``. So the set is ``BAR_READERS`` -- read off
-    ``closedTable.json`` by ``ast_table.bar_readers``, exactly as the walker's own
-    dispatch is -- and a third such entry is covered the day it lands, with no
-    edit here and none in the rail.
+    ⭐ WHY EXACTLY THAT SET, AND WHY IT IS DERIVED. A ``reads: "bars"`` entry
+    answers from a property of the BARS that neither neighbouring question can
+    express: ``vwap()`` refuses the whole column when a bar's ``t`` is not a real
+    instant (``VWAP_MIN_INSTANT``), and ``avwap(anchor)`` refuses it when no bar
+    precedes the anchor and blanks the tail past ``SESSION_MAX_BARS``. Those are
+    facts about ONE SYMBOL'S BARS, which is what makes them a per-row question at
+    all. So the set is ``BAR_READERS`` -- read off ``closedTable.json`` by
+    ``ast_table.bar_readers``, exactly as the walker's own dispatch is -- and a
+    third such entry is covered the day it lands, with no edit here and none in
+    the rail. (``obvN`` landed from a parallel lane while this was being written
+    and was covered with no edit to either.)
+
+    ⛔⛔ WHAT THESE THREE QUESTIONS DO NOT COVER, STATED RATHER THAN IMPLIED.
+    An earlier draft of this paragraph claimed every other entry's holes came from
+    its arguments or its declared ``lookback``. **THAT WAS FALSE**, and
+    ``closedTable.json::_functions_domain`` says so in the manifest's own words:
+    two entries have an argument domain the ``int`` kind cannot express and BOTH
+    WALKERS ANSWER AN ALL-NaN COLUMN for it. Measured on 400 bars::
+
+        interpret(macd(close, 26, 12))          -> [None, ...]   fast > slow
+        interpret(close > macd(close, 26, 12))  -> [0.0, ...]     every bar
+        interpret(!(close > macd(close,26,12))) -> [1.0, ...]     every bar
+
+    and ``unresolved_inputs`` returns ``[]``, ``unresolved_lookback`` returns
+    ``0``, and ``assert_scannable`` calls it a ``bool`` tree. A member who
+    transposes 12 and 26 saves a screen that answers for the whole universe and
+    is wrong for every symbol -- X23 verbatim. The Ichimoku five carry the same
+    shape when ``max(tenkan, kijun) > senkouB``.
+
+    ⛔ IT IS DELIBERATELY NOT ANSWERED HERE, AND THE REASON IS THE SHAPE.
+    ``slow < fast`` is a FORMULA defect, not a per-row data condition: it is true
+    of that tree on every bar, for every symbol, forever. ``_fn_avwap`` already
+    draws exactly this line -- its sub-1990 anchor is refused BY NAME at
+    ``resolve:window`` while "no bar precedes the anchor" is left to be a quiet
+    per-row column, *"and the asymmetry is the point"*. So this belongs at the
+    save door / the resolve pass, and putting it here would make a question asked
+    3,742 times a night carry a decision that one look at the tree settles.
+    Tracked separately; ``tests/test_scan_not_computable_inputs.py::
+    test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_
+    functions_job`` pins the gap so this paragraph cannot become a stale claim --
+    it goes RED the day the save door closes it, and names itself.
 
     ⛔ AND THE VERDICT IS THE BINDING'S, NOT A SECOND COPY OF ITS RULES. This
     asks the entry by EVALUATING IT -- the same ``interpret`` the sweep is about
@@ -1665,6 +1749,14 @@ def unresolved_inputs(ast: Any,
     ``tests/test_scan_not_computable_inputs.py`` rails the sweep's call site by
     AST rather than trusting the signature.
 
+    ⚠️ ``index`` IS THE BAR THE ANSWER WILL BE READ FROM, and the two readings
+    are not the same question. With an ``index`` this asks *"is there a value AT
+    THAT BAR"* -- which is what a screen needs, and the only reading that catches
+    ``avwap``'s blanked tail past ``SESSION_MAX_BARS``. With ``index=None`` it
+    asks the weaker *"is there a value ANYWHERE in this column"*, for a caller
+    that has no single bar in mind. ``scan_evaluator`` passes the index it is
+    about to read; the AST rail above is what keeps that true.
+
     ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN -- inherited from
     ``unresolved_scalars`` and still TRUE after this widening. Its consumer is the
     server-side universe sweep, which owes a member a coverage receipt; a browser
@@ -1672,26 +1764,30 @@ def unresolved_inputs(ast: Any,
     line. There is no receipt to protect there, so a mirrored JS export would be
     a callable nothing calls.
 
-    Returns the manifest's own order -- scalars first, then bar readers -- so the
-    list is stable and a member's detail line reads the same way every night.
+    Returns a STABLE order so a member's detail line reads the same way every
+    night: the scalars in the manifest's own order (``unresolved_scalars``'s), then
+    the bar readers ALPHABETICALLY -- ``ast_table.bar_readers`` returns
+    ``tuple(sorted(...))``, and calling that "the manifest's order" would be a
+    claim this function does not make good on.
     """
     out = list(unresolved_scalars(ast, scalars))
     if bars is None:
         return out
-    calls: Dict[str, List[dict]] = {}
-    for node in _flatten(ast):
-        if node["type"] == "call" and node.get("name") in BAR_READERS:
-            calls.setdefault(node["name"], []).append(node)
+    reads = _bar_reader_reads(ast)
     for name in BAR_READERS:
-        for node in calls.get(name, ()):
-            column = interpret(node, bars, opts=opts)
+        for node, backs in reads.get(name, ()):
+            # ⛔ THE SAME SCALARS AND THE SAME CLOCK THE ANSWER WILL BE COMPUTED
+            # UNDER. Latent today -- no declared bar reader takes a ``series``
+            # argument, so no scalar can reach one -- but a pre-pass evaluating a
+            # subtree under a DIFFERENT environment than the walker is a second
+            # authority over one value, and it would silently break the "covered
+            # the day it lands" promise for the first bar reader that takes one.
+            column = interpret(node, bars, scalars=scalars, opts=opts)
             if index is None:
                 usable = any(_is_number(v) and math.isfinite(float(v))
                              for v in column)
             else:
-                v = (column[index]
-                     if -len(column) <= index < len(column) else None)
-                usable = _is_number(v) and math.isfinite(float(v))
+                usable = all(_usable_at(column, index - back) for back in backs)
             if not usable:
                 out.append(name)
                 break

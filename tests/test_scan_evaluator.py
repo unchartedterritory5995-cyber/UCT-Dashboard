@@ -351,7 +351,7 @@ def test_a_MISSING_SCALAR_is_asked_about_BEFORE_the_comparison_eats_it(store, ba
         "cannot tell which datum their screen is waiting on")
 
 
-def test_the_unresolved_scalar_CALL_is_on_the_sweep_path__BY_AST():
+def test_the_unresolved_INPUT_CALLS_are_on_the_sweep_path__BY_AST():
     """⛔ THE POSITIVE CONTROL FOR THE ABOVE IS STRUCTURAL. A behavioural test
     passes just as happily if the hole never occurs in the fixture; this one goes
     red the moment the call is deleted.
