@@ -265,8 +265,26 @@ export const PCF_DIFFERENT_FORMULA = Object.freeze({
     + 'irrelevant"). This table refuses that level by construction. TO UNBLOCK: nothing '
     + 'here — write `obvN(n)`, the bounded signed-volume sum, which is a DIFFERENT '
     + 'quantity and says so',
-  MS:    'MoneyStream is Worden-proprietary and its formula is not published',
-  TSV:   'Time Segmented Volume is Worden-proprietary and its formula is not published',
+  // ⭐ THESE TWO NAME THEIR UNBLOCKER NOW, AND THAT IS NOT A FORMALITY.
+  // ⚰️ They read *"is Worden-proprietary and its formula is not published"* and
+  // stopped there, while `WSTOC` and `OBV` beside them had just been upgraded to
+  // say what would change the answer. A refusal with no unblocker is the one
+  // wrong answer nothing can catch: an over-refusal has no red test, no wrong
+  // number and no complaint, so the honest ceiling is only countable if every
+  // doc-blocked "no" states the document that would open it.
+  // ⛔ AND THE UNBLOCKER IS A PUBLICATION, NOT A BETTER GUESS. Fitting a curve
+  // to the plotted line would put OUR arithmetic under WORDEN's name, which is
+  // the `MIN`/`lowest` trap with a vendor's brand on it.
+  MS:    "MoneyStream is Worden-proprietary and its formula is not published anywhere. "
+    + "TO UNBLOCK: Worden publishing the arithmetic on its own indicator page, the way "
+    + "it already has for the Worden Stochastic (`help.tc2000.com/m/69445/l/755879`). "
+    + "Nothing else does -- a formula fitted to the plotted curve would be our number "
+    + "under their name",
+  TSV:   "Time Segmented Volume is Worden-proprietary and its formula is not published "
+    + "anywhere. TO UNBLOCK: the same publication that would unblock MoneyStream -- "
+    + "Worden stating the arithmetic on its own indicator page, as it already does for "
+    + "the Worden Stochastic (`help.tc2000.com/m/69445/l/755879`). Reverse-engineering "
+    + "the plotted line is not a substitute",
 })
 
 /** The leading alphabetic run of a fused token — `RSI14.2` → `RSI`, `MS20` → `MS`.

@@ -451,6 +451,108 @@ def test_the_obv_SPELLING_is_refused_for_a_reason_true_of_ITS_input():
     assert "obv" not in ast_table.TABLE["functions"]
 
 
+# ─── ⭐ EVERY DOC-BLOCKED REFUSAL, NOT JUST THE ONE THIS TASK TOUCHED ────────
+#
+# ⛔ AN OVER-REFUSAL IS INVISIBLE. A wrong "no" has no red test, no wrong number
+# and no complaint from anyone — so the only way the honest ceiling stays
+# countable is if every refusal that blames a DOCUMENT names the document that
+# would open it. W2a.7 applied that standard to `WSTOC` and `OBV` and left `MS`
+# and `TSV` reading *"is Worden-proprietary and its formula is not published"*,
+# full stop, with the `UNBLOCKER` rail pointed at `stochWorden` alone.
+#
+# ⭐ THE POPULATION IS DERIVED FROM BOTH SHIPPED REFUSAL SURFACES, never listed
+# here: a roster of "the refusals we know about" would go stale the first time
+# someone added one, which is the defect this rail is about.
+
+#: A refusal whose ground is "nobody published it" — DETECTED, not enumerated.
+_DOC_BLOCK = re.compile(
+    r"not\s+published|unpublished|no\s+published\s+formula|"
+    r"not\s+documented|the\s+docs?\s+(do|does)\s+not", re.I)
+
+#: …and the clause it must therefore carry. ⚠️ A LENGTH FLOOR, because
+#: `TO UNBLOCK: nothing` would satisfy a substring check and say nothing.
+_TO_UNBLOCK = re.compile(r"TO UNBLOCK:\s*(.+)", re.S)
+
+
+def doc_blocked_without_an_unblocker(reason):
+    """The sentence saying what is wrong, or ``None`` when the refusal is honest."""
+    if not _DOC_BLOCK.search(reason):
+        return None
+    found = _TO_UNBLOCK.search(reason)
+    if found is None:
+        return "blames the documentation and names no `TO UNBLOCK:` clause"
+    clause = found.group(1).strip()
+    if len(clause) < 25:
+        return f"carries a TO UNBLOCK clause that says nothing: {clause!r}"
+    return None
+
+
+def _refusal_reasons():
+    """``{where: reason}`` over BOTH shipped refusal surfaces."""
+    out = {}
+    shipped = _run_node([
+        "const { PCF_DIFFERENT_FORMULA } = await import(pathToFileURL(payload.pcf).href)",
+        "process.stdout.write(JSON.stringify({ ok: true, data: PCF_DIFFERENT_FORMULA }))",
+    ])
+    for name, reason in shipped.items():
+        out[f"pcf.js::PCF_DIFFERENT_FORMULA.{name}"] = reason
+    for name, reason in ast_table.TABLE["_functions_excluded"].items():
+        if isinstance(reason, str):
+            out[f"closedTable.json::_functions_excluded.{name}"] = reason
+    return out
+
+
+@pytest.mark.skipif(not ac.js_lane_available(), reason="no node")
+def test_every_refusal_that_BLAMES_THE_DOCS_names_what_would_unblock_it():
+    reasons = _refusal_reasons()
+
+    # ⛔ NON-VACUITY: both surfaces were actually read.
+    assert len(reasons) >= 20, f"only {len(reasons)} refusal reasons read"
+    assert any(k.startswith("pcf.js::") for k in reasons), sorted(reasons)
+    assert any(k.startswith("closedTable.json::") for k in reasons), sorted(reasons)
+
+    blocked = {k: v for k, v in reasons.items() if _DOC_BLOCK.search(v)}
+
+    # ⛔ DISCRIMINATION, BOTH WAYS. A detector that matched nothing would make the
+    # assertion below green forever; one that matched EVERYTHING would flag the
+    # twenty refusals whose ground is arithmetic rather than a missing document.
+    assert blocked, "no refusal was detected as doc-blocked — the detector is dead"
+    assert len(blocked) < len(reasons), (
+        "every refusal matched the doc-block pattern, so it is not discriminating")
+    named = {k.rsplit(".", 1)[-1] for k in blocked}
+    assert {"MS", "TSV"} <= named, (
+        f"MS and TSV are the doc-blocked refusals this rail was widened for; "
+        f"the detector found {sorted(named)}")
+
+    offenders = sorted(
+        f"{where}  —  {why}" for where, reason in blocked.items()
+        if (why := doc_blocked_without_an_unblocker(reason)))
+    assert not offenders, (
+        "a refusal that blames a missing document must name the document that "
+        "would open it. Without that, the 'no' has no red test, no wrong number "
+        "and no complainant, and the reachable ceiling stops being countable:\n  "
+        + "\n  ".join(offenders))
+
+
+def test_the_doc_block_detector_is_DISCRIMINATING_on_CONSTRUCTED_input():
+    """⛔ A CORPUS IS BLIND BESIDE WHAT IT MEASURES. Today exactly two shipped
+    refusals are doc-blocked and both are honest, so the rail above passes on a
+    population it cannot fail. These four inputs are built to fail it."""
+    # blames the docs, says nothing about what would change that → CAUGHT
+    assert doc_blocked_without_an_unblocker(
+        "MoneyFoo is vendor-proprietary and its formula is not published") is not None
+    # …and a TO UNBLOCK clause that is a formality is still CAUGHT
+    assert doc_blocked_without_an_unblocker(
+        "its formula is not published. TO UNBLOCK: nothing") is not None
+    # the honest shape passes
+    assert doc_blocked_without_an_unblocker(
+        "its formula is not published anywhere. TO UNBLOCK: the vendor stating the "
+        "arithmetic on its own indicator page, as it already does elsewhere") is None
+    # …and a refusal whose ground is ARITHMETIC is not this rail's business
+    assert doc_blocked_without_an_unblocker(
+        "a RANK, not a range, and this table declares no rank function") is None
+
+
 # ═══════════════════════════════════════════════════════════════════════════ #
 # 4. ⭐ A5 — THE PARTITION, MEASURED. TOTAL AND DISJOINT.
 # ═══════════════════════════════════════════════════════════════════════════ #
