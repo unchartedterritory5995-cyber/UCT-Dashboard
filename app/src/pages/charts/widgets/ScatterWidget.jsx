@@ -133,7 +133,7 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
 
 // Grid margins — the plot rect's insets. containLabel:false so WE own the left
 // gutter (the rotated Y-title lives there); the axis numbers render inside it.
-const GRID_M = { left: 54, right: 16, top: 14, bottom: 50 }
+const GRID_M = { left: 54, right: 26, top: 16, bottom: 50 }
 
 function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, upFaint, dnFaint }) {
   const data = plot.map(p => ({

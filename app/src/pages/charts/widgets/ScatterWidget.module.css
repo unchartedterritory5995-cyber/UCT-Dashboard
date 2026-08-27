@@ -42,9 +42,10 @@
 .uniAdd:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 /* The scatter stage: the ECharts canvas fills it; the axis dropdowns + zoom
-   controls float on top. */
-.stage { position: relative; flex: 1; min-height: 0; }
-.chartWrap { position: absolute; inset: 0; }
+   controls float on top. overflow:hidden clips any 1-2px canvas spill during a
+   resize/update tick so the widget never sprouts its own scrollbars. */
+.stage { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.chartWrap { position: absolute; inset: 0; overflow: hidden; }
 
 /* Axis-title dropdowns — the signature: you change the metric by clicking the
    axis. X sits centered under the plot; Y sits rotated up the left edge. */
