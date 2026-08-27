@@ -2163,6 +2163,30 @@ def register_transcript_keyword_jobs(scheduler):
     return True
 
 
+def register_discord_index_close_job(scheduler):
+    """15:45 ET on trading days: the index + ETF charts into the community
+    channel (owner request, 2026-08-27 - "15 minutes before market close").
+
+    The job is registered unconditionally and the SERVICE decides whether to
+    post: it is off unless `DISCORD_INDEX_CLOSE_ENABLED=1`, silent without
+    `DISCORD_TSDR_WEBHOOK_URL`, and skips non-trading days and a session it has
+    already posted. Registering it dark keeps arming it an env change rather
+    than a deploy."""
+    def _run():
+        try:
+            from api.routers.discord_interactions import run_index_close
+            report = run_index_close()
+            log.info("[index-close] %s", report)
+        except Exception:
+            log.exception("[index-close] scheduled run failed")
+
+    scheduler.add_job(
+        _run,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=15, minute=45, timezone=_ET),
+        id="discord_index_close", replace_existing=True, max_instances=1)
+    return True
+
+
 def register_pattern_vision_jobs(scheduler):
     """Register the hourly Opus-vision pattern judge over the active set.
     Gated by PATTERN_VISION_ENABLED (default on). Capped per run by
@@ -4834,6 +4858,17 @@ async def lifespan(app: FastAPI):
                       "(BARS_SPLIT_REPAIR_ENABLED=0)")
         except Exception as e:
             print(f"[scheduler] bars split-repair sweep registration error: {e}")
+
+        # -- Into-the-close index + ETF charts -> #TSDR (owner, 2026-08-27) --
+        try:
+            if register_discord_index_close_job(_scheduler):
+                import os as _os
+                _armed = _os.environ.get("DISCORD_INDEX_CLOSE_ENABLED", "0").strip().lower() in ("1", "true", "on", "yes")
+                print("[startup] discord-index-close: 15:45 ET mon-fri "
+                      f"armed={'on' if _armed else 'off'} "
+                      f"webhook={'set' if _os.environ.get('DISCORD_TSDR_WEBHOOK_URL', '').strip() else 'UNSET(posts nothing)'}")
+        except Exception as e:
+            print(f"[scheduler] discord index-close registration error: {e}")
 
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:

@@ -21,7 +21,7 @@ from api.services import discord_chart_context as chart_context
 from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
-from api.services.discord_chart_render import render_chart_png
+from api.services.discord_chart_render import compute_stats, render_chart_png
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -359,6 +359,39 @@ def _settings_reply(interaction: dict) -> str:
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] settings failed for %s: %s", uid, e)
         return "Settings are unavailable right now, try again in a minute."
+
+
+def run_index_close(*, force: bool = False, dry_run: bool = False) -> dict:
+    """The into-the-close post, wired to the SAME authorities /chart uses: the
+    bars router, `compute_stats`, the house renderer and the house attachment
+    name. One wiring, used by both the scheduler and the manual trigger, so a
+    hand-fired post cannot differ from the scheduled one."""
+    from api.services import discord_index_close as idx
+    return idx.run_close_post(
+        bars_fn=fetch_bars,
+        house_fn=house.render_house_chart,
+        stats_fn=compute_stats,
+        name_fn=di.attachment_name,
+        options=prefs_mod.render_options(dict(prefs_mod.DEFAULTS), idx.CHART_TF),
+        force=force, dry_run=dry_run)
+
+
+@router.post("/api/discord/index-close/run")
+async def index_close_run(request: Request, force: bool = False, dry: bool = False):
+    """Fire (or dry-run) the into-the-close post by hand. Gated by the
+    PUSH_SECRET bearer like sessions-status. `dry=1` renders everything and
+    reports what WOULD go out without posting - the way to look at a change
+    before a public channel does. `force=1` ignores the flag, the trading-day
+    check and the already-posted marker; it is the deliberate one-off."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+    try:
+        return run_index_close(force=force, dry_run=dry)
+    except Exception as e:  # noqa: BLE001
+        log.exception("[index-close] manual run failed")
+        return {"error": str(e)}
 
 
 @router.get("/api/discord/activity/handoff")
