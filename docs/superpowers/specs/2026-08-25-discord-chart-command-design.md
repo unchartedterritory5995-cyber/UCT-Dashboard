@@ -1089,3 +1089,42 @@ the last hour. Seeding the hot set with the day's roster (UCT20 + movers) would
 cover that, and the per-cycle limit already caps what it could cost — but it is
 a real trade (roster warms competing with live demand at peak) and belongs to
 the owner, not to a quiet default.
+
+### v17 — nobody waits (2026-08-26, ~14:30 CT)
+
+Two changes, both aimed at the one case v16 left slow: the first ask of a
+symbol nobody has requested recently.
+
+**The roster is seeded.** Each warm cycle puts the day's names (UCT20 leaders +
+top movers, read from the engine's own caches) into the hot set, so the first
+member to type NVDA gets a hit like everyone after them. Seeded with ZERO hits,
+which is the whole trick: a chart a member actually asked for always outranks
+the roster for the cycle's six slots, and the roster is what gets evicted when
+the set fills. Re-seeding never inflates a real chart's count. Bounded by
+`DISCORD_CHART_ROSTER_MAX` (10); a roster we cannot read is not a reason to
+skip the warm.
+
+**The fast chart comes first.** The house render is ~2.2 s of a shared Chromium
+and no tuning removes it. The mplfinance renderer draws the same bars in
+**0.18–0.5 s with no browser at all** — the renderer that was replaced for
+looking wrong is still there, and it is 12× faster. So on a cache miss the
+member gets that immediately and the house image edits over it when it lands.
+
+The fast chart is also a **floor**: if the house render comes back busy or
+fails, the member keeps the chart they already have instead of being handed an
+apology. Only the house image is cached, so the next member never sees the fast
+look. `DISCORD_CHART_FAST_FIRST=0` restores the old single-edit behaviour
+exactly.
+
+**Measured on the pod, live**
+
+| | |
+|---|---|
+| member SEES a chart | **0.22–1.0 s** (was 2.2–2.5 s) |
+| house image replaces it | 2.3–3.2 s |
+| anything asked for recently | **0.0 s** |
+| `/charts` × 4 repeat | 0.03 s |
+
+The tension worth naming: for ~2 s a member is looking at a chart that does not
+have the house styling. That is the trade the owner took knowingly — nobody
+waiting beats everybody waiting for the right-looking picture.
