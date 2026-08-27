@@ -1484,9 +1484,24 @@ const PCF_MARKERS = [
   // next character is `(`. So no native formula can be captured by a family name —
   // the property `MOD`'s hand-written lookahead had to state for itself.
   //
-  // ⚠️ LONGEST-FIRST, because `AROONUP` and `AROONDOWN` share a prefix and a
-  // regex alternation takes the FIRST match: unsorted, `AROONDOWN25` would match
-  // the `AROONUP`-less branch `AROON`… had one existed. Sorting removes the class.
+  // ⚰️ A LONGEST-FIRST `.sort()` SAT HERE DOING NOTHING, UNDER A COMMENT THAT
+  // CALLED IT A FIX: *"`AROONUP` and `AROONDOWN` share a prefix and a regex
+  // alternation takes the FIRST match … Sorting removes the class."* Those two
+  // diverge at character 5, and the class it claimed to remove was admitted
+  // hypothetical in the same breath (*"had one existed"*). It was the lone
+  // survivor of a 16-mutation sweep, and it could not have been anything else:
+  //   · a JS alternation BACKTRACKS among its branches at one position, so
+  //     WHETHER the pattern matches never depends on branch order; and
+  //   · two branches could only both complete here if one key were another key
+  //     followed by DIGITS (`\d+` comes next) — impossible for alphabetic keys,
+  //     and checked: zero such pairs among the 32.
+  // Measured before deleting it, over 242 sources (103 native · 48 accepted PCF ·
+  // the 71-spelling vocabulary · 15 hand-built prefix adversaries including
+  // `SIN5` and `SINH5`, the one real prefix pair in the union): 27 captured, and
+  // sorted vs declaration order disagreed on NOTHING — not the boolean, not even
+  // the captured branch.
+  // ⛔ A LINE WHOSE ONLY ROLE IS TO LOOK LIKE A RAIL IS WORSE THAN NO LINE — it
+  // spends a reviewer's attention and buys nothing. Deleted, not relabelled.
   // ⛔⛔ AND THE TRAILING GUARD IS NOT DECORATION — WITHOUT IT THIS CAPTURED A
   // NATIVE FORMULA, which is the one thing this detector must be incapable of.
   // Measured: `log10(close)` was read as TC2000 — because `\bLOG` matches `log`
@@ -1505,7 +1520,6 @@ const PCF_MARKERS = [
   // and then stops (`AROONUP25 > 70`), while a native call always opens a paren.
   new RegExp(
     '\\b(' + [...new Set([...Object.keys(PCF_FUSED), ...Object.keys(PCF_CALLS)])]
-      .sort((a, b) => b.length - a.length)
       .join('|') + ')\\d+(?![A-Za-z0-9_(])', 'i'),
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
