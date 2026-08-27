@@ -25,7 +25,7 @@ scans on a member's own script, and evidence.
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
 | A5 | TC2000: **63/71 shipped against a MEASURED ceiling of 65/71** — 66 was not reachable; the five named refusals were right but **incomplete**. Partition asserted TOTAL and DISJOINT. See the 2026-08-27 amendment below. | `pcf.vocabulary.test.js` EXPECTED table, every claimed spelling asserted to **compute** end-to-end, not merely parse |
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
-| A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 |
+| A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 ⛔ **Measured 2026-08-27: the capability is at ZERO, and the "19/24" is ARITHMETICALLY IMPOSSIBLE against A4's own partition — the ceiling is 12. See the amendment below.** |
 | A8 | Every 0/1 definition has an **Evidence** tab: forward record (E-6) beside a retro study with baseline, fill-at-open, coverage, horizons 1/5/10/20 — never a naked hit rate | `screener/backtest.py` receipt rendered; a rail refuses a `strategy` stat without its `baseline` |
 | A9 | Share a definition: the recipient gets a copy carrying author + origin hash + the record; export/import JSON round-trips byte-identically | `test_definition_sharing.py` |
 | A10 | Drawing outputs on the chart lane: `hline`, `fill`, `bgcolor`, `plotshape`, `label` (series-derived) and bounded objects (`line`/`box`) | pixel parity harness case per output kind |
@@ -325,3 +325,39 @@ re-derived.
 ⇒ **Three acceptance figures derived so far, and all three carry the same
 structural defect: the criterion is assigned to ONE wave and gated on SEVERAL.**
 A4 15→8 · A5 66→65 · A3 24→10 · A2 17→12.
+
+### A7 amended 2026-08-27 — the capability is **0**, and "19/24 after `tf`/`sym`" cannot happen
+
+**Two separate claims live in A7, and both are now measured.**
+
+**1. The capability itself: ZERO.** `tf`, `sym`, `security` and `request` are **none of
+them in `table.functions`**, and `tests/fixtures/ast/` holds **no `tf`/`sym` parity
+fixture**. Nothing is half-built; W2b starts from nothing. That is fine — it is a
+wave-2 lane — but the row read as though something existed to finish.
+
+**2. The downstream projection is impossible.** A7 carried *"→ 19/24 after W2b lands
+`tf`/`sym`"*. Check it against A4's own partition, asserted total and disjoint in this
+same document:
+
+| class | n | |
+|---|---|---|
+| translating | 8 | |
+| DOCS | 9 | blocked on vendor documentation **that does not exist** |
+| DESIGN | 4 | deferred by design — `tf`/`sym` **AND** `:account` **AND** session boundaries |
+| RULED | 3 | refusals this door is **right** to make, permanently |
+
+⇒ **8 + 4 = 12 is the ceiling if EVERY DESIGN-deferred script unblocks** — and `tf`/`sym`
+is only part of what holds those four. Reaching **19** would require moving **eleven**
+scripts, so it would have to consume the entire DOCS class (blocked on documentation
+that does not exist) **or reverse a refusal this door is right to make.** This
+document already says so, two paragraphs up: reaching further needs *"either a
+DESIGN-deferred script to move or one of three correct refusals reversed."*
+
+⭐ **This is the fifth acceptance figure to come in under what was written, and the
+first that is provably impossible rather than merely optimistic** — it was arithmetic
+against a partition already in this file, and nobody had done the subtraction.
+
+⇒ **A7 restated: `tf(...)` and `sym('SPY', close)` sweep and draw, both lanes at 1e-9,
+with the corpus effect measured after the fact — not projected before it.**
+
+**With this, every acceptance row A1–A12 has been derived from the artifact.**
