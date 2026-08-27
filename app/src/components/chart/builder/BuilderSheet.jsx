@@ -1702,11 +1702,54 @@ export default function BuilderSheet({
             <ImportBox
               dialect="auto"
               disabled={saving}
-              onPick={(formula) => {
+              onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
                 // (that one exists only to prove the printed text reads back the
                 // same), not a prebuilt document, not a hash.
+                //
+                // ⭐ …PLUS THE SCRIPT'S OWN DECLARED INPUTS, WHEN IT HAS ANY
+                // (W1b.9). A Pine script's `input.int(14, "Length")` is the
+                // author's KNOB, and `translatePine` folds it to a literal so
+                // the tree stays statically decidable — which is right for the
+                // maths and wrong for the member, who gets somebody else's
+                // constant welded shut. `builderInputs.inputsFromFolded` decides
+                // which of those folds can come back as a row (a WINDOW cannot —
+                // `interpret.js::windowLiteral`; a threshold or a multiplier
+                // can) and refuses the rest BY NAME. This door only lands what
+                // it was handed.
+                //
+                // ⛔ THE STRING FORM IS UNCHANGED, BYTE FOR BYTE. `StarterLibrary`
+                // and today's `ImportBox` both send a bare string; a door that
+                // only understood the object would write `[object Object]` into
+                // the formula box for every shipped caller.
+                const declared = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && Array.isArray(picked.inputs)) ? picked.inputs : []
+                const formula = typeof picked === 'string'
+                  ? picked
+                  : (picked && typeof picked.source === 'string' ? picked.source : '')
+                // ⛔ REPLACE RATHER THAN APPEND: `defSchema.validateInput`
+                // refuses a duplicate key outright, so pasting the same script
+                // twice would produce a document that cannot be saved.
+                //
+                // ⚠️ AND THE ORDER OF THESE TWO WRITES READS AS LOAD-BEARING AND
+                // IS NOT — MEASURED, not assumed. Swapping them moves ZERO
+                // assertions (`differing=0`, W1b.9 mutation M11): React batches
+                // both into ONE commit, and `FormulaField`'s debounce reads the
+                // scope off the render that commit produces, so the read-back
+                // never sees a formula whose names are not declared yet. The
+                // rows are still written first because that is the order the
+                // contract reads in, and because a `flushSync` or a read BETWEEN
+                // them would make it load-bearing tomorrow. ⛔ DO NOT WRITE A
+                // TEST THAT CLAIMS TO PIN THIS ORDER — there is nothing here for
+                // it to see, and a green test naming a mechanism it cannot
+                // discriminate is worse than no test at all.
+                if (declared.length) {
+                  setMemberInputs((prev) => [
+                    ...prev.filter((p) => !declared.some((d) => d && d.key === p.key)),
+                    ...declared.map((d) => ({ ...d })),
+                  ])
+                }
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
