@@ -307,6 +307,33 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
     const drawn = [...cols.hist_up].filter(Number.isFinite)
     expect(new Set(drawn), 'the scan column must actually take both values').toEqual(new Set([0, 1]))
 
+    // ⭐⭐ A1'S SECOND CLAUSE, ADDED TO THE SPEC 2026-08-27 AND PINNED HERE.
+    // The identity join above proves every surface holds the SAME definition.
+    // It proves NOTHING about whether the plots compute DIFFERENT things —
+    // perturbation P6 (every plot interpreting plot 1's tree, so a "MACD with
+    // histogram" draws three identical lines) left the whole agreement case
+    // GREEN. Only the arithmetic cross-check above caught it, and that check is
+    // specific to THIS definition's shape.
+    //
+    // ⛔ So the generic clause needs its own generic assertion: the three plots
+    // must be PAIRWISE DISTINCT on the same bars. Without this, the spec would
+    // declare a property no test holds — which is the defect class this whole
+    // branch keeps catching, aimed at its own acceptance criteria.
+    const PLOTS = ['macd', 'signal', 'hist']
+    for (let a = 0; a < PLOTS.length; a++) {
+      for (let b = a + 1; b < PLOTS.length; b++) {
+        const [x, y] = [cols[PLOTS[a]], cols[PLOTS[b]]]
+        let differing = 0
+        for (let i = 0; i < 300; i++) {
+          if (!Number.isFinite(x[i]) || !Number.isFinite(y[i])) continue
+          if (Math.abs(x[i] - y[i]) > 1e-9) differing += 1
+        }
+        expect(differing, `${PLOTS[a]} and ${PLOTS[b]} are the same column — ` +
+          'three plots that agree everywhere are one plot drawn three times, ' +
+          'which satisfies every hash on this branch').toBeGreaterThan(100)
+      }
+    }
+
     // The Conditions door — rows, or a refusal BY NAME. Never silence.
     const picker = fromAst(doc.compute.trees[fx.scanPlot])
     expect(picker && typeof picker === 'object', 'the Conditions door answered nothing').toBe(true)
