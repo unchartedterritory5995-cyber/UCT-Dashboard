@@ -1,4 +1,5 @@
 import { dividerFor, chromeFor, toolbarFor, parseColor, luminance } from '../../../utils/dividerColor'
+import { widgetDefaultsForAppTheme } from '../../../components/chart/chartThemes'
 
 // Breadth-widget appearance settings — the model behind its ⚙ Settings panel.
 // Sibling of fundamentalsSettings.js: usePreferences-backed, merged over
@@ -58,7 +59,7 @@ export const BREADTH_WIDGET_LIGHT_OVERRIDES = {
 export function breadthDefaultsForTheme(theme) {
   return theme === 'light'
     ? { ...BREADTH_WIDGET_DEFAULTS, ...BREADTH_WIDGET_LIGHT_OVERRIDES }
-    : BREADTH_WIDGET_DEFAULTS
+    : widgetDefaultsForAppTheme('breadth', theme, BREADTH_WIDGET_DEFAULTS)
 }
 
 export function mergeBreadthWidgetSettings(saved) {
