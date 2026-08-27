@@ -72,6 +72,20 @@ import { instancesForAddress } from '../engine/alertSets'
 import { useInstalledUserDefinitions } from '../../../hooks/useUserDefinitions'
 import { makeBars } from '../engine/__tests__/fakeChart'
 
+// ⛔ THIS FILE NEEDS MORE THAN VITEST'S DEFAULT 5s, AND THAT IS MEASURED, NOT
+// DEFENSIVE. It mounts the real BuilderSheet, types a formula through the real
+// debounce, saves, and then interprets four trees over 300 bars. Measured
+// 2026-08-27: 3,953 ms ALONE, and 7,552-10,360 ms in company. `app/vite.config.js`
+// tunes pool, heap and maxWorkers but never sets `testTimeout`, so the default
+// 5,000 ms applied — and the file went red under load while passing alone.
+//
+// ⚠️ A RETRY WOULD HAVE BEEN THE WRONG FIX. This is A1's rail — the one test that
+// turns the program's first acceptance criterion from believed into measured — so
+// a flake here does not just cost a re-run, it teaches people to re-run it, and a
+// rail nobody trusts is a rail nobody reads. Three-way control: 50% pool + 5s -> 1
+// red of 5; 50% pool + 30s -> 0 red of 4; maxWorkers=100% + 5s -> 2 red of 2.
+vi.setConfig({ testTimeout: 30000 })
+
 // ⭐ THE HOUSE IDIOM FOR REACHING `tests/fixtures/` — `trees.parity.test.js`'s,
 // one directory shallower: `app/src/components/chart/builder/` is FIVE levels
 // below the repo root.
