@@ -630,25 +630,38 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
   // the SAME correction the crossing row already made for boolean FUNCTIONS, one
   // node type over, and it is made the same way: by reading `yields`.
 
-  it('the flag set is a PARTITION of the manifest\'s boolean NAMES, across BOTH sections', () => {
-    // ⛔ NO NAME, NO COUNT AND NO SECTION. A bar field and a table scalar are
-    // the same NODE (E-1), so which section an entry lives in cannot decide
-    // whether it is a condition — only `yields` can, and this is the identity
-    // that a hand-list cannot satisfy by accident.
+  it('the flag set is a PARTITION of the manifest\'s boolean NAMES, across ALL THREE sections', () => {
+    // ⛔ NO NAME, NO COUNT AND NO SECTION. A bar field, a clock value and a
+    // table scalar are the same NODE (E-1), so which section an entry lives in
+    // cannot decide whether it is a condition — only `yields` can, and this is
+    // the identity that a hand-list cannot satisfy by accident.
     expect(VOCAB.flags.size).toBeGreaterThan(0)
-    const owed = [...Object.entries(TABLE.series), ...Object.entries(TABLE.scalars)]
+    const owed = [...Object.entries(TABLE.series), ...Object.entries(TABLE.clock), ...Object.entries(TABLE.scalars)]
       .filter(([, s]) => s.yields === 'bool')
       .map(([n]) => n)
       .filter((n) => !VOCAB.flags.has(n))
     expect(owed, 'a boolean name the manifest declares and the picker does not offer').toEqual([])
     for (const name of VOCAB.flags.keys()) {
-      const spec = TABLE.series[name] || TABLE.scalars[name]
+      const spec = TABLE.series[name] || TABLE.clock[name] || TABLE.scalars[name]
       expect(spec, name).toBeTruthy()
       expect(spec.yields, name).toBe('bool')
     }
-    // …and every flag is still a NAME the picker knows, so a flag row's source
-    // is a name both directions already resolve.
-    expect([...VOCAB.flags.keys()].filter((n) => !VOCAB.series.has(n) && !VOCAB.scalars.has(n))).toEqual([])
+    // …and every flag SOURCED FROM SERIES OR SCALARS is still a NAME the picker
+    // knows as a TERM too, so a flag row's source is a name both directions
+    // already resolve — for those two sections.
+    const seriesOrScalarFlags = [...VOCAB.flags.keys()].filter((n) => !TABLE.clock[n])
+    expect(seriesOrScalarFlags.filter((n) => !VOCAB.series.has(n) && !VOCAB.scalars.has(n))).toEqual([])
+    // ⚠️ AND A CLOCK FLAG IS DELIBERATELY FLAG-ONLY, NOT ALSO A TERM. The
+    // ruling that added `table.clock` to `boolNames` scoped it to the picker's
+    // flag ROW (this shape) — it did not add a `vocab.clock` term set, so
+    // `sessionfirst == 1` is not offered even though bare `sessionfirst` is.
+    // Recorded here so the asymmetry is a decision, not an oversight — the same
+    // idiom the "A BOOLEAN NAME IS STILL A TERM TOO" case below uses for the
+    // scalar/series case.
+    const clockFlags = [...VOCAB.flags.keys()].filter((n) => TABLE.clock[n])
+    expect(clockFlags.length, 'the manifest declares no clock boolean — this half asserts nothing')
+      .toBeGreaterThan(0)
+    expect(clockFlags.every((n) => !VOCAB.series.has(n) && !VOCAB.scalars.has(n))).toBe(true)
   })
 
   it('⭐ EVERY DECLARED NAME, DERIVED: `yields` decides, and the answer is total', () => {
@@ -658,7 +671,7 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     // says, in both directions. A name added to `closedTable.json` tomorrow is
     // already asserted here, and a hand-list that agreed with today's manifest
     // would still have to agree with tomorrow's.
-    const names = [...Object.entries(TABLE.series), ...Object.entries(TABLE.scalars)]
+    const names = [...Object.entries(TABLE.series), ...Object.entries(TABLE.clock), ...Object.entries(TABLE.scalars)]
     expect(names.length).toBeGreaterThan(50)
     const bools = names.filter(([, s]) => s.yields === 'bool')
     const others = names.filter(([, s]) => s.yields !== 'bool')
@@ -726,10 +739,72 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     expect(res.group.children[0]).toEqual({ kind: 'flag', name: 'uct_planted_bar_flag' })
   })
 
+  it('⭐ THE CLOCK SECTION — the optional polish this task took. A planted boolean CLOCK value is offered too', () => {
+    // ⭐⭐ THE THIRD SECTION, PROVED THE SAME WAY THE OTHER TWO ABOVE ARE. Before
+    // this task `boolNames` read only `table.series` and `table.scalars`, so a
+    // clock boolean rendered, linted and evaluated correctly and was still
+    // UNREACHABLE from the picker — the "a filter family with no view is half
+    // shipped" failure. A clock value rides the same `series` NODE as a bar
+    // field and a scalar (E-1, extended by tableVersion 2), so only `yields`
+    // may decide here too.
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.clock.uct_planted_clock_flag = {
+      lookback: 0, yields: 'bool', sentence: 'whether the planted clock condition is set',
+    }
+    const v = vocabulary(planted)
+    expect(VOCAB.flags.has('uct_planted_clock_flag')).toBe(false)
+    expect(v.flags.has('uct_planted_clock_flag')).toBe(true)
+    const res = fromAst({ type: 'series', name: 'uct_planted_clock_flag' }, v)
+    expect(res.ok, res.reason).toBe(true)
+    expect(res.group.children[0]).toEqual({ kind: 'flag', name: 'uct_planted_clock_flag' })
+    // …and it round-trips, so it is editable and not merely visible.
+    expect(toSource(res.group, v)).toBe('uct_planted_clock_flag')
+    // …and the SHIPPED vocabulary still refuses it (it is not in the real
+    // table), so the planted table is demonstrably what made the difference.
+    expect(fromAst({ type: 'series', name: 'uct_planted_clock_flag' }, VOCAB).guard)
+      .toBe('picker:not-a-condition')
+  })
+
+  it('⛔ AND A REAL CLOCK BOOLEAN IS OFFERED TODAY, WITH NO PLANT AT ALL — the shipped proof', () => {
+    // The other half of the plant above: `closedTable.json` already declares
+    // five real clock booleans, and the SHIPPED `VOCAB` — built from the real
+    // table, no synthetic entry involved — offers every one of them today.
+    const realClockBools = Object.entries(TABLE.clock)
+      .filter(([, spec]) => spec.yields === 'bool').map(([n]) => n)
+    expect(realClockBools.length, 'the manifest declares no clock boolean — this case proves nothing')
+      .toBeGreaterThan(0)
+    for (const name of realClockBools) {
+      expect(VOCAB.flags.has(name), name).toBe(true)
+      const res = fromSource(name)
+      expect(res.ok, `${name}: ${res.reason}`).toBe(true)
+      expect(res.group.children).toEqual([{ kind: 'flag', name }])
+      expect(astHash(parseFormula(toSource(res.group)).ast)).toBe(astHash(parseFormula(name).ast))
+    }
+  })
+
   it('⛔ AND A REMOVED `yields: bool` TAKES ONE BACK OUT, refusing what it used to read', () => {
-    const name = [...VOCAB.flags.keys()][0]
+    // ⚠️ PICKED FROM SCALARS BY SEARCH, NOT BY INDEX. `VOCAB.flags` is a Map
+    // built series-then-clock-then-scalars, and `table.series` has no boolean
+    // entry today, so `[...VOCAB.flags.keys()][0]` is now a CLOCK name — this
+    // proof is about the SCALARS section moving; the clock section gets its own
+    // proof below.
+    const name = [...VOCAB.flags.keys()].find((n) => TABLE.scalars[n])
+    expect(name, 'no scalar flag exists — this proof asserts nothing').toBeTruthy()
     const planted = JSON.parse(JSON.stringify(TABLE))
     planted.scalars[name].yields = 'num'
+    const v = vocabulary(planted)
+    expect(VOCAB.flags.has(name)).toBe(true)
+    expect(v.flags.has(name)).toBe(false)
+    expect(fromAst(parseFormula(name).ast, v).guard).toBe('picker:not-a-condition')
+  })
+
+  it('⛔ AND A REMOVED CLOCK `yields: bool` TAKES ONE BACK OUT TOO, the mirror proof', () => {
+    // The direction that matters for the newest section: take a REAL clock
+    // boolean's `yields` away and the picker stops offering it, exactly as it
+    // does for a scalar (above) and a bar field (further above).
+    const [name] = Object.entries(TABLE.clock).find(([, spec]) => spec.yields === 'bool')
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.clock[name].yields = 'num'
     const v = vocabulary(planted)
     expect(VOCAB.flags.has(name)).toBe(true)
     expect(v.flags.has(name)).toBe(false)
@@ -742,13 +817,16 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     // manifest owns — this repo's most-repeated defect. The planted case is what
     // proves the label is READ rather than written.
     for (const [name, spec] of VOCAB.flags) {
-      const declared = (TABLE.series[name] || TABLE.scalars[name]).sentence
+      const declared = (TABLE.series[name] || TABLE.clock[name] || TABLE.scalars[name]).sentence
       expect(spec.label, name).toBeTruthy()
       expect(spec.label, name).not.toMatch(/[{}]/)
       const stray = spec.label.split(/\s+/).filter((w) => !declared.includes(w))
       expect(stray, `${name}'s label says something its sentence does not`).toEqual([])
     }
-    const first = [...VOCAB.flags.keys()][0]
+    // ⚠️ PICKED FROM SCALARS BY SEARCH, NOT BY INDEX — see the removal proof
+    // above for why `[0]` is no longer safe here.
+    const first = [...VOCAB.flags.keys()].find((n) => TABLE.scalars[n])
+    expect(first, 'no scalar flag exists — this proof asserts nothing').toBeTruthy()
     const planted = JSON.parse(JSON.stringify(TABLE))
     planted.scalars[first].sentence = 'uctplantedfact'
     expect(vocabulary(planted).flags.get(first).label).toBe('uctplantedfact')
@@ -772,11 +850,31 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     // can do today in the name of consistency with the crossing decision, which
     // is a narrowing and an owner call, not a bug fix. It is recorded here so
     // the asymmetry is a decision on the record rather than an oversight.
-    const name = [...VOCAB.flags.keys()][0]
+    //
+    // ⚠️ PICKED FROM SERIES-OR-SCALARS BY SEARCH, NOT BY INDEX. A clock flag is
+    // deliberately NOT also a term (see the PARTITION case above) — `[0]` would
+    // pick one and turn this into a false negative for the wrong reason.
+    const name = [...VOCAB.flags.keys()].find((n) => TABLE.series[n] || TABLE.scalars[n])
+    expect(name, 'no series-or-scalar flag exists — this proof asserts nothing').toBeTruthy()
     const back = fromSource(`${name} == 1`)
     expect(back.ok, back.reason).toBe(true)
     expect(back.group.children[0].kind).toBe('row')
     expect(back.group.children[0].left).toEqual({ t: 'name', name })
+  })
+
+  it('⚠️ …AND A CLOCK FLAG IS NOT A TERM — `sessionfirst == 1` still refuses', () => {
+    // ⭐ THE MIRROR OF THE CASE ABOVE, PROVING THE SCOPE RATHER THAN ASSUMING IT.
+    // Offering `table.clock` to `boolNames` widened the FLAG ROW only; `readTerm`
+    // and `termSource` were not touched, so a clock name used as a comparison
+    // OPERAND still has no editor — `vocab.series`/`vocab.scalars` do not carry
+    // it. This is the ruling's own stated cost boundary ("one line plus a
+    // test"), not an oversight; a widened comparator set was never asked for.
+    const name = [...VOCAB.flags.keys()].find((n) => TABLE.clock[n])
+    expect(name, 'no clock flag exists — this proof asserts nothing').toBeTruthy()
+    expect(fromSource(`${name} == 1`).guard).toBe('picker:term')
+    // …and the bare flag still opens, so the refusal above is about the TERM
+    // position and not about the name being unknown to the picker.
+    expect(fromSource(name).ok).toBe(true)
   })
 })
 
@@ -1365,6 +1463,7 @@ describe('⭐ THE SOURCE RAIL — this module SPELLS NO NAME THE TABLE DECLARES'
   // name; renaming an operator would have dropped it with every gate green.
   const DECLARED = new Set([
     ...Object.keys(TABLE.series),
+    ...Object.keys(TABLE.clock),
     ...Object.keys(TABLE.scalars),
     ...Object.keys(TABLE.functions),
     ...Object.keys(TABLE.operators),
