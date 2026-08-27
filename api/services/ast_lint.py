@@ -48,7 +48,14 @@ from __future__ import annotations
 import json
 import pathlib
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+# ⚠️ `Mapping` COMES FROM `typing`, NOT `collections.abc`, AND THAT IS ON
+# PURPOSE. `test_no_evaluator_is_reachable_from_the_linter` pins this
+# module's import closure to an EXACT stdlib allow-list, because a linter
+# that can reach an evaluator could reach its verdict by RUNNING the
+# formula instead of by reading the tree. Importing `collections.abc`
+# widens that closure by one module for zero benefit -- `typing` is
+# already in the list and already exports what this needs.
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 # --------------------------------------------------------------------------- #
 # the vocabulary
@@ -310,7 +317,26 @@ def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
     Both come out of ONE object so they cannot drift apart: ``max_lookback`` and
     the repaint verdict are two readings of the same declaration.
     """
-    if not isinstance(spec, dict):
+    # ⛔ `Mapping`, NOT `dict` — AND THAT IS THE WHOLE BUG THIS LINE ONCE HAD.
+    # `spec` is a MANIFEST entry, and `ast_table.TABLE` is a DEEP-FROZEN
+    # `mappingproxy`, which is not a `dict`. So `isinstance(spec, dict)` was
+    # False for every real entry the moment anyone passed the frozen manifest as
+    # `opts["table"]` -- the obvious thing to pass, since it is THE manifest
+    # object -- and every tree came back `repaints`.
+    #
+    # ⚠️ THE DIRECTION IS WHAT MADE IT INVISIBLE. It fails CONSERVATIVELY:
+    # refusals everywhere, no wrong values, no crash. It reads as a careful
+    # linter rather than a blind one. Measured 2026-08-27 on `sma(close, 20)`:
+    #   opts absent (ast_lint's own plain-dict TABLE) -> non-repainting, back 20
+    #   opts["table"] = ast_table.TABLE (frozen)      -> repaints, "unanalysable"
+    #   opts["table"] = a plain-dict copy            -> non-repainting, back 20
+    # so the shipped default was right and the trap was one caller away.
+    #
+    # ⚠️ The other `isinstance(..., dict)` checks in this module are NOT this
+    # bug and must not be "fixed" alongside it: they receive AST nodes and
+    # definition documents, which arrive from `json.loads` and are always plain
+    # dicts. Only the manifest is frozen.
+    if not isinstance(spec, Mapping):
         return UNKNOWN, UNKNOWN
 
     lookback = _resolve_declaration(spec.get("lookback"), arg_nodes)

@@ -947,3 +947,48 @@ def test_the_clock_branch_is_reached_on_the_MULTI_TREE_path_too_not_only_the_leg
     # …and the window the door reports is the MANIFEST's, so the two lanes and the
     # two paths are all reading one declaration.
     assert ast_table.TABLE[ast_table.CLOCK_SECTION]["sessionfirst"]["lookback"] == 1
+
+
+# ── X51: the frozen manifest must lint identically to the plain-dict one ──────
+#
+# ⛔ `ast_table.TABLE` is a DEEP-FROZEN `mappingproxy`, which is NOT a `dict`.
+# `_own_window` opened with `isinstance(spec, dict)`, so passing the frozen
+# manifest as `opts["table"]` -- the obvious thing to pass, since it IS the
+# manifest object -- made every entry unanalysable and every tree `repaints`.
+#
+# ⚠️ It failed CONSERVATIVELY, which is what kept it invisible: refusals
+# everywhere, no wrong values, no crash. It reads as a careful linter rather
+# than a blind one. The shipped default was never wrong (`ast_lint.TABLE` is its
+# own plain dict), so nothing in the suite could see it -- the trap was one
+# caller away, and the caller it was waiting for is the natural one.
+
+
+def test_the_FROZEN_manifest_lints_identically_to_the_plain_dict_one():
+    """The verdict must not depend on which Mapping flavour holds the manifest.
+
+    ⭐ This asserts AGREEMENT rather than a hardcoded verdict on purpose: pinning
+    "sma is non-repainting" would still pass if BOTH readings broke together,
+    and the defect this rail exists for is exactly one reading diverging from
+    the other."""
+    from api.services import ast_table
+
+    tree = {"type": "call", "name": "sma",
+            "args": [{"type": "series", "name": "close"},
+                     {"type": "num", "value": 20}]}
+
+    default = al.lint_repaint(tree)
+    frozen = al.lint_repaint(tree, {"table": ast_table.TABLE})
+
+    # the control: the frozen manifest really is NOT a dict, so this rail is
+    # exercising the thing it claims to. Without this, a future `TABLE` that
+    # became a plain dict would make the test pass while proving nothing.
+    assert not isinstance(ast_table.TABLE, dict), (
+        "ast_table.TABLE is no longer a mappingproxy -- this rail has stopped "
+        "testing anything and must be re-pointed at whatever is frozen now")
+
+    assert frozen == default, (
+        "the frozen manifest lints differently from the plain-dict one: "
+        f"frozen={frozen} default={default} -- `_own_window` (and anything else "
+        "reading a manifest entry) must test `Mapping`, never `dict`")
+    assert default["mode"] == "non-repainting" and default["back"] == 20, (
+        f"the shipped default itself moved: {default}")
