@@ -1198,3 +1198,32 @@ Verified on the pod after deploy: three commands, `/chart` carrying exactly
 ticker/tf/compare, `parse_chart_requests("nvda amd avgo")` → three charts, bare
 `/chartsettings` → show, the Look dropdown ending `save, help`, and the breadth
 autocomplete answering. Commands re-registered globally (instant, no deploy).
+
+### v22 — the controls stop clogging the channel (2026-08-26, ~23:30 CT)
+
+Owner, looking at a real chart in the member server: *"this looks mega clunky
+and really clogs up a decent portion of channels when people use it… it really
+takes up a lot of space."* He was right — three full-width dropdowns stacked
+under the image cost as much vertical space as the chart itself, and the fifth
+button in the bottom row wrapped onto a line of its own at normal channel width.
+
+**Five action rows → three.**
+
+- **Zoom + Indicators + Look are ONE dropdown.** They were 6 + 4 + 13 = 23
+  options, inside Discord's 25, so they merge — and the current state moves into
+  the placeholder where it still reads at a glance: `⚙️ Zoom 3 months · RSI +
+  MACD · Line`.
+- **No option carries `default` any more.** The state lives in the placeholder
+  instead, which makes `COMPONENT_TOO_MANY_DEFAULT_VALUES` structurally
+  unreachable AND stops a pick leaving its own label standing where the chart's
+  setting belongs — the wart v13b had to answer with an UPDATE_MESSAGE.
+- **The `Open interactive ↗` link button is retired.** With five buttons in that
+  row Discord wrapped it, so a link to the site cost a whole row of every
+  member's screen. The help pick names the site instead.
+
+The three retired select prefixes (`zoom|`, `ind|`, `look|`) still parse, so
+charts already posted in the channel keep working. Verified on the pod after
+deploy: 3 rows, 23 options, no link buttons, state in the placeholder.
+
+⭐ The general lesson: a control surface is charged to the reader's screen every
+time anyone uses it. Five rows was five rows for every member scrolling past.
