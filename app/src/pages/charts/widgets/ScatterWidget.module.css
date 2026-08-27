@@ -1,0 +1,151 @@
+/* Market Map (scatter/bubble) widget. Chrome (.wrap/.toolbar/.live/.asof/.gear)
+   is REUSED from NewHighsLowsWidget.module.css; this file is the scatter stage,
+   the axis-title dropdowns, the universe/metric menus and the zoom controls. It
+   rides the same --nh-* / --widget-* token chain, so a chart theme themes it. */
+
+/* Toolbar universe TABS — a scrollable row of saved universes (switch/delete)
+   plus a ＋ to add another (S&P 500 · Nasdaq 100 · Dow 30 · …). */
+.uniTabs {
+  display: flex; align-items: center; gap: 4px;
+  flex: 1 1 auto; min-width: 0; overflow-x: auto;
+  scrollbar-width: none;
+}
+.uniTabs::-webkit-scrollbar { display: none; }
+.uniTab {
+  position: relative; display: inline-flex; align-items: center; gap: 5px;
+  flex: 0 0 auto; height: 24px; padding: 0 8px;
+  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.16)));
+  border-radius: 7px; background: transparent;
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; user-select: none;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.uniTab:hover { border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); }
+.uniTabActive { border-color: var(--ut-gold); color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 11%, transparent); }
+.uniTabLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.uniTabCount { font-size: 9.5px; font-weight: 700; opacity: 0.72; font-variant-numeric: tabular-nums; }
+.uniTabX {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; margin-right: -3px; border-radius: 3px;
+  opacity: 0; color: var(--nh-text, var(--text-muted)); transition: opacity .1s, background .1s, color .1s;
+}
+.uniTab:hover .uniTabX { opacity: 0.7; }
+.uniTabX:hover { opacity: 1; background: rgba(242, 75, 66, 0.85); color: #fff; }
+.uniAdd {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 7px;
+  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  background: transparent; color: var(--nh-sym, var(--text-bright)); cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.uniAdd:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* The scatter stage: the ECharts canvas fills it; the axis dropdowns + zoom
+   controls float on top. overflow:hidden clips any 1-2px canvas spill during a
+   resize/update tick so the widget never sprouts its own scrollbars. */
+.stage { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.chartWrap { position: absolute; inset: 0; overflow: hidden; }
+
+/* Axis-title dropdowns — the signature: you change the metric by clicking the
+   axis. X sits centered under the plot; Y sits rotated up the left edge. */
+.axisSel {
+  position: absolute; z-index: 3;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px;
+  border: 1px solid transparent;
+  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+  cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s, color .12s;
+}
+.axisSel:hover { border-color: var(--ut-gold); color: var(--ut-gold); background: rgba(255, 255, 255, 0.07); }
+.axisSel svg { opacity: 0.7; }
+.axisX { left: 50%; bottom: 4px; transform: translateX(-50%); }
+/* Y title: a full-height, ~20px-wide column at the far left, flex-centered; the
+   rotated button inside can't clip horizontally and always centers vertically. */
+.axisYCol {
+  position: absolute; z-index: 3; left: 0; top: 14px; bottom: 50px; width: 20px;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.axisYBtn { transform: rotate(-90deg); pointer-events: auto; }
+.axisSize, .labelBtn {
+  position: absolute; z-index: 3; right: 8px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid transparent;
+  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  color: var(--nh-text, var(--text-muted));
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
+  cursor: pointer; white-space: nowrap;
+}
+.axisSize { top: 6px; }
+.labelBtn { top: 32px; }
+.axisSize:hover, .labelBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* Quadrant reads — a faint corner word when both axes are signed around 0. */
+.quad {
+  position: absolute; z-index: 2; pointer-events: none;
+  font-family: var(--font-sans); font-size: 9px; font-weight: 800;
+  letter-spacing: 1.2px; text-transform: uppercase; opacity: 0.5;
+}
+.quadTR { top: 20px; right: 24px; }
+.quadBL { bottom: 46px; left: 62px; }
+
+/* Zoom controls — a compact vertical stack, bottom-right, our own styling. */
+.zoom {
+  position: absolute; z-index: 3; right: 8px; bottom: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.zoomBtn {
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  border-radius: 6px; background: var(--nh-elev, rgba(16, 18, 22, 0.72));
+  color: var(--nh-sym, var(--text-bright)); cursor: pointer;
+  font-size: 15px; line-height: 1; font-weight: 600;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.zoomBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* ── Shared dropdown menu (universe + metric pickers), portaled to <body> ── */
+.menu {
+  position: fixed; z-index: 4200;
+  min-width: 190px; max-width: 260px; overflow-y: auto;   /* max-height set inline to fit view */
+  padding: 5px; border-radius: 10px;
+  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
+  background: var(--menu-bg, var(--nh-elev, #14171d));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  /* Scrollbar blends into the menu (no bright OS bar). */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.menu::-webkit-scrollbar { width: 9px; }
+.menu::-webkit-scrollbar-track { background: transparent; }
+.menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.menu::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.26); background-clip: padding-box; }
+.menuGroup { padding-top: 3px; }
+.menuGroupLabel {
+  padding: 6px 8px 3px; font-size: 9px; letter-spacing: 0.09em; font-weight: 700;
+  text-transform: uppercase; color: var(--nh-text, var(--text-muted)); opacity: 0.7;
+}
+.menuItem {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 28px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 12px; text-align: left; cursor: pointer;
+}
+.menuItem:hover { background: var(--menu-hover, var(--nh-hover, rgba(255, 255, 255, 0.07))); }
+.menuItemOn { color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.menuItemLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menuItemHint { font-size: 9px; color: var(--nh-text, var(--text-muted)); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; }
+.menuDot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+
+.hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 16px; text-align: center; font-size: 12px;
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
+}

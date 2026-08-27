@@ -267,7 +267,17 @@ def test_connect_craft_bad_url_400(client):
     assert r.status_code == 400
 
 
-def test_connect_paid_gate_blocks_free_user(client):
+def test_connect_paid_gate_blocks_free_user(client, monkeypatch):
+    # ⛔ THE PROVIDER IS STUBBED SO THIS TEST IS SAFE INDEPENDENTLY OF THE GATE
+    # IT TESTS. Without it, the only thing standing between this case and a
+    # real outbound call to a third party is the 403 under test -- so the
+    # moment the gate breaks, or anyone mutation-tests it, the handler runs
+    # and dials out with a garbage token. "Safe only while the gate works" is
+    # not safe; it is the shape that let this repo's suite page production on
+    # 2026-08-18. The neighbouring cases above already stub `build_provider`;
+    # this copies them.
+    monkeypatch.setattr(registry, "build_provider",
+                        lambda name, source=None: FakeTokenProvider(label="g1"))
     _free_user(client)
     r = client.post("/api/j2/notes/connectors/roam/connect",
                      json={"consent": True, "graphName": "g1", "token": "t1"})
@@ -1201,6 +1211,16 @@ def test_folders_onedrive_paid_gate_403(client, monkeypatch):
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
     connections.upsert_connector("u1", "onedrive", {"accessToken": "tok"})
+    # ⛔ THE PROVIDER IS STUBBED SO THIS TEST IS SAFE INDEPENDENTLY OF THE GATE
+    # IT TESTS. Without it, the only thing standing between this case and a
+    # real outbound call to a third party is the 403 under test -- so the
+    # moment the gate breaks, or anyone mutation-tests it, the handler runs
+    # and dials out with a garbage token. "Safe only while the gate works" is
+    # not safe; it is the shape that let this repo's suite page production on
+    # 2026-08-18. The neighbouring cases above already stub `build_provider`;
+    # this copies them.
+    monkeypatch.setattr(registry, "build_provider",
+                        lambda name, source=None: FakeFolderProvider(folders=[]))
     _free_user(client)
     r = client.get("/api/j2/notes/connectors/onedrive/folders")
     assert r.status_code == 403

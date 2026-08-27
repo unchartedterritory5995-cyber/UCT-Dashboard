@@ -60,9 +60,21 @@ only free if the row it points at CANNOT CHANGE UNDER ITS HOLDER. So:
 `version` vs `rev` — TWO NUMBERS, AND THE SECOND ONE IS THE DANGEROUS ONE
 ────────────────────────────────────────────────────────────────────────────────
 `version` is PRESENTATION and increments on EVERY save (a rename, a colour, a
-tooltip). `rev` is MATHS and increments IFF `ast_hash` moved. Deriving `rev` from
-the hash removes an entire class of "the user forgot to bump it", and it is one
-assertion in both directions.
+tooltip). `rev` is MATHS and increments IFF ANY PLOT'S TREE MOVED — `ast_hash`
+(the scan tree) OR `treesHash` (every plot's tree, via `trees_identity`).
+Deriving `rev` from the hashes removes an entire class of "the user forgot to
+bump it", and it is one assertion in both directions.
+
+⛔ THE **OR** IS THE WHOLE RULING, AND IT WAS `ast_hash` ALONE UNTIL W9i. A
+definition carries many plots now and an alert binds to ONE of them
+(`u_<12 hex>.<plotKey>`), so a member could change what plot 2 computes and the
+alert on plot 2 kept evaluating the tree they had just replaced — no migration,
+no `last_value` reset, no notice. `ast_hash` never moves on that edit, because
+`compute.ast` is an ALIAS of the SCAN plot's tree and only that one.
+⛔ AND `ast_hash` IS STILL THE FIRST IDENTITY. It is what this table STORES, what
+`compute.fn` and `scan_definition.def_hash` are, what keys every `scan_hits` row
+and what the migration is handed as `def_hash`. `treesHash` widens the QUESTION
+and replaces NO byte of the answer.
 
 ⭐ AND A `rev` BUMP CALLS PHASE C, IT DOES NOT REBUILD IT. `save()` calls
 `alert_rev_migration.migrate_bindings_to_rev` — the same function, the same
@@ -95,6 +107,22 @@ silently re-badges a definition somebody already armed, and the receipts claim
 becomes a moving target. A linter change therefore requires an explicit re-lint
 pass with its own notification — a Phase-E problem, named here so it is not
 discovered there.
+
+⭐ THAT PASS EXISTS NOW, AND IT IS `api/services/user_definition_relint.py`.
+Run it after ANY change to `ast_lint` or to `closedTable.json`:
+
+    python -m api.services.user_definition_relint [--dry-run]
+
+It heals only the direction that is safe (a stored badge STRICTER than the
+linter now is — nothing was ever admitted under a looser claim), reports the
+dangerous direction with the armed alert ids rather than flipping it, and
+touches only the newest live row. ⛔ It is a COMMAND, never a hook: nothing in
+this module imports it, and nothing may. The paragraph above is the reason.
+
+⚠️ AND THE ONE ESCAPE A MEMBER MIGHT TRY DOES NOT WORK — a byte-identical
+re-save returns before the append carrying the PREVIOUS row's `repaint`, so a
+user cannot re-save their way out of a stale badge. That is correct for growth
+and it is why the pass has to exist.
 
 ────────────────────────────────────────────────────────────────────────────────
 WHAT BOUNDS THIS STORE'S GROWTH — AND WHAT DOES NOT
@@ -134,7 +162,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 # ─── caps ────────────────────────────────────────────────────────────────────
 
@@ -328,6 +356,344 @@ def ast_hash(ast: Any) -> str:
         stable_stringify(ast).encode("utf-8")).hexdigest()
 
 
+# ─── definition v2: MANY TREES, ONE SCAN ─────────────────────────────────────
+#
+# ⭐ THE ADDITIVE HALF OF A DEFINITION'S IDENTITY. `compute.fn` stays
+# `ast_hash(compute.ast)` — the SCAN tree — so `scan_definition.def_hash`, every
+# `scan_hits` key and every alert binding are byte-identical to what they were
+# before multi-plot existed. `treesHash` is the SECOND identity, over every
+# plot's tree, and it exists for change detection and the `compute.rev`
+# migration; it never replaces the first.
+#
+# ⭐ AND THAT SENTENCE IS CODE NOW, NOT AN INTENT. `trees_identity` (below) is
+# what `save()` ORs into `rev_bumped` beside `prev["ast_hash"] != new_hash`.
+# Until W9i it was a claim about a mechanism NOBODY HAD WRITTEN: the rev decision
+# read the scan tree alone, so an edit to plot 2 migrated nothing and the alert
+# bound to plot 2 went on evaluating the tree its owner had just replaced. The
+# sentence survived because it reads like a description — which is the whole
+# defect class, and why it is worth saying here that it is now true.
+#
+# ⛔ THIS IS A MIRROR, AND THE ONLY HONEST TEST OF A MIRROR IS THE OTHER LANE.
+# `app/src/components/chart/engine/ast/trees.js` (`assertTrees`, `treesHash`) and
+# `engine/defSchema.js` (`validateTrees`, `validateTreesAgainstPlots`) are the
+# browser halves; the sentences below are theirs, not paraphrases, because a
+# member who is refused in the editor and again at the API must read one
+# sentence. `tests/fixtures/ast/multi_tree_parity.json` pins ONE `treesHash`
+# string and `tests/test_ast_multi_tree_parity.py` runs the SHIPPED `trees.js`
+# under node to hold both lanes to it — so a drift in either hasher goes red,
+# from either side.
+#
+# ⚠️ ONE ASYMMETRY, NAMED RATHER THAN HIDDEN: the browser also re-parses every
+# `compute.sources[k]` and checks it hashes to `trees[k]`. There is exactly one
+# parser and it is in JS (D-A1), so this lane CANNOT do that and does not
+# pretend to. What it checks instead is everything that is decidable without a
+# parser, which is every rule but that one. Concretely: set
+# `sources["macd"] = "ema(close, 9)"` on a document whose `trees["macd"]` is the
+# MACD line and this lane stores it; the browser refuses it. The member is then
+# shown source text that is not the maths their plot computes.
+#
+# ⛔ AND WHAT WOULD UNBLOCK IT, WHICH IS THE HALF A REFUSAL IS USELESS WITHOUT.
+# EITHER of these closes it, and neither has been done:
+#
+#   1. a Python parser (D-A1) — the expensive one, and it would put a SECOND
+#      parser on one grammar, which is the defect this repo names most often;
+#   2. a per-source hash the browser STAMPS at save time — e.g. a
+#      `compute.sourceHashes[k]` written beside `treesHash` by the one lane that
+#      can parse. This lane would then check the correspondence by comparing two
+#      strings and would need no parser at all.
+#
+# (2) is the cheaper one and it is the shape this repo already prefers: make the
+# knowing side stamp its answer rather than making a second side re-derive it.
+#
+# ⚰️ THIS PARAGRAPH NAMED THE CAUSE AND STOPPED THERE, and the W1b.8 report then
+# stated the unblocking condition as though it were written here — it was not; it
+# existed only in the report, and a report is a document nobody greps
+# (`lesson_an_over_refusal_is_invisible`: every doc-blocked refusal must NAME what
+# would unblock it, and `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`:
+# a comment explaining why something was NOT checked is how a false premise never
+# gets revisited). Caught by the W1b.8 review, which grepped this block for
+# `unblock` and `stamp` and found zero hits.
+
+_PLOT_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+
+#: The v2 keys. A single-tree document carries NONE of them — a rule with a
+#: refusal behind it, mirroring `defSchema.V2_COMPUTE_KEYS`.
+_V2_COMPUTE_KEYS = ("trees", "treesHash", "scanPlot", "sources")
+
+
+def declares_v2(compute: Any) -> bool:
+    """Does this stored `compute` CLAIM to be a multi-tree document?
+
+    ⭐ A DIFFERENT QUESTION FROM `validate_v2`'S, ASKED OFF THE SAME ROSTER.
+    `validate_v2` asks *may this document be STORED* and answers it from
+    `"trees" in compute`, because a document carrying any other v2 key beside no
+    `trees` is one it refuses by name. This answers the READ path's question: the
+    row is already stored, a per-plot tree lookup just came up empty, and the
+    reader has to choose between `compute.ast` and a refusal.
+
+    ⛔ AND THAT CHOICE IS WHY THIS EXISTS. `compute.ast` is the SCAN plot's
+    tree, so falling back to it is exactly right for a genuine single-tree
+    document — every plot of one legitimately resolves there — and is a WRONG
+    NUMBER for a multi-tree one: `alert_user_series._make_value_fn` answered an
+    alert armed on the MACD line with the scan plot's `hist > 0`, a 0/1 flag
+    delivered to a member as a price distance. Any one of `_V2_COMPUTE_KEYS` is
+    the document CLAIMING to be multi-tree, and the claim alone is enough to make
+    the fallback the wrong answer — the reader must refuse instead.
+
+    ⛔ THE ROSTER IS READ, NEVER RESTATED. A caller spelling
+    `"trees" in compute or "scanPlot" in compute` would be a second authority over
+    one value (this repo's most repeated defect): add a fifth v2 key to
+    `_V2_COMPUTE_KEYS` and `validate_v2` would refuse it on a single-tree document
+    while the read path went on falling back. One tuple, two questions.
+
+    ⚠️ IT IS DELIBERATELY NOT A VALIDITY CHECK.
+    `{"trees": None, "scanPlot": "a"}` is a claim AND malformed; this answers
+    `True` — *refuse rather than fall back* — and leaves naming the malformation
+    to `validate_v2`. Answering `False` for a broken map would hand the scan
+    tree's number to every plot of exactly the document most likely to be broken.
+    """
+    if not isinstance(compute, Mapping):
+        return False
+    return any(k in compute for k in _V2_COMPUTE_KEYS)
+
+
+def _assert_trees(trees: Any) -> list:
+    """The plot keys, SORTED — `trees.js::assertTrees`, sentence for sentence.
+
+    ⛔ `None` IS REFUSED, NEVER READ AS "ABSENT". Python collapses `undefined` and
+    `null` onto one value, so presence must be asked with `in` at the call site
+    (`validate_v2` does) and a `trees` that IS `None` arrives here to be refused
+    by name. Reading it as absent would validate a document carrying `scanPlot`,
+    `treesHash` and `sources` as if it were single-tree, and the refusal a member
+    finally saw would name the wrong field.
+
+    ⛔ AND A ONE-KEY MAP IS LEGAL HERE. That rule belongs to `validate_v2` (and to
+    `defSchema.validateTrees`), not to the shape check: `trees_hash` calls this,
+    and refusing a one-key map here would make this lane decline to hash a map the
+    browser hashes happily — two identities disagreeing about a legal input.
+    """
+    if not isinstance(trees, dict):
+        got = ("null" if trees is None
+               else "an array" if isinstance(trees, (list, tuple))
+               else type(trees).__name__)
+        raise ValueError(
+            f"compute.trees: expected an object of plotKey → canonical tree, got {got}")
+    keys = sorted(trees)
+    if not keys:
+        raise ValueError("compute.trees: an empty trees map names no plot")
+    for k in keys:
+        if not isinstance(k, str) or not _PLOT_KEY_RE.match(k):
+            raise ValueError(
+                f"compute.trees: {json.dumps(k, ensure_ascii=False)} is not a legal plot "
+                f"key ({_PLOT_KEY_RE.pattern})")
+    return keys
+
+
+def trees_hash(trees: Any) -> str:
+    """``'sha256:<hex>'`` over ``"<key>":<ast_hash(tree)>`` pairs, keys sorted, comma-joined.
+
+    Byte for byte what ``engine/ast/trees.js::treesHash`` computes, and the shared
+    fixture pins one string both lanes reproduce. Two facts make the two lanes
+    agree without a collation rule or a second serialiser: each pair carries
+    ``ast_hash``'s FULL ``'sha256:<hex>'`` value (the prefix is INSIDE the hashed
+    text), and `_PLOT_KEY_RE` keeps every key ASCII, so JS's UTF-16 sort and
+    Python's ``sorted()`` order them identically.
+
+    ⛔ IT IS NOT ``ast_hash([[key, tree], …])``: ``ast_hash`` asserts a canonical
+    NODE and a pair list is not one. The map is hashed THROUGH ``ast_hash`` so
+    neither lane needs a second ``stable_stringify``.
+    """
+    keys = _assert_trees(trees)
+    pairs = []
+    for k in keys:
+        try:
+            h = ast_hash(trees[k])
+        except ValueError as exc:
+            # The JS wrapper's sentence, verbatim — a member reads WHICH tree.
+            raise ValueError(f"compute.trees.{k}: {exc}") from exc
+        pairs.append(f"{json.dumps(k, ensure_ascii=False)}:{h}")
+    return "sha256:" + hashlib.sha256(",".join(pairs).encode("utf-8")).hexdigest()
+
+
+#: What a stored document's trees hash to when this lane cannot hash them at all.
+#: It is not a hash and cannot collide with one (no `sha256:` prefix), and it is
+#: not `None`, so it compares UNEQUAL to every single-tree document AND to every
+#: legal multi-tree one — see `trees_identity` for why that direction is the safe
+#: one.
+UNHASHABLE_TREES = "trees:unhashable"
+
+
+def trees_identity(definition: Any) -> Optional[str]:
+    """The SECOND identity of a whole document — ``None`` for a single-tree one.
+
+    ⭐ THIS IS WHAT MAKES THE SENTENCE ABOVE `_PLOT_KEY_RE` TRUE. `treesHash` was
+    declared to exist *"for change detection and the `compute.rev` migration"* and
+    it did neither: `save()` computed `rev_bumped` from `ast_hash(compute.ast)` —
+    the SCAN tree — alone, so editing plot 2 bumped nothing and an alert bound to
+    `u_<id>.plot2` went on evaluating the tree its owner had just replaced. A
+    comment stating an intent as though it were implemented is a defect this
+    branch has caught repeatedly; this function is the half that was missing.
+
+    ⛔ IT IS DERIVED FROM THE TREES, NEVER READ OFF `compute.treesHash`. The
+    stamp is CHECKED by `validate_v2` and checked is not the same as owned:
+    `lesson_a_second_authority_over_one_value`. Reading the stamp would make a
+    document that lied about its own hash decide its own migration, and the one
+    document that would lie is the one a partial write produced.
+
+    ⛔ AND AN UNHASHABLE `trees` MAP IS `UNHASHABLE_TREES`, NOT A RAISE AND NOT
+    `None`. `None` would read as "single-tree" and silently retire the bump; a
+    raise would mean a member whose stored row is malformed can never save again.
+    `UNHASHABLE_TREES` compares unequal to everything, so the edit MIGRATES —
+    over-migrating costs one idempotent re-arm, under-migrating fires an alert on
+    maths the member replaced. Only a STORED predecessor can reach it: `save()`
+    runs `validate_v2` on the incoming document first, and that refuses by name.
+    """
+    compute = (definition or {}).get("compute") or {}
+    if "trees" not in compute:
+        return None
+    try:
+        return trees_hash(compute["trees"])
+    except ValueError:
+        return UNHASHABLE_TREES
+
+
+def validate_v2(definition: dict) -> None:
+    """The rules `defSchema.validateAstCompute` / `validateTrees` /
+    `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
+    door before a sweep files results under this name.
+
+    ⛔ IT IS NOT BELT-AND-BRACES. A definition arrives here as a blob over a wire;
+    the browser's validation is a property of one client at one version, and the
+    thing being protected — a results table keyed on `def_hash` — is shared by
+    every member. A document whose stored `fn` disagreed with its tree would file
+    one formula's answers under another formula's name, silently, forever.
+
+    Raises ``ValueError`` whose FIRST TOKEN is the field path, because that is
+    what a member reads: `lesson_rail_the_sentence_not_just_the_guard` — a test
+    that only asserts something raised is green on a refusal that names the wrong
+    cause, and naming the wrong cause is worse than being vague.
+    """
+    compute = definition.get("compute") or {}
+    own_hash = ast_hash(compute.get("ast"))
+
+    # ⚠️ WIDENED, NOT DROPPED: an EMPTY or absent `fn` is not checked here. The
+    # browser requires a non-empty `fn` on every `ast` document; this lane has
+    # shipped documents without one (`scan_definition.def_hash` has always
+    # tolerated it), so the rule enforced here is the one that matters —
+    # a handle that is PRESENT and DISAGREES.
+    fn = compute.get("fn")
+    if isinstance(fn, str) and fn and fn != own_hash:
+        raise ValueError(
+            f"compute.fn: an 'ast' definition's compute handle IS its astHash — expected "
+            f"{own_hash!r}, got {fn!r}. The tree is the implementation, so there is no third "
+            "thing for the handle to name; a stored handle that disagrees files this formula's "
+            "answers under another name")
+
+    # ⛔ `in`, NEVER `.get()` — see `_assert_trees`. `{"trees": None}` is a
+    # MULTI-TREE document with a broken map, not a single-tree one.
+    if "trees" not in compute:
+        for k in _V2_COMPUTE_KEYS:
+            if k == "trees" or k not in compute:
+                continue
+            raise ValueError(
+                f"compute.{k}: only a multi-tree document (one carrying compute.trees) may "
+                f"declare it — got {compute[k]!r} beside no trees. A single-tree document is "
+                "byte-identical to a schema-1 one on purpose, so no v2 key may ride on it alone")
+        return
+
+    trees = compute["trees"]
+    keys = _assert_trees(trees)
+    if len(keys) == 1:
+        raise ValueError(
+            f"compute.trees: one tree is compute.ast — a single-tree document carries no trees "
+            f"map (it is byte-identical to a schema-1 document on purpose), so drop "
+            f"trees/treesHash/scanPlot/sources or add a second plot. Got the one key {keys[0]!r}")
+
+    hashes = {}
+    for k in keys:
+        try:
+            hashes[k] = ast_hash(trees[k])
+        except ValueError as exc:
+            raise ValueError(
+                f"compute.trees.{k}: not a canonical tree ({exc}) — every plot's tree is "
+                "persisted in the same four-shape form as compute.ast") from exc
+
+    scan = compute.get("scanPlot")
+    if not isinstance(scan, str) or scan not in hashes:
+        raise ValueError(
+            f"compute.scanPlot: must name one key of compute.trees ({', '.join(keys)}) — the plot "
+            f"whose tree IS compute.ast — got {scan!r}")
+    if own_hash != hashes[scan]:
+        raise ValueError(
+            f"compute.ast: must BE compute.trees.{scan} — the scan tree is an ALIAS of the plot "
+            f"scanPlot names, which is what keeps def_hash still; here compute.ast hashes to "
+            f"{own_hash} and trees.{scan} to {hashes[scan]}")
+
+    expected = trees_hash(trees)
+    if compute.get("treesHash") != expected:
+        raise ValueError(
+            f"compute.treesHash: expected {expected!r} (sha256 over the sorted \"key\":astHash "
+            f"pairs — ast/trees.js), got {compute.get('treesHash')!r}. The hash is checked, never "
+            "trusted, for the same reason compute.fn is")
+
+    # ── the plots, in BOTH directions, and duplicates on their own ───────────
+    plots = definition.get("plots") or []
+    data = [str(p.get("key")) for p in plots
+            if isinstance(p, dict) and p.get("style") != "hlines"
+            and isinstance(p.get("key"), str) and p.get("key")]
+    # ⛔ THE DUPLICATE GETS ITS OWN SENTENCE. A set-vs-set comparison cannot see
+    # it at all, and the two directional sentences below would name the wrong
+    # cause ("a plot with no tree") for a document whose every plot HAS a tree.
+    # The browser refuses it a field earlier, at `plots[i].key`, because it
+    # validates the plots array; this lane does not, so the rule lands here.
+    dupes = sorted({k for k in data if data.count(k) > 1})
+    if dupes:
+        raise ValueError(
+            f"plots: duplicate data-bearing plot key(s) {', '.join(dupes)} — a plot key NAMES a "
+            "compute column, so a second plot under the same key draws the first one's column "
+            "and the definition renders one fewer series than it declares")
+    for k in data:
+        if k not in hashes:
+            raise ValueError(
+                f"plots: data-bearing plot {k!r} has no tree in compute.trees "
+                f"({', '.join(keys)}) — a plot with no tree is a key nothing ever fills")
+    for k in keys:
+        if k not in data:
+            raise ValueError(
+                f"compute.trees.{k}: names no data-bearing plot (plots: {', '.join(data) or 'none'}) "
+                "— a tree with no plot is computed for nobody")
+
+    # ── the sources ──────────────────────────────────────────────────────────
+    # REQUIRED and COMPLETE, for the reason `compute.source` is required at all:
+    # a tree the sheet cannot print back is a formula no author can ever reopen.
+    sources = compute.get("sources")
+    if "sources" not in compute or sources is None:
+        raise ValueError(
+            "compute.sources: a multi-tree document must carry the source text of EVERY tree "
+            "({plotKey: source}) — compute.source is one string, the scan tree's, and a tree "
+            "with no text is a formula no author can ever reopen")
+    if not isinstance(sources, dict):
+        raise ValueError(
+            f"compute.sources: expected an object of plotKey → source text, got {sources!r}")
+    for k in keys:
+        if k not in sources:
+            raise ValueError(
+                f"compute.sources.{k}: missing — every tree carries the text the member edits "
+                f"(trees: {', '.join(keys)})")
+    for k in sorted(sources):
+        if k not in hashes:
+            raise ValueError(
+                f"compute.sources.{k}: names no tree (trees: {', '.join(keys)})")
+        if not isinstance(sources[k], str) or not sources[k].strip():
+            raise ValueError(
+                f"compute.sources.{k}: expected the source text the member edits, got "
+                f"{sources[k]!r}")
+    if sources.get(scan) != compute.get("source"):
+        raise ValueError(
+            f"compute.sources.{scan}: must equal compute.source — one text for the scan tree, "
+            "never two that agree today")
+
+
 # ─── the linter verdict, stored at save time ─────────────────────────────────
 
 def lint_verdict(definition: dict) -> dict:
@@ -453,6 +819,22 @@ def save(user_id: Any, def_id: str, definition: dict,
     # reproduce. `assert_canonical` runs inside `ast_hash`.
     new_hash = ast_hash(compute.get("ast"))
 
+    # ⭐ THE SECOND IDENTITY, AND IT DECIDES A BUMP WITHOUT TOUCHING THE FIRST.
+    # `new_hash` above is still `ast_hash(compute.ast)` and it is still what gets
+    # STORED, what keys `scan_hits` and what the migration is handed as
+    # `def_hash` — none of those bytes move. This one only ever widens the
+    # QUESTION `rev_bumped` asks, from "did the scan tree move" to "did ANY
+    # plot's tree move". `None` on a v1 document, so a v1 save is unchanged.
+    new_trees = trees_identity(definition)
+
+    # ⭐ THE LAST DOOR, AND IT IS NOT THE BROWSER'S. `validate_v2` re-applies
+    # `defSchema`'s compute rules here because the browser's validation is a
+    # property of one client at one version, while `def_hash` keys a results
+    # table every member shares. It runs on EVERY document: on a v1 one it
+    # checks the `fn`/tree agreement and that no v2 key rides alone, which is
+    # why it is placed here rather than behind a `if trees` branch.
+    validate_v2(definition)
+
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
@@ -501,7 +883,27 @@ def save(user_id: Any, def_id: str, definition: dict,
             prev_version = prev["version"]
             prior_rev = prev["rev"]
             version = prev["version"] + 1
-            rev_bumped = prev["ast_hash"] != new_hash
+            # 🔴 THE SCAN TREE **OR** ANY OTHER PLOT'S TREE. `prev["ast_hash"]`
+            # is the stored SCAN hash and it stays the first identity; the second
+            # term is `treesHash`, which the file has claimed since W1b exists
+            # "for change detection and the `compute.rev` migration" and did not.
+            #
+            # Measured before this line: save a two-plot document, edit ONLY the
+            # non-scan tree, and `rev_bumped` came back False — no migration, no
+            # `last_value` reset, no notice. An alert on `u_<id>.macd` kept
+            # evaluating the tree the member had just replaced, and the only
+            # thing that told them was nothing.
+            #
+            # ⛔ A PER-PLOT `rev` WOULD BE MORE PRECISE AND IS NOT WHAT THIS IS.
+            # `rev` is one number per definition and the migration's blast radius
+            # is `plot_base` — every binding on the def id, whichever plot it
+            # names. So editing plot 2 re-arms plot 1's bindings too. That costs
+            # one idempotent re-arm (`migrate_bindings_to_rev` resets
+            # `last_value` and suppresses one cycle); the other direction fires a
+            # member's alert on maths they replaced. Over-migrating is the safe
+            # side of this asymmetry, and it is chosen deliberately.
+            rev_bumped = (prev["ast_hash"] != new_hash
+                          or trees_identity(json.loads(prev["definition"])) != new_trees)
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
 
     # ── phase 2: MIGRATE — outside the lock, because it delivers ─────────────

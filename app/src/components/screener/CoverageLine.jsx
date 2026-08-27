@@ -24,6 +24,30 @@
 // not happen, and folding it into `evaluated` would claim work that was not
 // done. E-3's envelope keeps it out of the closing identity for that reason and
 // so does this.
+//
+// ⭐ AND THE REASON TRAVELS WITH THE COUNT (X42). `dropped_symbols` has always
+// carried `{ticker, reason, detail?}` — `scan_store._validated_dropped` REFUSES
+// an entry without a reason, in those words — and this surface printed the
+// tickers and threw the words away. "41 not computable" tells a member their
+// screen is short; "41 no value for vwap" tells them WHY, which is the
+// difference between "the screener is broken" and "we hold no VWAP for these
+// names". Newly material rather than new: `47d36e310` makes `not_computable`
+// non-zero on ordinary screens for the first time.
+//
+// ⛔ THE CAUSE IS `detail || reason`, IN THE RECEIPT'S OWN WORDS. `reason` is the
+// machine's bucket (`not-computable`) and restating it beside the count that
+// already says it teaches a member nothing; `detail` is the sentence the
+// evaluator wrote for a human ("no value for vwap", "200 bars of history, 100
+// short of the 300 this tree reads"). Neither is re-worded here: a second
+// vocabulary for one fact is how the two spellings start disagreeing.
+//
+// ⛔ THE TALLY IS OVER THE ENUMERATION, WHICH MAY BE SHORTER THAN THE COUNTS.
+// `record_coverage` accepts a `dropped_symbols` list SHORTER than `dropped +
+// not_computable` (a cap) and never longer, so these sub-counts can only ever
+// describe what is LISTED. When they add to `dropped + not_computable` the line
+// says so plainly; when they do not it NAMES ITS OWN SCOPE. ⛔ AND IT NEVER
+// RESTATES THE FOUR — a number derived from a capped list, printed where a true
+// count belongs, is this repo's most repeated defect wearing a new hat.
 
 import UIcon from '../ui/UIcon'
 import styles from './CoverageLine.module.css'
@@ -33,7 +57,7 @@ import styles from './CoverageLine.module.css'
  *  member and `3.742` for another — and the second one reads as a decimal. */
 const n = (v) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US') : '—')
 
-export default function CoverageLine({ coverage = null, max = 12 }) {
+export default function CoverageLine({ coverage = null, max = 12, maxCauses = 4 }) {
   if (!coverage) return null
 
   const evaluated = Number(coverage.evaluated)
@@ -42,6 +66,29 @@ export default function CoverageLine({ coverage = null, max = 12 }) {
   const notComputable = Number(coverage.not_computable)
   const withheld = Number(coverage.withheld)
   const symbols = Array.isArray(coverage.dropped_symbols) ? coverage.dropped_symbols : []
+
+  // The causes, tallied off that same enumeration. ⛔ ONLY an entry that CARRIES
+  // words is counted: a bare-string entry (no reason, no detail) states nothing,
+  // and inventing a bucket for it would put a word in the receipt's mouth.
+  const tally = new Map()
+  for (const s of symbols) {
+    if (!s || typeof s !== 'object') continue
+    const detail = typeof s.detail === 'string' ? s.detail.trim() : ''
+    const reason = typeof s.reason === 'string' ? s.reason.trim() : ''
+    const cause = detail || reason
+    if (!cause) continue
+    tally.set(cause, (tally.get(cause) || 0) + 1)
+  }
+  // Biggest cause first, then alphabetical so two equal causes cannot swap
+  // places between renders and read as a change nobody made.
+  const causes = [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const explained = causes.reduce((sum, [, count]) => sum + count, 0)
+  // ⛔ "WHOLE STORY" IS MEASURED, NOT ASSUMED. Only when every dropped and
+  // not-computable symbol carried words may this line speak for all of them.
+  const wholeStory = Number.isFinite(dropped) && Number.isFinite(notComputable)
+    && explained === dropped + notComputable
+  const shownCauses = causes.slice(0, maxCauses)
+  const restCauses = causes.length - shownCauses.length
 
   // ⛔ THE RECEIPT MUST CLOSE, AND A UI THAT RENDERS ONE THAT DOES NOT IS THE
   // SAME DEFECT ONE LAYER UP. `scan_evaluator._assert_coverage_closes` refuses
@@ -78,6 +125,17 @@ export default function CoverageLine({ coverage = null, max = 12 }) {
         <span aria-hidden="true" className={styles.dot}>·</span>
         <span className={styles.count}>{n(notComputable)} not computable</span>
       </p>
+
+      {causes.length > 0 && (
+        // BESIDE the counts, about the SAME symbols, in the receipt's own words.
+        // The scope is stated whenever the enumeration is short of the counts,
+        // so this can never read as an explanation of symbols it never saw.
+        <p className={styles.causes} data-testid="coverage-causes">
+          {wholeStory ? 'Why: ' : `Why, across the ${n(explained)} listed: `}
+          {shownCauses.map(([cause, count]) => `${n(count)} ${cause}`).join(' · ')}
+          {restCauses > 0 ? ` · and ${n(restCauses)} other reasons` : ''}
+        </p>
+      )}
 
       {Number.isFinite(withheld) && withheld > 0 && (
         // BESIDE, on its own line, and worded as breadth rather than failure.

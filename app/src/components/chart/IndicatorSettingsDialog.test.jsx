@@ -780,6 +780,9 @@ describe('StockChart mounts the dialog on settingsInstanceId', () => {
     const branch = SRC.slice(i, end)
     expect(branch).toMatch(/firstLiveInstanceId\(cs, key\)/)
     expect(branch).toMatch(/setSettingsInstanceId\(instId\)/)
+    // W0.2: the multi-instance path, by name — every live sibling gets its own row.
+    expect(branch).toMatch(/liveInstanceIdsFor\(cs, key\)/)
+    expect(branch).toMatch(/setSettingsInstanceId\(sib\)/)
     // …and the read-only gate is still `showDrawingTools`, so a Model Book or
     // grid-cell mount gets no row rather than one that writes nowhere.
     expect(branch).toMatch(/showDrawingTools && instId/)

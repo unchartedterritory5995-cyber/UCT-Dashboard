@@ -476,6 +476,27 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // a live surge leaderboard at a past instant is not replayable
     liveCapable: false,
   },
+  scatter: {
+    // "Market Map": a scatter/bubble chart of a whole universe on user-chosen
+    // X/Y (+ size) axes. Wants width AND height — it's an analysis canvas, not a
+    // rail; big default so the point cloud + labels have room.
+    labels: { header: 'Market Map', menu: 'Market Map', tab: 'Map' },
+    defaults: { w: 10, h: 12, minW: 5, minH: 6 },
+    placement: { family: 'chart', fill: 'wide' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'source', type: 'string', default: 'index' },   // universe descriptor
+      { key: 'value', type: 'string', default: 'sp500' },
+      { key: 'xKey', type: 'string', default: 'rvol' },
+      { key: 'yKey', type: 'string', default: 'chg_today' },
+      { key: 'sizeKey', type: 'string' },                    // '' = uniform dots
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: (p) => `[market map: ${p.value || p.source || 'market'} — ${p.yKey || 'y'} vs ${p.xKey || 'x'}]`,
+    reconstructable: false,                     // a live market map at a past instant is not replayable
+    liveCapable: false,
+  },
 })
 
 // Registry ids in declaration order — this order IS the menu order.
@@ -497,7 +518,7 @@ export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].th
 // order within each are the menu order.
 export const WIDGET_CATEGORIES = [
   { key: 'charts',    label: 'Charts',                 items: ['chart'] },
-  { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner'] },
+  { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
   { key: 'internals', label: 'Market Internals',       items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
@@ -528,6 +549,7 @@ export const WIDGET_CATALOG = {
   nhnl:         { icon: 'wave',     blurb: 'New highs vs new lows, live by group.', live: true },
   nhnlPulse:    { icon: 'bolt',     blurb: 'Real-time high/low momentum pulse.', live: true },
   volumescan:   { icon: 'flame',    blurb: 'Live relative-volume surge leaderboard.', live: true },
+  scatter:      { icon: 'markets',  blurb: 'Plot any universe on custom X / Y / size axes.', live: true },
 }
 
 /** Catalog presentation (icon/blurb/live) for a widget id, with a safe fallback. */

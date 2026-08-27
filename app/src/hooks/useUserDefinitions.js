@@ -93,7 +93,8 @@ export function useUserDefinitions() {
  * a rev bump would then force-migrate.
  *
  * @returns {Promise<{ok: true, row: object} | {ok: false, error: string}>}
- *          — never null, on any branch. Callers read `.ok` unconditionally.
+ *          — never null, on any branch. Callers read `.ok` unconditionally, and
+ *          `error` is a NON-BLANK string whenever `ok` is false.
  */
 export async function saveUserDefinition(definition, defId = null) {
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
@@ -128,7 +129,14 @@ export async function saveUserDefinition(definition, defId = null) {
     // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING. FastAPI answers a
     // schema-invalid body with `detail: [{loc, msg, type}, …]`; interpolating
     // that shows the user "[object Object]", which is worse than the silence.
-    if (typeof body?.detail === 'string') detail = body.detail
+    //
+    // ⛔ AND IT IS TRIMMED AT THE ASSIGNMENT, WHICH IS THE ONLY PLACE THAT MAKES
+    // THE GUARANTEE STRUCTURAL. The gate below is `detail || <fallback>` —
+    // TRUTHINESS, not emptiness — so a store answering `detail: "   "` sailed
+    // past the fallback and the caller rendered a refusal made of spaces
+    // (measured 2026-08-26, review round 1, in BOTH doors). Trimming here means
+    // `detail` is either '' or a real sentence, and the `||` is then honest.
+    if (typeof body?.detail === 'string') detail = body.detail.trim()
   } catch { /* not JSON — an HTML error page, or an empty body */ }
   return { ok: false, error: detail || `The server refused this formula (${r.status}).` }
 }
@@ -233,20 +241,66 @@ export function useInstalledUserDefinitions() {
   }
 }
 
-/** Soft-delete. The store appends a TOMBSTONE version rather than removing
- *  rows, so a `defId@version` pin still resolves afterwards. */
+/**
+ * Soft-delete. The store appends a TOMBSTONE version rather than removing
+ * rows, so a `defId@version` pin still resolves afterwards.
+ *
+ * ⛔ IT ANSWERS THE STORE'S REFUSAL, NOT A BOOLEAN — and that is what makes a
+ * caller able to say WHY. ⚰️ It used to `return r.ok`, which threw away every
+ * sentence the store had just written: `"Not found"` for a definition that is
+ * not yours, `require_paid`'s own 402 line for a lapsed plan. A surface handed a
+ * boolean cannot honour this file's rule that the store's refusal sentence is
+ * never rewritten here — it can only invent one, which is the second vocabulary
+ * the header above forbids. `saveUserDefinition` has had this shape all along.
+ *
+ * ⚠️ THE REVALIDATION FIRES ON A REFUSAL TOO, deliberately and as before: a
+ * request that was ANSWERED — even with a no — means the client's picture of
+ * what exists is now a guess, and re-reading the store is how the row a member
+ * still sees stays the store's claim rather than ours. Only a request that never
+ * left (the `catch`) skips it, because nothing can have changed.
+ *
+ * @returns {Promise<{ok: true} | {ok: false, error: string}>} — never null, on
+ *          any branch; `error` is a NON-BLANK string whenever `ok` is false,
+ *          because a caller rendering it verbatim renders an alert that
+ *          ANNOUNCES NOTHING otherwise, and a refusal a member cannot read is
+ *          one they did not get.
+ *
+ * ⚰️ THAT GUARANTEE WAS PROSE AND THE CODE DID NOT HONOUR IT (review round 1).
+ * The gate was `detail || <fallback>` — truthiness — so a store answering
+ * `detail: "   "` produced `role="alert"` containing three spaces: announced by
+ * a screen reader as nothing at all, and rendered on screen as a blank line
+ * where the reason should be. A docstring stating the right principle over code
+ * that does not is this wave's most repeated defect, and I wrote it thirty lines
+ * above the line that broke it. The `.trim()` at the assignment is the fix, and
+ * it is structural rather than a second check the next edit can forget.
+ */
 export async function deleteUserDefinition(defId) {
+  let r
   try {
-    const r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, {
       method: 'DELETE',
       credentials: 'include',
     })
-    mutate(USER_DEFINITIONS_KEY)
-    // K3: a deleted definition may have been the last scannable one — same
-    // revalidation as the save path above.
-    mutate(META_KEY)
-    return r.ok
   } catch {
-    return false
+    // ⛔ A TRANSPORT FAILURE AND A REFUSAL NEED DIFFERENT WORDS — the save door's
+    // rule, one function up, for the same reason: one is "try again", the other
+    // is "this cannot be done".
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
+  mutate(USER_DEFINITIONS_KEY)
+  // K3: a deleted definition may have been the last scannable one — same
+  // revalidation as the save path above.
+  mutate(META_KEY)
+  if (r.ok) return { ok: true }
+  let detail = ''
+  try {
+    const body = await r.json()
+    // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING — FastAPI answers a
+    // schema-invalid request with `detail: [{loc, msg, type}, …]`, and
+    // interpolating that shows a member "[object Object]".
+    // ⛔ AND TRIMMED HERE, not checked for later: see the docstring. A blank
+    // `detail` must reach the `||` as '' or the fallback never fires.
+    if (typeof body?.detail === 'string') detail = body.detail.trim()
+  } catch { /* not JSON — an HTML error page, or an empty body */ }
+  return { ok: false, error: detail || `The server refused to delete this formula (${r.status}).` }
 }

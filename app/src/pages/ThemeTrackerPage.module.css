@@ -452,11 +452,11 @@
 }
 
 /* Green matches the candle up-color (MB_UP). Red is BRIGHTENED vs the candle
-   down-color (#c41f2d) because that deep red reads fine as a big filled candle
+   down-color (var(--ut-red-bright)) because that deep red reads fine as a big filled candle
    but too dark as thin small text — this keeps it legible + as punchy as the
    green. */
-.retPos   { color: var(--tt-up, #1ae51a); }
-.retNeg   { color: var(--tt-down, #ff3b47); }
+.retPos   { color: var(--tt-up, var(--ut-green-bright)); }
+.retNeg   { color: var(--tt-down, var(--ut-red-bright)); }
 /* Sunrise (charts workspace): match the dark candle green/red. --tt-up/--tt-down
    are only set when the user deviates from the default in Theme Tracker Settings,
    so a deliberate user color wins over the workspace theme; otherwise these hold. */

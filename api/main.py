@@ -197,7 +197,11 @@ if _SENTRY_DSN:
         environment=os.environ.get("RAILWAY_ENVIRONMENT", "development"),
     )
 
-PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
+# ⛔ IMPORTED, NOT RESTATED. This was a second hardcoded copy of the same
+# literal, and two copies of one path is how the pinned one loses: `engine`
+# tries this value FIRST and `WIRE_DATA_FILE` second. `engine` owns it now,
+# the way `auth.py` was made to import `watchlist_tracker.WATCHLIST_FILE`.
+from api.services.engine import PERSISTENT_WIRE_DATA_FILE  # noqa: E402
 
 def _cot_seed_background():
     try:
@@ -1404,6 +1408,62 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True)
 
+    # -- the LIVE scan sweep: every SCAN_LIVE_INTERVAL_S through the regular
+    # session (spec §5.5, owner decision 1). The nightly answer above is a true
+    # number implying something false by 10:00; this one re-evaluates the same
+    # definitions on the forming bar and writes to the live side tables.
+    #
+    # ⛔ REGISTERED UNCONDITIONALLY, like `screener_live_tier` below, and for that
+    # tier's constraint 4: A JOB REGISTERED ONLY UNDER THE FLAG CANNOT BE TURNED
+    # OFF WITHOUT A DEPLOY. `SCAN_LIVE_SWEEP_ENABLED` is read PER CALL inside
+    # `live_sweep_job` (before it even opens the definitions store) and again
+    # inside `run_sweep(mode='live')`, so rollback is unsetting one env var and
+    # the next tick answers `disabled`. ⚠️ The flag-gated `if` above this block is
+    # the NIGHTLY sweep's; do not let it grow to wrap this one.
+    #
+    # ⛔ IT NEVER TAKES `snapshot_builder._BUILD_LOCK`. A four-minute hold would
+    # starve the live tier's 60 s cadence with `build_in_flight`; the cycle
+    # PROBES `build_in_flight()` between definitions and stops instead. And its
+    # window — the DERIVED open through open + REGULAR_SESSION_LENGTH — is
+    # disjoint from the 05:00 nightly sweep by derivation, not by two hours
+    # chosen to agree (`test_the_live_window_and_the_nightly_sweep_are_DISJOINT`).
+    #
+    # ⚠️ AND THE TRIGGER ITSELF HAS NO SESSION BOUNDS, DELIBERATELY. A cron with
+    # typed hours would be a second authority over `market_open_et`, and it would
+    # be wrong on DST and every NYSE holiday; the session test is DERIVED inside
+    # the cycle instead. The cost is that 210 of the day's 288 ticks land outside
+    # the window and answer `closed` — which IS recorded, on purpose, because it
+    # is the only evidence the sweeper is alive overnight. Consecutive ones
+    # COLLAPSE in the store (`scan_store.LIVE_COLLAPSING_REASONS`), so that beat
+    # costs one row rather than evicting a whole session of real receipts.
+    #
+    # ⛔ `max_instances=1` IS A CORRECTNESS GUARD, NOT A TUNING KNOB: this is the
+    # single web pod, and two overlapping cycles would double the provider reads
+    # and race the one cycle receipt every status surface reads back.
+    #
+    # `misfire_grace_time=60`: apscheduler 3.11.2's `job_defaults` grace is 1
+    # SECOND (see the note on the implied-move job below), and a check loop
+    # delayed past it drops the run silently (EVENT_JOB_MISSED, the function
+    # never called). One missed tick is a five-minute hole in the overlay that
+    # nothing reports — the whole cost of a momentarily busy loop.
+    #
+    # ⚠️ STATED, NOT HIDDEN: this sits inside `register_screener_jobs`, so it also
+    # inherits that function's `SCREENER_SNAPSHOT_ENABLED` master switch, exactly
+    # as the nightly sweep and the live tier do. That is the screener FAMILY's
+    # switch, a different fact from this feature's own flag.
+    def _run_live_scan_sweep():
+        try:
+            scan_evaluator.live_sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener live scan sweep error: {e}")
+
+    from apscheduler.triggers.interval import IntervalTrigger as _LiveInterval
+    scheduler.add_job(
+        _run_live_scan_sweep,
+        trigger=_LiveInterval(seconds=scan_evaluator.live_interval_s()),
+        id="screener_scan_sweep_live", max_instances=1, replace_existing=True,
+        coalesce=True, misfire_grace_time=60)
+
     # -- Screen alerts: the set difference between last night's hits and
     # tonight's, delivered on the channels the watchlist pipeline already owns.
     # ⛔ IT RUNS AFTER THE SWEEP AND ONLY WHEN THE SWEEP RUNS. There is
@@ -2258,7 +2318,14 @@ async def lifespan(app: FastAPI):
     # as a defensive belt against any accidental future reinsertion.
     try:
         import sqlite3 as _sq
-        with _sq.connect("/data/flow.db", timeout=30) as _conn:
+        # ⛔ `FLOW_DB_PATH`, NOT THE LITERAL. About twenty flow modules read this
+        # var; this one call site did not, so a local backend connected to the
+        # owner's live `C:\\data\\flow.db` on boot and left `-wal`/`-shm` beside
+        # it. Caught by a runtime probe, not by the census -- the census had
+        # already counted the literal as pinned, because another module reads
+        # the var. A defensive one-shot is exactly where a literal survives.
+        _flow_db = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        with _sq.connect(_flow_db, timeout=30) as _conn:
             _cur = _conn.execute(
                 "SELECT COUNT(*) FROM flow WHERE source LIKE 'reconcile_%'"
             )
@@ -4652,6 +4719,27 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(minute="11,41", timezone=_ET),
                 id="broker_live_sentinel", max_instances=1, replace_existing=True,
             )
+            # Weekly fleet digest of the live checks — Sunday 09:45 ET (near
+            # the books-audit Sunday cadence). ALWAYS posts green-or-red: a
+            # silent-green digest is indistinguishable from a dead one.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_weekly_summary_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=45,
+                                    timezone=_ET),
+                id="broker_live_sentinel_weekly", max_instances=1,
+                replace_existing=True,
+            )
+            # Weekly DRILL — Sunday 09:40 ET, before the digest: injects the
+            # incident shape into a robot account and proves the sentinel
+            # actually detects it (a guard nobody has seen fire is not a
+            # guard). Posts pass/fail either way; robot rows never persist.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_drill_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=40,
+                                    timezone=_ET),
+                id="broker_live_sentinel_drill", max_instances=1,
+                replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
@@ -6210,6 +6298,8 @@ from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
 from api.routers import volume_scan as volume_scan_router
 app.include_router(volume_scan_router.router)
+from api.routers import scatter as scatter_router
+app.include_router(scatter_router.router)
 # ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
 # SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
 # filter branch; the freshness objection is answered by disclosure (each joined
@@ -6220,6 +6310,31 @@ app.include_router(volume_scan_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
+# ── THE LIVE SWEEP'S READER (W4b.5) — `/api/scans/live-status` (paid) and
+# `/api/scans/demand` (PUSH_SECRET bearer, the worker's prewarm ring).
+# 🔴 UNTIL THIS MOUNT EXISTED THE INTRADAY SWEEP'S LIVENESS RECEIPT HAD NO
+# READER: `last_live_cycle` was referenced only inside `scan_evaluator.py`, so
+# "is the sweeper alive?" could not be answered without a shell on the pod and
+# the arming runbook's confirm step named a surface nothing served. Mounted
+# UNCONDITIONALLY — a reader gated behind the flag it is supposed to report on
+# would go dark exactly when somebody needed it.
+# ⛔ REGISTERED so the E-7 census walks it off `router.routes` rather than typing
+# the paths, and so the runbook check is a GET rather than an `ssh`.
+from api.routers import scan_live as scan_live_router
+app.include_router(scan_live_router.router)
+# ── THE E-6 RECORD READ (`/api/scans/definition-record`) — W5a 2026-08-25. The
+# record was written nightly and read by nothing; the Evidence tab reads it
+# here. Unconditional: the record is a shipped fact, not gated by the backtest
+# flag below. ⛔ REGISTERED so the E-7 census walks it off `router.routes`.
+from api.routers import definition_record as definition_record_router
+app.include_router(definition_record_router.router)
+# ── ON-DEMAND SCAN (W4a, spec §5.5): `POST /api/scans/run` queues one saved
+# definition over ≤500 named symbols and `GET /api/scans/run/{job}` reads the
+# answer. Paid, per-handler-gated, per-member rate-limited, and WRITTEN NOWHERE.
+# ⛔ The router imports only the SERVICE; the ONE bounded request-path caller of
+# the sweep is `api/services/screener/scan_run.py::_run_job`, on its own worker.
+from api.routers import scan_run as scan_run_router
+app.include_router(scan_run_router.router)
 # ── SCREEN BACKTESTING (`/api/screener/backtest*`) — a NEW router file so
 # `screener.py` stays untouched: it is hot, heavily railed and carries a
 # route-count oracle that a feature edit must not perturb. Paid, not admin (it

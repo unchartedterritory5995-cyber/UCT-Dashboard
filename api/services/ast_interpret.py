@@ -48,8 +48,9 @@ import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
-    TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION, SERIES_SECTION,
-    recurrences, recurrence_bindings, is_pointwise,
+    TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
+    SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
+    recurrence_bindings, is_pointwise,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -61,21 +62,29 @@ from api.services.ast_table import (
 # implementation and a second authority over one value.
 # ``closedTable.json::_functions_indicators`` records the decision.
 #
-# ⚠️ THE `_raw` FORMS, ALWAYS. The delivery wrappers round (2dp for RSI, 4dp for
+# ⚠️ THE `_raw` FORMS, ALWAYS -- except ``compute_clock``, which HAS no delivery
+# wrapper because a calendar field is an integer already and a rounding layer
+# that cannot change anything is ceremony a later reader mistakes for a boundary.
+# The delivery wrappers round (2dp for RSI, 4dp for
 # ATR ...) because two live consumers compare those numbers against user
 # thresholds; a formula composes values and then compares, so rounding here would
 # put a half-ulp step inside every expression -- and it would break the 1e-9
 # equality with the JS lane, which does not round at all.
 from api.services.indicator_compute import (
     compute_adx_raw,
+    AVWAP_MIN_INSTANT,
     compute_atr_raw,
+    compute_avwap_raw,
     compute_cci_raw,
+    compute_clock,
     compute_donchian_raw,
     compute_ichimoku_raw,
     compute_macd_raw,
     compute_mfi_raw,
+    compute_obv_raw,
     compute_rsi_raw,
     compute_stoch_raw,
+    compute_vwap_raw,
     compute_williams_r_raw,
 )
 
@@ -133,6 +142,9 @@ REFUSALS: Mapping[str, str] = {
     "resolve:function": "unknown function",
     "resolve:arity": "wrong number of arguments",
     "resolve:window": "a window must be a whole-number literal",
+    "resolve:condition": (
+        "a condition argument must be a 0/1 column, and this one is a number"),
+    "resolve:domain": "a period reaches past the window its own entry declares",
     "interpret:node": "not a canonical node",
     "interpret:operator": "unknown operator",
     "interpret:offset": "an offset node carries a whole-number count of bars",
@@ -168,6 +180,37 @@ MAX_RECURRENCE_STEPS = 1000000
 #: LANE'S: the history is carried per STEP, and the step loop already runs
 #: ``bars x warmup`` times, so a deep lag is paid on every bar of every symbol.
 MAX_SELF_LAG = 4
+
+#: The one ``lookback`` that names a window instead of measuring one.
+#:
+#: ⭐⭐ ``lookback: "session"`` reaches back to the first bar of the bar's own New
+#: York calendar day. It could never have been spelled ``argN``: no argument
+#: carries it, because how many bars a session holds is decided by the CALENDAR
+#: and the TIMEFRAME rather than by anything the author typed.
+SESSION_LOOKBACK = "session"
+
+#: How far back that reaches, in bars -- READ OFF THE MANIFEST.
+#:
+#: ⛔⛔ NOT A LITERAL HERE. Four readers need this number across two languages,
+#: and ``ast_lint`` is pinned by its own import rail to the standard library, so
+#: it can import neither this module nor ``ast_table``. The ONE place all four
+#: can see it is the table, which is DATA for precisely that reason -- and a
+#: per-lane copy would be the fifth hand-written copy of a window grammar in this
+#: engine. The fourth branded ADX as repainting in production.
+#:
+#: ⭐ 960 = the minutes in the extended ET session (04:00-20:00), and the finest
+#: bar this platform serves is one minute, so no timeframe can hold more bars in
+#: a session than that. ``closedTable.json::_session`` carries the full argument
+#: and the measurement; this is the reader, not the authority.
+SESSION_MAX_BARS = TABLE["sessionMaxBars"]
+if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
+        or SESSION_MAX_BARS < 1:
+    # ⛔ A REFUSAL AT IMPORT, NOT A DEFAULT. A fallback here would BE the per-lane
+    # copy this constant exists to prevent, and it would be invisible: the
+    # grammar would go on answering, with a window nobody declared.
+    raise ValueError(
+        f"closedTable.json declares sessionMaxBars={SESSION_MAX_BARS!r}; the session "
+        "window must be a whole number of bars, and no lane may supply one of its own")
 
 
 def _refuse(guard: str, detail: str) -> Any:
@@ -296,6 +339,110 @@ def _window_extreme(series: Sequence[float], lo: int, hi: int,
         if better(v, best):
             best = v
     return best
+
+
+def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
+                        better: Callable[[float, float], bool]) -> float:
+    """WHICH BAR holds the window's extreme, as an offset back from ``hi``.
+
+    ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
+    NOT THIS FUNCTION'S -- ``closedTable.json::_functions_arg_extreme`` argues it
+    out loud. ``_window_extreme`` returns the same NUMBER whichever of two equal
+    bars won, so nothing above it can see the choice; this one names a BAR, and
+    two hand-written lanes each picking a side would agree on every fixture that
+    happens to contain no tie.
+
+    ⚰️ AND THIS SENTENCE ENDED *"The committed 579-bar corpus contains none"* --
+    WHICH IS FALSE. Measured on that series: **56** of its 5-bar `high` windows
+    and **36** of its `low` windows hold their extreme TWICE, and every one of
+    them separates the two conventions, so the frozen digests DO move if the
+    ruling flips. The blindness is real as a CLASS and not true of THIS corpus.
+    ⛔ IT SURVIVED IN FOUR PLACES because it was written once and mirrored --
+    the twin below this line, the manifest note, and the test's own docstring --
+    and four agreeing copies read as certainty. See
+    ``closedTable.json::_functions_arg_extreme`` for what the corpus still
+    cannot reach, and why the constructed fixture is not redundant.
+
+    ⭐ DERIVED FROM THE VALUE RATHER THAN COMPUTED BESIDE IT, so
+    ``high[highestbars(high, n)] == highest(high, n)`` holds BY CONSTRUCTION and
+    the NaN rule (*"NaN does not lose a comparison"*) is inherited rather than
+    restated -- a second scan with its own comparison would be a second authority
+    over one window. ``interpret.js::windowArgExtreme`` is the same two steps.
+    """
+    best = _window_extreme(series, lo, hi, better)
+    if math.isnan(best):
+        return NAN
+    # ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
+    # one. Bounded by ``lo`` rather than run open -- a walk that could step past
+    # the window would read a negative index (Python wraps; JS yields
+    # ``undefined`` and never terminates).
+    for i in range(hi, lo - 1, -1):
+        if series[i] == best:
+            return float(hi - i)
+    # ⚠️ UNREACHABLE WHILE ``_window_extreme`` HOLDS ITS CONTRACT -- it only ever
+    # returns a member of ``series[lo..hi]``. NaN rather than a raise because a
+    # broken extreme must not become an escape inside the walker.
+    return NAN
+
+
+def _pivot_col(series: Sequence[float], left: int, right: int,
+               beats: Callable[[float, float], bool]) -> List[float]:
+    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the STRICT
+    extreme of ``[i-left, i+right]``, and NOT COMPUTABLE everywhere else.
+
+    ⭐⭐ THIS IS THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and
+    it is legal precisely because the entry DECLARES it: ``forward: "arg2"`` is
+    what ``ast_lint.mode_from_reach`` turns into ``preview-repaints``. A user's
+    formula still cannot SPELL a forward reference -- the ``offset`` node is
+    backward-only and ``parse.js`` refuses a negative at the door -- so the
+    manifest stays the single authority on forward reach.
+
+    ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
+    uniquely the extreme. A ``>=`` reading emits both and looks entirely
+    reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
+    ``high`` and 15 in ``low``, which is why those counts are asserted rather
+    than an absence.
+
+    ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
+    The first ``left`` bars and the last ``right`` bars have a window that runs
+    off the fetch. The TAIL is the interesting one: those bars are *not yet
+    decidable*, not *decided false* -- they read the same blank, and the
+    difference only shows when more bars arrive. That is what the badge means.
+    """
+    # ⛔ THE `- right` IS LOAD-BEARING HERE AND MERELY DEFENSIVE IN THE JS TWIN,
+    # which is the kind of asymmetry a mirrored lane hides. Python raises
+    # IndexError past the end (the sweep KILLED this mutation); JS reads
+    # `undefined`, every comparison against it is false, and the bar blanks
+    # anyway (the same mutation SURVIVED there, equivalently). Do not "simplify"
+    # this one by analogy with the other.
+    out = _nan_col(len(series))
+    for i in range(left, len(series) - right):
+        v = series[i]
+        if math.isnan(v):
+            continue
+        ok = True
+        for j in range(i - left, i + right + 1):
+            if j == i:
+                continue
+            w = series[j]
+            # ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN -- the same
+            # rule `_window_extreme` states out loud.
+            #
+            # ⚠️ AND THE `isnan` HALF IS REDUNDANT BY CONSTRUCTION TODAY, WHICH IS
+            # MEASURED RATHER THAN GUESSED: deleting it is an EQUIVALENT MUTANT in
+            # both lanes (W2a.6 sweep, 0 differing bars on every fixture including
+            # a purpose-built holed one). `v` is finite by the check above and
+            # `finite > NaN` is False, so `not beats(v, w)` already blanks the bar.
+            # ⛔ IT IS KEPT, NOT DELETED, AND NOT BECAUSE IT GUARDS ANYTHING TODAY:
+            # it states the rule at the site, and it STOPS being redundant the
+            # moment `beats` is anything but a strict comparison. Labelled so
+            # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
+            if math.isnan(w) or not beats(v, w):
+                ok = False
+                break
+        if ok:
+            out[i] = v
+    return out
 
 
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
@@ -429,6 +576,88 @@ def _fn_change(series: Sequence[float]) -> List[float]:
     out = _nan_col(len(series))
     for i in range(1, len(series)):
         out[i] = series[i] - series[i - 1]
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# the BOUNDED STATE pair -- one forward pass each, not a window scan
+# --------------------------------------------------------------------------- #
+#
+# ⭐ BAR-TO-BAR, NOT ``_rolling``. A window scan over ``n`` bars is O(bars x n)
+# and these two have an exact recurrence, so they are one pass. The three state
+# variables are what the recurrence needs and no more:
+#
+#   ``since`` -- bars since the last TRUE condition bar, or ``None`` when no true
+#                bar lies in the contiguous READABLE run ending here.
+#   ``run``   -- how many contiguous READABLE condition bars end here, capped at
+#                ``n`` because nothing above ``n`` changes an answer.
+#
+# ⛔ ``run`` IS THE HOLE RULE AND THE LEFT EDGE AT ONCE, which is why it is not a
+# bar counter: a NOT-COMPUTABLE condition bar RESETS it, so a sentinel is never
+# reported across a bar this engine could not read -- and the first ``n - 1`` bars
+# of any series are the same case, because the window runs off the front of the
+# FETCH. See ``closedTable.json::_functions_bounded_state``.
+
+
+def _fn_barssince(cond: Sequence[float], n: int) -> List[float]:
+    """``barssince(cond, n)`` -- bars since ``cond`` was last true, capped at ``n``.
+
+    ⛔ ``n`` IS A SENTINEL, NOT A COUNT. It means *"not true within the last n
+    bars"*, and it may only be said once ``n`` readable condition bars have been
+    seen. ⛔ AND IT IS NOT TC2000's ``-1``: that spelling belongs to the PCF
+    translation of ``SinceTrue``, which already composes it from ``accum(-1, …)``.
+    """
+    out = _nan_col(len(cond))
+    since: Optional[int] = None
+    run = 0
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            since, run = None, 0
+            continue
+        run = run + 1 if run < n else n
+        if c != 0.0:
+            since = 0
+        elif since is not None:
+            since = since + 1 if since < n else n
+        if since is not None:
+            # ⭐ A HIT THIS ENGINE CAN SEE IS FINAL however short the fetch: no
+            # wider one can insert a NEARER true bar. Only the sentinel below is
+            # a claim about bars that had to be read.
+            out[i] = float(since)
+        elif run >= n:
+            out[i] = float(n)
+    return out
+
+
+def _fn_valuewhen(cond: Sequence[float], src: Sequence[float], n: int) -> List[float]:
+    """``valuewhen(cond, src, n)`` -- ``src`` as it stood at the most recent true
+    bar within ``n``.
+
+    ⛔ NOT COMPUTABLE RATHER THAN STALE once the last hit leaves the window. A
+    price carried past its declared window is a confident wrong number, and the
+    declaration would stop being true of the value.
+
+    🔴 THE NaN PREFIX MEETS X23 -- a comparison over it reads as a confident
+    FALSE and its negation as a confident TRUE, so a scan returns nothing or the
+    whole universe. Not this entry's to fix; declared at
+    ``closedTable.json::_functions_bounded_state`` and measured at
+    ``tests/test_ast_bounded_state.py``.
+    """
+    out = _nan_col(len(cond))
+    since: Optional[int] = None
+    held = NAN
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            since, held = None, NAN
+            continue
+        if c != 0.0:
+            since, held = 0, src[i]
+        elif since is not None:
+            since = since + 1 if since < n else n
+        if since is not None and since < n:
+            out[i] = held
     return out
 
 
@@ -696,8 +925,15 @@ def _bind_shipped(fields: Sequence[str], cols: Sequence[Sequence[float]],
 
     ⚠️ ``t`` IS SET AND NEVER READ BY ANY BOUND FUNCTION, exactly as in
     ``interpret.js::bindShipped``. It is a bar index, NOT the real timestamp --
-    which is precisely why ``vwap`` is refused (``_functions_excluded``): a
-    session anchor cannot be reconstructed from a column of prices.
+    which is precisely why ``vwap`` was refused (``_functions_excluded``) for as
+    long as this table has existed: a session anchor cannot be reconstructed from
+    a column of prices.
+
+    ⭐ AND THAT IS WHY THE ANSWER WAS NOT A SPECIAL CASE HERE. An entry declaring
+    ``reads: "bars"`` takes no series arguments, so it has nothing to pack; it is
+    handed ``interpret``'s OWN bar array by ``_bar_column`` below and reads the
+    real instant. This adapter is unchanged, and its fabricated ``t`` still means
+    exactly what it says.
 
     ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
     returns either a bar-aligned list or an all-``None`` one; the JS lane's
@@ -833,6 +1069,23 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
     "lowest": lambda series, n: _rolling(
         series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
+    # ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME OBJECT SHAPE THE
+    # VALUE FORMS PASS -- `_window_arg_extreme` asks `_window_extreme` for the
+    # value and only then names the bar, so the pair cannot disagree about one
+    # window and the tie-break is the manifest's ruling rather than this line's.
+    "highestbars": lambda series, n: _rolling(
+        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowestbars": lambda series, n: _rolling(
+        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
+    "barssince": _fn_barssince,
+    "valuewhen": _fn_valuewhen,
+    # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
+    # STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
+    # both bars of a tie. See `closedTable.json::_functions_pivots`.
+    "pivothigh": lambda series, left, right: _pivot_col(
+        series, left, right, lambda v, w: v > w),
+    "pivotlow": lambda series, left, right: _pivot_col(
+        series, left, right, lambda v, w: v < w),
     "stdev": lambda series, n: _rolling(series, n, _window_stdev),
     "sum": lambda series, n: _rolling(series, n, _window_sum),
     "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
@@ -896,6 +1149,260 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "ichimokuSpanB": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 3),   # noqa: E741
     "ichimokuChikou": lambda h, l, c, t, k, s: _ichimoku_line(h, l, c, t, k, s, 4),  # noqa: E741
 }
+
+
+# --------------------------------------------------------------------------- #
+# the entries that read the BAR, not a column
+# --------------------------------------------------------------------------- #
+#
+# ⭐⭐ ONE SESSION ACCUMULATOR, TWO NAMES. ``compute_vwap_raw`` is the ONLY
+# session-VWAP in this lane -- it is what ``indicator_alert_evaluator`` fires on
+# and what ``tests/fixtures/indicators`` pins against ``computeVWAP`` -- and the
+# bindings below pass the bars straight to it. A formula's ``vwap()`` that
+# disagreed with the VWAP the chart draws would be the most legible instance this
+# repo could ship of ``a second authority over one value``.
+#
+# ⛔ THE DISPATCH IS DERIVED FROM THE MANIFEST (``bar_readers``), never from a
+# name typed here, exactly as ``recurrences`` is -- see
+# ``closedTable.json::_functions_bar_readers``. ``_BAR_FN``'s key set is asserted
+# against it, both directions, so a declared-but-unbound entry fails by name
+# instead of refusing inside the walker with a message about the wrong thing.
+
+
+def _fn_vwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``vwap()`` -- the shipped session accumulator, untouched.
+
+    ⚠️ ITS LEADING PARTIAL SESSION IS INHERITED AND DELIBERATELY NOT TRIMMED.
+    The first ET day in a series may start after its true open, so those bars
+    move if the window moves. Trimming them HERE would fork this column away from
+    the one the chart draws, which is worse than the caveat; it belongs to
+    ``compute_vwap_raw`` and to whoever changes it, in both lanes at once.
+    """
+    return compute_vwap_raw(bars)
+
+
+def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``avwap(anchorEpoch)`` -- the same accumulator, restarted at an INSTANT,
+    and bounded so that ``lookback: "session"`` is a TRUE declaration.
+
+    ⛔ RULE 1 -- THE ANCHOR'S BOUNDARY MUST BE VISIBLE. Some bar of the series
+    must fall strictly before the anchor. Otherwise "the first bar at or after
+    the anchor" is whichever bar the caller happened to fetch first, and the
+    value MOVES when the window moves -- ``lesson_a_derived_value_must_not_
+    depend_on_the_request``, the exact defect ``_functions_recurrence`` says
+    ``accum``'s re-seeded window exists to prevent.
+
+    ⛔ RULE 2 -- AND IT MAY NOT REACH PAST THE WINDOW IT DECLARES. A raw epoch
+    reaches back however far a member types, so ``lookback: "session"`` would
+    UNDER-state it -- the one direction ``_functions_warmup`` says a window
+    declaration may never take. Bars more than ``SESSION_MAX_BARS`` past the
+    anchor are NOT COMPUTABLE, so every bar this answers for was computed from
+    inside the window the manifest promises.
+
+    Both are the ordinary warm-up bargain turned round. ⚠️ THEY ARE NOT THE SAME
+    SHAPE, and saying so matters: RULE 1 refuses the WHOLE COLUMN (nothing about
+    this series can be answered), while RULE 2 blanks only the TAIL past the
+    declared window and leaves every bar inside it exact. Neither ever returns a
+    partial accumulation, which would be a confident wrong number wearing a
+    warm-up's clothes.
+    """
+    anchor = args[0]
+    # ⛔ A SUB-1990 ANCHOR IS A UNIT ERROR IN THE TREE, AND IT IS REFUSED BY NAME
+    # AT THE TOKEN. ``avwap(20250101)`` is the store's daily key spelled as an
+    # instant; it resolves to 1970 and is wrong for EVERY symbol, on every
+    # timeframe, forever -- a formula defect, not a per-symbol data condition,
+    # and this lane's rule for a formula defect is a named refusal rather than a
+    # quiet column. ``resolve:window`` already owns "this ``int`` argument is not
+    # a value this slot can take".
+    #
+    # ⚠️ THE OTHER REFUSAL BELOW IS DELIBERATELY *NOT* NAMED, and the asymmetry
+    # is the point: "no bar precedes the anchor" is true of ONE SYMBOL'S HISTORY,
+    # not of the tree. Refusing it by name would make one short-history symbol
+    # reject a formula that is correct for the rest of the universe.
+    if (isinstance(anchor, (int, float)) and not isinstance(anchor, bool)
+            and anchor < AVWAP_MIN_INSTANT):
+        _refuse("resolve:window",
+                f"— avwap argument 0 is {anchor}, which is not a unix-second "
+                f"instant (the floor is {AVWAP_MIN_INSTANT}, 1990-01-01). A "
+                "date-shaped key like 20250101 read as seconds anchors in 1970.")
+    if not bars:
+        return []
+    first = bars[0].get("t")
+    if isinstance(first, bool) or not isinstance(first, (int, float)):
+        return []
+    # ⭐ ``>=``, NOT ``>``. An anchor EXACTLY on the first bar is well-defined:
+    # any wider fetch adds only bars with ``t < bars[0]["t"]``, and those are
+    # strictly before the anchor, so they are excluded from the accumulation
+    # whatever the window is. Refusing it was a NARROW OVER-REFUSAL -- corrected
+    # 2026-08-26.
+    if not anchor >= first:
+        return []
+    column = compute_avwap_raw(bars, anchor)
+    ceiling = None
+    for i, bar in enumerate(bars):
+        t = bar.get("t")
+        if isinstance(t, (int, float)) and not isinstance(t, bool) and t >= anchor:
+            ceiling = i + SESSION_MAX_BARS
+            break
+    if ceiling is None:
+        return column
+    for i in range(ceiling + 1, len(column)):
+        column[i] = None
+    return column
+
+
+def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
+                length: int) -> List[float]:
+    """Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
+
+    ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL -- the same contract
+    ``_bind_shipped`` states, against the same ``[]`` "there is nothing to say
+    here" signal both refusals above return. A short list padded from the left
+    would put a real value at the wrong bar.
+    """
+    out = _nan_col(length)
+    values = _BAR_FN[name](bars, args)
+    if not isinstance(values, list) or len(values) != length:
+        return out
+    for i in range(length):
+        v = values[i]
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            continue
+        out[i] = NAN if math.isnan(float(v)) else float(v)
+    return out
+
+
+def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``obvN(n)`` -- on-balance volume's CHANGE across the last ``n`` bars.
+
+    ⭐⭐ IT READS THE BARS BECAUSE IT NAMES NO SERIES. OBV is close-and-volume by
+    definition, so there is no column to hand it and ``_bind_shipped`` has nothing
+    to pack -- the same absence of arguments that finally made ``vwap`` declarable.
+
+    ⛔⛔ THE INCREMENT OF THE SHIPPED ACCUMULATOR, NEVER A SECOND SUM.
+    ``compute_obv_raw`` is what the chart draws and what
+    ``indicator_alert_evaluator`` fires on; differencing it ``n`` bars apart is
+    the same arithmetic in one place instead of two, so ``obvN`` can never drift
+    from the OBV a member sees beside it.
+
+    ⭐ AND THE DIFFERENCE IS WHY THE BOUNDED FORM IS DECLARABLE WHERE THE LEVEL IS
+    REFUSED (``_functions_excluded.obv``): the level's seed is a fact about where
+    the fetch started, and it CANCELS -- the same bar reads the same number off a
+    60-bar fetch and off a 260-bar one. The first ``n`` bars are NOT COMPUTABLE
+    because their window reaches past the front of the fetch, which is exactly
+    what ``lookback: "arg0"`` declares.
+    """
+    n = int(args[0])
+    level = compute_obv_raw(bars)
+    out: List[MaybeNum] = [None] * len(bars)
+    if len(level) != len(bars):
+        return out
+    for i in range(n, len(bars)):
+        near, far = level[i], level[i - n]
+        if not (_is_number(near) and _is_number(far)):
+            continue
+        out[i] = float(near) - float(far)
+    return out
+
+
+def _aroon_col(bars: List[dict], n: int, field: str, want_max: bool) -> List[MaybeNum]:
+    """Chande's Aroon, from the published formula and this table's own arg-extreme.
+
+    ⭐ THE PUBLISHED FORM, VERBATIM (StockCharts):
+    ``Aroon-Up = ((25 - Days Since 25-day High)/25) x 100``. "Days Since" is the
+    number of periods elapsed since the most recent extreme -- which is exactly
+    what ``_window_arg_extreme`` returns, because ``_functions_arg_extreme``
+    ruled that the MOST RECENT bar wins a tie.
+
+    ⛔ THE WINDOW IS ``n + 1`` BARS, AND THAT IS ARITHMETIC RATHER THAN A CHOICE.
+    Aroon's published range is 0-100. Over ``n`` bars "days since" maxes at
+    ``n - 1`` and the indicator could never print 0; over ``n + 1`` it reaches
+    exactly 0 on the bar whose extreme sits at the far edge. Pine ships the same
+    reading (``ta.highestbars(high, length + 1)``).
+
+    ⭐ AND THE SIGN QUESTION FROM W2a.5 CLOSES HERE. Pine's ``highestbars`` is
+    NON-POSITIVE and this table's is the positive distance, so Pine writes
+    ``100 * (hb + n) / n`` where this writes ``100 * (n - hb) / n``. The two look
+    opposite and compute the SAME number -- which is precisely why
+    ``ta.highestbars`` is refused at the Pine door rather than mapped across.
+    """
+    values = [_number(b.get(field)) if _is_number(b.get(field)) else NAN for b in bars]
+    better = (lambda v, w: v > w) if want_max else (lambda v, w: v < w)
+    out: List[MaybeNum] = [None] * len(bars)
+    for i in range(n, len(bars)):
+        days = _window_arg_extreme(values, i - n, i, better)
+        if math.isnan(days):
+            continue
+        out[i] = 100.0 * (n - days) / n
+    return out
+
+
+def _fn_aroon_up(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    return _aroon_col(bars, int(args[0]), "h", True)
+
+
+def _fn_aroon_down(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    return _aroon_col(bars, int(args[0]), "l", False)
+
+
+def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """Balance of Power -- the ``n``-bar mean of ``(close - open) / (high - low)``.
+
+    ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED HERE.
+    ⚰️ This cited a manifest key named ``_functions_compositions`` and NO SUCH KEY
+    HAS EVER EXISTED -- one ruling, three comments in two lanes, all pointing at a
+    manifest that never carried it, so the criterion lived only in a commit
+    message. The manifest owns the NEGATIVE half in
+    ``closedTable.json::_functions_excluded`` (``variance``, ``hl2``, ``bbMiddle``:
+    already expressible, so declaring one would compute a second copy of a number
+    this table already has). The POSITIVE half belongs at the implementation, and
+    that is here: ``bop`` earns an entry because it has a PUBLISHED IDENTITY under
+    its own name, its window is a single declarable argument, and it reuses the
+    shipped rolling mean -- so unlike ``variance`` there is no second average that
+    could drift from the one ``sma`` uses.
+    ⛔ ``tests/test_closed_table_citations.py`` now resolves every
+    ``closedTable.json::<key>`` written in source against the manifest, so the next
+    dangling citation fails by file AND key instead of standing for a month.
+
+    ⛔ THE RATIO IS BUILT THROUGH THE SAME TWO SEAMS THE OPERATOR PATH USES --
+    ``_binary_div`` for IEEE division and the finite-or-NaN collapse ``_to_column``
+    applies -- so a zero-range bar answers exactly what
+    ``sma((close - open) / (high - low), n)`` answers, rather than nearly.
+    """
+    n = int(args[0])
+    ratio = []
+    for b in bars:
+        o, h, l, c = (b.get("o"), b.get("h"), b.get("l"), b.get("c"))  # noqa: E741
+        if not all(_is_number(v) for v in (o, h, l, c)):
+            ratio.append(NAN)
+            continue
+        ratio.append(_finite_or_nan(
+            _binary_div(_number(c) - _number(o), _number(h) - _number(l))))
+    col = _rolling(ratio, n, _window_mean)
+    return [None if math.isnan(v) else v for v in col]
+
+
+#: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
+_BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
+    "vwap": _fn_vwap,
+    "avwap": _fn_avwap,
+    "obvN": _fn_obvn,
+    "aroonUp": _fn_aroon_up,
+    "aroonDown": _fn_aroon_down,
+    "bop": _fn_bop,
+}
+
+#: The declared set, read off the manifest. ``parse.js::BAR_READERS`` is the same
+#: read on the same declaration.
+BAR_READERS: tuple = bar_readers()
+
+if set(BAR_READERS) != set(_BAR_FN):
+    raise RuntimeError(
+        "closedTable.json declares reads:'bars' for "
+        f"{sorted(BAR_READERS)} and ast_interpret binds {sorted(_BAR_FN)}. A "
+        "declared-but-unbound entry is a formula the builder offers and this "
+        "lane cannot evaluate; a bound-but-undeclared one is a callable outside "
+        "the closed table.")
 
 
 # --------------------------------------------------------------------------- #
@@ -1031,6 +1538,37 @@ def _flatten(root: Any) -> List[dict]:
     return order
 
 
+def session_anchored_in(ast: Any) -> tuple:
+    """Every call in a tree whose entry declares ``lookback: "session"``, sorted.
+
+    ⭐ EXPORTED FOR THE MESSAGE, NOT FOR A DECISION. ``ast_budget`` refuses on
+    the NUMBER, exactly as it always has; this only lets the refusal say WHY the
+    formula a member types first -- ``crossOver(close, vwap())`` -- is one bar
+    over. A session-anchored call spends the WHOLE lookback budget by
+    construction (the cap is derived to hold one session), so anything wrapped
+    around it is over by the width of the wrapper.
+
+    ⛔ IT NAMES, IT DOES NOT EXEMPT.
+    """
+    found = set()
+    stack = [ast]
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, dict):
+            continue
+        name = node.get("name")
+        if node.get("type") == "call" and isinstance(name, str)                 and name in functions                 and functions[name].get("lookback") == SESSION_LOOKBACK:
+            found.add(name)
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return tuple(sorted(found))
+
+
 def _fn_spec(name: Any) -> Mapping[str, Any]:
     functions = TABLE[FUNCTIONS_SECTION]
     if not isinstance(name, str) or name not in functions:
@@ -1044,6 +1582,29 @@ def _assert_arity(node: dict, spec: Mapping[str, Any]) -> None:
         _refuse("resolve:arity",
                 f"— {node.get('name')} expects {len(spec['args'])} arguments, "
                 f"got {len(node['args'])}")
+
+
+def _assert_arg_roles(node: dict, spec: Mapping[str, Any]) -> None:
+    """Refuse an argument whose declared ROLE demands a kind it does not yield.
+
+    ⭐ THE ANSWER IS ``scan_definition.arg_role_violation``, WHICH ASKS THIS
+    LANE'S ONE ``yields`` RESOLVER (``is_boolean_tree``). The rule lives beside
+    that resolver; the GUARD lives here, because the refusal vocabulary belongs
+    to the walker that owns ``REFUSALS``.
+
+    ⚠️ IMPORTED INSIDE THE CALL, AND THAT IS NOT STYLE. ``scan_definition``
+    imports THIS module at its top, so a module-level import here is a cycle --
+    the same arrangement ``definition_concierge._cadence_ceiling`` uses. After
+    the first call it is a ``sys.modules`` lookup.
+    """
+    from api.services import scan_definition
+    bad = scan_definition.arg_role_violation(node, spec)
+    if bad is None:
+        return
+    _refuse("resolve:condition",
+            f"— {node.get('name')} argument {bad['index']} is its "
+            f"{bad['role']}: compare it to something, or use a name this "
+            f"table declares as yielding 0/1")
 
 
 def _window_literal(node: dict, index: int) -> int:
@@ -1069,6 +1630,83 @@ def _window_literal(node: dict, index: int) -> int:
                 f"— {node.get('name')} argument {index} must be a whole number of "
                 f"at least 1, got {shown!r}")
     return int(arg["value"])
+
+
+#: name → the CEILING DECLARATION its argument domain points at, read off the
+#: manifest. ⛔ NEVER A NAME TYPED HERE: a hand-list would be the thing
+#: ``_functions_domain`` exists to retire, and it would be the SECOND copy of it
+#: because the JS lane would need its own.
+_ARG_DOMAINS: Mapping[str, str] = arg_domains()
+
+
+def _assert_arg_domain(node: dict, spec: Mapping[str, Any]) -> None:
+    """⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE
+    PASS — because ``int`` can say "a whole number" and cannot say "no larger
+    than that one".
+
+    🔴 THE DEFECT THIS CLOSES (X41). ``macd(close, 26, 12)`` is the 12/26 pair
+    transposed -- one keystroke -- and both walkers answer an ALL-NaN COLUMN for
+    it by declaration. A comparison then eats the hole:
+    ``close > macd(close, 26, 12)`` measured **0.0 on all 60 bars, one distinct
+    value**, with ``unresolved_inputs() == []``, ``unresolved_lookback() == 0``
+    and ``assert_scannable`` calling it a ``bool`` tree. The screen was savable,
+    every symbol was reported ANSWERED, and nothing anywhere said the formula was
+    meaningless -- a member reads "0 matches" as a quiet market. The Ichimoku five
+    carry the same shape whenever ``max(tenkan, kijun) > senkouB``.
+
+    ⛔ IT IS A FORMULA DEFECT, SO IT IS DECIDED WHERE THE FORMULA IS ADMITTED AND
+    NOWHERE ELSE. ``fast > slow`` is true of that tree on every bar, for every
+    symbol, forever -- a per-row check would carry a decision that cannot vary by
+    row and would pay for it 3,742 times a night. This is exactly the line
+    ``_fn_avwap`` already draws: its sub-1990 anchor is refused BY NAME
+    (``resolve:window``) while "no bar precedes the anchor" stays a quiet per-row
+    column, *"and the asymmetry is the point"*.
+
+    ⛔ AND IT DOES NOT REPLACE THE ADAPTERS' NaN. ``_fn_macd`` and
+    ``_ichimoku_line`` still answer an all-NaN column, because they are also
+    reachable directly and the two shipped implementations disagree about the
+    out-of-order case (one returns empty columns, the other throws a
+    ``TypeError`` off a negative index). What changed is that a TREE carrying one
+    no longer resolves.
+
+    ⚠️ EVERY ``int`` SLOT IS READ IN INDEX ORDER FIRST, so ``resolve:window``
+    still wins on a slot that is not a literal at all: a call whose window cannot
+    be read has no periods to compare, and reporting the later door would measure
+    traversal order instead of the defect.
+    """
+    declaration = _ARG_DOMAINS.get(node.get("name"))
+    if declaration is None:
+        return
+    # ⛔ THE SAME ``argN`` GRAMMAR ``_own_lookback`` READS, not a second one -- and
+    # a declaration that names no argument (``0``, ``"session"``) has no ceiling
+    # to compare against, so it is left alone rather than given a fabricated slot.
+    # ⚠️ A MULTIPLIER (``2*arg3``) NAMES THE SAME ARGUMENT: this compares PERIODS,
+    # and ``adx``'s doubled REACH says nothing about which slot holds the larger.
+    m = _LOOKBACK_RE.fullmatch(str(declaration))
+    if m is None:
+        return
+    ceiling = int(m.group(2))
+    if spec["args"][ceiling] != "int":
+        return
+    values: List[Optional[int]] = []
+    for i in range(len(spec["args"])):
+        values.append(_window_literal(node, i) if spec["args"][i] == "int" else None)
+    roles = spec.get("argRoles")
+
+    def _role(i: int) -> str:
+        if isinstance(roles, (list, tuple)) and i < len(roles) and isinstance(roles[i], str):
+            return roles[i]
+        return "period"
+
+    for i, value in enumerate(values):
+        if i == ceiling or value is None or value <= values[ceiling]:
+            continue
+        _refuse("resolve:domain",
+                f"— {node.get('name')} argument {i} is its {_role(i)} at {value}, past "
+                f"argument {ceiling}, its {_role(ceiling)}, at {values[ceiling]}. This entry "
+                f"declares {spec[ARG_DOMAIN]} `{declaration}`, so every other period must fit "
+                f"inside it — put the larger one in argument {ceiling}. As written, this call "
+                "computes nothing on any bar.")
 
 
 def _offset_bars(node: dict) -> int:
@@ -1118,10 +1756,18 @@ def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
     only say "one of my arguments". Over-stating a window costs extra NaN at the
     left edge; UNDER-stating hands back numbers computed from bars that were never
     fetched, which is why the indicator was withheld rather than mis-declared.
+
+    ⭐⭐ AND ONE FORM THAT IS NEITHER A CONSTANT NOR AN ARGUMENT -- ``"session"``,
+    checked BEFORE the regex. It resolves to ``SESSION_MAX_BARS``, which is read
+    off the manifest so that ``ast_lint`` -- a module that may not import this one
+    -- resolves it to the same number. That is the only arrangement in which the
+    two ``max_lookback`` implementations can go on agreeing.
     """
     lb = spec.get("lookback")
     if _is_number(lb):
         return int(lb)
+    if lb == SESSION_LOOKBACK:
+        return SESSION_MAX_BARS
     m = _LOOKBACK_RE.fullmatch(str(lb))
     if m is None:
         _refuse("interpret:node",
@@ -1168,6 +1814,14 @@ def max_lookback(ast: Any) -> int:
                 _window_literal(node, i)
                 continue
             best = max(best, seen[id(node["args"][i])])
+        # ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED,
+        # and this pass is the reason it lands at every door at once:
+        # ``check_budget`` inside ``interpret``, the concierge's ``_validate``,
+        # ``assert_scannable`` and the sweep's own one-shot resolve all run THIS
+        # function, so a transposed ``macd`` is refused once per formula rather
+        # than once per symbol. AFTER the loop above, so ``resolve:window`` still
+        # owns a slot that is not a literal.
+        _assert_arg_domain(node, spec)
         seen[id(node)] = _own_lookback(node, spec) + best
     return seen[id(ast)]
 
@@ -1180,18 +1834,33 @@ def unresolved_scalars(ast: Any,
     RATHER THAN FEARED. ``_cmp`` answers **0** when either side is NaN --
     *"A COMPARISON AGAINST NaN IS 0, NOT NaN ... the one place JS and Python
     agree by luck"* -- and that rule is correct for a bar warmup (the crossing
-    did not happen) and PINNED by 17 frozen cross-lane digests. Applied to a
-    scalar it is the ``scan_volume._job`` bug at the leaf: with no market cap,
+    did not happen) and PINNED by the frozen cross-lane digests in
+    ``tests/fixtures/ast/conformance_log.json``. Applied to a scalar it is the
+    ``scan_volume._job`` bug at the leaf: with no market cap,
 
         interpret(market_cap > 1e9)        -> [0.0, 0.0, ...]   a confident False
         interpret(market_cap)              -> [None, None, ...] the honest hole
 
     So the hole is visible at the LEAF and invisible one node up, and a sweep
     that read the column would count a symbol it knows nothing about as a symbol
-    that did not match. ⛔ THE ANSWER IS NOT TO CHANGE `_cmp`: propagating NaN
-    through comparisons would move every digest in the conformance log and
-    change what a warmup means on the chart. The answer is to ask THIS question
-    before evaluating, which is why it is a function and not a comment.
+    that did not match. ⛔ THE ANSWER IS NOT TO CHANGE `_cmp` — but NOT for the
+    reason this docstring used to give.
+
+    ⚰️ IT SAID *"PINNED BY 17 FROZEN CROSS-LANE DIGESTS"* AND *"propagating NaN
+    through comparisons would move EVERY digest in the conformance log"*. Both
+    halves are wrong, and the second is the expensive one. The count went stale
+    the first time a case was added (point at the log, which owns the number, and
+    write none here); the COST was measured by W9a at **270 of 53,847 rows,
+    0.501%**, and the rows that move are exactly the warm-up prefix. ⛔ A WRONG
+    COST ESTIMATE THAT DISCOURAGES A CHEAP FIX IS ITS OWN DEFECT CLASS — this
+    branch has already paid for it once, on a security fix priced at *"~40 rows in
+    an unowned file"* and measured at ONE.
+
+    ⭐ THE RULING IS UNCHANGED AND IT RESTS ON THE OTHER HALF: answering 0 against
+    NaN is CORRECT for a bar warm-up — the crossing did not happen — so changing
+    it would change what a warm-up MEANS on every chart. The member-facing hole is
+    closed by asking THIS question BEFORE evaluating, which is why it is a
+    function and not a comment.
 
     ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN. Its consumer is the
     server-side universe sweep; a browser evaluates one symbol whose row it does
@@ -1212,6 +1881,214 @@ def unresolved_scalars(ast: Any,
     return out
 
 
+def _usable_at(column: List[MaybeNum], at: int) -> bool:
+    """Is there a real number at ``at``? An out-of-range bar is NOT usable.
+
+    ⛔ OUT OF RANGE IS A HOLE, NEVER A SKIP. ``close > vwap()[900]`` on 400 bars
+    reads a bar that does not exist; answering "usable" there is the confident-0
+    the whole pre-pass exists to refuse, one index further left.
+    """
+    if not (-len(column) <= at < len(column)):
+        return False
+    v = column[at]
+    return _is_number(v) and math.isfinite(float(v))
+
+
+def _bar_reader_reads(ast: Any) -> Dict[str, List[tuple]]:
+    """name -> [(call node, {bars of backward offset above it})].
+
+    ⭐ THE OFFSETS ON THE PATH, NOT JUST THE NODE. ``vwap()[3]`` reads the bar
+    THREE BACK from the one the caller names, so a pre-pass that asked about the
+    caller's bar would be asking about a different bar than the walker answers
+    from -- the exact defect ``index`` and ``opts`` are threaded through to avoid,
+    one axis over. The set is a SET because one node may be reached at two depths
+    (``vwap()[1] > vwap()[5]`` where the parser shares the subtree), and every
+    position it is read at has to be answerable.
+
+    ⚠️ NOT REACHABLE TODAY, AND WRITTEN ANYWAY. Two unrelated guards happen to
+    cover it: a ``lookback: "session"`` entry cannot be wrapped in an offset at
+    all (``budget.maxLookback`` is ``sessionMaxBars``, so ``avwap()[40]`` refuses
+    ``budget:lookback``), and for a windowed entry ``unresolved_lookback`` is
+    non-zero exactly while the offset bar is inside the warm-up prefix. A guard
+    that is correct because two other guards happen to overlap it is correct by
+    luck, and the first anchored entry with a small declared lookback breaks both.
+
+    ⛔ ITERATIVE, for the same reason ``node_count`` is: this runs BEFORE the
+    walker and must not need the walker to be safe first.
+    """
+    reads: Dict[str, List[tuple]] = {}
+    seen: Dict[int, set] = {}
+    stack: List[tuple] = [(ast, 0)]
+    while stack:
+        node, back = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        if kind == "call" and node.get("name") in BAR_READERS:
+            if id(node) not in seen:
+                seen[id(node)] = set()
+                reads.setdefault(node["name"], []).append((node, seen[id(node)]))
+            seen[id(node)].add(back)
+        deeper = back + (_offset_bars(node) if kind == "offset" else 0)
+        for arg in node.get("args") or ():
+            stack.append((arg, deeper))
+    return reads
+
+
+def unresolved_inputs(ast: Any,
+                      scalars: Optional[Mapping[str, Any]] = None,
+                      bars: Optional[List[dict]] = None,
+                      index: Optional[int] = None,
+                      opts: Optional[Mapping[str, Any]] = None) -> List[str]:
+    """Every declared INPUT this tree names that has no usable value HERE.
+
+    ⛔ THE SET IS ``BAR_READERS`` ∪ THE DECLARED SCALARS. SAY IT PLAINLY,
+    BECAUSE IT IS NARROWER THAN "EVERY INPUT THAT CAN BE A HOLE" AND THE NAME OF
+    THIS FUNCTION DOES NOT SAY SO. ``unresolved_scalars`` asks *"which declared
+    SCALARS does this tree name that have no value on this row?"*; this adds
+    *"...and which entries declaring ``reads: "bars"`` cannot answer at the bar we
+    are about to read?"* Those two, and nothing else. What that leaves open is
+    written out below rather than left for a later lane to rediscover.
+
+    ⭐ WHY EXACTLY THAT SET, AND WHY IT IS DERIVED. A ``reads: "bars"`` entry
+    answers from a property of the BARS that neither neighbouring question can
+    express: ``vwap()`` refuses the whole column when a bar's ``t`` is not a real
+    instant (``VWAP_MIN_INSTANT``), and ``avwap(anchor)`` refuses it when no bar
+    precedes the anchor and blanks the tail past ``SESSION_MAX_BARS``. Those are
+    facts about ONE SYMBOL'S BARS, which is what makes them a per-row question at
+    all. So the set is ``BAR_READERS`` -- read off ``closedTable.json`` by
+    ``ast_table.bar_readers``, exactly as the walker's own dispatch is -- and a
+    third such entry is covered the day it lands, with no edit here and none in
+    the rail. (``obvN`` landed from a parallel lane while this was being written
+    and was covered with no edit to either.)
+
+    ⛔⛔ WHAT THIS DOES NOT COVER, MEASURED AND NAMED. An earlier draft claimed
+    every other entry's holes came from its arguments or its declared
+    ``lookback``. **THAT WAS FALSE TWICE OVER**. One of the two is now CLOSED
+    somewhere else; the other is still open and is still an ordinary member
+    spelling that returns NOTHING or THE ENTIRE UNIVERSE at full reported
+    coverage.
+
+    (1) ⚰️ A DECLARED ARGUMENT DOMAIN (``closedTable.json::_functions_domain``)
+    -- **CLOSED 2026-08-27 AT THE RESOLVE PASS, NOT HERE, WHICH IS WHY THIS ENTRY
+    IS KEPT.** ``macd(close, 26, 12)`` -- ``fast > slow``, a transposition of the
+    canonical 12/26 pair -- was an all-NaN column in BOTH walkers by declaration,
+    and on 400 bars::
+
+        interpret(close > macd(close, 26, 12))  -> [0.0, ...]   every bar
+        interpret(!(close > macd(close,26,12))) -> [1.0, ...]   every bar
+
+    ...with ``unresolved_inputs() == []``, ``unresolved_lookback() == 0`` and
+    ``assert_scannable`` calling it a ``bool`` tree. ⭐ THE RULING WAS THAT
+    ``fast > slow`` is a FORMULA defect -- true of that tree on every bar, for
+    every symbol, forever -- so it belongs where the formula is ADMITTED, exactly
+    as ``_fn_avwap`` refuses a sub-1990 anchor BY NAME (``resolve:window``) while
+    leaving "no bar precedes the anchor" a quiet per-row column, *"and the
+    asymmetry is the point"*. Answering it HERE would have made a question asked
+    3,742 times a night carry a decision one look at the tree settles. It is now
+    ``resolve:domain`` in ``max_lookback`` / ``maxLookback``, so the tree does not
+    resolve and nothing reaches this function at all -- **this set did not grow.**
+
+    (2) ⭐ A DATA-DEPENDENT HOLE IN AN ORDINARY FUNCTION -- and this one is NOT a
+    formula defect, so the argument above does not cover it. ``valuewhen`` holes
+    wherever its condition has not been true inside its window. Measured on 60
+    daily bars, ``valuewhen(close < 15, close, 10)``::
+
+        holes at bars 14..59      ← NOT a leading prefix. Values at the FRONT,
+                                     holes to the END -- the INVERSE of a warmup.
+        close > valuewhen(...)    -> 0.0 at the last bar, every symbol ANSWERED
+        unresolved_inputs         -> []      (it is not a bar reader)
+        unresolved_lookback       -> 0       (60 bars, declared window 10)
+
+    ⛔⛔ AND THE MANIFEST CANNOT CURRENTLY TELL IT FROM ``sma``. Both declare
+    ``lookback: "argN"`` and ``yields: "num"``; the 57 entries carry only
+    ``args``/``argRoles``/``lookback``/``yields``/``sentence`` plus ``recurrence``
+    (1), ``reads`` (3), ``cadence`` (2) and ``forward`` (1). **There is no
+    declaration that separates "holes only inside its declared window" from "can
+    hole at any bar"**, so widening this set correctly needs a NEW DECLARATION in
+    ``closedTable.json`` -- not a name added here, which is the list-that-rots
+    shape this whole function was written against. ``barssince`` is NOT in the
+    class: it declares a fallback and answers its period rather than a hole.
+
+    ⛔ BOTH GAPS ARE PINNED AS TESTS, NOT AS THIS PARAGRAPH.
+    ``tests/test_scan_not_computable_inputs.py`` carries one case per gap, each
+    going RED the day its fix lands and naming the comments that go stale with
+    it. The manifest note this function sits under already carried a ⚰️
+    correction promising *"this paragraph cannot rot again"* -- and it rotted.
+    Prose that declares itself rot-proof is still prose.
+
+    ⛔ AND THE VERDICT IS THE BINDING'S, NOT A SECOND COPY OF ITS RULES. This
+    asks the entry by EVALUATING IT -- the same ``interpret`` the sweep is about
+    to run -- and reports it unresolved when the value at the bar the caller will
+    read is not a finite number. Restating ``VWAP_MIN_INSTANT`` or ``avwap``'s two
+    refusals here would be a second authority over one value: the rules would then
+    live in two places and the first thing to diverge would be the one this
+    function exists to catch.
+
+    🔴 MEASURED, WHICH IS WHY THIS IS A FUNCTION AND NOT A COMMENT. On bars
+    built exactly as ``scan_evaluator._read_bars`` builds them for ``tf="D"`` --
+    the store's ``ts`` is a ``YYYYMMDD`` int, so the unit gate refuses::
+
+        interpret(vwap())                  -> [None, ...]   the honest hole
+        interpret(close > vwap())          -> [0.0, ...]    a confident NO
+        interpret(!(close > vwap()))       -> [1.0, ...]    a confident YES
+
+    ⛔ BOTH POLARITIES, AND THAT IS THE WHOLE DEFECT. The screen returns NOTHING
+    at full reported coverage, or THE ENTIRE UNIVERSE at full reported coverage,
+    and ``scan_evaluator``'s own ``math.isfinite`` test never fires because ``0.0``
+    and ``1.0`` are perfectly finite. Tracked as X23.
+
+    ⚠️ ``bars is None`` ASKS THE SCALAR HALF ONLY, and says so rather than
+    pretending the bar half was clean. A caller that has bars and does not pass
+    them gets a question that cannot fail, which is why
+    ``tests/test_scan_not_computable_inputs.py`` rails the sweep's call site by
+    AST rather than trusting the signature.
+
+    ⚠️ ``index`` IS THE BAR THE ANSWER WILL BE READ FROM, and the two readings
+    are not the same question. With an ``index`` this asks *"is there a value AT
+    THAT BAR"* -- which is what a screen needs, and the only reading that catches
+    ``avwap``'s blanked tail past ``SESSION_MAX_BARS``. With ``index=None`` it
+    asks the weaker *"is there a value ANYWHERE in this column"*, for a caller
+    that has no single bar in mind. ``scan_evaluator`` passes the index it is
+    about to read; the AST rail above is what keeps that true.
+
+    ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN -- inherited from
+    ``unresolved_scalars`` and still TRUE after this widening. Its consumer is the
+    server-side universe sweep, which owes a member a coverage receipt; a browser
+    evaluates ONE symbol, holds its own bars, and DRAWS a hole as a gap in the
+    line. There is no receipt to protect there, so a mirrored JS export would be
+    a callable nothing calls.
+
+    Returns a STABLE order so a member's detail line reads the same way every
+    night: the scalars in the manifest's own order (``unresolved_scalars``'s), then
+    the bar readers ALPHABETICALLY -- ``ast_table.bar_readers`` returns
+    ``tuple(sorted(...))``, and calling that "the manifest's order" would be a
+    claim this function does not make good on.
+    """
+    out = list(unresolved_scalars(ast, scalars))
+    if bars is None:
+        return out
+    reads = _bar_reader_reads(ast)
+    for name in BAR_READERS:
+        for node, backs in reads.get(name, ()):
+            # ⛔ THE SAME SCALARS AND THE SAME CLOCK THE ANSWER WILL BE COMPUTED
+            # UNDER. Latent today -- no declared bar reader takes a ``series``
+            # argument, so no scalar can reach one -- but a pre-pass evaluating a
+            # subtree under a DIFFERENT environment than the walker is a second
+            # authority over one value, and it would silently break the "covered
+            # the day it lands" promise for the first bar reader that takes one.
+            column = interpret(node, bars, scalars=scalars, opts=opts)
+            if index is None:
+                usable = any(_is_number(v) and math.isfinite(float(v))
+                             for v in column)
+            else:
+                usable = all(_usable_at(column, index - back) for back in backs)
+            if not usable:
+                out.append(name)
+                break
+    return out
+
+
 def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     """How many bars SHORT this series is of what the tree declares it reads.
     ``0`` means the history is sufficient.
@@ -1219,7 +2096,8 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     🔴 THIS EXISTS FOR THE SAME REASON ``unresolved_scalars`` DOES, ONE AXIS
     OVER — and it was measured, not feared. ``_cmp`` answers **0** when either
     side is NaN, which is correct for a warmup on the chart (the crossing did not
-    happen) and is pinned by 17 frozen cross-lane digests. Applied to a tree the
+    happen) and is pinned by the frozen cross-lane digests in
+    ``tests/fixtures/ast/conformance_log.json``. Applied to a tree the
     series is too SHORT to answer, it is a confident False forever. Evaluated on
     200 real AAPL bars:
 
@@ -1230,10 +2108,17 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     which is the SMA200 SEED, not an EMA — so ``close > ema(close, 200)`` returned
     ``1.0`` and an alert fired on a number that is not the indicator it names.
 
-    ⛔ THE ANSWER IS NOT TO CHANGE ``_cmp``. Propagating NaN through comparisons
-    would move every conformance digest and change what a warmup means on the
-    chart. The answer is to ask THIS question BEFORE evaluating — which is why it
-    is a function and not a comment, and why it is shaped exactly like
+    ⛔ THE ANSWER IS NOT TO CHANGE ``_cmp`` — and ⚰️ THIS SAID *"pinned by 17
+    frozen cross-lane digests"* AND *"propagating NaN through comparisons would
+    move EVERY conformance digest"*. Neither is true: the count went stale the
+    first time a corpus case was added (the log owns the number; none is written
+    here), and W9a MEASURED the cost at **270 of 53,847 rows, 0.501%**, all of
+    them in the warm-up prefix. A cost estimate that overstates a cheap fix in a
+    sentence written to stop anyone from checking is a deterrent, not a reason.
+    ⭐ THE RULING STANDS ON THE OTHER HALF ALONE: 0 against NaN is CORRECT for a
+    warm-up, so changing it would change what a warm-up MEANS on every chart. The
+    answer is to ask THIS question BEFORE evaluating — which is why it is a
+    function and not a comment, and why it is shaped exactly like
     ``unresolved_scalars``.
 
     ⚠️ ``max_lookback`` is the tree's OWN declaration — the same number the
@@ -1261,7 +2146,8 @@ def node_count(ast: Any) -> int:
 def interpret(ast: Any, bars: List[dict],
               inputs: Optional[Mapping[str, Any]] = None,
               budget: Optional[Mapping[str, Any]] = None,
-              scalars: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
+              scalars: Optional[Mapping[str, Any]] = None,
+              opts: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
     """Evaluate a canonical AST over bars → one aligned column of ``len(bars)``.
 
     :param ast:    a canonical tree (``parse.js::canonicalise``'s output)
@@ -1273,11 +2159,25 @@ def interpret(ast: Any, bars: List[dict],
     :param scalars: this SYMBOL's values for the table's declared scalars. Every
                    declared name is seeded whether or not it appears here; an
                    absent or unusable value seeds a NaN column.
+    :param opts:   what the CALLER knows that the tree and the bars do not.
+                   Today that is one key, ``tf`` — the timeframe these bars are
+                   — and the clock's four timeframe booleans are its only
+                   readers.
     :returns:      a list exactly ``len(bars)`` long, ``None`` where not computable
 
     Raises ``TableRefusal`` for anything the table refuses. Everything else — a
     ``RecursionError`` from a tree deep enough to exhaust the stack, say — is NOT
     a refusal and must never be caught and relabelled as one.
+
+    ⭐⭐ ``opts`` IS OPTIONAL AND TRAILING, AND IT IS THE WHOLE tableVersion-2
+    INTERFACE CHANGE. Every caller written before it is unaffected — the
+    signature is the cross-lane interface and the JS lane grew the SAME sixth
+    argument on the same day. ⛔ AND ITS ABSENCE FAILS CLOSED: with no ``tf``,
+    ``isintraday`` and its three siblings are NOT COMPUTABLE, never 0 and never
+    a guessed default. A caller that has a timeframe and drops it therefore
+    produces a visibly unanswered column rather than a confident wrong one,
+    which is what makes the two threading hand-backs (``nativeRegistry.js`` and
+    ``scan_evaluator.py``) safe to land separately from this.
     """
     # ⚠️ IMPORTED HERE RATHER THAN AT MODULE LEVEL, AND IT IS THE CYCLE, NOT A
     # STYLE. ``ast_budget`` imports THIS module's ``max_lookback`` / ``node_count``
@@ -1324,6 +2224,55 @@ def interpret(ast: Any, bars: List[dict],
             col[i] = _number(v) if _is_number(v) else NAN
         scope[name] = col
 
+    # ⭐ THE CLOCK (tableVersion 2). Seeded from ``compute_clock`` exactly the
+    # way the indicator functions bind to ``compute_rsi_raw``: not one line of
+    # calendar arithmetic lives in this file, because a private one would be a
+    # second authority over values the two lanes are held equal on at 1e-9.
+    #
+    # ⛔ THE MANIFEST DECIDES WHICH NAMES EXIST; ``compute_clock`` DECIDES WHAT
+    # EACH ONE MEANS; A DISAGREEMENT RAISES BY NAME. Seeding a NaN column for a
+    # declared name the maths has no column for would be a clock that reads "not
+    # computable" on every bar of every symbol forever, with nothing red
+    # anywhere — the exact silence this table's floors exist to break. A
+    # ``ValueError`` because it is a WIRING defect (somebody edited the manifest
+    # without the maths), not a formula the table refuses.
+    #
+    # ⚠️ COMPUTED EAGERLY, LIKE THE SERIES COLUMNS, AND THAT COSTS SOMETHING
+    # HONEST: thirteen columns per call, for a formula that may name none of
+    # them. It is not made conditional on the tree because ``scope`` is also
+    # what the shadow check reads and what ``resolve:name`` lists — a clock name
+    # seeded only when it is used would let an input named ``hour`` shadow it on
+    # every OTHER formula, silently.
+    #
+    # ⛔ THE COST IS TENS OF PERCENT OF ONE ``interpret`` CALL, ON **BOTH** BAR
+    # KINDS -- daily is NOT free. ⚠⚠ IT IS A RANGE AND IT IS WRITTEN AS ONE ON
+    # PURPOSE: four careful A/B runs against this same module with the ``clock``
+    # section removed read 9-38%, with per-configuration min..max spreads of
+    # 1.8-7.0 ms on consecutive runs. This box is noisy. A single figure here
+    # would invite the next engineer to read a 2x drift as a regression, so the
+    # ORDER is the claim and the direction is the finding.
+    #
+    # ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT THE **SEEDING**,
+    # which is why daily cannot be free: ``compute_clock`` allocates thirteen
+    # ``[None] * n`` columns BEFORE the gate and the loop below maps over all
+    # thirteen whichever branch it takes. An earlier note read the daily case as
+    # free on the strength of a -0.07 ms delta -- noise standing in for a
+    # measurement, and a NEGATIVE delta for purely ADDED work is the tell.
+    # The trade still holds in the units that decide it: even at the top of the
+    # range, 3,700 symbols is well under a second per nightly sweep.
+    clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+    for name in TABLE.get(CLOCK_SECTION) or {}:
+        col = clock_cols.get(name)
+        if col is None:
+            raise ValueError(
+                f"interpret: the table declares the clock name {name!r} and "
+                f"`indicator_compute.compute_clock` produces no such column "
+                f"(it produces {', '.join(sorted(clock_cols))}). The manifest is "
+                "the authority over WHICH clock names exist and the maths over "
+                "what each MEANS; seeding NaN here would make a declared name "
+                "read `not computable` on every bar forever.")
+        scope[name] = [NAN if v is None else float(v) for v in col]
+
     # ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
     # RESOLVES — an absent value seeds a NaN column, exactly like a bar with a
     # missing field ("a missing field is NOT a price of zero; it is a bar we
@@ -1361,6 +2310,7 @@ def interpret(ast: Any, bars: List[dict],
             raise ValueError(
                 f"interpret: the input {name!r} shadows a table name. The table "
                 f"declares {_declared(TABLE[SERIES_SECTION])}, "
+                f"{_declared(TABLE.get(CLOCK_SECTION) or {})}, "
                 f"{_declared(TABLE[FUNCTIONS_SECTION])} and "
                 f"{_declared(TABLE[SCALARS_SECTION])}.")
         # Only finite numbers are seeded. An input that is a callable, an object
@@ -1428,6 +2378,11 @@ def interpret(ast: Any, bars: List[dict],
         if kind == "call":
             spec = _fn_spec(n.get("name"))
             _assert_arity(n, spec)
+            # ⛔ AFTER THE ARITY AND BEFORE THE RECURRENCE ARM. The role check
+            # indexes ``n["args"]``, so it needs the arity settled first; and it
+            # sits above the early return so a recurrence entry that ever
+            # declares a condition role is covered without this line moving.
+            _assert_arg_roles(n, spec)
             # ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and
             # the MANIFEST says so rather than this line asserting it: an entry
             # declaring a ``recurrence`` carries a per-bar BODY, not a column.
@@ -1439,6 +2394,13 @@ def interpret(ast: Any, bars: List[dict],
                     args.append(_window_literal(n, i))
                 else:
                     args.append(_to_column(eval_node(n["args"][i]), length))
+            # ⭐ THE SECOND ARM THE MANIFEST DECIDES. An entry declaring
+            # ``reads: "bars"`` is handed THESE bars -- the real instants -- and
+            # not a pack of argument columns whose ``t`` is a bar index. The
+            # question asked is "does this entry declare it", never "is this call
+            # ``vwap``", so a third such entry needs no edit here.
+            if n["name"] in _BAR_FN:
+                return _bar_column(n["name"], bars, args, length)
             return FN[n["name"]](*args)
         # ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. Written as a refusal rather
         # than a `return NaN` because a tree nobody authored must refuse, not draw
@@ -1666,6 +2628,89 @@ def interpret(ast: Any, bars: List[dict],
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+def interpret_trees(trees: Any, bars: List[dict], *,
+                    inputs: Optional[Mapping[str, Any]] = None,
+                    scalars: Optional[Mapping[str, Any]] = None,
+                    budget: Optional[Mapping[str, Any]] = None,
+                    opts: Optional[Mapping[str, Any]] = None) -> Dict[str, List[MaybeNum]]:
+    """One column PER PLOT — ``{plotKey: interpret(tree, …)}`` over sorted keys.
+
+    A map over ``interpret`` and nothing more: the same inputs, the same budget,
+    the same scalars and the same ``opts`` for every tree, so a definition's
+    plots are evaluated here exactly the way the JS binder evaluates them
+    (``nativeRegistry.astColumnsFor``, which calls ``interpret(trees[key], bars,
+    inputs, def.compute.budget, undefined, { tf })`` per plot). ⛔ EVERY ONE OF
+    THOSE FOUR IS THREADED, and each for its own reason:
+
+      ``budget``  is the DOCUMENT's, so one cap covers every tree. A map that
+                  dropped it would run every plot uncapped — the cap would still
+                  read as present in the stored blob and nothing would say so.
+      ``opts``    carries what the CALLER knows and the tree cannot (today:
+                  ``tf``). With no ``tf`` the four clock booleans are NOT
+                  COMPUTABLE — never 0 — so dropping it does not crash, it makes
+                  a member's session filter silently never fire. That is the
+                  quietest failure in this lane, which is why it is threaded
+                  rather than defaulted.
+      ``inputs`` / ``scalars`` are the instance's knobs and the symbol's values;
+                  one definition has one set of both, and evaluating two plots of
+                  one document under two different maps would be two answers to
+                  one question.
+
+    ⛔ THE KEYWORDS ARE KEYWORD-ONLY ON PURPOSE. ``interpret`` orders its
+    optionals ``inputs, budget, scalars, opts`` and this function orders them
+    ``inputs, scalars, budget, opts``; a positional call would therefore mean two
+    different things in the two functions, and the pair it would swap — a budget
+    and a scalar map — are both plain mappings, so nothing downstream would
+    raise. Making the ambiguity unreachable is cheaper than documenting it.
+
+    ⛔ A MISSING OR EMPTY MAPPING IS THE **CALLER'S** ERROR (``TypeError``), NEVER
+    A ``TableRefusal``. A refusal is a sentence about the FORMULA a member wrote;
+    "you handed me no trees" is a sentence about the caller, and dressing it as a
+    refusal shows a member that their formula was rejected when no formula was
+    involved. ``tools/ast_conformance.py`` also recognises a refusal BY TYPE, so a
+    caller error wearing that type would be counted as the table saying no.
+
+    :returns: ``{plotKey: column}``, one entry per key, each exactly ``len(bars)``
+              long — insertion-ordered by SORTED key, which is the order
+              ``trees.js::assertTrees`` returns and the order every consumer uses.
+
+    🔴 NO PRODUCTION CALLER TODAY — MEASURED, AND SAID HERE RATHER THAN ONLY IN
+    A REPORT. Grepped across ``api/``, ``tools/`` and ``app/src``: the only callers
+    are ``tests/test_ast_multi_tree_parity.py`` and
+    ``tests/test_user_definitions_v2.py``. A public function with no caller and no
+    explanation is indistinguishable from dead code
+    (``lesson_built_tested_green_and_unreachable``), so this paragraph is the
+    explanation and it is kept honest by naming a specific caller-to-be rather than
+    a vague future.
+
+    ⭐ WHAT IT IS: the PYTHON HALF OF A MIRRORED PAIR. ``nativeRegistry.astColumnsFor``
+    is the JS half and it is fully wired — it is what a member's chart runs for
+    every plot of a multi-tree definition. This side exists so the two lanes can be
+    held to one answer for a WHOLE DOCUMENT rather than one tree at a time, which is
+    what ``tests/test_ast_multi_tree_parity.py`` does with it today against the
+    shared ``tests/fixtures/ast/multi_tree_parity.json``.
+
+    ⛔ AND THE CALLER IT IS FOR IS NAMED, WITH THE GAP IT WOULD CLOSE.
+    ``alert_user_series._gate_cross_lane`` is the admission door that proves the two
+    lanes agree at 1e-9 before an alert may ever fire, and it calls
+    ``cross_lane_report(compute.get("ast"), ...)`` — the SCAN tree, ALONE. An alert
+    armed on ``u_<id>.macd`` of a multi-plot document is therefore admitted on a
+    proof taken against a tree it does not evaluate: ``_make_value_fn`` runs
+    ``compute.trees["macd"]`` and nothing has ever compared THAT column across the
+    lanes. Threading this function (or its per-key equivalent) into that gate is the
+    wiring this exists for. It is deliberately NOT done here: widening an admission
+    gate can refuse definitions that pass today, so it is a ruling with its own
+    rails, not a fix-round edit.
+    """
+    if not isinstance(trees, Mapping) or not trees:
+        raise TypeError(
+            "interpret_trees(trees, bars): trees must be a non-empty mapping of "
+            f"plotKey -> tree, got {'an empty mapping' if isinstance(trees, Mapping) else type(trees).__name__}")
+    return {key: interpret(trees[key], bars, inputs=inputs, budget=budget,
+                           scalars=scalars, opts=opts)
+            for key in sorted(trees)}
 
 
 # --------------------------------------------------------------------------- #

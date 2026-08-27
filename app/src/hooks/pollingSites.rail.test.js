@@ -202,6 +202,26 @@ const BARE_POLL_SITES = {
   'app/src/components/admin/CatalystRulesPanel.jsx': 1,
   'app/src/components/admin/CommunityReportsPanel.jsx': 1,
   'app/src/components/admin/TwitterAccountsPanel.jsx': 2,
+  // ⭐ THE ONE ROW THAT IS NOT HERE FOR THE 2026-08-09 REASON. Everything above
+  // predates the helper; this site was ADDED after the census and is here
+  // because the decision went the other way, measured:
+  //   • it is a JOB-STATUS poll, not a steady-state background tick. The
+  //     interval is `polling ? pollMs : 0` flipped off `data.status ===
+  //     'running'`, and it stops itself the moment the receipt lands.
+  //     `useMobileSWR` DOUBLING it would slow the "Running…" a member is
+  //     actively waiting on — a cost on the touch client, not the saving the
+  //     wrapper is taken for;
+  //   • the wrapper would also mount a `useMarketOpen` 60s interval and a
+  //     visibilitychange listener per panel, for a poll that lives seconds and
+  //     has nothing to do with market hours;
+  //   • the call site already sets `revalidateOnFocus: false` by hand, so the
+  //     app-global half of the trade is the one worth keeping.
+  // ⚠️ AND THE NUMERIC FORM IS LOAD-BEARING, NOT AN OVERSIGHT: SWR reads a
+  // FUNCTION-form `refreshInterval` once in its mount effect, so a poll that
+  // has to start from a cold key never starts. `EvidenceTab.test.jsx`'s "polls
+  // while running" case measures the tick actually firing (>= 2 GETs), which is
+  // what makes this a measured decision rather than a row that silences a red.
+  'app/src/components/chart/builder/EvidenceTab.jsx': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
   'app/src/components/research/sections/SetupSection.jsx': 1,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,

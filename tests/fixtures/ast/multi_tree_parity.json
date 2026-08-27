@@ -1,0 +1,102 @@
+{
+  "_": "A 4-tree MACD(12,26,9) both lanes must agree on: macd, signal, hist = macd-signal, hist_up = hist>0. `sources` are the formula text each tree was parsed from; `trees` are parseFormula(source).ast for each, hand-written from parse.js's node shapes and asserted equal to the real parser output (never the other way round). `treesHash` is treesHash(trees) (app/src/components/chart/engine/ast/trees.js) and both lanes must reproduce this exact string. `bars` names the real 579-bar corpus at tests/fixtures/alerts/replay_bars.json#intraday5m for whichever conformance run (W1b.8's tools/ast_conformance.run_js/compare_lanes) wants a shared real-market series. app/src/components/chart/engine/ast/trees.parity.test.js -- the JS half of this rail -- does NOT read that pointer: it synthesizes its own deterministic 300-bar sine series in-file so the parse/hash assertions here never depend on the shape of a bars corpus that can change under them. A field naming a mechanism is a claim about a run: do not read `bars` as evidence the JS rail consumed it.",
+  "bars": "tests/fixtures/alerts/replay_bars.json#intraday5m",
+  "scanPlot": "hist_up",
+  "sources": {
+    "macd": "ema(close, 12) - ema(close, 26)",
+    "signal": "ema(ema(close, 12) - ema(close, 26), 9)",
+    "hist": "(ema(close, 12) - ema(close, 26)) - ema(ema(close, 12) - ema(close, 26), 9)",
+    "hist_up": "((ema(close, 12) - ema(close, 26)) - ema(ema(close, 12) - ema(close, 26), 9)) > 0"
+  },
+  "trees": {
+    "macd": {
+      "type": "op",
+      "name": "-",
+      "args": [
+        { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+        { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+      ]
+    },
+    "signal": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+            { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+          ]
+        },
+        { "type": "num", "value": 9 }
+      ]
+    },
+    "hist": {
+      "type": "op",
+      "name": "-",
+      "args": [
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+            { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+          ]
+        },
+        {
+          "type": "call",
+          "name": "ema",
+          "args": [
+            {
+              "type": "op",
+              "name": "-",
+              "args": [
+                { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+                { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+              ]
+            },
+            { "type": "num", "value": 9 }
+          ]
+        }
+      ]
+    },
+    "hist_up": {
+      "type": "op",
+      "name": ">",
+      "args": [
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            {
+              "type": "op",
+              "name": "-",
+              "args": [
+                { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+                { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+              ]
+            },
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                    { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 12 }] },
+                    { "type": "call", "name": "ema", "args": [{ "type": "series", "name": "close" }, { "type": "num", "value": 26 }] }
+                  ]
+                },
+                { "type": "num", "value": 9 }
+              ]
+            }
+          ]
+        },
+        { "type": "num", "value": 0 }
+      ]
+    }
+  },
+  "treesHash": "sha256:ca72fb12aa8bc2a7e480313295a1fa7f8537c4d3ea2c94b0732705a2245be006"
+}

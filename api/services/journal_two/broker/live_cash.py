@@ -176,6 +176,85 @@ def effective_cash(
     return out
 
 
+def window_fill_starts(
+    user_id: str,
+    broker_account_id: str,
+    balance_synced_at: str | None,
+    conn: sqlite3.Connection | None = None,
+    *,
+    types: tuple[str, ...] = _TRADE_TYPES,
+) -> dict[str, str]:
+    """{SYMBOL: earliest occurred_at} for EQUITY fills since the balance
+    write — the growth pass's work list. Scoping growth to only 'this
+    poll's fills' left a fill un-materialized forever when the pass shipped
+    (or errored) after the fill landed; the ledger window is the honest
+    scope, and the growth gates (FIFO origin at the fill, ledger-complete
+    rows only) still bound what may materialize."""
+    synced = _ts(balance_synced_at)
+    if synced is None:
+        return {}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        floor = (synced - timedelta(days=1)).date().isoformat()
+        marks = ", ".join("?" for _ in types)
+        rows = conn.execute(
+            "SELECT raw_json, occurred_at FROM j2_broker_activities "
+            "WHERE user_id = ? AND broker_account_id = ? "
+            f"  AND UPPER(activity_type) IN ({marks}) AND occurred_at >= ?",
+            (user_id, broker_account_id, *types, floor),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    out: dict[str, str] = {}
+    for row in rows:
+        occurred = _ts(row["occurred_at"])
+        if occurred is None or occurred <= synced:
+            continue
+        try:
+            act = json.loads(row["raw_json"])
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(act, dict) or act.get("option_symbol") or act.get("option_type"):
+            continue
+        sym = (act.get("symbol") or {}).get("symbol") if isinstance(act.get("symbol"), dict) else act.get("symbol")
+        if not sym:
+            continue
+        ts = str(row["occurred_at"])
+        if sym not in out or ts < out[sym]:
+            out[sym] = ts
+    return out
+
+
+def coverage(user_id: str, broker_account_id: str, conn=None) -> str:
+    """'full' | 'date_only' | 'unknown' — whether this broker's trade
+    activities carry real timestamps. Date-only brokers (Schwab family stamps
+    every activity at midnight) are under-covered by the derivation BY
+    DESIGN: a midnight occurred_at sorts before a pre-market balance write,
+    so same-day fills never adjust — behavior degrades to the stored cash,
+    never worse. Surfaced so the trust center and tuning decisions can see
+    which accounts the live-cash rail actually protects."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT occurred_at FROM j2_broker_activities "
+            "WHERE user_id = ? AND broker_account_id = ? "
+            "  AND UPPER(activity_type) IN (?, ?) "
+            "ORDER BY occurred_at DESC LIMIT 25",
+            (user_id, broker_account_id, *_TRADE_TYPES),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    if not rows:
+        return "unknown"
+    midnight = sum(1 for r in rows
+                   if "T00:00:00" in str(r["occurred_at"] or ""))
+    return "date_only" if midnight / len(rows) >= 0.8 else "full"
+
+
 def annotate_accounts(
     user_id: str,
     accounts: list[dict],

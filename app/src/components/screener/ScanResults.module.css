@@ -70,6 +70,23 @@
 .error { border: 1px solid var(--color-danger); }
 .notRun { border: 1px solid var(--border-accent); }
 
+/* The live-only block's caption. It is a statement ABOUT the list beneath it,
+   not a warning about the screen, so it carries `.notRun`'s weight and no
+   danger colour. */
+.liveOnly {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
 .pane {
   display: flex;
   flex-direction: column;
@@ -88,4 +105,15 @@
 @media (max-width: 640px) {
   .row { padding: 0 4px; }
   .chartBtnLabel { display: none; }
+}
+
+/* The Evidence door sits at the right of the receipt, out of the hit list's way. */
+.toolbar { display: flex; justify-content: flex-end; }
+
+/* The ticker and its provenance chip travel together: the chip is a fact ABOUT
+   this row, so it must not be able to drift to another one. */
+.tickerCell { display: inline-flex; align-items: center; gap: 8px; }
+.tier {
+  font-size: 11px; color: var(--text-muted); padding: 1px 7px;
+  border: 1px solid var(--border); border-radius: 999px; white-space: nowrap;
 }

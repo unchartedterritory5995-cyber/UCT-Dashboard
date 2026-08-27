@@ -130,3 +130,152 @@ describe('the dropped symbols are shown, bounded', () => {
     expect(block).not.toHaveTextContent('SYM6')
   })
 })
+
+// ─── ⭐ THE REASON, BESIDE THE COUNT (X42) ───────────────────────────────────
+//
+// `dropped_symbols` has always carried `{ticker, reason, detail?}` —
+// `scan_store._validated_dropped` REFUSES an entry without a reason, in those
+// words — and this component printed the tickers and threw the words away. "41
+// not computable" tells a member their screen is short; "41 no value for vwap"
+// tells them WHY. Every case here asserts the SENTENCE a member reads, because
+// a line that renders the right testid with the wrong words passes every
+// state-only rail.
+
+/** One `{ticker, reason, detail?}` entry per symbol, exactly as
+ *  `scan_evaluator._unanswered` files them. ⛔ BUILT, not retyped: the counts in
+ *  each case below are measured off these lists so the fixture cannot drift out
+ *  of the identity `record_coverage` enforces. */
+const noValue = (n, input) => Array.from({ length: n }, (_, i) => ({
+  ticker: `NC${i}`, reason: 'not-computable', detail: `no value for ${input}`,
+}))
+const bare = (n, reason) => Array.from({ length: n }, (_, i) => ({
+  ticker: `DR${i}`, reason,
+}))
+
+describe('the causes are surfaced beside the counts, in the receipt own words', () => {
+  it('the line names each cause and how many symbols carried it', () => {
+    const dropped_symbols = [...noValue(41, 'vwap'), ...bare(2, 'no-bars')]
+    render(<CoverageLine coverage={receipt({
+      answered: 3699, dropped: 2, not_computable: 41, dropped_symbols,
+    })} />)
+    // ⛔ THE WHOLE SENTENCE, not a substring: `toHaveTextContent` would pass on a
+    // line that also said something false beside the true part.
+    expect(screen.getByTestId('coverage-causes').textContent)
+      .toBe('Why: 41 no value for vwap \u00b7 2 no-bars')
+  })
+
+  it('the DETAIL wins over the bucket word, because the bucket is already the count', () => {
+    // `reason: 'not-computable'` restates "41 not computable", which the counts
+    // line says one row up. `detail` is the sentence the evaluator wrote for a
+    // human, and it is the half a member can act on.
+    render(<CoverageLine coverage={receipt({
+      answered: 1, dropped: 0, not_computable: 2, dropped_symbols: noValue(2, 'rs_rank'),
+    })} />)
+    const why = screen.getByTestId('coverage-causes')
+    expect(why.textContent).toBe('Why: 2 no value for rs_rank')
+    expect(why.textContent).not.toMatch(/not-computable/)
+  })
+
+  it('CONTROL: a reason with no detail is still named — the words are not invented either way', () => {
+    render(<CoverageLine coverage={receipt({
+      answered: 1, dropped: 2, not_computable: 0, dropped_symbols: bare(2, 'stale-bars'),
+    })} />)
+    expect(screen.getByTestId('coverage-causes').textContent).toBe('Why: 2 stale-bars')
+  })
+
+  it('CONTROL: an EMPTY enumeration renders no causes line at all', () => {
+    // Without this, the cases above are satisfied by a component that renders
+    // the line unconditionally — and every clean screen in the app would grow a
+    // "Why:" with nothing after it.
+    render(<CoverageLine coverage={receipt({ answered: 3742, dropped: 0, not_computable: 0 })} />)
+    expect(screen.queryByTestId('coverage-causes')).toBeNull()
+  })
+
+  it('CONTROL: entries carrying no words render no causes line, and invent no bucket', () => {
+    // A bare string entry states nothing. Bucketing it as "unknown" would put a
+    // word in the receipt's mouth, which is the one thing this component refuses
+    // everywhere else.
+    render(<CoverageLine coverage={receipt({
+      answered: 0, dropped: 3, not_computable: 0, dropped_symbols: ['AAA', 'BBB', 'CCC'],
+    })} />)
+    expect(screen.queryByTestId('coverage-causes')).toBeNull()
+    // …and the enumeration itself is untouched, so the absence above is about
+    // the WORDS and not about the list having gone missing.
+    expect(screen.getByTestId('coverage-dropped-symbols')).toHaveTextContent('AAA, BBB, CCC')
+  })
+})
+
+describe('the causes speak only for the symbols they saw', () => {
+  it('a CAPPED enumeration names its own scope instead of explaining the whole count', () => {
+    // `record_coverage` accepts a list SHORTER than `dropped + not_computable`
+    // (a cap) and never longer. A "Why: 200 no value for vwap" printed against
+    // 851 unanswered symbols would be a confident explanation of 651 symbols
+    // this component never saw.
+    const listed = noValue(200, 'vwap')
+    render(<CoverageLine coverage={receipt({
+      answered: 100, dropped: 51, not_computable: 800, dropped_symbols: listed,
+    })} />)
+    const why = screen.getByTestId('coverage-causes')
+    expect(why.textContent).toBe('Why, across the 200 listed: 200 no value for vwap')
+    // The COUNTS are untouched — 851 is still 851. A sub-count derived from a
+    // capped list, printed where a true count belongs, is the defect this
+    // component exists to refuse.
+    const line = screen.getByTestId('coverage-line')
+    expect(line).toHaveTextContent('800 not computable')
+    expect(line).toHaveTextContent('51 dropped')
+  })
+
+  it('CONTROL: a COMPLETE enumeration claims no scope it does not need', () => {
+    render(<CoverageLine coverage={receipt({
+      answered: 1, dropped: 0, not_computable: 3, dropped_symbols: noValue(3, 'vwap'),
+    })} />)
+    expect(screen.getByTestId('coverage-causes').textContent).toBe('Why: 3 no value for vwap')
+  })
+
+  it('the cause list is BOUNDED and its remainder is named', () => {
+    // The same bound the symbol list has, for the same reason: a screen whose
+    // every short-history symbol carries its own bar count would otherwise print
+    // a paragraph where a line belongs.
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      ticker: `S${i}`, reason: 'not-computable', detail: `${i} bars of history`,
+    }))
+    render(<CoverageLine
+      coverage={receipt({ answered: 0, dropped: 0, not_computable: 9, dropped_symbols: many })}
+      maxCauses={3}
+    />)
+    const why = screen.getByTestId('coverage-causes')
+    expect(why.textContent).toMatch(/ \u00b7 and 6 other reasons$/)
+    expect(why.textContent).toMatch(/^Why: 1 0 bars of history/)
+  })
+})
+
+describe('the causes stay OUT of the four counts', () => {
+  it('nothing about the counts line moves when causes appear', () => {
+    const clean = receipt({ answered: 3699, dropped: 2, not_computable: 41 })
+    render(<CoverageLine coverage={clean} />)
+    const without = screen.getByTestId('coverage-line').textContent
+    cleanup()
+    render(<CoverageLine coverage={{
+      ...clean, dropped_symbols: [...noValue(41, 'vwap'), ...bare(2, 'no-bars')],
+    }} />)
+    // ⛔ BYTE-FOR-BYTE. `evaluated == answered + dropped + not_computable` is
+    // E-3's identity; a component that "helpfully" re-derived a count from the
+    // enumeration would move exactly this string.
+    expect(screen.getByTestId('coverage-line').textContent).toBe(without)
+    expect(screen.queryByTestId('coverage-broken')).toBeNull()
+    // and the causes really did render, so the equality above is not vacuous.
+    expect(screen.getByTestId('coverage-causes')).toBeTruthy()
+  })
+
+  it('a withheld count never becomes a cause, and a cause never becomes withheld', () => {
+    // `withheld` is BESIDE the four (E-3's envelope) and it is not a failure —
+    // those symbols were never looked at, so they can carry no reason at all.
+    render(<CoverageLine coverage={receipt({
+      answered: 5, dropped: 1, not_computable: 0, withheld: 3737,
+      withheld_reason: 'toolkit:symbols', dropped_symbols: bare(1, 'no-bars'),
+    })} />)
+    expect(screen.getByTestId('coverage-causes').textContent).toBe('Why: 1 no-bars')
+    expect(screen.getByTestId('coverage-causes')).not.toHaveTextContent('3,737')
+    expect(screen.getByTestId('coverage-withheld')).not.toHaveTextContent('no-bars')
+  })
+})

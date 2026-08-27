@@ -72,6 +72,11 @@
 // screenshot.
 
 import { TABLE, NODE_TYPES, parseFormula, astHash } from './parse.js'
+// ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
+// used to carry a second copy, and closed table v2 made the two disagree in a
+// single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
+// imports this file, so the graph stays a tree.
+import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -470,16 +475,88 @@ const BUILTIN_CALL_TREE = Object.freeze({
  *  ⭐ MEASURED, NOT ASSUMED: `accum(0, self + 1, 10)` reads 10 at bar 20 AND at
  *  bar 49 over a 50-bar series. It is a RE-SEEDED WINDOW, not a running total.
  */
-const PINE_INEXPRESSIBLE = Object.freeze({
+// ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`. `pine.derived.test.js`
+// intersects it with `TABLE.functions` to exercise every name this list and the
+// closed table SHARE — nothing in the app imports it.
+export const PINE_INEXPRESSIBLE = Object.freeze({
   cum: 'a running total from the first bar. This engine\'s only accumulator '
     + 're-seeds a fixed number of bars back, so `cum` would silently become a '
     + 'rolling sum — and a true cumulative would change value with how many bars '
     + 'the chart requested, which this engine forbids by construction. '
     + 'Use `sum(source, n)` when a fixed window is what you meant.',
-  barssince: 'the number of bars since a condition was last true, UNBOUNDED. This '
-    + 'engine\'s accumulator is bounded by a declared warm-up, so the answer would '
-    + 'silently cap at that window instead of counting back as far as the condition '
-    + 'requires — a different number wearing the same name.',
+  // ⛔⛔ THE SIGN. `ta.highestbars`/`ta.lowestbars` return a NON-POSITIVE offset —
+  // 0 on the current bar, -1 one bar back — and this table's `highestbars`
+  // returns the POSITIVE distance. Ours is the NEGATION, so a member who pastes
+  // real Pine gets a column that is plausible on every bar and wrong on every
+  // bar, with no refusal and nothing red. That is the single worst outcome this
+  // translator exists to prevent.
+  //
+  // 🔴 AND WE HAVE ALREADY GOT THIS SIGN WRONG ONCE, IN WRITING: this repo's own
+  // W2a.7 brief writes Aroon with the opposite sign from TradingView's published
+  // version. A convention we have demonstrably mis-transcribed is not one to
+  // apply silently at a translation boundary.
+  //
+  // ⭐ THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, because *"unmappable"* is what let
+  // a false refusal hide for a whole task elsewhere in this wave. Two countable
+  // things, not a judgement call.
+  highestbars: 'the number of bars back to the highest value — and Pine returns '
+    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
+    + 'while this table\'s `highestbars(source, n)` returns the POSITIVE '
+    + 'distance. The two are negations of each other, so translating the name '
+    + 'straight across produces a sign-flipped column that is plausible on every '
+    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
+    + 'pins the sign, then apply `-` at this door. Meanwhile write '
+    + '`highestbars(source, n)` yourself, which is the positive distance.',
+  lowestbars: 'the number of bars back to the lowest value — and Pine returns '
+    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
+    + 'while this table\'s `lowestbars(source, n)` returns the POSITIVE '
+    + 'distance. The two are negations of each other, so translating the name '
+    + 'straight across produces a sign-flipped column that is plausible on every '
+    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
+    + 'pins the sign, then apply `-` at this door. Meanwhile write '
+    + '`lowestbars(source, n)` yourself, which is the positive distance.',
+  // ⛔⛔ THE BAR. This table's `pivothigh(source, left, right)` emits ON THE
+  // PIVOT BAR; Pine's `ta.pivothigh` returns the price at the CONFIRMATION bar,
+  // `rightbars` later — which is why published Pine pairs it with
+  // `offset=-rightbars` to draw it back where the pivot actually is. Same
+  // values, different index. Translating the name straight across shifts the
+  // whole column by `rightbars`, and a shifted pivot column is plausible on
+  // every bar and wrong on every bar.
+  //
+  // 🔴 THE SAME CLASS AS `ta.highestbars`, ONE AXIS OVER — that one differed by
+  // a SIGN and shipped green; this one differs by an OFFSET. Both are "the same
+  // number, indexed differently", which is the shape a member cannot see.
+  //
+  // ⭐ AND THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, in countable terms.
+  pivothigh: 'the price of a pivot high — and Pine RETURNS it at the '
+    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
+    + 'scripts draw it with `offset=-rightbars`. This table\'s '
+    + '`pivothigh(source, left, right)` emits ON THE PIVOT BAR instead, and '
+    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
+    + 'rather than hiding it behind a lag. Same values, different index: '
+    + 'translating the name straight across shifts the column by `rightbars`. '
+    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
+    + 'value lands on, then apply that shift at this door. Meanwhile write '
+    + '`pivothigh(source, left, right)` yourself, which emits on the pivot bar.',
+  pivotlow: 'the price of a pivot low — and Pine RETURNS it at the '
+    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
+    + 'scripts draw it with `offset=-rightbars`. This table\'s '
+    + '`pivotlow(source, left, right)` emits ON THE PIVOT BAR instead, and '
+    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
+    + 'rather than hiding it behind a lag. Same values, different index: '
+    + 'translating the name straight across shifts the column by `rightbars`. '
+    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
+    + 'value lands on, then apply that shift at this door. Meanwhile write '
+    + '`pivotlow(source, left, right)` yourself, which emits on the pivot bar.',
+  // ⚠️ THIS ONE IS NOW A NAME THE TABLE ALSO DECLARES, AND THAT MAKES IT MORE
+  // DANGEROUS RATHER THAN LESS — see the `own(PINE_INEXPRESSIBLE, …)` gate below.
+  barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
+    + 'This table declares `barssince(condition, n)`, and it is NOT the same '
+    + 'function: ours saturates at a declared window and answers `n` for "not '
+    + 'true within the last n bars", while Pine\'s counts back as far as the '
+    + 'condition requires. Translating the one-argument form onto it would '
+    + 'silently cap the count — a different number wearing the same name. '
+    + 'Write `barssince(condition, n)` with the window you actually mean.',
 })
 
 /** Pine keywords that begin a construct with no single-expression form. */
@@ -856,9 +933,18 @@ function containsSelfSeries(node, table) {
 /** ⭐⭐ DOES THIS UPDATE FORGET ITS SEED? `accum` RE-SEEDS a fixed number of bars
  *  back — deliberately, so a column cannot depend on where a fetch happened to
  *  start — and that is sound ONLY for an update that forgets where it began.
+ *
  *  `min`/`max` against a self-free operand forget once that operand dominates; a
  *  ternary arm that holds or passes through forgets; `nz` passes through.
  *  `self + x` NEVER forgets.
+ *
+ *  ⭐ EXPORTED FOR `thinkscript.js` (W3.5 hand-back, one word). This is a rule
+ *  about the ENGINE's `accum`, not about Pine — it reads
+ *  `table.functions.accum.recurrence.binds` and nothing Pine-shaped — and it
+ *  lives here only because Pine needed it first. thinkScript's `CompoundValue`
+ *  is the same accumulator reached from another language, so it asks the same
+ *  question, and it must never ask a SECOND copy of it: two convergence rules is
+ *  how two translators come to disagree about one engine function.
  *
  *  🔴 `x := x[1] + volume` is OBV by hand, and folding it would turn a running
  *  total into a ROLLING SUM — a plausible column that is not the indicator
@@ -869,7 +955,7 @@ function containsSelfSeries(node, table) {
  *  carrying the value forward. Only the ARMS must forget.
  *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
-function forgetsItsSeed(node, table) {
+export function forgetsItsSeed(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
   const bind = spec.recurrence.binds
@@ -1419,6 +1505,12 @@ class Resolver {
    *  member would see. */
   resolveBinding(bound, tok, name) {
     if (!bound) {
+      // ⭐ Same question as the other refusal site: a name the closed table holds
+      // is not a name the member failed to define.
+      const clockKey = engineClockKeyFor(name)
+      if (clockKey) {
+        throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(tok))
+      }
       throw new PineRefusal('pine:undefined',
         `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
     }
@@ -2003,6 +2095,14 @@ class Resolver {
     // gets THEIR `tr`, not ours. Shadowing a built-in is legal Pine and the
     // script is the authority on its own names.
     if (own(BUILTIN_SERIES_TREE, name)) return BUILTIN_SERIES_TREE[name]()
+    // ⭐ ASK THE MANIFEST BEFORE EITHER HAND-TYPED ANSWER. A name the closed
+    // table holds must not be told "the engine grammar does not hold" (false),
+    // and must never be told "your script never defined this" (blames the member
+    // for a column we compute).
+    const clockKey = engineClockKeyFor(name)
+    if (clockKey) {
+      throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(node.tok))
+    }
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -2185,7 +2285,48 @@ class Resolver {
       return BUILTIN_CALL_TREE[bare](built)
     }
     // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
-    if (!key && own(PINE_INEXPRESSIBLE, bare)) {
+    //
+    // ⛔⛔ AND THIS ONE IS **NOT** GATED ON `!key`, UNLIKE THE EXPANSIONS ABOVE.
+    // The difference is what each list is FOR. `BUILTIN_CALL_TREE` holds exact
+    // IDENTITIES, so a native entry of the same name is strictly better and
+    // should win. `PINE_INEXPRESSIBLE` holds names whose PINE MEANING this engine
+    // cannot say — and a table entry that happens to share the spelling does not
+    // change that; it makes the near-miss REACHABLE, which is the whole failure
+    // this list exists to prevent.
+    //
+    // ⚰️ MEASURED, NOT ARGUED. `barssince` landed in `closedTable.json` on
+    // 2026-08-26 as the BOUNDED `barssince(condition, n)`, and with the `!key`
+    // gate in place `ta.barssince(close > open)` stopped reporting the unbounded
+    // reason and started reporting *"this table takes 2 — barssince(series,
+    // int)"*. That reads as **"just add a number"**, and a member who adds one
+    // gets a silently capped count under the name Pine gave an uncapped one.
+    // `pine.derived.test.js` caught it; the gate is what stops it recurring for
+    // the next same-named entry.
+    //
+    // ⛔ THE DISCRIMINATOR IS THE NAMESPACE THE MEMBER WROTE, NOT THE TABLE'S KEY
+    // SET — and that correction came from a measured regression in the FIRST fix
+    // for the above. Dropping `!key` entirely refused the BARE spelling too, so
+    // `plot(barssince(close > open, 10))` was rejected by a message whose last
+    // sentence is *"Write `barssince(condition, n)`"*. A refusal that recommends
+    // the very thing the same door then rejects is worse than the near-miss it
+    // was written to prevent.
+    //
+    //   `ta.barssince(…)`  -> namespaced          -> PINE'S meaning  -> REFUSE
+    //   `barssince(…)`     -> bare, table HAS it  -> OUR vocabulary  -> resolve
+    //   `cum(…)`           -> bare, table has NOT -> nothing else it -> REFUSE
+    //                                                can mean, so keep the REASON
+    //
+    // ⛔ THE `|| !key` ARM IS NOT BELT-AND-BRACES: without it a bare `cum(volume)`
+    // falls through to the generic *"this table declares abs, accum, adx, …"*
+    // list, which is a true sentence that throws away the one thing the member
+    // needed — that `cum` is a running total and `sum(source, n)` is the honest
+    // alternative.
+    //
+    // ⚠️ WHAT THIS DOES NOT COVER, STATED RATHER THAN IMPLIED: a Pine v4 script
+    // may spell a `ta.` builtin bare, and that spelling is then genuinely
+    // ambiguous. `LEGACY_BARE_NAMESPACE` is this file's existing mechanism for
+    // that decision and it is the pine lane's to widen; nothing here guesses.
+    if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
       throw new PineRefusal('pine:function',
         `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
@@ -2327,6 +2468,45 @@ function signatureOf(key, spec) {
 /** Pine built-in VARIABLES that name something with no column here. Used only to
  *  tell "a Pine name we know and cannot hold" apart from "a name your script
  *  never defined" — two different sentences for two different mistakes. */
+/** The closed table's `clock` key for a Pine name, or `null`.
+ *
+ *  ⭐⭐ DERIVED FROM `TABLE.clock`, NEVER TYPED. This exists because the set
+ *  below is hand-typed and the manifest moved under it: `tableVersion` 2 added a
+ *  `clock` section, and this door kept answering as though those columns did not
+ *  exist. Measured 2026-08-27, before this helper:
+ *
+ *    plot(time)                      -> pine:builtin   "the engine grammar does not hold"
+ *    plot(year) / plot(hour)         -> pine:builtin   (same)
+ *    plot(bar_index)                 -> pine:builtin   (same)
+ *    plot(timeframe.isintraday ...)  -> pine:builtin   (same)
+ *    plot(dayofweek)                 -> pine:undefined "your script never defined this"
+ *    plot(ta.ema(close, 20))         -> OK             (control: the door works)
+ *
+ *  ⛔ The engine HOLDS every one of those columns. The first five said we cannot;
+ *  `dayofweek` said the MEMBER made a mistake. This module's own comment says the
+ *  set exists "to tell 'a Pine name we know and cannot hold' apart from 'a name
+ *  your script never defined' -- two different sentences for two different
+ *  mistakes" -- and it was giving the wrong one of its own two sentences.
+ *
+ *  ⚠️ THIS DOES NOT TRANSLATE ANYTHING. Binding a Pine clock name to the closed
+ *  table's clock leaf is W3b's, deliberately. What changes here is only WHICH
+ *  SENTENCE a member reads, and whether it names what would unblock it.
+ */
+const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
+
+function engineClockKeyFor(name) {
+  const clock = (TABLE && TABLE.clock) || {}
+  const key = own(PINE_TO_CLOCK_SPELLING, name) ? PINE_TO_CLOCK_SPELLING[name] : name
+  return typeof key === 'string' && !key.startsWith('_') && own(clock, key) ? key : null
+}
+
+const clockNotWired = (name, key) =>
+  `\`${name}\`: this engine HOLDS that column -- the closed table declares ` +
+  `\`${key}\` in its clock section -- but this Pine door has not learned the ` +
+  `clock leaf, so it cannot bind the name to it. TO UNBLOCK: teach this door to ` +
+  `resolve a clock name the way it already resolves a series name; nothing new ` +
+  `has to be measured or documented first.`
+
 const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
   'bar_index', 'time', 'time_close', 'time_tradingday', 'timenow',
   'year', 'month', 'weekofyear', 'dayofmonth', 'hour', 'minute', 'second',
@@ -3449,36 +3629,51 @@ function readsBars(node) {
   return false
 }
 
-/** `yields` off the manifest, resolved the way `sentence.js::yieldsOf` and
- *  `scan_definition.is_boolean_tree` both resolve it. Local rather than imported
- *  so that a caller-supplied table is honoured; `pine.test.js` asserts the two
- *  agree on the shipped manifest. */
-export function treeYieldsBool(node, table = TABLE) {
-  if (!node || typeof node !== 'object') return false
-  switch (node.type) {
-    case 'num': return node.value === 0 || node.value === 1
-    case 'series': {
-      const spec = (table.scalars || {})[node.name]
-      return !!spec && spec.yields === 'bool'
-    }
-    case 'op': {
-      const spec = (table.operators || {})[node.name]
-      const declared = spec ? spec.yields : 'num'
-      if (declared !== 'passthrough') return declared === 'bool'
-      const arms = Array.isArray(node.args) ? node.args.slice(1) : []
-      return arms.length > 0 && arms.every((a) => treeYieldsBool(a, table))
-    }
-    case 'call': {
-      const spec = (table.functions || {})[node.name]
-      return !!spec && spec.yields === 'bool'
-    }
-    case 'offset':
-      // ⭐ A BAR OFFSET CHANGES *WHEN*, NEVER *WHAT*. `signal[1]` holds the same
-      // kind of value `signal` does, so the answer is the child's — deriving it
-      // any other way would be a second opinion about one declaration.
-      return treeYieldsBool(node.args && node.args[0], table)
-    default: return false
+/** Compiled sentence rules for ONE table object, memoised.
+ *
+ *  ⚠️ `yieldsOf` takes COMPILED RULES, not a manifest, and `compileRules` probes
+ *  every declared entry — so calling it per node would put a full table compile
+ *  inside `foldLogicalIdentity`'s fold loop. A `WeakMap` keyed on the table
+ *  OBJECT costs one compile per distinct table and none at all for the shipped
+ *  one, which is already compiled as `SENTENCE_RULES` at that module's load. */
+const _RULES_FOR_TABLE = new WeakMap()
+
+function rulesFor(table) {
+  if (!table || typeof table !== 'object') return SENTENCE_RULES
+  if (table === TABLE) return SENTENCE_RULES
+  let rules = _RULES_FOR_TABLE.get(table)
+  if (!rules) {
+    rules = compileRules(table)
+    _RULES_FOR_TABLE.set(table, rules)
   }
+  return rules
+}
+
+/** Does this tree produce values in {0, 1, NaN}?
+ *
+ *  ⭐⭐ IT IS `sentence.js::yieldsOf`, NOT A SECOND READING OF THE MANIFEST, AND
+ *  THAT IS THE WHOLE POINT OF THIS FUNCTION'S SHAPE. It used to re-walk the
+ *  table itself — five branches that happened to agree with `yieldsOf` and with
+ *  `scan_definition.is_boolean_tree` — and its own docstring ASSERTED that
+ *  agreement. Closed table v2 broke it in one commit: the `series` arm read only
+ *  `table.scalars`, so the moment the `clock` section declared five entries
+ *  `bool`, `yieldsOf` said bool and this said false for every one of them. ⛔ A
+ *  COMMENT CLAIMING AGREEMENT, BESIDE CODE THAT DISAGREES, IS THE ARTIFACT A
+ *  LATER ENGINEER AUDITS AGAINST — so the agreement is now structural rather
+ *  than asserted, and the only honest fix was to DELETE this reader, not to
+ *  correct its comment.
+ *
+ *  ⚠️ WHY THE OLD COPY LOOKED NECESSARY: the note said "local rather than
+ *  imported so that a caller-supplied table is honoured". `yieldsOf` honours one
+ *  too — it just takes it COMPILED (`rulesFor` above). There was no cycle to
+ *  avoid either: both modules import `parse.js` and neither imports the other.
+ *
+ *  ⛔ AND NOTHING HERE FIXES THE THIRD READER BY REACHING INTO IT.
+ *  `is_boolean_tree` is the PYTHON lane's, held to this one by
+ *  `test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE`. Two lanes is the
+ *  design; three readers in ONE lane was the defect. */
+export function treeYieldsBool(node, table = TABLE) {
+  return yieldsOf(node, rulesFor(table)) === 'bool'
 }
 
 /** The argument a screener reads. `plot(series, title, …)` and

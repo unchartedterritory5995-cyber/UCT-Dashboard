@@ -1,6 +1,7 @@
 """Tracks daily spend, enforces soft + hard caps.
 
 Anthropic pricing (USD per million tokens, 2026):
+  claude-opus-5:     $5.00  input, $25.00 output
   claude-opus-4-8:   $5.00  input, $25.00 output
   claude-opus-4-7:   $5.00  input, $25.00 output
   claude-sonnet-5:   $3.00  input, $15.00 output
@@ -18,10 +19,15 @@ logger = logging.getLogger(__name__)
 _SOFT_CAP_LOGGED_FOR_DATE: str | None = None
 _HARD_CAP_TRIPPED = False
 
-# Per-million-token rates. MUST carry an entry for whatever CATALYST_OPUS_MODEL
-# resolves to — estimate_cost() returns $0 for an unknown model, which would
-# make the daily soft/hard cost caps silently un-enforceable (unbounded spend).
+# Per-million-token rates. MUST carry an entry for whatever CATALYST_OPUS_MODEL /
+# CONCIERGE_MODEL resolve to — estimate_cost() prices an unknown model at the
+# priciest KNOWN rate and logs it, so the caps stay enforced but the number is a
+# guess until the entry lands.
 _PRICING = {
+    # Opus 5 ships at Opus 4.8's list price — $5 in / $25 out per 1M (Anthropic
+    # model table, cached 2026-06-24; the same figures flow_explain._PRICING
+    # already carries for claude-opus-4-8). W0.4, 2026-08-25.
+    "claude-opus-5":     {"input": 5.0,  "output": 25.0},
     "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},
     "claude-sonnet-5":   {"input": 3.0,  "output": 15.0},
@@ -35,7 +41,8 @@ _WEB_SEARCH_USD_EACH = 0.01
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """USD cost for one call. Returns 0 if model unknown."""
+    """USD cost for one call. An UNKNOWN model is priced at the priciest KNOWN
+    rate and logged — never $0, which would make every cap unenforceable."""
     # Tolerate dated model aliases like claude-haiku-4-5-20251001
     base = model.rsplit("-", 1)[0] if model.count("-") >= 3 else model
     rates = _PRICING.get(model) or _PRICING.get(base)

@@ -61,7 +61,59 @@ function deepFreeze(value) {
  */
 export const LOOKBACK_RE = /^(?:(\d+)\s*\*\s*)?arg(\d+)$/
 
+/** ⭐ THE ONE KEY GRAMMAR — input keys, plot keys, event keys, and the keys of
+ *  `compute.trees`. Identifier-shaped because they are ADDRESSED (`defId.plotKey`,
+ *  `$inputKey`); ASCII so the sorted order `trees.js` hashes in and Python's
+ *  `sorted()` agree byte for byte with no collation rule. Hoisted here, beside
+ *  `LOOKBACK_RE` and for the same reason: `defSchema.js` and `ast/trees.js` each
+ *  held a private copy, and this leaf is the module both already import. */
+export const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
+
 export const TABLE = deepFreeze(TABLE_JSON)
+
+/** ⭐⭐ THE OTHER SHAPE A DECLARED `lookback` MAY TAKE — the whole session.
+ *
+ *  `lookback: 'session'` is the window back to the first bar of the bar's own
+ *  New York calendar day. It is deliberately NOT spellable as `argN`: no
+ *  argument carries it, because how many bars a session holds is a property of
+ *  the CALENDAR and the TIMEFRAME, not of anything the author typed. That is
+ *  the whole reason it needs a name of its own rather than a number.
+ *
+ *  ⛔ IT LIVES BESIDE `LOOKBACK_RE` FOR THE IDENTICAL REASON, and that reason is
+ *  a rail's doing rather than a preference: `lint.test.js` pins this module as
+ *  the linter's ONLY import (`{ imports: ['./parse.js'] }`), so a sentinel owned
+ *  by `interpret.js` would be unreachable from the reader that most needs it.
+ */
+export const SESSION_LOOKBACK = 'session'
+
+/** How far back `lookback: 'session'` reaches, in bars — READ OFF THE MANIFEST.
+ *
+ *  ⛔⛔ NOT A LITERAL HERE, AND THAT IS THE POINT. Four readers need this number
+ *  — `interpret.js::ownLookback`, `lint.js::resolveDeclaration`,
+ *  `ast_interpret._own_lookback`, `ast_lint._resolve_declaration` — across two
+ *  languages, and the Python linter is pinned by its own import rail to the
+ *  standard library, so it can reach neither of the other three. The ONE place
+ *  all four can see is the table, which is DATA for exactly this reason. A
+ *  per-lane copy would be the fifth hand-written copy of a window grammar in
+ *  this directory; the fourth branded ADX as repainting in production.
+ *
+ *  ⭐ WHY 960 — and why it is `closedTable.json::_session` that argues it, not
+ *  this comment: the session is the ET CALENDAR DAY (04:00–20:00 ET = 16 hours),
+ *  not regular hours, and the finest bar this platform serves is one minute, so
+ *  a session can never hold more bars than it holds minutes.
+ */
+export const SESSION_MAX_BARS = (() => {
+  const n = TABLE.sessionMaxBars
+  if (!Number.isInteger(n) || n < 1) {
+    // ⛔ A REFUSAL AT IMPORT, NOT A DEFAULT. A fallback number here would be the
+    // per-lane copy this constant exists to prevent, and it would be invisible:
+    // the grammar would go on answering, with a window nobody declared.
+    throw new Error(
+      `closedTable.json declares sessionMaxBars=${JSON.stringify(n)}; the session window `
+      + 'must be a whole number of bars, and no lane may supply one of its own')
+  }
+  return n
+})()
 
 /** The canonical node types, and there are no others.
  *
@@ -125,6 +177,83 @@ export const RECURRENCES = Object.freeze(Object.fromEntries(
  *  input shadow. Derived from the entries above, never listed. */
 export const RECURRENCE_BINDINGS = Object.freeze(
   [...new Set(Object.values(RECURRENCES).map((r) => r.binds))].sort())
+
+/** The declaration that says an entry is computed over the BAR ARRAY rather than
+ *  over the columns its arguments name. `closedTable.json::_functions_bar_readers`
+ *  argues it; this is the string both lanes match on. */
+export const BAR_READS = 'bars'
+
+/** Every function entry declaring `reads: 'bars'`, sorted.
+ *
+ *  ⭐ THE `recurrence` IDIOM, APPLIED TO THE OTHER THING A CALL CAN NEED.
+ *  `bindShipped` packs bars out of ARGUMENT COLUMNS and therefore fabricates `t`
+ *  as a bar index — which is, in its own comment's words, exactly why `vwap` was
+ *  refused for as long as this table has existed. An entry declaring this is
+ *  handed `interpret`'s own bar array instead, so its anchor is a real instant.
+ *
+ *  ⛔ DERIVED, NEVER LISTED. Both walkers ask "does this entry read the bars",
+ *  never "is this call `vwap`", so a third such entry needs no change in either
+ *  lane. `ast_table.bar_readers` is the same read on the same manifest. */
+export function barReadersOf(table) {
+  return Object.entries((table && table.functions) || {})
+    .filter(([, spec]) => spec && spec.reads === BAR_READS)
+    .map(([name]) => name)
+    .sort()
+}
+
+/** ⚠️ THE PURE READER IS EXPORTED FOR ONE REASON: SO ITS DERIVATION CAN BE
+ *  RAILED. `TABLE` is frozen at import, so a manifest the shipped table does not
+ *  contain is unreachable from any test that only sees the constant — and a
+ *  derivation nobody can plant against is indistinguishable from a hand-list
+ *  that happens to be right today. A mutation sweep proved exactly that:
+ *  replacing the filter with `name === 'vwap' || name === 'avwap'` SURVIVED
+ *  every suite in this directory until `barReadersOf` had a seam. Same lesson,
+ *  same shape, one task earlier: `interpret.js::ownLookback`. */
+export const BAR_READERS = Object.freeze(barReadersOf(TABLE))
+
+/** The declaration that says an entry's OTHER `int` arguments must fit inside
+ *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
+ *  this is the key both lanes match on, and its VALUE names which of the entry's
+ *  own reach declarations supplies the ceiling. */
+export const ARG_DOMAIN = 'domain'
+
+/** Every function entry declaring an argument domain → the CEILING DECLARATION
+ *  it points at. `{ macd: 'arg2', ichimokuTenkan: 'arg4', … }`.
+ *
+ *  ⭐ THE `reads: 'bars'` IDIOM, APPLIED TO THE OTHER THING A DECLARATION CAN BE
+ *  WRONG ABOUT. `lookback: 'arg2'` is a promise about how many bars of history an
+ *  entry needs, and for these six it holds only while the argument it names is
+ *  the LARGEST period in the call — `macd(close, 26, 12)` reaches 26 bars back
+ *  under a declaration that promised 12, and every line of the Ichimoku family
+ *  starts at the longest of its three periods. The entry says so itself; nothing
+ *  here knows the name `macd`.
+ *
+ *  ⛔ ONE INDIRECTION, NEVER A RE-TYPED SLOT. The value of `domain` is the NAME
+ *  of another key on the same entry (`'lookback'`), and what comes back is that
+ *  key's own declaration — so moving an entry's lookback to another slot moves
+ *  its domain with it, and no argument index is written down twice.
+ *
+ *  ⛔ THE INDEX IS NOT RESOLVED HERE, AND THAT IS THE SPLIT. `LOOKBACK_RE` is
+ *  this lane's ONE grammar for `argN` and the walker already reads it
+ *  (`ownLookback`); resolving it here as well would be the second copy the
+ *  hoisting of that regex exists to prevent. `ast_table.arg_domains` answers the
+ *  same question in the same shape, and each lane's walker resolves the index
+ *  with the grammar it already owns. */
+export function argDomainsOf(table) {
+  const out = {}
+  for (const [name, spec] of Object.entries((table && table.functions) || {})) {
+    if (!spec || typeof spec[ARG_DOMAIN] !== 'string') continue
+    const declaration = spec[spec[ARG_DOMAIN]]
+    if (typeof declaration === 'string' && declaration) out[name] = declaration
+  }
+  return out
+}
+
+/** ⚠️ EXPORTED AS A PURE READER FOR THE REASON `barReadersOf` IS: a derivation
+ *  nobody can plant a manifest against is indistinguishable from a hand-list that
+ *  happens to be right today. `argDomain.test.js` plants a seventh entry and a
+ *  `domain` pointing at a key that names no argument. */
+export const ARG_DOMAINS = Object.freeze(argDomainsOf(TABLE))
 
 /** Does this function read each argument at the bar it writes, and nowhere else?
  *

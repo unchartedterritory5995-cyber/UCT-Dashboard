@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
 import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
+import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
 
@@ -42,7 +43,7 @@ const BG_MODES = [
 
 export default function WatchlistSettingsPanel({
   settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
-  templates = [], onApplyTemplate, onSaveTemplate, onDeleteTemplate,
+  templates = [], onApplyTemplate, onSaveTemplate, onDeleteTemplate, widgetType = 'watchlist',
 }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (left of the watchlist)
@@ -99,6 +100,7 @@ export default function WatchlistSettingsPanel({
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      if (e.target.closest?.('[data-uct-theme-gallery]')) return
       // A click anywhere that isn't the Templates control closes its dropdown.
       if (!e.target.closest?.('[data-tpl-wrap]')) setTplMenuOpen(false)
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
@@ -228,6 +230,10 @@ export default function WatchlistSettingsPanel({
         </div>
 
         <div className={styles.body}>
+          <div className={styles.sectionLabel}>Theme</div>
+          <Row label="UCT theme" hint="whole-widget look">
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+          </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

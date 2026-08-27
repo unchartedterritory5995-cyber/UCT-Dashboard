@@ -36,6 +36,10 @@
 
 .withheld { margin: 0; font-size: 12px; color: var(--text-muted); }
 
+/* The causes, beside the counts they explain — same weight as the counts line,
+   because it is the half of the receipt a member can act on. */
+.causes { margin: 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+
 .details { font-size: 12px; color: var(--text-muted); }
 
 .summary { min-height: var(--tap-min); display: flex; align-items: center; cursor: pointer; }

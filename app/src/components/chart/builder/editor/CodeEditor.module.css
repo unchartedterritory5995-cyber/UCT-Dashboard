@@ -1,0 +1,195 @@
+/* app/src/components/chart/builder/editor/CodeEditor.module.css
+ *
+ * ⛔ THE TOKEN NAMES ARE THIS REPO'S, MEASURED — NOT A FAMILIAR-LOOKING SET.
+ * The brief specified `--color-border`, `--color-bg-elev`, `--color-gold` and
+ * `--color-text-muted`; `app/src/styles/tokens.css` declares NONE of them, so
+ * every one of those would have silently fallen through to its hard-coded hex
+ * and the editor would have been the one surface on the page that does not
+ * follow the theme — invisible on light, wrong on OLED, and green in every test
+ * because a CSS var that resolves to its fallback throws nothing.
+ * The real names are `--bg-surface` · `--border` · `--border-accent` ·
+ * `--text` / `--text-bright` / `--text-muted` · `--accent` (the gold, which is
+ * #c9a84c on dark and #7a5c16 on light) · `--radius-md` · `--font-mono` ·
+ * `--tap-min` · `--loss` · `--gain` · `--info` · `--menu-*` · `--focus-ring`.
+ *
+ * ⭐ THE BOX IS SIZED FROM THE ONE IT ENHANCES. Every value in `.editor` is the
+ * value `BuilderSheet.module.css` `.field` already uses for the textarea —
+ * including the `var(--font-mono, …)` declaration, which in this repo resolves
+ * to Instrument Sans (see the tokens.css header) — so picking a "real"
+ * monospace here would make the editor the only box on the sheet with a
+ * different face.
+ * ⚠️ THAT IS NOT THE SAME AS "DOES NOT REFLOW THE SHEET" — measured false.
+ * `.field` is a `rows={2}` textarea (~64px at these metrics: 2×21px line-height
+ * + 20px padding + 2px border); `.editor` has no `rows` concept, rests at ONE
+ * line, bound only by `min-height: var(--tap-min)` (44px), and declares no
+ * `max-height` — it grows with the formula instead of scrolling internally the
+ * way the textarea did. The shared declarations are real; the height is not
+ * one of them. Pixels are W1a.6/W1a.8's to confirm on a screen.
+ */
+
+.editor {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap-min);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* The `.field` padding lives on `.cm-content`, not here: CodeMirror measures the
+   scroller, and padding on the host would put the caret and the click target a
+   few pixels out of step on the last line. */
+.editor :global(.cm-editor) { background: transparent; }
+.editor :global(.cm-editor.cm-focused) { outline: none; }
+.editor:focus-within { border-color: var(--border-accent); box-shadow: var(--focus-ring); }
+/* ⛔⛔ THE CORNER CLIP LIVES HERE, NOT ON `.editor`. `.editor { overflow: hidden }`
+   used to round the box's own corners — and, as a side effect, clipped the
+   completion popup with it: the popup's container is `view.dom` (`.cm-editor`),
+   a DOM child of `.editor`, and CodeMirror positions it `absolute` on iOS
+   always and on every platform once its transformed-ancestor kludge fires
+   (permanently, for that view — `madeAbsolute` is never reset). An
+   `overflow: hidden` ancestor clips an absolutely-positioned descendant
+   regardless of what element its OWN containing block resolves to; this is
+   why UI libraries "portal" popups out of a clipping box rather than styling
+   around it. `.cm-editor` itself is `position: relative` (CM's own baseTheme)
+   but declares no overflow, so scoping the clip to `.cm-scroller` — a SIBLING
+   of the tooltip container, not an ancestor of it — rounds the scrolling text
+   to match the host's corners without ever touching the popup. */
+.editor :global(.cm-scroller) { font-family: inherit; line-height: inherit; overflow: hidden; border-radius: var(--radius-md); }
+.editor :global(.cm-content) { padding: 10px 12px; caret-color: var(--accent); }
+/* The caret is the browser's own (no `drawSelection()` — see CodeEditor.jsx),
+   so `caret-color` above is the whole of it. */
+.editor :global(.cm-content ::selection) { background: var(--ut-gold-glow); }
+
+.editor :global(.cm-gutters) {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+}
+
+/* The refusal's mark. A wavy underline rather than a filled band so the token it
+   names stays readable — the sentence is the message, this only points. */
+.editor :global(.cm-lintRange-error) {
+  background: none;
+  text-decoration: underline wavy var(--loss);
+  text-underline-offset: 3px;
+}
+
+/* The completion popup wears the app's own menu chrome. */
+.editor :global(.cm-tooltip) {
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  color: var(--menu-text);
+}
+.editor :global(.cm-tooltip-autocomplete ul li[aria-selected]) {
+  background: var(--menu-accent-bg);
+  color: var(--menu-accent);
+}
+.editor :global(.cm-completionDetail) { color: var(--menu-text-dim); font-style: normal; }
+.editor :global(.cm-completionInfo) {
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  color: var(--menu-text);
+}
+
+/* ── token classes ─────────────────────────────────────────────────────────
+ * One class per key of `languages.js`'s closed TOKEN_TABLE. The set is pinned
+ * by `CodeEditor.test.jsx`, which RECORDS the keys off `highlightStyle` and
+ * reads this file off disk — vitest's CSS-modules stand-in fabricates a class
+ * for any name asked of it, so a DOM assertion alone could never see one
+ * missing here.
+ *
+ * Where the token layer already carries the hue, it is used, so the palette
+ * follows the theme. The six that have no token are literal and dark-tuned;
+ * each gets its light-theme counterpart below rather than being left to render
+ * pastel-on-white. */
+.fn { color: var(--accent); }
+.series { color: var(--info); }
+.scalar { color: #a78bfa; }
+.input { color: #f59e0b; font-style: italic; }
+.let { color: var(--gain); }
+.literal { color: #fb7185; }
+.unknown { color: var(--loss); text-decoration: underline dotted; }
+.keyword { color: #f472b6; }
+.namespace { color: var(--text-muted); }
+.string { color: #a3e635; }
+.comment { color: var(--text-muted); font-style: italic; }
+.operator { color: var(--text); }
+.punctuation { color: var(--text-muted); }
+.number { color: #fbbf24; }
+.name { color: var(--text-bright); }
+
+/* `data-theme` is set on `document.documentElement` (`Layout.jsx`), so an
+   ancestor selector is the whole override. Only the six literals move — the
+   token-backed ones already inverted with the token layer. */
+:global([data-theme='light']) .scalar { color: #6d28d9; }
+:global([data-theme='light']) .input { color: #a35b00; }
+:global([data-theme='light']) .literal { color: #b1265b; }
+:global([data-theme='light']) .keyword { color: #a1136b; }
+:global([data-theme='light']) .string { color: #4d7c0f; }
+:global([data-theme='light']) .number { color: #8a5a00; }
+
+/* ── the hidden value-carrier (W1a.6) ────────────────────────────────────────
+ * `FormulaField.jsx`'s textarea, once this editor has mounted beside it and
+ * become the visible typing surface. ⛔ NOT `display: none` — the textarea
+ * stays a real, focusable node so `BuilderSheet`'s own tab-order rail
+ * (`BuilderSheet.test.jsx`'s "focus is trapped" ring) still finds it, and it
+ * stays the ONE element every existing sheet test resolves via
+ * `getByLabelText('Formula')`. The standard clip-based recipe: visually gone,
+ * in the layout and the tab order (`tabIndex={-1}` on the element itself is
+ * what actually pulls it OUT of tab order — this class only hides pixels).
+ *
+ * Applied STANDALONE, never combined with `.field` (`BuilderSheet.module.css`)
+ * on the same element — two classes from two different CSS modules on one
+ * node leaves `width`/`border` decided by import order between them, which
+ * this file's own `.cm-scroller` comment above already flags as a real
+ * cascade fact in this codebase, not a hypothetical. `position: absolute` is
+ * the one property that MUST win regardless of ordering (it is what removes
+ * the box from flow), hence the sole `!important`.
+ *
+ * NOTE: this replaces a class of the same name and same recipe that shipped
+ * in commit `411c92179` and was deleted in `76be68db7` for having zero
+ * consumers — see that commit's report. This is a fresh definition written
+ * against an actual consumer (`FormulaField.jsx`), not a revival. */
+.model {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── THE LIVE PREVIEW (`PreviewPane.jsx`) ───────────────────────────────────
+ *
+ * A fixed-height frame so `ChartPane`'s `density="mini"` has candles to draw
+ * in. The height is on the WRAPPER rather than on the pane: the pane sizes to
+ * its container, and a chart handed `height: auto` inside a flex column
+ * collapses to zero and renders a blank box that reads exactly like the pane
+ * refusing to mount. `overflow: hidden` keeps the canvas inside the radius.
+ *
+ * ⚠️ THE CEILING ON THIS RULE: NOTHING ASSERTS IT. `PreviewPane.test.jsx` and
+ * `PreviewPane.sheet.test.jsx` both mock `ChartPane`, so `styles.preview`
+ * resolving to `undefined` renders an unstyled zero-height div and all 18 cases
+ * stay green — delete this whole rule and no test moves. The collapse reasoning
+ * above is PLAUSIBLE AND UNVERIFIED: no human has opened the sheet and seen this
+ * preview render. WHAT WOULD VERIFY IT: opening the builder on a real chart (or
+ * a Playwright pass) and confirming the frame has non-zero height with candles
+ * inside it. Until then this is an unrailed claim, not covered behaviour. */
+.preview {
+  height: 220px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg);
+}

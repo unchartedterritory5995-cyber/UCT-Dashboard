@@ -102,6 +102,29 @@ const RECURRENCE_PHRASE = Object.freeze({
 const RECURRENCE_SAYS = Object.freeze(Object.fromEntries(
   Object.entries(RECURRENCE_PHRASE).map(([phrase, bind]) => [bind, phrase])))
 
+/** phrase -> the clock name it reads back to (tableVersion 2).
+ *
+ *  ⭐ READ FROM THE MANIFEST, AND THAT IS NOT THE TAUTOLOGY `RECURRENCE_PHRASE`
+ *  WARNS ABOUT. That map is typed because its phrase is `sentence.js`'s OWN
+ *  wording — deriving it from the module under test would make the round trip
+ *  circular. A clock phrase is not the module's: it is a declared `sentence` in
+ *  `closedTable.json`, DATA both lanes read, exactly like the binding NAME
+ *  `RECURRENCE_PHRASE` itself reads from the manifest. Typing these thirteen
+ *  sentences here would be a hand copy of the table — the one thing this suite
+ *  exists to forbid — and it would go stale the first time a wording is
+ *  clarified.
+ *
+ *  ⛔ MATCHED WHOLE in `readLeaf`, like the recurrence phrase and for the same
+ *  reason: a prefix match would let "the calendar year ... plus 1" read as a leaf
+ *  and swallow its own operator. */
+const CLOCK_PHRASE = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE.clock || {}).map(([name, spec]) => [spec.sentence, name])))
+
+/** name -> the phrase the walker says for it. DERIVED from the map above rather
+ *  than read a second time, for the same reason `RECURRENCE_SAYS` is. */
+const CLOCK_SAYS = Object.freeze(Object.fromEntries(
+  Object.entries(CLOCK_PHRASE).map(([phrase, name]) => [name, phrase])))
+
 /** Each form is a chunk list: strings are literal chrome, numbers are argument
  *  positions. The order below is DECLARED rather than incidental — a phrase that
  *  is a prefix of another (`is greater than` inside `is greater than or equal
@@ -144,7 +167,80 @@ const FORMS = [
   { kind: 'call', name: 'min', parts: ['the smaller of ', 0, ' and ', 1] },
   { kind: 'call', name: 'max', parts: ['the larger of ', 0, ' and ', 1] },
   { kind: 'call', name: 'crossOver', parts: [0, ' crossing above ', 1] },
+  // ⭐ THE ANCHORED VWAP (2026-08-26). Its sibling `vwap()` takes no arguments
+  // at all and therefore lives in `NULLARY_PHRASE` above rather than here — a
+  // form is matched by its argument chrome, and a row with no numeric part has
+  // no arity to read.
+  { kind: 'call',
+    name: 'avwap',
+    parts: ['the volume-weighted average price accumulated from the first bar at or after epoch ', 0] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
+
+  // ⭐ THE BOUNDED-STATE FIVE (2026-08-26), hand-typed from the manifest's words
+  // like every row above — deriving them would make the oracle agree with the
+  // renderer by construction and the round trip would prove nothing.
+  //
+  // ⛔ EACH SLOT APPEARS EXACTLY ONCE, AND THAT IS A CONSTRAINT ON THE MANIFEST,
+  // NOT ON THIS TABLE. `barssince`'s sentence first read *"…, or {1} when it has
+  // not been true within the last {1} bars"* — the sentinel and the window are
+  // the same number, so saying it twice is the honest English — and `matchForm`
+  // captures a slot once, so it read as `0 parses`. The template says it once;
+  // `_functions_bounded_state` carries the fact that the two numbers are equal.
+  //
+  // ⚠️ `highestbars` IS NOT AMBIGUOUS WITH `highest` even though its phrase
+  // ENDS with `highest` chrome: a form's first literal must match at position 0,
+  // and this one opens with `the number of bars back to`.
+  { kind: 'call',
+    name: 'barssince',
+    parts: ['the number of bars since ', 0,
+            ' was last true, and ', 1, ' when it has not been true that recently'] },
+  { kind: 'call',
+    name: 'valuewhen',
+    parts: ['the value of ', 1, ' on the most recent of the last ', 2,
+            ' bars where ', 0, ' was true'] },
+  { kind: 'call',
+    name: 'highestbars',
+    parts: ['the number of bars back to the most recent bar holding the highest ', 0,
+            ' of the last ', 1, ' bars'] },
+  { kind: 'call',
+    name: 'lowestbars',
+    parts: ['the number of bars back to the most recent bar holding the lowest ', 0,
+            ' of the last ', 1, ' bars'] },
+  // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
+  // row here — deriving them would make the oracle agree with the renderer by
+  // construction and the round trip would prove nothing.
+  { kind: 'call',
+    name: 'pivothigh',
+    parts: ['the ', 0, ' of a bar that is the highest in the ', 1,
+            ' bars before it and the ', 2, ' bars after it'] },
+  { kind: 'call',
+    name: 'pivotlow',
+    parts: ['the ', 0, ' of a bar that is the lowest in the ', 1,
+            ' bars before it and the ', 2, ' bars after it'] },
+  // ⭐ THE TC2000 REMAINDER (2026-08-27), hand-typed from the manifest's words
+  // like every row here — this grammar is a DELIBERATE second authority, so
+  // deriving it would make the round trip agree by construction.
+  // ⚰️ THE TWO AROON PHRASES OPENED *"of the last {0} bars"* AND THE WINDOW IS
+  // `{0} + 1`. That is not a rounding: the extra bar is the whole reason this
+  // task fixed the window there, because over `{0}` bars "days since" maxes at
+  // `{0} - 1` and the indicator could never print its published 0 — which the
+  // SECOND half of the very same sentence promises it does. A member reading
+  // only the first clause was told a shorter window than the number they got.
+  { kind: 'call',
+    name: 'aroonUp',
+    parts: ['the Aroon up over this bar and the ', 0,
+            ' before it, 100 when this bar set the high and 0 when it was ', 0, ' bars ago'] },
+  { kind: 'call',
+    name: 'aroonDown',
+    parts: ['the Aroon down over this bar and the ', 0,
+            ' before it, 100 when this bar set the low and 0 when it was ', 0, ' bars ago'] },
+  { kind: 'call',
+    name: 'bop',
+    parts: ['the ', 0, '-bar average of where each bar closed within its own range'] },
+  { kind: 'call',
+    name: 'obvN',
+    parts: ['the signed volume of the last ', 0,
+            ' bars, which is on-balance volume\'s change across that window'] },
 
   // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
   // table, and that is the whole design: this grammar is a DELIBERATE second
@@ -298,6 +394,28 @@ function matchForm(parts, s) {
 const NUMBER_WORD = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
 const INPUT_PREFIX = 'the input '
 
+/** phrase -> the NULLARY call it reads back to.
+ *
+ *  ⭐ A ZERO-ARGUMENT CALL HAS NO SLOTS, so it cannot be a `FORMS` row — those
+ *  are matched by their argument chrome and a form with no numeric part has no
+ *  arity to read. It is a whole-phrase lookup, exactly like `CLOCK_PHRASE`, and
+ *  it builds a `call` rather than a `series`.
+ *
+ *  ⛔ TYPED, like `RECURRENCE_PHRASE` and every `FORMS` row and for the same
+ *  reason: this reader is a DELIBERATE second authority written from the
+ *  manifest's words, so deriving it from `closedTable`'s `sentence` would make
+ *  the round trip agree by construction and prove nothing. A phrase re-worded in
+ *  the manifest without this line lands as `0 parses`. */
+const NULLARY_PHRASE = Object.freeze({
+  'the volume-weighted average price so far this session': 'vwap',
+})
+
+function readNullaryCall(s) {
+  if (!own(NULLARY_PHRASE, s)) return null
+  return { via: `call:${NULLARY_PHRASE[s]}`,
+           ast: { type: 'call', name: NULLARY_PHRASE[s], args: [] } }
+}
+
 function readLeaf(s) {
   if (s.startsWith(INPUT_PREFIX)) {
     const name = s.slice(INPUT_PREFIX.length)
@@ -311,6 +429,11 @@ function readLeaf(s) {
   // prefix match would let "the running value so far plus 1" read as a leaf and
   // swallow its own operator.
   if (own(RECURRENCE_PHRASE, s)) return { type: 'series', name: RECURRENCE_PHRASE[s] }
+  // ⭐ A CLOCK VALUE IS A LEAF THAT IS SAID RATHER THAN NAMED. `hour` reads back
+  // as the manifest's own sentence — a member cannot check `dayofweek` against
+  // the maths without being told Sunday is 1 — so the inverse is a whole-phrase
+  // lookup, not a token match.
+  if (own(CLOCK_PHRASE, s)) return { type: 'series', name: CLOCK_PHRASE[s] }
   if (NUMBER_WORD.test(s)) {
     const value = Number(s)
     if (!Number.isFinite(value)) throw new Error(`not a finite number: ${s}`)
@@ -350,6 +473,10 @@ function readOffsetSentence(s) {
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
+  {
+    const nullary = readNullaryCall(s)
+    if (nullary) found.push(nullary)
+  }
   try {
     const off = readOffsetSentence(s)
     if (off) found.push(off)
@@ -405,6 +532,12 @@ function treesForTheWholeTable(table) {
   const out = []
   for (const name of Object.keys(table.series).sort()) {
     out.push({ entry: `series:${name}`, ast: { type: 'series', name } })
+  }
+  // ⭐ THE CLOCK RIDES THE SAME NODE, so the totality proof covers it with the
+  // same one-line shape — and a fourteenth clock entry lands here on the day it
+  // is declared, with no edit to this file.
+  for (const name of Object.keys(table.clock || {}).sort()) {
+    out.push({ entry: `clock:${name}`, ast: { type: 'series', name } })
   }
   for (const name of Object.keys(table.operators).sort()) {
     const arity = table.operators[name].arity
@@ -469,6 +602,11 @@ function predictTrace(node, at = '$') {
     // the wrong reason, which is the one outcome an attribution rail must not
     // have. The name is read from the manifest, never typed.
     if (RECURRENCE_BINDINGS.includes(node.name)) return [{ path: at, rule: 'series:recurrence' }]
+    // ⭐ A FOURTH ORIGIN (tableVersion 2): a clock value rides the same node and
+    // is resolved from its OWN manifest section, between the bar fields and the
+    // definition's inputs — the order `renderName` and `lint.js::astReach` both
+    // use. Read from the manifest, never typed.
+    if (own(TABLE.clock || {}, node.name)) return [{ path: at, rule: 'series:clock' }]
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
   }
   if (node.type === 'offset') {
@@ -546,6 +684,14 @@ describe('the read-back is generated from the tree, and never written by a model
     for (const c of CORPUS.cases) {
       const s = sentenceFor(c.ast, {})
       const leaves = leavesOf(c.ast)
+      // ⛔ A ZERO-ARGUMENT CALL HAS NO LEAVES, AND THE EXEMPTION IS DERIVED FROM
+      // THE TREE rather than granted to a name: `vwap()` reads the bars
+      // themselves, so there is no operand for the sentence to say. Everything
+      // else must still carry one, and the floor below keeps the loop honest —
+      // an exemption that swallowed the whole corpus would be the vacuity this
+      // case was written against.
+      const nullary = c.ast.type === 'call' && Array.isArray(c.ast.args) && c.ast.args.length === 0
+      if (nullary) continue
       expect(leaves.length, `${c.id} has no leaves — the rail would be vacuous`).toBeGreaterThan(0)
       for (const leaf of leaves) {
         // ⭐ A RECURRENCE BINDING IS SAID, NOT NAMED, AND THE RAIL STAYS AS STRICT.
@@ -557,7 +703,10 @@ describe('the read-back is generated from the tree, and never written by a model
         // ⛔ AND IT IS NOT AN EXEMPTION. Dropping the leaf from this loop would
         // let a walker that rendered `self` as NOTHING pass, which is exactly the
         // clause-dropping defect the rail exists to catch.
-        const said = RECURRENCE_SAYS[leaf] || leaf
+        // ⭐ AND A CLOCK VALUE IS SAID, NOT NAMED, FOR THE SAME REASON — the
+        // demanded string is the manifest's declared sentence, so the rail keeps
+        // its full strength: a walker rendering `hour` as NOTHING still fails.
+        const said = RECURRENCE_SAYS[leaf] || CLOCK_SAYS[leaf] || leaf
         expect(s, `${c.id}: the read-back never says ${said}`).toContain(said)
       }
     }
@@ -657,6 +806,23 @@ describe('totality over the closed table — derived from the manifest, never ha
       'series:low',
       'series:open',
       'series:volume',
+      // ⭐ THE CLOCK (tableVersion 2), and the list is why thirteen bar-clock
+      // values arriving reads as a decision rather than as a count somebody
+      // adjusted. They sit between the bar fields and the operators because
+      // `treesForTheWholeTable` walks the manifest's sections in that order.
+      'clock:barindex',
+      'clock:dayofmonth',
+      'clock:dayofweek',
+      'clock:hour',
+      'clock:isdaily',
+      'clock:isintraday',
+      'clock:ismonthly',
+      'clock:isweekly',
+      'clock:minute',
+      'clock:month',
+      'clock:sessionfirst',
+      'clock:time',
+      'clock:year',
       'operator:!',
       'operator:!=',
       'operator:&&',
@@ -675,8 +841,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:abs',
       'function:accum',
       'function:adx',
+      'function:aroonDown',
+      'function:aroonUp',
       'function:atan',
       'function:atr',
+      'function:avwap',
+      'function:barssince',
+      'function:bop',
       'function:cci',
       'function:change',
       'function:cos',
@@ -689,6 +860,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:ema',
       'function:exp',
       'function:highest',
+      'function:highestbars',
       'function:ichimokuChikou',
       'function:ichimokuKijun',
       'function:ichimokuSpanA',
@@ -698,6 +870,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:ln',
       'function:log10',
       'function:lowest',
+      'function:lowestbars',
       'function:macd',
       'function:max',
       'function:mfi',
@@ -706,6 +879,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:mod',
       'function:na',
       'function:nz',
+      'function:obvN',
+      'function:pivothigh',
+      'function:pivotlow',
       'function:plusDI',
       'function:pow',
       'function:rma',
@@ -720,10 +896,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:stoch',
       'function:sum',
       'function:tan',
+      'function:valuewhen',
+      'function:vwap',
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(70)
+    expect(entries.length).toBe(95)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -733,7 +911,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(70)
+    expect(subjects.length).toBe(95)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1083,15 +1261,21 @@ function probeSectionShape(tree) {
   return { declarators, init, forOfOverIt, literalLists }
 }
 
-describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () => {
+describe('the coverage rail is the WALKER\'s answer in EVERY section', () => {
   it('every COMPILED section has a rail row, and a FIFTH section could not arrive silently', () => {
     // ⛔ THE ROWS ARE DERIVED FROM THE COMPILED OBJECT, so a section the probe
-    // never walks has no row at all rather than an empty one. The four names
-    // below are a FLOOR and they are deliberately typed: the day a fifth section
-    // is compiled this case goes red and somebody has to look at the probe,
-    // which is the failure direction the whole task exists to buy.
+    // never walks has no row at all rather than an empty one. The names below are
+    // a FLOOR and they are deliberately typed: the day a NEW section is compiled
+    // this case goes red and somebody has to look at the probe, which is the
+    // failure direction the whole task exists to buy.
+    //
+    // ⭐ IT ALREADY DID ITS JOB ONCE. `clock` arrived with tableVersion 2 and
+    // this line went red naming it, which is what sent somebody to `probeTree` —
+    // where the `default: return null` arm would have reported all thirteen clock
+    // entries as gaps rather than letting the section arrive silently green.
+    // Adding the name here is the ACKNOWLEDGEMENT; teaching the probe was the fix.
     const sections = Object.keys(SENTENCE_RULES).filter((k) => k !== 'gaps')
-    expect(sections.slice().sort()).toEqual(['functions', 'operators', 'scalars', 'series'])
+    expect(sections.slice().sort()).toEqual(['clock', 'functions', 'operators', 'scalars', 'series'])
     const gaps = coverageGaps()
     expect(Object.keys(gaps).slice().sort())
       .toEqual([...sections, 'placeholders'].sort())
@@ -1129,6 +1313,36 @@ describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () =>
     expect(coverageGaps(clean, OPERATOR_SENTENCE).series).toEqual([])
     expect(explainSentence({ type: 'series', name: 'zzz_planted_field' }, {},
       compileRules(clean, OPERATOR_SENTENCE)).text).toBe('zzz_planted_field')
+  })
+
+  it('🔴 POSITIVE CONTROL — CLOCK: a DECLARED phrase the walker refuses is NAMED, every one — PROVING IT BITES', () => {
+    // ⛔ WITHOUT THIS, `coverageGaps().clock` BEING EMPTY IS THE WEAKEST POSSIBLE
+    // ASSERTION — it passes vacuously if the rail looks at nothing. Series has
+    // its unsayable-name control above, scalars and functions have theirs
+    // (`scalarTrees` / this same describe block below); clock — the newest
+    // section, tableVersion 2 — had no positive control naming a MISSING
+    // sentence at all until this task closed the gap. Derived over the declared
+    // section, so a fourteenth clock value is covered the day it lands.
+    const declared = Object.keys(TABLE.clock)
+    expect(declared.length).toBeGreaterThanOrEqual(13)
+    for (const name of declared) {
+      const table = clone(TABLE)
+      delete table.clock[name].sentence
+      expect(coverageGaps(table, OPERATOR_SENTENCE).clock,
+        `${name} lost its sentence and the rail said nothing`).toEqual([name])
+      const rules = compileRules(table, OPERATOR_SENTENCE)
+      let caught = null
+      try { explainSentence({ type: 'series', name }, {}, rules) } catch (e) { caught = e }
+      expect(caught, name).toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, name).toBe('sentence:no-template')
+      expect(caught.message, name).toContain(JSON.stringify(name))
+    }
+    // …AND THE CONTROL, IN THE SAME TEST: `coverageGaps()` against the REAL,
+    // unmodified table is still clean — restored, not merely never-mutated,
+    // because every iteration above mutated a FRESH clone and never touched
+    // the shared `TABLE`. Without this the loop above could be reporting
+    // everything, or the module could be caching a mutated compile.
+    expect(coverageGaps().clock).toEqual([])
   })
 
   it('🔴 POSITIVE CONTROL — OPERATORS: a DECLARED phrase the walker refuses is NAMED, all fifteen', () => {
@@ -1413,7 +1627,15 @@ describe('the logical chrome drops `!= 0` when every operand already yields bool
     for (const op of Object.keys(OPERATOR_SENTENCE_CONDITIONS).sort()) {
       expect(TABLE.operators[op].arity, `${op} is not binary`).toBe(2)
       for (const { entry, ast: tree } of treesForTheWholeTable(TABLE)) {
-        if (entry.startsWith('series:')) continue
+        // ⛔ A LEAF SUBJECT IS SKIPPED, AND THE TEST IS ON THE TREE RATHER THAN
+        // ON THE ENTRY LABEL. `parts` below brackets the subject
+        // unconditionally, but `renderArg` brackets a composite argument ONLY —
+        // a leaf fills the slot bare — so `want` would carry parentheses `said`
+        // correctly does not, and every leaf would read as a wrong form. That
+        // was already true of the five bar fields; asking the TREE rather than
+        // the label is what kept it true when the `clock` section landed
+        // thirteen more leaves under a different prefix.
+        if (tree.type === 'series') continue
         const outer = { type: 'op', name: op, args: [tree, { type: 'series', name: BOOL_PARTNER }] }
         const bool = oracleYields(tree) === 'bool'
         const parts = [`(${sentenceFor(tree, {})})`, partnerSaid]
@@ -1795,6 +2017,69 @@ describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK —
   })
 })
 
+describe('yieldsOf reads EVERY vocabulary that rides the series node', () => {
+  // ⛔ THIS RAIL EXISTS BECAUSE THE ARM SHIPPED WITHOUT ONE. `yieldsOf`'s
+  // `series` case gained a `clock` lookup with closed table v2, and deleting it
+  // left the ENTIRE engine tree green — 2,793 passed either way.
+  // `lesson_built_tested_green_and_unreachable`, inside the commit that was
+  // itself fixing that defect class in four other branches.
+
+  it('⭐ a declared-bool clock leaf yields bool — and the arm that says so can be DELETED', () => {
+    const declared = Object.entries(TABLE.clock)
+    expect(declared.length).toBeGreaterThan(0)
+    const bools = declared.filter(([, spec]) => spec.yields === 'bool').map(([n]) => n)
+    const nums = declared.filter(([, spec]) => spec.yields !== 'bool').map(([n]) => n)
+    // ⚠️ BOTH HALVES MUST BE NON-EMPTY, or this passes on a section that
+    // declares one kind and the reader could be returning a constant.
+    expect(bools.length).toBeGreaterThan(0)
+    expect(nums.length).toBeGreaterThan(0)
+
+    for (const name of bools) {
+      expect(yieldsOf({ type: 'series', name }), `${name} is declared bool`).toBe('bool')
+    }
+    for (const name of nums) {
+      expect(yieldsOf({ type: 'series', name }), `${name} is a magnitude`).toBe('num')
+    }
+
+    // THE CONTROL: compile the SAME manifest without the clock section and the
+    // same declared-bool leaf falls to the `num` floor — which is exactly what
+    // deleting the arm produces, because the scalars map does not hold the name.
+    const without = compileRules({ ...TABLE, clock: {} })
+    for (const name of bools) {
+      expect(yieldsOf({ type: 'series', name }, without),
+        `${name} resolved bool off rules that do not declare it`).toBe('num')
+    }
+  })
+
+  it('⛔ and the clock is consulted BEFORE the scalars, so a shadowing name cannot flip the answer', () => {
+    // The order is `renderName`'s and `lint.js::astReach`'s. A name in both
+    // sections must answer with the CLOCK's declaration, or three readers
+    // disagree about one leaf depending on which map was walked second.
+    const shadowed = compileRules({
+      ...TABLE,
+      clock: { ...TABLE.clock, zzShadow: { lookback: 0, yields: 'bool', sentence: 'the planted clock value' } },
+      scalars: {
+        ...TABLE.scalars,
+        zzShadow: {
+          source: { store: 'zz', column: 'zzShadow' },
+          as_of: { column: 'zz_dated_by', grain: 'date' },
+          cadence: 'nightly', yields: 'num', sentence: 'the planted scalar',
+        },
+      },
+    })
+    expect(yieldsOf({ type: 'series', name: 'zzShadow' }, shadowed)).toBe('bool')
+  })
+
+  it('a scalar and a bar field still resolve exactly as they did', () => {
+    // ⚠️ THE REGRESSION HALF. Adding a vocabulary in front of the scalars must
+    // not change what a scalar or a price answers.
+    const boolScalar = Object.entries(TABLE.scalars).find(([, s2]) => s2.yields === 'bool')
+    expect(boolScalar, 'no bool scalar — the comparison would be vacuous').toBeTruthy()
+    expect(yieldsOf({ type: 'series', name: boolScalar[0] })).toBe('bool')
+    expect(yieldsOf({ type: 'series', name: 'close' })).toBe('num')
+  })
+})
+
 describe('the inversion rail — a sentence round-trips to the same maths', () => {
   it('the corpus is the subject, and its case LIST is the floor', () => {
     // ⚠️ `for (const c of CORPUS.cases)` asserts nothing over an empty corpus,
@@ -1821,6 +2106,41 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // is a cross-lane obligation, so one appearing must be a deliberate edit
       // rather than something that arrives with a fixture nobody read.
       'dev_is_not_stdev', 'adx_trend_strength',
+      // ⭐ THE THIRTEEN CLOCK CASES (tableVersion 2, 2026-08-26) — one per
+      // declared `clock` entry, because `assert_corpus_covers_the_table` derives
+      // its floor from the manifest. They are the only cases in this corpus whose
+      // answer comes from a CALENDAR rather than a price, so they are the only
+      // ones where the two lanes are two readers of the IANA database rather than
+      // one formula written twice.
+      'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
+      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_barindex', 'clock_isintraday',
+      'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
+      // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
+      // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
+      // is declarable: with no argument columns to pack there is no fabricated
+      // bar-index `t`, so the binding reads the real instant.
+      'vwap_session', 'avwap_from_a_mid_series_instant',
+      // ⛔ AND ONE REFUSAL ROW: the anchor is one second before the first bar,
+      // so `avwap` answers NOT COMPUTABLE rather than a column that would move
+      // when the caller's window moved.
+      'avwap_anchor_before_the_series_is_not_computable',
+      // ⭐ THE BOUNDED-STATE FIVE (2026-08-26). A LIST, never a count: these
+      // five are the corpus's only rows whose read-back has to say what a
+      // SENTINEL means, and two of them carry the arg-extreme tie-break ruling.
+      'barssince_the_last_up_bar',
+      'valuewhen_the_last_up_bars_close',
+      'highestbars_the_offset_back_to_the_high',
+      'lowestbars_the_offset_back_to_the_low',
+      'obvN_bounded_signed_volume',
+      // ⭐ THE FORWARD-DECLARING PAIR (2026-08-27) — the corpus's only rows
+      // besides `ichimokuChikou` whose entry can badge `preview-repaints`.
+      'pivothigh_strict_two_two',
+      'pivotlow_strict_two_two',
+      // The TC2000 remainder (2026-08-27) -- the corpus rows that exist because a
+      // Worden SPELLING had to read, not because the chart lane wanted a name.
+      'aroon_up_25',
+      'aroon_down_25',
+      'bop_twenty',
     ])
   })
 
@@ -1863,7 +2183,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 70)
+    expect(sentences.length).toBe(CORPUS.cases.length + 95)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -2064,10 +2384,20 @@ describe('the refusals', () => {
     // interpreter gained `interpret:offset` for a STORED tree that never met
     // the parse door. The floor is a count on purpose — a door that stopped
     // contributing messages is named rather than silently shrinking the set.
+    // ⚠️ 9 -> 10 on the interpreter with `resolve:condition`: `argRoles` became
+    // ENFORCEABLE (`closedTable.json::_functions_arg_role_kinds`), so an
+    // argument in a role the table gives a KIND is refused rather than computed.
+    // Both lanes carry the same sentence — `test_ast_interpret.py` compares the
+    // two tables byte for byte — so this count moves in lockstep with Python's.
+    // ⚠️ 10 -> 11 on the interpreter with `resolve:domain` (W9k.1 / X41): the
+    // DECLARED argument domain (`closedTable.json::_functions_domain`) became
+    // ENFORCEABLE, so `macd(close, 26, 12)` — the 12/26 pair transposed — is
+    // refused at the resolve pass instead of computing an all-NaN column that a
+    // comparison then reads as a confident NO on every bar.
     expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(9)
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(11)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(31)
+    expect(all.length).toBe(33)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

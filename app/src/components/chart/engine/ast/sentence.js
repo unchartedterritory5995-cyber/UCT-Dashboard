@@ -337,6 +337,15 @@ export function yieldsOf(node, rules) {
     case 'num':
       return node.value === 0 || node.value === 1 ? BOOL : NUM
     case 'series': {
+      // ⛔ ALL THE VOCABULARIES THAT RIDE THIS NODE AND DECLARE A `yields`, NOT
+      // JUST THE SCALARS. This read only `rules.scalars`, so the `clock`
+      // section's thirteen declarations were INERT the day they landed: a bare
+      // `isintraday` classified `num` and was refused as a scan while the
+      // identical 0/1 shape on a scalar was accepted. A bar field is absent
+      // deliberately -- it declares no `yields` because it is a price -- and an
+      // input is absent because a knob is dated by nothing and declares nothing.
+      const clock = (r && r.clock) || EMPTY
+      if (own(clock, node.name)) return settle(clock[node.name].yields)
       const scalars = (r && r.scalars) || EMPTY
       return own(scalars, node.name) ? settle(scalars[node.name].yields) : NUM
     }
@@ -443,10 +452,11 @@ function probeArgs(count, arg) {
 function probeTree(section, name, rule, arg) {
   switch (section) {
     case 'series':
+    case 'clock':
     case 'scalars':
-      // ⭐ BOTH RIDE THE `series` NODE. A scalar is not a fifth node type; it is
-      // a fourth VOCABULARY read by the same branch, which is why the two
-      // sections share a probe and still report separately.
+      // ⭐ ALL THREE RIDE THE `series` NODE. Neither a scalar nor a clock value
+      // is a new node type; each is another VOCABULARY read by the same branch,
+      // which is why they share a probe and still report separately.
       return { type: 'series', name }
     case 'operators':
       return { type: 'op', name, args: probeArgs(rule.arity, arg) }
@@ -494,10 +504,11 @@ function probeTrees(section, name, rule) {
 export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
   conditionPhrases = OPERATOR_SENTENCE_CONDITIONS) {
   const series = Object.create(null)
+  const clock = Object.create(null)
   const scalars = Object.create(null)
   const operators = Object.create(null)
   const functions = Object.create(null)
-  const gaps = { series: [], scalars: [], operators: [], functions: [], placeholders: [] }
+  const gaps = { series: [], clock: [], scalars: [], operators: [], functions: [], placeholders: [] }
 
   // ⚠️ THE ROW IS COMPILED HERE, THE GAP IS REPORTED BY THE PROBE. `gap` is what
   // makes `renderName` refuse an unsayable bar field; whether that refusal
@@ -505,6 +516,27 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
   // opinion recorded here.
   for (const name of sortedKeys(table.series)) {
     series[name] = Object.freeze({ gap: SAYABLE.test(name) ? null : 'unsayable' })
+  }
+
+  // ⭐ THE FIFTH SECTION (tableVersion 2), AND IT IS SAID LIKE A SCALAR, NOT
+  // LIKE A SERIES. A series is spoken AS ITS OWN NAME, so an unsayable name is
+  // what breaks it; a clock value has a declared `sentence` — "the hour of the
+  // bar on a 24-hour clock, 0 to 23, in New York time" — because `hour` alone in
+  // a read-back is a word a member cannot check the maths against, and `minute`
+  // reads as prose while meaning a number. Arity zero, so `placeholderGap(…, 0)`
+  // is the same derived check the scalars get.
+  const clockTable = (table && table.clock) || {}
+  for (const name of sortedKeys(clockTable)) {
+    const spec = clockTable[name]
+    const phrase = spec && spec.sentence
+    let gap = null
+    if (typeof phrase !== 'string' || phrase === '') {
+      gap = 'no-template'
+    } else {
+      const bad = placeholderGap(phrase, 0)
+      if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
+    }
+    clock[name] = Object.freeze({ phrase, gap, yields: declaredYields(spec) })
   }
 
   // ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series —
@@ -582,6 +614,7 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
 
   const compiled = {
     series: Object.freeze(series),
+    clock: Object.freeze(clock),
     scalars: Object.freeze(scalars),
     operators: Object.freeze(operators),
     functions: Object.freeze(functions),
@@ -772,8 +805,23 @@ function renderName(node, rules, inputs, path, trace) {
     trace.push({ path, rule: 'series:table' })
     return name
   }
-  // ⭐ THE TABLE'S PER-SYMBOL SCALARS, CONSULTED SECOND AND BEFORE THE INPUTS —
-  // the same order, for the same reason, as the two lines above and as
+  // ⭐ THE TABLE'S CLOCK, CONSULTED AFTER THE SERIES AND BEFORE THE SCALARS —
+  // the same order, for the same reason, as the line above and as
+  // `lint.js::astReach`. The words are the manifest's: read, never written.
+  //
+  // ⛔ NOT A FALLBACK TO THE COLUMN NAME. `dayofweek` in a sentence tells a
+  // member nothing about whether Sunday is 1 or 0, which is exactly the number
+  // they need to check the formula against — so a clock entry the table declares
+  // and nobody wrote English for is refused BY NAME.
+  const clockRules = (rules && rules.clock) || EMPTY
+  if (own(clockRules, name)) {
+    const rule = clockRules[name]
+    if (rule.gap) refuseGap(rule.gap, 'clock value', name, path)
+    trace.push({ path, rule: 'series:clock' })
+    return rule.phrase
+  }
+  // ⭐ THE TABLE'S PER-SYMBOL SCALARS, CONSULTED AFTER THE CLOCK AND BEFORE THE
+  // INPUTS — the same order, for the same reason, as the lines above and as
   // `lint.js::astReach`. The words are the manifest's: read, never written.
   const scalarRules = (rules && rules.scalars) || EMPTY
   if (own(scalarRules, name)) {
@@ -794,11 +842,13 @@ function renderName(node, rules, inputs, path, trace) {
   }
   // ⭐ THE SUGGESTION COMES FIRST, THE FULL LIST STILL FOLLOWS. See `didYouMean`.
   const suggestion = didYouMean(name, [
-    ...sortedKeys(rules.series), ...sortedKeys(scalarRules), ...sortedKeys(inputs),
+    ...sortedKeys(rules.series), ...sortedKeys(clockRules),
+    ...sortedKeys(scalarRules), ...sortedKeys(inputs),
   ])
   refuse('sentence:name',
     `at ${path}: ${JSON.stringify(name)}${suggestion}`
     + ` — this table declares ${sortedKeys(rules.series).join(', ')}`
+    + `, its clock is ${sortedKeys(clockRules).join(', ') || 'none'}`
     + `, its scalars are ${sortedKeys(scalarRules).join(', ') || 'none'}`
     + `, and this definition declares ${sortedKeys(inputs).join(', ') || 'no inputs'}`)
 }

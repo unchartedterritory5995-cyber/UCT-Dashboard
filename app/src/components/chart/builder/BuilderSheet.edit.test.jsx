@@ -36,6 +36,11 @@ import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula } from '../engine/ast/parse'
+import { DEFAULT_BUDGET } from '../engine/ast/budget'
+
+//: ⛔ DERIVED, NEVER TYPED -- see the same constant in `BuilderSheet.test.jsx`.
+//: A hardcoded 600 sat on the wrong side of the cap the moment O7 raised it.
+const OVER_CAP_SRC = `sma(close, ${DEFAULT_BUDGET.maxLookback + 2})`
 import { declaredInputs } from '../engine/ast/lint'
 import {
   getDefinition, clearUserDefinitions, computeFor, installUserDefinitions,
@@ -423,7 +428,7 @@ describe('🔴 an edit that FAILS A GATE is refused and the old version keeps wo
     const before = H.requests.length
     // Over the lookback cap — `checkBudget`'s own refusal, which is one of the
     // gates the save path already runs, not a new one invented for this test.
-    await typeFormula('sma(close, 600)')
+    await typeFormula(OVER_CAP_SRC)
     expect(screen.getByTestId('formula-error').getAttribute('data-guard'))
       .toBe('budget:lookback')
     expect(saveBtn().disabled, 'the Save button offered to store a refused tree').toBe(true)

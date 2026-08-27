@@ -22,8 +22,16 @@
 //
 // ⭐⭐ ALL THREE ARE REACHABLE, AND THAT IS THE POINT OF THE TRICHOTOMY. The
 // decision record's §3 warns that *"a vocabulary value nothing can ever emit is
-// a value that does not exist"* — it says that about `preview-repaints`, which
-// today is emitted by nothing at all. A design in which every forward reference
+// a value that does not exist"* — it says that about `preview-repaints`.
+// ⚰️ THIS SENTENCE ENDED "which today is emitted by nothing at all" AND THAT
+// STOPPED BEING TRUE TWICE. `ichimokuChikou` (forward: arg4) made it one, and
+// `pivothigh`/`pivotlow` (forward: arg2, 2026-08-27) made it three — the first
+// two a member can reach in three arguments. The scarcity was not harmless: it
+// is why a defect was called "latent because every table-legal tree is
+// non-repainting today" (false), why a mutation "did not discriminate", and why
+// `canSaveFormula`'s `acknowledged` branch was believed to be dead code. Read
+// the roster off the manifest — `tests/test_ast_indicators.py` pins it. A design
+// in which every forward reference
 // is `repaints` would make `preview-repaints` unreachable; a design in which
 // every forward reference is `preview-repaints` would make `repaints`
 // unreachable and hand the brand a badge that only ever means "we could not
@@ -55,6 +63,7 @@
 
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
+  SESSION_LOOKBACK, SESSION_MAX_BARS,
 } from './parse.js'
 
 // --------------------------------------------------------------------------- //
@@ -199,9 +208,21 @@ export function declaredInputs(def) {
  * constant folder, which is the dataflow analysis the manifest's `_no_offset`
  * note exists to avoid. Fail closed: the user sees `repaints` and one confused
  * moment, which is the cheap side of the asymmetry.
+ *
+ * ⭐⭐ `'session'` RESOLVES TO A NUMBER RATHER THAN TO `UNKNOWN`, and the number
+ * comes off the MANIFEST (`SESSION_MAX_BARS`), never from a literal here. A lane
+ * that read it as `UNKNOWN` would brand every session-anchored indicator
+ * `repaints` — which is not a hypothetical: the narrow `argN` regex did exactly
+ * that to ADX in production, and `canSaveFormula` refuses `repaints` outright.
+ *
+ * ⚠️ IT IS READ IN BOTH SLOTS, DELIBERATELY. A `forward: 'session'` would be a
+ * window reaching to the session's LAST bar, which is a coherent declaration and
+ * would decide `preview-repaints`. Nothing declares it today; special-casing the
+ * lookback slot would be a second grammar for one word.
  */
 function resolveDeclaration(decl, argNodes) {
   if (decl === UNBOUNDED) return UNBOUNDED
+  if (decl === SESSION_LOOKBACK) return SESSION_MAX_BARS
   if (typeof decl === 'number') {
     return Number.isInteger(decl) ? decl : UNKNOWN
   }
@@ -297,6 +318,10 @@ export function astReach(ast, opts = {}) {
    *  series. The freshness question this module does NOT answer is asked by
    *  `freshness.js` over this same section. */
   const scalarNames = (table && table.scalars) || {}
+  /** ⭐ THE CLOCK (tableVersion 2), read from the SAME manifest. A clock leaf is
+   *  a property of the bar it draws on — the calendar moment it sits at — so it
+   *  reaches neither backwards nor forwards. */
+  const clockNames = (table && table.clock) || {}
   /** `opts.inputs` — the definition's declared inputs, BY NAME. The same shape
    *  `sentence.js::explainSentence` already takes and the same shape `interpret`
    *  takes; only the KEYS are read here (see `declaredInputs`). `lintDefinition`
@@ -374,6 +399,29 @@ export function astReach(ast, opts = {}) {
         // on which map was consulted second.
         if (own(seriesNames, node.name)) {
           reachOf.set(node, { back: 0, forward: 0 })
+          break
+        }
+        if (own(clockNames, node.name)) {
+          // ⭐ A CLOCK LEAF'S WINDOW IS READ OFF ITS OWN DECLARATION, THROUGH THE
+          // SAME `ownWindow` A CALL'S IS. It is not a widening of the scalar test
+          // and it is not a zero: a scalar reaches nothing because it is ONE
+          // number for the whole column, whereas most clock values reach nothing
+          // because they are THIS bar's own — and `sessionfirst` reaches ONE bar,
+          // because it compares this bar's ET day against the previous bar's,
+          // exactly as `change(close)` does.
+          //
+          // ⛔ IT WAS HARDCODED `{back: 0, forward: 0}` AND THAT WAS A DECLARED
+          // PROPERTY THAT WAS FALSE. True for twelve of thirteen, false for the
+          // thirteenth, and it would go on being false for the next entry that
+          // declares a window. Reading `spec.lookback` makes the manifest the one
+          // authority: a fourteenth entry is bounded on the day it lands, with no
+          // edit here and nobody having to remember.
+          //
+          // ⛔ AND UNLIKE A SCALAR, THERE IS NO SECOND VERDICT TO ASK FOR. The
+          // freshness gate exists because a scalar's zero hides a day-old value;
+          // a clock leaf is read off the bar being drawn, so `freshness.js`
+          // answers `live` and this window is the whole truth.
+          reachOf.set(node, ownWindow(clockNames[node.name], []))
           break
         }
         if (own(scalarNames, node.name)) {
@@ -644,7 +692,17 @@ export function lintDefinition(def, opts = {}) {
 
     // ── the lane this linter was built for ────────────────────────────────
     if (lane === 'ast') {
-      const ast = def.compute.ast
+      // ⭐ W1b — A PLOT LINTS **ITS** TREE; the scan alias is what a plot with no
+      // tree of its own lints, which is every plot of a tree-less (pre-W1b)
+      // document and every `hlines` guide. Reading `compute.ast` for all of them
+      // would report one tree's verdict under four plot keys — a per-plot row
+      // that is not per-plot, which is the whole obligation this function exists
+      // to satisfy.
+      const trees = def.compute.trees
+      const ast = (trees && typeof trees === 'object'
+        && Object.prototype.hasOwnProperty.call(trees, plotKey))
+        ? trees[plotKey]
+        : def.compute.ast
       // ⭐ THE DEFINITION'S OWN INPUTS ARE DERIVED HERE, NEVER ACCEPTED FROM THE
       // CALLER. A caller cannot widen a definition's scalar set by handing one
       // in — which is what would turn a declared knob into a general escape

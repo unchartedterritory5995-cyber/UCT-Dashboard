@@ -11,8 +11,9 @@ import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watc
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
+import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -143,6 +144,14 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
   if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
   return opts
+}
+
+// A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only
+// seeds a NEW widget when it actually covers that widget's type: scope 'widgets' covers
+// everything; scope 'charts' covers only chart widgets. Returns the theme or null so the
+// caller can fall through to the app-theme match.
+function pickSeedTheme(lt, type) {
+  return (lt && lt.id && (lt.scope === 'widgets' || type === 'chart')) ? lt : null
 }
 
 // ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
@@ -545,27 +554,22 @@ function readWatchlistColumns() {
   } catch { return null }
 }
 
-function nextColor(currentColors) {
-  // Cycle A→B→C→D→A based on what's already in use.
-  const order = ['A', 'B', 'C', 'D']
-  for (const c of order) {
-    if (!currentColors.includes(c)) return c
-  }
-  return 'A'
-}
-
 // Color to assign a NEWLY added widget. Prefer the group of an existing chart
 // that already has a symbol (so the new widget lands on the ticker you're
 // looking at — not an empty group showing a blank Fundamentals panel or a chart
 // stuck on the SPY fallback). Fall back to the first populated group, then to
 // the next free color for a genuinely empty board.
 function pickWidgetColor(widgets, groupSyms) {
+  // Owner request: every NEW widget defaults to the YELLOW color group (A) no matter
+  // what — a consistent dot instead of the A→B→C→D cycle. A tickered chart still wins
+  // so a new widget lands on the ticker you're looking at (that chart is normally
+  // group A too); otherwise 'A', never the next free colour.
   const g = groupSyms || {}
   const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
   if (chartW) return chartW.color
   const anyW = widgets.find((w) => g[w.color])
   if (anyW) return anyW.color
-  return nextColor(widgets.map((w) => w.color))
+  return 'A'
 }
 
 // Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
@@ -588,11 +592,6 @@ export default function ChartsWorkspace() {
   // placement color across reloads; only NEW widgets pick up the current theme).
   const themeRef = useRef(prefs?.theme)
   themeRef.current = prefs?.theme
-  // Last UCT chart theme applied at all-charts / all-widgets scope ({ id, scope }) —
-  // new widgets inherit it. Kept in a ref so the add path reads the latest value
-  // synchronously (a fresh pref round-trip lags a click); seeded from the pref.
-  const newWidgetThemeRef = useRef(parsePref(prefs?.charts_widget_theme, null))
-  useEffect(() => { newWidgetThemeRef.current = parsePref(prefs?.charts_widget_theme, null) }, [prefs?.charts_widget_theme])
 
   // "Merge widgets": lock the board in place (no move / resize / delete / color
   // edits), drop every widget border + header bar, and tighten the inter-widget gap
@@ -795,6 +794,8 @@ export default function ChartsWorkspace() {
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
     const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
+    const ais = mergeBasicWidgetSettings(parsePref(prefs.aisearch_settings, null) ?? basicDefaultsForTheme(prefs.theme))
+    const aisearch = ais.bgMode === 'gradient' ? (ais.bgGradient?.top || ais.bg) : ais.bg
     // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
     // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
     // type-level canvas so it falls through to the app-theme --bg (OLED-black /
@@ -803,6 +804,7 @@ export default function ChartsWorkspace() {
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
+    const aisCustom = ais.bgMode === 'gradient' || String(ais.bg).toLowerCase() !== BASIC_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -812,9 +814,10 @@ export default function ChartsWorkspace() {
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
+      ...(aisCustom ? { aisearch: entry(aisearch) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
+  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.aisearch_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,
@@ -1190,25 +1193,22 @@ export default function ChartsWorkspace() {
     if (!theme) return
     const seed = mergeChartSettings(prefs.chart_settings)
     setLayout(prev => {
-      let changed = false
       const widgets = prev.widgets.map(w => {
         let nw = w
-        if (w.type === 'chart') { nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }; changed = true }
+        if (w.type === 'chart') nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }
         if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
           nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: patchOptsWithTheme(t.opts, theme, seed) } : t)) }
-          changed = true
         }
         return nw
       })
-      if (!changed) return prev
-      const next = { ...prev, widgets }
+      // Remember this as the default look for NEW chart widgets — stored ON THE LAYOUT
+      // (not a global pref) so a theme picked here never leaks to another board. Set
+      // even when no chart changed, so an empty layout remembers the pick for its first.
+      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'charts' } }
       scheduleSave(next)
       return next
     })
-    // Remember this as the default look for NEW chart widgets (persists across reloads).
-    newWidgetThemeRef.current = { id: theme.id, scope: 'charts' }
-    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
-  }, [scheduleSave, prefs.chart_settings, setPref])
+  }, [scheduleSave, prefs.chart_settings])
   applyThemeAllRef.current = applyThemeToAllCharts
 
   // "All widgets": every widget in the layout — chart or not — adopts the theme.
@@ -1227,7 +1227,9 @@ export default function ChartsWorkspace() {
         }
         return nw
       })
-      const next = { ...prev, widgets }
+      // Remember this as the layout's default look for EVERY new widget — stored ON THE
+      // LAYOUT so it stays scoped to this board and never leaks to another.
+      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'widgets' } }
       scheduleSave(next)
       return next
     })
@@ -1248,9 +1250,6 @@ export default function ChartsWorkspace() {
       const base = parsePref(prefs?.[key], null) || {}
       setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
     }
-    // Remember this as the default look for EVERY new widget (persists across reloads).
-    newWidgetThemeRef.current = { id: theme.id, scope: 'widgets' }
-    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
 
@@ -1376,11 +1375,22 @@ export default function ChartsWorkspace() {
       if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
+      // Theme a new widget. Precedence: (1) THIS LAYOUT's own theme (from "Apply to All
+      // widgets/charts" on this board) — the per-layout override; else (2) the chart
+      // theme that MATCHES the CURRENT app theme, so a new widget always adopts whatever
+      // app theme is active (light → light, graphite → graphite) unless this layout was
+      // explicitly re-themed. themeNewWidgetOpts routes each type (chart -> full skin;
+      // per-widget -> themed settings; global-pref -> its own default fn, tokens).
+      let storedTheme = pickSeedTheme(prev.layoutTheme, type)
+      if (!storedTheme) {
+        const cid = appThemeToChartTheme(themeRef.current)
+        if (cid) storedTheme = { id: cid, scope: 'widgets' }
+      }
       const newWidget = {
         id: newId,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: themeNewWidgetOpts(type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
+        opts: themeNewWidgetOpts(type, newOpts, storedTheme, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
@@ -1419,11 +1429,17 @@ export default function ChartsWorkspace() {
       if (cur.type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
+      // Same precedence as handleAddWidget: layout theme -> legacy global -> app-theme match.
+      let storedTheme = pickSeedTheme(prev.layoutTheme, cur.type)
+      if (!storedTheme) {
+        const cid = appThemeToChartTheme(themeRef.current)
+        if (cid) storedTheme = { id: cid, scope: 'widgets' }
+      }
       const newWidget = {
         id: cur.newId,
         type: cur.type, color,
         x: cur.place.x, y: cur.place.y, w: cur.place.w, h: cur.place.h,
-        opts: themeNewWidgetOpts(cur.type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
+        opts: themeNewWidgetOpts(cur.type, newOpts, storedTheme, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
@@ -1554,10 +1570,13 @@ export default function ChartsWorkspace() {
     // template that carries none) so a locked/prebuilt template never inherits the
     // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
     // follow the same rule.
+    // Defaults are the APP-THEME-MATCHED look (graphite → graphite), not the raw
+    // theme-blind blob — otherwise a template with no styling stamps #0e0f0d and the
+    // widget stops matching the app theme.
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || breadthDefaultsForTheme(themeRef.current)))
     // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
     // pref) rides the template too: owner-reported bug — added columns vanished after
     // switching layouts and back, because Save captured them nowhere and opening a
@@ -1671,9 +1690,9 @@ export default function ChartsWorkspace() {
     // reset column config from localStorage.
     setPref('chart_settings', uctDefaultChartSettings())
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.

@@ -24,15 +24,15 @@ export const WATCHLIST_DEFAULTS = {
   textColor: '#e0dac8',
 
   // % change colors (default = the current green/red).
-  upColor: '#1ae51a',
-  downColor: '#ff3b47',
+  upColor: '#34d17c',
+  downColor: '#f24b42',
 
   // Tick-flash background tint on the % column (the little box that pulses on each
   // update). Stored as 8-digit hex (#rrggbbaa) so the ColorPanel's opacity slider
   // controls the tint strength; the CSS uses the value directly. Defaults ≈ 28%.
   tintEnabled: true,
-  tintUp: '#1ae51a47',
-  tintDown: '#c41f2d47',
+  tintUp: '#34d17c47',
+  tintDown: '#f24b4247',
 
   // Company logos before the ticker in the Symbol column.
   showLogos: true,

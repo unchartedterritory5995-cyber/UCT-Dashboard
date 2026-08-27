@@ -419,6 +419,7 @@ const _WIDGET_THEME_MAP = {
   nhnl:         { text: ['textColor'],              updown: true },
   nhnlPulse:    { text: ['textColor'],              updown: true },
   volumescan:   { text: ['textColor'],              updown: true },
+  scatter:      { text: ['textColor'],              updown: true },
   aisearch:     { text: ['textColor'] },
 }
 
@@ -430,7 +431,7 @@ export const WIDGET_GLOBAL_PREF_KEYS = {
   breadth: 'breadth_widget_settings',
   aisearch: 'aisearch_settings',
 }
-const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'nhnl', 'nhnlPulse', 'volumescan'])
+const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter'])
 const _hex6 = (c) => /^#[0-9a-f]{6}$/i.test(c || '')
 
 export function mapThemeToWidgetSettings(base, theme, type) {
@@ -456,6 +457,32 @@ export function mapThemeToWidgetSettings(base, theme, type) {
     out.tintDown = theme.down + '47'
   }
   return out
+}
+
+// App themes and chart themes are separate registries that share most ids; a few
+// differ. Map the current APP theme → the chart theme that matches it. Returns a
+// valid chart-theme id or null.
+const _APP_TO_CHART_THEME = {
+  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
+}
+export function appThemeToChartTheme(appTheme) {
+  if (!appTheme) return null
+  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
+  if (appTheme === 'oled') return 'obsidian'
+  if (appTheme === 'light') return 'light'
+  const raw = String(appTheme).replace(/^uct:/, '')
+  const id = _APP_TO_CHART_THEME[raw] || raw
+  return CHART_THEME_BY_ID[id] ? id : null
+}
+
+// The DEFAULT appearance a widget should show when uncustomized, matched to the app
+// theme — i.e. the same look "Apply <matching chart theme> to all widgets" produces,
+// so an untouched widget already matches the app theme (graphite → graphite) instead
+// of a fixed near-black. Returns `base` unchanged when there's no matching theme.
+export function widgetDefaultsForAppTheme(type, appTheme, base) {
+  const id = appThemeToChartTheme(appTheme)
+  const theme = id ? CHART_THEME_BY_ID[id] : null
+  return theme ? mapThemeToWidgetSettings(base, theme, type) : base
 }
 
 /**

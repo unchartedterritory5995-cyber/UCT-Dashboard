@@ -155,6 +155,57 @@ function guideSpecs(plot, LineStyle) {
   return specs
 }
 
+/**
+ * HAND-BACK (W1b.5, minor 4) — the guide follows the first VISIBLE plot.
+ *
+ * `pool.js::planBindings` decides which binding carries an instance's guides
+ * before anything downstream knows a plot will be HIDDEN: it always hangs
+ * `hlines` guides on `dataPlots(def)[0]`, the first data-bearing plot in
+ * DECLARATION order — pool.js has no notion of `plots[].hidden` at all (that
+ * is this task, and pool.js is out of scope for it: "your files are binder.js
+ * and binder.test.js, and nothing else"). Left alone, an author who hides the
+ * FIRST data plot silently drops every guide the instance declares: the
+ * binding carrying them hits the pass-one skip below and `continue`s, and
+ * nothing else in `bind` still holds the `guides` array it was carrying — the
+ * zero line simply stops being drawn, with no error anywhere that says why.
+ *
+ * ⛔ `pool.js` IS DELIBERATELY NOT TOUCHED FOR THIS. `bind` is walked here
+ * BEFORE either binding is looked at below, moving `guides`/`guideSig` off a
+ * HIDDEN carrier onto the first VISIBLE binding of the SAME instance. The
+ * guide keeps exactly the meaning pool.js already gave it ("this instance's
+ * one set of guides") — only WHICH series draws it changes, and every plot of
+ * one instance shares one pane and one price scale
+ * (`placement.resolvePlacement` keys both on `def.id`, never on the plot),
+ * so the guide lands in the same visual place either way.
+ *
+ * An instance whose every plot is hidden has no series left to hang a guide
+ * on; its guides are dropped there, which is the same thing that already
+ * happens to an instance that draws nothing at all — not a new failure mode.
+ *
+ * `bind` is `pool.js`'s own fresh array for this one pass — nobody else holds
+ * a reference to its entries — so mutating `heir`'s two guide fields in place
+ * costs nothing a rebuild would not, and reads as what it is: reassigning who
+ * carries a guide, not inventing a second one. The carrier's own `guides` is
+ * left untouched: it is `continue`d by the hidden-plot skip below before pass
+ * two ever looks at it again, so there is nothing left to clear.
+ */
+function reassignOrphanedGuides(bind) {
+  const byInstance = new Map()
+  for (const b of bind) {
+    const group = byInstance.get(b.instanceId)
+    if (group) group.push(b)
+    else byInstance.set(b.instanceId, [b])
+  }
+  for (const group of byInstance.values()) {
+    const carrier = group.find((b) => b.guides && b.guides.length)
+    if (!carrier || !(carrier.plot && carrier.plot.hidden === true)) continue
+    const heir = group.find((b) => b !== carrier && !(b.plot && b.plot.hidden === true))
+    if (!heir) continue                       // nothing visible left to carry it
+    heir.guides = carrier.guides
+    heir.guideSig = carrier.guideSig
+  }
+}
+
 /** Swallow a renderer throw for ONE call. The shipped code wraps every LWC call
  *  the same way: one bad series must not abort the rest of the paint and take
  *  the chart down with it. */
@@ -500,6 +551,11 @@ export function createBinder({ chart, LWC }) {
     // ── 2. Ask the pool what should happen ──
     const { bind, release } = planBindings(instances, registry, held, { hasData })
 
+    // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
+    // instance's first VISIBLE plot BEFORE the hidden-plot skip below ever
+    // sees them — see `reassignOrphanedGuides`.
+    reassignOrphanedGuides(bind)
+
     // ── 3. Free first, so a create later in the pass can reuse the slot the
     //       renderer just gave back. (The planner has already guaranteed nothing
     //       released here could have been reused, so this is ordering hygiene
@@ -552,6 +608,10 @@ export function createBinder({ chart, LWC }) {
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
     for (const b of bind) {
+      // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
+      // the scan and the alert seam through `computeFor`; the chart gets no
+      // series. A series this binding was carrying goes back to the renderer.
+      if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale } = placement.value

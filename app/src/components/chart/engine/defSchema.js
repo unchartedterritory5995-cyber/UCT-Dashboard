@@ -74,7 +74,7 @@
 // `compute.ast` is not expressible without a parser, and D-A1 rules that there is
 // exactly ONE. A second comparison written here by hand would be a second
 // grammar, which is the thing that ruling exists to prevent.
-import { astHash } from './ast/parse'
+import { astHash, KEY_RE } from './ast/parse'
 // ⭐ THE THIRD IMPORT, ADDED WITH THE TC2000 READER, AND IT REPLACES A DIRECT
 // `parseFormula` CALL RATHER THAN ADDING A SECOND ONE.
 //
@@ -105,7 +105,23 @@ import { readFormulaSource } from './ast/pcf'
 // the linter learns a fourth window form, a hand-copied literal here would keep
 // refusing it while the linter accepted it, and the two would disagree about
 // what a definition means.
-import { UNBOUNDED as FORWARD_UNBOUNDED } from './ast/lint'
+import { UNBOUNDED as FORWARD_UNBOUNDED, declaredInputs } from './ast/lint'
+// ⭐ THE FOURTH IMPORT, ADDED WITH THE MULTI-TREE DOCUMENT (spec §5.1), AND IT
+// COSTS THE PURITY CLAIM NOTHING EITHER: `assertTrees` and `treesHash` are pure
+// functions of a map of trees. Imported rather than re-derived because
+// `treesHash` is an IDENTITY the Python lane must reproduce byte for byte
+// (W1b.8's `user_definitions.trees_hash`, to be held to W1b.7's pinned fixture
+// string); a second spelling of it here would be a second hash over one
+// document — the defect this repo names most.
+//
+// ⚠️ AND THE DEPENDENCY-GRAPH ACCOUNTING THE IMPORT ABOVE DOES, DONE HONESTLY:
+// this one DOES grow the graph, by one module. `trees.js` imports `./parse` and
+// `./lint` (both already here) and `./freshness`, which is NEW — and
+// `freshness.js`'s own only import is `./parse`. So the cost is one leaf that
+// reads the same manifest this module's other imports read: no evaluator, no
+// clock, no second grammar. It is here because the alternative is worse — the
+// hash and the badge aggregators would be re-spelled per consumer.
+import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -137,8 +153,13 @@ export const PLOT_STYLES = Object.freeze([
 ])
 
 /** Schema-reserved plot styles — renderer lands later. Same distinct-message
- *  treatment as RESERVED_INPUT_TYPES. */
-export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor', 'fill'])
+ *  treatment as RESERVED_INPUT_TYPES.
+ *
+ *  `cross` — LWC 5.2 draws circle/square/arrowUp/arrowDown markers only, and
+ *  its point markers are circles; a cross marker needs W6's series primitives.
+ *  Until then it is refused with the later-phase sentence, never coerced to
+ *  `markers` (which is what "circles" already is). */
+export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor', 'fill', 'cross'])
 
 /** Compute lanes (spec §3). Every kind here PARSES — a definition naming one is
  *  well-formed and may be listed, merchandised and round-tripped by a client
@@ -176,6 +197,12 @@ export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script']
  * rather than "malformed".
  */
 export const SUPPORTED_KINDS = Object.freeze(['native', 'server', 'ast'])
+
+/** The `ast` lane's multi-tree keys (spec §5.1, the lane contract's "definition
+ *  document v2"). Present TOGETHER on a multi-tree document and ABSENT together
+ *  on a single-tree one — `validateTrees` holds the rules; this is the one list
+ *  they and the other-lane refusal are read from. */
+const V2_COMPUTE_KEYS = Object.freeze(['trees', 'treesHash', 'scanPlot', 'sources'])
 
 /** Where the indicator draws. `volume` = the shipped left-axis overlay. */
 export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
@@ -366,10 +393,11 @@ export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'level
 /** `$<inputKey>` — the whole value is the reference, or it is not one. */
 const REF_RE = /^\$([A-Za-z][A-Za-z0-9_]*)$/
 
-/** Input / plot / event keys. Identifier-shaped because they are addressed:
- *  plots as `defId.plotKey`, inputs as `$inputKey`. A dot or a space in either
- *  would make those two grammars ambiguous. */
-const KEY_RE = /^[A-Za-z][A-Za-z0-9_]*$/
+// `KEY_RE` — input / plot / event / tree keys — is IMPORTED from `./ast/parse`,
+// beside `LOOKBACK_RE`: one grammar, read by this module and by `ast/trees.js`.
+// It was a private copy here until W1b.2, and the second private copy in
+// `trees.js` was the second-authority-over-one-value defect this repo names
+// most; `defSchema.test.js` now holds the two modules to the one export.
 
 /** Definition id. Hyphens allowed (`uct-rsi`); dots are not — `defId.plotKey`
  *  addressing has to stay unambiguous. */
@@ -560,7 +588,7 @@ function noteRef(plot, field, key) {
 
 // ─── Section validators ──────────────────────────────────────────────────────
 
-function validateCompute(compute, errors) {
+function validateCompute(compute, errors, inputScope) {
   if (!isPlainObject(compute)) {
     errors.push(`compute: required object, got ${fmt(compute)}`)
     return
@@ -603,7 +631,20 @@ function validateCompute(compute, errors) {
     errors.push(`compute.budget: reserved — expected null or an object, got ${fmt(compute.budget)}`)
   }
 
-  if (compute.kind === 'ast') validateAstCompute(compute, errors)
+  if (compute.kind === 'ast') {
+    validateAstCompute(compute, errors, inputScope)
+  } else {
+    // ⛔ THE MULTI-TREE KEYS BELONG TO THE `ast` LANE ALONE. On any other kind
+    // they would be preserved by the unknown-key policy and read by nothing —
+    // the accepted-and-ignored shape `plots[].repaint` was refused for.
+    for (const k of V2_COMPUTE_KEYS) {
+      if (compute[k] === undefined) continue
+      errors.push(
+        `compute.${k}: only an "ast" definition carries it — the tree is the implementation on that ` +
+        `lane alone, and kind ${fmt(compute.kind)} names a compute handle, not a tree. Got ${fmt(compute[k])}.`,
+      )
+    }
+  }
 }
 
 /**
@@ -637,7 +678,7 @@ function validateCompute(compute, errors) {
  *    so the alternative was not "no handle", it was "a handle that means
  *    nothing", which is the shape a rename rots into.)
  */
-function validateAstCompute(compute, errors) {
+function validateAstCompute(compute, errors, inputScope) {
   if (!isNonEmptyString(compute.source)) {
     errors.push(
       `compute.source: an "ast" definition must carry the SOURCE the user edits alongside the ` +
@@ -645,28 +686,32 @@ function validateAstCompute(compute, errors) {
       `never read back, which is a definition no author can ever correct.`,
     )
   }
+  // ⭐ `compute.ast`'s TWO OWN RULES REPORT WITHOUT RETURNING, so that the
+  // multi-tree rules below are reached whatever shape the scan tree is in.
+  // `storedHash === undefined` is the one signal that the tree is unusable —
+  // the same condition `validateTrees`' alias branch already guards on.
+  let storedHash
   if (compute.ast === undefined || compute.ast === null) {
     errors.push(
       `compute.ast: an "ast" definition must carry the canonical tree — got ${fmt(compute.ast)}. ` +
       `The tree is the implementation (D-A1: one parser, at author time); a definition without ` +
       `one names maths that does not exist.`,
     )
-    return
+  } else {
+    try {
+      storedHash = astHash(compute.ast)
+    } catch (err) {
+      errors.push(
+        `compute.ast: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
+        `the persisted shape is the contract with the Python lane and is deliberately smaller ` +
+        `than jsep's.`,
+      )
+    }
   }
 
-  let storedHash
-  try {
-    storedHash = astHash(compute.ast)
-  } catch (err) {
-    errors.push(
-      `compute.ast: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
-      `the persisted shape is the contract with the Python lane and is deliberately smaller ` +
-      `than jsep's.`,
-    )
-    return
-  }
-
-  if (isNonEmptyString(compute.fn) && compute.fn !== storedHash) {
+  // Silent with no hash to compare against: there is no expected value, so
+  // there is no disagreement to report — one defect, one sentence.
+  if (storedHash !== undefined && isNonEmptyString(compute.fn) && compute.fn !== storedHash) {
     errors.push(
       `compute.fn: an "ast" definition's compute handle IS its astHash — expected ` +
       `${fmt(storedHash)}, got ${fmt(compute.fn)}. The tree is the implementation, so there is no ` +
@@ -675,8 +720,20 @@ function validateAstCompute(compute, errors) {
     )
   }
 
+  // ⭐ THE MULTI-TREE RULES RUN HERE — ABOVE EVERY EARLY RETURN THIS FUNCTION
+  // HAS (a missing `ast`, a non-canonical `ast`, and the scan-source parse
+  // below) — so a document hears about its trees in the SAME pass rather than
+  // one refusal per save attempt. ⛔ ALL THREE, NOT JUST THE LAST: the sheet
+  // writes `ast = trees[scanPlot]`, so the likeliest v2 authoring bug breaks
+  // `compute.ast` and the trees TOGETHER, and reporting only the first would
+  // send an author round the loop once per defect. Only the alias check needs
+  // `storedHash`; shape, one-key, per-tree canonicality, `treesHash` and
+  // `sources` do not, so they are all still answerable here.
+  validateTrees(compute, storedHash, errors, inputScope)
+
+  if (storedHash === undefined) return   // compute.ast is unusable; reported above
   if (!isNonEmptyString(compute.source)) return   // already reported above
-  const { result: parsed } = readFormulaSource(compute.source)
+  const { result: parsed } = readFormulaSource(compute.source, 'auto', inputScope)
   if (!parsed.ok) {
     errors.push(
       `compute.source does not parse to compute.ast — it does not parse at all ` +
@@ -691,6 +748,152 @@ function validateAstCompute(compute, errors) {
       `${astHash(parsed.ast)} while the stored tree hashes to ${storedHash}. The AST is what ` +
       `runs and the source is what the user edits; a pair that disagree is a read-back ` +
       `describing maths nobody is computing.`,
+    )
+  }
+}
+
+/**
+ * The multi-tree rules (spec §5.1, lane contract "definition document v2").
+ *
+ * ⛔ `compute.ast` IS THE SCAN TREE, and `scanPlot` names the plot it aliases —
+ * so `def_hash` never moves and `scan_hits` / `definition_record` keys do not
+ * either. `treesHash` is the SECOND identity, over every tree, and it is checked
+ * rather than trusted for the same reason `fn` is (rule 3).
+ *
+ * ⛔ A SINGLE-TREE DOCUMENT CARRIES NONE OF THESE KEYS — a RULE with a refusal
+ * behind it, not a convention. One tree is `compute.ast`, so a one-key `trees`
+ * map would be a second spelling of the same document, and the contract's
+ * byte-identical claim ("a v1 document validates exactly as today") is only
+ * true while there is exactly one spelling. The other direction is refused by
+ * name too: `scanPlot` / `treesHash` / `sources` beside no `trees`.
+ *
+ * `sources` is REQUIRED and COMPLETE on a multi-tree document for the reason
+ * `compute.source` is required on every `ast` document: `compute.source` is one
+ * string (the scan tree's), and a tree the sheet cannot print back is a formula
+ * no author can ever correct.
+ *
+ * `scanPlot` is REQUIRED — there is no "default the first plot". A default would
+ * make the compute section depend on `plots[]` order, a second authority over
+ * which tree the scan runs.
+ */
+function validateTrees(compute, storedHash, errors, inputScope) {
+  const { trees, scanPlot, sources } = compute
+  if (trees === undefined) {
+    for (const k of V2_COMPUTE_KEYS) {
+      if (k === 'trees' || compute[k] === undefined) continue
+      errors.push(
+        `compute.${k}: only a multi-tree document (one carrying compute.trees) may declare it — got ` +
+        `${fmt(compute[k])} beside no trees. A single-tree document is byte-identical to a schema-1 ` +
+        `one on purpose, so no v2 key may ride on it alone.`,
+      )
+    }
+    return
+  }
+
+  // Shape and key grammar are `assertTrees`'s (sorted keys back); its refusals
+  // are labelled by field path, so they are pushed verbatim — `null` is refused
+  // here too, never read as "absent".
+  let keys
+  try {
+    keys = assertTrees(trees)
+  } catch (err) {
+    errors.push(err && err.message ? err.message : String(err))
+    return
+  }
+  if (keys.length === 1) {
+    errors.push(
+      `compute.trees: one tree is compute.ast — a single-tree document carries no trees map (it is ` +
+      `byte-identical to a schema-1 document on purpose), so drop trees/treesHash/scanPlot/sources or ` +
+      `add a second plot. Got the one key ${fmt(keys[0])}.`,
+    )
+    return
+  }
+
+  const hashes = {}
+  for (const k of keys) {
+    try {
+      hashes[k] = astHash(trees[k])
+    } catch (err) {
+      errors.push(
+        `compute.trees.${k}: not a canonical tree (${err && err.message ? err.message : String(err)}) — ` +
+        `every plot's tree is persisted in the same four-shape form as compute.ast`,
+      )
+    }
+  }
+
+  if (!isNonEmptyString(scanPlot) || !keys.includes(scanPlot)) {
+    errors.push(
+      `compute.scanPlot: must name one key of compute.trees (${list(keys)}) — the plot whose tree IS ` +
+      `compute.ast — got ${fmt(scanPlot)}`,
+    )
+  } else if (hashes[scanPlot] !== undefined && storedHash !== undefined && hashes[scanPlot] !== storedHash) {
+    errors.push(
+      `compute.ast: must BE compute.trees.${scanPlot} — the scan tree is an ALIAS of the plot scanPlot ` +
+      `names, which is what keeps def_hash still; here compute.ast hashes to ${storedHash} and ` +
+      `trees.${scanPlot} to ${hashes[scanPlot]}`,
+    )
+  }
+
+  // Compared only when every tree hashed: a non-canonical tree has no hash, so
+  // the map has no honest identity to compare against yet.
+  if (Object.keys(hashes).length === keys.length) {
+    const expected = treesHashOf(trees)
+    if (compute.treesHash !== expected) {
+      errors.push(
+        `compute.treesHash: expected ${fmt(expected)} (sha256 over the sorted "key":astHash pairs — ` +
+        `ast/trees.js), got ${fmt(compute.treesHash)}. The hash is checked, never trusted, for the ` +
+        `same reason compute.fn is.`,
+      )
+    }
+  }
+
+  if (sources === undefined) {
+    errors.push(
+      `compute.sources: a multi-tree document must carry the source text of EVERY tree ` +
+      `({plotKey: source}) — compute.source is one string, the scan tree's, and a tree with no text ` +
+      `is a formula no author can ever reopen`,
+    )
+    return
+  }
+  if (!isPlainObject(sources)) {
+    errors.push(`compute.sources: expected an object of plotKey → source text, got ${fmt(sources)}`)
+    return
+  }
+  for (const k of keys) {
+    if (!Object.prototype.hasOwnProperty.call(sources, k)) {
+      errors.push(
+        `compute.sources.${k}: missing — every tree carries the text the member edits (trees: ${list(keys)})`,
+      )
+    }
+  }
+  for (const k of Object.keys(sources)) {
+    if (!keys.includes(k)) {
+      errors.push(`compute.sources.${k}: names no tree (trees: ${list(keys)})`)
+      continue
+    }
+    if (!isNonEmptyString(sources[k])) {
+      errors.push(`compute.sources.${k}: expected the source text the member edits, got ${fmt(sources[k])}`)
+      continue
+    }
+    // Through the ONE read door, in the source's own dialect — the same rule as
+    // `compute.source` above, per tree.
+    const { result } = readFormulaSource(sources[k], 'auto', inputScope)
+    if (!result.ok) {
+      errors.push(`compute.sources.${k} does not parse (${result.error})`)
+      continue
+    }
+    if (hashes[k] !== undefined && astHash(result.ast) !== hashes[k]) {
+      errors.push(
+        `compute.sources.${k} does not parse to compute.trees.${k} — ${fmt(sources[k])} hashes to ` +
+        `${astHash(result.ast)} while the stored tree hashes to ${hashes[k]}`,
+      )
+    }
+  }
+  if (isNonEmptyString(scanPlot) && keys.includes(scanPlot)
+      && sources[scanPlot] !== undefined && sources[scanPlot] !== compute.source) {
+    errors.push(
+      `compute.sources.${scanPlot}: must equal compute.source — one text for the scan tree, never two ` +
+      `that agree today`,
     )
   }
 }
@@ -1287,6 +1490,36 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `${path}.opacity: expected an ALPHA ramp step name (e.g. "band", "solid") or a number in [0, 1], got ${fmt(plot.opacity)}`,
     )
   }
+
+  // ─ v2: `fill` (the schema half; the renderer is W6's) and `hidden` ─
+  //
+  // Shape only, here. WHICH plot `fill.with` may name is a cross-section
+  // question (`validateFills`), asked once every plot key is known. `hidden`
+  // is a boolean and nothing else: a hidden plot is COMPUTED and never drawn
+  // (the binder skips it in pass one; the column still reaches the alert seam
+  // and the scan), so a value that is not exactly true/false is not "sort of
+  // hidden" — it is refused.
+  if (plot.fill !== undefined && (!isPlainObject(plot.fill) || !isNonEmptyString(plot.fill.with))) {
+    errors.push(
+      `${path}.fill: expected {with: "<plotKey>"} naming the plot this one fills to, got ${fmt(plot.fill)}`,
+    )
+  }
+  if (plot.hidden !== undefined && typeof plot.hidden !== 'boolean') {
+    errors.push(
+      `${path}.hidden: expected true or false (a hidden plot is COMPUTED and never drawn), got ${fmt(plot.hidden)}`,
+    )
+  }
+  // And never HIDDEN on a guide: an `hlines` plot returns no column, so there is
+  // nothing to compute and nothing to hide. Keeping `hidden ⇒ data-bearing`
+  // true by construction is what lets the binder's pass-one skip be one line.
+  // ⚠️ `=== true`, not "declared": `hidden: false` on a guide claims nothing —
+  // it is the default written down — and the sentence below does not describe it.
+  if (plot.hidden === true && styleOk && plot.style === 'hlines') {
+    errors.push(
+      `${path}.hidden: an "hlines" plot is a guide — it returns no column, so there is nothing to ` +
+      `compute and nothing to hide; drop the plot instead of hiding it`,
+    )
+  }
 }
 
 /** `colorMode` is checked after ALL plots and events are known because its
@@ -1429,6 +1662,94 @@ function validateBandEdges(plots, errors) {
       )
     }
   })
+}
+
+/**
+ * `plots[].fill: { with }` — the SCHEMA half of a fill between two plots. Spec §6
+ * gives the RENDERER to W6 (a series primitive painting the polygon between plot
+ * A's and plot B's values per visible bar; `BaselineSeries` cannot, it fills to
+ * a constant). Until then the field is validated, carried and cross-checked,
+ * and drawn by nothing — exactly as `colorMode: 'column:<key>'` is today.
+ *
+ * ⛔ VALIDATED-BUT-INERT IS A DECLARED STATE, NOT AN ACCIDENT, and the thing
+ * that makes that sentence true is `defSchema.test.js`'s *"fill is
+ * VALIDATED-BUT-INERT until W6"* block, not this comment: a source probe over
+ * every engine module (the list DERIVED from the directory) asserting none of
+ * them reads the field, plus the other half — the schema CARRIES it. So W6
+ * wiring the renderer turns a green test red, which is a lane being told, and
+ * a comment claiming inertness while a renderer quietly consumed the field
+ * could not survive. ⚠️ Written this way because the first draft of this
+ * paragraph asserted a test that did not exist yet (caught in review) — the
+ * same over-claim the `treesHash` import comment above was corrected for.
+ *
+ * The refusals are the ways a fill can have no area: its own key (one edge), a
+ * guide (an `hlines` plot returns no column, so no second edge), a key nothing
+ * declares — and the mirror, a fill declared ON a guide, which has no FIRST
+ * edge. A HIDDEN plot is a legal `with`: hidden is computed, so its edge exists.
+ */
+function validateFills(plots, errors) {
+  const styleByKey = new Map()
+  for (const p of plots) {
+    if (isPlainObject(p) && isNonEmptyString(p.key) && !styleByKey.has(p.key)) styleByKey.set(p.key, p.style)
+  }
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || !isPlainObject(plot.fill) || !isNonEmptyString(plot.fill.with)) return
+    const path = `plots[${index}].fill`
+    if (plot.style === 'hlines') {
+      errors.push(
+        `${path}: an "hlines" plot returns no column, so there is no edge to fill FROM — declare the ` +
+        `fill on the data plot that owns the column`,
+      )
+      return
+    }
+    const other = plot.fill.with
+    if (other === plot.key) {
+      errors.push(`${path}.with: ${fmt(other)} is this plot's own key — a fill between a line and itself has no area`)
+    } else if (!styleByKey.has(other)) {
+      errors.push(`${path}.with: ${fmt(other)} names no declared plot (declared: ${list([...styleByKey.keys()]) || 'none'})`)
+    } else if (styleByKey.get(other) === 'hlines') {
+      errors.push(
+        `${path}.with: ${fmt(other)} is an "hlines" plot — a guide returns no column, so there is no ` +
+        `second edge to fill to`,
+      )
+    }
+  })
+}
+
+/**
+ * The data-bearing plots and `compute.trees` are ONE key set, in both
+ * directions. A plot with no tree is a column nothing ever fills (the
+ * `plots[].repaint` shape: declarable and inert); a tree with no plot is
+ * computed for nobody. `hlines` plots are guides — they return no column and
+ * own no tree — and a HIDDEN plot is still data-bearing: it is computed and
+ * merely not drawn (A1's 0/1 scan plot), so it needs its tree like any other.
+ *
+ * Runs only on the `ast` lane with an object-shaped map; a map of any other
+ * shape has already been refused by `validateTrees`, and a second report here
+ * would be one defect under two names.
+ */
+function validateTreesAgainstPlots(compute, plots, errors) {
+  if (!isPlainObject(compute) || compute.kind !== 'ast' || !isPlainObject(compute.trees)) return
+  const dataKeys = plots
+    .filter((p) => isPlainObject(p) && isNonEmptyString(p.key) && p.style !== 'hlines')
+    .map((p) => p.key)
+  const treeKeys = Object.keys(compute.trees)
+  for (const k of dataKeys) {
+    if (!treeKeys.includes(k)) {
+      errors.push(
+        `plots: data-bearing plot ${fmt(k)} has no tree in compute.trees (${list(treeKeys)}) — a plot ` +
+        `with no tree is a key nothing ever fills`,
+      )
+    }
+  }
+  for (const k of treeKeys) {
+    if (!dataKeys.includes(k)) {
+      errors.push(
+        `compute.trees.${k}: names no data-bearing plot (plots: ${list(dataKeys) || 'none'}) — a tree ` +
+        `with no plot is computed for nobody`,
+      )
+    }
+  }
 }
 
 /**
@@ -1597,7 +1918,24 @@ export function validateDefinition(def) {
       errors.push(`version: required integer >= 1 (the presentation version), got ${fmt(out.version)}`)
     }
 
-    validateCompute(out.compute, errors)
+    // ⛔⛔ THE DOCUMENT'S OWN DECLARED INPUTS GO TO THE READ DOOR (W1b.5), AND
+    // THE DEFECT THIS CLOSES IS A STORED ONE, NOT A MISSING WARNING.
+    // `letPrepass.prepareSource` refuses `let period = 5` beside a declared
+    // input `period` — but ONLY when it is handed the scope, and until now
+    // nothing on the save path handed it one. So the pre-pass silently rewrote
+    // every `period` to `(5)`, the tree agreed with the source, rule 2 was
+    // satisfied, and the document SAVED WITH ITS DECLARED KNOB INERT: a member
+    // turns the setting and nothing moves. `editor/completions.js` was already
+    // passing the scope, so the completion popup refused text this validator
+    // accepted — one grammar with two readings, and the stricter one sat where
+    // it could not stop a save.
+    //
+    // ⛔ IT IS `declaredInputs(out)`, THE SAME READER `lintDefinition` USES, not
+    // a key list built here. And it runs BEFORE `validateInput` on purpose: a
+    // malformed input row is reported by its own validator, while
+    // `declaredInputs` skips anything without a usable string `key`, so a bad
+    // row can only make the scope SMALLER — never invent a shadow.
+    validateCompute(out.compute, errors, declaredInputs(out))
     validateMeta(out.meta, out, errors)
     validatePlacement(out.placement, errors)
 
@@ -1638,6 +1976,8 @@ export function validateDefinition(def) {
     // ─ cross-section checks ─
     validateColorModes(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateBandEdges(plots, errors)
+    validateFills(plots, errors)
+    validateTreesAgainstPlots(out.compute, plots, errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array

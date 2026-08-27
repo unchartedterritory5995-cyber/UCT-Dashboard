@@ -52,6 +52,7 @@
 //   * Condition Formula Template Table — `/m/69445/l/756693`
 
 import { TABLE, NODE_TYPES, assertCanonical, parseFormula } from './parse.js'
+import { prepareSource } from './letPrepass.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -169,13 +170,17 @@ export const PCF_FUSED = Object.freeze({
   // three price series are supplied because TC2000 leaves them implicit against
   // the chart's symbol, which IS what the spelling means.
   //
-  // ⛔ AND THE LIST IS THREE, NOT THIRTEEN. Of the sixteen oscillators PCF
-  // declares, thirteen refused; it is tempting to read that as thirteen missing
-  // rows. Twelve of them are NOT: `ADX`, `AROONUP`, `AROONDOWN`, `BOP`, `OBV`,
-  // `FAVG` and `HAVG` are formulas this table does not declare at all, and
-  // `RSI`, `WSTOC`, `MS` and `TSV` are DIFFERENT FORMULAS wearing familiar names
-  // -- see `PCF_DIFFERENT_FORMULA`. Adding a row for any of those would be the
-  // `MIN`/`lowest` trap this file's header exists to warn about.
+  // ⛔ A REFUSAL HERE IS ONE OF TWO DIFFERENT FACTS, AND THEY ARE NOT
+  // INTERCHANGEABLE. Some names refuse because the table does not declare the
+  // formula (`FAVG`, `HAVG` — two moving averages, still open); the rest refuse
+  // because they are DIFFERENT FORMULAS wearing familiar names (`RSI`, `WSTOC`,
+  // `MS`, `TSV`, `OBV` — see `PCF_DIFFERENT_FORMULA`). Adding a row for one of
+  // THOSE would be the `MIN`/`lowest` trap this file's header exists to warn about.
+  // ⚰️ NO COUNT IS WRITTEN HERE. This opened *"AND THE LIST IS THREE, NOT
+  // THIRTEEN"* and then named `ADX`, `AROONUP`, `AROONDOWN` and `BOP` as formulas
+  // "this table does not declare at all" — `adx` was declared 2026-08-11 and the
+  // other three on 2026-08-27, by the very task that read this comment. A hand-typed
+  // roster beside the map it describes rots the first time the map moves.
   CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   // ⭐⭐ `ADX14.14` — AND THE DOTTED NUMBER IS **SMOOTHING**, NOT AN OFFSET.
   //
@@ -193,13 +198,29 @@ export const PCF_FUSED = Object.freeze({
   ADX:     { spelling: 'ADX<period>.<smoothing>',    fn: 'adx',     series: ['high', 'low', 'close'], params: ['period', 'smoothing'], matchParam: ['smoothing', 'period'] },
   DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
-  // ⭐ AN EXPANSION, NOT A TABLE CALL. Balance of Power is
-  // `sma((close - open) / (high - low), n)` -- Worden's own definition, written in
-  // this table's existing vocabulary, so it costs the closed table no new name.
-  // ⛔ `expand` EXISTS SO THIS CANNOT BE FAKED AS A MAPPING: there is no `bop`
-  // function to point at, and inventing one to hold four lines of arithmetic
-  // would put a second authority on a formula the table can already say.
-  BOP:     { spelling: 'BOP<period>[.<offset>]', expand: true, series: [], params: ['period', 'offset'] },
+  // ⭐ AROON — Tushar Chande's, and the FORMULA IS THE INVENTOR'S, not Worden's.
+  // The Worden syntax page publishes `AROONUP(x, z)` with x=Period and z=Offset and
+  // NO formula at all, so the maths is cited to StockChart's published definition:
+  // `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. This table's `aroonUp`
+  // holds it. ⚰️ THIS SENT THE READER TO A MANIFEST KEY NAMED
+  // `_functions_compositions` FOR WHY A COMPOSITION IS DECLARED RATHER THAN
+  // EXPANDED, AND NO SUCH KEY HAS EVER EXISTED (the dead spelling is written
+  // WITHOUT the `<manifest>::` prefix here on purpose — with it, this comment
+  // would be the very dangling citation `test_closed_table_citations.py` now
+  // fails on) — the ruling is stated at the implementation (`interpret.js::barBop`,
+  // `ast_interpret._fn_bop`), and its mirror-image half — the compositions this
+  // table REFUSES to declare — is `closedTable.json::_functions_excluded`.
+  AROONUP:   { spelling: 'AROONUP<period>[.<offset>]',   fn: 'aroonUp',   series: [], params: ['period', 'offset'] },
+  AROONDOWN: { spelling: 'AROONDOWN<period>[.<offset>]', fn: 'aroonDown', series: [], params: ['period', 'offset'] },
+  // ⭐ BOP POINTS AT THE TABLE ENTRY NOW, AND THAT IS THE WHOLE REASON `bop` WAS
+  // DECLARED. ⚰️ This row was `expand: true` with a note arguing the opposite:
+  // *"there is no `bop` function to point at, and inventing one to hold four lines of
+  // arithmetic would put a second authority on a formula the table can already say."*
+  // The reasoning was right about the DANGER and wrong about which artifact removes
+  // it: with an expansion here AND a `bop` entry there, the formula would live in two
+  // places. One does. The expansion is gone, the entry is bound to the shipped
+  // rolling mean, and `tests/test_ast_tc2000_remainder.py` pins the two equal.
+  BOP:     { spelling: 'BOP<period>[.<offset>]', fn: 'bop', series: [], params: ['period', 'offset'] },
 })
 
 /** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
@@ -219,9 +240,51 @@ export const PCF_FUSED = Object.freeze({
  *  name members trust. That is a refusal to keep, not a backlog item. */
 export const PCF_DIFFERENT_FORMULA = Object.freeze({
   RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
-  WSTOC: 'the Worden stochastic is a different formula from the simple STOC this table has',
-  MS:    'MoneyStream is Worden-proprietary and its formula is not published',
-  TSV:   'Time Segmented Volume is Worden-proprietary and its formula is not published',
+  // ⭐ CITED, NOT ASSERTED — and the citation is what makes the refusal actionable.
+  // Worden publishes the formula on its own indicator page (`/m/69445/l/755879`):
+  // "Worden Stochastic = (100/n-1)(Rank)", where Rank is the ascending position of
+  // the newest close among the closes of the period. It is a RANK, and this table declares
+  // no rank function, so it is INEXPRESSIBLE rather than merely "different" — a word
+  // that is true of any two formulas and tells a member nothing.
+  WSTOC: 'a RANK, not a range: Worden publishes `(100/n-1)(Rank)`, where Rank is the '
+    + 'ascending position of the newest close among the closes of the period (its own worked '
+    + 'example gives 25 where a standard stochastic gives 16.7). This table declares no '
+    + 'rank function, so the formula cannot be written at all. TO UNBLOCK: declare '
+    + '`rank(source, n)` and `WSTOC(x, y, z)` becomes `sma(100 / (x - 1) * rank(close, x), y)`',
+  // ⭐ `OBV` REFUSES FOR A REASON TRUE OF **ITS** INPUT, not a generic one. Worden
+  // spells it `OBVy.z` where `y` is an SMA, so `OBV20` is the twenty-bar mean OF THE
+  // CUMULATIVE RUNNING TOTAL — and TC2000's own page says that level "is
+  // statistically irrelevant, just as it would be with a cumulative advance/decline
+  // line". Smoothing a fetch-dependent level leaves it fetch-dependent, which is the
+  // exact ground `_functions_excluded.obv` has refused on since this table opened.
+  // ⛔ IT IS NOT `obvN(20)`: a windowed signed-volume SUM and a smoothed cumulative
+  // LEVEL are different quantities that happen to share three letters.
+  OBV:   'the Worden `OBVy` is an SMA of the CUMULATIVE on-balance volume level, and a '
+    + 'running total from the first bar is a fact about where the fetch started rather '
+    + 'than about the market (the vendor page calls the level "statistically '
+    + 'irrelevant"). This table refuses that level by construction. TO UNBLOCK: nothing '
+    + 'here — write `obvN(n)`, the bounded signed-volume sum, which is a DIFFERENT '
+    + 'quantity and says so',
+  // ⭐ THESE TWO NAME THEIR UNBLOCKER NOW, AND THAT IS NOT A FORMALITY.
+  // ⚰️ They read *"is Worden-proprietary and its formula is not published"* and
+  // stopped there, while `WSTOC` and `OBV` beside them had just been upgraded to
+  // say what would change the answer. A refusal with no unblocker is the one
+  // wrong answer nothing can catch: an over-refusal has no red test, no wrong
+  // number and no complaint, so the honest ceiling is only countable if every
+  // doc-blocked "no" states the document that would open it.
+  // ⛔ AND THE UNBLOCKER IS A PUBLICATION, NOT A BETTER GUESS. Fitting a curve
+  // to the plotted line would put OUR arithmetic under WORDEN's name, which is
+  // the `MIN`/`lowest` trap with a vendor's brand on it.
+  MS:    "MoneyStream is Worden-proprietary and its formula is not published anywhere. "
+    + "TO UNBLOCK: Worden publishing the arithmetic on its own indicator page, the way "
+    + "it already has for the Worden Stochastic (`help.tc2000.com/m/69445/l/755879`). "
+    + "Nothing else does -- a formula fitted to the plotted curve would be our number "
+    + "under their name",
+  TSV:   "Time Segmented Volume is Worden-proprietary and its formula is not published "
+    + "anywhere. TO UNBLOCK: the same publication that would unblock MoneyStream -- "
+    + "Worden stating the arithmetic on its own indicator page, as it already does for "
+    + "the Worden Stochastic (`help.tc2000.com/m/69445/l/755879`). Reverse-engineering "
+    + "the plotted line is not a substitute",
 })
 
 /** The leading alphabetic run of a fused token — `RSI14.2` → `RSI`, `MS20` → `MS`.
@@ -754,6 +817,47 @@ function scalarInMillions(table, token, name) {
   return opNode('/', [seriesNode(name), num(1000000)])
 }
 
+/** The one word this reader spells the ternary. It lives in no map — it is a
+ *  branch of `buildCall` — so it is named ONCE here and read from both places. */
+const PCF_TERNARY = 'IIF'
+
+/** ⭐ EVERY WORD AND SYMBOL THIS READER ACCEPTS, AND THE ROLE IT PLAYS —
+ *  DERIVED FROM THE MAPS ABOVE, never typed.
+ *
+ *  ⛔ THIS EXISTS BECAUSE A HAND COPY OF IT WAS WRONG IN BOTH DIRECTIONS AT ONCE.
+ *  The editor's PCF tokenizer (`builder/editor/languages.js`) could reach
+ *  `PCF_CALLS` and `PCF_FUSED` — they are exported — but `PCF_STATEFUL`,
+ *  `PCF_SCALARS`, `IIF`, `MOD` and the four `DERIVED_LOGIC` spellings were
+ *  module-private, so it kept a hand-typed keyword set beside them. That set
+ *  MISSED `NAND`/`NOR`/`XNOR`/`MOD` (legal TC2000 this reader accepts, painted
+ *  `tags.invalid` — telling a member a WORKING formula is broken) and INVENTED
+ *  `TRUE`/`FALSE` (which this reader refuses by name, painted as keywords).
+ *  A vocabulary the consumer cannot read is a vocabulary the consumer will
+ *  re-type; exporting it is what makes the two agree by construction.
+ *
+ *  `calls` are `NAME(…)`, `bare` stand alone (a fundamental), `words` are the
+ *  operators PCF spells as words, `symbols` the ones it spells as punctuation —
+ *  LONGEST FIRST, because a matcher that tries `>` before `>=` splits the token.
+ */
+export const PCF_VOCABULARY = (() => {
+  const isWord = (k) => /^[A-Za-z]/.test(k)
+  const uniq = (xs) => Object.freeze([...new Set(xs)])
+  return Object.freeze({
+    calls: uniq([...Object.keys(PCF_CALLS), ...Object.keys(PCF_STATEFUL), PCF_TERNARY]),
+    bare: uniq(Object.keys(PCF_SCALARS)),
+    words: uniq([
+      ...Object.keys(INFIX).filter(isWord),
+      ...Object.keys(OPERATOR_CALLS).filter(isWord),
+      ...Object.keys(DERIVED_LOGIC),
+      PREFIX_NOT,
+    ]),
+    symbols: Object.freeze([...new Set([
+      ...Object.keys(INFIX).filter((k) => !isWord(k)),
+      ...Object.keys(OPERATOR_CALLS).filter((k) => !isWord(k)),
+    ])].sort((a, b) => b.length - a.length)),
+  })
+})()
+
 /** One fused token → a canonical node. */
 function readFused(table, token, letters, nodeTypes) {
   const { base, dotted } = splitDotted(token)
@@ -1134,7 +1238,7 @@ class Reader {
     }
 
     // The ternary. TC2000 spells it `IIF(b, t, f)`.
-    if (upper === 'IIF') {
+    if (upper === PCF_TERNARY) {
       if (nodes.length !== 3) {
         refuse('pcf:arity',
           `\`IIF\` takes three arguments and was handed ${nodes.length}`, at, token.text)
@@ -1379,18 +1483,81 @@ const PCF_MARKERS = [
   // added above, handed to the NATIVE reader, and refused for a reason that has
   // nothing to do with what the member pasted. Now the list is the only author.
   ...PCF_DIALOG_INDICATORS.map((d) => d.re),
-  // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
+  // ⛔⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
   // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
-  // refused for a reason that has nothing to do with the script. `BOP` was added
-  // to `PCF_FUSED` and missed here; the corpus caught it because `detectDialect`
-  // is asserted over every accepted source, which is exactly why that rail exists.
-  /\b(STDDEV|WRSI|ATR|MACD|STOC|BOP|CCI|ADX|DIPLUS|DIMINUS)\d/i,
+  // refused for a reason that has nothing to do with the script.
+  //
+  // ⚰️ THIS WAS A HAND-TYPED ALTERNATION AND IT WENT STALE TWICE. `BOP` was
+  // added to the family maps and missed here; the note recording THAT fix was
+  // still sitting on this line when `AROONUP`/`AROONDOWN` landed in `PCF_CALLS`
+  // on 2026-08-27 and were missed the same way — a member pasting
+  // `AROONUP25 > 70` would have been handed to the NATIVE reader and refused for
+  // a reason with nothing to do with what they pasted. A comment describing a
+  // defect is not a guard against it, so the list is DERIVED FROM THE FAMILY MAPS
+  // now, exactly as `PCF_DIALOG_INDICATORS` above it is: a family declared
+  // tomorrow is a marker the moment it is declared.
+  //
+  // ⚠️ `\d` IS WHAT KEEPS IT OFF NATIVE SOURCE. A fused spelling glues its period
+  // to the name (`ATR14`); a native call writes `atr(high, low, close, 14)`, whose
+  // next character is `(`. So no native formula can be captured by a family name —
+  // the property `MOD`'s hand-written lookahead had to state for itself.
+  //
+  // ⚰️ A LONGEST-FIRST `.sort()` SAT HERE DOING NOTHING, UNDER A COMMENT THAT
+  // CALLED IT A FIX: *"`AROONUP` and `AROONDOWN` share a prefix and a regex
+  // alternation takes the FIRST match … Sorting removes the class."* Those two
+  // diverge at character 5, and the class it claimed to remove was admitted
+  // hypothetical in the same breath (*"had one existed"*). It was the lone
+  // survivor of a 16-mutation sweep, and it could not have been anything else:
+  //   · a JS alternation BACKTRACKS among its branches at one position, so
+  //     WHETHER the pattern matches never depends on branch order; and
+  //   · two branches could only both complete here if one key were another key
+  //     followed by DIGITS (`\d+` comes next) — impossible for alphabetic keys,
+  //     and checked: zero such pairs among the 32.
+  // ⚰️ THE TOTAL USED TO SAY "242" AND THE PARTS SUM TO 237 — corrected
+  // 2026-08-27, and the number is now simply not restated. The parts ARE the
+  // count, and a sum written beside its own derivation is the exact defect the
+  // fix round that produced this comment was cleaning out of a doc; it left one
+  // in a comment. Measured before deleting the sort, over every source in
+  // 103 native · 48 accepted PCF · the 71-spelling vocabulary · 15 hand-built
+  // prefix adversaries (including `SIN5` and `SINH5`, the one real prefix pair
+  // in the union): 27 captured, and
+  // sorted vs declaration order disagreed on NOTHING — not the boolean, not even
+  // the captured branch.
+  // ⛔ A LINE WHOSE ONLY ROLE IS TO LOOK LIKE A RAIL IS WORSE THAN NO LINE — it
+  // spends a reviewer's attention and buys nothing. Deleted, not relabelled.
+  // ⛔⛔ AND THE TRAILING GUARD IS NOT DECORATION — WITHOUT IT THIS CAPTURED A
+  // NATIVE FORMULA, which is the one thing this detector must be incapable of.
+  // Measured: `log10(close)` was read as TC2000 — because `\bLOG` matches `log`
+  // and `\d+` matches the `10` written right after it. ONE STEP.
+  // ⚰️ THIS EXPLAINED THAT SAME MEASURED CAPTURE BY AN ALTERNATION THAT DOES NOT
+  // EXIST: *"the alternation contains both `LOG10` and `LOG`; `LOG10` fails (next
+  // char is `(`, not a digit), the regex BACKTRACKS to `LOG`, and `10` satisfies
+  // the digits."* The union of `PCF_FUSED` and `PCF_CALLS` keys holds `LOG` and
+  // `CLG` and no `LOG10` — there was never a branch to backtrack FROM, and no run
+  // ever did. The capture was real; the mechanism was invented, which is the worse
+  // half: a comment naming a mechanism is a claim about a run, and this one sent
+  // the next reader hunting a backtrack that never happened. ⚠️ The same sentence
+  // is in `687318cd3`'s commit message, which cannot be amended — THIS is the
+  // correction of record.
+  // Refusing a following `(` ends it: a fused spelling glues digits to the name
+  // and then stops (`AROONUP25 > 70`), while a native call always opens a paren.
+  new RegExp(
+    '\\b(' + [...new Set([...Object.keys(PCF_FUSED), ...Object.keys(PCF_CALLS)])]
+      .join('|') + ')\\d+(?![A-Za-z0-9_(])', 'i'),
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
 ]
 
-/** A marker only the native dialect produces. */
-const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/]
+/** A marker only the native dialect produces.
+ *
+ *  ⛔ A `let` LINE IS NEVER TC2000 — and it MUST be listed, because `let x = …`
+ *  carries a bare `=`, which is a PCF marker. Without this the whole `let`
+ *  vocabulary is handed to the TC2000 reader and refused for a reason that has
+ *  nothing to do with what the member typed. Deliberately BROADER than the
+ *  binding grammar `letPrepass.js` enforces (`KEY_RE`): a malformed binding must
+ *  reach the native door and be refused `let:syntax` at its own token, not
+ *  disappear into the other dialect. */
+const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/, /^\s*let\s+[A-Za-z_][A-Za-z0-9_]*\s*=/m]
 
 /** Which reader should read this source.
  *
@@ -1414,7 +1581,59 @@ export function detectDialect(source) {
  *  name resolves to `native` rather than throwing: a bad argument must not take
  *  a text box or a schema validator down. */
 export const READERS = Object.freeze({
-  native: parseFormula,
+  // ⭐ W1b — the `let` PRE-PASS RUNS HERE, INSIDE THE READ DOOR, so the text
+  // box, `defSchema`'s rule 2 and every save gate see the same inlined source.
+  // A pre-pass applied at any one call site would let a `let` formula validate
+  // in the builder and fail in the schema — a second authority over what a
+  // source means. The refusal comes back in `parseFormula`'s tagged shape so
+  // every existing caller reads it unchanged.
+  //
+  // ⚠️ "THE ONE READ DOOR" IS THE IDIOM, NOT A CENSUS. Three call sites reach
+  // `parseFormula` directly and therefore see NO pre-pass — measured 2026-08-26,
+  // and all three are correct as they are, so do not learn the wrong lesson from
+  // this comment and route them here: `criteria.js::fromSource` (no production
+  // importer — `CriteriaPicker` takes `vocabulary/fromAst/toSource/
+  // canonicalPicker`), `StarterLibrary.jsx` (OUR authored specs, not member
+  // text), and `pine.js::verifyRoundTrip` (reads back the translator's own
+  // printed output — a `let` there would mean the PRINTER emitted one).
+  // ⛔ A NEW SITE THAT READS **MEMBER** TEXT BELONGS HERE, not beside those.
+  //
+  // ⛔⛔ THE INPUT SCOPE IS THREADED, AND ABSENT IS STILL NOT EMPTY (W1b.5).
+  // This door used to pass NONE, and the consequence was a STORABLE defect, not
+  // a missing warning: a document declaring an input `period` and saying
+  // `let period = 5` parsed here, satisfied `defSchema` rule 2, and SAVED WITH
+  // ITS KNOB INERT — the pre-pass had rewritten every `period` to `(5)`, so
+  // turning the knob moved nothing. Meanwhile `editor/completions.js` DID hand
+  // the scope in, so the completion popup refused the very text this door
+  // accepted: two readings of one grammar, and the stricter one was the one that
+  // could not stop a save.
+  //
+  // ⛔ IT IS STILL OPTIONAL, AND THAT IS THE CONTRACT `prepareSource`'s own
+  // docblock sets: a caller that does not KNOW the inputs (a text box mid-type
+  // before the form has any) must not have a binding refused for shadowing a
+  // knob it cannot see. A caller that knows them hands them in —
+  // `evaluateFormula` (the text box and every save gate above it) and
+  // `defSchema.validateAstCompute` (the stored document) both do.
+  native: (source, inputs) => {
+    const pre = prepareSource(source, inputs)
+    // ⭐ AND THE REFUSAL KEEPS WHERE IT REFUSED. `prepareSource` names a line, a
+    // column AND a token, all in the MEMBER's own coordinates, and this door
+    // dropped all three — so `editor/diagnostics.js` had nothing to place a mark
+    // with and fell back to searching the sentence's quoted token. Measured:
+    // `let a = 1\nlet a = 2\na` refuses at the SECOND binding (offset 14) and a
+    // token search finds the FIRST (offset 4), putting a red squiggle under
+    // correct code. Spread rather than assigned so a refusal that carries no
+    // position (there is none today) does not gain `undefined` keys that read as
+    // a measurement.
+    if (!pre.ok) {
+      return {
+        ok: false, error: pre.error, guard: pre.guard,
+        ...(Number.isInteger(pre.line) ? { line: pre.line, column: pre.column } : {}),
+        ...(pre.token ? { token: pre.token } : {}),
+      }
+    }
+    return parseFormula(pre.source)
+  },
   pcf: (source) => parsePcf(source),
 })
 
@@ -1428,14 +1647,20 @@ export const READERS = Object.freeze({
  *  validate — a SECOND AUTHORITY OVER ONE VALUE, this repo's most repeated
  *  defect.
  *
+ *  @param {string} source
+ *  @param {string} [dialect] `'auto'` (the default), or a key of `READERS`
+ *  @param {object} [inputs] the declared-input scope (`lint.declaredInputs`'
+ *         `{[key]: true}`), when the caller knows it. ⚠️ OPTIONAL, AND ABSENT IS
+ *         NOT EMPTY — see `READERS.native`. Only the native reader consults it;
+ *         `parsePcf` has no bindings to shadow.
  *  @returns {{dialect: string, result: object}} `result` is the reader's own
  *           tagged return, unedited, so the refusal a caller reports is the
  *           refusing door's.
  */
-export function readFormulaSource(source, dialect = 'auto') {
+export function readFormulaSource(source, dialect = 'auto', inputs = undefined) {
   const named = dialect && dialect !== 'auto' && READERS[dialect] ? dialect : detectDialect(source)
   const use = READERS[named] ? named : 'native'
-  return { dialect: use, result: READERS[use](source) }
+  return { dialect: use, result: READERS[use](source, inputs) }
 }
 
 // --------------------------------------------------------------------------- //

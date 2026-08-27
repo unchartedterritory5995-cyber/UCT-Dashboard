@@ -546,6 +546,42 @@
       "yields": "bool"
     },
     {
+      "id": "candle_recent_bars_ago",
+      "scalar": "candle_recent_bars_ago",
+      "ast": {
+        "type": "series",
+        "name": "candle_recent_bars_ago"
+      },
+      "value": 55.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "avg_body",
+      "scalar": "avg_body",
+      "ast": {
+        "type": "series",
+        "name": "avg_body"
+      },
+      "value": 56.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "avg_range",
+      "scalar": "avg_range",
+      "ast": {
+        "type": "series",
+        "name": "avg_range"
+      },
+      "value": 57.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
       "id": "inside_bar_run",
       "scalar": "inside_bar_run",
       "ast": {

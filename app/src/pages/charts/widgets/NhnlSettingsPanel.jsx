@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
 import UIcon from '../../../components/ui/UIcon'
+import WidgetThemeSection from './WidgetThemeSection'
 import styles from './NhnlSettingsPanel.module.css'
 
 const PANEL_W = 268
@@ -21,7 +22,7 @@ function Row({ label, hint, children }) {
 }
 
 export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
-  title = 'Highs / Lows Settings', showLogos = null, onToggleLogos = null }) {
+  title = 'Highs / Lows Settings', showLogos = null, onToggleLogos = null, widgetType = 'nhnl' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)
@@ -63,6 +64,7 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      if (e.target.closest?.('[data-uct-theme-gallery]')) return
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
@@ -120,6 +122,16 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
         </div>
 
         <div className={styles.body}>
+          <div className={styles.sectionLabel}>Theme</div>
+          <Row label="UCT theme" hint="whole-widget look">
+            <WidgetThemeSection
+              widgetType={widgetType}
+              currentSettings={s}
+              onSettings={(next) => onChange(next)}
+              themeVars={themeVars}
+              buttonClass="btn btn-ghost btn-sm"
+            />
+          </Row>
           {showLogos !== null && onToggleLogos && (
             <>
               <div className={styles.sectionLabel}>Display</div>

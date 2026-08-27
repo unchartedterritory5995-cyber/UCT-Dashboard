@@ -127,10 +127,15 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                 held[key] = c
 
         # ── journal state ────────────────────────────────────────────────
+        # bkprov: rows are LEDGER-attested intraday fills the broker's
+        # holdings cache hasn't confirmed yet (apply_intraday_growth) — the
+        # conservation sentinel vouches for those; holdings parity must only
+        # grade what holdings attested, or every fresh fill reads as drift.
         j2_pos = conn.execute(
             "SELECT symbol, side, shares, broker_price FROM j2_positions "
             "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
-            "AND closed_at IS NULL", (user_id, j2_account_id),
+            "AND closed_at IS NULL AND external_id NOT LIKE 'bkprov:%'",
+            (user_id, j2_account_id),
         ).fetchall()
         j2_opts = conn.execute(
             "SELECT s.id, s.broker_current_value, l.qty, l.side AS leg_side, "

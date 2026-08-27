@@ -129,9 +129,9 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  /* The ⚙ Headers color wins when set (--bw-header is emit-when-custom); the
-     default stays the gold accent. */
-  color: var(--bw-header, var(--bw-accent, var(--ut-gold)));
+  /* Section labels are MUTED GREY (the family standard) — gold is reserved for the
+     active accent. The ⚙ Headers color still wins when the user sets one. */
+  color: var(--bw-header, var(--bw-text-dim, var(--text-muted)));
   margin: 0 0 4px 2px;
 }
 /* Mosaic fill: flex rows stretch the tiles to the widget's full width — no

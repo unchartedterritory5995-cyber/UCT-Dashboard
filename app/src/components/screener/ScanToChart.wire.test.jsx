@@ -420,3 +420,42 @@ describe('⭐ THE SOURCE RAIL — the condition can only come from the TREE', ()
       'a manifest name is hand-listed in ScanResults.jsx — derive it instead').toEqual([])
   })
 })
+
+// ─── ⭐ THE ON-DEMAND DOOR'S ENTRY (W4a) ─────────────────────────────────────
+//
+// `RunNowButton` POSTs `/api/scans/run`, watches the job, and hands the finished
+// answer UP to `ScreensManager`, which feeds it to THIS mount. That is the whole
+// reason for a `payload` prop: the on-demand run and the nightly receipt render
+// through ONE component, so the four-outcome line, the hit rows and the chart
+// button are the same code path for both — and `CoverageLine` keeps exactly one
+// door into the app, which the planted-cut control above asserts.
+
+describe('a GIVEN payload renders without a fetch (the on-demand door, W4a)', () => {
+  it('renders the handed payload, fetches nothing, and the tier rides along', async () => {
+    const given = evaluatedPayload({ tickers: ['AMD'], tier: 'on-demand' })
+    render(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D" payload={given} />)
+    expect(await screen.findByRole('button', { name: /chart AMD/i })).toBeInTheDocument()
+    expect(screen.getByTestId('coverage-line')).toHaveTextContent('3,742 evaluated')
+    expect(H.calls, 'a given payload must not be re-fetched').toHaveLength(0)
+  })
+
+  it('and removing the payload falls back to the fetch — the nightly answer returns', async () => {
+    const given = evaluatedPayload({ tickers: ['AMD'], tier: 'on-demand' })
+    const view = render(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D" payload={given} />)
+    await screen.findByRole('button', { name: /chart AMD/i })
+    view.rerender(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D" payload={null} />)
+    expect(await screen.findByRole('button', { name: /chart NVDA/i })).toBeInTheDocument()
+    expect(H.calls).toHaveLength(1)
+  })
+
+  it('a SECOND payload replaces the first — one answer set on screen at a time', async () => {
+    const first = evaluatedPayload({ tickers: ['AMD'] })
+    const view = render(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D" payload={first} />)
+    await screen.findByRole('button', { name: /chart AMD/i })
+    view.rerender(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D"
+      payload={evaluatedPayload({ tickers: ['INTC'] })} />)
+    expect(await screen.findByRole('button', { name: /chart INTC/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /chart AMD/i })).toBeNull()
+    expect(H.calls).toHaveLength(0)
+  })
+})

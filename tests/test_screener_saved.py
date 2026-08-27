@@ -40,8 +40,13 @@ def test_starters_present(tmp_path, monkeypatch):
 
 # Operand each op carries, mirroring query.build_where's KeyError surface —
 # a starter shipping {"op": "gte", "max": …} would 400 on the member path.
-_OPERANDS = {"gte": ("min",), "gt": ("min",), "lte": ("max",), "lt": ("max",),
-             "between": ("min", "max"), "eq": ("value",)}
+# ⚰️ WAS A HAND-TYPED MAP HERE, and it covered SIX of the twelve legal ops --
+# `contains`, `in` and the four field-to-field ones were absent, so the day a
+# starter first used `contains` this test raised `KeyError: 'contains'` instead
+# of checking anything. The docstring below says this test is derived from
+# `starters()` itself; the operand map was the one hand-typed part that made that
+# untrue. It now reads `filters.OP_OPERANDS`, which lives beside `_VALID_OPS`.
+# (resolved inside the test — this module imports `filters` lazily, see below)
 
 
 def test_starters_are_valid_specs(tmp_path, monkeypatch):
@@ -57,6 +62,7 @@ def test_starters_are_valid_specs(tmp_path, monkeypatch):
     """
     ss = _svc(tmp_path, monkeypatch)
     from api.services.screener import filters as scr_filters
+    _OPERANDS = scr_filters.OP_OPERANDS
     from api.services.screener import snapshot_db
     starters = ss.starters()
     ids = [s["id"] for s in starters]
@@ -232,3 +238,29 @@ def test_the_empty_column_rail_can_fail(tmp_path, monkeypatch):
            "spec": {"filters": [{"key": "rs_rank", "op": "gte", "min": 70}],
                     "view": "technical"}}]
     assert _starters_filtering_an_empty_column(ok, scr_filters.FILTERS) == []
+
+
+def test_every_valid_op_declares_its_operands():
+    """⛔ The rail that stops this from happening again.
+
+    `_VALID_OPS` says which ops are legal; `OP_OPERANDS` says what each reads.
+    A new op that lands in one and not the other is exactly how the hand-typed
+    map this replaced fell six ops behind — silently, until a starter used one.
+
+    ⭐ Asserted BOTH ways: an op with no operands declared, and an operand entry
+    for an op nothing accepts. The second half matters too — a stale entry is a
+    claim that an op exists when it does not."""
+    from api.services.screener import filters as scr_filters
+
+    legal = set().union(*scr_filters._VALID_OPS.values())
+    declared = set(scr_filters.OP_OPERANDS)
+    assert legal, "no ops are declared legal — this test is measuring nothing"
+    assert not (legal - declared), (
+        "these ops are legal but declare no operands, so anything reading "
+        f"OP_OPERANDS will KeyError on them: {sorted(legal - declared)}")
+    assert not (declared - legal), (
+        "these ops declare operands but no filter type accepts them — a stale "
+        f"entry claims an op exists: {sorted(declared - legal)}")
+    for op, operands in scr_filters.OP_OPERANDS.items():
+        assert isinstance(operands, tuple) and all(isinstance(o, str) for o in operands), \
+            (op, operands)

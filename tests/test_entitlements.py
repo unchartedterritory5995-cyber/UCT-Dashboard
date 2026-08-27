@@ -794,16 +794,139 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
 #: in the wild rather than in a fixture. The deliberate edit is this bump PLUS
 #: `Depends(limits_dependency)` on that handler — the number alone would have been
 #: a way to make a red test quiet.
-EXPECTED_DEFINITION_RESULT_ROUTES = 1
+#:
+#: ⭐ 2026-08-25 — 1 → 2, AND THE RAIL FIRED AGAIN, THE SAME WAY. W5a mounted
+#: `GET /api/scans/definition-record` (`api/routers/definition_record.py`, which
+#: reads `definition_record.claim_for`/`latest_evaluation`) and this census went
+#: RED naming BOTH paths. The deliberate edit is this bump PLUS
+#: `Depends(limits_dependency)` on that handler, APPLIED to the claim's named
+#: `unproven` symbols — the number alone would have been a way to quiet a red.
+#: ⚠️ MEASURED, NOT PREDICTED: W4a's `POST /api/scans/run` was already merged
+#: when this bump was made and is NOT classified — `api/routers/scan_run.py`
+#: imports only `api.services.screener.scan_run`, so it clears the cheap
+#: name prefilter (it mentions the stores in prose) and the AST correctly
+#: rejects it. The lane brief predicted "3 after both lanes merge"; the census
+#: says 2. If a future task moves a store read INTO that router, this constant
+#: moves with it — read the failure's path list, never a forecast.
+#: ⭐ 2026-08-26 — 2 → 4, AND THE COUNT IS THE SMALLEST PART OF THE EDIT. W4a's
+#: `POST /api/scans/run` and `GET /api/scans/run/{job}` were passing this census
+#: VACUOUSLY: the cheap prefilter cleared the router (the word `scan_evaluator`
+#: appears three times in its own PROSE), so the router really was imported and
+#: AST-walked — and then `_serves_definition_results` resolved its one
+#: `api.services.screener.*` alias against `RESULT_STORES`, matched no key, and
+#: answered False for BOTH handlers. The census yielded two paths and neither was
+#: the route that computes and hands back hits. Bumping a number would have made
+#: that WORSE: a census that counts correctly today and still cannot see the
+#: route is the same defect wearing a bigger number. So the fix is the
+#: `scan_run` entry below, and the assertion that MATTERS is
+#: `test_the_census_SEES_every_route_that_hands_back_definition_RESULTS`, which
+#: names the paths.
+#: ⭐ 2026-08-26 — 4 → 6, AND BOTH NEW ROUTES ARE THE *THIRD* SHAPE. W4b.5 mounts
+#: `api/routers/scan_live.py`: `GET /api/scans/live-status` (the intraday
+#: sweeper's LIVENESS BEAT — the last cycle receipt and how stale it is) and
+#: `GET /api/scans/demand` (the demand ring + member watchlist symbols, for the
+#: WORKER's prewarm ring, under the PUSH_SECRET bearer). Both BIND `scan_store`,
+#: so the blunt recogniser is right to see them — and NEITHER hands back a
+#: definition's hits.
+#: ⛔ AND `Depends(limits_dependency)` WOULD HAVE BEEN THE WRONG ANSWER, not
+#: merely a redundant one. `/api/scans/demand` is credentialed by a shared secret
+#: and has NO member session at all; `limits_dependency` resolves through
+#: `get_current_user_with_plan`, so bolting it on would have broken the worker's
+#: only door while reading as protection — the exact "declared there and never
+#: used" shape `READBACK_DOORS` below was written to refuse. So the doors are
+#: NAMED instead (`NON_RESULT_DOORS`), which turns "could not tell" into a real
+#: answer and keeps the strict half strict.
+EXPECTED_DEFINITION_RESULT_ROUTES = 6
 
 #: The modules that OWN definition results. ⚠️ Each is checked to EXIST and to
 #: expose its read door below, so a rename empties the census LOUDLY instead of
 #: quietly — the `_fetch_naaim` failure one lane over
 #: (a guard whose list stopped matching the thing it guarded, and passed).
 RESULT_STORES = {
-    "api.services.screener.scan_store": ("hits", "coverage", "join_clause"),
+    # ⚠️ `live_beat` and `demand_recent` are listed so `_doors_reached` can NAME
+    # them, NOT because they serve results — see `NON_RESULT_DOORS`. An
+    # unlistable door resolves to the empty set, which this census reads as
+    # "could not tell" and holds to the STRICT rule; naming them is what makes
+    # the classification an answer instead of a shrug.
+    "api.services.screener.scan_store": ("hits", "coverage", "join_clause",
+                                         "live_beat", "demand_recent"),
     "api.services.screener.scan_evaluator": ("evaluate_one", "run_sweep"),
     "api.services.definition_record": ("latest_evaluation",),
+    # ⭐ W4a's on-demand run. It does not READ a stored result — it COMPUTES one
+    # (through `scan_evaluator.evaluate_one` on a single-worker pool) and hands it
+    # back, which is the same thing to a member and the same thing to a toolkit.
+    # Two doors, and the difference between them is load-bearing: see
+    # `READBACK_DOORS`.
+    "api.services.screener.scan_run": ("submit_run", "job_status"),
+}
+
+#: ⛔ THE DOORS THAT ONLY HAND BACK AN ANSWER SOMEBODY ELSE ALREADY PRODUCED.
+#:
+#: The rule this file enforces is that a definition-result surface is
+#: entitlement-checked. For every producing door that means `Depends(
+#: limits_dependency)` ON THE ROUTE — that is where the caller's plan is read and
+#: handed to the evaluation. For a read-back door it does NOT: `scan_run`'s poll
+#: returns the hits of a job that was queued under the SUBMIT's toolkit, so
+#: re-reading the plan when the answer is handed back would be a second authority
+#: over one number, and a dependency declared there and never used would read as
+#: protection while protecting nothing.
+#:
+#: ⛔ SO A READ-BACK ROUTE IS NOT EXEMPT, IT IS PAIRED: the census still has to
+#: SEE it, and `test_EVERY_definition_results_route_is_covered_by_the_DERIVED_
+#: census` asserts that a covered PRODUCING route exists in the same module.
+#: An unpaired read-back is a hit list handed out under no plan at all.
+READBACK_DOORS = {"api.services.screener.scan_run.job_status"}
+
+#: ⛔ THE DOORS THAT LIVE ON A RESULT STORE AND HAND BACK NO RESULT.
+#:
+#: `scan_store` owns the definition-result tables AND the live sweep's operational
+#: artifacts. `live_beat` answers "is the intraday sweeper alive, and how stale is
+#: its last cycle" — a receipt about the JOB, carrying no symbol and no
+#: definition's hits. `demand_recent` answers "which symbols did somebody just
+#: NAME", which is an input to the worker's prewarm order, not an output of any
+#: scan. A toolkit sells whole-market scan RESULTS; neither of these is one.
+#:
+#: ⛔ SO THIS IS AN EXEMPTION FOR A DOOR, NEVER FOR A ROUTE. A handler reaching one
+#: of these AND a producing door is still strict — the arm below requires the
+#: resolved set to be ENTIRELY non-result, exactly like the read-back arm — and a
+#: handler this walk cannot resolve at all still counts as producing. Controlled
+#: by `test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one`.
+#:
+#: ⚠️ AND HERE IS EXACTLY HOW FAR THAT GUARANTEE REACHES. THIS PARAGRAPH HAS BEEN
+#: WRONG TWICE, so it is now written as a measurement rather than a claim.
+#:
+#: Round 1 followed the handler's calls and said the population was "resolved
+#: completely". A re-review then measured SIX same-module escapes that still
+#: slipped through — a class method, dict dispatch, a module-level alias, a local
+#: rebinding, `map(...)`, and `getattr(store, 'hits')` with no helper at all. The
+#: conclusion had held (no shipped router used those shapes) but the GUARANTEE had
+#: not, and the comment claimed the guarantee. That is the same defect the fix
+#: itself existed to correct.
+#:
+#: ⭐ SO THE RULE IS NOW DEFAULT-DENY AND THE QUESTION IS DECIDABLE. A route
+#: whose own reach resolves to exempt doors only must ALSO belong to a module in
+#: which no producing door is resolvable ANYWHERE — see the revocation step in
+#: `_doors_reached`. Not "can the walk follow this indirection" (unbounded), but
+#: "does this file touch `hits` at all". All six shapes are driven by
+#: `test_a_SAME_MODULE_escape_cannot_reach_the_lenient_arm`, and
+#: `test_the_REVOCATION_is_MODULE_WIDE_even_with_no_call_path_at_all` proves the
+#: door need not even be reachable from the handler.
+#:
+#: ⛔ WHAT IS *STILL* OUT OF REACH — THREE THINGS, NAMED, NOT WAVED AT:
+#:   1. a producing door reached through a function in ANOTHER module;
+#:   2. a door named by a RUNTIME value (`getattr(store, some_var)`), which no
+#:      static walk can resolve and none ever will;
+#:   3. a store bound under an alias this file's `_alias_map` cannot follow.
+#: (1) is bounded by the same reach `_serves_definition_results` has, so a handler
+#: binding no store module is never RECOGNISED as a definition-result surface and
+#: never reaches these arms at all. (2) and (3) are real residue. ⛔ THE HONEST
+#: SUMMARY IS THEREFORE: *this exemption is safe against every statically
+#: resolvable door reference inside the route's own module, and is not a proof
+#: about anything outside it.* If that is not enough for a future door, do not
+#: widen the walk — take the door off `NON_RESULT_DOORS`.
+NON_RESULT_DOORS = {
+    "api.services.screener.scan_store.live_beat",
+    "api.services.screener.scan_store.demand_recent",
 }
 
 
@@ -885,6 +1008,159 @@ def _serves_definition_results(source: str, func_name: str, pkg: str) -> bool:
     return False
 
 
+def _doors_reached(source: str, func_name: str, pkg: str) -> set:
+    """The NAMED result-store doors this handler reaches, dotted.
+
+    ⚠️ RECOGNITION AND CLASSIFICATION ARE SEPARATE QUESTIONS AND ARE ANSWERED
+    SEPARATELY. `_serves_definition_results` decides whether a route is a
+    definition-result surface at all, and it is deliberately BLUNT: binding a
+    store module counts, because from there any door is one attribute away. This
+    answers the narrower "which doors", and it is used for ONE thing — telling a
+    producing route from a read-back one.
+
+    ⛔ AN EMPTY ANSWER MEANS "COULD NOT TELL", AND THE COVERAGE RULE READS THAT AS
+    PRODUCING. A handler this cannot resolve is therefore held to the STRICT rule,
+    so a future shape this walk does not understand fails loudly rather than
+    slipping into the lenient half.
+    """
+    try:
+        tree = pyast.parse(source)
+    except SyntaxError:                                      # pragma: no cover
+        return set()
+    inside, handler = set(), None
+    for fn in pyast.walk(tree):
+        if isinstance(fn, (pyast.FunctionDef, pyast.AsyncFunctionDef)):
+            if fn.name == func_name and handler is None:
+                handler = fn
+            for n in pyast.walk(fn):
+                inside.add(id(n))
+    if handler is None:
+        return set()
+
+    # ⛔ THE HANDLER *AND EVERY MODULE-LEVEL FUNCTION IT REACHES* — fix round 1,
+    # W4b.5 finding 1. This walked the handler body ALONE until 2026-08-26, and
+    # that made the lenient arms below a DOORWAY rather than a door exemption: a
+    # handler naming one exempt door while reaching a PRODUCING one through a
+    # one-line helper resolved to the exempt door only, landed in the lenient
+    # arm, and was excused from `limits_dependency` while handing back a
+    # definition's symbols. `test_the_NON_RESULT_arm_is_not_reachable_THROUGH_A_
+    # HELPER` is that exact shape, and the walk below is what closes it.
+    #
+    bodies = _reached_functions(tree, handler)
+
+    top = [n for n in pyast.walk(tree)
+           if isinstance(n, (pyast.Import, pyast.ImportFrom)) and id(n) not in inside]
+    aliases = _alias_map(top, pkg)
+    for fn in bodies:
+        aliases.update(_alias_map(
+            [n for n in pyast.walk(fn)
+             if isinstance(n, (pyast.Import, pyast.ImportFrom))], pkg))
+
+    out = _doors_in_nodes([n for fn in bodies for n in pyast.walk(fn)], aliases)
+
+    # ⛔ AND THEN THE EXEMPTION IS RE-EARNED, MODULE-WIDE, OR IT IS REVOKED.
+    #
+    # 🔴 FIX ROUND 2. Round 1 followed the handler's calls and then CLAIMED this
+    # population was "resolved completely". A re-review measured SIX same-module
+    # escapes that still slipped past — a class method, dict dispatch, a
+    # module-level alias, a local rebinding, `map(...)`, and `getattr(store,
+    # 'hits')` with no helper at all. Chasing them one at a time is a losing
+    # game: Python has more ways to reach a name than a walk can enumerate, and
+    # every round of that leaves the comment wrong again.
+    #
+    # ⭐ SO THE QUESTION IS CHANGED INSTEAD OF THE WALK BEING WIDENED. For a
+    # route whose own reach resolves to EXEMPT DOORS ONLY, the doors of the WHOLE
+    # MODULE are folded in. "Can this walk follow that indirection?" is
+    # unbounded; "does this file touch a producing door at all?" is decidable.
+    # A module that serves definition results does not get one of its routes
+    # excused because this particular handler took a different path through it.
+    #
+    # ⛔ APPLIED ONLY TO THE EXEMPT CASE, ON PURPOSE. `READBACK_DOORS` predates
+    # this lane and its arm keeps handler-reach semantics untouched — folding
+    # module scope in there would make `scan_run`'s poll resolve `submit_run` and
+    # demand an entitlement on a route that correctly has none. Widening the
+    # blast radius of a fix beyond the thing it fixes is how a rail acquires a
+    # reputation for false positives.
+    if out and not (out - NON_RESULT_DOORS):
+        every = [n for n in pyast.walk(tree)]
+        all_aliases = _alias_map(
+            [n for n in every if isinstance(n, (pyast.Import, pyast.ImportFrom))], pkg)
+        out |= _doors_in_nodes(every, all_aliases)
+    return out
+
+
+def _doors_in_nodes(nodes, aliases) -> set:
+    """Every result-store door NAMED among ``nodes``, dotted — the resolution
+    step, extracted so the handler-reach pass and the module-wide revocation pass
+    are the SAME code rather than two copies that drift.
+
+    Three spellings are resolved: a door imported by name, a door reached through
+    a module object, and — added in fix round 2 — ``getattr(store, "door")``,
+    which is the one shape that needs no helper at all and which the round-1 walk
+    could therefore never have seen however far it followed calls.
+
+    ⚠️ A door named by a RUNTIME value (``getattr(store, some_var)``) is still not
+    resolvable and cannot be; that residue is stated at ``NON_RESULT_DOORS``.
+    """
+    out = set()
+    for local, target in aliases.items():
+        # a door imported BY NAME (`from ...scan_run import job_status`)
+        if "." in target:
+            head, attr = target.rsplit(".", 1)
+            if attr in RESULT_STORES.get(head, ()) and any(
+                    isinstance(n, pyast.Name) and n.id == local for n in nodes):
+                out.add(target)
+        doors = RESULT_STORES.get(target, ())
+        for node in nodes:
+            # a door reached THROUGH the module object (`scan_run.job_status(...)`)
+            if (isinstance(node, pyast.Attribute)
+                    and isinstance(node.value, pyast.Name)
+                    and node.value.id == local
+                    and node.attr in doors):
+                out.add(f"{target}.{node.attr}")
+            # …and the STRING spelling: `getattr(scan_store, "hits")`
+            elif (isinstance(node, pyast.Call)
+                    and isinstance(node.func, pyast.Name)
+                    and node.func.id == "getattr"
+                    and len(node.args) >= 2
+                    and isinstance(node.args[0], pyast.Name)
+                    and node.args[0].id == local
+                    and isinstance(node.args[1], pyast.Constant)
+                    and node.args[1].value in doors):
+                out.add(f"{target}.{node.args[1].value}")
+    return out
+
+
+def _reached_functions(tree, start) -> list:
+    """``start`` plus every function DEFINED IN THIS MODULE that it calls,
+    transitively — the handler's real reach inside its own file.
+
+    ⛔ BY NAME OFF THE MODULE'S OWN DEFS, so a call to something imported, built
+    in, or defined elsewhere adds nothing: a walk that followed every call would
+    resolve every route to every door, make all three arms collapse into
+    "producing", and read as maximum strictness while actually having stopped
+    measuring. `test_the_helper_walk_does_not_INVENT_a_door_from_an_unrelated_
+    call` is the control on precisely that.
+
+    Recursion is bounded by the `seen` set, so a helper pair that calls each
+    other terminates.
+    """
+    by_name = {n.name: n for n in pyast.walk(tree)
+               if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))}
+    order, seen, stack = [start], {getattr(start, "name", None)}, [start]
+    while stack:
+        fn = stack.pop()
+        for node in pyast.walk(fn):
+            if not (isinstance(node, pyast.Call) and isinstance(node.func, pyast.Name)):
+                continue
+            name = node.func.id
+            if name in by_name and name not in seen:
+                seen.add(name)
+                order.append(by_name[name])
+                stack.append(by_name[name])
+    return order
+
+
 def _mounted_router_modules() -> set:
     """Every `api.routers.X` whose `.router` reaches `include_router` in `main.py`.
 
@@ -922,8 +1198,32 @@ def _mounted_router_modules() -> set:
     return out
 
 
+def _result_routes_in(source: str, router) -> list:
+    """``(route, doors)`` for one router — the census's per-router step, EXTRACTED.
+
+    ⭐ EXTRACTED SO A CONTROL CAN DRIVE THE REAL DECISION. Everything that decides
+    whether a route is covered lives here: the cheap prefilter, the AST detector
+    and the door resolution. `test_the_census_would_CATCH_a_planted_UNGATED_route`
+    feeds this a router built in the test and its own source, so the control
+    exercises the shipped code path rather than a re-implementation of it — which
+    is what a census this file already got wrong once is owed.
+    """
+    if not any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES):
+        return []                          # cheap prefilter; the AST decides below
+    out = []
+    for route in getattr(router, "routes", []):
+        endpoint = getattr(route, "endpoint", None)
+        if endpoint is None or not getattr(route, "methods", None):
+            continue
+        name = getattr(endpoint, "__name__", "")
+        if name and _serves_definition_results(source, name, "api.routers"):
+            out.append((route, _doors_reached(source, name, "api.routers")))
+    return out
+
+
 def _definition_result_routes() -> list:
-    """Every MOUNTED route whose handler reads the definition-result store.
+    """Every MOUNTED route whose handler reads the definition-result store, as
+    ``(route, doors)``.
 
     ⛔ DERIVED, NEVER TYPED — twice over. The router modules come off the
     directory; "is it mounted" comes off an AST walk of `main.py`; and the routes
@@ -948,16 +1248,10 @@ def _definition_result_routes() -> list:
             continue
         source = path.read_text(encoding="utf-8")
         if not any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES):
-            continue                       # cheap prefilter; the AST decides below
-        import importlib
+            continue                       # cheap prefilter, repeated here so an
+        import importlib                   # unmatched router is never IMPORTED
         module = importlib.import_module(module_name)
-        for route in getattr(module.router, "routes", []):
-            endpoint = getattr(route, "endpoint", None)
-            if endpoint is None or not getattr(route, "methods", None):
-                continue
-            name = getattr(endpoint, "__name__", "")
-            if name and _serves_definition_results(source, name, "api.routers"):
-                out.append(route)
+        out.extend(_result_routes_in(source, module.router))
     return out
 
 
@@ -965,19 +1259,465 @@ def _dependency_calls(route) -> list:
     return [d.call for d in route.dependant.dependencies]
 
 
+def test_the_census_SEES_every_route_that_hands_back_definition_RESULTS():
+    """⭐ THE RECOGNITION HALF, WHICH THE COUNT ALONE DOES NOT SAY.
+
+    ⛔ THE COUNT MOVING IS NOT THE ASSERTION. This census passed W4a's
+    `POST /api/scans/run` for the wrong reason and the wrong reason mattered:
+    the cheap prefilter cleared the router (the word `scan_evaluator` is in its
+    own PROSE, three times), so it WAS imported and AST-walked — and then
+    `_serves_definition_results` resolved its one `api.services.screener.*` alias
+    against `RESULT_STORES`, matched no key, and answered False for BOTH handlers.
+    A census yielding `['/api/scans/definition-results']` while a route that
+    computes and hands back hits sat beside it is not covering that route; it
+    cannot SEE it. So the paths are asserted, not just how many there are.
+
+    ⛔ AND THE DOORS ARE NAMED, so this cannot be satisfied by a route that
+    merely mentions the module: `submit_run` and `job_status` are the two
+    functions of the run service a request may reach, and the census resolves
+    which of them each handler actually names.
+    """
+    paths = {r.path for r, _ in _definition_result_routes()}
+    assert "/api/scans/run" in paths, (
+        "the on-demand run route is not in the definition-results census: "
+        f"{sorted(paths)}")
+    assert "/api/scans/run/{job}" in paths, (
+        "the poll that hands back the hits is not in the census: "
+        f"{sorted(paths)}")
+
+
 def test_EVERY_definition_results_route_is_covered_by_the_DERIVED_census():
     """A route that serves DEFINITION RESULTS must carry the entitlement, and the
     count of those is asserted too — so a further route lands covered rather than
-    riding in. ⛔ THE INTEGER LIVES IN THIS FILE'S CONSTANT."""
+    riding in. ⛔ THE INTEGER LIVES IN THIS FILE'S CONSTANT.
+
+    ⭐ TWO RULES SINCE 2026-08-26, BECAUSE THERE ARE NOW TWO SHAPES. A route that
+    reaches a PRODUCING door reads the caller's plan itself. A route that reaches
+    only a `READBACK_DOORS` entry hands back an answer already produced under that
+    plan, and is required to be PAIRED with a covered producing route in the same
+    module — never simply skipped. ⛔ AND "COULD NOT TELL WHICH DOOR" IS TREATED AS
+    PRODUCING (`_doors_reached` returning empty), so the lenient half is reachable
+    only by a resolution that actually succeeded.
+    """
     routes = _definition_result_routes()
     assert len(routes) == EXPECTED_DEFINITION_RESULT_ROUTES, (
         "the set of routes serving definition results changed: "
-        + str(sorted(r.path for r in routes))
+        + str(sorted(r.path for r, _ in routes))
         + ". Update EXPECTED_DEFINITION_RESULT_ROUTES DELIBERATELY, and give the "
           "new route `Depends(limits_dependency)` — a whole-market scan result is "
           "the thing a toolkit sells.")
-    for route in routes:
+
+    # ⭐ THREE ARMS, AND EVERY ROUTE LANDS IN EXACTLY ONE. `lenient` is the union
+    # of the two non-strict door sets; a route is only spared if EVERY door it
+    # reaches is in it, so one producing door anywhere pulls the whole route back
+    # under the strict rule.
+    lenient = READBACK_DOORS | NON_RESULT_DOORS
+    producing = [(r, d) for r, d in routes if not d or (d - lenient)]
+    readback = [(r, d) for r, d in routes
+                if d and not (d - lenient) and (d & READBACK_DOORS)]
+    non_result = [(r, d) for r, d in routes if d and not (d - NON_RESULT_DOORS)]
+    assert producing, (
+        "every definition-result route resolved to a read-back door — the strict "
+        "half of this rule is exercising nothing")
+    assert non_result, (
+        "no route resolved to a NON-RESULT door — `NON_RESULT_DOORS` is naming "
+        "doors nothing reaches, which is an exemption that can only rot")
+    assert len(producing) + len(readback) + len(non_result) == len(routes), (
+        "a route landed in two arms or none: "
+        f"{sorted(r.path for r, _ in routes)}")
+
+    for route, _ in producing:
         assert ent.limits_dependency in _dependency_calls(route), route.path
+
+    covered = {door.rsplit(".", 1)[0] for route, doors in producing
+               if ent.limits_dependency in _dependency_calls(route)
+               for door in doors}
+    for route, doors in readback:
+        modules = {d.rsplit(".", 1)[0] for d in doors}
+        assert modules <= covered, (
+            f"{route.path} hands back definition results from {sorted(modules)} "
+            "and no route that PRODUCES them under the caller's toolkit is "
+            "covered — the hits were computed under no plan at all")
+
+
+def test_the_census_would_CATCH_a_planted_UNGATED_definition_result_route():
+    """⭐ THE CONTROL, AND IT DRIVES THE SHIPPED DECISION, NOT A COPY OF IT.
+
+    ⛔ A CENSUS THAT COUNTS CORRECTLY TODAY IS NOT A CENSUS. This one yielded a
+    plausible number for weeks while structurally unable to SEE `POST
+    /api/scans/run`; nothing went red, because the only thing being asserted was
+    a count that happened to match. So a route is PLANTED here — a real
+    `APIRouter` with real dependencies, and the source text the walk reads —
+    and pushed through `_result_routes_in`, which is the same function the census
+    itself calls per router. Three claims:
+
+      1. the planted UNGATED route is RECOGNISED (prefilter → AST → door), and
+      2. the coverage rule REPORTS it, and
+      3. the same route WITH `Depends(limits_dependency)` is recognised and
+         reported clean — so #2 is the gate answering, not the walk failing.
+    """
+    from fastapi import APIRouter
+
+    source = (
+        "from fastapi import APIRouter, Depends\n"
+        "from api.services.screener import scan_run\n"
+        "router = APIRouter()\n"
+        "@router.get('/api/planted/ungated')\n"
+        "def planted_ungated(user=Depends(get_current_user_with_plan)):\n"
+        "    return scan_run.submit_run(user['id'], 'd1')\n"
+        "@router.get('/api/planted/gated')\n"
+        "def planted_gated(limits=Depends(limits_dependency)):\n"
+        "    return scan_run.submit_run('u', 'd1')\n")
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/ungated")
+    def planted_ungated(user=Depends(get_current_user_with_plan)):  # pragma: no cover
+        return {}
+
+    @planted.get("/api/planted/gated")
+    def planted_gated(limits=Depends(ent.limits_dependency)):       # pragma: no cover
+        return {}
+
+    found = dict(
+        (r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert set(found) == {"/api/planted/ungated", "/api/planted/gated"}, (
+        f"the census did not RECOGNISE a planted definition-result route: {found}")
+    assert all(d == {"api.services.screener.scan_run.submit_run"}
+               for d in found.values()), found
+
+    uncovered = sorted(r.path for r, doors in _result_routes_in(source, planted)
+                       if (not doors or (doors - READBACK_DOORS))
+                       and ent.limits_dependency not in _dependency_calls(r))
+    assert uncovered == ["/api/planted/ungated"], (
+        "the coverage rule did not report the planted ungated route (or reported "
+        f"the gated one too): {uncovered}")
+
+
+def test_a_NON_RESULT_door_is_no_DOORWAY_for_a_producing_one():
+    """⛔ THE CONTROL ON THE LENIENT ARM, AND IT IS THE WHOLE REASON THE ARM IS
+    SAFE. `NON_RESULT_DOORS` exempts a DOOR, not a route: a handler that reads
+    `scan_store.live_beat` and `scan_store.hits` in the same breath is handing back
+    a definition's symbols and must still carry the entitlement. Driven through
+    `_result_routes_in` — the same function the census calls — so this cannot pass
+    against a copy of the decision.
+    """
+    from fastapi import APIRouter
+
+    source = (
+        "from fastapi import APIRouter, Depends\n"
+        "from api.services.screener import scan_store\n"
+        "router = APIRouter()\n"
+        "@router.get('/api/planted/beat')\n"
+        "def planted_beat():\n"
+        "    return scan_store.live_beat('D')\n"
+        "@router.get('/api/planted/beat-and-hits')\n"
+        "def planted_beat_and_hits():\n"
+        "    return {'b': scan_store.live_beat('D'), 'h': scan_store.hits('d', 'D', 1)}\n")
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/beat")
+    def planted_beat():                                             # pragma: no cover
+        return {}
+
+    @planted.get("/api/planted/beat-and-hits")
+    def planted_beat_and_hits():                                    # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    lenient = READBACK_DOORS | NON_RESULT_DOORS
+
+    # ⛔ THE ROUTE THAT HANDS BACK HITS IS STRICT — the original point of this
+    # test, and it still holds by the plainest reading.
+    assert "api.services.screener.scan_store.hits" in found["/api/planted/beat-and-hits"]
+    assert found["/api/planted/beat-and-hits"] - lenient == {
+        "api.services.screener.scan_store.hits"}
+
+    # 🔴 AND SO IS THE BEAT-ONLY ROUTE BESIDE IT — CHANGED IN FIX ROUND 2, and
+    # the change is the whole finding. This test used to assert the opposite
+    # (`== {live_beat}`, spared), which encoded exactly the weakness a re-review
+    # then measured six ways: a handler naming an exempt door in a module that
+    # serves definition results was excused, and whether it actually reached
+    # `hits` came down to whether the AST walk happened to follow the particular
+    # indirection in front of it. Default-deny revokes the exemption for the
+    # whole file, so this assertion INVERTED — deliberately, and it is the safe
+    # direction: the cost is a beat route in a hits-serving module having to
+    # carry `limits_dependency`; the alternative was a symbol list served under
+    # no plan at all.
+    assert "api.services.screener.scan_store.hits" in found["/api/planted/beat"], (
+        "the beat-only route in a module that also serves `hits` kept its "
+        "exemption — module-wide revocation is not firing")
+    assert found["/api/planted/beat"] - lenient, found
+
+
+def test_the_NON_RESULT_arm_is_not_reachable_THROUGH_A_HELPER():
+    """🔴 FIX ROUND 1, FINDING 1 — THE HOLE MY OWN ⛔ CLAIM DENIED EXISTED.
+
+    W4b.5 shipped `NON_RESULT_DOORS` with the note "exempts a DOOR, never a
+    ROUTE", and that was FALSE AS A GUARANTEE: `_doors_reached` walked the
+    HANDLER BODY ONLY, so a handler naming `scan_store.live_beat` while reaching
+    `scan_store.hits` through a module-level helper resolved to `{live_beat}`,
+    landed in the lenient arm, and was exempt from `limits_dependency` while
+    handing back a definition's symbols. The conclusion held — no shipped route
+    abuses it — but the reasoning did not, and the exemption W4b.5 added put two
+    more doors in a position to play that part.
+
+    ⛔ THE INDIRECTION IS CLOSED, NOT MERELY DOCUMENTED. `_doors_reached` now
+    follows calls to module-level functions transitively, so a door a helper
+    opens is the handler's door. This drives the exact shape the review measured,
+    including the `from … import hits as h` spelling.
+    """
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "router = APIRouter()",
+        "def _page(d):",
+        "    return scan_store.hits(d, 'D', 20260101)",
+        "@router.get('/api/planted/via-helper')",
+        "def planted_via_helper():",
+        "    return {'beat': scan_store.live_beat('D'), 'rows': _page('d1')}",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/via-helper")
+    def planted_via_helper():                                   # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    doors = found["/api/planted/via-helper"]
+    assert "api.services.screener.scan_store.hits" in doors, (
+        "the producing door reached through a module-level helper was invisible: "
+        f"{doors} — the lenient arm is a doorway after all")
+    assert doors - (READBACK_DOORS | NON_RESULT_DOORS) == {
+        "api.services.screener.scan_store.hits"}, doors
+
+
+def test_the_helper_walk_sees_the_IMPORTED_NAME_spelling_too():
+    """The other spelling of the same escape: the helper imports the door BY NAME
+    (`from …scan_store import hits as h`) instead of reaching it through the
+    module object. `_doors_reached` resolves both, and a walk that handled only
+    the attribute form would leave this one open."""
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "from api.services.screener.scan_store import hits as h",
+        "router = APIRouter()",
+        "def _page(d):",
+        "    return h(d, 'D', 20260101)",
+        "@router.get('/api/planted/via-import')",
+        "def planted_via_import():",
+        "    return {'beat': scan_store.live_beat('D'), 'rows': _page('d1')}",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/via-import")
+    def planted_via_import():                                   # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert "api.services.screener.scan_store.hits" in found["/api/planted/via-import"], (
+        found)
+
+
+def test_the_helper_walk_does_not_INVENT_a_door_from_an_unrelated_call():
+    """The control on the control. A handler calling a module-level helper that
+    touches NO result store must still resolve to its own doors only — a
+    transitive walk that returned everything would make every route producing and
+    the lenient arms unreachable, which reads as "safe" and is really "blind"."""
+    from fastapi import APIRouter
+
+    source = "\n".join([
+        "from fastapi import APIRouter",
+        "from api.services.screener import scan_store",
+        "router = APIRouter()",
+        "def _fmt(x):",
+        "    return str(x).upper()",
+        "@router.get('/api/planted/beat-only')",
+        "def planted_beat_only():",
+        "    return _fmt(scan_store.live_beat('D'))",
+        "",
+    ])
+
+    planted = APIRouter()
+
+    @planted.get("/api/planted/beat-only")
+    def planted_beat_only():                                    # pragma: no cover
+        return {}
+
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert found["/api/planted/beat-only"] == {
+        "api.services.screener.scan_store.live_beat"}, found
+    assert not (found["/api/planted/beat-only"] - NON_RESULT_DOORS)
+
+
+#: ⛔ THE SIX SAME-MODULE ESCAPES A RE-REVIEW MEASURED AGAINST FIX ROUND 1.
+#:
+#: Round 1 closed the one-line-helper hole and then CLAIMED, in the comment over
+#: `NON_RESULT_DOORS`, that handlers binding a store directly were "now resolved
+#: completely". That was false, and it was the SAME overstatement the fix existed
+#: to correct — a comment claiming completeness the code did not have. Each shape
+#: below reaches `scan_store.hits` while the handler names an exempt door, and
+#: each one landed in the LENIENT arm with `hits` invisible.
+#:
+#: ⭐ THE HANDLER IN EVERY CASE IS `h`, and every case must resolve `hits`.
+_ESCAPES = {
+    "class method": (
+        "class _Pager:\n"
+        "    def page(self, d):\n"
+        "        return scan_store.hits(d, 'D', 20260101)\n"
+        "_PAGER = _Pager()\n"
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'), 'r': _PAGER.page('d1')}\n"),
+    "dict dispatch": (
+        "def _page(d):\n"
+        "    return scan_store.hits(d, 'D', 20260101)\n"
+        "_D = {'page': _page}\n"
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'), 'r': _D['page']('d1')}\n"),
+    "module-level alias": (
+        "def _page(d):\n"
+        "    return scan_store.hits(d, 'D', 20260101)\n"
+        "_page2 = _page\n"
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'), 'r': _page2('d1')}\n"),
+    "local rebinding": (
+        "def _page(d):\n"
+        "    return scan_store.hits(d, 'D', 20260101)\n"
+        "def h():\n"
+        "    f = _page\n"
+        "    return {'b': scan_store.live_beat('D'), 'r': f('d1')}\n"),
+    "map()": (
+        "def _page(d):\n"
+        "    return scan_store.hits(d, 'D', 20260101)\n"
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'), 'r': list(map(_page, ['d1']))}\n"),
+    # ⛔ AND THIS ONE HAS NO HELPER AT ALL — the door is named as a STRING in the
+    # handler body. A walk that only followed helpers could never have seen it.
+    "getattr in the handler": (
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'),\n"
+        "            'r': getattr(scan_store, 'hits')('d1', 'D', 20260101)}\n"),
+}
+
+
+def _planted_for(body: str):
+    """One planted router + its source, for a body that defines `h`."""
+    from fastapi import APIRouter
+
+    source = ("from fastapi import APIRouter\n"
+              "from api.services.screener import scan_store\n"
+              "router = APIRouter()\n" + body)
+    planted = APIRouter()
+
+    @planted.get("/api/planted/escape")
+    def h():                                                    # pragma: no cover
+        return {}
+
+    return source, planted
+
+
+@pytest.mark.parametrize("shape", sorted(_ESCAPES))
+def test_a_SAME_MODULE_escape_cannot_reach_the_lenient_arm(shape):
+    """🔴 FIX ROUND 2, OPEN 1 — six shapes, each one a route that hands back a
+    definition's symbols while claiming an exempt door.
+
+    ⛔ CLOSED BY DEFAULT-DENY, NOT BY ENUMERATION. Chasing these six one at a
+    time would leave the seventh open and the comment wrong again. Instead the
+    exemption is REVOKED whenever a producing door is resolvable ANYWHERE IN THE
+    ROUTE'S OWN MODULE — so the question stops being "can the walk follow this
+    particular indirection" (unbounded, and Python will always win) and becomes
+    "does this file touch `hits` at all" (decidable).
+    """
+    source, planted = _planted_for(_ESCAPES[shape])
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    doors = found["/api/planted/escape"]
+    assert "api.services.screener.scan_store.hits" in doors, (
+        f"[{shape}] reached `hits` and the census did not see it: {doors} — this "
+        "route is exempt from `limits_dependency` while handing back symbols")
+    assert doors - (READBACK_DOORS | NON_RESULT_DOORS), (
+        f"[{shape}] resolved to exempt doors only: {doors}")
+
+
+def test_the_REVOCATION_is_MODULE_WIDE_even_with_no_call_path_at_all():
+    """⭐ THE POINT OF DEFAULT-DENY, STATED AS A TEST. The producing door need not
+    be REACHABLE from the handler — it need only be IN THE FILE. A module that
+    serves definition results does not get to have one of its routes excused on
+    the grounds that this particular handler took a different path through it."""
+    source, planted = _planted_for(
+        "def _never_called(d):\n"
+        "    return scan_store.hits(d, 'D', 20260101)\n"
+        "def h():\n"
+        "    return scan_store.live_beat('D')\n")
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    assert "api.services.screener.scan_store.hits" in found["/api/planted/escape"]
+
+
+def test_the_revocation_does_NOT_fire_on_a_module_with_only_exempt_doors():
+    """⛔ THE CONTROL, AND WITHOUT IT DEFAULT-DENY IS JUST "REFUSE EVERYTHING".
+    A module whose only doors are non-result ones KEEPS the exemption — which is
+    the whole reason the arm exists, and is `api/routers/scan_live.py` itself."""
+    source, planted = _planted_for(
+        "def _also_beat():\n"
+        "    return scan_store.demand_recent()\n"
+        "def h():\n"
+        "    return {'b': scan_store.live_beat('D'), 'd': _also_beat()}\n")
+    found = dict((r.path, doors) for r, doors in _result_routes_in(source, planted))
+    doors = found["/api/planted/escape"]
+    assert doors == {"api.services.screener.scan_store.live_beat",
+                     "api.services.screener.scan_store.demand_recent"}, doors
+    assert not (doors - NON_RESULT_DOORS), doors
+
+
+def test_the_HELPER_WALK_itself_is_not_OVER_BROAD__measured_on_the_walk():
+    """🔴 FIX ROUND 2, OPEN 2 — the round-1 "not over-broad" control was VACUOUS.
+
+    It planted a module with no second door-bearing function, so an over-broad
+    walk had nothing extra to collect and the test passed either way; the
+    mutation was caught, but by two OTHER tests. Worse, the shape the re-review
+    suggested (an uncalled sibling touching `hits`) can no longer discriminate
+    THROUGH `_doors_reached`, because module-wide revocation now collects that
+    sibling on purpose.
+
+    ⭐ SO THE BREADTH IS MEASURED ON THE UNIT THAT HAS THE PROPERTY.
+    `_reached_functions` is the walk; it must return the handler and the helper it
+    CALLS, and not the sibling it does not. An over-broad walk returns three.
+    """
+    src = ("def _called(d):\n"
+           "    return d\n"
+           "def _sibling(d):\n"
+           "    return d\n"
+           "def h():\n"
+           "    return _called('x')\n")
+    tree = pyast.parse(src)
+    handler = next(n for n in pyast.walk(tree)
+                   if isinstance(n, pyast.FunctionDef) and n.name == "h")
+    reached = {f.name for f in _reached_functions(tree, handler)}
+    assert reached == {"h", "_called"}, (
+        f"the helper walk returned {sorted(reached)} — it is following functions "
+        "the handler never calls, which makes every route producing and reads as "
+        "strictness while having stopped measuring")
+
+
+def test_the_census_prefilter_does_not_DROP_a_router_before_the_AST_sees_it():
+    """⚠️ THE OTHER HALF OF THE PLANT. `_result_routes_in` opens with a raw
+    substring test, and a router it drops is never parsed, never imported and
+    never counted — a whole class of route that would be invisible without ever
+    failing anything. It is checked against the routers that really carry these
+    surfaces, and shown to still DROP one that carries none.
+    """
+    for name in ("scan_run", "scan_results", "definition_record"):
+        source = (ROUTERS / f"{name}.py").read_text(encoding="utf-8")
+        assert any(m.rsplit(".", 1)[-1] in source for m in RESULT_STORES), name
+    assert not _result_routes_in("router = None\nSTORE = 'nothing here'\n", None)
 
 
 # ─── and the SAME route, driven ───────────────────────────────────────────────

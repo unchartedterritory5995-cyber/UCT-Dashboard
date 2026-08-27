@@ -11,6 +11,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
 import UIcon from '../../components/ui/UIcon'
+import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { THEME_TRACKER_FONT_SIZES } from './themeTrackerSettings'
 import styles from './ThemeTrackerSettingsPanel.module.css'
 
@@ -42,7 +43,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, widgetType = 'themes' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (beside the tracker)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
@@ -90,6 +91,7 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      if (e.target.closest?.('[data-uct-theme-gallery]')) return
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
@@ -145,6 +147,10 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
         </div>
 
         <div className={styles.body}>
+          <div className={styles.sectionLabel}>Theme</div>
+          <Row label="UCT theme" hint="whole-widget look">
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+          </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

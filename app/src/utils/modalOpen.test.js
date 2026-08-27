@@ -120,6 +120,15 @@ describe('🔴 every chart key handler actually CONSULTS it', () => {
     'components/chart/KeyboardHelpOverlay.jsx': "the shortcut sheet's own Escape",
     'components/chart/SymbolSearch.jsx': "the ticker box's own dropdown navigation",
     'components/chart/PatternSidePanel.jsx': "the side panel's own Escape",
+    // ⭐ NARROWER THAN `isModalOpen`, NOT LOOSER. This one claims Escape only
+    // while a completion popup is open AND `view.dom.contains(e.target)` — so it
+    // can only ever answer for keystrokes already inside its own editor, which is
+    // itself inside the builder sheet. It runs at WINDOW capture because
+    // `mobile/Sheet.jsx` answers Escape at DOCUMENT capture and would otherwise
+    // close the sheet out from under an open popup; consulting `isModalOpen` here
+    // would be backwards (a dialog IS open — this editor's).
+    'components/chart/builder/editor/CodeEditor.jsx':
+      "the formula editor's own Escape, claimed only while its completion popup is open",
   }
 
   function chartFilesWithAGlobalKeydown() {

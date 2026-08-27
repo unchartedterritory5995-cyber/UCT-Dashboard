@@ -1,0 +1,117 @@
+// Created by Fatty Trades
+//@version=5
+// This indicator coverts SPY price targets to ES or QQQ price targets to NQ / MNQ
+indicator(title="SPY to ES or QQQ to NQ", shorttitle = "SPY to ES or QQQ to NQ", overlay=true)
+
+// Inputs
+is_spy = input.bool(defval = true, title = "Convert SPY?", tooltip = "Uncheck this box if converting QQQ to NQ instead of SPY to ES")
+opening_strike = input.price(group="ETF Opening Price", defval = 370, title = "Opening Strike Price", tooltip = "Enter in the opening price of SPY or QQQ rounded to the nearest whole number")
+// Previous Input - No longer used
+//input_line_pt1 = input.price(group="ETF Strikes", defval = 0.0 , title = "PT 1")
+input_TablePosition = input.string(group="Table Settings", defval = "Bottom Right", title = "Table Position", options = ["Top Right", "Top Center", "Top Left", "Middle Right", "Middle Center", "Middle Left", "Bottom Right", "Bottom Center", "Bottom Left"], tooltip = "Position of the table") 
+input_TableTextSize = input.string(group="Table Settings", defval = "Normal", title = "Table Font Size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], tooltip = "Font size for the status box") 
+input_vwap_source = input.source(group="VWAP Settings", defval = hlc3, title = "VWAP Source", tooltip = "Source used to calculate VWAP")
+input_vwap_smoothing = input.int(group="VWAP Settings", defval = 3, title = "VWAP Smoothing", minval = 0 , maxval = 9, tooltip = "Min 0, Max 9. SMA to smooth VWAP line, evens out the calculation flucations but will cause inaccuracy if set too high. 0 for no smoothing.") 
+input_smoothing = input.int(group="Line Settings", defval = 100, title = "Line Smoothing", minval = 1 , maxval = 600, tooltip = "Min 1, Max 600. SMA to smooth lines, evens out the calculation flucations. VWAP is not smoothed.") 
+
+// Map table text size
+tableTextSize = switch input_TableTextSize
+    "Tiny" => size.tiny
+    "Small" => size.small
+    "Normal" => size.normal
+    "Large" => size.large
+    "Huge" => size.huge
+
+// Map table position
+tablePosition = switch input_TablePosition
+    "Top Right" => position.top_right
+    "Top Center" => position.top_center
+    "Top Left" => position.top_left
+    "Middle Right" => position.middle_right
+    "Middle Center" => position.middle_center
+    "Middle Left" => position.middle_left
+    "Bottom Right" => position.bottom_right
+    "Bottom Center" => position.bottom_center
+    "Bottom Left" => position.bottom_left
+
+// Calculate SPY to ES or QQQ to NQ ratio
+
+t = (is_spy) ? ticker.new("AMEX", "SPY", session.extended) : ticker.new("NASDAQ", "QQQ", session.extended)
+ETFClose = request.security(t, timeframe.period, close, barmerge.gaps_on)
+CurClose = request.security(symbol = syminfo.ticker, timeframe = timeframe.period, expression = close) 
+Diff = CurClose / ETFClose
+
+// Previous Line Calculation
+//line_pt1 = ta.sma(source = (input_line_pt1 * Diff), length = input_smoothing)  
+// Calculate lines
+line_pt1 = ta.sma(source = (opening_strike * Diff), length = input_smoothing)  
+line_pt2 = ta.sma(source = ((opening_strike + 1) * Diff), length = input_smoothing)
+line_pt3 = ta.sma(source = ((opening_strike + 2) * Diff), length = input_smoothing)
+line_pt4 = ta.sma(source = ((opening_strike + 3) * Diff), length = input_smoothing)
+line_pt5 = ta.sma(source = ((opening_strike + 4) * Diff), length = input_smoothing)
+line_pt6 = ta.sma(source = ((opening_strike + 5) * Diff), length = input_smoothing)
+line_pt7 = ta.sma(source = ((opening_strike + 6) * Diff), length = input_smoothing)
+line_pt8 = ta.sma(source = ((opening_strike + 7) * Diff), length = input_smoothing)
+line_pt9 = ta.sma(source = ((opening_strike + 8) * Diff), length = input_smoothing)
+line_pt10 = ta.sma(source = ((opening_strike + 9) * Diff), length = input_smoothing)
+line_pt11 = ta.sma(source = ((opening_strike + 10) * Diff), length = input_smoothing)
+line_pt12 = ta.sma(source = ((opening_strike - 1) * Diff), length = input_smoothing)
+line_pt13 = ta.sma(source = ((opening_strike - 2) * Diff), length = input_smoothing)
+line_pt14 = ta.sma(source = ((opening_strike - 3) * Diff), length = input_smoothing)
+line_pt15 = ta.sma(source = ((opening_strike - 4) * Diff), length = input_smoothing)
+line_pt16 = ta.sma(source = ((opening_strike - 5) * Diff), length = input_smoothing)
+line_pt17 = ta.sma(source = ((opening_strike - 6) * Diff), length = input_smoothing)
+line_pt18 = ta.sma(source = ((opening_strike - 7) * Diff), length = input_smoothing)
+line_pt19 = ta.sma(source = ((opening_strike - 8) * Diff), length = input_smoothing)
+line_pt20 = ta.sma(source = ((opening_strike - 9) * Diff), length = input_smoothing)
+line_pt21 = ta.sma(source = ((opening_strike - 10) * Diff), length = input_smoothing)
+
+price_etf = str.tostring(ETFClose, '#.###')
+etfvwap = request.security(t, timeframe.period, ta.vwap(input_vwap_source)) * Diff
+line_etf_vwap = if input_vwap_smoothing >= 1 
+    ta.sma(source = etfvwap, length = input_vwap_smoothing)
+else
+    etfvwap
+
+// Add Standard Futures VWAP
+futuresvwap = ta.vwap(input_vwap_source)
+line_futures_vwap = if input_vwap_smoothing >= 1 
+    ta.sma(source = futuresvwap, length = input_vwap_smoothing)
+else   
+    futuresvwap
+
+// Create table
+var table InfoBox = table.new(position = tablePosition, columns = 2, rows = 2, bgcolor = color.new(color.gray, 85), frame_width = 1, frame_color = color.black)
+
+// Plot lines
+plot(line_etf_vwap, color = color.fuchsia, linewidth = 2, title = "ETF VWAP")
+plot(line_futures_vwap, color = color.aqua, linewidth = 2, title = "Futures VWAP")
+plot(line_pt1, color = color.white, linewidth = 2, title = "Starting Level")
+//pt1Label = label.new(x=bar_index, y=line_pt1, color=color.purple, textcolor=color.white, size=size.small)
+//label.set_text(id=pt1Label, text=str.tostring(line_pt1))
+plot(line_pt2, color = color.white, linewidth = 2, title = "Level +1")
+plot(line_pt3, color = color.white, linewidth = 2, title = "Level +2")
+plot(line_pt4, color = color.white, linewidth = 2, title = "Level +3")
+plot(line_pt5, color = color.white, linewidth = 2, title = "Level +4")
+plot(line_pt6, color = color.white, linewidth = 2, title = "Level +5")
+plot(line_pt7, color = color.white, linewidth = 2, title = "Level +6")
+plot(line_pt8, color = color.white, linewidth = 2, title = "Level +7")
+plot(line_pt9, color = color.white, linewidth = 2, title = "Level +8")
+plot(line_pt10, color = color.white, linewidth = 2, title = "Level +9")
+plot(line_pt11, color = color.white, linewidth = 2, title = "Level +10")
+plot(line_pt12, color = color.white, linewidth = 2, title = "Level -1")
+plot(line_pt13, color = color.white, linewidth = 2, title = "Level -2")
+plot(line_pt14, color = color.white, linewidth = 2, title = "Level -3")
+plot(line_pt15, color = color.white, linewidth = 2, title = "Level -4")
+plot(line_pt16, color = color.white, linewidth = 2, title = "Level -5")
+plot(line_pt17, color = color.white, linewidth = 2, title = "Level -6")
+plot(line_pt18, color = color.white, linewidth = 2, title = "Level -7")
+plot(line_pt19, color = color.white, linewidth = 2, title = "Level -8")
+plot(line_pt20, color = color.white, linewidth = 2, title = "Level -9")
+plot(line_pt21, color = color.white, linewidth = 2, title = "Level -10")
+
+// Populate table
+t_string = is_spy ? "SPY:" : "QQQ:"
+if barstate.islast
+    table.cell(InfoBox, 0, 0, t_string, text_color = color.white, text_size = tableTextSize)
+    table.cell(InfoBox, 1, 0, price_etf, text_color = color.white, text_size = tableTextSize)

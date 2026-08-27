@@ -1,0 +1,275 @@
+// ⭐ COMPLETIONS ARE A DERIVED VIEW OF THE MANIFEST. The source is exercised
+// through CodeMirror's own `CompletionContext` with no view mounted, so a case
+// here is about WHAT is offered, never about a popup.
+//
+// ⛔ AND NOTHING BELOW PINS A COUNT OR A SECTION LIST. The closed table is moving
+// under this lane right now (W2a: `tableVersion` 1 → 2, a new `clock` section),
+// and a case that summed three named sections would go red on their commit while
+// describing nothing that had broken. Every size here is pinned against another
+// artifact that derives the same answer a different way.
+import { describe, it, expect } from 'vitest'
+import { EditorState } from '@codemirror/state'
+import { CompletionContext } from '@codemirror/autocomplete'
+import { TABLE, KEY_RE, LOOKBACK_RE } from '../../engine/ast/parse'
+import { declaredInputs } from '../../engine/ast/lint'
+import { prepareSource } from '../../engine/ast/letPrepass'
+import { FORMULA_VOCAB, vocabularyOf } from './languages'
+import { formulaCompletionSource, tableOptions, inputOptions, letNames, letBindings } from './completions'
+
+async function complete(doc, { inputs, explicit = false, pos = doc.length } = {}) {
+  const state = EditorState.create({ doc })
+  return formulaCompletionSource({ inputs })(new CompletionContext(state, pos, explicit))
+}
+const labels = (res) => (res ? res.options.map((o) => o.label) : [])
+
+/** The detail a function SHOULD carry, re-derived from the manifest here rather
+ *  than restated: the roles, then the lookback with any `argN` reference resolved
+ *  to the role it names. The resolution itself is pinned on its own below. */
+function detailFor(name) {
+  const entry = TABLE.functions[name]
+  const m = LOOKBACK_RE.exec(String(entry.lookback))
+  const role = m && entry.argRoles[Number(m[2])]
+  const lookback = !m || role === undefined
+    ? entry.lookback
+    : (m[1] === undefined ? role : `${m[1]}*${role}`)
+  return `(${entry.argRoles.join(', ')}) · lookback ${lookback}`
+}
+
+/** Is this a name the manifest declares ANYWHERE? Walks the sections the way the
+ *  manifest shapes them (`_`-prefixed keys are notes) rather than naming three. */
+function inTable(label) {
+  for (const [section, entries] of Object.entries(TABLE)) {
+    if (section.startsWith('_') || !entries || typeof entries !== 'object') continue
+    if (Object.prototype.hasOwnProperty.call(entries, label)) return true
+  }
+  return false
+}
+
+describe('the table half', () => {
+  it('for `s` offers sma and stdev — and nothing the table does not declare', async () => {
+    const got = labels(await complete('s'))
+    expect(got).toContain('sma')
+    expect(got).toContain('stdev')
+    expect(got).not.toContain('nosuchfn')
+    for (const label of got) expect(inTable(label), `${label} is not in the table`).toBe(true)
+    // every one of them really does start with what was typed
+    for (const label of got) expect(label.toLowerCase().startsWith('s'), label).toBe(true)
+  })
+
+  it('a function carries its arity/lookback as detail and the manifest sentence as info', async () => {
+    const sma = (await complete('sm')).options.find((o) => o.label === 'sma')
+    const entry = TABLE.functions.sma
+    expect(sma.type).toBe('function')
+    expect(sma.detail).toBe(detailFor('sma'))
+    // ⭐ `{0}`/`{1}` ARE THE MANIFEST'S OWN ARGUMENT POSITIONS and they are filled
+    // with the manifest's own role names. Pinned as a PROPERTY rather than as the
+    // rendered sentence: a literal here would be a hand copy of a string W2a owns,
+    // and would red on a rewording that broke nothing.
+    expect(entry.sentence, 'sma declares no positional sentence — this case measured nothing').toMatch(/\{\d+\}/)
+    expect(sma.info).not.toMatch(/\{\d+\}/)
+    for (const role of entry.argRoles) expect(sma.info, role).toContain(role)
+  })
+
+  it('⭐ a lookback REFERENCE is resolved to the role it names — the manifest writes `arg1`, a member reads `period`', async () => {
+    // 28 of 50 functions declare their lookback as a REFERENCE to an argument, so
+    // printing it verbatim put `lookback arg1` in a member-facing popup — `sma`
+    // included, the first name anyone types. Resolved with `parse.js`'s OWN
+    // `LOOKBACK_RE` (which `lint.js` uses under the alias `ARG_REF`, reading the
+    // index 0-based at `argNodes[Number(m[2])]`), never a second pattern.
+    let referenced = 0
+    for (const [name, entry] of Object.entries(TABLE.functions)) {
+      const m = LOOKBACK_RE.exec(String(entry.lookback))
+      if (!m) continue
+      referenced += 1
+      const option = tableOptions(TABLE).find((o) => o.label === name)
+      const role = entry.argRoles[Number(m[2])]
+      expect(role, `${name} declares ${entry.lookback} and names no role for it`).toBeTypeOf('string')
+      // the reference itself never survives into what the member reads…
+      expect(option.detail, name).not.toMatch(/\barg\d+\b/)
+      // …and the multiplier the manifest wrote is kept, not silently dropped.
+      expect(option.detail, name).toContain(m[1] === undefined ? `lookback ${role}` : `lookback ${m[1]}*${role}`)
+    }
+    expect(referenced, 'no function declares an argN lookback — this case measured nothing').toBeGreaterThan(0)
+    // CONTROL: a lookback that is already a NUMBER is printed as written.
+    const plain = Object.entries(TABLE.functions).find(([, e]) => !LOOKBACK_RE.test(String(e.lookback)))
+    expect(plain, 'every function uses a reference — the control arm measured nothing').toBeTruthy()
+    const opt = tableOptions(TABLE).find((o) => o.label === plain[0])
+    expect(opt.detail).toContain(`lookback ${plain[1].lookback}`)
+    // and the one everybody types reads in English
+    const sma = (await complete('sm')).options.find((o) => o.label === 'sma')
+    expect(sma.detail).toBe('(source, period) · lookback period')
+  })
+
+  it('⛔ no offered sentence keeps an unfilled position — swept over the whole table', async () => {
+    let positional = 0
+    for (const option of tableOptions(TABLE)) {
+      if (typeof option.info !== 'string') continue
+      expect(option.info, option.label).not.toMatch(/\{\d+\}/)
+    }
+    for (const entry of Object.values(TABLE.functions)) {
+      if (typeof entry.sentence === 'string' && /\{\d+\}/.test(entry.sentence)) positional += 1
+    }
+    expect(positional, 'no manifest sentence carries a position — the sweep proved nothing').toBeGreaterThan(0)
+  })
+
+  it('a series and a scalar carry their own kind', async () => {
+    const close = (await complete('c')).options.find((o) => o.label === 'close')
+    expect(close).toMatchObject({ type: 'variable', detail: 'series', info: TABLE.series.close.doc })
+    const cap = (await complete('market')).options.find((o) => o.label === 'market_cap')
+    expect(cap).toMatchObject({
+      type: 'property', detail: `scalar · ${TABLE.scalars.market_cap.cadence}`, info: TABLE.scalars.market_cap.sentence,
+    })
+  })
+
+  it('⛔ the option set IS the editor vocabulary — the same names it COLOURS, pinned both ways', () => {
+    // ⭐ THE ORACLE IS THE TOKENIZER, and BOTH SIDES NOW DERIVE THE SAME WAY.
+    // Offering a name the editor paints as an error — or painting one it offers —
+    // is the defect this pins. `vocabularyOf` used to read five section names as
+    // LITERALS while `tableOptions` walked every section, so a SIXTH name-bearing
+    // section would have been offered and painted `tags.invalid` at the same time;
+    // this case would have caught it, but as a tripwire on a divergence rather
+    // than the symmetry it claims. Both are shape-reads now, so a new section
+    // genuinely lands on both at once.
+    const offered = tableOptions(TABLE).map((o) => o.label).sort()
+    const coloured = [...new Set([
+      ...FORMULA_VOCAB.functions, ...FORMULA_VOCAB.columns, ...FORMULA_VOCAB.scalars,
+    ])].sort()
+    expect(offered).toEqual(coloured)
+    // …and the claim is measured, not asserted: a planted sixth section reaches
+    // BOTH sides off the same table, with no edit to either module.
+    const sixth = { ...TABLE, omens: { nosuchomen: { lookback: 0, yields: 'num', sentence: 'a planted section' } } }
+    expect(tableOptions(sixth).map((o) => o.label)).toContain('nosuchomen')
+    expect(vocabularyOf(sixth).columns.has('nosuchomen')).toBe(true)
+    expect(offered.length, 'the manifest declares no names at all').toBeGreaterThan(0)
+    // ⛔ AND THE OPERATOR SECTION IS NOT IN IT: `&&` is a name nobody types as a
+    // word, and a completion list is a list of NAMES.
+    expect(Object.keys(TABLE.operators).length).toBeGreaterThan(0)
+    for (const op of Object.keys(TABLE.operators)) expect(offered).not.toContain(op)
+    for (const label of offered) expect(KEY_RE.test(label), label).toBe(true)
+  })
+
+  it('⛔ a v2 function declares a `cadence` TOO — and is still a call, not a fundamental', () => {
+    // The closed-table v2 contract: *"Every entry carries `yields`, `lookback`,
+    // `sentence`, and (functions) `cadence`"*. Nothing declares both YET, so this
+    // plants the shape that is coming: read `cadence` before `args` and all fifty
+    // calls silently become `scalar · nightly`, with no refusal anywhere to say so.
+    // ⚠️ SCOPED TO THE ONE ENTRY THE PLANT PERTURBS. A count over the whole section
+    // would be a pin against a manifest W2a is moving — and it would go red the day
+    // the very contract this case anticipates lands, which is the day it should pass.
+    expect(TABLE.functions.sma.cadence,
+      'sma already declares cadence — the plant below is no longer a plant').toBeUndefined()
+    const planted = tableOptions({
+      ...TABLE,
+      functions: { ...TABLE.functions, sma: { ...TABLE.functions.sma, cadence: 'nightly' } },
+    })
+    const sma = planted.find((o) => o.label === 'sma')
+    expect(sma.type).toBe('function')
+    expect(sma.detail).toBe(detailFor('sma'))
+  })
+
+  it('⭐ a section the manifest gains later is offered the day it lands — read by shape, never typed', () => {
+    const planted = tableOptions({
+      ...TABLE,
+      clock: { ...(TABLE.clock || {}), nosuchclock: { lookback: 0, yields: 'num', sentence: 'a planted clock read' } },
+    })
+    const it0 = planted.find((o) => o.label === 'nosuchclock')
+    expect(it0).toMatchObject({ type: 'variable', detail: 'clock', info: 'a planted clock read' })
+    // CONTROL: the same name, the same function, without the perturbation.
+    expect(tableOptions(TABLE).find((o) => o.label === 'nosuchclock')).toBeUndefined()
+  })
+})
+
+describe('the member half', () => {
+  it('a declared input appears; the same name undeclared does not', async () => {
+    const scope = declaredInputs({ inputs: [{ key: 'period', type: 'int', default: 14 }] })
+    expect(labels(await complete('per', { inputs: scope }))).toContain('period')
+    expect(labels(await complete('per'))).not.toContain('period')
+    const period = (await complete('per', { inputs: scope })).options.find((o) => o.label === 'period')
+    expect(period).toMatchObject({ type: 'variable', detail: 'input' })
+    expect(inputOptions(undefined)).toEqual([])
+  })
+
+  it('a `let` name found in the buffer is offered, with its kind', async () => {
+    const doc = 'let fast = sma(close, 10)\nlet slow = sma(close, 30)\nfa'
+    expect(letNames(doc)).toEqual(['fast', 'slow'])
+    const fast = (await complete(doc)).options.find((o) => o.label === 'fast')
+    expect(fast).toMatchObject({ type: 'variable', detail: 'let' })
+    expect(labels(await complete(doc))).not.toContain('slow')
+  })
+
+  it('⛔ the `let` names come from letPrepass — the ONE module that owns the grammar', () => {
+    const doc = 'let fast = sma(close, 10)\nlet slow = fast * 2\nslow'
+    // The authority's own answer, taken a different way.
+    expect(prepareSource(doc).bindings.map((b) => b.name)).toEqual(letNames(doc))
+    expect(letBindings(doc)).toEqual([{ name: 'fast', line: 1 }, { name: 'slow', line: 2 }])
+    // ⛔ A NAME THE GRAMMAR REFUSES IS NOT A BINDING. `close` is a closed-table
+    // name, so `let close = …` is `let:shadow` — a regex scanning for `^\s*let\s+(\w+)`
+    // would offer it and the editor would then paint the very line that refuses.
+    expect(prepareSource('let close = high\nclose').guard).toBe('let:shadow')
+    expect(letNames('let close = high\nclose')).toEqual([])
+  })
+
+  it('⛔⛔ the declared inputs go TO the grammar — absent is not empty, and a shadowed binding is not offered twice', async () => {
+    const scope = declaredInputs({ inputs: [{ key: 'period', type: 'int', default: 14 }] })
+    const doc = 'let period = 5\nsma(close, per'
+    // `prepareSource`'s own docblock: a caller that omits the scope has the
+    // input-shadow gate short-circuited to an empty Set. This module KNOWS the
+    // inputs, so omitting them asked the grammar a question with the answer removed.
+    expect(prepareSource(doc).ok, 'the scope no longer changes the verdict — this case measured nothing').toBe(true)
+    expect(prepareSource(doc, scope).guard).toBe('let:shadow')
+    expect(letNames(doc)).toEqual(['period'])
+    expect(letNames(doc, scope)).toEqual([])
+    // …and the popup: `period` appears ONCE, as the input it really is — never
+    // again as a `let` describing a binding the save gate refuses.
+    const got = (await complete(doc, { inputs: scope })).options.filter((o) => o.label === 'period')
+    expect(got).toEqual([{ label: 'period', type: 'variable', detail: 'input' }])
+  })
+
+  it('⭐ a buffer still being typed keeps its bindings — the expression line is not there YET', () => {
+    // The commonest mid-type state: the bindings are written, the expression is not.
+    // `prepareSource` refuses that source ("the last line must be the expression"),
+    // which is the right answer for a SAVE and the wrong one for a caret. The retry
+    // supplies the missing expression and asks the SAME grammar again — it never
+    // second-guesses what binds.
+    expect(prepareSource('let fast = sma(close, 10)\n').ok).toBe(false)
+    expect(letNames('let fast = sma(close, 10)\n')).toEqual(['fast'])
+    expect(letNames('let fast = sma(close, 10)\nlet slow = fa')).toEqual(['fast', 'slow'])
+    // …and a genuinely malformed `let` still binds nothing, rather than the retry
+    // inventing a name out of half a line.
+    expect(letNames('let fast')).toEqual([])
+    expect(letNames('let 1bad = 2\nclose')).toEqual([])
+  })
+
+  it('⛔ a binding does not complete ITSELF on the line that declares it', async () => {
+    const doc = 'let fast = sma(close, 10)\nlet slow = fa'
+    // caret at the end of line 2, inside `let slow = fa` — `fast` is in scope here,
+    // `slow` is not (the grammar refuses a binding bound to itself).
+    const got = labels(await complete(doc))
+    expect(got).toContain('fast')
+    expect(got).not.toContain('slow')
+    // and on its OWN name, the same binding is still not offered
+    const onName = labels(await complete('let fast = sma(close, 10)\nclose', { pos: 8 }))
+    expect(onName).not.toContain('fast')
+  })
+
+  it('nothing is offered with no word under the caret unless asked explicitly', async () => {
+    expect(await complete('sma(close, ')).toBe(null)
+    expect(labels(await complete('sma(close, ', { explicit: true }))).toContain('close')
+  })
+
+  it('the three sources land in ONE list and each keeps its own kind', async () => {
+    const scope = declaredInputs({ inputs: [{ key: 'span', type: 'int', default: 14 }] })
+    const doc = 'let sTop = high\nsm'
+    const res = await complete(doc, { inputs: scope, pos: doc.length })
+    const kinds = Object.fromEntries(res.options.map((o) => [o.label, o.detail]))
+    expect(kinds.sma).toBe(detailFor('sma'))
+    const all = await complete('let sTop = high\ns', { inputs: scope, pos: 'let sTop = high\ns'.length })
+    const byLabel = Object.fromEntries(all.options.map((o) => [o.label, o.detail]))
+    expect(byLabel.sma).toBeTypeOf('string')
+    expect(byLabel.span).toBe('input')
+    expect(byLabel.sTop).toBe('let')
+    expect(all.from).toBe('let sTop = high\n'.length)
+    expect(all.validFor.test('close')).toBe(true)
+    expect(all.validFor.test('close(')).toBe(false)
+  })
+})

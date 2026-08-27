@@ -5,10 +5,12 @@ Lives in services/ (not main.py) so the worker service can import it
 without dragging in FastAPI."""
 import os
 import json
+import logging
 import shutil
-import sqlite3
 import threading
 import time as _time
+
+_log = logging.getLogger(__name__)
 
 
 # ── Prewarmer liveness heartbeat ─────────────────────────────────────────────
@@ -329,6 +331,63 @@ def run_prewarmer_supervised():
             backoff = min(backoff * 2, 300)
 
 
+def _collect_watchlist_and_tag_tickers() -> set:
+    """Every symbol a member is actually tracking: distinct, upper-cased `sym`
+    across auth.db's `watchlist_items` and `ticker_tags`.
+
+    X24, found 2026-08-26 and live for as long as this code has existed: this
+    imported `auth_db.get_db_path`, a name that has NEVER existed there (the
+    module's only public door is `get_connection`; the path lives in a private
+    `_DB_PATH`). The resulting ImportError was swallowed by a bare
+    `except Exception: pass` wrapped around the WHOLE block, so the worker
+    prewarm ring never once read a watchlist or a ticker tag -- charts for the
+    symbols members actually watch have been colder than intended, silently.
+
+    ⛔ AND IT WAS NEVER ONE FILE. An AST sweep of `api/` for names imported
+    from `auth_db` that do not exist found THREE, in three spellings, so a grep
+    for any one of them finds at most two:
+        bars_prewarm.py      `from ... import get_db_path`   (this file)
+        deep_history_warm.py `from ... import get_db_path`
+        call_recap_warmer.py `auth_db.get_conn`
+    The rail that makes the class impossible is `tests/test_auth_db_names_are_real.py`,
+    which derives the question from the module rather than from a name.
+
+    `get_connection()` is the knowing side: fresh connection per call,
+    `row_factory=sqlite3.Row`, both PRAGMAs already decided there. Its
+    `timeout=3` was tuned for auth.db's spot on the UNIVERSAL REQUEST path
+    (2026-07-01 524-outage hardening); this runs on the WORKER, once per
+    prewarm cycle, never under per-request load, so inheriting 3s is generous
+    and safe -- but it is someone else's number, tuned for a different reason.
+
+    A dead import/attribute/name here is a PROGRAMMING ERROR -- literally how
+    X24 hid -- and is logged loudly. A missing table or a momentarily-locked
+    auth.db is a RUNTIME CONDITION (auth.db lives on another service's volume)
+    and stays swallowed quietly: the prewarm loop must never crash the worker
+    over it.
+    """
+    out: set = set()
+    try:
+        from api.services.auth_db import get_connection
+        db = get_connection()
+    except (ImportError, AttributeError, NameError, TypeError):
+        _log.exception("[prewarm] auth.db door is broken -- watchlists NOT read")
+        return out
+    except Exception as exc:                                       # noqa: BLE001
+        _log.debug("[prewarm] auth.db unavailable: %s", exc)
+        return out
+    try:
+        for tbl, col in (("watchlist_items", "sym"), ("ticker_tags", "sym")):
+            try:
+                for (sym,) in db.execute(f"SELECT DISTINCT {col} FROM {tbl}"):
+                    if sym:
+                        out.add(sym.upper().strip())
+            except Exception as exc:                               # noqa: BLE001
+                _log.debug("[prewarm] %s unreadable: %s", tbl, exc)
+    finally:
+        db.close()
+    return out
+
+
 def run_prewarmer_forever():
     """Entry point: blocks forever, refreshing the cache every 5 minutes.
 
@@ -396,19 +455,7 @@ def run_prewarmer_forever():
                     if sym: tickers.add(sym.upper())
     except Exception:
         pass
-    try:
-        from api.services.auth_db import get_db_path
-        db = sqlite3.connect(get_db_path())
-        for tbl, col in [("watchlist_items", "sym"), ("ticker_tags", "sym")]:
-            try:
-                rows = db.execute(f"SELECT DISTINCT {col} FROM {tbl}").fetchall()
-                for (sym,) in rows:
-                    if sym: tickers.add(sym.upper())
-            except Exception:
-                pass
-        db.close()
-    except Exception:
-        pass
+    tickers.update(_collect_watchlist_and_tag_tickers())
     # Snapshot the ACTIVE set (what users actually navigate from: priority
     # + wire/UCT20/candidates/earnings + watchlists + tags) BEFORE the
     # cap_universe bulk-add. Heavy intraday warming is scoped to this set

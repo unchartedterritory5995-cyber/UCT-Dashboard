@@ -83,13 +83,24 @@ def _fetch_finviz_market() -> list[dict]:
 # ── Store ────────────────────────────────────────────────────────────────────
 
 def _resolve_db_path() -> str:
-    override = os.environ.get("SSETF_DB_PATH")
-    if override:
-        return override
+    """`SSETF_DB_PATH` wins; else the shared volume; else repo-relative.
+
+    ⭐ SHAPE, NOT DESTINATION. The shared-volume literal is now the env
+    read's DEFAULT instead of a bare `return` one statement later. That is
+    the one shape `conftest.shared_data_root_census` pairs on its own
+    (derivation A, which needs no shared word), so this path is pinned by
+    DERIVATION rather than by a hand-written `EXPLICIT_ENV_PINS` entry.
+    Unset, both branches return exactly the strings the two-statement
+    version returned. The one behavioural delta is deliberate and matches
+    every other pinned path in this repo (`WIRE_DATA_FILE`,
+    `DESK_PHOTO_DIR`, `DORMANT_TICKERS_PATH`): `SSETF_DB_PATH=""` is now an
+    empty override rather than a silent fall-through to the default.
+    """
     if os.path.isdir("/data"):
-        return "/data/single_stock_etfs.db"
+        return os.environ.get("SSETF_DB_PATH", "/data/single_stock_etfs.db")
     here = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-    return os.path.join(here, "single_stock_etfs.db")
+    return os.environ.get(
+        "SSETF_DB_PATH", os.path.join(here, "single_stock_etfs.db"))
 
 
 _WRITE_LOCK = threading.Lock()

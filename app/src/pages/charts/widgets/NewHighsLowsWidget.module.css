@@ -35,14 +35,14 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--ut-gold);   /* UCT gold, like the watchlist's list title */
+  color: var(--nh-text, var(--wl-text, var(--text-bright)));   /* neutral, theme-adaptive (was UCT gold) */
   white-space: nowrap;
 }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wl-text, var(--text-muted)); flex-shrink: 0; }
-.liveOn { color: var(--ut-gold); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--nh-text, var(--wl-text, var(--text-muted))); flex-shrink: 0; }
+.liveOn { color: var(--nh-text, var(--wl-text, var(--text-bright))); }
 .liveOn .dot {
-  background: var(--ut-gold);
-  box-shadow: 0 0 6px var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
+  background: var(--nh-text, var(--wl-text, var(--text-bright)));
+  box-shadow: 0 0 6px color-mix(in srgb, currentColor 40%, transparent);
   animation: nhnlPulse 2s ease-in-out infinite;
 }
 @keyframes nhnlPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }

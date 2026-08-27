@@ -262,6 +262,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           title="Volume Surge Settings"
           showLogos={showLogos}
           onToggleLogos={toggleLogos}
+          widgetType="volumescan"
         />
       )}
       {/* Toolbar: LIVE + time on the left, gear on the right, the scope pill CENTERED

@@ -68,7 +68,12 @@ _OVERLAID_KEY = "theme_performance_overlaid"
 _MAX_WORKERS = 6          # conservative — keeps Railway memory safe
 _BAR_DAYS = 420           # ~14 months → ≥252 trading days for 1Y
 _EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
-_PERSIST_FILE = "/data/theme_performance.json"
+# `THEME_PERFORMANCE_FILE` is the override; its DEFAULT is the literal that
+# has always been here, so production with nothing set is unchanged. This
+# one is why the override matters at all: the background compute kicks off
+# on boot, so merely STARTING a local backend used to write here.
+_PERSIST_FILE = os.environ.get(
+    "THEME_PERFORMANCE_FILE", "/data/theme_performance.json")
 
 # Background computation state
 _computing = False

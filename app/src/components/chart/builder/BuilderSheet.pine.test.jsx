@@ -58,7 +58,12 @@ function mount() {
 }
 
 const formulaField = () => screen.getByLabelText('Formula')
-const pineField = () => screen.getByLabelText('Pine script')
+// ⏳ HAND-BACK (W3.7): the box became `ImportBox` and its aria-label now names
+// every dialect it reads, so the field is found by TESTID — which is what
+// `pine-box` always meant ("the paste box"), not "the Pine box". Every other
+// assertion in this file is byte-identical: the Pine door behaves exactly as it
+// did, which is the point of asserting it here.
+const pineField = () => screen.getByTestId('pine-box').querySelector('textarea')
 
 /** ⚠️ `getByRole`, NEVER `findByRole` — `findBy*` schedules a real-timer
  *  `waitFor` and this file runs under fake timers to drive both debounces. */
@@ -75,7 +80,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^pine$/i))
+  fireEvent.click(tab(/^import$/i))
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -112,7 +117,7 @@ describe('the Pine door is reachable from the builder', () => {
   it('a Pine tab exists beside the other three', async () => {
     mount()
     await flush()
-    expect(tab(/^pine$/i)).toBeTruthy()
+    expect(tab(/^import$/i)).toBeTruthy()
     expect(tab(/library/i)).toBeTruthy()
     expect(tab(/conditions/i)).toBeTruthy()
     expect(tab(/formula/i)).toBeTruthy()
@@ -122,7 +127,7 @@ describe('the Pine door is reachable from the builder', () => {
     mount()
     await flush()
     expect(screen.queryByTestId('pine-box')).toBe(null)
-    fireEvent.click(tab(/^pine$/i))
+    fireEvent.click(tab(/^import$/i))
     expect(screen.getByTestId('pine-box')).toBeTruthy()
     expect(pineField()).toBeTruthy()
   })

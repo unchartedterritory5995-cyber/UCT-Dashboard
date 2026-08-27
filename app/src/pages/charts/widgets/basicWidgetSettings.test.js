@@ -45,8 +45,13 @@ describe('AI-search resolution: legacy blob falls through to the theme default',
   const resolve = (saved, theme) =>
     mergeBasicWidgetSettings((isLegacyBasicLightDefault(saved) ? null : saved) ?? basicDefaultsForTheme(theme))
 
-  it('OLED + legacy blob → dark canvas (the fix)', () => {
-    expect(resolve(legacy, 'oled').bg).toBe('#0e0f0d')
+  it('OLED + legacy blob → the theme default dark canvas (the fix)', () => {
+    // Falls through to the app-theme-matched default (OLED → obsidian near-black),
+    // NOT the legacy white. Assert against the theme default so it stays robust to
+    // the exact matched hex.
+    const bg = resolve(legacy, 'oled').bg
+    expect(bg).toBe(basicDefaultsForTheme('oled').bg)
+    expect(bg).not.toBe('#ffffff')
   })
 
   it('light theme + legacy blob → white canvas (unchanged for light users)', () => {

@@ -840,3 +840,155 @@ def test_a_declared_FORWARD_reach_still_reads_as_one_through_an_offset():
     assert reach["forward"] == 5
     assert reach["back"] == 2
     assert al.lint_repaint(tree, {"table": table})["mode"] == "preview-repaints"
+
+
+# ─── the clock, linted — the window comes from the MANIFEST ─────────────────
+#
+# ⛔ THESE RAILS EXIST BECAUSE THE BRANCH SHIPPED WITHOUT ONE. ``ast_reach`` gained
+# a clock arm with closed table v2 and no test in this file named a clock entry, so
+# deleting the arm kept every suite green —
+# ``lesson_built_tested_green_and_unreachable``.
+
+def test_every_clock_leaf_is_bounded_by_ITS_OWN_declared_lookback():
+    from api.services import ast_table
+
+    declared = ast_table.TABLE[ast_table.CLOCK_SECTION]
+    assert declared, "no clock section — this rail would be vacuous"
+    for name, spec in sorted(declared.items()):
+        reach = al.ast_reach({"type": "series", "name": name})
+        assert reach["back"] == spec["lookback"], (
+            f"{name}: linter says back={reach['back']}, the manifest declares "
+            f"lookback={spec['lookback']}")
+        assert reach["forward"] == 0, f"{name} claims to read a later bar"
+        assert reach["reasons"] == [], f"{name} was unanalysable"
+
+
+def test_ONE_clock_entry_has_a_REAL_window_or_the_rail_above_proves_nothing():
+    """``sessionfirst`` compares this bar's ET day against the PREVIOUS bar's, so
+    it is a function of two bars exactly as ``change(close)`` is. It declared
+    ``lookback: 0`` until 2026-08-26 and the linter hardcoded a matching zero —
+    two authorities agreeing on one false statement, which is why a rail that only
+    checked ``back == lookback`` could not have caught it."""
+    from api.services import ast_table
+
+    windowed = sorted(n for n, s in ast_table.TABLE[ast_table.CLOCK_SECTION].items()
+                      if s["lookback"] > 0)
+    assert windowed == ["sessionfirst"], windowed
+    assert al.max_lookback({"type": "series", "name": "sessionfirst"}) == 1
+    # …and it agrees with the FUNCTION that reads exactly the same history.
+    change_tree = {"type": "call", "name": "change",
+                   "args": [{"type": "series", "name": "close"}]}
+    assert al.max_lookback(change_tree) == al.max_lookback(
+        {"type": "series", "name": "sessionfirst"})
+
+
+def test_a_PLANTED_clock_entry_with_a_three_bar_window_is_bounded_at_three():
+    """The derivation is real: the linter reads the manifest rather than knowing
+    thirteen names."""
+    from api.services import ast_table
+
+    table = dict(ast_table.TABLE)
+    table[ast_table.CLOCK_SECTION] = dict(
+        table[ast_table.CLOCK_SECTION],
+        **{"zzPlantedWindow": {"lookback": 3, "yields": "num", "sentence": "planted"}})
+    reach = al.ast_reach({"type": "series", "name": "zzPlantedWindow"}, {"table": table})
+    assert (reach["back"], reach["forward"]) == (3, 0), reach
+    # THE CONTROL: without the plant the same name is unanalysable.
+    assert al.ast_reach({"type": "series", "name": "zzPlantedWindow"})["reasons"]
+
+
+def test_the_clock_branch_is_reached_on_the_MULTI_TREE_path_too_not_only_the_legacy_one():
+    """⛔ A RAIL THAT ONLY WALKS THE SINGLE-TREE PATH IS GREEN AND BLIND.
+
+    W1b's hand-back (``8bcb81382``) gave each plot its OWN tree:
+    ``lint_definition`` now lints ``compute.trees[plot_key]`` and falls back to
+    ``compute.ast`` only for a plot that has none. The rails above call
+    ``ast_reach`` directly — the walker BOTH paths funnel into — but "the walker
+    is right" and "the document door reaches the walker" are two claims, and this
+    is the second one on the path a v2 document actually takes.
+
+    ⭐ THE TWO PLOTS DISAGREE ON PURPose, and that is what makes it a measurement:
+    one tree is a bare clock leaf (window 0) and the other reads ``sessionfirst``
+    (window 1). A door that linted ONE tree under both plot keys would report the
+    same verdict twice and this fails; so would a walker that lost the clock arm,
+    because both rows would go ``repaints``.
+    """
+    from api.services import ast_table
+
+    scan_tree = {"type": "series", "name": "hour"}
+    defn = {
+        "id": "clock-multitree",
+        "compute": {
+            "kind": "ast",
+            "fn": "sha256:probe",
+            "ast": scan_tree,
+            "scanPlot": "now",
+            "trees": {"now": scan_tree, "opens": {"type": "series", "name": "sessionfirst"}},
+            "sources": {"now": "hour", "opens": "sessionfirst"},
+        },
+        "plots": [{"key": "now", "style": "line"}, {"key": "opens", "style": "markers"}],
+    }
+    rows = {r["plotKey"]: r for r in al.lint_definition(defn)["plots"]}
+    assert set(rows) == {"now", "opens"}, sorted(rows)
+    for key, row in rows.items():
+        assert row["mode"] == "non-repainting", (key, row)
+        assert row["decidability"] == "decided", (key, row)
+        assert row["reasons"], (key, row)
+
+    # ⛔ AND THE TWO ROWS ARE NOT THE SAME MEASUREMENT — read off the DOOR'S OWN
+    # reported window, not re-derived here. `sessionfirst` declares one bar and
+    # `hour` declares none, so a door reading ONE tree for both plots (the defect
+    # the hand-back fixed) reports equal `back` here, and a walker that lost the
+    # clock arm reports `unknown` for both.
+    assert rows["opens"]["back"] == 1, rows["opens"]
+    assert rows["now"]["back"] == 0, rows["now"]
+    assert rows["opens"]["forward"] == 0 and rows["now"]["forward"] == 0
+
+    # …and the window the door reports is the MANIFEST's, so the two lanes and the
+    # two paths are all reading one declaration.
+    assert ast_table.TABLE[ast_table.CLOCK_SECTION]["sessionfirst"]["lookback"] == 1
+
+
+# ── X51: the frozen manifest must lint identically to the plain-dict one ──────
+#
+# ⛔ `ast_table.TABLE` is a DEEP-FROZEN `mappingproxy`, which is NOT a `dict`.
+# `_own_window` opened with `isinstance(spec, dict)`, so passing the frozen
+# manifest as `opts["table"]` -- the obvious thing to pass, since it IS the
+# manifest object -- made every entry unanalysable and every tree `repaints`.
+#
+# ⚠️ It failed CONSERVATIVELY, which is what kept it invisible: refusals
+# everywhere, no wrong values, no crash. It reads as a careful linter rather
+# than a blind one. The shipped default was never wrong (`ast_lint.TABLE` is its
+# own plain dict), so nothing in the suite could see it -- the trap was one
+# caller away, and the caller it was waiting for is the natural one.
+
+
+def test_the_FROZEN_manifest_lints_identically_to_the_plain_dict_one():
+    """The verdict must not depend on which Mapping flavour holds the manifest.
+
+    ⭐ This asserts AGREEMENT rather than a hardcoded verdict on purpose: pinning
+    "sma is non-repainting" would still pass if BOTH readings broke together,
+    and the defect this rail exists for is exactly one reading diverging from
+    the other."""
+    from api.services import ast_table
+
+    tree = {"type": "call", "name": "sma",
+            "args": [{"type": "series", "name": "close"},
+                     {"type": "num", "value": 20}]}
+
+    default = al.lint_repaint(tree)
+    frozen = al.lint_repaint(tree, {"table": ast_table.TABLE})
+
+    # the control: the frozen manifest really is NOT a dict, so this rail is
+    # exercising the thing it claims to. Without this, a future `TABLE` that
+    # became a plain dict would make the test pass while proving nothing.
+    assert not isinstance(ast_table.TABLE, dict), (
+        "ast_table.TABLE is no longer a mappingproxy -- this rail has stopped "
+        "testing anything and must be re-pointed at whatever is frozen now")
+
+    assert frozen == default, (
+        "the frozen manifest lints differently from the plain-dict one: "
+        f"frozen={frozen} default={default} -- `_own_window` (and anything else "
+        "reading a manifest entry) must test `Mapping`, never `dict`")
+    assert default["mode"] == "non-repainting" and default["back"] == 20, (
+        f"the shipped default itself moved: {default}")

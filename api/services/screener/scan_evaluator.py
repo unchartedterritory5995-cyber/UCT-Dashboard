@@ -109,8 +109,22 @@ billing.
 `ast_interpret.unresolved_scalars(tree, row)` is called and the symbol is DROPPED
 FROM EVALUATION BEFORE `interpret` ever sees it, because E-1 measured that
 `interpret(market_cap > 1e9)` on a symbol with **no market cap returns `0.0`, not
-`None`** -- `_cmp` answers 0 against NaN, and that rule is pinned by 17 frozen
-conformance digests, so it is not changing. Without this call *"failed the filter"*
+`None`** -- `_cmp` answers 0 against NaN, and that rule is pinned by the frozen
+cross-lane conformance digests.
+
+⚠ THE COST OF CHANGING IT IS MEASURED, NOT FEARED, AND THE OLD NUMBER HERE
+WAS WRONG. This sentence used to read "17 frozen conformance digests, so it is
+not changing". The log holds far more than 17, and only a handful actually move
+if `_cmp` propagates NaN -- a fraction of one percent of rows, and the visible
+change is exactly the warm-up prefix. The count is deliberately not restated
+here: re-derive it from `tests/fixtures/ast/conformance_log.json` before
+quoting a cost. A wrong cost estimate that discourages a cheap fix is its own
+defect class.
+
+⛔ The rule still stands, for a better reason than the number: `_cmp` answering
+0 against NaN is CORRECT for a bar warm-up (the crossing did not happen), and
+the member-facing hole it opened at the leaf is closed by asking the question
+BEFORE evaluating (`unresolved_inputs`), not by changing what a warm-up means. Without this call *"failed the filter"*
 and *"we had no data"* are the same value at the top of the tree, and at universe
 scale that is a screen silently dropping symbols and looking like a quiet market.
 """
@@ -143,11 +157,26 @@ log = logging.getLogger(__name__)
 
 #: Why a WHOLE RUN refused. Closed, like `scan_definition.GATES`, so a caller can
 #: branch on it and know the branch list is finite.
-RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe")
+#:
+#: ⭐ THE LAST TWO ARE THE LIVE MODE'S, AND BOTH ARE FACTS ABOUT THE WHOLE RUN
+#: rather than about any symbol: `tf` — the live sweep evaluates the daily
+#: timeframe only in Wave 1 — and `cadence`, a tree whose scalars declare a
+#: NIGHTLY ceiling, which no schedule can lift (`cadence_ceiling`).
+RUN_GATES = ("snapshot-stale", "no-definition", "not-scannable", "no-universe",
+             "tf", "cadence")
 
 #: Why ONE symbol was tried and failed. Each is a fact about that symbol, and
 #: every one of them is re-runnable: fix the bars, rebuild the snapshot, run again.
-DROP_REASONS = ("no-bars", "stale-bars", "no-screener-row", "refused")
+#:
+#:   no-live-quote -- the feed refused this symbol; `detail` carries one of
+#:                    `live_tier.SKIP_REASONS` VERBATIM rather than a second
+#:                    spelling of it. ⛔ THAT TUPLE'S WORDS ARE NOT RE-TYPED HERE:
+#:                    that tuple is the declaration, this is a pointer to it, and
+#:                    `test_a_quote_the_live_tier_would_refuse_is_refused_HERE_
+#:                    with_ITS_reason` asserts the forwarded word is a MEMBER of
+#:                    it. Re-runnable NEXT TICK -- five minutes, not tonight,
+#:                    which is what makes it a drop and not a refusal.
+DROP_REASONS = ("no-bars", "stale-bars", "no-screener-row", "refused", "no-live-quote")
 
 #: ⛔ ITS OWN BUCKET, controller resolution 5. "We could not compute it at the last
 #: confirmed bar" is not "something broke", and a member reading one number for
@@ -214,6 +243,31 @@ SWEEP_MINUTE_ET = 0
 #: timeframe is accepted the day the map declares it.
 DEFAULT_TF = "D"
 
+#: The three ways `evaluate_one` may be asked to run — ONE parameter, the single
+#: authority over what a run WRITES (contract ruling 8/25, lane W4a.1). ⛔ CLOSED,
+#: like `RUN_GATES`: a caller branches on it, and a mode nobody declared refuses
+#: rather than quietly behaving as one of these.
+#:
+#:   nightly    the sweep. Files `scan_hits`, `scan_coverage` and the rule record.
+#:   live       the five-minute intraday cycle (spec §5.5, lane W4b.3). Evaluates
+#:              on the FORMING bar and writes `scan_hits_live` — and only that.
+#:              ⛔⛔ NEVER A NIGHTLY TABLE. A forming-bar answer filed into
+#:              `scan_coverage` would record it as that session's CLOSED-bar
+#:              coverage: a second authority over what this session's screen said,
+#:              which is the exact defect the two-table split exists to prevent.
+#:              The rail is `tests/test_scan_live_sweep.py::test_NO_function_
+#:              reachable_under_mode_LIVE_calls_a_NIGHTLY_WRITER`, whose offender
+#:              set is DERIVED from `scan_store`'s and `definition_record`'s own
+#:              table constants and which carries a planted-offender control.
+#:   on-demand  a member's run-now (W4a, spec §5.5): the SAME loop, the SAME four
+#:              outcomes, the SAME hash — and NOTHING written.
+MODES = ("nightly", "live", "on-demand")
+NIGHTLY, LIVE, ON_DEMAND = MODES
+
+#: The name lane W4a shipped, pointing at the SAME OBJECT rather than re-typed.
+#: Two tuples spelling one closed set is two things to keep true.
+EVALUATE_MODES = MODES
+
 #: ⏰ THE ONLY NUMBER THE BUDGET DECLARES — how long before the regular session
 #: opens the sweep must have stopped starting definitions. ⛔ THE OPEN ITSELF IS
 #: NOT A NUMBER HERE: `market_open_et` derives it from the bars store's own
@@ -229,6 +283,64 @@ DEFAULT_TF = "D"
 #: worst case, which is the right shape of margin for a bound whose whole job is
 #: to be wrong in the safe direction.
 SWEEP_STOP_BEFORE_OPEN = datetime.timedelta(minutes=30)
+
+#: ⏰ THE REGULAR SESSION'S LENGTH, DECLARED ONCE — the live cycle's window is
+#: `market_open_et(day)` (DERIVED from the bars store's own anchor) through that
+#: open PLUS this, half-open at both ends.
+#:
+#: ⚠️ THE REPO ALREADY TYPES 16:00 IN TWO PLACES — `massive._detect_session` and
+#: `bars_fetch._is_market_open` — and neither is called here, because each reads
+#: its OWN clock and this module has exactly one (`_now_et`). Two clocks would put
+#: a cycle inside the session by one and outside it by the other at the boundary
+#: minute. `test_the_live_window_AGREES_with_bars_fetch_is_market_open_at_BOTH_
+#: boundaries` drives the other one's clock to the same four instants and demands
+#: the same answer, so the three stay consistent without a second authority.
+REGULAR_SESSION_LENGTH = datetime.timedelta(hours=6, minutes=30)
+
+#: ⭐ THE MEASURED WORST CASE FOR ONE DEFINITION, ROUNDED UP. 42.4 s of compute
+#: for `close > sma(close,50)` over 3,742 symbols on this box, contended (module
+#: header). The live mode writes no rule record, so the audit's 19-26 s of
+#: first-sweep writes do not apply — 60 s is ~1.4x, which is the right shape of
+#: margin for a bound whose job is to be wrong in the safe direction.
+#: ⛔ IT IS SUBTRACTED FROM THE INTERVAL, NEVER ADDED TO A DEADLINE: the check is
+#: BETWEEN definitions, so a cycle overruns by at most one definition and the
+#: next tick must still find the slot free.
+LIVE_DEFINITION_WORST_CASE_S = 60
+
+#: Why a whole LIVE CYCLE did not sweep everything it was handed. ⛔ ITS OWN WORD,
+#: NOT `UNSWEPT_REASON`: "we ran out of the five-minute interval" and "we ran out
+#: of night" are different facts fixed by different actions, and one word for both
+#: would hide which bound fired.
+LIVE_UNSWEPT_REASON = "budget:live-interval"
+
+#: Every word a live cycle can answer `skipped_reason` with. Closed, like
+#: `RUN_GATES`: a caller branches on it, and a status surface that met a seventh
+#: word would have nothing to say about it.
+#:
+#:   disabled         the flag is off — and the cycle touched NO store to say so.
+#:   closed           outside the regular session (weekend, holiday, after hours).
+#:   build_in_flight  the 03:00 snapshot builder holds its lock; we stop BETWEEN
+#:                    definitions rather than contend with it.
+#:   no-definitions   nobody has a live scan. Not an error.
+#:   no-universe      the universe read came back empty — never sweep zero symbols
+#:                    and file the result.
+#:   budget           the wall clock ran out; the ones we did not reach are NAMED
+#:                    and lead the next cycle.
+#:   failed           the cycle DIED. ⛔ ITS OWN WORD, AND THE RECEIPT IS FILED
+#:                    BEFORE THE EXCEPTION LEAVES. A cycle that raised and wrote
+#:                    nothing is indistinguishable from a scheduler that never
+#:                    ran — which is the ONE reading `_finish_live` exists to keep
+#:                    impossible, and the raising paths are exactly the ones that
+#:                    would otherwise skip it. `receipt["failure"]` names the
+#:                    exception; the exception itself is RE-RAISED, never
+#:                    swallowed.
+LIVE_SKIP_REASONS = ("disabled", "closed", "build_in_flight", "no-definitions",
+                     "no-universe", "budget", "failed")
+
+#: The skip words that are WARNINGS rather than INFO — the ones that mean a cycle
+#: did less than it was asked to. ⛔ A SUBSET OF THE SET ABOVE, railed as one:
+#: a word here that is not a skip reason would be a warning nothing can ever emit.
+LIVE_WARNING_REASONS = ("budget", "build_in_flight", "failed")
 
 #: The exchange's clock. Every ET instant in this module comes from here.
 _ET = ZoneInfo("America/New_York")
@@ -382,6 +494,69 @@ def sweep_deadline(now: Optional[datetime.datetime] = None) -> datetime.datetime
     return market_open_et(now.date()) - SWEEP_STOP_BEFORE_OPEN
 
 
+def live_enabled() -> bool:
+    """`SCAN_LIVE_SWEEP_ENABLED`, default OFF, READ PER CALL.
+
+    ⭐ THE LIVE TIER'S IDIOM, AND THE REASON IS ROLLBACK: unset the variable and
+    the NEXT TICK answers `disabled` — no deploy, no rebuild, no code change. A
+    module-level capture would make the rollback need a restart, which is the one
+    thing you cannot count on having time for.
+    """
+    return os.environ.get("SCAN_LIVE_SWEEP_ENABLED", "0") == "1"
+
+
+def live_interval_s() -> int:
+    """The live cadence in seconds (`SCAN_LIVE_INTERVAL_S`, default 300).
+
+    Read at REGISTRATION by `main.py` — changing it needs a restart, the live
+    tier's documented trade — and again per cycle, because the BUDGET is derived
+    from it and a receipt should describe the interval it actually ran under.
+
+    ⛔ FLOORED AT 30 s. Below that the cycle spends more time starting than
+    sweeping and the snapshot itself is only 30 s fresh, so a smaller number buys
+    nothing and costs the pod everything. An unparseable value falls back rather
+    than raising: a scheduled job that dies on a typo'd env var is an outage.
+    """
+    try:
+        return max(30, int(float(os.environ.get("SCAN_LIVE_INTERVAL_S", "") or 300)))
+    except ValueError:
+        return 300
+
+
+def _live_cycle_budget_s() -> int:
+    """How long a cycle may keep STARTING definitions: the interval minus ONE
+    worst-case definition. Positive by construction while the floor above (30 s)
+    stays over `LIVE_DEFINITION_WORST_CASE_S`… which it does not — so the caller
+    treats a non-positive budget as "sweep one and stop", which the between-
+    definitions check already does on its own."""
+    return live_interval_s() - LIVE_DEFINITION_WORST_CASE_S
+
+
+def _live_session_state(now: datetime.datetime) -> Optional[str]:
+    """``None`` inside the regular session of a trading day, else ``"closed"``.
+
+    ⛔ BOTH ENDS ARE DERIVED. The open is `market_open_et` — the bars store's own
+    session anchor, the same one `sweep_deadline` reads — and the close is that
+    plus `REGULAR_SESSION_LENGTH`. Nothing here types 09:30 or 16:00.
+
+    ⛔ AND THE TRADING-DAY TEST IS THE BARS STORE'S HOLIDAY TABLE, not a second
+    calendar of this module's own: `market_open_et` answers 09:30 on a Saturday
+    (correctly — it is the clock-time open, not a session test), so the weekend
+    and the NYSE holiday walk have to be asked separately, and they are asked of
+    the module that already owns them.
+
+    ⚠️ HALF-OPEN: `open <= now < close`. A cycle firing AT 16:00 would read a
+    forming bar the exchange has already settled and file it as live.
+    """
+    from api.services import bars_fetch
+    if now.weekday() >= 5 or bars_fetch._is_nyse_holiday(int(now.strftime("%Y%m%d"))):
+        return "closed"
+    open_at = market_open_et(now.date())
+    if now < open_at or now >= open_at + REGULAR_SESSION_LENGTH:
+        return "closed"
+    return None
+
+
 def _assert_snapshot_is_current(as_of: int) -> str:
     """🔴 THE SCALARS COME FROM `screener_rows`, SO A STALE SNAPSHOT IS A SCREEN
     ANSWERING ON LAST MONTH'S FUNDAMENTALS UNDER TODAY'S DATE.
@@ -469,7 +644,7 @@ def _row_is_current(row: Optional[Mapping[str, Any]], as_of: int) -> bool:
     nightly build skipped keeps last month's fundamentals, and answering on them
     is a plausible, ranked, wrong answer for that symbol specifically. It is
     reported as `no-screener-row` -- for THIS session there is no row -- with the
-    stale date in the detail, because `DROP_REASONS` is a closed set and a fifth
+    stale date in the detail, because `DROP_REASONS` is a closed set and a NEW
     reason is not this task's to declare.
     """
     if not row:
@@ -514,6 +689,75 @@ def cadence_ceiling(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> Opti
     return "/".join(cadences) if cadences else None
 
 
+def _BAR_FIELD_OF(name: str) -> str:
+    """``closedTable.json::series[name].field`` — the ONE declaration of which bar
+    key a series reads. ``screener/backtest._bar_fields`` reads the same one.
+
+    ⛔ NOT A LOCAL ``{"close": "c"}``. A second copy of this map is the defect this
+    repo has paid for more than any other: it agrees on the day it is written and
+    rots silently the day the manifest grows a series. Reading the declaration
+    means a sixth series is covered here with no edit in this file.
+    """
+    from api.services.ast_lint import TABLE
+    return TABLE["series"][name]["field"]
+
+
+def _forming_bar_series(tree: Any) -> set:
+    """The table-declared BAR SERIES this tree reads AT OFFSET 0 — i.e. on the
+    forming bar.
+
+    ``close > sma(close, 20)`` reads `close` at 0 (a window ``[i-n, i]`` includes
+    ``i``); ``high[1] > high[2]`` reads nothing at 0 and is therefore answerable
+    from confirmed bars alone. Offsets COMPOSE along the path — the accumulated
+    sum decides, not the nearest node — and ``ast_interpret._offset_bars``
+    validates each one, so a hand-written blob spelling ``value: -26`` refuses
+    here exactly as it would in the interpreter rather than reading as 0.
+
+    ⛔ DERIVED FROM THE MANIFEST'S ``series`` SECTION, NEVER BY REGEX AND NEVER BY
+    HAND. A declared SCALAR rides the very same ``{"type": "series"}`` node —
+    ``market_cap`` is one — and it is not a bar field; membership in the section
+    is what tells the two apart. Clock entries (tableVersion 2) ride it too and
+    are likewise absent from that section, which is correct: they are not fields
+    the forming bar can be missing. Iterative, like ``ast_freshness._walk``: the
+    escape corpus carries an 8,001-node tree.
+
+    ⛔ ``isinstance(name, str)`` IS CHECKED, exactly as ``ast_freshness.scalars_in``
+    and ``series_in`` check it. This reads PERSISTED trees, which are user data
+    that never went through ``canonicalise``, and no upstream reader refuses a
+    non-string name: ``scalars_in`` returns an empty set for it, ``max_lookback``
+    returns 0. So ``{"type": "series", "name": {...}}`` reaches here, and without
+    the guard ``in`` raises ``TypeError: unhashable type`` — a RAISE, not a
+    refusal by name, from a module whose whole contract is to refuse by name.
+
+    ⚠️ CONSERVATIVE AT ONE ARGUMENT INDEX, DELIBERATELY. ``accum``'s SEED argument
+    is evaluated at bar ``i - warmup``, not at ``i``, so ``accum(close, self+1,
+    250)`` does not truly read ``close`` on the forming bar and this walk reports
+    it anyway — the accumulated sum decides everywhere EXCEPT there. The error is
+    in the safe direction: a caller refuses a field it could in fact have
+    computed, and never computes on a field the feed did not carry.
+    """
+    series_names = ast_freshness._sections(None)[0]
+    found: set = set()
+    stack = [(tree, 0)]
+    while stack:
+        node, off = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        if kind == "series":
+            name = node.get("name")
+            if off == 0 and isinstance(name, str) and name in series_names:
+                found.add(name)
+            continue
+        if kind == "offset":
+            child = (node.get("args") or [None])[0]
+            stack.append((child, off + ast_interpret._offset_bars(node)))
+            continue
+        for arg in node.get("args") or []:
+            stack.append((arg, off))
+    return found
+
+
 def _bars_are_current(sym: str, bars: Sequence[Mapping[str, Any]], as_of: int) -> bool:
     """⛔ A SCREEN OVER STALE BARS RETURNS A PLAUSIBLE, RANKED, WRONG ANSWER.
 
@@ -556,6 +800,107 @@ def _last_confirmed_index(bars: Sequence[Mapping[str, Any]],
         except (TypeError, ValueError):
             continue
     return None
+
+
+# --------------------------------------------------------------------------- #
+# the forming bar (spec 5.5) -- the ONLY thing the live mode reads that the
+# nightly mode does not
+# --------------------------------------------------------------------------- #
+
+#: The drop word for a symbol whose live quote the sanity owner refused.
+LIVE_DROP_REASON = "no-live-quote"
+
+#: The prefix of the per-FIELD not-computable detail. ⛔ NAMESPACED, and it names
+#: the FIELD: `live:forming-bar:high` tells a member WHICH input the feed did not
+#: carry. The whole bar failing because one of five fields is pre-open would throw
+#: away four fields that arrived.
+LIVE_NOT_COMPUTABLE_DETAIL = "live:forming-bar:"
+
+
+def live_bars_for(daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
+                  session: int, prev_session: Optional[int] = None) -> dict:
+    """The confirmed daily bars through `prev_session` PLUS today's forming bar
+    built from the shared snapshot -- or a refusal that names its reason.
+
+    ⛔ THERE IS NO `symbol` PARAMETER, AND ITS ABSENCE IS THE POINT (controller
+    ruling, W4b.2 review). W4b.2 declared one, unused; the obvious "use" would have
+    been to hand the symbol back inside the refusal so the caller could file the
+    drop under it. But the only caller is `evaluate_one`'s `for sym in kept:` loop,
+    which holds `sym` on the line above the call and files the drop with it on the
+    line below (`_unanswered(sym, got["reason"], ...)`). Returning it would be a
+    SECOND AUTHORITY OVER ONE VALUE -- two names for one string, whose disagreement
+    would be invisible -- which is this repo's most repeated defect. So the
+    parameter is gone rather than left to rot, and
+    `test_a_symbol_the_SANITY_OWNER_refuses_is_a_DROP_that_NAMES_the_symbol_and_the_reason`
+    pins that the drop record carries the symbol and the owner's word regardless.
+
+    ⛔ THE GATE IS `live_tier.sanity_reason`, REUSED, with the anchor SYNTHESISED
+    from the bars themselves (`{price: the last confirmed close, bars_asof: the
+    previous session}`). It reads nothing else off the anchor, so there is no
+    screener-row coupling to extract and no second copy of the rules to drift:
+    the live tier and the live sweep answer "is this quote usable" with one
+    function, and a gate added there is honoured here with no edit in this file.
+
+    A forming bar's `o/h/l` are the feed's `day_open/day_high/day_low` -- `None`
+    when the feed did not carry them, because `massive._px` maps the provider's 0
+    to `None` (a 0 there would sort and filter as a real price of zero). `c` is
+    `last_price` and is never `None`: `sanity_reason` has already refused a
+    non-positive one. `live_cols` counts the fields that arrived, which is what
+    lets a caller refuse PER FIELD instead of throwing the whole bar away.
+
+    ⛔⛔ `volume` IS THE ONE FIELD THAT CAN NEVER BE PER-FIELD-REFUSED, AND A
+    CALLER MUST KNOW THAT. `v` is `int(today_vol or 0)` -- an int, ALWAYS, never
+    `None` -- so a consumer deriving "which fields are missing" from
+    `forming[field] is None` (the only signal handed out here) can never emit
+    `live:forming-bar:volume`, even though `_forming_bar_series` can and does
+    return `volume`. The distinction was already gone upstream: `massive.py`
+    collapses an absent volume to 0 in the parse, so by the time a quote reaches
+    this function "no volume yet" and "zero shares traded" are one value. This is
+    the last place that could have separated them and it cannot. ⇒ a tree reading
+    `volume` at offset 0 computes on a 0 the feed may never have carried, and
+    `live_cols` therefore has a FLOOR OF 2 (`c` and `v`) rather than a floor of 1.
+
+    ⚠️ ANY STORE BAR NEWER THAN `prev_session` IS DROPPED. The store can already
+    hold a partial candle for today (`bars_prewarm` writes one mid-session); the
+    snapshot is the newer description of that SAME forming bar, so it replaces
+    whatever partial the store happened to hold rather than sitting beside it.
+
+    ⚠️ The daily bar's `t` is a YYYYMMDD -- `_last_confirmed_index` keys by
+    `ledger._normalize_bar_time` and daily bars are dates in this store. The live
+    table's `as_of` is the TICK, a unix second. Two encodings, two facts.
+    """
+    from api.services.screener import live_tier
+    bars = list(daily_bars or [])
+    if not bars:
+        return {"bars": [], "reason": "no-bars", "detail": None, "live_cols": 0}
+    prev = prev_session if prev_session is not None else previous_session(int(session))
+    idx = _last_confirmed_index(bars, prev) if prev is not None else None
+    if idx is None:
+        return {"bars": [], "reason": "stale-bars",
+                "detail": f"newest bar {bars[-1].get('t')!r}", "live_cols": 0}
+    anchor = {"price": bars[idx].get("c"), "bars_asof": prev}
+    why = live_tier.sanity_reason(anchor, quote, int(session))
+    if why:
+        return {"bars": [], "reason": LIVE_DROP_REASON, "detail": why, "live_cols": 0}
+
+    def _f(v):
+        # ⛔ `isinstance(v, bool)` IS CHECKED: `isinstance(True, int)` is True and
+        # `float(True)` is 1.0, which would read as a real price of one dollar.
+        return None if v is None or isinstance(v, bool) else (float(v) if float(v) > 0 else None)
+
+    # ⛔ THE ASYMMETRY BELOW IS DELIBERATE — DO NOT "FIX" IT. `o/h/l` map a 0 to
+    # `None` (absent); `v` floors at an int and may legitimately BE 0. Volume
+    # genuinely starts at 0 and accumulates, so "0 shares so far" is a TRUE
+    # measurement of a session in progress, whereas a price of 0 is never true of
+    # anything. Making `v` `None` at 0 would refuse every symbol in the first
+    # seconds of the session for a value that was correct.
+
+    forming = {"t": int(session), "o": _f(quote.get("day_open")), "h": _f(quote.get("day_high")),
+               "l": _f(quote.get("day_low")), "c": float(quote["last_price"]),
+               "v": int(quote.get("today_vol") or 0)}
+    live_cols = sum(1 for k in ("c", "v", "o", "h", "l") if forming[k] is not None)
+    return {"bars": bars[:idx + 1] + [forming], "reason": None, "detail": None,
+            "live_cols": live_cols}
 
 
 # --------------------------------------------------------------------------- #
@@ -893,18 +1238,55 @@ def _assert_sweep_closes(*, handed: int, swept: int, refused: int,
 def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
-                 limits: Any = None) -> dict:
+                 limits: Any = None,
+                 mode: str = NIGHTLY,
+                 snapshot: Optional[Mapping[str, Any]] = None,
+                 tick: Optional[int] = None,
+                 prev_session: Optional[int] = None) -> dict:
     """Run one scan definition over the universe and STATE ITS OWN COVERAGE.
 
     Returns::
 
         {def_hash, rev, tf, as_of, freshness,
-         hits: [...],
-         cadence,
+         hits: [...], hit_rows: [{symbol, value, bar_time (+live_cols, src_price
+                                  under mode='live')}],
+         cadence, tick,
          evaluated, answered, dropped, not_computable,
          withheld, withheld_reason,
          dropped_symbols: [{ticker, reason, detail?}], dropped_listed, truncated,
-         recorded, record_refused}
+         recorded, record_refused,
+         mode, persisted}
+
+    ⭐ `mode='on-demand'` IS THE ON-DEMAND DOOR (W4a, spec §5.5). The SAME loop,
+    the SAME four outcomes, the SAME hash — and NOTHING written: no `scan_hits`,
+    no `scan_coverage`, no rule record, and no ledger read either. A member's
+    500-symbol run filed under the nightly key would overwrite the universe's
+    receipt with a list's, and `coverage(...)` would then describe five names as
+    though they were the market. `mode` is the ONE authority over that (`MODES`).
+
+    🔴 `mode='live'` IS THE FIVE-MINUTE CYCLE (spec §5.5), AND IT IS THE SAME LOOP
+    WITH TWO DIFFERENCES, BOTH NAMED HERE.
+
+      1. THE BARS. Each symbol's confirmed history through `prev_session` plus
+         TODAY'S FORMING BAR, built by `live_bars_for` from the shared 30 s market
+         snapshot (`snapshot`, read ONCE per cycle by the caller and passed in).
+         A quote the sanity owner refuses is a `no-live-quote` DROP carrying
+         `live_tier`'s own word; a forming-bar FIELD the feed did not carry is
+         `not_computable` with detail `live:forming-bar:<field>` — per field,
+         because failing the whole bar over one of five would throw away four that
+         arrived.
+      2. THE WRITE. `scan_hits_live` and NOTHING ELSE — no `scan_hits`, no
+         `scan_coverage`, no rule record. ⛔⛔ A FORMING-BAR ANSWER FILED INTO
+         `scan_coverage` WOULD RECORD IT AS THAT SESSION'S CLOSED-BAR COVERAGE,
+         which is a second authority over what this session's screen said and the
+         exact defect the two-table split exists to prevent. `MODES` carries the
+         rail that keeps this true by AST.
+
+    ⛔ AND IT REFUSES A NIGHTLY-CEILING TREE BEFORE READING A BAR. `cadence_ceiling`
+    says whether re-running this tree can honestly say anything new; if it cannot,
+    running it every five minutes is a true number carrying a false implication.
+    `tick` (the unix second the snapshot was read at) is REQUIRED, never guessed:
+    it is the live row's `as_of`.
 
     ⚠️ `rev` IS READ OFF `definition['compute']['rev']` AND RETURNED. E-6's
     receipt is keyed on it; this function does not invent it and does not default
@@ -918,6 +1300,11 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         indistinguishable from a quiet market, which is the one reading E-2's
         three-state design exists to keep impossible.
     """
+    if mode not in MODES:
+        raise ValueError(
+            f"mode {mode!r} is not one of {MODES}. The set is closed on "
+            "purpose: it is the one authority over what this run writes.")
+
     if not isinstance(definition, dict) or not definition:
         raise ScanRunRefused(
             "no-definition",
@@ -937,10 +1324,51 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
 
+    # ⭐ THE HONEST RE-RUN CADENCE, OFF THE TREE, COMPUTED ONCE. See
+    # `cadence_ceiling`: a scan naming any declared scalar is capped by that
+    # scalar's own declared cadence, because re-reading the nightly snapshot an
+    # hour later returns the same answer while implying new information.
+    cadence = cadence_ceiling(tree)
+
+    forming_fields: dict = {}
+    if mode == LIVE:
+        # ⚠️ FUNCTION-LOCAL, AND DELIBERATELY: `scan_volume` pulls `threading` and
+        # `massive` in at import, and the nightly sweep needs neither. The AST rail
+        # keys on the CALL (`scan_volume.<attr>`), not on the import site.
+        from api.services import scan_volume
+
+        # 🔴 THE CADENCE REFUSAL COMES FIRST — before the snapshot gate, before a
+        # single bar is read (1.9 µs a tree). A nightly-ceiling tree re-read five
+        # minutes later returns the SAME answer off the SAME 03:00 snapshot while
+        # implying new information arrived: a true number carrying a false
+        # implication, which is the failure `cadence_ceiling` exists to name.
+        if cadence and "nightly" in cadence.split("/"):
+            raise ScanRunRefused(
+                "cadence",
+                f"this tree's ceiling is {cadence!r}: re-reading the 03:00 "
+                "snapshot five minutes later returns the same answer while "
+                "implying new information. The live sweep evaluates bars-only "
+                "trees and trees whose every scalar declares a live cadence.")
+        if tick is None:
+            raise ValueError(
+                "mode='live' needs the tick the snapshot was read at. The live "
+                "row's `as_of` IS that tick; guessing one would file a "
+                "forming-bar answer under an instant nobody measured.")
+        # ⭐ WHICH FIELDS OF THE FORMING BAR THIS TREE READS, RESOLVED ONCE per
+        # definition rather than 3,742 times inside the loop. `_BAR_FIELD_OF` is
+        # the manifest's own series→bar-key declaration, never a local map.
+        forming_fields = {n: _BAR_FIELD_OF(n) for n in _forming_bar_series(tree)}
+
     # ⭐ THE GATE APPLIES WHERE ITS REASON APPLIES. A tree that names no declared
     # scalar reads nothing out of `screener_rows`, so a stale snapshot cannot make
     # its answer wrong -- and refusing it anyway would be a gate firing for a
     # reason that is not true, which teaches a reader to ignore the gate.
+    # ⚠️ UNREACHABLE UNDER `mode='live'` TODAY, and by construction rather than by
+    # luck: every declared scalar is `cadence: nightly`, so a tree with any
+    # `scalar_columns` at all has already been refused at `gate:cadence` above. It
+    # is left as `if scalar_columns` because THAT is the condition its reason
+    # depends on — the day a scalar declares a live cadence, the gate is right here
+    # waiting for it, with no edit.
     scalar_columns = _scalar_columns(spec["scalars"])
     snapshot_stamp = _assert_snapshot_is_current(session) if scalar_columns else None
 
@@ -960,11 +1388,6 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # the sweep does, so it passes what `ast_freshness` said or every receipt in
     # the table reads `unknown`.
     freshness = ast_freshness.freshness_for(tree)["mode"]
-    # ⭐ AND THE HONEST RE-RUN CADENCE COMES OFF THE SAME TREE. See
-    # `cadence_ceiling`: a scan naming any declared scalar is capped by that
-    # scalar's own declared cadence, because re-reading the nightly snapshot an
-    # hour later returns the same answer while implying new information.
-    cadence = cadence_ceiling(tree)
 
     # `max_lookback` resolves every call on its way to a number, so a tree naming
     # a function the table does not declare refuses HERE — once, loudly — rather
@@ -989,13 +1412,21 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
                          and rev >= 0) else None
+    if mode != NIGHTLY:
+        # ⛔ THE FORWARD RECORD IS CLOSED-BAR ONLY. A live run answers on a FORMING
+        # bar — filing that as a bar's settled outcome would put a candle that is
+        # still moving into the record a backtest reads — and an on-demand run is
+        # nobody's receipt to file. Neither reads the ledger to seed one either: a
+        # run nobody files has nothing to resume from.
+        record_rev = None
     tf_label = ledger._BARS_STORE_TF_KEYS.get(tf_code)
     throughs: dict = {}
-    if record_rev is not None and tf_label:
+    if mode == NIGHTLY and record_rev is not None and tf_label:
         throughs = definition_record.latest_through_by_symbol(
             def_hash, record_rev, tf_label)
 
     hits: list = []
+    hit_rows: list = []
     unanswered: list = []
     pending_record: list = []
     evaluated = answered = dropped = not_computable = 0
@@ -1022,7 +1453,34 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 continue
 
             bars = _read_bars(sym, tf_code, want)
-            if not bars:
+            live_cols = 0
+            if mode == LIVE:
+                # ⭐ THE ONLY THING LIVE READS THAT NIGHTLY DOES NOT. The gate is
+                # `live_tier.sanity_reason`, reused — one sanity owner for the live
+                # tier and the live sweep, so the two can never disagree about
+                # whether a quote is usable.
+                got = live_bars_for(bars, scan_volume._snap_lookup(snapshot or {}, sym),
+                                    session=session, prev_session=prev_session)
+                if got["reason"]:
+                    # ⛔ THE SYMBOL IS THIS LOOP'S, THE REASON AND DETAIL ARE THE
+                    # OWNER'S. Neither half is composed here.
+                    _unanswered(sym, got["reason"], detail=got["detail"])
+                    dropped += 1
+                    continue
+                bars = got["bars"]
+                live_cols = got["live_cols"]
+                absent = sorted(n for n, f in forming_fields.items()
+                                if bars[-1].get(f) is None)
+                if absent:
+                    # ⛔ PER FIELD, NAMED, AND IN THE `not_computable` BUCKET. The
+                    # whole bar failing because one of five fields is pre-open would
+                    # throw away four that arrived, and "we could not compute it" is
+                    # not "something broke".
+                    _unanswered(sym, NOT_COMPUTABLE_REASON,
+                                detail=LIVE_NOT_COMPUTABLE_DETAIL + ",".join(absent))
+                    not_computable += 1
+                    continue
+            elif not bars:
                 _unanswered(sym, "no-bars")
                 dropped += 1
                 continue
@@ -1034,20 +1492,90 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 dropped += 1
                 continue
 
+            # ⭐ THE ORDER IS DELIBERATE: THE SPECIFIC ANSWER FIRST. A tree can
+            # fail BOTH questions below -- a `vwap()` tree on a symbol holding
+            # fewer than `sessionMaxBars` daily bars is unresolvable on daily bars
+            # AND short of the 960 `lookback: "session"` declares -- and then
+            # "no value for vwap" is the one a member can act on, while "900 bars
+            # short" points at history that would not help.
+            # ⚠️ NOT ALWAYS BOTH, AND THE RAIL ASSERTS THE COUNTER-EXAMPLE.
+            # `want` is `lookback + _MIN_BARS` = 1,360 here, and a real daily
+            # store holds thousands, so on the ordinary symbol the history
+            # question passes cleanly and ONLY the input question fires --
+            # `test_a_screen_over_a_BAR_READER_is_NOT_COMPUTABLE_and_NAMES_IT`
+            # runs on 1,000 bars and asserts `unresolved_lookback == 0` first,
+            # precisely so it cannot pass on the wrong axis.
             scalars = _scalars_for(row, scalar_columns)
             # 🔴 THE HOLE IS ASKED ABOUT BEFORE IT IS EATEN. `_cmp` answers 0
             # against NaN, so `market_cap > 1e9` on a symbol with no market cap
             # is a confident False rather than a hole -- measured by E-1 and
-            # pinned by 17 frozen conformance digests, so the fix is HERE and not
+            # pinned by the frozen conformance digests, so the fix is HERE and not
             # in the comparison.
-            missing = ast_interpret.unresolved_scalars(tree, scalars)
+            #
+            # ⭐ AND THE QUESTION IS `unresolved_INPUTS`, NOT `unresolved_scalars`.
+            # A scalar is one of TWO kinds of input a tree can name that the
+            # comparison launders. The other is a BAR READER (`reads: "bars"` in
+            # `closedTable.json`), whose preconditions are properties of the BARS
+            # and are therefore invisible to both the scalar question and the
+            # history question BELOW: `close > vwap()` on this sweep's daily bars
+            # answered 0.0 for EVERY symbol at full reported coverage, and
+            # `!(close > vwap())` answered 1.0 for every symbol -- a screen that
+            # silently returns NOTHING, and one that silently returns THE ENTIRE
+            # UNIVERSE. `index`, `scalars` and `opts` are all passed because the
+            # pre-pass must evaluate the entry at the SAME bar, under the SAME
+            # clock and with the SAME row the answer will be computed from, or it
+            # is asking about something else.
+            # ⛔⛔ IT IS NOT A COMPLETE QUESTION. The set is `BAR_READERS` ∪ the
+            # declared scalars -- NOT "every input that can be a hole" -- and ONE
+            # surface is still laundered here, named and measured in
+            # `unresolved_inputs`' own docstring and pinned by its own test:
+            #   * a DATA-dependent hole in an ordinary function (`valuewhen`
+            #     before its condition has been true inside its window) -- which
+            #     is NOT a formula defect, and which the manifest cannot yet tell
+            #     from `sma`, so closing it needs a new DECLARATION rather than a
+            #     name added to the pre-pass.
+            # ⚰️ THE SECOND ONE WAS a DECLARED argument domain
+            # (`_functions_domain`: `macd(close, 26, 12)`, the transposed Ichimoku
+            # periods). It never belonged here -- a fact about the FORMULA, true
+            # on every row, does not become a per-row question -- and it is CLOSED
+            # as `resolve:domain` at the resolve pass, which `assert_scannable`
+            # and `max_lookback` below both run before this loop starts. Kept as a
+            # record because "why is that not asked here" is the question this
+            # comment exists to answer.
+            missing = ast_interpret.unresolved_inputs(
+                tree, scalars, bars, index, opts={"tf": tf_code})
             if missing:
                 _unanswered(sym, NOT_COMPUTABLE_REASON,
                             detail="no value for " + ", ".join(missing))
                 not_computable += 1
                 continue
 
-            column = ast_interpret.interpret(tree, bars, scalars=scalars)
+            # 🔴 THE HISTORY AXIS, ASKED PER SYMBOL. `want` bars were REQUESTED;
+            # this symbol's store may hold fewer, and then every windowed name in
+            # the tree is a hole at the bar below -- which the comparison eats
+            # exactly as it eats a missing scalar. `unresolved_lookback`'s own
+            # docstring was written for this ("`close > sma(close, 300)` on 200
+            # bars -> 200 x 0.0, a confident 'no'") and until W9a.1 the sweep --
+            # its intended consumer -- never called it.
+            # ⛔ NOT `no-bars`. A drop says "we tried and failed; re-run it";
+            # a symbol that has not lived long enough cannot be fixed by re-running.
+            short = ast_interpret.unresolved_lookback(tree, bars)
+            if short:
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=f"{len(bars)} bars of history, "
+                                   f"{short} short of the {lookback} this tree reads")
+                not_computable += 1
+                continue
+
+            # ⭐ `opts={"tf": tf_code}` IS THE CLOCK'S ONLY INPUT (tableVersion 2,
+            # lane W2a.2). Without it every clock name in every saved scan is
+            # permanently `not_computable` — `compute_clock` fails CLOSED on an
+            # absent tf rather than guessing `"D"`, which would make `isdaily` a
+            # confident 1 on a five-minute chart. ⛔ THE NORMALISED CODE, not the
+            # caller's spelling: `scan_store._TF_CODES` and
+            # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
+            column = ast_interpret.interpret(tree, bars, scalars=scalars,
+                                             opts={"tf": tf_code})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -1062,8 +1590,22 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             answered += 1
             if float(value) != 0.0:              # `<ast> != 0`, E-A1
                 hits.append(sym)
+                # ⭐ THE VALUE AND THE BAR IT CAME FROM, beside the symbol. The
+                # sweep discards both; the on-demand door returns them, and the
+                # live mode STORES them. Additive — `hits` is unchanged.
+                row = {"symbol": sym, "value": float(value),
+                       "bar_time": bars[index].get("t")}
+                if mode == LIVE:
+                    # ⭐ THE TWO FACTS ONLY A LIVE ROW HAS: how much of the forming
+                    # bar the feed carried, and the price the answer was computed
+                    # at. ⛔ ADDED ONLY HERE. A nightly row carrying `live_cols: 0`
+                    # would be a live-shaped fact about a closed bar, and a reader
+                    # cannot tell "no live columns" from "not a live row".
+                    row["live_cols"] = live_cols
+                    row["src_price"] = bars[index].get("c")
+                hit_rows.append(row)
 
-            if record_rev is not None and tf_label:
+            if mode == NIGHTLY and record_rev is not None and tf_label:
                 if sym not in throughs:
                     pending_record.append(
                         {"sym": sym, "first": session, "through": session,
@@ -1101,16 +1643,30 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # today — a plan's boundary published as a fact about the market. The member
     # gets the withholding in their own envelope; the shared store keeps silence,
     # which reads correctly as `coverage(...) is None` — "nobody looked".
-    if not history_withheld:
+    # ⛔ AND AN ON-DEMAND RUN WRITES NOTHING AT ALL — `mode` in the docstring.
+    persisted = False
+    if mode == NIGHTLY and not history_withheld:
         scan_store.record_hits(def_hash, tf_code, session, hits)
         scan_store.record_coverage(
             def_hash, tf_code, session,
             evaluated=evaluated, answered=answered, dropped=dropped,
             not_computable=not_computable, dropped_symbols=unanswered,
             freshness=freshness)
+        persisted = True
+    elif mode == LIVE and not history_withheld:
+        # 🔴 THE LIVE SIDE TABLE AND NOTHING ELSE. `as_of` is the TICK, not the
+        # session: `upsert_live_hits` refuses a YYYYMMDD by name, because the two
+        # encodings answer two different questions and one of them silently
+        # poisons every later read.
+        scan_store.upsert_live_hits(def_hash, tf_code, hit_rows, as_of=tick)
+        # ⭐ THE DEMAND RING: symbols a definition just NAMED, so the worker's
+        # intraday prewarm ring can order its passes by what is actually being
+        # scanned. Bounded and per-process; losing it on a redeploy costs one pass.
+        scan_store.note_demand([r["symbol"] for r in hit_rows])
+        persisted = True
 
     recorded = record_refused = 0
-    if record_rev is not None and tf_label and pending_record:
+    if mode == NIGHTLY and record_rev is not None and tf_label and pending_record:
         recorded, record_refused = _write_rule_record(
             def_hash, record_rev, tf_label, pending_record)
 
@@ -1134,11 +1690,15 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         "truncated": truncated,
         "recorded": recorded,
         "record_refused": record_refused,
+        "hit_rows": hit_rows,
+        "mode": mode,
+        "tick": tick,
+        "persisted": persisted,
     }
 
 
-def _resume_order(entries: Sequence[tuple], tf_code: str,
-                  as_of: int) -> list:
+def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
+                  swept_last_time: Optional[Any] = None) -> list:
     """The sweep's order, with the LAST run's tail at the FRONT.
 
     🔴 A BUDGET THAT ALWAYS CUTS AT THE SAME POINT STARVES THE SAME DEFINITIONS
@@ -1159,7 +1719,18 @@ def _resume_order(entries: Sequence[tuple], tf_code: str,
     definition was swept last time, this is the identity. It must never sort,
     sample or shuffle beyond the one bit it is entitled to — `apply_symbol_cap`
     refuses the same thing for the same reason ("the order is the caller's").
+
+    ⭐ `swept_last_time` IS THE LIVE CYCLE'S ARTIFACT, AND IT REPLACES THE PROBE
+    RATHER THAN JOINING IT. The nightly sweep's artifact is a `scan_coverage` row
+    for the PREVIOUS SESSION; a five-minute cycle has no session-grained receipt to
+    read, so it hands in a predicate over the LAST CYCLE'S OWN `swept` list -- the
+    thing it does write. When it does, the previous-session probe is not consulted
+    at all: two answers to "was this reached last time" is exactly the second
+    authority this function's one bit of ordering cannot afford.
     """
+    if swept_last_time is not None:
+        return sorted(entries, key=lambda item: 1 if swept_last_time(item[0]) else 0)
+
     prev = previous_session(as_of)
     if prev is None:
         return list(entries)
@@ -1175,10 +1746,103 @@ def _resume_order(entries: Sequence[tuple], tf_code: str,
     return sorted(entries, key=_swept_last_time)
 
 
+def _resolve_entries(definitions: Sequence[Any]) -> tuple:
+    """PHASE 1 -- resolve every definition to its maths, BEFORE sweeping any.
+
+    Returns `(entries, refused, duplicate, refusals)`, where `entries` is
+    `[(def_hash, definition)]` DEDUPED BY HASH.
+
+    ⭐ Validation only (microseconds), and it buys three things the inline shape
+    could not: a malformed definition is refused before the pod spends a minute on
+    someone else's, duplicates become COUNTABLE instead of silently skipped, and
+    the ones a clock never reaches can be NAMED without doing work after the
+    deadline.
+
+    ⭐ DEFINITIONS ARE DEDUPED BY `def_hash`. Two members who typed the same
+    formula have the same maths, share one result set and cost the pod ONE sweep --
+    the property that makes the store member-independent, and the only place in
+    this file where the number of MEMBERS could ever have leaked in.
+
+    ⛔ SHARED BY BOTH MODES ON PURPOSE. A second copy of this loop for the live
+    cycle would be a second answer to "is this definition scannable", and the two
+    would agree on the day it was written.
+    """
+    seen: set = set()
+    entries: list = []
+    refused = duplicate = 0
+    refusals: list = []
+    for definition in definitions:
+        try:
+            handle = scan_definition.assert_scannable(definition)["def_hash"]
+        except scan_definition.ScanRefused as exc:
+            refused += 1
+            refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
+            continue
+        except Exception as exc:                             # noqa: BLE001
+            refused += 1
+            refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
+            continue
+        if handle in seen:
+            duplicate += 1
+            continue
+        seen.add(handle)
+        entries.append((handle, definition))
+    return entries, refused, duplicate, refusals
+
+
+def _sweep_entries(entries: Sequence[tuple], *, evaluate: Any, stop_reason: Any,
+                   on_result: Any) -> tuple:
+    """PHASE 2 -- sweep each entry under a stop condition CHECKED BETWEEN THEM.
+
+    Returns `(swept, unswept, refused, refusals, stopped)`: the handles swept, the
+    handles never started, the count and list of refusals raised by `evaluate`, and
+    the word `stop_reason()` answered with (or `None`).
+
+    ⛔ THE STOP IS CHECKED BETWEEN DEFINITIONS, NEVER INSIDE ONE. A mid-definition
+    abort would leave a receipt describing a partial universe as a complete one --
+    the "quiet market" reading the three-state coverage design exists to keep
+    impossible -- so the worst-case overrun is exactly ONE definition and both
+    modes size their margin for it.
+
+    ⛔ AND `on_result` RECEIVES EACH ENVELOPE AS IT IS PRODUCED rather than this
+    function returning a list of them. The nightly sweep can hand in 500
+    definitions over a 3,742-symbol universe; retaining every envelope so a caller
+    can sum it afterwards would hold every hit list of every definition in memory
+    at once for counts that are three integers.
+    """
+    swept: list = []
+    unswept: list = []
+    refused = 0
+    refusals: list = []
+    stopped = None
+    for position, (handle, definition) in enumerate(entries):
+        stopped = stop_reason()
+        if stopped:
+            unswept = [h for h, _ in entries[position:]]
+            break
+        try:
+            out = evaluate(definition)
+        except ScanRunRefused as exc:
+            refused += 1
+            refusals.append({"def_hash": handle, "gate": exc.gate,
+                             "detail": exc.detail[:200]})
+            continue
+        except Exception as exc:                             # noqa: BLE001
+            refused += 1
+            refusals.append({"def_hash": handle, "gate": "not-scannable",
+                             "detail": f"{type(exc).__name__}: {exc}"[:200]})
+            log.exception("[scan] sweep failed for %s", handle[:15])
+            continue
+        swept.append(handle)
+        on_result(out)
+    return swept, unswept, refused, refusals, stopped
+
+
 def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
               universe: Optional[Sequence[str]] = None,
               as_of: Optional[Any] = None,
-              deadline: Optional[datetime.datetime] = None) -> Optional[dict]:
+              deadline: Optional[datetime.datetime] = None,
+              mode: str = NIGHTLY) -> Optional[dict]:
     """Sweep every definition once, WITHIN A WALL-CLOCK BUDGET. ``None`` when the
     run could not proceed at all.
 
@@ -1211,7 +1875,24 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     ``definitions == swept + refused + duplicate + unswept``. Without that
     identity a sweep that dropped definitions on the floor would look exactly like
     a sweep that had fewer to do.
+
+    ⭐ `mode='live'` IS A SECOND MODE OF THIS FUNCTION, NOT A SECOND FUNCTION.
+    Phase 1 (`_resolve_entries`) and phase 2 (`_sweep_entries`) are SHARED; what
+    differs is the receipt, the stop condition and what gets written -- see
+    `_run_live_cycle`. A copy would be a second answer to "is this definition
+    scannable" and a second budget rail to keep true.
     """
+    if mode not in MODES:
+        raise ValueError(f"mode {mode!r} is not one of {MODES}.")
+    if mode == LIVE:
+        return _run_live_cycle(list(definitions or []), tf, universe=universe,
+                               deadline=deadline)
+    if mode == ON_DEMAND:
+        raise ValueError(
+            "mode='on-demand' is a property of ONE definition's run, not of a "
+            "sweep: `evaluate_one(..., mode='on-demand')` is the door (W4a). A "
+            "sweep that wrote nothing would leave no receipt for anyone to read.")
+
     definitions = list(definitions or [])
     if not definitions:
         log.warning("[scan] sweep asked for 0 definitions -- nothing to run")
@@ -1232,59 +1913,29 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
         deadline = sweep_deadline(started)
 
     # ⭐ PHASE 1 -- RESOLVE EVERY DEFINITION TO ITS MATHS, BEFORE SWEEPING ANY.
-    # It is validation only (microseconds), and it buys three things the old
-    # inline shape could not have: a malformed definition is refused before the
-    # pod spends a minute on someone else's, the duplicates become COUNTABLE
-    # instead of silently skipped, and the ones the clock never reaches can be
-    # NAMED without doing any work after the deadline.
-    seen: set = set()
-    entries: list = []
-    refused = duplicate = 0
-    refusals: list = []
-    for definition in definitions:
-        try:
-            handle = scan_definition.assert_scannable(definition)["def_hash"]
-        except scan_definition.ScanRefused as exc:
-            refused += 1
-            refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
-            continue
-        except Exception as exc:                             # noqa: BLE001
-            refused += 1
-            refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
-            continue
-        if handle in seen:
-            duplicate += 1
-            continue
-        seen.add(handle)
-        entries.append((handle, definition))
+    entries, refused, duplicate, refusals = _resolve_entries(definitions)
+    seen = {handle for handle, _ in entries}
 
     entries = _resume_order(entries, tf_code, session)
 
     # ⭐ PHASE 2 -- SWEEP UNDER THE CLOCK.
-    swept = hit_rows = recorded = 0
-    unswept: list = []
-    stopped_early = False
-    for position, (handle, definition) in enumerate(entries):
-        if _now_et() >= deadline:
-            stopped_early = True
-            unswept = [h for h, _ in entries[position:]]
-            break
-        try:
-            out = evaluate_one(definition, tf, universe=universe, as_of=session)
-        except ScanRunRefused as exc:
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": exc.gate,
-                             "detail": exc.detail[:200]})
-            continue
-        except Exception as exc:                             # noqa: BLE001
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": "not-scannable",
-                             "detail": f"{type(exc).__name__}: {exc}"[:200]})
-            log.exception("[scan] sweep failed for %s", handle[:15])
-            continue
-        swept += 1
-        hit_rows += len(out["hits"])
-        recorded += out["recorded"]
+    totals = {"hits": 0, "recorded": 0}
+
+    def _tally(out) -> None:
+        totals["hits"] += len(out["hits"])
+        totals["recorded"] += out["recorded"]
+
+    swept_handles, unswept, refused2, refusals2, stopped = _sweep_entries(
+        entries,
+        evaluate=lambda definition: evaluate_one(
+            definition, tf, universe=universe, as_of=session),
+        stop_reason=lambda: UNSWEPT_REASON if _now_et() >= deadline else None,
+        on_result=_tally)
+    swept = len(swept_handles)
+    refused += refused2
+    refusals += refusals2
+    stopped_early = stopped is not None
+    hit_rows, recorded = totals["hits"], totals["recorded"]
 
     _assert_sweep_closes(handed=len(definitions), swept=swept, refused=refused,
                          duplicate=duplicate, unswept=len(unswept))
@@ -1322,6 +1973,255 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
             "stopped_early": stopped_early,
             "deadline": deadline.isoformat(),
             "elapsed_seconds": elapsed}
+
+
+# --------------------------------------------------------------------------- #
+# the LIVE cycle (spec 5.5) -- the same two phases, a different receipt, a
+# different stop condition, and a different table
+# --------------------------------------------------------------------------- #
+
+def _blank_live_receipt(**seed) -> dict:
+    """EVERY key a live receipt can carry, on EVERY cycle, whatever stopped it.
+
+    ⛔ THE LIVE TIER'S `_blank_receipt` IDIOM, AND THE REASON IS THE READER. A
+    status surface that had to branch on which keys exist would read a missing key
+    as a zero, and a `disabled` cycle and a swept one would disagree about what a
+    receipt IS. So the shape is declared once here and the cycle only ever
+    OVERWRITES entries in it.
+    """
+    receipt = {
+        "cycle_started": None, "cycle_started_iso": None, "cycle_seconds": None,
+        "session": None, "tf": None, "tick": None,
+        "enabled": False, "interval_s": None, "budget_s": None, "deadline": None,
+        "definitions": 0, "distinct": 0, "swept": 0, "refused": 0, "duplicate": 0,
+        "unswept": 0, "unswept_definitions": [], "unswept_reason": None,
+        "evaluated": 0, "answered": 0, "dropped": 0, "not_computable": 0, "hits": 0,
+        "refusals": [], "feed_symbols": 0, "skipped_reason": None,
+        # ⛔ ALWAYS PRESENT, `None` ON A HEALTHY CYCLE — a key that only appears
+        # when something broke is a key every reader has to branch on.
+        "failure": None,
+    }
+    receipt.update(seed)
+    return receipt
+
+
+def _finish_live(receipt: dict, started: datetime.datetime, *,
+                 skipped: Optional[str] = None, swept: Sequence[str] = (),
+                 record: bool = True) -> dict:
+    """Close the receipt, LOG IT, and file it -- unless there is nothing to file.
+
+    ⛔ A `disabled` CYCLE TOUCHES NO STORE. A receipt row every five minutes for a
+    feature nobody turned on is a table filling up with the word "disabled", and
+    the first thing a reader would learn from it is to stop reading it.
+
+    ⚠️ `closed` IS RECORDED WHERE `disabled` IS NOT, and the difference is the
+    question each answers. "The flag is off" is knowable from the environment; "the
+    last cycle ran and the market was shut" is only knowable from the artifact, and
+    a status surface that could not tell that from "nothing has run since the
+    deploy" would report a dead scheduler as a quiet evening.
+
+    ⛔ AND THAT COSTS ONE ROW, NOT 210. The job is registered on a 24 h interval
+    against a 6.5 h window, so most ticks of the day answer `closed`; left to
+    accumulate they would evict a whole session of real receipts out of
+    `LIVE_CYCLES_KEEP` and destroy the very artifact the paragraph above is about.
+    `scan_store.LIVE_COLLAPSING_REASONS` makes consecutive `closed` rows REPLACE
+    one another, so the beat stays fresh to within one interval and the flood does
+    not happen. ⛔ Do NOT "fix" the flood by passing `record=False` here: that is
+    the one change that would close the hole by removing the thing it protects.
+    """
+    if skipped is not None and skipped not in LIVE_SKIP_REASONS:
+        raise ValueError(
+            f"{skipped!r} is not one of this cycle's skip reasons "
+            f"{LIVE_SKIP_REASONS}. The set is closed: a caller branches on it.")
+    receipt["skipped_reason"] = skipped
+    receipt["cycle_seconds"] = (_now_et() - started).total_seconds()
+    line = ("[scan-live] cycle %s tf=%s session=%s definitions=%s distinct=%s "
+            "swept=%s refused=%s duplicate=%s unswept=%s evaluated=%s answered=%s "
+            "dropped=%s not_computable=%s hits=%s feed=%s %.1fs skipped=%s")
+    args = (receipt["cycle_started"], receipt["tf"], receipt["session"],
+            receipt["definitions"], receipt["distinct"], receipt["swept"],
+            receipt["refused"], receipt["duplicate"], receipt["unswept"],
+            receipt["evaluated"], receipt["answered"], receipt["dropped"],
+            receipt["not_computable"], receipt["hits"], receipt["feed_symbols"],
+            receipt["cycle_seconds"], skipped)
+    # ⛔ A FEED BLACKOUT READS AS A QUIET MARKET OTHERWISE: every symbol refused or
+    # not computable is a WARNING, because "we looked at 3,742 names and answered
+    # none" is not the same fact as "nothing matched".
+    if skipped in LIVE_WARNING_REASONS or (
+            receipt["evaluated"] > 0 and receipt["answered"] == 0):
+        log.warning(line, *args)
+    else:
+        log.info(line, *args)
+    if record:
+        scan_store.record_live_cycle(receipt, swept)
+    return receipt
+
+
+def _run_live_cycle(definitions: Sequence[Any], tf: str, *,
+                    universe: Optional[Sequence[str]] = None,
+                    deadline: Optional[datetime.datetime] = None) -> dict:
+    """ONE five-minute cycle: bars-only definitions over the forming bar, written
+    to `scan_hits_live`, with the cycle's own receipt row beside it.
+
+    ⛔ IT NEVER RETURNS `None` — the nightly sweep does, because a half-night must
+    leave no receipt at all, and this one must never leave that reading behind: the
+    next thing to read it is a five-minute-old status surface that has to tell "the
+    flag is off" from "the scheduler is dead".
+
+    ⚠️ IT CAN RAISE, AND A RAISE STILL FILES A RECEIPT. Two paths leave through an
+    exception rather than a return — the `tf` gate below (a caller asking for a
+    timeframe Wave 1 cannot honestly serve) and any unexpected error in the setup
+    phase (`_load_universe`, the fairness read, the receipt write itself: sqlite
+    reads and writes under lock contention on the single web pod). Both are wrapped
+    so the cycle records `skipped_reason="failed"` with `receipt["failure"]` naming
+    the exception BEFORE re-raising it. ⛔ NOT SWALLOWED: the artifact and the
+    loudness are not a trade, and a `failed` receipt with no exception behind it
+    would be a cycle that quietly gave up.
+
+    ⏰ IT READS THE CLOCK FOUR TIMES ON A TWO-DEFINITION RUN -- `started`, once
+    before each definition, and once in `_finish_live` -- and the wall-clock test
+    feeds exactly that many ticks, so a fifth read anywhere is a StopIteration
+    there rather than a silently looser budget.
+    """
+    from api.services import scan_volume
+
+    started = _now_et()
+    tick = int(started.timestamp())
+    receipt = _blank_live_receipt(
+        cycle_started=tick, cycle_started_iso=started.isoformat(), tf=None,
+        definitions=len(definitions), enabled=live_enabled(),
+        interval_s=live_interval_s(), budget_s=_live_cycle_budget_s())
+
+    try:
+        if not live_enabled():
+            # ⛔ FIRST, AND IT WRITES NOTHING -- not even to say it did nothing.
+            return _finish_live(receipt, started, skipped="disabled", record=False)
+
+        tf_code = scan_store._normalise_tf(tf)
+        receipt["tf"] = tf_code
+        if tf_code != DEFAULT_TF:
+            raise ScanRunRefused(
+                "tf",
+                f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1; intraday "
+                "timeframes arrive with the prewarm ring's MEASURED per-symbol cost "
+                f"(spec 5.5), never assumed. Got {tf_code!r}.")
+
+        state = _live_session_state(started)
+        if state:
+            return _finish_live(receipt, started, skipped=state)
+        if not definitions:
+            return _finish_live(receipt, started, skipped="no-definitions")
+        if universe is None:
+            universe = snapshot_builder._load_universe()
+        if not universe:
+            # ⛔ NEVER SWEEP ZERO SYMBOLS AND FILE THE RESULT: an empty hit list is
+            # indistinguishable from a quiet market.
+            return _finish_live(receipt, started, skipped="no-universe")
+
+        session = int(started.strftime("%Y%m%d"))
+        prev = previous_session(session)
+        receipt["session"] = session
+        receipt["tick"] = tick
+        if deadline is None:
+            deadline = started + datetime.timedelta(seconds=_live_cycle_budget_s())
+        receipt["deadline"] = deadline.isoformat()
+
+        entries, refused, duplicate, refusals = _resolve_entries(definitions)
+        receipt["distinct"] = len(entries)
+
+        # ⭐ THE CADENCE SELECTION, IN PHASE 1 (1.9 us a tree, before any bar is read).
+        # A nightly-ceiling tree is counted `refused` under `gate:cadence` so the
+        # arithmetic still closes, and it never reaches `evaluate_one` -- which refuses
+        # it the same way for a direct caller, so the two doors give one answer.
+        eligible = []
+        for handle, definition in entries:
+            ceiling = cadence_ceiling(definition["compute"].get("ast"))
+            if ceiling and "nightly" in ceiling.split("/"):
+                refused += 1
+                refusals.append({"def_hash": handle, "gate": "cadence",
+                                 "detail": f"ceiling {ceiling!r}"})
+                continue
+            eligible.append((handle, definition))
+        entries = eligible
+
+        last = scan_store.last_live_cycle(tf_code)
+        reached = set(last["swept"]) if last else set()
+        entries = _resume_order(entries, tf_code, session,
+                                swept_last_time=lambda handle: handle in reached)
+
+        # ⭐ ONCE PER CYCLE, NEVER PER DEFINITION. ~10k names behind a 30 s cache: a
+        # per-definition read would make a 100-definition cycle a hundred trips for one
+        # answer, and each definition would answer off a slightly different market.
+        snapshot = scan_volume.full_market_snapshot() or {}
+        receipt["feed_symbols"] = len(snapshot)
+
+        totals = {"evaluated": 0, "answered": 0, "dropped": 0, "not_computable": 0,
+                  "hits": 0}
+
+        def _tally(out) -> None:
+            for key in ("evaluated", "answered", "dropped", "not_computable"):
+                totals[key] += out[key]
+            totals["hits"] += len(out["hits"])
+
+        def _stop() -> Optional[str]:
+            # ⛔ THE BUDGET FIRST. Both are true stops; the budget is the one whose
+            # unswept definitions lead the NEXT cycle, so it must not be masked by a
+            # build that happens to start in the same instant.
+            if _now_et() >= deadline:
+                return "budget"
+            # ⛔ PROBED, NEVER HELD. A four-minute hold on `_BUILD_LOCK` would starve
+            # the live TIER's own 60 s cadence, which refuses on `build_in_flight`.
+            if snapshot_builder.build_in_flight():
+                return "build_in_flight"
+            return None
+
+        swept, unswept, refused2, refusals2, stopped = _sweep_entries(
+            entries,
+            evaluate=lambda definition: evaluate_one(
+                definition, tf_code, universe=universe, as_of=session, mode=LIVE,
+                snapshot=snapshot, tick=tick, prev_session=prev),
+            stop_reason=_stop, on_result=_tally)
+
+        receipt.update(
+            swept=len(swept), refused=refused + refused2, duplicate=duplicate,
+            unswept=len(unswept), unswept_definitions=unswept[:_DROPPED_LISTED_MAX],
+            unswept_reason=LIVE_UNSWEPT_REASON if stopped == "budget" else None,
+            refusals=refusals + refusals2, **totals)
+        _assert_sweep_closes(handed=len(definitions), swept=len(swept),
+                             refused=refused + refused2, duplicate=duplicate,
+                             unswept=len(unswept))
+        return _finish_live(receipt, started, skipped=stopped, swept=swept)
+    except BaseException as exc:
+        # 🔴 THE CYCLE DIED, AND THE RECEIPT IS STILL FILED. Without this, a raise
+        # anywhere above leaves `last_live_cycle()` reading `None` — which is
+        # exactly "nothing has run since the deploy", the one thing a status
+        # surface must never be told when something DID run and broke.
+        #
+        # ⛔ `BaseException`, NOT `Exception`: `SystemExit` is not an `Exception`
+        # (this repo has been bitten by that) and a cycle killed by a shutdown is
+        # still a cycle that started and did not finish.
+        receipt["failure"] = f"{type(exc).__name__}: {exc}"[:200]
+        try:
+            _finish_live(receipt, started, skipped="failed")
+        except BaseException:                                # noqa: BLE001
+            # ⛔ THE RECEIPT WRITE MAY NEVER MASK THE ORIGINAL ERROR. If the store
+            # is the thing that is broken, this second write fails too — and the
+            # exception a caller must see is the FIRST one.
+            log.exception("[scan-live] the FAILURE receipt could not be filed "
+                          "either; the original error follows")
+        raise
+
+
+def note_demand(symbols: Sequence[Any]) -> None:
+    """Symbols a member or a definition just NAMED, forwarded to the ring's OWNER.
+
+    ⭐ A THIN DELEGATE AND NOTHING ELSE. The lane contract names
+    `scan_evaluator.note_demand`, but the ring itself lives on `scan_store` because
+    the off-request-path rail forbids a ROUTER importing anything from this module
+    -- and W4a's run-now door has to be able to note demand too. A second ring here
+    would be a second answer to "what did somebody just ask about".
+    """
+    scan_store.note_demand(symbols)
 
 
 def definitions_to_sweep() -> list:
@@ -1395,6 +2295,55 @@ def sweep_job() -> None:
             "because they failed. They lead the next run.",
             receipt.get("unswept"), receipt["distinct"],
             receipt.get("unswept_reason"), receipt.get("deadline"))
+
+
+def live_sweep_job() -> None:
+    """The SCHEDULED entry point for the five-minute cycle.
+
+    ⛔ THE FLAG IS CHECKED HERE FIRST, BEFORE `definitions_to_sweep()`. That is the
+    only member-shaped read in this file -- it opens the definitions store -- and a
+    dark job doing it every five minutes through the session is a cost nobody asked
+    for. `run_sweep` re-checks the flag per call, so the two cannot disagree; this
+    one is about not paying for a feature that is off.
+
+    ⛔ AND THE RETURN VALUE IS COUNTED, NEVER TRUSTED
+    (`lesson_scheduler_job_return_value_goes_nowhere`): APScheduler discards what a
+    job returns and silence reads as success. The success criterion is the
+    ARTIFACT -- the cycle receipt row, READ BACK out of the store.
+    """
+    if not live_enabled():
+        return
+    try:
+        definitions = definitions_to_sweep()
+    except Exception as exc:                                 # noqa: BLE001
+        log.exception("[scan-live] could not read the definitions to sweep: %s", exc)
+        return
+    try:
+        receipt = run_sweep(definitions, mode=LIVE)
+    except BaseException as exc:                             # noqa: BLE001
+        # ⛔ COUNTED AND NAMED, NEVER `pass` — and NOT at the cost of the artifact.
+        # `_run_live_cycle` files a `failed` receipt before it re-raises, so the
+        # read-back below still finds one and the status surface can tell a broken
+        # cycle from a scheduler that never ran. The job itself returns rather than
+        # propagating: APScheduler's next tick is five minutes away either way, and
+        # a `[scan-live]` line beside the receipt is more use than a bare traceback.
+        log.exception("[scan-live] the cycle FAILED: %s", exc)
+        receipt = {}
+    # THE ARTIFACT, NOT THE CALL.
+    filed = scan_store.last_live_cycle(receipt.get("tf") or DEFAULT_TF)
+    log.info("[scan-live] receipts read back: cycle=%s swept=%s hits=%s answered=%s",
+             (filed or {}).get("cycle_started"), len(((filed or {}).get("swept") or [])),
+             ((filed or {}).get("receipt") or {}).get("hits"),
+             ((filed or {}).get("receipt") or {}).get("answered"))
+    # ⛔ THE SHORTFALL IS EXPLAINED IN THE SAME BREATH AS THE COUNT, or the count is
+    # a mystery: "swept 40 of 90" beside nothing else reads as 50 silent failures.
+    if receipt.get("unswept"):
+        log.warning(
+            "[scan-live] %s of %s definitions were NOT reached (%s, deadline %s) -- "
+            "NOT because they failed. They lead the next cycle.",
+            receipt.get("unswept"), receipt.get("distinct"),
+            receipt.get("unswept_reason") or receipt.get("skipped_reason"),
+            receipt.get("deadline"))
 
 
 def enabled() -> bool:

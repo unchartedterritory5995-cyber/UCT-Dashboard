@@ -17,9 +17,10 @@ therefore does two runs: one with the gate, one with that gate ALONE removed, an
 would be satisfied by a pipeline that refuses everything.
 
 ⛔ NO LIVE MODEL CALLS. The boundary that is stubbed is the CLIENT
-(`engine._get_anthropic_client`), not `_call_model` — so the real request kwargs,
-the real tool-use extraction, the real temperature retry and the real token
-accounting all run. Stubbing `_call_model` would have hidden every one of them
+(`engine._get_anthropic_client`), not `_call_model` — so the real request kwargs
+(which carry NO sampling parameter: Claude 5 400s on one), the real client
+options, the real tool-use extraction and the real token accounting all run.
+Stubbing `_call_model` would have hidden every one of them
 (`lesson_injected_dependency_hides_the_fetch`: 996 green tests shipped a feature
 that ran in 0 of 24 charts because every test handed in a fake).
 """
@@ -29,6 +30,7 @@ import ast as pyast
 import importlib
 import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -96,7 +98,16 @@ class FakeClient:
     def __init__(self, answers: List[Any]) -> None:
         self.answers = list(answers)
         self.calls: List[dict] = []
+        self.options: Dict[str, Any] = {}
         self.messages = self
+
+    def with_options(self, **opts):
+        """The real client returns a configured copy; the fake RECORDS the
+        options and returns itself, so a caller that stops configuring one is
+        visible as an EMPTY dict rather than as silently-default behaviour.
+        """
+        self.options.update(opts)
+        return self
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
@@ -148,12 +159,38 @@ FUNCTIONS = sorted(TABLE[ast_table.FUNCTIONS_SECTION])
 #: The fourth section. Read, never listed — `ast_table.scalar_names` is the one
 #: derivation and a fifty-fifth scalar joins these cases the day it is declared.
 SCALARS = sorted(ast_table.scalar_names(TABLE))
+#: ⭐ THE CLOCK (closed table v2). It rides the `series` NODE, like a scalar, so
+#: it belongs in that node's enum — read off the manifest, never typed.
+CLOCK = sorted(ast_table.clock_names(TABLE))
 
 FIRST_SERIES = SERIES[0]
+#: ⛔ THE ROLES THE MANIFEST MAKES REQUIREMENTS, off its own declaration. An
+#: argument in one of these must be a tree of the named kind, and `interpret`
+#: refuses a call whose argument is not (`resolve:condition`). Read here so the
+#: shape-picked helpers below cannot accidentally pick an entry whose slot is
+#: not free.
+ENFORCED_ARG_ROLES = frozenset(
+    r for r in (TABLE.get("_functions_arg_role_kinds") or {}) if not r.startswith("_"))
+
+
+def _slots_are_free(fn: str) -> bool:
+    """Does this entry take its `series` slots FREELY — no declared role kind?"""
+    roles = tuple(TABLE[ast_table.FUNCTIONS_SECTION][fn].get("argRoles") or ())
+    return not (ENFORCED_ARG_ROLES & set(roles))
+
+
 #: A function of (series, int) — used for the "ordinary answer" cases. Chosen by
 #: shape from the manifest, not by name.
+#:
+#: ⛔ AND ITS SERIES SLOT MUST BE FREE. `windowed()` fills that slot with a BAR
+#: FIELD, so an entry declaring a `condition` there (`barssince`, 2026-08-26) is
+#: refused by `resolve:condition` before it can reach the door these cases are
+#: actually about — `barssince(close, 100)` stopped being a formula that computes
+#: NOTHING and became a formula that is REFUSED, two gates earlier. Derived, so a
+#: second such entry drops out of this pick the day it lands.
 WINDOWED = next(f for f in FUNCTIONS
-                if list(TABLE[ast_table.FUNCTIONS_SECTION][f]["args"]) == ["series", "int"])
+                if list(TABLE[ast_table.FUNCTIONS_SECTION][f]["args"]) == ["series", "int"]
+                and _slots_are_free(f))
 #: ⚠️ BY SHAPE, NOT BY INDEX. `OPERATORS[0]` sorts to `!`, which is UNARY — the
 #: first draft of this file built two-argument trees out of it and the read-back
 #: refused them by arity. Picking by declared arity is the same discipline the
@@ -487,11 +524,13 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     # schema whose enums drifted from the table would be a constraint on a
     # vocabulary nobody runs.
     #
-    # ⭐ THE `series` ENUM IS SERIES **AND** SCALARS, because a scalar rides the
-    # `series` node type — the manifest's own `_scalars_node` ruling, and the
-    # reason `propose` can now be handed `rs_rank > 80` at all.
+    # ⭐ THE `series` ENUM IS SERIES **AND** SCALARS **AND** THE CLOCK, because
+    # all three ride the `series` node type — the manifest's own
+    # `_scalars_node` ruling, the reason `propose` can be handed `rs_rank > 80`
+    # at all, and (v2) the reason it can be handed `sessionfirst == 1`.
     defs = schema["input_schema"]["$defs"]
-    assert defs["series"]["properties"]["name"]["enum"] == sorted(set(SERIES) | set(SCALARS))
+    assert defs["series"]["properties"]["name"]["enum"] == sorted(
+        set(SERIES) | set(CLOCK) | set(SCALARS))
     assert defs["op"]["properties"]["name"]["enum"] == OPERATORS
     assert defs["call"]["properties"]["name"]["enum"] == FUNCTIONS
     # 🔴 A FLOOR, NOT AN EQUALITY, AND THE CHANGE IS DELIBERATE. These two lines
@@ -502,7 +541,7 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     # hazard is the table SHRINKING under a totality corpus that then silently
     # covers less. Growth is somebody else's deliberate change and lands here for
     # free; a disappearance is still a red test naming the number.
-    bar_entries = len(SERIES) + len(OPERATORS) + len(FUNCTIONS)
+    bar_entries = len(SERIES) + len(CLOCK) + len(OPERATORS) + len(FUNCTIONS)
     assert bar_entries == sum(len(TABLE[s]) for s in ast_table.BAR_SECTIONS)
     assert bar_entries >= 31, (
         f"the closed table's bar sections have SHRUNK to {bar_entries}; they "
@@ -1397,9 +1436,18 @@ def _probe_tree(section: str, name: str, spec: Any) -> Any:
     silently green on the day it arrives — the exact defect this rail exists to
     end, reintroduced one level up.
     """
-    if section in (ast_table.SERIES_SECTION, ast_table.SCALARS_SECTION):
-        # ⭐ BOTH RIDE THE `series` NODE — a scalar is a fourth VOCABULARY, not a
-        # fifth node type — and the two still report separately.
+    if section in (ast_table.SERIES_SECTION, ast_table.CLOCK_SECTION,
+                   ast_table.SCALARS_SECTION):
+        # ⭐ ALL THREE RIDE THE `series` NODE — neither a scalar nor a clock
+        # value is a new node type, each is another VOCABULARY — and they still
+        # report separately.
+        #
+        # ⭐ THE `clock` ARM WAS ADDED THE DAY THE SECTION LANDED, AND THAT IS
+        # THIS PROBE WORKING AS DESIGNED. Until it was, `_probe_tree` returned
+        # `None` for every clock entry and the walker refused all thirteen —
+        # which is exactly what the docstring above promises: a new section
+        # arrives LOUD and somebody has to teach the probe, rather than
+        # arriving silently green.
         return {"type": "series", "name": name}
     if section == ast_table.OPERATORS_SECTION:
         return {"type": "op", "name": name, "args": _probe_args((spec or {}).get("arity"))}
@@ -1488,7 +1536,7 @@ def _diff(left: Mapping[str, List[str]], right: Mapping[str, List[str]]) -> Dict
     return out
 
 
-def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_named(concierge):
+def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_entries_for(concierge):
     """⛔ TOTALITY, MEASURED BY RENDERING, WITH THE SECTION LIST READ OFF THE
     MANIFEST. Not "is a phrase declared?" — that question is what let a whole
     section ride unreported. Every declared entry's minimal tree is walked, and a
@@ -1582,6 +1630,106 @@ def test_a_PLANTED_unsayable_entry_is_NAMED_and_the_sayable_twin_is_CLEAN(concie
                           ast_table.OPERATORS_SECTION: [],
                           ast_table.FUNCTIONS_SECTION: []}, (
         "a sayable plant was reported as a gap: " + _named(clean_gaps))
+
+
+def test_a_PLANTED_clock_value_RENDERS_and_a_DELETED_sentence_is_REFUSED_BY_NAME(concierge):
+    """🔴 THE POSITIVE CONTROL THIS LANE'S CLOCK RAILS NEVER HAD — ADD ONE,
+    REMOVE ONE, RESTORE.
+
+    ⛔ EVERY OTHER CLOCK ASSERTION IN THIS FILE READS THE UNMODIFIED TABLE, and
+    an unmodified table is the weakest possible subject: a probe reporting
+    ``clock: []`` is satisfied by a walker that looks at nothing, and
+    ``test_the_two_coverage_LANES_agree…`` cannot transfer the bite either,
+    because it compares the two lanes against that same unmodified table.
+    ``sentence.js`` has exactly this control; this lane did not — so the newest
+    section was railed in ONE lane of a mirrored pair
+    (``lesson_rail_the_mirror_not_just_the_lane``), and the day ``compile_rules``
+    grows a catch-all the Python side reports empty and stays green.
+
+    ⛔ NOTHING HERE MUTATES ``ast_table.TABLE``. Every probe table is a fresh
+    dict whose ``clock`` section is rebuilt entry by entry, which is what makes
+    the restore-half at the bottom a real re-measurement of the shipped table
+    rather than a statement about a mutation that never happened.
+    """
+    CLOCK = ast_table.CLOCK_SECTION
+
+    # FIXED 2026-08-27. This module used to define `_named` TWICE at top
+    # level -- the gap reporter above, and a much later
+    # `_named(concierge, text, lexicon=None)` -- so EVERY call resolved to the
+    # LAST one and `_named(gaps)` raised `TypeError: _named() missing 1
+    # required positional argument: 'text'` instead of printing the entry that
+    # broke. The guard still FIRED; its SENTENCE died
+    # (`lesson_rail_the_sentence_not_just_the_guard`), which is why this file
+    # showed 82 passed the whole time -- a rail's message only ever executes on
+    # the day it fails, so nothing tests it. The later function is now
+    # `_entries_for`. The names below are still built locally because this
+    # block reports per SECTION, which the shared reporter above does not do.
+    def report(gaps_by_section):
+        rows = [f"{section} ({len(names)}): {', '.join(names)}"
+                for section, names in sorted(gaps_by_section.items()) if names]
+        return " | ".join(rows) if rows else "(nothing)"
+
+    # ─── ADD ONE ─────────────────────────────────────────────────────────
+    # A clock value that did not exist when this was written reads back with no
+    # edit here, and the words are the MANIFEST'S — a hand-list cannot answer.
+    phrase = "the planted clock reading, 0 or 1"
+    planted = dict(TABLE)
+    planted[CLOCK] = dict(TABLE[CLOCK],
+                          **{"zz_planted_clock": {"lookback": 0, "sentence": phrase}})
+    rules = concierge.compile_rules(planted)
+    assert "zz_planted_clock" in rules["clock"], (
+        "a planted clock value never reached the compiled rules at all — "
+        f"they carry {sorted(rules['clock'])}")
+    assert rules["clock"]["zz_planted_clock"] == {"phrase": phrase, "gap": None}
+    assert concierge.explain_sentence(
+        {"type": "series", "name": "zz_planted_clock"}, {}, rules)["text"] == phrase
+
+    # …and the SHIPPED table refuses that same name, so the PLANT is demonstrably
+    # what made the difference and not a walker that says yes to anything.
+    with pytest.raises(concierge._SentenceRefused) as unknown:
+        concierge.explain_sentence({"type": "series", "name": "zz_planted_clock"}, {},
+                                   concierge.compile_rules(TABLE))
+    assert "zz_planted_clock" in str(unknown.value), str(unknown.value)
+
+    # ─── REMOVE ONE, ONE ENTRY AT A TIME ───────────────────────────────
+    declared = sorted(TABLE[CLOCK])
+    assert len(declared) >= 13, (
+        f"the manifest declares {len(declared)} clock values — this control "
+        "asserts nothing")
+    for name in declared:
+        broken = dict(TABLE)
+        broken[CLOCK] = {
+            key: ({k: v for k, v in spec.items() if k != "sentence"} if key == name
+                  else dict(spec))
+            for key, spec in TABLE[CLOCK].items()}
+        assert "sentence" not in broken[CLOCK][name]
+
+        # the rail's own answer names it — and names ONLY it. One deletion per
+        # run, so a probe that lit up its neighbours is caught in the same line.
+        gaps = _python_gaps(broken)
+        assert gaps[CLOCK] == [name], (
+            f"{name} lost its read-back and the rail said: " + report(gaps))
+        assert {s: g for s, g in gaps.items() if g} == {CLOCK: [name]}, (
+            "one deleted clock read-back lit up another section: " + report(gaps))
+
+        # …and the refusal a member would read names the entry, through the same
+        # gate the JS lane names.
+        with pytest.raises(concierge._SentenceRefused) as caught:
+            concierge.explain_sentence({"type": "series", "name": name}, {},
+                                       concierge.compile_rules(broken))
+        assert caught.value.gate == "sentence:no-template", caught.value.gate
+        assert json.dumps(name) in str(caught.value), str(caught.value)
+        assert "clock" in str(caught.value), (
+            f"the refusal for {name} never says WHICH vocabulary it came from: "
+            f"{caught.value}")
+
+    # ─── RESTORE ────────────────────────────────────────────────────
+    # …and the shipped table is clean again, RE-MEASURED rather than assumed.
+    # Without this the loop above could be reporting everything.
+    assert _python_gaps()[CLOCK] == []
+    assert concierge.explain_sentence(
+        {"type": "series", "name": declared[0]}, {}, concierge.compile_rules(TABLE)
+    )["text"] == TABLE[CLOCK][declared[0]]["sentence"]
 
 
 def test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED(js_lane, concierge):
@@ -2066,14 +2214,55 @@ def test_the_repair_call_is_ALSO_metered_and_the_cap_is_rechecked(concierge, mod
     assert concierge.spend_for(USER) == pytest.approx(logged["total_cost_usd"])
 
 
-def test_the_model_is_priced_by_the_guard_and_an_unknown_id_is_NEVER_free(concierge):
+def test_the_model_is_priced_by_the_guard_BY_NAME_and_an_unknown_id_is_NEVER_free(
+        concierge, caplog, monkeypatch):
     """⚠️ THE UNKNOWN-MODEL RULE IS LOAD-BEARING and it belongs to `cost_guard`, so
-    it is asserted against `cost_guard` — not re-implemented here."""
+    it is asserted against `cost_guard` — not re-implemented here.
+
+    ⛔ `estimate_cost(MODEL, …) > 0` was the old pin and it COULD NOT FAIL: the
+    fallback rate is the priciest KNOWN one, so an id with no entry also returns
+    > 0. The guard's own warning is what says the model was priced BY NAME.
+
+    ⭐ THE ID IS READ OFF `concierge.MODEL`, never retyped — a test that spelled
+    the model id a second time would go green against a table that had drifted."""
     from api.services.catalyst import cost_guard
-    assert cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0) > 0, (
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        priced = cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0)
+    assert priced > 0
+    assert not [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
         f"{concierge.MODEL} has no pricing entry — the cap would run on the "
         "fallback rate rather than on the real one")
-    assert cost_guard.estimate_cost("zz-not-a-model", 1_000_000, 0) > 0
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.cost_guard"):
+        assert cost_guard.estimate_cost("zz-not-a-model", 1_000_000, 0) > 0
+    assert [r for r in caplog.records if "unknown model pricing" in r.getMessage()], (
+        "the control did not fire — this probe cannot tell the two paths apart")
+
+    # ⭐ AND THE ENTRY KEYED BY THIS ID IS THE ONE THE LOOKUP REACHES. `MODEL in
+    # _PRICING` was the old structural half and it is STRICTER than the guard: a
+    # dated alias (`claude-opus-5-20260601`) is priced by name through its base id
+    # yet is not a key, so membership would red a correctly-priced model. Planting
+    # a rate and watching the price MOVE asks the question the guard answers — and
+    # membership could never answer it anyway, being satisfied by an entry the
+    # lookup never reaches.
+    monkeypatch.setitem(cost_guard._PRICING, concierge.MODEL,
+                        {"input": 999.0, "output": 999.0})
+    assert cost_guard.estimate_cost(concierge.MODEL, 1_000_000, 0) == pytest.approx(999.0)
+
+
+def test_the_DEFAULT_model_is_the_contracts_user_facing_model(concierge):
+    """The lane contract, 'Repo rules': `claude-opus-5` for anything user-facing.
+
+    ⭐ READ OFF THE SOURCE DEFAULT, not the environment — a box with
+    `CONCIERGE_MODEL` set would otherwise be testing the box. This is the one
+    place the id is legitimately spelled out: it IS the claim."""
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    defaults = [node.args[1].value for node in pyast.walk(pyast.parse(src))
+                if isinstance(node, pyast.Call) and isinstance(node.func, pyast.Attribute)
+                and node.func.attr == "get" and len(node.args) == 2
+                and isinstance(node.args[0], pyast.Constant)
+                and node.args[0].value == "CONCIERGE_MODEL"]
+    assert defaults == ["claude-opus-5"]
 
 
 def test_a_transport_failure_is_a_REFUSAL_and_never_an_exception(concierge, model):
@@ -2083,18 +2272,28 @@ def test_a_transport_failure_is_a_REFUSAL_and_never_an_exception(concierge, mode
     assert "ast" not in res
 
 
-def test_the_temperature_retry_is_the_SHIPPED_idiom(concierge, model):
-    """⚠️ NEWER MODELS REJECT `temperature` AS DEPRECATED and the shipped call pops
-    it and retries once. Reproduced here because a concierge that died on that 400
-    would be dead the day the default model id moves."""
-    class Fussy(FakeClient):
-        def create(self, **kwargs):
-            self.calls.append(kwargs)
-            if "temperature" in kwargs:
-                raise RuntimeError("temperature: unsupported parameter")
-            return tool_use(windowed(20))
+def test_a_sampling_PARAMETER_IS_NEVER_SENT_so_a_proposal_is_ONE_round_trip(concierge):
+    """⛔ CLAUDE 5 MODELS 400 ON `temperature`/`top_p`/`top_k` — sampling params were
+    REMOVED, not deprecated. The old idiom sent `temperature=0` and popped it on the
+    error, so EVERY proposal paid TWO HTTP round-trips: a 400, then the real call.
+    (Measured elsewhere in this repo — `ai_search_personal.py` carries "NO
+    temperature (Sonnet tier 400s)".) The parameter is simply not sent.
 
-    client = Fussy([])
+    ⭐ THE FAKE REFUSES A SAMPLING PARAM THE WAY THE API DOES, so the CALL COUNT is
+    the measurement rather than the absence of a dict key. A version that still
+    sends one is TWO calls here; a version that sends one and drops the retry never
+    gets an answer at all (`ok` goes False). Both fail, and for the right reason."""
+    class Api400OnSampling(FakeClient):
+        _SAMPLING = ("temperature", "top_p", "top_k")
+
+        def create(self, **kwargs):
+            bad = [k for k in self._SAMPLING if k in kwargs]
+            if bad:
+                self.calls.append(kwargs)
+                raise RuntimeError(f"Unsupported parameter: {bad[0]} (400)")
+            return super().create(**kwargs)
+
+    client = Api400OnSampling([tool_use(windowed(20))])
     import api.services.engine as engine_mod
     original = engine_mod._get_anthropic_client
     engine_mod._get_anthropic_client = lambda: client
@@ -2102,9 +2301,67 @@ def test_the_temperature_retry_is_the_SHIPPED_idiom(concierge, model):
         res = concierge.propose("average it", user_id=USER, bars=bars())
     finally:
         engine_mod._get_anthropic_client = original
+
     assert res["ok"] is True
-    assert len(client.calls) == 2
-    assert "temperature" in client.calls[0] and "temperature" not in client.calls[1]
+    assert len(client.calls) == 1, (
+        "a sampling parameter is still being sent — the 400 and the pop-and-retry "
+        "are two HTTP round-trips on every single proposal")
+    leaked = set(client.calls[0]) & set(Api400OnSampling._SAMPLING)
+    assert not leaked, sorted(leaked)
+
+    # ⭐ AND THE KNOBS REACH THE WIRE. `MAX_TOKENS >= 8192` is a claim about a
+    # CONSTANT; this is the claim the task actually makes — that the ceiling the
+    # module states is the ceiling the request carries. Raise the constant, hard-
+    # code a number at the call site, and only this line goes red
+    # (`lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage`).
+    assert client.calls[0]["max_tokens"] == concierge.MAX_TOKENS
+    assert client.calls[0]["model"] == concierge.MODEL
+
+
+def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
+        concierge, model):
+    """⛔ A TIMED-OUT CALL IS BILLED AND INVISIBLE. Tokens are billed as GENERATED,
+    but a timeout returns no ``usage``, so `cost_guard.record` never sees them and
+    the daily caps count the attempt as ZERO. The SDK retries twice by default,
+    which makes that up to THREE billed-and-invisible attempts per model call.
+
+    ⭐ HALF ONE, THE HAZARD, MEASURED: a failed attempt really does leave the
+    ledger at $0. That is what makes the attempt COUNT the thing worth bounding.
+
+    ⭐ HALF TWO, THE BOUND, PINNED AT THE WIRE and derived from the constant — a
+    caller that stops configuring the client records an empty options dict.
+
+    ⚠️ WHAT THIS CANNOT DO, STATED: the SDK's retry loop lives BELOW
+    `messages.create`, so this fake cannot make it run. The rail asserts the
+    option reaches the client, not that the SDK honours it; honouring it is the
+    SDK's own contract.
+    """
+    client = model([RuntimeError("Request timed out.")])
+    res = concierge.propose("average it", user_id=USER, bars=bars())
+    assert res["ok"] is False and res["gate"] == "model:transport"
+    assert concierge.spend_for(USER) == 0.0, (
+        "the hazard is gone — reread this test: a failed attempt used to be "
+        "invisible to the ledger, which is the reason attempts are bounded")
+
+    assert client.options.get("max_retries") == concierge.MAX_HTTP_RETRIES, (
+        f"the concierge configured {client.options!r} — the retry bound never "
+        "reached the client")
+    assert concierge.MAX_HTTP_RETRIES == 0, (
+        "more than one HTTP attempt per model call means more than one billed "
+        "attempt the ledger cannot see")
+
+
+def test_the_ceiling_covers_THINKING_PLUS_the_tool_call(concierge):
+    """⚠️ `max_tokens` CAPS THINKING AND OUTPUT TOGETHER, and Opus 5 thinks by
+    default when `thinking` is omitted. The tool call itself is a formula TREE —
+    the largest tree the firm ships as a starter serialises to under 500 bytes —
+    so the ceiling is almost entirely thinking headroom, and 1200 (sized for a
+    tool call ALONE) would truncate a thought into a repair call and a refusal.
+
+    ⛔ NOT A COST LEVER (`lesson_a_token_ceiling_is_not_a_cost_lever`): tokens are
+    billed as GENERATED, and spend is bounded by `cost_guard` plus the per-user
+    cap. Pinned as a FLOOR, not an equality, so raising it later is not a red."""
+    assert concierge.MAX_TOKENS >= 8192
 
 
 # ═══ 8. NO SECOND VALIDATION PATH, AND NOTHING IS STORED ═══════════════════
@@ -2664,7 +2921,7 @@ def test_the_ROUTE_carries_the_KIND_and_defaults_to_the_PIPELINES_own(
 # the source rail is carried and WIDENED (section 10e).
 
 
-def _named(concierge, text: str, lexicon=None):
+def _entries_for(concierge, text: str, lexicon=None):
     """What the door reads out of one phrase: `(kind, key)` pairs, in order."""
     lex = lexicon if lexicon is not None else concierge.LEXICON
     return [(m["kind"], m["key"]) for m in concierge._matches(text, lex)]
@@ -2739,27 +2996,27 @@ def test_EVERY_declared_name_is_REACHABLE_by_its_OWN_name_and_by_the_MANIFESTS_p
         "fewer declarations carry typeable English than there are scalars; the "
         "phrase half of this rail is measuring almost nothing")
     missed = {name: gloss for name, gloss in phrases.items()
-              if (concierge.TABLE_ENTRY, name) not in _named(concierge, gloss)}
+              if (concierge.TABLE_ENTRY, name) not in _entries_for(concierge, gloss)}
     assert not missed, (
         f"the manifest's own English does not reach {sorted(missed)}")
 
     # ⛔ THE CONTROL, AND IT IS WHAT MAKES THIS A DERIVATION RATHER THAN A LUCKY
     # HAND-LIST: a name the manifest has never heard of reaches nothing, and a
     # PLANTED one reaches everything with no edit to the module or to this rail.
-    assert _named(concierge, "zzNotAColumnAnywhere") == []
+    assert _entries_for(concierge, "zzNotAColumnAnywhere") == []
     planted = _clone_table()
     planted[ast_table.SCALARS_SECTION]["zz_planted_column"] = {
         "sentence": "the planted widget ratio", "cadence": "nightly"}
     lex = concierge.build_lexicon(planted)
-    assert _named(concierge, "zz_planted_column", lex) == \
+    assert _entries_for(concierge, "zz_planted_column", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")]
-    assert _named(concierge, "the planted widget ratio", lex) == \
+    assert _entries_for(concierge, "the planted widget ratio", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")]
-    assert _named(concierge, "zz planted columns", lex) == \
+    assert _entries_for(concierge, "zz planted columns", lex) == \
         [(concierge.TABLE_ENTRY, "zz_planted_column")], (
             "the planted column is reachable only in its exact spelling — the "
             "morphology is not running over the manifest's own entries")
-    assert _named(concierge, "zz_planted_column") == [], (
+    assert _entries_for(concierge, "zz_planted_column") == [], (
         "the plant reached the SHIPPED lexicon, so the control proves nothing")
 
 
@@ -2799,7 +3056,7 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
 
     checked = 0
     for word in grounded:
-        assert _named(concierge, word) == [(concierge.CONCEPT_ENTRY, word)], (
+        assert _entries_for(concierge, word) == [(concierge.CONCEPT_ENTRY, word)], (
             f"the firm's own word {word!r} does not ground as itself")
         last = word.split()[-1]
         target = concierge.stem(last)[0]
@@ -2808,7 +3065,7 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
                 continue                    # the rules genuinely cannot undo it
             variant = " ".join(word.split()[:-1] + [form])
             checked += 1
-            assert _named(concierge, variant) == [(concierge.CONCEPT_ENTRY, word)], (
+            assert _entries_for(concierge, variant) == [(concierge.CONCEPT_ENTRY, word)], (
                 f"{variant!r} is an inflection of the firm's word {word!r} and "
                 "this door cannot read it")
     assert checked >= len(grounded), (
@@ -2825,13 +3082,13 @@ def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge
         for suffix in ("s", "ing", "ship"):
             if concierge.stem(root + suffix)[0] != root:
                 continue
-            assert _named(concierge, root + suffix) == \
+            assert _entries_for(concierge, root + suffix) == \
                 [(concierge.CONCEPT_ENTRY, word)], f"{root + suffix!r} -> nothing"
 
     # ⛔ AND IT DOES NOT WIDEN INTO NONSENSE. A word that stems somewhere else is
     # still nothing, which keeps "either the firm defined it or it did not" true
     # one layer down.
-    assert _named(concierge, "zzleaderish") == []
+    assert _entries_for(concierge, "zzleaderish") == []
 
 
 def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
@@ -2849,9 +3106,9 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
         "door would have to guess between them")
 
     # …and the near-miss the distance rule exists for resolves each way.
-    assert _named(concierge, "highest") == [(concierge.TABLE_ENTRY, "highest")]
-    assert _named(concierge, "high") == [(concierge.TABLE_ENTRY, "high")]
-    assert _named(concierge, "highs") == [(concierge.TABLE_ENTRY, "high")]
+    assert _entries_for(concierge, "highest") == [(concierge.TABLE_ENTRY, "highest")]
+    assert _entries_for(concierge, "high") == [(concierge.TABLE_ENTRY, "high")]
+    assert _entries_for(concierge, "highs") == [(concierge.TABLE_ENTRY, "high")]
 
     # ⭐ AND AN INFLECTIONAL NEAR-MISS IS NOT A TIE — the distance rule separates
     # it, and calling it one would drop two perfectly readable words. Planted, so
@@ -2861,8 +3118,8 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
         near[ast_table.SCALARS_SECTION][name] = {"cadence": "nightly"}
     lex = concierge.build_lexicon(near)
     assert lex["collisions"] == {}, lex["collisions"]
-    assert _named(concierge, "zzwidget", lex) == [(concierge.TABLE_ENTRY, "zzwidget")]
-    assert _named(concierge, "zzwidgets", lex) == [(concierge.TABLE_ENTRY, "zzwidgets")]
+    assert _entries_for(concierge, "zzwidget", lex) == [(concierge.TABLE_ENTRY, "zzwidget")]
+    assert _entries_for(concierge, "zzwidgets", lex) == [(concierge.TABLE_ENTRY, "zzwidgets")]
 
     # ⛔ THE PLANT: two columns declaring the SAME English. Nothing separates
     # them, so neither may win.
@@ -2874,10 +3131,10 @@ def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
     assert [sorted(v) for v in tied["collisions"].values()] == \
         [[(concierge.TABLE_ENTRY, "zz_twin_a"), (concierge.TABLE_ENTRY, "zz_twin_b")]], (
             f"the reported ties are {tied['collisions']}, not the planted one")
-    assert _named(concierge, "zz twin phrase", tied) == [], (
+    assert _entries_for(concierge, "zz twin phrase", tied) == [], (
         "a phrase two columns both declare was arbitrated rather than refused")
     # …and each column's own NAME still resolves, because that is not tied.
-    assert _named(concierge, "zz_twin_a", tied) == [(concierge.TABLE_ENTRY, "zz_twin_a")]
+    assert _entries_for(concierge, "zz_twin_a", tied) == [(concierge.TABLE_ENTRY, "zz_twin_a")]
 
 
 # ── 10b. a refused word refuses its CLAUSE, and nothing more ────────────────
@@ -3048,7 +3305,7 @@ def test_a_column_the_table_DELIBERATELY_LACKS_is_NAMED_and_the_rest_STILL_DRAFT
 
     # ⭐ TOTALITY: every column the manifest says it lacks answers to its own name.
     unreachable = [name for name in excluded
-                   if [(concierge.EXCLUDED_ENTRY, name)] != _named(concierge, name)]
+                   if [(concierge.EXCLUDED_ENTRY, name)] != _entries_for(concierge, name)]
     assert not unreachable, (
         f"the table declares it cannot carry {unreachable} and says so to nobody")
 
@@ -3077,7 +3334,7 @@ def test_a_column_the_table_DELIBERATELY_LACKS_is_NAMED_and_the_rest_STILL_DRAFT
                  == concierge.stem(n)[0] and (n + "s") not in excluded]
     assert inflected, "no excluded column inflects, so this half proves nothing"
     for word in inflected:
-        assert _named(concierge, word) == [], (
+        assert _entries_for(concierge, word) == [], (
             f"{word!r} raised a can't-do notice for a column the member did not "
             "actually name")
 
@@ -3372,6 +3629,341 @@ def test_no_SCALAR_name_and_no_VOCABULARY_word_is_a_string_constant_in_this_modu
     # hand-copy DOES report them, so a clean file is a measurement.
     sample = sorted(forbidden)[:3]
     hand = pyast.parse(f"WORDS = [{', '.join(repr(w) for w in sample)}]")
+    found = {node.value for node in pyast.walk(hand)
+             if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    assert found & forbidden == set(sample)
+# ═══ 10f. the NAMED BAR SHAPES — the library this door was blind to ═══
+#
+# 🔴 THE MEASUREMENT THIS SECTION EXISTS FOR. On 2026-08-27 the screener
+# shipped filters over two libraries of named bar shapes and NO AI door in the
+# product could anchor one of their names: 62 of the candle library's own labels
+# came back from `plan` with `concepts`, `terms`, `not_understood` AND
+# `unavailable` all empty. ⛔ A silent non-understanding is worse than an
+# over-refusal, not milder: an over-refusal is at least visible to whoever reads
+# it, while a phrasing nothing anchors reaches the model as bare English wearing
+# the appearance of a normal request.
+#
+# ⛔ AND THE RAILS BELOW DRIVE THE WHOLE OF BOTH LIBRARIES, NEVER A SAMPLE.
+# A test over five hand-picked words would have been green while sixty names
+# stayed blind, which is exactly the fixture-that-cannot-distinguish this branch
+# has now shipped three times.
+
+
+def _shape_registries():
+    """The registries that OWN a bar's names — read, never re-typed.
+
+    ⚠️ `bar_character` is here for the reason its own header gives: it is the
+    SECOND half of one question about one bar (what it DID, beside what it IS),
+    it sits in the same filter category, and a member has no idea which library
+    a word came out of. A rail over only one of them would measure half a door.
+    """
+    from api.services.screener import bar_character
+    from api.services.screener import candle_catalog
+    return {"candle_catalog": list(candle_catalog.ALL_PATTERNS),
+            "bar_character": list(bar_character.CASCADE)}
+
+
+def _shape_phrasings():
+    """Every way a member could write a shape's name, off the registries.
+
+    Returns ``[(library, key, phrase)]`` — the display label, the machine key
+    opened out, and the label without a parenthesised direction qualifier. ⛔
+    This is derived here INDEPENDENTLY of `definition_concierge`'s own
+    derivation: a rail that imported the module's list would agree with it by
+    construction and could never report a name the module had dropped.
+    """
+    import re as _re
+    from api.services.screener import candle_catalog
+    qualifier = _re.compile(r"\([^)]*\)")
+    rows = []
+    for library, shapes in _shape_registries().items():
+        for shape in shapes:
+            forms = {shape.label, shape.key.replace("-", " "),
+                     qualifier.sub(" ", shape.label).strip()}
+            for form in sorted(f for f in forms if f.strip()):
+                rows.append((library, shape.key, form))
+    for key, legacy in candle_catalog.LEGACY_ALIASES.items():
+        rows.append(("legacy_alias", key, legacy.replace("-", " ")))
+        rows.append(("legacy_alias", key, key.replace("-", " ")))
+    return rows
+
+
+def _outcome(got: dict) -> str:
+    """Which of the four named outcomes `plan` reached, or the fifth: silence."""
+    if got["concepts"] or got["terms"]:
+        return "anchored"
+    if got["unavailable"]:
+        return "unavailable"
+    if got["not_understood"]:
+        return "not_understood"
+    return "SILENT"
+
+
+def test_EVERY_NAMED_SHAPE_the_screener_ships_gets_a_NAMED_OUTCOME(concierge):
+    """🔴 THE GATE FOR THIS TASK. Every shape in BOTH registries, in every
+    form a member could write it, reaches one of the four named outcomes.
+
+    ⛔ THE POPULATION IS ASSERTED AGAINST THE REGISTRIES' OWN LENGTHS FIRST,
+    so this cannot pass by measuring a library that shrank to nothing — the
+    scarcity-that-reads-as-a-fact defect. And the failure message NAMES the
+    blind phrasings rather than counting them.
+    """
+    registries = _shape_registries()
+    assert len(registries["candle_catalog"]) >= 60, (
+        f"the candle library reports {len(registries['candle_catalog'])} shapes; "
+        "it shrank and this rail would be measuring almost nothing")
+    assert len(registries["bar_character"]) >= 50, (
+        f"the bar-character library reports {len(registries['bar_character'])} "
+        "shapes; it shrank and this rail would be measuring almost nothing")
+
+    rows = _shape_phrasings()
+    assert len(rows) >= 2 * sum(len(v) for v in registries.values()), (
+        f"{len(rows)} phrasings for "
+        f"{sum(len(v) for v in registries.values())} shapes — the form "
+        "derivation collapsed and most names are no longer being driven")
+
+    counts: Dict[str, int] = {}
+    silent = []
+    for library, key, phrase in rows:
+        got = concierge.plan(phrase, "scan")
+        outcome = _outcome(got)
+        counts[outcome] = counts.get(outcome, 0) + 1
+        if outcome == "SILENT":
+            silent.append((library, key, phrase))
+
+    assert not silent, (
+        f"{len(silent)} of {len(rows)} phrasings of the firm's OWN named bar "
+        "shapes anchored NOTHING — they reach the model as bare English with "
+        "nothing marked:\n"
+        + "\n".join(f"  [{lib}] {key}: {phrase}" for lib, key, phrase in silent[:25]))
+
+    # …and every one of them names the column the screener stores it in, plus
+    # that column's own declared reason — a refusal that says what would
+    # unblock it, never a bare "no".
+    reasons = concierge._excluded(ast_table.TABLE)
+    for library, key, phrase in rows:
+        for item in concierge.plan(phrase, "scan")["unavailable"]:
+            assert item["name"] in reasons, (library, key, phrase, item)
+            assert item["reason"].strip(), (
+                f"{phrase!r} is refused as {item['name']} with an EMPTY reason; a "
+                "doc-blocked refusal that names no unblocker is invisible")
+
+    # ⛔ THE CONTROL, so the silence above is a measurement of the door rather
+    # than of this check: prose that names no shape IS silent.
+    assert _outcome(concierge.plan("please make me some money", "scan")) == "SILENT"
+
+
+def test_the_SHAPE_VOCABULARY_GROWS_AND_SHRINKS_WITH_THE_REGISTRY(concierge,
+                                                                  monkeypatch):
+    """⛔ THE BOTH-DIRECTIONS PROOF THAT THE NAMES ARE DERIVED, NOT COPIED.
+
+    A consumer that read the registry cannot fail this; one that hand-typed the
+    names passes the gate above and fails here, because a hand-list agrees with
+    today's registry exactly and with tomorrow's not at all. Measured twice on
+    this branch: a hand-list left 825 of 826 and 908 of 909 cases green.
+
+    ⭐ THE GROWTH IS ASSERTED TO BE *EXACTLY* THE ONE ENTRY. A module that
+    reacted to the perturbation by widening in some other way — or by
+    rebuilding a stale copy — would move a different number of stems.
+    """
+    from api.services.screener import candle_catalog
+
+    before = concierge.build_lexicon()["index"]
+
+    invented = candle_catalog.Pattern(
+        key="zzz-probe-shape", label="Zzz Probe Shape", axis="shape", bars=1,
+        bias="neutral", kind="plain", rank=9999,
+        desc="a shape that exists only inside this test")
+    monkeypatch.setattr(candle_catalog, "ALL_PATTERNS",
+                        list(candle_catalog.ALL_PATTERNS) + [invented])
+    monkeypatch.setattr(candle_catalog, "BY_KEY",
+                        {**candle_catalog.BY_KEY, invented.key: invented})
+
+    grown_lexicon = concierge.build_lexicon()
+    grown = grown_lexicon["index"]
+    added = set(grown) - set(before)
+    expected = {concierge._stem_key(concierge._form_tokens(form))[0]
+                for form in (invented.label, invented.key.replace("-", " "))}
+    assert added == expected, (
+        f"adding ONE shape to the registry moved {sorted(added)} in the door's "
+        f"vocabulary; a derived consumer moves exactly {sorted(expected)}")
+    assert not (set(before) - set(grown)), "adding a shape removed vocabulary"
+
+    # …and the door can now SAY it, through the real entry point. ⚠️ The
+    # freshly built lexicon is handed in on purpose: `plan`'s default is the one
+    # built at import, and a rail that read that would be measuring the shipped
+    # vocabulary while claiming to measure the perturbed one.
+    assert _outcome(concierge.plan(invented.label, "scan",
+                                   lexicon=grown_lexicon)) != "SILENT"
+
+    # …and the other direction: a shape the registry stops declaring stops
+    # being sayable. ⚠️ A rail that only tested growth would pass a module
+    # that appended a derived list to a hand-typed one.
+    dropped = candle_catalog.ALL_PATTERNS[0]
+    monkeypatch.setattr(candle_catalog, "ALL_PATTERNS",
+                        [p for p in candle_catalog.ALL_PATTERNS
+                         if p.key != dropped.key])
+    monkeypatch.setattr(candle_catalog, "BY_KEY",
+                        {k: v for k, v in candle_catalog.BY_KEY.items()
+                         if k != dropped.key})
+    shrunk = concierge.build_lexicon()
+    gone = concierge._stem_key(concierge._form_tokens(dropped.label))[0]
+    columns = _shape_columns(concierge)
+    assert columns, "the module's derivation reached no column at all"
+    assert not any(row["key"] in columns for row in shrunk["index"].get(gone, [])), (
+        f"{dropped.label!r} is still in the door's vocabulary after the registry "
+        "stopped declaring it — the names are a copy, not a reading")
+    assert _outcome(concierge.plan(dropped.label, "scan",
+                                   lexicon=shrunk)) == "SILENT", (
+        f"{dropped.label!r} still reaches an outcome after the registry stopped "
+        "declaring it")
+
+
+def test_a_BARE_SHAPE_WORD_stays_SILENT_and_the_multi_word_form_does_not(
+        concierge):
+    """⛔ X83 — THE CONSEQUENCE OF THE OVER-CAPTURE GUARD, PINNED.
+
+    The test below measures that a shape name never HIJACKS a phrase that meant
+    something else. This measures what that costs: the bare word reaches SILENT.
+    The mechanism was documented and railed; the consequence was neither, and an
+    unstated consequence is how the next reader concludes it was an oversight and
+    "fixes" it into the over-capture the other test exists to prevent.
+
+    ⭐ BOTH DIRECTIONS, AND THE SECOND IS WHAT MAKES THE FIRST MEAN ANYTHING. A
+    door that answered NOTHING would satisfy "bare `harami` is silent" perfectly
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), so every bare word
+    is paired with a declared multi-word form that must NOT be silent.
+
+    The ruling this pins is stated in `_named_shape_phrases`: bare shape words
+    stay silent deliberately, because `harami` names a FAMILY of three shapes and
+    answering with one would be a guess.
+    """
+    PAIRS = [
+        ("harami", "bullish harami"),
+        ("star", "morning star"),
+        ("engulfing", "bullish engulfing"),
+        ("inside bar", "inside bar close"),
+    ]
+    declared = {phrase.lower() for _, phrase in concierge._named_shape_phrases()}
+
+    checked = 0
+    for bare, multi in PAIRS:
+        # The premise, measured rather than assumed: the bare word really is
+        # undeclared and the multi-word form really is declared. If the catalog
+        # ever declares the bare word, this test must be re-decided, not patched.
+        if bare in declared or multi.lower() not in declared:
+            continue
+        checked += 1
+        assert _outcome(concierge.plan(bare, "scan")) == "SILENT", (
+            f"bare {bare!r} now reaches an outcome. That is a DECISION \u2014 see the "
+            "ruling in `_named_shape_phrases`: it names a family of shapes, and "
+            "answering with one of them is a guess this door does not make.")
+        assert _outcome(concierge.plan(multi, "scan")) != "SILENT", (
+            f"{multi!r} is a declared shape phrase and went SILENT \u2014 the door is "
+            "not answering shapes at all, which would make the assertion above "
+            "pass for the wrong reason")
+
+    assert checked >= 3, (
+        f"only {checked} bare/declared pairs were measurable \u2014 this rail is "
+        "not measuring what it claims")
+
+
+def test_a_SHAPE_NAME_does_not_HIJACK_a_phrasing_that_meant_something_else(
+        concierge):
+    """⚠️ THE OVER-CAPTURE MEASUREMENT, OVER THE WHOLE CORPUS.
+
+    `inside`, `star`, `harami`, `engulfing` and `bar` are ordinary English inside
+    longer phrases, and a door that anchored candles by swallowing everything
+    else would be worse than the gap it closed. So every one of the firm's own
+    1,200+ phrasings is planned twice — with the shape libraries and without
+    — and the ONLY rows allowed to move are the ones whose text IS a shape's
+    own name.
+
+    ⭐ A MOVE THERE IS THE FIX, NOT A REGRESSION: before this landed, "Upside
+    Tasuki Gap" anchored to the bar field `gap_pct`, "Matching Low" to `low` and
+    "Stopping Volume" to `volume` — the shape's name read as three unrelated
+    columns.
+    """
+    without = dict(concierge.build_lexicon())
+    stripped = {stems: [row for row in rows
+                        if not (row["kind"] == concierge.EXCLUDED_ENTRY
+                                and row["key"] in _shape_columns(concierge))]
+                for stems, rows in without["index"].items()}
+    without = {"index": {k: v for k, v in stripped.items() if v},
+               "max_words": without["max_words"], "collisions": {}}
+
+    shape_stems = {concierge._stem_key(concierge._form_tokens(phrase))[0]
+                   for _, _, phrase in _shape_phrasings()}
+
+    rows = _corpus()
+    assert len(rows) >= 200, f"{len(rows)} rows is not a corpus"
+
+    hijacked = []
+    moved = 0
+    for row in rows:
+        before = concierge.plan(row["text"], "scan", lexicon=without)
+        after = concierge.plan(row["text"], "scan")
+        same = ([t["name"] for t in before["terms"]]
+                == [t["name"] for t in after["terms"]]
+                and [c["word"] for c in before["concepts"]]
+                == [c["word"] for c in after["concepts"]])
+        if same:
+            continue
+        moved += 1
+        words = concierge._form_tokens(row["text"])
+        names_a_shape = any(
+            concierge._stem_key(words[i:i + width])[0] in shape_stems
+            for width in range(1, len(words) + 1)
+            for i in range(0, len(words) - width + 1))
+        if not names_a_shape:
+            hijacked.append((row["source"], row["text"],
+                             [t["name"] for t in before["terms"]],
+                             [t["name"] for t in after["terms"]]))
+
+    assert not hijacked, (
+        f"{len(hijacked)} phrasings that name NO bar shape changed what they "
+        "anchor once the shape libraries were added — a candle word hijacked "
+        "a sentence that meant something else:\n"
+        + "\n".join(f"  [{s}] {t}: {a} -> {b}" for s, t, a, b in hijacked[:25]))
+
+    # ⛔ THE CONTROL: the check CAN see a move, so "nothing was hijacked" is a
+    # measurement and not a vacuous pass.
+    assert moved, ("no corpus row moved at all; the without-shapes lexicon is not "
+                   "actually different and this rail proves nothing")
+
+    # …and the brief's own control phrasing is untouched.
+    got = concierge.plan("close above the 50 day moving average", "scan")
+    assert got["path"] == "composition" and [t["name"] for t in got["terms"]] == ["close"]
+
+
+def _shape_columns(concierge) -> set:
+    """The columns the shape libraries reach — asked of the module's derivation."""
+    return {column for column, _ in concierge._named_shape_phrases()}
+
+
+def test_NO_SHAPE_NAME_IS_A_STRING_CONSTANT_IN_THE_CONCIERGE(concierge):
+    """⛔ THE ANTI-COPY SCAN, EXTENDED TO THE SHAPE LIBRARIES.
+
+    The sibling rail forbids scalar names and vocabulary words as string
+    constants. This task made the module read two more registries, so a hand-list
+    of either is now the cheapest way to fake a fluent door — and it would be
+    green everywhere except here.
+    """
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    constants = {node.value for node in pyast.walk(pyast.parse(src))
+                 if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    forbidden = {shape.key for shapes in _shape_registries().values()
+                 for shape in shapes}
+    forbidden |= {shape.label for shapes in _shape_registries().values()
+                  for shape in shapes}
+    assert len(forbidden) >= 200, "the forbidden set shrank; this rail measures less"
+    assert not (constants & forbidden), (
+        f"{sorted(constants & forbidden)} appear as string constants — the "
+        "door must READ the shape registries, not copy them")
+
+    # The positive control, in the same walk: a synthetic hand-copy IS reported.
+    sample = sorted(forbidden)[:3]
+    hand = pyast.parse(f"NAMES = [{', '.join(repr(w) for w in sample)}]")
     found = {node.value for node in pyast.walk(hand)
              if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
     assert found & forbidden == set(sample)

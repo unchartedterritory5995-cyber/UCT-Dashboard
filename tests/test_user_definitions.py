@@ -582,10 +582,21 @@ def test_the_two_formulas_really_do_disagree_on_these_bars(env):
         "crossing this file measures cannot occur")
 
 
-def test_rev_bumps_IFF_the_ast_hash_moved_and_the_bump_FORCE_MIGRATES(env):
+def test_rev_bumps_WHEN_THE_MATHS_MOVED_and_the_bump_FORCE_MIGRATES(env):
     """⭐ D-A3, AND THE MECHANISM IS CALLED, NOT REBUILT.
 
-    `version` increments on every save; `rev` increments IFF `astHash` changed.
+    `version` increments on every save; `rev` increments when the MATHS moved.
+
+    ⚰️ CORRECTED 2026-08-27. This said "IFF `astHash` changed", which was true
+    until multi-plot and became FALSE with `ee81ce831`: an alert binds to ONE
+    plot (`u_<12hex>.<plotKey>`), so editing a NON-scan tree has to force-migrate
+    too, and `rev` now bumps when `ast_hash` moves **or** `treesHash` does.
+    `compute.fn` / `def_hash` are still `ast_hash(compute.ast)` and did not move
+    — 0 of 249 rows.
+
+    ⛔ This was the THIRD copy of the old sentence, and the one that mattered
+    most: it was in this test's NAME, and a test name reads as an assertion. Two
+    agreeing copies read as corroboration; three read as certainty.
     That removes an entire class of "the user forgot to bump" and is one
     assertion.
 

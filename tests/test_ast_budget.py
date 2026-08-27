@@ -132,18 +132,56 @@ def test_the_two_lanes_hold_THE_SAME_THREE_NUMBERS_read_not_retyped():
     exact shape of the B5 defect where an alert naming a JS-only indicator could
     be STORED and could never FIRE.
 
-    The JS source is parsed with a narrow regex over its ``DEFAULT_BUDGET``
-    literal rather than executed, because this lane has no JS runtime — and the
-    parse is asserted NON-VACUOUS first, so a regex that stopped matching cannot
-    read as agreement.
+    The JS source is parsed rather than executed, because this lane has no JS
+    runtime — and the parse is asserted NON-VACUOUS first (every cap key resolved),
+    so a regex that stopped matching cannot read as agreement.
+
+    ⭐ ONE CAP IS AN EXPRESSION, NOT A DIGIT. ``maxLookback`` is
+    ``Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)`` in both lanes
+    (controller ruling O7) — a literal there would be two numbers that must agree,
+    typed in two places. So this resolves the named constants out of the JS source
+    and out of the shared manifest and evaluates the same expression. ⛔ The
+    resolution is DECLARED per name: an unrecognised name leaves the key
+    unresolved, which the totality check below turns into a failure rather than a
+    silent skip.
     """
     import re
     src = io.open(_JS_BUDGET, encoding="utf-8").read().replace("\r\n", "\n")
     block = re.search(r"export const DEFAULT_BUDGET = Object\.freeze\(\{(.*?)\}\)",
                       src, re.S)
     assert block, "budget.js no longer declares DEFAULT_BUDGET in the shape this reads"
-    found = {k: int(v) for k, v in re.findall(r"(\w+)\s*:\s*(\d+)", block.group(1))}
+
+    def _js_const(name):
+        m = re.search(rf"const {name} = (\d+)\b", src)
+        assert m, f"budget.js declares no `const {name}` this probe can resolve"
+        return int(m.group(1))
+
+    names = {
+        "NESTED_RECURRENCE_WARMUP": lambda: _js_const("NESTED_RECURRENCE_WARMUP"),
+        "SESSION_MAX_BARS": lambda: ast_interpret.SESSION_MAX_BARS,
+    }
+
+    found = {}
+    # ⚠️ LINE-ANCHORED, not comma-split: `Math.max(a, b)` CONTAINS a comma, and a
+    # `[^,]+` expression capture silently truncated it to `Math.max(a` — resolving
+    # nothing for that key. The totality assertion below is what surfaced it.
+    for line in block.group(1).split("\n"):
+        m_kv = re.match(r"\s*(\w+)\s*:\s*(.+?),\s*$", line)
+        if not m_kv:
+            continue
+        key, expr = m_kv.group(1), m_kv.group(2).strip()
+        if expr.isdigit():
+            found[key] = int(expr)
+            continue
+        m = re.fullmatch(r"Math\.max\((\w+),\s*(\w+)\)", expr)
+        if m and m.group(1) in names and m.group(2) in names:
+            found[key] = max(names[m.group(1)](), names[m.group(2)]())
+
     assert found, "the DEFAULT_BUDGET block parsed to NOTHING — a vacuous agreement"
+    assert set(found) == set(ast_budget.DEFAULT_BUDGET), (
+        "a cap in budget.js resolved to nothing this probe understands, so the "
+        f"agreement below would silently skip it: resolved={sorted(found)} "
+        f"declared={sorted(ast_budget.DEFAULT_BUDGET)}")
     assert found == dict(ast_budget.DEFAULT_BUDGET), (
         f"the lanes disagree about the caps: js={found} py={dict(ast_budget.DEFAULT_BUDGET)}")
 
@@ -178,8 +216,83 @@ def test_the_caps_have_headroom_over_everything_this_repo_ships():
         for cap, value in result["measured"].items():
             worst[cap] = max(worst[cap], value)
     for cap, cap_value in ast_budget.DEFAULT_BUDGET.items():
+        # ⭐⭐ ``maxLookback`` IS THE ONE CAP THE CORPUS IS SUPPOSED TO REACH,
+        # and that is a consequence of ruling O7 rather than a relaxation. The
+        # cap is DERIVED as ``max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)``,
+        # so a session-anchored entry does not approach it -- it IS it, by
+        # construction, at whatever number a session turns out to be. Demanding
+        # headroom there demands that the cap be bigger than the thing it was
+        # sized to hold. ⛔ EQUALITY IS STILL THE CEILING: one bar past refuses,
+        # and the case below measures exactly which shapes that costs.
+        if cap == "maxLookback":
+            assert worst[cap] <= cap_value, f"{cap}: the corpus is OVER the cap"
+            continue
         assert worst[cap] < cap_value, f"{cap}: the corpus already sits AT the cap"
+    assert worst["maxLookback"] == ast_budget.DEFAULT_BUDGET["maxLookback"], (
+        "no corpus case reaches the lookback cap -- the arm above is dead")
     assert len(CORPUS["cases"]) >= 17
+
+
+def test_a_session_anchored_call_SATURATES_the_lookback_budget():
+    """🔴 THE MEMBER-VISIBLE CONSEQUENCE OF RULING O7, MEASURED.
+
+    ``maxLookback`` was derived to hold exactly one ET session and ``vwap()``
+    declares exactly one ET session, so it uses the WHOLE budget and there is
+    nothing left for anything wrapped around it. Bare and in pointwise arithmetic
+    it is fine; ANY windowed or offset composition refuses ``budget:lookback``,
+    at the save door and at compute.
+
+    ⚠️ THIS IS NOT A BUG TO FIX HERE. The alternatives are a bigger cap (which
+    widens every other window AND the bar-offset ceiling with it -- they are one
+    number by design) or a session-anchored entry that UNDER-declares its window,
+    which ``_functions_warmup`` forbids. It is written down so the next lane
+    reads it instead of finding it in a member's screenshot.
+    """
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    vwap = {"type": "call", "name": "vwap", "args": []}
+    avwap = {"type": "call", "name": "avwap",
+             "args": [{"type": "num", "value": 1762189200}]}
+    for tree in (vwap, avwap,
+                 {"type": "op", "name": ">",
+                  "args": [{"type": "series", "name": "close"}, vwap]}):
+        assert ast_interpret.max_lookback(tree) == cap
+        assert ast_budget.budget_result(tree, None)["ok"]
+    # ⛔ `crossOver(close, vwap())` IS FIRST BECAUSE IT IS FIRST IN A MEMBER'S
+    # HEAD. This case originally named ``sma``, ``change`` and the bar offset and
+    # omitted the one formula anybody actually types -- a rail over the shapes an
+    # engineer thinks of is not a rail over the shapes a member writes.
+    close = {"type": "series", "name": "close"}
+    for tree in ({"type": "call", "name": "crossOver", "args": [close, vwap]},
+                 {"type": "call", "name": "highest",
+                  "args": [vwap, {"type": "num", "value": 2}]},
+                 {"type": "call", "name": "sma",
+                  "args": [vwap, {"type": "num", "value": 20}]},
+                 {"type": "call", "name": "change", "args": [vwap]},
+                 {"type": "offset", "value": 1, "args": [vwap]}):
+        assert ast_interpret.max_lookback(tree) > cap
+        result = ast_budget.budget_result(tree, None)
+        assert not result["ok"]
+        assert result["guard"] == "budget:lookback", result
+        # ⭐ AND THE MESSAGE SAYS WHICH BUDGET AND WHY, NOT JUST "too long".
+        for phrase in ("lookback budget", "vwap()", "one whole trading session",
+                       "nothing can be wrapped around it"):
+            assert phrase in result["error"], (phrase, result["error"])
+
+    # ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL: a lookback refusal with no
+    # session-anchored call in it says nothing about sessions, or the clause is
+    # decoration rather than a reason.
+    # ⛔ ONE CONTROL CARRIES A CALL, and that is what makes it a control. The
+    # first version used only the bar offset -- no call at all -- and a mutation
+    # matching EVERY call rather than the session-anchored ones SURVIVED it in
+    # both lanes. ``sma`` is over the cap here and names no session, so a filter
+    # that stopped reading ``lookback`` would spell ``sma()`` in this message.
+    for tree in ({"type": "call", "name": "sma",
+                  "args": [close, {"type": "num", "value": cap + 1}]},
+                 {"type": "offset", "value": cap + 1, "args": [close]}):
+        plain = ast_budget.budget_result(tree, None)
+        assert not plain["ok"] and plain["guard"] == "budget:lookback"
+        assert "trading session" not in plain["error"], plain["error"]
+        assert "sma()" not in plain["error"], plain["error"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -249,14 +362,25 @@ def test_each_cap_admits_AT_the_boundary_and_refuses_ONE_over_it(cap, guard):
 
 
 def test_the_lookback_budget_is_a_TREE_SUM_not_the_largest_single_argument():
-    """``sma(sma(close, 300), 300)`` looks back 600 bars, not 300. A budget that
-    read the largest argument would admit a formula needing more history than the
-    chart holds — and a column that is NaN for its whole visible range is a line
-    the user cannot see and cannot debug."""
-    inner = CALL("sma", SER("close"), NUM(300))
-    assert ast_interpret.max_lookback(CALL("sma", inner, NUM(300))) == 600
+    """``sma(sma(close, n), n)`` looks back 2n bars, not n. A budget that read the
+    largest argument would admit a formula needing more history than the chart
+    holds — and a column that is NaN for its whole visible range is a line the
+    user cannot see and cannot debug.
+
+    ⚰️ THE WINDOW WAS THE LITERAL 300, chosen so 600 cleared a cap of 550. When the
+    cap moved to hold one ET session, 600 stopped tripping it and this case went
+    GREEN while measuring nothing — a hand-typed number beside the cap it was
+    derived from, which is the defect this whole file exists to refuse. ``n`` now
+    comes FROM the cap, so the pair straddles it wherever it sits.
+    """
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    n = -(-(cap + 1) // 2)                 # ceil((cap + 1) / 2)
+    assert 2 * n > cap, "the nested pair must exceed the cap"
+    assert n <= cap, "…and one leg alone must not"
+    inner = CALL("sma", SER("close"), NUM(n))
+    assert ast_interpret.max_lookback(CALL("sma", inner, NUM(n))) == 2 * n
     assert ast_budget.budget_result(inner, None)["ok"] is True
-    assert ast_budget.budget_result(CALL("sma", inner, NUM(300)), None)["guard"] == "budget:lookback"
+    assert ast_budget.budget_result(CALL("sma", inner, NUM(n)), None)["guard"] == "budget:lookback"
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

@@ -1,4 +1,5 @@
 import { dividerFor, chromeFor, toolbarFor, parseColor, luminance } from '../../utils/dividerColor'
+import { widgetDefaultsForAppTheme } from '../../components/chart/chartThemes'
 
 // Theme Tracker appearance settings — the model behind the ⚙ Theme Tracker Settings
 // panel. A direct sibling of the watchlist's `watchlistSettings.js`: usePreferences-
@@ -22,15 +23,15 @@ export const THEME_TRACKER_DEFAULTS = {
   symColor: '#e0dac8',
 
   // % change colors (default = the tracker's current green/red).
-  upColor: '#1ae51a',
-  downColor: '#ff3b47',
+  upColor: '#34d17c',
+  downColor: '#f24b42',
 
   // Tick-flash background tint behind the % cell (pulses on each update). Stored
   // as 8-digit hex (#rrggbbaa) so the ColorPanel's opacity slider controls the
   // tint strength. 0x47 ≈ 28% — matches the hardcoded keyframe defaults.
   tintEnabled: true,
-  tintUp: '#1ae51a47',
-  tintDown: '#c41f2d47',
+  tintUp: '#34d17c47',
+  tintDown: '#f24b4247',
 
   // Company logos before each holding ticker.
   showLogos: true,
@@ -63,7 +64,7 @@ export const THEME_TRACKER_LIGHT_OVERRIDES = {
 export function themeTrackerDefaultsForTheme(theme) {
   return theme === 'light'
     ? { ...THEME_TRACKER_DEFAULTS, ...THEME_TRACKER_LIGHT_OVERRIDES }
-    : THEME_TRACKER_DEFAULTS
+    : widgetDefaultsForAppTheme('themes', theme, THEME_TRACKER_DEFAULTS)
 }
 
 export function mergeThemeTrackerSettings(saved) {

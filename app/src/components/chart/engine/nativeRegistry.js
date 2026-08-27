@@ -93,6 +93,15 @@ import { interpret } from './ast/interpret'
 import { checkBudget } from './ast/budget'
 import { lintRepaint, declaredInputs } from './ast/lint'
 import { freshnessFor } from './ast/freshness'
+// ⭐ W1b — THE BADGE AGGREGATORS ARE IMPORTED, NEVER RE-DERIVED HERE.
+// `BuilderSheet.buildDefinition` WRITES `meta.repaint`/`meta.freshness` through
+// these two and `validateAstLane` below RE-MEASURES against them; a second
+// aggregation rule in this file would mean a multi-plot document could be saved
+// under a badge this door would not have chosen, or could never be saved at all.
+// They also fail CLOSED on an empty list — see the `lanes` comment in
+// `validateAstLane`, which is why the tree-less document is pinned explicitly
+// rather than routed through `Object.values(compute.trees || {})`.
+import { worstRepaint, stalestFreshness } from './ast/trees'
 import {
   computeRSI,
   computeMACD,
@@ -1119,22 +1128,78 @@ function astPlotKey(def) {
 }
 
 /**
- * Compute an `ast` definition: ONE formula, ONE column.
+ * The definition's tree MAP, or `null` for the single-tree (pre-W1b) shape.
+ *
+ * ⛔ ONE PREDICATE, TWO CALLERS, ON PURPOSE. `astColumnsFor` and
+ * `validateAstLane` both branch on "does this document carry trees", and they
+ * must branch identically or a document could validate down one shape and
+ * compute down the other — the second-authority-over-one-value defect this repo
+ * names most often. Anything that is not a plain object is `null` here and takes
+ * the single-tree path in BOTH; `defSchema.validateTrees` is what refuses the
+ * malformed map by name, and it runs first.
+ */
+function astTrees(def) {
+  const trees = def && def.compute && def.compute.trees
+  return (trees && typeof trees === 'object' && !Array.isArray(trees)) ? trees : null
+}
+
+/**
+ * Compute an `ast` definition: ONE TREE, ONE COLUMN — as many of each as the
+ * document declares.
  *
  * `interpret` returns a single `Float64Array` of `bars.length` — the columnar
  * contract already, with no adaptation to do — so the only question this
- * function answers is WHICH KEY it goes under, and there can be exactly one
- * answer. `validateUserDefinitions` refuses a definition that declares more
- * than one data plot; this throw is the backstop for a definition that reached
- * `computeFor` without passing through that door.
+ * function answers is WHICH KEY each one goes under.
+ *
+ * ⭐ TWO SHAPES, ONE RULE (W1b). A document carrying `compute.trees` names a
+ * tree PER PLOT and gets a column per plot. A document without one carries a
+ * single tree in `compute.ast` and must declare exactly one data plot —
+ * `validateUserDefinitions` refuses a second, and the throw below is the
+ * backstop for a definition that reached `computeFor` without passing through
+ * that door. The second shape is every definition saved before W1b, and it
+ * computes byte-identically to the way it did then.
  *
  * ⛔ IT DOES NOT CATCH. `interpret` throws `TableRefusal` for anything the table
  * refuses and a plain `RangeError` for a tree that overflows; relabelling either
  * as "computed nothing" is the wrong-door defect this phase has now found four
  * times. A refusal must reach the caller as the refusal it is.
  */
-function astColumnsFor(def, bars, inputs) {
+function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
+  const trees = astTrees(def)
+  // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
+  // result is keyed by the plot, which is the whole of the multi-plot lane: the
+  // MACD's three lines are three trees, not one column reshaped. The single-tree
+  // path below is untouched, so a document saved before today computes the same
+  // bytes through the same call.
+  //
+  // ⛔ A PLOT WITH NO TREE IS REFUSED BY THE PLOT'S NAME, NOT LEFT TO
+  // `interpret`. `defSchema.validateTreesAgainstPlots` already refuses the
+  // key-set disagreement in both directions, so a definition that walked through
+  // `validateUserDefinitions` cannot arrive here short a tree — but `computeFor`
+  // takes a definition object from ANY caller (which is the reason the
+  // "computes ONE column" throw below has always existed), and handing
+  // `interpret` an `undefined` tree would surface as a parse-shaped error about
+  // a node, blaming the formula for a document defect.
+  if (trees) {
+    const out = {}
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(trees, key)) {
+        throw new Error(
+          `computeFor: plot ${JSON.stringify(key)} of ${JSON.stringify(def?.id)} has no tree in ` +
+          `compute.trees (${Object.keys(trees).join(', ') || 'none'}) — a plot with no tree is a key ` +
+          `nothing ever fills.`,
+        )
+      }
+      // ⚠️ SAME ARGUMENTS AS THE SINGLE-TREE CALL BELOW, INCLUDING `ctx.tf` AND
+      // THE `undefined` SCALARS — see that call's comments. One budget covers
+      // every tree because the budget is the DOCUMENT's (`compute.budget`), and
+      // a map over `interpret` that dropped it would run every plot uncapped.
+      out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
+        undefined, { tf: ctx && ctx.tf })
+    }
+    return out
+  }
   if (keys.length !== 1) {
     throw new Error(
       `computeFor: an "ast" definition computes ONE column and definition ` +
@@ -1143,7 +1208,23 @@ function astColumnsFor(def, bars, inputs) {
       `key nothing ever fills.`,
     )
   }
-  return { [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget) }
+  // ⭐ `ctx.tf` IS THREADED (closed table v2). `computeFor` has had the timeframe
+  // all along and dropped it here, which was harmless while the table held
+  // nothing that needed one. It now holds four: `isintraday`, `isdaily`,
+  // `isweekly` and `ismonthly` are answerable ONLY from what the caller knows,
+  // and `interpret` fails them CLOSED (not-computable) when nobody says. So the
+  // cost of not passing it is not a crash — it is a member's session filter that
+  // silently never fires, which is the quietest failure this lane has.
+  //
+  // ⚠️ `undefined` FOR BUDGET'S NEIGHBOURS, NOT `{}`. `scalars` is genuinely
+  // absent on the chart lane (a chart draws one symbol's bars; the scalar map is
+  // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
+  // into "an empty scalar map was", which seeds every declared scalar NaN by a
+  // different route and reads identically at the call site.
+  return {
+    [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget,
+      undefined, { tf: ctx && ctx.tf }),
+  }
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */
@@ -1252,7 +1333,7 @@ export function computeFor(def, bars, inputs, ctx) {
   // for a native that lost its function and wrong for a definition that never
   // had one.
   if (def?.compute?.kind === 'ast') {
-    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs))
+    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -1462,12 +1543,21 @@ export const AST_LANE_TIER = 'premium'
  * parses back to it, the handle is the hash). Those are pure facts about one
  * definition. These four are not:
  *
- *   1. ONE FORMULA IS ONE SERIES. `interpret` returns a single column, so a
- *      definition declaring two data plots would fill one and leave the other
- *      permanently NaN — `hasAnyFinite` false, nothing drawn, no error anywhere.
- *      Invisible, which is why it is refused rather than tolerated. (Its EVENTS
- *      are refused by `validateEventColumns`, which already runs and already
- *      says "returned no column" by name — no second guard is added here.)
+ *   1. ONE TREE IS ONE SERIES. `interpret` returns a single column, so a plot
+ *      with no tree behind it would be filled by nothing and stay permanently
+ *      NaN — `hasAnyFinite` false, nothing drawn, no error anywhere. Invisible,
+ *      which is why it is refused rather than tolerated. (Its EVENTS are refused
+ *      by `validateEventColumns`, which already runs and already says "returned
+ *      no column" by name — no second guard is added here.)
+ *      ⭐ W1b MOVED THIS ONE FIELD OVER, AND ONLY ONE. A document carrying
+ *      `compute.trees` names a tree per plot, so the question is no longer "is
+ *      there exactly one data plot" but "are the plots and the trees the same key
+ *      set" — the same defect, counted per tree. A document carrying NO trees is
+ *      unchanged and is refused with the sentence it has always carried.
+ *      ⛔ GATES 2, 3 AND 6 THEREFORE RUN PER TREE, and 3 and 6 compare against
+ *      the WORST/STALEST of them (`ast/trees.js`), because a document draws
+ *      every plot at once: a member reading one badge above a pane is being told
+ *      about all of them, and a MACD whose signal line repaints does repaint.
  *
  *   2. THE BUDGET. `checkBudget` is the UX half of Task 6's pair: an author gets
  *      a MESSAGE at registration, where `assertBudget` inside `interpret` is the
@@ -1502,57 +1592,141 @@ export const AST_LANE_TIER = 'premium'
  * the refusal is what gets printed, never the function that happened to be on
  * the stack.
  *
+ * ⭐ EXPORTED FOR ONE REASON: so its key-set backstop can be SEEN REFUSING.
+ * Every other gate here is reachable through `validateUserDefinitions` and is
+ * tested there; the `compute.trees` key-set check is not, because `defSchema`
+ * refuses the same document first. A guard nobody has watched fire is not a
+ * guard, so the test calls this directly rather than asserting in a comment that
+ * it cannot be reached. It is NOT a door for product code — `validateUserDefinitions`
+ * is the door, and it is the only caller in `app/src`.
+ *
  * @returns {string[]} errors, empty when the definition can run here.
  */
-function validateAstLane(def) {
+export function validateAstLane(def) {
   const errors = []
   const dataPlots = astPlotKey(def)
-  if (dataPlots.length !== 1) {
-    errors.push(
-      `plots: an "ast" definition computes ONE column — one formula is one series — so it must ` +
-      `declare exactly one data-bearing plot, and this one declares ${dataPlots.length} ` +
-      `(${dataPlots.join(', ') || 'none'}). A second plot is a key nothing ever fills: it draws ` +
-      `nothing, reports nothing, and looks exactly like a warmup pad.`,
-    )
-    return errors
+  const trees = astTrees(def)
+
+  // ⭐⭐ GATE 1, W1b: ONE FORMULA IS ONE SERIES — **PER TREE**. A document
+  // carrying `compute.trees` names a tree per plot, so N data plots are exactly
+  // as legal as N trees and the question becomes whether the two are the SAME
+  // key set. A document carrying no trees is unchanged: one tree, one plot, and
+  // the sentence it is refused with is the one it has always carried (asserted
+  // by `BuilderSheet.test.jsx` and `nativeRegistry.test.js` alike).
+  if (!trees) {
+    if (dataPlots.length !== 1) {
+      errors.push(
+        `plots: an "ast" definition computes ONE column — one formula is one series — so it must ` +
+        `declare exactly one data-bearing plot, and this one declares ${dataPlots.length} ` +
+        `(${dataPlots.join(', ') || 'none'}). A second plot is a key nothing ever fills: it draws ` +
+        `nothing, reports nothing, and looks exactly like a warmup pad.`,
+      )
+      return errors
+    }
+  } else {
+    // ⚠️ THIS IS A BACKSTOP, NOT THE DOOR — AND IT IS WATCHED FIRING RATHER THAN
+    // DESCRIBED AS UNFIREABLE. `defSchema.validateTreesAgainstPlots`
+    // (`defSchema.js`) refuses the key-set disagreement in both directions and
+    // runs FIRST: measured against nine hostile shapes (missing tree, extra
+    // tree, extra plot, dropped plot, `{}`, `[]`, `null`, a falsy tree, zero data
+    // plots), `validateUserDefinitions` short-circuits before this function every
+    // time, with a better message. So a member never meets this sentence.
+    //
+    // It stays because the loop below indexes `trees[k]` and an absent tree must
+    // be a named refusal rather than an `undefined` handed to `checkBudget` —
+    // which would report a DOCUMENT defect as a budget refusal, the wrong-door
+    // defect this file names four separate times. A comment saying "this cannot
+    // fire" would have been a gate that cannot fail (`lesson_gate_that_cannot_fail`),
+    // so `validateAstLane` is EXPORTED and `treesLane.test.js` calls it directly
+    // and watches it refuse — beside the case showing which door a member
+    // actually meets for the same document.
+    const missing = dataPlots.filter((k) => !Object.prototype.hasOwnProperty.call(trees, k))
+    const extra = Object.keys(trees).filter((k) => !dataPlots.includes(k))
+    if (missing.length || extra.length || !dataPlots.length) {
+      errors.push(
+        `compute.trees — the data-bearing plots and the trees must be ONE key set: a plot with no ` +
+        `tree is a key nothing ever fills and a tree with no plot is computed for nobody. Plots ` +
+        `(${dataPlots.join(', ') || 'none'}) against trees (${Object.keys(trees).join(', ') || 'none'}); ` +
+        `missing ${missing.join(', ') || 'none'}, extra ${extra.join(', ') || 'none'}.`,
+      )
+      return errors
+    }
   }
 
-  const ast = def.compute.ast
-  let budget
-  try {
-    budget = checkBudget(ast, def.compute.budget)
-  } catch (err) {
-    errors.push(
-      `compute.ast: refused at registration by ${JSON.stringify(err && err.guard ? err.guard : 'an unnamed guard')} ` +
-      `— ${err && err.message ? err.message : String(err)}`,
-    )
-    return errors
-  }
-  if (!budget.ok) {
-    errors.push(
-      `compute.budget: ${budget.error} (guard ${JSON.stringify(budget.guard)}). Measured ` +
-      `${JSON.stringify(budget.measured)} against caps ${JSON.stringify(budget.caps)}.`,
-    )
-    return errors
+  // ⛔⛔ THE LANE LIST IS PINNED FOR THE TREE-LESS DOCUMENT, NEVER DERIVED FROM
+  // `Object.values(def.compute.trees || {})`. `worstRepaint`/`stalestFreshness`
+  // fail CLOSED on an EMPTY list, deliberately — no tree makes no promise — so
+  // that spelling would hand them `[]` for every document saved before W1b (one
+  // data plot, no trees map) and brand it `repaints`/`unknown` at the next
+  // validation. Every existing saved definition, worst badge, no code change
+  // anywhere near it. `treesLane.test.js` pins the empty-list aggregation AND
+  // the single-tree document side by side so the shortcut cannot come back.
+  const lanes = trees ? dataPlots.map((k) => [k, trees[k]]) : [[dataPlots[0], def.compute.ast]]
+
+  // ⭐ THE DEFINITION'S OWN DECLARED INPUTS, DERIVED — the same set
+  // `lintDefinition` (and therefore `repaintVerdict`, and therefore the legend
+  // chip) derives. `parse.js` turns every identifier into a `series` node, so
+  // a formula naming a declared knob reads as an unknown series to a linter
+  // handed no inputs; this door and the chip would then disagree about one
+  // definition, which is the contract divergence this pair keeps paying for.
+  // Every definition that declares no inputs gets `{}` and is unmoved.
+  const scope = { inputs: declaredInputs(def) }
+  const verdicts = []
+  const freshnesses = []
+  for (const [key, ast] of lanes) {
+    // The FIELD PATH the member reads: `compute.ast` on a tree-less document,
+    // the tree's own path on a multi-tree one. A member reads WHERE to look.
+    const treePath = trees ? `compute.trees.${key}` : 'compute.ast'
+    let budget
+    try {
+      budget = checkBudget(ast, def.compute.budget)
+    } catch (err) {
+      errors.push(
+        `${treePath}: refused at registration by ${JSON.stringify(err && err.guard ? err.guard : 'an unnamed guard')} ` +
+        `— ${err && err.message ? err.message : String(err)}`,
+      )
+      return errors
+    }
+    if (!budget.ok) {
+      errors.push(
+        `compute.budget: ${budget.error} (guard ${JSON.stringify(budget.guard)}). Measured ` +
+        `${JSON.stringify(budget.measured)} against caps ${JSON.stringify(budget.caps)}.` +
+        (trees ? ` The tree measured is ${treePath}.` : ''),
+      )
+      return errors
+    }
+    let treeVerdict
+    try {
+      treeVerdict = lintRepaint(ast, scope)
+    } catch (err) {
+      errors.push(
+        `${treePath}: the repaint linter could not read this tree ` +
+        `(${err && err.message ? err.message : String(err)})`,
+      )
+      return errors
+    }
+    verdicts.push([key, treeVerdict])
+    freshnesses.push([key, freshnessFor(ast, scope)])
   }
 
-  let verdict
-  try {
-    // ⭐ THE DEFINITION'S OWN DECLARED INPUTS, DERIVED — the same set
-    // `lintDefinition` (and therefore `repaintVerdict`, and therefore the legend
-    // chip) derives. `parse.js` turns every identifier into a `series` node, so
-    // a formula naming a declared knob reads as an unknown series to a linter
-    // handed no inputs; this door and the chip would then disagree about one
-    // definition, which is the contract divergence this pair keeps paying for.
-    // Every definition that declares no inputs gets `{}` and is unmoved.
-    verdict = lintRepaint(ast, { inputs: declaredInputs(def) })
-  } catch (err) {
-    errors.push(
-      `compute.ast: the repaint linter could not read this tree ` +
-      `(${err && err.message ? err.message : String(err)})`,
-    )
-    return errors
-  }
+  // ⭐⭐ THE BADGE IS THE WORST TREE, AND THAT IS THE ONLY HONEST AGGREGATION.
+  // A document draws every plot at once, so a member reading one badge above a
+  // pane is being told about all of them; a MACD whose signal line repaints does
+  // repaint, however clean its histogram is. The tree that produced the worst
+  // answer is NAMED in the refusal, because "one of your four formulas" is not
+  // something a member can act on.
+  // ⛔ THE AGGREGATED MODE IS THE AUTHORITY AND THE `find` ONLY NAMES A TREE.
+  // Comparing against the aggregate and printing a tree's own reasons keeps one
+  // decision with one owner (`ast/trees.js`); a fallback that could never fire
+  // would still be a second rule for the same value if it decided the verdict.
+  const worstMode = worstRepaint(verdicts.map(([, v]) => v.mode))
+  const [worstTree, verdict] = verdicts.find(([, v]) => v.mode === worstMode) || verdicts[0]
+  const stalestMode = stalestFreshness(freshnesses.map(([, f]) => f.mode))
+  const [stalestTree, stalest] = freshnesses.find(([, f]) => f.mode === stalestMode) || freshnesses[0]
+  const verdictByPlot = new Map(verdicts)
+  // Named only on a multi-tree document: on a tree-less one there is one tree
+  // and the sentence it has always carried says everything there is to say.
+  const named = (key) => (trees ? ` (measured on compute.trees.${key})` : '')
   // ⚠️ THESE TWO MESSAGES DELIBERATELY DO NOT WRITE THE FIELD FOLLOWED BY A
   // COLON, WHICH IS THIS FILE'S USUAL `path: problem` house style. The ledger's
   // repaint biconditional counts `repaint\s*:` occurrences in this module's
@@ -1565,16 +1739,18 @@ function validateAstLane(def) {
     errors.push(
       `meta.repaint — required on the "ast" lane, because this is the one lane where the badge is ` +
       `DECIDABLE (spec §11 forbids analysing hand-written computes, so every other definition's ` +
-      `badge is an unauditable claim). The linter measures ${JSON.stringify(verdict.mode)} for ` +
-      `this formula; declare it.`,
+      `badge is an unauditable claim). The linter measures ${JSON.stringify(worstMode)} for ` +
+      `this formula${named(worstTree)}; declare it.`,
     )
-  } else if (def.meta.repaint !== verdict.mode) {
+  } else if (def.meta.repaint !== worstMode) {
     errors.push(
       `meta.repaint — declared ${JSON.stringify(def.meta.repaint)} but the linter MEASURES ` +
-      `${JSON.stringify(verdict.mode)} (forward=${verdict.forward}) — ${verdict.reasons.join('; ')}. ` +
+      `${JSON.stringify(worstMode)}${named(worstTree)} (forward=${verdict.forward}) — ` +
+      `${verdict.reasons.join('; ')}. ` +
       `A badge is a truth claim a user makes decisions on; on a lane where it can be computed, a ` +
       `declaration that disagrees is refused in BOTH directions, because under-claiming is as ` +
-      `false as over-claiming.`,
+      `false as over-claiming.` +
+      (trees ? ` A document draws every plot at once, so the badge is the WORST of its trees.` : ''),
     )
   }
   // ⚠️ SAME EM-DASH REASON AS THE TWO ABOVE, ONE FIELD OVER. These messages name
@@ -1624,21 +1800,21 @@ function validateAstLane(def) {
   // NAMES. `checkBudget` resolves every function and arity on its way to a
   // lookback and returns early above, so a tree naming something undeclared
   // never reaches this line.
-  const freshness = freshnessFor(ast, { inputs: declaredInputs(def) })
   if (def.meta.freshness === undefined) {
     errors.push(
       `meta.freshness — required on the "ast" lane. The repaint badge cannot cover this: ` +
       `\`astReach\` answers 0 for a table-declared scalar, correctly, so a formula reading a ` +
       `nightly per-symbol value passes GATE 3 as non-repainting and nothing else fires. The ` +
-      `linter measures ${JSON.stringify(freshness.mode)} for this formula; declare it.`,
+      `linter measures ${JSON.stringify(stalestMode)} for this formula${named(stalestTree)}; declare it.`,
     )
-  } else if (def.meta.freshness !== freshness.mode) {
+  } else if (def.meta.freshness !== stalestMode) {
     errors.push(
       `meta.freshness — declared ${JSON.stringify(def.meta.freshness)} but the linter MEASURES ` +
-      `${JSON.stringify(freshness.mode)} (${freshness.reasons.join('; ')}). A badge is the ` +
+      `${JSON.stringify(stalestMode)}${named(stalestTree)} (${stalest.reasons.join('; ')}). A badge is the ` +
       `MEASUREMENT, and this one is refused in BOTH directions: over-claiming "live" on a value ` +
       `that is a day old and under-claiming "as-of-snapshot" on a live one mislead a user just ` +
-      `as precisely as each other.`,
+      `as precisely as each other.` +
+      (trees ? ` A document draws every plot at once, so the badge is the STALEST of its trees.` : ''),
     )
   }
   // ⭐ GATE 5 — AN `ast` PLOT MAY NOT DECLARE ITS OWN FORWARD WINDOW, AND THIS IS
@@ -1660,9 +1836,14 @@ function validateAstLane(def) {
   // divergence `tools/ast_conformance.py` exists to make impossible.
   for (const plot of (Array.isArray(def.plots) ? def.plots : [])) {
     if (plot && Object.prototype.hasOwnProperty.call(plot, 'forward')) {
+      // ⭐ THE PLOT'S **OWN** TREE ANSWERS, when it has one. A guide (`hlines`)
+      // owns no tree and no column, so the number it is shown is the scan
+      // tree's — which is precisely what a tree-less document has always been
+      // shown, one tree being the only tree there is.
+      const own = verdictByPlot.get(plot && plot.key) || verdict
       errors.push(
         `plots[].forward — declared on ${JSON.stringify(plot.key)}, but an "ast" definition's ` +
-        `forward window is DERIVED from its tree (${JSON.stringify(String(verdict.forward))} bars, ` +
+        `forward window is DERIVED from its tree (${JSON.stringify(String(own.forward))} bars, ` +
         `measured). The field exists for a hand-written compute the linter cannot read; on this ` +
         `lane it is a second declaration of a number the linter already knows, and the two have ` +
         `nothing keeping them equal.`,
@@ -1824,27 +2005,13 @@ if (_serverRegistered.errors.length) {
  *  keep in step by hand. */
 export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
 
-/**
- * AST-lane definitions shipped in this repo — **deliberately none**.
- *
- * ⭐ TASK 8 BUILDS THE LANE AND REGISTERS NOTHING ON IT, AND THE EMPTY ARRAY IS
- * THE DELIVERABLE'S SHAPE, not an oversight. An `ast` definition is a USER's
- * formula: it arrives from the builder or the concierge, through
- * `validateUserDefinitions`, and is INSTALLED per session by
- * `installUserDefinitions` below rather than listed here. A repo-authored one would
- * be a native wearing a formula — the same maths this file already computes in
- * `NATIVE_COMPUTE`, on a lane with a budget and an interpreter between it and
- * the screen, for no gain.
- *
- * ⛔ WHY IT EXISTS AT ALL RATHER THAN `listDefinitions()` STAYING A TWO-LANE
- * UNION: so the third lane is a partition with a NAME and a size that DERIVES.
- * `registrySizes.js` reads `{native, server, ast}` and a rail asserts the whole
- * catalogue equals a hand-written manifest, by lane, by name. With no `ast`
- * entry in that partition the manifest could not say "and zero on the third
- * lane" — and "zero" is a claim worth being able to break: the day this array
- * gains a member, the manifest is what says so out loud.
- */
-export const AST_DEFS = Object.freeze([])
+// ─── the ast lane ships NOTHING, and there is no array to say so twice ───────
+// An `ast` definition is a USER's formula: it arrives from the builder or the
+// concierge, through `validateUserDefinitions`, and is INSTALLED per session by
+// `installUserDefinitions` below. The shipped manifest (`registrySizes.js`,
+// `SHIPPED_DEF_IDS.ast`) is the ONE declaration that this build ships none;
+// `idsByLane(listDefinitions())` proves it by partition. (W0.3 retired the
+// frozen-empty `AST_DEFS` that used to stand here as a second authority.)
 
 /**
  * The `CHART_DEFAULTS.indicators` keys that deliberately have NO definition.
@@ -1884,7 +2051,7 @@ export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']
 /** ⭐ ONE INDEX ACROSS BOTH LANES. `getDefinition` is what `instances.js` and the
  *  binder resolve through, so a server definition missing from here would be an
  *  instance the chart drops on the floor — visible as nothing at all. */
-const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.id, d]))
+const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS].map(d => [d.id, d]))
 
 // ─── the RUNTIME lane: definitions installed by THIS SESSION ────────────────
 //
@@ -1892,24 +2059,24 @@ const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.
 // Task 11 shipped a builder a trader could type `sma(close, 20)` into. It
 // parsed, budgeted, linted, passed `validateUserDefinitions` and persisted to
 // `/api/user-definitions` — and could not draw one pixel on any chart. The cause
-// was one line: `_byId` above is built ONCE at module import out of three FROZEN
-// arrays, `AST_DEFS` is deliberately `[]`, and the ONLY operation this file ever
-// performed on `_byId` was `.get`. So `getDefinition('u_…')` answered null,
-// `validateInstance` failed with *"names no registered definition"*,
-// `normalizeInstances` dropped the instance before layout, and the chart built
-// two panes where three were asked for. ~6,100 frontend tests were green over
-// it: every component was correct alone, and the defect lived in the CONTRACT
-// between them — the fifth on this project, and the reason the repo's own lesson
-// says budget a live-surface pass on every visual feature.
+// was one line: `_byId` above is built ONCE at module import out of two FROZEN
+// arrays, and the ONLY operation this file ever performed on `_byId` was
+// `.get`. So `getDefinition('u_…')` answered null, `validateInstance` failed
+// with *"names no registered definition"*, `normalizeInstances` dropped the
+// instance before layout, and the chart built two panes where three were asked
+// for. ~6,100 frontend tests were green over it: every component was correct
+// alone, and the defect lived in the CONTRACT between them — the fifth on this
+// project, and the reason the repo's own lesson says budget a live-surface pass
+// on every visual feature.
 //
-// ⛔ IT IS A SECOND INDEX, NOT A MUTATION OF `_byId` OR OF `AST_DEFS`, and the
-// separation is the design rather than an implementation detail. `NATIVE_DEFS` /
-// `SERVER_DEFS` / `AST_DEFS` are frozen catalogues of WHAT SHIPS;
-// `registrySizes.js` is a hand-written manifest this registry must PROVE it
-// equals, by lane and by name, and it imports NOTHING so it cannot derive from
-// the thing it checks. A user's formula is not shipped — it arrives per user,
-// per session — and it must not be able to make that manifest true by joining
-// it. Two indexes keep both facts sayable at once, and the split is by QUESTION:
+// ⛔ IT IS A SECOND INDEX, NOT A MUTATION OF `_byId`, and the separation is the
+// design rather than an implementation detail. `NATIVE_DEFS` / `SERVER_DEFS`
+// are frozen catalogues of WHAT SHIPS; `registrySizes.js` is a hand-written
+// manifest this registry must PROVE it equals, by lane and by name, and it
+// imports NOTHING so it cannot derive from the thing it checks. A user's
+// formula is not shipped — it arrives per user, per session — and it must not
+// be able to make that manifest true by joining it. Two indexes keep both facts
+// sayable at once, and the split is by QUESTION:
 // `listDefinitions()` answers *what does this build ship*, `getDefinition`
 // answers *what can this chart resolve*.
 
@@ -2007,6 +2174,18 @@ export function clearUserDefinitions() {
   _generation += 1
 }
 
+/** Forget ONE installed user definition — the editor's live preview when the
+ *  sheet closes or the draft stops evaluating (W1a hand-back, additive).
+ *  ⚠️ NOT a save-path door: a stored definition is replaced by re-install, never
+ *  uninstalled, because an instance on a chart still names its id.
+ *  @returns {boolean} whether anything was forgotten */
+export function uninstallUserDefinition(defId) {
+  if (!_userById.has(defId)) return false
+  _userById.delete(defId)
+  _generation += 1
+  return true
+}
+
 /** @returns {object[]} the user definitions installed in THIS session. */
 export function listUserDefinitions() {
   return [..._userById.values()]
@@ -2028,12 +2207,14 @@ export function getDefinition(defId) {
 /**
  * @returns {object[]} every registered definition — BOTH LANES.
  *
- * ⭐ 16 NATIVE + 1 SERVER + 0 AST = 17 (Phase C Task 13; the third lane joined at
- * Phase D Task 8 and is empty). This used to be `[...NATIVE_DEFS]`, and the
- * union is the one line Task 14 handed back. A caller that wants only the
- * natives asks `NATIVE_DEFS`; a caller enumerating "what indicators exist" must
- * see all three, because a definition invisible to this list is invisible to the
- * catalog, the settings migration and the alert addressing alike.
+ * ⭐ THE UNION IS THE ONE LINE TASK 14 HANDED BACK — this used to be
+ * `[...NATIVE_DEFS]` (Phase C Task 13; the ast lane joined at Phase D Task 8).
+ * A caller that wants only the natives asks `NATIVE_DEFS`; a caller enumerating
+ * "what indicators exist" must see every lane that HAS members, because a
+ * definition invisible to this list is invisible to the catalog, the settings
+ * migration and the alert addressing alike. The ast lane has none to spread —
+ * W0.3 retired its frozen-empty array, and `SHIPPED_DEF_IDS.ast` is the one
+ * place that claim is now declared.
  *
  * ⛔ AND THE NUMBER IS NOT WRITTEN DOWN HERE. `registrySizes.js` holds the one
  * hand-written manifest of what ships, by lane, by name; a count typed into a
@@ -2041,7 +2222,7 @@ export function getDefinition(defId) {
  * 1 SERVER" through a phase that added a lane.
  */
 export function listDefinitions() {
-  return [...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]
+  return [...NATIVE_DEFS, ...SERVER_DEFS]
 }
 
 /**

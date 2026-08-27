@@ -290,6 +290,31 @@ def _live_write_columns() -> list:
     return list(live_tier.LIVE_META_COLUMNS) + list(live_tier.LIVE_COLUMNS)
 
 
+# A FOURTH executescript: the LIVE SCAN side tables (lane W4b). Same file as
+# `_SCAN_SCHEMA` for the same reason: a cross-database join needs `ATTACH`, which
+# `connect()` does not do, so anything that must be joined to `screener_rows` in
+# ONE statement has to live here. ⚠️ Today's reader does NOT do that —
+# `scan_store.hits_for` assembles the overlay in Python across four statements;
+# co-location is what LETS W4b.5 consolidate it, not a claim that it already has.
+# ⭐ THE SHAPE IS DERIVED from `scan_store`'s own column declarations, never
+# retyped — a hand-typed list is one that drifts.
+def _scan_live_schema_sql() -> str:
+    from api.services.screener import scan_store as _ss
+    hits = ",\n  ".join(f"{n} {t}" for n, t in _ss.LIVE_HIT_COLUMNS)
+    cycles = ",\n  ".join(f"{n} {t}" for n, t in _ss.LIVE_CYCLE_COLUMNS)
+    return f"""
+CREATE TABLE IF NOT EXISTS {_ss.LIVE_HITS_TABLE} (
+  {hits},
+  PRIMARY KEY (def_hash, tf, symbol)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_scan_hits_live_asof ON {_ss.LIVE_HITS_TABLE}(as_of);
+CREATE TABLE IF NOT EXISTS {_ss.LIVE_CYCLES_TABLE} (
+  {cycles},
+  PRIMARY KEY (cycle_started)
+);
+"""
+
+
 def upsert_live_rows(rows: list) -> int:
     """Write the overlay. ONE writer, and this is it.
 
@@ -426,6 +451,17 @@ def init_db() -> None:
                 if c not in live_have:
                     conn.execute(f"ALTER TABLE {_lt.LIVE_TABLE} "
                                  f"ADD COLUMN {_coldef(c)}")
+        # 🔴 THE FOURTH SCRIPT NEEDS THE SAME ALTER-ADD THE THIRD ONE NEEDED
+        # (measured 2026-08-25: `CREATE TABLE IF NOT EXISTS` never widens).
+        conn.executescript(_scan_live_schema_sql())
+        from api.services.screener import scan_store as _ss
+        for table, cols in ((_ss.LIVE_HITS_TABLE, _ss.LIVE_HIT_COLUMNS),
+                            (_ss.LIVE_CYCLES_TABLE, _ss.LIVE_CYCLE_COLUMNS)):
+            have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+            if have:                       # empty ⇒ the CREATE just made it
+                for name, coltype in cols:
+                    if name not in have:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {coltype}")
         conn.commit()
 
 
@@ -454,6 +490,40 @@ def get_row(ticker: str) -> dict | None:
         r = conn.execute("SELECT * FROM screener_rows WHERE ticker=?",
                          (ticker.upper(),)).fetchone()
         return dict(r) if r else None
+
+
+def symbols_in_snapshot(tickers) -> set:
+    """The subset of `tickers` that HAS a `screener_rows` row — `ticker` only.
+
+    ⭐ THE MEMBERSHIP QUESTION, ANSWERED WHERE `screener_rows` LIVES. W4b.5's read
+    surface appends live-only symbols to a definition's page and must apply the
+    same join `scan_results._hit_tickers` applies to the nightly half: a ticker
+    the nightly build dropped out of the snapshot is one a member cannot act on.
+
+    ⛔ AND IT IS NOT `get_rows`. That projects `SELECT *` — 65 wide columns — and
+    a live sweep's overlay can name thousands of symbols on a request path. This
+    asks only whether the row exists.
+
+    ⛔ IT ALSO DOES NOT LIVE IN `scan_store`, whose own header says
+    "`screener_rows` IS UNTOUCHED — its 65 columns and 8 indexes are not this
+    module's". A second module reading this table would be a second authority on
+    what "present in the snapshot" means, which is the defect the join exists to
+    avoid in the first place.
+    """
+    tks = sorted({t.upper() for t in (tickers or []) if t})
+    if not tks:
+        return set()
+    out: set = set()
+    with connect() as conn:
+        # SQLite's variable limit is 999 — chunked exactly like `get_rows` below,
+        # because a live overlay can name the whole universe.
+        for i in range(0, len(tks), 900):
+            chunk = tks[i:i + 900]
+            ph = ", ".join("?" for _ in chunk)
+            for r in conn.execute(
+                    f"SELECT ticker FROM screener_rows WHERE ticker IN ({ph})", chunk):
+                out.add(r["ticker"])
+    return out
 
 
 def get_rows(tickers: list) -> dict:

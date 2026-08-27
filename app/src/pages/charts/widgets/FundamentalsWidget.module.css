@@ -9,7 +9,7 @@
   padding: 5px 8px 6px;
   font-family: var(--font-sans);
   font-size: var(--text-base, 12px);
-  background: var(--fw-bg, none);
+  background: var(--fw-bg, var(--bg-surface));
   color: var(--fw-text, var(--text));
 }
 .hint {
@@ -156,8 +156,8 @@
 /* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. --fw-up/--fw-down
    are only set when the user deviates from the default in Fundamentals Settings,
    so a deliberate user color wins over the workspace theme; otherwise these hold. */
-.pos { color: var(--fw-up, #1ae51a); }
-.neg { color: var(--fw-down, #c41f2d); }
+.pos { color: var(--fw-up, var(--ut-green-bright)); }
+.neg { color: var(--fw-down, var(--ut-red-bright)); }
 /* Sunrise: match the dark candle green/red. */
 :global([data-charts-theme='sunrise']) .pos,
 :global([data-charts-theme='sunrise']) .revUp { color: var(--fw-up, #0a5c22); }
@@ -166,8 +166,8 @@
 /* Quarter date reads dark on the bright card. */
 :global([data-charts-theme='sunrise']) .qDate { color: #55606e; }
 .rev { font-size: 0.73em; margin-left: 3px; vertical-align: middle; }
-.revUp { color: var(--fw-up, #1ae51a); }
-.revDown { color: var(--fw-down, #c41f2d); }
+.revUp { color: var(--fw-up, var(--ut-green-bright)); }
+.revDown { color: var(--fw-down, var(--ut-red-bright)); }
 
 /* ── Quarterly strip — compact 3-line cards, single wide row ────
    The card's text sizes are authored in em off the BLOCK font-size (11px) so the
