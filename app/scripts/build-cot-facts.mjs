@@ -1,4 +1,18 @@
-#!/usr/bin/env node
+// NO SHEBANG, DELIBERATELY -- and it must not come back.
+//
+// This file is only ever run as `node scripts/build-cot-facts.mjs` (see
+// package.json's "build"), and its git mode is 100644, so the shebang was
+// never usable as a `./build-cot-facts.mjs` invocation in the first place.
+// It was pure decoration -- and it cost 13 tests.
+//
+// `src/pages/cot/cotFactsEntry.test.js` imports this module, and vitest's
+// loader does not strip the `#!` line: the suite died with a bare
+// `SyntaxError: Invalid or unexpected token` -- no file, no line, `no tests`.
+// Node imports it fine either way, so a plain `node -e "import(...)"` check
+// says nothing about this. That red was recorded as a permanent baseline
+// failure and read as furniture long enough that nobody re-derived it.
+//
+// The rail is that test file: put the shebang back and its 13 cases die again.
 // app/scripts/build-cot-facts.mjs
 //
 // Bundles the COT analytics CLI entry (src/pages/cot/cotFactsEntry.js) into
