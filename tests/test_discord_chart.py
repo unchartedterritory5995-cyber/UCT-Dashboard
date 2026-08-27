@@ -476,7 +476,11 @@ def test_tool_register_puts_the_chart_command_and_clear_puts_empty():
     assert seen[-1].method == "PATCH" and str(seen[-1].url).endswith("/applications/@me")
     assert json.loads(seen[-1].content) == {"interactions_endpoint_url": "https://uctintelligence.com/api/discord/interactions"}
 
-    assert tool.invite_url("999") == "https://discord.com/oauth2/authorize?client_id=999&scope=applications.commands"
+    # the invite carries the bot scope AND the permissions a chart needs — see
+    # test_the_invite_asks_for_exactly_what_a_chart_needs_and_nothing_dangerous
+    assert tool.invite_url("999") == (
+        "https://discord.com/oauth2/authorize?client_id=999"
+        f"&scope=bot+applications.commands&permissions={tool.INVITE_PERMISSIONS}")
 
 
 def test_tool_register_global_puts_to_the_application_commands_route():
