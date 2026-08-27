@@ -1672,13 +1672,13 @@ def unresolved_inputs(ast: Any,
                       opts: Optional[Mapping[str, Any]] = None) -> List[str]:
     """Every declared INPUT this tree names that has no usable value HERE.
 
-    🔴 THE SAME QUESTION ``unresolved_scalars`` ASKS, ON THE AXIS IT CANNOT
-    SEE. That function asks *"which declared SCALARS does this tree name that have
-    no value on this row?"* -- and a scalar is only one of the two kinds of input
-    a tree can name that the walker will silently turn into a confident answer.
-    The other is a **bar reader**: an entry declaring ``reads: "bars"``, which is
-    handed ``interpret``'s own bar array rather than columns packed out of its
-    arguments, and whose preconditions are therefore properties of THE BARS.
+    ⛔ THE SET IS ``BAR_READERS`` ∪ THE DECLARED SCALARS. SAY IT PLAINLY,
+    BECAUSE IT IS NARROWER THAN "EVERY INPUT THAT CAN BE A HOLE" AND THE NAME OF
+    THIS FUNCTION DOES NOT SAY SO. ``unresolved_scalars`` asks *"which declared
+    SCALARS does this tree name that have no value on this row?"*; this adds
+    *"...and which entries declaring ``reads: "bars"`` cannot answer at the bar we
+    are about to read?"* Those two, and nothing else. What that leaves open is
+    written out below rather than left for a later lane to rediscover.
 
     ⭐ WHY EXACTLY THAT SET, AND WHY IT IS DERIVED. A ``reads: "bars"`` entry
     answers from a property of the BARS that neither neighbouring question can
@@ -1692,35 +1692,57 @@ def unresolved_inputs(ast: Any,
     the rail. (``obvN`` landed from a parallel lane while this was being written
     and was covered with no edit to either.)
 
-    ⛔⛔ WHAT THESE THREE QUESTIONS DO NOT COVER, STATED RATHER THAN IMPLIED.
-    An earlier draft of this paragraph claimed every other entry's holes came from
-    its arguments or its declared ``lookback``. **THAT WAS FALSE**, and
-    ``closedTable.json::_functions_domain`` says so in the manifest's own words:
-    two entries have an argument domain the ``int`` kind cannot express and BOTH
-    WALKERS ANSWER AN ALL-NaN COLUMN for it. Measured on 400 bars::
+    ⛔⛔ WHAT THIS DOES NOT COVER, MEASURED AND NAMED. An earlier draft claimed
+    every other entry's holes came from its arguments or its declared
+    ``lookback``. **THAT WAS FALSE TWICE OVER**, and both counter-examples are
+    ordinary member spellings that still return NOTHING or THE ENTIRE UNIVERSE at
+    full reported coverage.
 
-        interpret(macd(close, 26, 12))          -> [None, ...]   fast > slow
-        interpret(close > macd(close, 26, 12))  -> [0.0, ...]     every bar
-        interpret(!(close > macd(close,26,12))) -> [1.0, ...]     every bar
+    (1) A DECLARED ARGUMENT DOMAIN (``closedTable.json::_functions_domain``).
+    ``macd(close, 26, 12)`` -- ``fast > slow``, a transposition of the canonical
+    12/26 pair -- is an all-NaN column in BOTH walkers by declaration. On 400
+    bars::
 
-    and ``unresolved_inputs`` returns ``[]``, ``unresolved_lookback`` returns
-    ``0``, and ``assert_scannable`` calls it a ``bool`` tree. A member who
-    transposes 12 and 26 saves a screen that answers for the whole universe and
-    is wrong for every symbol -- X23 verbatim. The Ichimoku five carry the same
-    shape when ``max(tenkan, kijun) > senkouB``.
+        interpret(close > macd(close, 26, 12))  -> [0.0, ...]   every bar
+        interpret(!(close > macd(close,26,12))) -> [1.0, ...]   every bar
 
-    ⛔ IT IS DELIBERATELY NOT ANSWERED HERE, AND THE REASON IS THE SHAPE.
-    ``slow < fast`` is a FORMULA defect, not a per-row data condition: it is true
-    of that tree on every bar, for every symbol, forever. ``_fn_avwap`` already
-    draws exactly this line -- its sub-1990 anchor is refused BY NAME at
-    ``resolve:window`` while "no bar precedes the anchor" is left to be a quiet
-    per-row column, *"and the asymmetry is the point"*. So this belongs at the
-    save door / the resolve pass, and putting it here would make a question asked
-    3,742 times a night carry a decision that one look at the tree settles.
-    Tracked separately; ``tests/test_scan_not_computable_inputs.py::
-    test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_
-    functions_job`` pins the gap so this paragraph cannot become a stale claim --
-    it goes RED the day the save door closes it, and names itself.
+    ...with ``unresolved_inputs() == []``, ``unresolved_lookback() == 0`` and
+    ``assert_scannable`` calling it a ``bool`` tree. The Ichimoku five carry the
+    same shape when ``max(tenkan, kijun) > senkouB``. ⛔ NOT ANSWERED HERE ON
+    PURPOSE: ``slow < fast`` is a FORMULA defect -- true of that tree on every
+    bar, for every symbol, forever -- and belongs at the save door, exactly as
+    ``_fn_avwap`` refuses a sub-1990 anchor BY NAME (``resolve:window``) while
+    leaving "no bar precedes the anchor" a quiet per-row column, *"and the
+    asymmetry is the point"*. Putting it here would make a question asked 3,742
+    times a night carry a decision one look at the tree settles.
+
+    (2) ⭐ A DATA-DEPENDENT HOLE IN AN ORDINARY FUNCTION -- and this one is NOT a
+    formula defect, so the argument above does not cover it. ``valuewhen`` holes
+    wherever its condition has not been true inside its window. Measured on 60
+    daily bars, ``valuewhen(close < 15, close, 10)``::
+
+        holes at bars 14..59      ← NOT a leading prefix. Values at the FRONT,
+                                     holes to the END -- the INVERSE of a warmup.
+        close > valuewhen(...)    -> 0.0 at the last bar, every symbol ANSWERED
+        unresolved_inputs         -> []      (it is not a bar reader)
+        unresolved_lookback       -> 0       (60 bars, declared window 10)
+
+    ⛔⛔ AND THE MANIFEST CANNOT CURRENTLY TELL IT FROM ``sma``. Both declare
+    ``lookback: "argN"`` and ``yields: "num"``; the 57 entries carry only
+    ``args``/``argRoles``/``lookback``/``yields``/``sentence`` plus ``recurrence``
+    (1), ``reads`` (3), ``cadence`` (2) and ``forward`` (1). **There is no
+    declaration that separates "holes only inside its declared window" from "can
+    hole at any bar"**, so widening this set correctly needs a NEW DECLARATION in
+    ``closedTable.json`` -- not a name added here, which is the list-that-rots
+    shape this whole function was written against. ``barssince`` is NOT in the
+    class: it declares a fallback and answers its period rather than a hole.
+
+    ⛔ BOTH GAPS ARE PINNED AS TESTS, NOT AS THIS PARAGRAPH.
+    ``tests/test_scan_not_computable_inputs.py`` carries one case per gap, each
+    going RED the day its fix lands and naming the comments that go stale with
+    it. The manifest note this function sits under already carried a ⚰️
+    correction promising *"this paragraph cannot rot again"* -- and it rotted.
+    Prose that declares itself rot-proof is still prose.
 
     ⛔ AND THE VERDICT IS THE BINDING'S, NOT A SECOND COPY OF ITS RULES. This
     asks the entry by EVALUATING IT -- the same ``interpret`` the sweep is about

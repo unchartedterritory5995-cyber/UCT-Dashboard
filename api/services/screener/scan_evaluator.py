@@ -1525,11 +1525,19 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # pre-pass must evaluate the entry at the SAME bar, under the SAME
             # clock and with the SAME row the answer will be computed from, or it
             # is asking about something else.
-            # ⛔ IT IS NOT A COMPLETE QUESTION AND `unresolved_inputs` SAYS SO:
-            # a DECLARED domain error (`closedTable.json::_functions_domain` --
-            # `macd(close, 26, 12)`, the transposed Ichimoku periods) is still
-            # laundered here, deliberately, because it is a fact about the FORMULA
-            # rather than about this row and belongs at the save door.
+            # ⛔⛔ IT IS NOT A COMPLETE QUESTION. The set is `BAR_READERS` ∪ the
+            # declared scalars -- NOT "every input that can be a hole" -- and two
+            # surfaces are still laundered here, both named and measured in
+            # `unresolved_inputs`' own docstring and each pinned by its own test:
+            #   * a DECLARED argument domain (`_functions_domain`:
+            #     `macd(close, 26, 12)`, the transposed Ichimoku periods) -- a
+            #     fact about the FORMULA, bound for the save door, not for a
+            #     question asked 3,742 times a night;
+            #   * a DATA-dependent hole in an ordinary function (`valuewhen`
+            #     before its condition has been true inside its window) -- which
+            #     is NOT a formula defect, and which the manifest cannot yet tell
+            #     from `sma`, so closing it needs a new DECLARATION rather than a
+            #     name added to the pre-pass.
             missing = ast_interpret.unresolved_inputs(
                 tree, scalars, bars, index, opts={"tf": tf_code})
             if missing:

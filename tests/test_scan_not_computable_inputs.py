@@ -23,11 +23,20 @@ defect has two faces and a rail on one is half a rail. `>` returns nothing; `!`
 and `||` return everything, which is the face that puts 3,700 rows in front of a
 trader.
 
-⛔ AND THREE IS NOT "ALL". `test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_
-that_is_NOT_this_functions_job` pins the surface these questions deliberately do
-NOT cover -- a declared all-NaN argument domain (`macd(close, 26, 12)`) -- and
-goes RED the day the save door closes it. That test, not this paragraph, is what
-keeps the claim honest.
+⛔ AND THREE IS NOT "ALL". The set the input question sweeps is `BAR_READERS`
+∪ the declared scalars -- narrower than "every input that can be a hole" -- and
+TWO surfaces are deliberately left open, each pinned by its own test rather than
+by this paragraph: a declared all-NaN argument domain (`macd(close, 26, 12)`, a
+formula defect bound for the save door) and a data-dependent hole in an ordinary
+function (`valuewhen`, which the manifest cannot currently tell from `sma`).
+Both go RED the day their fix lands.
+
+⭐ AND ONE FIXTURE HERE HOLES AN ENTRY IN THE MIDDLE RATHER THAN AT THE FRONT.
+A rail built only on warm-up prefixes measures the easy half: a prefix hole is
+also what the history question catches, so it cannot tell which question is
+working, and an interior hole slips past all of it. Measured in this wave: a
+`barsSince` mutation survived 587 Python and 212 JS tests because both of its
+hole fixtures put the hole in a leading prefix.
 
 ⭐ THE SUBJECT OF THE DERIVED RAIL IS `closedTable.json`, NEVER A LIST TYPED HERE.
 The NaN-capable set this file sweeps is *"every entry declaring `reads: 'bars'`"*
@@ -536,6 +545,126 @@ def test_an_OFFSET_above_a_bar_reader_is_asked_about_THE_BAR_IT_ACTUALLY_READS()
     # A bar BEFORE the series starts is a hole too, never a skipped question.
     past = _op(">", _series("close"), off(400, inner()))
     assert ast_interpret.unresolved_inputs(past, {}, bars, -1) == ["obvN"]
+
+
+def test_an_INTERIOR_hole_is_caught__not_just_a_WARM_UP_PREFIX():
+    """⭐⭐ THE HOLE IS AT THE END AND THE VALUES ARE AT THE FRONT — THE INVERSE
+    OF A WARM-UP, ON AN ENTRY THIS PRE-PASS COVERS.
+
+    ⛔ WHY THIS CASE EXISTS AT ALL. Every other fixture in this file holes an
+    entry in a LEADING PREFIX, which is the easy half: a prefix hole is also what
+    the history question catches, so a rail built only on prefixes cannot tell
+    which question is doing the work, and a bug whose hole is interior slips
+    through all of them. That is not hypothetical — in this same wave a
+    `barsSince` mutation SURVIVED 587 Python and 212 JS tests because both of its
+    hole fixtures put the hole in a leading prefix where the counter was already 0.
+
+    `avwap`'s RULE 2 gives the inverse shape for free, and it is DECLARED rather
+    than contrived: bars more than `sessionMaxBars` past the anchor are not
+    computable, *"so every bar it does answer for was computed from inside the
+    window it declares"*. Anchor at bar 1 of a 1,000-bar series and the column is
+
+        bar 0         hole    (strictly before the anchor)
+        bars 1..961   REAL
+        bars 962..999 hole    <- the bar a sweep actually reads
+
+    ⛔ AND THE HISTORY QUESTION IS BLIND TO IT BY CONSTRUCTION: `max_lookback` is
+    960 and the series holds 1,000, so `unresolved_lookback` returns 0. Only the
+    input question can see this one.
+    """
+    bars = _instant_bars(n=1000)
+    if "avwap" not in ast_interpret.BAR_READERS:          # pragma: no cover
+        pytest.skip("no anchored bar reader is declared")
+
+    node = _call("avwap", _num(bars[1]["t"]))
+    tree = _op(">", _series("close"), node)
+    column = ast_interpret.interpret(node, bars, opts={"tf": "5"})
+
+    holes = [i for i, v in enumerate(column) if v is None]
+    assert holes, "the anchored entry no longer holes at all"
+    assert holes != list(range(len(holes))), (
+        "the hole is a leading prefix again, so this test has quietly become "
+        "another copy of the warm-up case and the interior class is unrailed")
+    assert column[len(column) // 2] is not None, (
+        "the middle of the column is a hole too — the fixture is broken and the "
+        "assertions below would pass for the wrong reason")
+
+    # ⛔ THE HISTORY QUESTION CANNOT SEE THIS. If it could, the input question
+    # below would be untested here.
+    assert ast_interpret.unresolved_lookback(tree, bars) == 0
+
+    # The laundering, at the bar a sweep reads — and the pre-pass catching it.
+    assert ast_interpret.interpret(tree, bars, opts={"tf": "5"})[-1] == 0.0
+    assert ast_interpret.unresolved_inputs(
+        tree, {}, bars, -1, opts={"tf": "5"}) == ["avwap"], (
+        "an INTERIOR hole at the read bar was not caught — the pre-pass is only "
+        "seeing warm-up prefixes")
+
+    # CONTROL, IN THE SAME FIXTURE: a bar inside the declared window answers.
+    assert ast_interpret.unresolved_inputs(
+        tree, {}, bars, len(bars) // 2, opts={"tf": "5"}) == [], (
+        "the pre-pass refused a bar the entry answers for — an over-refusal that "
+        "would cost a member every symbol on a working screen")
+
+
+def test_a_DATA_DEPENDENT_HOLE_in_an_ORDINARY_function_is_STILL_LAUNDERED():
+    """⛔⛔ THE SECOND GAP, PINNED. `valuewhen` IS NEITHER A BAR READER NOR A
+    SCALAR, SO THIS PRE-PASS DOES NOT SEE IT AT ALL.
+
+    `valuewhen(cond, src, n)` holes wherever `cond` has not been true within the
+    last `n` bars. That is a fact about THE DATA, not about the formula — so the
+    argument that sends the `macd` domain error to the save door does NOT cover
+    it — and it is not a warm-up either: the values sit at the FRONT and the holes
+    run to the END.
+
+    ⛔ AND THE MANIFEST CANNOT CURRENTLY EXPRESS THE DIFFERENCE. `valuewhen`
+    declares `lookback: "arg2"` / `yields: "num"`, exactly as `sma` declares
+    `lookback: "arg1"` / `yields: "num"`. Nothing in any of the 57 entries
+    separates "holes only inside its declared window" from "can hole at any bar",
+    so closing this needs a NEW DECLARATION in `closedTable.json` — adding a name
+    to `unresolved_inputs` would be the list-that-rots shape the derived set
+    exists to avoid. The predicate, and what it costs, is the controller's call;
+    this test is here so the gap cannot be forgotten or misremembered.
+
+    ⭐ IT GOES RED THE DAY THE GAP CLOSES, and names what goes stale with it.
+    """
+    functions = _manifest()["functions"]
+    if "valuewhen" not in functions:                       # pragma: no cover
+        pytest.skip("valuewhen is not declared in this manifest")
+    assert functions["valuewhen"].get("reads") != "bars", (
+        "valuewhen now declares reads:'bars', so the derived set covers it and "
+        "this test is obsolete — delete it and drop gap (2) from "
+        "`unresolved_inputs`' docstring")
+
+    bars = _bars_from_rows(_daily_rows(n=60))
+    # `close < 15` is true only on the first few bars, so the hole is INTERIOR:
+    # values at the front, holes from bar 14 to the end.
+    node = _call("valuewhen", _op("<", _series("close"), _num(15)),
+                 _series("close"), _num(10))
+    column = ast_interpret.interpret(node, bars)
+    holes = [i for i, v in enumerate(column) if v is None]
+    assert holes and holes != list(range(len(holes))), (
+        "the fixture no longer produces an interior hole")
+    assert column[-1] is None
+
+    tree = _op(">", _series("close"), node)
+    positive = ast_interpret.interpret(tree, bars)
+    negated = ast_interpret.interpret(_op("!", tree), bars)
+    # BOTH POLARITIES, ON THE HOLED BARS ONLY. An interior hole means the bars
+    # that DO have a value answer honestly, which is exactly why a set-wide
+    # assertion here would be wrong -- and why this class is harder to see than
+    # the warm-up one, where every bar in the prefix is laundered together.
+    assert holes and all(positive[i] == 0.0 and negated[i] == 1.0
+                         for i in holes), "the laundering has changed shape"
+    assert positive[-1] == 0.0
+
+    # ⛔ THE POINT. Both per-row questions are clean, so every symbol is ANSWERED.
+    assert ast_interpret.unresolved_lookback(tree, bars) == 0
+    assert ast_interpret.unresolved_inputs(tree, {}, bars, -1) == [], (
+        "`valuewhen` is now covered by the input question — the gap is CLOSED. "
+        "Delete this test deliberately, drop gap (2) from `unresolved_inputs`' "
+        "docstring and from `scan_evaluator`'s comment, and say what the new "
+        "predicate is and what IT misses.")
 
 
 def test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_functions_job():
