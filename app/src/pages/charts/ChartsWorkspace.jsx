@@ -13,7 +13,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -144,23 +144,6 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
   if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
   return opts
-}
-
-// App themes and chart themes are separate registries but share most ids; a few
-// differ. This maps the current APP theme → the chart theme that matches it, so a
-// NEW widget (crucially the chart, which otherwise ignores the app theme) adopts
-// the app theme's look by default. Returns a valid chart-theme id or null.
-const _APP_TO_CHART_THEME = {
-  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
-}
-function appThemeToChartTheme(appTheme) {
-  if (!appTheme) return null
-  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
-  if (appTheme === 'oled') return 'obsidian'
-  if (appTheme === 'light') return 'light'
-  const raw = String(appTheme).replace(/^uct:/, '')
-  const id = _APP_TO_CHART_THEME[raw] || raw
-  return CHART_THEME_BY_ID[id] ? id : null
 }
 
 // A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only
