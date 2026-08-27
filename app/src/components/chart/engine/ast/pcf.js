@@ -1489,11 +1489,20 @@ const PCF_MARKERS = [
   // the `AROONUP`-less branch `AROON`… had one existed. Sorting removes the class.
   // ⛔⛔ AND THE TRAILING GUARD IS NOT DECORATION — WITHOUT IT THIS CAPTURED A
   // NATIVE FORMULA, which is the one thing this detector must be incapable of.
-  // Measured: `log10(close)` was read as TC2000. The alternation contains both
-  // `LOG10` and `LOG`; `LOG10` fails (next char is `(`, not a digit), the regex
-  // BACKTRACKS to `LOG`, and `10` satisfies the digits. Refusing a following `(`
-  // ends it: a fused spelling glues digits to the name and then stops
-  // (`AROONUP25 > 70`), while a native call always opens a paren.
+  // Measured: `log10(close)` was read as TC2000 — because `\bLOG` matches `log`
+  // and `\d+` matches the `10` written right after it. ONE STEP.
+  // ⚰️ THIS EXPLAINED THAT SAME MEASURED CAPTURE BY AN ALTERNATION THAT DOES NOT
+  // EXIST: *"the alternation contains both `LOG10` and `LOG`; `LOG10` fails (next
+  // char is `(`, not a digit), the regex BACKTRACKS to `LOG`, and `10` satisfies
+  // the digits."* The union of `PCF_FUSED` and `PCF_CALLS` keys holds `LOG` and
+  // `CLG` and no `LOG10` — there was never a branch to backtrack FROM, and no run
+  // ever did. The capture was real; the mechanism was invented, which is the worse
+  // half: a comment naming a mechanism is a claim about a run, and this one sent
+  // the next reader hunting a backtrack that never happened. ⚠️ The same sentence
+  // is in `687318cd3`'s commit message, which cannot be amended — THIS is the
+  // correction of record.
+  // Refusing a following `(` ends it: a fused spelling glues digits to the name
+  // and then stops (`AROONUP25 > 70`), while a native call always opens a paren.
   new RegExp(
     '\\b(' + [...new Set([...Object.keys(PCF_FUSED), ...Object.keys(PCF_CALLS)])]
       .sort((a, b) => b.length - a.length)
