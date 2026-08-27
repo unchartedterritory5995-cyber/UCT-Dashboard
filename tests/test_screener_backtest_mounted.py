@@ -67,13 +67,28 @@ def _app_with(flag: str):
     ⛔ WHAT CHANGED IS WHERE THE RELOAD LANDS, NOT WHETHER IT HAPPENS.
     `app_built_with` puts `api.main`'s namespace back before it returns, so
     `api.main.app` is never left rebound and this file's subject cannot leak
-    into anybody else's fixtures. It used to — measured: this module runs three
-    files ahead of `tests/test_backtest_endpoint.py` in the branch baseline and
-    made all 8 of its assertions read `assert 401 == 200`, because that file
-    pins `api.main.app` at import while `tests/authclients.py` resolves it per
-    call, so the override landed on an app nobody was driving. A module-teardown
+    into anybody else's fixtures. It used to: `tests/test_backtest_endpoint.py`
+    read `assert 401 == 200` on all 8 of its assertions, because that file pins
+    `api.main.app` at import while `tests/authclients.py` resolves it per call,
+    so the override landed on an app nobody was driving. A module-teardown
     fixture that reloaded once more could not fix it: a third reload builds a
     THIRD app, not the one the victim is holding.
+
+    ⚰️ THE ORDERING SENTENCE THAT USED TO BE HERE WAS WRONG, AND IT IS DELETED
+    RATHER THAN CORRECTED (X86). It read "this module runs three files ahead of
+    `tests/test_backtest_endpoint.py` in the branch baseline". MEASURED off
+    `pytest tests/ --collect-only` (923 files): the victim is file **#206** and
+    this module is **#687** — 481 apart, and this one runs AFTER it, not ahead
+    of it. Both the count and the direction were wrong.
+
+    ⭐ AND THE GUARD DOES NOT DEPEND ON EITHER. What makes the rebind dangerous
+    is that `api.main.app` is process-global and some files pin it at import;
+    WHICH file gets hurt, and whether it runs before or after this one, changes
+    with collection order, `-p no:randomly`, `-k`, xdist sharding and every file
+    somebody adds. A specific distance is not a property of the defect — it was
+    one observation of it, written down as if it were the rule, and it went
+    stale the moment the suite grew. Restoring the namespace is correct
+    regardless of order, which is why no number belongs in this paragraph.
     """
     return app_built_with(**{FLAG: flag})
 
