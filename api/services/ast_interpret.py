@@ -1301,11 +1301,81 @@ def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     return out
 
 
+def _aroon_col(bars: List[dict], n: int, field: str, want_max: bool) -> List[MaybeNum]:
+    """Chande's Aroon, from the published formula and this table's own arg-extreme.
+
+    ⭐ THE PUBLISHED FORM, VERBATIM (StockCharts):
+    ``Aroon-Up = ((25 - Days Since 25-day High)/25) x 100``. "Days Since" is the
+    number of periods elapsed since the most recent extreme -- which is exactly
+    what ``_window_arg_extreme`` returns, because ``_functions_arg_extreme``
+    ruled that the MOST RECENT bar wins a tie.
+
+    ⛔ THE WINDOW IS ``n + 1`` BARS, AND THAT IS ARITHMETIC RATHER THAN A CHOICE.
+    Aroon's published range is 0-100. Over ``n`` bars "days since" maxes at
+    ``n - 1`` and the indicator could never print 0; over ``n + 1`` it reaches
+    exactly 0 on the bar whose extreme sits at the far edge. Pine ships the same
+    reading (``ta.highestbars(high, length + 1)``).
+
+    ⭐ AND THE SIGN QUESTION FROM W2a.5 CLOSES HERE. Pine's ``highestbars`` is
+    NON-POSITIVE and this table's is the positive distance, so Pine writes
+    ``100 * (hb + n) / n`` where this writes ``100 * (n - hb) / n``. The two look
+    opposite and compute the SAME number -- which is precisely why
+    ``ta.highestbars`` is refused at the Pine door rather than mapped across.
+    """
+    values = [_number(b.get(field)) if _is_number(b.get(field)) else NAN for b in bars]
+    better = (lambda v, w: v > w) if want_max else (lambda v, w: v < w)
+    out: List[MaybeNum] = [None] * len(bars)
+    for i in range(n, len(bars)):
+        days = _window_arg_extreme(values, i - n, i, better)
+        if math.isnan(days):
+            continue
+        out[i] = 100.0 * (n - days) / n
+    return out
+
+
+def _fn_aroon_up(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    return _aroon_col(bars, int(args[0]), "h", True)
+
+
+def _fn_aroon_down(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    return _aroon_col(bars, int(args[0]), "l", False)
+
+
+def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """Balance of Power -- the ``n``-bar mean of ``(close - open) / (high - low)``.
+
+    ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED IN
+    ``closedTable.json::_functions_compositions``: it has a PUBLISHED IDENTITY
+    under its own name, its window is a single declarable argument, and it reuses
+    the shipped rolling mean -- so unlike ``variance`` there is no second average
+    that could drift from the one ``sma`` uses.
+
+    ⛔ THE RATIO IS BUILT THROUGH THE SAME TWO SEAMS THE OPERATOR PATH USES --
+    ``_binary_div`` for IEEE division and the finite-or-NaN collapse ``_to_column``
+    applies -- so a zero-range bar answers exactly what
+    ``sma((close - open) / (high - low), n)`` answers, rather than nearly.
+    """
+    n = int(args[0])
+    ratio = []
+    for b in bars:
+        o, h, l, c = (b.get("o"), b.get("h"), b.get("l"), b.get("c"))  # noqa: E741
+        if not all(_is_number(v) for v in (o, h, l, c)):
+            ratio.append(NAN)
+            continue
+        ratio.append(_finite_or_nan(
+            _binary_div(_number(c) - _number(o), _number(h) - _number(l))))
+    col = _rolling(ratio, n, _window_mean)
+    return [None if math.isnan(v) else v for v in col]
+
+
 #: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
 _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
     "avwap": _fn_avwap,
     "obvN": _fn_obvn,
+    "aroonUp": _fn_aroon_up,
+    "aroonDown": _fn_aroon_down,
+    "bop": _fn_bop,
 }
 
 #: The declared set, read off the manifest. ``parse.js::BAR_READERS`` is the same

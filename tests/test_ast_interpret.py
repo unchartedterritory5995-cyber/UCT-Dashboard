@@ -240,9 +240,13 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # reach in three arguments. Until now only `ichimokuChikou` had one, behind a
     # six-argument call, and that scarcity is why three separate claims about the
     # repaint machinery went unfalsified. The scalar half is untouched at 111.
-    assert len(ast_table.bar_names()) == 92, len(ast_table.bar_names())
+    # 92 -> 95 (2026-08-27): the TC2000 remainder -- `aroonUp`, `aroonDown`, `bop`.
+    # All three are BAR READERS: none names a series, because Aroon is defined on
+    # high/low and Balance of Power on all four fields, exactly as `obvN` is
+    # defined on close-and-volume. The scalar half is untouched at 111.
+    assert len(ast_table.bar_names()) == 95, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 203, f"the table declares {len(declared)} names, not 203"
+    assert len(declared) == 206, f"the table declares {len(declared)} names, not 206"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

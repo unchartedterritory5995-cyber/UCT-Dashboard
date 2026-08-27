@@ -690,7 +690,8 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # counts rot, three commits after `== 200` was deleted from the case below
     # for being exactly that. Nobody counts the bumps; the two numbers ARE the
     # claim, and git carries the history.
-    assert len(parts["bar"]) == 92 and len(parts["scalar"]) == 111
+    # 92 -> 95 (2026-08-27): the TC2000 remainder. Scalar half untouched again.
+    assert len(parts["bar"]) == 95 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

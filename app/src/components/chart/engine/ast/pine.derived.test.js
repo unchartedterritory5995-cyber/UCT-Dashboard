@@ -164,6 +164,19 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // — OURS ALONE. Pine has `ta.obv` (unbounded, refused — not in this table);
     //   `ta.obvN` is not a Pine name, so nothing can be mistranslated onto it.
     obvN: 'no Pine name collides — ta.obv is the unbounded one and stays refused',
+    // — W2a.7. ⭐ VETTED RATHER THAN REFUSED, and the distinction from
+    //   `ta.highestbars`/`ta.pivothigh` is the whole reason this list carries a
+    //   REASON per name instead of a checkmark. Those two are real Pine builtins
+    //   whose values disagree with ours by a sign and by an index; these three are
+    //   spellings Pine does not define (`/pine-script-reference/v5/fun_ta.aroonup`
+    //   404s), so no real pasted Pine can contain them.
+    //   ⭐ AND AROON IS SAFE EVEN IF THAT IS EVER WRONG: it is a normalised 0-100
+    //   oscillator with one published formula, and Pine's own construction
+    //   `100*(highestbars(high, len+1)+len)/len` is OUR number written under
+    //   Pine's negative-offset convention — the two agree by arithmetic.
+    aroonUp: 'ta.aroonup is not a Pine builtin; and the formula would agree anyway',
+    aroonDown: 'ta.aroondown is not a Pine builtin; same published formula',
+    bop: 'ta.bop is not a Pine builtin (TradingView ships BOP as an indicator, not a ta.* fn)',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

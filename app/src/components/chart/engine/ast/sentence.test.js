@@ -217,6 +217,20 @@ const FORMS = [
     name: 'pivotlow',
     parts: ['the ', 0, ' of a bar that is the lowest in the ', 1,
             ' bars before it and the ', 2, ' bars after it'] },
+  // ⭐ THE TC2000 REMAINDER (2026-08-27), hand-typed from the manifest's words
+  // like every row here — this grammar is a DELIBERATE second authority, so
+  // deriving it would make the round trip agree by construction.
+  { kind: 'call',
+    name: 'aroonUp',
+    parts: ['the Aroon up of the last ', 0,
+            ' bars, 100 when this bar set the high and 0 when it was ', 0, ' bars ago'] },
+  { kind: 'call',
+    name: 'aroonDown',
+    parts: ['the Aroon down of the last ', 0,
+            ' bars, 100 when this bar set the low and 0 when it was ', 0, ' bars ago'] },
+  { kind: 'call',
+    name: 'bop',
+    parts: ['the ', 0, '-bar average of where each bar closed within its own range'] },
   { kind: 'call',
     name: 'obvN',
     parts: ['the signed volume of the last ', 0,
@@ -821,10 +835,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:abs',
       'function:accum',
       'function:adx',
+      'function:aroonDown',
+      'function:aroonUp',
       'function:atan',
       'function:atr',
       'function:avwap',
       'function:barssince',
+      'function:bop',
       'function:cci',
       'function:change',
       'function:cos',
@@ -878,7 +895,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(92)
+    expect(entries.length).toBe(95)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -888,7 +905,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(92)
+    expect(subjects.length).toBe(95)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2083,6 +2100,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // besides `ichimokuChikou` whose entry can badge `preview-repaints`.
       'pivothigh_strict_two_two',
       'pivotlow_strict_two_two',
+      // The TC2000 remainder (2026-08-27) -- the corpus rows that exist because a
+      // Worden SPELLING had to read, not because the chart lane wanted a name.
+      'aroon_up_25',
+      'aroon_down_25',
+      'bop_twenty',
     ])
   })
 
@@ -2125,7 +2147,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 92)
+    expect(sentences.length).toBe(CORPUS.cases.length + 95)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

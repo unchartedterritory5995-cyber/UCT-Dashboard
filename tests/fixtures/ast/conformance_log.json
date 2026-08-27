@@ -9,11 +9,14 @@
     "accum_running_max_is_highest": "1357f3d5073da2081b58d3a289938498a7437eff7d742166acd24a4ec0ce81aa",
     "accum_sticky_flag_ternary": "f052cdad3033f5beb02d91bf454ac082314ee0356c6d8451e6a2916aef2aa496",
     "adx_trend_strength": "47004ec35588b8770725a1e4454d8ad626c72678a40afcfffea8af37330bfe2a",
+    "aroon_down_25": "4f89cd2f5049e759ca758e5d6a02bb8b89d0b5673ee8f18f33cf68462b730482",
+    "aroon_up_25": "97b54dae9c066d894b8c038e71cc4da4934b414c595e2aa228cea57847287586",
     "atan_of_close": "35e0c0585a54399819ca7f0a6ff5ecda534afb33a73e1a39cd1e6e0d4b309c38",
     "atr_of_hlc": "4dddeefee0023120fd6aaea12111274fbb937a673f6369817419650c26a45b4c",
     "avwap_anchor_before_the_series_is_not_computable": "e15166565e8f122bfe061f1717801c4857ce6a53f1d4874c8029cbda15f6bae0",
     "avwap_from_a_mid_series_instant": "8f4ed4c0a9dc839873ac6dee92d1dffad0cdace3df7258656dae685a85020800",
     "barssince_the_last_up_bar": "8eb94e85c8721da9db32194228d3d132de30f17fb12ad375f22d35a459dec37e",
+    "bop_twenty": "a8f77153050c914b48562d12102c325d8387a9a8c8bbb1248bfaa821e96c5dae",
     "bounds_inclusive": "a3320dbb6668317a3f8b83120bdf5349450ef54e9fb86388b7ec2e4ec4ffac81",
     "cci_20": "b6e6a56d07f2b75e50b4fa941a963bfac25fad7ae6a304f0ddc6392602cf449a",
     "clock_barindex": "f1dbb6b765ce566e3e03f7c6c80339efdb4549bd4a44928197f6d1d131e5ea00",
@@ -212,6 +215,18 @@
       "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 2 added, 0 removed` with `non-vacuity : 51412 finite of 57900 rows, every case non-empty, 92 table entries covered`, and `--check` is green afterwards at 100 asts x 579 bars. ⭐ THE SHAPE WAS DIFFED BEFORE THE COMMIT, NOT ONLY THE NUMBERS: the committed log was copied aside first and the top-level key sets compared key by key -- `['bar_count', 'bars', 'digests', 'rel_tol', 'rerecorded']` on both sides, `bars`/`bar_count`/`rel_tol` byte-identical, and all NINE prior `rerecorded` entries carried forward VERBATIM (asserted as a list equality, not eyeballed). W2a.4 lost an oracle's provenance to a from-scratch record on the alert fire log; a numbers-only diff would not have seen it. ⛔ THE ZERO IS A REAL CLAIM HERE: `pivothigh`/`pivotlow` are the first entries in this table to read a LATER bar, so a walker that had leaked that forward read into any shared helper would have moved neighbouring digests. None moved.",
       "what_moved": "NOTHING MOVED. 0 of the 98 pre-existing digests changed, 0 were dropped, and 2 were added, so the log went 98 -> 100 per-ast digests over the same 579 bars at the same 1e-9. ⭐⭐ THESE TWO ROWS PIN A RULING, NOT ONLY ARITHMETIC. `pivothigh`/`pivotlow` are STRICT -- a plateau is not a pivot -- and the corpus CAN see that choice: measured on these very bars, 20 of them equal their 5-bar `high` extreme WITHOUT being unique, and 15 do in `low`, so a `>=` implementation emits those extra rows and moves these digests. ⚠️ A COUNT, NOT AN ABSENCE: the previous brief in this lane asserted a corpus could not see a tie-break and was wrong by 56, so the plateau counts are asserted as numbers in `tests/test_ast_pivots.py` where they fail loudly if the series changes.",
       "why": "W2a.6 declared `pivothigh`/`pivotlow` with `forward: \"arg2\"`, and `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST, so the recorder ABORTS until each has a case. ⭐ THESE ARE THE SECOND AND THIRD ENTRIES IN THE WHOLE TABLE THAT PRODUCE `preview-repaints`, and the first a member can reach in three arguments -- until now only `ichimokuChikou` declared a forward reach, behind a six-argument call. That scarcity had left three claims about the repaint machinery unfalsified (a 'latent' defect that was not latent, a mutation that 'did not discriminate', and `canSaveFormula`'s `acknowledged` branch believed to be dead code). The re-record is forced by the coverage floor, not by a number anybody wanted to move."
+    },
+    {
+      "added": [
+        "aroon_down_25",
+        "aroon_up_25",
+        "bop_twenty"
+      ],
+      "at_head": "811328eb8c166d176d43d359963226c2d16d073a",
+      "moved": [],
+      "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 3 added, 0 removed` with `non-vacuity : 53080 finite of 59637 rows, every case non-empty, 95 table entries covered`, and `--check` is green afterwards at 103 asts x 579 bars. The committed log was copied aside FIRST and the top-level key sets compared key by key -- identical -- with `bars`/`bar_count`/`rel_tol` byte-equal and all TEN prior `rerecorded` entries asserted carried VERBATIM as a list equality rather than eyeballed. W2a.4 lost an oracle's provenance to a from-scratch record; a numbers-only diff would not have seen it.",
+      "what_moved": "NOTHING MOVED. 0 of the 100 pre-existing digests changed, 0 were dropped and 3 were added, so the log went 100 -> 103 over the same 579 bars at the same 1e-9. THE ZERO IS A REAL CLAIM HERE, TWICE OVER. `bop(20)` is a COMPOSITION declared as an entry -- if its implementation had been a private mean rather than the shipped rolling one, `sma`-adjacent digests would have been the first to move, and none did. And `aroonUp`/`aroonDown` are built on task 5's `highestbars`/`lowestbars`, so a leak from the new bar-reader path into that shared helper would have moved the arg-extreme digests; it did not.",
+      "why": "W2a.7 declared `aroonUp`, `aroonDown` and `bop`, and `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST, so the recorder ABORTS until each has a case. All three are BAR READERS: none names a series, because Aroon is defined on high/low and Balance of Power on all four fields -- the same reason `obvN` reads the bars. THE RE-RECORD IS FORCED BY THE FLOOR, not by a number anybody wanted to move."
     }
   ]
 }

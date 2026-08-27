@@ -2496,6 +2496,51 @@
           }
         ]
       }
+    },
+    {
+      "id": "aroon_up_25",
+      "source": "aroonUp(25)",
+      "why": "⭐ CHANDE'S AROON, AND THE FIRST CORPUS ROW WHOSE FORMULA CAME FROM THE INVENTOR RATHER THAN THE VENDOR. Worden publishes the SPELLING (`AROONUP(x, z)`, x=Period, z=Offset) and NO formula, so the maths is cited to `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. ⛔ THE WINDOW IS n+1 BARS AND THAT IS ARITHMETIC, NOT A READING: Aroon's published range is 0-100, and over n bars \"days since\" maxes at n-1 so the indicator could never print 0. ⭐ IT SPENDS TASK 5's ARG-EXTREME RULING: \"days since the high\" IS `highestbars`, whose most-recent-bar tie-break `_functions_arg_extreme` fixed — so a flipped tie-break moves this digest too, on every bar where the window's high is not unique.",
+      "ast": {
+        "type": "call",
+        "name": "aroonUp",
+        "args": [
+          {
+            "type": "num",
+            "value": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "aroon_down_25",
+      "source": "aroonDown(25)",
+      "why": "⭐ THE MIRROR, AND NOT A DUPLICATE. It reads `low` through the OPPOSITE comparison, so a lane that inverted one predicate would produce a perfectly plausible 0-100 column and only this row would move.",
+      "ast": {
+        "type": "call",
+        "name": "aroonDown",
+        "args": [
+          {
+            "type": "num",
+            "value": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "bop_twenty",
+      "source": "bop(20)",
+      "why": "⭐ BALANCE OF POWER — a COMPOSITION that is DECLARED, and this row is half of why that is safe. `bop(n)` is `sma((close - open) / (high - low), n)`, built over the SHIPPED rolling mean rather than a private average, and `tests/test_ast_tc2000_remainder.py` pins the two equal bar for bar at 1e-9 — so there is no second implementation to drift, which is the test `_functions_excluded.variance` applies. ⚠️ IT DIVIDES BY THE BAR'S RANGE, so a zero-range bar is the one place this column can go NOT COMPUTABLE, and it goes there through the SAME IEEE division and finite-collapse the operator path uses rather than a private guard.",
+      "ast": {
+        "type": "call",
+        "name": "bop",
+        "args": [
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
@@ -2505,5 +2550,6 @@
   "_bar_readers": "⭐⭐ THE BAR-READING ROWS. ⛔ NO COUNT IS WRITTEN HERE, AND THAT IS A CORRECTION: this note opened \"THE TWO BAR-READING ROWS\" and `obvN(20)` made it three on 2026-08-26 — the identical claim was corrected in `closedTable.json::_functions_bar_readers` in the SAME commit and this copy was missed, which is the whole hazard of a count mirrored across artifacts. `ast_table.bar_readers` answers it; read that. Every other case in this file is measured over columns; these two are measured over the BARS, `t` included, because their entries declare `reads: \"bars\"` -- and that declaration is the whole reason `vwap` stopped being refused (`closedTable.json::_functions_bar_readers`). ⛔ THEY ARE THE ONLY CASES HERE WHOSE ANSWER DEPENDS ON A TIMEZONE DATABASE RATHER THAN ON ARITHMETIC, which is what makes the cross-lane digest worth having: `Intl.DateTimeFormat` against `zoneinfo`, over a corpus that crosses a DST fallback, a weekend and the Friday 20:00 ET bar that is 00:00 UTC the next day. ⚠️ NEITHER CARRIES `opts`: a session is decided by the CALENDAR, so unlike the four timeframe booleans these answer the same column whatever timeframe the caller claims.",
   "_bounded_state": "⭐ FIVE ROWS, ONE PER BOUNDED-STATE ENTRY, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and an entry with no case is an entry whose two lanes may already disagree with every gate green. ⛔⛔ TWO OF THEM CARRY A RULING NO OTHER ROW HERE DOES: `highestbars`/`lowestbars` return an OFFSET, so when two bars of the window tie they have an answer where `highest`/`lowest` do not. Measured on these bars, 56 `high` windows and 36 `low` windows tie at 5, and every one of them separates the two conventions -- so these digests are a real rail on `closedTable.json::_functions_arg_extreme` rather than a formality. ⚠️ AND THEY ARE NOT THE WHOLE RAIL: a corpus can only pin the window a case happens to use, and it cannot contain a TOTAL tie at all. `tests/test_ast_bounded_state.py` carries the constructed one.",
   "_pivots": "⭐⭐ THE FORWARD-DECLARING ROWS. `pivothigh`/`pivotlow` declare `forward: \"arg2\"`, so they are the second and third entries in this table that `modeFromReach` badges `preview-repaints` — and the first a member can reach in three arguments. ⛔ THAT SCARCITY WAS ITSELF A DEFECT: with only `ichimokuChikou` declaring one, a review concluded a repaint bug was \"latent because every table-legal tree is non-repainting today\" (false), and a mutation \"did not discriminate\" because no fixture could produce two differing verdicts. These two rows make the repaint machinery non-hypothetical. ⚠️ Their digests pin the STRICT rule as well as the maths: 20 bars of this series equal their 5-bar `high` extreme without being unique (15 in `low`), so a plateau-admitting implementation moves them.",
+  "_tc2000_remainder": "⭐ THE TC2000 REMAINDER (2026-08-27). Three entries that exist because a TC2000 spelling had to READ, not because the chart lane asked for a name — `AROONUP25`, `AROONDOWN25` and `BOP20` are the last oscillator spellings this reader could close. ⛔ TWO SPELLINGS BESIDE THEM STAY REFUSED FOREVER AND THAT IS THE POINT: `WSTOC` is a RANK this table cannot express and `OBV` is an SMA of a cumulative level it refuses by construction. A count is not the deliverable -- these three rows exist to prove the spellings COMPUTE, over the same 579 bars, and not merely that they parse.",
   "_clock": "⭐ THE CLOCK ROWS (tableVersion 2). One case per declared clock name, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a clock entry with no case is a name whose two lanes may already disagree with every gate green. ⛔ THESE ARE THE ONLY CASES IN THIS FILE WHOSE ANSWER DOES NOT COME FROM A PRICE -- they come from a CALENDAR, which is a second implementation on each side (`Intl.DateTimeFormat` against `zoneinfo`) rather than one formula written twice. The four `opts`-bearing rows are also the first cases in this corpus to exercise `interpret`'s trailing `opts` argument at all; a clock boolean measured WITHOUT it is two lanes agreeing on an all-null column, which is a pass about nothing."
 }

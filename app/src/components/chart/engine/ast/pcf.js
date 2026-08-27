@@ -170,13 +170,17 @@ export const PCF_FUSED = Object.freeze({
   // three price series are supplied because TC2000 leaves them implicit against
   // the chart's symbol, which IS what the spelling means.
   //
-  // ⛔ AND THE LIST IS THREE, NOT THIRTEEN. Of the sixteen oscillators PCF
-  // declares, thirteen refused; it is tempting to read that as thirteen missing
-  // rows. Twelve of them are NOT: `ADX`, `AROONUP`, `AROONDOWN`, `BOP`, `OBV`,
-  // `FAVG` and `HAVG` are formulas this table does not declare at all, and
-  // `RSI`, `WSTOC`, `MS` and `TSV` are DIFFERENT FORMULAS wearing familiar names
-  // -- see `PCF_DIFFERENT_FORMULA`. Adding a row for any of those would be the
-  // `MIN`/`lowest` trap this file's header exists to warn about.
+  // ⛔ A REFUSAL HERE IS ONE OF TWO DIFFERENT FACTS, AND THEY ARE NOT
+  // INTERCHANGEABLE. Some names refuse because the table does not declare the
+  // formula (`FAVG`, `HAVG` — two moving averages, still open); the rest refuse
+  // because they are DIFFERENT FORMULAS wearing familiar names (`RSI`, `WSTOC`,
+  // `MS`, `TSV`, `OBV` — see `PCF_DIFFERENT_FORMULA`). Adding a row for one of
+  // THOSE would be the `MIN`/`lowest` trap this file's header exists to warn about.
+  // ⚰️ NO COUNT IS WRITTEN HERE. This opened *"AND THE LIST IS THREE, NOT
+  // THIRTEEN"* and then named `ADX`, `AROONUP`, `AROONDOWN` and `BOP` as formulas
+  // "this table does not declare at all" — `adx` was declared 2026-08-11 and the
+  // other three on 2026-08-27, by the very task that read this comment. A hand-typed
+  // roster beside the map it describes rots the first time the map moves.
   CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   // ⭐⭐ `ADX14.14` — AND THE DOTTED NUMBER IS **SMOOTHING**, NOT AN OFFSET.
   //
@@ -194,13 +198,23 @@ export const PCF_FUSED = Object.freeze({
   ADX:     { spelling: 'ADX<period>.<smoothing>',    fn: 'adx',     series: ['high', 'low', 'close'], params: ['period', 'smoothing'], matchParam: ['smoothing', 'period'] },
   DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
-  // ⭐ AN EXPANSION, NOT A TABLE CALL. Balance of Power is
-  // `sma((close - open) / (high - low), n)` -- Worden's own definition, written in
-  // this table's existing vocabulary, so it costs the closed table no new name.
-  // ⛔ `expand` EXISTS SO THIS CANNOT BE FAKED AS A MAPPING: there is no `bop`
-  // function to point at, and inventing one to hold four lines of arithmetic
-  // would put a second authority on a formula the table can already say.
-  BOP:     { spelling: 'BOP<period>[.<offset>]', expand: true, series: [], params: ['period', 'offset'] },
+  // ⭐ AROON — Tushar Chande's, and the FORMULA IS THE INVENTOR'S, not Worden's.
+  // The Worden syntax page publishes `AROONUP(x, z)` with x=Period and z=Offset and
+  // NO formula at all, so the maths is cited to StockChart's published definition:
+  // `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. This table's `aroonUp`
+  // holds it; see `closedTable.json::_functions_compositions` for why a composition
+  // with a published identity is declared rather than expanded here.
+  AROONUP:   { spelling: 'AROONUP<period>[.<offset>]',   fn: 'aroonUp',   series: [], params: ['period', 'offset'] },
+  AROONDOWN: { spelling: 'AROONDOWN<period>[.<offset>]', fn: 'aroonDown', series: [], params: ['period', 'offset'] },
+  // ⭐ BOP POINTS AT THE TABLE ENTRY NOW, AND THAT IS THE WHOLE REASON `bop` WAS
+  // DECLARED. ⚰️ This row was `expand: true` with a note arguing the opposite:
+  // *"there is no `bop` function to point at, and inventing one to hold four lines of
+  // arithmetic would put a second authority on a formula the table can already say."*
+  // The reasoning was right about the DANGER and wrong about which artifact removes
+  // it: with an expansion here AND a `bop` entry there, the formula would live in two
+  // places. One does. The expansion is gone, the entry is bound to the shipped
+  // rolling mean, and `tests/test_ast_tc2000_remainder.py` pins the two equal.
+  BOP:     { spelling: 'BOP<period>[.<offset>]', fn: 'bop', series: [], params: ['period', 'offset'] },
 })
 
 /** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
@@ -220,7 +234,31 @@ export const PCF_FUSED = Object.freeze({
  *  name members trust. That is a refusal to keep, not a backlog item. */
 export const PCF_DIFFERENT_FORMULA = Object.freeze({
   RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
-  WSTOC: 'the Worden stochastic is a different formula from the simple STOC this table has',
+  // ⭐ CITED, NOT ASSERTED — and the citation is what makes the refusal actionable.
+  // Worden publishes the formula on its own indicator page (`/m/69445/l/755879`):
+  // "Worden Stochastic = (100/n-1)(Rank)", where Rank is the ascending position of
+  // the newest close among the closes of the period. It is a RANK, and this table declares
+  // no rank function, so it is INEXPRESSIBLE rather than merely "different" — a word
+  // that is true of any two formulas and tells a member nothing.
+  WSTOC: 'a RANK, not a range: Worden publishes `(100/n-1)(Rank)`, where Rank is the '
+    + 'ascending position of the newest close among the closes of the period (its own worked '
+    + 'example gives 25 where a standard stochastic gives 16.7). This table declares no '
+    + 'rank function, so the formula cannot be written at all. TO UNBLOCK: declare '
+    + '`rank(source, n)` and `WSTOC(x, y, z)` becomes `sma(100 / (x - 1) * rank(close, x), y)`',
+  // ⭐ `OBV` REFUSES FOR A REASON TRUE OF **ITS** INPUT, not a generic one. Worden
+  // spells it `OBVy.z` where `y` is an SMA, so `OBV20` is the twenty-bar mean OF THE
+  // CUMULATIVE RUNNING TOTAL — and TC2000's own page says that level "is
+  // statistically irrelevant, just as it would be with a cumulative advance/decline
+  // line". Smoothing a fetch-dependent level leaves it fetch-dependent, which is the
+  // exact ground `_functions_excluded.obv` has refused on since this table opened.
+  // ⛔ IT IS NOT `obvN(20)`: a windowed signed-volume SUM and a smoothed cumulative
+  // LEVEL are different quantities that happen to share three letters.
+  OBV:   'the Worden `OBVy` is an SMA of the CUMULATIVE on-balance volume level, and a '
+    + 'running total from the first bar is a fact about where the fetch started rather '
+    + 'than about the market (the vendor page calls the level "statistically '
+    + 'irrelevant"). This table refuses that level by construction. TO UNBLOCK: nothing '
+    + 'here — write `obvN(n)`, the bounded signed-volume sum, which is a DIFFERENT '
+    + 'quantity and says so',
   MS:    'MoneyStream is Worden-proprietary and its formula is not published',
   TSV:   'Time Segmented Volume is Worden-proprietary and its formula is not published',
 })
@@ -1421,12 +1459,39 @@ const PCF_MARKERS = [
   // added above, handed to the NATIVE reader, and refused for a reason that has
   // nothing to do with what the member pasted. Now the list is the only author.
   ...PCF_DIALOG_INDICATORS.map((d) => d.re),
-  // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
+  // ⛔⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
   // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
-  // refused for a reason that has nothing to do with the script. `BOP` was added
-  // to `PCF_FUSED` and missed here; the corpus caught it because `detectDialect`
-  // is asserted over every accepted source, which is exactly why that rail exists.
-  /\b(STDDEV|WRSI|ATR|MACD|STOC|BOP|CCI|ADX|DIPLUS|DIMINUS)\d/i,
+  // refused for a reason that has nothing to do with the script.
+  //
+  // ⚰️ THIS WAS A HAND-TYPED ALTERNATION AND IT WENT STALE TWICE. `BOP` was
+  // added to the family maps and missed here; the note recording THAT fix was
+  // still sitting on this line when `AROONUP`/`AROONDOWN` landed in `PCF_CALLS`
+  // on 2026-08-27 and were missed the same way — a member pasting
+  // `AROONUP25 > 70` would have been handed to the NATIVE reader and refused for
+  // a reason with nothing to do with what they pasted. A comment describing a
+  // defect is not a guard against it, so the list is DERIVED FROM THE FAMILY MAPS
+  // now, exactly as `PCF_DIALOG_INDICATORS` above it is: a family declared
+  // tomorrow is a marker the moment it is declared.
+  //
+  // ⚠️ `\d` IS WHAT KEEPS IT OFF NATIVE SOURCE. A fused spelling glues its period
+  // to the name (`ATR14`); a native call writes `atr(high, low, close, 14)`, whose
+  // next character is `(`. So no native formula can be captured by a family name —
+  // the property `MOD`'s hand-written lookahead had to state for itself.
+  //
+  // ⚠️ LONGEST-FIRST, because `AROONUP` and `AROONDOWN` share a prefix and a
+  // regex alternation takes the FIRST match: unsorted, `AROONDOWN25` would match
+  // the `AROONUP`-less branch `AROON`… had one existed. Sorting removes the class.
+  // ⛔⛔ AND THE TRAILING GUARD IS NOT DECORATION — WITHOUT IT THIS CAPTURED A
+  // NATIVE FORMULA, which is the one thing this detector must be incapable of.
+  // Measured: `log10(close)` was read as TC2000. The alternation contains both
+  // `LOG10` and `LOG`; `LOG10` fails (next char is `(`, not a digit), the regex
+  // BACKTRACKS to `LOG`, and `10` satisfies the digits. Refusing a following `(`
+  // ends it: a fused spelling glues digits to the name and then stops
+  // (`AROONUP25 > 70`), while a native call always opens a paren.
+  new RegExp(
+    '\\b(' + [...new Set([...Object.keys(PCF_FUSED), ...Object.keys(PCF_CALLS)])]
+      .sort((a, b) => b.length - a.length)
+      .join('|') + ')\\d+(?![A-Za-z0-9_(])', 'i'),
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
 ]
