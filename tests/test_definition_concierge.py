@@ -1632,6 +1632,105 @@ def test_a_PLANTED_unsayable_entry_is_NAMED_and_the_sayable_twin_is_CLEAN(concie
         "a sayable plant was reported as a gap: " + _named(clean_gaps))
 
 
+def test_a_PLANTED_clock_value_RENDERS_and_a_DELETED_sentence_is_REFUSED_BY_NAME(concierge):
+    """🔴 THE POSITIVE CONTROL THIS LANE'S CLOCK RAILS NEVER HAD — ADD ONE,
+    REMOVE ONE, RESTORE.
+
+    ⛔ EVERY OTHER CLOCK ASSERTION IN THIS FILE READS THE UNMODIFIED TABLE, and
+    an unmodified table is the weakest possible subject: a probe reporting
+    ``clock: []`` is satisfied by a walker that looks at nothing, and
+    ``test_the_two_coverage_LANES_agree…`` cannot transfer the bite either,
+    because it compares the two lanes against that same unmodified table.
+    ``sentence.js`` has exactly this control; this lane did not — so the newest
+    section was railed in ONE lane of a mirrored pair
+    (``lesson_rail_the_mirror_not_just_the_lane``), and the day ``compile_rules``
+    grows a catch-all the Python side reports empty and stays green.
+
+    ⛔ NOTHING HERE MUTATES ``ast_table.TABLE``. Every probe table is a fresh
+    dict whose ``clock`` section is rebuilt entry by entry, which is what makes
+    the restore-half at the bottom a real re-measurement of the shipped table
+    rather than a statement about a mutation that never happened.
+    """
+    CLOCK = ast_table.CLOCK_SECTION
+
+    # ⚠️ THE NAMES ARE BUILT HERE RATHER THAN BY `_named`, AND THAT IS NOT A
+    # STYLE CHOICE. This module defines `_named` TWICE at top level -- the gap
+    # reporter, and a much later `_named(concierge, text, lexicon=None)` -- so
+    # every call resolves to the LAST one and `_named(gaps)` raises
+    # `TypeError: _named() missing 1 required positional argument: 'text'`
+    # instead of printing the entry that broke. A failure sentence that raises
+    # is a rail with no sentence (`lesson_rail_the_sentence_not_just_the_guard`),
+    # and the same trap is live in the neighbouring cases' messages; it is
+    # reported rather than renamed here because this file is shared with a lane
+    # that is editing it.
+    def report(gaps_by_section):
+        rows = [f"{section} ({len(names)}): {', '.join(names)}"
+                for section, names in sorted(gaps_by_section.items()) if names]
+        return " | ".join(rows) if rows else "(nothing)"
+
+    # ─── ADD ONE ─────────────────────────────────────────────────────────
+    # A clock value that did not exist when this was written reads back with no
+    # edit here, and the words are the MANIFEST'S — a hand-list cannot answer.
+    phrase = "the planted clock reading, 0 or 1"
+    planted = dict(TABLE)
+    planted[CLOCK] = dict(TABLE[CLOCK],
+                          **{"zz_planted_clock": {"lookback": 0, "sentence": phrase}})
+    rules = concierge.compile_rules(planted)
+    assert "zz_planted_clock" in rules["clock"], (
+        "a planted clock value never reached the compiled rules at all — "
+        f"they carry {sorted(rules['clock'])}")
+    assert rules["clock"]["zz_planted_clock"] == {"phrase": phrase, "gap": None}
+    assert concierge.explain_sentence(
+        {"type": "series", "name": "zz_planted_clock"}, {}, rules)["text"] == phrase
+
+    # …and the SHIPPED table refuses that same name, so the PLANT is demonstrably
+    # what made the difference and not a walker that says yes to anything.
+    with pytest.raises(concierge._SentenceRefused) as unknown:
+        concierge.explain_sentence({"type": "series", "name": "zz_planted_clock"}, {},
+                                   concierge.compile_rules(TABLE))
+    assert "zz_planted_clock" in str(unknown.value), str(unknown.value)
+
+    # ─── REMOVE ONE, ONE ENTRY AT A TIME ───────────────────────────────
+    declared = sorted(TABLE[CLOCK])
+    assert len(declared) >= 13, (
+        f"the manifest declares {len(declared)} clock values — this control "
+        "asserts nothing")
+    for name in declared:
+        broken = dict(TABLE)
+        broken[CLOCK] = {
+            key: ({k: v for k, v in spec.items() if k != "sentence"} if key == name
+                  else dict(spec))
+            for key, spec in TABLE[CLOCK].items()}
+        assert "sentence" not in broken[CLOCK][name]
+
+        # the rail's own answer names it — and names ONLY it. One deletion per
+        # run, so a probe that lit up its neighbours is caught in the same line.
+        gaps = _python_gaps(broken)
+        assert gaps[CLOCK] == [name], (
+            f"{name} lost its read-back and the rail said: " + report(gaps))
+        assert {s: g for s, g in gaps.items() if g} == {CLOCK: [name]}, (
+            "one deleted clock read-back lit up another section: " + report(gaps))
+
+        # …and the refusal a member would read names the entry, through the same
+        # gate the JS lane names.
+        with pytest.raises(concierge._SentenceRefused) as caught:
+            concierge.explain_sentence({"type": "series", "name": name}, {},
+                                       concierge.compile_rules(broken))
+        assert caught.value.gate == "sentence:no-template", caught.value.gate
+        assert json.dumps(name) in str(caught.value), str(caught.value)
+        assert "clock" in str(caught.value), (
+            f"the refusal for {name} never says WHICH vocabulary it came from: "
+            f"{caught.value}")
+
+    # ─── RESTORE ────────────────────────────────────────────────────
+    # …and the shipped table is clean again, RE-MEASURED rather than assumed.
+    # Without this the loop above could be reporting everything.
+    assert _python_gaps()[CLOCK] == []
+    assert concierge.explain_sentence(
+        {"type": "series", "name": declared[0]}, {}, concierge.compile_rules(TABLE)
+    )["text"] == TABLE[CLOCK][declared[0]]["sentence"]
+
+
 def test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED(js_lane, concierge):
     """⭐⭐ THE CROSS-LANE RAIL — THE THING THAT WAS MISSING. Two lanes answering
     the same question with nothing comparing them is this repo's most expensive
