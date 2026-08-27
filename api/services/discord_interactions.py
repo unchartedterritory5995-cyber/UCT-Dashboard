@@ -1024,9 +1024,21 @@ def message_attachment_ids(interaction: dict) -> list:
 
 
 ROSTER_MAX = int(os.environ.get("DISCORD_CHART_ROSTER_MAX", "10"))
+# Overnight and at weekends a chart holds for 15 minutes instead of 2, so
+# keeping a big set warm costs almost nothing (~6% of the renderer against ~44%
+# in live hours). That is when to be greedy: the names members pile onto at the
+# open are then already rendered before anyone is awake.
+ROSTER_MAX_QUIET = int(os.environ.get("DISCORD_CHART_ROSTER_MAX_QUIET", "24"))
 
 
-def seed_roster(symbols, tf: str = "D") -> int:
+def roster_budget() -> tuple:
+    """(roster size, renders per cycle) for right now."""
+    if png_cache.market_quiet():
+        return ROSTER_MAX_QUIET, 8
+    return ROSTER_MAX, 6
+
+
+def seed_roster(symbols, tf: str = "D", limit: int | None = None) -> int:
     """Put the day's names in the hot set before anyone asks for them, so the
     FIRST member to type NVDA gets a cache hit like everyone after them.
 
@@ -1035,7 +1047,7 @@ def seed_roster(symbols, tf: str = "D") -> int:
     evicted when the set fills up. Bounded by ROSTER_MAX."""
     n = 0
     prefs = dict(prefs_mod.DEFAULTS)
-    for sym in list(symbols)[:ROSTER_MAX]:
+    for sym in list(symbols)[: (limit if limit is not None else ROSTER_MAX)]:
         sym = str(sym or "").upper().strip()
         if not _TICKER_RE.match(sym):
             continue
@@ -1078,16 +1090,26 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
 
 
 def fast_first_enabled() -> bool:
-    """Post a plain chart in ~0.3 s, then upgrade it to the house image.
+    """Whether the plain mplfinance chart may stand in for the house image.
 
-    The house render is ~2.2 s of a shared Chromium and no tuning removes it
-    (measured: 0.4 s page load, 0.5 s draw, 0.8 s stability, 0.3 s settle). The
-    mplfinance renderer draws the same bars in 0.18-0.5 s with no browser at
-    all. So on a cache MISS the member gets that immediately and the house image
-    edits over it when it is ready - nobody waits, and the fast chart becomes a
-    FLOOR: if the house render is busy or fails, the member still has a chart
-    rather than an apology."""
+    ⭐ It is a FALLBACK, not a preview. Posting it on every cache miss was
+    measured against the house chart and the two do not merely look different -
+    they SAY different things: SMA 10/20/50 against the house EMA 9/20 + SMA
+    50/200, no extended-hours price chip, no earnings markers, a six-month
+    window against three. In a trading room a member who acts on the stand-in,
+    or screenshots it into a discussion, has used a chart that is not the house
+    standard. So it now appears only when the house image would otherwise be a
+    WAIT or an ERROR: slower than FAST_AFTER_S, busy, or failed."""
     return os.environ.get("DISCORD_CHART_FAST_FIRST", "1").strip().lower() not in ("0", "false", "off", "")
+
+
+def fast_after_s(default: float = 3.0) -> float:
+    """How long the house render gets before the plain chart stands in."""
+    try:
+        v = float(os.environ.get("DISCORD_CHART_FAST_AFTER_S", ""))
+        return v if 0 < v <= 30 else default
+    except (TypeError, ValueError):
+        return default
 
 
 def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *,
@@ -1185,19 +1207,36 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             _context_follow_up(sent)
             return "ok"
 
-        # Nothing cached, so the member is about to wait ~2.2 s for the house
-        # render. Give them the fast chart now; the house image edits over it.
+        produce = lambda: png_cache.single_flight(  # noqa: E731
+            key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
+                                       house_fn=house_fn, quote_fn=quote_fn),
+            ttl_s=png_cache.ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+
+        # The house image is the product, so it gets first refusal. Only when it
+        # is taking longer than a member should stare at nothing does the plain
+        # chart stand in - and then the house image still replaces it. The
+        # common case therefore shows ONE chart, the right one.
         previewed = False
-        if house_fn is not None and fast_first_enabled():
+        can_stand_in = house_fn is not None and fast_first_enabled()
+        if not can_stand_in:
+            result = produce()
+        else:
+            box: dict = {}
+            worker = threading.Thread(target=lambda: box.__setitem__("r", produce()),
+                                      name="discord-chart-produce", daemon=True)
+            worker.start()
+            worker.join(timeout=fast_after_s())
+            if worker.is_alive():
+                previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                              edit_fn=edit_fn, content=headline, extra=extra)
+                worker.join()
+            result = box.get("r")
+        outcome = result[0] if result else "render_failed"
+        if outcome in ("busy", "render_failed") and can_stand_in and not previewed:
+            # …and rather than hand a member an apology, stand in now.
             previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
                                           edit_fn=edit_fn, content=headline, extra=extra)
-
-        produce = lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,  # noqa: E731
-                                        house_fn=house_fn, quote_fn=quote_fn)
-        result = png_cache.single_flight(
-            key, produce, ttl_s=png_cache.ttl_for(req.tf),
-            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
-        outcome = result[0] if result else "render_failed"
         if outcome == "ok":
             sent = edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
             _context_follow_up(sent)
