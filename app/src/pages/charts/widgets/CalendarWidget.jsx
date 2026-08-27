@@ -369,6 +369,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       {settingsOpen && (
         <NewsSettingsPanel
           title="Calendar Settings"
+          widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"
           extraSections={[

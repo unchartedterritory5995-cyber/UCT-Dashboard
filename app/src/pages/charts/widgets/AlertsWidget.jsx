@@ -210,6 +210,7 @@ export default function AlertsWidget({
       {settingsOpen && (
         <NewsSettingsPanel
           title="Alerts Settings"
+          widgetType="alerts"
           showPerf={false}
           extraSections={[
             { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
