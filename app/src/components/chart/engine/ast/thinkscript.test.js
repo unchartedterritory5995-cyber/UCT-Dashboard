@@ -20,7 +20,7 @@ import path from 'node:path'
 import {
   translateThinkScript, lexThinkScript, readStatements, ThinkScriptRefusal,
   TS_STATE_WARMUP, TS_CALL_SHAPES, TS_WORD_OPERATORS, TS_PRECEDENCE,
-  TS_UNCITED, argumentPlan,
+  TS_UNCITED, TS_DOC_BLOCKED, argumentPlan,
   REFUSALS as TS, NOTES as TS_NOTES,
 } from './thinkscript.js'
 import { REFUSALS as PINE, printFormula } from './pine.js'
@@ -2954,6 +2954,91 @@ describe('⭐⭐ engineCall`s arity check was reported DEAD — it was UNEXERCIS
     expect(f('close crosses above open')).toBe('crossOver(close, open)')
     expect(f('close % 3 > 0')).toBe('mod(close, 3) > 0')
     expect(f('Average(close, 10)')).toBe('sma(close, 10)')
+  })
+})
+
+describe('🔴🔴 EVERY DOCUMENTATION-BLOCKED REFUSAL NAMES THE DOCUMENT IT NEEDS', () => {
+  // ⛔⛔ THE ANSWER TO A DEFECT CLASS THIS LANE NAMED: an over-refusal is
+  // INVISIBLE. A wrong "no" has no red test, no wrong column and no complaint —
+  // only a recorded reason nobody re-reads. `RateOfChange` carried one for a whole
+  // task, and the sentence that refuted it was inside the sentence itself.
+  //
+  // ⭐ SO A REFUSAL BLOCKED ON A DOCUMENT MUST SAY WHAT WOULD CHANGE ITS MIND.
+  // "Unmappable" is what let ROC hide; "its epoch origin is not published; a
+  // vendor example showing a known instant would unblock it" is a standing
+  // instruction somebody can act on.
+
+  it('every entry declares what is missing AND what would unblock it', () => {
+    expect(Object.keys(TS_DOC_BLOCKED).length).toBeGreaterThan(5)
+    for (const [name, d] of Object.entries(TS_DOC_BLOCKED)) {
+      expect(typeof d.missing, name).toBe('string')
+      expect(d.missing.length, name).toBeGreaterThan(15)
+      expect(typeof d.unblocks, name).toBe('string')
+      expect(d.unblocks.length, name).toBeGreaterThan(25)
+    }
+  })
+
+  it('⛔ …and the member actually SEES it — the sentence carries both halves', () => {
+    const msg = (src) => translateThinkScript(src).refusal.message
+    const cases = {
+      RSI: 'plot p = RSI();\n',
+      BollingerBands: 'plot p = BollingerBands(length = 20);\n',
+      MovAvgExponential: 'plot p = MovAvgExponential(length = 21);\n',
+      SimpleMovingAvg: 'plot p = SimpleMovingAvg(close, 20);\n',
+      TTM_Squeeze: 'plot p = TTM_Squeeze(close, 20);\n',
+      RateOfChange: 'plot p = RateOfChange(14);\n',
+      GetTime: 'plot p = GetTime() > 0;\n',
+      BarNumber: 'plot p = BarNumber() > 0;\n',
+    }
+    // ⛔ THE CASE LIST IS CHECKED AGAINST THE REGISTRY, so an entry added without
+    // a probe fails here rather than shipping unexercised.
+    expect(Object.keys(cases).sort()).toEqual(Object.keys(TS_DOC_BLOCKED).sort())
+    for (const [name, src] of Object.entries(cases)) {
+      const m = msg(src)
+      expect(m, name).toContain('WHAT IS MISSING IS')
+      expect(m, name).toContain('would change this answer')
+      expect(m, `${name} must name what is missing`).toContain(TS_DOC_BLOCKED[name].missing)
+      expect(m, `${name} must name what unblocks it`).toContain(TS_DOC_BLOCKED[name].unblocks)
+    }
+  })
+
+  it('⛔ a CAPABILITY refusal does NOT claim a document would fix it', () => {
+    // ⭐ THE DISTINCTION IS THE WHOLE POINT. `Floor` has no `floor` in the
+    // manifest; `HighestAll` depends on how many bars were fetched; a fold has no
+    // unroller. No page Schwab could publish changes any of those, and saying one
+    // would is the same false-reason defect pointed the other way.
+    const msg = (src) => translateThinkScript(src).refusal.message
+    for (const src of ['plot p = Floor(close);\n', 'plot p = HighestAll(high);\n',
+      'def s = fold i = 0 to 8 with p do p + close;\nplot q = s;\n',
+      'plot p = MovingAverage(AverageType.HULL, close, 9);\n',
+      'def b = close(symbol = "SPY");\nplot p = close / b;\n']) {
+      expect(msg(src), src).not.toContain('WHAT IS MISSING IS')
+    }
+    // 🔴 AND THE SITE THE SWEEP FOUND UNCOVERED. `engineCall`'s "the manifest does
+    // not declare this engine function" is a THIRD `:function` site, reached only
+    // by the hand-built call paths, and none of the probes above touch it — a
+    // mutation that pinned a doc-blocked tail onto it survived the whole suite.
+    // A manifest gap is the purest capability refusal there is: no page Schwab
+    // publishes adds a function to OUR table.
+    const noHighest = { ...TABLE, functions: { ...TABLE.functions } }
+    delete noHighest.functions.highest
+    const r = translateThinkScript('plot p = close > 5 within 3 bars;\n', { table: noHighest }).refusal
+    expect(r.guard).toBe('thinkscript:function')
+    expect(r.message).not.toContain('WHAT IS MISSING IS')
+    // ⭐ …with the control, so this cannot pass because the paste simply failed.
+    expect(translateThinkScript('plot p = close > 5 within 3 bars;\n').outputs[0].formula)
+      .toBe('highest(close > 5, 3) > 0')
+  })
+
+  it('⭐ the registry is the AUDIT — this count is the honest ceiling for A4', () => {
+    // ⛔ NOT a decoration: each entry is a script this door could translate the day
+    // the document appears, and none of them is work. Anyone asking "why is the
+    // corpus at 8 and not 15" is asking about this list.
+    expect(Object.isFrozen(TS_DOC_BLOCKED)).toBe(true)
+    expect(Object.keys(TS_DOC_BLOCKED)).toEqual([
+      'RSI', 'BollingerBands', 'MovAvgExponential', 'SimpleMovingAvg',
+      'TTM_Squeeze', 'RateOfChange', 'GetTime', 'BarNumber',
+    ])
   })
 })
 

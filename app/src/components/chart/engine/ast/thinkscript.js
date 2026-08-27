@@ -1212,6 +1212,90 @@ const TS_DEFERRED_STATEMENTS = Object.freeze({
   },
 })
 
+/**
+ * ⭐⭐ THE REFUSALS THAT ARE BLOCKED ON A DOCUMENT, AND THE DOCUMENT EACH ONE
+ * NEEDS — the registry, and the answer to a defect class this lane named.
+ *
+ * 🔴🔴 AN OVER-REFUSAL IS INVISIBLE. A wrong "no" has no red test, no wrong
+ * column and no complaint — only a recorded reason nobody re-reads. This whole
+ * programme enforces *a refusal beats a silent mistranslation*, which is right,
+ * and this is the bill for it: refusals accumulate silently and nobody audits
+ * them. `RateOfChange` sat here for a WHOLE TASK carrying a reason that said the
+ * page *"does not say whether the result is a ratio, a percentage or a
+ * difference"* — and printed the quote, which says "percentage change". Nothing
+ * failed. Nothing could have.
+ *
+ * ⭐ SO A REFUSAL BLOCKED ON DOCUMENTATION MUST NAME THE DOCUMENT IT NEEDS.
+ * *"Unmappable"* is what let `RateOfChange` hide. *"its epoch origin is not
+ * published; a vendor example showing a known instant would unblock it"* is a
+ * standing instruction to whoever reads it next, and it is checkable: go and
+ * look for that one thing.
+ *
+ * ⛔ AND THE DISTINCTION THIS REGISTRY DRAWS IS THE ONE THAT MATTERS. A missing
+ * MAPPING is fetchable — the page states the identity, you cite it, done (that is
+ * ruling D, and it is how the trig block moved). A missing UNIT or ORIGIN is a
+ * CONVENTION, and a convention nobody can derive from an independent fact is the
+ * exact input to a silent mistranslation: an epoch origin guessed wrong draws a
+ * column that is plausible on every bar and wrong on every bar. So these stay
+ * refused until a published example pins them — a worked example in the vendor's
+ * own docs IS a citation.
+ *
+ * ⚠️ THIS SET'S SIZE IS THE HONEST CEILING FOR A4. Every entry is a script this
+ * door could translate the day the document appears, and none of them is work.
+ */
+export const TS_DOC_BLOCKED = Object.freeze({
+  RSI: {
+    missing: 'a default `length` and `price`',
+    unblocks: 'the Studies-Library page gaining a Default value column, or its description '
+      + 'stating them the way ATR\'s does',
+  },
+  BollingerBands: {
+    missing: 'a default `price` and `average type` (the two standard deviations ARE published)',
+    unblocks: 'the page naming which average the bands are drawn around',
+  },
+  MovAvgExponential: {
+    missing: 'a default `price`, and a default `displace` — which shifts every bar',
+    unblocks: 'the page publishing both, since `displace` cannot be assumed to be zero',
+  },
+  SimpleMovingAvg: {
+    missing: 'a default `price`, `length` and `displace`',
+    unblocks: 'the page publishing them; `displace` shifts every bar so it cannot be assumed',
+  },
+  TTM_Squeeze: {
+    missing: 'any published calculation at all',
+    unblocks: 'thinkorswim publishing the formula — it is proprietary, so this one may never '
+      + 'unblock, and that is the honest answer rather than a reconstruction from the '
+      + 'description',
+  },
+  RateOfChange: {
+    missing: 'a default `length` and `price` (the MATHS is published and IS mapped)',
+    unblocks: 'the page publishing the two defaults; supply both explicitly and it translates '
+      + 'today',
+  },
+  GetTime: {
+    missing: 'the UNIT the value is measured in — milliseconds or seconds since an epoch',
+    unblocks: 'a worked example in thinkorswim\'s own docs showing GetTime() against a known '
+      + 'instant. ⛔ A unit is a CONVENTION, not an identity: guessed wrong it draws a '
+      + 'plausible column that is wrong on every bar, with no refusal anywhere',
+  },
+  BarNumber: {
+    missing: 'the ORIGIN — whether the first bar is numbered 0 or 1',
+    unblocks: 'a published example showing the number on a known bar. ⛔ This engine\'s '
+      + '`barindex` is declared and ready; an off-by-one here would be invisible in the '
+      + 'output and wrong on every comparison against it',
+  },
+})
+
+/** The tail every documentation-blocked refusal carries, derived from the one
+ *  registry so a refusal and its audit entry can never drift apart. */
+function docBlockedTail(name) {
+  const d = TS_DOC_BLOCKED[name]
+  /* istanbul ignore next — the rail pins the registry against every caller */
+  if (!d) return ''
+  return ` — WHAT IS MISSING IS ${d.missing}, not a way to compute it; ${d.unblocks} would `
+    + 'change this answer'
+}
+
 /** ⛔ THE CALLS THIS ENGINE REFUSES BY NAME BECAUSE OF WHAT THEY READ, not
  *  because of how hard they are. Every one blocks the script (`TS_HARD_GUARDS`).
  *  ⚠️ `gettime` is refused even though W2a's `clock` section now declares a
@@ -1221,8 +1305,13 @@ const TS_DEFERRED_STATEMENTS = Object.freeze({
 const TS_DEFERRED_CALLS = Object.freeze({
   gettime: { guard: 'thinkscript:time',
     why: 'this reads the clock, and a screen answers from the bar rather than from the time '
-      + 'of day; the unit thinkorswim measures it in is not published on its own page, so '
-      + 'this door will not guess one' },
+      + 'of day' + docBlockedTail('GetTime') },
+  // ⭐ `BarNumber()` IS NOT A CAPABILITY GAP — the manifest's `clock` section
+  // declares `barindex` and it is ready to use. What is missing is the ORIGIN,
+  // and that is a CONVENTION rather than an identity: guessed wrong it is off by
+  // one on every bar and on every comparison, with no refusal anywhere.
+  barnumber: { guard: 'thinkscript:time',
+    why: 'this counts which bar you are on' + docBlockedTail('BarNumber') },
   getyyyymmdd: { guard: 'thinkscript:time', why: 'this reads the calendar date of the bar' },
   regulartradingstart: { guard: 'thinkscript:time',
     why: 'this is the session open as a clock time, and a screen has no session boundary to '
@@ -2157,7 +2246,8 @@ export const TS_CALL_SHAPES = Object.freeze({
       message: 'thinkorswim publishes no default `length` or `price` for the RSI study — its '
         + 'Input Parameters table has only Parameter and Description columns, and its '
         + 'description states defaults only for the overbought (70) and oversold (30) levels '
-        + '— so state them: RSI(length = 14, price = close)',
+        + '— so state them: RSI(length = 14, price = close)'
+        + docBlockedTail('RSI'),
     },
     cite: 'Tech-Indicators/studies-library/R-S/RSI: Input Parameters is `Parameter | '
       + 'Description` with rows length, over bought, over sold, price, average type, show '
@@ -2173,7 +2263,8 @@ export const TS_CALL_SHAPES = Object.freeze({
       message: 'thinkorswim publishes no default `price` or `average type` for the Bollinger '
         + 'Bands study, so which average the bands are drawn around is not something this '
         + 'door can know; the two standard deviations ARE published, so write the band you '
-        + 'mean directly — sma(close, 20) - 2 * stdev(close, 20) for the lower band',
+        + 'mean directly — sma(close, 20) - 2 * stdev(close, 20) for the lower band'
+        + docBlockedTail('BollingerBands'),
     },
     cite: 'Tech-Indicators/studies-library/A-B/BollingerBands: Input Parameters is `Parameter '
       + '| Description` (rows: price, displace, length, num dev dn, num dev up, average '
@@ -2190,7 +2281,8 @@ export const TS_CALL_SHAPES = Object.freeze({
       guard: 'thinkscript:study-ref',
       message: 'thinkorswim publishes no default `price` for the MovAvgExponential study, and '
         + 'its `displace` input shifts every bar of the plot with no published default '
-        + 'either; write the average directly instead — ExpAverage(close, 21)',
+        + 'either; write the average directly instead — ExpAverage(close, 21)'
+        + docBlockedTail('MovAvgExponential'),
     },
     cite: 'Tech-Indicators/studies-library/M-N/MovAvgExponential: `Parameter | Description`, '
       + 'NO Default value column; rows include `displace` — "The displacement of the EMA '
@@ -2204,7 +2296,8 @@ export const TS_CALL_SHAPES = Object.freeze({
       guard: 'thinkscript:study-ref',
       message: 'thinkorswim publishes no default `price`, `length` or `displace` for the '
         + 'SimpleMovingAvg study, and a non-zero `displace` shifts every bar of the plot; '
-        + 'write the average directly instead — Average(close, 20)',
+        + 'write the average directly instead — Average(close, 20)'
+        + docBlockedTail('SimpleMovingAvg'),
     },
     cite: 'Tech-Indicators/studies-library/R-S/SimpleMovingAvg: `Parameter | Description`, NO '
       + 'Default value column; rows price, length, displace, show breakout signals. '
@@ -2217,7 +2310,8 @@ export const TS_CALL_SHAPES = Object.freeze({
       guard: 'thinkscript:study-ref',
       message: 'thinkorswim publishes no formula for the TTM Squeeze study at all, so there '
         + 'is nothing to translate it into — this door will not reconstruct a proprietary '
-        + 'indicator from its description',
+        + 'indicator from its description'
+        + docBlockedTail('TTM_Squeeze'),
     },
     cite: 'Tech-Indicators/studies-library/S-T/TTM_Squeeze: proprietary; the page describes '
       + 'what the study shows and publishes no calculation',
@@ -2762,9 +2856,15 @@ class Resolver {
       // defaulted. A parameter this door has already written down as
       // contributing nothing cannot also be one it demands.
       if (!slots[i] && !has(shape.defaults || {}, p) && !has(shape.unused || {}, p)) {
+        // ⭐ AND IF THE WHOLE ROW IS BLOCKED ON A DOCUMENT, SAY WHICH ONE. A
+        // member reading "publishes no default for it" learns what is missing;
+        // the next engineer needs to know what would change the answer.
+        const blocked = Object.keys(TS_DOC_BLOCKED)
+          .find((k) => key(k) === key(n.name))
         throw new ThinkScriptRefusal('thinkscript:arity',
           `${REFUSALS['thinkscript:arity']} — \`${p}\` has no value, and thinkorswim `
-          + 'publishes no default for it',
+          + 'publishes no default for it'
+          + (blocked ? docBlockedTail(blocked) : ''),
           locate(n.tok))
       }
     })

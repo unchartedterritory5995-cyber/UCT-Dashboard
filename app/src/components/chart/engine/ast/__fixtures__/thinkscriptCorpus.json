@@ -624,10 +624,10 @@
     ],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:function": 3
+      "thinkscript:time": 3
     },
     "refusal": {
-      "guard": "thinkscript:function",
+      "guard": "thinkscript:time",
       "line": 6,
       "column": 11,
       "token": "barNumber"
@@ -660,7 +660,7 @@
       "TimeAdjustedReturnColor=LIGHT_GRAY"
     ],
     "perOutputRefusals": {
-      "thinkscript:function": 1,
+      "thinkscript:time": 1,
       "thinkscript:account": 1,
       "thinkscript:state": 1
     },
@@ -684,7 +684,6 @@
     "thinkscript:aggregation",
     "thinkscript:block",
     "thinkscript:fold",
-    "thinkscript:function",
     "thinkscript:state",
     "thinkscript:strategy",
     "thinkscript:study-ref",
