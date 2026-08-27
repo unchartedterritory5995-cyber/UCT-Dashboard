@@ -56,3 +56,7 @@ tests/fixtures/thinkscript-inbox/
 # UI stress harness output (screenshots + findings; regenerated per run)
 tools/ui_stress_out*/
 tools/ui_stress_out_run*.log
+
+# Per-run lane scratch (backups, mutation captures, baseline stdout/stderr).
+# Untracked and disposable; listed so an accidental `git add -A` cannot sweep it in.
+/scratchpad/

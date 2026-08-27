@@ -21,7 +21,7 @@ scans on a member's own script, and evidence.
 |---|---|---|
 | A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash |
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` |
-| A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token | `pine.community.test.js` snapshot, pinned both directions |
+| A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token — ⛔ **NOT a W3b criterion. Measured 2026-08-27 at 10/30; 10 of the 20 refusals are gated on W6/W7/W2b.** See the 2026-08-27 amendment below. | `pine.community.test.js` snapshot, pinned both directions |
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
 | A5 | TC2000: **63/71 shipped against a MEASURED ceiling of 65/71** — 66 was not reachable; the five named refusals were right but **incomplete**. Partition asserted TOTAL and DISJOINT. See the 2026-08-27 amendment below. | `pcf.vocabulary.test.js` EXPECTED table, every claimed spelling asserted to **compute** end-to-end, not merely parse |
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
@@ -247,3 +247,43 @@ now pinned here.
 amendment above: 15/24 against a real ceiling of 8). ⇒ **treat every remaining unmeasured
 acceptance figure as provisional until a task derives it** — A7's "19/24 after `tf`/`sym`"
 is already flagged, and A2/A3's Pine numbers have not been re-derived either.
+
+### A3 amended 2026-08-27 — measured **10/30**, and the 80 % is gated on W6/W7/W2b, not on W3b
+
+Derived by running all 30 published fixtures through `translatePine` and counting
+**visible** usable columns (`o.formula && !o.hidden`) — the count the 21-script
+corpus gate already uses, because three scripts there once recorded as
+"translating" while every visible output refused.
+
+| class | n | scripts | gated on |
+|---|---|---|---|
+| **translating, >= 1 visible column** | **10** | 01 02 03 05 06 12 15 17 24 27 | -- |
+| **DRAWING-ONLY** (`pine:no-output`) | 4 | 08 14 16 30 | **A10 / W6** |
+| **FOREIGN TIMEFRAME** (`pine:request`) | 4 | 13 19 20 23 | **A7 / W2b `tf`/`sym`** |
+| **PROGRAMS** (`array.get`, `for`) | 2 | 22 28 | **A11 / W7** |
+| missing function -- addable | 3 | 04 `iff` · 21 `linreg` · 25 `time(session)` | W3b |
+| missing function -- likely a **right** refusal | 1 | 09 `cum` | -- |
+| displaced plot (`plot(offset=)`) | 2 | 11 18 | W3b |
+| other | 4 | 07 `pine:statement` · 10 self-recursive Ehlers · 26 `pine:named-argument` · 29 `import` | mixed |
+
+⭐ **Partition asserted total and disjoint: 10+4+4+2+3+1+2+4 = 30.**
+
+⛔ **The finding that matters is the OWNERSHIP, not the number.** All four
+`pine:no-output` scripts are drawing-only -- their entire output is `plotcandle`,
+`plotshape`/`barcolor`, or `label.new`/`line.new`/`box.new`/`bgcolor`. **Refusing
+them is CORRECT today**; they are not translator gaps. ⇒ **A3 is written as a W3b
+criterion, but half its refusals belong to W6, W7 and W2b.** No amount of W3b work
+reaches 80 %.
+
+**Realistic ceilings:**
+- **W3b alone** (3 addable functions + 2 displaced plots + `named-argument`): **<= 16/30 = 53 %.**
+- **With W2b + W6 + W7 landed**: **26/30 ~ 87 %** ⇒ the >= 80 % bar *is* reachable, as a
+  **program-wide** criterion measured after W6/W7, never before.
+
+✅ **The quality half is clean**: **zero** scripts translate with no visible column --
+the *"translates its chrome, refuses its subject"* defect that cost A4 three of its
+gains is **absent** from this corpus.
+
+⇒ **Third acceptance number measured, third one below what was written** (A4 15→8,
+A5 66→65, A3 24→10 today). Treat every remaining figure as a forecast until a task
+derives it.
