@@ -91,15 +91,33 @@ describe('the pane', () => {
 
 // ─── WHY IT IS INERT, NOT MERELY THAT IT IS ────────────────────────────────
 //
-// ⛔⛔ `null` IS THE SAME OBSERVABLE FOR THREE DIFFERENT REASONS: a refused
-// draft, an unknown symbol/timeframe, and a registry that refused the install.
-// A pane that had been broken outright — an import typo, a `return null` left
-// at the top, a `styles.preview` that throws — would satisfy every "renders
-// nothing" case above and read as CORRECTLY INERT. So each reason is cut ONE
-// AT A TIME, on the SAME fixture, and the pane is then made to RENDER by
-// restoring only the thing that was missing. What moves is the discriminator.
+// ⛔⛔ `null` IS THE SAME OBSERVABLE FOR SEVERAL DIFFERENT REASONS. A pane that
+// had been broken outright — an import typo, a `return null` left at the top, a
+// `styles.preview` that throws — would satisfy every "renders nothing" case
+// above and read as CORRECTLY INERT. So each reason is cut ONE AT A TIME, on the
+// SAME fixture, and the pane is then made to RENDER by restoring only the thing
+// that was missing. What moves is the discriminator.
+//
+// ⛔ THE ROSTER IS WRITTEN OUT, NOT COUNTED — the same roster `PreviewPane.jsx`'s
+// header carries, and it must stay in step with it. This block said "THREE" while
+// carrying discriminators for two, and the uncovered one (the registry refusal)
+// was the one with a live defect. A count beside the list it describes is how a
+// false claim of coverage survives a review.
+//   no definition · no symbol · no timeframe · a registry refusal
 describe('the reason it is inert, isolated', () => {
   const good = () => draft('sma(close, 20)')
+
+  /** A document the shipped install door REFUSES. The badge is the honest lever:
+   *  `validateAstLane` re-lints the tree and refuses a `meta.repaint` that
+   *  disagrees with what it measures, in BOTH directions. Through the sheet the
+   *  same refusal arrives from a member RENAMING a declared input after the
+   *  formula settled — `result` still carries the mode linted under the OLD
+   *  scope while the document declares the NEW inputs. Measured 2026-08-27. */
+  function refusedByTheRegistry() {
+    const def = draft('ema(close, 9)')
+    def.meta.repaint = 'preview-repaints'
+    return def
+  }
 
   it('the DEFINITION is the reason: same sym/tf, null draft is inert — hand it the draft and the SAME mount renders', () => {
     const { rerender } = render(<PreviewPane sym="NVDA" tf="D" settings={null} definition={null} />)
@@ -144,6 +162,38 @@ describe('the reason it is inert, isolated', () => {
     // `listUserDefinitions()` onto the member's real chart even if some other
     // lookup happened to miss it.
     expect(registry.listUserDefinitions().map((d) => d.id)).not.toContain(PREVIEW_DEF_ID)
+  })
+
+  it('the REGISTRY is the reason: a refusal AFTER a good install takes the PREVIOUS entry out of the LISTING — hand it a document the door accepts and the SAME mount renders again', () => {
+    const refused = refusedByTheRegistry()
+    // ⛔ THE CONTROL, so this case cannot pass for the wrong reason: prove the
+    // door actually refuses this document. Nothing is written on a refusal, so
+    // asking it directly leaves the registry untouched.
+    const probe = registry.installUserDefinitions([refused])
+    expect(probe.installed).toHaveLength(0)
+    expect(probe.errors.join('\n')).toContain('meta.repaint')
+    expect(registry.listUserDefinitions().map((d) => d.id)).not.toContain(PREVIEW_DEF_ID)
+
+    const { rerender } = render(<PreviewPane sym="NVDA" tf="D" settings={null} definition={good()} />)
+    expect(screen.getByTestId('formula-preview')).toBeTruthy()
+    expect(registry.getDefinition(PREVIEW_DEF_ID).compute.source).toBe('sma(close, 20)')
+
+    // The member types on, and the next document the sheet builds is one the
+    // install door refuses. `live` is STILL true — a document was handed over —
+    // so neither the `!live` uninstall nor the unmount cleanup can fire, and
+    // before fix round 1 the previous entry stayed in the LISTING carrying the
+    // OLD source. That is the leak this file's header forbids.
+    rerender(<PreviewPane sym="NVDA" tf="D" settings={null} definition={refused} />)
+    expect(screen.queryByTestId('formula-preview')).toBeNull()
+    // ⭐ THE LISTING, not `getDefinition` — a leaked preview entry rides
+    // `listUserDefinitions()` onto the member's real chart.
+    expect(registry.listUserDefinitions().map((d) => d.id)).not.toContain(PREVIEW_DEF_ID)
+
+    // …and the REGISTRY was the only thing wrong: give it a document the door
+    // accepts and the SAME mount draws again.
+    rerender(<PreviewPane sym="NVDA" tf="D" settings={null} definition={draft('ema(close, 9)')} />)
+    expect(screen.getByTestId('formula-preview')).toBeTruthy()
+    expect(registry.getDefinition(PREVIEW_DEF_ID).compute.source).toBe('ema(close, 9)')
   })
 
   it('unmounting leaves the registry LISTING exactly as it was found — a preview never outlives its sheet', () => {
