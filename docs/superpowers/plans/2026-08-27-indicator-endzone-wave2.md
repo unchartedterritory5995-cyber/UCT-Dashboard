@@ -192,6 +192,75 @@ def test_tf_reads_the_LAST_CLOSED_higher_timeframe_bar_never_the_forming_one():
 
 - [ ] **Step 8: Run both suites and commit.**
 
+### ⛔⛔ MEASURED 2026-08-27 — WHAT A NEW NODE TYPE ACTUALLY COSTS IN THIS ENGINE
+
+`tf` was built end-to-end and then PARKED one layer short. The patch is real and
+kept at `scratchpad/w2b_tf_complete.patch` (700 lines, 8 files). This is the layer
+list it uncovered, and it is the single most useful output of the attempt — the
+plan estimated "two lanes plus corpus cases" and the truth is **eight layers**,
+each enforced by a rail that refuses to let the previous one ship alone.
+
+| # | layer | file | state |
+|---|---|---|---|
+| 1 | Python evaluator | `ast_interpret.py` | ✅ done — 8/9 pins pass |
+| 2 | Python roster + guard + ladder + `t` normaliser | `ast_interpret.py` | ✅ |
+| 3 | Python lookback arm + 3 walker sites | `ast_interpret.py` | ✅ |
+| 4 | store canonical keys (+ the stale "four shapes" count) | `user_definitions.py` | ✅ |
+| 5 | conformance instrument roster | `tools/ast_conformance.py` | ✅ |
+| 6 | JS evaluator + roster + guard + resampler mirror | `interpret.js` | ✅ |
+| 7 | **parser surface** — `tf(close, 'W')` | `parse.js` | ✅ |
+| 8 | conformance corpus cases | `tests/fixtures/ast/corpus.json` | ✅ (4 cases) |
+| 9 | **English read-back: writer AND independent reader** | `sentence.js` + `sentence.test.js` | ❌ **the park** |
+
+⭐ THE ORDER IS FORCED, AND THAT IS THE DESIGN WORKING. Each rail refuses the
+step before it:
+- declaring the type without corpus cases →
+  `test_the_node_types_are_DERIVED_from_the_committed_corpus` (an EQUALITY, not a
+  subset: *"a fifth type arriving on the wire cannot be absorbed here quietly"*)
+- corpus cases without a parser surface → the round-trip rail walks EVERY case
+  and treats a refusal as a mismatch, so `source` must really parse to that tree
+- corpus cases without a sentence → the read-back rails walk every case too
+- a new guard without a trigger →
+  `test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED`
+- a guard in one lane → `test_the_two_lanes_refuse_with_THE_SAME_SIX_SENTENCES`
+
+**There is no partial landing.** A node type is either fully present in every
+layer or it is not present at all, and that is why the work parked whole rather
+than shipping half.
+
+#### Why layer 9 is a DESIGN task and not more typing
+
+`sentenceToAst` is `readSentence`, and `readSentence` is **hand-written inside
+`sentence.test.js`** — an independent reader-oracle, deliberately not shared with
+the writer so the round trip cannot be true by construction. So `tf` needs:
+1. a writer arm (`renderTf`, ~15 lines, easy), and
+2. the SAME grammar taught to the test's independent reader, and
+3. a form that stays UNAMBIGUOUS — `the grammar is UNAMBIGUOUS — exactly one form
+   reads each sentence` asserts no other production can also read it.
+
+That means choosing the canonical English for a higher-timeframe read — *"the
+weekly close"* vs *"the close on the weekly timeframe"* vs a suffix form — and
+proving it cannot collide with any existing production. ⚠️ That belongs in the
+SPEC, decided once, not guessed at the end of a long session: the read-back is the
+sentence a member sees before they save, and this engine's whole claim is that it
+says what it will compute in its own words.
+
+#### The open spec question this raised
+
+⛔ §5.2 says the child is evaluated on HTF bars from *"the one resampler
+`_timeframe_candle` already owns"*. Two things are wrong with that:
+1. `_timeframe_candle` is a CLASSIFIER of the newest bar, not a resampler; the
+   owner is `bars_fetch._resample_weekly_iso` / `_resample_monthly_iso`.
+2. **The JS lane has no equivalent at all.** So weekly bucketing must be MIRRORED
+   in JS and held equal by the conformance corpus — consistent with the
+   architecture (`interpret.js` ⇄ `ast_interpret.py` are already two
+   implementations of everything), but it is a decision the spec does not record.
+
+The parked patch implements exactly that mirror, including an ISO-week key with
+the Thursday rule, because ISO puts a week in the year that owns its Thursday —
+get it wrong and the two lanes misalign by a period at every year boundary, once
+a year, silently, in a number a member trades on.
+
 ### Task 3: The scan lane's `tf` gate — `D | W | M` only
 
 - [ ] **Step 1: Write the failing test** — an intraday `tf` in a scan refuses `scan:timeframe` by name and says the coverage reason.
