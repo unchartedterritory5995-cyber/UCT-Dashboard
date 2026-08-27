@@ -2510,6 +2510,61 @@ def interpret(ast: Any, bars: List[dict],
     return [None if math.isnan(v) else v for v in column]
 
 
+def interpret_trees(trees: Any, bars: List[dict], *,
+                    inputs: Optional[Mapping[str, Any]] = None,
+                    scalars: Optional[Mapping[str, Any]] = None,
+                    budget: Optional[Mapping[str, Any]] = None,
+                    opts: Optional[Mapping[str, Any]] = None) -> Dict[str, List[MaybeNum]]:
+    """One column PER PLOT — ``{plotKey: interpret(tree, …)}`` over sorted keys.
+
+    A map over ``interpret`` and nothing more: the same inputs, the same budget,
+    the same scalars and the same ``opts`` for every tree, so a definition's
+    plots are evaluated here exactly the way the JS binder evaluates them
+    (``nativeRegistry.astColumnsFor``, which calls ``interpret(trees[key], bars,
+    inputs, def.compute.budget, undefined, { tf })`` per plot). ⛔ EVERY ONE OF
+    THOSE FOUR IS THREADED, and each for its own reason:
+
+      ``budget``  is the DOCUMENT's, so one cap covers every tree. A map that
+                  dropped it would run every plot uncapped — the cap would still
+                  read as present in the stored blob and nothing would say so.
+      ``opts``    carries what the CALLER knows and the tree cannot (today:
+                  ``tf``). With no ``tf`` the four clock booleans are NOT
+                  COMPUTABLE — never 0 — so dropping it does not crash, it makes
+                  a member's session filter silently never fire. That is the
+                  quietest failure in this lane, which is why it is threaded
+                  rather than defaulted.
+      ``inputs`` / ``scalars`` are the instance's knobs and the symbol's values;
+                  one definition has one set of both, and evaluating two plots of
+                  one document under two different maps would be two answers to
+                  one question.
+
+    ⛔ THE KEYWORDS ARE KEYWORD-ONLY ON PURPOSE. ``interpret`` orders its
+    optionals ``inputs, budget, scalars, opts`` and this function orders them
+    ``inputs, scalars, budget, opts``; a positional call would therefore mean two
+    different things in the two functions, and the pair it would swap — a budget
+    and a scalar map — are both plain mappings, so nothing downstream would
+    raise. Making the ambiguity unreachable is cheaper than documenting it.
+
+    ⛔ A MISSING OR EMPTY MAPPING IS THE **CALLER'S** ERROR (``TypeError``), NEVER
+    A ``TableRefusal``. A refusal is a sentence about the FORMULA a member wrote;
+    "you handed me no trees" is a sentence about the caller, and dressing it as a
+    refusal shows a member that their formula was rejected when no formula was
+    involved. ``tools/ast_conformance.py`` also recognises a refusal BY TYPE, so a
+    caller error wearing that type would be counted as the table saying no.
+
+    :returns: ``{plotKey: column}``, one entry per key, each exactly ``len(bars)``
+              long — insertion-ordered by SORTED key, which is the order
+              ``trees.js::assertTrees`` returns and the order every consumer uses.
+    """
+    if not isinstance(trees, Mapping) or not trees:
+        raise TypeError(
+            "interpret_trees(trees, bars): trees must be a non-empty mapping of "
+            f"plotKey -> tree, got {'an empty mapping' if isinstance(trees, Mapping) else type(trees).__name__}")
+    return {key: interpret(trees[key], bars, inputs=inputs, budget=budget,
+                           scalars=scalars, opts=opts)
+            for key in sorted(trees)}
+
+
 # --------------------------------------------------------------------------- #
 # lifting scalars and columns
 # --------------------------------------------------------------------------- #

@@ -64,6 +64,27 @@ CHIKOU = {"type": "call", "name": "ichimokuChikou", "args": [
     {"type": "num", "value": 26}, {"type": "num", "value": 52}]}
 
 
+#: The formula text each tree above was written from — the REAL one, so the
+#: browser's `readFormulaSource(sources[k]) → astHash == trees[k]` check would
+#: pass on the same document this lane saves. Keyed by the tree's own hash rather
+#: than paired by hand at each call site: a second authority over "which text
+#: goes with which tree" is exactly what `compute.sources` exists to remove.
+_SOURCE_OF = {
+    "sma": "sma(close, 20)",
+    "unreadable": "notafunctioninthetable(close)",
+    "chikou": "ichimokuChikou(high, low, close, 9, 26, 52)",
+}
+
+
+def _source_for(tree: dict) -> str:
+    for name, node in (("sma", SMA), ("unreadable", UNREADABLE), ("chikou", CHIKOU)):
+        if tree == node:
+            return _SOURCE_OF[name]
+    raise AssertionError(
+        f"no source text declared for {tree!r} — a multi-tree document must carry the text of "
+        "EVERY tree (compute.sources), so a new tree here needs one too")
+
+
 def defn(def_id: str, tree=None, *, trees=None, plots=("value",), name="X") -> dict:
     d = {
         "schemaVersion": 1, "id": def_id, "version": 1,
@@ -74,7 +95,21 @@ def defn(def_id: str, tree=None, *, trees=None, plots=("value",), name="X") -> d
         "inputs": [],
     }
     if trees:
+        # ⭐ A MULTI-TREE DOCUMENT IS COMPLETE OR IT IS NOT SAVEABLE (W1b).
+        # `compute.ast` is an ALIAS of `trees[scanPlot]`, and `treesHash` +
+        # `sources` ride with it — `user_definitions.validate_v2` refuses a
+        # half-declared one at the store's door exactly as
+        # `defSchema.validateTrees` refuses it in the browser. Before that door
+        # existed this helper emitted `trees` alone, which the editor could never
+        # have produced; the scan plot is DERIVED from whichever tree
+        # `compute.ast` aliases rather than typed, so it cannot drift.
+        own = svc.ast_hash(d["compute"]["ast"])
+        scan = next(k for k in sorted(trees) if svc.ast_hash(trees[k]) == own)
         d["compute"]["trees"] = trees
+        d["compute"]["treesHash"] = svc.trees_hash(trees)
+        d["compute"]["scanPlot"] = scan
+        d["compute"]["sources"] = {k: _source_for(v) for k, v in trees.items()}
+        d["compute"]["source"] = d["compute"]["sources"][scan]
     return d
 
 
