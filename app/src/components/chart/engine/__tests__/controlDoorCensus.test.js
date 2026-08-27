@@ -602,6 +602,19 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
+      ['app/src/components/chart/builder/editor/PreviewPane.jsx',
+       '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
+       'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +
+       'that means "put THIS definition on this chart, as its own copy" (a draft has no ' +
+       'legacy:<id> to revive), and it is again BuilderSheet\'s TASK-16 ORDER — ' +
+       'installUserDefinitions FIRST, addInstance on the id the registry actually installed. ' +
+       '⛔ WHAT MAKES IT DIFFERENT IS THAT IT REACHES NO PERSISTED SETTINGS AT ALL: the blob ' +
+       'is a THROWAWAY derived from the member\'s own chart with EVERY instance stripped, it ' +
+       'goes to a ChartPane whose onStore is a noop, and the definition it names is uninstalled ' +
+       'the moment the draft stops evaluating or the pane unmounts. It is ledgered anyway, ' +
+       'because a reader auditing "which surfaces can put an indicator on a chart" must not have ' +
+       'to open the file to learn that this one cannot — and because the day somebody gives ' +
+       'the preview a real onStore, this row is where that change has to argue for itself'],
       ['app/src/components/screener/ScanResults.jsx',
        '⭐ NEW AT PHASE E TASK 9 — scan → chart in one click (AMENDMENT 2 §A2.2). A scan ' +
        'hit is charted WITH THE DEFINITION THAT FOUND IT, and addInstance is the only ' +

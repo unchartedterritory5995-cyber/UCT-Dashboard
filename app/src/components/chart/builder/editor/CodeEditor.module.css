@@ -168,3 +168,19 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ── THE LIVE PREVIEW (`PreviewPane.jsx`) ───────────────────────────────────
+ *
+ * A fixed-height frame so `ChartPane`'s `density="mini"` has candles to draw
+ * in. The height is on the WRAPPER rather than on the pane: the pane sizes to
+ * its container, and a chart handed `height: auto` inside a flex column
+ * collapses to zero and renders a blank box that reads exactly like the pane
+ * refusing to mount. `overflow: hidden` keeps the canvas inside the radius. */
+.preview {
+  height: 220px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg);
+}
