@@ -2753,3 +2753,25 @@ def test_an_id_minted_before_the_gear_still_parses():
     # and an id is no LONGER than it was before the gear existed - the flag is a
     # spare bit, not a field, so it never eats into the compare budget
     assert di.compare_budget("NVDA") >= len("+".join(["BBBB0"] * di.COMPARE_MAX))
+
+
+def test_working_inside_the_opened_surface_leaves_it_open():
+    """A member who opened the controls is working. Every control on that surface
+    - pan, MAs, volume, and each pick on the merged dropdown - has to hand the
+    open state back, or the panel folds itself away mid-adjustment and the next
+    change costs two presses."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", expanded=True), dict(p.DEFAULTS))
+    sel = rows[-1]["components"][0]
+    for value in ("zoom:5d", "ind:rsi", "style:line", "theme:oled"):
+        picked = di.parse_component({"data": {"custom_id": sel["custom_id"], "values": [value]}})
+        assert picked.expanded is True, value
+    for button in rows[1]["components"]:
+        req = di.parse_component({"data": {"custom_id": button["custom_id"]}})
+        # ...every one of them except the control whose whole job is to close it
+        want = button.get("emoji", {}).get("name") != "\u25b2"
+        assert req.expanded is want, button.get("label") or button.get("emoji")
+    # and the reverse: nothing on the closed row opens it by accident
+    for button in di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[0]["components"][:-1]:
+        assert di.parse_component({"data": {"custom_id": button["custom_id"]}}).expanded is False
+
