@@ -50,8 +50,8 @@ const GROUP_LABELS = {
 // up/down color, with the raw counts flanking and the dominant % centered. Values
 // resolve straight off the live currentRow; a pair with no data is skipped. ──
 const RATIO_PAIRS = [
-  { key: 'nhnl',   label: 'New Highs / New Lows',   up: 'new_52w_highs', upLabel: 'New Highs',     dn: 'new_52w_lows',   dnLabel: 'New Lows' },
   { key: 'advdec', label: 'Advance / Decline',      up: 'advancing',     upLabel: 'Advancing',     dn: 'declining',      dnLabel: 'Declining' },
+  { key: 'nhnl',   label: 'New Highs / New Lows',   up: 'new_52w_highs', upLabel: 'New Highs',     dn: 'new_52w_lows',   dnLabel: 'New Lows' },
   { key: 'p4',     label: 'Up 4% / Down 4%',        up: 'up_4pct_today', upLabel: 'Up 4%',         dn: 'down_4pct_today', dnLabel: 'Down 4%' },
   { key: 'open',   label: 'Up / Down from Open',    up: 'up_from_open',  upLabel: 'Up from Open',  dn: 'down_from_open', dnLabel: 'Down from Open' },
   { key: 'vol',    label: 'Up / Down on Volume',    up: 'up_on_volume',  upLabel: 'Up on Volume',  dn: 'down_on_volume', dnLabel: 'Down on Volume' },
@@ -188,7 +188,7 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
 // absolutely-positioned up-fill over it, so both halves are always identical
 // height. Live-only pairs with no reading yet (outside RTH) render a calm
 // "awaiting session" card instead of vanishing — so the set never looks empty. ──
-function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
+function RatioBarsView({ ratioRow, upColor, dnColor, upText, dnText, textColor }) {
   const bars = RATIO_PAIRS.map(p => {
     const u = ratioRow?.[p.up]
     const d = ratioRow?.[p.dn]
@@ -196,10 +196,12 @@ function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
     const uu = Math.max(0, Number(u) || 0)
     const dd = Math.max(0, Number(d) || 0)
     const tot = uu + dd
-    const upPct = tot > 0 ? (uu / tot) * 100 : 50
     const bullWins = uu >= dd
-    const pct = has && tot > 0 ? Math.round(bullWins ? upPct : 100 - upPct) : null
-    return { ...p, has, uu, dd, upPct, bullWins, pct }
+    // DeepVue-style single shade: the WINNER fills from ITS side of a neutral
+    // track, so bar length = dominance and colour = direction. % = winner share.
+    const winFrac = tot > 0 ? (bullWins ? uu : dd) / tot : 0.5
+    const pct = has && tot > 0 ? Math.round(winFrac * 100) : null
+    return { ...p, has, uu, dd, bullWins, winPct: winFrac * 100, pct }
   })
   return (
     <div className={styles.ratioWrap}>
@@ -209,23 +211,27 @@ function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
             <span className={styles.ratioLabel} style={textColor ? { color: textColor } : undefined}>{b.label}</span>
             <span
               className={styles.ratioPct}
-              style={b.pct != null ? { color: b.bullWins ? upColor : dnColor } : undefined}
+              style={b.pct != null ? { color: b.bullWins ? upText : dnText } : undefined}
             >{b.pct != null ? `${b.pct}%` : '—'}</span>
           </div>
-          <div
-            className={styles.ratioBar}
-            style={b.has ? { background: dnColor } : undefined}
-          >
+          <div className={styles.ratioBar}>
             {b.has && (
-              <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: upColor }} />
+              <div
+                className={`${styles.ratioFill} ${b.bullWins ? styles.ratioFillL : styles.ratioFillR}`}
+                style={{ width: `${b.winPct}%`, background: b.bullWins ? upColor : dnColor }}
+              />
             )}
             <span className={styles.ratioMid} aria-hidden="true" />
           </div>
           <div className={styles.ratioFoot}>
             {b.has ? (
               <>
-                <span style={{ color: upColor }}>{b.uu.toLocaleString()} {b.upLabel}</span>
-                <span style={{ color: dnColor }}>{b.dd.toLocaleString()} {b.dnLabel}</span>
+                <span className={styles.ratioFootUp} style={{ color: upText }}>
+                  <b className={styles.ratioCount}>{b.uu.toLocaleString()}</b> {b.upLabel}
+                </span>
+                <span className={styles.ratioFootDn} style={{ color: dnText }}>
+                  <b className={styles.ratioCount}>{b.dd.toLocaleString()}</b> {b.dnLabel}
+                </span>
               </>
             ) : (
               <>
@@ -452,6 +458,10 @@ export default function BreadthWidget({
   // flat; NOT the neon bright and NOT the dark tile fill).
   const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#15833f' : '#1c9b54')
   const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#c0392f' : '#bf3b34')
+  // Brighter text for the % + counts (the heatmap idiom: medium fill, bright value)
+  // so the labels stay legible on the widget canvas instead of reading dull.
+  const ratioUpText = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#15803d' : '#3ad684')
+  const ratioDnText = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#c0392f' : '#f57368')
 
   // The row the Ratio-Bars view reads: REAL-TIME only during the regular session;
   // otherwise the frozen last-close internals (held until the next 9:30 open).
@@ -544,6 +554,7 @@ export default function BreadthWidget({
           {view === 'ratio'
             ? <RatioBarsView
                 ratioRow={ratioRow} upColor={ratioUp} dnColor={ratioDn}
+                upText={ratioUpText} dnText={ratioDnText}
                 textColor={bwSettings.valueColor || null}
               />
             : visibleKeys.length === 0
