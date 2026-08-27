@@ -1487,6 +1487,9 @@ function ChartToolbar({
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
+            /* W1a hand-back: the preview draws on this chart */
+            sym={currentSym}
+            tf={tf}
           />
         )}
 
