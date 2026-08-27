@@ -80,6 +80,7 @@ GATES: tuple[str, ...] = (
     "budget",         # the tree is over the budget AT THE VERSION BEING ARMED
     "cross-lane",     # the two lanes do not agree at 1e-9 on THESE bars
     "bars",           # there are no bars to prove anything on
+    "plot",           # the document declares v2 and names no tree for THIS plot
 )
 
 
@@ -125,6 +126,7 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     "budget": "is over its declared budget at the version being armed",
     "cross-lane": "the two lanes disagree at bar",
     "bars": "there are no bars to prove this formula on",
+    "plot": "is a multi-tree document and carries no tree for this plot",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -306,6 +308,24 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     return out
 
 
+def _trees_summary(trees: Any) -> str:
+    """What `compute.trees` actually holds, for the refusal to say out loud.
+
+    ⭐ THREE DIFFERENT DOCUMENTS REACH ONE GATE and a member has to be able to
+    tell which one they have: an EMPTY map, a map missing THIS key, and a `trees`
+    that is not a map at all are three different repairs. One gate, because the
+    ruling is one ruling; three sentences, because the fix is not.
+    """
+    if not isinstance(trees, Mapping):
+        return ("is not an object (it is %s)"
+                % ("null" if trees is None
+                   else "an array" if isinstance(trees, (list, tuple))
+                   else type(trees).__name__))
+    if not trees:
+        return "is an EMPTY object and names no plot at all"
+    return "names %s" % sorted(str(k) for k in trees)
+
+
 def _make_value_fn(def_id: str, plot_key: str,
                    definition: Mapping[str, Any]) -> Callable[[list, dict], Optional[float]]:
     """One admitted (definition, plot) -> "what number is this formula at now".
@@ -332,6 +352,8 @@ def _make_value_fn(def_id: str, plot_key: str,
     reads the previous bar's number forever while every value it reports is a
     real number from a real bar.
     """
+    from api.services import user_definitions
+
     compute = definition.get("compute") or {}
     # W1b — a plot evaluates ITS tree; the scan alias is a tree-less document's.
     # ⛔ `.get(key, default)` RATHER THAN `or`: a tree that is present and falsy
@@ -340,7 +362,46 @@ def _make_value_fn(def_id: str, plot_key: str,
     # the JS lane's `hasOwnProperty` branch say exactly the same thing. Reading
     # `compute.ast` for every plot answered an alert on the MACD line with
     # `hist > 0`: a 0/1 flag reported to a member as a price distance.
-    tree = (compute.get("trees") or {}).get(plot_key, compute.get("ast"))
+    #
+    # 🔴 AND THE FALLBACK ITSELF PERFORMED THAT EXACT FAILURE UNTIL W1b.8's
+    # FIX ROUND. `(compute.get("trees") or {}).get(plot_key, compute.get("ast"))`
+    # papers over a falsy MAP the way `or` papers over a falsy TREE, one level up:
+    # with `compute.trees == {}` — the very shape `validate_v2` refuses as
+    # adversarial — an alert armed on plot `macd` answered with the SCAN tree's
+    # column, measured byte-equal to the scan tree's own last value. A missing KEY
+    # did the same. `save()` refuses such a document, but THIS PATH NEVER
+    # RE-VALIDATES what is already stored (W1b.8 report §9.6), so every row
+    # written before that door existed reaches here.
+    #
+    # ⛔ AND THE SCOPE IS NARROW ON PURPOSE — THE FALLBACK IS CORRECT FOR A
+    # GENUINE v1 DOCUMENT. A single-tree document carries no `trees` at all and
+    # every one of its plots legitimately resolves to `compute.ast`; refusing
+    # those would break every definition saved before multi-plot existed. What is
+    # wrong is falling back on a document that CLAIMS to be multi-tree, and
+    # `user_definitions.declares_v2` is the one place that question is answered —
+    # off `_V2_COMPUTE_KEYS`, the same roster `validate_v2` refuses from, so the
+    # two doors cannot come to disagree about what a v2 document is.
+    #
+    # ⚠️ `ast_lint.lint_definition` CARRIES THE SAME LOOKUP AND IS NOT THE SAME
+    # DEFECT — checked, not assumed. Its only product caller is
+    # `user_definitions.lint_verdict`, which `save()` calls AFTER
+    # `validate_v2(definition)` has already refused this shape by name, so the
+    # fallback there is unreachable with a v2 document short a tree. This lane is
+    # different precisely because it reads a row that was stored.
+    trees = compute.get("trees")
+    if isinstance(trees, Mapping) and plot_key in trees:
+        tree = trees[plot_key]
+    elif user_definitions.declares_v2(compute):
+        raise AdmissionRefused(
+            "plot",
+            f"{def_id}.{plot_key}: {def_id!r} {REFUSAL_FRAGMENTS['plot']} — "
+            f"compute.trees {_trees_summary(trees)}. compute.ast is the SCAN "
+            "plot's tree, so answering with it would report another plot's "
+            "number under this plot's name. Re-save the definition with a tree "
+            "for every plot, or drop compute.trees/treesHash/scanPlot/sources to "
+            "store it as a single-tree document.")
+    else:
+        tree = compute.get("ast")
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
 

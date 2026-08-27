@@ -162,7 +162,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 # ─── caps ────────────────────────────────────────────────────────────────────
 
@@ -394,6 +394,42 @@ _PLOT_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 #: The v2 keys. A single-tree document carries NONE of them — a rule with a
 #: refusal behind it, mirroring `defSchema.V2_COMPUTE_KEYS`.
 _V2_COMPUTE_KEYS = ("trees", "treesHash", "scanPlot", "sources")
+
+
+def declares_v2(compute: Any) -> bool:
+    """Does this stored `compute` CLAIM to be a multi-tree document?
+
+    ⭐ A DIFFERENT QUESTION FROM `validate_v2`'S, ASKED OFF THE SAME ROSTER.
+    `validate_v2` asks *may this document be STORED* and answers it from
+    `"trees" in compute`, because a document carrying any other v2 key beside no
+    `trees` is one it refuses by name. This answers the READ path's question: the
+    row is already stored, a per-plot tree lookup just came up empty, and the
+    reader has to choose between `compute.ast` and a refusal.
+
+    ⛔ AND THAT CHOICE IS WHY THIS EXISTS. `compute.ast` is the SCAN plot's
+    tree, so falling back to it is exactly right for a genuine single-tree
+    document — every plot of one legitimately resolves there — and is a WRONG
+    NUMBER for a multi-tree one: `alert_user_series._make_value_fn` answered an
+    alert armed on the MACD line with the scan plot's `hist > 0`, a 0/1 flag
+    delivered to a member as a price distance. Any one of `_V2_COMPUTE_KEYS` is
+    the document CLAIMING to be multi-tree, and the claim alone is enough to make
+    the fallback the wrong answer — the reader must refuse instead.
+
+    ⛔ THE ROSTER IS READ, NEVER RESTATED. A caller spelling
+    `"trees" in compute or "scanPlot" in compute` would be a second authority over
+    one value (this repo's most repeated defect): add a fifth v2 key to
+    `_V2_COMPUTE_KEYS` and `validate_v2` would refuse it on a single-tree document
+    while the read path went on falling back. One tuple, two questions.
+
+    ⚠️ IT IS DELIBERATELY NOT A VALIDITY CHECK.
+    `{"trees": None, "scanPlot": "a"}` is a claim AND malformed; this answers
+    `True` — *refuse rather than fall back* — and leaves naming the malformation
+    to `validate_v2`. Answering `False` for a broken map would hand the scan
+    tree's number to every plot of exactly the document most likely to be broken.
+    """
+    if not isinstance(compute, Mapping):
+        return False
+    return any(k in compute for k in _V2_COMPUTE_KEYS)
 
 
 def _assert_trees(trees: Any) -> list:

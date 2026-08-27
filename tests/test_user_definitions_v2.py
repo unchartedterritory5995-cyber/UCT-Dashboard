@@ -488,6 +488,229 @@ def test_HB5_a_PRESENT_but_FALSY_tree_is_NOT_papered_over_with_the_scan_tree(sto
     with pytest.raises(ast_interpret.TableRefusal):
         fn(_bars(), {})
 
+
+# ─── W1b.8 fix 1: A FALSY **MAP** IS THE CASE THE FALSY **TREE** LEFT OPEN ───
+#
+# 🔴 THE DEFECT, MEASURED. The test above proves `.get(key, default)` beats `or`
+# for a falsy TREE. The lookup itself was
+# `(compute.get("trees") or {}).get(plot_key, compute.get("ast"))` — and that outer
+# `or {}` is the same papering-over one level up, on the MAP. Measured on the
+# shared MACD fixture over 260 bars, before the fix:
+#
+#   trees == {}, plot `macd`            -> 0.0   (the SCAN tree's own last value)
+#   `macd` absent from trees            -> 0.0   (the SCAN tree's own last value)
+#   the honest answer for plot `macd`   -> 5.342245409428131
+#
+# i.e. `hist > 0`, a 0/1 flag, delivered to a member as a price distance — which is
+# verbatim the failure the comment above that line already named.
+#
+# ⛔ AND THE SCOPE IS THE WHOLE RULING. The fallback is CORRECT for a genuine v1
+# document: it carries no `trees` at all and every plot legitimately resolves to
+# `compute.ast`. What is wrong is falling back on a document that CLAIMS to be
+# multi-tree, and that claim is `user_definitions.declares_v2` — read off
+# `_V2_COMPUTE_KEYS`, the roster `validate_v2` refuses from, so the write door and
+# the read door cannot come to disagree about what a v2 document is.
+#
+# ⚠️ REACHABLE ONLY ON A ROW THAT IS ALREADY STORED. `save()` refuses every shape
+# below by name — and the read path NEVER RE-VALIDATES (W1b.8 report §9.6), so any
+# row written before that door existed walks straight in. The last test in this
+# block drives exactly that, through the product read path.
+
+
+def test_W1b8_an_EMPTY_trees_map_refuses_BY_NAME_rather_than_answering_with_the_scan_tree(store):
+    """🔴 THE CASE THE FALSY-TREE TEST LEFT OPEN, and its control.
+
+    `trees == {}` is present, falsy, and is the very shape `validate_v2` refuses
+    as adversarial (*an empty trees map names no plot*). The `or {}` spelling read
+    it as absent and answered plot `macd` with the SCAN tree's column.
+
+    ⛔ THE SECOND ASSERTION IS THE CONTROL AND IT IS NOT DECORATION. A test that
+    only checked *a refusal happened* would pass on a refusal from any other door —
+    the attribution defect `AdmissionRefused.gate` exists for, five times on this
+    branch. The third asserts the sentence NAMES the plot and the definition, so a
+    refusal that told a member nothing actionable is a red test.
+    """
+    d = _v2()
+    d["compute"]["trees"] = {}
+    with pytest.raises(aus.AdmissionRefused) as caught:
+        aus._make_value_fn(DEF_ID, "macd", d)
+    assert caught.value.gate == "plot"
+    assert "u_0123456789ab" in str(caught.value)
+    assert "macd" in str(caught.value)
+    assert "EMPTY" in str(caught.value), (
+        "an empty map and a map short one key are different repairs and the "
+        "refusal has to say which one this is")
+
+
+def test_W1b8_a_MISSING_plot_key_refuses_BY_NAME_and_says_which_plots_the_map_DOES_name(store):
+    """The second half of the same door: the map is legal, this plot is not in it.
+
+    ⛔ SEPARATE FROM THE EMPTY-MAP TEST DELIBERATELY. Merged, *the guard stopped
+    refusing* and *the guard stopped distinguishing the two documents* would be one
+    failure; split, they are two mutations with two different killers
+    (`lesson_mutations_can_cancel_each_other`).
+
+    The listed keys are what makes the refusal actionable: a member reading *names
+    ['hist', 'hist_up', 'signal']* can see that `macd` is the one that went missing.
+    """
+    d = _v2()
+    del d["compute"]["trees"]["macd"]
+    with pytest.raises(aus.AdmissionRefused) as caught:
+        aus._make_value_fn(DEF_ID, "macd", d)
+    assert caught.value.gate == "plot"
+    message = str(caught.value)
+    for still_there in ("hist", "hist_up", "signal"):
+        assert still_there in message
+    assert "EMPTY" not in message
+
+
+def test_W1b8_a_v2_CLAIM_with_a_NON_OBJECT_trees_refuses_rather_than_reading_it_as_absent(store):
+    """`{"trees": None, "treesHash": ..., "scanPlot": ...}` — a CLAIM plus a broken map.
+
+    ⛔ THIS IS WHAT SEPARATES `declares_v2` FROM A NAIVE `isinstance(trees, dict)`
+    CHECK. A guard that only asked *is `trees` a mapping holding this key* would
+    take the `compute.ast` fallback here — for the document MOST likely to be a
+    partial write — and hand the scan tree's number back under the MACD's name.
+    `_assert_trees` already says the same thing on the write side: Python collapses
+    `undefined` and `null`, so a `trees` that IS `None` is a MULTI-TREE document
+    with a broken map, never a single-tree one.
+    """
+    d = _v2()
+    d["compute"]["trees"] = None
+    with pytest.raises(aus.AdmissionRefused) as caught:
+        aus._make_value_fn(DEF_ID, "macd", d)
+    assert caught.value.gate == "plot"
+    assert "null" in str(caught.value)
+
+
+def test_W1b8_the_v2_question_is_asked_off_the_WHOLE_ROSTER_not_the_trees_key_alone(store):
+    """🔴 THE RAIL THE FIRST ROUND OF MUTATIONS SURVIVED, AND IT IS THE ROSTER.
+
+    Measured: replacing `any(k in compute for k in _V2_COMPUTE_KEYS)` with
+    `"trees" in compute` moved **0 of 135** tests. Every case above happens to
+    carry a `trees` key, so all of them are satisfied by the narrower question and
+    none of them can tell the two apart — green, well-named, right function,
+    proving nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    ⛔ THE DISCRIMINATING INPUT IS A v2 CLAIM WITH **NO** `trees` KEY. That is a
+    real shape: `validate_v2` refuses it by name (*only a multi-tree document may
+    declare it*), which means it is exactly what a partial write or a truncated
+    blob leaves behind — and on the read path the narrower question serves
+    `compute.ast` for a document that declares `scanPlot`, i.e. the scan plot's
+    number under every other plot's name.
+
+    ⛔ AND IT IS A DECLARED ROSTER, NOT ONE CASE. The keys are READ off
+    `svc._V2_COMPUTE_KEYS`, so a fifth v2 key added tomorrow is covered the day it
+    lands rather than the day somebody remembers this file. The floor assertion is
+    what stops the loop passing over an empty roster.
+    """
+    others = [k for k in svc._V2_COMPUTE_KEYS if k != "trees"]
+    assert len(others) >= 2, (
+        f"the roster is down to {others} — a loop over one key is a case, not a "
+        "roster, and this rail would stop meaning what its name says")
+
+    bars = _bars()
+    for key in others:
+        d = _v2()
+        keep = d["compute"].pop(key)
+        for gone in ("trees", "treesHash", "scanPlot", "sources"):
+            d["compute"].pop(gone, None)
+        d["compute"][key] = keep
+        with pytest.raises(aus.AdmissionRefused) as caught:
+            aus._make_value_fn(DEF_ID, "macd", d)
+        assert caught.value.gate == "plot", (
+            f"compute.{key} alone is a v2 claim and the read path took the "
+            f"compute.ast fallback on it")
+
+    # ⭐ THE CONTROL, ON THE SAME DOCUMENT MINUS THE CLAIM. Strip every v2 key and
+    # the identical blob is an ordinary single-tree document that must answer.
+    plain = _v2()
+    for gone in ("trees", "treesHash", "scanPlot", "sources"):
+        plain["compute"].pop(gone, None)
+    want = [v for v in ast_interpret.interpret(plain["compute"]["ast"], bars)
+            if v is not None][-1]
+    assert aus._make_value_fn(DEF_ID, "macd", plain)(bars, {}) \
+        == pytest.approx(want, rel=1e-9)
+
+
+def test_W1b8_a_v1_document_is_UNCHANGED_by_the_guard_and_still_reads_compute_ast(store):
+    """⭐ THE OTHER DIRECTION, AND IT IS THE ONE THAT BOUNDS THE FIX.
+
+    An over-refusal has no red test, no wrong output and no complaint
+    (`lesson_an_over_refusal_is_invisible`), and the obvious over-fix here — refuse
+    whenever `trees[plot_key]` misses — would break EVERY definition saved before
+    multi-plot existed. A v1 document carries none of `_V2_COMPUTE_KEYS`, so it
+    resolves through the fallback exactly as it did, and the number is asserted
+    rather than merely the absence of a raise.
+
+    ⚠️ AND IT IS ASKED FOR A PLOT KEY THE DOCUMENT NEVER MENTIONS. `mystery` is in
+    no `trees`, no `plots` and no `sources`; on a v1 document that is not a defect,
+    it is the ordinary case — there is one tree and every plot is it.
+
+    ⛔ AND THE SECOND DOCUMENT IS THE CONTROL. `_v1()`'s tree is the SCAN tree
+    `hist_up`, which answers 1.0 — indistinguishable from the 0/1 flag this whole
+    guard exists to stop being reported as a price. So the same v1 shape is built
+    again around the price-valued `macd` tree, and the assertion is that it reads
+    THAT number and specifically NOT the boolean its v2 sibling would have
+    substituted.
+    """
+    bars = _bars()
+    boolean_answer = [v for v in ast_interpret.interpret(_fixture()["trees"]["hist_up"], bars)
+                      if v is not None][-1]
+
+    d = _v1()
+    want = [v for v in ast_interpret.interpret(d["compute"]["ast"], bars)
+            if v is not None][-1]
+    for plot_key in ("value", "mystery"):
+        assert aus._make_value_fn(DEF_ID, plot_key, d)(bars, {}) \
+            == pytest.approx(want, rel=1e-9)
+
+    priced = _v2("macd")
+    for k in ("trees", "treesHash", "sources", "scanPlot"):
+        priced["compute"].pop(k)
+    priced["plots"] = [{"key": "value", "style": "line", "color": "$color"}]
+    want_priced = [v for v in ast_interpret.interpret(priced["compute"]["ast"], bars)
+                   if v is not None][-1]
+    for plot_key in ("value", "mystery"):
+        got = aus._make_value_fn(DEF_ID, plot_key, priced)(bars, {})
+        assert got == pytest.approx(want_priced, rel=1e-9)
+        assert got != pytest.approx(boolean_answer, rel=1e-9)
+
+
+def test_W1b8_the_guard_fires_on_the_READ_path_for_a_row_that_was_ALREADY_STORED(store):
+    """🔴 THE REACHABILITY, DRIVEN THROUGH THE PRODUCT PATH — not a hand-made dict.
+
+    `save()` refuses `trees == {}` by name, so this document cannot be created
+    today. It can already BE there: the read path never re-validates, and
+    `user_value_function` is what `GET /api/indicator-alerts/current-value` calls to
+    put a number in front of a member. So the row is saved LEGALLY and the stored
+    blob is then edited in SQL — which is what a partial write, a truncated blob or
+    a row from before the door leaves behind.
+
+    ⛔ WITHOUT THIS TEST THE FIX WOULD BE PROVEN ONLY ON A DICT THIS FILE BUILT.
+    `lesson_built_tested_green_and_unreachable` is the other half of the same
+    mistake: a guard on a path nothing walks.
+    """
+    import sqlite3
+
+    d = _v2()
+    svc.save(USER, DEF_ID, d)
+
+    broken = copy.deepcopy(d)
+    broken["compute"]["trees"] = {}
+    con = sqlite3.connect(str(svc._DB_PATH))
+    try:
+        con.execute("UPDATE user_definitions SET definition=? WHERE def_id=?",
+                    (json.dumps(broken), DEF_ID))
+        con.commit()
+    finally:
+        con.close()
+
+    with pytest.raises(aus.AdmissionRefused) as caught:
+        aus.user_value_function(USER, f"{DEF_ID}.macd")
+    assert caught.value.gate == "plot"
+
+
 # ─── W9i: `rev` moves when the SCAN tree moves **OR** when `treesHash` moves ──
 #
 # 🔴 THE DEFECT, MEASURED. `save()` computed `rev_bumped` from
