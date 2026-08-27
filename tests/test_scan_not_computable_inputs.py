@@ -25,11 +25,16 @@ trader.
 
 ⛔ AND THREE IS NOT "ALL". The set the input question sweeps is `BAR_READERS`
 ∪ the declared scalars -- narrower than "every input that can be a hole" -- and
-TWO surfaces are deliberately left open, each pinned by its own test rather than
-by this paragraph: a declared all-NaN argument domain (`macd(close, 26, 12)`, a
-formula defect bound for the save door) and a data-dependent hole in an ordinary
-function (`valuewhen`, which the manifest cannot currently tell from `sma`).
-Both go RED the day their fix lands.
+ONE surface is deliberately left open, pinned by its own test rather than by this
+paragraph: a data-dependent hole in an ordinary function (`valuewhen`, which the
+manifest cannot currently tell from `sma`). It goes RED the day its fix lands.
+
+⚰️ THERE WERE TWO. The other was a declared all-NaN argument domain
+(`macd(close, 26, 12)`) and it was CLOSED on 2026-08-27 -- not here, but at the
+resolve pass, as `resolve:domain`, because a fact that is true of the FORMULA on
+every row is decided where the formula is admitted rather than 3,742 times a
+night. The test that pinned it went RED and was deleted deliberately; what stands
+in its place asserts the CLOSURE, so this paragraph cannot quietly re-open.
 
 ⭐ AND ONE FIXTURE HERE HOLES AN ENTRY IN THE MIDDLE RATHER THAN AT THE FRONT.
 A rail built only on warm-up prefixes measures the easy half: a prefix hole is
@@ -667,57 +672,58 @@ def test_a_DATA_DEPENDENT_HOLE_in_an_ORDINARY_function_is_STILL_LAUNDERED():
         "predicate is and what IT misses.")
 
 
-def test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_functions_job():
-    """⛔⛔ THE GAP THESE THREE QUESTIONS DO NOT CLOSE, PINNED AS A TEST RATHER
-    THAN PROMISED IN A PARAGRAPH.
+def test_a_DECLARED_DOMAIN_ERROR_is_refused_AT_THE_DOOR__so_this_function_never_sees_it():
+    """⚰️⭐ THE GAP THAT WAS PINNED HERE IS CLOSED, AND THIS IS ITS REPLACEMENT.
 
-    `closedTable.json::_functions_domain` declares TWO entries whose argument
-    domain the `int` kind cannot express, and both walkers answer an ALL-NaN
-    COLUMN for them rather than raising. `macd` is the one a member reaches by
-    accident: the conventional spelling is `macd(close, 12, 26)` and transposing
-    the two periods is a keystroke away.
+    Until 2026-08-27 this file carried
+    `test_a_DECLARED_DOMAIN_ERROR_is_still_laundered__and_that_is_NOT_this_functions_job`,
+    which asserted the OPPOSITE of every line below and promised to go RED the day
+    the save door closed. It did, and it was deleted deliberately rather than
+    edited into agreement -- the disclaimers it guarded (in `unresolved_inputs`'
+    docstring and in `scan_evaluator`'s comment) were dropped in the same commit.
 
-    ⛔ THE COMPARISON THEN LAUNDERS IT, EXACTLY AS X23 DESCRIBES, ON A SCREEN THE
-    SAVE DOOR ACCEPTS. None of the three per-row questions can see it: the tree
-    names no scalar, names no bar reader, and `max_lookback` is satisfied.
+    ⛔ THE FIX IS AT THE RESOLVE PASS, NOT IN THE PRE-PASS, AND THAT DISTINCTION
+    IS WHAT THIS TEST ASSERTS. `fast > slow` is a fact about the FORMULA -- true
+    on every bar, for every symbol, forever -- so it is decided ONCE where the
+    formula is admitted. `unresolved_inputs` is deliberately NOT widened: the
+    tree never reaches it, because it never resolves.
 
-    ⚠️ AND IT IS DELIBERATELY NOT FIXED HERE. `slow < fast` is a fact about the
-    FORMULA -- true on every bar, for every symbol, forever -- not about this row,
-    so it belongs at the save door / the resolve pass. `_fn_avwap` already draws
-    that exact line: its sub-1990 anchor is refused BY NAME (`resolve:window`)
-    while "no bar precedes the anchor" is left a quiet per-row column, *"and the
-    asymmetry is the point"*. A per-row check carrying a whole-formula decision
-    would pay for it 3,742 times a night.
-
-    ⭐ THIS TEST IS THE ROT CONTROL FOR THAT DISCLAIMER. `unresolved_inputs`'
-    docstring and `scan_evaluator`'s comment both say the gap exists. Prose that
-    declares itself correct is still prose -- so the day the save door closes it,
-    THIS GOES RED and names itself, and whoever lands that fix deletes this test
-    on purpose instead of leaving two files making a stale claim.
+    ⛔ BOTH DIRECTIONS, or this is a guard that refuses everything. The
+    conventional `macd(close, 12, 26)` must still save and still compute.
     """
     bars = _bars_from_rows(_daily_rows(n=400))
     bad = _call("macd", _series("close"), _num(26), _num(12))   # fast > slow
     tree = _op(">", _series("close"), bad)
 
     # The manifest DECLARES this, so the case is not an accident of the walker.
-    domain = _manifest()["_functions_domain"]
-    assert "macd" in domain and "NaN" in domain, (
-        "`_functions_domain` no longer declares an all-NaN argument domain; the "
-        "premise of this test is gone")
+    domain = _manifest()["functions"]["macd"]["domain"]
+    assert _manifest()["functions"]["macd"][domain] == "arg2", (
+        "`macd` no longer declares an argument domain pointing at its lookback; "
+        "the premise of this test is gone")
 
-    assert all(v is None for v in ast_interpret.interpret(bad, bars)), (
-        "macd(close, 26, 12) no longer produces an all-NaN column")
-    assert set(ast_interpret.interpret(tree, bars)) == {0.0}
-    assert set(ast_interpret.interpret(_op("!", tree), bars)) == {1.0}
+    # ⛔ THE TREE NO LONGER RESOLVES -- by name, at the token, naming the argument.
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        ast_interpret.interpret(tree, bars)
+    assert exc.value.guard == "resolve:domain"
+    assert "macd argument 1 is its fastPeriod at 26" in str(exc.value)
 
-    # ⛔ THE POINT: every per-row question is clean, and the save door says yes.
-    assert ast_interpret.unresolved_inputs(tree, {}, bars, -1) == []
-    assert ast_interpret.unresolved_lookback(tree, bars) == 0
-    assert scan_definition.assert_scannable(_definition(tree))["yields"] == "bool", (
-        "the save door now refuses a transposed macd — X23's last face is CLOSED. "
-        "Delete this test deliberately and drop the disclaimer from "
-        "`unresolved_inputs` and from `scan_evaluator`, which both still say the "
-        "gap is open.")
+    # …and the SAVE DOOR says no, where it used to hand back `yields: bool`.
+    with pytest.raises(scan_definition.ScanRefused) as refused:
+        scan_definition.assert_scannable(_definition(tree))
+    assert refused.value.gate == "tree"
+    assert "resolve:domain" not in str(refused.value)   # the SENTENCE, not the id
+    assert "put the larger one in argument 2" in str(refused.value)
+
+    # ⛔ THE CONTROL. The same formula the member meant still saves and still
+    # computes -- a guard that refused both would pass half of what matters.
+    good = _op(">", _series("close"), _call("macd", _series("close"), _num(12), _num(26)))
+    assert scan_definition.assert_scannable(_definition(good))["yields"] == "bool"
+    assert len({v for v in ast_interpret.interpret(good, bars) if v is not None}) == 2
+
+    # ⛔ AND EQUAL PERIODS ARE IN DOMAIN, because the declaration is an upper
+    # bound and not a strict order: `macd(close, 26, 26)` computes a flat zero.
+    equal = _op(">", _series("close"), _call("macd", _series("close"), _num(26), _num(26)))
+    assert scan_definition.assert_scannable(_definition(equal))["yields"] == "bool"
 
 
 # ═══ 5. the premise, and the declarations this file makes ═══════════════════

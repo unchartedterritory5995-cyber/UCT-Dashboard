@@ -2389,10 +2389,15 @@ describe('the refusals', () => {
     // argument in a role the table gives a KIND is refused rather than computed.
     // Both lanes carry the same sentence — `test_ast_interpret.py` compares the
     // two tables byte for byte — so this count moves in lockstep with Python's.
+    // ⚠️ 10 -> 11 on the interpreter with `resolve:domain` (W9k.1 / X41): the
+    // DECLARED argument domain (`closedTable.json::_functions_domain`) became
+    // ENFORCEABLE, so `macd(close, 26, 12)` — the 12/26 pair transposed — is
+    // refused at the resolve pass instead of computing an all-NaN column that a
+    // comparison then reads as a confident NO on every bar.
     expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(10)
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(11)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(32)
+    expect(all.length).toBe(33)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

@@ -49,7 +49,8 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
-    SERIES_SECTION, bar_readers, recurrences, recurrence_bindings, is_pointwise,
+    SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
+    recurrence_bindings, is_pointwise,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -143,6 +144,7 @@ REFUSALS: Mapping[str, str] = {
     "resolve:window": "a window must be a whole-number literal",
     "resolve:condition": (
         "a condition argument must be a 0/1 column, and this one is a number"),
+    "resolve:domain": "a period reaches past the window its own entry declares",
     "interpret:node": "not a canonical node",
     "interpret:operator": "unknown operator",
     "interpret:offset": "an offset node carries a whole-number count of bars",
@@ -1630,6 +1632,83 @@ def _window_literal(node: dict, index: int) -> int:
     return int(arg["value"])
 
 
+#: name → the CEILING DECLARATION its argument domain points at, read off the
+#: manifest. ⛔ NEVER A NAME TYPED HERE: a hand-list would be the thing
+#: ``_functions_domain`` exists to retire, and it would be the SECOND copy of it
+#: because the JS lane would need its own.
+_ARG_DOMAINS: Mapping[str, str] = arg_domains()
+
+
+def _assert_arg_domain(node: dict, spec: Mapping[str, Any]) -> None:
+    """⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE
+    PASS — because ``int`` can say "a whole number" and cannot say "no larger
+    than that one".
+
+    🔴 THE DEFECT THIS CLOSES (X41). ``macd(close, 26, 12)`` is the 12/26 pair
+    transposed -- one keystroke -- and both walkers answer an ALL-NaN COLUMN for
+    it by declaration. A comparison then eats the hole:
+    ``close > macd(close, 26, 12)`` measured **0.0 on all 60 bars, one distinct
+    value**, with ``unresolved_inputs() == []``, ``unresolved_lookback() == 0``
+    and ``assert_scannable`` calling it a ``bool`` tree. The screen was savable,
+    every symbol was reported ANSWERED, and nothing anywhere said the formula was
+    meaningless -- a member reads "0 matches" as a quiet market. The Ichimoku five
+    carry the same shape whenever ``max(tenkan, kijun) > senkouB``.
+
+    ⛔ IT IS A FORMULA DEFECT, SO IT IS DECIDED WHERE THE FORMULA IS ADMITTED AND
+    NOWHERE ELSE. ``fast > slow`` is true of that tree on every bar, for every
+    symbol, forever -- a per-row check would carry a decision that cannot vary by
+    row and would pay for it 3,742 times a night. This is exactly the line
+    ``_fn_avwap`` already draws: its sub-1990 anchor is refused BY NAME
+    (``resolve:window``) while "no bar precedes the anchor" stays a quiet per-row
+    column, *"and the asymmetry is the point"*.
+
+    ⛔ AND IT DOES NOT REPLACE THE ADAPTERS' NaN. ``_fn_macd`` and
+    ``_ichimoku_line`` still answer an all-NaN column, because they are also
+    reachable directly and the two shipped implementations disagree about the
+    out-of-order case (one returns empty columns, the other throws a
+    ``TypeError`` off a negative index). What changed is that a TREE carrying one
+    no longer resolves.
+
+    ⚠️ EVERY ``int`` SLOT IS READ IN INDEX ORDER FIRST, so ``resolve:window``
+    still wins on a slot that is not a literal at all: a call whose window cannot
+    be read has no periods to compare, and reporting the later door would measure
+    traversal order instead of the defect.
+    """
+    declaration = _ARG_DOMAINS.get(node.get("name"))
+    if declaration is None:
+        return
+    # ⛔ THE SAME ``argN`` GRAMMAR ``_own_lookback`` READS, not a second one -- and
+    # a declaration that names no argument (``0``, ``"session"``) has no ceiling
+    # to compare against, so it is left alone rather than given a fabricated slot.
+    # ⚠️ A MULTIPLIER (``2*arg3``) NAMES THE SAME ARGUMENT: this compares PERIODS,
+    # and ``adx``'s doubled REACH says nothing about which slot holds the larger.
+    m = _LOOKBACK_RE.fullmatch(str(declaration))
+    if m is None:
+        return
+    ceiling = int(m.group(2))
+    if spec["args"][ceiling] != "int":
+        return
+    values: List[Optional[int]] = []
+    for i in range(len(spec["args"])):
+        values.append(_window_literal(node, i) if spec["args"][i] == "int" else None)
+    roles = spec.get("argRoles")
+
+    def _role(i: int) -> str:
+        if isinstance(roles, (list, tuple)) and i < len(roles) and isinstance(roles[i], str):
+            return roles[i]
+        return "period"
+
+    for i, value in enumerate(values):
+        if i == ceiling or value is None or value <= values[ceiling]:
+            continue
+        _refuse("resolve:domain",
+                f"— {node.get('name')} argument {i} is its {_role(i)} at {value}, past "
+                f"argument {ceiling}, its {_role(ceiling)}, at {values[ceiling]}. This entry "
+                f"declares {spec[ARG_DOMAIN]} `{declaration}`, so every other period must fit "
+                f"inside it — put the larger one in argument {ceiling}. As written, this call "
+                "computes nothing on any bar.")
+
+
 def _offset_bars(node: dict) -> int:
     """The bar count of ONE ``offset`` node, VALIDATED. Refuses ``interpret:offset``.
 
@@ -1735,6 +1814,14 @@ def max_lookback(ast: Any) -> int:
                 _window_literal(node, i)
                 continue
             best = max(best, seen[id(node["args"][i])])
+        # ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED,
+        # and this pass is the reason it lands at every door at once:
+        # ``check_budget`` inside ``interpret``, the concierge's ``_validate``,
+        # ``assert_scannable`` and the sweep's own one-shot resolve all run THIS
+        # function, so a transposed ``macd`` is refused once per formula rather
+        # than once per symbol. AFTER the loop above, so ``resolve:window`` still
+        # owns a slot that is not a literal.
+        _assert_arg_domain(node, spec)
         seen[id(node)] = _own_lookback(node, spec) + best
     return seen[id(ast)]
 
@@ -1877,27 +1964,30 @@ def unresolved_inputs(ast: Any,
 
     ⛔⛔ WHAT THIS DOES NOT COVER, MEASURED AND NAMED. An earlier draft claimed
     every other entry's holes came from its arguments or its declared
-    ``lookback``. **THAT WAS FALSE TWICE OVER**, and both counter-examples are
-    ordinary member spellings that still return NOTHING or THE ENTIRE UNIVERSE at
-    full reported coverage.
+    ``lookback``. **THAT WAS FALSE TWICE OVER**. One of the two is now CLOSED
+    somewhere else; the other is still open and is still an ordinary member
+    spelling that returns NOTHING or THE ENTIRE UNIVERSE at full reported
+    coverage.
 
-    (1) A DECLARED ARGUMENT DOMAIN (``closedTable.json::_functions_domain``).
-    ``macd(close, 26, 12)`` -- ``fast > slow``, a transposition of the canonical
-    12/26 pair -- is an all-NaN column in BOTH walkers by declaration. On 400
-    bars::
+    (1) ⚰️ A DECLARED ARGUMENT DOMAIN (``closedTable.json::_functions_domain``)
+    -- **CLOSED 2026-08-27 AT THE RESOLVE PASS, NOT HERE, WHICH IS WHY THIS ENTRY
+    IS KEPT.** ``macd(close, 26, 12)`` -- ``fast > slow``, a transposition of the
+    canonical 12/26 pair -- was an all-NaN column in BOTH walkers by declaration,
+    and on 400 bars::
 
         interpret(close > macd(close, 26, 12))  -> [0.0, ...]   every bar
         interpret(!(close > macd(close,26,12))) -> [1.0, ...]   every bar
 
     ...with ``unresolved_inputs() == []``, ``unresolved_lookback() == 0`` and
-    ``assert_scannable`` calling it a ``bool`` tree. The Ichimoku five carry the
-    same shape when ``max(tenkan, kijun) > senkouB``. ⛔ NOT ANSWERED HERE ON
-    PURPOSE: ``slow < fast`` is a FORMULA defect -- true of that tree on every
-    bar, for every symbol, forever -- and belongs at the save door, exactly as
-    ``_fn_avwap`` refuses a sub-1990 anchor BY NAME (``resolve:window``) while
+    ``assert_scannable`` calling it a ``bool`` tree. ⭐ THE RULING WAS THAT
+    ``fast > slow`` is a FORMULA defect -- true of that tree on every bar, for
+    every symbol, forever -- so it belongs where the formula is ADMITTED, exactly
+    as ``_fn_avwap`` refuses a sub-1990 anchor BY NAME (``resolve:window``) while
     leaving "no bar precedes the anchor" a quiet per-row column, *"and the
-    asymmetry is the point"*. Putting it here would make a question asked 3,742
-    times a night carry a decision one look at the tree settles.
+    asymmetry is the point"*. Answering it HERE would have made a question asked
+    3,742 times a night carry a decision one look at the tree settles. It is now
+    ``resolve:domain`` in ``max_lookback`` / ``maxLookback``, so the tree does not
+    resolve and nothing reaches this function at all -- **this set did not grow.**
 
     (2) ⭐ A DATA-DEPENDENT HOLE IN AN ORDINARY FUNCTION -- and this one is NOT a
     formula defect, so the argument above does not cover it. ``valuewhen`` holes

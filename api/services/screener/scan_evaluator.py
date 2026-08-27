@@ -1526,18 +1526,22 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # clock and with the SAME row the answer will be computed from, or it
             # is asking about something else.
             # ⛔⛔ IT IS NOT A COMPLETE QUESTION. The set is `BAR_READERS` ∪ the
-            # declared scalars -- NOT "every input that can be a hole" -- and two
-            # surfaces are still laundered here, both named and measured in
-            # `unresolved_inputs`' own docstring and each pinned by its own test:
-            #   * a DECLARED argument domain (`_functions_domain`:
-            #     `macd(close, 26, 12)`, the transposed Ichimoku periods) -- a
-            #     fact about the FORMULA, bound for the save door, not for a
-            #     question asked 3,742 times a night;
+            # declared scalars -- NOT "every input that can be a hole" -- and ONE
+            # surface is still laundered here, named and measured in
+            # `unresolved_inputs`' own docstring and pinned by its own test:
             #   * a DATA-dependent hole in an ordinary function (`valuewhen`
             #     before its condition has been true inside its window) -- which
             #     is NOT a formula defect, and which the manifest cannot yet tell
             #     from `sma`, so closing it needs a new DECLARATION rather than a
             #     name added to the pre-pass.
+            # ⚰️ THE SECOND ONE WAS a DECLARED argument domain
+            # (`_functions_domain`: `macd(close, 26, 12)`, the transposed Ichimoku
+            # periods). It never belonged here -- a fact about the FORMULA, true
+            # on every row, does not become a per-row question -- and it is CLOSED
+            # as `resolve:domain` at the resolve pass, which `assert_scannable`
+            # and `max_lookback` below both run before this loop starts. Kept as a
+            # record because "why is that not asked here" is the question this
+            # comment exists to answer.
             missing = ast_interpret.unresolved_inputs(
                 tree, scalars, bars, index, opts={"tf": tf_code})
             if missing:

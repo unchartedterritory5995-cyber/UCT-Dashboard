@@ -617,6 +617,31 @@ def _a_miscast_condition_call():
     return CALL(name, *args)
 
 
+def _an_out_of_domain_call():
+    """A call whose periods are out of the domain its OWN entry declares.
+
+    ⭐ DERIVED, NOT TYPED, exactly as ``_a_miscast_condition_call`` is. The ENTRY
+    comes from ``ast_table.arg_domains`` — the manifest's own ``domain``
+    declaration — and the CEILING SLOT from that entry's own ``lookback``, so a
+    seventh such entry, a renamed key or a moved lookback is covered here on the
+    day it lands. Nothing below spells ``macd``.
+
+    Every ``int`` slot gets 1 and one NON-ceiling ``int`` slot gets 2, which is
+    the smallest tree that is out of domain by exactly one bar.
+    """
+    domains = ast_table.arg_domains()
+    name = sorted(domains)[0]
+    spec = ast_table.TABLE[ast_table.FUNCTIONS_SECTION][name]
+    m = ast_interpret._LOOKBACK_RE.fullmatch(str(domains[name]))
+    ceiling = int(m.group(2))
+    price = sorted(ast_table.TABLE[ast_table.SERIES_SECTION])[0]
+    ints = [i for i, kind in enumerate(tuple(spec["args"])) if kind == "int"]
+    over = next(i for i in ints if i != ceiling)
+    args = [NUM(1) if kind == "int" else SER(price) for kind in tuple(spec["args"])]
+    args[over] = NUM(2)
+    return CALL(name, *args)
+
+
 def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED():
     """⛔ BOTH DIRECTIONS. A guard nobody can fire is a comment; a guard that
     fires without a declared sentence is a refusal with no read-back."""
@@ -632,6 +657,10 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         # argument is a BAR FIELD — a price, which declares no `yields` and is
         # therefore a number, which is exactly the tree that shipped.
         "resolve:condition": lambda: run(_a_miscast_condition_call()),
+        # ⭐ THE SAME ARRANGEMENT ONE DECLARATION ALONG: the ENTRY and its
+        # CEILING SLOT are read off `_functions_domain`'s own `domain` key, so
+        # this fires for whatever the manifest declares rather than for `macd`.
+        "resolve:domain": lambda: run(_an_out_of_domain_call()),
         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
         # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is

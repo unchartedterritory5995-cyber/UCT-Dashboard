@@ -211,6 +211,50 @@ export function barReadersOf(table) {
  *  same shape, one task earlier: `interpret.js::ownLookback`. */
 export const BAR_READERS = Object.freeze(barReadersOf(TABLE))
 
+/** The declaration that says an entry's OTHER `int` arguments must fit inside
+ *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
+ *  this is the key both lanes match on, and its VALUE names which of the entry's
+ *  own reach declarations supplies the ceiling. */
+export const ARG_DOMAIN = 'domain'
+
+/** Every function entry declaring an argument domain → the CEILING DECLARATION
+ *  it points at. `{ macd: 'arg2', ichimokuTenkan: 'arg4', … }`.
+ *
+ *  ⭐ THE `reads: 'bars'` IDIOM, APPLIED TO THE OTHER THING A DECLARATION CAN BE
+ *  WRONG ABOUT. `lookback: 'arg2'` is a promise about how many bars of history an
+ *  entry needs, and for these six it holds only while the argument it names is
+ *  the LARGEST period in the call — `macd(close, 26, 12)` reaches 26 bars back
+ *  under a declaration that promised 12, and every line of the Ichimoku family
+ *  starts at the longest of its three periods. The entry says so itself; nothing
+ *  here knows the name `macd`.
+ *
+ *  ⛔ ONE INDIRECTION, NEVER A RE-TYPED SLOT. The value of `domain` is the NAME
+ *  of another key on the same entry (`'lookback'`), and what comes back is that
+ *  key's own declaration — so moving an entry's lookback to another slot moves
+ *  its domain with it, and no argument index is written down twice.
+ *
+ *  ⛔ THE INDEX IS NOT RESOLVED HERE, AND THAT IS THE SPLIT. `LOOKBACK_RE` is
+ *  this lane's ONE grammar for `argN` and the walker already reads it
+ *  (`ownLookback`); resolving it here as well would be the second copy the
+ *  hoisting of that regex exists to prevent. `ast_table.arg_domains` answers the
+ *  same question in the same shape, and each lane's walker resolves the index
+ *  with the grammar it already owns. */
+export function argDomainsOf(table) {
+  const out = {}
+  for (const [name, spec] of Object.entries((table && table.functions) || {})) {
+    if (!spec || typeof spec[ARG_DOMAIN] !== 'string') continue
+    const declaration = spec[spec[ARG_DOMAIN]]
+    if (typeof declaration === 'string' && declaration) out[name] = declaration
+  }
+  return out
+}
+
+/** ⚠️ EXPORTED AS A PURE READER FOR THE REASON `barReadersOf` IS: a derivation
+ *  nobody can plant a manifest against is indistinguishable from a hand-list that
+ *  happens to be right today. `argDomain.test.js` plants a seventh entry and a
+ *  `domain` pointing at a key that names no argument. */
+export const ARG_DOMAINS = Object.freeze(argDomainsOf(TABLE))
+
 /** Does this function read each argument at the bar it writes, and nowhere else?
  *
  *  ⭐ DERIVED FROM THE WINDOW DECLARATION, NEVER FROM A LIST OF NAMES. A hand-list

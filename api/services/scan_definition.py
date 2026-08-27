@@ -335,8 +335,11 @@ def assert_scannable(definition: Any) -> dict:
     ``kind``    the definition is not on the ``ast`` lane. A native or server
                 definition names maths this lane cannot walk.
     ``tree``    ``compute.ast`` is not a canonical tree — four node types with
-                exact key sets. The persisted shape is the contract between the
-                two lanes and is deliberately smaller than jsep's.
+                exact key sets — or it is canonical and does not RESOLVE: an
+                undeclared name, the wrong arity, a window that is not a literal,
+                or an argument outside the domain its own entry declares
+                (``resolve:domain``). Both are properties of the tree alone, and
+                the resolve pass is where a whole-formula defect is decided.
     ``hash``    a stored ``compute.fn`` disagrees with the tree it sits beside.
     ``yields``  the tree returns a NUMBER. ``<tree> != 0`` over a price column is
                 true for every symbol trading above zero, so this is the gate
@@ -358,6 +361,22 @@ def assert_scannable(definition: Any) -> dict:
     handle = def_hash(definition)
 
     try:
+        # ⛔⛔ THE RESOLVE PASS, RUN ONCE, AT THE DOOR. `is_boolean_tree` below
+        # classifies the tree's KIND and resolves nothing — it reads `yields` off
+        # the manifest and defaults an unknown name to `num` — so until X41 a
+        # tree could pass this gate and still be un-runnable. The measured case
+        # was `close > macd(close, 26, 12)`: `fast > slow` is a DECLARED argument
+        # domain (`closedTable.json::_functions_domain`), both walkers answer an
+        # all-NaN column for it, and the comparison turned that hole into `0.0` on
+        # every bar — a screen this function called `bool`, that saved, and that
+        # reported every symbol ANSWERED while matching nothing.
+        #
+        # ⭐ `max_lookback` IS THE PASS, NOT A NEW ONE. It resolves every call on
+        # its way to a number and is already what `scan_evaluator` runs before its
+        # loop *"once, loudly — rather than 3,742 times inside"*. Running it HERE
+        # moves the refusal from the worker to the request, so a member is told at
+        # the door instead of watching a job come back empty.
+        ast_interpret.max_lookback(tree)
         boolean = is_boolean_tree(tree)
     except ast_interpret.TableRefusal as exc:
         raise ScanRefused("tree", str(exc)) from exc

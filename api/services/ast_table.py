@@ -352,6 +352,51 @@ def bar_readers(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
         if isinstance(spec, Mapping) and spec.get("reads") == BAR_READS))
 
 
+#: The declaration that says an entry's OTHER ``int`` arguments must fit inside
+#: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
+#: it; this is the key both lanes match on, and its VALUE names which of the
+#: entry's own reach declarations supplies the ceiling.
+ARG_DOMAIN = "domain"
+
+
+def arg_domains(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """Every function entry declaring an argument domain → the CEILING
+    DECLARATION it points at. ``{"macd": "arg2", "ichimokuTenkan": "arg4", ...}``.
+
+    ⭐ THE ``reads: "bars"`` IDIOM, APPLIED TO THE OTHER THING A DECLARATION CAN
+    BE WRONG ABOUT. ``lookback: "arg2"`` is a promise about how many bars of
+    history an entry needs, and for these six it holds only while the argument it
+    names is the LARGEST period in the call — ``macd(close, 26, 12)`` reaches 26
+    bars back under a declaration that promised 12, and every line of the
+    Ichimoku family starts at the longest of its three periods. The entry says so
+    itself; nothing here knows the name ``macd``.
+
+    ⛔ ONE INDIRECTION, NEVER A RE-TYPED SLOT. The value of ``domain`` is the NAME
+    of another key on the same entry (``"lookback"``), and what comes back is that
+    key's own declaration — so moving an entry's lookback to another slot moves
+    its domain with it, and no argument index is written down twice.
+
+    ⛔ THE INDEX IS NOT RESOLVED HERE, AND THAT IS THE SPLIT. ``arg3`` is spelled
+    in ONE grammar per lane (``ast_interpret._LOOKBACK_RE`` here,
+    ``parse.js::LOOKBACK_RE`` there) and the walker already reads it; resolving it
+    a second time in this module would be the fifth hand-written copy of a pattern
+    whose fourth branded ADX as repainting in production.
+    ``parse.js::argDomainsOf`` answers the same question in the same shape.
+    """
+    m = manifest if manifest is not None else TABLE
+    out = {}
+    for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items():
+        if not isinstance(spec, Mapping):
+            continue
+        key = spec.get(ARG_DOMAIN)
+        if not isinstance(key, str) or not key:
+            continue
+        declaration = spec.get(key)
+        if isinstance(declaration, str) and declaration:
+            out[name] = declaration
+    return out
+
+
 def is_pointwise(spec: Any) -> bool:
     """Does this function read each argument at the bar it writes, and nowhere
     else?

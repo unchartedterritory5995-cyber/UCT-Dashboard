@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import {
   parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, BAR_READERS,
-  SESSION_MAX_BARS,
+  SESSION_MAX_BARS, ARG_DOMAINS, LOOKBACK_RE,
 } from './parse.js'
 import {
   interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS,
@@ -694,6 +694,28 @@ function miscastConditionCall() {
   return { type: 'call', name, args }
 }
 
+/** A call whose periods are out of the domain its OWN entry declares.
+ *
+ *  ⛔ EVERY PART READ OFF THE MANIFEST, for the reason above. The ENTRY comes
+ *  from `ARG_DOMAINS` — `_functions_domain`'s own `domain` key — and the CEILING
+ *  SLOT from that entry's `lookback`, so a seventh such entry, a renamed key or a
+ *  moved lookback is covered the day it lands. Nothing here spells `macd`.
+ *
+ *  Every `int` slot gets 1 and one NON-ceiling `int` slot gets 2: the smallest
+ *  tree that is out of domain by exactly one bar. */
+function outOfDomainCall() {
+  const name = Object.keys(ARG_DOMAINS).sort()[0]
+  const spec = TABLE.functions[name]
+  const ceiling = Number(LOOKBACK_RE.exec(String(ARG_DOMAINS[name]))[2])
+  const price = Object.keys(TABLE.series).sort()[0]
+  const args = spec.args.map((kind) => (kind === 'int'
+    ? { type: 'num', value: 1 }
+    : { type: 'series', name: price }))
+  const over = spec.args.findIndex((kind, i) => kind === 'int' && i !== ceiling)
+  args[over] = { type: 'num', value: 2 }
+  return { type: 'call', name, args }
+}
+
 describe('the refusals', () => {
   it('every guard this module declares is REACHABLE, and the trigger set is total', () => {
     // ⛔ A GUARD NOBODY CAN TRIGGER IS A COMMENT. Both directions: a declared
@@ -711,6 +733,10 @@ describe('the refusals', () => {
       // is a BAR FIELD — a price, which declares no `yields` and is therefore a
       // number, which is exactly the tree that shipped.
       'resolve:condition': () => interpret(miscastConditionCall(), BARS, {}),
+      // ⭐ THE SAME ARRANGEMENT ONE DECLARATION ALONG: the ENTRY and its
+      // CEILING SLOT are read off `_functions_domain`'s own `domain` key, so this
+      // fires for whatever the manifest declares rather than for `macd`.
+      'resolve:domain': () => interpret(outOfDomainCall(), BARS, {}),
       'interpret:node': () => interpret({ type: 'member', name: 'x', args: [] }, BARS, {}),
       'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
       // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative

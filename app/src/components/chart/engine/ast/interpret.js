@@ -48,8 +48,8 @@
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
 import {
-  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, isPointwise,
-  LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
+  ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -118,6 +118,7 @@ export const REFUSALS = Object.freeze({
   'resolve:arity': 'wrong number of arguments',
   'resolve:window': 'a window must be a whole-number literal',
   'resolve:condition': 'a condition argument must be a 0/1 column, and this one is a number',
+  'resolve:domain': 'a period reaches past the window its own entry declares',
   'interpret:node': 'not a canonical node',
   'interpret:operator': 'unknown operator',
   'interpret:offset': 'an offset node carries a whole-number count of bars',
@@ -1301,6 +1302,71 @@ function windowLiteral(node, index) {
   return arg.value
 }
 
+/** ⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE PASS —
+ *  because `int` can say "a whole number" and cannot say "no larger than that
+ *  one".
+ *
+ *  🔴 THE DEFECT THIS CLOSES (X41). `macd(close, 26, 12)` is the 12/26 pair
+ *  transposed — one keystroke — and both walkers answer an ALL-NaN COLUMN for it
+ *  by declaration. A comparison then eats the hole: `close > macd(close, 26, 12)`
+ *  measured **0.0 on all 60 bars, one distinct value**, with the scan lane's
+ *  input pre-pass clean and the lookback satisfied. The screen was savable, every symbol was
+ *  reported ANSWERED, and nothing anywhere said the formula was meaningless — a
+ *  member reads "0 matches" as a quiet market. The Ichimoku five carry the same
+ *  shape whenever `max(tenkan, kijun) > senkouB`.
+ *
+ *  ⛔ IT IS A FORMULA DEFECT, SO IT IS DECIDED WHERE THE FORMULA IS ADMITTED AND
+ *  NOWHERE ELSE. `fast > slow` is true of that tree on every bar, for every
+ *  symbol, forever — a per-row check would carry a decision that cannot vary by
+ *  row and would pay for it once per symbol across the universe. This is exactly
+ *  the line `avwap` already draws: its sub-1990 anchor is refused BY NAME
+ *  (`resolve:window`) while "no bar precedes the anchor" stays a quiet per-row
+ *  column, *"and the asymmetry is the point"*.
+ *
+ *  ⛔ THE SET AND THE CEILING ARE BOTH READ OFF THE MANIFEST. `ARG_DOMAINS` is
+ *  `parse.js::argDomainsOf`'s answer; a name typed here would be the hand-list
+ *  `_functions_domain` exists to retire, and it would be the SECOND copy of it
+ *  because the Python lane would need its own.
+ *
+ *  ⛔ AND IT DOES NOT REPLACE THE ADAPTERS' NaN. `FN.macd` and `ichimokuLine`
+ *  still answer an all-NaN column, because they are also reachable directly and
+ *  the two shipped implementations disagree about the out-of-order case (one
+ *  returns empty columns, the other throws a `TypeError` off a negative index).
+ *  What changed is that a tree carrying one no longer resolves.
+ *
+ *  ⚠️ EVERY `int` SLOT IS READ IN INDEX ORDER FIRST, so `resolve:window` still
+ *  wins on a slot that is not a literal at all: a call whose window cannot be
+ *  read has no periods to compare, and reporting the later door would measure
+ *  traversal order instead of the defect. */
+function assertArgDomain(node, spec) {
+  const declaration = ARG_DOMAINS[node.name]
+  if (declaration === undefined) return
+  // ⛔ THE SAME `argN` GRAMMAR `ownLookback` READS, not a second one — and a
+  // declaration that names no argument (`0`, `'session'`) has no ceiling to
+  // compare against, so it is left alone rather than given a fabricated slot.
+  // ⚠️ A MULTIPLIER (`2*arg3`) NAMES THE SAME ARGUMENT: this compares PERIODS,
+  // and `adx`'s doubled REACH says nothing about which slot holds the larger one.
+  const m = LOOKBACK_RE.exec(String(declaration))
+  if (!m) return
+  const ceiling = Number(m[2])
+  if (spec.args[ceiling] !== 'int') return
+  const values = []
+  for (let i = 0; i < spec.args.length; i++) {
+    values[i] = spec.args[i] === 'int' ? windowLiteral(node, i) : null
+  }
+  const roleOf = (i) => (Array.isArray(spec.argRoles) && typeof spec.argRoles[i] === 'string'
+    ? spec.argRoles[i] : 'period')
+  for (let i = 0; i < values.length; i++) {
+    if (i === ceiling || values[i] === null || values[i] <= values[ceiling]) continue
+    refuse('resolve:domain',
+      `— ${node.name} argument ${i} is its ${roleOf(i)} at ${values[i]}, past `
+      + `argument ${ceiling}, its ${roleOf(ceiling)}, at ${values[ceiling]}. This entry `
+      + `declares ${spec[ARG_DOMAIN]} \`${declaration}\`, so every other period must fit `
+      + `inside it — put the larger one in argument ${ceiling}. As written, this call `
+      + 'computes nothing on any bar.')
+  }
+}
+
 /** The bar count of ONE `offset` node, VALIDATED. Refuses `interpret:offset`.
  *
  *  ⭐ THE SHAPE ALREADY MAKES A COMPUTED OFFSET INEXPRESSIBLE — `value` is a
@@ -1424,6 +1490,14 @@ export function maxLookback(ast) {
       if (spec.args[i] === 'int') { windowLiteral(node, i); continue }
       best = Math.max(best, seen.get(node.args[i]))
     }
+    // ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED, and
+    // this pass is the reason it lands at every door at once: `assertBudget`
+    // inside `interpret`, `checkBudget` inside `evaluateFormula`, the concierge's
+    // `_validate` and the sweep's own one-shot resolve all run THIS function, so
+    // a transposed `macd` is refused once per formula rather than once per
+    // symbol. AFTER the loop above, so `resolve:window` still owns a slot that
+    // is not a literal.
+    assertArgDomain(node, spec)
     seen.set(node, ownLookback(node, spec) + best)
   }
   return seen.get(ast)
