@@ -59,6 +59,10 @@ _OFFSET = "offset"
 #: this set equals `ast_interpret.NODE_TYPES`, and it is what caught `tf` being
 #: added to the engine while the classifier below still knew five types.
 _TF = "tf"
+#: ⚠️ A READ OF ANOTHER INSTRUMENT. Same census rule as `_TF` above — it is in
+#: this tuple because the classifier BRANCHES on it, and the branch census is what
+#: fails the day the engine learns a seventh type this module has not been taught.
+_SYM = "sym"
 
 #: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
 #: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
@@ -194,9 +198,11 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
                                else _KIND_NUM)
             continue
-        if node_type == _TF:
-            # ⭐ A TIMEFRAME CHANGES *WHICH PERIOD*, NEVER *WHAT*, so the kind
-            # passes through from the child exactly as an offset's does.
+        if node_type in (_TF, _SYM):
+            # ⭐ NEITHER CHANGES *WHAT*. A timeframe changes WHICH PERIOD and a
+            # symbol changes WHICH INSTRUMENT, so both pass the kind through from
+            # the child exactly as an offset's does: `sym('SPY', close > open)` is
+            # still a yes/no, and `sym('SPY', close)` is still a price.
             # `tf(close > open, 'W')` is the same yes/no, read on the last CLOSED
             # week — a perfectly good screen.
             # ⛔⛔ AND WITHOUT THIS ARM IT FELL TO THE LOOKUP BELOW, which is the

@@ -237,12 +237,13 @@ describe('the seam between the two lanes', () => {
     // ever withdraws the fifth type, this module refuses by name at the bracket
     // instead of emitting a node no walker has a case for.
     expect(NODE_TYPES).toContain('offset')
-    // ⚰️ 5 -> 6 when W2b added `tf`. The floor is not about the NUMBER — it is
+    // ⚰️ 5 -> 6 when W2b added `tf`, 6 -> 7 when Task 4 added `sym`. The floor
+    // is not about the NUMBER — it is
     // that this module must NOTICE when the roster moves, because it emits an
     // `offset` node and a withdrawn type would make it emit something no walker
     // has a case for. A count that is updated deliberately keeps that property;
     // a `toBeGreaterThan` would quietly stop asking.
-    expect(NODE_TYPES.length).toBe(6)
+    expect(NODE_TYPES.length).toBe(7)
   })
 
   it('the two lanes agree on which offsets are legal, in both directions', () => {

@@ -124,6 +124,7 @@ export const REFUSALS = Object.freeze({
   'interpret:offset': 'an offset node carries a whole-number count of bars',
   'interpret:recurrence': 'a running value reads its own past only inside its own update, and only through operators and pointwise calls',
   'interpret:timeframe': 'a higher-timeframe read names a timeframe this engine cannot serve from the bars it was given',
+  'interpret:symbol': 'a read of another instrument sits where this engine cannot align it to the bars in hand',
   'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
 })
 
@@ -159,6 +160,43 @@ export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
  *  `TF_RESAMPLABLE` is the authority and this is its only reader.
  *  ⚠️ A span table with a `|| 1` DEFAULT is a second opinion wearing a fallback's
  *  clothes — which is why `TF_BASE_BARS` is now read only AFTER this has run. */
+/** Refuse a `sym` that sits UNDER a `tf` — THE ONE PLACE THAT DECIDES.
+ *
+ *  ⛔⛔ THE DANGEROUS ORDERING IS THE ONE THAT ALMOST WORKS. `tf` hands its child
+ *  RESAMPLED bars; the series supplied for `sym` is not resampled. So
+ *  `tf(sym('SPY', close), 'W')` asks `sym` to align DAILY SPY bars onto WEEKLY
+ *  base bars — and because a weekly bar is keyed at its Friday close, it genuinely
+ *  matches a real SPY Friday bar. The answer is therefore NOT NaN: it is a
+ *  confident, partially-correct column, one day's close standing in for a week's.
+ *  It draws and it backtests.
+ *
+ *  ⭐ THE REFUSAL CARRIES THE WORKING ORDERING, so it costs the member nothing:
+ *  `sym('SPY', tf(close, 'W'))` swaps the series first and then resamples SPY's own
+ *  bars, which is what they meant (`lesson_rail_the_sentence_not_just_the_guard`).
+ *
+ *  ⚠️ STATIC, AND CALLED FROM BOTH ENTRY POINTS — a property of the TREE, checked
+ *  once per tree, so the gate that runs before a sweep and the gate that answers
+ *  inside it cannot disagree. Mirrors `ast_interpret._assert_sym_placement`. */
+function assertSymPlacement(root, refuse) {
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [node, underTf] = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (node.type === 'sym' && underTf) {
+      const ticker = String(node.value)
+      refuse('interpret:symbol',
+        'a `sym` read cannot sit inside a `tf` read — `tf` resamples the bars it '
+        + `was handed and the ${ticker} series is not resampled with them, so the `
+        + 'column would silently mix one session’s value into a whole period. '
+        + `Write it the other way round, which reads ${ticker}’s own `
+        + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) stack.push([a, underTf || node.type === 'tf'])
+    }
+  }
+}
+
 function assertResamplable(code, refuse) {
   if (!TF_RESAMPLABLE.includes(code)) {
     refuse('interpret:timeframe',
@@ -1344,7 +1382,7 @@ function flatten(root) {
     assertNode(node)
     order.push(node)
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
-        || node.type === 'tf') {
+        || node.type === 'tf' || node.type === 'sym') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -1637,6 +1675,9 @@ export function ownLookback(node, spec) {
  *  `sma`'s lookback IS `arg1`, and an upper bound is the only thing a linter or
  *  a budget can safely use. */
 export function maxLookback(ast) {
+  // ⛔ THE SAME TREE-SHAPE RULE `interpret` ASKS, from the gate that runs FIRST,
+  // so a `tf(sym(…))` tree is refused up front rather than once per symbol.
+  assertSymPlacement(ast, refuse)
   const order = flatten(ast)
   const seen = new Map()
   for (const node of order) {
@@ -1662,6 +1703,13 @@ export function maxLookback(ast) {
       assertResamplable(code, refuse)
       const span = TF_BASE_BARS[code]
       seen.set(node, (seen.get(node.args[0]) + 1) * span)
+      continue
+    }
+    if (node.type === 'sym') {
+      // ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar — same
+      // timeframe, so no span factor and no +1: `sym` changes WHICH INSTRUMENT,
+      // not which period. Mirrors `ast_interpret.max_lookback`'s `sym` arm.
+      seen.set(node, seen.get(node.args[0]))
       continue
     }
     if (node.type === 'offset') {
@@ -1850,6 +1898,9 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // the caller AS a `RangeError`; relabelling it as a budget refusal is the same
   // wrong-door defect this whole phase is about, wearing a different coat.
   assertBudget(ast, budget)
+  // ⛔ THE TREE-SHAPE RULE FOR `sym`, asked once per tree rather than per bar,
+  // and by the same helper `maxLookback` calls.
+  assertSymPlacement(ast, refuse)
   const length = bars.length
 
   // ⛔ NULL PROTOTYPE, DELIBERATELY, AND IT IS THE FIRST OF TWO LOCKS.
@@ -2023,6 +2074,46 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // spent a week removing. `nan(length)` already fills the prefix; the loop
         // deliberately starts AT `back` rather than clamping an index.
         for (let i = back; i < length; i++) out[i] = src[i - back]
+        return out
+      }
+      case 'sym': {
+        const ticker = String(n.value).trim().toUpperCase()
+        const supplied = (opts && opts.symbols) || {}
+        const series = supplied[ticker]
+
+        // ⛔⛔ THE INTERPRETER DOES NOT FETCH — THE CALLER SUPPLIES. In this lane
+        // that is not even a choice: a browser has no bars store. An unsupplied
+        // series is NOT COMPUTABLE and nothing else; falling back to the bars in
+        // hand would answer confidently about the WRONG INSTRUMENT.
+        if (!Array.isArray(series) || series.length === 0) return nan(length)
+
+        const child = toColumn(
+          interpret(n.args[0], series, inputs, budget, scalars, { ...(opts || {}) }),
+          series.length)
+
+        // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
+        // ⚠️ THE KEY IS `t`, NOT THE ISO DAY — `sym` reads the SAME timeframe, so
+        // two bars correspond exactly when they ARE the same bar time. An ISO-day
+        // key would map every five-minute bar of a session onto the benchmark's
+        // FIRST bar of that day; the conformance corpus runs on 579 intraday
+        // 5-minute bars, which is what surfaced it in the Python lane.
+        // ⛔ AND NO FORWARD FILL: a missing bar (a halt, a one-sided holiday) is
+        // NaN there. Carrying the previous value forward would present a stale
+        // price as this bar's, which is worst exactly when it matters.
+        const at = new Map()
+        for (let j = 0; j < series.length; j++) {
+          const b = series[j]
+          const key = b && typeof b === 'object' ? b.t : undefined
+          if (key !== undefined && key !== null && !at.has(key)) at.set(key, j)
+        }
+        const out = nan(length)
+        for (let i = 0; i < length; i++) {
+          const b = bars[i]
+          const key = b && typeof b === 'object' ? b.t : undefined
+          if (key === undefined || key === null) continue
+          const j = at.get(key)
+          if (j !== undefined) out[i] = child[j]
+        }
         return out
       }
       case 'tf': {

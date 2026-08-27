@@ -423,11 +423,19 @@ def test_a_planted_manifest_entry_lands_RED():
 
 
 def test_the_node_types_are_DERIVED_from_the_committed_corpus():
-    """`NODE_TYPES` is four names in this module; here is where they come from.
+    """`NODE_TYPES` is a list in this module; here is where it comes from.
 
     The union of every `type` across every committed corpus tree IS the canonical
-    vocabulary, and it is non-vacuous because the corpus covers all four. A fifth
-    type arriving on the wire therefore cannot be absorbed here quietly.
+    vocabulary, and it is non-vacuous because the corpus exercises every name the
+    module declares. A new type arriving on the wire therefore cannot be absorbed
+    here quietly — it must arrive with a case that runs in BOTH lanes.
+
+    ⚰️ THIS SAID "four names", "covers all four" and "a fifth type" while the set
+    grew to six and then seven (`offset`, `tf`, `sym`). A hand-typed count beside
+    the list it describes is this repo's most-repeated defect, and putting one in
+    a DOCSTRING is the worst place for it: the assertion below kept working
+    perfectly while the sentence explaining it went wrong three times. Say what
+    the code derives, never how many.
     """
     seen = set()
     stack = [c["ast"] for c in load_corpus()["cases"]]
@@ -672,6 +680,15 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         # refused at the JS parse door, so the only way this guard is ever
         # reached is a STORED tree — which is exactly the input it exists for.
         "interpret:offset": lambda: run(OFF(-26, SER("close"))),
+        # ⭐ A `sym` UNDER A `tf`. Fires from the TREE ALONE — no supplied series
+        # and no `opts` needed — because the placement rule is a property of the
+        # shape, checked once per tree at both entry points. That is deliberate:
+        # a `tf` hands its child resampled bars while the benchmark series is not
+        # resampled, so this ordering would produce a confident, partially-correct
+        # column rather than a NaN, and it must be refused before any bar is read.
+        "interpret:symbol": lambda: run(
+            {"type": "tf", "value": "W",
+             "args": [{"type": "sym", "value": "SPY", "args": [SER("close")]}]}),
         # ⭐ THE RECURRENCE PAIR. The binding read where nothing binds it is the
         # mistake a translator makes; the step ceiling is the one a member makes
         # by asking for a long warm-up over a long chart. Both names are READ off

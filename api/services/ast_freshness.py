@@ -73,7 +73,15 @@ LIVE, AS_OF_SNAPSHOT, UNKNOWN = FRESHNESS_MODES
 #: the ``series`` node (``closedTable.json::_scalars_node``) and ``_walk``
 #: already descends ``args``, so ``market_cap[1]`` reaches ``scalars_in``
 #: exactly as ``market_cap`` does: an offset over a snapshot is still a snapshot.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset")
+#: ⭐ `tf` AND `sym` NEED NO ARM OF THEIR OWN HERE, FOR THE SAME REASON `offset`
+#: NEEDS NONE: this pass asks WHICH NAMES a tree reads, and `_walk` already
+#: descends `args`. A weekly read of a snapshot scalar is still that snapshot,
+#: and SPY’s close is still the `close` field — neither node introduces a name.
+#: ⚠️ They are listed because the vocabulary is BOUND to
+#: `ast_interpret.NODE_TYPES` by a test; an unlisted type is reported
+#: `unreadable`, which would make every multi-timeframe or cross-symbol
+#: definition freshness-undecidable rather than merely unhandled.
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
 
 
 def _walk(tree: Any) -> List[Any]:

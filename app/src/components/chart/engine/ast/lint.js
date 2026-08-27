@@ -66,6 +66,18 @@ import {
   SESSION_LOOKBACK, SESSION_MAX_BARS,
 } from './parse.js'
 
+/** How many BASE bars one higher-timeframe bar spans.
+ *
+ *  ⛔⛔ A LITERAL, AND THE DUPLICATION IS FORCED RATHER THAN LAZY — exactly as
+ *  `ast_lint._TF_BASE_BARS` is on the Python side. `no evaluator is reachable from
+ *  the linter` asserts this module's import graph is ONE MODULE WIDE, because a
+ *  linter that could reach `interpret.js` could reach a verdict by RUNNING a
+ *  formula, and a claim measured on one bar window is not the universal claim the
+ *  badge makes. Importing `TF_BASE_BARS` would buy one derivation and sell that
+ *  proof, so the copy stays and a test binds the two.
+ *  ⭐ THE BINDING LIVES IN THE TEST, where both modules may be imported at once. */
+export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
+
 // --------------------------------------------------------------------------- //
 // the vocabulary
 // --------------------------------------------------------------------------- //
@@ -471,6 +483,49 @@ export function astReach(ast, opts = {}) {
         }
         const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
         reachOf.set(node, { back: addReach(n, child.back), forward: child.forward })
+        break
+      }
+      case 'tf': {
+        // ⭐⭐ THE WINDOW GROWS BY A WHOLE PERIOD, AND `forward` STAYS PUT.
+        // `tf(expr, 'W')` reads the LAST CLOSED weekly bar, so at bar `i` it
+        // reaches back `(child.back + 1)` weekly bars — converted to base bars by
+        // the span, the same arithmetic `maxLookback` uses.
+        //
+        // ⛔⛔ AND `forward` IS 0 WHEN THE CHILD'S IS, WHICH IS THIS ARM'S WHOLE
+        // CONTRIBUTION TO THE REPAINT BADGE. Our `tf` is `lookahead_off` plus one
+        // step back: it can never read a bar the base bar is inside. Reporting
+        // forward reach here would brand every multi-timeframe formula
+        // `repaints`; reporting UNKNOWN would make the badge undecidable.
+        // Mirrors `ast_lint.ast_reach`'s `tf` arm.
+        const args = Array.isArray(node.args) ? node.args : []
+        const span = TF_BASE_BARS[String(node.value)]
+        if (args.length !== 1 || span === undefined) {
+          reachOf.set(node, noteUnknown(
+            'a higher-timeframe node carries one child and a timeframe this engine '
+            + `resamples (${Object.keys(TF_BASE_BARS).sort().join(', ')}), got `
+            + `${JSON.stringify(node.value)} over ${args.length}`))
+          break
+        }
+        const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+        const scale = (r) => (typeof r === 'number' ? r : r)
+        reachOf.set(node, {
+          back: typeof child.back === 'number' ? (child.back + 1) * span : scale(child.back),
+          forward: (typeof child.forward === 'number' && child.forward !== 0)
+            ? child.forward * span : child.forward,
+        })
+        break
+      }
+      case 'sym': {
+        // ⭐ A SYMBOL CHANGES *WHICH INSTRUMENT*, NEVER *WHEN*. One benchmark bar
+        // per base bar, so the window passes straight through — no span, no +1,
+        // and no forward reach invented for a node that adds none.
+        const args = Array.isArray(node.args) ? node.args : []
+        if (args.length !== 1) {
+          reachOf.set(node, noteUnknown(
+            `a symbol node carries exactly one child, got ${args.length}`))
+          break
+        }
+        reachOf.set(node, reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN })
         break
       }
       case 'op': {

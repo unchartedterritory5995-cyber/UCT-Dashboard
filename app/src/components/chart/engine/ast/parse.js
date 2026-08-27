@@ -145,7 +145,7 @@ export const SESSION_MAX_BARS = (() => {
  *  walker in both lanes already descends `node.args`, so the child is reached
  *  by machinery that already exists and a walker that forgets `offset` gets the
  *  child's contribution rather than silently dropping the subtree. */
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf'])
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -321,6 +321,10 @@ export const REFUSALS = Object.freeze({
     'there is nothing here to compute',
   'canonicalise:operator':
     'the parser produced a symbol this grammar never declared',
+  'canonicalise:symbol':
+    "a read of another instrument is written `sym('<TICKER>', …)` — the ticker is "
+    + 'a plain quoted symbol, never an expression, so it can never be computed at '
+    + 'runtime',
   'canonicalise:timeframe':
     'a higher-timeframe read is tf(<expression>, \'<TF>\') \u2014 two arguments, the second '
     + 'a quoted timeframe',
@@ -620,6 +624,30 @@ function convert(node) {
         // vocabulary, and the parser's copy would be the one that goes stale.
         return { type: 'tf', value: code.value, args: [convert(args[0])] }
       }
+      // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
+      // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
+      // INSTRUMENT, and both keep their parameter as a FIELD so neither can be
+      // computed at runtime.
+      //
+      // ⚠️ WHICH tickers are legal is NOT asked here. The chart lane serves any
+      // symbol it can fetch; the SCAN lane serves the declared benchmarks and
+      // refuses the rest at `assert_scannable`, naming the list. Two different
+      // questions with two different answers — the parser decides SHAPE only, and
+      // a ticker list copied into this file would be the copy that goes stale.
+      if (node.callee && node.callee.name === 'sym') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:symbol')
+        // ⚠️ THE TICKER COMES FIRST — `sym('SPY', close)` — while `tf` puts its
+        // code LAST. That is not an oversight: it is the order every platform
+        // this engine is read beside uses (`request.security(symbol, tf, expr)`),
+        // and a member arriving from one of them types it that way. The node
+        // shape is identical either way; only the surface differs.
+        const ticker = args[0]
+        if (!ticker || ticker.type !== 'Literal' || typeof ticker.value !== 'string') {
+          return refuse('canonicalise:symbol')
+        }
+        return { type: 'sym', value: ticker.value, args: [convert(args[1])] }
+      }
       return call(node.callee.name, (node.arguments || []).map(convert))
     }
     case 'MemberExpression': {
@@ -747,9 +775,17 @@ const CANONICAL_KEYS = Object.freeze({
   // unbounded and a scan un-terminating; keeping it a field is what keeps the
   // scan lane total.
   tf: ['type', 'value', 'args'],
+  // ⚠️ AND NO `name` HERE EITHER. The TICKER is the node, for the same reason
+  // `tf`'s timeframe is: a shape with no slot for an expression cannot hold one,
+  // so a symbol can never be computed at runtime and the scan lane stays total.
+  sym: ['type', 'value', 'args'],
 })
 
-/** The tree really is one of the four shapes, with exactly its own keys.
+/** The tree really is one of the declared shapes, with exactly its own keys.
+ *
+ *  ⚰️ This said "one of the FOUR shapes" while `CANONICAL_KEYS` above it — the
+ *  thing it describes — declared seven. A hand-typed count beside its own list is
+ *  this repo's most-repeated defect; say what the code derives.
  *
  *  This runs INSIDE `astHash` because the hash is taken of the PERSISTED
  *  artifact — a blob that arrived over a wire or out of a database, not

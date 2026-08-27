@@ -360,8 +360,10 @@ export function yieldsOf(node, rules) {
       const functions = (r && r.functions) || EMPTY
       return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
     }
+    case 'sym':
     case 'tf':
-      // ⭐ A HIGHER-TIMEFRAME READ CHANGES *WHERE FROM*, NEVER *WHAT*. `tf(close >
+      // ⭐ NEITHER CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
+      // comes from and a symbol read changes WHERE — `tf(close >
       // open, 'W')` is still the yes/no it is, read off last week's bar, so the
       // kind passes through from the child — the same rule, and the same
       // failure if it did not: every multi-timeframe condition would be quietly
@@ -984,6 +986,41 @@ function renderTf(node, rules, inputs, depth, path, trace) {
   return `${inner} on the ${word} timeframe`
 }
 
+/** ⭐ A PREFIX, WHERE `renderTf` IS A SUFFIX — and the asymmetry is the point.
+ *  A symbol read changes *WHOSE* value it is, which English puts in front:
+ *  `SPY's (close > open)` reads the way it computes, whereas a trailing
+ *  "… for SPY" would leave the reader holding the whole expression before
+ *  learning it was never about the symbol on screen.
+ *
+ *  ⚠️ THE WORDS ARE THE READER'S CONTRACT. `sentence.test.js` hand-types this
+ *  phrasing into its own independent reader, so a re-phrasing here lands there as
+ *  `0 parses` — loudly — rather than as a reader that quietly moved with it. */
+function renderSym(node, rules, inputs, depth, path, trace) {
+  if (!Array.isArray(node.args) || node.args.length !== 1) {
+    refuse('sentence:arity',
+      `at ${path}: a symbol read has exactly one child column, got `
+      + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
+  }
+  // ⛔ A TICKER IS NOT FREE TEXT IN A SENTENCE A MEMBER IS ASKED TO TRUST. Only
+  // the plain uppercase forms a symbol actually takes are sayable; anything else
+  // refuses rather than being interpolated into English unchecked.
+  const ticker = String(node.value)
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) {
+    // ⚠️ `sentence:unsayable-name`, NOT `sentence:window`. The first draft
+    // reused the window guard, whose published sentence is about a bar count
+    // that is not a whole number — so a member with an odd ticker would have
+    // been told the read-back "cannot spell a window", naming the wrong cause.
+    // A refusal is TWO artifacts and the sentence is the half a member reads
+    // (`lesson_rail_the_sentence_not_just_the_guard`).
+    refuse('sentence:unsayable-name',
+      `at ${path}: ${JSON.stringify(node.value)} is not a symbol this grammar can `
+      + 'say — a ticker is up to ten characters of A-Z, 0-9, dot or dash')
+  }
+  trace.push({ path, rule: 'sym' })
+  const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  return `${ticker}’s ${inner}`
+}
+
 function renderNode(node, rules, inputs, depth, path, trace) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) {
     refuse('sentence:node', `at ${path}: got ${JSON.stringify(node) ?? String(node)}`)
@@ -1002,6 +1039,8 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderOffset(node, rules, inputs, depth, path, trace)
     case 'tf':
       return renderTf(node, rules, inputs, depth, path, trace)
+    case 'sym':
+      return renderSym(node, rules, inputs, depth, path, trace)
     default:
       // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. A catch-all that returned
       // "the value" would produce English for a node type nobody wrote a rule
