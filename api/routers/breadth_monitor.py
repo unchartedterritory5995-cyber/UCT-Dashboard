@@ -422,11 +422,25 @@ def get_breadth_live(force: bool = False,
         # 4pm that no path was ever written. Publishing its health costs nothing
         # and makes that visible from the same payload the surfaces already read.
         payload["store"] = breadth_intraday.health()
+
+        # Ratio-Bars FREEZE: the live-only internals (adv/dec, from-open, on-
+        # volume) exist only in this read, so once the market is not in the
+        # regular session the widget holds the last regular-session (<=16:00 ET)
+        # sample of the most recent session with data — the day's close, kept on
+        # screen until the next 9:30 open.
+        fdate = breadth_intraday.latest_session()
+        payload["internals_frozen"] = (
+            breadth_intraday.session_last(fdate, keys=live.RATIO_INTERNAL_KEYS,
+                                          before_et_minute=16 * 60)
+            if fdate else {}
+        )
+        payload["internals_frozen_date"] = fdate
     except Exception as e:
         # A store that cannot write must still let the live read through.
         print(f"[breadth_monitor] intraday store unavailable: {e}")
         payload["path"], payload["open"] = {}, {}
         payload["store"] = {"ok": False, "last_error": f"{type(e).__name__}: {e}"}
+        payload["internals_frozen"], payload["internals_frozen_date"] = {}, None
 
     return payload
 

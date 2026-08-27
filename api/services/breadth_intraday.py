@@ -27,8 +27,15 @@ import os
 import sqlite3
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:  # pragma: no cover - zoneinfo always present on 3.9+
+    _ET = None
 
 # One sample a minute is finer than the data moves and still only ~390 rows a
 # session. Tighter would be noise; looser would miss the open.
@@ -203,6 +210,66 @@ def session_path(session_date: str, metrics=PATH_METRICS,
             if v is not None:
                 series[k].append([int(r["as_of"]), v])
     return {k: _downsample(v, limit) for k, v in series.items() if v}
+
+
+def _et_minute(as_of: int) -> Optional[int]:
+    """The ET clock minute (hour*60+minute) of a stored sample, or None."""
+    if _ET is None:
+        return None
+    try:
+        d = datetime.fromtimestamp(int(as_of), tz=timezone.utc).astimezone(_ET)
+        return d.hour * 60 + d.minute
+    except Exception:
+        return None
+
+
+def latest_session() -> Optional[str]:
+    """The most recent session_date that has any stored samples.
+
+    This is the FREEZE source for live-only metrics: after the close (and all
+    the way to the next open) it still names today's session, so the last
+    regular-session sample can be held on screen until 9:30 the next day.
+    """
+    try:
+        with _conn() as c:
+            row = c.execute("SELECT MAX(session_date) FROM breadth_intraday").fetchone()
+        return row[0] if row and row[0] else None
+    except Exception as e:
+        print(f"[breadth_intraday] latest_session failed: {e}")
+        return None
+
+
+def session_last(session_date: str, keys=None,
+                 before_et_minute: Optional[int] = None) -> dict:
+    """Values from the LAST sample of a session — the close freeze.
+
+    `before_et_minute` bounds it to samples at/before that ET clock minute
+    (e.g. 16*60 = 16:00), so a post-market sample can never leak into the
+    frozen regular-session close. Restricted to `keys` when given.
+    """
+    if not session_date:
+        return {}
+    try:
+        with _conn() as c:
+            rows = c.execute(
+                "SELECT as_of, metrics FROM breadth_intraday "
+                "WHERE session_date = ? ORDER BY as_of DESC",
+                (session_date,),
+            ).fetchall()
+    except Exception as e:
+        print(f"[breadth_intraday] session_last read failed: {e}")
+        return {}
+    for r in rows:
+        if before_et_minute is not None:
+            em = _et_minute(r["as_of"])
+            if em is not None and em > before_et_minute:
+                continue
+        try:
+            m = json.loads(r["metrics"])
+        except Exception:
+            continue
+        return {k: m[k] for k in keys if k in m} if keys is not None else m
+    return {}
 
 
 def session_open(session_date: str, metrics=PATH_METRICS) -> dict:

@@ -59,12 +59,25 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
+// Rank so the strongest tier is ALWAYS on top: lit rows first, then tier DESC (a
+// T5 print outranks a T2 no matter its sustained RVOL), then the underlying signal
+// strength (eff / RVOL) as the tiebreak. Pending placeholders are kept out of this
+// (appended last by the caller).
+const byTierDesc = (a, b) => {
+  const la = a.lit ? 1 : 0, lb = b.lit ? 1 : 0
+  if (la !== lb) return lb - la
+  const ta = a.tier || 0, tb = b.tier || 0
+  if (ta !== tb) return tb - ta
+  const ea = a.eff ?? a.rvol ?? 0, eb = b.eff ?? b.rvol ?? 0
+  return eb - ea
+}
+
 // Extreme-surge alert: a white triple-pulse the moment the server flags a row as a
 // genuinely SHARP move on big volume (`flash` = big volume AND a sudden range expansion
 // vs the stock's own recent 1–5-min candles — NOT a smooth 45° grind at elevated volume).
-// A heavy-volume name still shades its tier colour + gets the gold igniting pulse; only a
-// big + SHARP move flashes white. Fires only on the transition INTO flash; a row already
-// flashing on first render never re-fires.
+// A heavy-volume name shades its tier colour; ONLY a big + SHARP move flashes white.
+// Fires only on the transition INTO flash; a row already flashing on first render never
+// re-fires.
 function SurgeFlash({ flash }) {
   const wasFlash = useRef(!!flash)
   const [k, setK] = useState(0)
@@ -81,22 +94,18 @@ function SurgeFlash({ flash }) {
 // in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
 // each price tick the row flashes. Clicking charts the ticker.
 function Row({ e, onPick, logos, onContext }) {
-  // "Igniting now" = a fresh volume burst WITH a real move (server flag). A lit
-  // igniter gets a persistent pulse ring, distinct from the one-shot surge flash —
-  // the "this is moving fast RIGHT NOW" cue, on top of its (hotter) tier colour.
-  const igniting = e.lit && e.igniting
   // `pending` = a name just added to a custom list, shown INSTANTLY before its first
   // server reading lands (placeholder row so the add feels immediate).
   const cls = e.pending
     ? styles.unlit
     : e.lit
-      ? `${styles.lit} ${styles['t' + (e.tier || 1)]}${igniting ? ` ${styles.igniting}` : ''}`
+      ? `${styles.lit} ${styles['t' + (e.tier || 1)]}`
       : styles.unlit
   // Description used as an aria-label (NOT title) — a `title` shows a native hover
   // tooltip that obscures the chart; aria-label keeps it accessible with no popup.
   const desc = e.pending
     ? `${e.sym} — added to your list (waiting for the first reading)`
-    : `${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${igniting ? ' · igniting now' : ''}${e.lit ? '' : ' — below criteria'}`
+    : `${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`
   return (
     <button
       type="button"
@@ -107,7 +116,6 @@ function Row({ e, onPick, logos, onContext }) {
       aria-label={desc}
     >
       {!e.pending && <SurgeFlash flash={e.flash} />}
-      {igniting && <span className={styles.ignite} aria-hidden="true" />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
         <span className={styles.sym}>{e.sym}</span>
@@ -227,10 +235,11 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   // instant: keep the server-ranked rows that are still on the list, then append any
   // just-added names as pending placeholders (filled in on the next ~2s poll).
   const displayRows = useMemo(() => {
-    if (!activeList) return rows
+    // Highest tier always on top (see byTierDesc), whatever order the server ranked in.
+    if (!activeList) return [...rows].sort(byTierDesc)
     const want = activeList.syms
     const wantSet = new Set(want)
-    const present = rows.filter(r => wantSet.has(r.sym))
+    const present = rows.filter(r => wantSet.has(r.sym)).sort(byTierDesc)
     const presentSet = new Set(present.map(r => r.sym))
     const pending = want.filter(s => !presentSet.has(s)).map(s => ({ sym: s, rvol: null, lit: false, pending: true }))
     return [...present, ...pending]

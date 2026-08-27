@@ -2092,7 +2092,7 @@ export default function ChartsWorkspace() {
                             title={meta.blurb || WIDGET_LABELS[t]}
                             onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
                           >
-                            <UIcon name={meta.icon} size={14} gold={false} />
+                            <UIcon name={meta.icon} size={14} />
                             <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
                           </button>
                         )

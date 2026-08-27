@@ -40,6 +40,26 @@ def test_a_sample_round_trips_as_a_path(store):
     assert path["breadth_score"][0][0] == 1_000        # oldest first
 
 
+def test_session_last_returns_the_final_sample_and_latest_session(store):
+    # 13:00 ET (17:00 UTC) then 15:59 ET (19:59 UTC) on 2026-08-05.
+    store.record("2026-08-05", {"advancing": 3000, "declining": 1200}, now=1_754_413_200)
+    store.record("2026-08-05", {"advancing": 3200, "declining": 1400}, now=1_754_423_940)
+    assert store.latest_session() == "2026-08-05"
+    last = store.session_last("2026-08-05", keys=("advancing", "declining"))
+    assert last == {"advancing": 3200, "declining": 1400}   # the final sample wins
+
+
+def test_session_last_freezes_at_the_close_ignoring_post_market(store):
+    # 15:59 ET close sample, then a 16:40 ET post-market sample.
+    store.record("2026-08-05", {"advancing": 3200}, now=1_754_423_940)   # 15:59 ET
+    store.record("2026-08-05", {"advancing": 900}, now=1_754_426_400)    # 16:40 ET
+    # Unbounded: the post-market drift wins.
+    assert store.session_last("2026-08-05", keys=("advancing",))["advancing"] == 900
+    # Bounded to <=16:00 ET: the regular-session close is held.
+    frozen = store.session_last("2026-08-05", keys=("advancing",), before_et_minute=16 * 60)
+    assert frozen["advancing"] == 3200
+
+
 def test_diagnostics_are_not_stored_as_metrics(store):
     store.record("2026-08-05", _sample(0), now=1_000)
     assert "_measured" not in store.session_path(

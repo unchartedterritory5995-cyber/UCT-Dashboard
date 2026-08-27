@@ -170,6 +170,14 @@ _LIVE_MIN_MOVE = 0.6         # …AND a real fast move (last ~2 min ≥0.6%); a 
                              # if it's a genuinely SHARP sudden expansion (a vertical candle — INTC)
 _MIN_SPIKE_DOLLAR = 50_000   # ≥ $50k traded in the recent window — drops illiquid "50× of nothing" spikes
 
+# T5 is a MAJOR fast move ON a big volume spike, happening at the SAME instant — not a
+# thin pre-market volume ratio on a name that's barely ticking, and not a name that
+# already ran and is now consolidating (its move has faded). The shown tier is the MIN
+# of the volume-spike tier and this MOVE tier, so BOTH must be high at once. The move is
+# the ~2-min % change (_PRICE_SECS): these are the |move|% floors for T5/T4/T3/T2 (else
+# T1). Tune here after watching it live.
+_MOVE_TIER_PCT = (2.5, 1.5, 0.8, 0.4)
+
 # Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
 # Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
 # cumulative while its last 10 min is ~12×); this tracks the sustained intensity, so a real
@@ -815,13 +823,34 @@ def _rvol_tier(rvol: float) -> int:
     return 1       # Notable (2–3×, or burst-lit)
 
 
+def _move_tier(move_abs: float) -> int:
+    """The tier the CURRENT price move alone would justify — the ~2-min |move|%. A big
+    volume spike with only a tiny move (thin pre-market noise, or a name that already ran
+    and is now flat) must not read Extreme, so this caps the shown tier."""
+    t5, t4, t3, t2 = _MOVE_TIER_PCT
+    if move_abs >= t5:
+        return 5
+    if move_abs >= t4:
+        return 4
+    if move_abs >= t3:
+        return 3
+    if move_abs >= t2:
+        return 2
+    return 1
+
+
 def _tier(m: dict) -> int:
-    """Colour tier by the CURRENT abnormality — the intraday volume SPIKE (vs the stock's own
-    recent volume) + move, via _live_strength (NOT RVOL-vs-previous-days). 5 = Extreme … 1 =
-    Notable. Uses the DECAYED HELD strength, so a flagged name eases down T4→T3→T2→T1 as its
-    volume normalizes rather than blinking out; a name with no current spike reads T1/unlit no
-    matter how much it traded earlier. UCT-palette ramp: faint green → gold → hot red."""
-    return _rvol_tier(_eff(m))
+    """Colour tier by the CURRENT abnormality: the MIN of the intraday volume-SPIKE tier
+    (the DECAYED HELD strength — so a flagged name eases down T4→T3→T2→T1 as its volume
+    normalizes) and the MOVE tier (the ~2-min % move happening NOW). BOTH must be high at
+    once: T5 = a MAJOR fast move on a big volume spike this second, never a thin pre-market
+    volume ratio on a name barely ticking, nor one that already ran and is now consolidating
+    (its move has faded → the tier eases down even while the held spike lingers).
+    5 = Extreme … 1 = Notable. UCT-palette ramp: faint green → gold → hot red."""
+    spike_tier = _rvol_tier(_eff(m))
+    if spike_tier <= 1:
+        return spike_tier
+    return min(spike_tier, _move_tier(abs(m.get("move") or 0.0)))
 
 
 def status() -> dict:
