@@ -35,7 +35,7 @@ METRICS = [
     {"key": "gap",        "label": "Gap %",            "group": "Today",  "unit": "pct",    "live": True},
     {"key": "from_open",  "label": "% From Open",      "group": "Today",  "unit": "pct",    "live": True},
     {"key": "range_pos",  "label": "Day Range Pos %",  "group": "Today",  "unit": "pct0",   "live": True},
-    {"key": "rvol",       "label": "RVOL (today)",     "group": "Today",  "unit": "x",      "live": True},
+    {"key": "rvol",       "label": "Run Rate",         "group": "Today",  "unit": "x",      "live": True},
     {"key": "price",      "label": "Price",            "group": "Today",  "unit": "usd",    "live": True},
     {"key": "dvol_today", "label": "$ Volume Today",   "group": "Today",  "unit": "usd_big","live": True},
     {"key": "vol_today",  "label": "Volume Today",     "group": "Today",  "unit": "big",    "live": True},
@@ -86,28 +86,106 @@ def metric_catalog() -> list:
     return METRICS
 
 
-# ── Live whole-market snapshot (cached, shared across widget polls) ─────────────
+# ── Session-aware whole-market snapshot ─────────────────────────────────────────
+# The Market Map is a REGULAR-SESSION view: it uses the regular-session price
+# (day.c) — NEVER the ext-hours last trade — so it is not moved by pre/post-market
+# prints, it FREEZES at the 4pm close, and it holds that close until the next 9:30
+# open. Mechanism: during RTH we fetch fresh regular-session data and keep it as the
+# `_rth_freeze`; outside RTH we serve the freeze (today's close after 4pm; yesterday's
+# close overnight/pre-market), so nothing changes until 9:30 the next day.
 _snap_lock = threading.Lock()
 _snap_cache: dict = {"at": 0.0, "data": None}
+_rth_freeze: dict = {"session_date": None, "data": None}
 _SNAP_TTL = 2.5   # a couple seconds — the whole-market call is one request
+
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:  # pragma: no cover
+    _ET = None
+
+
+def _et_now():
+    from datetime import datetime, timezone
+    d = datetime.now(timezone.utc)
+    return d.astimezone(_ET) if _ET else d
+
+
+def _is_rth(now=None) -> bool:
+    """Regular session, 9:30–16:00 ET on a real trading day (holiday-aware when the
+    liveness helper is available, else a weekday clock check)."""
+    try:
+        from api.services.bars_liveness import is_market_open
+        return bool(is_market_open())
+    except Exception:
+        n = now or _et_now()
+        hm = n.hour * 100 + n.minute
+        return n.weekday() < 5 and 930 <= hm < 1600
+
+
+def _cumfrac_now() -> float:
+    """Expected fraction of a full regular session's volume elapsed by now — so a
+    RUN RATE projects to full-day (a name trading at 2× its normal pace reads ~2×
+    regardless of the time of day). 1.0 when the session is over (the frozen close
+    already holds the full day), clamped to a floor so the open doesn't blow up."""
+    if not _is_rth():
+        return 1.0
+    try:
+        from api.services.volume_live import _cumfrac
+        cf = float(_cumfrac(_et_now()))
+        return min(1.0, max(0.08, cf))
+    except Exception:
+        return 1.0
+
+
+def _fetch_regular_snapshot() -> dict:
+    """The whole market as REGULAR-SESSION values (day.c price, day.v volume) — the
+    ext-hours last trade is deliberately ignored. Keyed by PROVIDER ticker."""
+    try:
+        from api.services.massive import _get_client
+        raw = _get_client().get_full_market_snapshot_hl() or {}
+    except Exception:
+        return {}
+    out = {}
+    for t, d in raw.items():
+        day_c = d.get("day_c") or 0.0            # regular-session last / 4pm close (frozen after close)
+        prev = d.get("prev_close") or 0.0
+        price = day_c if day_c and day_c > 0 else prev   # pre-open: no regular trade yet → prior close
+        out[t] = {
+            "last_price": round(float(price), 4),
+            "prev_close": round(float(prev), 4),
+            "today_vol": int(d.get("today_vol") or 0),   # day.v — regular-session volume
+            "day_open": d.get("day_open"),
+            "day_high": d.get("day_high"),
+            "day_low": d.get("day_low"),
+        }
+    return out
 
 
 def _full_snapshot() -> dict:
-    """Whole US-market snapshot, memoized ~2.5s so N concurrent widgets share one
-    provider call. Keyed by PROVIDER ticker (e.g. BRK.B), not the app ticker."""
+    """Regular-session whole-market snapshot, memoized ~2.5s. During RTH it tracks the
+    live regular session AND updates the freeze; outside RTH it returns the frozen
+    last-RTH snapshot (so the map holds the 4pm close until the next 9:30 open)."""
     now = time.time()
     with _snap_lock:
         if _snap_cache["data"] is not None and now - _snap_cache["at"] < _SNAP_TTL:
             return _snap_cache["data"]
-    try:
-        from api.services.massive import _get_client
-        data = _get_client().get_full_market_snapshot() or {}
-    except Exception:
-        data = {}
+        frozen = _rth_freeze["data"]
+    rth = _is_rth()
+    # Market closed + we already hold a frozen session → serve it, no re-fetch.
+    if not rth and frozen is not None:
+        with _snap_lock:
+            _snap_cache["data"] = frozen
+            _snap_cache["at"] = now
+        return frozen
+    reg = _fetch_regular_snapshot()
     with _snap_lock:
-        _snap_cache["data"] = data
+        _snap_cache["data"] = reg
         _snap_cache["at"] = now
-    return data
+        if rth and reg:
+            _rth_freeze["session_date"] = _et_now().date().isoformat()
+            _rth_freeze["data"] = reg
+    return reg
 
 
 def _prov(sym: str) -> str:
@@ -119,9 +197,11 @@ def _prov(sym: str) -> str:
         return sym
 
 
-def _live_fields(s: dict, avg_vol) -> dict:
-    """The intraday metrics + direction from one snapshot row. Missing values are
-    simply omitted (a name with no print yet plots on whatever daily axes it has)."""
+def _live_fields(s: dict, avg_vol, cumfrac: float = 1.0) -> dict:
+    """The intraday metrics + direction from one regular-session snapshot row. RVOL is
+    a RUN RATE: `(today_vol / cumfrac) / avg_vol` projects to full-day during RTH, and
+    since `cumfrac` is 1.0 once the session is over it becomes the true full-day RVOL,
+    frozen. Missing values are simply omitted."""
     out: dict = {}
     if not s:
         return out
@@ -145,7 +225,7 @@ def _live_fields(s: dict, avg_vol) -> dict:
         if last > 0:
             out["dvol_today"] = round(tv * last)
         if avg_vol and avg_vol > 0:
-            out["rvol"] = round(tv / avg_vol, 2)
+            out["rvol"] = round((tv / max(cumfrac, 0.08)) / avg_vol, 2)
     out["dir"] = "up" if out.get("chg_today", 0.0) >= 0 else "down"
     return out
 
@@ -202,6 +282,7 @@ def bundle(tickers: list) -> dict:
     except Exception:
         rs = {}
     snap = _full_snapshot()
+    cf = _cumfrac_now()
 
     out = []
     for sym in tickers:
@@ -221,8 +302,8 @@ def bundle(tickers: list) -> dict:
             rs_rank = _num(r.get("rs_rank"))
         if rs_rank is not None:
             m["rs_rank"] = int(rs_rank)
-        # live metrics from the market snapshot
-        live = _live_fields(snap.get(_prov(sym)), r.get("avg_volume_30d"))
+        # live metrics from the (regular-session) market snapshot
+        live = _live_fields(snap.get(_prov(sym)), r.get("avg_volume_30d"), cf)
         direction = live.pop("dir", None)
         m.update({k: v for k, v in live.items() if v is not None})
         out.append({
@@ -233,7 +314,8 @@ def bundle(tickers: list) -> dict:
             "dir": direction or "flat",
             "m": m,
         })
-    return {"asof": _snap_cache.get("at") or None, "count": len(out), "tickers": out}
+    return {"asof": _snap_cache.get("at") or None, "count": len(out),
+            "cumfrac": round(cf, 4), "rth": _is_rth(), "tickers": out}
 
 
 # ── Universe resolution ────────────────────────────────────────────────────────

@@ -76,4 +76,5 @@ def scatter_live(req: _LiveReq, _user: dict = Depends(require_paid)):
     tickers = [t for t in (req.tickers or []) if t][: scatter._MAX_TICKERS]
     points = scatter.live_overlay(tickers)
     return JSONResponse(content={"asof": scatter._snap_cache.get("at") or None,
-                                 "points": points})
+                                 "cumfrac": round(scatter._cumfrac_now(), 4),
+                                 "rth": scatter._is_rth(), "points": points})

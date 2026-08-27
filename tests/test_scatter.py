@@ -39,7 +39,27 @@ def test_live_fields_are_omitted_when_absent_pre_open():
     assert "chg_today" not in f and "price" not in f and "rvol" not in f
 
 
+def test_run_rate_projects_by_cumfrac_and_freezes_at_full_day():
+    s = {"last_price": 50.0, "prev_close": 50.0, "today_vol": 500_000}
+    # Half the session elapsed (cumfrac 0.5) → a name at 500k on a 1M-avg name is on
+    # pace for 1M → run rate ~1.0×, not 0.5×.
+    assert scatter._live_fields(s, avg_vol=1_000_000, cumfrac=0.5)["rvol"] == 1.0
+    # Session over (cumfrac 1.0) → the true full-day RVOL, frozen.
+    assert scatter._live_fields(s, avg_vol=1_000_000, cumfrac=1.0)["rvol"] == 0.5
+
+
+def test_snapshot_freezes_to_the_last_rth_capture_when_market_closed(monkeypatch):
+    frozen = {"AAA": {"last_price": 10.0, "prev_close": 9.0, "today_vol": 5}}
+    monkeypatch.setattr(scatter, "_is_rth", lambda *a: False)
+    monkeypatch.setattr(scatter, "_rth_freeze", {"session_date": "2026-08-27", "data": frozen})
+    monkeypatch.setattr(scatter, "_snap_cache", {"at": 0.0, "data": None})
+    # Must NOT hit the provider — it serves the freeze.
+    monkeypatch.setattr(scatter, "_fetch_regular_snapshot", lambda: (_ for _ in ()).throw(AssertionError("fetched while closed")))
+    assert scatter._full_snapshot() is frozen
+
+
 def test_bundle_merges_daily_screener_live_snapshot_and_rs(monkeypatch):
+    monkeypatch.setattr(scatter, "_cumfrac_now", lambda: 1.0)   # pin the run-rate to full-day
     monkeypatch.setattr("api.services.screener.snapshot_db.get_rows", lambda tks: {
         "AAPL": {"company": "Apple", "sector": "Technology", "industry": "Consumer El.",
                  "avg_volume_30d": 1_000_000, "market_cap": 3.0e12, "pe_ttm": 30.0,

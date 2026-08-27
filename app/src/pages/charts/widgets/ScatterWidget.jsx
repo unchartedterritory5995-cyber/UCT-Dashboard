@@ -126,7 +126,7 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
 
 // Grid margins — the plot rect's insets. containLabel:false so WE own the left
 // gutter (the rotated Y-title lives there); the axis numbers render inside it.
-const GRID_M = { left: 54, right: 16, top: 14, bottom: 38 }
+const GRID_M = { left: 54, right: 16, top: 14, bottom: 50 }
 
 function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, upFaint, dnFaint }) {
   const data = plot.map(p => ({
@@ -270,8 +270,12 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   const baseTickers = useMemo(() => (data?.tickers || []).map(t => t.sym), [data])
   const tickersKey = baseTickers.join(',')
 
-  // ── Live overlay — fast poll so the dots glide (POST the known ticker set) ──
+  // ── Live overlay — fast poll so the dots glide (POST the known ticker set).
+  // The server serves a REGULAR-SESSION snapshot that freezes at 4pm, so off-hours
+  // this just re-reads the frozen close; we back the cadence off when it's closed. ──
   const [live, setLive] = useState({})
+  const [liveCf, setLiveCf] = useState(1)
+  const rth = data?.rth !== false
   useEffect(() => {
     if (!baseTickers.length) { setLive({}); return undefined }
     let alive = true
@@ -284,21 +288,24 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
           body: JSON.stringify({ tickers: baseTickers }),
         })
         const j = r.ok ? await r.json() : null
-        if (alive && j?.points) setLive(j.points)
+        if (alive && j?.points) { setLive(j.points); if (typeof j.cumfrac === 'number') setLiveCf(j.cumfrac) }
       } catch { /* keep last */ }
     }
     poll()
-    const id = setInterval(poll, 5000)
+    const id = setInterval(poll, rth ? 5000 : 30000)
     return () => { alive = false; clearInterval(id) }
-  }, [tickersKey])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tickersKey, rth])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Merge daily + live, then project onto the chosen X / Y / Size ──
+  // ── Merge daily + live, then project onto the chosen X / Y / Size. RVOL is a
+  // run rate: (today_vol / cumfrac) / avg_vol, so it projects to full-day intraday
+  // and is the frozen full-day RVOL once cumfrac hits 1.0 at the close. ──
+  const cf = Math.max(liveCf || data?.cumfrac || 1, 0.08)
   const points = useMemo(() => (data?.tickers || []).map(p => {
     const lv = live[p.sym]
     const m = lv ? { ...p.m, ...lv } : p.m
-    if (lv && lv.vol_today != null && p.m.avg_vol_30d) m.rvol = +(lv.vol_today / p.m.avg_vol_30d).toFixed(2)
+    if (lv && lv.vol_today != null && p.m.avg_vol_30d) m.rvol = +((lv.vol_today / cf) / p.m.avg_vol_30d).toFixed(2)
     return { sym: p.sym, dir: (lv && lv.dir) || p.dir, m }
-  }), [data, live])
+  }), [data, live, cf])
 
   const plot = useMemo(() => {
     const out = []
@@ -330,12 +337,23 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   // ── ECharts instance: resize with the cell, click a point → color group ──
   const chartRef = useRef(null)
   const wrapRef = useRef(null)
+  // Observe the ALWAYS-MOUNTED root (not the chart wrapper, which doesn't exist
+  // until data loads — the effect would attach to null and never fire, so the
+  // chart only resized on drag-release). rAF-batch → one resize per frame, so the
+  // scatter tracks a live border-drag smoothly. animation:0 = instant reflow.
   useEffect(() => {
-    const el = wrapRef.current
+    const el = rootRef.current
     if (!el || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(() => { try { chartRef.current?.getEchartsInstance?.().resize() } catch { /* not ready */ } })
+    let raf = 0
+    const ro = new ResizeObserver(() => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        try { chartRef.current?.getEchartsInstance?.().resize({ animation: { duration: 0 } }) } catch { /* not ready */ }
+      })
+    })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => { if (raf) cancelAnimationFrame(raf); ro.disconnect() }
   }, [])
   const onPoint = useCallback((p) => {
     const sym = p?.value?.[3] || p?.name

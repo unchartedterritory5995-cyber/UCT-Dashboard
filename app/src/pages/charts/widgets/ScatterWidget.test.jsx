@@ -11,7 +11,7 @@ vi.mock('echarts-for-react', () => ({
 // The widget calls useMobileSWR three times (metrics / universes / data); branch on url.
 const METRICS = [
   { key: 'chg_today', label: '% Change Today', group: 'Today', unit: 'pct', live: true },
-  { key: 'rvol', label: 'RVOL (today)', group: 'Today', unit: 'x', live: true },
+  { key: 'rvol', label: 'Run Rate', group: 'Today', unit: 'x', live: true },
   { key: 'rs_rank', label: 'RS Rating', group: 'Momentum', unit: 'num', live: false },
 ]
 const UNIVERSES = { groups: [{ group: 'Indices', items: [{ source: 'index', value: 'sp500', label: 'S&P 500' }] }] }
@@ -51,7 +51,7 @@ describe('ScatterWidget', () => {
 
   it('labels the axes from the chosen metrics (default RVOL vs % Change)', () => {
     render(<ScatterWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByText('RVOL (today)')).toBeInTheDocument()      // X (default rvol)
+    expect(screen.getByText('Run Rate')).toBeInTheDocument()      // X (default rvol)
     expect(screen.getByText('% Change Today')).toBeInTheDocument()    // Y (default chg_today)
   })
 
