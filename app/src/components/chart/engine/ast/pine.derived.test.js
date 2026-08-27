@@ -27,6 +27,12 @@ const treeOf = (expr) => {
   return out.ast
 }
 
+/** The canonical tree, or null when the translator refuses. ⛔ A HELPER, not a
+ *  try/catch inlined at each call site: the sweep below asks this question 57
+ *  times and a per-site catch is how one of them quietly starts swallowing a
+ *  different error. */
+const treeOfOrNull = (expr) => { try { return treeOf(expr) } catch { return null } }
+
 const refusalOf = (expr) => {
   const r = translatePine(script(expr))
   return (r.outputs || []).map((o) => o.refusal).find(Boolean) || r.refusal || null
@@ -105,6 +111,122 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     for (const expr of ['ta.cum(volume)', 'ta.barssince(close > open)']) {
       expect(() => treeOf(expr)).toThrow(/refused/)
     }
+  })
+
+  // ═══════════════════════════════════════════════════════════════════════ //
+  // ⛔⛔ THE DOOR THAT **OPENS**
+  // ═══════════════════════════════════════════════════════════════════════ //
+  //
+  // 🔴 THE MECHANISM, AND IT IS THE GENERAL HAZARD: `resolveTableCall` resolves a
+  // Pine call by BARE-NAME COLLISION with `closedTable.json`. So declaring a table
+  // entry OPENS A PINE DOOR IN A FILE NOBODY EDITED. W2a.5 declared `highestbars`
+  // and `lowestbars`; `ta.highestbars(high, 5)` immediately translated green — and
+  // Pine's offsets are NON-POSITIVE while ours are the positive distance, so a
+  // member pasting real Pine got a SIGN-FLIPPED column: plausible on every bar,
+  // wrong on every bar, no refusal, nothing red.
+  //
+  // ⛔ THE `PINE_INEXPRESSIBLE ∩ TABLE.functions` RAIL BELOW CANNOT SEE THIS. It
+  // covers the direction that CLOSES a door (a refusal that stopped firing). An
+  // opening door is a name that was refused yesterday and resolves today, and only
+  // a sweep over the whole table can notice it.
+  //
+  // ⭐ SO THE SUBJECT IS EVERY DECLARED FUNCTION, and the assertion is a SET
+  // EQUALITY in both directions: a name that starts resolving lands red as an
+  // unvetted door, and a name that stops resolving lands red as a lost mapping.
+  const TA_VETTED = Object.freeze({
+    // — Pine spells these the same and MEANS the same. Ordinary reductions and
+    //   pointwise math; no sign, no offset, no unit to get wrong.
+    sma: 'ta.sma — same window mean', ema: 'ta.ema — same smoother',
+    rma: 'ta.rma — Wilder, same', wma: 'ta.wma — same weighting',
+    stdev: 'ta.stdev — same population divisor', dev: 'ta.dev — Pine ta.dev IS mean-absolute',
+    sum: 'ta.sum — same window sum', change: 'ta.change(src) 1-arg — the n-arg form is refused by arity',
+    highest: 'ta.highest — a VALUE, so no offset convention to disagree about',
+    lowest: 'ta.lowest — a VALUE, likewise',
+    rsi: 'ta.rsi — same', macd: 'ta.macd — line only, shape-mapped',
+    stoch: 'ta.stoch — %K, shape-mapped', crossOver: 'ta.crossover — same event',
+    crossUnder: 'ta.crossunder — same event',
+    vwap: 'ta.vwap — session accumulator', avwap: 'ta.vwap(anchor) — shape-mapped',
+    // — NOT `ta.` NAMES IN PINE AT ALL (they live in `math.*`), so `ta.x` is a
+    //   spelling no real script contains. Resolving is harmless; refusing them
+    //   would be inventing a rule about a name Pine does not have.
+    abs: 'math.abs', sqrt: 'math.sqrt', ln: 'math.log', log10: 'math.log10',
+    exp: 'math.exp', sign: 'math.sign', round: 'math.round',
+    min: 'math.min', max: 'math.max',
+    sin: 'math.sin', cos: 'math.cos', tan: 'math.tan', atan: 'math.atan',
+    sinh: 'math.sinh',
+    na: 'na() is a Pine builtin, not ta.na',
+    // — OURS ALONE. Pine has `ta.obv` (unbounded, refused — not in this table);
+    //   `ta.obvN` is not a Pine name, so nothing can be mistranslated onto it.
+    obvN: 'no Pine name collides — ta.obv is the unbounded one and stays refused',
+  })
+
+  it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {
+    const ARG = { series: 'close', int: '5' }
+    const open = []
+    for (const [name, spec] of Object.entries(TABLE.functions)) {
+      const args = (spec.args || []).map((k) => ARG[k]).join(', ')
+      if (treeOfOrNull(`ta.${name}(${args})`)) open.push(name)
+    }
+    open.sort()
+    const vetted = Object.keys(TA_VETTED).sort()
+
+    const opened = open.filter((n) => !TA_VETTED[n])
+    expect(opened.join(', '), 'a NEW `ta.` door opened by a manifest entry. Pine '
+      + 'resolves by BARE-NAME COLLISION, so declaring a name in closedTable.json '
+      + 'makes `ta.<name>` translate in a file you never edited. Before adding it '
+      + 'to TA_VETTED, check Pine\'s published definition — units, SIGN, and '
+      + 'argument order. `ta.highestbars` shipped green with the sign inverted.')
+      .toBe('')
+
+    const closed = vetted.filter((n) => !open.includes(n))
+    expect(closed.join(', '), 'a `ta.` mapping that used to work stopped. If that '
+      + 'is deliberate (a new refusal), delete the name from TA_VETTED in the same '
+      + 'commit — a vetted list that no longer matches is not a rail.')
+      .toBe('')
+
+    // NON-VACUITY: the sweep really exercised the table and really saw doors.
+    expect(Object.keys(TABLE.functions).length).toBeGreaterThanOrEqual(50)
+    expect(open.length).toBeGreaterThanOrEqual(30)
+  })
+
+  it('⛔ …and the two SIGN-FLIP doors are REFUSED, with an ACTIONABLE reason', () => {
+    // ⭐ THE REFUSAL MUST NAME WHAT WOULD UNBLOCK IT. "Unmappable" is what let a
+    // false refusal hide for a whole task elsewhere in this wave — an unactionable
+    // refusal is never revisited because nobody knows what would change it.
+    for (const [expr, ours] of [['ta.highestbars(high, 5)', 'highestbars'],
+                                ['ta.lowestbars(low, 5)', 'lowestbars']]) {
+      const r = refusalOf(expr)
+      expect(r, `${expr} still translates — that is a sign-flipped column`).toBeTruthy()
+      expect(r.guard).toBe('pine:function')
+      // the DEFECT, named
+      expect(r.message).toMatch(/non-positive/i)
+      expect(r.message).toMatch(/sign-flipped|negation/i)
+      // the two COUNTABLE things that would unblock it
+      expect(r.message).toMatch(/cite the Pine reference/i)
+      expect(r.message).toMatch(/apply `-`/i)
+      // …and what to write meanwhile — which MUST be a spelling this door accepts.
+      expect(r.message).toContain(`${ours}(source, n)`)
+      expect(treeOfOrNull(`${ours}(high, 5)`),
+        `the refusal recommends \`${ours}(source, n)\` and the same door rejects it`)
+        .toBeTruthy()
+    }
+  })
+
+  it('⛔ A BARE table name still RESOLVES — the refusal must not reject its own advice', () => {
+    // ⚰️ THE MEASURED REGRESSION. Dropping the `!key` gate to restore
+    // `ta.barssince`'s named reason ALSO refused the bare spelling, so
+    // `plot(barssince(close > open, 10))` was rejected by a message ending
+    // *"Write `barssince(condition, n)`"*. A signpost pointing at a locked door.
+    for (const expr of ['barssince(close > open, 10)', 'highestbars(high, 5)',
+                        'lowestbars(low, 5)']) {
+      expect(treeOfOrNull(expr), `${expr} is OUR vocabulary and must resolve`).toBeTruthy()
+    }
+    // …while a bare name the table does NOT declare keeps its named reason rather
+    // than falling through to the generic "this table declares abs, accum, …" list.
+    const r = refusalOf('cum(volume)')
+    expect(r).toBeTruthy()
+    expect(r.message).toMatch(/running total/i)
+    expect(r.message).toMatch(/sum\(source, n\)/)
   })
 
   it('⛔⛔ …AND A TABLE ENTRY OF THE SAME SPELLING DOES NOT LET ONE THROUGH', () => {

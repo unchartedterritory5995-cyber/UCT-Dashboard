@@ -12,9 +12,15 @@ before:
      not. Two hand-written lanes will each pick one, both will look obviously
      right, and **a corpus is blind to it unless a fixture happens to contain a
      tie** (`lesson_a_corpus_is_blind_beside_what_it_measures`: zero drift across
-     24 fixtures coexisted with two live mistranslations). So the rule is
-     DECLARED in `closedTable.json` and measured here over a CONSTRUCTED tie, in
-     BOTH lanes, rather than left to whichever series the corpus happens to hold.
+     24 fixtures coexisted with two live mistranslations). ⚰️ THAT IS THE CLASS,
+     AND IT IS NOT TRUE OF **THIS** CORPUS — the 579-bar series holds **56**
+     tied `high` windows and **36** tied `low` ones at n=5, every one of them
+     separating the two conventions, so the frozen digests catch a flip too.
+     `test_the_corpus_DOES_see_the_tie_break_and_here_is_how_much_of_it` asserts
+     those counts. The rule is DECLARED in `closedTable.json` and measured here
+     over a CONSTRUCTED tie in BOTH lanes anyway, because a real series cannot
+     contain a TOTAL tie and a cross-lane equality cannot catch two lanes that
+     are wrong together.
 
   2. ⛔ **THE LEFT EDGE.** All five answer a window, so a bar whose window runs
      off the start of the FETCH is NOT COMPUTABLE — never a sentinel, never a
@@ -373,6 +379,43 @@ def test_a_TOTAL_tie_reads_zero_in_both_lanes_and_that_is_the_flat_series_case()
     assert js[4:20] == [0] * 16
 
 
+# ─────────────────────────────────────────────────────────────────────────── #
+# ⛔⛔ AN **INTERIOR** HOLE — a three-state condition, fully controlled
+# ─────────────────────────────────────────────────────────────────────────── #
+#
+# 🔴 THE MEASURED REASON THIS EXISTS, AND IT IS THE SAME BLINDNESS TWICE IN ONE
+# TASK. Every hole this file had was a LEADING PREFIX (a warm-up that has not
+# filled yet), and `run` is already 0 there — so the branch that RESETS it on a
+# NOT-COMPUTABLE bar could be deleted with **0 differing bars** and every rail
+# stayed green. That is exactly the shape this same file names for `valuewhen`
+# ("its holes are INTERIOR, not just a prefix") and then failed to carry.
+#
+# ⭐ `!(sqrt(close - open))` IS A THREE-STATE SWITCH, driven by one number I set
+# per bar — the cheapest way to put a hole wherever I want it:
+#
+#     close - open ==  0  ->  sqrt 0   -> !0   -> 1.0   TRUE
+#     close - open == +1  ->  sqrt 1   -> !1   -> 0.0   FALSE
+#     close - open == -1  ->  sqrt(-1) -> NaN  -> NaN   NOT COMPUTABLE
+#
+# ⛔ `sqrt` OF A NEGATIVE AND `!` ARE BOTH LOAD-BEARING. A comparison could not
+# build this: `_cmp` turns NaN into 0.0 (X23), so `sqrt(...) > 0` is a column of
+# confident FALSE with no hole in it at all. `!` is one of the few operators that
+# PROPAGATES NaN, which is what carries the hole into the condition.
+def _hole_rows():
+    rows = []
+    for i in range(260):
+        b = i % 40
+        # 0..19 fire every 5th bar · 20..27 an 8-bar HOLE · 28..39 a FALSE drought
+        d = (0.0 if b % 5 == 0 else 1.0) if b < 20 else (-1.0 if b < 28 else 1.0)
+        o, c = 100.0, 100.0 + d
+        rows.append((o, max(o, c) + 0.5, min(o, c) - 0.5, c, 1000 + i))
+    return rows
+
+
+HOLE_BARS = mk_bars(_hole_rows())
+HOLE_COND = OP("!", CALL("sqrt", OP("-", SER("close"), SER("open"))))
+
+
 #: ⭐ THE DECLARED NUMBERS, ONE PER RULING, ASSERTED IN **EACH LANE SEPARATELY**.
 #:
 #: 🔴 A MEASURED SWEEP SURVIVOR IS WHY THIS EXISTS. Making `interpret.js`'s
@@ -416,13 +459,15 @@ JS_RULINGS = [
      CALL("obvN", NUM(5)), "FLAT",
      [(4, None), (5, 0.0), (259, 0.0)],
      "a flat series answering anything but zero"),
-    # 🔴 A SECOND MEASURED SURVIVOR, AND THE ONE THE FIRST PASS OF THIS LIST
-    # MISSED. Deleting `run = 0` from `interpret.js`'s NaN branch — so a
-    # NOT-COMPUTABLE condition bar stops RESETTING the readable run — left every
-    # row above green, because `close > open` is finite on every bar of both
-    # fixtures and neither can contain a hole. The condition below is a CROSSING,
-    # the only 0/1 shape in this table that carries NaN, and under that mutation
-    # the sentinel arrives at bar 9 instead of bar 39.
+    # ⚰️ THESE TWO ROWS ARE KEPT, AND THE SENTENCE THAT USED TO SIT HERE WAS
+    # FALSE. It read: *"under that mutation the sentinel arrives at bar 9 instead
+    # of bar 39."* Measured against the mutation it names — DELETING `run = 0`, so
+    # `run` is FROZEN rather than incremented, across a hole — the answer is **0
+    # differing bars on both rows**. Both holes are a LEADING PREFIX, where `run`
+    # is already 0, so freezing it changes nothing; the rows are structurally
+    # blind to the branch they were added to cover. They still earn their place —
+    # they pin the sentinel's arrival and the resume — but the branch is covered
+    # by the INTERIOR-hole fixture below, and by that one alone.
     ("js_barssince_withholds_the_sentinel_across_a_hole",
      CALL("barssince",
           CALL("crossOver", SER("close"), CALL("sma", SER("close"), NUM(30))),
@@ -435,6 +480,23 @@ JS_RULINGS = [
           NUM(10)), "BARS",
      [(0, None), (2, None), (3, 0), (4, 1), (5, 2), (6, 0)],
      "a hole latching the column blank forever"),
+    # ⛔⛔ THE INTERIOR HOLE — the row that actually covers `run = 0`.
+    ("js_barssince_across_an_INTERIOR_hole", CALL("barssince", HOLE_COND, NUM(10)),
+     "HOLE",
+     [(0, 0), (4, 4), (19, 4), (20, None), (27, None),
+      (28, None), (36, None), (37, 10), (39, 10), (40, 0)],
+     "a sentinel counted across bars the engine could not read"),
+    # ⚰️ BARS 28 AND 32 ARE HERE BECAUSE THIS ROW SURVIVED A MUTATION WITHOUT
+    # THEM. Deleting `held = NaN` from the JS NaN branch leaves the carry alive
+    # across the hole, and the bars where that SHOWS are exactly the ones just
+    # after it closes, while `since` is still under the window (28..32). Bars 20,
+    # 37 and 40 all read identically with the reset deleted — a sampled column
+    # tests the bars you happened to pick, so pick the ones that separate.
+    ("js_valuewhen_across_an_INTERIOR_hole",
+     CALL("valuewhen", HOLE_COND, SER("volume"), NUM(10)), "HOLE",
+     [(0, 1000.0), (4, 1000.0), (19, 1015.0), (20, None),
+      (28, None), (32, None), (37, None), (40, 1040.0)],
+     "a carried value surviving a hole it should not cross"),
 ]
 
 
@@ -443,8 +505,14 @@ def test_every_bounded_state_RULING_holds_in_the_JS_lane_on_its_own():
     """⛔ NOT A CROSS-LANE EQUALITY. Two lanes that are wrong together agree
     perfectly; this asserts the DECLARED number against `interpret.js` alone, so a
     mutation in one lane cannot hide behind the other."""
-    fixtures = {"BARS": BARS, "FLAT": FLAT}
-    for which in ("BARS", "FLAT"):
+    # ⛔ THE NON-VACUITY FLOOR IS PER FIXTURE, AND LOWERING THE SHARED ONE WOULD
+    # HAVE BEEN THE WRONG FIX. `HOLE_BARS` is ~18% NOT COMPUTABLE by construction
+    # (an 8-bar hole every 40) plus a 12-bar false drought per block, so it cannot
+    # meet 200 — measured 158 / 140. Dropping the global floor to fit it would
+    # weaken `BARS` and `FLAT`, where 200 is the real bar.
+    floors = {"BARS": 200, "FLAT": 200, "HOLE": 120}
+    fixtures = {"BARS": BARS, "FLAT": FLAT, "HOLE": HOLE_BARS}
+    for which in ("BARS", "FLAT", "HOLE"):
         cases = [{"id": r[0], "ast": r[1]} for r in JS_RULINGS if r[2] == which]
         cols = ac.run_js(cases, fixtures[which])
         for cid, _ast, _b, wants, wrong in (r for r in JS_RULINGS if r[2] == which):
@@ -457,7 +525,7 @@ def test_every_bounded_state_RULING_holds_in_the_JS_lane_on_its_own():
                 else:
                     assert got == pytest.approx(want), (cid, i, got, want, wrong)
             # NON-VACUITY per row: a column of nulls satisfies every `None` above.
-            assert sum(1 for v in col if v is not None) > 200, (cid, wrong)
+            assert sum(1 for v in col if v is not None) > floors[which], (cid, wrong)
 
 
 def test_the_tie_fixture_really_CONTAINS_a_tie_so_the_cases_above_are_not_vacuous():
@@ -538,6 +606,66 @@ def test_the_corpus_DOES_see_the_tie_break_and_here_is_how_much_of_it():
     assert flat == 0, flat
 
 
+def test_NO_COPY_OF_THE_RETRACTED_CORPUS_BLINDNESS_CLAIM_SURVIVES():
+    """⛔⛔ THE PROPAGATION IS THE DEFECT, NOT THE SENTENCE.
+
+    ⚰️ *"The committed 579-bar corpus contains none"* was written once and MIRRORED:
+    the manifest note, `ast_interpret._window_arg_extreme`, its byte-parallel JS
+    twin, and this file's own module docstring. Correcting one left three, and
+    **two agreeing copies read as corroboration — four read as certainty.** The
+    first fix round corrected the manifest and shipped the other three.
+
+    ⭐ SO THE SUBJECT IS THE SENTENCE, SWEPT OVER EVERY LANE IT COULD HAVE BEEN
+    MIRRORED INTO — not the one file somebody remembers. A retraction that has to
+    be repeated by hand in four places is a retraction that will be incomplete
+    again; this is what makes the fifth copy fail on arrival.
+    """
+    claim = re.compile(
+        r"corpus\s+contains\s+none"
+        r"|contains\s+no\s+tie"
+        r"|corpus\s+(?:is\s+)?(?:structurally\s+)?blind\s+to\s+(?:the\s+)?tie",
+        re.IGNORECASE)
+    roots = [ROOT / "api" / "services", ROOT / "app" / "src" / "components" / "chart",
+             ROOT / "tools", ROOT / "tests"]
+    scanned = 0
+    offenders = []
+    for root in roots:
+        for path in root.rglob("*"):
+            if path.suffix not in (".py", ".js", ".json") or "node_modules" in path.parts:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            scanned += 1
+            lines = text.splitlines()
+            for lineno, line in enumerate(lines, 1):
+                if not claim.search(line):
+                    continue
+                # ⛔ THE DETECTOR'S OWN PROBES ARE NOT COPIES OF THE CLAIM. They
+                # are the control that proves this sweep can still SEE it.
+                if "claim.search(" in line:
+                    continue
+                # ⭐ A RETRACTION IS A PARAGRAPH, NOT A LINE — so the window is
+                # what is searched, not the hit. A ⚰️ marker or the measured
+                # counts anywhere near the sentence means it is the record we
+                # deliberately keep; a bare restatement has neither.
+                lo, hi = max(0, lineno - 7), min(len(lines), lineno + 6)
+                near = "\n".join(lines[lo:hi])
+                if "⚰" in near or ("56" in near and "36" in near):
+                    continue
+                offenders.append(f"{path.relative_to(ROOT)}:{lineno}: {line.strip()[:110]}")
+    # ⭐ NON-VACUITY, BOTH WAYS: the sweep read a real tree, and the detector can
+    # still SEE the sentence it is hunting (otherwise it passes by being broken).
+    assert scanned > 400, scanned
+    assert claim.search("the committed 579-bar corpus contains none")
+    assert claim.search("a corpus is blind to the tie-break")
+    # …and a bare restatement with no retraction near it IS caught — the
+    # positive control, so the window exemption cannot excuse everything.
+    assert claim.search("the corpus contains none of them")
+    assert not offenders, offenders
+
+
 def test_highestbars_agrees_with_highest_about_WHICH_bar_it_names():
     """⭐ THE JOIN, AND IT IS WHY A WRONG TIE-BREAK CAN BE INVISIBLE. `highest`
     names the VALUE and `highestbars` names the BAR; if they ever disagreed,
@@ -581,6 +709,9 @@ def test_a_NaN_anywhere_in_the_window_blanks_the_offset_exactly_as_it_blanks_the
 # columns in this table that carry NaN at all are `crossOver`/`crossUnder` and the
 # logical operators, so the hole below is built from a crossing.
 
+
+
+
 #: A 30-bar hole that NEVER FIRES afterwards: this series drifts 0.1 a bar, so
 #: `close` sits above its own 30-bar mean on every bar and the crossing never
 #: happens. That makes it the strongest possible probe of the SENTINEL rule.
@@ -608,6 +739,66 @@ def test_a_HOLE_in_the_condition_withholds_the_sentinel_until_n_readable_bars_ex
     # …and `valuewhen` has nothing to carry across the same hole, ever.
     when = run(CALL("valuewhen", LONG_HOLE, SER("close"), NUM(10)))
     assert finite(when) == []
+
+
+def test_the_INTERIOR_hole_fixture_really_holds_an_interior_hole():
+    """⛔ THE CONTROL FOR THE FIXTURE. A "hole" fixture whose holes are all at the
+    front is what this whole round is a correction for, so the shape is asserted
+    rather than assumed: three states must all be present, and the FIRST hole must
+    not be at bar 0."""
+    col = run(HOLE_COND, HOLE_BARS)
+    states = {"true": sum(1 for v in col if v == 1.0),
+              "false": sum(1 for v in col if v == 0.0),
+              "hole": sum(1 for v in col if v is None)}
+    assert all(n > 20 for n in states.values()), states
+    first_hole = next(i for i, v in enumerate(col) if v is None)
+    assert first_hole == 20, first_hole          # ⭐ INTERIOR, not a warm-up
+    assert col[0] == 1.0 and col[19] == 0.0, (col[0], col[19])
+    # …and the hole CLOSES again, so nothing downstream can pass by latching blank.
+    assert col[28] == 0.0 and col[40] == 1.0, (col[28], col[40])
+
+
+def test_barssince_WITHHOLDS_the_sentinel_until_n_readable_bars_follow_a_hole():
+    """⛔⛔ THE BRANCH EVERY OTHER RAIL IN THIS FILE WAS BLIND TO.
+
+    After the 8-bar hole at bars 20-27, twelve readable FALSE bars follow. The
+    sentinel `10` is a claim about ten bars this engine READ, so it may not appear
+    until bar **37** — nine bars of NOT COMPUTABLE first (28..36), while the
+    readable run climbs 1..9.
+
+    ⚰️ DELETING `run = 0` FROM THE NaN BRANCH FLIPS **54 of 260 BARS** here from
+    NOT COMPUTABLE to a confident `10` — and flips **0** on every leading-prefix
+    hole in this file, which is why the mutation survived a sweep that reported it
+    KILLED. Measured, both ways, before this case was written.
+    """
+    col = run(CALL("barssince", HOLE_COND, NUM(10)), HOLE_BARS)
+    for i in (0, 5, 10, 15):
+        assert at(col, i) == i % 5, (i, at(col, i))
+    for i in range(20, 28):                       # the hole itself
+        assert at(col, i) is None, (i, at(col, i))
+    for i in range(28, 37):                       # run climbing 1..9 — still unknown
+        assert at(col, i) is None, (i, at(col, i))
+    for i in (37, 38, 39):                        # ten readable bars behind it
+        assert at(col, i) == 10, (i, at(col, i))
+    assert at(col, 40) == 0, at(col, 40)          # …and the next TRUE bar answers 0
+    # ⚠️ 120, not the 200 the other cases use: this fixture is ~18% hole by
+    # construction. Measured 158 — see the floors note in the JS-lane case.
+    assert len(finite(col)) > 120, len(finite(col))
+
+
+def test_valuewhen_does_not_carry_a_value_ACROSS_an_interior_hole():
+    """⛔ THE SAME BRANCH, ON THE OTHER ENTRY. Bar 19's carried value must not
+    reappear at bar 28: the scan back from 28 meets the hole first, and a value
+    carried past a bar the engine could not read is a confident wrong number."""
+    col = run(CALL("valuewhen", HOLE_COND, SER("volume"), NUM(10)), HOLE_BARS)
+    assert at(col, 15) == 1015.0, at(col, 15)     # bar 15 is TRUE -> its own volume
+    assert at(col, 19) == 1015.0, at(col, 19)     # carried from bar 15
+    for i in range(20, 40):
+        assert at(col, i) is None, (i, at(col, i))
+    assert at(col, 40) == 1040.0, at(col, 40)
+    # ⚠️ 120 for the same reason, and lower again because `valuewhen` also goes
+    # blank through each 12-bar drought. Measured 140.
+    assert len(finite(col)) > 120, len(finite(col))
 
 
 def test_the_answer_RESUMES_the_bar_after_the_hole_closes():
@@ -984,13 +1175,20 @@ def test_the_scan_lane_LAUNDERS_a_valuewhen_hole_into_a_confident_answer():
     for column in (empty, negated):
         assert all(isinstance(v, float) and math.isfinite(v) for v in column)
 
-    # NON-VACUITY: on a series where the condition DOES fire, the same trees
-    # answer with real variety — so the columns above are the hole's doing and
-    # not a broken fixture.
+    # NON-VACUITY: on a series where the condition DOES fire, the same tree
+    # answers from a REAL value rather than from a laundered hole — so the
+    # columns above are the hole's doing and not a broken fixture.
+    #
+    # ⚰️ THIS SAID "answer with real variety" DIRECTLY ABOVE `== {1.0}`, which
+    # is one value and the opposite of variety. The claim that holds is that the
+    # column is ANSWERED FOR A REASON: `valuewhen` carries bar 0's close (101.0),
+    # every bar clears 0, and the column below it is finite rather than a hole.
     live = ast_interpret.interpret(gt, BARS[:5], {})
     assert set(live) == {1.0}, live
-    assert ast_interpret.interpret(
-        CALL("valuewhen", IS_UP, SER("close"), NUM(3)), BARS[:5], {})[0] is not None
+    carried = ast_interpret.interpret(
+        CALL("valuewhen", IS_UP, SER("close"), NUM(3)), BARS[:5], {})
+    assert carried[0] == pytest.approx(BARS[0]["c"]), carried
+    assert all(v is not None for v in carried), carried
 
 
 def test_the_manifest_DECLARES_the_NaN_prefix_and_names_what_a_scan_does_with_it():

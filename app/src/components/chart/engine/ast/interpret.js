@@ -244,7 +244,18 @@ function windowExtreme(series, lo, hi, better) {
  *  out loud. `windowExtreme` returns the same NUMBER whichever of two equal bars
  *  won, so nothing above it can see the choice; this one names a BAR, and two
  *  hand-written lanes each picking a side would agree on every fixture that
- *  happens to contain no tie. The committed 579-bar corpus contains none.
+ *  happens to contain no tie.
+ *
+ *  ⚰️ AND THIS SENTENCE ENDED *"The committed 579-bar corpus contains none"* —
+ *  WHICH IS FALSE. Measured on that series: **56** of its 5-bar `high` windows
+ *  and **36** of its `low` windows hold their extreme TWICE, and every one of
+ *  them separates the two conventions, so the frozen digests DO move if the
+ *  ruling flips. The blindness is real as a CLASS and not true of THIS corpus.
+ *  ⛔ IT SURVIVED IN FOUR PLACES because it was written once and mirrored —
+ *  the Python twin, the manifest note, and the test's own docstring — and four
+ *  agreeing copies read as certainty. See
+ *  `closedTable.json::_functions_arg_extreme` for what the corpus still cannot
+ *  reach, and why the constructed fixture is not redundant.
  *
  *  ⭐ DERIVED FROM THE VALUE RATHER THAN COMPUTED BESIDE IT, so
  *  `high[highestbars(high, n)] === highest(high, n)` holds BY CONSTRUCTION and

@@ -484,6 +484,37 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'rolling sum — and a true cumulative would change value with how many bars '
     + 'the chart requested, which this engine forbids by construction. '
     + 'Use `sum(source, n)` when a fixed window is what you meant.',
+  // ⛔⛔ THE SIGN. `ta.highestbars`/`ta.lowestbars` return a NON-POSITIVE offset —
+  // 0 on the current bar, -1 one bar back — and this table's `highestbars`
+  // returns the POSITIVE distance. Ours is the NEGATION, so a member who pastes
+  // real Pine gets a column that is plausible on every bar and wrong on every
+  // bar, with no refusal and nothing red. That is the single worst outcome this
+  // translator exists to prevent.
+  //
+  // 🔴 AND WE HAVE ALREADY GOT THIS SIGN WRONG ONCE, IN WRITING: this repo's own
+  // W2a.7 brief writes Aroon with the opposite sign from TradingView's published
+  // version. A convention we have demonstrably mis-transcribed is not one to
+  // apply silently at a translation boundary.
+  //
+  // ⭐ THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, because *"unmappable"* is what let
+  // a false refusal hide for a whole task elsewhere in this wave. Two countable
+  // things, not a judgement call.
+  highestbars: 'the number of bars back to the highest value — and Pine returns '
+    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
+    + 'while this table\'s `highestbars(source, n)` returns the POSITIVE '
+    + 'distance. The two are negations of each other, so translating the name '
+    + 'straight across produces a sign-flipped column that is plausible on every '
+    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
+    + 'pins the sign, then apply `-` at this door. Meanwhile write '
+    + '`highestbars(source, n)` yourself, which is the positive distance.',
+  lowestbars: 'the number of bars back to the lowest value — and Pine returns '
+    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
+    + 'while this table\'s `lowestbars(source, n)` returns the POSITIVE '
+    + 'distance. The two are negations of each other, so translating the name '
+    + 'straight across produces a sign-flipped column that is plausible on every '
+    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
+    + 'pins the sign, then apply `-` at this door. Meanwhile write '
+    + '`lowestbars(source, n)` yourself, which is the positive distance.',
   // ⚠️ THIS ONE IS NOW A NAME THE TABLE ALSO DECLARES, AND THAT MAKES IT MORE
   // DANGEROUS RATHER THAN LESS — see the `own(PINE_INEXPRESSIBLE, …)` gate below.
   barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
@@ -2224,7 +2255,31 @@ class Resolver {
     // gets a silently capped count under the name Pine gave an uncapped one.
     // `pine.derived.test.js` caught it; the gate is what stops it recurring for
     // the next same-named entry.
-    if (own(PINE_INEXPRESSIBLE, bare)) {
+    //
+    // ⛔ THE DISCRIMINATOR IS THE NAMESPACE THE MEMBER WROTE, NOT THE TABLE'S KEY
+    // SET — and that correction came from a measured regression in the FIRST fix
+    // for the above. Dropping `!key` entirely refused the BARE spelling too, so
+    // `plot(barssince(close > open, 10))` was rejected by a message whose last
+    // sentence is *"Write `barssince(condition, n)`"*. A refusal that recommends
+    // the very thing the same door then rejects is worse than the near-miss it
+    // was written to prevent.
+    //
+    //   `ta.barssince(…)`  -> namespaced          -> PINE'S meaning  -> REFUSE
+    //   `barssince(…)`     -> bare, table HAS it  -> OUR vocabulary  -> resolve
+    //   `cum(…)`           -> bare, table has NOT -> nothing else it -> REFUSE
+    //                                                can mean, so keep the REASON
+    //
+    // ⛔ THE `|| !key` ARM IS NOT BELT-AND-BRACES: without it a bare `cum(volume)`
+    // falls through to the generic *"this table declares abs, accum, adx, …"*
+    // list, which is a true sentence that throws away the one thing the member
+    // needed — that `cum` is a running total and `sum(source, n)` is the honest
+    // alternative.
+    //
+    // ⚠️ WHAT THIS DOES NOT COVER, STATED RATHER THAN IMPLIED: a Pine v4 script
+    // may spell a `ta.` builtin bare, and that spelling is then genuinely
+    // ambiguous. `LEGACY_BARE_NAMESPACE` is this file's existing mechanism for
+    // that decision and it is the pine lane's to widen; nothing here guesses.
+    if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
       throw new PineRefusal('pine:function',
         `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }

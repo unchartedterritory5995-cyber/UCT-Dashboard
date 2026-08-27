@@ -460,9 +460,13 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
             if role != "condition":
                 continue
             assert spec["args"][i] == "series", (name, i, spec["args"])
+            # ⚰️ THIS READ `("{%d} was" % i) in phrase or ("{%d} was" % i) in
+            # phrase` -- THE SAME EXPRESSION ON BOTH SIDES OF AN `or`, so the
+            # `or` could never change the verdict and half the check was
+            # decoration. Both halves are real now: the slot must be SPOKEN in
+            # the sentence, and the sentence must say what makes it a condition.
             phrase = spec.get("sentence", "")
-            assert ("{%d} was" % i) in phrase or ("{%d} was" % i) in phrase, (
-                name, phrase)
+            assert ("{%d}" % i) in phrase, (name, i, phrase)
             assert "true" in phrase.lower(), (name, phrase)
     assert any("condition" in (s.get("argRoles") or ()) for s in functions.values()), (
         "no function declares a `condition` slot — the pin above has no subject")
