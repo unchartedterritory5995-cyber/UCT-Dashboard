@@ -552,6 +552,31 @@ describe('the controls that keep the rail honest', () => {
     }
   })
 
+  it('⛔ the screens popup can SCROLL — the receipt is useless below the fold', () => {
+    // 🔴 X89, measured in a browser rather than reasoned about. Expanding a
+    // scan's detail grew this popup to 1,408px inside a 945px viewport;
+    // `.shell` is `overflow: hidden`, no ancestor scrolled, and `window.scrollY`
+    // stayed 0 after scrolling every element on the page. 463px — Run now,
+    // Evidence, the four counts, the causes line and every hit — was simply
+    // unreachable. It would have taken a 1,416px-tall viewport to read it.
+    //
+    // ⚠️ A SOURCE-TEXT GUARD, AND IT SAYS SO. jsdom does no layout, so no test
+    // in this suite can measure a clipped popup; asserting the two declarations
+    // that make it scrollable is the most this lane can hold. It is worth having
+    // anyway — every other assertion about the coverage receipt in this file
+    // passes happily while the receipt is off-screen, which is exactly how this
+    // shipped (`lesson_built_tested_green_and_unreachable`).
+    const css = read('app/src/pages/screener/ScannerPro.module.css')
+    const rule = css.split('\n').find((l) => l.trim().startsWith('.saveMenuPop {'))
+    expect(rule, '.saveMenuPop is gone or renamed — this rail is measuring nothing')
+      .toBeTruthy()
+    expect(rule, '.saveMenuPop must cap its height against the viewport')
+      .toMatch(/max-height:\s*calc\(100vh/)
+    expect(rule, 'a capped popup with no overflow CLIPS instead of scrolling — '
+      + 'that is strictly worse than the unbounded version it replaced')
+      .toMatch(/overflow-y:\s*auto/)
+  })
+
   it('the four counts are markup only CoverageLine writes', () => {
     // If any other module on the page emitted `coverage-line`, the headline
     // assertion could pass without `CoverageLine` ever being reached.
