@@ -258,16 +258,28 @@ const PROBE_BARS = Object.freeze([
  *                         a user can accept — but only having read it.
  *   `non-repainting`    → save.
  *
- * ⚠️ A PROPERTY OF TODAY'S MANIFEST, DECLARED RATHER THAN DISCOVERED: every
- * `lookback` in the shipped `closedTable.json` is `≥ 0` or `"argK"`, so
- * `astReach` returns forward `0` for every table-legal tree and the only trees
- * that carry another badge are the ones `checkBudget` has ALREADY refused at
- * `resolve:function` / `resolve:window`. In the product as it ships today this
- * gate therefore admits only `non-repainting`. That is the same declared
- * property `nativeRegistry.validateAstLane` carries, for the same reason, and it
- * is why the gate is a PURE function with its own test rather than something
- * only reachable through the form: the day the manifest declares a negative
- * lookback the gate moves with it and not a line of this file changes.
+ * ⚠️ A PROPERTY OF TODAY'S MANIFEST, MEASURED — NOT THE CONCLUSION A NEARBY FACT
+ * ONCE SEEMED TO IMPLY. Every `lookback` in the shipped `closedTable.json` is
+ * `≥ 0` or `"argK"` (checked: `0`, `1`, `argK`, `2*arg3`, `"session"` — no
+ * negatives). But `lookback` and `forward` are TWO DIFFERENT DECLARED FIELDS —
+ * `astReach` reads both off the same node, independently — and a fact about one
+ * says nothing about the other. Exactly ONE entry declares a `forward`:
+ * `ichimokuChikou` (`forward: "arg4"`), which `closedTable.json`'s own
+ * `_ichimoku_forward_cloud` note calls "the table's first and only entry whose
+ * repaint verdict is `preview-repaints` rather than `non-repainting`." So the
+ * gate admits BOTH outcomes today, not one: `non-repainting` for every other
+ * table-legal tree, and `preview-repaints` — the acknowledgement branch below,
+ * confirmed LIVE, not dead code — for any tree that reaches `ichimokuChikou`.
+ * Measured directly: `evaluateFormula('ichimokuChikou(high, low, close, 9, 26,
+ * 52) > 0', BUILDER_INPUT_SCOPE)` returns `ok: true`, un-refused by
+ * `checkBudget`, with `verdict.mode === 'preview-repaints'`. (`nativeRegistry
+ * .validateAstLane`'s GATE 3 enforces the same badge-vs-measurement contract —
+ * refused in both directions on disagreement — but by a route that never
+ * reasons about which manifest entries declare a `forward`, so it does not
+ * carry this property and is not evidence for it.) None of this changes why the
+ * gate is a PURE function with its own test rather than something only
+ * reachable through the form: the day the manifest declares a SECOND `forward`,
+ * this gate moves with it and not a line of this file changes.
  */
 export function canSaveFormula(result, acknowledged = false) {
   if (!result || !result.ok) return false
