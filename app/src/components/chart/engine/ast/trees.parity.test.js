@@ -59,6 +59,33 @@ describe('multi_tree_parity.json — the fixture IS the parser\'s output, and th
     expect(treesHash(fx.trees)).toBe(fx.treesHash)
   })
 
+  it('⛔ `scanPlot` NAMES ONE OF THE TREES — a pointer at an absent key would ship green in BOTH lanes', () => {
+    // ⛔ THE FIELD NOTHING WAS ASSERTING. `scanPlot` is part of this fixture's
+    // PUBLISHED surface — it names which of the four columns a scan screens on
+    // — and neither lane read it, so a typo (`hist-up`), a renamed tree or a
+    // deleted one would leave the pointer naming nothing while every existing
+    // assertion here and in Python stayed green. That is the whole failure mode
+    // a published interface has: the consumer is somewhere else.
+    //
+    // ⭐ AND IT IS RAILED ON BOTH SIDES. `tests/test_ast_multi_tree_parity.py`
+    // makes the same three claims against the same file
+    // (`lesson_rail_the_mirror_not_just_the_lane`): a guard added to one lane of
+    // a mirrored fixture leaves the twin unguarded, and whichever lane a future
+    // engineer consults, they believe it.
+    expect(typeof fx.scanPlot, 'the fixture declares no scanPlot').toBe('string')
+    expect(Object.keys(fx.trees),
+      `scanPlot names ${JSON.stringify(fx.scanPlot)}, which is not a tree in this fixture`)
+      .toContain(fx.scanPlot)
+    // …and the tree it names is a CONDITION, measured off the column rather than
+    // assumed from the name: a `scanPlot` pointed at `macd` would be a legal key
+    // and still the wrong KIND of answer, because a scan screens on a yes-or-no
+    // column. Every value the named tree produces is 0 or 1, on every bar.
+    const scan = [...interpret(fx.trees[fx.scanPlot], bars, {}, undefined, {})]
+    expect(scan.length).toBe(bars.length)
+    expect([...new Set(scan)].sort(),
+      `${fx.scanPlot} is the scan column and it is not 0/1`).toEqual([0, 1])
+  })
+
   it('hist = macd − signal at 1e-9 and hist_up is 0/1 — the arithmetic identity across trees', () => {
     const col = (k) => [...interpret(fx.trees[k], bars, {}, undefined, {})]
     const [m, s, h, u] = ['macd', 'signal', 'hist', 'hist_up'].map(col)

@@ -132,6 +132,43 @@ def _js_trees_hash(cases: list[dict]) -> dict:
 
 # ─── the columns ─────────────────────────────────────────────────────────────
 
+def test_scanPlot_NAMES_ONE_OF_THE_TREES_and_the_tree_it_names_is_a_CONDITION():
+    """⛔ THE POINTER NEITHER LANE WAS READING, RAILED IN BOTH.
+
+    `scanPlot` is part of this fixture's PUBLISHED surface -- it names which of
+    the four columns a scan screens on -- and nothing read it: not this file, not
+    `trees.parity.test.js`, and not `tests/test_user_definitions_v2.py`, which
+    parametrizes its own `scan` instead. So a typo, a renamed tree or a deleted
+    one would leave the pointer naming nothing while every assertion in BOTH
+    lanes stayed green. That is exactly the failure mode a published interface
+    has: its consumer is somewhere else.
+
+    ⭐ AND THE GUARD IS ON BOTH SIDES. `trees.parity.test.js` makes the same
+    three claims against the same file. A rail added to one lane of a mirrored
+    fixture leaves the twin unguarded (`lesson_rail_the_mirror_not_just_the_lane`),
+    and whichever lane a future engineer consults, they believe it.
+    """
+    fx = _fixture()
+    assert isinstance(fx["scanPlot"], str) and fx["scanPlot"], (
+        "the fixture declares no `scanPlot`")
+    assert fx["scanPlot"] in fx["trees"], (
+        f"`scanPlot` names {fx['scanPlot']!r}, which is not one of "
+        f"{sorted(fx['trees'])} — the published pointer names nothing")
+
+    # …and the tree it names is a CONDITION, MEASURED off the column rather than
+    # assumed from the name: a `scanPlot` pointed at `macd` would be a legal key
+    # and still the wrong KIND of answer, because a scan screens on a yes-or-no
+    # column. `== {0.0, 1.0}` carries its own non-vacuity too -- an all-null or
+    # an all-0 column cannot satisfy it.
+    name = fx["scanPlot"]
+    bars = ac.corpus_bars({"bars": fx["bars"]})
+    col = ast_interpret.interpret_trees({name: fx["trees"][name]}, bars)[name]
+    assert len(col) == len(bars)
+    assert set(col) == {0.0, 1.0}, (
+        f"`{name}` is this fixture's scan column and it is not 0/1 over the "
+        f"corpus: {sorted({repr(v) for v in col})}")
+
+
 def test_the_two_lanes_agree_on_every_tree_at_1e_9():
     fx = _fixture()
     bars = ac.corpus_bars({"bars": fx["bars"]})
