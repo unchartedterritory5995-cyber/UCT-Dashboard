@@ -1227,3 +1227,62 @@ deploy: 3 rows, 23 options, no link buttons, state in the placeholder.
 
 ⭐ The general lesson: a control surface is charged to the reader's screen every
 time anyone uses it. Five rows was five rows for every member scrolling past.
+
+### v23 — one row, and a gear for the rest (2026-08-27, ~00:30 CT)
+
+Three rows was better and still not compact. Asked whether the parts could be
+"more compact or even more asthetic", the owner picked the most aggressive of
+the three shapes offered: **"I like options 3 the best."**
+
+**A posted chart is now the image plus ONE row.**
+
+```
+[ D ][ W ][ 60m ][ 5m ][ ⚙️ ]            ← what a channel sees
+```
+
+Press the gear and the full surface unfolds; press ▲ and it folds away again:
+
+```
+[ D ][ W ][ 60m ][ 15m ][ 5m ]
+[ ◀ Earlier ][ Later ▶ ][ MAs: House ][ Volume off ][ ▲ ]
+[ ⚙️ Zoom Auto · None · Candles                        ▾ ]
+```
+
+- **The open/closed state rides in the control ids**, so it survives every
+  click with no server-side session and no message bookkeeping. A chart the
+  member opened stays open as they change timeframe; one they never touched
+  stays a single row forever.
+- **One timeframe gives up its slot when closed** — six buttons do not fit a
+  row of five. `COLLAPSED_TFS = ("D", "W", "60", "5")`: 15m yields, because 5m
+  and 60m carry the intraday work. One tuple entry to change.
+- **…unless the chart IS on the timeframe that yielded**, in which case it
+  keeps a slot. Otherwise a member on 15m sees four buttons, none of them lit,
+  and no way to tell what they are looking at.
+- **A timeframe pressed while closed stays closed.** Opening the controls is a
+  deliberate act, not something a member falls into.
+
+**The flag is a spare BIT, not a field — and the id-length rail is what said
+so.** Appending a 12th pipe-separated field cost 2 characters of every
+`custom_id`. The compare list is budgeted from whatever the fixed fields leave
+over, so the gear quietly ate a compare symbol: the worst-case budget fell
+18 → 16 and `test_no_control_id_can_exceed_discords_100_char_limit…` went red
+on the third symbol. The volume field was already a one-character `"0"`/`"1"`,
+so it is a **flags digit** now — bit 0 volume, bit 1 controls-open. Zero extra
+characters, budget back at 18, and an id minted before this deploy still reads
+as closed. ⭐ *A derived budget is how a two-character change announces itself;
+a typed number would have shipped the regression silently.*
+
+**The collapse control can never be truncated away.** In an activity guild the
+toggle row already spends its fifth slot on "Open in Discord", so ▲ takes a row
+of its own there rather than being cut by a `[:5]`. Dropping it would strand
+the member in the expanded view with no way back — a control that vanishes
+exactly when the row is full is the worst possible time for it to vanish.
+
+Four new tests: the one-row shape and its round trip, the timeframe-in-play
+rail, the full-toggle-row case, and the whole range of the flags digit
+(including `"4"`, `"x"` and `""` refusing) alongside ids minted before the gear
+existed. 171 green.
+
+⭐ The general lesson, sharpened from v22: **the default shape is the one that
+gets charged to every reader.** Everything a member might want is still one
+press away — it just no longer bills the whole channel for the possibility.
