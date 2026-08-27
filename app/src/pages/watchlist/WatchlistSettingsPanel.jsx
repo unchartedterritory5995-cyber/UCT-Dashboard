@@ -100,6 +100,7 @@ export default function WatchlistSettingsPanel({
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      if (e.target.closest?.('[data-uct-theme-gallery]')) return
       // A click anywhere that isn't the Templates control closes its dropdown.
       if (!e.target.closest?.('[data-tpl-wrap]')) setTplMenuOpen(false)
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
