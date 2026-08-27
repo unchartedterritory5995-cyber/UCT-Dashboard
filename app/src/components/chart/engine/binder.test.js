@@ -1095,4 +1095,78 @@ describe('W1b — a USER multi-tree definition draws one series per tree', () =>
     const recoloured = fake.callsOf('applyOptions').filter((c) => c.args[0].color === '#123456')
     expect(recoloured).toHaveLength(1)
   })
+
+  // ─── HAND-BACK (W1b.5, minor 4) — the guide follows the first VISIBLE plot ──
+  //
+  // `pool.js::planBindings` hangs an instance's guides on `dataPlots(def)[0]` —
+  // the definition's first data-bearing plot in DECLARATION order — because
+  // pool.js has no notion of `plots[].hidden` at all (that arrived with this
+  // task, and pool.js is out of scope for it). Above, only `hist_up` — the
+  // FOURTH data plot — is ever hidden, so the guide's carrier (`macd`, plot
+  // zero) is never itself the hidden one and every case above is silent about
+  // this. It is a real member-visible bug the moment an author hides plot ONE
+  // instead: the binding carrying the guide hits the HB-8 skip above and
+  // `continue`s, taking `b.guides` with it — nothing else in `bind` still
+  // holds the zero line, so it simply stops being drawn, with no error
+  // anywhere that says why.
+  describe('HAND-BACK (W1b.5, minor 4) — hiding the FIRST data plot must not orphan the guide', () => {
+    /** Only `macd` (plot zero, the guide's carrier) is hidden; `hist_up` stays
+     *  visible — isolates this from HB-8's own scan-plot scenario above. */
+    const firstPlotHiddenDoc = () => {
+      const doc = macdV2Doc({ hiddenScan: false })
+      return { ...doc, plots: doc.plots.map((p) => (p.key === 'macd' ? { ...p, hidden: true } : p)) }
+    }
+
+    it('the zero guide moves to the next VISIBLE plot\'s series, not into the void', () => {
+      registry.installUserDefinitions([firstPlotHiddenDoc()])
+      binder.sync(ctxFor([macdInst()]))
+
+      // Non-vacuity: `macd` really did draw nothing. If it had, "the guide is
+      // on the first CREATED series" would hold trivially either way and this
+      // case would prove nothing about a REASSIGNMENT.
+      const ctors = fake.callsOf('addSeries').map((c) => c.args[0].__type)
+      expect(ctors).toEqual(['LineSeries', 'HistogramSeries', 'LineSeries'])
+
+      // …and the zero guide still exists, exactly once, hung on the
+      // instance's new first VISIBLE series — `signal`, the first one this
+      // pass actually created.
+      const lines = fake.callsOf('createPriceLine')
+      expect(lines).toHaveLength(1)
+      expect(lines[0].id).toBe(fake.callsOf('addSeries')[0].result.__id)
+      expect(lines[0].args[0]).toMatchObject({ price: 0, lineStyle: fake.LWC.LineStyle.LargeDashed })
+    })
+
+    it('hiding TWO consecutive plots still finds the next VISIBLE one, not just the next one', () => {
+      // Catches a heir search that picks "whatever is next in the group"
+      // without re-checking THAT one for hidden too — `signal` here is ALSO
+      // hidden, so a naive "next" would hand the guide to a binding that the
+      // pass-one skip is about to discard right back into the void.
+      const doc = macdV2Doc({ hiddenScan: false })
+      const twoHidden = {
+        ...doc,
+        plots: doc.plots.map((p) => (['macd', 'signal'].includes(p.key) ? { ...p, hidden: true } : p)),
+      }
+      registry.installUserDefinitions([twoHidden])
+      binder.sync(ctxFor([macdInst()]))
+
+      const ctors = fake.callsOf('addSeries').map((c) => c.args[0].__type)
+      expect(ctors).toEqual(['HistogramSeries', 'LineSeries'])   // hist, hist_up only
+
+      const lines = fake.callsOf('createPriceLine')
+      expect(lines).toHaveLength(1)
+      expect(lines[0].id).toBe(fake.callsOf('addSeries')[0].result.__id)   // hist's series
+    })
+
+    it('an instance with NO visible plot left loses its guide too, rather than crashing or double-drawing it', () => {
+      // The backstop: every data plot hidden leaves no series to hang a guide
+      // on at all. Dropping it is the SAME outcome an instance that draws
+      // nothing already has — not a new failure mode, and not a throw.
+      const doc = macdV2Doc({ hiddenScan: false })
+      const allHidden = { ...doc, plots: doc.plots.map((p) => (p.style === 'hlines' ? p : { ...p, hidden: true })) }
+      registry.installUserDefinitions([allHidden])
+      expect(() => binder.sync(ctxFor([macdInst()]))).not.toThrow()
+      expect(fake.count('addSeries')).toBe(0)
+      expect(fake.count('createPriceLine')).toBe(0)
+    })
+  })
 })
