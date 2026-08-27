@@ -39,7 +39,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translateThinkScript, REFUSALS } from './thinkscript.js'
+import { translateThinkScript, REFUSALS, TS_DOC_BLOCKED } from './thinkscript.js'
 import { parseFormula, astHash } from './parse.js'
 import { sentenceFor } from './sentence.js'
 import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
@@ -370,5 +370,108 @@ describe('the whole corpus, in one number', () => {
     // itself rather than as an arithmetic disagreement between two counts.
     expect(translating.filter((f) => !saveable.includes(f))).toEqual([])
     expect(SNAPSHOT._blocked).toEqual([])
+  })
+})
+
+describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the spec', () => {
+  // 🔴🔴 THE SPEC SAYS 15/24 AND THAT NUMBER WAS WRITTEN BEFORE ANY OF THIS WAS
+  // MEASURED. The lane brief then derived a "Wave-1 ceiling of 15" by counting
+  // NINE scripts as design-deferred and assuming the other fifteen were merely
+  // unbuilt. This partition measures that assumption and it does not hold.
+  //
+  // ⭐ EVERY SCRIPT LANDS IN EXACTLY ONE CLASS, and the classes are asserted
+  // TOTAL and DISJOINT — a script that quietly left one set and joined none is
+  // the failure a bare count cannot see, which is the same blindness that let
+  // three false gains read as progress in W3.6.
+  //
+  // ⛔ THE CLASSES ARE NOT THE SAME KIND OF THING, and that is the point:
+  //   * DESIGN   — Wave 1 defers it on purpose (another symbol, another
+  //                timeframe, the clock, the account, an order, a fold). No
+  //                amount of work in THIS wave moves these.
+  //   * DOCS     — thinkorswim publishes no default/unit/origin. Not work:
+  //                `TS_DOC_BLOCKED` names the document each one needs.
+  //   * RULED    — refused CORRECTLY and permanently by a controller ruling
+  //                about the script's own shape (a seedless recursion has no
+  //                seed this door may invent; a self-lag deeper than one bar is
+  //                deleted, not banked). These never translate as written.
+
+  const DESIGN = ['06-vwap-rejection.ts', '08-relative-strength-zscore-vs-spy.ts',
+    '09-above-average-price-volume.ts', '15-scan-premarket-gap-up.ts',
+    '18-fold-up-down-points-ratio.ts', '21-strategy-ma-crossover-addorder.ts',
+    '22-average-daily-range-zones.ts', '23-previous-day-high-low-mean.ts',
+    '24-position-capital-efficiency.ts']
+  const DOCS = ['05-bollinger-rsi-buy-arrow.ts', '07-ttm-squeeze-watchlist.ts',
+    '16-scan-rsi-crosses-30-70.ts', '19-consecutive-bars-above-ema-count.ts']
+  const RULED = ['01-supertrend-mobius.ts', '10-rsi-laguerre-fractal-energy.ts',
+    '17-compoundvalue-vs-manual-fibonacci.ts']
+
+  const translating = FILES.filter((f) => entry(f).translates)
+
+  it('⭐ (1) TRANSLATING TODAY — measured, and every one computes every column it offers', () => {
+    expect(translating).toEqual(['02-macd-lookback-cross-watchlist.ts', '03-adx-dmi-lower.ts',
+      '04-rsi-with-rate-of-change.ts', '11-money-flow-index-mobile.ts',
+      '12-scan-volume-2x-avg-price-up-5pct.ts', '13-scan-52-week-high.ts',
+      '14-scan-inside-bar.ts', '20-roc-stdev-lower-switch.ts'])
+    // ⛔ A SCRIPT THAT TRANSLATES ITS CHROME AND REFUSES ITS SUBJECT IS NOT A GAIN.
+    for (const f of translating) {
+      expect(entry(f).perOutputRefusals, `${f} offers a refused column`).toEqual({})
+    }
+  })
+
+  it('⛔ the four classes are TOTAL and DISJOINT — 8 + 9 + 4 + 3 = 24', () => {
+    const all = [...translating, ...DESIGN, ...DOCS, ...RULED]
+    expect(new Set(all).size, 'a script is in two classes').toBe(all.length)
+    expect([...all].sort(), 'a script is in no class').toEqual([...FILES].sort())
+    expect(translating.length).toBe(8)
+    expect(DESIGN.length).toBe(9)
+    expect(DOCS.length).toBe(4)
+    expect(RULED.length).toBe(3)
+  })
+
+  it('⭐ (3) every DOCS script is blocked by a named `TS_DOC_BLOCKED` entry', () => {
+    // ⛔ NOT A LABEL — the registry entry that blocks each one is checked to
+    // exist, so this set cannot drift into "things we did not get to".
+    const BY_SCRIPT = {
+      '05-bollinger-rsi-buy-arrow.ts': ['BollingerBands', 'RSI'],
+      '07-ttm-squeeze-watchlist.ts': ['TTM_Squeeze'],
+      '16-scan-rsi-crosses-30-70.ts': ['RSI'],
+      '19-consecutive-bars-above-ema-count.ts': ['MovAvgExponential'],
+    }
+    expect(Object.keys(BY_SCRIPT).sort()).toEqual([...DOCS].sort())
+    for (const [f, names] of Object.entries(BY_SCRIPT)) {
+      for (const n of names) {
+        expect(Object.keys(TS_DOC_BLOCKED), `${f} names an unregistered blocker`).toContain(n)
+      }
+      const src = read(f).toLowerCase()
+      for (const n of names) {
+        expect(new RegExp(`\\b${n.toLowerCase()}\\s*\\(`).test(src), `${f} calls ${n}`).toBe(true)
+      }
+    }
+  })
+
+  it('⛔ (2) REACHABLE WITHOUT NEW VENDOR DOCUMENTATION — and it is ZERO', () => {
+    // ⭐⭐ THIS IS THE ANSWER THE PROGRAMME NEEDED. Every one of the sixteen
+    // scripts that does not translate is held by a Wave-1 DESIGN deferral, by a
+    // document that does not exist, or by a ruling that refuses it correctly and
+    // permanently. NONE of them is waiting on ordinary work.
+    const reachable = FILES.filter((f) => !translating.includes(f)
+      && !DESIGN.includes(f) && !DOCS.includes(f) && !RULED.includes(f))
+    expect(reachable, 'a script an ordinary task could still move').toEqual([])
+  })
+
+  it('⛔⛔ …so the WAVE-1 CEILING IS 8, NOT 15, AND THE CORPUS IS AT IT', () => {
+    // ⭐ THE SPEC'S 15 IS UNREACHABLE BY CONSTRUCTION, and this says why in
+    // arithmetic rather than in prose: reaching it would need every doc-blocked
+    // script (4) AND every correctly-ruled one (3) — which would still be 15
+    // only by also moving a DESIGN-deferred script, and Wave 1 defines those as
+    // out of scope. A4 is at its real ceiling, not short of a wished-for one.
+    const ceilingNoDocs = translating.length
+    const ceilingIfVendorPublishes = translating.length + DOCS.length
+    expect(ceilingNoDocs).toBe(8)
+    expect(ceilingIfVendorPublishes).toBe(12)
+    // 24 − 9 design = 15 was the brief's arithmetic; the 3 RULED scripts are what
+    // it did not know about, and they are refusals this door is RIGHT to make.
+    expect(24 - DESIGN.length).toBe(15)
+    expect(ceilingIfVendorPublishes + RULED.length).toBe(15)
   })
 })
