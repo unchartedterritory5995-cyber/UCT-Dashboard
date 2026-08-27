@@ -487,6 +487,43 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
 }
 
 /**
+ * ⭐⭐ ONE ASSEMBLY FOR THE FIELDS A DOCUMENT TAKES FROM A SETTLED EVALUATION —
+ * the source, the tree, the mode, the read-back and the declared inputs.
+ *
+ * ⛔ IT EXISTS BECAUSE TWO CALLERS WERE HAND-COPYING THE SAME FIVE ARGUMENTS.
+ * `save()` and the live preview's memo both call `buildDefinition`, so the
+ * DOCUMENT BUILDER was already one authority — but the ARGUMENTS were a copy,
+ * and a copy drifts silently: the day W1b adds a field or changes what the
+ * `plain` shape means, the preview keeps drawing the old document and NO TEST
+ * REDDENS, because both sides would still be internally consistent. A second
+ * authority over one value is this repo's most repeated defect, and "they call
+ * the same function" is not the same thing as "they ask it the same question".
+ *
+ * ⚠️ WHAT DELIBERATELY STAYS AT THE CALL SITE, because the two genuinely differ:
+ * `defId` (a draft id vs `PREVIEW_DEF_ID`), `version` (an edit bumps it; a
+ * preview has none), `name` (Save REQUIRES one — `canSave` gates on it — while a
+ * preview must draw for a member who has not named the thing yet), and the
+ * multi-plot half of the document (`plots`/`scanPlot`/`placement`/`levels`),
+ * which the preview does not attempt at all. Each of those is an override
+ * written beside the reason for it, not a silent second copy.
+ *
+ * ⚠️ THE FIELDS BELOW ARE PASSED THROUGH VERBATIM, `readback` included. The
+ * preview overrides it with `|| ''` because it runs on every keystroke and
+ * `evaluateFormula` can answer `null`; `save()` runs only past `canSave` and its
+ * byte-identical document must not move. That divergence is now VISIBLE at the
+ * one call site that needs it instead of being invisible in two copies.
+ */
+function evaluatedDocArgs(evaluation, memberInputs) {
+  return {
+    source: evaluation.source,
+    ast: evaluation.ast,
+    mode: evaluation.verdict.mode,
+    readback: evaluation.readback,
+    inputs: [...BUILDER_INPUTS, ...memberInputs],
+  }
+}
+
+/**
  * ⛔ SPEC §6's INSTANCE STATES HAVE TEN MEMBERS AND NONE OF THEM IS "THE PAGE
  * DIED". A parse failure is the normal case on this surface, so `parseFormula`
  * never throws and `evaluateFormula` never throws — but a boundary is what makes
@@ -1177,13 +1214,23 @@ export default function BuilderSheet({
    *  default plot, own pane, no levels). A multi-plot draft previews its FIRST
    *  plot rather than all of them — partial, and deliberately so: the extra
    *  rows are W1b's shape and a preview that guessed at them would be a second
-   *  authority on what `save()` writes. */
+   *  authority on what `save()` writes.
+   *
+   *  ⛔ FIX ROUND 1 — THE ARGUMENTS ARE DERIVED FROM `save()`'s, NOT RE-TYPED.
+   *  `evaluatedDocArgs` is the one assembly both callers ask (see its docblock);
+   *  only the three things that genuinely differ are overridden below, each
+   *  beside its reason. */
   const previewDefinition = useMemo(() => (
     result && result.ok && result.ast && result.verdict && inputsValid
       ? buildDefinition({
-        defId: PREVIEW_DEF_ID, name: name.trim() || 'Preview', source: result.source, ast: result.ast,
-        mode: result.verdict.mode, readback: result.readback || '',
-        inputs: [...BUILDER_INPUTS, ...memberInputs],
+        ...evaluatedDocArgs(result, memberInputs),
+        defId: PREVIEW_DEF_ID,
+        // A preview must draw before the member has named the thing; `save()`
+        // requires a name and `canSave` is the one authority on that.
+        name: name.trim() || 'Preview',
+        // This runs on EVERY keystroke, where `evaluateFormula` can answer a
+        // null read-back; `save()` runs only past `canSave`.
+        readback: result.readback || '',
       })
       : null
   ), [result, name, memberInputs, inputsValid])
@@ -1337,14 +1384,13 @@ export default function BuilderSheet({
     const plain = plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
     const doc = buildDefinition({
+      // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
+      // the ONE assembly the live preview also asks — so the two cannot drift
+      // apart the day a field moves. See `evaluatedDocArgs`.
+      ...evaluatedDocArgs(result, memberInputs),
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
-      source: result.source,
-      ast: result.ast,
-      mode: result.verdict.mode,
-      readback: result.readback,
-      inputs: [...BUILDER_INPUTS, ...memberInputs],
       ...(plain ? {} : {
         plots: rows,
         // The DOCUMENT names a key. This is the one moment the index the sheet
