@@ -397,6 +397,64 @@ def test_CONTROL_a_tail_that_FITS_is_whole_and_says_nothing_about_a_cut(store, l
     assert body["truncated"] is False
 
 
+def test_each_list_reports_its_OWN_cut_so_a_member_can_tell_WHICH_lost_rows(
+        store, live_clock):
+    """⛔ X87 — ONE BOOLEAN OVER TWO CUTS COULD NOT ANSWER "WHICH LIST".
+
+    `truncated` is set when the NIGHTLY page hits the row cap OR when the
+    LIVE-ONLY TAIL does. Both are true things and they send a member to
+    different places: a cut nightly list means page for more of that session's
+    closed-bar hits; a cut tail means this tick's forming bar found more than
+    the page carries. The shipped sentence was true of both and named neither.
+
+    ⭐ THE TWO SCENARIOS PRODUCE OPPOSITE FLAGS, which is what makes this a
+    measurement rather than a restatement: a pair of assertions that both read
+    `True` would pass just as well against the old single OR
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    """
+    # (a) NIGHTLY cut, no live rows at all — the tail cannot be the cause.
+    _record()
+    nightly_cut = _get(PAID_USER, limit=2).json()
+
+    # (b) TAIL cut, nightly whole — `limit == len(HITS)` so the nightly half
+    #     fits exactly and the only thing that can be short is the tail.
+    _add_snapshot_rows(LIVE_ONLY)
+    _record_live(LIVE_ONLY)
+    tail_cut = _get(PAID_USER, limit=len(HITS)).json()
+
+    assert nightly_cut["truncated"] is True
+    assert tail_cut["truncated"] is True, (
+        "both scenarios must still set the page's own word — otherwise this "
+        "rail is measuring a behaviour change, not the new detail")
+
+    # 🔴 AND THE FLAGS DISAGREE, each naming its own list.
+    assert nightly_cut["truncated_nightly"] is True
+    assert nightly_cut["truncated_live"] is False, (
+        "no live rows were planted, so nothing could have cut a tail")
+    assert tail_cut["truncated_nightly"] is False, (
+        "the nightly half fits exactly at this limit; reporting it as cut would "
+        "send the member to page for rows that are already all here")
+    assert tail_cut["truncated_live"] is True
+
+    # ⛔ `truncated` REMAINS THE OR, never replaced — a browser holding the
+    # previous bundle reads only this key and must keep working.
+    for body in (nightly_cut, tail_cut):
+        assert body["truncated"] == (body["truncated_nightly"]
+                                     or body["truncated_live"])
+
+
+def test_CONTROL_a_whole_page_reports_NEITHER_cut(store, live_clock):
+    """Both flags False when nothing was cut — so the pair above cannot be
+    passing because the route hard-codes one of them."""
+    _record()
+    _add_snapshot_rows(LIVE_ONLY)
+    _record_live(LIVE_ONLY)
+    body = _get(PAID_USER, limit=len(LIVE_ONLY)).json()
+    assert body["truncated"] is False
+    assert body["truncated_nightly"] is False
+    assert body["truncated_live"] is False
+
+
 def test_a_PRODUCT_LABEL_timeframe_is_refused_and_TOLD_the_code(store):
     _record()
     r = _get(PAID_USER, tf="Daily")

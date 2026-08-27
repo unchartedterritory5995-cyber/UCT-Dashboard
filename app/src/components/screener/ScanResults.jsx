@@ -508,8 +508,24 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
         // survived; it is fixed there rather than papered over here.
         <p className={styles.notRun} role="status" data-testid="scan-results-truncated">
           <UIcon name="warning" size={14} />
-          This page is short of the hits this screen found — a row cap cut it. The counts above
-          {' '}are the authority on how many there were.
+          {/* ⭐ NAME THE LIST (X87). The route now reports each cut separately,
+              because "the nightly list was cut" and "the live-only tail was cut"
+              send a member to different places. ⚠️ BOTH KEYS ABSENT falls back to
+              the un-named sentence rather than guessing a list: an older payload
+              (a browser on the previous bundle) carries only `truncated`, and a
+              sentence that named the wrong list would be worse than the general
+              one it replaced. */}
+          {payload.truncated_nightly === true && payload.truncated_live === true
+            ? 'This page is short of the hits this screen found — a row cap cut both the '
+              + 'nightly list and the live-only tail.'
+            : payload.truncated_nightly === true
+              ? 'This page is short of the hits this screen found — a row cap cut the '
+                + 'nightly list.'
+              : payload.truncated_live === true
+                ? 'This page is short of the hits this screen found — a row cap cut the '
+                  + 'live-only tail, so this tick found more than the page carries.'
+                : 'This page is short of the hits this screen found — a row cap cut it.'}
+          {' '}The counts above are the authority on how many there were.
         </p>
       )}
 

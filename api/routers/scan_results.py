@@ -190,13 +190,37 @@ def definition_results(
     present = snapshot_db.symbols_in_snapshot([r["symbol"] for r in live_only])
     extra = [r for r in live_only if r["symbol"] in present]
     # …and it is bounded by the SAME page limit, so the overlay cannot make a
-    # capped page arbitrarily long. ⛔ AND A CUT TAIL SETS `truncated`: a page
+    # capped page arbitrarily long.
+    #
+    # ⭐ SO THE PAGE CAN REACH `2 * limit` ROWS — `limit` nightly plus `limit`
+    # live-only — AND THAT IS THE POINT, not an oversight (X87 asked; this is the
+    # answer). One shared budget would let a FULL nightly page crowd out every
+    # live-only hit, which is the exact thing this tail exists to prevent: the two
+    # lists answer different questions (that session's closed bar vs this tick's
+    # forming bar) and a member who cannot see the second is back to the state
+    # where arming the live sweep looks like a no-op. The ENTITLEMENT cap is a
+    # different number and is still applied ONCE over the whole page below, so no
+    # member gets a doubled symbol ceiling. ⛔ AND A CUT TAIL SETS `truncated`: a page
     # that silently loses symbols returns fewer hits and reads as a quiet
     # market, which is the exact lie `CoverageLine` exists to refuse. `hits` IS
     # the page, so "the page is short of the hits" is literally true here and
     # keeps its own word — `withheld` still means "your plan stops here".
     page += extra[:limit]
-    truncated = truncated or len(extra) > limit
+    # ⛔⛔ EACH LIST CARRIES ITS OWN CUT (X87). `truncated` was ONE boolean over
+    # TWO independent cuts — the nightly page hitting `limit`, and this live-only
+    # tail hitting it — so the member was told "a row cap cut this page" and
+    # could not tell WHICH list lost rows. They are different facts with
+    # different fixes: a cut nightly list means page for more of that session's
+    # closed-bar hits; a cut live tail means this tick's forming bar found more
+    # than the page will carry.
+    #
+    # ⚠️ `truncated` STAYS, AND STAYS THE OR. It is the page's own word — "this
+    # page is short of the hits" — which is true whenever either half was cut,
+    # and `ScanResults.jsx` plus a browser holding the previous bundle both read
+    # it. The two new keys are ADDED BESIDE it, never folded into it.
+    truncated_live = len(extra) > limit
+    truncated_nightly = bool(truncated)
+    truncated = truncated_nightly or truncated_live
 
     # 🔴 THE ENTITLEMENT, APPLIED ONCE OVER THE WHOLE PAGE — not merely looked
     # up, and not once PER SLICE. A cap that is computed and never applied is the
@@ -257,4 +281,10 @@ def definition_results(
         # different fact from "your plan stops here" and keeps its own word. A cap
         # that set this would tell a member to page for rows they can never have.
         "truncated": truncated,
+        # ⭐ WHICH LIST LOST ROWS (X87). The OR above cannot answer that, and the
+        # two answers send a member to different places. A consumer that reads
+        # only ``truncated`` keeps working; one that wants to name the list has
+        # these.
+        "truncated_nightly": truncated_nightly,
+        "truncated_live": truncated_live,
     })
