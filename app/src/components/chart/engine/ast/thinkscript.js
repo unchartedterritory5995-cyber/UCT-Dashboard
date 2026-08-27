@@ -2246,7 +2246,31 @@ export const TS_CALL_SHAPES = Object.freeze({
       message: 'thinkorswim publishes no default `length` or `price` for the RSI study — its '
         + 'Input Parameters table has only Parameter and Description columns, and its '
         + 'description states defaults only for the overbought (70) and oversold (30) levels '
-        + '— so state them: RSI(length = 14, price = close)'
+        // ⛔⛔ THIS CLAUSE USED TO READ '— so state them: RSI(length = 14, price =
+        // close)', AND THAT INSTRUCTION COULD NOT BE FOLLOWED. `params: []` plus an
+        // unconditional `refuse` means the STUDY reference is refused whatever
+        // arguments are passed, so a member who typed exactly the string this
+        // message printed got back the same refusal printing the same string — a
+        // loop, with nothing else to act on. Walked in a browser (X90).
+        //
+        // ⭐ THE THREE SIBLINGS IN THIS TABLE ALREADY HAD THE RIGHT SHAPE and are
+        // what this was corrected against: `bollingerbands` says *write the band you
+        // mean directly — sma(close, 20) - 2 * stdev(close, 20)*,
+        // `movavgexponential` names `ExpAverage(close, 21)` and `simplemovingavg`
+        // names `Average(close, 20)` — each a DIFFERENT construct this door
+        // accepts. `ttm_squeeze` names none at all, correctly, because none exists.
+        // Only this entry named the very thing it refuses.
+        //
+        // ⚠️ AND THE REMEDY HAD TO LEAVE thinkScript, which is why the mistake was
+        // easy to make: this translator maps NO thinkScript spelling to `rsi` (unlike
+        // `ExpAverage`/`Average`, which come from the Functions library), so there is
+        // no in-dialect answer. `closedTable` DOES declare `rsi` — this entry's own
+        // `cite` says so — so the honest remedy is the engine's own formula, and the
+        // sentence says which door to write it in rather than leaving the member to
+        // guess that the advice is in a different language from their script.
+        + '— and this door refuses the STUDY reference whatever arguments you pass, so '
+        + 'write the RSI you mean in this engine\'s own formula instead, on the Formula '
+        + 'tab: rsi(close, 14)'
         + docBlockedTail('RSI'),
     },
     cite: 'Tech-Indicators/studies-library/R-S/RSI: Input Parameters is `Parameter | '

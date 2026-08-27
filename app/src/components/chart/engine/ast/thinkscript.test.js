@@ -405,6 +405,51 @@ describe('what the reader still refuses, and where it says so', () => {
     expect(out.outputs[0].formula).toBe(null)
   })
 
+  it('⛔ a study refusal never offers the study it just refused as the remedy', () => {
+    // 🔴 X90, walked in a browser. `RSI`'s refusal said "so state them:
+    // RSI(length = 14, price = close)" — and `params: []` plus an unconditional
+    // `refuse` means the study reference is refused WHATEVER arguments are passed.
+    // A member who typed exactly that string got the identical refusal back,
+    // printing the identical string. A named unblocker that cannot unblock is
+    // worse than a bare refusal: it looks like help and costs a loop
+    // (`lesson_an_over_refusal_is_invisible`, `lesson_rail_the_sentence_not_just_the_guard`).
+    //
+    // The rule this pins: if a study refusal offers a remedy, the remedy must not
+    // be the refused study itself. The three siblings already obeyed it
+    // (`sma(...) - 2 * stdev(...)`, `ExpAverage(close, 21)`, `Average(close, 20)`)
+    // and `ttm_squeeze` correctly offers no remedy at all.
+    const CASES = [
+      ['RSI', 'def a = RSI(length = 14, price = close);\nplot s = close > a;\n'],
+      ['BollingerBands', 'def a = BollingerBands(close);\nplot s = close > a;\n'],
+      ['MovAvgExponential', 'def a = MovAvgExponential(close);\nplot s = close > a;\n'],
+      ['SimpleMovingAvg', 'def a = SimpleMovingAvg(close);\nplot s = close > a;\n'],
+      ['TTM_Squeeze', 'def a = TTM_Squeeze(close, 20);\nplot s = close > a;\n'],
+    ]
+    let refused = 0
+    for (const [name, src] of CASES) {
+      const out = translateThinkScript(src)
+      if (!out.refusal || out.refusal.guard !== 'thinkscript:study-ref') continue
+      refused += 1
+      // The remedy is whatever follows the last "—" clause that offers one; the
+      // cheap, discriminating check is simply that the study's own call spelling
+      // is not what the member is told to write.
+      // ⚠️ CASE-SENSITIVE, AND THE CASE IS THE WHOLE DISCRIMINATOR. A thinkScript
+      // study is `RSI(…)`; this engine's function is `rsi(…)` — a different
+      // construct in a different language, which is exactly what the corrected
+      // remedy points at. An `'i'` flag here (my first draft) flags the CORRECT
+      // remedy as the defect, which is how this rail nearly shipped inverted.
+      expect(out.refusal.message,
+        `${name}'s refusal tells the member to write ${name}(…), which is the very `
+        + 'call it refuses — following it returns this same refusal')
+        .not.toMatch(new RegExp(`\\b${name}\\s*\\(`))
+    }
+    // ⛔ NON-VACUITY. If none of these names refused as a study any more, every
+    // assertion above would be skipped and this test would pass having measured
+    // nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    expect(refused, 'no study-ref refusal fired — this rail measured nothing')
+      .toBeGreaterThanOrEqual(4)
+  })
+
   it('⭐ the caret is under the token the refusal names, and the token is REAL text', () => {
     // ⛔ "IT REFUSED" IS SATISFIABLE BY A TRANSLATOR THAT POINTS AT NOTHING.
     // A token taken from a TRIMMED line is not at the column it claims the
@@ -1977,11 +2022,24 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     // semantics without a citation is the exact risk this door exists against.
     // ⏳ W3.6 GAVE IT ITS OWN GUARD. `:function` said "this engine declares no
     // function for that call", which is FALSE — `closedTable` declares `rsi`.
-    // `:study-ref` says the true thing, and the message names the explicit form
-    // to write instead, so the member can act on it in one edit.
+    // `:study-ref` says the true thing.
+    //
+    // ⚰️ THIS TEST USED TO ASSERT THE DEFECT. It pinned
+    // `/RSI\(length = 14, price = close\)/` under a comment saying "the message
+    // names the explicit form to write instead, so the member can act on it in
+    // one edit" — and nobody ever typed that form. `params: []` plus an
+    // unconditional `refuse` refuses the study reference WHATEVER arguments are
+    // passed, so typing it returned the identical refusal printing the identical
+    // string. Walked in a browser (X90); the comment was a claim about a run that
+    // never happened (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
     const r = translateThinkScript('plot p = RSI() crosses above 30;\n').refusal
     expect(r.guard).toBe('thinkscript:study-ref')
-    expect(r.message).toMatch(/RSI\(length = 14, price = close\)/)
+    // The remedy now names a construct that is NOT this refused call: the
+    // engine's own `rsi`, and the door to write it in.
+    expect(r.message).toMatch(/rsi\(close, 14\)/)
+    expect(r.message).toMatch(/Formula tab/)
+    expect(r.message, 'the remedy must not be the very call this refuses')
+      .not.toMatch(/RSI\s*\(/)
     expect(r.token).toBe('RSI')
     // ⭐ AND THE CONTROL: the engine DOES declare `rsi`, so this is a refusal
     // about a missing CITATION, never about a missing function.
