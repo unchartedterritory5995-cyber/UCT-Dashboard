@@ -55,9 +55,14 @@ _ET = ZoneInfo("America/New_York")
 # Tolerance absorbs same-day P&L between a fill and its first stamped mark,
 # fees, and rounding — generous enough to stay quiet on honest books, tiny
 # next to the failures it exists to catch (the incident was a $10,990 miss
-# on a $10.7k account).
+# on a $10.7k account). DOLLAR-CAPPED: the conservation residual is
+# mark-invariant (same marks on both sides), so its noise does NOT scale
+# with book size — but a pure percentage does: 1.5% of the fleet's $1.6M
+# account is $24,594 of invisible error headroom. Percentage floor for
+# small books, hard dollar ceiling for whales.
 _TOL_DOLLARS = 150.0
 _TOL_PCT = 0.015
+_TOL_CAP_DOLLARS = 1000.0
 _PAGE_AFTER_CONSECUTIVE = 2
 _MAX_ANCHOR_AGE_HOURS = 36
 
@@ -163,7 +168,9 @@ def check_account(user_id: str, broker_account_id: str, j2_account_id: str,
 
     composed = cash_live + book_now
     anchor = cash_s + book_s
-    tol = max(_TOL_DOLLARS, _TOL_PCT * max(abs(_f(acct["broker_total_equity"]) or anchor), 1.0))
+    tol = max(_TOL_DOLLARS, min(
+        _TOL_PCT * max(abs(_f(acct["broker_total_equity"]) or anchor), 1.0),
+        _TOL_CAP_DOLLARS))
 
     # Fully-reflected expectation: each fill moved cash AND the book
     # (buy: −cost/+cost; sell: +proceeds/−basis) → composed ≈ anchor.

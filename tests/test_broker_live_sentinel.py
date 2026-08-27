@@ -354,3 +354,15 @@ def test_the_page_dedup_survives_a_redeploy(env, monkeypatch):
         assert len(pages) == 1          # still one — no repeat page same day
     finally:
         conn.close()
+
+
+def test_tolerance_is_dollar_capped_for_whale_accounts(env):
+    """1.5% of a $1.6M book is $24,594 of invisible error headroom — the
+    conservation residual is mark-invariant, so its noise doesn't scale
+    with book size. A $5k structural miss on a whale account must flag."""
+    _seed_account(cash=1147236.11, mv=494252.50, equity=1639570.60)
+    _seed_position("AAPL", 1000, 494.2525)     # 494,252.50 served
+    _seed_position("GHOST", 100, 50.0)         # +5,000 phantom, no ledger fill
+    out = _check()
+    assert out["tolerance"] == 1000.0
+    assert out["verdict"] == "structural"
