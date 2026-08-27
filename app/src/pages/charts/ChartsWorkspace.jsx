@@ -1982,19 +1982,28 @@ export default function ChartsWorkspace() {
     // auto-measurement.
     const GridComp = widthOverride > 0 ? Responsive : ResponsiveGridLayout
     const widthProps = widthOverride > 0 ? { width: widthOverride } : {}
-    // In MERGED mode the board is locked EXCEPT the seam drags. A widget that shares
-    // NO edge with any other (standalone) has no seam, so it's safe to drag/resize it
-    // freely like unmerged — that can't clash with the seam feature (which only ever
-    // touches shared-edge widgets). Compute the set of seam-member ids; a standalone
-    // widget is any merged widget not in it.
-    const seamMembers = merged ? (() => {
-      const { vertical, horizontal } = computeSeams(widgets, GRID_COLS, FIXED_ROWS)
-      const s = new Set()
-      for (const v of vertical) { v.leftIds.forEach(id => s.add(id)); v.rightIds.forEach(id => s.add(id)) }
-      for (const hh of horizontal) { hh.topIds.forEach(id => s.add(id)); hh.bottomIds.forEach(id => s.add(id)) }
-      return s
-    })() : null
-    const isStandalone = (id) => merged && !!seamMembers && !seamMembers.has(id)
+    // In MERGED mode the board is locked EXCEPT the seam drags. But a widget EDGE that
+    // touches no other widget (a free edge — empty space or the grid boundary) is safe
+    // to resize: it has no seam, so it can't clash with the seam feature (which only
+    // ever moves a SHARED edge). So resize is allowed PER-EDGE — the free edges get
+    // handles, the shared (seam) edge keeps the seam drag. `freeEdgesFor` marks which
+    // of a widget's four edges are free; a handle renders only if EVERY edge it moves
+    // is free. A fully-free widget (all four) is also draggable (isStandalone).
+    const seamData = merged ? computeSeams(widgets, GRID_COLS, FIXED_ROWS) : null
+    const freeEdgesFor = (w) => {
+      const free = { n: true, e: true, s: true, w: true }
+      if (!seamData) return free
+      for (const v of seamData.vertical) {
+        if (v.c === w.x + w.w && v.leftIds.includes(w.id)) free.e = false
+        if (v.c === w.x && v.rightIds.includes(w.id)) free.w = false
+      }
+      for (const hh of seamData.horizontal) {
+        if (hh.r === w.y + w.h && hh.topIds.includes(w.id)) free.s = false
+        if (hh.r === w.y && hh.bottomIds.includes(w.id)) free.n = false
+      }
+      return free
+    }
+    const isStandalone = (w) => merged && (() => { const f = freeEdgesFor(w); return f.n && f.e && f.s && f.w })()
     return (
     <GridComp
       className={`layout${resizingId ? ' charts-resizing' : ''}`}
@@ -2005,9 +2014,9 @@ export default function ChartsWorkspace() {
           return {
             i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
             minW: defaults.minW || 4, minH: defaults.minH || 3,
-            // Per-item override: a standalone widget stays draggable in merged mode
+            // Per-item override: a fully-free widget stays draggable in merged mode
             // (via its own grip below); everything else inherits the grid default.
-            ...(isStandalone(w.id) ? { isDraggable: true } : {}),
+            ...(isStandalone(w) ? { isDraggable: true } : {}),
           }
         }),
       }}
@@ -2076,27 +2085,33 @@ export default function ChartsWorkspace() {
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
               onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
-            {/* Merged mode: a STANDALONE widget (no shared edge) gets a small drag grip
+            {/* Merged mode: a FULLY-FREE widget (no shared edge) gets a small drag grip
                 so it can be moved even though the header chrome is hidden. Carries the
                 RGL draggableHandle class; per-item isDraggable (above) re-enables drag. */}
-            {isStandalone(w.id) && (
+            {isStandalone(w) && (
               <div
                 className={`${styles.mergedGrip} charts-widget-drag-handle`}
                 title="Drag to move"
                 aria-label="Drag to move widget"
               >⠿</div>
             )}
-            {/* Custom resize handles — main board when unmerged, OR a standalone widget
-                in merged mode. Drive layout state directly so a neighbour shrinks live
-                as you drag an edge into it. 8 handles: 4 edges + 4 corners. */}
-            {(!merged || isStandalone(w.id)) && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
-              <div
-                key={dir}
-                onPointerDown={(e) => h.onStartResize(e, w, dir)}
-                className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
-                style={{ ...style, cursor }}
-              />
-            ))}
+            {/* Custom resize handles. Unmerged: all 8. Merged: only the handles whose
+                edges are FREE (not a seam) — so a widget can still be resized from an
+                edge/corner that touches empty space or the grid boundary, while a shared
+                edge keeps the seam drag. */}
+            {h.onStartResize && (() => {
+              const free = merged ? freeEdgesFor(w) : null
+              return CUSTOM_RESIZE_HANDLES
+                .filter(({ dir }) => !free || dir.split('').every(ch => free[ch]))
+                .map(({ dir, style, cursor, corner }) => (
+                  <div
+                    key={dir}
+                    onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                    className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
+                    style={{ ...style, cursor }}
+                  />
+                ))
+            })()}
             {/* Gold placeholder highlight while THIS widget is being resized. */}
             {resizingId === w.id && <div className={styles.rzPlaceholder} />}
           </div>
