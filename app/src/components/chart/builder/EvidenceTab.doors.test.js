@@ -17,6 +17,8 @@ import { describe, it, expect } from 'vitest'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
+import { dataPlotDefs, storedSourceFor } from './BuilderSheet'
+
 // ⚠️ `fileURLToPath(import.meta.url)` THROWS HERE — "The URL must be of scheme
 // file". Under this environment's vite transform `import.meta.url` is an http:
 // URL (measured in `engine/__tests__/singleWriterIndex.test.js`, and again in
@@ -99,6 +101,40 @@ function importersOfTarget() {
   }
   return { doors: doors.sort(), tests: tests.sort() }
 }
+
+// ⛔ THE TWO HELPERS THE DOOR AND THE RESTORE NOW SHARE. They were lifted out of
+// `openForEdit` in fix round 1 so "what text was in this box" has ONE authority;
+// a shared helper with no rail of its own is how that authority quietly changes
+// under both callers. Measured: without the `hlines` filter the RESTORE refuses
+// every document that carries levels ("stored without its source text"), because
+// a guide row has no source to find.
+describe('the shared document helpers', () => {
+  it('dataPlotDefs drops guides — an hlines row has levels, not editable text', () => {
+    const def = { plots: [
+      { key: 'value', style: 'line' },
+      { key: 'guide', style: 'hlines', levels: [30, 70] },
+      { key: 'p2', style: 'line' },
+    ] }
+    expect(dataPlotDefs(def).map((p) => p.key)).toEqual(['value', 'p2'])
+  })
+
+  it('CONTROL: it is not vacuous, and a shapeless document is empty rather than throwing', () => {
+    expect(dataPlotDefs({ plots: [{ key: 'only', style: 'line' }] }).map((p) => p.key)).toEqual(['only'])
+    expect(dataPlotDefs(null)).toEqual([])
+    expect(dataPlotDefs({ plots: [{ style: 'line' }, null] })).toEqual([])
+  })
+
+  it('storedSourceFor prefers the per-plot map and falls back ONLY for a single-tree doc', () => {
+    const multi = { source: 'SCAN TEXT', sources: { value: 'plot one', p2: 'plot two' } }
+    expect(storedSourceFor(multi, 'value', 0)).toBe('plot one')
+    expect(storedSourceFor(multi, 'p2', 1)).toBe('plot two')
+    // ⛔ the alias is NOT a fallback once a sources map exists — that is the bug
+    expect(storedSourceFor(multi, 'unknown', 0)).toBeNull()
+    const single = { source: 'the one plot' }
+    expect(storedSourceFor(single, 'value', 0)).toBe('the one plot')
+    expect(storedSourceFor(single, 'value', 1)).toBeNull()
+  })
+})
 
 describe('EvidenceTab has exactly two doors and both open the same module', () => {
   for (const [name, file] of Object.entries(DOORS)) {

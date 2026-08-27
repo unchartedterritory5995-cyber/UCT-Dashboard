@@ -248,6 +248,20 @@ describe('BuilderSheet — Evidence for a definition whose box has moved on', ()
     expect(screen.getByTestId('evidence-draft-differs').textContent).toMatch(/saved version/i)
   })
 
+  it('⛔ ADDING A PLOT is a changed document too, even with every box untouched', async () => {
+    // The `keys.length !== live.length` arm. A member who adds a row has changed
+    // the document the receipt is about without editing a single character, so
+    // the note owes them the same sentence.
+    H.rows = [storedRow()]
+    mount(); await flush()
+    await clickEdit()
+    await act(async () => { fireEvent.click(screen.getByTestId('add-plot')) })
+    await flush()
+    await act(async () => { fireEvent.click(tab(/evidence/i)) })
+    await flush()
+    expect(screen.getByTestId('evidence-draft-differs').textContent).toMatch(/saved version/i)
+  })
+
   it('⛔ THE MIRROR HALF: editing plot 2 speaks too — it is not a plot-1-only note', async () => {
     H.rows = [storedTwoPlotRow()]
     mount(); await flush()
