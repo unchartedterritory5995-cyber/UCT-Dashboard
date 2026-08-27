@@ -10,9 +10,8 @@
   padding: 4px 0 8px;
 }
 
-[data-tone='gain'] { color: #2faf68; }
-[data-tone='loss'] { color: #df4646; }
-[data-tone='gold'] { color: var(--accent, #dcbb5e); }
+/* Tone colors live at the END of this file: they must outrank the base color
+   on .delta/.tileValue/.heroValue, which sit at the same specificity. */
 
 /* ── Masthead ── */
 .masthead {
@@ -316,6 +315,13 @@
   color: var(--text);
   padding: 24px 0;
 }
+
+/* Tone — kept last, and compounded with .wrap so these outrank the base
+   colors above at 0-1-1 vs 0-1-0. Bare [data-tone] selectors lost that fight
+   silently: every value rendered white on day one. */
+.wrap [data-tone='gain'] { color: #2faf68; }
+.wrap [data-tone='loss'] { color: #df4646; }
+.wrap [data-tone='gold'] { color: var(--accent, #dcbb5e); }
 
 @media (prefers-reduced-motion: reduce) {
   .pulse, .tipLive { animation: none; }

@@ -165,9 +165,21 @@ export default function DailyOverview({ rows, live, cols, phaseClassFn, onDrill 
     : isLive ? (prev?.date ?? null)
     : today.date
   const storedPath = useSessionPath(fetchDate)
+  // Second chance after the close: a degraded feed records nothing all day, so
+  // today's store can be honestly empty. The previous finished session, labeled
+  // as what it is, still beats a 30-day line.
+  const prevFallbackDate =
+    !isLive && fetchDate === today?.date && storedPath.loaded && !storedPath.ok
+      ? prev?.date ?? null
+      : null
+  const prevPath = useSessionPath(prevFallbackDate)
   const session = livePathReady
     ? { path: live.path, open: live.openValues ?? {}, date: today?.date, live: true }
-    : { path: storedPath.path, open: storedPath.open, date: fetchDate, live: false }
+    : storedPath.ok
+      ? { path: storedPath.path, open: storedPath.open, date: fetchDate, live: false }
+      : prevPath.ok
+        ? { path: prevPath.path, open: prevPath.open, date: prevFallbackDate, live: false }
+        : { path: {}, open: {}, date: null, live: false }
 
   // The row that describes the session on the canvas — for a pre-open carried
   // morning that is YESTERDAY's stored row, not today's carried one.
@@ -342,7 +354,9 @@ export default function DailyOverview({ rows, live, cols, phaseClassFn, onDrill 
             const bear = BEAR_KEYS.has(k)
             const deltaTone = d == null || d === 0 ? null : (d > 0) !== bear ? 'gain' : 'loss'
             const target = onDrill ? drillTarget(today, col, live) : null
-            const pts = session.path?.[k]
+            // A mini path only belongs under TODAY's number — yesterday's
+            // shape beside today's value would caption the wrong session.
+            const pts = session.date === today.date ? session.path?.[k] : null
             const drillProps = target ? {
               role: 'button', tabIndex: 0,
               title: 'Click to see stocks',

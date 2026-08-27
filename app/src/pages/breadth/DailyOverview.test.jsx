@@ -123,6 +123,30 @@ describe('DailyOverview — final register', () => {
     expect(screen.getByText('The session — final')).toBeInTheDocument()
   })
 
+  it('an empty today falls back to the PREVIOUS finished session, labeled as such', async () => {
+    // A degraded feed records nothing all day — today's store is honestly
+    // empty. The hero shows yesterday's finished shape, says so, and the
+    // tiles drop their mini paths rather than caption the wrong session.
+    const fetchMock = vi.fn(url => Promise.resolve({
+      json: () => Promise.resolve(
+        url.endsWith('/2026-08-26')
+          ? { ok: false, date: '2026-08-26', path: {}, open: {} }
+          : {
+              ok: true, date: '2026-08-25',
+              path: { pct_above_50sma: p([59.0, 60.5, 60.1]) },
+              open: { pct_above_50sma: 59.0 },
+            },
+      ),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { container } = fresh(
+      <DailyOverview rows={[storedToday, prevRow]} live={finalFeed} cols={COLS} />,
+    )
+    expect(await screen.findByText('Previous session · 2026-08-25')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/breadth-monitor/session-path/2026-08-25')
+    expect(container.querySelectorAll('polyline').length).toBe(0)
+  })
+
   it('with no stored path it falls back to the last 30 sessions of Health', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
       json: () => Promise.resolve({ ok: false, date: '2026-08-26', path: {}, open: {} }),
