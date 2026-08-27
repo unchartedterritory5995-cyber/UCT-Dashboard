@@ -19,7 +19,7 @@ scans on a member's own script, and evidence.
 
 | # | Acceptance | Yardstick (pinned in a test, both directions) |
 |---|---|---|
-| A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash ✅ **HOLDS, measured 2026-08-27 — 8 surfaces on one hash. But the hash join is NOT a compute check; see the amendment below.** |
+| A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash ✅ **HOLDS, measured 2026-08-27 — **7** distinct surfaces on one hash. But the hash join is NOT a compute check; see the amendment below.** |
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` ⛔ **Measured 2026-08-27 at 12/21; the 17 needs W2b + W7 + W8. See the amendment below.** |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token — ⛔ **NOT a W3b criterion. Measured 2026-08-27 at 10/30; 10 of the 20 refusals are gated on W6/W7/W2b.** See the 2026-08-27 amendment below. | `pine.community.test.js` snapshot, pinned both directions |
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
@@ -364,7 +364,7 @@ with the corpus effect measured after the fact — not projected before it.**
 
 ### A1 amended 2026-08-27 — it HOLDS, and it needed one more clause
 
-**Measured, not believed.** `BuilderSheet.endzone.test.jsx` joins **8 surfaces** on
+**Measured, not believed.** ⚰️ **The count was 8 and is 7** — corrected 2026-08-27 by the W1b.10 review, which found that two of the eight names were the **same read**: both resolve `getDefinition(DEF_ID)`, and the registry returns the identical object, so they **cannot disagree**. Nothing was lost (a perturbation still reddens that pair's own assertion) and the join is **7 wide, not 8**. ⭐ A count of surfaces is a claim about DISTINCT readers; two names over one read inflates it by one, which is the same defect this document keeps amending elsewhere — a number restated rather than derived. `BuilderSheet.endzone.test.jsx` joins ****7** distinct surfaces** on
 `sha256:9f433d40…4e4680`, including Python's `scan_definition.assert_scannable`
 (`yields: 'bool'`) measured directly, and transitively pinned in both lanes through the
 published `multi_tree_parity.json` and its pinned `treesHash`. A1 was the last criterion
@@ -399,7 +399,7 @@ the browser's POST must carry that exact `compute.fn`.
 
 ### A9 amended 2026-08-27 — X81 applied: identity preserved is not meaning preserved
 
-A1 was amended today because an 8-surface `def_hash` join stayed **green** while every
+A1 was amended today because an 7-surface `def_hash` join stayed **green** while every
 plot computed the *same* tree — a "MACD with histogram" drawing three identical lines.
 **A9 is stated the same way**, so it inherits the same hole. Swept and confirmed:
 
