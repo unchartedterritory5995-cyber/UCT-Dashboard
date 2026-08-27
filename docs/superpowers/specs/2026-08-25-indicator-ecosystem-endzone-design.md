@@ -23,7 +23,7 @@ scans on a member's own script, and evidence.
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token | `pine.community.test.js` snapshot, pinned both directions |
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
-| A5 | TC2000: **66/71** Worden spellings read; MS/TSV/non-Wilder RSI refuse by name with the reason | `pcf.vocabulary.test.js` EXPECTED table |
+| A5 | TC2000: **63/71 shipped against a MEASURED ceiling of 65/71** — 66 was not reachable; the five named refusals were right but **incomplete**. Partition asserted TOTAL and DISJOINT. See the 2026-08-27 amendment below. | `pcf.vocabulary.test.js` EXPECTED table, every claimed spelling asserted to **compute** end-to-end, not merely parse |
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
 | A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 |
 | A8 | Every 0/1 definition has an **Evidence** tab: forward record (E-6) beside a retro study with baseline, fill-at-open, coverage, horizons 1/5/10/20 — never a naked hit rate | `screener/backtest.py` receipt rendered; a rail refuses a `strategy` stat without its `baseline` |
@@ -220,3 +220,30 @@ never unblock.**
 re-measured.** It was written from the same aspiration; treat it as unverified until
 someone derives it the way A4 now is.
 
+### A5 amended 2026-08-27 — 66/71 was not reachable; the measured ceiling is 65
+
+**The 71 spellings are read out of `pcf.vocabulary.test.js` itself**, and the partition is
+asserted **total and disjoint**, so a spelling leaving one class and joining none goes red:
+
+| class | n | |
+|---|---|---|
+| **reading** (computes end to end) | **63** | shipped |
+| **permanent refusals** | **6** | A5 named five |
+| **reachable elsewhere** | **2** | `FAVGC20` / `HAVGC20` — need two new MA entries, outside W2a.7 |
+
+⇒ **measured ceiling 65/71; 63 shipped.**
+
+⛔ **The sixth refusal A5 did not account for is `OBV20`** — the SMA of a cumulative running
+total. That is the exact ground `_functions_excluded.obv` has refused since this table
+opened, and ⭐ **TC2000's own page calls the level "statistically irrelevant."** It is a
+refusal we are **right** to make, on grounds the vendor states themselves — not a gap.
+
+⚠️ **"Read" means computes, not parses.** Every claimed spelling is asserted to compute end
+to end. A4 moved 4 → 8 and the lane then **refused three of those gains** because they
+translated their chrome and left their subject as a refused column; the same standard is
+now pinned here.
+
+**This is the second acceptance number written before it was measured** (see the A4
+amendment above: 15/24 against a real ceiling of 8). ⇒ **treat every remaining unmeasured
+acceptance figure as provisional until a task derives it** — A7's "19/24 after `tf`/`sym`"
+is already flagged, and A2/A3's Pine numbers have not been re-derived either.
