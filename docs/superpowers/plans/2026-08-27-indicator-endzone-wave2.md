@@ -85,48 +85,80 @@ W7  ─────────────────────────�
 - Test: `tests/test_ast_conformance.py` (extend the parity corpus)
 
 **Interfaces:**
-- Consumes: `api/services/screener/candles.py::_timeframe_candle(bars, "weekly"|"monthly")` — the existing, owned D→W/M resampler. **Do not write a second one.**
+- Consumes: `api/services/bars_fetch.py::_resample_weekly_iso(daily_bars)` and
+  `_resample_monthly_iso(daily_bars)` — the OWNERS of what a higher-timeframe bar
+  is. **Do not write a second one.**
+  - ⚠️ **CORRECTED 2026-08-27, before any code was written.** This block first
+    named `screener/candles.py::_timeframe_candle`. That function is a
+    *classifier of the newest bar* (it answers "is the current week a hammer,
+    and is it still forming"), not a general resampler — and its own docstring
+    says so: *"it resamples through `bars_fetch._resample_weekly_iso` rather than
+    rolling its own … a private copy here would be a second authority on what a
+    weekly bar IS."* Consuming the classifier would have been the third copy.
+- ⛔⛔ **`tf` INHERITS THE `t`-UNIT PROBLEM, AND THE PLAN SAYS SO BEFORE THE
+  IMPLEMENTER MEETS IT.** Both resamplers parse `bar["t"]` with
+  `datetime.strptime(bar["t"], "%Y-%m-%d")` — they want an **ISO date string**.
+  The engine's bars do not carry that: `bars_sqlite` stores daily/weekly/monthly
+  `t` as **`YYYYMMDD` ints** and intraday `t` as **unix seconds** (measured in the
+  W2a.9 audit, 2026-08-27: `{"t": 20260827, "o": 310.545, …}`). This is the same
+  mismatch that makes `compute_clock` refuse the eight time-derived columns on
+  daily bars.
+  ⇒ `tf` MUST normalise `t` at the boundary, and the normalisation is a
+  **declared, tested step**, not an inline `str()`. A silent mis-parse here dates
+  every higher-timeframe bar to 1970 and the column still draws — the exact shape
+  of defect this engine exists to refuse.
+  ⇒ The rail: a `tf` tree over `YYYYMMDD` bars and the same tree over unix-second
+  bars must produce the SAME weekly grouping. Assert the grouping, not just
+  "it returned numbers".
 - Produces: two canonical node shapes, frozen here because every later wave hashes them —
   - `{"type": "tf", "value": "<W|M|D|60|30|15|5>", "args": [<one child>]}`
   - `{"type": "sym", "name": "<TICKER>", "args": [<one child>]}`
   - Both mirror `offset`'s shape rule: the **parameter is a field on the node, not a child expression**, so a timeframe or a symbol can never be computed at runtime and `max_lookback` stays a tree sum.
 
-### Task 1: Declare the two node types in both lanes, and refuse them everywhere else first
+### ⛔ RULING 2026-08-27 — one node type per task, declared AND implemented together
 
-- [ ] **Step 1: Write the failing test** — `app/src/components/chart/engine/ast/tfSym.test.js`
+**The plan's original Task 1 ("declare both types, implement neither") cannot land
+green, and the rail that says so is right.**
 
-```js
-import { describe, it, expect } from 'vitest'
-import { NODE_TYPES } from './parse.js'
-
-describe('tf/sym node types', () => {
-  it('⛔ the roster is SEVEN and the two new shapes are declared', () => {
-    // Derived, not re-typed: the manifest and both lanes read this array.
-    expect([...NODE_TYPES].sort())
-      .toEqual(['call', 'num', 'offset', 'op', 'series', 'sym', 'tf'])
-  })
-})
-```
-
-- [ ] **Step 2: Run it, confirm it fails** — `cd app && npx vitest run src/components/chart/engine/ast/tfSym.test.js`. Expected: `['call','num','offset','op','series']` ≠ expected.
-
-- [ ] **Step 3: Add both to `parse.js:148` and `ast_interpret.py:110`**, in the same commit. Nothing evaluates them yet.
-
-- [ ] **Step 4: Add the canonical key sets** to `api/services/user_definitions.py::_CANONICAL_KEYS` — `tf` carries exactly `[args, type, value]`, `sym` exactly `[args, name, type]`. ⛔ `assert_canonical`'s error sentence enumerates `NODE_TYPES`; it must not be re-typed (Global Constraint 10).
-
-- [ ] **Step 5: Prove the refusal comes FIRST.** Both interpreters must refuse an unimplemented `tf`/`sym` node **by name** rather than crash. Add to `tests/test_ast_tf_sym.py`:
+`tests/test_ast_interpret.py::test_the_node_types_are_DERIVED_from_the_committed_corpus`
+asserts **equality**, not containment:
 
 ```python
-def test_an_unimplemented_tf_node_REFUSES_BY_NAME_and_does_not_crash():
-    tree = {"type": "tf", "value": "W", "args": [{"type": "series", "name": "close"}]}
-    with pytest.raises(ast_interpret.TableRefusal) as exc:
-        ast_interpret.interpret(tree, _bars())
-    assert "tf" in str(exc.value)
+assert seen == set(ast_interpret.NODE_TYPES)   # `seen` = union of every `type` in the corpus
 ```
 
-- [ ] **Step 6: Commit** — `git commit -F - -- app/src/components/chart/engine/ast/parse.js api/services/ast_interpret.py api/services/user_definitions.py app/src/components/chart/engine/ast/tfSym.test.js tests/test_ast_tf_sym.py`
+So a type declared in `NODE_TYPES` with no corpus tree using it turns that rail
+red — by design. Its docstring says why: *"a fifth type arriving on the wire
+cannot be absorbed here quietly."* The rail is enforcing exactly the property
+this program cares about: **a declared name with no evidence behind it is not
+allowed to exist.**
 
-### Task 2: `tf(expr, '<TF>')` — evaluation on the last CLOSED higher-timeframe bar
+**Ruling:** declare and implement ONE node type per task, each landing with its
+own conformance-corpus cases, so `NODE_TYPES` and the corpus move together and
+every commit is green. `tf` lands in Task 2, `sym` in Task 4.
+**What it costs if wrong:** the two tasks are larger and cannot be parallelised
+across two workers. That is cheaper than a red rail sitting across the wave, and
+far cheaper than relaxing the equality to a subset check — which would delete the
+guarantee that every declared node type is exercised.
+
+⚠️ **Two hand-typed counts must move in the same change** (Global Constraint 10),
+and neither is derived today:
+- `api/services/user_definitions.py::assert_canonical` — docstring says *"one of
+  the **four** shapes"*. `NODE_TYPES = tuple(_CANONICAL_KEYS)` IS derived, so the
+  prose is the only stale part.
+- `tests/test_ast_interpret.py:426` — *"`NODE_TYPES` is **four** names in this
+  module"* and *"the corpus covers all **four**"*, plus *"a **fifth** type"*.
+
+Both are corrected to say what the code derives rather than a number.
+
+### Task 2: `tf(expr, '<TF>')` — declare the node AND evaluate it on the last CLOSED HTF bar
+
+Per the ruling above this task now also does what Task 1 was going to: adds `tf`
+to `parse.js::NODE_TYPES`, to `ast_interpret.py::NODE_TYPES`, and to
+`user_definitions.py::_CANONICAL_KEYS` (`tf` carries exactly `[args, type,
+value]` — the parameter is a FIELD, never a child, so a timeframe can never be
+computed at runtime and `max_lookback` stays a tree sum), corrects the two
+hand-typed “four” counts, and lands conformance-corpus cases in the same commit.
 
 **The semantics, frozen:** each base bar reads the **last closed** HTF bar (TradingView `lookahead=off` + `[1]`). That is what makes the node `non-repainting`. A separate `tf_live` reading the forming HTF bar is **out of scope for this task** and is declared `preview-repaints` when it lands.
 
