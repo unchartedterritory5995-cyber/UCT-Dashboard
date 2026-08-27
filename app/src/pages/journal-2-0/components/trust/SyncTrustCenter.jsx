@@ -159,6 +159,32 @@ export default function SyncTrustCenter({ onSynced }) {
                 re-checking automatically; flagged for review.
               </p>
             ))}
+
+            {/* Live-composition sentinel: between syncs, the backend checks
+                twice an hour that the LIVE number on the hero obeys the
+                conservation law (trades can't create equity). Honest states:
+                consistent, fills-pending, or flagged. */}
+            {a.live?.checkedAt && (a.live.verdict === 'ok' ? (
+              <p className={styles.mirrorOk}>
+                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="wave" size={13} /></span>
+                Live balance check passed
+                {a.live.fills > 0
+                  ? ` — ${a.live.fills} intraday fill${a.live.fills === 1 ? '' : 's'} reflected`
+                  : ''}
+              </p>
+            ) : a.live.verdict === 'book_lag' ? (
+              <p className={styles.mirrorOk}>
+                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="clock" size={13} /></span>
+                {a.live.fills === 1
+                  ? '1 intraday fill in your cash — position lands at next sync'
+                  : `${a.live.fills || 'New'} intraday fills in your cash — positions land at next sync`}
+              </p>
+            ) : a.live.verdict === 'structural' ? (
+              <p className={styles.mirrorDrift} role="alert">
+                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="warning" size={13} gold={false} /></span>
+                Live balance check flagged a mismatch — under automatic review.
+              </p>
+            ) : null)}
           </div>
         )
       })}

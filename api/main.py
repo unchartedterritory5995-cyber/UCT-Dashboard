@@ -4628,6 +4628,27 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(minute="11,41", timezone=_ET),
                 id="broker_live_sentinel", max_instances=1, replace_existing=True,
             )
+            # Weekly fleet digest of the live checks — Sunday 09:45 ET (near
+            # the books-audit Sunday cadence). ALWAYS posts green-or-red: a
+            # silent-green digest is indistinguishable from a dead one.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_weekly_summary_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=45,
+                                    timezone=_ET),
+                id="broker_live_sentinel_weekly", max_instances=1,
+                replace_existing=True,
+            )
+            # Weekly DRILL — Sunday 09:40 ET, before the digest: injects the
+            # incident shape into a robot account and proves the sentinel
+            # actually detects it (a guard nobody has seen fire is not a
+            # guard). Posts pass/fail either way; robot rows never persist.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_drill_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=40,
+                                    timezone=_ET),
+                id="broker_live_sentinel_drill", max_instances=1,
+                replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")

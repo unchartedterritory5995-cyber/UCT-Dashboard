@@ -208,3 +208,35 @@ def test_snapshot_failure_falls_back_to_daily_aggs(env, monkeypatch):
     marks = om.get_option_marks("u1")
     assert marks[sid]["currentValue"] == 2100.00
     assert marks[sid]["source"] == "aggs"
+
+
+def test_a_multi_leg_strategy_is_omitted_never_last_leg_priced(tmp_path, monkeypatch):
+    """The per-leg loop keyed out[id] — a multi-leg strategy's value silently
+    became its LAST leg's (a debit spread priced as its long leg with no
+    short offset). Multi-leg rows are now skipped wholesale; the frontend
+    falls back to the correctly-netted brokerCurrentValue."""
+    from api.services import auth_db as _adb
+    from api.services.journal_two.db import ensure_schema
+    from api.services.journal_two.broker import option_marks as om
+    monkeypatch.setattr(_adb, "_DB_PATH", str(tmp_path / "auth.db"))
+    conn = _adb.get_connection()
+    ensure_schema(conn)
+    conn.execute(
+        "INSERT INTO j2_option_strategies (id, user_id, account_id, underlying,"
+        " strategy_type, direction, net_entry, entry_date, status, source,"
+        " external_id, created_at, updated_at)"
+        " VALUES ('ml1', 'u1', 'a1', 'AAPL', 'vertical_debit_call', 'bullish',"
+        " 300.0, '2026-08-01', 'open', 'broker', 'bkopt:ml', '2026-08-01',"
+        " '2026-08-01')")
+    for i, (side, strike) in enumerate((("buy", 100.0), ("sell", 105.0))):
+        conn.execute(
+            "INSERT INTO j2_option_legs (id, strategy_id, leg_index, side,"
+            " contract_type, strike, expiration, qty, entry_price)"
+            " VALUES (?, 'ml1', ?, ?, 'call', ?, '2026-12-18', 1, 1.5)",
+            (f"leg{i}", i, side, strike))
+    conn.commit()
+    conn.close()
+    om._reset_cache_for_tests()
+    monkeypatch.setattr(om, "_snapshot_for", lambda u, occ: {"day": {"close": 2.0}})
+    out = om.get_option_marks("u1")
+    assert out == {}          # omitted entirely — never a one-leg total

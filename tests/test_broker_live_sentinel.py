@@ -218,3 +218,49 @@ def test_a_members_manual_row_in_a_broker_account_never_reads_as_drift(env):
     out = _check()
     assert out["verdict"] == "ok"
     assert abs(out["residual"]) <= out["tolerance"]
+
+
+# ── the weekly drill: prove the guard fires ──────────────────────────────────
+
+def test_drill_detects_the_injected_incident_and_cleans_up(env):
+    out = live_sentinel.run_drill()
+    assert out["passed"] is True
+    assert out["verdicts"] == ["structural", "structural"]
+    assert out["consecutive"] >= 2
+    assert out["residual"] == pytest.approx(10990.0, abs=1.0)
+    conn = auth_db.get_connection()
+    try:
+        for table in ("j2_positions", "j2_accounts", "j2_broker_live_checks"):
+            n = conn.execute(
+                f"SELECT COUNT(*) AS n FROM {table} WHERE user_id = ?",
+                (live_sentinel._DRILL_USER,)).fetchone()["n"]
+            assert n == 0, f"drill residue left in {table}"
+    finally:
+        conn.close()
+
+
+def test_drill_failure_posts_the_alarm_not_the_success(env, monkeypatch):
+    posts = []
+    monkeypatch.setattr(live_sentinel, "_post_discord",
+                        lambda t, d: posts.append(t))
+    # Sabotage detection: a sentinel that calls everything ok must make the
+    # drill SCREAM, not stay silent (gate-that-cannot-fail).
+    monkeypatch.setattr(live_sentinel, "check_account",
+                        lambda *a, **k: {"verdict": "ok", "residual": 0.0})
+    live_sentinel.run_drill_blocking()
+    assert len(posts) == 1
+    assert "FAILED" in posts[0]
+
+
+def test_fleet_snapshot_counts_verdicts(env):
+    _seed_account(cash=-1000.0, mv=500.0, equity=1000.0)
+    _seed_position("AAPL", 5, 100.0)
+    conn = auth_db.get_connection()
+    try:
+        out = live_sentinel.check_account(USER, BACCT, J2, conn)
+        live_sentinel._persist(conn, USER, BACCT, out)
+        snap = live_sentinel.fleet_snapshot(conn)
+    finally:
+        conn.close()
+    assert snap["accounts"] == 1
+    assert snap["byVerdict"] == {"ok": 1}

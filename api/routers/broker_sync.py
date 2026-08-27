@@ -240,6 +240,15 @@ class DupResolveBody(BaseModel):
     action: str  # 'merge' | 'dismiss'
 
 
+@router.get("/admin/live-checks")
+async def admin_live_checks(user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Fleet view of the live-composition sentinel (j2_broker_live_checks):
+    per-account verdict + residual, verdict counts, worst residual. Rows
+    ordered newest check first. The Sunday digest posts the same snapshot."""
+    from api.services.journal_two.broker import live_sentinel
+    return live_sentinel.fleet_snapshot()
+
+
 @router.get("/admin/user-debug")
 async def admin_user_debug(user_id: str, user: dict = Depends(require_admin)) -> dict[str, Any]:
     """Per-member broker triage bundle: our DB state (identity, accounts,

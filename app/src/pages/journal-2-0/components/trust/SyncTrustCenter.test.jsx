@@ -232,3 +232,57 @@ describe('mirror verdict chip', () => {
     expect(screen.queryByText(/Verified against your broker/i)).toBeNull()
   })
 })
+
+// ── Live-composition sentinel chip ──────────────────────────────────────────
+
+describe('live verdict chip', () => {
+  const base = () => ({
+    syncLog: [], orphans: [], reattachOrphan: reattach,
+    dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+  })
+
+  it('shows the live check passing with the reflected fill count', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        live: { verdict: 'ok', checkedAt: RECENT, residualDollar: 0.02, fills: 2 },
+      }] },
+      ...base(),
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByText(/Live balance check passed — 2 intraday fills reflected/i)).toBeTruthy()
+  })
+
+  it('explains a fills-pending (book_lag) state honestly', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        live: { verdict: 'book_lag', checkedAt: RECENT, residualDollar: -10990, fills: 1 },
+      }] },
+      ...base(),
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByText(/1 intraday fill in your cash — position lands at next sync/i)).toBeTruthy()
+  })
+
+  it('flags a structural mismatch as an alert', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        live: { verdict: 'structural', checkedAt: RECENT, residualDollar: 10848.2, fills: 0 },
+      }] },
+      ...base(),
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByRole('alert').textContent).toMatch(/Live balance check flagged/i)
+  })
+
+  it('renders nothing before the first live check', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{ ...okAccount(), live: null }] },
+      ...base(),
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.queryByText(/Live balance check/i)).toBeNull()
+  })
+})

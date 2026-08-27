@@ -176,6 +176,34 @@ def effective_cash(
     return out
 
 
+def coverage(user_id: str, broker_account_id: str, conn=None) -> str:
+    """'full' | 'date_only' | 'unknown' — whether this broker's trade
+    activities carry real timestamps. Date-only brokers (Schwab family stamps
+    every activity at midnight) are under-covered by the derivation BY
+    DESIGN: a midnight occurred_at sorts before a pre-market balance write,
+    so same-day fills never adjust — behavior degrades to the stored cash,
+    never worse. Surfaced so the trust center and tuning decisions can see
+    which accounts the live-cash rail actually protects."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT occurred_at FROM j2_broker_activities "
+            "WHERE user_id = ? AND broker_account_id = ? "
+            "  AND UPPER(activity_type) IN (?, ?) "
+            "ORDER BY occurred_at DESC LIMIT 25",
+            (user_id, broker_account_id, *_TRADE_TYPES),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    if not rows:
+        return "unknown"
+    midnight = sum(1 for r in rows
+                   if "T00:00:00" in str(r["occurred_at"] or ""))
+    return "date_only" if midnight / len(rows) >= 0.8 else "full"
+
+
 def annotate_accounts(
     user_id: str,
     accounts: list[dict],

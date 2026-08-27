@@ -276,9 +276,186 @@ def run_sentinel_sweep() -> dict[str, Any]:
     return {"checked": checked, "structural": structural}
 
 
+def latest_verdicts(user_id: str, conn=None) -> dict[str, dict[str, Any]]:
+    """{broker_account_id: {verdict, residualDollar, checkedAt, fills}} —
+    the Trust Center's live-composition line (the between-sync counterpart
+    of mirror_check.latest_verdicts)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT broker_account_id, checked_at, verdict, residual_dollar, "
+            "       components_json FROM j2_broker_live_checks "
+            "WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        fills = None
+        try:
+            comp = json.loads(r["components_json"] or "null")
+            if isinstance(comp, dict):
+                fills = comp.get("fills")
+        except (TypeError, ValueError):
+            pass
+        out[r["broker_account_id"]] = {
+            "verdict": r["verdict"],
+            "residualDollar": r["residual_dollar"],
+            "checkedAt": r["checked_at"],
+            "fills": fills,
+        }
+    return out
+
+
 def run_sentinel_blocking() -> None:
     """APScheduler entry. Never raises into the scheduler."""
     try:
         run_sentinel_sweep()
     except Exception as e:  # noqa: BLE001
         logger.warning("live sentinel sweep failed: %s", e)
+
+
+_DRILL_USER = "sentinel-drill-robot"
+_DRILL_BA = "sentinel-drill-ba"
+_DRILL_J2 = "sentinel-drill-j2"
+
+
+def run_drill(conn=None) -> dict[str, Any]:
+    """Prove the guard fires — on prod infra, against synthetic rows.
+
+    A guard nobody has seen fire is not a guard (this codebase's own
+    lesson). The drill seeds a namespaced robot account whose served book
+    carries a position with NO ledger fill behind it (the exact 2026-08-26
+    shape), runs the real check twice, and verifies the verdict escalates to
+    structural with the consecutive counter armed — the precondition of the
+    page. Cleanup always runs; the robot rows never outlive the drill."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        now = _now_iso()
+        conn.execute(
+            "INSERT OR REPLACE INTO j2_accounts (id, user_id, name, color,"
+            " starting_balance, account_size, balance_source, broker_cash,"
+            " broker_market_value, broker_total_equity,"
+            " broker_balance_synced_at, created_at, updated_at)"
+            " VALUES (?, ?, 'Sentinel drill', '#444444', 1.0, 10000.0,"
+            " 'broker', -1000.0, 11000.0, 10000.0, ?, ?, ?)",
+            (_DRILL_J2, _DRILL_USER, now, now, now),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO j2_positions (id, user_id, symbol, side,"
+            " entry_date, shares, original_shares, entry_price, stop_price,"
+            " breakeven_stop, raise_to_breakeven, setup, notes,"
+            " context_at_entry, created_at, updated_at, closed_at, account_id,"
+            " source, external_id, entry_estimated, broker_price)"
+            " VALUES ('sentinel-drill-pos', ?, 'DRILL', 'Long', ?, 100.0,"
+            " 100.0, 110.0, 110.0, NULL, 0, NULL, NULL, '{}', ?, ?, NULL, ?,"
+            " 'broker', ?, 0, 219.9)",
+            (_DRILL_USER, now, now, now, _DRILL_J2,
+             f"bkpos:{_DRILL_BA}:DRILL:Long"),
+        )
+        conn.commit()
+        # Anchor book = 11,000; served book = 100 × 219.9 = 21,990 with no
+        # explaining fill → residual ≈ +10,990 (the incident's own number).
+        first = check_account(_DRILL_USER, _DRILL_BA, _DRILL_J2, conn)
+        fails = _persist(conn, _DRILL_USER, _DRILL_BA, first)
+        second = check_account(_DRILL_USER, _DRILL_BA, _DRILL_J2, conn)
+        fails = _persist(conn, _DRILL_USER, _DRILL_BA, second)
+        passed = (first["verdict"] == "structural"
+                  and second["verdict"] == "structural"
+                  and fails >= _PAGE_AFTER_CONSECUTIVE)
+        return {"passed": passed, "verdicts": [first["verdict"], second["verdict"]],
+                "residual": second.get("residual"), "consecutive": fails}
+    finally:
+        try:
+            conn.execute("DELETE FROM j2_positions WHERE user_id = ?", (_DRILL_USER,))
+            conn.execute("DELETE FROM j2_accounts WHERE user_id = ?", (_DRILL_USER,))
+            conn.execute("DELETE FROM j2_broker_live_checks WHERE user_id = ?",
+                         (_DRILL_USER,))
+            conn.commit()
+        except Exception:  # noqa: BLE001
+            logger.warning("sentinel drill cleanup failed", exc_info=True)
+        if owned:
+            conn.close()
+
+
+def run_drill_blocking() -> None:
+    """APScheduler entry (Sunday, before the weekly digest). Posts the drill
+    outcome either way — a drill that only reports success is the
+    gate-that-cannot-fail. Never raises into the scheduler."""
+    if not _enabled():
+        return
+    try:
+        out = run_drill()
+        if out["passed"]:
+            _post_discord(
+                "🧪 Sentinel drill PASSED",
+                f"Injected ${out.get('residual'):,} of phantom book value into the "
+                "robot account — detected structural on both checks, page "
+                "precondition armed. The guard fires.",
+            )
+        else:
+            _post_discord(
+                "🔴 Sentinel drill FAILED — the guard did NOT fire",
+                f"verdicts={out.get('verdicts')} consecutive={out.get('consecutive')} "
+                "residual=${residual}. The live-composition sentinel would MISS a "
+                "real incident — investigate before trusting green.".replace(
+                    "${residual}", str(out.get("residual"))),
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("sentinel drill failed to run: %s", e)
+        try:
+            _post_discord("🔴 Sentinel drill CRASHED",
+                          f"The drill itself errored: {e} — the guard is unproven this week.")
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def fleet_snapshot(conn=None) -> dict[str, Any]:
+    """Current fleet state of the live checks — the admin view and the
+    weekly digest read the same snapshot (one authority)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT user_id, broker_account_id, checked_at, verdict, "
+            "       residual_dollar, consecutive_fails "
+            "FROM j2_broker_live_checks ORDER BY checked_at DESC",
+        )]
+    finally:
+        if owned:
+            conn.close()
+    by_verdict: dict[str, int] = {}
+    worst = 0.0
+    for r in rows:
+        by_verdict[r["verdict"]] = by_verdict.get(r["verdict"], 0) + 1
+        res = r["residual_dollar"]
+        if res is not None and abs(res) > abs(worst):
+            worst = res
+    return {"accounts": len(rows), "byVerdict": by_verdict,
+            "worstResidualDollar": round(worst, 2), "rows": rows}
+
+
+def run_weekly_summary_blocking() -> None:
+    """Sunday digest — ALWAYS posts, green or red (a silent-green digest is
+    indistinguishable from a dead one). Never raises into the scheduler."""
+    try:
+        snap = fleet_snapshot()
+        bv = snap["byVerdict"]
+        structural = bv.get("structural", 0)
+        tone = "🔴" if structural else "🟢"
+        _post_discord(
+            f"{tone} Broker live-composition sentinel — weekly fleet summary",
+            f"{snap['accounts']} account(s) under check · verdicts {bv or '{}'} · "
+            f"worst residual ${snap['worstResidualDollar']:,}.\n"
+            + ("Structural rows carry their component snapshots in "
+               "j2_broker_live_checks — investigate before tuning tolerance."
+               if structural else
+               "No structural drift on the fleet. Residuals inform tolerance "
+               "tuning (currently max($150, 1.5%))."),
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("live sentinel weekly summary failed: %s", e)

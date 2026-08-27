@@ -243,3 +243,21 @@ def test_annotate_accounts_unmapped_broker_account_left_untouched(env):
                  "brokerCash": -5.0, "brokerBalanceSyncedAt": SYNCED}]
     out = live_cash.annotate_accounts(USER, accounts)
     assert "brokerCashLive" not in out[0]
+
+
+# ── coverage detection ───────────────────────────────────────────────────────
+
+def test_coverage_full_for_real_timestamps(env):
+    _store([_equity(f"t{i}", "BUY", "SNAP", 10, 5.0,
+                    f"2026-08-26T14:{i:02d}:24.358000Z") for i in range(5)])
+    assert live_cash.coverage(USER, BACCT) == "full"
+
+
+def test_coverage_date_only_for_midnight_stamped_brokers(env):
+    _store([_equity(f"t{i}", "BUY", "SNAP", 10, 5.0,
+                    f"2026-08-{20 + i}T00:00:00Z") for i in range(5)])
+    assert live_cash.coverage(USER, BACCT) == "date_only"
+
+
+def test_coverage_unknown_with_no_trades(env):
+    assert live_cash.coverage(USER, BACCT) == "unknown"
