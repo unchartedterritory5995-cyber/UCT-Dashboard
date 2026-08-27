@@ -661,7 +661,14 @@ describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', ()
     const clockFlags = [...VOCAB.flags.keys()].filter((n) => TABLE.clock[n])
     expect(clockFlags.length, 'the manifest declares no clock boolean — this half asserts nothing')
       .toBeGreaterThan(0)
-    expect(clockFlags.every((n) => !VOCAB.series.has(n) && !VOCAB.scalars.has(n))).toBe(true)
+    // ⚠️ AND IT REPORTS THE NAMES. `.every(…).toBe(true)` printed
+    // "expected false to be true" and nothing else, on the one assertion in this
+    // test whose whole job is to say WHICH name broke the asymmetry — the two
+    // siblings above both carry a message. Filtering instead of folding puts the
+    // offenders in the differ (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+    expect(clockFlags.filter((n) => VOCAB.series.has(n) || VOCAB.scalars.has(n)),
+      'a clock flag is ALSO offered as a term — the flag-only asymmetry above has closed')
+      .toEqual([])
   })
 
   it('⭐ EVERY DECLARED NAME, DERIVED: `yields` decides, and the answer is total', () => {
