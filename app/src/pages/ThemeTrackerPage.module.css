@@ -61,7 +61,7 @@
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright, like the picker tabs */
+  color: var(--text-bright, #e4e6ea);   /* cool near-white, matching the picker tabs (not the warm --tt-text-strong cream) */
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
@@ -161,7 +161,7 @@
 
 /* ── Active column highlight ────────────────────────────────────────────── */
 .colLabelActive {
-  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright white "1D" (was gold) */
+  color: var(--text-bright, #e4e6ea);   /* cool near-white "1D" (matches the picker tabs) */
 }
 
 .retActive {
@@ -198,7 +198,7 @@
   font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.8px;
-  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright "THEME" header */
+  color: var(--text-bright, #e4e6ea);   /* cool near-white "THEME" header (matches the picker tabs) */
   text-transform: uppercase;
   text-align: right;
 }

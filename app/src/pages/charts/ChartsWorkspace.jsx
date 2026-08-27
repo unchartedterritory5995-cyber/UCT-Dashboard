@@ -2107,7 +2107,7 @@ export default function ChartsWorkspace() {
                   <div
                     key={dir}
                     onPointerDown={(e) => h.onStartResize(e, w, dir)}
-                    className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
+                    className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}${merged ? ' ' + styles.rzNoMark : ''}` : styles.rzHandle}
                     style={{ ...style, cursor }}
                   />
                 ))
