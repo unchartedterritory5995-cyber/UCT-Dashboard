@@ -2568,3 +2568,25 @@ def test_the_help_pick_explains_the_controls_without_touching_the_chart(monkeypa
     for must in ("/chart NVDA AMD AVGO", "compare:SPY", "UCTA5", "/chartsettings", "Earlier"):
         assert must in body, must
     assert len(body) <= 2000                                 # a Discord message
+
+
+def test_a_ticker_outside_our_universe_is_still_offered_by_the_autocomplete(monkeypatch):
+    """Measured 2026-08-26: AEHL, TCEHY, FNMA, BTC-USD, ^IXIC and BRK.B all
+    render fine and NONE are in cap_universe — the chart path never consults it.
+    But the autocomplete answered "no options match", which reads as "this bot
+    does not know that ticker", so members never pressed Enter on charts that
+    would have worked."""
+    from api.routers import discord_interactions as rt, ticker_search as ts
+    monkeypatch.setattr(ts, "ticker_search", lambda **k: {"results": []})       # nothing in the universe
+    out = rt.fetch_ticker_choices("aehl")
+    assert [c["value"] for c in out] == ["AEHL"], out
+    assert "chart it" in out[0]["name"]
+    # ⛔ only when NOTHING matched: a member typing "NV" on the way to NVDA must
+    # not be offered "NV" as a ticker. The complaint is the EMPTY list.
+    monkeypatch.setattr(ts, "ticker_search", lambda **k: {"results": [{"ticker": "NVDA", "name": "NVIDIA"}]})
+    assert [c["value"] for c in rt.fetch_ticker_choices("NV")] == ["NVDA"]
+    assert [c["value"] for c in rt.fetch_ticker_choices("NVDA")] == ["NVDA"]
+    # junk is never offered as a ticker
+    monkeypatch.setattr(ts, "ticker_search", lambda **k: {"results": []})
+    assert rt.fetch_ticker_choices("not a ticker!") == []
+    assert len(rt.fetch_ticker_choices("A" * 40)) == 0

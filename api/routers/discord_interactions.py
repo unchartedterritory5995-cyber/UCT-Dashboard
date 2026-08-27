@@ -100,6 +100,21 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
                 continue
             name = row.get("name")
             out.append({"name": (f"{t} - {name}" if name else t)[:100], "value": t})
+        # ⭐ THE UNIVERSE IS A SUGGESTION LIST, NOT A GATE. `cap_universe.json`
+        # holds the ~3,685 names over $300M, and the chart path never consults
+        # it - measured 2026-08-26, AEHL, TCEHY, FNMA, BTC-USD, ^IXIC and BRK.B
+        # all render perfectly and NONE of them are in it. But the autocomplete
+        # answered "no options match", which reads to a member as "this bot does
+        # not know that ticker", so they never press Enter on a chart that would
+        # have worked. Offer what they typed back to them; the dashboard's own
+        # SymbolSearch has carried the same "Go to {TICKER}" fallback for months.
+        #
+        # ⛔ ONLY when nothing matched. A member typing "NV" on their way to NVDA
+        # must not be offered "NV - chart it" as though it were a ticker; the
+        # complaint being fixed is the EMPTY list, not a short one.
+        typed = (q or "").strip().upper().lstrip("$")
+        if not out and typed and di._TICKER_RE.match(typed):
+            out.append({"name": f"{typed} - chart it"[:100], "value": typed})
         return out[:25]
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] ticker autocomplete failed %r: %s", q, e)
