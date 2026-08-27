@@ -1,6 +1,18 @@
-// 🔴 THE WIRE. Every case drives the preview THROUGH THE SHEET: remove the
-// `<PreviewPane …/>` mount in BuilderSheet, or the `sym`/`tf` props ChartToolbar
-// threads, and these fail while PreviewPane stays perfectly correct.
+// 🔴 THE WIRE — AND ONLY THE SECOND BLOCK IS THE WHOLE OF IT.
+//
+// Every case here drives the preview THROUGH THE SHEET: remove the
+// `<PreviewPane …/>` mount in `BuilderSheet` and they fail while `PreviewPane`
+// stays perfectly correct. But `mount()` below hands `BuilderSheet` its OWN
+// `sym`/`tf`, so the first `describe` never renders `ChartToolbar` at all and is
+// blind to the hand-back that supplies them in production. MEASURED 2026-08-27:
+// cutting `sym={currentSym}`/`tf={tf}` from `ChartToolbar.jsx` reddens EXACTLY
+// ONE of these six cases — `🔴 THE PROP WIRE`, in the second block — and leaves
+// all four of the first block GREEN. (Perturbed and restored byte-identical; the
+// file belongs to another lane.)
+//
+// ⛔ THIS HEADER USED TO SAY "Every case", and the correction sat 95 lines below
+// it. A reader trusts the header, so a correction the header contradicts is
+// worse than no correction — the false sentence is the one that gets believed.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -75,7 +87,15 @@ describe('the live preview is reachable from the sheet', () => {
     expect(registry.getDefinition(PREVIEW_DEF_ID)).toBeNull()
   })
 
-  it('a member input the draft uses is declared on the preview definition', async () => {
+  // ⛔ THE TITLE NAMES WHAT THE FIXTURE CAN DISTINGUISH. It used to say the draft
+  // "USES" the input while asserting only that the input is DECLARED — and
+  // `previewDefinition` spreads `[...BUILDER_INPUTS, ...memberInputs]`
+  // unconditionally, so a declared-but-unused `period` satisfies that assertion
+  // just as well. The source assertion below is what carries the other half: the
+  // formula the registry holds NAMES `period`, and it could only install at all
+  // because `validateAstLane` resolved that name from the document's own
+  // declared inputs rather than reading it as an unknown series.
+  it('a member input the draft NAMES rides onto the preview definition — declared there, and named by the source the registry holds', async () => {
     mount()
     await flush()
     await act(async () => { fireEvent.click(screen.getByTestId('add-input')) })
@@ -84,11 +104,15 @@ describe('the live preview is reachable from the sheet', () => {
     // engine's, not this test's: the closed table refuses a non-literal window
     // ("a window must be a whole-number literal"), so a member input can be a
     // scalar OPERAND but never a lookback. The claim under test is unchanged —
-    // a member input the draft USES is declared on the preview document.
+    // a member input the draft NAMES is declared on the preview document.
     await typeFormula('sma(close, 20) + period')
     const def = registry.getDefinition(PREVIEW_DEF_ID)
     expect(def).toBeTruthy()
     expect(def.inputs.map((i) => i.key)).toContain('period')
+    // ⭐ THE HALF THE DECLARATION CANNOT PROVE: the draft the registry is holding
+    // is the one that names the knob. Drop `period` from the formula and this
+    // moves while the `inputs` assertion above stays green.
+    expect(def.compute.source).toBe('sma(close, 20) + period')
   })
 })
 
