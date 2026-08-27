@@ -698,6 +698,35 @@ _VALID_OPS = {
 #: both read, rather than a second list of strings in the query module.
 COL_OPS = {"gt_col": ">", "gte_col": ">=", "lt_col": "<", "lte_col": "<="}
 
+#: `op` -> the operand keys `query.build_where` actually reads off a filter.
+#:
+#: ⭐ THIS IS HERE FOR THE SAME REASON `COL_OPS` IS: so the answer has ONE
+#: definition. `tests/test_screener_saved.py` kept its own hand-typed copy, and
+#: that copy covered SIX of the twelve legal ops — `contains`, `in` and the four
+#: field-to-field ones were simply absent. The test's own docstring says it is
+#: "derived from `starters()` ITSELF — a seventh starter added tomorrow is
+#: covered the day it lands", and the operand map was the one hand-typed part
+#: that made that false: the day a starter first used `contains`, the test raised
+#: `KeyError: 'contains'` instead of checking anything.
+#:
+#: ⛔ EVERY op in `_VALID_OPS` MUST APPEAR HERE. `test_every_valid_op_declares_
+#: its_operands` asserts exactly that, so a new op cannot ship without saying
+#: what it reads — which is the failure this table exists to end, not repeat.
+OP_OPERANDS = {
+    "gte": ("min",),
+    "gt": ("min",),
+    "lte": ("max",),
+    "lt": ("max",),
+    "between": ("min", "max"),
+    "eq": ("value",),
+    "contains": ("value",),      # `col LIKE %value%`
+    "in": ("values",),           # a list; an empty one contributes no clause
+    "gt_col": ("other",),        # the right-hand side is a FILTER KEY, not a column
+    "gte_col": ("other",),
+    "lt_col": ("other",),
+    "lte_col": ("other",),
+}
+
 VIEWS = {
     "overview": {"label": "Overview", "columns": [
         "ticker", "company", "sector", "market_cap", "price", "chg_pct_1d",
